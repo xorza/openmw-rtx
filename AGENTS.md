@@ -44,18 +44,16 @@ them.
 The fork's changes to upstream that stay, each for the reason given. A change to upstream code
 that is not here is held to the rules above.
 
-**The rasterizer's picture.** Five changes the ray tracer needs move it, each where upstream's was
+**The rasterizer's picture.** Four changes the ray tracer needs move it, each where upstream's was
 wrong:
 
 - the optimizer merges in child order, not address order;
 - an exterior map tile keeps its land where the quad tree did not build the chunk yet;
 - a `NightDaySwitch` shows its mode's child from its first frame, not the child its file opens on;
-- the particles a NIF saves wear what their age affectors give them from their first frame, not
-  the controller's initial colour and size;
 - a groundcover plant stands under its model's own transforms, as every other reference does, and
   not inside them (`GroundcoverShapes`).
 
-A sixth is the seam's: both renderers draw their frame at `[Video] resolution x/y` and show it
+A fifth is the seam's: both renderers draw their frame at `[Video] resolution x/y` and show it
 scaled into the window with black beside it (`Misc::Presentation`), so the GUI, the projection, the
 pointer and Lua read one size whichever renderer draws. A settings file from upstream, which kept
 the window's size there, has it moved to the window on the first start, and the launcher and
