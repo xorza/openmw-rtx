@@ -5,7 +5,7 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The frame path allocates, copies, or rebuilds behind a threshold
 
-- [ ] **Blocked: Q6 in `review-upstream-diff_QUESTIONS.md`.** `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
+- [ ] `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
   (`rtxvulkan/scene/scenebuffers.cpp:341`), and a lamp whose box changes cells — a carried torch, every
   few frames — re-`fill`s the whole `RunList`; a lamp that appears, goes or moves past the extent
   `build`s it again. At 400 lamps over 3×3 exterior cells (a 51×51×8 grid, 58,364 entries, `-O2`, this
@@ -14,21 +14,33 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   incremental grid.** Target shape: each cell keeps fixed-capacity slots (or a delta list), a lamp
   that moves writes only the cells it left and entered, and a cell that overflows has a rule of its
   own; `lightRunInCell` (`lib/lights.glsl`) and the upload in `scenebuffers.cpp` read the new layout.
-  (medium)
-- [ ] **Blocked: Q7 in `review-upstream-diff_QUESTIONS.md`.** `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
+  **Decided 2026-10-08: the upload incremental as well.** The list is written to the device whole
+  every frame (`scenebuffers.cpp:350-359`, 233 KB today), and fixed slots make it cells × 2 keys ×
+  capacity long: 20,808 cells at 8–32 lamps a cell is 1.3–5.3 MB, a copy of which costs more than the
+  grid saves. So: fixed slots a cell key, in ascending lamp order (the list a fresh fill makes); a moved
+  lamp leaves and enters only the cells its box changed; each frame slot's copy writes only the cell
+  keys changed since it was written, as `SlotTable` tracks its rows; overflow builds the grid with a
+  larger capacity. `GpuLightGrid` gains the capacity, and `lightRunInCell` reads a count and a stride.
+  A lamp that comes or goes still builds the grid whole: `SceneDesc::orderLights` sorts the lamps by
+  position every frame, so an index is no identity, and a moving lamp keeps its index. (high)
+- [ ] `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
   outgrow a copy, `SlotTable::sync` doubles it, makes a new host-written buffer, and rewrites every row,
   on the frame a cell pushes the table past its size. Five tables grow so: the mesh, instance and
   material tables (`scenebuffers.hpp:155-175`), the top-level row table (`scene/sceneacceleration.hpp:208`)
   and the texel table. Without resizable BAR, the old and new copies are both in the ~246 MiB
   host-written heap until the graveyard collects the old one. Cells arrive in bursts, so growing early
   or copying over several frames does not help: one cell can need more rows than the slack. **Decided
-  2026-10-08: the top-level row table alone.** Target shape: its rows in fixed blocks that never move,
-  which the build reaches by `arrayOfPointers`, as `BlockedBuffer` keeps its rows; the four tables the
-  shaders read stay flat, since a block there is an indirection on every read of the trace. (medium)
+  2026-10-08: the top-level row table alone, made at a budget's capacity at load.** Blocks reached by
+  `arrayOfPointers` were declined: the pointer array grows the same O(rows) on the same frame, the
+  structure grows with it (`SceneAcceleration::prepareTopLevel`, `sizeTopLevel`), and every build reads
+  one more indirection a row. Target shape: the row table and the top-level structure made once at a
+  budget (for example 2^18 instances, 16 MiB of rows a copy in the host-written heap) and grown only
+  past it, which no scene the suites hold reaches. The four tables the shaders read stay as they are.
+  (medium)
 
 ## One truth has more than one source
 
-- [ ] **Blocked: Q8 in `review-upstream-diff_QUESTIONS.md`.** `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
+- [ ] `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
   1616-byte `Shaders::VisibilityConstants` as "the camera". Four parties write its fields: the camera
   builder (`frame/camera.cpp:47-86`), `describeWorld` (`environment/frameworld.cpp:108-214`, called by
   the game's `SkyReader::describe`, which also splits the rest into `FrameOptions`), `sampleFrame`, and
@@ -41,7 +53,15 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   eyes as `Shaders::Camera`, the ray mask and the lamp flag, the `WorldReading`, the `FrameOptions` —
   and `traceGuiTexture` the same eyes; the backend calls `describeWorld` and `sampleFrame` and owns the
   block and the fog drift `SkyReader` keeps now; `leavesSamplingAlone` goes; and the harness reads the
-  block from the frame result, not from what it handed in. (high)
+  block from the frame result, not from what it handed in. **Decided 2026-10-08: split `environment/`
+  first.** `renderer/` stands before `environment/` (`RtxSourceTreeTest`), and `environment/` cannot
+  move up, since `nightsky.cpp` reads `mirror/statereading.hpp`. So what describes a frame's world —
+  `WorldReading`, `SkyContent`'s indices, `describeWorld`, `FogDrift` — moves to a folder before
+  `renderer/`, and what reads the sky out of the content (`nightsky`, `skybuilder`, the moon faces)
+  stays after `mirror/`. The drift is the harness's to hold (`SkyReader::holdAir`, from a stop's
+  `AirClock`), so `Renderer` gains `holdAir` and the frame hands the air back. The tests drive
+  `VulkanRenderer` and write the block directly (about 600 fields in 25 files): the backend keeps a
+  block-taking `renderFrame` overload of its own, off the seam. (high)
 
 ## Shader structure
 
