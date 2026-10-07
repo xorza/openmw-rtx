@@ -392,11 +392,11 @@ Each check lands with its contract, and each is one the gate runs.
 |---|---|
 | D2 | `RtxSourceTreeTest.everyHistoryIsWeighedByTheOneGather` (done): no kernel calls `historyShare`, the gather's weight, outside `surfacematch.glsl`; a kernel still reads its payload by `historyTap`. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean (done, the pane filter's). |
 | D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model (done); the split sky is every source's sum, and a source under a floor draws no bit (done); a lamp that takes light away takes it off the exact sum where one lamp is drawn (done). |
-| D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall; a pane of opacity one half is met by half the secondary rays, in the mean. |
-| D6 | A host test: the composite's remodulation inverts the trace's demodulation for every channel. |
+| D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall (done, `theFloorAtAWallsFootIsShadowedByTheWallNoMatterHowNear`); a pane of opacity one half is met by half the secondary rays, in the mean (done, `aBounceMeetsASeeThroughPaneAsOftenAsThePaneIsThere`). |
+| D6 | A GPU test: one frame through the filters is the frame the trace composed itself, on a grey floor and a metal one (done, `theCompositePutsBackWhatTheTraceDividedOut`). |
 | D7 | Host tests: the froxel's blend of `σ·L` and `σ` equals the mean of `σ·L`; `waterColumn`'s closed form equals a numerical integral at several directions. |
-| D8 | The host/device tests that exist, plus: an odd extent's halving reads every texel of the level above, and preserves its sum. |
-| D9 | A host test: adaptation closes a gap at the same rate in stops either way, after the asymmetry the constants state. |
+| D8 | The host/device tests that exist, plus: an odd extent's halving reads every texel of the level above, and preserves its sum (done, `anOddExtentIsHalvedByTheBoxOfItsOwnWidth`). |
+| D9 | A GPU test: adaptation closes a gap at the same rate in stops either way, after the asymmetry the constants state (done, `theMeterLeavesOutTheBrightestTenthAndAdaptsInStops`). |
 | D10 | `CommandPool`'s open recordings, asserted at each submit (done). Synchronization validation clean on one `shot` run. |
 
 ## 5. Implementation plan
