@@ -15,7 +15,7 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   that moves writes only the cells it left and entered, and a cell that overflows has a rule of its
   own; `lightRunInCell` (`lib/lights.glsl`) and the upload in `scenebuffers.cpp` read the new layout.
   (medium)
-- [ ] `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
+- [ ] **Blocked: Q7 in `review-upstream-diff_QUESTIONS.md`.** `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
   outgrow a copy, `SlotTable::sync` doubles it, makes a new host-written buffer, and rewrites every row,
   on the frame a cell pushes the table past its size. Five tables grow so: the mesh, instance and
   material tables (`scenebuffers.hpp:155-175`), the top-level row table (`scene/sceneacceleration.hpp:208`)
