@@ -479,25 +479,27 @@ namespace Rtx
             EXPECT_LE(modules, Shaders::CENSUS_KERNELS);
         }
 
-        /// One library's folders in the order they may include each other: a folder includes only
-        /// the folders before it, and a folder inside one of them is a part of it, which the two may
-        /// both reach into. `""` is a file straight under the library's root.
+        /// One library's or program's folders in the order they may include each other: a folder
+        /// includes only the folders before it, and a folder inside one of them is a part of it,
+        /// which the two may both reach into. `""` is a file straight under the root, which the
+        /// tree spells from the source root.
         struct FolderOrder
         {
-            std::string_view mLibrary;
+            std::string_view mRoot;
             std::vector<std::string_view> mOrder;
         };
 
-        const std::array<FolderOrder, 2> sFolderOrders{
-            FolderOrder{ "rtx",
+        const std::array<FolderOrder, 3> sFolderOrders{
+            FolderOrder{ "components/rtx",
                 { "shaders", "common", "image", "preprocess", "scene", "frame", "renderer", "mirror", "environment",
                     "view" } },
-            FolderOrder{ "rtxvulkan",
+            FolderOrder{ "components/rtxvulkan",
                 { "shaders", "spirv", "device", "pipeline", "texture", "scene", "trace", "upscale", "display",
                     "present", "gui", "" } },
+            FolderOrder{ "apps/rtxtool", { "instruments", "model", "" } },
         };
 
-        /// The folder of the library a path under its root stands in: the first of its names, or
+        /// The folder under an order's root that a path stands in: the first of its names, or
         /// `""` for a file straight under the root.
         std::string topFolderOf(const std::filesystem::path& relative)
         {
@@ -512,15 +514,15 @@ namespace Rtx
         TEST(RtxSourceTreeTest, everyFolderIncludesOnlyTheFoldersBeforeIt)
         {
             std::vector<std::string> found;
-            for (const FolderOrder& library : sFolderOrders)
+            for (const FolderOrder& order : sFolderOrders)
             {
-                const std::filesystem::path root = sRoot / "components" / library.mLibrary;
-                const std::string rooted = "components/" + std::string(library.mLibrary) + '/';
+                const std::filesystem::path root = sRoot / order.mRoot;
+                const std::string rooted = std::string(order.mRoot) + '/';
                 const auto rankOf = [&](const std::string_view folder) -> std::optional<std::size_t> {
-                    const auto at = std::find(library.mOrder.begin(), library.mOrder.end(), folder);
-                    if (at == library.mOrder.end())
+                    const auto at = std::find(order.mOrder.begin(), order.mOrder.end(), folder);
+                    if (at == order.mOrder.end())
                         return std::nullopt;
-                    return static_cast<std::size_t>(at - library.mOrder.begin());
+                    return static_cast<std::size_t>(at - order.mOrder.begin());
                 };
 
                 for (const std::filesystem::directory_entry& entry :

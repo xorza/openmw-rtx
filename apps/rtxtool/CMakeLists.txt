@@ -31,6 +31,7 @@ set(RTXTOOL_FILES
     instruments/scenedigest.hpp
     instruments/threadcounters.cpp
     instruments/threadcounters.hpp
+    instruments/wholenumber.hpp
     model/benchrecord.cpp
     model/benchrecord.hpp
     model/benchrun.cpp
@@ -52,7 +53,6 @@ set(RTXTOOL_FILES
     model/runrecord.hpp
     model/skycrossing.cpp
     model/skycrossing.hpp
-    model/wholenumber.hpp
     numbervalue.hpp
     options.cpp
     options.hpp

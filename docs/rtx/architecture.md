@@ -417,7 +417,8 @@ was found, so the crash report shows it.
 where a stop stands, moves the camera a frame at a time, holds the clock and the weather, and
 measures each frame. What a verb does with a place is one row of `VerbPolicy` (`verbs.hpp`). The
 instruments (`apps/rtxtool/instruments/`) measure frames and know nothing of a world. The model
-(`apps/rtxtool/model/`) is what a run visits and what it recorded.
+(`apps/rtxtool/model/`) is what a run visits and what it recorded, and includes the instruments,
+never the reverse.
 
 | binary             | holds                                                          |
 |--------------------|----------------------------------------------------------------|

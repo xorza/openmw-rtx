@@ -33,10 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Facts of one layer are in another layer
 
-- [ ] `apps/rtxtool/instruments/framehashes.cpp:15` — includes `apps/rtxtool/model/wholenumber.hpp`, and
-  `model/benchrecord.hpp:14-17` and `model/runrecord.hpp:10` include `instruments/`. This is an include
-  cycle between two layers that `architecture.md` §13 separates. Target shape: move `wholeNumber` below
-  both. (low)
 - [ ] `components/rtxvulkan/trace/sunglarepass.hpp:17` — only `DisplayChain` includes and owns it, and its
   job belongs to the display. Target shape: `display/sunglarepass.*`. (low)
 - [ ] `components/rtxvulkan/display/digestpass.hpp:21` — not a `DisplayChain` pass. Only `FrameRing` uses

@@ -24,12 +24,12 @@
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <apps/rtxtool/instruments/drivercache.hpp>
+#include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
-#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>

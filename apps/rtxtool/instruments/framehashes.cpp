@@ -12,7 +12,6 @@
 #include <string_view>
 #include <utility>
 
-#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
@@ -20,6 +19,7 @@
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "digest.hpp"
+#include "wholenumber.hpp"
 
 namespace RtxTool
 {
