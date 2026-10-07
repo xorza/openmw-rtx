@@ -565,6 +565,7 @@ add_component_dir(navmeshtool
 
 add_component_dir(platform
     platform
+    appendfile
     file
     process
     sharedmemory
@@ -575,6 +576,7 @@ add_component_dir(platform
 
 if (WIN32)
     add_component_dir(platform
+        appendfilewin32
         filewin32
         localtimewin32
         processwin32
@@ -585,6 +587,7 @@ if (WIN32)
         )
 elseif (UNIX)
     add_component_dir(platform
+        appendfileposix
         fileposix
         localtimeposix
         processposix

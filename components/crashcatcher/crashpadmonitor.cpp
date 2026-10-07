@@ -11,7 +11,6 @@
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -39,6 +38,7 @@
 #include <util/process/process_memory.h>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/appendfile.hpp>
 #include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
 
@@ -178,10 +178,10 @@ namespace Crash
                 return;
 
             const std::lock_guard lock(monitor.mLogMutex);
-            std::ofstream log(path, std::ios::app | std::ios::binary);
+            const Platform::AppendFile log = Platform::AppendFile::open(path, false);
             const std::string at = stamp();
             for (const std::string& line : lines)
-                log << at << line << '\n';
+                log.write(at + line + '\n');
         }
 
         /// The module an address lies in, and the offset in it: "openmw.exe+0x112a9a7".
