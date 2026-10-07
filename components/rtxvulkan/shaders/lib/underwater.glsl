@@ -214,7 +214,7 @@ vec3 beamAlong(SkySource source, vec3 from, vec3 direction, float path)
 /// carries a mask bit that keeps it out of occlusion — so a rock over the sea darkened the bed under
 /// it and left the water in front of the bed as bright as ever. The ray goes from where the light
 /// met the surface, which the march has already worked out to read the lens at, and it is the
-/// surface's own question — `skyVisible`, with the cloud deck in it.
+/// surface's own question — `skyVisible`.
 ///
 /// **Only where the beam is a real share of what the stretch sends**, which is `WATER_SHAFT_FLOOR`.
 /// Everywhere else the closed form is the whole answer and nothing is marched.

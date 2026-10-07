@@ -96,9 +96,10 @@ namespace Rtx
         bool operator==(const AlphaTest& other) const = default;
     };
 
-    /// What a surface's per-vertex colour is for: `NiVertexColorProperty`'s three vertex modes,
-    /// resolved against its light mode. `SceneUtil::VertexColorModes` carries six, but a NIF states
-    /// only these three.
+    /// What a surface's per-vertex colour is for: the mode the loader resolved
+    /// (`SceneUtil::VertexColorModes`) — a NIF's emission and ambient-and-diffuse, and the diffuse and
+    /// the ambient alone, which an OSG model's colour mode states. Specular is none of them: the
+    /// renderer has no specular colour for it to replace.
     enum class VertexColour
     {
         /// The colours are there and mean nothing, or there are none at all.

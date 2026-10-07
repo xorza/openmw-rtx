@@ -639,24 +639,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 ### 6.7 Design, duplication and dead code
 
 
-### 6.8 Narration and documents
-
-- **[code] Comments that contradict the code**: `fogscatter.rgen` (`lampVisible` "returns one for
-  an empty reservoir"; `skyVisible` "reads the cloud deck") and `underwater.glsl` (the same deck);
-  `scene.h` (`BLUE_NOISE_EXTENT`: the turn moves values, not positions, so the period stays);
-  `sea.glsl` (the caustics fade "as the inverse square root", where `WATER_CAUSTIC_FADE` is 1);
-  `specularpass.hpp` ("runs where the wavelet does"; it runs where the frame is denoised and
-  mapped); `surface.hpp`/`surface.cpp` ("three vertex modes"; four map); `texturedata.hpp` (points
-  at `describeImage`; the reason is `readFormat`); `scenedesc.hpp` ("appends and dedups, and nothing
-  else"); `sceneacceleration.hpp` ("Two totals" over one member); `wavepass.hpp` and
-  `vulkanrenderer.hpp` (`setSea` "waits the frames out"; it waits for nothing, and only the tests
-  call it); `vulkanrenderer.hpp` (`mPresenter`'s order cites `VUID-vkDestroyImage-image-01000`,
-  which is about submitted commands).
-- **[code] `architecture.md`**: "four corrections" (five, and the seam's is the sixth); the
-  folder table lists `shaders/` last (first, as `RtxSourceTreeTest` has it); the companion maps
-  omit the normal encoding; the harness verbs omit `noise`; §11 omits the one-shot parallel builds
-  at construction.
-
 ### 6.9 Conventions
 
 - **[code] `runs.hpp` used as the index header** (`slots.hpp`, `scenedesc.hpp`, `texturetable.hpp`,

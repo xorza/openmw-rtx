@@ -42,9 +42,9 @@ namespace Rtx
     };
 
     /// Everything the renderer needs to know about a world, with no Vulkan and no scene graph in
-    /// it, and what of the world it could not take. It appends and it dedups paths, and nothing
-    /// else: deciding that two drawables are the same mesh belongs to whoever is reading the scene
-    /// graph.
+    /// it, and what of the world it could not take. It keeps what it is handed, one slot for a
+    /// texture however many name its path, and frees what nothing holds: deciding that two drawables
+    /// are the same mesh belongs to whoever is reading the scene graph.
     class SceneDesc
     {
     public:

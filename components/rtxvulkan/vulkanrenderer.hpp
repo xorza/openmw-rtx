@@ -113,8 +113,9 @@ namespace Rtx
         /// pipelines already made.
         const TracePasses& getTracePasses() const { return mTracePasses; }
 
-        /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum and
-        /// waits the frames in flight out first.
+        /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum, which
+        /// a frame in flight does not feel: the one it replaces goes to the graveyard
+        /// (`WavePass::describe`). Only the tests tell it.
         void setSea(const SeaState& sea);
 
         /// The fog's field every trace reads, `bakeFogNoise`'s until told: for a test that states
@@ -243,9 +244,9 @@ namespace Rtx
         PictureTracer mPictures;
 
         /// Null where nothing asked for a window. After `mTarget`, so it is destroyed before it:
-        /// its command buffers, out of the device's pool, still hold recordings that blit out of
-        /// the image, and destroying an image while a recording names it is
-        /// `VUID-vkDestroyImage-image-01000`.
+        /// its command buffers blit out of the image, and its destructor waits for the device to
+        /// finish them, which `VUID-vkDestroyImage-image-01000` asks of every submitted command that
+        /// names an image before the image goes.
         std::unique_ptr<Presenter> mPresenter;
 
         /// FSR, made with the renderer: seven compute pipelines and nothing it keeps until a mode
