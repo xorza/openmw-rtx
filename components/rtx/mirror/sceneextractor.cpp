@@ -352,9 +352,10 @@ namespace Rtx
     void SceneExtractor::Traversal::enterWalked(osg::Node& node, const std::size_t identity, const NodeKind kind)
     {
         // What changes between frames on its own and keeps a reference root walked: the classes
-        // the rest of this marks as it meets them, and a controller or a switch on any node.
+        // the rest of this marks as it meets them, and a controller or a switch on any node. Not a
+        // level of detail, whose nearest level the ranges choose and not the eye.
         if (node.getUpdateCallback() != nullptr || node.asSwitch() != nullptr || kind == NodeKind::Sequence
-            || kind == NodeKind::Billboard || kind == NodeKind::Lod
+            || kind == NodeKind::Billboard
             || (node.getStateSet() != nullptr && node.getStateSet()->getUpdateCallback() != nullptr))
             mChangeable = true;
 

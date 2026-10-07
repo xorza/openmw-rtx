@@ -623,9 +623,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   monitor's lifetime.
 ### 6.5 Performance (each one measured before it stays)
 
-- **[perf] A level of detail keeps its reference root changeable** (`NodeKind::Lod` in the
-  changeable test, `sceneextractor.cpp`), though the mirror always takes the nearest level. Target:
-  take `Lod` out.
 - **[perf] The arms' ray runs to `mFar`** with `MASK_FIRST_PERSON` (`visibility.rgen`), a full
   traversal on a miss. Target: `tmax` at the farthest first-person bound. Decided (2026-10-07):
   first a bench place that stands the player with a weapon drawn (the harness's body readies it),
