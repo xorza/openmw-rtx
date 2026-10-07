@@ -24,7 +24,7 @@ after a door, where the fireflies were reported.
 **Every run keeps its pictures and its log**, under `--out` where it is given and a directory of its
 own where it is not, one directory a leg, because what an A/B finds is read in them."""
 
-import re
+import json
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -41,14 +41,8 @@ DEFAULT_DISTANCE = "150"
 # shorter suite.
 JUDGED = (0, 1)
 
-# The line between a run's two sides, as `RtxTool::commandNoise` prints it.
-_VERSUS = "versus --"
-
-# One place's line of the harness's report, as `RtxTool::judgeNoise` prints it.
-_PLACE = re.compile(
-    r"^  (?P<place>\S+)\s+noise: frame mean (?P<mean>[\d.]+) p99 (?P<p99>[\d.]+), (?P<frames>\d+) averaged mean "
-    r"[\d.]+ p99 [\d.]+ — (?:as clean|noisier); bias: frame (?P<bias>[\d.]+), \d+ averaged [\d.]+; "
-    r"fireflies (?P<fireflies>[\d.]+) in a thousand$")
+# What `noise` names the record it writes beside its pictures (`RtxTool::sNoiseRecord`).
+RECORD = "noise.json"
 
 
 @dataclass(frozen=True)
@@ -128,21 +122,12 @@ def _nought(distance: str) -> bool:
         return False
 
 
-def read_report(text: str) -> dict[str, Figures]:
-    """Every place's figures in a run's report, by the place's name."""
-    found: dict[str, Figures] = {}
-    for line in text.splitlines():
-        matched = _PLACE.match(line)
-        if matched:
-            found[matched["place"]] = Figures(float(matched["mean"]), float(matched["p99"]), float(matched["bias"]),
-                                              float(matched["fireflies"]))
-    return found
-
-
-def read_sides(text: str) -> tuple[dict[str, Figures], dict[str, Figures]]:
-    """A run's two sides: the places it judged before its `versus` line, and the places after it."""
-    first, _, second = text.partition(f"\n{_VERSUS}")
-    return read_report(first), read_report(second)
+def read_record(record: dict) -> tuple[dict[str, Figures], ...]:
+    """Every side's places in a run's record (`RtxTool::writeNoiseRecord`), each by its place's name,
+    the first side first."""
+    return tuple({place["place"]: Figures(float(place["mean"]), float(place["p99"]), float(place["bias"]),
+                                          float(place["fireflies"])) for place in side}
+                 for side in record.get("sides", []))
 
 
 def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second: dict[str, Figures]) -> str:
@@ -186,11 +171,12 @@ def ab(build: Build, args: list[str]) -> int:
         with open(log, "w", encoding="utf-8") as written:
             ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
                                   *leg.switches, *asked.rest, f"--out={folder}", stdout=written, stderr=written)
-        reports = read_sides(read_text(log))
-        if ended.returncode not in JUDGED or not all(reports):
+        record = folder / RECORD
+        sides = read_record(json.loads(read_text(record))) if record.is_file() else ()
+        if ended.returncode not in JUDGED or len(sides) != 2 or not all(sides):
             print(f"the run failed with status {ended.returncode}, see {log}", file=sys.stderr)
             return 1
-        tables.append(table(leg.label, asked.sides, *reports))
+        tables.append(table(leg.label, asked.sides, *sides))
 
     print("\n\n".join(tables))
     print(f"\nthe runs are in {out}")

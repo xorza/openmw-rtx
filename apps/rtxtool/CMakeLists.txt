@@ -25,6 +25,8 @@ set(RTXTOOL_FILES
     instruments/frametimes.hpp
     instruments/gpuclock.cpp
     instruments/gpuclock.hpp
+    instruments/jsontext.cpp
+    instruments/jsontext.hpp
     instruments/nvml.cpp
     instruments/nvml.hpp
     instruments/scenedigest.cpp

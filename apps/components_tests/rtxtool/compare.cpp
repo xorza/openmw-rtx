@@ -2,6 +2,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -433,16 +435,32 @@ namespace RtxTool
             std::filesystem::remove(root / ("missing" + std::string(sNoiseBarLimitSuffix) + ".png"));
             place("other-size", flat(10, 9, 100), limit);
 
+            std::vector<NoiseFigures> measured;
             const auto judge = [&](const std::vector<std::string>& names) {
                 std::vector<NoiseSide> places;
                 for (const std::string& name : names)
                     places.push_back(NoiseSide{ .mPlace = name, .mFrame = name, .mBar = name, .mReference = name });
-                return judgeNoise(root, places, 16);
+                measured.clear();
+                return judgeNoise(root, places, 16, measured);
             };
             EXPECT_EQ(judge({ "clean" }), 0);
+            // **What a place measured is handed back as its line printed it**: the frame and the bar
+            // each 2 off their limits everywhere, and every picture's mean 100, the reference's too,
+            // so neither stands off it and the frame's no pixel is four times it.
+            ASSERT_EQ(measured.size(), 1u);
+            EXPECT_EQ(measured[0].mPlace, "clean");
+            EXPECT_DOUBLE_EQ(measured[0].mNoise.mMean, 2.0);
+            EXPECT_DOUBLE_EQ(measured[0].mNoise.mP99, 2.0);
+            EXPECT_DOUBLE_EQ(measured[0].mBarNoise.mMean, 2.0);
+            EXPECT_DOUBLE_EQ(measured[0].mBias, 0.0);
+            EXPECT_DOUBLE_EQ(measured[0].mFireflies, 0.0);
+            EXPECT_TRUE(measured[0].clean());
             EXPECT_EQ(judge({ "noisier-mean" }), 1);
+            ASSERT_EQ(measured.size(), 1u);
+            EXPECT_FALSE(measured[0].clean());
             EXPECT_EQ(judge({ "noisier-tail" }), 1) << "a tail the mean hides";
             EXPECT_EQ(judge({ "missing" }), 1);
+            EXPECT_TRUE(measured.empty()) << "a place not measured was handed back";
             EXPECT_EQ(judge({ "other-size" }), 1);
             EXPECT_EQ(judge({ "clean", "noisier-tail" }), 1) << "one noisier place among clean ones";
             EXPECT_EQ(judge({}), 1) << "nothing measured";
@@ -455,7 +473,8 @@ namespace RtxTool
             const auto against = [&](const std::string& frame, const std::string& bar, const std::string& reference) {
                 const std::array places{ NoiseSide{
                     .mPlace = "side", .mFrame = frame, .mBar = bar, .mReference = reference } };
-                return judgeNoise(root, places, 16);
+                std::vector<NoiseFigures> sideMeasured;
+                return judgeNoise(root, places, 16, sideMeasured);
             };
             EXPECT_EQ(against("noisier-mean", "noisier-mean", "noisier-mean"), 1);
             EXPECT_EQ(against("noisier-mean", "loose", "loose"), 0);
@@ -463,6 +482,24 @@ namespace RtxTool
             EXPECT_EQ(against("noisier-mean", "nowhere", "loose"), 1) << "a bar no side wrote";
             EXPECT_EQ(against("noisier-mean", "loose", "nowhere"), 1) << "a reference no side wrote";
             EXPECT_EQ(against("nowhere", "loose", "loose"), 1) << "a frame no side wrote";
+
+            // **The record holds each side's places as measured, the first side first**, and a name
+            // that is no plain word stays one string.
+            const std::filesystem::path record = root / sNoiseRecord;
+            const std::array sides{ std::vector<NoiseFigures>{ NoiseFigures{ .mPlace = "a\"b",
+                                        .mNoise = { .mMean = 1.0, .mP99 = 2.0 },
+                                        .mBarNoise = { .mMean = 1.5, .mP99 = 2.0 },
+                                        .mBias = 0.25,
+                                        .mBarBias = 0.125,
+                                        .mFireflies = 0.5 } },
+                std::vector<NoiseFigures>{} };
+            ASSERT_TRUE(writeNoiseRecord(record, sides).isOk());
+            std::ostringstream read;
+            read << std::ifstream(record).rdbuf();
+            EXPECT_EQ(read.str(),
+                "{\"sides\": [\n  [\n    {\"place\": \"a\\\"b\", \"mean\": 1.0000, \"p99\": 2.0000, "
+                "\"barMean\": 1.5000, \"barP99\": 2.0000, \"bias\": 0.2500, \"barBias\": 0.1250, "
+                "\"fireflies\": 0.5000, \"clean\": true}\n  ],\n  [\n  ]\n]}\n");
 
             const PictureError tail = measureError(raisedAt(10, 10, 100, 2, 10), limit);
             EXPECT_DOUBLE_EQ(tail.mMean, 0.2);

@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
@@ -219,6 +220,26 @@ namespace RtxTool
         std::string mReference;
     };
 
+    /// One place's frame as `judgeNoise` measured it, which its line prints and `writeNoiseRecord`
+    /// writes: the frame's noise against its own mean and the bar's against the bar's limit, each by
+    /// the mean and the 99th percentile, each one's bias against the reference, and the frame's
+    /// fireflies in a thousand pixels.
+    struct NoiseFigures
+    {
+        std::string mPlace;
+        PictureError mNoise;
+        PictureError mBarNoise;
+        double mBias = 0.0;
+        double mBarBias = 0.0;
+        double mFireflies = 0.0;
+
+        /// Whether the frame is as clean as its bar, by the mean and at the 99th percentile.
+        bool clean() const { return mNoise.mMean <= mBarNoise.mMean && mNoise.mP99 <= mBarNoise.mP99; }
+    };
+
+    /// What `noise` names its record in the folder it writes its pictures to: `writeNoiseRecord`.
+    inline constexpr std::string_view sNoiseRecord = "noise.json";
+
     /// What `noise --versus` names the second side's pictures of a place, after the place's name.
     inline constexpr std::string_view sNoiseVersusSuffix = "-versus";
 
@@ -236,7 +257,15 @@ namespace RtxTool
     /// FSR's kernel against the box, which failed every upscaled mode as noise it was not.
     ///
     /// @param barFrames how many frames the bars averaged, which the report names.
-    int judgeNoise(const std::filesystem::path& wrote, std::span<const NoiseSide> places, std::uint32_t barFrames);
+    /// @param measured where each place measured is appended, for `writeNoiseRecord`.
+    int judgeNoise(const std::filesystem::path& wrote, std::span<const NoiseSide> places, std::uint32_t barFrames,
+        std::vector<NoiseFigures>& measured);
+
+    /// Writes what each side of a `noise` run measured to `path` as JSON — `{"sides": [[...], ...]}`,
+    /// a side a list of its places' figures, the first side first — for a reader that is no person:
+    /// `omw noise --ab` reads it, and never the report's sentences.
+    Misc::Result<void, std::string> writeNoiseRecord(
+        const std::filesystem::path& path, std::span<const std::vector<NoiseFigures>> sides);
 
     /// Whether a run that writes its pictures into `out` can be compared against `against`, and why
     /// not where it cannot. The pictures are written over their references before the two

@@ -1179,16 +1179,30 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
 
+            // An earlier run's record goes before this one draws, so a run that ends before it judges
+            // leaves none to be read as its own.
+            const std::filesystem::path record = folder / sNoiseRecord;
+            std::filesystem::remove(record);
+
             if (const int status = runHosted(command, framed, std::move(request)); status != 0)
                 return status;
 
-            const int judged = judgeNoise(folder, sides, barFrames);
-            if (!versus.has_value())
-                return judged;
+            std::array<std::vector<NoiseFigures>, 2> measured;
+            int judged = judgeNoise(folder, sides, barFrames, measured[0]);
+            if (versus.has_value())
+            {
+                out() << std::format("versus --{}{}{}\n", asked, ownBar ? ", against a bar of its own" : "",
+                    ownReference ? " and a reference of its own" : "");
+                judged = std::max(judged, judgeNoise(folder, versusSides, barFrames, measured[1]));
+            }
 
-            out() << std::format("versus --{}{}{}\n", asked, ownBar ? ", against a bar of its own" : "",
-                ownReference ? " and a reference of its own" : "");
-            return std::max(judged, judgeNoise(folder, versusSides, barFrames));
+            const std::span<const std::vector<NoiseFigures>> written(measured.data(), versus.has_value() ? 2 : 1);
+            if (const Misc::Result<void, std::string> wrote = writeNoiseRecord(record, written); !wrote.isOk())
+            {
+                out() << wrote.error() << '\n';
+                return 1;
+            }
+            return judged;
         }
 
         /// A film of the keys a window wrote: every take drawn headless, its frames numbered through

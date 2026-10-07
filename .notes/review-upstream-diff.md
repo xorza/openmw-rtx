@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The driver and its dependencies
 
-- [ ] `tools/omw/noise.py:48-51` — gets the A/B table with a regex over `judgeNoise`'s sentence
-  (`apps/rtxtool/compare.cpp:315`). Target shape: `noise` writes a machine-readable record for each side,
-  and `noise.py` reads it. (low)
 - [ ] `apps/rtxtool/options.cpp:524,540,548,554`, `apps/rtxtool/main.cpp:826-828,876-878` — `--against`
   is a directory under `shot` and a file under `bench`. `shot` writes `hashes.csv` into `--out`, while
   `bench` needs `--hashes=<file>` and `--pictures=<dir>`, and ignores `--out`. Target shape: `bench` takes
