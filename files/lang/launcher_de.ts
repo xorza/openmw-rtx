@@ -239,22 +239,6 @@
         <translation> Zellen</translation>
     </message>
     <message>
-        <source>Indirect Light</source>
-        <translation>Indirektes Licht</translation>
-    </message>
-    <message>
-        <source>Whether surfaces take light that no lamp, sun or moon gives. Traced follows one bounce of light from every surface and cleans its noise. Off traces none, which is much faster: what no light reaches is black.</source>
-        <translation>Ob Oberflächen Licht erhalten, das keine Lampe, keine Sonne und kein Mond gibt. Verfolgt folgt einem Abprall des Lichts von jeder Oberfläche und entfernt sein Rauschen. Aus verfolgt keinen, was viel schneller ist: Was kein Licht erreicht, ist schwarz.</translation>
-    </message>
-    <message>
-        <source>Traced</source>
-        <translation>Verfolgt</translation>
-    </message>
-    <message>
-        <source>Off (Faster)</source>
-        <translation>Aus (schneller)</translation>
-    </message>
-    <message>
         <source>Custom:</source>
         <translation type="unfinished"></translation>
     </message>

@@ -121,8 +121,9 @@ namespace Rtx::Testing
             // one, since nothing was split off it. Counted in the temporal pass's local mean, those
             // bits held the floor at the wall's foot up to a seam of sunlight the roof hides. The
             // roof's penumbra is `2000 * 0.0349` = 70 units, fourteen pixels of the floor, so the
-            // temporal pass blends rather than handing each bit on. No indirect light, so the sun is
-            // the frame and every value of it is nought.
+            // temporal pass blends rather than handing each bit on. The roof reaches past the floor
+            // on every side, so no sun lands where a bounce could carry it back, and every value of
+            // the frame is nought.
             // The eye looks 20 degrees down at the wall's foot, so the frame's top edge meets the
             // wall 150 + 300 tan 10° = 203 units up, under its top, and its bottom edge the floor.
             SCOPED_TRACE("beside a wall");
@@ -133,12 +134,15 @@ namespace Rtx::Testing
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
             SceneDesc scene;
             addQuad(scene, sheetAt(4000.0f, 0.0f));
-            addQuad(scene, roofOver(-4000.0f, 4000.0f, 2000.0f));
+            addQuad(scene,
+                std::array<osg::Vec3f, 4>{ osg::Vec3f(-8000.0f, -8000.0f, 2000.0f),
+                    osg::Vec3f(8000.0f, -8000.0f, 2000.0f), osg::Vec3f(8000.0f, 8000.0f, 2000.0f),
+                    osg::Vec3f(-8000.0f, 8000.0f, 2000.0f) });
             addQuad(scene,
                 std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
                     osg::Vec3f(4000.0f, 0.0f, 400.0f), osg::Vec3f(-4000.0f, 0.0f, 400.0f) });
 
-            const Frame raw = shoot(scene, {}, camera, size, { .mIndirect = IndirectLight::Off });
+            const Frame raw = shoot(scene, {}, camera, size, {});
 
             std::vector<float> sunlit;
             mRenderer.readChannel(Channel::Shadowed, sunlit);
@@ -154,11 +158,7 @@ namespace Rtx::Testing
             ASSERT_GT(wall, std::size_t{ 8 * size }) << "no wall over the floor, or this proves nothing";
 
             const Frame filtered = shoot(scene, {}, camera, size,
-                { .mFrames = 16,
-                    .mAverage = false,
-                    .mFilter = true,
-                    .mIndirect = IndirectLight::Off,
-                    .mLoss = HistoryLoss::Cut });
+                { .mFrames = 16, .mAverage = false, .mFilter = true, .mLoss = HistoryLoss::Cut });
             EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
         }
 
@@ -190,7 +190,7 @@ namespace Rtx::Testing
                     osg::Vec3f(4000.0f, 0.0f, 400.0f), osg::Vec3f(-4000.0f, 0.0f, 400.0f) },
                 wall);
 
-            shoot(scene, {}, camera, size, { .mIndirect = IndirectLight::Off });
+            shoot(scene, {}, camera, size, {});
 
             std::vector<float> sunlit;
             mRenderer.readChannel(Channel::Shadowed, sunlit);
@@ -240,7 +240,7 @@ namespace Rtx::Testing
 
                 SceneDesc scene;
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
-                shoot(scene, {}, camera, size, { .mShadowFloor = floor, .mIndirect = IndirectLight::Off });
+                shoot(scene, {}, camera, size, { .mShadowFloor = floor });
 
                 std::vector<float> shadowed;
                 std::vector<float> penumbra;
@@ -296,8 +296,7 @@ namespace Rtx::Testing
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene, roofOver(-100.0f, -60.0f, 100.0f));
 
-            const Frame raw = shoot(scene, {}, camera, size,
-                { .mFrames = 1, .mFirstFrame = 300 + frames - 1, .mIndirect = IndirectLight::Off });
+            const Frame raw = shoot(scene, {}, camera, size, { .mFrames = 1, .mFirstFrame = 300 + frames - 1 });
 
             std::vector<float> bits;
             std::vector<float> widths;
@@ -332,7 +331,6 @@ namespace Rtx::Testing
                     .mAverage = false,
                     .mFirstFrame = 300,
                     .mFilter = true,
-                    .mIndirect = IndirectLight::Off,
                     .mLoss = HistoryLoss::Cut });
             EXPECT_EQ(denoised.mRadiance, raw.mRadiance);
         }
@@ -378,7 +376,7 @@ namespace Rtx::Testing
                 if (roofed)
                     addQuad(scene, roofOver(-4000.0f, 4000.0f, 500.0f));
                 addQuad(scene, roofOver(-100.0f, -60.0f, barHeight));
-                shoot(scene, {}, tilted, size, { .mIndirect = IndirectLight::Off });
+                shoot(scene, {}, tilted, size, {});
 
                 std::vector<float> widths;
                 mRenderer.readChannel(Channel::Penumbra, widths);
@@ -426,7 +424,7 @@ namespace Rtx::Testing
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addPane(scene, sheetAt(4000.0f, 40.0f), osg::Vec4f(0.0f, 0.0f, 0.0f, 0.5f), 1.0f, true);
             addQuad(scene, roofOver(-4000.0f, 0.0f, 100.0f));
-            shoot(scene, {}, between, size, { .mIndirect = IndirectLight::Off });
+            shoot(scene, {}, between, size, {});
             std::vector<float> shadowed;
             mRenderer.readChannel(Channel::Shadowed, shadowed);
             const float sunlit = Shaders::INV_PI;
@@ -459,16 +457,15 @@ namespace Rtx::Testing
 
             std::vector<double> mean(std::size_t{ size } * size, 0.0);
             std::vector<float> bits;
-            shoot(scene, {}, camera, size,
-                { .mFrames = 256, .mAverage = false, .mIndirect = IndirectLight::Off, .mEachFrame = [&](const Frame&) {
-                     mRenderer.readChannel(Channel::Shadowed, bits);
-                     for (std::size_t pixel = 0; pixel < mean.size(); ++pixel)
-                         mean[pixel] += static_cast<double>(bits[pixel * 4 + 3]) / 256.0;
-                 } });
+            shoot(scene, {}, camera, size, { .mFrames = 256, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                                                mRenderer.readChannel(Channel::Shadowed, bits);
+                                                for (std::size_t pixel = 0; pixel < mean.size(); ++pixel)
+                                                    mean[pixel] += static_cast<double>(bits[pixel * 4 + 3]) / 256.0;
+                                            } });
 
             const auto blurredError = [&](NoiseSource noise) {
                 camera.mFrame = 1000;
-                shoot(scene, {}, camera, size, { .mNoise = noise, .mIndirect = IndirectLight::Off });
+                shoot(scene, {}, camera, size, { .mNoise = noise });
                 mRenderer.readChannel(Channel::Shadowed, bits);
                 double squares = 0.0;
                 std::size_t counted = 0;

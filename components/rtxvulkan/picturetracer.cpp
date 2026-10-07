@@ -25,12 +25,12 @@
 namespace Rtx
 {
     PictureTracer::PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media,
-        DisplayChain& display, GuiTextures& textures, const RadianceWidth radiance, const IndirectLight indirect)
+        DisplayChain& display, GuiTextures& textures, const RadianceWidth radiance)
         : mDevice(device)
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes, 1, radiance, indirect)
+        , mChain(device, passes, 1, radiance)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(
@@ -62,7 +62,7 @@ namespace Rtx
 
         // Nothing puts a picture together across frames, so nothing jitters it, and it has no frame
         // before it.
-        const Reconstruction reconstruction = Reconstruction::forPicture(profile.mReconstruction.mIndirect);
+        const Reconstruction reconstruction = Reconstruction::forPicture();
         Shaders::VisibilityConstants sampled
             = sampleFrame(camera, FrameOptions{}, profile, reconstruction, traced.getCounts(), nullptr);
         traced.measureStars(sampled.mStars);
@@ -71,9 +71,6 @@ namespace Rtx
         // could have a wake in it; a subject of its own stands in no sea.
         if (options.mScene.isWorld())
             mMedia.placeRipples(sampled);
-
-        // Before the batch opens, as the world's chain is switched before its frame opens.
-        mChain.setIndirect(reconstruction.mIndirect);
 
         Batch trace(mDevice.getPool());
         {

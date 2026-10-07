@@ -306,22 +306,6 @@
         <source> cells</source>
         <translation> komórek</translation>
     </message>
-    <message>
-        <source>Indirect Light</source>
-        <translation>Światło pośrednie</translation>
-    </message>
-    <message>
-        <source>Whether surfaces take light that no lamp, sun or moon gives. Traced follows one bounce of light from every surface and cleans its noise. Off traces none, which is much faster: what no light reaches is black.</source>
-        <translation>Czy powierzchnie otrzymują światło, którego nie daje żadna lampa, słońce ani księżyc. Śledzone podąża za jednym odbiciem światła od każdej powierzchni i usuwa jego szum. Wyłączone nie śledzi żadnego, co jest znacznie szybsze: to, czego nie dosięga żadne światło, jest czarne.</translation>
-    </message>
-    <message>
-        <source>Traced</source>
-        <translation>Śledzone</translation>
-    </message>
-    <message>
-        <source>Off (Faster)</source>
-        <translation>Wyłączone (szybsze)</translation>
-    </message>
 </context>
 <context>
     <name>ImportPage</name>

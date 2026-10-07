@@ -271,13 +271,6 @@ at the top, over all of them.
 - **No reuse of the bounce.** ReSTIR GI's reservoirs ran here as a temporal and a spatial reuse,
   and were removed: once the denoiser kept a rare bright sample's light, they gained nothing at any
   place and added bias in the room they were kept for (`.notes/reuse.md`).
-- **The indirect light** (`[RTX] indirect light`, `Reconstruction::mIndirect`) is `traced`, the
-  bounce above and the passes that clean it, or `off`, none: the trace draws no diffuse bounce and
-  traces only a glossy surface's reflection (`bounceTraced`), no surface a path ends at takes the
-  cell's ambient (`surfaceAmbient`), and the denoiser keeps the
-  accumulator's surface history alone. A menu changes it while the game runs
-  (`Renderer::setIndirectLight`), and the chain lets go of the bounce's histories where it is
-  `off`.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
   of it that is fill beside it by the same weights: the composite puts the bounce back by the

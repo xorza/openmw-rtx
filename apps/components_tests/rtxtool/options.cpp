@@ -54,7 +54,7 @@ namespace RtxTool
         }
 
         /// **The other side of `noise --versus` changes the one switch it names**, read as the line would
-        /// read it, and keeps every other where the line put it and the indirect light the run derived.
+        /// read it, and keeps every other where the line put it.
         /// A switch named alone takes its implicit value; naming the line's own value is the same side
         /// again. Each switch `--versus` may name is one the reader reads: at a value other than the
         /// default, it moves the request. A name no reconstruction reads, and a value its switch
@@ -70,7 +70,7 @@ namespace RtxTool
             };
 
             const bpo::variables_map variables = read({ "--antilag=false", "--lamp-candidates=4" });
-            Rtx::ReconstructionRequest played{ .mIndirect = Rtx::IndirectLight::Off };
+            Rtx::ReconstructionRequest played;
             readReconstruction(variables, played);
             ASSERT_FALSE(played.mAntilag);
             ASSERT_EQ(played.mLampCandidates, 4u);

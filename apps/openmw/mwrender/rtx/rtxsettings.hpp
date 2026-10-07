@@ -1,9 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <string_view>
 
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
@@ -16,8 +14,7 @@ namespace MWRender
     /// measured one. The sources stay apart and the meaning is `RtxSettings::derive`'s alone.
     ///
     /// The upscaler and the map layout arrive read: each source parses its own text where it
-    /// enters, the registry at load. The indirect light's spelling is a view into whatever filled it,
-    /// so it lives for the one call it is read in.
+    /// enters, the registry at load.
     struct RtxSettingValues
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
@@ -30,7 +27,6 @@ namespace MWRender
         float mGroundcoverDensity = 0.0f;
         bool mGroundcoverPointLighting = true;
         Rtx::SpecularLayout mSpecularMapLayout = Rtx::SpecularLayout::Ignore;
-        std::string_view mIndirectLight;
         int mAnisotropy = 0;
         float mGamma = 1.0f;
         bool mLitEnvironmentMaps = false;
@@ -56,12 +52,9 @@ namespace MWRender
         /// `RenderProfile::mLitEnvironmentMaps`: the setting.
         bool mLitEnvironmentMaps = false;
 
-        /// `ReconstructionRequest::mIndirect`: the setting.
-        Rtx::IndirectLight mIndirect = Rtx::IndirectLight::Traced;
-
-        /// Throws `Rtx::InputError` for a spelling that names no mode or no indirect light, or a gamma
-        /// that is not a finite number greater than nought: a setting refused rather than defaulted,
-        /// so a typo is said at once and not traced under for a session.
+        /// Throws `Rtx::InputError` for a gamma that is not a finite number greater than nought: a
+        /// setting refused rather than defaulted, so a typo is said at once and not traced under for
+        /// a session.
         static RtxSettings derive(const RtxSettingValues& values);
     };
 }

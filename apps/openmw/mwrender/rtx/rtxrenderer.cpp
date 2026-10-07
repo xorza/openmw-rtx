@@ -105,7 +105,6 @@ namespace MWRender
                 .mRun = {
                     .mProfile = {
                         .mUpscale = settings.mUpscale,
-                        .mReconstruction = { .mIndirect = settings.mIndirect },
                         .mAnisotropy = settings.mAnisotropy,
                         .mGamma = settings.mGamma,
                         .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
@@ -630,12 +629,11 @@ namespace MWRender
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
         const bool gamma = changed.contains({ "Video", "gamma" });
-        const bool indirect = changed.contains({ "RTX", "indirect light" });
-        if (!upscale && !reach && !anisotropy && !gamma && !indirect)
+        if (!upscale && !reach && !anisotropy && !gamma)
             return;
 
-        // What asks is somebody choosing from a menu, so a spelling no mode has is reported and
-        // everything is left where it was.
+        // What asks is somebody choosing from a menu, so a value the derivation refuses is reported
+        // and everything is left where it was.
         std::optional<RtxSettings> settings;
         try
         {
@@ -661,9 +659,6 @@ namespace MWRender
 
         if (gamma)
             mRenderer->setGamma(settings->mGamma);
-
-        if (indirect)
-            mRenderer->setIndirectLight(settings->mIndirect);
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept

@@ -29,8 +29,7 @@ namespace Rtx
     /// the lobe's light where a surface wears a map; the pane filter averages the layers' drawn
     /// light; and the wavelet spreads the bounce across the screen. The shadow denoiser and the
     /// glossy filter read the surface the accumulator's history belongs to
-    /// (`AccumulateImages::mSurfaceBefore`). **Where the frame takes no indirect light**, the
-    /// accumulator keeps that surface alone, and neither its mean nor the wavelet runs.
+    /// (`AccumulateImages::mSurfaceBefore`).
     class DenoisePasses
     {
     public:
@@ -43,8 +42,8 @@ namespace Rtx
         ///        plane.
         /// @param mapped `TraceSubject::mMapped`: whether any surface of the frame has a lobe.
         /// @param lamps `TraceSubject::mLamps`: whether the scene holds a lamp.
-        /// @param reconstruction what puts the frame back together, of which this reads whether the
-        ///        bounce is filtered (`Reconstruction::filtersBounce`) and its clamp.
+        /// @param reconstruction what puts the frame back together, of which this reads the
+        ///        accumulator's and the wavelet's switches.
         /// @param timer null where the run is not being timed, which a picture is not.
         Denoised record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
             const Shaders::VisibilityConstants& sampled, bool mapped, bool lamps, const Reconstruction& reconstruction,

@@ -5,7 +5,6 @@
 #include <components/misc/display.hpp>
 #include <components/misc/presentation.hpp>
 #include <components/rtx/common/menu.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
@@ -43,12 +42,6 @@ namespace
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    constexpr std::array<Rtx::MenuLabel, Rtx::sIndirectLightMenu.size()> sIndirectLightLabels{ {
-        { "traced", QT_TRANSLATE_NOOP("GraphicsPage", "Traced") },
-        { "off", QT_TRANSLATE_NOOP("GraphicsPage", "Off (Faster)") },
-    } };
-    static_assert(Rtx::followsMenu(sIndirectLightLabels, Rtx::sIndirectLightMenu));
-
     void addMenuItems(QComboBox* box, std::span<const Rtx::MenuLabel> labels)
     {
         for (const Rtx::MenuLabel& label : labels)
@@ -68,7 +61,6 @@ Launcher::GraphicsPage::GraphicsPage(QWidget* parent)
     customHeightSpinBox->setMaximum(res.height());
 
     addMenuItems(rayTracingUpscaleComboBox, sUpscaleLabels);
-    addMenuItems(rayTracingIndirectLightComboBox, sIndirectLightLabels);
     rayTracingDistantLandSpinBox->setRange(static_cast<int>(Settings::RTXCategory::sMinDistantLandCellsInMenu),
         static_cast<int>(Settings::RTXCategory::sMaxDistantLandCells));
 
@@ -142,9 +134,6 @@ bool Launcher::GraphicsPage::loadSettings()
     const std::optional<std::size_t> offered
         = Rtx::menuIndex(Rtx::sUpscaleMenu, Rtx::sUpscaleNames.name(Settings::rtx().mUpscale.get()));
     rayTracingUpscaleComboBox->setCurrentIndex(offered ? static_cast<int>(*offered) : -1);
-    const std::optional<std::size_t> indirect
-        = Rtx::menuIndex(Rtx::sIndirectLightMenu, Settings::rtx().mIndirectLight.get());
-    rayTracingIndirectLightComboBox->setCurrentIndex(indirect ? static_cast<int>(*indirect) : -1);
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
@@ -208,11 +197,6 @@ void Launcher::GraphicsPage::saveSettings()
         if (const std::optional<std::string_view> chosen
             = Rtx::menuName(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
             Settings::rtx().mUpscale.set(Rtx::sUpscaleNames.require(*chosen, "an upscale mode"));
-    const int indirectIndex = rayTracingIndirectLightComboBox->currentIndex();
-    if (indirectIndex >= 0)
-        if (const std::optional<std::string_view> chosen
-            = Rtx::menuName(Rtx::sIndirectLightMenu, static_cast<std::size_t>(indirectIndex)))
-            Settings::rtx().mIndirectLight.set(std::string(*chosen));
     if (rayTracingDistantLandSpinBox->value() != mLoadedDistantLandCells)
         Settings::rtx().mDistantLandCells.set(static_cast<float>(rayTracingDistantLandSpinBox->value()));
 

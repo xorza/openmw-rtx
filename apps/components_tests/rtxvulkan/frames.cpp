@@ -264,33 +264,6 @@ namespace Rtx
             mRenderer.dropGuiTexture(texture);
         }
 
-        /// **A menu's indirect light reaches the picture's chain where the menu sets it**, so the
-        /// picture traced after it makes nothing: the picture's chain lets the bounce's images go,
-        /// and makes them again, on the call and not on the frame path. Counted as the ranges the
-        /// device holds, which a range made adds to and a range buried leaves as it was until the
-        /// next frame collects it: a picture that remade its bounce's images would hold more.
-        TEST_F(RtxFramesTest, aMenusIndirectLightReachesThePicturesChainAtOnce)
-        {
-            const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
-            mRenderer.traceGuiTexture(texture, ahead(), GuiTraceOptions{});
-            mRenderer.renderFrame(ahead(), FrameOptions{});
-            EXPECT_EQ(finishedHits(), sEveryPixel);
-
-            const MemoryAllocator& memory = mRenderer.getDevice().getMemory();
-            for (const IndirectLight indirect : { IndirectLight::Off, IndirectLight::Traced })
-            {
-                mRenderer.setIndirectLight(indirect);
-                const std::size_t held = memory.getLiveCount();
-                mRenderer.traceGuiTexture(texture, ahead(), GuiTraceOptions{});
-                EXPECT_EQ(memory.getLiveCount(), held) << "a picture made what the menu's indirect light "
-                                                       << sIndirectLightNames.name(indirect) << " asks of its chain";
-                mRenderer.renderFrame(ahead(), FrameOptions{});
-                EXPECT_EQ(finishedHits(), sEveryPixel);
-            }
-
-            mRenderer.dropGuiTexture(texture);
-        }
-
         /// A picture's copy arrives with the frame that carried it and never sooner, and a drain
         /// lands it at once.
         ///

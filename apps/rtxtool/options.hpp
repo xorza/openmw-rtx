@@ -83,8 +83,7 @@ namespace RtxTool
 
     /// Writes into `request` what each of `sReconstructionSwitches` says, `noise` at `auto` as the
     /// request's own default. Throws `std::runtime_error` for a noise source no reconstruction
-    /// has. The indirect light is not among them: a run derives it from the
-    /// settings as well as the line.
+    /// has.
     void readReconstruction(
         const boost::program_options::variables_map& variables, Rtx::ReconstructionRequest& request);
 

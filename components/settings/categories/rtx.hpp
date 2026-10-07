@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string>
-
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/settings/sanitizerimpl.hpp>
@@ -43,11 +41,5 @@ namespace Settings
         /// `ignore`, `classic` or `metal roughness`, read by it at load. Read where the renderer is
         /// made, because the maps are loaded with the models.
         SettingValue<Rtx::SpecularLayout> mSpecularMapLayout{ mIndex, "RTX", "specular map layout" };
-
-        /// Whether a surface takes light from anything that is not a light, as
-        /// `Rtx::sIndirectLightNames` spells it: `traced`, one bounce and the passes that clean it, or
-        /// `off`, none, which costs none of them. A name the list refuses rather than defaults.
-        /// Changed while the game runs.
-        SettingValue<std::string> mIndirectLight{ mIndex, "RTX", "indirect light" };
     };
 }
