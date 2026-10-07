@@ -30,6 +30,21 @@ def used_osg_plugins(cmake_text: str) -> list[str]:
 HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches.cfg", "shaders-source")
 
 
+# The Wayland platform as each Qt names it: one plugin in Qt 6.11's base, and two in the
+# `qt6-wayland` of Ubuntu 24.04's Qt 6.4.
+WAYLAND_PLATFORMS = (("libqwayland.so",), ("libqwayland-generic.so", "libqwayland-egl.so"))
+
+
+def wayland_platform_plugins(platforms: Path) -> tuple[str, ...]:
+    """The Wayland platform plugins in Qt's `platforms` folder, as `EXTRA_PLATFORM_PLUGINS` takes
+    them: the set of `WAYLAND_PLATFORMS` that stands there whole. A Qt with neither is refused, since
+    a launcher with no Wayland platform opens on no session without XWayland."""
+    for names in WAYLAND_PLATFORMS:
+        if all((platforms / name).is_file() for name in names):
+            return names
+    raise Refusal(f"{platforms} holds no Wayland platform plugin: qt6-wayland, or qt6-base where Qt's base holds it")
+
+
 def harness_files(installed: Path) -> list[str]:
     """The files under `installed` that are the harness's or the tests', from its root, `/`-separated."""
     found = []
@@ -91,14 +106,24 @@ def _archive_linux(build: Build, name: str) -> None:
     with no XWayland. The Vulkan loader goes in, the 1.4 one the binaries were linked against: the
     loader is not the driver, and Ubuntu 24.04's 1.3 loader has none of the 1.4 entry points the
     backend calls. Its Apache-2.0 text goes in beside the licences the install put there. The update
-    information points AppImageUpdate at this repository's releases. AppStream validation is off:
-    upstream's metainfo carries warnings appstreamcli refuses. The tools are AppImages themselves
-    and a runner has no FUSE, so they extract and run. What the image takes from the host is the
-    AppImage exclude list — glibc and libstdc++, the GL stack, X11, Wayland, fontconfig, ALSA — at
-    the versions of a bare Ubuntu 24.04."""
+    information points AppImageUpdate at this repository's releases.
+
+    **The executables stripped here, by the host's own `strip`, and linuxdeploy's strip off.** Its
+    strip passes over every executable whose rpath starts with `$`, which is each of ours, and would
+    ship the package build's debug information: `openmw` is 352 MB with it and 47 MB without. The
+    strip it carries is binutils 2.35, which reads no `.relr.dyn` and refuses every library of a
+    system that packs its relocations, Arch's among them; and the libraries it would strip, a
+    distribution ships stripped already. Stripped before linuxdeploy patches an rpath in, and the
+    build ID stays, which a dump is matched to its symbols by.
+
+    AppStream validation is off: upstream's metainfo carries warnings appstreamcli refuses. The tools
+    are AppImages themselves and a runner has no FUSE, so they extract and run. What the image takes
+    from the host is the AppImage exclude list — glibc and libstdc++, the GL stack, X11, Wayland,
+    fontconfig, ALSA — at the versions of a bare Ubuntu 24.04."""
     qmake = require("qmake6", "the Qt plugin reads Qt's layout off it: qt6-base-dev-tools")
     require("pkg-config", "OSG's version and library directory come off its .pc: pkg-config")
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
+    strip = require("strip", "the executables carry the package build's debug information: binutils")
     tools = deps.appimage_tools()
 
     appdir = ROOT / "AppDir"
@@ -118,13 +143,17 @@ def _archive_linux(build: Build, name: str) -> None:
     hooks.mkdir()
     (hooks / "osg-plugins.sh").write_text('export OSG_LIBRARY_PATH="$this_dir/usr/lib"\n')
 
+    installed = [file for file in sorted((appdir / "usr" / "bin").iterdir())
+                 if file.is_file() and os.access(file, os.X_OK)]
+    run([strip, *installed])
     executables: list[str | Path] = []
-    for file in sorted((appdir / "usr" / "bin").iterdir()):
-        if file.is_file() and os.access(file, os.X_OK):
-            executables += ["--executable", file]
+    for file in installed:
+        executables += ["--executable", file]
 
-    env = dict(build.env, APPIMAGE_EXTRACT_AND_RUN="1", QMAKE=qmake,
-               EXTRA_PLATFORM_PLUGINS="libqwayland-generic.so;libqwayland-egl.so", EXTRA_QT_MODULES="waylandcompositor")
+    platforms = Path(output([qmake, "-query", "QT_INSTALL_PLUGINS"]).strip()) / "platforms"
+    env = dict(build.env, APPIMAGE_EXTRACT_AND_RUN="1", QMAKE=qmake, NO_STRIP="1",
+               EXTRA_PLATFORM_PLUGINS=";".join(wayland_platform_plugins(platforms)),
+               EXTRA_QT_MODULES="waylandcompositor")
     prepend_path(env, "PATH", tools)
     run([tools / "linuxdeploy", "--appdir", appdir, *executables,
          "--deploy-deps-only", plugins,

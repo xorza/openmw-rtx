@@ -239,7 +239,7 @@ namespace Rtx::Testing
         }
 
         /// **A replacer's speckled reflectance stays sharp under the glossy filter's history**, which
-        /// holds the lobe's light per unit of its specular albedo (D6). A metal floor whose base
+        /// holds the lobe's light per unit of its specular albedo. A metal floor whose base
         /// colour, and so its F0, is a checker of single texels — 230 and 30, three pixels a square —
         /// at one roughness under a grey sky: the light its lobe reflects is the sky's, alike on both
         /// squares, and the checker is the albedo alone. Sixteen still frames filtered, then eight
