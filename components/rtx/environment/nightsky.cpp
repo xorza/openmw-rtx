@@ -19,12 +19,9 @@
 
 #include <components/misc/result.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
-#include <components/rtx/scene/refusal.hpp>
-#include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/look.h>
@@ -32,6 +29,7 @@
 #include <components/vfs/manager.hpp>
 
 #include "skymesh.hpp"
+#include "skysheet.hpp"
 
 namespace Rtx
 {
@@ -273,16 +271,11 @@ namespace Rtx
         std::size_t next = 0;
         for (const Layer& layer : read.mLayers)
         {
-            // Asked before a slot is taken, as a deck's sheet is: one the upload refuses would stand
-            // in as an opaque grey, and the field is laid over the whole dome.
-            if (const Misc::Result<void, std::string> uploadable = checkUploadable(*layer.mImage); !uploadable.isOk())
-            {
-                scene.refusals().refuse(Refused::SkyLayer, layer.mImage->getFileName(), uploadable.error());
-                continue;
-            }
-
-            TextureHold held = scene.takeTexture(VFS::Path::Normalized(layer.mImage->getFileName()), *layer.mImage);
+            TextureHold held = takeSkySheet(scene, VFS::Path::Normalized(layer.mImage->getFileName()),
+                osg::ref_ptr<const osg::Image>(layer.mImage));
             const Index slot = held.get();
+            if (slot == sNoIndex)
+                continue;
 
             if (std::min(layer.mUvSpan.x(), layer.mUvSpan.y()) > sTiledSpan)
             {
