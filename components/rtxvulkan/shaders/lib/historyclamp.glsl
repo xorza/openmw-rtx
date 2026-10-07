@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_HISTORYCLAMP_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_HISTORYCLAMP_GLSL
 
-// The anti-lag every running mean keeps (D2 point 5): a slow mean held to the box its fast means
+// The anti-lag every running mean keeps: a slow mean held to the box its fast means
 // span around the pixel, ReLAX's history clamp (NVIDIA NRD, `RELAX_HistoryClamping`). **One rule**,
 // so the bounce, the glossy reflection and a window cannot come to lag by three: each kernel sums
 // its square of fast means and asks this.

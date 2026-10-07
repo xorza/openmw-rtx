@@ -7,7 +7,7 @@ from pathlib import Path
 
 from omw.build import CONFIGURED_FROM, configured_from, manifest_inputs, redate_ahead
 from omw.fetch import build_beside, download, partial_of, settle
-from omw.package import harness_files, prune_empty, used_osg_plugins
+from omw.package import harness_files, prune_empty, used_osg_plugins, wayland_platform_plugins
 from omw.system import Refusal, environment_key, parse_set_output
 
 
@@ -152,6 +152,30 @@ class UsedOsgPluginsTest(unittest.TestCase):
                 self.assertEqual(used_osg_plugins(text), expected)
         with self.assertRaises(Refusal):
             used_osg_plugins("set(OTHER y)\n")
+
+
+class WaylandPlatformPluginsTest(unittest.TestCase):
+    def test_the_set_this_qt_ships_whole_or_a_refusal(self):
+        # Qt 6.11's one plugin, Ubuntu 24.04's Qt 6.4 with its two and the X compositing pair beside
+        # them, half of the older pair, and none.
+        cases = [
+            (["libqwayland.so", "libqxcb.so"], ("libqwayland.so",)),
+            (["libqwayland-egl.so", "libqwayland-generic.so", "libqwayland-xcomposite-egl.so", "libqxcb.so"],
+             ("libqwayland-generic.so", "libqwayland-egl.so")),
+            (["libqwayland-egl.so", "libqxcb.so"], None),
+            (["libqxcb.so"], None),
+        ]
+        for files, expected in cases:
+            with self.subTest(files=files):
+                platforms = Path(tempfile.mkdtemp())
+                self.addCleanup(shutil.rmtree, platforms)
+                for name in files:
+                    (platforms / name).write_bytes(b"")
+                if expected is None:
+                    with self.assertRaises(Refusal):
+                        wayland_platform_plugins(platforms)
+                else:
+                    self.assertEqual(wayland_platform_plugins(platforms), expected)
 
 
 class InstallTest(unittest.TestCase):
