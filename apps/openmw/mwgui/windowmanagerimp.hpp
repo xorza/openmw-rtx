@@ -593,6 +593,11 @@ namespace MWGui
         float mCursorScale = 0.f;
         float mCursorDisplayScale = 0.f;
 
+        /// The window pixels a pixel of the frame covered then: what a Lua cursor is scaled by,
+        /// whose size a script states in the pixels upstream drew it at, and not in the interface's
+        /// units.
+        float mLuaCursorScale = 0.f;
+
         struct ScheduledMessageBox
         {
             std::string mMessage;
@@ -651,10 +656,11 @@ namespace MWGui
         void createTextures();
         void createCursors();
 
-        /// Makes the cursor `name` from the image at `path`, its size and hotspot in units of the
-        /// interface, at the scale `fitCursors` last saw. False where the image did not load.
+        /// Makes the cursor `name` from the image at `path`, its size and hotspot in units `scale`
+        /// window pixels across: `mCursorScale` for the interface's own, `mLuaCursorScale` for a
+        /// script's. False where the image did not load.
         bool createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, double rotation,
-            MyGUI::IntPoint hotspot, MyGUI::IntSize size);
+            MyGUI::IntPoint hotspot, MyGUI::IntSize size, float scale);
         void setMenuTransparency(float value);
 
         void updatePinnedWindows();

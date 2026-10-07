@@ -90,7 +90,11 @@ the window's size there, has it moved to the window on the first start, and the 
   rasterizer's canvas applies it in its last draw into the frame (`PingPongCanvas`), as the tone
   pass does in the ray tracer. `[Video] contrast` went with the ramp and is not restored: it had no
   menu control, upstream applied it on Windows alone, and the tone pass has a contrast grade of its
-  own.
+  own. SDL3 names a controller's buttons by their place (`SDL_GAMEPAD_BUTTON_SOUTH`) where SDL2
+  named them by Xbox's labels, and the bindings keep the places: a pad with other labels is played
+  with the same thumb. A Lua cursor is sized in the frame's pixels, as upstream sized it in the
+  window's, so it is scaled by the frame's shown scale alone (`Presentation::shownScale`), and not
+  by the interface's scaling as well.
 - The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
   the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
   `components/files/configurationmanager` included: one set of checks for every file.

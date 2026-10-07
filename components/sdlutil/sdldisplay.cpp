@@ -7,6 +7,8 @@
 
 #include <SDL3/SDL_stdinc.h>
 
+#include "sdlvideowrapper.hpp"
+
 namespace SDLUtil
 {
     SDL_DisplayID displayAt(int index)
@@ -27,8 +29,8 @@ namespace SDLUtil
         for (int i = 0; i < count; ++i)
         {
             const SDL_DisplayMode& mode = *modes[i];
-            resolutions.push_back({ .mWidth = static_cast<int>(static_cast<float>(mode.w) * mode.pixel_density),
-                .mHeight = static_cast<int>(static_cast<float>(mode.h) * mode.pixel_density) });
+            resolutions.push_back({ .mWidth = displayPixels(mode.w, mode.pixel_density),
+                .mHeight = displayPixels(mode.h, mode.pixel_density) });
         }
         SDL_free(modes);
 

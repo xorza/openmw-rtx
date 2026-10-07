@@ -14,6 +14,11 @@ namespace SDLUtil
     /// the exact ratio: a density of one and a half is not a whole number.
     int windowPoints(int pixels, float density);
 
+    /// The other way: the pixels `points` points cover at `density`, to the nearest, as SDL rounds a
+    /// window's own. A fractional density is the ratio of two whole sizes in a float, and a product
+    /// truncated fell a pixel short wherever the float did.
+    int displayPixels(int points, float density);
+
     /// Puts `window` in `windowMode`: exclusive fullscreen at the display's desktop mode, borderless
     /// fullscreen on the whole display, or a window of `width` by `height` pixels centred on its
     /// display. Never another display mode: the frame's resolution is the renderer's, which scales

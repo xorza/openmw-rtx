@@ -609,12 +609,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.2 Upstream files (decision 5: approved)
 
-- **[bug] SDL3 port regressions.** `SdlCursorManager::_setGUICursor` lost upstream's fallback to
-  `arrow`; `centerWindow` reads the size before SDL3's asynchronous resize lands (use
-  `SDL_WINDOWPOS_CENTERED_DISPLAY` or `SDL_SyncWindow`); `displayResolutions` truncates
-  `mode.w * pixel_density` where SDL rounds (one pixel short on a fractional output). Decided:
-  the controller's positional buttons stay, recorded in AGENTS.md's SDL3 entry, and a Lua cursor
-  is scaled by `shownScale()` alone (`WindowManager::createLuaCursor` uses `mCursorScale`).
 - **[code] `rtxsupport.cpp` gives physics' `async num threads` a false reason** (`sDrawThreads`,
   "the rasterizer's draw threads"). Target: honoured, with no reason, and `sDrawThreads` goes.
 - **[code] `settings-default.cfg`'s `[RTX] enabled` names `-DOPENMW_RTX=ON`**, which no CMake
