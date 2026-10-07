@@ -638,9 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[code] Which texel fact a blended surface needs is stated twice** (`MaterialResolver::read` by
-  `additiveSurface`, `describe` by `isBlended`), held together by a debug assert over an
-  `optional` a release build would dereference. Target: one function.
 - **[code] The content cache's key machinery is dead** (`sHolds = false`) while its docs and the
   reports say otherwise. Target: say so and drop the zero columns, or remove it until the store.
 - **[code] A walk that throws leaves `mRecording` set** (`WalkGuard` resets the rest). Target:

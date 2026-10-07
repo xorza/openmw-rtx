@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -55,6 +54,18 @@ namespace Rtx
             return count;
         }
 
+        /// The one fact of its diffuse texels a blended material keeps, read through `thread` into
+        /// `facts`, which keeps it for the next asker: the mean an additive sheet glows by, or
+        /// whether a blend over what is behind ever reaches solid. One function for the reader,
+        /// whose walk over the texels is the reading's whole cost, and for `describe`, which reads
+        /// the reader's answer back out of `facts` without a walk.
+        void takeBlendFact(ThreadContent& thread, ImageFacts& facts, const osg::Image& image, Material& into)
+        {
+            if (into.isAdditive())
+                into.mDiffuseMean = meanUnder(thread.meanOf(facts, image), into.mBlend);
+            else
+                into.mDiffuseNeverSolid = !thread.reachesSolid(facts, image);
+        }
     }
 
     MaterialResolver::ChainShape MaterialResolver::ChainShape::of(const osg::Node& node)
@@ -227,10 +238,8 @@ namespace Rtx
         if (described.mAlphaMode == AlphaMode::Blend && diffuse != nullptr && !diffuse->getFileName().empty())
         {
             ImageFacts& known = thread.factsOf(*diffuse);
-            if (additiveSurface(described.mAlphaMode, described.mBlend))
-                thread.meanOf(known, *diffuse);
-            else
-                thread.reachesSolid(known, *diffuse);
+            Material blended{ .mAlphaMode = described.mAlphaMode, .mBlend = described.mBlend };
+            takeBlendFact(thread, known, *diffuse, blended);
             reading.mDiffuseFacts = known;
         }
 
@@ -498,23 +507,11 @@ namespace Rtx
         // opaque, tested, or has no diffuse map to read: whether a blend is a pane or a cut, and a
         // pane a medium, is the texture's alpha, and a glow is asked of an additive sheet alone. The
         // reading's answer where one was made, and the walk over the texels only where none was.
-        if (material.isBlended() && material.mDiffuse != sNoIndex && reading.mDiffuseFacts.has_value())
+        if (material.isBlended() && material.mDiffuse != sNoIndex)
         {
-            // The reader asked what the same rule below asks of the same image.
-            const ImageFacts& read = *reading.mDiffuseFacts;
-            assert((material.isAdditive() ? read.mMean.has_value() : read.mReachesSolid.has_value())
-                && "a reading that read another fact than its material wants");
-            if (material.isAdditive())
-                material.mDiffuseMean = meanUnder(*read.mMean, material.mBlend);
-            else
-                material.mDiffuseNeverSolid = !*read.mReachesSolid;
-        }
-        else if (material.isBlended() && material.mDiffuse != sNoIndex)
-        {
-            if (ImageFacts* const facts = diffuseFacts(diffuse); facts != nullptr && material.isAdditive())
-                material.mDiffuseMean = meanUnder(mThread.meanOf(*facts, *diffuse), material.mBlend);
-            else if (facts != nullptr)
-                material.mDiffuseNeverSolid = !mThread.reachesSolid(*facts, *diffuse);
+            std::optional<ImageFacts> read = reading.mDiffuseFacts;
+            if (ImageFacts* const facts = read.has_value() ? &*read : diffuseFacts(diffuse); facts != nullptr)
+                takeBlendFact(mThread, *facts, *diffuse, material);
         }
 
         return material;
