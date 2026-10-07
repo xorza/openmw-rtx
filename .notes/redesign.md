@@ -609,10 +609,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.2 Upstream files (decision 5: approved)
 
-- **[code] `rtxsupport.cpp` gives physics' `async num threads` a false reason** (`sDrawThreads`,
-  "the rasterizer's draw threads"). Target: honoured, with no reason, and `sDrawThreads` goes.
-- **[code] `settings-default.cfg`'s `[RTX] enabled` names `-DOPENMW_RTX=ON`**, which no CMake
-  file defines. Target: drop the clause.
 - **[code] Typed RTX settings.** `upscale` and `specular map layout` are `SettingValue<std::string>`
   parsed by each reader. Target: typed settings parsed at load with a sanitizer, as `WindowMode`
   is; the names stay the one spelling list.

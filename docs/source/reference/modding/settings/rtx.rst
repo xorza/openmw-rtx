@@ -6,10 +6,10 @@ indirect light, sky, water and fog; the OpenGL renderer is what you get with :co
 and is upstream's but for the changes this fork's :code:`AGENTS.md` names: five to its picture, the
 frame shown scaled into the window, and the gamma it applies in its last draw.
 
-A build configured with :code:`-DOPENMW_RTX=OFF` leaves it out. It needs a GPU with hardware ray
-tracing, NVIDIA Turing or AMD RDNA 2 or later: acceleration structures, ray query, ray tracing
-pipelines, position fetch and the fused multiply-add of :code:`VK_KHR_shader_fma` are all required,
-and a device missing any of them refuses to start rather than falling back.
+Every build carries both renderers. The ray tracer needs a GPU with hardware ray tracing, NVIDIA
+Turing or AMD RDNA 2 or later: acceleration structures, ray query, ray tracing pipelines, position
+fetch and the fused multiply-add of :code:`VK_KHR_shader_fma` are all required, and a device missing
+any of them refuses to start rather than falling back.
 
 Most settings here are read once, at startup. :code:`upscale`, :code:`indirect light` and
 :code:`distant land cells` also follow the settings window while the game runs.
@@ -109,7 +109,6 @@ Settings
 * ``[General] texture mipmap``: The ray tracer filters every texture trilinearly.
 * ``[Groundcover] stomp intensity``: The ray tracer stands each plant still: no wind and no step bends it.
 * ``[Groundcover] stomp mode``: The ray tracer stands each plant still: no wind and no step bends it.
-* ``[Physics] async num threads``: This sets the rasterizer's draw threads.
 * ``[Post Processing]`` every key: Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone curve.
 * ``[Shaders] adjust coverage for alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
 * ``[Shaders] antialias alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
