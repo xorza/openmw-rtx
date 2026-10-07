@@ -215,10 +215,11 @@ namespace Rtx
         }
     }
 
-    CloudShell readCloudShell(osg::Node& mesh)
+    CloudShell readCloudShell(const osg::Node& mesh)
     {
+        // OSG's visitor API is non-const throughout, and this walk writes nothing.
         ShellReader read;
-        mesh.accept(read);
+        const_cast<osg::Node&>(mesh).accept(read);
 
         // Three vertices is the least a surface can be fitted to, and it is also what keeps
         // `fitSheet`'s means from dividing by an empty mesh.
@@ -247,6 +248,6 @@ namespace Rtx
         if (!scenes.getVFS()->exists(mesh))
             return Misc::Err{ "the archives hold no such file" };
 
-        return readCloudShell(const_cast<osg::Node&>(*scenes.getTemplate(mesh, false)));
+        return readCloudShell(*scenes.getTemplate(mesh, false));
     }
 }

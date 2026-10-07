@@ -54,5 +54,5 @@ namespace Rtx
         Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh);
 
     /// The same reading, of a mesh already in hand.
-    CloudShell readCloudShell(osg::Node& mesh);
+    CloudShell readCloudShell(const osg::Node& mesh);
 }
