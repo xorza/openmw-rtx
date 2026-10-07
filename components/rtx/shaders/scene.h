@@ -1062,7 +1062,7 @@ namespace Rtx::Shaders
         float mWidth;
 
         /// The bake of the sprite texture's alpha, or `NO_TEXTURE` for one lit as a flat card.
-        /// `Rtx::SpriteLightMap` says what it holds and `spritesAlong` how it is read.
+        /// `Rtx::TextureKind::SpriteLight` says what it holds and `spritesAlong` how it is read.
         uint mLighting;
 
 #ifdef RTX_HOST

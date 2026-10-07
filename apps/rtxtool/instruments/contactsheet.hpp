@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <span>
-#include <string_view>
+#include <string>
 #include <vector>
 
 namespace Rtx
@@ -52,11 +52,11 @@ namespace RtxTool
     ContactSheet drawContactSheet(std::span<const Rtx::TextureData> textures, float strength);
 
     /// Appends what each pair of the sheet shows, in the order `drawContactSheet` draws them — the
-    /// sheet's legend, which it carries no lettering for: a file's path, or a bake's key. By the
+    /// sheet's legend, which it carries no lettering for: each slot's `TextureRow::getName`. By the
     /// slot each description names, because a slot the table freed is described as nothing, and a
     /// legend counted along the table named every thumbnail after it one slot too far on.
     ///
     /// @param rows the table the descriptions were made from, which the views point into.
-    void listSheetNames(std::span<const Rtx::TextureData> drawn, std::span<const Rtx::TextureRow> rows,
-        std::vector<std::string_view>& into);
+    void listSheetNames(
+        std::span<const Rtx::TextureData> drawn, std::span<const Rtx::TextureRow> rows, std::vector<std::string>& into);
 }

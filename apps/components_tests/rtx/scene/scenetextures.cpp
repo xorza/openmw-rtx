@@ -21,7 +21,6 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/imagedescription.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -699,8 +698,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
             Rtx::SceneDesc scene;
-            const Rtx::Index bake = scene.textures().addBaked(
-                SpriteLightMap::keyFor(smoke), Rtx::TextureKind::Baked, TextureEncoding::Colour);
+            const Rtx::Index bake = scene.textures().addSpriteLight(smoke);
 
             SceneTextures described;
             described.describeAll(scene);

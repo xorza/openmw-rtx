@@ -2117,8 +2117,7 @@ namespace Rtx::Testing
             // composite — which chunk it is the ground of, and no bytes.
             Material flattened = material;
             flattened.mFlatten = true;
-            flattened.mDiffuse
-                = scene.textures().addBaked("chunk/0", TextureKind::GroundAlbedo, TextureEncoding::Colour, chunk);
+            flattened.mDiffuse = scene.textures().addGround(chunk, TextureKind::GroundAlbedo);
             scene.setMaterial(chunk, flattened);
             const TextureData composite{
                 .mSlot = flattened.mDiffuse,

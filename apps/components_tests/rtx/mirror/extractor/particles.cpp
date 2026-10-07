@@ -39,7 +39,6 @@
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/colour.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -114,8 +113,8 @@ namespace Rtx::Testing
             // The texture, and beside it the bake of its alpha the sprites are lit by.
             ASSERT_EQ(mScene.textures().getRows().size(), 2u);
             EXPECT_EQ(mScene.textures().getRows()[0].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-            EXPECT_EQ(mScene.textures().getRows()[1].mBaked,
-                SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")));
+            EXPECT_EQ(mScene.textures().getRows()[1].mKind, TextureKind::SpriteLight);
+            EXPECT_EQ(mScene.textures().getRows()[1].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
             EXPECT_EQ(mScene.emitters().front().mTexture, 0u);
             EXPECT_EQ(mScene.emitters().front().mLighting, 1u);
 
@@ -426,7 +425,8 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.textures().getRows()[0].mPath.value().empty())
                 << "the stone's texture outlived the stone";
             EXPECT_EQ(mScene.textures().getRows()[1].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-            EXPECT_FALSE(mScene.textures().getRows()[2].mBaked.empty()) << "the sprite's bake went with the stone";
+            EXPECT_EQ(mScene.textures().getRows()[2].mKind, TextureKind::SpriteLight)
+                << "the sprite's bake went with the stone";
 
             // And the emitter still draws with it.
             mScene.clearPlacement();
@@ -451,7 +451,7 @@ namespace Rtx::Testing
 
             EXPECT_TRUE(mExtractor.retire().empty()) << "an emitter is neither a mesh nor a material";
             EXPECT_TRUE(mScene.textures().getRows()[1].mPath.value().empty()) << "the sprite outlived the emitter";
-            EXPECT_TRUE(mScene.textures().getRows()[2].mBaked.empty()) << "the bake outlived the emitter";
+            EXPECT_TRUE(mScene.textures().getRows()[2].mPath.value().empty()) << "the bake outlived the emitter";
         }
 
         /// **A sprite a full table refused draws once the table frees room, and is not asked again

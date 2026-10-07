@@ -18,7 +18,6 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/image/colour.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
@@ -134,8 +133,7 @@ namespace Rtx
         // The bake is keyed on the file, so two emitters drawing with one texture share one
         // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
         // where the sprite stands, because the bake is of its alpha.
-        held.mLighting = mScene.holdTexture(
-            mScene.textures().addBaked(SpriteLightMap::keyFor(path), TextureKind::Baked, TextureEncoding::Colour));
+        held.mLighting = mScene.holdTexture(mScene.textures().addSpriteLight(path));
     }
 
     void EmitterResolver::releaseSprite(HeldSprite& held)

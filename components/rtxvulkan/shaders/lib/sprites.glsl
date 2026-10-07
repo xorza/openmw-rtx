@@ -194,9 +194,10 @@ PuffShape ballPuff(vec3 normal, float thrownForward)
 ///
 /// **Six directions, weighted by how much of `toward` lies along each and divided by the same
 /// weights**, so that a texel nothing shadows is lit in full from anywhere. The four in the sprite's
-/// plane are `Rtx::SpriteLightMap`'s channels, read in the order it wrote them; the two out of the
-/// plane are derived here, the way that class says: light from the front reaches the visible
-/// surface whole, and light from behind crosses the texel's own thickness, which is `back`.
+/// plane are the channels of `Rtx::TextureKind::SpriteLight`, read in the order its bake wrote
+/// them; the two out of the plane are derived here, the way that kind says: light from the front
+/// reaches the visible surface whole, and light from behind crosses the texel's own thickness,
+/// which is `back`.
 ///
 /// @param toward unit, from the sprite toward the light.
 /// @param planeAcross,planeUp the sprite's own `u` and `v` in the world, which for a disc are the

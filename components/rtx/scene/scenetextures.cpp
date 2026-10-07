@@ -12,7 +12,6 @@
 
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/mipchain.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "refusal.hpp"
@@ -59,13 +58,11 @@ namespace Rtx
             }
             else if (row.mKind == TextureKind::File)
                 kept.mImage = Misc::Err{ std::string(sNoImage) };
-            else if (row.mKind == TextureKind::Baked)
+            else if (row.mKind == TextureKind::SpriteLight)
             {
                 // Made on the device from the sprite texture's own slot, which the emitter holds
                 // beside this one: a bake carries no bytes and is shaped like its source there.
-                const std::optional<VFS::Path::Normalized> source = SpriteLightMap::sourceOf(row.mBaked);
-                assert(source.has_value() && "a bake's key is made by `SpriteLightMap::keyFor`");
-                kept.mBakedFrom = scene.textures().findFile(*source);
+                kept.mBakedFrom = scene.textures().findFile(row.mPath);
             }
             else
                 kept.mGround = Ground{ .mMaterial = row.mGroundOf, .mGloss = row.mKind == TextureKind::GroundGloss };
@@ -105,10 +102,8 @@ namespace Rtx
                 data = described.value();
             else
             {
-                // Whichever of the two named the slot.
-                mRefusals.push_back(Refusal{ .mKind = Refused::Texture,
-                    .mName = std::string(row.mKind == TextureKind::File ? row.mPath.value() : row.mBaked),
-                    .mWhy = described.error() });
+                mRefusals.push_back(
+                    Refusal{ .mKind = Refused::Texture, .mName = row.getName(), .mWhy = described.error() });
                 data = describeStandIn();
             }
 

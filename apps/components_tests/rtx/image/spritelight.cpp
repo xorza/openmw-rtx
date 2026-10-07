@@ -1,17 +1,13 @@
 #include <array>
 #include <cstdint>
 #include <initializer_list>
-#include <optional>
-#include <string>
 
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/spritelightbake.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/alphaimage.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/vfs/pathutil.hpp>
 
 namespace Rtx
 {
@@ -124,21 +120,6 @@ namespace Rtx
             // The description's bytes are the map's own, in the layout `at` reads.
             EXPECT_EQ(static_cast<std::uint8_t>(described.mBytes[0]), 180);
             EXPECT_EQ(static_cast<std::uint8_t>(described.mBytes[16]), 255);
-        }
-
-        /// A bake's key names its source and nothing else's key does.
-        TEST(RtxSpriteLightMapTest, theKeyNamesTheSourceAndOtherBakesAreNotMistakenForOne)
-        {
-            const VFS::Path::NormalizedView source("textures/tx_smoke.dds");
-            const std::string key = SpriteLightMap::keyFor(source);
-            EXPECT_EQ(key, "sprite/textures/tx_smoke.dds");
-
-            const std::optional<VFS::Path::Normalized> found = SpriteLightMap::sourceOf(key);
-            ASSERT_TRUE(found.has_value());
-            EXPECT_EQ(*found, source);
-
-            EXPECT_FALSE(SpriteLightMap::sourceOf("composite/-3,-2/2").has_value());
-            EXPECT_FALSE(SpriteLightMap::sourceOf("textures/tx_smoke.dds").has_value());
         }
     }
 }
