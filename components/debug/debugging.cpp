@@ -474,13 +474,16 @@ namespace Debug
                 = Platform::Process::environmentPath("OPENMW_CRASH_REPORTS");
             sReportsNamed = reports.has_value();
             settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / "crashes");
-            // As the fatal error box below: none for whoever started the game from a shell.
-            settings.mDialog = !Platform::Process::startedFromTerminal();
-            // And none where a harness asks, which a box waiting for a click would stop.
+            // As the fatal error box below: none for whoever started the game from a shell; none
+            // where a harness asks, which a box waiting for a click would stop; and a harness's End
+            // in place of the player's where it names one.
+            bool asks = !Platform::Process::startedFromTerminal();
             if (const char* const dialog = std::getenv("OPENMW_CRASH_DIALOG"))
-                settings.mDialog = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
+                asks = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
+            settings.mAnswering = asks ? Crash::Answering(Crash::AskThePlayer{}) : Crash::Answering(Crash::AskNobody{});
             if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
-                settings.mEndAfter = std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0));
+                settings.mAnswering
+                    = Crash::EndAfter{ std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0)) };
             if (const Misc::Result<Crash::Installed, std::string_view> installed = Crash::install(settings);
                 !installed.isOk())
                 Log(Debug::Warning) << "No crash catcher: " << installed.error();

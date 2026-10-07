@@ -21,6 +21,7 @@
 #include <system_error>
 #include <thread>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include <SDL3/SDL_messagebox.h>
@@ -116,7 +117,8 @@ namespace Crash
             {
                 enum class Kind
                 {
-                    /// The game stood still for `mSeconds`, at the frame count `mStalledAt`.
+                    /// The game stood still for `mSeconds`, at the frame count `mStalledAt`, and had
+                    /// finished `mReportsBefore` hang reports when the watch asked for one more.
                     AskToEnd,
 
                     /// Crashpad's handler returned `mResult`: the game is gone.
@@ -126,6 +128,7 @@ namespace Crash
                 Kind mKind = Kind::AskToEnd;
                 std::uint32_t mSeconds = 0;
                 std::uint64_t mStalledAt = 0;
+                std::uint64_t mReportsBefore = 0;
                 int mResult = 0;
             };
 
@@ -347,9 +350,9 @@ namespace Crash
         /// Whether the player chose to end a game that stands still.
         bool askToEnd(const MonitorState& monitor, std::uint32_t seconds)
         {
-            if (monitor.mEndAfter.has_value())
+            if (const EndAfter* const after = std::get_if<EndAfter>(&monitor.mAnswering))
             {
-                std::this_thread::sleep_for(*monitor.mEndAfter);
+                std::this_thread::sleep_for(after->mDelay);
                 return true;
             }
 
@@ -368,16 +371,46 @@ namespace Crash
             return SDL_ShowMessageBox(&box, &chosen) && chosen == 1;
         }
 
+        /// Whether the watch has ended, which it does once the game is gone.
+        bool watchEnded(MonitorState& monitor)
+        {
+            const std::lock_guard lock(monitor.mWatchMutex);
+            return monitor.mWatchEnds;
+        }
+
+        /// Waits until the game has finished the hang report the watch asked for, past `before`, or is
+        /// gone, or `sReportPatience` has passed. A dump of every thread is written in well under a
+        /// second; the limit is for a game whose report cannot finish, which the player's End must
+        /// still end. Says in the log where the report did not finish.
+        void awaitHangReport(MonitorState& monitor, std::uint64_t before)
+        {
+            constexpr std::chrono::seconds sReportPatience{ 10 };
+            const auto until = std::chrono::steady_clock::now() + sReportPatience;
+            while (std::atomic_ref(monitor.mPage.get()->mHangReports).load(std::memory_order_acquire) <= before)
+            {
+                if (watchEnded(monitor))
+                    return;
+                if (std::chrono::steady_clock::now() >= until)
+                {
+                    appendToLog(monitor,
+                        { "Hang: the report did not finish in " + std::to_string(sReportPatience.count())
+                            + " seconds, and the game is ended without it" });
+                    return;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            }
+        }
+
         /// Ends the game where it still stands where it stood when the player was asked: the box
         /// stands for as long as the player takes over it, and the game may have drawn again, or
-        /// ended, in that time. Says in the log what it did.
-        void endIfStillStalled(MonitorState& monitor, std::uint64_t stalledAt)
+        /// ended, in that time. **Not before the report the watch asked for is written**, which an
+        /// End clicked while Crashpad still read the game would lose. Says in the log what it did.
+        void endIfStillStalled(MonitorState& monitor, std::uint64_t stalledAt, std::uint64_t reportsBefore)
         {
-            bool ended = false;
-            {
-                const std::lock_guard lock(monitor.mWatchMutex);
-                ended = monitor.mWatchEnds;
-            }
+            if (!watchEnded(monitor) && std::atomic_ref(monitor.mPage.get()->mFrames).load() == stalledAt)
+                awaitHangReport(monitor, reportsBefore);
+
+            const bool ended = watchEnded(monitor);
 
             if (!ended && std::atomic_ref(monitor.mPage.get()->mFrames).load() != stalledAt)
             {
@@ -444,11 +477,13 @@ namespace Crash
 
                 reported = true;
                 monitor.mStalledFor = static_cast<std::uint32_t>(stalled.count());
+                const std::uint64_t reportsBefore = std::atomic_ref(page->mHangReports).load(std::memory_order_acquire);
                 monitor.mGame.requestHangReport(*page);
-                if (monitor.mDialog)
+                if (!std::holds_alternative<AskNobody>(monitor.mAnswering))
                     monitor.post(MonitorState::Request{ .mKind = MonitorState::Request::Kind::AskToEnd,
                         .mSeconds = static_cast<std::uint32_t>(stalled.count()),
-                        .mStalledAt = last });
+                        .mStalledAt = last,
+                        .mReportsBefore = reportsBefore });
             }
         }
 
@@ -577,7 +612,7 @@ namespace Crash
                 break;
             }
             if (askToEnd(monitor, request.mSeconds))
-                endIfStillStalled(monitor, request.mStalledAt);
+                endIfStillStalled(monitor, request.mStalledAt, request.mReportsBefore);
         }
 
         watchdog.join();
@@ -604,7 +639,7 @@ namespace Crash
         const std::filesystem::path package = packageSession(monitor, dumps);
 
         // Once the game is gone, so the box does not stand over a window that no longer draws.
-        if (monitor.mDialog && (crashed || monitor.mEnded) && !dumps.empty())
+        if (std::holds_alternative<AskThePlayer>(monitor.mAnswering) && (crashed || monitor.mEnded) && !dumps.empty())
             tellPlayer(monitor, crashed, dumps, package, report);
 
         std::exit(result);

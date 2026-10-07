@@ -1,13 +1,13 @@
 #pragma once
 
-#include <chrono>
 #include <cstdint>
 #include <filesystem>
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "crashanswering.hpp"
 
 namespace Crash
 {
@@ -26,11 +26,10 @@ namespace Crash
         std::uint64_t mNotes = 0;
 
         std::string mApplication;
-        bool mDialog = true;
         std::string mIssues;
 
-        /// `Settings::mEndAfter`.
-        std::optional<std::chrono::milliseconds> mEndAfter;
+        /// `Settings::mAnswering`.
+        Answering mAnswering = AskThePlayer{};
 
         /// Where Crashpad keeps the reports: its own `--database`, which the game does not write
         /// and the monitor reads and leaves for Crashpad.
