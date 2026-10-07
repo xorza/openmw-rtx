@@ -29,7 +29,13 @@
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/mapoverlay.hpp>
+#include <apps/openmw/mwrender/offscreenview.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/sceneframe.hpp>
+#include <apps/openmw/mwrender/skystate.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
@@ -67,12 +73,6 @@
 #include <components/shader/automaps.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../ground.hpp"
-#include "../offscreenview.hpp"
-#include "../renderingmanager.hpp"
-#include "../sceneframe.hpp"
-#include "../skystate.hpp"
-#include "../vismask.hpp"
 #include "classmasks.hpp"
 #include "rtxsettings.hpp"
 #include "rtxsupport.hpp"

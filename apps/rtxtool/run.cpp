@@ -15,16 +15,15 @@
 #include <osg/Math>
 #include <osg/Vec3f>
 
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/blockfile.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/parser.hpp>
 #include <components/settings/values.hpp>
-
-#include "model/benchrecord.hpp"
-#include "model/benchspec.hpp"
-#include "model/blockfile.hpp"
 
 namespace RtxTool
 {

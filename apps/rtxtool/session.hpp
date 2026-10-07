@@ -9,6 +9,8 @@
 #include <apps/openmw/engine.hpp>
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/runrecord.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -16,8 +18,6 @@
 #include "cameradriver.hpp"
 #include "homekey.hpp"
 #include "measurer.hpp"
-#include "model/benchrun.hpp"
-#include "model/runrecord.hpp"
 #include "skykeys.hpp"
 #include "stager.hpp"
 #include "standingnote.hpp"

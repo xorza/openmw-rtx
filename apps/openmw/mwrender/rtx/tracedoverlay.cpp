@@ -7,11 +7,11 @@
 #include <osg/GL>
 #include <osg/Image>
 
+#include <apps/openmw/mwrender/offscreenview.hpp>
+#include <apps/openmw/mwrender/pixels.hpp>
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/sceneutil/paintedtexture.hpp>
 
-#include "../offscreenview.hpp"
-#include "../pixels.hpp"
 #include "viewqueue.hpp"
 
 namespace MWRender

@@ -6,9 +6,8 @@
 #include <utility>
 #include <vector>
 
+#include <apps/openmw/mwrender/offscreenview.hpp>
 #include <components/sceneutil/imageregion.hpp>
-
-#include "../offscreenview.hpp"
 
 namespace osg
 {

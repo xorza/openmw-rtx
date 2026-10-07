@@ -11,11 +11,11 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <apps/rtxtool/model/maprules.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "film.hpp"
-#include "model/maprules.hpp"
 #include "verbs.hpp"
 
 namespace Files

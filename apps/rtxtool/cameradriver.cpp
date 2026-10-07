@@ -23,14 +23,14 @@
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/cameratrack.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/environment/skylight.hpp>
 
-#include "model/benchrun.hpp"
-#include "model/cameratrack.hpp"
 #include "run.hpp"
 
 namespace RtxTool

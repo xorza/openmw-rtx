@@ -12,14 +12,13 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/maprules.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/sdlutil/vsyncmode.hpp>
-
-#include "model/benchrun.hpp"
-#include "model/maprules.hpp"
 
 namespace Files
 {

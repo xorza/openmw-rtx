@@ -15,14 +15,14 @@
 
 #include <osg/Math>
 
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/blockfile.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/environment/skylight.hpp>
 
-#include "model/benchrecord.hpp"
-#include "model/benchspec.hpp"
-#include "model/blockfile.hpp"
 #include "run.hpp"
 
 namespace RtxTool

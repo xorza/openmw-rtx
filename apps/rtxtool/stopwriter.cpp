@@ -35,7 +35,11 @@
 #include <apps/openmw/mwworld/manualref.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/worldmodel.hpp>
+#include <apps/rtxtool/instruments/contactsheet.hpp>
+#include <apps/rtxtool/instruments/digest.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/runrecord.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/files/conversion.hpp>
@@ -67,11 +71,6 @@
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "instruments/contactsheet.hpp"
-#include "instruments/digest.hpp"
-#include "model/benchrecord.hpp"
-#include "model/runrecord.hpp"
 
 namespace RtxTool
 {

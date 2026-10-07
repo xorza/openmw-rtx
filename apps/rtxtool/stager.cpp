@@ -28,6 +28,7 @@
 #include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/inventorystore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/waitconditiontype.hpp>
@@ -41,8 +42,6 @@
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/rng.hpp>
 #include <components/rtx/environment/skylight.hpp>
-
-#include "model/benchrun.hpp"
 
 namespace RtxTool
 {

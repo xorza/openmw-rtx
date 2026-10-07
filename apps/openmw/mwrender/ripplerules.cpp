@@ -2,7 +2,7 @@
 
 #include <osg/Vec3f>
 
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/world.hpp>
 
 namespace MWRender
 {
