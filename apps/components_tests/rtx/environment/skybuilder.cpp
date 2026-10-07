@@ -28,7 +28,7 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/cloudshell.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/nightsky.hpp>

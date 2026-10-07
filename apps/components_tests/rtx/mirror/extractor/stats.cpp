@@ -12,7 +12,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/formatcensus.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>

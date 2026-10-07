@@ -12,7 +12,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/formatcensus.hpp>
 #include <components/rtx/image/texturedata.hpp>

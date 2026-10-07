@@ -21,7 +21,7 @@
 
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/meshresolver.hpp>

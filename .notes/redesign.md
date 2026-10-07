@@ -641,8 +641,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.9 Conventions
 
-- **[code] `runs.hpp` used as the index header** (`slots.hpp`, `scenedesc.hpp`, `texturetable.hpp`,
-  `skybuilder.hpp` and more). Target: `index.hpp`.
 - **[code] Relative includes across folders** in `mwrender/rtx/` and the fork's `mwrender/` files,
   and quoted `"instruments/…"`/`"model/…"` includes in the harness. Target: spelled from the root.
 - **[code] `RtxRenderer::poseForIntersection` and `groundReadsGates` lack `noexcept`**, against the

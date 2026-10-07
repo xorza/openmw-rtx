@@ -19,7 +19,7 @@
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/texels.hpp>

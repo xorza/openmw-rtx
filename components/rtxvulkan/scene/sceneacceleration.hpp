@@ -7,7 +7,7 @@
 #include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/scene.h>

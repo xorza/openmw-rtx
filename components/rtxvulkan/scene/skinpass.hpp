@@ -4,7 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/shaders/skinning.h>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>

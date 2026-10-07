@@ -24,7 +24,7 @@
 #include <apps/components_tests/rtx/support/lobeintegrals.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/texturedata.hpp>

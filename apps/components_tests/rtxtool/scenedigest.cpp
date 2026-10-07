@@ -18,7 +18,7 @@
 
 #include <apps/rtxtool/instruments/digest.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>

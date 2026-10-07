@@ -18,7 +18,7 @@
 #include <apps/components_tests/rtx/support/halfstep.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>

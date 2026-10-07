@@ -19,7 +19,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtx/support/wavemoments.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>

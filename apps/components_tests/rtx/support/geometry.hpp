@@ -15,7 +15,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/material.hpp>

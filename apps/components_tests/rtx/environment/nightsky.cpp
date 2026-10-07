@@ -20,7 +20,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/nightsky.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/rowhold.hpp>
