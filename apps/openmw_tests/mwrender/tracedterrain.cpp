@@ -195,6 +195,12 @@ namespace MWRender
             ground.unloadCell(0, 0);
             EXPECT_EQ(borders.getNumChildren(), 1u);
 
+            // A ground turned off hides its borders with it, and gives them the terrain's mask back.
+            ground.enable(false);
+            EXPECT_TRUE(walk.walk(*making.mWorldRoot, ~0u).mLines.empty()) << "the borders of a ground turned off";
+            ground.enable(true);
+            EXPECT_EQ(borders.getNodeMask(), static_cast<unsigned int>(Mask_Terrain));
+
             ground.setBordersVisible(false);
             EXPECT_FALSE(ground.getBordersVisible());
             EXPECT_EQ(borders.getNumChildren(), 0u);
@@ -299,6 +305,14 @@ namespace MWRender
             ASSERT_EQ(nearest.size(), 1u);
             EXPECT_NEAR(nearest[0].x(), 19372.0, 1e-2);
 
+            // **A ground turned off answers nothing from the distance**, which is what the last
+            // worldspace's is once another's comes on, and answers again once turned back on.
+            ground.enable(false);
+            EXPECT_TRUE(hitsAlong(*making.mSceneRoot, from, to, osgUtil::Intersector::NO_LIMIT).empty())
+                << "a ground turned off answered for its worldspace";
+            ground.enable(true);
+            EXPECT_EQ(hitsAlong(*making.mSceneRoot, from, to, osgUtil::Intersector::NO_LIMIT).size(), 2u);
+
             // A loaded cell answers with its own grid and not a second time from the distance.
             ground.loadCell(2, 0);
             EXPECT_EQ(hitsAlong(*making.mSceneRoot, from, to, osgUtil::Intersector::NO_LIMIT).size(), 2u);
@@ -350,6 +364,12 @@ namespace MWRender
 
             EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, sTerrainMask).empty())
                 << "a cast that leaves statics out";
+
+            ground.enable(false);
+            EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())
+                << "a ground turned off answered for its worldspace's statics";
+            ground.enable(true);
+            EXPECT_EQ(metAlong(*making.mSceneRoot, from, to, Mask_Static).size(), 1u);
 
             making.mStood.mPlacements[0].mStood.mSlot = Rtx::sNoIndex;
             EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())

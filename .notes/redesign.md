@@ -596,20 +596,16 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.1 Pictures that are quietly wrong (fork code, no approval needed)
 
-- **[bug] The constellations are drawn turned and squashed.** `skybuilder.cpp` redraws each patch
+- **[bug] The constellations are drawn turned and squashed** (waits on `redesign_QUESTIONS.md` question 4). `skybuilder.cpp` redraws each patch
   as a disc with an invented orientation and a radius only (`NightSky::Patch`: a direction and an
   angular radius). Target: fit each patch's UV axes against its directions at read time, as
   `fitSheet` does for the cloud cap, and store them in `Patch`.
-- **[bug, conditional] The twin fold ignores the attributes it throws away.** `shapefold.cpp`
+- **[bug, conditional] The twin fold ignores the attributes it throws away** (waits on `redesign_QUESTIONS.md` question 5). `shapefold.cpp`
   drops a reversed twin when its positions match; `ShapePass::Input` carries no coordinates or
   colours, so a back face with its own mapping or baked colour shows the front's. `dropPockets` has
   the same blind spot. Target: a twin only where the reversed corners also carry equal coordinates
   and colours, and a mesh flagged so a ray takes the face its winding faces. Count the differing
   pairs over the vanilla archives first.
-- **[bug] `TracedTerrain` answers for a worldspace that is no longer current.** It does not
-  override `Terrain::World::enable`, so after `RenderingManager::enableTerrain` swaps worldspaces
-  its two answers (`mAnswer`, `mStaticsAnswer`) keep answering CPU rays with the old storage's
-  heights. Target: `enable(bool)` masks the answers and `mBorders`.
 - **[bug] The overlay drops a pending paint the local map let go of.** `TracedOverlay::finish`
   erases a pending paint whose tile `use_count() == 1`; a cell crossed quickly after a load stays
   black on the world map for the session. Target: the pending paint keeps its view until the copy
