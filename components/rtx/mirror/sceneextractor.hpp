@@ -163,9 +163,12 @@ namespace Rtx
         /// **`ring` is collected for `frame`**, the walk's own: a ring told one frame and walked for
         /// another adopts twice on a frame walked twice.
         ///
+        /// **At the world's own frame and no transform above it**, because what it freezes is
+        /// keyed on each run's place under the root (`FrozenFace`), and a root that moved would
+        /// leave every frozen run where it stood.
+        ///
         /// @param ring one made on this extractor, which is what it adopts through; asserted.
-        ExtractionStats extractWorld(const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor,
-            std::size_t frame, CellRing& ring);
+        ExtractionStats extractWorld(const osg::Node& root, std::size_t anchor, std::size_t frame, CellRing& ring);
 
         /// `extract`, for what the weather drops: every emitter met under `fall` is placed as one
         /// whose sprites a roof keeps off — `MirrorPass::mFalls`. The precipitation's walk and
