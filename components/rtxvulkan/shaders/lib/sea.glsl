@@ -363,9 +363,9 @@ float caustic(vec2 at, float depth, float footprint)
 
     // **Snyder and Dera's law, and the whole of why deep water has none of this.** Past the focus a
     // point on the bed is reached by several patches of surface at once and this draws one of them,
-    // the rest averaging to the mean — so the pattern fades as the inverse square root of the depth
-    // while `WATER_CAUSTIC_SPREAD` broadens it by the same power. Measured in the sea since 1970 and
-    // found again by every field campaign after it, over depths of one metre to twenty-five.
+    // the rest averaging to the mean — so the pattern fades as a power of the depth, which the sea
+    // measures at a half and `WATER_CAUSTIC_FADE` sets to one, for the reason it gives, while
+    // `WATER_CAUSTIC_SPREAD` broadens it.
     //
     // Blending toward one rather than scaling is what keeps the light where it was.
     const float shown = WATER_CAUSTIC_STRENGTH * pow(max(depth / WATER_CAUSTIC_FOCUS, 1.0), -WATER_CAUSTIC_FADE);

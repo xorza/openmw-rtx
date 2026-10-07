@@ -33,9 +33,9 @@ namespace Rtx
 {
     namespace
     {
-        /// The three modes a NIF can state map one for one. The other three are `SceneUtil::Material`'s
-        /// alone — nothing here writes them — and ambient or diffuse on its own still tints the one
-        /// albedo, while a specular the renderer has not got is nothing.
+        /// Four of the six modes map one for one: the NIF's emission and ambient-and-diffuse, and the
+        /// diffuse and the ambient alone, which an OSG model states. None and specular use the colours
+        /// for nothing here: a specular the renderer has not got is nothing.
         VertexColour vertexColourOf(SceneUtil::VertexColorModes mode)
         {
             switch (mode)

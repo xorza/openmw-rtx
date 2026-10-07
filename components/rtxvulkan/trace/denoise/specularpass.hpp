@@ -16,8 +16,8 @@ namespace Rtx
 
     /// The glossy filter: `CHANNEL_SPECULAR` averaged over the frames its reflection holds still, by
     /// ReLAX's rule for how far a view may turn against a lobe — `specular.comp` says what the port
-    /// keeps. It runs where the wavelet does and the scene wears a map, which is the only place a
-    /// surface has a lobe (`glossOf`).
+    /// keeps. It runs where the frame is denoised and the scene wears a map, which is the only place
+    /// a surface has a lobe (`glossOf`).
     class SpecularPass
     {
     public:
