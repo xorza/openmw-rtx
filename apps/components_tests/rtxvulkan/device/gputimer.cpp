@@ -15,7 +15,6 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>

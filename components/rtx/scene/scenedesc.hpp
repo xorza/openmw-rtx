@@ -9,7 +9,7 @@
 #include <osg/Image>
 
 #include <components/misc/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>

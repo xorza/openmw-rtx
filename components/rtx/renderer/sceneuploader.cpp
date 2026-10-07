@@ -6,7 +6,7 @@
 #include <string>
 
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>

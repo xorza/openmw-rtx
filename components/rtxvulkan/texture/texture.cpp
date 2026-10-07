@@ -17,7 +17,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/textureencoding.hpp>

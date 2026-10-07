@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "runs.hpp"
+#include "index.hpp"
 
 namespace Rtx
 {

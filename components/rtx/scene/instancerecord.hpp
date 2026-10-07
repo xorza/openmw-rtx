@@ -5,7 +5,7 @@
 
 #include <osg/Matrixf>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/shaders/skinning.h>
 
 #include "material.hpp"

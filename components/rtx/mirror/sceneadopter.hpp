@@ -1,6 +1,6 @@
 #pragma once
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 
 namespace osg

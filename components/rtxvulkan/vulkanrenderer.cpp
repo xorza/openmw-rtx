@@ -16,8 +16,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>

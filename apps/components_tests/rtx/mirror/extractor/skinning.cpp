@@ -15,7 +15,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>

@@ -41,7 +41,7 @@
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/image/formatcensus.hpp>

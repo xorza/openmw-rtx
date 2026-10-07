@@ -6,7 +6,7 @@
 #include <boost/container/flat_set.hpp>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
 

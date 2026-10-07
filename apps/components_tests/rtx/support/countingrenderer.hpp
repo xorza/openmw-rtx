@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>

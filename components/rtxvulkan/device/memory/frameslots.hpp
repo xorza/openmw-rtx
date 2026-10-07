@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <utility>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/renderer/framesinflight.hpp>
 

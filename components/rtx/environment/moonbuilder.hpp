@@ -8,8 +8,8 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/namedenum.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/sky.h>
 #include <components/sky/moonstate.hpp>
