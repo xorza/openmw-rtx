@@ -390,7 +390,7 @@ Each check lands with its contract, and each is one the gate runs.
 
 | | The check |
 |---|---|
-| D2 | `RtxSourceTreeTest.everyHistoryIsWeighedByTheOneGather` (done): no kernel calls `historyShare`, the gather's weight, outside `surfacematch.glsl`; a kernel still reads its payload by `historyTap`. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean. |
+| D2 | `RtxSourceTreeTest.everyHistoryIsWeighedByTheOneGather` (done): no kernel calls `historyShare`, the gather's weight, outside `surfacematch.glsl`; a kernel still reads its payload by `historyTap`. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean (done, the pane filter's). |
 | D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model (done); the split sky is every source's sum, and a source under a floor draws no bit (done); a lamp that takes light away takes it off the exact sum where one lamp is drawn (done). |
 | D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall; a pane of opacity one half is met by half the secondary rays, in the mean. |
 | D6 | A host test: the composite's remodulation inverts the trace's demodulation for every channel. |
@@ -449,8 +449,9 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    receivers and non-receivers on one plane, under a soft penumbra and a jittered history.
 2. **The registration rule is done**: means are fetched at `at + 0.5 + motion`, the held surface's plane
    test rebuilds through the previous jitter, and the reuse keeps its tap at the surface's own point.
-   **Owed:** the GPU test of a still, jittered edge accumulating to its unjittered-centre mean, which
-   needs an edge in the accumulator's own history, isolated from the wavelet.
+   Its GPU test is the pane filter's, which no spatial pass follows
+   (`aJitteredStillsPaneHistoryIsRegisteredAtThePixelsCentre`): a shadow's edge on a pane, jittered,
+   filters to the mean of its frames; a fetch 0.3 of a pixel off doubled the raw frame's error.
 5. **The YCoCg clamp is done** (`lib/historyclamp.glsl`, the accumulator's). **The fast companion for
    the glossy and pane filters was tried and declined**: a 2-frame fast mean beside each, held by the
    accumulator's clamp in one kernel, took the still eye's filtered means off the mean of their frames
