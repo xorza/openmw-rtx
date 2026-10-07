@@ -241,13 +241,13 @@ jobs:
         # in the build tree (`RTX_HARNESS_DIR`, `apps/rtxtool`'s output directory), and the GPU tests'
         # with them. The renderer's own shaders are looked for first, and the harness beside the
         # bundle, so a build that moved either fails here rather than passing a search of nothing.
+        # What the harness is, is the packages' own list (`HARNESS_NAMES` in `tools/omw/package.py`).
         run: |
           bundle=build/OpenMW.app
           test -d "$bundle/Contents/Resources/resources/rtx/shaders"
           test -x build/openmw-rtxtool
           build/openmw-rtxtool --help > /dev/null
-          found=$(find "$bundle" \( -name rtxtool -o -name openmw-rtxtool -o -name rtx-gpu-tests \
-            -o -name shaders-source -o -name views.cfg -o -name benches.cfg -o -name '*-driver-cache' \) -print)
+          found=$(PYTHONPATH=tools python3 -c 'import sys; from pathlib import Path; from omw.package import harness_files; print(" ".join(harness_files(Path(sys.argv[1]))))' "$bundle")
           if [ -n "$found" ]; then
             echo "::error::the bundle carries the harness's files: $found"
             exit 1

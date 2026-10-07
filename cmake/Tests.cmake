@@ -2,6 +2,10 @@
 # because the ones that read game data resolve `./resources` as the tool does.
 enable_testing()
 
+# What the suites write — their times and the crash matrix's runs — which the driver reads from the
+# cache.
+set(RTX_TEST_OUTPUT_DIR "${CMAKE_BINARY_DIR}/test-output" CACHE INTERNAL "What the test suites write")
+
 # Options for the test binaries alone, where a preset names any: at `-Og` a test file builds twice as
 # fast, and the code it tests keeps the build's own flags.
 set(OPENMW_TEST_COMPILE_OPTIONS "" CACHE STRING "Compile options added to the test binaries alone")
@@ -22,7 +26,7 @@ function(openmw_add_test name target)
     # whose binary is not built yet. Each test's times go to a report named after the test rather
     # than the binary: two shards of one binary would otherwise both pick the same free name.
     set_tests_properties(${name} PROPERTIES LABELS "${TEST_LABELS}" OPENMW_TARGET ${target}
-        ENVIRONMENT "GTEST_OUTPUT=json:${CMAKE_BINARY_DIR}/test-output/times/${name}.json")
+        ENVIRONMENT "GTEST_OUTPUT=json:${RTX_TEST_OUTPUT_DIR}/times/${name}.json")
 endfunction()
 
 openmw_add_test(components components-tests)
@@ -31,7 +35,7 @@ openmw_add_test(cs openmw-cs-tests)
 
 # Every way a game ends, each in a process of its own with the real catcher. The reports stay in the
 # build after a run, so a failed mode leaves what it wrote; each mode empties its own folder first.
-openmw_add_test(crash.matrix crash-tests ARGS --matrix "${CMAKE_BINARY_DIR}/test-output/crash-matrix")
+openmw_add_test(crash.matrix crash-tests ARGS --matrix "${RTX_TEST_OUTPUT_DIR}/crash-matrix")
 
 # Two processes on one device, so one's host work overlaps the other's device work: 17 s rather than
 # 23, and three shards were no faster than two.

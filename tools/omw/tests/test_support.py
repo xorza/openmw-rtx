@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from omw.build import CONFIGURED_FROM, configured_from, manifest_inputs, redate_ahead
+from omw.build import CONFIGURED_FROM, Build, configured_from, manifest_inputs, redate_ahead
 from omw.fetch import build_beside, download, partial_of, settle
 from omw.package import (
     CONTAINER_DIR,
@@ -48,6 +48,26 @@ class ConfiguredFromTest(unittest.TestCase):
                 (folder / missing).unlink()
                 self.assertFalse(configured_from(folder, "abc"))
                 (folder / missing).write_text(content)
+
+
+class CachedFolderTest(unittest.TestCase):
+    def test_a_folder_is_the_value_its_name_has_in_the_cache_and_a_missing_one_is_refused(self):
+        build = Build("debug")
+        build.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, build.dir)
+        with self.assertRaises(Refusal):
+            build.cached_folder("RTX_HARNESS_DIR")
+
+        (build.dir / "CMakeCache.txt").write_text("".join(line + "\n" for line in (
+            "// The harness's folder",
+            "RTX_HARNESS_DIR:INTERNAL=/checkout/build/rtxtool",
+            "RTX_HARNESS_DIR_EXTRA:INTERNAL=/elsewhere",
+            "RTX_TEST_OUTPUT_DIR:INTERNAL=",
+        )))
+        self.assertEqual(build.cached_folder("RTX_HARNESS_DIR"), Path("/checkout/build/rtxtool"))
+        for refused in ("RTX_TEST_OUTPUT_DIR", "RTX_SPIRV_DIR"):
+            with self.subTest(name=refused), self.assertRaises(Refusal):
+                build.cached_folder(refused)
 
 
 class ManifestInputsTest(unittest.TestCase):
@@ -220,13 +240,17 @@ class InstallTest(unittest.TestCase):
         (self.root / name).write_text("")
 
     def test_the_harness_files_are_named_wherever_they_land_and_the_games_are_not(self):
-        for name in ("openmw.exe", "openmw-rtxtool", "resources/rtx/shaders/a.spv", "resources/vfs/scripts/a.lua",
-                     "rtxtool/views.cfg", "rtxtool/vfs/rtxtool.omwscripts", "resources/rtx/views.cfg",
-                     "resources/rtx/shaders-driver-cache/abc/entry", "test-output/crash-matrix/abort/log.txt"):
+        for name in ("openmw.exe", "openmw-rtxtool", "rtx-gpu-tests.exe", "resources/rtx/shaders/a.spv",
+                     "resources/vfs/scripts/a.lua", "rtxtool/views.cfg", "rtxtool/vfs/rtxtool.omwscripts",
+                     "resources/rtx/views.cfg", "resources/rtx/shaders-driver-cache/abc/entry",
+                     "resources/rtx/shaders-census/a.spv", "test-output/crash-matrix/abort/log.txt"):
             self.touch(name)
         self.assertEqual(harness_files(self.root), [
+            "openmw-rtxtool",
+            "resources/rtx/shaders-census/a.spv",
             "resources/rtx/shaders-driver-cache/abc/entry",
             "resources/rtx/views.cfg",
+            "rtx-gpu-tests.exe",
             "rtxtool/vfs/rtxtool.omwscripts",
             "rtxtool/views.cfg",
             "test-output/crash-matrix/abort/log.txt",

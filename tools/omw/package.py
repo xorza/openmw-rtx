@@ -37,9 +37,12 @@ def used_osg_plugins(cmake_text: str) -> list[str]:
     return match.group(1).split()
 
 
-# What the harness and the tests write under the build, which no install may carry: the harness's
-# folder (`RTX_HARNESS_DIR`), the test output, and their files by name, wherever they land.
-HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches.cfg", "shaders-source")
+# What the harness and the tests are and write under the build, which no install may carry: the
+# harness's folder (`RTX_HARNESS_DIR`) and the test output (`RTX_TEST_OUTPUT_DIR`), their files and
+# folders by name wherever they land, and the two programs that never install. The one list: the
+# packages check their install against it, and CI the macOS bundle.
+HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches.cfg", "shaders-source",
+                 "shaders-census", "shaders-census-source", "openmw-rtxtool", "rtx-gpu-tests")
 
 
 # The Wayland platform as each Qt names it: one plugin in Qt 6.11's base, and two in the
@@ -89,7 +92,8 @@ def harness_files(installed: Path) -> list[str]:
     found = []
     for path in installed.rglob("*"):
         parts = path.relative_to(installed).parts
-        if path.is_file() and any(part in HARNESS_NAMES or part.endswith("-driver-cache") for part in parts):
+        if path.is_file() and any(part.removesuffix(".exe") in HARNESS_NAMES or part.endswith("-driver-cache")
+                                  for part in parts):
             found.append(path.relative_to(installed).as_posix())
     return sorted(found)
 
