@@ -432,7 +432,7 @@ namespace Rtx
             std::vector<TextureHold> moonHolds;
             ThreadContent thread;
             const Rtx::MoonFaces moons
-                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, moonHolds, thread);
+                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, thread, moonHolds);
             EXPECT_EQ(scene.textures().getHolds(moons.of(Rtx::Moon::Masser).mSlot), 1u);
             EXPECT_EQ(scene.textures().getHolds(moons.of(Rtx::Moon::Secunda).mSlot), 1u);
 
