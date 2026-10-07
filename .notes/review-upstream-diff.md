@@ -5,7 +5,7 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The frame path allocates, copies, or rebuilds behind a threshold
 
-- [ ] `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
+- [ ] **Blocked: Q1 in `review-upstream-diff_QUESTIONS.md`.** `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
   (`rtxvulkan/scene/scenebuffers.cpp:341`). It matches lamps by index into a list sorted by position
   (`scenedesc.cpp:284`), so a lamp that appears or goes (a glow effect, a bolt) rebuilds the full grid.
   `build` fits the extent exactly to the lamps' reach, so a carried torch or a bolt that moves outward
