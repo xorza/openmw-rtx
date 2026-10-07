@@ -1,6 +1,7 @@
 #pragma once
 
 #include <charconv>
+#include <concepts>
 #include <optional>
 #include <string_view>
 #include <type_traits>
@@ -29,5 +30,17 @@ namespace RtxTool
         }
 
         return Misc::StringUtils::toNumeric<T>(text);
+    }
+
+    /// The integer the whole of `text` spells in `base`, in that base's digits and nothing else: no
+    /// sign an unsigned type cannot hold, no prefix, and nothing after the last digit.
+    template <std::integral T>
+    std::optional<T> wholeNumber(std::string_view text, int base)
+    {
+        T result{};
+        const auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), result, base);
+        if (ec != std::errc() || ptr != text.data() + text.size())
+            return std::nullopt;
+        return result;
     }
 }

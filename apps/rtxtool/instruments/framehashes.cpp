@@ -3,16 +3,16 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <format>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 
+#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
@@ -229,9 +229,10 @@ namespace RtxTool
 
             for (int half = 0; half < 2; ++half)
             {
-                const char* const from = field.data() + half * 16;
-                if (std::from_chars(from, from + 16, into[half], 16).ec != std::errc{})
+                const std::optional<std::uint64_t> word = wholeNumber<std::uint64_t>(field.substr(half * 16, 16), 16);
+                if (!word.has_value())
                     return false;
+                into[half] = *word;
             }
 
             return true;
@@ -262,8 +263,10 @@ namespace RtxTool
 
             Frame frame;
             frame.mView = std::string(fields[0]);
-            if (std::from_chars(fields[1].data(), fields[1].data() + fields[1].size(), frame.mFrame).ec != std::errc{})
+            const std::optional<std::uint32_t> number = wholeNumber<std::uint32_t>(fields[1]);
+            if (!number.has_value())
                 throw fail(line);
+            frame.mFrame = *number;
 
             const std::optional<Rtx::Upscale> upscale = Rtx::sUpscaleNames.named(fields[2]);
             if (!upscale.has_value())
