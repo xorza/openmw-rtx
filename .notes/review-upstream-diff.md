@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Owners that are not pinned or encapsulated as the conventions say
 
-- [ ] `apps/openmw/mwrender/framedescriber.hpp:66,126` — `FrameDescriber::mFrame` (filled at
-  `framedescriber.cpp:96`) holds references into the describer's own `mWorld`, `mEye` and `mJumped`, but
-  the class can be copied. Target shape: delete copy and move. (low)
 - [ ] `components/rtxvulkan/device/memory/accelerationstructure.hpp:66`, `structurestorage.hpp:35` — each
   structure keeps a raw `StructureStorage*`, and `StructureStorage` can be copied and moved. Target shape:
   delete copy and move on `StructureStorage`. (low)

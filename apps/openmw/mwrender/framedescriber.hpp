@@ -66,6 +66,11 @@ namespace MWRender
     class FrameDescriber
     {
     public:
+        /// Pinned: the frame kept holds references into this describer's own records.
+        FrameDescriber() = default;
+        FrameDescriber(const FrameDescriber&) = delete;
+        FrameDescriber& operator=(const FrameDescriber&) = delete;
+
         WaterState& getWater() { return mWater; }
         const WaterState& getWater() const { return mWater; }
 
@@ -119,14 +124,14 @@ namespace MWRender
         float mDeltaTime = 0.f;
         bool mPaused = false;
 
-        /// This frame, from `describe` to the next, and the two records it refers to; empty before
-        /// the first.
-        WorldState mWorld;
-        EyeState mEye;
-        std::optional<SceneFrame> mFrame;
-
         /// Kept across frames and cleared, so a frame allocates none of it once the most jumps any
         /// frame held have been held.
         std::vector<const osg::Node*> mJumped;
+
+        /// This frame, from `describe` to the next, and the three records it refers to, declared
+        /// before it; empty before the first.
+        WorldState mWorld;
+        EyeState mEye;
+        std::optional<SceneFrame> mFrame;
     };
 }
