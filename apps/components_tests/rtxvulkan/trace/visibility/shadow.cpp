@@ -354,9 +354,12 @@ namespace Rtx::Testing
         /// read half.
         ///
         /// And under a black pane half there at 40 units, over the whole floor, and a roof over half
-        /// the floor at 100, the eye 30 units up under them both: the open half's shadowed light is the
-        /// sun's `2 * 0.5 / pi` = 0.31831 through half the pane, 0.15915, and the roofed half's the
-        /// whole of it, whatever the stopped ray met first.
+        /// the floor at 100, the eye 30 units up under them both: every pixel's shadowed light is the
+        /// sun's whole, `2 * 0.5 / pi` = 0.31831, and what the pane lets through is drawn into the bit.
+        /// The roofed half's bit is shut, whatever the stopped ray met first, and its penumbra the
+        /// roof's; the open half's is open on half its draws, the pane's opacity, and takes the drawn
+        /// reach. Over 32 frames of at least 768 such pixels, n >= 24576 independent draws of a
+        /// half: the mean's deviation is `0.5 / sqrt(n)` <= 0.0032, held at four of it.
         TEST_F(RtxVisibilityTest, aPenumbraIsItsNearestOccludersOnTheReceiverAndAStoppedRayLetsAllThrough)
         {
             constexpr std::uint32_t size = 96;
@@ -424,20 +427,36 @@ namespace Rtx::Testing
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addPane(scene, sheetAt(4000.0f, 40.0f), osg::Vec4f(0.0f, 0.0f, 0.0f, 0.5f), 1.0f, true);
             addQuad(scene, roofOver(-4000.0f, 0.0f, 100.0f));
-            shoot(scene, {}, between, size, {});
-            std::vector<float> shadowed;
-            mRenderer.readChannel(Channel::Shadowed, shadowed);
+            constexpr std::uint32_t frames = 32;
             const float sunlit = Shaders::INV_PI;
-            std::size_t open = 0;
+            std::vector<float> shadowed;
+            std::vector<float> penumbrae;
+            std::size_t drawn = 0;
+            std::size_t opened = 0;
             std::size_t roofed = 0;
-            for (std::size_t value = 0; value < shadowed.size(); value += 4)
-            {
-                const bool stoppedHere = shadowed[value + 3] == 0.0f;
-                EXPECT_NEAR(shadowed[value], stoppedHere ? sunlit : 0.5f * sunlit, 2e-3f) << "pixel " << value / 4;
-                ++(stoppedHere ? roofed : open);
-            }
-            EXPECT_GT(open, std::size_t{ 8 * size });
-            EXPECT_GT(roofed, std::size_t{ 8 * size });
+            shoot(scene, {}, between, size, { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                                                 mRenderer.readChannel(Channel::Shadowed, shadowed);
+                                                 mRenderer.readChannel(Channel::Penumbra, penumbrae);
+                                                 for (std::size_t pixel = 0; pixel < penumbrae.size(); ++pixel)
+                                                 {
+                                                     EXPECT_NEAR(shadowed[pixel * 4], sunlit, 2e-3f)
+                                                         << "pixel " << pixel;
+                                                     const float bit = shadowed[pixel * 4 + 3];
+                                                     if (penumbrae[pixel] == Shaders::SHADOW_PENUMBRA_DRAWN)
+                                                     {
+                                                         ++drawn;
+                                                         opened += bit == 1.0f ? 1 : 0;
+                                                         continue;
+                                                     }
+                                                     EXPECT_EQ(bit, 0.0f) << "pixel " << pixel << " under the roof";
+                                                     ++roofed;
+                                                 }
+                                             } });
+            EXPECT_GE(drawn, std::size_t{ frames * 8 * size });
+            EXPECT_GE(roofed, std::size_t{ frames * 8 * size });
+            const double open = static_cast<double>(opened) / static_cast<double>(drawn);
+            EXPECT_NEAR(open, 0.5, 4.0 * 0.5 / std::sqrt(static_cast<double>(drawn)))
+                << "the bit's mean is what the pane lets through";
         }
 
         /// **A penumbra's bits are drawn blue, so a little blur takes most of their noise.** The roof

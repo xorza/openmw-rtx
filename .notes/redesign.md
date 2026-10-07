@@ -624,13 +624,6 @@ device here measures the GL path's memory, and the change would be checked only 
 
 ### 6.6 Light that is not the estimate it claims
 
-- **[bug] A translucent surface's shadow sums are one ray's** (`gather`: the unshadowed sums times
-  the drawn source's `mThrough`), against `gbuffer.h`'s "`rgb` is exact per pixel". **Decided
-  (2026-10-07): draw the translucency into the bit.** The bit is open where the ray got through and
-  a draw from a hash of the pixel falls under `mThrough`, and `rgb` is the unshadowed light, exact;
-  the bit's mean is `open × mThrough`, the product it replaces, so the estimate stays unbiased and
-  the denoiser filters the translucency as it filters a penumbra. A pixel the draw shuts carries a
-  reach in `CHANNEL_PENUMBRA`, so the levels run on it.
 - **[decision] The glossy filter has no virtual-motion history** (`specular.comp`): a sharp lobe
   resets at each turn. ReLAX's needs the lobe's hit distance stored. **Waits for replacer content**
   (decided 2026-10-07): a PBR replacer with specular maps installed and a view of it in
