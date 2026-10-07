@@ -641,8 +641,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 - **[design] The sprites' order-free composite lets the farther, denser layer win** (alpha-only
   weights). Target: a k = 2–4 register buffer by depth with the tail merged (MLAB), or at least a
   depth weight. The largest item here: its own measured step.
-- **[code] The stress loop assumes the shader clock ticks at `timestampPeriod`**
-  (`stresspass.cpp`). Target: calibrate once, or assert the ratio.
 - **[code] The shadow passes branch per lane with no measurement** (`shadowtiles.comp`'s `if
   (receiver)`, the filter's no-normal tests). Target: selects, or the measurement named.
 
