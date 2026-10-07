@@ -24,7 +24,32 @@ class OutlivedHarness:
         return subprocess.run([sys.executable, "-c", OUTLIVED], check=False, **options)
 
 
+class StatusHarness:
+    """A harness whose first run passes and whose every later run ends with `status`, saying nothing
+    the report would."""
+
+    def __init__(self, status: int):
+        self.status = status
+        self.runs = 0
+
+    def harness(self, verb: str, *args, **options) -> subprocess.CompletedProcess:
+        code = 0 if self.runs == 0 else self.status
+        self.runs += 1
+        return subprocess.CompletedProcess(args, code, stdout=b"a report in other words\n")
+
+
 class RepeatTest(unittest.TestCase):
+    def test_a_pair_is_judged_by_its_status_and_not_by_its_report(self):
+        for status, judged, says in ((DIFFERED_STATUS, 1, "NOT repeatable"), (1, 1, "the run itself failed")):
+            with self.subTest(status=status):
+                out = Path(tempfile.mkdtemp(prefix="omw-repeat-test-"))
+                self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+                errors = io.StringIO()
+                with (mock.patch("omw.repeat.tempfile.mkdtemp", return_value=str(out)),
+                      contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors)):
+                    self.assertEqual(repeat(StatusHarness(status), []), judged)
+                self.assertIn(says, errors.getvalue())
+
     def test_a_pair_that_agreed_leaves_no_folder_though_a_child_outlived_the_run(self):
         out = Path(tempfile.mkdtemp(prefix="omw-repeat-test-"))
         self.addCleanup(shutil.rmtree, out, ignore_errors=True)
