@@ -297,9 +297,7 @@ osg::Group {
     INSTANTIATE_TEST_SUITE_P(
         Params, NifOsgLoaderBSLightingShaderPrefixTest, ValuesIn(NifOsgLoaderBSLightingShaderPrefixTest::sParams));
 
-    // The first frame draws the particles the file saved before any program has run, so they must already wear
-    // what the age affectors give a particle of their age rather than the controller's initial colour and size.
-    TEST_F(NifOsgLoaderTest, savedParticlesWearWhatTheirAgeGivesThemBeforeTheFirstFrame)
+    TEST_F(NifOsgLoaderTest, shouldApplyAgeAffectorsToSavedParticlesOnLoad)
     {
         Nif::NiColorData colorData;
         colorData.mKeyMap = std::make_shared<Nif::Vector4KeyMap>();
@@ -326,7 +324,6 @@ osg::Group {
         data.mVertices = { osg::Vec3f(0.f, 0.f, 0.f), osg::Vec3f(10.f, 0.f, 0.f) };
         data.mBoundingSphere = osg::BoundingSpheref(osg::Vec3f(), 10.f);
 
-        // With an emitter and without one, because the first update is the loader's either way.
         for (const bool emits : { true, false })
         {
             SCOPED_TRACE(emits ? "emits" : "emits nothing");
@@ -371,14 +368,13 @@ osg::Group {
             const auto& system = static_cast<const osgParticle::ParticleSystem&>(*find.mFoundNodes.front());
             ASSERT_EQ(system.numParticles(), 2);
 
-            // A quarter of its life: colour 1 + (0.2 - 1) * 0.25 = 0.8, alpha 1 - 0.25 = 0.75, and half of its
-            // one second of growth, so 4 * 0.5 = 2.
+            // Age 0.5 of 2: colour 1 - 0.8 * 0.25 = 0.8, alpha 0.75, size 4 * 0.5 / 1 = 2
             const osgParticle::Particle& young = *system.getParticle(0);
             EXPECT_FLOAT_EQ(young.getCurrentColor().r(), 0.8f);
             EXPECT_FLOAT_EQ(young.getCurrentAlpha(), 0.75f);
             EXPECT_FLOAT_EQ(young.getCurrentSize(), 2.f);
 
-            // Three quarters: colour 1 - 0.8 * 0.75 = 0.4, alpha 0.25, and grown whole, so 4.
+            // Age 1.5 of 2: colour 1 - 0.8 * 0.75 = 0.4, alpha 0.25, fully grown so size 4
             const osgParticle::Particle& old = *system.getParticle(1);
             EXPECT_FLOAT_EQ(old.getCurrentColor().r(), 0.4f);
             EXPECT_FLOAT_EQ(old.getCurrentAlpha(), 0.25f);

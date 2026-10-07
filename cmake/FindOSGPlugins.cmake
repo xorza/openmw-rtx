@@ -24,6 +24,11 @@ if (NOT OSGPlugins_LIB_DIR)
             list(APPEND OSGPlugins_LIB_DIR "${OSG_LIB_DIR}/osgPlugins-${OPENSCENEGRAPH_VERSION}")
         endif()
     endforeach(OSGDB_LIB)
+    if (WIN32)
+        set(OSGPlugins_BIN_DIR ${OSGPlugins_LIB_DIR})
+        list(TRANSFORM OSGPlugins_BIN_DIR REPLACE lib bin)
+        list(APPEND OSGPlugins_LIB_DIR ${OSGPlugins_BIN_DIR})
+    endif ()
 endif()
 
 if (NOT OSGPlugins_LIB_DIR)
@@ -40,11 +45,15 @@ foreach(_library ${OSGPlugins_FIND_COMPONENTS})
 
     # On some systems, notably Debian and Ubuntu, the OSG plugins do not have
     # the usual "lib" prefix, so the empty prefix is searched too. In a block, so the
-    # caller's prefixes come back whole: a list saved and restored unquoted loses its
-    # empty element, which turns MSVC's ";lib" into "lib" and hides every import
+    # caller's prefixes and suffixes come back whole: a list saved and restored unquoted
+    # loses its empty element, which turns MSVC's ";lib" into "lib" and hides every import
     # library without the prefix from later searches.
     block(SCOPE_FOR VARIABLES PROPAGATE ${_library_uc}_LIBRARY ${_library_uc}_LIBRARIES)
         list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
+        if(WIN32)
+            # find_library isn't supposed to find DLLs, it's supposed to find their import libraries, but these are modules, so don't have import libraries
+            list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES ".dll")
+        endif()
         set(${_library_uc}_DIR ${OSGPlugins_LIB_DIR}) # to help function osg_find_library
         osg_find_library(${_library_uc} ${_library}) # find it into ${_library_uc}_LIBRARIES
     endblock()
