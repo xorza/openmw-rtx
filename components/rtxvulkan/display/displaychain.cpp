@@ -44,7 +44,7 @@ namespace Rtx
             const VkDeviceAddress textureTexels, const VkDeviceAddress blueNoise, std::uint32_t width,
             std::uint32_t height)
         {
-            const SunGlare fader = look != nullptr ? look->mGlare.mFader : SunGlare{};
+            const SunGlare fader = look != nullptr ? look->mGlare : SunGlare{};
 
             assert(spriteTileList != 0 && spritePresence != 0 && "a curve told no tiles to test the puffs by");
             assert(textureTexels != 0 && "a curve told no texel counts to test the star sheet by");
@@ -133,18 +133,18 @@ namespace Rtx
         if (look != nullptr)
         {
             openZone(timer, commands, FrameZone::Exposure);
-            if (const auto* fixed = std::get_if<FrameLook::Fixed>(&look->mExposure); fixed != nullptr)
-                mExposure.recordFixed(commands, fixed->mValue);
-            else if (std::holds_alternative<FrameLook::Held>(look->mExposure))
+            if (const auto* fixed = std::get_if<FixedExposure>(&look->mExposure); fixed != nullptr)
+                mExposure.recordFixed(commands, fixed->mScale);
+            else if (std::holds_alternative<HeldExposure>(look->mExposure))
             {
                 // Nothing recorded: the buffer holds what the last write left, and the head barrier
                 // `CommandPool::begin` records orders this frame's curve after it.
             }
             else
             {
-                const FrameLook::Measured& measured = std::get<FrameLook::Measured>(look->mExposure);
-                mExposure.record(commands, shown, measured.mSeconds,
-                    mExposureStale ? std::optional(measured.mStart) : std::nullopt, measured.mBias);
+                const MeasuredExposure& measured = std::get<MeasuredExposure>(look->mExposure);
+                mExposure.record(commands, shown, look->mSeconds,
+                    mExposureStale ? std::optional(measured.mStart) : std::nullopt, look->mExposureBias);
                 mExposureStale = false;
             }
             closeZone(timer, commands);
@@ -158,7 +158,7 @@ namespace Rtx
         if (look != nullptr)
         {
             openZone(timer, commands, FrameZone::Glare);
-            mSunGlare.record(commands, look->mGlare.mSeconds, mGlareStale);
+            mSunGlare.record(commands, look->mSeconds, mGlareStale);
             mGlareStale = false;
             closeZone(timer, commands);
             share = &mSunGlare.getShare();
