@@ -56,6 +56,7 @@
 #include "gbuffer.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/historyclamp.glsl"
 #include "lib/pixels.glsl"
 #include "lib/sharedexponent.glsl"
@@ -159,7 +160,7 @@ void main()
     const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + OUTER;
     if (gFast[centre.y][centre.x].w < 0.0)
     {
-        imageStore(fastOut, at, uvec4(fastPacked, 0u, 0u));
+        RTX_STORE_WORDS(fastOut, at, uvec4(fastPacked, 0u, 0u))
         return;
     }
     const vec3 fastHere = unpackRgb9e5(fastPacked.x);
@@ -264,7 +265,7 @@ void main()
             }
         variance = shortHistoryVariance(momentSum.x / momentWeight, momentSum.y / momentWeight, frames);
     }
-    imageStore(blended, at, vec4(held, variance));
-    imageStore(fillBlended, at, vec4(heldFill, 0.0));
-    imageStore(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u));
+    RTX_STORE_COUNTED(blended, at, vec4(held, variance))
+    RTX_STORE_COUNTED(fillBlended, at, vec4(heldFill, 0.0))
+    RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u))
 }

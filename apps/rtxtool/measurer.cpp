@@ -219,6 +219,15 @@ namespace RtxTool
 
     void Measurer::answered(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
     {
+        // **Where somebody plays the run, a NaN ends it, at the frame that stored it**: a window
+        // that flies until it is closed measures nothing, so nothing after would say so, and what
+        // a NaN reaches it spreads to — the picture the player went on looking at.
+        if (mRequest.mPlayed && finished.mNotFinite.total() > 0)
+        {
+            mFailure = std::format("frame {}: {}", finished.mFrame, describeNotFinite(finished.mNotFinite));
+            return;
+        }
+
         // A frame ahead of the measurement: its picture has no row and its figures are nobody's.
         if (!mProgress.mWindow.isOpen() || stop.mSchedule.mSpec.mRun.isUntilClosed()
             || finished.mFrame < mProgress.mFirstMeasured)

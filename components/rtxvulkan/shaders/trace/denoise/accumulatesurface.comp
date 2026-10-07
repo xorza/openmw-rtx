@@ -11,6 +11,7 @@
 #include "gbuffer.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"
 
@@ -34,5 +35,5 @@ void main()
     if (outsideOf(uvec2(at), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
         return;
 
-    imageStore(surfaceOut, at, heldSurfaceOf(imageLoad(surfaceChannel, at).xy, frame.mDistanceScale));
+    RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(imageLoad(surfaceChannel, at).xy, frame.mDistanceScale))
 }

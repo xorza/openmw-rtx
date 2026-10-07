@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cstdint>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -8,8 +11,11 @@
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <components/files/conversion.hpp>
+#include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/notfinitecensus.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
@@ -97,6 +103,33 @@ namespace Rtx
             ASSERT_FALSE(mHarness.mInstance->hasExtension(VK_KHR_SURFACE_EXTENSION_NAME));
 
             EXPECT_FALSE(mHarness.mDevice->hasPresentFences());
+        }
+
+        /// **A module's census word is its place among the census set's modules, sorted by name**,
+        /// whichever compile hand asked first, so a pipeline is the same to the driver's cache from
+        /// run to run: words handed out in the order pipelines were made moved with the trace's
+        /// compile threads, and the cache missed the trace's every pipeline. `accumulate` sorts
+        /// before `accumulateclamp`, `.` before `c`, and the `.spv` is no part of the name. A module
+        /// the directory does not hold is refused by name.
+        TEST_F(RtxDeviceTest, aModulesCensusWordIsItsPlaceInTheSortedDirectory)
+        {
+            const NotFiniteCensus* const census = getDevice().getCensus();
+            ASSERT_NE(census, nullptr) << "the tests' device reads the census set";
+
+            std::vector<std::string> modules;
+            for (const std::filesystem::directory_entry& entry :
+                std::filesystem::directory_iterator(getDevice().getShaderDirectory()))
+                if (entry.path().extension() == ".spv")
+                    modules.push_back(Files::pathToUnicodeString(entry.path().filename()));
+            std::sort(modules.begin(), modules.end());
+            ASSERT_FALSE(modules.empty());
+
+            for (std::uint32_t at = 0; at < modules.size(); ++at)
+                EXPECT_EQ(census->kernelOf(modules[at]), at) << modules[at];
+
+            EXPECT_EQ(census->kernelOf("accumulate.comp.spv") + 1, census->kernelOf("accumulateclamp.comp.spv"));
+            EXPECT_EQ(census->kernelOf("accumulate.comp"), census->kernelOf("accumulate.comp.spv"));
+            EXPECT_THROW(census->kernelOf("nothing.comp.spv"), InputError);
         }
 
         TEST_F(RtxDeviceTest, everyRequiredFeatureIsActuallySupported)

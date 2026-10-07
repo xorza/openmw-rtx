@@ -9,6 +9,8 @@
 
 #include <volk.h>
 
+#include <components/rtx/renderer/shaderdirectory.hpp>
+
 #include "physicaldevice.hpp"
 #include "requirements.hpp"
 
@@ -19,6 +21,7 @@ namespace Rtx
     class Graveyard;
     class Instance;
     class MemoryAllocator;
+    class NotFiniteCensus;
     class Timeline;
     class PipelineCache;
     struct PipelineCacheSpec;
@@ -151,12 +154,13 @@ namespace Rtx
         ///
         /// @param instance must outlive the device. Not held: a `VkDevice` does not reference its
         ///        instance, but every entry point reached through it does.
-        /// @param shaderDirectory the compiled shaders every pipeline on this device is built from,
-        ///        and what the pipeline cache is keyed on: one directory for both, so no pipeline
-        ///        loads a module the cache was not keyed on.
+        /// @param shaders the compiled shaders every pipeline on this device is built from, and what
+        ///        the pipeline cache is keyed on: one directory for both, so no pipeline loads a
+        ///        module the cache was not keyed on. Where they count, the device holds the census
+        ///        they count into (`getCensus`).
         /// @param cache where the pipeline cache is kept. An empty directory keeps none, and every
         ///        pipeline is compiled from source every run.
-        Device(const Instance& instance, PhysicalDevice&& physicalDevice, const std::filesystem::path& shaderDirectory,
+        Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
             const PipelineCacheSpec& cache);
         ~Device();
 
@@ -193,6 +197,12 @@ namespace Rtx
         VkPipelineCache getPipelineCache() const;
 
         const std::filesystem::path& getShaderDirectory() const { return mShaderDirectory; }
+
+        /// The census every pipeline made on the device counts its stores that were not finite
+        /// into, or null where its shaders do not count. The device's and not the renderer's, for
+        /// the reason the pool is: every layout binds it and every push writes it, which reach it
+        /// where a pipeline is made and pushed rather than having it handed to every pass.
+        const NotFiniteCensus* getCensus() const { return mCensus.get(); }
 
         /// Logs what the driver's compiler made of `pipeline` — registers a thread, spills, shared
         /// memory a block. The register count exists only inside the driver, which is what lets an
@@ -323,5 +333,8 @@ namespace Rtx
         /// allocator, so torn down before it. Marked from `checkpoint`, which a recording calls on
         /// the one thread that records.
         std::unique_ptr<BufferMarkers> mMarkers;
+
+        /// Made on the allocator, so torn down before it.
+        std::unique_ptr<NotFiniteCensus> mCensus;
     };
 }

@@ -8,6 +8,8 @@
 #include "shared/gui.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
+
 layout(set = SET_PASS, binding = GUI_BIND_TEXTURE) uniform sampler2D uTexture;
 
 /// Whether the texture holds its colour already weighed by its alpha, `Rtx::AlphaForm`: a traced
@@ -26,4 +28,5 @@ void main()
     // The one level a texture of the interface has, named: an implicit level is worked out from
     // derivatives, which each compile may take finely or coarsely.
     outColour = textureLod(uTexture, inTexCoord, 0.0) * tint;
+    countNotFinite(outColour);
 }

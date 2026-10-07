@@ -11,6 +11,8 @@
 #include "camera.h"
 #include "shared/line.h"
 
+#include "lib/census.glsl"
+
 layout(push_constant, scalar) uniform Push
 {
     LineConstants frame;
@@ -31,4 +33,8 @@ void main()
 
     outOffset = offset;
     outColour = inColour;
+
+    countNotFinite(gl_Position);
+    countNotFinite(outOffset);
+    countNotFinite(outColour);
 }

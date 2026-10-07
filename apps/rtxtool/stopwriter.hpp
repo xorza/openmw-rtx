@@ -28,6 +28,9 @@ namespace RtxTool
 {
     class RunRecord;
 
+    /// What `wrote` holds as a report says it: the stores in all, and each module's after a colon.
+    std::string describeNotFinite(const Rtx::NotFinite& wrote);
+
     /// What a stop asked for and what it came to, beside the frame it drew.
     ///
     /// **Named for the reason `FrameContext` is.** Each of these is read by one claim and by nothing

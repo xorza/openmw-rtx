@@ -24,6 +24,7 @@
 #include "shared/sets.h"
 #include "shared/shadow.h"
 
+#include "lib/census.glsl"
 #include "lib/compose.glsl"
 #include "lib/pixels.glsl"
 
@@ -103,10 +104,10 @@ void main()
     if (frame.mAccumulate > 0u)
     {
         const vec3 total = frame.mAccumulate > 1u ? imageLoad(sum, at).rgb + resolved : resolved;
-        imageStore(sum, at, vec4(total, 1.0));
+        RTX_STORE_COUNTED(sum, at, vec4(total, 1.0))
         resolved = total / float(frame.mAccumulate);
     }
 
     // The alpha is the puffs' composite's to write, and the curve's to read only where it did.
-    imageStore(direct, at, vec4(resolved, 1.0));
+    RTX_STORE_COUNTED(direct, at, vec4(resolved, 1.0))
 }

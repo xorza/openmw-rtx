@@ -1010,14 +1010,17 @@ namespace Rtx::Testing
             EXPECT_NEAR(ratio, 0.969, 0.05) << "banked air against even air, over nine viewpoints";
         }
 
-        /// **A store that is not finite is counted at the boundary it crossed, and a sound frame
-        /// counts nought.** A fog colour of NaN puts one into every froxel that holds air — the
-        /// columns of the frame by every slice, one scatter store each, with the sunward store and
-        /// the lamps' still finite. It reaches no store of the trace: the air folds into the pixel
-        /// through `max(shaded - peeled, 0)`, which on this card answers nought to a NaN — which is
-        /// why the fault it was found by read as black blocks and not as noise, and why the froxel
-        /// is a boundary of its own rather than trusted to show in the colour.
-        TEST_F(RtxVisibilityTest, aStoreThatIsNotFiniteIsCountedAtItsBoundary)
+        /// **A store that is not finite is counted against the module that made it, and a sound
+        /// frame counts nought.** A fog colour of NaN puts one into every froxel that holds air —
+        /// the columns of the frame by every slice, one scatter store each, with the sunward store
+        /// and the lamps' still finite. The integration carries it into two of its five stores a
+        /// froxel, the air accumulated to the slice's edge and the slice's own sample, which both
+        /// hold the colour; the seeing and the two sunward stores hold none. It reaches no store of
+        /// the trace: the air folds into the pixel through `max(shaded - peeled, 0)`, which on this
+        /// card answers nought to a NaN — which is why the fault it was found by read as black
+        /// blocks and not as noise, and why every module counts its own stores rather than trusting
+        /// a NaN to show in the colour.
+        TEST_F(RtxVisibilityTest, aStoreThatIsNotFiniteIsCountedAgainstItsModule)
         {
             constexpr std::uint32_t size = 64;
             Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -1026,19 +1029,19 @@ namespace Rtx::Testing
             camera.mFogColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
             camera.mFogExtinction = 3.0e-6f;
             const Frame clear = shoot(makeWall(), {}, camera, size);
-            EXPECT_EQ(clear.mNotFinite.mFog, 0u);
-            EXPECT_EQ(clear.mNotFinite.mColour, 0u);
-            EXPECT_EQ(clear.mNotFinite.mGuide, 0u);
+            EXPECT_EQ(clear.mNotFinite.total(), 0u);
 
             camera.mFogColour = osg::Vec3f(std::numeric_limits<float>::quiet_NaN(), 1.0f, 1.0f);
             camera.mFogExtinction = 3.0e-6f;
-            const Frame frame = shoot(makeWall(), {}, camera, size);
+            const Frame frame = shoot(makeWall(), {}, camera, size, Shot{ .mMakesNotFinite = true });
 
             constexpr std::uint32_t columns = size / Shaders::FOG_VOLUME_SCALE;
-            EXPECT_EQ(frame.mNotFinite.mFog, columns * columns * Shaders::FOG_VOLUME_SLICES)
+            constexpr std::uint32_t froxels = columns * columns * Shaders::FOG_VOLUME_SLICES;
+            EXPECT_EQ(frame.mNotFinite.of("fogscatter.rgen"), froxels)
                 << "8 by 8 columns by 64 slices, every one in air short of a wall behind the eye";
-            EXPECT_EQ(frame.mNotFinite.mColour, 0u) << "the trace's own clamp takes the air's NaN to nought";
-            EXPECT_EQ(frame.mNotFinite.mGuide, 0u);
+            EXPECT_EQ(frame.mNotFinite.of("fogintegrate.comp"), 2 * froxels);
+            EXPECT_EQ(frame.mNotFinite.kernels().size(), 2u) << "no other module stores one";
+            EXPECT_EQ(frame.mNotFinite.total(), 3 * froxels);
 
             // **A door: the frame before stood 80000 units off**, farther than a half float holds,
             // and the reset says that no step from there reaches this frame's motion. The motion
@@ -1050,7 +1053,7 @@ namespace Rtx::Testing
             const Frame afterDoor
                 = shoot(wall, {}, wallCamera(size, lit), size, Shot{ .mLoss = HistoryLoss::Cut, .mSetScene = false });
             EXPECT_GT(afterDoor.mHits, 0u);
-            EXPECT_EQ(afterDoor.mNotFinite.mGuide, 0u);
+            EXPECT_EQ(afterDoor.mNotFinite.total(), 0u);
         }
 
         /// The wind carries the banks downwind, and a camera that walks with the wind sees the air

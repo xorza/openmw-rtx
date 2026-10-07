@@ -10,6 +10,7 @@
 #include "shared/ripple.h"
 #include "shared/sets.h"
 #include "wave.h"
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/wavetile.glsl"
 
@@ -51,6 +52,6 @@ void main()
                          + heightAt(texel + ivec2(-1, -1)))
         / (4.0 * texelWidth * texelWidth);
 
-    imageStore(surface, texel, waveSurfaceTexel(here, slope));
-    imageStore(curvature, texel, waveCurvatureTexel(vec3(xx, yy, xy)));
+    RTX_STORE_COUNTED(surface, texel, waveSurfaceTexel(here, slope))
+    RTX_STORE_COUNTED(curvature, texel, waveCurvatureTexel(vec3(xx, yy, xy)))
 }

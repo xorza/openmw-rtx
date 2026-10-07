@@ -193,6 +193,13 @@ namespace Rtx
             RequiredFeature{ "bufferDeviceAddress",
                 +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan12.bufferDeviceAddress; } },
 
+            // What lets the interface's and the debug lines' stages count into the census
+            // (`census.glsl`), as every other stage does: an atomic outside a compute or a trace.
+            RequiredFeature{ "vertexPipelineStoresAndAtomics",
+                +[](DeviceFeatures& f) -> VkBool32& { return f.mFeatures2.features.vertexPipelineStoresAndAtomics; } },
+            RequiredFeature{ "fragmentStoresAndAtomics",
+                +[](DeviceFeatures& f) -> VkBool32& { return f.mFeatures2.features.fragmentStoresAndAtomics; } },
+
             // The queue's one clock, `Rtx::Timeline`.
             RequiredFeature{
                 "timelineSemaphore", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan12.timelineSemaphore; } },

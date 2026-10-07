@@ -97,6 +97,18 @@ namespace RtxTool
         }
     }
 
+    std::string describeNotFinite(const Rtx::NotFinite& wrote)
+    {
+        std::string text = std::format("{} stores not finite", wrote.total());
+        std::string_view separator = ": ";
+        for (const Rtx::NotFiniteStores& kernel : wrote.kernels())
+        {
+            text += std::format("{}{} in {}", separator, kernel.mStores, kernel.mKernel);
+            separator = ", ";
+        }
+        return text;
+    }
+
     void StopWriter::write(const MWRender::FrameContext& context, const MWRender::FrameReport& report,
         const Actions& actions, const StopFacts& facts, RunRecord& record)
     {
@@ -787,12 +799,8 @@ namespace RtxTool
 
             case Check::Finite:
             {
-                const Rtx::NotFinite& wrote = facts.mNotFinite;
-                found = std::format(
-                    "{} stores not finite over the measured frames: {} in the fog volume, {} in the "
-                    "colour, {} in the guides",
-                    wrote.total(), wrote.mFog, wrote.mColour, wrote.mGuide);
-                return wrote.total() == 0;
+                found = describeNotFinite(facts.mNotFinite) + " over the measured frames";
+                return facts.mNotFinite.total() == 0;
             }
 
             case Check::CameraStands:

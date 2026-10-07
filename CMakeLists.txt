@@ -760,6 +760,11 @@ set(RTX_SPIRV_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders")
 # (`OPENMW_RTX_HARNESS_DIR`), since the harness only ever runs from the tree that built it.
 set(RTX_HARNESS_DIR "${OpenMW_BINARY_DIR}/rtxtool")
 set(RTX_SPIRV_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-source")
+
+# The same two sets compiled with the census (`lib/census.glsl`), which every harness run but a
+# measured one reads: the game's modules carry no census code at all, so they are not here.
+set(RTX_SPIRV_CENSUS_DIR "${RTX_HARNESS_DIR}/shaders-census")
+set(RTX_SPIRV_CENSUS_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-census-source")
 add_subdirectory (components/rtxvulkan)
 
 # Apps and tools

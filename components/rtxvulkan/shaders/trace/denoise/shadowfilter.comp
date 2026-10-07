@@ -60,6 +60,7 @@
 #include "shared/sets.h"
 #include "shared/shadow.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"
 
@@ -153,7 +154,7 @@ void main()
     if (tile.r > 0.5)
     {
         if (SHADOW_LEVEL != 1u && inFrame)
-            imageStore(filtered, at, imageLoad(source, at));
+            RTX_STORE_COUNTED(filtered, at, imageLoad(source, at))
         return;
     }
 
@@ -162,7 +163,7 @@ void main()
     if (float(1u << SHADOW_LEVEL) > tile.g)
     {
         if (inFrame)
-            imageStore(filtered, at, imageLoad(source, at));
+            RTX_STORE_COUNTED(filtered, at, imageLoad(source, at))
         return;
     }
 
@@ -212,5 +213,5 @@ void main()
         result = vec2(sum.x / weightSum, sum.y / (weightSum * weightSum));
     }
 
-    imageStore(filtered, at, vec4(result, 0.0, 0.0));
+    RTX_STORE_COUNTED(filtered, at, vec4(result, 0.0, 0.0))
 }

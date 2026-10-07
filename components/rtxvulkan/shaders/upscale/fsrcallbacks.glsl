@@ -64,6 +64,8 @@
 #include "gbuffer.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
+
 #include "fsr3upscaler/ffx_fsr3upscaler_resources.h"
 
 #if defined(FFX_GPU)
@@ -227,7 +229,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_LUMA_HISTORY, FSR_LUMA_H
 
 void StoreLumaHistory(FfxInt32x2 iPxPos, FfxFloat32x4 fLumaHistory)
 {
-	imageStore(rw_luma_history, iPxPos, fLumaHistory);
+	RTX_STORE_COUNTED(rw_luma_history, iPxPos, fLumaHistory)
 }
 #endif
 
@@ -250,12 +252,12 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_INTERNAL_UPSCALED, FSR_H
 
 void StoreReprojectedHistory(FfxInt32x2 iPxHistory, FfxFloat32x4 fHistory)
 {
-	imageStore(rw_internal_upscaled_color, iPxHistory, fHistory);
+	RTX_STORE_COUNTED(rw_internal_upscaled_color, iPxHistory, fHistory)
 }
 
 void StoreInternalColorAndWeight(FfxInt32x2 iPxPos, FfxFloat32x4 fColorAndWeight)
 {
-	imageStore(rw_internal_upscaled_color, iPxPos, fColorAndWeight);
+	RTX_STORE_COUNTED(rw_internal_upscaled_color, iPxPos, fColorAndWeight)
 }
 #endif
 
@@ -264,7 +266,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_UPSCALED_OUTPUT, FSR_OUT
 
 void StoreUpscaledOutput(FfxInt32x2 iPxPos, FfxFloat32x3 fColor)
 {
-    imageStore(rw_upscaled_output, iPxPos, FfxFloat32x4(fColor, 1.0));
+    RTX_STORE_COUNTED(rw_upscaled_output, iPxPos, FfxFloat32x4(fColor, 1.0))
 }
 #endif
 
@@ -282,7 +284,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_ACCUMULATION, FSR_ACCUMU
 
 void StoreAccumulation(FfxInt32x2 iPxPos, FfxFloat32 fAccumulation)
 {
-    imageStore(rw_accumulation, iPxPos, vec4(fAccumulation, 0.0, 0.0, 0.0));
+    RTX_STORE_COUNTED(rw_accumulation, iPxPos, vec4(fAccumulation, 0.0, 0.0, 0.0))
 }
 #endif
 
@@ -305,7 +307,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SHADING_CHANGE, FSR_SHAD
 
 void StoreShadingChange(FfxInt32x2 iPxPos, FfxFloat32 fShadingChange)
 {
-    imageStore(rw_shading_change, iPxPos, vec4(fShadingChange, 0.0, 0.0, 0.0));
+    RTX_STORE_COUNTED(rw_shading_change, iPxPos, vec4(fShadingChange, 0.0, 0.0, 0.0))
 }
 #endif
 
@@ -333,7 +335,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_FARTHEST_DEPTH, FSR_INTE
 
 void StoreFarthestDepth(FfxInt32x2 iPxPos, FfxFloat32 fDepth)
 {
-    imageStore(rw_farthest_depth, iPxPos, vec4(fDepth, 0.0, 0.0, 0.0));
+    RTX_STORE_COUNTED(rw_farthest_depth, iPxPos, vec4(fDepth, 0.0, 0.0, 0.0))
 }
 #endif
 
@@ -361,7 +363,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_FARTHEST_DEPTH_MIP1, FSR
 
 void StoreFarthestDepthMip1(FfxInt32x2 iPxPos, FfxFloat32 fDepth)
 {
-    imageStore(rw_farthest_depth_mip1, iPxPos, vec4(fDepth, 0.0, 0.0, 0.0));
+    RTX_STORE_COUNTED(rw_farthest_depth_mip1, iPxPos, vec4(fDepth, 0.0, 0.0, 0.0))
 }
 #endif
 
@@ -384,7 +386,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_CURRENT_LUMA, FSR_LUMA_F
 
 void StoreCurrentLuma(FfxInt32x2 iPxPos, FfxFloat32 fLuma)
 {
-    imageStore(rw_current_luma, iPxPos, vec4(fLuma, 0.0, 0.0, 0.0));
+    RTX_STORE_COUNTED(rw_current_luma, iPxPos, vec4(fLuma, 0.0, 0.0, 0.0))
 }
 #endif
 
@@ -402,7 +404,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_LUMA_INSTABILITY, FSR_IN
 
 void StoreLumaInstability(FfxInt32x2 iPxPos, FfxFloat32 fLumaInstability)
 {
-    imageStore(rw_luma_instability, iPxPos, vec4(fLumaInstability, 0.0, 0.0, 0.0));
+    RTX_STORE_COUNTED(rw_luma_instability, iPxPos, vec4(fLumaInstability, 0.0, 0.0, 0.0))
 }
 #endif
 
@@ -439,7 +441,7 @@ FfxFloat32 LoadRwNewLocks(FfxInt32x2 iPxPos)
 
 void StoreNewLocks(FfxInt32x2 iPxPos, FfxFloat32 newLock)
 {
-	imageStore(rw_new_locks, iPxPos, vec4(newLock, 0, 0, 0));
+	RTX_STORE_COUNTED(rw_new_locks, iPxPos, vec4(newLock, 0, 0, 0))
 }
 #endif
 
@@ -457,6 +459,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_RECONSTRUCTED_PREV_NEARE
 
 void StoreReconstructedDepth(FfxInt32x2 iPxSample, FfxFloat32 fDepth)
 {
+	countNotFinite(fDepth);
 	FfxUInt32 uDepth = floatBitsToUint(fDepth);
 
 	#if FFX_FSR3UPSCALER_OPTION_INVERTED_DEPTH
@@ -468,7 +471,7 @@ void StoreReconstructedDepth(FfxInt32x2 iPxSample, FfxFloat32 fDepth)
 
 void SetReconstructedDepth(FfxInt32x2 iPxSample, FfxUInt32 uValue)
 {
-	imageStore(rw_reconstructed_previous_nearest_depth, iPxSample, uvec4(uValue, 0, 0, 0));
+	RTX_STORE_WORDS(rw_reconstructed_previous_nearest_depth, iPxSample, uvec4(uValue, 0, 0, 0))
 }
 #endif
 
@@ -477,7 +480,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_DILATED_DEPTH, FSR_DILAT
 
 void StoreDilatedDepth(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxFloat32 fDepth)
 {
-	imageStore(rw_dilated_depth, iPxPos, vec4(fDepth, 0.0, 0.0, 0.0));
+	RTX_STORE_COUNTED(rw_dilated_depth, iPxPos, vec4(fDepth, 0.0, 0.0, 0.0))
 }
 #endif
 
@@ -486,7 +489,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_DILATED_MOTION_VECTORS, 
 
 void StoreDilatedMotionVector(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxFloat32x2 fMotionVector)
 {
-	imageStore(rw_dilated_motion_vectors, iPxPos, vec4(fMotionVector, 0.0, 0.0));
+	RTX_STORE_COUNTED(rw_dilated_motion_vectors, iPxPos, vec4(fMotionVector, 0.0, 0.0))
 }
 #endif
 
@@ -562,7 +565,7 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_DILATED_REACTIVE_MASKS, 
 
 void StoreDilatedReactiveMasks(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxFloat32x4 fDilatedReactiveMasks)
 {
-    imageStore(rw_dilated_reactive_masks, iPxPos, fDilatedReactiveMasks);
+    RTX_STORE_COUNTED(rw_dilated_reactive_masks, iPxPos, fDilatedReactiveMasks)
 }
 #endif
 
@@ -576,7 +579,7 @@ FfxFloat32x4 LoadFrameInfo()
 
 void StoreFrameInfo(FfxFloat32x4 fInfo)
 {
-    imageStore(rw_frame_info, ivec2(0, 0), fInfo);
+    RTX_STORE_COUNTED(rw_frame_info, ivec2(0, 0), fInfo)
 }
 #endif
 
@@ -627,7 +630,7 @@ void StorePyramid(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxFloat3
 #define STORE(idx)                   \
             if (index == idx)                \
             {                                \
-                imageStore(rw_spd_mip##idx, iPxPos, vec4(outValue, 0.0, 0.0)); \
+                RTX_STORE_COUNTED(rw_spd_mip##idx, iPxPos, vec4(outValue, 0.0, 0.0)) \
             }
 
     STORE(0);
@@ -651,7 +654,7 @@ void SPD_IncreaseAtomicCounter(inout FfxUInt32 spdCounter)
 
 void SPD_ResetAtomicCounter()
 {
-    imageStore(rw_spd_global_atomic, ivec2(0, 0), uvec4(0));
+    RTX_STORE_WORDS(rw_spd_global_atomic, ivec2(0, 0), uvec4(0))
 }
 #endif
 

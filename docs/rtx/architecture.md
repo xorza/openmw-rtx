@@ -325,6 +325,10 @@ uses ray queries. The rest are compute passes: the fog, the sprites, the bounce'
 the denoiser, the composite, the display chain, skinning, texture preparation, the sea and the
 ripples. The bounce's validation, pairs and resolve trace, and are ray generation shaders of their
 own. Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
+Every store of an image goes through the census (`lib/census.glsl`), as does every float a shader
+writes into a buffer. Every shader is built twice: the game's modules carry no census, and the
+harness's, which every run but a measured one reads (`Rtx::ShaderSet`), count each NaN or infinity
+a module stores against that module. `check` asserts none, and `view` stops at one.
 
 ## 9. Ownership
 

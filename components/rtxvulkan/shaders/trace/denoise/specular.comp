@@ -37,6 +37,7 @@
 #include "shared/sets.h"
 #include "shared/specular.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
 #include "lib/surfacematch.glsl"
@@ -150,5 +151,5 @@ void main()
 
     // Selected and not branched around, for the rule the tree keeps: a lane with no lobe runs the
     // blend over a history of nothing and keeps none of it.
-    imageStore(mean, at, reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0));
+    RTX_STORE_COUNTED(mean, at, reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0))
 }

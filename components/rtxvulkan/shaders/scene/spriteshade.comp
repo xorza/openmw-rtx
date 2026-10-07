@@ -12,6 +12,7 @@
 #include "shared/spriteshade.h"
 
 #include "lib/basis.glsl"
+#include "lib/census.glsl"
 #include "lib/spritelist.glsl"
 
 /// Cells along each side of the grid.
@@ -229,7 +230,9 @@ void main()
         const GpuSprite sprite = sprites.at[held.mFirst + at];
         const vec3 local = sprite.mPosition - held.mCentre;
 
-        run.at[first + at] = (uint64_t(sortableDepth(dot(local, toward))) << 32) | uint64_t(at);
+        const float depth = dot(local, toward);
+        countNotFinite(depth);
+        run.at[first + at] = (uint64_t(sortableDepth(depth)) << 32) | uint64_t(at);
         largest = max(largest, sprite.mRadius);
     }
 
@@ -276,6 +279,7 @@ void main()
         if (lane == 0u)
         {
             const float layers = readAt(x, y);
+            countNotFinite(layers);
 
             if (light == SPRITE_SHADE_SUN)
                 sprites.at[held.mFirst + at].mSunLayers = layers;

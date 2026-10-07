@@ -10,6 +10,7 @@
 #include "scene.h"
 #include "basis.glsl"
 #include "bindings.glsl"
+#include "census.glsl"
 #include "fog.glsl"
 #include "random.glsl"
 #include "records.glsl"
@@ -286,6 +287,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
 
     // **The wave's normal and not the quad's**: what the filter tells this surface apart by. No
     // albedo, since water answers a ray with a reflection and a refraction and no Lambert term.
+    countNotFinite(normal);
     shaded.mResponse = SurfaceResponse(packSurfaceNormal(normal), vec3(0.0), vec3(0.0), vec3(1.0));
 
     // Off the *plane*, not the facet: what a ray has to clear is the quad, and only the plane's

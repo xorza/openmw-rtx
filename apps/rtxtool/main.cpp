@@ -276,7 +276,7 @@ namespace RtxTool
             const ToolOptions& mOptions;
             Files::ConfigurationManager& mConfig;
             const std::filesystem::path& mResources;
-            const std::filesystem::path& mShaders;
+            const Rtx::ShaderSet& mShaders;
             Verbs mVerb;
         };
 
@@ -403,7 +403,7 @@ namespace RtxTool
             // **The layers the command's row says, unless the line names some**: `VerbPolicy`.
             framed.mSetup.mRun.mValidation
                 = policyOf(command.mVerb).mMeasures ? validationForMeasuring(variables) : validationFrom(variables);
-            framed.mSetup.mShaderDirectory = command.mShaders;
+            framed.mSetup.mShaders = command.mShaders;
             if (variables.count("memory-budget") != 0)
                 framed.mSetup.mRun.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
@@ -437,7 +437,7 @@ namespace RtxTool
             try
             {
                 const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createVulkanRenderer(Rtx::RendererOptions{
-                    .mShaderDirectory = command.mShaders,
+                    .mShaders = command.mShaders,
                     .mWidth = 1,
                     .mHeight = 1,
                     .mRun = { .mValidation = validation },
@@ -1419,9 +1419,12 @@ namespace RtxTool
 
             // **Before any verb makes a device, because the driver reads where its cache is once.**
             // A cache of the shaders this run reads and of nothing else (`DriverCache`).
-            const std::filesystem::path shaders
-                = variables["shader-source"].as<bool>() ? shaderSourceDirectory() : Rtx::shaderDirectory(resources);
-            const DriverCache driverCache(harnessDirectory(), shaders);
+            //
+            // **A measured run reads the game's modules**, which test no store for a NaN; every
+            // other run counts them, `check` to assert and `view` to stop at one.
+            const Rtx::ShaderSet shaders
+                = shadersFor(resources, variables["shader-source"].as<bool>(), !policyOf(found->mVerb).mMeasures);
+            const DriverCache driverCache(harnessDirectory(), shaders.mDirectory);
             driverCache.applyToDriver();
             driverCache.sweep();
 

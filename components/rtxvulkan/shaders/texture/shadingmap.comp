@@ -26,6 +26,8 @@
 #include "shared/sets.h"
 #include "shadingmap.h"
 
+#include "lib/census.glsl"
+
 layout(local_size_x = SHADING_EXTENT, local_size_y = SHADING_EXTENT) in;
 
 /// Every cell's sum, as the summing stage left it.
@@ -129,5 +131,5 @@ void main()
             value = clamp(values[id] / mean, SHADING_FLOOR, SHADING_CEILING);
     }
 
-    imageStore(map, ivec2(column, row), vec4(shadingUnit(value)));
+    RTX_STORE_COUNTED(map, ivec2(column, row), vec4(shadingUnit(value)))
 }

@@ -159,7 +159,8 @@ namespace MWRender
         adopt(*camera, *frameStamp, *stats);
 
         Rtx::RendererOptions options;
-        options.mShaderDirectory = setup.mShaderDirectory.value_or(Rtx::shaderDirectory(spec.mResourceDir));
+        options.mShaders
+            = setup.mShaders.value_or(Rtx::ShaderSet{ .mDirectory = Rtx::shaderDirectory(spec.mResourceDir) });
 
         // **A measured run keeps no pipeline cache of its own.** A pipeline out of the blob
         // starts on the compile's first code and is swapped for the driver's second all the same
@@ -206,7 +207,7 @@ namespace MWRender
         // tells "the cell rendered" from "the camera faced away from it", and what `check` asserts
         // finite — and nothing a player does ever reads them, so a played session is specialized
         // without the atomics rather than writing numbers to a buffer nobody looks at, once per
-        // pixel that hit anything.
+        // pixel that hit anything. The census is the shaders' (`RunSetup::mShaders`).
         options.mCounting = run != nullptr;
 
         // **Said once, where it is decided.** What reconstructs the frame does not change while the

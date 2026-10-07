@@ -122,19 +122,22 @@ set(RTX_SHADER_VENDORED "${OpenMW_SOURCE_DIR}/extern/fidelityfx/gpu")
 # quoted from.
 set(RTX_GLSLC_FLAGS -g -O)
 
-foreach (shader ${RTX_SHADERS})
+# Every shader twice: the renderers' set, which carries no census, and the harness's, which counts
+# into it (`lib/census.glsl`, `RTX_CENSUS`). A specialization constant cannot take the census out,
+# because Vulkan holds a pipeline to every binding a module's code names, reached or not.
+function(rtx_compile_shader shader census sourcedDir strippedDir)
     get_filename_component(name "${shader}" NAME)
-    set(sourced "${RTX_SPIRV_SOURCE_DIR}/${name}.spv")
-    set(spv "${RTX_SPIRV_DIR}/${name}.spv")
-    set(depfile "${CMAKE_CURRENT_BINARY_DIR}/${name}.d")
+    set(sourced "${sourcedDir}/${name}.spv")
+    set(spv "${strippedDir}/${name}.spv")
+    set(depfile "${CMAKE_CURRENT_BINARY_DIR}/${name}.census${census}.d")
 
     add_custom_command(
         # The module glslc writes first, because it is the one its depfile names.
         OUTPUT "${sourced}" "${spv}"
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${RTX_SPIRV_DIR}" "${RTX_SPIRV_SOURCE_DIR}"
-        COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -I "${RTX_SHADER_INCLUDE}"
-                -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -I "${OpenMW_SOURCE_DIR}" -MD -MF "${depfile}"
-                -o "${sourced}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${strippedDir}" "${sourcedDir}"
+        COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -DRTX_CENSUS=${census}
+                -I "${RTX_SHADER_INCLUDE}" -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -I "${OpenMW_SOURCE_DIR}"
+                -MD -MF "${depfile}" -o "${sourced}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
         COMMAND openmw-rtx-spirv-pin "${sourced}"
         # --scalar-block-layout because the shared C++/GLSL headers rely on the feature the
@@ -145,15 +148,20 @@ foreach (shader ${RTX_SHADERS})
         # The tool as well as the shader, so a change to what pinning does compiles every shader again.
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${shader}" openmw-rtx-spirv-pin
         DEPFILE "${depfile}"
-        COMMENT "Compiling, pinning and validating ${name}"
+        COMMENT "Compiling, pinning and validating ${name}, census ${census}"
         VERBATIM)
 
-    list(APPEND RTX_SHADER_OUTPUTS "${spv}" "${sourced}")
+    set(RTX_SHADER_OUTPUTS ${RTX_SHADER_OUTPUTS} "${spv}" "${sourced}" PARENT_SCOPE)
+endfunction()
+
+foreach (shader ${RTX_SHADERS})
+    rtx_compile_shader("${shader}" 0 "${RTX_SPIRV_SOURCE_DIR}" "${RTX_SPIRV_DIR}")
+    rtx_compile_shader("${shader}" 1 "${RTX_SPIRV_CENSUS_SOURCE_DIR}" "${RTX_SPIRV_CENSUS_DIR}")
 endforeach()
 
 # A module no listed shader makes is removed: a directory's digest (`Rtx::digestShaders`) names the
 # driver's cache of it.
-foreach (directory "${RTX_SPIRV_DIR}" "${RTX_SPIRV_SOURCE_DIR}")
+foreach (directory "${RTX_SPIRV_DIR}" "${RTX_SPIRV_SOURCE_DIR}" "${RTX_SPIRV_CENSUS_DIR}" "${RTX_SPIRV_CENSUS_SOURCE_DIR}")
     file(GLOB built "${directory}/*.spv")
     foreach (module ${built})
         if (NOT module IN_LIST RTX_SHADER_OUTPUTS)
@@ -230,6 +238,8 @@ set(RTX_VULKAN_FILES
     device/handles.hpp
     device/instance.cpp
     device/instance.hpp
+    device/notfinitecensus.cpp
+    device/notfinitecensus.hpp
     device/memory/accelerationstructure.cpp
     device/memory/accelerationstructure.hpp
     device/memory/barriers.cpp
@@ -294,6 +304,7 @@ set(RTX_VULKAN_FILES
     picturetracer.hpp
     pipeline/computepipeline.cpp
     pipeline/computepipeline.hpp
+    pipeline/dispatch.cpp
     pipeline/dispatch.hpp
     pipeline/graphicspipeline.cpp
     pipeline/graphicspipeline.hpp

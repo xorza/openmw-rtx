@@ -278,6 +278,7 @@ namespace Rtx::Testing
         std::vector<float> mRadiance;
 
         std::uint32_t mHits = 0;
+        /// What every frame of the run stored that was not finite, summed so far.
         Rtx::NotFinite mNotFinite;
 
         float at(std::size_t value) const { return mRadiance[value]; }
@@ -455,6 +456,11 @@ namespace Rtx::Testing
         /// Run once each frame of the run is finished, with that frame, for a caller measuring what
         /// moves between two frames rather than what a run of them averages to.
         std::function<void(const Frame&)> mEachFrame{};
+
+        /// Whether the test puts a NaN or an infinity into the frame on purpose, and reads
+        /// `Frame::mNotFinite` for itself. **Every other run asserts that no module stored one**,
+        /// so each test over this fixture is a test that what it draws is finite.
+        bool mMakesNotFinite = false;
     };
 
     /// A run of `frames` filtered frames with the history let build from nothing, each frame
@@ -530,13 +536,17 @@ namespace Rtx::Testing
                     throw std::runtime_error("the renderer drew a frame and gave none back");
 
                 frame.mHits = finished->mHits;
-                frame.mNotFinite = finished->mNotFinite;
+                frame.mNotFinite.add(finished->mNotFinite);
 
                 if (shot.mEachFrame || at + 1 == drawn)
                     readFrame(size, frame);
                 if (shot.mEachFrame)
                     shot.mEachFrame(frame);
             }
+
+            if (!shot.mMakesNotFinite)
+                for (const NotFiniteStores& kernel : frame.mNotFinite.kernels())
+                    ADD_FAILURE() << kernel.mStores << " stores not finite in " << kernel.mKernel;
 
             return frame;
         }

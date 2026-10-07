@@ -200,14 +200,18 @@ namespace Rtx
     };
 
     /// Pushes `SET_PASS`, which every pipeline here declares as a push descriptor set, from writes
-    /// made against that pipeline's own table.
-    inline void pushDescriptors(VkCommandBuffer commands, const Pipeline& pipeline, const DescriptorWrites& writes)
-    {
-        assert(writes.against(pipeline.getBindings()) && "writes made against another layout than the one pushed to");
+    /// made against that pipeline's own table, and the census after them where the device counts
+    /// (`PipelineLayout`).
+    void pushDescriptors(VkCommandBuffer commands, const Pipeline& pipeline, const DescriptorWrites& writes);
 
-        const std::span<const VkWriteDescriptorSet> pushed = writes.get();
-        vkCmdPushDescriptorSet(commands, pipeline.getBindPoint(), pipeline.getLayout(), Shaders::SET_PASS,
-            static_cast<std::uint32_t>(pushed.size()), pushed.data());
+    /// Pushes the census alone, for a pipeline that binds nothing of its own; nothing where the
+    /// device does not count, because a push of nought writes is not a push Vulkan takes.
+    inline void pushCensus(VkCommandBuffer commands, const Pipeline& pipeline)
+    {
+        assert(pipeline.getBindings().get().empty() && "the census pushed alone over bindings a pass declares");
+
+        if (pipeline.getCensus() != nullptr)
+            pushDescriptors(commands, pipeline, DescriptorWrites(pipeline));
     }
 
     /// Binds, pushes and launches: the calls every compute pass in this backend ends with. A
@@ -223,15 +227,13 @@ namespace Rtx
         vkCmdDispatch(commands, groups.mX, groups.mY, groups.mZ);
     }
 
-    /// The same for a pipeline that binds nothing of its own, because a push of nought writes is
-    /// not a push Vulkan takes.
+    /// The same for a pipeline that binds nothing of its own (`pushCensus`).
     template <class Constants>
     void dispatch(VkCommandBuffer commands, const ComputePipeline<Constants>& pipeline,
         const std::type_identity_t<Constants>& constants, const Groups groups)
     {
-        assert(pipeline.getBindings().get().empty() && "a dispatch that writes none of the bindings it declares");
-
         bind(commands, pipeline);
+        pushCensus(commands, pipeline);
         pipeline.push(commands, constants);
         vkCmdDispatch(commands, groups.mX, groups.mY, groups.mZ);
     }

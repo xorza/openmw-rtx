@@ -27,6 +27,7 @@
 #include "scene.h"
 
 #include "lib/bindings.glsl"
+#include "lib/census.glsl"
 #include "lib/fog.glsl"
 #include "lib/traversal.glsl"
 #include "lib/variants.glsl"
@@ -72,11 +73,11 @@ void main()
     const float lampsEnd
         = surfaceWithin(WorldRay(frame.mOrigin + middle.mOffset, middle.mDirection), 0.0, frame.mFar, cone, rule);
 
-    imageStore(fogColumnDepth, column, vec4(surface, lampsEnd, 0.0, 0.0));
+    RTX_STORE_COUNTED(fogColumnDepth, column, vec4(surface, lampsEnd, 0.0, 0.0))
 
     // **And what each moon puts into this column's air**, which is the ray's angle to the moon and
     // nothing along the ray — so it is this pass's to state once, and not every froxel's.
     const MoonTerms terms = fogMoonTermsAlong(ray.mDirection);
-    imageStore(fogColumnMoons, ivec3(column, 0), vec4(terms.mMasser, 0.0));
-    imageStore(fogColumnMoons, ivec3(column, 1), vec4(terms.mSecunda, 0.0));
+    RTX_STORE_COUNTED(fogColumnMoons, ivec3(column, 0), vec4(terms.mMasser, 0.0))
+    RTX_STORE_COUNTED(fogColumnMoons, ivec3(column, 1), vec4(terms.mSecunda, 0.0))
 }

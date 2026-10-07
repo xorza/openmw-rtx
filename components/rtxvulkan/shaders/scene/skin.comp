@@ -21,6 +21,7 @@
 #include "skinning.h"
 #include "tangent.h"
 
+#include "lib/census.glsl"
 #include "lib/runs.glsl"
 
 layout(local_size_x = SKIN_WORKGROUP) in;
@@ -55,14 +56,18 @@ void main()
     const vec4 point = vec4(Vec3Run(skin.mBindPositions).at[vertex], 1.0);
     const vec3 normal = Vec3Run(skin.mBindNormals).at[vertex];
 
-    Vec3Written(skin.mPositions).at[vertex] = vec3(dot(rows[0], point), dot(rows[1], point), dot(rows[2], point));
-    Vec3Written(skin.mNormals).at[vertex]
-        = vec3(dot(rows[0].xyz, normal), dot(rows[1].xyz, normal), dot(rows[2].xyz, normal));
+    const vec3 position = vec3(dot(rows[0], point), dot(rows[1], point), dot(rows[2], point));
+    const vec3 posedNormal = vec3(dot(rows[0].xyz, normal), dot(rows[1].xyz, normal), dot(rows[2].xyz, normal));
+    countNotFinite(position);
+    countNotFinite(posedNormal);
+    Vec3Written(skin.mPositions).at[vertex] = position;
+    Vec3Written(skin.mNormals).at[vertex] = posedNormal;
 
     // `RigGeometry::cull`'s tangent: the linear part, the handedness as it was, and no tangent left
     // as none — a body no normal map is read through carries none.
     const vec4 tangent = unpackTangent(UintRun(skin.mBindTangents).at[vertex]);
-    UintWritten(skin.mTangents).at[vertex] = packTangent(
-        vec3(dot(rows[0].xyz, tangent.xyz), dot(rows[1].xyz, tangent.xyz), dot(rows[2].xyz, tangent.xyz)),
-        tangent.w < 0.0);
+    const vec3 posedTangent
+        = vec3(dot(rows[0].xyz, tangent.xyz), dot(rows[1].xyz, tangent.xyz), dot(rows[2].xyz, tangent.xyz));
+    countNotFinite(posedTangent);
+    UintWritten(skin.mTangents).at[vertex] = packTangent(posedTangent, tangent.w < 0.0);
 }

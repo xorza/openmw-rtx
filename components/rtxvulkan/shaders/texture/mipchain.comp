@@ -30,6 +30,7 @@
 #include "scene.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 
 layout(local_size_x = MIP_CHAIN_WORKGROUP, local_size_y = MIP_CHAIN_WORKGROUP) in;
@@ -62,7 +63,7 @@ void main()
 
     if (level.mLevel == 0u)
     {
-        imageStore(into, ivec2(x, y), texelFetch(source, ivec2(x, y), 0));
+        RTX_STORE_COUNTED(into, ivec2(x, y), texelFetch(source, ivec2(x, y), 0))
         return;
     }
 
@@ -90,5 +91,5 @@ void main()
         }
 
     const vec3 mean = level.mCoverage != 0u && painted > 0.0 ? weighed / painted : even;
-    imageStore(into, ivec2(x, y), vec4(encoded ? encodeSrgb(mean) : mean, painted));
+    RTX_STORE_COUNTED(into, ivec2(x, y), vec4(encoded ? encodeSrgb(mean) : mean, painted))
 }

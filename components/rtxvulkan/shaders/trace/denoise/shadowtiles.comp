@@ -70,6 +70,7 @@
 #include "shared/sets.h"
 #include "shared/shadow.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"
 
@@ -245,17 +246,17 @@ void main()
         // Every pixel's answer is exact, and the neighbours' filter levels may read it.
         const float value = !noReceiver && allLit ? 1.0 : 0.0;
         if (gl_LocalInvocationIndex == 0u)
-            imageStore(tiles, ivec2(gl_WorkGroupID.xy), vec4(1.0, reach, 0.0, 0.0));
+            RTX_STORE_COUNTED(tiles, ivec2(gl_WorkGroupID.xy), vec4(1.0, reach, 0.0, 0.0))
         if (inFrame)
         {
-            imageStore(reprojected, at, vec4(value, receiver ? 0.0 : SHADOW_NO_RECEIVER, 0.0, 0.0));
-            imageStore(moments, at, vec4(value, 0.0, receiver ? 1.0 : 0.0, 0.0));
+            RTX_STORE_COUNTED(reprojected, at, vec4(value, receiver ? 0.0 : SHADOW_NO_RECEIVER, 0.0, 0.0))
+            RTX_STORE_COUNTED(moments, at, vec4(value, 0.0, receiver ? 1.0 : 0.0, 0.0))
         }
         return;
     }
 
     if (gl_LocalInvocationIndex == 0u)
-        imageStore(tiles, ivec2(gl_WorkGroupID.xy), vec4(0.0, reach, 0.0, 0.0));
+        RTX_STORE_COUNTED(tiles, ivec2(gl_WorkGroupID.xy), vec4(0.0, reach, 0.0, 0.0))
 
     // The local mean of the bits, which with one sample a pixel is its variance as well: the
     // horizontal half at every row of the square, a lane a row a workgroup apart, then the vertical
@@ -300,7 +301,13 @@ void main()
         const float samples = previousMoments.z + 1.0;
         const float mean = previousMoments.x + (current - previousMoments.x) / samples;
         const float deviations = previousMoments.y + (current - previousMoments.x) * (current - mean);
-        variance = samples > 1.0 ? deviations / (samples - 1.0) : 1.0;
+
+        // **Never past one, which is the SDK's own answer for a history of one sample**, and more
+        // than a bit's variance can be: the count is damped below for a history that stood off,
+        // so `samples - 1` falls toward nought while the deviations stay, and a variance of a
+        // million passed what the filter's halves hold. Its infinity over its own square was a
+        // NaN at every level of the filter after it, at every place `check` visits.
+        variance = samples > 1.0 ? min(deviations / (samples - 1.0), 1.0) : 1.0;
         momentsNow = vec3(mean, deviations, samples);
 
         // The bounds the history is clamped to: half a deviation either side of the local mean.
@@ -344,6 +351,6 @@ void main()
         blended = reach < 1.0 ? current : mix(clamped, current, mix(0.05, 1.0, historyWeight));
     }
 
-    imageStore(reprojected, at, vec4(blended, variance, 0.0, 0.0));
-    imageStore(moments, at, vec4(momentsNow, 0.0));
+    RTX_STORE_COUNTED(reprojected, at, vec4(blended, variance, 0.0, 0.0))
+    RTX_STORE_COUNTED(moments, at, vec4(momentsNow, 0.0))
 }

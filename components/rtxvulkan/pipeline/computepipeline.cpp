@@ -12,7 +12,7 @@ namespace Rtx
     {
         PipelineCreation creation(device, name);
         ShaderCode code(device);
-        const Specialization constants(specialization);
+        const Specialization constants(device, module, specialization);
 
         const VkComputePipelineCreateInfo pipeline{
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,

@@ -28,6 +28,7 @@
 #include "shared/sets.h"
 #include "shared/spritelight.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 
 layout(local_size_x = SPRITE_LIGHT_WORKGROUP) in;
@@ -59,7 +60,7 @@ void keep(ivec2 at, float light)
 {
     vec4 kept = level.mStage == SPRITE_LIGHT_FROM_RIGHT ? vec4(0.0) : imageLoad(bake, at);
     kept[level.mStage] = light;
-    imageStore(bake, at, kept);
+    RTX_STORE_COUNTED(bake, at, kept)
 }
 
 void main()
