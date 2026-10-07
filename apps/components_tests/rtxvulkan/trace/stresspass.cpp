@@ -1,4 +1,7 @@
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 
 #include <gtest/gtest.h>
 
@@ -52,6 +55,15 @@ namespace Rtx
         /// and the loop's clock runs through; so the zone is asked only to be no shorter than the
         /// loop. Ten microseconds past the asked time is the tick the loop leaves on: NVIDIA's
         /// real-time clock advances by the microsecond.
+        ///
+        /// **And the two counters at one rate, which the extension does not promise**: from the
+        /// shortest frame of the four-millisecond hold to the shortest of the eight-millisecond one,
+        /// the zone grows by what the loop does, within 15%. A difference, because what the zone
+        /// holds past the loop — the launch, the drain, another process's slice of a card the other
+        /// suites share — is about the same on both and cancels; a third of a millisecond of it
+        /// stood on every frame under the gate. A loop whose clock ran slower than the timestamp
+        /// period says would hold the queue longer than asked, which the lower bounds above let
+        /// through.
         TEST_F(RtxStressPassTest, theHoldIsTheTimeAskedOnEveryFrameWhateverTheCardsClock)
         {
             Device& device = getDevice();
@@ -68,8 +80,12 @@ namespace Rtx
             Buffer counts = Buffer::readBack(
                 device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "frame counts");
 
+            std::array<double, 2> shortestZoneMs{};
+            std::array<double, 2> heldThenMs{};
             for (StressPass* const hold : { &four, &eight })
             {
+                const std::size_t which = hold == &four ? 0 : 1;
+                shortestZoneMs[which] = std::numeric_limits<double>::infinity();
                 // The asked time in ticks, at the pass's own rate: 4 ms and 8 ms.
                 EXPECT_NEAR(hold->getTicks() * hold->getTickMs(), hold == &four ? 4.0 : 8.0, hold->getTickMs());
                 const double tenMicroseconds = 0.01 / hold->getTickMs();
@@ -81,8 +97,16 @@ namespace Rtx
                     EXPECT_GE(held, hold->getTicks()) << "frame " << frame;
                     EXPECT_LE(held, hold->getTicks() + tenMicroseconds) << "frame " << frame;
                     EXPECT_GE(zoneMs, held * hold->getTickMs()) << "frame " << frame;
+                    if (zoneMs < shortestZoneMs[which])
+                    {
+                        shortestZoneMs[which] = zoneMs;
+                        heldThenMs[which] = held * hold->getTickMs();
+                    }
                 }
             }
+
+            const double rate = (shortestZoneMs[1] - shortestZoneMs[0]) / (heldThenMs[1] - heldThenMs[0]);
+            EXPECT_NEAR(rate, 1.0, 0.15) << "the loop's clock and the queue's timestamps run at two rates";
         }
     }
 }

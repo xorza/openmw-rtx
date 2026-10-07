@@ -61,17 +61,11 @@ Passage skyPassage(SkySource sky, vec3 position, vec3 step, vec2 draw, bool near
     return lightPassage(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
 }
 
-/// The same as one number, which is exactly the product `lightThrough` makes of its own halves.
+/// The same as one number, which is exactly the product `throughToward` makes of its own halves.
 float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 {
     const Passage passage = skyPassage(sky, position, step, draw, false);
     return passage.mOpen * passage.mThrough;
-}
-
-/// The same for a caller that has an index and not a source.
-float skyVisible(vec3 position, vec3 step, uint source, vec2 draw)
-{
-    return skyVisible(skySourceAt(source), position, step, draw);
 }
 
 /// Which lamps one cell of the grid holds, as a range into the light list.
@@ -516,7 +510,8 @@ SkyChoice skyChoiceAt(uint source, Facing facing, bool asked, Gloss gloss)
     return SkyChoice(sky, cosine, light);
 }
 
-/// Offers one candidate to `kept`, already resolved to what it delivers at `from`.
+/// Offers one candidate to `kept`, already resolved to what it delivers where the asker stands. Where
+/// the held lamp's ray leaves from is the asker's to set after the walk (`Reservoir::mFrom`).
 ///
 /// **The reservoir's own rule, written once**, because two walks feed it: the point one below, and
 /// the walk along a ray that `lampsInAir` takes. A second copy of this is a second chance for the
@@ -525,7 +520,7 @@ SkyChoice skyChoiceAt(uint source, Facing facing, bool asked, Gloss gloss)
 ///        `airCandidate`. The weight is a scalar because a colour cannot be drawn in proportion to,
 ///        and positive wherever the candidate is anything the asker keeps.
 /// @param lamp which row of the light table the candidate is.
-void considerLamp(inout Reservoir kept, inout uint state, vec3 from, LightCandidate candidate, uint lamp)
+void considerLamp(inout Reservoir kept, inout uint state, LightCandidate candidate, uint lamp)
 {
     const float weight = candidate.mWeight;
     if (!(weight > 0.0))
@@ -537,7 +532,6 @@ void considerLamp(inout Reservoir kept, inout uint state, vec3 from, LightCandid
     // proportion to its weight however many follow it — one-deep reservoir sampling.
     if (randomNext(state) * kept.mTotal <= weight)
     {
-        kept.mFrom = from;
         kept.mRadiance = candidate.mRadiance;
         kept.mSpecular = candidate.mSpecular;
         kept.mFresnel = candidate.mFresnel;
@@ -616,7 +610,7 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
             facing.mSide);
 
         kept.mUnshadowed += candidate.mRadiance * (1.0 - candidate.mFresnel);
-        considerLamp(kept, state, from, candidate, row);
+        considerLamp(kept, state, candidate, row);
     }
 
     const float spread = sampled ? float(count) / float(steps) : 1.0;
@@ -697,6 +691,11 @@ float skyPenumbra(SkySource sky, float occluder)
                                             : SHADOW_PENUMBRA_CLEAR;
 }
 
+/// The same for the lamp a reservoir held, `radius occluder / (distance - occluder)`.
+///
+/// **The lamp's row read again and not handed over from `lampPassage`**: with this read and the
+/// caller's for the cosine both taken out, the trace's median moved by nothing on the interiors
+/// suite, three alternated rounds — the guild's 1.62 ms either way.
 float lampPenumbra(Reservoir kept, float occluder)
 {
     const GpuLight lamp = lightAt(kept.mLamp);

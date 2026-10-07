@@ -399,7 +399,8 @@ add_component_dir (rtx/common
     )
 
 add_component_dir (rtx/environment
-    atmosphere cloudshell fogbuilder frameworld moonbuilder nightsky skybuilder skylight wavecascade wavespectrum
+    atmosphere cloudshell fogbuilder frameworld moonbuilder nightsky skybuilder skylight skymesh skysheet
+    wavecascade wavespectrum
     )
 
 add_component_dir (rtx/frame
@@ -413,9 +414,9 @@ add_component_dir (rtx/image
     )
 
 add_component_dir (rtx/mirror
-    contentmemory drawableposer emitterresolver extractionstats materialresolver meshreader meshresolver
-    mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading walkcontext
-    worlddescent
+    chainkeys contentmemory drawableposer emitterresolver extractionstats materialresolver meshreader meshresolver
+    mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading statereading
+    walkcontext worlddescent
     )
 
 add_component_dir (rtx/mirror/cells
@@ -567,7 +568,6 @@ add_component_dir(platform
     file
     process
     sharedmemory
-    memory
     fifo
     library
     thread
@@ -578,7 +578,6 @@ if (WIN32)
         filewin32
         localtimewin32
         processwin32
-        memorywin32
         sharedmemorywin32
         fifowin32
         librarywin32
@@ -589,7 +588,6 @@ elseif (UNIX)
         fileposix
         localtimeposix
         processposix
-        memoryposix
         sharedmemoryposix
         fifoposix
         libraryposix

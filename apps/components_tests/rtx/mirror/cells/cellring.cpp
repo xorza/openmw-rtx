@@ -48,7 +48,7 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
@@ -78,6 +78,7 @@
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
+#include <components/sceneutil/material.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/terrain/objectstorage.hpp>
@@ -446,6 +447,7 @@ namespace Rtx::Testing
                     .mGroundcover = mGroundcover,
                     .mWorldspace = worldspace,
                     .mMask = ~0u,
+                    .mAbove = mEmpty->getStateSet(),
                 };
                 mRing.follow(mAround);
             }
@@ -507,12 +509,11 @@ namespace Rtx::Testing
             std::vector<float> lifted() const
             {
                 std::vector<float> heights;
-                for (const PlacementRow& row : mScene.placements().getRows())
-                {
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
                     const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
-                    if (row.mInstance.isPlaced() && height > 50.0f)
+                    if (height > 50.0f)
                         heights.push_back(height);
-                }
+                });
                 std::sort(heights.begin(), heights.end());
                 return heights;
             }
@@ -524,11 +525,12 @@ namespace Rtx::Testing
                 const osg::Vec3f centre((static_cast<float>(cell.x()) + 0.5f) * sCellSize,
                     (static_cast<float>(cell.y()) + 0.5f) * sCellSize, 0.0f);
 
-                for (const PlacementRow& row : mScene.placements().getRows())
-                    if (row.mInstance.isPlaced() && row.mInstance.mTransform.getTrans() == centre)
-                        return row.mInstance;
-
-                return std::nullopt;
+                std::optional<MeshInstance> found;
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                    if (!found.has_value() && row.mInstance.mTransform.getTrans() == centre)
+                        found = row.mInstance;
+                });
+                return found;
             }
 
             /// The frame the next walk is for, so every walk of a test is a frame of its own.
@@ -777,6 +779,54 @@ namespace Rtx::Testing
             EXPECT_TRUE(awayMaterial.mLayersMapped);
         }
 
+        /// **A model the ring stands and the walk meets wears one material**: both key the chain's
+        /// state sets that state anything, root first, by the walk's one table (`ChainKeys`), and the
+        /// ring's reader starts each chain at the state set every reference stands under
+        /// (`CellWorld::mAbove`). Here the root states a material, the tree's root turns culling off
+        /// and its sheet paints the bark — three links — and the walk meets them again in the clone
+        /// the game stands under the root, and adds no material for it.
+        TEST_F(RtxCellRingMetalTest, aModelTheRingStandsAndTheWalkMeetsWearsOneMaterial)
+        {
+            mEmpty->getOrCreateStateSet()->setAttribute(new SceneUtil::Material);
+            mContent.mTree->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+            const Placed tree{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "tree.nif",
+                .mRefNum = ESM::RefNum{ 1, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 0.0f) };
+            mStorage.mPlaced = { tree };
+
+            start();
+            fill();
+
+            const auto treeWorn = [this](const Stander stander) {
+                Index worn = sNoIndex;
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                    if (row.mInstance.mStander == stander
+                        && mScene.materials().getRows()[row.mInstance.mMaterial].mKind != MaterialKind::Terrain)
+                        worn = row.mInstance.mMaterial;
+                });
+                return worn;
+            };
+            const Index stood = treeWorn(Stander::Ring);
+            ASSERT_NE(stood, sNoIndex);
+            EXPECT_TRUE(mScene.materials().getRows()[stood].mTwoSided) << "the tree's root was not in force";
+
+            // The game's clone, under the root as `MWRender::Objects` stands one, wearing the
+            // template's own state sets, which `SceneUtil::CopyOp` shares.
+            osg::ref_ptr<osg::Group> cell = new osg::Group;
+            osg::ref_ptr<osg::MatrixTransform> clone = new osg::MatrixTransform(gameStands(tree));
+            clone->addChild(mContent.mTree);
+            cell->addChild(clone);
+            mEmpty->addChild(cell);
+
+            const ExtractionStats met = walk(mWalked++);
+            EXPECT_EQ(met.mMaterialsAdded, 0u) << "the walk read again a surface the ring adopted";
+            EXPECT_EQ(treeWorn(Stander::Walk), stood);
+
+            mEmpty->removeChild(cell);
+            walk(mWalked++);
+        }
+
         /// The lamps of the cells the game has not loaded stand with their cells: outside the active
         /// grid only, because inside it the game's own graph carries them and a lantern must not be
         /// counted twice; where the record casts at all; and as the light the walk would build from
@@ -951,8 +1001,8 @@ namespace Rtx::Testing
             // **Of the three, the flame's lantern alone is a lamp body**: the ember glows with no lamp
             // to carry its light, and the dark lamp's lantern stands with a lamp that takes light.
             std::uint32_t bodies = 0;
-            for (const PlacementRow& row : mScene.placements().getRows())
-                bodies += row.mInstance.isPlaced() && row.mInstance.mLampBody ? 1 : 0;
+            mScene.placements().forEachPlaced(
+                [&](Index, const PlacementRow& row) { bodies += row.mInstance.mLampBody ? 1 : 0; });
             EXPECT_EQ(bodies, 1u);
         }
 
@@ -986,10 +1036,9 @@ namespace Rtx::Testing
             // of five is scaled with the reference, so a tree at scale `s` stands at `105 s`.
             const auto standing = [this] {
                 std::vector<std::pair<std::size_t, float>> slots;
-                const std::span<const PlacementRow> all = mScene.placements().getRows();
-                for (std::size_t slot = 0; slot < all.size(); ++slot)
-                    if (all[slot].mInstance.isPlaced())
-                        slots.emplace_back(slot, all[slot].mInstance.mTransform.getTrans().z());
+                mScene.placements().forEachPlaced([&](Index slot, const PlacementRow& row) {
+                    slots.emplace_back(slot, row.mInstance.mTransform.getTrans().z());
+                });
                 return slots;
             };
             const auto heights = [](const std::vector<std::pair<std::size_t, float>>& slots) {
@@ -1449,11 +1498,12 @@ namespace Rtx::Testing
                 << "each sheet five units over where its file placed it";
 
             const auto materialAt = [&](const float height) {
-                for (const PlacementRow& row : mScene.placements().getRows())
-                    if (row.mInstance.isPlaced()
-                        && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
-                        return row.mInstance.mMaterial;
-                return sNoIndex;
+                Index worn = sNoIndex;
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                    if (worn == sNoIndex && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
+                        worn = row.mInstance.mMaterial;
+                });
+                return worn;
             };
             const Index grass = materialAt(105.0f);
             const Index fern = materialAt(405.0f);
@@ -1506,17 +1556,14 @@ namespace Rtx::Testing
 
             std::optional<bool> grass;
             std::optional<bool> fern;
-            for (const PlacementRow& row : mScene.placements().getRows())
-            {
-                if (!row.mInstance.isPlaced())
-                    continue;
+            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
                 const bool lit = mScene.materials().getRows()[row.mInstance.mMaterial].mLampLit;
                 const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
                 if (height == 105.0f)
                     grass = lit;
                 else if (height == 405.0f)
                     fern = lit;
-            }
+            });
             EXPECT_EQ(grass, std::optional(false));
             EXPECT_EQ(fern, std::optional(true));
         }
@@ -1589,7 +1636,7 @@ namespace Rtx::Testing
                     Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "face", .mRefNum = ESM::RefNum{ at, 0 } });
             ShortMorph content;
 
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
             for (int pass = 0; pass < 3; ++pass)
                 reader.giveBack(reader.read(osg::Vec2i(0, 0), true));
 
@@ -1608,7 +1655,7 @@ namespace Rtx::Testing
             land.mWithData = { osg::Vec2i(0, 0), osg::Vec2i(1, 0) };
             FewStatics storage;
             FewContent content;
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
 
             PreparedCell& west = reader.read(osg::Vec2i(0, 0), true);
             EXPECT_EQ(content.mImages.getOpened(), 3u) << "grass, rock and the rock's normal map";
@@ -1820,7 +1867,7 @@ namespace Rtx::Testing
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "tree.nif" });
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "broken.nif" });
             FewContent content;
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
 
             const ReaderMemory none = reader.measure();
             EXPECT_EQ(none.mLentModels + none.mSpareModels, 0u);
@@ -1862,7 +1909,7 @@ namespace Rtx::Testing
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "face" });
             ShortMorph content;
 
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
 
             const int held = content.mFace->referenceCount();
             for (int pass = 0; pass < 3; ++pass)

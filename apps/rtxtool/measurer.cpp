@@ -16,6 +16,11 @@
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
+#include <apps/rtxtool/instruments/framehashes.hpp>
+#include <apps/rtxtool/instruments/gpuclock.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/runrecord.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
@@ -25,11 +30,6 @@
 #include <components/rtx/renderer/sceneuploader.hpp>
 
 #include "film.hpp"
-#include "instruments/framehashes.hpp"
-#include "instruments/gpuclock.hpp"
-#include "model/benchrun.hpp"
-#include "model/benchspec.hpp"
-#include "model/runrecord.hpp"
 #include "stager.hpp"
 #include "stopwriter.hpp"
 

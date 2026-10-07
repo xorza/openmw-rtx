@@ -5,7 +5,7 @@
 #include <exception>
 #include <utility>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 
 #include "devicescene.hpp"
 

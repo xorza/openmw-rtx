@@ -1,5 +1,4 @@
 #include "crashinstall.hpp"
-#include "crashnote.hpp"
 
 #include <algorithm>
 #include <array>
@@ -43,6 +42,7 @@
 #include <components/platform/process.hpp>
 
 #include "crashmonitorarguments.hpp"
+#include "crashnote.hpp"
 #include "crashpackage.hpp"
 #include "crashpadmonitorsystem.hpp"
 #include "crashpage.hpp"
@@ -592,6 +592,15 @@ namespace Crash
             crashed = monitor.mCrashed;
             report = monitor.mLastReport;
         }
+        // **An end no handler inside the game saw**: a fail-fast — a failed security check, a
+        // corrupted heap — ends the process past every filter, and leaves no dump where the
+        // system's reporting did not ask for one (`Client::catchPastTheProcess`). Its exit code is
+        // all there is to say what it was, where the system tells the monitor one.
+        if (dumps.empty())
+            if (const std::optional<std::uint32_t> code = monitor.mGame.exitCode(); code.has_value() && *code != 0)
+                appendToLog(
+                    monitor, { "The game ended with " + Monitor::describeExitCode(*code) + " and left no dump" });
+
         const std::filesystem::path package = packageSession(monitor, dumps);
 
         // Once the game is gone, so the box does not stand over a window that no longer draws.

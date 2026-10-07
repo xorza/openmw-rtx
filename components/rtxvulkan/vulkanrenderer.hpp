@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -47,6 +47,7 @@
 
 namespace Rtx
 {
+    struct FogNoise;
     class Presenter;
 
     /// `Renderer` over Vulkan.
@@ -76,7 +77,6 @@ namespace Rtx
         void setVerticalSync(SDLUtil::VSyncMode mode) override;
         void setAnisotropy(std::uint32_t anisotropy) override;
         void setGamma(float gamma) override;
-        void setIndirectLight(IndirectLight indirect) override;
         void skipFrame() override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
@@ -112,9 +112,14 @@ namespace Rtx
         /// pipelines already made.
         const TracePasses& getTracePasses() const { return mTracePasses; }
 
-        /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum and
-        /// waits the frames in flight out first.
+        /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum, which
+        /// a frame in flight does not feel: the one it replaces goes to the graveyard
+        /// (`WavePass::describe`). Only the tests tell it.
         void setSea(const SeaState& sea);
+
+        /// The fog's field every trace reads, `bakeFogNoise`'s until told: for a test that states
+        /// where the air is banked. Drains the frames in flight first, since each reads the field.
+        void setFogField(const FogNoise& noise);
 
         /// Copies one of the last frame's g-buffer channels into `values`, tightly packed, widened
         /// to floats whatever the channel holds. The frame's, never a view scene's.
@@ -238,9 +243,9 @@ namespace Rtx
         PictureTracer mPictures;
 
         /// Null where nothing asked for a window. After `mTarget`, so it is destroyed before it:
-        /// its command buffers, out of the device's pool, still hold recordings that blit out of
-        /// the image, and destroying an image while a recording names it is
-        /// `VUID-vkDestroyImage-image-01000`.
+        /// its command buffers blit out of the image, and its destructor waits for the device to
+        /// finish them, which `VUID-vkDestroyImage-image-01000` asks of every submitted command that
+        /// names an image before the image goes.
         std::unique_ptr<Presenter> mPresenter;
 
         /// FSR, made with the renderer: seven compute pipelines and nothing it keeps until a mode

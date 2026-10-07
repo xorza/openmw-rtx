@@ -49,6 +49,12 @@
 // **The SDK's configuration, stated here for every pass rather than on a command line**: GLSL, full
 // floats, a frame in HDR radiance, motion vectors at the render extent and from the pixel's centre,
 // a reversed depth, and no sharpening. Before any SDK header, which reads it.
+//
+// **Full floats where the SDK's own host takes halves on a device that has them**: with `FFX_HALF`,
+// which reaches the two pyramids' arithmetic and nothing else the upscaler computes, the upscale
+// zone's median fell from 0.364 to 0.320 ms on the default suite, and a still picture moved by 0.30
+// to 0.58 of a pixel across its frames, against the quarter `aStillPictureHoldsStillThroughEveryUpscale`
+// allows. The pyramids alone in halves moved it as much.
 
 #define FFX_GPU 1
 #define FFX_GLSL 1
@@ -73,9 +79,6 @@
 #endif // #if defined(FFX_GPU)
 
 #if defined(FFX_GPU)
-#ifndef FFX_PREFER_WAVE64
-#define FFX_PREFER_WAVE64
-#endif // FFX_PREFER_WAVE64
 
 #if defined(FSR3UPSCALER_BIND_CB_FSR3UPSCALER)
 layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_CB_FSR3UPSCALER, scalar) uniform cbFSR3UPSCALER_t
@@ -536,20 +539,12 @@ FfxFloat32 Exposure()
 }
 #endif
 
-// BEGIN: FSR3UPSCALER_BIND_SRV_LANCZOS_LUT
-#if defined(FSR3UPSCALER_BIND_SRV_LANCZOS_LUT)
-layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_LANCZOS_LUT) uniform texture2D  r_lanczos_lut;
-#endif
-
+// The SDK's table of Lanczos weights, which the reference reprojection never reads and this binds
+// nowhere. A body all the same, because `Lanczos2_UseLUT` names it whether or not anything reaches it.
 FfxFloat32 SampleLanczos2Weight(FfxFloat32 x)
 {
-#if defined(FSR3UPSCALER_BIND_SRV_LANCZOS_LUT)
-	return textureLod(sampler2D(r_lanczos_lut, s_LinearClamp), FfxFloat32x2(x / 2.0, 0.5), 0.0).x; 
-#else
-    return 0.f;
-#endif
+    return 0.0;
 }
-// END: FSR3UPSCALER_BIND_SRV_LANCZOS_LUT
 
 #if defined(FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS)
 layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS) uniform texture2D  r_dilated_reactive_masks;

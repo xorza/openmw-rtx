@@ -282,14 +282,14 @@ namespace Rtx
         else
             // Each run as the chunk placed it, staged at the run's own offset, so a table of a
             // thousand layers pays for the five that arrived.
-            for (const Run run : scene.materials().getArrived().mLayers)
+            for (const Run run : scene.materials().getArrivedRuns().mLayers)
                 stageInto(batch, mLayers.get(), run.mOffset * sizeof(Shaders::GpuLayer), std::as_bytes(run.in(layers)));
 
         if (mMasks.outgrow(std::max<std::size_t>(masks.size(), 1) * sizeof(float)))
             stageInto(
                 batch, mMasks.get(), 0, std::as_bytes(masks.empty() ? std::span<const float>(&noMask, 1) : masks));
         else
-            for (const Run run : scene.materials().getArrived().mMasks)
+            for (const Run run : scene.materials().getArrivedRuns().mMasks)
                 stageInto(batch, mMasks.get(), run.mOffset * sizeof(float), std::as_bytes(run.in(masks)));
 
         mStagedRuns = scene.materials().getRunRevision();

@@ -292,6 +292,14 @@ namespace RtxTool
         return *value;
     }
 
+    std::string BlockFile::weaponId(const BlockField& field) const
+    {
+        if (field.mValue.empty())
+            refuseValue(field, "names no weapon");
+
+        return field.mValue;
+    }
+
     bool BlockFile::readPlace(const BlockField& field, Stop& stop) const
     {
         if (field.mName == "cell")
@@ -310,6 +318,8 @@ namespace RtxTool
             stop.mSky.mAir = air(field);
         else if (field.mName == "lamps")
             stop.mStand.mLamps = boolean(field);
+        else if (field.mName == "arms")
+            stop.mStand.mArms = weaponId(field);
         else
             return false;
 

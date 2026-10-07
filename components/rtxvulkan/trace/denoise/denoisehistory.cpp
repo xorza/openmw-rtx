@@ -68,8 +68,7 @@ namespace Rtx
             Grid mGrid;
             VkImageUsageFlags mUsage;
 
-            /// The filter whose history it is: what its freshness follows, and the bounce's are what
-            /// `keepBounce` makes and lets go.
+            /// The filter whose history it is: what its freshness follows.
             Temporal mFilter;
         };
 
@@ -77,27 +76,27 @@ namespace Rtx
             { DenoiseImage::Surface, "accumulate-surface", ACCUMULATE_SURFACE, Role::OneFrame, true, Grid::Pixels,
                 sStorage, Temporal::Accumulate },
             { DenoiseImage::Colour, "accumulate-colour", ACCUMULATE_COLOUR, Role::FedBack, true, Grid::Pixels,
-                sReadAndWrite, Temporal::Bounce },
+                sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::Moments, "accumulate-moments", ACCUMULATE_MOMENTS, Role::FedBack, true, Grid::Pixels,
-                sReadAndWrite, Temporal::Bounce },
+                sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::Blended, "accumulate-blended", ATROUS_CHANNEL, Role::Scratch, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Bounce },
+                sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::Narrow, "atrous-narrow", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels, sReadAndWrite,
-                Temporal::Bounce },
+                Temporal::Accumulate },
             { DenoiseImage::NarrowOther, "atrous-narrow-other", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Bounce },
+                sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::Fill, "accumulate-fill", ACCUMULATE_COLOUR, Role::FedBack, true, Grid::Pixels,
-                sReadAndWrite, Temporal::Bounce },
+                sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::FillBlended, "accumulate-fill-blended", ATROUS_CHANNEL, Role::Scratch, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Bounce },
+                sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::FillNarrow, "atrous-fill-narrow", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Bounce },
+                sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::FillNarrowOther, "atrous-fill-narrow-other", ATROUS_NARROW, Role::Scratch, false,
-                Grid::Pixels, sReadAndWrite, Temporal::Bounce },
+                Grid::Pixels, sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::Fast, "accumulate-fast", ACCUMULATE_FAST, Role::FedBack, true, Grid::Pixels, sStorage,
-                Temporal::Bounce },
+                Temporal::Accumulate },
             { DenoiseImage::FastBlended, "accumulate-fast-blended", ACCUMULATE_FAST, Role::Scratch, false, Grid::Pixels,
-                sStorage, Temporal::Bounce },
+                sStorage, Temporal::Accumulate },
             { DenoiseImage::ShadowMoments, "shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
                 sStorage, Temporal::Shadow },
             { DenoiseImage::ShadowHistory, "shadow-history", SHADOW_REPROJECTED, Role::FedBack, false, Grid::Pixels,
@@ -157,80 +156,37 @@ namespace Rtx
         return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
     }
 
-    void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height, const bool bounce)
-    {
-        mWidth = width;
-        mHeight = height;
-
-        for (std::size_t at = 0; at < sTemporals; ++at)
-        {
-            const Temporal filter = static_cast<Temporal>(at);
-            if (filter != Temporal::Bounce || bounce)
-                make(filter);
-            else
-                release(filter);
-        }
-
-        mTurns = TemporalTurns{};
-    }
-
-    void DenoiseHistory::keepBounce(const bool bounce)
-    {
-        assert(mWidth > 0 && "the bounce's images kept before a resize");
-        if (bounce == !only(DenoiseImage::Blended).isEmpty())
-            return;
-
-        if (!bounce)
-        {
-            release(Temporal::Bounce);
-            return;
-        }
-
-        make(Temporal::Bounce);
-
-        // Made anew, so they hold nothing a frame may read, whichever frames ran before them.
-        mTurns.reset(Temporal::Bounce);
-    }
-
-    void DenoiseHistory::make(const Temporal filter)
+    void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height)
     {
         for (const Declared& declared : sDeclared)
         {
-            if (declared.mFilter != filter)
-                continue;
-
-            std::uint32_t width = mWidth;
-            std::uint32_t height = mHeight;
+            std::uint32_t columns = width;
+            std::uint32_t rows = height;
             if (declared.mGrid == Grid::ShadowTiles)
             {
-                width = groupsFor(mWidth, Shaders::SHADOW_WORKGROUP);
-                height = groupsFor(mHeight, Shaders::SHADOW_WORKGROUP);
+                columns = groupsFor(width, Shaders::SHADOW_WORKGROUP);
+                rows = groupsFor(height, Shaders::SHADOW_WORKGROUP);
             }
             else if (declared.mGrid == Grid::ShadowMask)
             {
-                width = groupsFor(mWidth, Shaders::SHADOW_MASK_WIDTH);
-                height = groupsFor(mHeight, Shaders::SHADOW_MASK_HEIGHT);
+                columns = groupsFor(width, Shaders::SHADOW_MASK_WIDTH);
+                rows = groupsFor(height, Shaders::SHADOW_MASK_HEIGHT);
             }
 
             const VkFormat format = toVulkanFormat(declared.mFormat);
             std::array<Image, 2>& images = mImages[static_cast<std::size_t>(declared.mImage)];
             if (!declared.mPair)
             {
-                images[0] = Image(mDevice, width, height, format, declared.mUsage, declared.mName);
+                images[0] = Image(mDevice, columns, rows, format, declared.mUsage, declared.mName);
                 continue;
             }
 
             for (std::size_t half = 0; half < images.size(); ++half)
-                images[half] = Image(mDevice, width, height, format, declared.mUsage,
+                images[half] = Image(mDevice, columns, rows, format, declared.mUsage,
                     std::string(declared.mName) + "-" + std::to_string(half));
         }
-    }
 
-    void DenoiseHistory::release(const Temporal filter)
-    {
-        for (const Declared& declared : sDeclared)
-            if (declared.mFilter == filter)
-                mImages[static_cast<std::size_t>(declared.mImage)] = {};
+        mTurns = TemporalTurns{};
     }
 
     const Image& DenoiseHistory::before(const DenoiseImage image, const TemporalTurns::Step& step) const
@@ -254,8 +210,6 @@ namespace Rtx
     TemporalTurns::Step DenoiseHistory::turn(const TemporalFlags& runs)
     {
         assert(!mImages[static_cast<std::size_t>(DenoiseImage::Surface)][0].isEmpty() && "a turn before resize");
-        assert((!runs[Temporal::Bounce] || !only(DenoiseImage::Blended).isEmpty())
-            && "the bounce filtered with its images let go");
         return mTurns.next(runs);
     }
 
@@ -308,7 +262,7 @@ namespace Rtx
             .mFastBefore = before(DenoiseImage::Fast, step),
             .mFast = now(DenoiseImage::Fast, step),
             .mFastBlended = only(DenoiseImage::FastBlended),
-            .mFresh = step.mFresh[Temporal::Bounce],
+            .mFresh = step.mFresh[Temporal::Accumulate],
         };
     }
 

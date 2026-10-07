@@ -1,8 +1,6 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLINPUTWRAPPER_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLINPUTWRAPPER_H
 
-#include <string_view>
-
 #include <SDL3/SDL_events.h>
 
 #include "events.hpp"
@@ -47,10 +45,6 @@ namespace SDLUtil
         MouseMotionEvent _packageMouseMotion(const SDL_Event& evt);
         void _setWindowScale();
 
-        // TODO: remove with the spinning camera's fix (`.notes/redesign.md` 8.1).
-        /// One line with `what` and every state a large motion could come from.
-        void logMouseState(std::string_view what, const SDL_MouseMotionEvent* motion) const;
-
         SDL_Window* mSDLWindow;
         GraphicsListener& mGraphics;
 
@@ -64,6 +58,11 @@ namespace SDLUtil
         float mWarpY;
         bool mWarpCompensate;
         bool mWrapPointer;
+
+        /// Whether a warp moves the system's pointer, which wrapping it stands on. Wayland lets no
+        /// window move it: SDL moves its own idea of the pointer alone, and the next real motion
+        /// is the way back from there to the pointer, a turn of hundreds of pixels in one event.
+        bool mWarpMovesPointer;
 
         bool mAllowGrab;
         bool mWantMouseVisible;
@@ -81,11 +80,6 @@ namespace SDLUtil
         bool mMouseInWindow;
 
         float mPixelDensity;
-
-        // TODO: remove with `logMouseState`. When the pointer was last warped, and when relative mode
-        // last changed, in SDL's nanoseconds.
-        Uint64 mLastWarpNs = 0;
-        Uint64 mLastRelativeChangeNs = 0;
     };
 
 }

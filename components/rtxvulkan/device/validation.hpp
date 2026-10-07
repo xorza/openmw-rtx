@@ -47,8 +47,6 @@ namespace Rtx
         /// message nobody ever sees.
         void takeErrorsOnThisThread(std::vector<std::string>& out);
 
-        void clear();
-
     private:
         const bool mAbortOnError;
         mutable std::mutex mMutex;

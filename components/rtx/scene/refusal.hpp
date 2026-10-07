@@ -19,7 +19,7 @@ namespace Rtx
 
         Texture,
 
-        /// A layer of the sky: the cloud cap, the star dome, or a weather's deck.
+        /// A layer of the sky: the cloud cap, the star dome, a weather's deck, or a moon's face.
         SkyLayer,
 
         Moon,

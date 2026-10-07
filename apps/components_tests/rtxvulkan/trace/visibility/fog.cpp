@@ -18,7 +18,8 @@
 #include <apps/components_tests/rtx/support/halfstep.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
+#include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
@@ -1263,6 +1264,96 @@ namespace Rtx::Testing
             EXPECT_GT(open, shaded + 20) << "and there was a sun to take";
         }
 
+        /// **A point under a bank's top is lit as the clear air its slant to the sun crosses**
+        /// (`slantCoverage`). The test states the field (`VulkanRenderer::setFogField`): full in the
+        /// lower half of the tile's height and empty in the upper, at every level, and each scale's
+        /// offset puts the change at z = 600. The turns and the warp are horizontal, so every scale
+        /// has its top there. The eye stands at z = 250 inside the bank and looks level at a black
+        /// wall, in air that scatters nothing of its own, under a sun at a cosine of 0.8.
+        ///
+        /// With a lift of 0.2 the layer's height is 520, so the beam's slant is 520 / 0.8 = 650 and
+        /// its middle is at z = 250 + 520 = 770, over the top: the slant's coverage is nought and the
+        /// sun reaches the eye's air whole. Against a field full everywhere, whose slant is charged
+        /// the bank's coverage `1 / FOG_COVERAGE` = 2.8066, the centre pixel is brighter by
+        ///
+        ///   exp(8.9e-4 * exp(-250 / 520) * 2.8066 * 650) = exp(1.00383) = 2.7287
+        ///
+        /// since the air along the eye's ray is the same in both. Measured at 2.7322. Charged with the
+        /// point's own coverage instead, the two frames are one.
+        TEST_F(RtxVisibilityTest, aPointUnderABanksTopIsLitThroughTheClearAirItsSlantCrosses)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float top = 600.0f;
+            constexpr float eye = 250.0f;
+            constexpr float lift = 0.2f;
+            constexpr float extinction = 8.9e-4f;
+            constexpr float irradiance = 20.0f;
+
+            // The field the shader reads at each level, `bakeFogNoise`'s layout: two channels a
+            // texel, slice by slice. Banked, the lower half of the tile's height is full and the
+            // upper half empty; whole, every texel is full.
+            const auto fieldOf = [](bool banked) {
+                FogNoise noise;
+                for (std::uint32_t level = 0; level < Shaders::FOG_FIELD_LEVELS; ++level)
+                {
+                    noise.mOffsets.push_back(noise.mBytes.size());
+                    const std::uint32_t side = Shaders::FOG_FIELD_SIZE >> level;
+                    for (std::uint32_t z = 0; z < side; ++z)
+                    {
+                        const std::uint8_t value = !banked || 2 * z < side ? 255 : 0;
+                        noise.mBytes.insert(noise.mBytes.end(), std::size_t{ side } * side * 2, value);
+                    }
+                }
+                return noise;
+            };
+
+            struct Restored
+            {
+                VulkanRenderer& mRenderer;
+                ~Restored() { mRenderer.setFogField(bakeFogNoise()); }
+            } restored{ mRenderer };
+
+            const osg::Vec3f towards(0.6f, 0.0f, 0.8f);
+            const auto look = [&](bool banked) {
+                mRenderer.setFogField(fieldOf(banked));
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, 0.0f, eye), osg::Vec3f(0.0f, 1000.0f, eye), 10.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                camera.mSun = Shaders::sunSource(towards, osg::Vec3f(irradiance, irradiance, irradiance));
+                camera.mFogColour = osg::Vec3f();
+                camera.mFogExtinction = extinction;
+                camera.mFogUniform = 0.0f;
+                camera.mFogLift = lift;
+                float tile = Shaders::FOG_TILE;
+                for (osg::Vec3f& offset : camera.mFogOffsets)
+                {
+                    const float read = 0.5f - top / tile;
+                    offset = osg::Vec3f(0.0f, 0.0f, read - std::floor(read));
+                    tile /= Shaders::FOG_LACUNARITY;
+                }
+
+                SceneDesc scene;
+                addQuad(scene, uprightQuadAt(2000.0f, 1000.0f, osg::Vec2f(0.0f, eye)),
+                    scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f() }));
+                const Frame frame = shoot(scene, {}, camera, size, { .mFrames = 64, .mAverage = false });
+                return frame.at(centre);
+            };
+
+            const float banked = look(true);
+            const float whole = look(false);
+            ASSERT_GT(whole, 0.005f) << "the sun lights the air, or this proves nothing";
+
+            const float height = Shaders::FOG_HEIGHT * lift;
+            const float slant = height / towards.z();
+            const float depth = extinction * std::exp(-eye / height) / Shaders::FOG_COVERAGE * slant;
+            EXPECT_NEAR(banked / whole, std::exp(depth), std::exp(depth) * 0.01f)
+                << "the slant was charged with coverage it does not cross";
+        }
+
         /// A sprite fades through the layer's own integral, not through one sample of it.
         ///
         /// **A descending ray is what tells the two apart.** Along a level ray the air holds one
@@ -1554,7 +1645,7 @@ namespace Rtx::Testing
                 osg::Vec3f towards(0.0f, 1.0f, 0.5f);
                 towards.normalize();
                 moon.mSource
-                    = Shaders::moonSource(towards, osg::Vec3f(0.0f, 0.0f, irradiance), moonAngularRadius(94.0f));
+                    = Shaders::skySource(towards, osg::Vec3f(0.0f, 0.0f, irradiance), moonAngularRadius(94.0f));
                 moon.mAlpha = 0.0f;
                 moon.mFace = Shaders::NO_TEXTURE;
                 camera.mMoons[0] = moon;

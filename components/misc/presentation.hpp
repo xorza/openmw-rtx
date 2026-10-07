@@ -1,6 +1,8 @@
 #ifndef OPENMW_COMPONENTS_MISC_PRESENTATION_H
 #define OPENMW_COMPONENTS_MISC_PRESENTATION_H
 
+#include <string_view>
+
 #include <osg/Vec2f>
 #include <osg/Vec2i>
 
@@ -66,6 +68,25 @@ namespace Misc
     /// resolution. The window plays no part: the interface is part of the frame, and a window
     /// resized scales both together. A display with no size gives `setting`.
     float interfaceScale(float setting, osg::Vec2i frame, osg::Vec2i displayPoints);
+
+    /// Which of the three a resolution menu offers stands picked: the display's own, a mode the
+    /// display lists, or two sides typed in.
+    enum class ResolutionPick
+    {
+        Native,
+        Listed,
+        Custom,
+    };
+
+    /// `[Video] resolution x/y` as a menu picked it: nought by nought for Native, which `present`
+    /// reads as the drawable; for a listed mode, the two sides `listed` opens with, as
+    /// `getResolutionText` writes them, and nought by nought where it opens with none; and `custom`
+    /// for sides typed in.
+    osg::Vec2i resolutionPicked(ResolutionPick pick, std::string_view listed, osg::Vec2i custom);
+
+    /// How a menu shows `stored`, the setting: Native for a side of nought, a listed mode where
+    /// `listed` says the display lists one with these sides, and typed in otherwise.
+    ResolutionPick resolutionPickOf(osg::Vec2i stored, bool listed);
 }
 
 #endif

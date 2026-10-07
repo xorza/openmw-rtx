@@ -1,12 +1,18 @@
 #include "crashpackage.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <filesystem>
 #include <fstream>
 #include <ios>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <system_error>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -316,6 +322,69 @@ namespace Crash
         return written;
     }
 
+    namespace
+    {
+        /// One of an application's packages, by what its name says: `<application>-crash-` and the
+        /// time `freePackagePath` writes, `YYYY-MM-DD-HHMMSS`, which sorts as it ran, then the
+        /// number of a second package in the same second, one for the first.
+        struct PackageName
+        {
+            std::string mTime;
+            int mNumber = 1;
+            std::filesystem::path mPath;
+        };
+
+        std::optional<PackageName> packageNameOf(const std::filesystem::path& path, std::string_view application)
+        {
+            const std::string name = Files::pathToUnicodeString(path.filename());
+            const std::string prefix = std::string(application) + "-crash-";
+            constexpr std::size_t timeLength = std::string_view("2026-09-27-143013").size();
+            if (!name.starts_with(prefix) || !name.ends_with(".zip") || name.size() < prefix.size() + timeLength + 4)
+                return std::nullopt;
+
+            PackageName package{ .mTime = name.substr(prefix.size(), timeLength), .mPath = path };
+            if (!std::all_of(package.mTime.begin(), package.mTime.end(),
+                    [](char c) { return c == '-' || (c >= '0' && c <= '9'); }))
+                return std::nullopt;
+
+            const std::string_view rest = std::string_view(name).substr(
+                prefix.size() + timeLength, name.size() - prefix.size() - timeLength - 4);
+            if (rest.empty())
+                return package;
+            if (!rest.starts_with('-'))
+                return std::nullopt;
+            const std::from_chars_result read
+                = std::from_chars(rest.data() + 1, rest.data() + rest.size(), package.mNumber);
+            if (read.ec != std::errc() || read.ptr != rest.data() + rest.size() || package.mNumber < 2)
+                return std::nullopt;
+            return package;
+        }
+
+        /// Deletes the oldest of `application`'s packages in `folder` past `sKeptPackages`. A folder
+        /// that cannot be listed, or a file that cannot be deleted, is left as it is: what was written
+        /// stands either way. **Stepped by `increment` and its error code, and not a range-for**,
+        /// whose step throws: a throw here reaches the writer's catch, which reports the package it
+        /// just wrote as a failure. A listing cut short prunes nothing, since its oldest are not the
+        /// folder's.
+        void pruneOldPackages(const std::filesystem::path& folder, std::string_view application)
+        {
+            std::vector<PackageName> packages;
+            std::error_code error;
+            for (std::filesystem::directory_iterator entry(folder, error), end; !error && entry != end;
+                 entry.increment(error))
+                if (std::optional<PackageName> package = packageNameOf(entry->path(), application))
+                    packages.push_back(std::move(*package));
+            if (error || packages.size() <= sKeptPackages)
+                return;
+
+            std::sort(packages.begin(), packages.end(), [](const PackageName& left, const PackageName& right) {
+                return std::tie(left.mTime, left.mNumber) < std::tie(right.mTime, right.mNumber);
+            });
+            for (std::size_t at = 0; at + sKeptPackages < packages.size(); ++at)
+                std::filesystem::remove(packages[at].mPath, error);
+        }
+    }
+
     SessionPackage writeSessionPackage(const std::filesystem::path& folder, std::string_view application,
         const std::filesystem::path& log, std::span<const std::filesystem::path> dumps, const std::tm& local)
     {
@@ -350,7 +419,10 @@ namespace Crash
             const std::filesystem::path absolute = std::filesystem::absolute(folder, error).lexically_normal();
             const std::filesystem::path zip = freePackagePath(error ? folder : absolute, application, local);
             if (const Misc::Result<void, std::string> written = writePackage(zip, files, local); written.isOk())
+            {
                 package.mZip = zip;
+                pruneOldPackages(zip.parent_path(), application);
+            }
             else
                 package.mFailure = written.error();
         }

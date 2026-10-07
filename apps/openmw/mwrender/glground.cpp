@@ -5,10 +5,10 @@
 #include <osg/Vec2i>
 
 #include <apps/openmw/mwworld/cell.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/terrain/world.hpp>
 
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/ptr.hpp"
 #include "groundcover.hpp"
 #include "objectpaging.hpp"
 

@@ -16,13 +16,19 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwrender/sceneframe.hpp>
+#include <apps/openmw/mwrender/searules.hpp>
+#include <apps/openmw/mwrender/sky.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/cell.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
@@ -38,13 +44,6 @@
 #include <components/terrain/world.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../../mwworld/cell.hpp"
-#include "../../mwworld/cellstore.hpp"
-#include "../../mwworld/weather.hpp"
-#include "../sceneframe.hpp"
-#include "../searules.hpp"
-#include "../sky.hpp"
-#include "../vismask.hpp"
 #include "classmasks.hpp"
 #include "tracedgroundcover.hpp"
 
@@ -296,6 +295,8 @@ namespace MWRender
                 // `Rtx::CellRing::forget` read the ring from nothing, and the player bit moves
                 // while the camera settles.
                 .mMask = sWorldTraversal,
+                // What `extractWorld` walks every reference root under, below.
+                .mAbove = frame.mScene.getStateSet(),
             },
             .mEye = eye,
             .mReach = getReach(),

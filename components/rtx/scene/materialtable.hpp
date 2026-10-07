@@ -56,7 +56,7 @@ namespace Rtx
         std::span<const float> getMasks() const { return mMasks.getAll(); }
 
         std::span<const Index> getWritten() const { return mWritten.getSlots(); }
-        const ArrivedRuns& getArrived() const { return mArrived; }
+        const ArrivedRuns& getArrivedRuns() const { return mArrived; }
 
         /// How many runs have been placed, ever. What a backend checks it staged the arrivals
         /// against: a run is written on arrival and never again, so one that arrived where the

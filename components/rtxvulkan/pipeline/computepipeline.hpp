@@ -23,7 +23,7 @@ namespace Rtx
     ///        directory.
     /// @param specialization one word per specialization constant, `constant_id` `i` taking
     ///        `specialization[i]` — a `bool` reaches SPIR-V as a 32-bit value like a `uint`.
-    Owned<VkPipeline, vkDestroyPipeline> makeComputePipeline(const Device& device, VkPipelineLayout layout,
+    Owned<VkPipeline, vkDestroyPipeline> makeComputePipeline(const Device& device, const PipelineLayout& layout,
         std::string_view module, std::string_view name, std::span<const std::uint32_t> specialization);
 
     /// A compute pipeline and its layout, pushed a `Constants`. `TracePipeline` is the same object
@@ -50,8 +50,7 @@ namespace Rtx
         ComputePipeline(const Device& device, PipelineLayout&& layout, std::string_view module, std::string_view name,
             std::span<const std::uint32_t> specialization)
             : TypedPipeline<Constants>(std::move(layout),
-                makeComputePipeline(device, layout.getHandle(), module, name, specialization),
-                VK_PIPELINE_BIND_POINT_COMPUTE)
+                makeComputePipeline(device, layout, module, name, specialization), VK_PIPELINE_BIND_POINT_COMPUTE)
         {
         }
     };

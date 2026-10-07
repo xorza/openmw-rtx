@@ -8,14 +8,11 @@ namespace Rtx
 {
     /// The temporal filters a chain keeps a history for, in the order a frame runs them.
     ///
-    /// **The accumulator is two**: the surface's history, which every frame the denoisers run on
-    /// keeps, since the shadow denoiser and the glossy filter read it; and its mean of the bounce,
-    /// which only a frame whose bounce is filtered keeps (`Reconstruction::filtersBounce`). Apart, a
-    /// mean that frames with no indirect light left behind is fresh by the rule every filter has.
+    /// **The accumulator's is the surface's history and its mean of the bounce**, which every frame
+    /// the denoisers run on keeps: the shadow denoiser and the glossy filter read the surface.
     enum class Temporal : std::uint8_t
     {
         Accumulate,
-        Bounce,
         Shadow,
         Specular,
         Pane,
@@ -68,9 +65,6 @@ namespace Rtx
 
         /// Says every history is worthless, until each next runs.
         void reset() { mFresh.mFlags.fill(true); }
-
-        /// Says one filter's history is worthless, until it next runs: its images were made anew.
-        void reset(const Temporal filter) { mFresh[filter] = true; }
 
     private:
         std::size_t mNow = 0;

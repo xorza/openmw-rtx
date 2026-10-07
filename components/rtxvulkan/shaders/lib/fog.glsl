@@ -478,12 +478,12 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
     const float middle = froxelMiddle(slice);
     if (through <= 0.5)
     {
-        fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
+        air = fogThrough(air,
             fogSliceAt(across, (float(slice) + 0.5 * through) / slices), reach - behind, frame.mFogExtinction);
     }
     else
     {
-        fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
+        air = fogThrough(air,
             fogSliceAt(across, (float(slice) + 0.25) / slices), middle - behind, frame.mFogExtinction);
 
         // **Flat where the next slice starts past the column's own surface**, which is the rule
@@ -492,7 +492,7 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
         // stood in. A pixel that sees past the column's surface is in a later slice and bends.
         const float surface = imageLoad(fogColumnDepth, ivec2(pixel / FOG_VOLUME_SCALE)).x;
         const float onward = froxelNear(slice + 1u) < surface ? 0.25 + 0.5 * through : 0.5;
-        fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
+        air = fogThrough(air,
             fogSliceAt(across, (float(slice) + onward) / slices), reach - middle, frame.mFogExtinction);
     }
 
@@ -713,13 +713,9 @@ vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direct
             const float crossed
                 = falloffAlong(perpendicular, from - closest, to - closest, held.mReach, held.mSourceRadius);
 
-            // The ray this may buy is aimed when it is cast, off the lamp's own row, so nothing
-            // about where the lamp stands has to be worked out here.
-            const vec3 place = origin + direction * clamp(closest, from, to);
-
             const vec3 share = held.mIntensity * (INV_FOUR_PI * crossed);
             scattered += share;
-            considerLamp(kept, state, place, airCandidate(share), row);
+            considerLamp(kept, state, airCandidate(share), row);
         }
 
         if (leave >= exit)

@@ -12,9 +12,9 @@
 #include <utility>
 #include <vector>
 
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -476,11 +476,6 @@ namespace Rtx
         /// the next frame's picture has it. A finite number greater than nought: a caller that reads
         /// it from a file or a command line refuses anything else first.
         virtual void setGamma(float gamma) = 0;
-
-        /// `ReconstructionRequest::mIndirect` of the profile, changed while the frames run: a menu
-        /// change. What only a traced bounce keeps is made or let go here, and the next frame's
-        /// bounce starts with no history.
-        virtual void setIndirectLight(IndirectLight indirect) = 0;
 
         /// How many of the kernels a trace needs are made, waiting `patience` at most for the rest,
         /// and rethrowing what making one threw. The renderer starts making them as it is made, on

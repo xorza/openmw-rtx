@@ -3,8 +3,8 @@
 #include "sdlinit.hpp"
 
 #include <components/misc/display.hpp>
+#include <components/misc/presentation.hpp>
 #include <components/rtx/common/menu.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
@@ -27,30 +27,23 @@
 #include <cstddef>
 #include <optional>
 #include <span>
-#include <string_view>
 
 namespace
 {
     // In the context the .ui's own strings are translated in, which is where these came from
-    constexpr std::array<Rtx::MenuLabel, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
-        { "off", QT_TRANSLATE_NOOP("GraphicsPage", "Off") },
-        { "ultraperformance", QT_TRANSLATE_NOOP("GraphicsPage", "Ultra Performance") },
-        { "performance", QT_TRANSLATE_NOOP("GraphicsPage", "Performance") },
-        { "balanced", QT_TRANSLATE_NOOP("GraphicsPage", "Balanced") },
-        { "quality", QT_TRANSLATE_NOOP("GraphicsPage", "Quality") },
-        { "native", QT_TRANSLATE_NOOP("GraphicsPage", "Native") },
+    constexpr std::array<Rtx::MenuLabel<Rtx::Upscale>, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
+        { Rtx::Upscale::Off, QT_TRANSLATE_NOOP("GraphicsPage", "Off") },
+        { Rtx::Upscale::UltraPerformance, QT_TRANSLATE_NOOP("GraphicsPage", "Ultra Performance") },
+        { Rtx::Upscale::Performance, QT_TRANSLATE_NOOP("GraphicsPage", "Performance") },
+        { Rtx::Upscale::Balanced, QT_TRANSLATE_NOOP("GraphicsPage", "Balanced") },
+        { Rtx::Upscale::Quality, QT_TRANSLATE_NOOP("GraphicsPage", "Quality") },
+        { Rtx::Upscale::Native, QT_TRANSLATE_NOOP("GraphicsPage", "Native") },
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    constexpr std::array<Rtx::MenuLabel, Rtx::sIndirectLightMenu.size()> sIndirectLightLabels{ {
-        { "traced", QT_TRANSLATE_NOOP("GraphicsPage", "Traced") },
-        { "off", QT_TRANSLATE_NOOP("GraphicsPage", "Off (Faster)") },
-    } };
-    static_assert(Rtx::followsMenu(sIndirectLightLabels, Rtx::sIndirectLightMenu));
-
-    void addMenuItems(QComboBox* box, std::span<const Rtx::MenuLabel> labels)
+    void addMenuItems(QComboBox* box, std::span<const Rtx::MenuLabel<Rtx::Upscale>> labels)
     {
-        for (const Rtx::MenuLabel& label : labels)
+        for (const Rtx::MenuLabel<Rtx::Upscale>& label : labels)
             box->addItem(QCoreApplication::translate("GraphicsPage", label.mLabel));
     }
 }
@@ -67,7 +60,6 @@ Launcher::GraphicsPage::GraphicsPage(QWidget* parent)
     customHeightSpinBox->setMaximum(res.height());
 
     addMenuItems(rayTracingUpscaleComboBox, sUpscaleLabels);
-    addMenuItems(rayTracingIndirectLightComboBox, sIndirectLightLabels);
     rayTracingDistantLandSpinBox->setRange(static_cast<int>(Settings::RTXCategory::sMinDistantLandCellsInMenu),
         static_cast<int>(Settings::RTXCategory::sMaxDistantLandCells));
 
@@ -137,12 +129,9 @@ bool Launcher::GraphicsPage::loadSettings()
     if (Settings::rtx().mEnabled)
         rayTracingCheckBox->setCheckState(Qt::Checked);
 
-    // Nothing selected where the setting names a mode the list does not offer, so saveSettings leaves it alone
-    const std::optional<std::size_t> offered = Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get());
-    rayTracingUpscaleComboBox->setCurrentIndex(offered ? static_cast<int>(*offered) : -1);
-    const std::optional<std::size_t> indirect
-        = Rtx::menuIndex(Rtx::sIndirectLightMenu, Settings::rtx().mIndirectLight.get());
-    rayTracingIndirectLightComboBox->setCurrentIndex(indirect ? static_cast<int>(*indirect) : -1);
+    // The list offers every mode the setting can hold
+    rayTracingUpscaleComboBox->setCurrentIndex(
+        static_cast<int>(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value()));
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
@@ -162,18 +151,22 @@ bool Launcher::GraphicsPage::loadSettings()
     screenComboBox->setCurrentIndex(Settings::video().mScreen);
 
     // Native is the list's first item, and a side of nought in the settings
-    int resIndex = width == 0 || height == 0 ? 0 : resolutionComboBox->findText(resolution, Qt::MatchStartsWith);
-
-    if (resIndex != -1)
+    const int listed = resolutionComboBox->findText(resolution, Qt::MatchStartsWith);
+    switch (Misc::resolutionPickOf(osg::Vec2i(width, height), listed != -1))
     {
-        standardRadioButton->toggle();
-        resolutionComboBox->setCurrentIndex(resIndex);
-    }
-    else
-    {
-        customRadioButton->toggle();
-        customWidthSpinBox->setValue(width);
-        customHeightSpinBox->setValue(height);
+        case Misc::ResolutionPick::Native:
+            standardRadioButton->toggle();
+            resolutionComboBox->setCurrentIndex(0);
+            break;
+        case Misc::ResolutionPick::Listed:
+            standardRadioButton->toggle();
+            resolutionComboBox->setCurrentIndex(listed);
+            break;
+        case Misc::ResolutionPick::Custom:
+            customRadioButton->toggle();
+            customWidthSpinBox->setValue(width);
+            customHeightSpinBox->setValue(height);
+            break;
     }
 
     const float fpsLimit = Settings::video().mFramerateLimit;
@@ -196,40 +189,24 @@ void Launcher::GraphicsPage::saveSettings()
     Settings::video().mAntialiasing.set(antiAliasingComboBox->currentText().toInt());
 
     Settings::rtx().mEnabled.set(rayTracingCheckBox->checkState() == Qt::Checked);
-    // Nothing chosen leaves the setting alone, see loadSettings
+    // Nothing chosen leaves the setting alone
     const int chosenIndex = rayTracingUpscaleComboBox->currentIndex();
     if (chosenIndex >= 0)
-        if (const std::optional<std::string_view> chosen
-            = Rtx::menuName(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
-            Settings::rtx().mUpscale.set(std::string(*chosen));
-    const int indirectIndex = rayTracingIndirectLightComboBox->currentIndex();
-    if (indirectIndex >= 0)
-        if (const std::optional<std::string_view> chosen
-            = Rtx::menuName(Rtx::sIndirectLightMenu, static_cast<std::size_t>(indirectIndex)))
-            Settings::rtx().mIndirectLight.set(std::string(*chosen));
+        if (const std::optional<Rtx::Upscale> chosen
+            = Rtx::menuValue(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
+            Settings::rtx().mUpscale.set(*chosen);
     if (rayTracingDistantLandSpinBox->value() != mLoadedDistantLandCells)
         Settings::rtx().mDistantLandCells.set(static_cast<float>(rayTracingDistantLandSpinBox->value()));
 
-    int cWidth = 0;
-    int cHeight = 0;
-    if (standardRadioButton->isChecked() && resolutionComboBox->currentIndex() > 0)
-    {
-        QRegularExpression resolutionRe("^(\\d+) × (\\d+)");
-        QRegularExpressionMatch match = resolutionRe.match(resolutionComboBox->currentText().simplified());
-        if (match.hasMatch())
-        {
-            cWidth = match.captured(1).toInt();
-            cHeight = match.captured(2).toInt();
-        }
-    }
-    else
-    {
-        cWidth = customWidthSpinBox->value();
-        cHeight = customHeightSpinBox->value();
-    }
+    // Native is the list's first item: what was typed into the custom sides is not what it saves.
+    const Misc::ResolutionPick pick = customRadioButton->isChecked() ? Misc::ResolutionPick::Custom
+        : resolutionComboBox->currentIndex() > 0                     ? Misc::ResolutionPick::Listed
+                                                                     : Misc::ResolutionPick::Native;
+    const osg::Vec2i picked = Misc::resolutionPicked(pick, resolutionComboBox->currentText().simplified().toStdString(),
+        osg::Vec2i(customWidthSpinBox->value(), customHeightSpinBox->value()));
 
-    Settings::video().mResolutionX.set(cWidth);
-    Settings::video().mResolutionY.set(cHeight);
+    Settings::video().mResolutionX.set(picked.x());
+    Settings::video().mResolutionY.set(picked.y());
     Settings::video().mScreen.set(screenComboBox->currentIndex());
 
     if (framerateLimitCheckBox->checkState() != Qt::Unchecked)

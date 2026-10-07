@@ -6,10 +6,15 @@ at the first failure — so a formatting slip is found in seconds and not after 
 
 import unittest
 
-from omw import formatting, listing, spellings, testing
+from omw import formatting, listing, presets, spellings, testing
 from omw.build import Build
 from omw.repeat import repeat
 from omw.system import ROOT, Refusal
+
+# **The steps, in the order `gate` runs them**: the one statement of it, which `omw help` prints and
+# AGENTS.md points at.
+STEPS = ("format check, spellings, the driver's tests, build, the listing check, the release compile, "
+         "tests and their timing, check, repeat")
 
 
 def self_test() -> bool:
@@ -22,6 +27,9 @@ def self_test() -> bool:
 def gate(build: Build, args: list[str]) -> int:
     if args:
         raise Refusal("gate takes no arguments")
+    # Before anything builds: a gate that ran no test would end `clean` on nothing.
+    if not presets.has_test_preset(build.preset):
+        raise Refusal(f"the {build.flavour} build has no tests, and a gate is its tests: `omw debug gate` runs them")
     if formatting.format_tree(["--check"]) != 0:
         return 1
     if spellings.check() != 0:
@@ -41,13 +49,10 @@ def gate(build: Build, args: list[str]) -> int:
     release = Build("release")
     release.build(["all"])
 
-    if targets:
-        if testing.test(build, []) != 0:
-            return 1
-        if testing.timing(build) != 0:
-            return 1
-    else:
-        print(f"tests: the {build.flavour} build has none — `omw debug gate` runs them")
+    if testing.test(build, []) != 0:
+        return 1
+    if testing.timing(build) != 0:
+        return 1
 
     if build.harness("check").returncode != 0:
         return 1

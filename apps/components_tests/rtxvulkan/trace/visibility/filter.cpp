@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -559,12 +560,6 @@ namespace Rtx::Testing
         ///
         /// **And the reset's own sample is a history of one**, so a filtered frame after it is not a
         /// fresh reset's picture: the same exact claim, the other way round.
-        ///
-        /// **A frame that takes no indirect light ends the bounce's history too**, though
-        /// the denoisers run on it: it keeps the surface's history and lets the bounce's mean go, so
-        /// the traced frame after it reads none — the fresh reset's picture again, with the mean's
-        /// images let go and made again between them. So does a traced frame after a menu let the
-        /// images go and made them again with no frame between.
         TEST_F(RtxVisibilityTest, aResetSurvivesAFrameThatHasNoHistoryToReset)
         {
             constexpr std::uint32_t size = 64;
@@ -585,14 +580,13 @@ namespace Rtx::Testing
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
-            const auto renderOne = [&](std::uint32_t frame, bool filter, HistoryLoss loss = HistoryLoss::None,
-                                       IndirectLight indirect = IndirectLight::Traced) {
+            const auto renderOne = [&](std::uint32_t frame, bool filter, HistoryLoss loss = HistoryLoss::None) {
                 Shaders::VisibilityConstants sampled = camera;
                 sampled.mFrame = frame;
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
                         .mLoss = loss,
-                        .mReconstruction = ReconstructionRequest{ .mDenoise = filter, .mIndirect = indirect },
+                        .mReconstruction = ReconstructionRequest{ .mDenoise = filter },
                         .mExposure = FixedExposure{ 1.0f } });
             };
 
@@ -650,29 +644,6 @@ namespace Rtx::Testing
             ASSERT_EQ(skipped.size(), single.size());
             EXPECT_EQ(mostTheyDifferBy(skipped, single), 0.0f)
                 << "a filtered frame after an unfiltered one read a history from before it";
-
-            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
-                renderOne(frame + 300, true);
-            renderOne(measured + 2, true, HistoryLoss::None, IndirectLight::Off);
-            renderOne(measured, true);
-            const std::vector<float> resumed = radiance();
-
-            ASSERT_EQ(resumed.size(), single.size());
-            EXPECT_EQ(mostTheyDifferBy(resumed, single), 0.0f)
-                << "a traced frame after one with no indirect light read a mean of the bounce from before it";
-
-            // **And where the menu lets the mean's images go and makes them again with no frame
-            // between**, the frame after reads none of what the new images hold.
-            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
-                renderOne(frame + 400, true);
-            mRenderer.setIndirectLight(IndirectLight::Off);
-            mRenderer.setIndirectLight(IndirectLight::Traced);
-            renderOne(measured, true);
-            const std::vector<float> remade = radiance();
-
-            ASSERT_EQ(remade.size(), single.size());
-            EXPECT_EQ(mostTheyDifferBy(remade, single), 0.0f)
-                << "a traced frame read the mean's images the menu had just made as a history";
 
             // And a filtered frame in its place keeps the sample the reset took. Counted as no
             // history, it would blend at a weight of one — the next frame alone, which is the fresh
@@ -881,9 +852,9 @@ namespace Rtx::Testing
         /// in the light's own units**: without the fix the brightness test passes over a fresh pixel's
         /// rare bright draws, and a strip darker for it is quieter by as much and no better for it.
         /// **The clamp is off in every run**: its box of fifty samples mostly holds none of a light
-        /// this rare and holds the strip near nought, which is
-        /// `ACCUMULATE_FAST_FRAMES`'s trade and not this test's question. So is the ring, which holds
-        /// the fresh strip down before the fix borrows, `ACCUMULATE_RING_FRAMES`'s trade.
+        /// this rare and holds the strip near nought, which is `ACCUMULATE_FAST_FRAMES`'s trade and
+        /// not this test's question. So is the ring, which holds the fresh strip down before the fix
+        /// borrows, `ACCUMULATE_RING_FRAMES`'s trade.
         ///
         /// **And a settled history keeps its light under the brightness test**
         /// (`ATROUS_LUMINANCE_SIGMA`): the whole frame held still, against 128 unfiltered frames where
@@ -1424,6 +1395,73 @@ namespace Rtx::Testing
                     }
 
             EXPECT_LT(together / alone, 0.55) << "the noise eight pixels apart moves together";
+        }
+
+        /// **The composite puts back what the trace divided out**: every channel a filter
+        /// averages holds light per unit of the albedo the composite multiplies back, and one frame
+        /// through the filters is the frame the trace composed itself, to the rounding of the
+        /// channels it is stored in. A floor under a two-sided sheet that glows with a radiance of
+        /// one and covers every direction it gathers from: each bounce off the grey floor meets the
+        /// sheet, so the bounce is one at every pixel and the wavelet keeps it; each lobe ray off the
+        /// white metal one meets it too, and the glossy filter's first frame is its sample. A
+        /// channel put back by another albedo than its own — the diffuse one, nought on the metal,
+        /// for the lobe's — misses by the whole of it.
+        TEST_F(RtxVisibilityTest, theCompositePutsBackWhatTheTraceDividedOut)
+        {
+            constexpr std::uint32_t size = 32;
+
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> metalTexel{ 255, 128, 255, 255 };
+            const std::array<TextureData, 2> metalTextures{ describeTexel(white, 0), describeTexel(metalTexel, 1) };
+
+            const auto under = [](bool metal) {
+                SceneDesc scene;
+                if (metal)
+                {
+                    const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    const Index map = scene.textures().add(
+                        VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                    scene.addInstance(MeshInstance{
+                        .mMesh = scene.addMesh(MeshArrays{
+                            .mPositions = sheetAt(40000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
+                }
+                else
+                    addQuad(scene, sheetAt(40000.0f, 0.0f));
+
+                addQuad(scene, sheetAt(40000.0f, 100.0f),
+                    scene.addMaterial(
+                        Material{ .mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f), .mTwoSided = true }));
+                return scene;
+            };
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 50.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mAmbient = osg::Vec3f();
+            camera.mAmbientFromSky = 1.0f;
+            camera.mFrame = 4000;
+
+            for (const bool metal : { false, true })
+            {
+                const SceneDesc scene = under(metal);
+                const std::span<const TextureData> textures
+                    = metal ? std::span<const TextureData>(metalTextures) : std::span<const TextureData>();
+
+                const Frame composed = shoot(scene, textures, camera, size);
+                const Frame filtered = shoot(scene, textures, camera, size, filteredRun(1, 4000));
+
+                // Half floats, the narrowest any of these channels is stored at, hold a value to a
+                // part in 2048; the composite multiplies two of them back.
+                ASSERT_GT(composed.mean(0), 0.25f) << (metal ? "the metal" : "the grey floor") << " is lit";
+                for (std::size_t value = 0; value < composed.mRadiance.size(); value += 4)
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        ASSERT_NEAR(filtered.mRadiance[value + channel], composed.mRadiance[value + channel],
+                            composed.mRadiance[value + channel] * 2e-3f)
+                            << (metal ? "the metal" : "the grey floor") << ", value " << value + channel;
+            }
         }
     }
 }

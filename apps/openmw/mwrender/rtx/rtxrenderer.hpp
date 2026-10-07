@@ -13,6 +13,8 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwrender/ground.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/framepast.hpp>
@@ -27,8 +29,6 @@
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../ground.hpp"
-#include "../renderer.hpp"
 #include "debugwalk.hpp"
 #include "framereport.hpp"
 #include "frametimer.hpp"
@@ -119,7 +119,7 @@ namespace MWRender
         void addWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept override;
         void removeWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept override;
         void emitWaterRipple(const osg::Vec3f& position) noexcept override;
-        void poseForIntersection(osg::Drawable& drawable) override;
+        void poseForIntersection(osg::Drawable& drawable) noexcept override;
 
         /// A `TracedGround`: the storage, the worldspace and the active grid, and no chunks.
         std::unique_ptr<Ground> createGround(const GroundSpec& spec) noexcept override;
@@ -127,7 +127,7 @@ namespace MWRender
         void detachWorld() noexcept override;
 
         float getGroundReach() const noexcept override;
-        bool groundReadsGates() const override { return true; }
+        bool groundReadsGates() const noexcept override { return true; }
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.

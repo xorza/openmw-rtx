@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <stdexcept>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -31,6 +32,12 @@ namespace
         const std::string word = Platform::Process::shellWord("it's here");
         EXPECT_EQ(word, "\"it's here\"");
         EXPECT_TRUE(Platform::Process::runShell("if " + word + "==\"it's here\" (exit 0) else (exit 1)").succeeded());
+
+        // **And a word `cmd` cannot keep is refused**: `%USERNAME%` inside the quotes is a name,
+        // and a quote ends the word. A lone `%`, a frame pattern's, names nothing.
+        EXPECT_THROW(Platform::Process::shellWord("C:\\%USERNAME%\\frames"), std::invalid_argument);
+        EXPECT_THROW(Platform::Process::shellWord("a \"quoted\" folder"), std::invalid_argument);
+        EXPECT_EQ(Platform::Process::shellWord("frames\\%05d.png"), "\"frames\\%05d.png\"");
     }
 
     /// **How a command ended, as `cmd` ran it**: the exit code whole, and no signal, which Windows

@@ -21,13 +21,12 @@
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 
+#include <apps/openmw/mwrender/objectpaging.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <components/sceneutil/userdata.hpp>
 #include <components/terrain/cellborder.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/view.hpp>
-
-#include "../objectpaging.hpp"
-#include "../vismask.hpp"
 
 namespace MWRender
 {
@@ -178,6 +177,7 @@ namespace MWRender
         , mColours(new osg::Vec4ubArray)
         , mDistance(distance)
         , mBorders(new osg::Group)
+        , mNodeMask(nodeMask)
     {
         mBorders->setNodeMask(nodeMask);
         worldRoot.addChild(mBorders);
@@ -195,6 +195,13 @@ namespace MWRender
         for (const osg::ref_ptr<osg::Node>& hung : { osg::ref_ptr<osg::Node>(mBorders), mStaticsAnswer })
             while (hung->getNumParents() > 0)
                 hung->getParent(0)->removeChild(hung);
+    }
+
+    void TracedTerrain::enable(const bool enabled)
+    {
+        mAnswer->setNodeMask(enabled ? ~0u : 0u);
+        mStaticsAnswer->setNodeMask(enabled ? static_cast<unsigned int>(Mask_Static) : 0u);
+        mBorders->setNodeMask(enabled ? mNodeMask : 0u);
     }
 
     Terrain::View* TracedTerrain::createView()

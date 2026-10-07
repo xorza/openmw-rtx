@@ -125,7 +125,6 @@ namespace Rtx
                 Groups::covering(width, height, Shaders::SHADOW_WORKGROUP));
         }
 
-        images.mVisibility.transition(commands, Use::sComputeWrite, Use::sComputeRead);
         return images.mVisibility;
     }
 }

@@ -49,6 +49,9 @@
 #include <osgViewer/View>
 #include <osgViewer/Viewer>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/profile.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/debug/gldebug.hpp>
@@ -74,9 +77,6 @@
 #include <components/terrain/quadtreeworld.hpp>
 #include <components/terrain/terraingrid.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../profile.hpp"
 #include "glground.hpp"
 #include "glmapoverlay.hpp"
 #include "gloffscreenview.hpp"

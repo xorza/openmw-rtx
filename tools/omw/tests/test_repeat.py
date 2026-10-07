@@ -22,6 +22,10 @@ class RepeatTest(unittest.TestCase):
             (["--seconds=2"], walk.format("--seconds=2")),
             (["--frames=60"], walk.format("--frames=60")),
             (["--pairs=0"], "--pairs=0 is not a count of one or more"),
+            (["--upscale=quality"], "repeat sets --upscale itself, on every run"),
+            (["--validation=sync"], "repeat sets --validation itself, on every run"),
+            (["--hold"], "repeat sets --hold itself, on every run"),
+            (["--against=old.csv"], "repeat sets --against itself, on every run"),
         ]
         for args, message in cases:
             with self.subTest(args=args):

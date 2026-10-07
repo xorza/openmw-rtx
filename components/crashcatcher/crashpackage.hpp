@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <ctime>
 #include <filesystem>
 #include <span>
@@ -40,9 +41,15 @@ namespace Crash
         std::vector<std::filesystem::path> mMissing;
     };
 
+    /// How many of an application's packages a folder keeps: a session with a dump writes one, and
+    /// nothing else deletes them.
+    inline constexpr std::size_t sKeptPackages = 10;
+
     /// **The one file a player sends**, once the game is gone and its log is whole: `log`, where the
     /// game had one, and every dump of `dumps`, in a new package in `folder` named after
     /// `application` and `local`. Nothing where `dumps` is empty, since then nothing was reported.
+    /// **And the oldest of `application`'s packages in `folder` past `sKeptPackages` go**, by the
+    /// time and the number their names carry (`freePackagePath`); no other file is touched.
     /// Throws nothing: the monitor that packages a crash must not become one, so whatever goes
     /// wrong, a bug in this code included, is a failure it reports.
     SessionPackage writeSessionPackage(const std::filesystem::path& folder, std::string_view application,

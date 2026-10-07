@@ -15,7 +15,6 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -214,30 +213,13 @@ namespace Rtx
             const Drawn settled = draw(mRenderer, camera);
             EXPECT_FALSE(reports(settled.mGpu.spans(), "blas")) << "nothing arrived, so nothing was built";
 
-            // **A frame that takes no indirect light runs none of the bounce's passes**: the
-            // accumulator keeps the surface's history alone, for the shadow denoiser and the glossy
-            // filter, and neither the clamp nor the wavelet opens a zone. The traced frame beside it,
-            // asked the same, opens both.
+            // **A denoised frame runs every pass of the bounce**: the accumulator, its clamp and the
+            // wavelet each open a zone.
             ReconstructionRequest filtered = mRenderer.getProfile().mReconstruction;
             filtered.mDenoise = true;
             const Drawn traced = draw(mRenderer, camera, 0.0, filtered);
-            filtered.mIndirect = IndirectLight::Off;
-            const Drawn none = draw(mRenderer, camera, 0.0, filtered);
-
-            EXPECT_TRUE(reports(none.mGpu.spans(), "accumulate")) << "the surface's history went unkept";
-            for (const char* const pass : { "clamp", "filter" })
-            {
+            for (const char* const pass : { "accumulate", "clamp", "filter" })
                 EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << pass;
-                EXPECT_FALSE(reports(none.mGpu.spans(), pass)) << "a frame with no indirect light ran " << pass;
-            }
-
-            // And as a menu sets it, for every frame that asks nothing of its own.
-            mRenderer.setIndirectLight(IndirectLight::Off);
-            const Drawn chosen = draw(mRenderer, camera);
-            mRenderer.setIndirectLight(IndirectLight::Traced);
-            EXPECT_TRUE(reports(chosen.mGpu.spans(), "accumulate"));
-            EXPECT_FALSE(reports(chosen.mGpu.spans(), "filter")) << "the menu's indirect light of none ran the wavelet";
-            EXPECT_TRUE(reports(draw(mRenderer, camera).mGpu.spans(), "filter")) << "the menu's traced bounce ran none";
 
             // **The ripple field is stood for a scene that holds water and stepped only where the
             // sky's clock has moved a sixtieth**, before the sea reads it. The frame the field is

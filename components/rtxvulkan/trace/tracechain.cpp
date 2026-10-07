@@ -23,12 +23,11 @@
 
 namespace Rtx
 {
-    TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins,
-        const RadianceWidth radiance, const IndirectLight indirect)
+    TraceChain::TraceChain(
+        const Device& device, const TracePasses& passes, const std::uint32_t bins, const RadianceWidth radiance)
         : mDevice(device)
         , mPasses(passes)
         , mRadiance(radiance)
-        , mIndirect(indirect)
         , mDenoise(device)
     {
         assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
@@ -52,24 +51,11 @@ namespace Rtx
 
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
-        mDenoise.resize(mWidth, mHeight, mIndirect == IndirectLight::Traced);
+        mDenoise.resize(mWidth, mHeight);
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
         // worth it to the reference mode and nothing to a window. The first averaging trace asks.
         dropSum();
-    }
-
-    void TraceChain::setIndirect(const IndirectLight indirect)
-    {
-        if (indirect == mIndirect)
-            return;
-
-        mIndirect = indirect;
-        if (!isBuilt())
-            return;
-
-        // The denoiser's mean is fresh by the turn's own rule the next frame it runs.
-        mDenoise.keepBounce(indirect == IndirectLight::Traced);
     }
 
     void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
@@ -90,9 +76,6 @@ namespace Rtx
         // so to it.
         if (what.mPastLost)
             mDenoise.reset();
-
-        assert(what.mReconstruction.mIndirect == mIndirect
-            && "a trace whose indirect light the chain was not set to before its recording opened");
 
         mFogVolume->turn();
         const VisibilityInputs inputs{ .mSubject = what.mSubject, .mChannels = *mChannels, .mFogVolume = *mFogVolume };

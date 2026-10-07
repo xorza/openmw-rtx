@@ -64,7 +64,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Switch> branches = new osg::Switch;
             osg::ref_ptr<osg::Geometry> off = makeQuad();
             osg::ref_ptr<osg::Geometry> on = makeQuad();
-            osg::StateSet* onState = on->getOrCreateStateSet();
+            on->getOrCreateStateSet();
             branches->addChild(off, false);
             branches->addChild(on, true);
             moved->addChild(branches);
@@ -108,14 +108,16 @@ namespace Rtx::Testing
             root->addChild(haze);
 
             PreparedModel model;
-            TemplateWalk walk;
+            TemplateWalk walk(nullptr);
             walk.read(*root, ~hidden, model);
 
             ASSERT_EQ(model.mParts.size(), 3u) << "the branch that is on, the frame shown, and the near level";
             EXPECT_EQ(model.mPositions.size(), 12u) << "three quads' corners, appended in turn";
 
             EXPECT_EQ(model.mParts[0].mDrawable, on.get());
-            EXPECT_EQ(model.mParts[0].mMaterial.mKey, onState) << "held under the drawable's own state set";
+            ASSERT_EQ(model.chainOf(model.mParts[0]).size(), 1u);
+            EXPECT_EQ(model.chainOf(model.mParts[0])[0], rootState)
+                << "the drawable's own state set states nothing, and the root's is the chain's one link";
             ASSERT_TRUE(model.mParts[0].mMaterial.mDescribed.has_value());
             EXPECT_EQ(model.mParts[0].mMaterial.mDescribed->mDiffuseColour, (EncodedColour{ 0.25f, 0.5f, 0.75f }))
                 << "and the root's state set was in force at it";
@@ -124,7 +126,8 @@ namespace Rtx::Testing
             EXPECT_EQ(model.mParts[0].mVertices, (Rtx::Run{ .mOffset = 0, .mCount = 4 }));
 
             EXPECT_EQ(model.mParts[1].mDrawable, second.get()) << "the frame the sequence stands on, unstepped";
-            EXPECT_EQ(model.mParts[1].mMaterial.mKey, rootState) << "nearest last, and the root is all there is";
+            ASSERT_EQ(model.chainOf(model.mParts[1]).size(), 1u);
+            EXPECT_EQ(model.chainOf(model.mParts[1])[0], rootState) << "nearest last, and the root is all there is";
             EXPECT_EQ(model.mParts[1].mVertices, (Rtx::Run{ .mOffset = 4, .mCount = 4 }));
 
             EXPECT_EQ(model.mParts[2].mDrawable, near.get());
@@ -211,7 +214,7 @@ namespace Rtx::Testing
                         { quads[3], modesOf({ ExteriorNight }) } } },
             };
 
-            TemplateWalk walk;
+            TemplateWalk walk(nullptr);
             for (std::size_t at = 0; at < std::size(cases); ++at)
             {
                 const auto& [branches, read] = cases[at];
@@ -244,7 +247,7 @@ namespace Rtx::Testing
                 + " vertices and 3 indices are past the " + std::to_string(MeshTable::sVertexBlock) + " and "
                 + std::to_string(MeshTable::sIndexBlock) + " one block of the shared buffers holds";
 
-            TemplateWalk walk;
+            TemplateWalk walk(nullptr);
             for (const auto& [broken, why] : { std::pair{ makePastOneBlock(), pastABlock },
                      std::pair{ makeIndexPastItsVertices(), std::string("its triangles name vertex 4 of 4") } })
             {

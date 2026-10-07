@@ -7,11 +7,11 @@
 #include <vector>
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
+#include <apps/rtxtool/instruments/frametimes.hpp>
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
-#include "instruments/frametimes.hpp"
-#include "model/benchrecord.hpp"
-#include "model/benchrun.hpp"
 #include "picturemean.hpp"
 
 namespace osg

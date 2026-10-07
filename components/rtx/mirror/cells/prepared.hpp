@@ -143,6 +143,10 @@ namespace Rtx
 
         MaterialReading mMaterial;
 
+        /// What the frame keys `mMaterial` on, into `PreparedModel::mChains`
+        /// (`MaterialResolver::chainOf`).
+        Run mChain;
+
         /// Where the part stands in the template's own space.
         osg::Matrixf mLocal;
 
@@ -168,11 +172,6 @@ namespace Rtx
         /// The modes the part is shown in: every branch of a `NightDaySwitch` is read, because
         /// which one the world shows is the frame's to say (`CellPlacer::setNightDay`).
         NightDayModes mModes;
-
-        /// The key `mMaterial` is held under where the part is groundcover's: an object of the
-        /// reader's own, because the reading is the template's with upstream's override on it, and
-        /// the template's own state set keys the material a static of the same model wears.
-        osg::ref_ptr<const osg::StateSet> mOwnKey;
     };
 
     /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of
@@ -210,6 +209,11 @@ namespace Rtx
         std::vector<osg::Vec4f> mTangents;
         std::vector<std::uint32_t> mIndices;
 
+        /// Every part's chain of the state sets that state anything, root first, one after another
+        /// (`PreparedPart::mChain`). Not held: the template holds every one of its own, and the
+        /// world's graph the one above them (`CellWorld::mAbove`).
+        std::vector<const osg::StateSet*> mChains;
+
         /// Why its walk left a drawable of it out — the first one — or empty. The model stands
         /// without it, as the frame's walk stands one without a drawable it refuses.
         std::string mRefused;
@@ -233,13 +237,19 @@ namespace Rtx
             };
         }
 
+        /// What the frame keys one of its parts' material on, into this model's own storage.
+        std::span<const osg::StateSet* const> chainOf(const PreparedPart& part) const
+        {
+            return part.mChain.in(std::span<const osg::StateSet* const>(mChains));
+        }
+
         /// Every buffer whose room `reuse` keeps, once, so what is counted, what is trimmed and what
         /// is kept cannot come to name different ones.
         static constexpr auto buffers()
         {
             return std::tuple{ &PreparedModel::mPath, &PreparedModel::mParts, &PreparedModel::mPositions,
                 &PreparedModel::mNormals, &PreparedModel::mTexCoords, &PreparedModel::mSecondTexCoords,
-                &PreparedModel::mColours, &PreparedModel::mTangents, &PreparedModel::mIndices,
+                &PreparedModel::mColours, &PreparedModel::mTangents, &PreparedModel::mIndices, &PreparedModel::mChains,
                 &PreparedModel::mRefused };
         }
 

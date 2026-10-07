@@ -17,7 +17,6 @@
 // this header needs that `hosttypes.h` does not carry.
 #ifdef RTX_HOST
 
-#include <cmath>
 #include <cstddef>
 
 namespace Rtx::Shaders
@@ -479,10 +478,6 @@ namespace Rtx::Shaders
         /// lighting, which is that setting's default.
         uint mLitEnvironmentMaps;
 
-        /// One where a surface traces its bounce, and nought where it takes no indirect light —
-        /// `Rtx::Reconstruction::mIndirect`, which `bounceTraced` reads.
-        uint mBounceTraced;
-
         /// One where the eye meets a soft edge's texels under the cut by their alpha (`cutAt`), and
         /// nought where it cuts them as every other ray does: `Rtx::Reconstruction::mAveraged`.
         uint mSoftEdgeDither;
@@ -522,13 +517,10 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
-    /// The sun as the frame carries it, with the one limb every sun is drawn from, by the rule
-    /// `moonSource` draws a moon's: the sine of its angle, on the host, which alone writes it. The
-    /// host's one spelling of `mSun`, so a frame assembled by hand cannot leave the cone at nought and
-    /// cast a hard edge.
+    /// The sun as the frame carries it, with the one limb every sun is drawn from (`skySource`).
     inline SkySource sunSource(const vec3& direction, const vec3& irradiance)
     {
-        return SkySource{ direction, irradiance, std::sin(SUN_SHADOW_RADIUS) };
+        return skySource(direction, irradiance, SUN_SHADOW_RADIUS);
     }
 
     /// Whether a source in the sky lights anything this frame: the sun, or a moon. A moon that is
@@ -544,8 +536,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1440, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1624, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1432, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1616, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

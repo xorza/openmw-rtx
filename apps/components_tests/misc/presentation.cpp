@@ -1,12 +1,15 @@
 #include <components/misc/presentation.hpp>
 
 #include <ostream>
+#include <string>
 
 #include <gtest/gtest.h>
 
 #include <osg/Vec2f>
 #include <osg/Vec2i>
 #include <osg/io_utils>
+
+#include <components/misc/display.hpp>
 
 namespace Misc
 {
@@ -117,6 +120,36 @@ namespace Misc
                 (Crop{ .mOrigin = osg::Vec2i(1736, 0), .mSize = osg::Vec2i(4208, 2160) }));
             EXPECT_EQ(cropToAspect({ 1036, 532 }, thumbnail),
                 (Crop{ .mOrigin = osg::Vec2i(0, 0), .mSize = osg::Vec2i(1036, 532) }));
+        }
+
+        /// **A Native file saves Native**, whatever the custom sides hold: loaded, the setting of
+        /// nought by nought shows as Native, and saved from Native it is nought by nought again,
+        /// where the launcher wrote the custom sides' 800 by 600. A listed mode saves the sides its
+        /// text opens with, as `getResolutionText` writes them, and loads as listed; typed sides
+        /// save as typed and load as typed where no mode lists them. A listed text that opens with
+        /// no sides saves Native rather than a size nobody picked.
+        TEST(MiscPresentationTest, aResolutionMenuSavesWhatItShowsAndShowsWhatItSaved)
+        {
+            const osg::Vec2i typed(800, 600);
+
+            const osg::Vec2i native(0, 0);
+            ASSERT_EQ(resolutionPickOf(native, false), ResolutionPick::Native);
+            const osg::Vec2i saved = resolutionPicked(ResolutionPick::Native, "Native", typed);
+            EXPECT_EQ(saved, native) << "Native saved the custom sides";
+            EXPECT_EQ(resolutionPickOf(saved, false), ResolutionPick::Native);
+
+            const std::string mode = getResolutionText(2560, 1440);
+            EXPECT_EQ(mode, "2560 × 1440 (16:9)");
+            const osg::Vec2i listed = resolutionPicked(ResolutionPick::Listed, mode, typed);
+            EXPECT_EQ(listed, osg::Vec2i(2560, 1440));
+            EXPECT_EQ(resolutionPickOf(listed, true), ResolutionPick::Listed);
+
+            EXPECT_EQ(resolutionPicked(ResolutionPick::Custom, "Native", typed), typed);
+            EXPECT_EQ(resolutionPickOf(typed, false), ResolutionPick::Custom);
+
+            EXPECT_EQ(resolutionPicked(ResolutionPick::Listed, "Native", typed), native);
+            EXPECT_EQ(resolutionPicked(ResolutionPick::Listed, "1920 x 1080", typed), native)
+                << "a letter x is not the sign the mode list writes";
         }
     }
 }

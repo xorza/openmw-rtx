@@ -17,6 +17,10 @@
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/blockfile.hpp>
+#include <apps/rtxtool/model/maprules.hpp>
+#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
@@ -31,10 +35,6 @@
 
 #include "compare.hpp"
 #include "film.hpp"
-#include "model/benchrun.hpp"
-#include "model/blockfile.hpp"
-#include "model/maprules.hpp"
-#include "model/wholenumber.hpp"
 #include "numbervalue.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
@@ -336,9 +336,10 @@ namespace RtxTool
 
         option(Verbs::Noise, "versus", bpo::value<std::string>()->default_value(""),
             "a second side in the same run: <switch>=<value> takes the frame and its mean again with that "
-            "one switch of the reconstruction changed, at the same draws, and judges both. The reference "
-            "and the bar are the first side's where the switch changes nothing an unfiltered frame "
-            "reads, and its own where it does. What `omw noise --ab` runs");
+            "one switch of the reconstruction changed, at the same draws, and judges both. The bar is "
+            "the first side's where the switch changes nothing an unfiltered frame reads, and the "
+            "reference where it changes nothing the truth traces; each its own where it does. What "
+            "`omw noise --ab` runs");
 
         option(sRuns, "views", bpo::value<std::string>()->default_value(""),
             "which views.cfg views to visit, comma separated, by name rather than by suite. "
@@ -398,13 +399,6 @@ namespace RtxTool
             std::format("where the trace's per-pixel draws come from: auto, {}. Auto is the tile, "
                         "which the wavelet is built to read. Naming one is the A/B",
                 Rtx::sNoiseSourceNames.list())
-                .c_str());
-
-        option(sFramed, "indirect", bpo::value<std::string>(),
-            std::format("whether a surface takes light from anything that is not a light: {}. `traced` "
-                        "follows one bounce and cleans it, `off` traces none and takes none. Not given, "
-                        "`settings-default.cfg`'s `[RTX] indirect light`, or the player's own under `view`",
-                Rtx::sIndirectLightNames.list())
                 .c_str());
 
         option(sFramed, "antilag",

@@ -23,7 +23,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/deformertable.hpp>
@@ -185,10 +185,10 @@ namespace Rtx::Testing
             EXPECT_EQ(again.mInstances, 1u);
             EXPECT_EQ(again.mRestood, 0u);
             EXPECT_TRUE(mScene.placements().getMoved().empty()) << "a still crate reported a move";
-            EXPECT_TRUE(mScene.placements().getRows()[1].mInstance.isPlaced());
+            EXPECT_TRUE(mScene.placements().isPlaced(1));
 
             mExtractor.retire();
-            EXPECT_FALSE(mScene.placements().getRows()[0].mInstance.isPlaced()) << "the first's slot was kept";
+            EXPECT_FALSE(mScene.placements().isPlaced(0)) << "the first's slot was kept";
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
         }
 
@@ -255,7 +255,7 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.placements().getRows()[0].mPrevious.getTrans(), osg::Vec3f(1.0f, 0.0f, 0.0f));
 
             mExtractor.retire();
-            EXPECT_FALSE(mScene.placements().getRows()[1].mInstance.isPlaced()) << "the second's old slot was kept";
+            EXPECT_FALSE(mScene.placements().isPlaced(1)) << "the second's old slot was kept";
         }
 
         /// A mesh and a material of the scene's own, which no drawable names.
@@ -414,12 +414,12 @@ namespace Rtx::Testing
             // placement leaves its slot behind rather than closing the gap.
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 2u);
             ASSERT_EQ(mScene.placements().getRows().size(), 3u);
-            EXPECT_FALSE(mScene.placements().getRows()[2].mInstance.isPlaced()) << "slot 2 should be a gap";
+            EXPECT_FALSE(mScene.placements().isPlaced(2)) << "slot 2 should be a gap";
 
             // And what those placements name is what the walk resolved: the third quad is still
             // mesh two, where it was put.
-            ASSERT_TRUE(mScene.placements().getRows()[0].mInstance.isPlaced());
-            ASSERT_TRUE(mScene.placements().getRows()[1].mInstance.isPlaced());
+            ASSERT_TRUE(mScene.placements().isPlaced(0));
+            ASSERT_TRUE(mScene.placements().isPlaced(1));
             EXPECT_EQ(mScene.placements().getRows()[0].mInstance.mMesh, 0u);
             EXPECT_EQ(mScene.placements().getRows()[1].mInstance.mMesh, 2u);
 
@@ -510,15 +510,13 @@ namespace Rtx::Testing
 
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 1u);
 
-            const auto rows = mScene.placements().getRows();
-            const auto standing = std::find_if(
-                rows.begin(), rows.end(), [](const PlacementRow& row) { return row.mInstance.isPlaced(); });
-            ASSERT_NE(standing, rows.end());
-            EXPECT_EQ(
-                boneAt(mScene.getMeshPose(standing->mInstance.mMesh), 0).mRows[2], osg::Vec4f(0.0f, 0.0f, 1.0f, 11.0f))
+            Index standing = sNoIndex;
+            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) { standing = row.mInstance.mMesh; });
+            ASSERT_NE(standing, sNoIndex);
+            EXPECT_EQ(boneAt(mScene.getMeshPose(standing), 0).mRows[2], osg::Vec4f(0.0f, 0.0f, 1.0f, 11.0f))
                 << "the sweep kept the actor from the cell that unloaded";
             EXPECT_EQ(mScene.deformers().getRows().size(), 2u) << "a rig is a slot and keeps its index";
-            EXPECT_EQ(mScene.deformers().getHolds(mScene.meshes().getRows()[standing->mInstance.mMesh].mDeformer), 1u)
+            EXPECT_EQ(mScene.deformers().getHolds(mScene.meshes().getRows()[standing].mDeformer), 1u)
                 << "the rig of the one that left went with it and the survivor's stayed";
         }
 
@@ -592,8 +590,8 @@ namespace Rtx::Testing
             // drawable dropped none, and what it stood again stands where the resolver answered.
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 2u);
             bool actorStands = false;
-            for (const PlacementRow& row : mScene.placements().getRows())
-                actorStands = actorStands || (row.mInstance.isPlaced() && row.mInstance.mMesh == 2);
+            mScene.placements().forEachPlaced(
+                [&](Index, const PlacementRow& row) { actorStands = actorStands || row.mInstance.mMesh == 2; });
             EXPECT_TRUE(actorStands) << "the actor's placement kept standing on the abandoned slot";
         }
 
@@ -738,12 +736,9 @@ namespace Rtx::Testing
             EXPECT_EQ(went.mMaterials, 1u) << "the stone, which nothing wears";
 
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 1u);
-            for (const PlacementRow& row : mScene.placements().getRows())
-            {
-                if (!row.mInstance.isPlaced())
-                    continue;
+            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
                 EXPECT_EQ(row.mInstance.mMaterial, 1u) << "the placement stands on a material the sweep freed";
-            }
+            });
             EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, Rtx::sNoIndex) << "the stone's row was kept";
         }
 

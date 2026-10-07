@@ -17,6 +17,7 @@
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
@@ -120,8 +121,9 @@ namespace Rtx::Testing
             // one, since nothing was split off it. Counted in the temporal pass's local mean, those
             // bits held the floor at the wall's foot up to a seam of sunlight the roof hides. The
             // roof's penumbra is `2000 * 0.0349` = 70 units, fourteen pixels of the floor, so the
-            // temporal pass blends rather than handing each bit on. No indirect light, so the sun is
-            // the frame and every value of it is nought.
+            // temporal pass blends rather than handing each bit on. The roof reaches past the floor
+            // on every side, so no sun lands where a bounce could carry it back, and every value of
+            // the frame is nought.
             // The eye looks 20 degrees down at the wall's foot, so the frame's top edge meets the
             // wall 150 + 300 tan 10° = 203 units up, under its top, and its bottom edge the floor.
             SCOPED_TRACE("beside a wall");
@@ -132,12 +134,15 @@ namespace Rtx::Testing
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
             SceneDesc scene;
             addQuad(scene, sheetAt(4000.0f, 0.0f));
-            addQuad(scene, roofOver(-4000.0f, 4000.0f, 2000.0f));
+            addQuad(scene,
+                std::array<osg::Vec3f, 4>{ osg::Vec3f(-8000.0f, -8000.0f, 2000.0f),
+                    osg::Vec3f(8000.0f, -8000.0f, 2000.0f), osg::Vec3f(8000.0f, 8000.0f, 2000.0f),
+                    osg::Vec3f(-8000.0f, 8000.0f, 2000.0f) });
             addQuad(scene,
                 std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
                     osg::Vec3f(4000.0f, 0.0f, 400.0f), osg::Vec3f(-4000.0f, 0.0f, 400.0f) });
 
-            const Frame raw = shoot(scene, {}, camera, size, { .mIndirect = IndirectLight::Off });
+            const Frame raw = shoot(scene, {}, camera, size, {});
 
             std::vector<float> sunlit;
             mRenderer.readChannel(Channel::Shadowed, sunlit);
@@ -153,11 +158,7 @@ namespace Rtx::Testing
             ASSERT_GT(wall, std::size_t{ 8 * size }) << "no wall over the floor, or this proves nothing";
 
             const Frame filtered = shoot(scene, {}, camera, size,
-                { .mFrames = 16,
-                    .mAverage = false,
-                    .mFilter = true,
-                    .mIndirect = IndirectLight::Off,
-                    .mLoss = HistoryLoss::Cut });
+                { .mFrames = 16, .mAverage = false, .mFilter = true, .mLoss = HistoryLoss::Cut });
             EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
         }
 
@@ -189,7 +190,7 @@ namespace Rtx::Testing
                     osg::Vec3f(4000.0f, 0.0f, 400.0f), osg::Vec3f(-4000.0f, 0.0f, 400.0f) },
                 wall);
 
-            shoot(scene, {}, camera, size, { .mIndirect = IndirectLight::Off });
+            shoot(scene, {}, camera, size, {});
 
             std::vector<float> sunlit;
             mRenderer.readChannel(Channel::Shadowed, sunlit);
@@ -227,7 +228,7 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants camera = overheadSun(size);
                 camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), sunlight);
                 Shaders::MoonDisc masser{};
-                masser.mSource = Shaders::moonSource(
+                masser.mSource = Shaders::skySource(
                     osg::Vec3f(0.0f, std::sin(tilt), std::cos(tilt)), moonlight, moonAngularRadius(94.0f));
                 masser.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
                 masser.mUp = osg::Vec3f(0.0f, -std::cos(tilt), std::sin(tilt));
@@ -239,7 +240,7 @@ namespace Rtx::Testing
 
                 SceneDesc scene;
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
-                shoot(scene, {}, camera, size, { .mShadowFloor = floor, .mIndirect = IndirectLight::Off });
+                shoot(scene, {}, camera, size, { .mShadowFloor = floor });
 
                 std::vector<float> shadowed;
                 std::vector<float> penumbra;
@@ -295,8 +296,7 @@ namespace Rtx::Testing
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene, roofOver(-100.0f, -60.0f, 100.0f));
 
-            const Frame raw = shoot(scene, {}, camera, size,
-                { .mFrames = 1, .mFirstFrame = 300 + frames - 1, .mIndirect = IndirectLight::Off });
+            const Frame raw = shoot(scene, {}, camera, size, { .mFrames = 1, .mFirstFrame = 300 + frames - 1 });
 
             std::vector<float> bits;
             std::vector<float> widths;
@@ -331,7 +331,6 @@ namespace Rtx::Testing
                     .mAverage = false,
                     .mFirstFrame = 300,
                     .mFilter = true,
-                    .mIndirect = IndirectLight::Off,
                     .mLoss = HistoryLoss::Cut });
             EXPECT_EQ(denoised.mRadiance, raw.mRadiance);
         }
@@ -355,9 +354,12 @@ namespace Rtx::Testing
         /// read half.
         ///
         /// And under a black pane half there at 40 units, over the whole floor, and a roof over half
-        /// the floor at 100, the eye 30 units up under them both: the open half's shadowed light is the
-        /// sun's `2 * 0.5 / pi` = 0.31831 through half the pane, 0.15915, and the roofed half's the
-        /// whole of it, whatever the stopped ray met first.
+        /// the floor at 100, the eye 30 units up under them both: every pixel's shadowed light is the
+        /// sun's whole, `2 * 0.5 / pi` = 0.31831, and what the pane lets through is drawn into the bit.
+        /// The roofed half's bit is shut, whatever the stopped ray met first, and its penumbra the
+        /// roof's; the open half's is open on half its draws, the pane's opacity, and takes the drawn
+        /// reach. Over 32 frames of at least 768 such pixels, n >= 24576 independent draws of a
+        /// half: the mean's deviation is `0.5 / sqrt(n)` <= 0.0032, held at four of it.
         TEST_F(RtxVisibilityTest, aPenumbraIsItsNearestOccludersOnTheReceiverAndAStoppedRayLetsAllThrough)
         {
             constexpr std::uint32_t size = 96;
@@ -377,7 +379,7 @@ namespace Rtx::Testing
                 if (roofed)
                     addQuad(scene, roofOver(-4000.0f, 4000.0f, 500.0f));
                 addQuad(scene, roofOver(-100.0f, -60.0f, barHeight));
-                shoot(scene, {}, tilted, size, { .mIndirect = IndirectLight::Off });
+                shoot(scene, {}, tilted, size, {});
 
                 std::vector<float> widths;
                 mRenderer.readChannel(Channel::Penumbra, widths);
@@ -425,20 +427,36 @@ namespace Rtx::Testing
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addPane(scene, sheetAt(4000.0f, 40.0f), osg::Vec4f(0.0f, 0.0f, 0.0f, 0.5f), 1.0f, true);
             addQuad(scene, roofOver(-4000.0f, 0.0f, 100.0f));
-            shoot(scene, {}, between, size, { .mIndirect = IndirectLight::Off });
-            std::vector<float> shadowed;
-            mRenderer.readChannel(Channel::Shadowed, shadowed);
+            constexpr std::uint32_t frames = 32;
             const float sunlit = Shaders::INV_PI;
-            std::size_t open = 0;
+            std::vector<float> shadowed;
+            std::vector<float> penumbrae;
+            std::size_t drawn = 0;
+            std::size_t opened = 0;
             std::size_t roofed = 0;
-            for (std::size_t value = 0; value < shadowed.size(); value += 4)
-            {
-                const bool stoppedHere = shadowed[value + 3] == 0.0f;
-                EXPECT_NEAR(shadowed[value], stoppedHere ? sunlit : 0.5f * sunlit, 2e-3f) << "pixel " << value / 4;
-                ++(stoppedHere ? roofed : open);
-            }
-            EXPECT_GT(open, std::size_t{ 8 * size });
-            EXPECT_GT(roofed, std::size_t{ 8 * size });
+            shoot(scene, {}, between, size, { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                                                 mRenderer.readChannel(Channel::Shadowed, shadowed);
+                                                 mRenderer.readChannel(Channel::Penumbra, penumbrae);
+                                                 for (std::size_t pixel = 0; pixel < penumbrae.size(); ++pixel)
+                                                 {
+                                                     EXPECT_NEAR(shadowed[pixel * 4], sunlit, 2e-3f)
+                                                         << "pixel " << pixel;
+                                                     const float bit = shadowed[pixel * 4 + 3];
+                                                     if (penumbrae[pixel] == Shaders::SHADOW_PENUMBRA_DRAWN)
+                                                     {
+                                                         ++drawn;
+                                                         opened += bit == 1.0f ? 1 : 0;
+                                                         continue;
+                                                     }
+                                                     EXPECT_EQ(bit, 0.0f) << "pixel " << pixel << " under the roof";
+                                                     ++roofed;
+                                                 }
+                                             } });
+            EXPECT_GE(drawn, std::size_t{ frames * 8 * size });
+            EXPECT_GE(roofed, std::size_t{ frames * 8 * size });
+            const double open = static_cast<double>(opened) / static_cast<double>(drawn);
+            EXPECT_NEAR(open, 0.5, 4.0 * 0.5 / std::sqrt(static_cast<double>(drawn)))
+                << "the bit's mean is what the pane lets through";
         }
 
         /// **A penumbra's bits are drawn blue, so a little blur takes most of their noise.** The roof
@@ -458,16 +476,15 @@ namespace Rtx::Testing
 
             std::vector<double> mean(std::size_t{ size } * size, 0.0);
             std::vector<float> bits;
-            shoot(scene, {}, camera, size,
-                { .mFrames = 256, .mAverage = false, .mIndirect = IndirectLight::Off, .mEachFrame = [&](const Frame&) {
-                     mRenderer.readChannel(Channel::Shadowed, bits);
-                     for (std::size_t pixel = 0; pixel < mean.size(); ++pixel)
-                         mean[pixel] += static_cast<double>(bits[pixel * 4 + 3]) / 256.0;
-                 } });
+            shoot(scene, {}, camera, size, { .mFrames = 256, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                                                mRenderer.readChannel(Channel::Shadowed, bits);
+                                                for (std::size_t pixel = 0; pixel < mean.size(); ++pixel)
+                                                    mean[pixel] += static_cast<double>(bits[pixel * 4 + 3]) / 256.0;
+                                            } });
 
             const auto blurredError = [&](NoiseSource noise) {
                 camera.mFrame = 1000;
-                shoot(scene, {}, camera, size, { .mNoise = noise, .mIndirect = IndirectLight::Off });
+                shoot(scene, {}, camera, size, { .mNoise = noise });
                 mRenderer.readChannel(Channel::Shadowed, bits);
                 double squares = 0.0;
                 std::size_t counted = 0;
@@ -555,6 +572,96 @@ namespace Rtx::Testing
         TEST_F(RtxPenumbraDenoiseTest, theShadowDenoiserTakesTheNoiseOffAPenumbraSeenThroughTheWater)
         {
             penumbraOn(true);
+        }
+
+        /// **A shadow's history takes nothing from a pixel that receives nothing.** A floor of two
+        /// halves on one plane, the near one lit by a lamp and the far one a material the lamps do not
+        /// light, so every pixel of it is a non-receiver, whose history holds nought. Bars ten units
+        /// wide every thirty, thirty units over the floor, cross the seam under a lamp ten units
+        /// across sixty units up, so every tile along the seam holds lit receivers, receivers in a
+        /// soft penumbra, and non-receivers. The eye moves half a pixel a frame across the seam, so
+        /// each history fetch falls between two texels, one of them across the seam for the row
+        /// beside it. Held against the same run over a floor the lamp lights whole: the near half's
+        /// rays and bits are the same in both, so the row beside the seam filters to the same light.
+        /// A tap taken from a non-receiver pulls its history toward nought, and the row reads darker:
+        /// measured at +0.7% against the whole floor, the spatial filter's own difference across the
+        /// seam, and at -7.5% with every tap taken.
+        TEST_F(RtxVisibilityTest, aShadowsHistoryTakesNothingFromAPixelThatReceivesNothing)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t frames = 32;
+
+            // Half of the 346 units the frame spans over its 64 pixels.
+            constexpr float step = 2.7f;
+
+            const auto run = [&](bool farLit, std::vector<float>* unshadowed) {
+                SceneDesc scene;
+                addQuad(scene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, -4000.0f, 0.0f),
+                        osg::Vec3f(4000.0f, -4000.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                        osg::Vec3f(-4000.0f, 0.0f, 0.0f) });
+                addQuad(scene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                        osg::Vec3f(4000.0f, 4000.0f, 0.0f), osg::Vec3f(-4000.0f, 4000.0f, 0.0f) },
+                    scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mLampLit = farLit }));
+                for (int bar = -6; bar <= 6; ++bar)
+                {
+                    const float middle = 30.0f * static_cast<float>(bar);
+                    addQuad(scene,
+                        std::array<osg::Vec3f, 4>{ osg::Vec3f(middle - 5.0f, -400.0f, 30.0f),
+                            osg::Vec3f(middle + 5.0f, -400.0f, 30.0f), osg::Vec3f(middle + 5.0f, 400.0f, 30.0f),
+                            osg::Vec3f(middle - 5.0f, 400.0f, 30.0f) });
+                }
+                scene.addLight(Light{ .mPosition = osg::Vec3f(0.0f, 0.0f, 60.0f),
+                    .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                    .mReach = 2000.0f,
+                    .mSourceRadius = 10.0f });
+
+                Frame last;
+                for (std::uint32_t at = 0; at < frames; ++at)
+                {
+                    const float along = step * static_cast<float>(at);
+                    Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, along - 1.0f, 300.0f),
+                        osg::Vec3f(0.0f, along, 0.0f), 60.0f, size, size, 100000.0f);
+                    camera.mSkyHorizon = osg::Vec3f();
+                    camera.mSkyZenith = osg::Vec3f();
+                    camera.mSun.mIrradiance = osg::Vec3f();
+                    camera.mFrame = 3000 + at;
+                    last = shoot(scene, {}, camera, size,
+                        { .mFilter = true,
+                            .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                            .mSetScene = at == 0 });
+                }
+                if (unshadowed != nullptr)
+                    mRenderer.readChannel(Channel::Shadowed, *unshadowed);
+                return last;
+            };
+
+            std::vector<float> unshadowed;
+            const Frame seam = run(false, &unshadowed);
+            const Frame whole = run(true, nullptr);
+
+            // The near half's row beside the seam: a receiver whose neighbour across it receives
+            // nothing, which the bars' own pixels never are.
+            const auto receives = [&](std::size_t pixel) {
+                return unshadowed[pixel * 4] + unshadowed[pixel * 4 + 1] + unshadowed[pixel * 4 + 2] > 0.0f;
+            };
+            double seamSum = 0.0;
+            double wholeSum = 0.0;
+            std::size_t counted = 0;
+            for (std::size_t y = 1; y + 1 < size; ++y)
+                for (std::size_t x = 0; x < size; ++x)
+                {
+                    const std::size_t pixel = y * size + x;
+                    if (!receives(pixel) || (receives(pixel - size) && receives(pixel + size)))
+                        continue;
+                    seamSum += static_cast<double>(seam.mRadiance[pixel * 4 + 1]);
+                    wholeSum += static_cast<double>(whole.mRadiance[pixel * 4 + 1]);
+                    ++counted;
+                }
+
+            ASSERT_GE(counted, size / 2) << "the seam is in the frame";
+            EXPECT_NEAR(seamSum / wholeSum, 1.0, 0.025) << "the row beside the seam took history from across it";
         }
 
         /// **The lamps' light is the shadow denoiser's, exact where nothing stands in its way and quieter

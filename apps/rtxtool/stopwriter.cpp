@@ -35,13 +35,17 @@
 #include <apps/openmw/mwworld/manualref.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/worldmodel.hpp>
+#include <apps/rtxtool/instruments/contactsheet.hpp>
+#include <apps/rtxtool/instruments/digest.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/runrecord.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/image/formatcensus.hpp>
@@ -67,11 +71,6 @@
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "instruments/contactsheet.hpp"
-#include "instruments/digest.hpp"
-#include "model/benchrecord.hpp"
-#include "model/runrecord.hpp"
 
 namespace RtxTool
 {
@@ -283,14 +282,13 @@ namespace RtxTool
         // from, so a run says what the rule caught.
         std::uint32_t lampBodies = 0;
         std::uint32_t glowingBodies = 0;
-        for (const Rtx::PlacementRow& row : scene.placements().getRows())
-        {
-            if (!row.mInstance.isPlaced() || !row.mInstance.mLampBody)
-                continue;
+        scene.placements().forEachPlaced([&](Rtx::Index, const Rtx::PlacementRow& row) {
+            if (!row.mInstance.mLampBody)
+                return;
             ++lampBodies;
             const Rtx::Index material = row.mInstance.mMaterial;
             glowingBodies += material != Rtx::sNoIndex && glows(scene.materials().getRows()[material]) ? 1 : 0;
-        }
+        });
 
         std::uint32_t sheets = 0;
         std::uint32_t pocketed = 0;
@@ -374,13 +372,14 @@ namespace RtxTool
         if (into.mReport.mWalked.mAgain.has_value())
         {
             const Rtx::ExtractionStats& again = *into.mReport.mWalked.mAgain;
-            into.mRecord.note(
-                std::format("\nsecond pass over the same graph\n"
-                            "  new meshes:           {} (should be 0)\n"
-                            "  new materials:        {} (should be 0)\n"
-                            "  drawables resolved:   {} to a known mesh\n"
-                            "  stood again:          {} (should be 0)\n",
-                    again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mRestood));
+            into.mRecord.note(std::format(
+                "\nsecond pass over the same graph\n"
+                "  new meshes:           {} (should be 0)\n"
+                "  new materials:        {} (should be 0)\n"
+                "  drawables resolved:   {} to a known mesh\n"
+                "  passed frozen:        {}\n"
+                "  stood again:          {} (should be 0)\n",
+                again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mPassedFrozen, again.mRestood));
         }
     }
 
@@ -536,27 +535,23 @@ namespace RtxTool
         // once it is a run of triangles: what a walk keeps is the material it arrived wearing, and a
         // material names the file it samples.
         std::uint32_t met = 0;
-        for (const Rtx::PlacementRow& row : scene.placements().getRows())
-        {
+        scene.placements().forEachPlaced([&](Rtx::Index, const Rtx::PlacementRow& row) {
             const Rtx::MeshInstance& instance = row.mInstance;
-            if (!instance.isPlaced())
-                continue;
-
             if (instance.mMaterial == Rtx::sNoIndex)
-                continue;
+                return;
 
             const Rtx::Material& material = scene.materials().getRows()[instance.mMaterial];
             if (material.mDiffuse == Rtx::sNoIndex)
-                continue;
+                return;
 
             const std::string_view path = rows[material.mDiffuse].mPath.value();
             if (path.find(needle) == std::string_view::npos)
-                continue;
+                return;
 
             const osg::Vec3f at = instance.mTransform.getTrans();
             into.mRecord.note(std::format("  {:.0f}, {:.0f}, {:.0f}   {}\n", at.x(), at.y(), at.z(), path));
             ++met;
-        }
+        });
 
         into.mRecord.note(std::format("{} placements wear a texture matching \"{}\"\n", met, needle));
     }
@@ -590,11 +585,15 @@ namespace RtxTool
                 }
 
                 const Rtx::ExtractionStats& again = *report.mWalked.mAgain;
+                // **What it resolved or passed frozen**: a second walk over a world that stood still
+                // passes every reference that froze, and resolves only what did not.
                 found = std::format(
-                    "{} meshes and {} materials added by the second walk, {} drawables resolved, {} stood again",
-                    again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mRestood);
-                return again.mMeshesAdded == 0 && again.mMaterialsAdded == 0 && again.mMeshesReused > 0
-                    && again.mRestood == 0;
+                    "{} meshes and {} materials added by the second walk, {} drawables resolved, "
+                    "{} passed frozen, {} stood again",
+                    again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mPassedFrozen,
+                    again.mRestood);
+                return again.mMeshesAdded == 0 && again.mMaterialsAdded == 0
+                    && again.mMeshesReused + again.mPassedFrozen > 0 && again.mRestood == 0;
             }
 
             case Check::SurfacesDescribed:

@@ -1,15 +1,23 @@
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
 #include <volk.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
+#include <components/rtxvulkan/shaders/shared/counts.h>
+#include <components/rtxvulkan/shaders/shared/sets.h>
+#include <components/rtxvulkan/spirv/spirvbindings.hpp>
+#include <components/rtxvulkan/spirv/spirvfile.hpp>
 
 namespace Rtx
 {
@@ -31,6 +39,49 @@ namespace Rtx
             return *reinterpret_cast<const VkShaderModuleCreateInfo*>(head);
         }
 
+        /// The descriptor type a layout declares a resource of `kind` as, for the kinds the trace's
+        /// modules bind in their pass's set.
+        VkDescriptorType typeOf(const DescriptorKind kind)
+        {
+            switch (kind)
+            {
+                case DescriptorKind::SampledImage:
+                    return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                case DescriptorKind::CombinedImageSampler:
+                    return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                case DescriptorKind::StorageImage:
+                    return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                case DescriptorKind::UniformBuffer:
+                    return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                case DescriptorKind::StorageBuffer:
+                    return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                case DescriptorKind::AccelerationStructure:
+                    return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+                default:
+                    ADD_FAILURE() << "a kind no trace module binds in its pass's set";
+                    return VK_DESCRIPTOR_TYPE_SAMPLER;
+            }
+        }
+
+        /// `module`'s own pass bindings as a layout would declare them, which lets a test read the
+        /// module through a table that agrees with it.
+        BindingTable tableOf(const Device& device, const char* module)
+        {
+            std::vector<ModuleBinding> bindings;
+            readBindings(readSpirv(device.getShaderDirectory() / module), bindings);
+
+            std::vector<VkDescriptorSetLayoutBinding> pass;
+            for (const ModuleBinding& bound : bindings)
+                if (bound.mSet == Shaders::SET_PASS && bound.mBinding != Shaders::BIND_CENSUS)
+                    pass.push_back(VkDescriptorSetLayoutBinding{ .binding = bound.mBinding,
+                        .descriptorType = typeOf(bound.mKind),
+                        .descriptorCount = std::max(bound.mCount, 1u),
+                        .stageFlags = VK_SHADER_STAGE_ALL,
+                        .pImmutableSamplers = nullptr });
+            std::ranges::sort(pass, {}, &VkDescriptorSetLayoutBinding::binding);
+            return BindingTable(pass);
+        }
+
         /// **A file is read once however many stages name it**: a second ask hands back the chain
         /// the first made, which holds the whole file — its size in bytes and the magic number
         /// first — and **another file is a chain of its own**, which a later read moves none of.
@@ -38,10 +89,12 @@ namespace Rtx
         {
             const Device& device = *mHarness.mDevice;
             ShaderCode code(device);
+            const BindingTable hitPass = tableOf(device, "visibilityhit.rchit.spv");
+            const BindingTable raygenPass = tableOf(device, "visibility.rgen.spv");
 
-            const void* hit = code.stage("visibilityhit.rchit.spv");
-            const void* raygen = code.stage("visibility.rgen.spv");
-            EXPECT_EQ(code.stage("visibilityhit.rchit.spv"), hit);
+            const void* hit = code.stage("visibilityhit.rchit.spv", hitPass);
+            const void* raygen = code.stage("visibility.rgen.spv", raygenPass);
+            EXPECT_EQ(code.stage("visibilityhit.rchit.spv", hitPass), hit);
             EXPECT_NE(raygen, hit);
 
             for (const auto& [stage, file] :
@@ -62,7 +115,20 @@ namespace Rtx
         TEST_F(RtxShaderCodeTest, aFileThatIsNotSpirvIsRejectedRatherThanHandedToTheDriver)
         {
             ShaderCode code(*mHarness.mDevice);
-            EXPECT_THROW(code.stage("there-is-no-such-shader.spv"), InputError);
+            EXPECT_THROW(code.stage("there-is-no-such-shader.spv", BindingTable{}), InputError);
+        }
+
+        /// **A stage whose module states its pass's bindings otherwise than the layout ends the
+        /// process, naming the module**, before the driver reads a resource as another.
+        TEST_F(RtxShaderCodeTest, aStageWhoseModuleDisagreesWithItsLayoutEndsTheProcessNamingIt)
+        {
+            const Device& device = *mHarness.mDevice;
+            Testing::expectDies(
+                [&] {
+                    ShaderCode code(device);
+                    code.stage("visibility.rgen.spv", BindingTable{});
+                },
+                "visibility.rgen.spv: binding [0-9]+ is in the module and not in the layout");
         }
     }
 }

@@ -151,6 +151,11 @@ namespace RtxTool
         /// by what glows in it can be judged by that light alone.
         bool mLamps = true;
 
+        /// The weapon the player holds drawn, by its id as the content files spell it, seen through
+        /// the player's own first-person eye, which stands at `mEye`. Empty where a view says no
+        /// `arms`: the eye is a camera of its own, and the body is hidden from it.
+        std::string mArms{};
+
         /// The point the eye faces: `mLook`, or due north where it names nothing or the eye itself,
         /// because a direction of no length aims nothing. One answer, because `CameraDriver`
         /// aims at it and `Check::CameraStands` asserts the camera reached it. Only for a stand that

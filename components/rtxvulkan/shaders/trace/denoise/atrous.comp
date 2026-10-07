@@ -160,7 +160,7 @@ float varianceAround(ivec2 at)
             if (texelFetch(surfaceChannel, tap, 0).r == SURFACE_NO_NORMAL)
                 continue;
 
-            const float w = (x == 0 ? 0.5 : 0.25) * (y == 0 ? 0.5 : 0.25);
+            const float w = tentWeight(ivec2(x, y));
             sum += texelFetch(source, tap, 0).a * w;
             weight += w;
         }
@@ -222,8 +222,9 @@ void main()
     // **How noisy this pixel still is, which is what makes the brightness test mean anything.** A
     // difference of one against a variance of four is nothing; the same difference against a settled
     // pixel is an edge. The epsilon is a divide guard and nothing else. The history fix has no
-    // brightness test, and does not pay the nine loads of the variance's prefilter; a narrow level
-    // reads the centre's, which the levels before it averaged. Each tap adds its own beside it.
+    // brightness test, and pays the prefilter's nine loads all the same: skipping them for a fixed
+    // pixel moved the filter zone by nothing on the default suite, three alternated rounds. A narrow
+    // level reads the centre's, which the levels before it averaged. Each tap adds its own beside it.
     const vec4 centre = texelFetch(source, at, 0);
     const float noise = ATROUS_WIDE ? varianceAround(at) : centre.a;
     const float here = dot(centre.rgb, LUMINANCE_WEIGHTS);

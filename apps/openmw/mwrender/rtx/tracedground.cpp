@@ -1,8 +1,8 @@
 #include "tracedground.hpp"
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
-#include "../../mwworld/ptr.hpp"
 #include "worldmirror.hpp"
 
 namespace MWRender

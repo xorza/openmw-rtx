@@ -445,6 +445,16 @@ namespace Settings
         setInt(setting, category, static_cast<int>(value));
     }
 
+    void Manager::set(std::string_view setting, std::string_view category, Rtx::Upscale value)
+    {
+        setString(setting, category, std::string(Rtx::sUpscaleNames.name(value)));
+    }
+
+    void Manager::set(std::string_view setting, std::string_view category, Rtx::SpecularLayout value)
+    {
+        setString(setting, category, std::string(Rtx::sSpecularLayoutNames.name(value)));
+    }
+
     void Manager::recordInit(std::string_view setting, std::string_view category)
     {
         sInitialized.emplace(category, setting);

@@ -11,10 +11,10 @@
 
 #include <osg/Vec3f>
 
-#include "model/benchrun.hpp"
-#include "model/camerapath.hpp"
-#include "model/cameratrack.hpp"
-#include "model/cruise.hpp"
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/camerapath.hpp>
+#include <apps/rtxtool/model/cameratrack.hpp>
+#include <apps/rtxtool/model/cruise.hpp>
 
 namespace RtxTool
 {

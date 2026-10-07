@@ -7,10 +7,9 @@
 #include <SDL3/SDL_error.h>
 #include <osg/Camera>
 
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-
-#include "../renderer.hpp"
 
 namespace MWRender
 {

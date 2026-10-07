@@ -14,6 +14,7 @@
 #include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/drawstate.hpp>
 #include <apps/openmw/mwmechanics/magiceffects.hpp>
 #include <apps/openmw/mwmechanics/npcstats.hpp>
 #include <apps/openmw/mwmechanics/stat.hpp>
@@ -25,7 +26,9 @@
 #include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/waitconditiontype.hpp>
@@ -36,10 +39,9 @@
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/loadskil.hpp>
+#include <components/esm3/loadweap.hpp>
 #include <components/misc/rng.hpp>
 #include <components/rtx/environment/skylight.hpp>
-
-#include "model/benchrun.hpp"
 
 namespace RtxTool
 {
@@ -160,6 +162,14 @@ namespace RtxTool
         // content script may still turn it either way.
         MWBase::Environment::get().getInputManager()->toggleControlSwitch("vanitymode", request.mVanity);
 
+        if (!stop.mStand.mArms.empty())
+        {
+            if (const Misc::Result<void, std::string> armed = arm(world, stop.mStand.mArms); !armed.isOk())
+                return armed;
+        }
+        else
+            disarm(world);
+
         if (stop.mSchedule.mFreeCamera)
         {
             // **The walls come off, because a view file names where a camera stands.** Half of them
@@ -170,12 +180,19 @@ namespace RtxTool
             turnCollisionOff(world);
             boostPlayer();
         }
-        else if (stop.mStand.mEye.has_value() && stop.mSchedule.mTrack.has_value())
+        else if (stop.mStand.mEye.has_value() && (stop.mSchedule.mTrack.has_value() || !stop.mStand.mArms.empty()))
         {
             // **A take's body goes where its camera flies, through whatever is in the way**, so the
             // cells stream in around the camera and not around a body stopped by a hill it flew
-            // over.
+            // over. **And an armed body is held under its eye** (`CameraDriver::aim`), which
+            // gravity would pull out from under it.
             turnCollisionOff(world);
+        }
+        else if (!world.isActorCollisionEnabled(world.getPlayerPtr()))
+        {
+            // **And on again for a stop that walks the body**, which a stop before it took off: a
+            // route flown through the hills it should be stopped by streams other cells.
+            turnCollisionOn(world);
         }
 
         // **The navmesh whole before the first frame.** Its tiles are built on a thread of their
@@ -279,11 +296,48 @@ namespace RtxTool
         player.getClass().getContainerStore(player).add(MWWorld::ContainerStore::sGoldId, sBoostedGold);
     }
 
+    Misc::Result<void, std::string> Stager::arm(MWBase::World& world, const std::string& weapon)
+    {
+        const ESM::RefId id = ESM::RefId::stringRefId(weapon);
+        if (MWBase::Environment::get().getESMStore()->get<ESM::Weapon>().search(id) == nullptr)
+            return Misc::Err{ "no weapon is called \"" + weapon + '"' };
+
+        const MWWorld::Ptr player = world.getPlayerPtr();
+        const MWWorld::ContainerStoreIterator given = player.getClass().getContainerStore(player).add(id, 1);
+        player.getClass().getInventoryStore(player).equip(MWWorld::InventoryStore::Slot_CarriedRight, given);
+        player.getClass().getCreatureStats(player).setDrawState(MWMechanics::DrawState::Weapon);
+
+        // **The body built again, and so built drawn**: a controller starts with the weapon in hand
+        // where the draw state says so (`CharacterController`'s constructor), and one told after it
+        // started plays the draw over the next second, which a still stop's stopped clock never runs.
+        world.renderPlayer();
+        return {};
+    }
+
+    void Stager::disarm(MWBase::World& world)
+    {
+        const MWWorld::Ptr player = world.getPlayerPtr();
+        MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
+        if (stats.getDrawState() == MWMechanics::DrawState::Nothing)
+            return;
+
+        // Built again for the reason `arm` is, so the stop opens on a body at rest and not partway
+        // through putting its weapon away.
+        stats.setDrawState(MWMechanics::DrawState::Nothing);
+        world.renderPlayer();
+    }
+
     void Stager::turnCollisionOff(MWBase::World& world)
     {
         // **Toggled until it is off, because the call reports rather than sets.** `tcl` is the same
         // call, and a session that had already used it would otherwise turn collision back on.
         if (world.toggleCollisionMode())
+            world.toggleCollisionMode();
+    }
+
+    void Stager::turnCollisionOn(MWBase::World& world)
+    {
+        if (!world.toggleCollisionMode())
             world.toggleCollisionMode();
     }
 }

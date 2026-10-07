@@ -4,7 +4,6 @@
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
@@ -18,7 +17,7 @@ namespace MWRender
         RtxSettingValues valid()
         {
             return RtxSettingValues{
-                .mUpscale = "balanced",
+                .mUpscale = Rtx::Upscale::Balanced,
                 .mDistantLandCells = 6.0f,
                 .mViewingDistance = 7168.0f,
                 .mObjectPaging = false,
@@ -27,37 +26,17 @@ namespace MWRender
                 .mGroundcoverDistance = 3072.0f,
                 .mGroundcoverDensity = 0.5f,
                 .mGroundcoverPointLighting = false,
-                .mSpecularMapLayout = "metal roughness",
-                .mIndirectLight = "off",
+                .mSpecularMapLayout = Rtx::SpecularLayout::MetalRoughness,
                 .mAnisotropy = 8,
                 .mGamma = 1.5f,
                 .mLitEnvironmentMaps = true,
             };
         }
 
-        /// **Each spelling means its own mode, and the cells mean the reach**, for the game and the
+        /// **Each value reaches its setting, and the cells mean the reach**, for the game and the
         /// harness alike, since both derive through this.
-        TEST(RtxSettingsTest, eachSpellingDerivesItsModeAndTheCellsTheReach)
+        TEST(RtxSettingsTest, eachValueReachesItsSettingAndTheCellsTheReach)
         {
-            for (const auto& [mode, spelling] : Rtx::sUpscaleNames.mNames)
-            {
-                RtxSettingValues values = valid();
-                values.mUpscale = spelling;
-                EXPECT_EQ(RtxSettings::derive(values).mUpscale, mode) << spelling;
-            }
-            for (const auto& [layout, spelling] : Rtx::sSpecularLayoutNames.mNames)
-            {
-                RtxSettingValues values = valid();
-                values.mSpecularMapLayout = spelling;
-                EXPECT_EQ(RtxSettings::derive(values).mMirror.mSpecularLayout, layout) << spelling;
-            }
-            for (const auto& [indirect, spelling] : Rtx::sIndirectLightNames.mNames)
-            {
-                RtxSettingValues values = valid();
-                values.mIndirectLight = spelling;
-                EXPECT_EQ(RtxSettings::derive(values).mIndirect, indirect) << spelling;
-            }
-
             const RtxSettings derived = RtxSettings::derive(valid());
             EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
             // Cells and the viewing distance, which a worldspace's grid turns into units: six of
@@ -73,7 +52,6 @@ namespace MWRender
             EXPECT_EQ(derived.mAnisotropy, 8u);
             EXPECT_EQ(derived.mGamma, 1.5f);
             EXPECT_TRUE(derived.mLitEnvironmentMaps);
-            EXPECT_EQ(derived.mIndirect, Rtx::IndirectLight::Off);
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;
@@ -88,24 +66,6 @@ namespace MWRender
             RtxSettingValues unfiltered = valid();
             unfiltered.mAnisotropy = 0;
             EXPECT_EQ(RtxSettings::derive(unfiltered).mAnisotropy, 1u) << "nought filters as one does";
-        }
-
-        /// A spelling that names no mode is refused rather than defaulted, whichever of the two it
-        /// is: a typo that quietly traced under `off` would be a session of the wrong picture.
-        TEST(RtxSettingsTest, aSpellingNoModeHasIsRefused)
-        {
-            RtxSettingValues upscale = valid();
-            upscale.mUpscale = "Quality";
-            EXPECT_THROW(RtxSettings::derive(upscale), Rtx::InputError);
-
-            // A layout is spelled as the documentation spells it, and read by that name alone.
-            RtxSettingValues layout = valid();
-            layout.mSpecularMapLayout = "Classic";
-            EXPECT_THROW(RtxSettings::derive(layout), Rtx::InputError);
-
-            RtxSettingValues indirect = valid();
-            indirect.mIndirectLight = "ambient";
-            EXPECT_THROW(RtxSettings::derive(indirect), Rtx::InputError);
         }
 
         /// A gamma that is not a finite number over nought is refused: nought and less raise the

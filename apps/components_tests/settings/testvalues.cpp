@@ -2,6 +2,10 @@
 #include "components/settings/parser.hpp"
 #include "components/settings/values.hpp"
 
+#include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -74,6 +78,44 @@ namespace Settings
             Manager::mUserSettings[std::make_pair("Fog", "sky rtt resolution")] = "512 nan";
             Index index;
             EXPECT_THROW([&] { Values values(index); }(), std::runtime_error);
+        }
+
+        /// **An upscale mode and a map layout are read by the one spelling list at load**, as the
+        /// documentation spells them, and refused where the list holds no such name: a typo traced
+        /// under `off` would be a session of the wrong picture. Written back by the same name.
+        TEST_F(SettingsValuesTest, constructorShouldReadAModeByItsSpellingAndRefuseOneItLacks)
+        {
+            for (const auto& [mode, spelling] : Rtx::sUpscaleNames.mNames)
+            {
+                Manager::mUserSettings[std::make_pair("RTX", "upscale")] = std::string(spelling);
+                Index index;
+                Values values(index);
+                EXPECT_EQ(values.mRTX.mUpscale.get(), mode) << spelling;
+            }
+            for (const auto& [layout, spelling] : Rtx::sSpecularLayoutNames.mNames)
+            {
+                Manager::mUserSettings[std::make_pair("RTX", "specular map layout")] = std::string(spelling);
+                Index index;
+                Values values(index);
+                EXPECT_EQ(values.mRTX.mSpecularMapLayout.get(), layout) << spelling;
+            }
+
+            {
+                Index index;
+                Values values(index);
+                values.mRTX.mUpscale.set(Rtx::Upscale::UltraPerformance);
+                EXPECT_EQ(Manager::mUserSettings.at({ "RTX", "upscale" }), "ultraperformance");
+            }
+
+            Manager::mUserSettings[std::make_pair("RTX", "upscale")] = "Quality";
+            {
+                Index index;
+                EXPECT_THROW([&] { Values values(index); }(), Rtx::InputError);
+            }
+            Manager::mUserSettings[std::make_pair("RTX", "upscale")] = "quality";
+            Manager::mUserSettings[std::make_pair("RTX", "specular map layout")] = "Classic";
+            Index index;
+            EXPECT_THROW([&] { Values values(index); }(), Rtx::InputError);
         }
 
         TEST_F(SettingsValuesTest, constructorWithDefaultShouldDoLookup)

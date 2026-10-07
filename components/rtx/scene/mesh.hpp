@@ -130,10 +130,6 @@ namespace Rtx
         /// Who stood it, which is who may move it or drop it. The walk's unless the ring says so.
         Stander mStander = Stander::Walk;
 
-        /// Whether this slot holds anything. A dropped placement leaves its slot behind rather than
-        /// closing the gap, because the slot index is what a hit reads back.
-        bool isPlaced() const { return mMesh != sNoIndex; }
-
         /// The mesh's own box as this places it: the box around its eight corners carried through
         /// the transform, which is eight transforms against a vertex's several hundred. Invalid
         /// where `box` is.

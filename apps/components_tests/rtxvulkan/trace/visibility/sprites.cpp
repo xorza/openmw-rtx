@@ -16,7 +16,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/spritelight.hpp>
@@ -463,6 +463,83 @@ namespace Rtx::Testing
             const float green = shellWeight / (spriteWeight + shellWeight) * joint / (1.0f - shell.mThrough);
             EXPECT_NEAR(both.mRed / sprites.mRed, red, 1e-3f) << "the sprites were weighed by their coverage";
             EXPECT_NEAR(both.mGreen / shell.mGreen, green, 1e-3f) << "the shell was weighed by its coverage";
+        }
+
+        /// **Puffs on one pixel are drawn in order of depth, whatever order their emitter holds
+        /// them in**: a thin red puff in front of a dense green one shows its own red as it does
+        /// alone, and the green behind it as the green alone times what the red lets through. The
+        /// green is first in the emitter's array. Weighed by alpha alone, the dense far puff won:
+        /// at alphas of 0.3 and 0.9 the red kept `(1 - 0.7 * 0.1) / 1.2 = 0.775` of itself.
+        TEST_F(RtxVisibilityTest, puffsOnOnePixelAreDrawnInOrderOfDepth)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+
+            Shaders::VisibilityConstants camera = Testing::makeCameraAlong(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+            camera.mAmbient = osg::Vec3f();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+
+            const Sprite farGreen{ .mPosition = osg::Vec3f(0.0f, 600.0f, 0.0f),
+                .mRadius = 60.0f,
+                .mColour = osg::Vec3f(0.0f, 1.0f, 0.0f),
+                .mAlpha = 0.9f };
+            const Sprite nearRed{ .mPosition = osg::Vec3f(0.0f, 300.0f, 0.0f),
+                .mRadius = 60.0f,
+                .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
+                .mAlpha = 0.3f };
+
+            struct Seen
+            {
+                float mRed = 0.0f;
+                float mGreen = 0.0f;
+                float mThrough = 0.0f;
+            };
+
+            const auto shot = [&](std::span<const Sprite> sprites) {
+                SceneDesc scene;
+                std::array<TextureData, 1> textures{ describeTexel(white) };
+                scene.addEmitter(
+                    sprites, scene.textures().add(VFS::Path::NormalizedView("white.dds")), BlendKind::Over);
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mLoss = HistoryLoss::Cut });
+                return Seen{
+                    .mRed = frame.at(centre), .mGreen = frame.at(centre + 1), .mThrough = frame.at(centre + 3)
+                };
+            };
+
+            const Seen red = shot(std::array{ nearRed });
+            const Seen green = shot(std::array{ farGreen });
+            const Seen both = shot(std::array{ farGreen, nearRed });
+            ASSERT_GT(red.mRed, 0.0f);
+            ASSERT_GT(green.mGreen, 0.0f);
+            ASSERT_LT(red.mThrough, 1.0f);
+
+            EXPECT_NEAR(both.mThrough, red.mThrough * green.mThrough, 1e-4f);
+            EXPECT_NEAR(both.mRed / red.mRed, 1.0f, 2e-3f) << "the near puff was dimmed by the far one";
+            EXPECT_NEAR(both.mGreen / green.mGreen, red.mThrough, 2e-3f)
+                << "the far puff was not seen through the near";
+
+            // **And past the layers a walk keeps apart**, where the farthest are merged: five green
+            // puffs at a half behind the red, held in no order, are the five alone seen through it.
+            std::array<Sprite, 5> greens{};
+            for (std::size_t at = 0; at < greens.size(); ++at)
+            {
+                greens[at] = farGreen;
+                greens[at].mPosition.y() = 500.0f + 100.0f * static_cast<float>((at * 3) % greens.size());
+                greens[at].mAlpha = 0.5f;
+            }
+            std::array<Sprite, 6> stack{};
+            std::copy(greens.begin(), greens.end(), stack.begin());
+            stack.back() = nearRed;
+
+            const Seen alone = shot(greens);
+            const Seen stacked = shot(stack);
+            EXPECT_NEAR(stacked.mRed / red.mRed, 1.0f, 2e-3f) << "the merge dimmed the near puff";
+            EXPECT_NEAR(stacked.mGreen / alone.mGreen, red.mThrough, 2e-3f) << "the merge lost the order";
         }
 
         /// **A shell is dimmed by the air the volume says stands in front of it**, the estimator the
@@ -1071,6 +1148,11 @@ namespace Rtx::Testing
         /// pixel's cone at eight hundred units is `atan(2 tan 30 / 33) * 800 = 27.98` units, which
         /// is under one texel of the first and 3.73 of the second — so the first reads level nought
         /// and the second reads the level below it.
+        ///
+        /// **And the length as the ray sees it, foreshortened.** A cone across the ray covers
+        /// `1 / sin θ` of an axis θ off the ray, which is rain seen from above. The square quad with
+        /// its axis leaned 15° off the ray covers `27.98 / 30 / sin 15° = 3.60` texels along it, and
+        /// reads the level below; taken face-on, 0.93 read level nought and shimmered.
         TEST_F(RtxVisibilityTest, theLevelAStreakIsReadAtComesFromTheAxisItsTexelsAreDensestAlong)
         {
             constexpr std::uint32_t size = 33;
@@ -1090,12 +1172,12 @@ namespace Rtx::Testing
             layered.mLevels.push_back(MipLevel{ .mOffset = 4 * 4 * 4, .mWidth = 2, .mHeight = 2 });
             layered.describe(4, 4, "layered.dds");
 
-            const auto green = [&](float width) {
+            const auto green = [&](float width, const osg::Vec3f& axis) {
                 SceneDesc scene;
                 const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
-                    .mAxis = osg::Vec3f(0.0f, 0.0f, -1.0f),
+                    .mAxis = axis,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
 
@@ -1114,8 +1196,13 @@ namespace Rtx::Testing
                 return frame.at(centre + 1) / std::max(frame.at(centre), 1.0e-6f);
             };
 
-            EXPECT_NEAR(green(1.0f), 1.0f, 0.05f) << "a square quad read the level below its own";
-            EXPECT_NEAR(green(0.25f), 0.0f, 0.05f) << "a streak read its length rather than its width";
+            const osg::Vec3f upright(0.0f, 0.0f, -1.0f);
+            EXPECT_NEAR(green(1.0f, upright), 1.0f, 0.05f) << "a square quad read the level below its own";
+            EXPECT_NEAR(green(0.25f, upright), 0.0f, 0.05f) << "a streak read its length rather than its width";
+
+            const float leaned = osg::DegreesToRadians(15.0f);
+            EXPECT_NEAR(green(1.0f, osg::Vec3f(0.0f, std::cos(leaned), -std::sin(leaned))), 0.0f, 0.05f)
+                << "a streak along the ray read its length as though it stood across it";
         }
 
         /// A puff is lit from the side the light is on, and by what its own texture lets through.

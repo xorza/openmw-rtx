@@ -4,14 +4,17 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
+#include <vector>
 
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Node>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -45,13 +48,10 @@ namespace Rtx
 
     /// What a chain of state sets says a surface is, read where the chain is and adopted where the
     /// scene is. Everything here points into the state sets it was read from, so a reading is good
-    /// for as long as the model that carries them stands.
+    /// for as long as the model that carries them stands. **No key**: the frame keys a reading as
+    /// it adopts it, off the chain `chainOf` kept beside it, with the walk's own `ChainKeys`.
     struct MaterialReading
     {
-        /// The state set the material is held under: the nearest one to the drawable. Null where
-        /// the chain was empty, which is a drawable that wears nothing.
-        const osg::StateSet* mKey = nullptr;
-
         /// What the content said, or nothing where nothing did.
         std::optional<SurfaceDescription> mDescribed{};
 
@@ -59,18 +59,22 @@ namespace Rtx
         /// changes, a blended one, and left unset for every other. The reader answers it because
         /// the walk over the texels is the reading's whole cost.
         std::optional<ImageFacts> mDiffuseFacts{};
+
+        /// Whether the reader laid upstream's groundcover override over `mDescribed`
+        /// (`CellReader::readModel`), which no state set of the chain states: the frame keys it
+        /// apart, since the same chain read as a static wears another material.
+        bool mGroundcover = false;
     };
 
     /// Turns what the content says a surface is into the scene's materials, and keeps the textures
-    /// they name. Keyed on the state set, which OpenMW's optimizer makes a meaningful identity; a
-    /// controller rewriting one is the exception, and `resolve` reads that one again on every
-    /// frame. The animation is here because OpenMW animates shading with a state set that belongs
-    /// to the traversal rather than to the graph, so a walk has to build it.
+    /// they name. Keyed on the chain of state sets that state anything (`ChainKeys`); a controller
+    /// rewriting one is the exception, and `resolve` reads that one again on every frame. The
+    /// animation is here because OpenMW animates shading with a state set that belongs to the
+    /// traversal rather than to the graph, so a walk has to build it.
     class MaterialResolver
     {
     public:
-        /// A material slot and the state set it is held under, because which state set of a chain
-        /// names a material is this class's answer.
+        /// A material slot and the key it is held under (`Shading::materialKey`).
         struct Resolved
         {
             Index mIndex = sNoIndex;
@@ -107,12 +111,19 @@ namespace Rtx
         /// @param thread that thread's own content, whose image facts are read.
         static MaterialReading read(std::span<const Shading> shading, ThreadContent& thread);
 
-        /// The material slot for a reading, adding it where the mirror holds none under its key,
-        /// with one hold taken on the entry — `MeshResolver::adopt` says why a hold. Standing only:
-        /// a reading carries no controller. `sNoIndex` and no hold for a reading with no key.
-        Index adopt(const MaterialReading& reading);
+        /// Appends to `into` what the frame keys a reading of `shading` on (`ChainKeys::keyOf`): the
+        /// links that state anything, root first, or the nearest link alone where none does, as
+        /// `Shading::materialKey` keys an undescribed surface. Nothing for an empty chain. A chain
+        /// with a controller's link on it is the walk's to key, and no reading's.
+        static void chainOf(std::span<const Shading> shading, std::vector<const osg::StateSet*>& into);
 
-        /// Gives one `adopt` back, by the state set the reading named. Nothing for null.
+        /// The material slot for a reading, held under `key`, the frame's key of its chain: added
+        /// where the mirror holds none under it, with one hold taken on the entry —
+        /// `MeshResolver::adopt` says why a hold. Standing only: a reading carries no controller.
+        /// `sNoIndex` and no hold for a null key.
+        Index adopt(const osg::StateSet* key, const MaterialReading& reading);
+
+        /// Gives one `adopt` back, by the key the reading named. Nothing for null.
         void release(const osg::StateSet* key);
 
         /// Takes one hold on the material the walk in progress resolved under `key`, until `release`
@@ -124,8 +135,8 @@ namespace Rtx
         Resolved resolveWater();
 
         /// The state set `node` shades with where that is not simply the one it wears, or null
-        /// where it is — which is nearly every node in a cell. One per node, rewritten in place, so
-        /// a material keyed on its address is the same material next frame.
+        /// where it is — which is nearly every node in a cell. One per placement of the node,
+        /// rewritten in place, so a material keyed on its address is the same material next frame.
         ///
         /// **Two nodes need one: the node a controller writes, and a node standing under one.** For
         /// the first it is what the controller wrote. For the second it is an identity: what a
@@ -135,9 +146,17 @@ namespace Rtx
         /// on the shared state set, one material stands for the enchanted sword and the plain one
         /// beside it at once, is read once, and never cycles its sheet.
         ///
+        /// **Per placement and not per node**, because `SceneUtil::CopyOp` shares a drawable
+        /// between the clones of a model, and a template node stands under every reference walked
+        /// from it: one state set for two enchantments on one base model showed whichever was
+        /// applied last, and was written twice a frame.
+        ///
+        /// @param placement the identity of the path the walk reached `node` by, which tells its
+        ///        placements apart.
         /// @param underAnimated whether an animated state set is above `node` on the chain —
         ///        `Shading::mAnimatedThrough`.
-        const osg::StateSet* animate(osg::Node& node, osg::NodeVisitor* visitor, bool underAnimated);
+        const osg::StateSet* animate(
+            osg::Node& node, std::size_t placement, osg::NodeVisitor* visitor, bool underAnimated);
 
         /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
         /// its material and on every image it wore.
@@ -242,9 +261,53 @@ namespace Rtx
             }
         };
 
-        /// The state set a node's controllers write into, kept so that the address a material is
-        /// keyed on is the same one next frame. See `animate`. An entry like any other, so the map
-        /// sweeps it by the reach every entry carries.
+        /// Where an animated state set stands: a node, and the identity of the path the walk reached
+        /// it by. Looked up by the address, and held by `Placed`, which keeps the node so its
+        /// address cannot be handed to another while the entry stands (`ByAddress`).
+        struct Placement
+        {
+            const osg::Node* mNode;
+            std::size_t mPath;
+        };
+
+        struct Placed
+        {
+            explicit Placed(const Placement& at)
+                : mNode(at.mNode)
+                , mPath(at.mPath)
+            {
+            }
+
+            osg::ref_ptr<const osg::Node> mNode;
+            std::size_t mPath;
+        };
+
+        struct ByPlacement
+        {
+            using is_transparent = void;
+
+            static std::size_t hash(const osg::Node* node, std::size_t path)
+            {
+                return std::hash<const osg::Node*>{}(node) ^ (path * 0x9e3779b97f4a7c15ull);
+            }
+
+            std::size_t operator()(const Placed& placed) const { return hash(placed.mNode.get(), placed.mPath); }
+            std::size_t operator()(const Placement& at) const { return hash(at.mNode, at.mPath); }
+
+            bool operator()(const Placed& left, const Placed& right) const
+            {
+                return left.mNode == right.mNode && left.mPath == right.mPath;
+            }
+            bool operator()(const Placed& left, const Placement& right) const
+            {
+                return left.mNode.get() == right.mNode && left.mPath == right.mPath;
+            }
+            bool operator()(const Placement& left, const Placed& right) const { return operator()(right, left); }
+        };
+
+        /// The state set a node's controllers write into at one placement, kept so that the
+        /// address a material is keyed on is the same one next frame. See `animate`. An entry like
+        /// any other, so the map sweeps it by the reach every entry carries.
         struct Animated
         {
             Reach mReach;
@@ -309,9 +372,8 @@ namespace Rtx
         SceneDesc& mScene;
         const MirrorPass& mPass;
 
-        /// Which state set each material came from, and the sea under the one it has not got —
-        /// `resolveWater`. Owning, so that a state set cannot go while the entry stands: see
-        /// `ByAddress`.
+        /// Which chain each material came from, by its key, and the sea under the key it has not got
+        /// — `resolveWater`. Owning, so that a key cannot go while the entry stands: see `ByAddress`.
         Identity<const osg::StateSet, HeldMaterial> mMaterials{ mPass };
 
         /// Which slot each image the walk has met stands in, so an animated material re-read every
@@ -322,7 +384,7 @@ namespace Rtx
 
         /// Owning for the same reason the identity maps are: a node freed and replaced at the same
         /// address would otherwise be handed the state set the first one's controllers were writing.
-        Identity<const osg::Node, Animated> mAnimated{ mPass };
+        Kept<boost::unordered_flat_map<Placed, Animated, ByPlacement, ByPlacement>> mAnimated{ mPass };
 
         /// The extractor's. The ring's reader has its own and hands its answers over in the reading.
         ThreadContent& mThread;

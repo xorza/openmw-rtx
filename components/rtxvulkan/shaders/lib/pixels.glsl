@@ -41,4 +41,12 @@ uvec2 shownPixelsFrom(uvec2 traced, uvec2 extent, uvec2 tracedExtent)
         shownPixelsFrom(traced.x, extent.x, tracedExtent.x), shownPixelsFrom(traced.y, extent.y, tracedExtent.y));
 }
 
+/// The 3×3 tent's weight `offset` from its middle: `[1 2 1]` against itself, over sixteen, so `1/4`
+/// at the middle, `1/8` along the axes and `1/16` at the corners. A select and not a table, for the
+/// reason `atrous.comp`'s `kernelAt` gives.
+float tentWeight(ivec2 offset)
+{
+    return (offset.x == 0 ? 0.5 : 0.25) * (offset.y == 0 ? 0.5 : 0.25);
+}
+
 #endif

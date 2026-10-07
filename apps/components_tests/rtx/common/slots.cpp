@@ -6,7 +6,7 @@
 #include <boost/container/flat_set.hpp>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
 
@@ -21,7 +21,7 @@ namespace Rtx
         /// retire reports what went by.
         TEST(RtxSlotRowsTest, aRowIsFreedByTheDropAfterWhichNothingHoldsIt)
         {
-            SlotRows<int> rows;
+            HeldSlotRows<int> rows;
             const Index first = rows.take(1);
             const Index second = rows.take(2);
             ASSERT_EQ(rows.getLiveCount(), 2u);

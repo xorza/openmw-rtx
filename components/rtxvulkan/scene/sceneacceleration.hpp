@@ -7,7 +7,7 @@
 #include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -238,9 +238,10 @@ namespace Rtx
         /// because one the device had no room for is left out. Refilled per placement.
         std::vector<Index> mRefitting;
 
-        /// Two totals, each assigned, because one accumulated. The bottom levels are made once
-        /// and the top level again every frame that moves, so adding both to one figure reported a
-        /// scene that grew by its own top level sixty times a second.
+        /// The top level's size, assigned at each build and never added to: the bottom levels are
+        /// counted by their store and made once, and the top level again every frame that moves, so
+        /// one running figure for both reported a scene that grew by its own top level sixty times
+        /// a second.
         VkDeviceSize mTopLevelBytes = 0;
     };
 }

@@ -134,6 +134,10 @@ const uint SEED_SEE_THROUGH = SEED_SOFT_EDGE + 1u;
 /// about the draws that lit the pixel.
 const uint SEED_WAVELET_TAPS = SEED_SEE_THROUGH + 1u;
 
+/// And one for whether the eye's split hit keeps its bit open through the translucent surfaces its
+/// kept ray crossed (`gather`): a hash and not a channel of the tile, so no other draw moves.
+const uint SEED_SHADOW_THROUGH = SEED_WAVELET_TAPS + 1u;
+
 /// A key for one pixel, which a caller offsets by a `SEED_` constant to say which sequence it wants.
 ///
 /// Two odd multipliers rather than two shifts: a shift leaves the low bits of one axis where the

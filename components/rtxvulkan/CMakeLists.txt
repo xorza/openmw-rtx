@@ -21,8 +21,8 @@ unset(_openmw_spirv_fma)
 # The pinning every shader takes between glslc and the validator (`spirv/spirvpin.hpp`), and the
 # digest `omw kernels` names kernels by: a library the tests reach into, and tools the build runs.
 # They link nothing of the renderer's, which waits for the shaders, and stay out of every install.
-set(RTX_SPIRV_PIN_FILES spirv/spirvfile.cpp spirv/spirvfile.hpp spirv/spirvpin.cpp spirv/spirvpin.hpp
-    spirv/spirvdigest.cpp spirv/spirvdigest.hpp)
+set(RTX_SPIRV_PIN_FILES spirv/spirvbindings.cpp spirv/spirvbindings.hpp spirv/spirvfile.cpp spirv/spirvfile.hpp
+    spirv/spirvpin.cpp spirv/spirvpin.hpp spirv/spirvdigest.cpp spirv/spirvdigest.hpp)
 add_library(openmw-rtx-spirv STATIC ${RTX_SPIRV_PIN_FILES})
 target_include_directories(openmw-rtx-spirv SYSTEM PRIVATE "${OPENMW_SPIRV_HEADERS}")
 target_link_libraries(openmw-rtx-spirv PRIVATE smhasher)
@@ -58,7 +58,6 @@ set(RTX_SHADERS
     shaders/texture/spritelight.comp
     shaders/trace/denoise/accumulate.comp
     shaders/trace/denoise/accumulateclamp.comp
-    shaders/trace/denoise/accumulatesurface.comp
     shaders/trace/denoise/atrous.comp
     shaders/trace/denoise/composite.comp
     shaders/trace/denoise/pane.comp

@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "runs.hpp"
+#include "index.hpp"
 
 namespace Rtx
 {
@@ -209,15 +209,12 @@ namespace Rtx
         SlotSet mFreed;
     };
 
-    /// A table of fixed-size rows: the rows, the slots nothing stands in, and what holds each. A
-    /// slot is never moved and never closed up — a mesh index names a bottom-level acceleration
-    /// structure and a texture index is what a material points at — so a dropped row leaves a hole
-    /// and the next arrival takes the lowest one (`SlotPool`). The hold count lives here and the
-    /// table frees the row the drop after which nothing holds it: a texture is held by materials,
-    /// a rig by the meshes on it, a mesh by the identity that met it and the placements standing
-    /// on it. What a freed row holds is the table's business too — a mesh row keeps its last
-    /// tenant's offsets because a backend walks every slot, a material row is emptied — so `free`
-    /// writes nothing.
+    /// A table of fixed-size rows: the rows and the slots nothing stands in. A slot is never moved
+    /// and never closed up — a mesh index names a bottom-level acceleration structure and a texture
+    /// index is what a material points at — so a dropped row leaves a hole and the next arrival
+    /// takes the lowest one (`SlotPool`). What a freed row holds is the table's business — a mesh
+    /// row keeps its last tenant's offsets because a backend walks every slot, a material row is
+    /// emptied — so `free` writes nothing.
     template <class Row>
     class SlotRows
     {
@@ -253,8 +250,7 @@ namespace Rtx
             return mRows[slot];
         }
 
-        /// Puts `row` in a free slot, or in a new one. The slot arrives with no holds, and the
-        /// caller holds it before anything can drop it. Everything a table knows about a slot is in
+        /// Puts `row` in a free slot, or in a new one. Everything a table knows about a slot is in
         /// the row, so nothing beside the rows has to follow a growth. By value and moved in, so a
         /// row that owns a name is built once.
         Index take(Row row)
@@ -263,11 +259,9 @@ namespace Rtx
             if (index == sNoIndex)
             {
                 mRows.push_back(std::move(row));
-                mHolds.push_back(0);
                 return static_cast<Index>(mRows.size() - 1);
             }
 
-            assert(mHolds[index] == 0 && "a free slot something still holds");
             mRows[index] = std::move(row);
             return index;
         }
@@ -276,15 +270,55 @@ namespace Rtx
         void free(Index slot)
         {
             assert(slot < mRows.size());
-            assert(mHolds[slot] == 0 && "a slot freed while something holds it");
             assert(isLive(slot) && "a slot freed twice");
             mFree.free(slot);
             ++mFreedCount;
         }
 
+    private:
+        std::vector<Row> mRows;
+
+        SlotPool mFree;
+
+        std::uint64_t mFreedCount = 0;
+    };
+
+    /// `SlotRows` for rows other rows hold, with how many hold each, and the table frees the row the
+    /// drop after which nothing holds it: a texture is held by materials, a rig by the meshes on it,
+    /// a mesh by the identity that met it and the placements standing on it. A placement is held by
+    /// nothing, and its table is a `SlotRows`.
+    template <class Row>
+    class HeldSlotRows
+    {
+    public:
+        std::size_t size() const { return mRows.size(); }
+        std::size_t getLiveCount() const { return mRows.getLiveCount(); }
+        std::uint64_t getFreedCount() const { return mRows.getFreedCount(); }
+        std::span<const Row> getRows() const { return mRows.getRows(); }
+        bool isLive(Index slot) const { return mRows.isLive(slot); }
+        const Row& at(Index slot) const { return mRows.at(slot); }
+        Row& at(Index slot) { return mRows.at(slot); }
+
+        /// `SlotRows::take`, the slot arriving with no holds: the caller holds it before anything
+        /// can drop it.
+        Index take(Row row)
+        {
+            const Index index = mRows.take(std::move(row));
+            if (index == mHolds.size())
+                mHolds.push_back(0);
+
+            assert(mHolds[index] == 0 && "a free slot something still holds");
+            return index;
+        }
+
+        void free(Index slot)
+        {
+            assert(mHolds[slot] == 0 && "a slot freed while something holds it");
+            mRows.free(slot);
+        }
+
         void hold(Index slot)
         {
-            assert(slot < mRows.size());
             assert(isLive(slot) && "a hold on a slot nothing stands in");
             ++mHolds[slot];
         }
@@ -293,29 +327,25 @@ namespace Rtx
         /// table frees the row.
         bool drop(Index slot)
         {
-            assert(slot < mRows.size());
+            assert(slot < mHolds.size());
             assert(mHolds[slot] > 0 && "a slot given back more often than it was held");
             return --mHolds[slot] == 0;
         }
 
         std::uint32_t getHolds(Index slot) const
         {
-            assert(slot < mRows.size());
+            assert(slot < mHolds.size());
             return mHolds[slot];
         }
 
     private:
-        std::vector<Row> mRows;
+        SlotRows<Row> mRows;
 
         /// How many things hold each row, parallel to the rows.
         std::vector<std::uint32_t> mHolds;
-
-        SlotPool mFree;
-
-        std::uint64_t mFreedCount = 0;
     };
 
-    /// The half of `SlotRows` a reader uses, for a table whose rows go in through its own `add`
+    /// The half of `HeldSlotRows` a reader uses, for a table whose rows go in through its own `add`
     /// and out through its own `drop`: `take`, `at`, `free` and the drop stay with the table, which
     /// alone knows what a freed row holds and what it gives back. One base and not the forwarders
     /// written per table, which were one policy twice.
@@ -331,7 +361,7 @@ namespace Rtx
         std::uint32_t getHolds(Index slot) const { return mRows.getHolds(slot); }
 
     protected:
-        SlotRows<Row> mRows;
+        HeldSlotRows<Row> mRows;
     };
 
     /// Orders rows by the key `KeyOf` takes from each, and takes a bare key on either side, so a

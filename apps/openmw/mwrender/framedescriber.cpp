@@ -5,17 +5,17 @@
 
 #include <osg/Camera>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/timestamp.hpp"
 #include "camera.hpp"
 #include "fogmanager.hpp"
 #include "renderer.hpp"
