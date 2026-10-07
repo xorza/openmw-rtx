@@ -2,11 +2,13 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
 #include <utility>
+#include <vector>
 
 #include <osg/Callback>
 #include <osg/CopyOp>
@@ -223,7 +225,7 @@ namespace Rtx
         if (shading.empty())
             return MaterialReading{};
 
-        MaterialReading reading{ .mKey = shading.back().materialKey() };
+        MaterialReading reading;
         if (!describeSurface(shading, reading.mDescribed.emplace()))
         {
             reading.mDescribed.reset();
@@ -246,14 +248,27 @@ namespace Rtx
         return reading;
     }
 
-    Index MaterialResolver::adopt(const MaterialReading& reading)
+    void MaterialResolver::chainOf(const std::span<const Shading> shading, std::vector<const osg::StateSet*>& into)
     {
-        if (reading.mKey == nullptr)
+        assert(!animatedThrough(shading) && "a reading of a chain a controller stands on");
+
+        const std::size_t first = into.size();
+        for (const Shading& link : shading)
+            if (link.mStates)
+                into.push_back(link.mStateSet);
+
+        if (into.size() == first && !shading.empty())
+            into.push_back(shading.back().mStateSet);
+    }
+
+    Index MaterialResolver::adopt(const osg::StateSet* const key, const MaterialReading& reading)
+    {
+        if (key == nullptr)
             return sNoIndex;
 
-        Entry known = reuse(reading.mKey.get());
+        Entry known = reuse(key);
         if (known == mMaterials.end())
-            known = adopt(reading.mKey.get(), describe(reading, false, nullptr));
+            known = adopt(key, describe(reading, false, nullptr));
 
         mMaterials.hold(known);
         return known->second.mRow.get();

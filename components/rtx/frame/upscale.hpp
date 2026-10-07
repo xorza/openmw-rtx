@@ -45,11 +45,11 @@ namespace Rtx
         std::pair{ Upscale::Native, std::string_view("native") },
     } };
 
-    /// The modes the launcher and the settings window offer, in the order both list them, spelled
-    /// as `[RTX] upscale` takes them: no upscaler first, then fewest pixels traced to every pixel.
-    /// Every mode `sUpscaleNames` spells, in its order, so a mode added there stops the build until
-    /// each menu gives it a label.
-    inline constexpr std::array<std::string_view, sUpscaleNames.mNames.size()> sUpscaleMenu = sUpscaleNames.spellings();
+    /// The modes the launcher and the settings window offer, in the order both list them: no
+    /// upscaler first, then fewest pixels traced to every pixel. Every mode `sUpscaleNames` spells,
+    /// in its order, so a mode added there stops the build until each menu gives it a label, and
+    /// whatever `[RTX] upscale` holds is one the menus offer.
+    inline constexpr std::array<Upscale, sUpscaleNames.mNames.size()> sUpscaleMenu = sUpscaleNames.values();
 
     /// Whether a mode runs the upscaler at all, which every mode but `Off` does — `Native` too.
     constexpr bool upscales(Upscale mode)

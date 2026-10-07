@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 #include <span>
+#include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Node>
@@ -47,14 +48,10 @@ namespace Rtx
 
     /// What a chain of state sets says a surface is, read where the chain is and adopted where the
     /// scene is. Everything here points into the state sets it was read from, so a reading is good
-    /// for as long as the model that carries them stands.
+    /// for as long as the model that carries them stands. **No key**: the frame keys a reading as
+    /// it adopts it, off the chain `chainOf` kept beside it, with the walk's own `ChainKeys`.
     struct MaterialReading
     {
-        /// What the material is held under: the chain's key (`Shading::materialKey`), held, since
-        /// the walk that read it keeps its keys only while it reads. Null where the chain was
-        /// empty, which is a drawable that wears nothing.
-        osg::ref_ptr<const osg::StateSet> mKey;
-
         /// What the content said, or nothing where nothing did.
         std::optional<SurfaceDescription> mDescribed{};
 
@@ -62,6 +59,11 @@ namespace Rtx
         /// changes, a blended one, and left unset for every other. The reader answers it because
         /// the walk over the texels is the reading's whole cost.
         std::optional<ImageFacts> mDiffuseFacts{};
+
+        /// Whether the reader laid upstream's groundcover override over `mDescribed`
+        /// (`CellReader::readModel`), which no state set of the chain states: the frame keys it
+        /// apart, since the same chain read as a static wears another material.
+        bool mGroundcover = false;
     };
 
     /// Turns what the content says a surface is into the scene's materials, and keeps the textures
@@ -109,10 +111,17 @@ namespace Rtx
         /// @param thread that thread's own content, whose image facts are read.
         static MaterialReading read(std::span<const Shading> shading, ThreadContent& thread);
 
-        /// The material slot for a reading, adding it where the mirror holds none under its key,
-        /// with one hold taken on the entry — `MeshResolver::adopt` says why a hold. Standing only:
-        /// a reading carries no controller. `sNoIndex` and no hold for a reading with no key.
-        Index adopt(const MaterialReading& reading);
+        /// Appends to `into` what the frame keys a reading of `shading` on (`ChainKeys::keyOf`): the
+        /// links that state anything, root first, or the nearest link alone where none does, as
+        /// `Shading::materialKey` keys an undescribed surface. Nothing for an empty chain. A chain
+        /// with a controller's link on it is the walk's to key, and no reading's.
+        static void chainOf(std::span<const Shading> shading, std::vector<const osg::StateSet*>& into);
+
+        /// The material slot for a reading, held under `key`, the frame's key of its chain: added
+        /// where the mirror holds none under it, with one hold taken on the entry —
+        /// `MeshResolver::adopt` says why a hold. Standing only: a reading carries no controller.
+        /// `sNoIndex` and no hold for a null key.
+        Index adopt(const osg::StateSet* key, const MaterialReading& reading);
 
         /// Gives one `adopt` back, by the key the reading named. Nothing for null.
         void release(const osg::StateSet* key);

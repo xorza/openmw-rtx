@@ -25,19 +25,13 @@ namespace Rtx
     }
 
     Shading Shading::under(
-        const std::span<const Shading> chain, const osg::StateSet& stateSet, const bool animated, ChainKeys& keys)
+        const std::span<const Shading> chain, const osg::StateSet& stateSet, const bool animated, ChainKeys* const keys)
     {
         const Shading* const above = chain.empty() ? nullptr : &chain.back();
-        // **A controller's state set is its own key**: `MaterialResolver::animate` keeps one per
-        // node and rewrites it in place, so its address is already the placement's, and a material
-        // under it is read off the whole chain on every frame. Paired with the chain above it, a
-        // node whose own state set a controller swaps would be a new material at every swap.
-        const osg::StateSet* const keyAbove = above != nullptr ? above->mMaterialKey : nullptr;
-        const osg::StateSet* key = keyAbove;
-        if (animated)
-            key = &stateSet;
-        else if (describesAnything(stateSet))
-            key = keyAbove != nullptr ? keys.under(*keyAbove, stateSet) : &stateSet;
+        const bool states = describesAnything(stateSet);
+        const osg::StateSet* const key = keys != nullptr
+            ? keys->join(above != nullptr ? above->mMaterialKey : nullptr, stateSet, animated, states)
+            : nullptr;
 
         Shading link{
             .mStateSet = &stateSet,
@@ -46,6 +40,7 @@ namespace Rtx
             .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
             .mClockwise = above != nullptr && above->mClockwise,
             .mClockwiseLocked = above != nullptr && above->mClockwiseLocked,
+            .mStates = states,
             .mMaterialKey = key,
         };
 

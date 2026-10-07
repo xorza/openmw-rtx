@@ -105,7 +105,10 @@ the window's size there, has it moved to the window on the first start, and the 
   named them by Xbox's labels, and the bindings keep the places: a pad with other labels is played
   with the same thumb. A Lua cursor is sized in the frame's pixels, as upstream sized it in the
   window's, so it is scaled by the frame's shown scale alone (`Presentation::shownScale`), and not
-  by the interface's scaling as well.
+  by the interface's scaling as well. Where relative mouse mode is refused, upstream wraps the
+  pointer by warping it; Wayland, which SDL3 takes where SDL2 took X11, lets no window move the
+  pointer, so there it goes unwrapped and stops at the window's edge
+  (`InputWrapper::mWarpMovesPointer`), where the way back from each warp turned the camera.
 - The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
   the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
   `components/files/configurationmanager` included: one set of checks for every file. And MSVC's

@@ -778,7 +778,8 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
 
     // **Front to back**: each layer's light under what the ones before it left, and the depth at the
     // share of the light each gave. The colour is what fills the coverage, so the caller's
-    // `mColour * (1 - mTransmittance)` is the sum in order.
+    // `mColour * (1 - mTransmittance)` is the sum in order. **The coverage as the shares' sum**, which
+    // is `1 - through` and keeps its digits where a thin puff leaves `through` a hair under one.
     vec3 inOrder = vec3(0.0);
     float through = 1.0;
     float shown = 0.0;
@@ -794,7 +795,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
 
     if (coverage > 0.0)
     {
-        layer.mColour = inOrder / max(1.0 - through, 1.0e-12);
+        layer.mColour = inOrder / max(shown, 1.0e-12);
         layer.mCoveredAt = shownAt / max(shown, 1.0e-12);
         layer.mWeight = coverage;
     }

@@ -27,24 +27,23 @@
 #include <cstddef>
 #include <optional>
 #include <span>
-#include <string_view>
 
 namespace
 {
     // In the context the .ui's own strings are translated in, which is where these came from
-    constexpr std::array<Rtx::MenuLabel, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
-        { "off", QT_TRANSLATE_NOOP("GraphicsPage", "Off") },
-        { "ultraperformance", QT_TRANSLATE_NOOP("GraphicsPage", "Ultra Performance") },
-        { "performance", QT_TRANSLATE_NOOP("GraphicsPage", "Performance") },
-        { "balanced", QT_TRANSLATE_NOOP("GraphicsPage", "Balanced") },
-        { "quality", QT_TRANSLATE_NOOP("GraphicsPage", "Quality") },
-        { "native", QT_TRANSLATE_NOOP("GraphicsPage", "Native") },
+    constexpr std::array<Rtx::MenuLabel<Rtx::Upscale>, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
+        { Rtx::Upscale::Off, QT_TRANSLATE_NOOP("GraphicsPage", "Off") },
+        { Rtx::Upscale::UltraPerformance, QT_TRANSLATE_NOOP("GraphicsPage", "Ultra Performance") },
+        { Rtx::Upscale::Performance, QT_TRANSLATE_NOOP("GraphicsPage", "Performance") },
+        { Rtx::Upscale::Balanced, QT_TRANSLATE_NOOP("GraphicsPage", "Balanced") },
+        { Rtx::Upscale::Quality, QT_TRANSLATE_NOOP("GraphicsPage", "Quality") },
+        { Rtx::Upscale::Native, QT_TRANSLATE_NOOP("GraphicsPage", "Native") },
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    void addMenuItems(QComboBox* box, std::span<const Rtx::MenuLabel> labels)
+    void addMenuItems(QComboBox* box, std::span<const Rtx::MenuLabel<Rtx::Upscale>> labels)
     {
-        for (const Rtx::MenuLabel& label : labels)
+        for (const Rtx::MenuLabel<Rtx::Upscale>& label : labels)
             box->addItem(QCoreApplication::translate("GraphicsPage", label.mLabel));
     }
 }
@@ -130,10 +129,9 @@ bool Launcher::GraphicsPage::loadSettings()
     if (Settings::rtx().mEnabled)
         rayTracingCheckBox->setCheckState(Qt::Checked);
 
-    // Nothing selected where the setting names a mode the list does not offer, so saveSettings leaves it alone
-    const std::optional<std::size_t> offered
-        = Rtx::menuIndex(Rtx::sUpscaleMenu, Rtx::sUpscaleNames.name(Settings::rtx().mUpscale.get()));
-    rayTracingUpscaleComboBox->setCurrentIndex(offered ? static_cast<int>(*offered) : -1);
+    // The list offers every mode the setting can hold
+    rayTracingUpscaleComboBox->setCurrentIndex(
+        static_cast<int>(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value()));
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
@@ -191,12 +189,12 @@ void Launcher::GraphicsPage::saveSettings()
     Settings::video().mAntialiasing.set(antiAliasingComboBox->currentText().toInt());
 
     Settings::rtx().mEnabled.set(rayTracingCheckBox->checkState() == Qt::Checked);
-    // Nothing chosen leaves the setting alone, see loadSettings
+    // Nothing chosen leaves the setting alone
     const int chosenIndex = rayTracingUpscaleComboBox->currentIndex();
     if (chosenIndex >= 0)
-        if (const std::optional<std::string_view> chosen
-            = Rtx::menuName(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
-            Settings::rtx().mUpscale.set(Rtx::sUpscaleNames.require(*chosen, "an upscale mode"));
+        if (const std::optional<Rtx::Upscale> chosen
+            = Rtx::menuValue(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
+            Settings::rtx().mUpscale.set(*chosen);
     if (rayTracingDistantLandSpinBox->value() != mLoadedDistantLandCells)
         Settings::rtx().mDistantLandCells.set(static_cast<float>(rayTracingDistantLandSpinBox->value()));
 

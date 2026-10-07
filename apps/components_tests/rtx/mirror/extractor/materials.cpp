@@ -334,7 +334,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
             paint(*quad->getOrCreateStateSet(), *glass);
             quad->getOrCreateStateSet()->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
-            TemplateWalk walk;
+            TemplateWalk walk(nullptr);
             walk.read(*quad, ~0u, model);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());

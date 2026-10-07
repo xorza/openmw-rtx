@@ -8,8 +8,9 @@
 #include <osg/Node>
 #include <osg/NodeVisitor>
 
+#include <osg/ref_ptr>
+
 #include <components/misc/result.hpp>
-#include <components/rtx/mirror/chainkeys.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/shading.hpp>
@@ -42,7 +43,11 @@ namespace Rtx
     class TemplateWalk final : public osg::NodeVisitor
     {
     public:
-        TemplateWalk();
+        /// @param above the state set every reference of the world stands under — the world walk's
+        ///        root's (`CellWorld::mAbove`) — or null for none: the first link of every chain
+        ///        this reads, so a part is described and keyed as the frame's walk finds its clone.
+        ///        Read on this walk's thread, so nothing may write it while this stands.
+        explicit TemplateWalk(const osg::StateSet* above);
 
         /// Walks `root` and appends one part to `into` for every drawable under it that holds a
         /// triangle, with its arrays appended to the model's buffers. A drawable this cannot take
@@ -93,9 +98,7 @@ namespace Rtx
         /// refilled, because a model is hundreds of drawables and the thread reads thousands.
         std::vector<Shading> mShading;
 
-        /// The keys of the chains `mShading` has stood in, for this model alone: a reading holds
-        /// its own key (`MaterialReading::mKey`), so they are dropped at each model's start.
-        ChainKeys mKeys;
+        osg::ref_ptr<const osg::StateSet> mAbove;
 
         /// Notes why a drawable is left out, the first time the model leaves one.
         void refuse(std::string_view why);

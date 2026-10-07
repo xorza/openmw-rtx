@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <span>
 
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/StateSet>
@@ -22,6 +23,28 @@ namespace Rtx
         if (fresh)
             entry->second = Held{ .mAbove = &above, .mOwn = &stateSet, .mKey = new osg::StateSet };
         return entry->second.mKey.get();
+    }
+
+    const osg::StateSet* ChainKeys::join(
+        const osg::StateSet* const above, const osg::StateSet& link, const bool animated, const bool states)
+    {
+        // **A controller's state set is its own key**: `MaterialResolver::animate` keeps one per
+        // node and rewrites it in place, so its address is already the placement's, and a material
+        // under it is read off the whole chain on every frame. Paired with the chain above it, a
+        // node whose own state set a controller swaps would be a new material at every swap.
+        if (animated)
+            return &link;
+        if (!states)
+            return above;
+        return above != nullptr ? under(*above, link) : &link;
+    }
+
+    const osg::StateSet* ChainKeys::keyOf(const std::span<const osg::StateSet* const> stating)
+    {
+        const osg::StateSet* key = nullptr;
+        for (const osg::StateSet* const link : stating)
+            key = join(key, *link, false, true);
+        return key;
     }
 
     void ChainKeys::retire()

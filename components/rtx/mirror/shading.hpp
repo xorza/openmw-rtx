@@ -62,16 +62,26 @@ namespace Rtx
         /// may change.
         bool mClockwiseLocked = false;
 
+        /// Whether this state set holds anything `describeStateSet` reads (`describesAnything`):
+        /// what a key is made of, and what a reading keeps for the frame to key it by
+        /// (`MaterialResolver::chainOf`).
+        bool mStates = false;
+
         /// What a material read off the chain down to here is held under (`ChainKeys`): the state
-        /// sets on it that state anything, as one identity. Null where none does yet.
+        /// sets on it that state anything, as one identity. Null where none does yet, and on a
+        /// chain no walk keys (`under`).
         const osg::StateSet* mMaterialKey = nullptr;
 
         /// The link `stateSet` makes at the near end of `chain`: its fade resolved through the link
-        /// above it, whether it or anything above it is a controller's, and the chain's material
-        /// key, which `keys` holds where it takes more than one link. The one construction of a
-        /// link, so a field added here is set by every walk that builds a chain.
+        /// above it, whether it or anything above it is a controller's, whether it states anything,
+        /// and the chain's material key, which `keys` holds where it takes more than one link. The
+        /// one construction of a link, so a field added here is set by every walk that builds a
+        /// chain.
+        ///
+        /// @param keys null for a walk that keys no material itself — the cell ring's reader, whose
+        ///        readings the frame keys as it adopts them.
         static Shading under(
-            std::span<const Shading> chain, const osg::StateSet& stateSet, bool animated, ChainKeys& keys);
+            std::span<const Shading> chain, const osg::StateSet& stateSet, bool animated, ChainKeys* keys);
 
         /// What a material read off the chain down to here is held under: `mMaterialKey`, or this
         /// link's own state set where nothing on the chain states anything, which keys the

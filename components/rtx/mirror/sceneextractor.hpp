@@ -249,11 +249,8 @@ namespace Rtx
             mPhase.expect(Phase::Walking);
             return mMeshes.adopt(drawable, reading);
         }
-        Index adoptMaterial(const MaterialReading& reading) override
-        {
-            mPhase.expect(Phase::Walking);
-            return mMaterials.adopt(reading);
-        }
+        MaterialResolver::Resolved adoptMaterial(
+            const MaterialReading& reading, std::span<const osg::StateSet* const> chain) override;
         void releaseMesh(const osg::Drawable& drawable) override { mMeshes.release(drawable); }
         void releaseMaterial(const osg::StateSet* key) override { mMaterials.release(key); }
         SceneDesc& getScene() override { return mScene; }
@@ -453,8 +450,12 @@ namespace Rtx
         MaterialResolver mMaterials{ mScene, mPass, mContext.mContent, mContext.mSpecular };
 
         /// The keys the walk's chains of state sets fold to, which `mMaterials` holds its entries
-        /// under.
+        /// under, and the ring's readings as they are adopted.
         ChainKeys mChainKeys;
+
+        /// What a groundcover reading's key is paired with last (`MaterialReading::mGroundcover`):
+        /// an empty state set of the walk's own, standing for the override no chain states.
+        const osg::ref_ptr<const osg::StateSet> mGroundcoverOverride = new osg::StateSet;
 
         /// The particle systems the walk met, and the sprite textures they hold.
         EmitterResolver mEmitters{ mScene, mPass, mContext.mContent };

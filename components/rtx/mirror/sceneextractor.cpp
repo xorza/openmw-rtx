@@ -261,6 +261,15 @@ namespace Rtx
         /// and refilled, because a cell is tens of thousands of drawables and this is the frame
         /// path.
         std::vector<Shading> mShading;
+
+        /// The material key in force under the walk's root, which every reference root of a world
+        /// walk must stand under and nothing more: the cell ring's reader starts each chain at that
+        /// root's state set (`CellWorld::mAbove`), so a reading keys as this walk keys its clone
+        /// only where nothing between the root and a reference states anything.
+        const osg::StateSet* mKeyUnderRoot = nullptr;
+
+        /// The material key in force where the walk is standing.
+        const osg::StateSet* keyInForce() const { return mShading.empty() ? nullptr : mShading.back().mMaterialKey; }
     };
 
     SceneExtractor::Traversal::Traversal(SceneExtractor& extractor, const NodeKinds& kinds)
@@ -290,6 +299,7 @@ namespace Rtx
         mChildIndex = 0;
         mDepth = 0;
         mShading.clear();
+        mKeyUnderRoot = nullptr;
 
         // A walk that threw left the class and the effect it was inside where the throw found
         // them.
@@ -335,6 +345,10 @@ namespace Rtx
         const bool root = mFreezes && mDepth == mStampDepth;
         if (root)
         {
+            // A stamped one is a reference the game stood in a cell, as the ring stands one.
+            assert((SceneUtil::StableIdentity::find(node) == nullptr || keyInForce() == mKeyUnderRoot)
+                && "a reference under state the cell ring's reader does not read");
+
             const bool jumped = jumps(node);
             if (!jumped && mExtractor.passFrozen(node, mHere))
                 return;
@@ -403,6 +417,9 @@ namespace Rtx
             pushShading(*animated, true);
             mChangeable = true;
         }
+
+        if (mDepth == 1)
+            mKeyUnderRoot = keyInForce();
 
         const InstanceClass outerClass = mClass;
         const std::optional<std::size_t> outerGlow = mGlow;
@@ -548,7 +565,7 @@ namespace Rtx
 
     void SceneExtractor::Traversal::pushShading(const osg::StateSet& stateSet, const bool animated)
     {
-        mShading.push_back(Shading::under(mShading, stateSet, animated, mExtractor.mChainKeys));
+        mShading.push_back(Shading::under(mShading, stateSet, animated, &mExtractor.mChainKeys));
     }
 
     void SceneExtractor::Traversal::apply(osg::Drawable& drawable)
@@ -789,6 +806,18 @@ namespace Rtx
         assert(mScene.isConsistent() && "a retire left a live row nothing holds");
 
         return went;
+    }
+
+    MaterialResolver::Resolved SceneExtractor::adoptMaterial(
+        const MaterialReading& reading, const std::span<const osg::StateSet* const> chain)
+    {
+        mPhase.expect(Phase::Walking);
+
+        const osg::StateSet* key = mChainKeys.keyOf(chain);
+        if (key != nullptr && reading.mGroundcover)
+            key = mChainKeys.join(key, *mGroundcoverOverride, false, true);
+
+        return MaterialResolver::Resolved{ .mIndex = mMaterials.adopt(key, reading), .mKey = key };
     }
 
     const osg::StateSet* SceneExtractor::animate(osg::Node& node, const std::size_t placement, const bool underAnimated)

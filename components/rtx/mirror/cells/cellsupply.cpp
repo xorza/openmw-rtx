@@ -72,8 +72,8 @@ namespace Rtx
         if (!mWorld.isReadable())
             return;
 
-        mReader = std::make_unique<CellReader>(
-            *mWorld.mStorage, *mWorld.mGround, *mWorld.mContent, mWorld.mWorldspace, mWorld.mMask, mWorld.mGroundcover);
+        mReader = std::make_unique<CellReader>(*mWorld.mStorage, *mWorld.mGround, *mWorld.mContent, mWorld.mWorldspace,
+            mWorld.mMask, mWorld.mGroundcover, mWorld.mAbove);
         mWorker.start("cell reader", [this](const Platform::StopToken& stop) { work(stop); });
     }
 
