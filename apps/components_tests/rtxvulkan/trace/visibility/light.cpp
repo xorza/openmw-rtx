@@ -8,6 +8,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -391,9 +392,13 @@ namespace Rtx::Testing
         /// needs all three.
         ///
         /// Measured against the neighbouring test's own numbers rather than against a byte worked out
-        /// here: the tone curve is not the sRGB encode, so half a radiance is not half a byte. What
-        /// *is* exact is that a half-transmitting pane and a half-bright sun are the same
-        /// multiplication, so they have to land on the same pixel.
+        /// here: the tone curve is not the sRGB encode, so half a radiance is not half a byte. A pane
+        /// that lets all or nothing through lands where no pane and a solid one do, to the byte.
+        ///
+        /// **Half a pane is drawn into the shadow's bit and not into its light** (`gather`): the
+        /// shadowed light under it is the whole sun's, to the bit, and the bit is open on as many of
+        /// its draws as the pane lets through, with the drawn reach. Over 64 frames, n >= 64 draws of
+        /// a half: the mean's deviation is `0.5 / sqrt(n)`, held at four of it.
         TEST_F(RtxVisibilityTest, aTranslucentOccluderDimsTheSunRatherThanStoppingIt)
         {
             // Square in the sun's path to the middle of the wall, which is where the centre pixel
@@ -408,14 +413,52 @@ namespace Rtx::Testing
             EXPECT_EQ(litThroughPane(occluder, white(1.0f), bright), 0)
                 << "a pane that is all there is not translucent at all";
 
-            // Half the sun through the pane is the same multiplication as half a sun with none, and
-            // the tests above pin that at 111.
-            EXPECT_EQ(litThroughPane(occluder, white(0.5f), bright), 111) << "and half of it through half a pane";
-            EXPECT_EQ(litThroughPane(occluder, std::nullopt, osg::Vec3f(1.0f, 1.0f, 1.0f)), 111)
-                << "which is where it came from";
-
             // A pane that stops nothing is a pane that is not there.
             EXPECT_EQ(litThroughPane(occluder, white(0.0f), bright), 153);
+
+            constexpr std::uint32_t size = 33;
+            const std::size_t centre = centreOf(size);
+            std::vector<float> shadowed;
+            std::vector<float> penumbrae;
+            shoot(makeWall(), {}, wallCamera(size, bright), size);
+            mRenderer.readChannel(Channel::Shadowed, shadowed);
+            const float whole = shadowed[centre * 4];
+            ASSERT_GT(whole, 0.0f) << "the sun on the wall, split off";
+
+            // What each frame's bits under a translucent occluder say: how many were drawn by it,
+            // and how many of those came out open.
+            struct Drawn
+            {
+                std::size_t mDraws = 0;
+                std::size_t mOpen = 0;
+            };
+            const auto drawnUnder = [&](const SceneDesc& scene, std::span<const TextureData> textures) {
+                constexpr std::uint32_t frames = 64;
+                Drawn drawn;
+                shoot(scene, textures, wallCamera(size, bright), size,
+                    { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                         mRenderer.readChannel(Channel::Shadowed, shadowed);
+                         mRenderer.readChannel(Channel::Penumbra, penumbrae);
+                         EXPECT_EQ(shadowed[centre * 4], whole) << "the light under the pane, as though it got through";
+                         EXPECT_EQ(penumbrae[centre], Shaders::SHADOW_PENUMBRA_DRAWN);
+                         for (std::size_t pixel = 0; pixel < penumbrae.size(); ++pixel)
+                             if (penumbrae[pixel] == Shaders::SHADOW_PENUMBRA_DRAWN)
+                             {
+                                 ++drawn.mDraws;
+                                 drawn.mOpen += shadowed[pixel * 4 + 3] == 1.0f ? 1 : 0;
+                             }
+                     } });
+                EXPECT_GE(drawn.mDraws, std::size_t{ frames });
+                return drawn;
+            };
+            const auto expectHalfOpen = [](const Drawn& drawn, std::string_view what) {
+                const double open = static_cast<double>(drawn.mOpen) / static_cast<double>(drawn.mDraws);
+                EXPECT_NEAR(open, 0.5, 4.0 * 0.5 / std::sqrt(static_cast<double>(drawn.mDraws))) << what;
+            };
+
+            SceneDesc halfPane = makeWall();
+            addPane(halfPane, occluder, white(0.5f));
+            expectHalfOpen(drawnUnder(halfPane, {}), "half of it through half a pane");
 
             // **A cutout the game is fading lets the sun through its holes, as the eye sees them.**
             // The eye passes a texel under the cutoff and peels what is left by its alpha times the
@@ -424,8 +467,6 @@ namespace Rtx::Testing
             // alpha instead, a quarter under a half fade, the wall stood at 144 where the eye saw
             // nothing standing in the sun's way.
             const auto throughFadedCutout = [&](std::uint8_t alpha, float fade) {
-                constexpr std::uint32_t size = 33;
-
                 const std::array<std::uint8_t, 4> texel{ 255, 255, 255, alpha };
                 const std::array<TextureData, 1> textures{ describeTexel(texel) };
 
@@ -445,7 +486,18 @@ namespace Rtx::Testing
 
             EXPECT_EQ(throughFadedCutout(64, 1.0f), 153) << "a hole in a cutout the game shows whole";
             EXPECT_EQ(throughFadedCutout(64, 0.5f), 153) << "and in one the game is fading";
-            EXPECT_EQ(throughFadedCutout(255, 0.5f), 111) << "whose opaque texels are half there, as half a pane is";
+
+            const std::array<std::uint8_t, 4> solid{ 255, 255, 255, 255 };
+            const std::array<TextureData, 1> painted{ describeTexel(solid) };
+            SceneDesc fading = makeWall();
+            const Index cut = fading.addMaterial(Material{
+                .mDiffuse = fading.textures().add(VFS::Path::NormalizedView("cutout.dds")),
+                .mAlphaTest = { .mReference = 0.5f },
+                .mAlphaMode = AlphaMode::Cutout,
+            });
+            fading.addInstance(
+                MeshInstance{ .mMesh = addQuadMesh(fading, occluder), .mMaterial = cut, .mOpacity = 0.5f });
+            expectHalfOpen(drawnUnder(fading, painted), "whose opaque texels are half there, as half a pane is");
         }
 
         /// A glow, which the engine treats as two different things and so does this.
