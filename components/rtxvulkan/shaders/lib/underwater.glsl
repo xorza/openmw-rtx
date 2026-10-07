@@ -159,17 +159,6 @@ Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent
         under.mOpen < 1.0 ? under.mOccluder : min(bent.mPath + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
 }
 
-/// What a stretch of water `path` long along `direction` gathers of a light arriving `slant` units of
-/// water per unit of depth, as a share of the stretch: `exp(-o k h)`'s factor along the ray,
-/// `(1 - exp(-o g L)) / g` with `g = 1 - k d.z`, in `mediumKept`'s form, which holds its digits
-/// however short the stretch or level the ray, and which a negative `g` — looking up toward the
-/// light — does not trouble.
-vec3 gatheredAlong(vec3 direction, float slant, float path)
-{
-    const vec3 depth = WATER_EXTINCTION * ((1.0 - slant * direction.z) * path);
-    return WATER_EXTINCTION * path * vec3(mediumKept(depth.x), mediumKept(depth.y), mediumKept(depth.z));
-}
-
 /// What one light in the sky sends toward the eye along the stretch, closed form: its irradiance
 /// across its own line once the surface has bent it (`WaterCrossing::mBeam`), what the water
 /// over the stretch's start leaves of it, the phase at the bent line's angle to the ray, and what the

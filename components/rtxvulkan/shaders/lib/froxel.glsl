@@ -91,35 +91,6 @@ float froxelMiddle(uint slice)
     return fogDepth((float(slice) + 0.5) / float(FOG_VOLUME_SLICES)) * FOG_REACH;
 }
 
-/// What one slice of a column scatters and takes out, once everything that lights it is applied, each
-/// times the density (`fogDensityAt`): the air's own colour with the moons and the lamps in it, the
-/// sun's transport with the irradiance and the phase left off, and the density itself, which the
-/// weather's extinction makes per world unit.
-///
-/// **The products and not their factors** (D7): what a stretch integrates is the extinction times
-/// the light, and the two move against each other — a froxel the bank's edge crosses is dense and
-/// shadowed on one side and thin and lit on the other — so the mean of their product is not the
-/// product of their means, which is what a history and a tent of the two apart came to.
-///
-/// **A sample at the slice's middle, and not a constant over the slice.** The volume holds one of
-/// these per froxel, and what a froxel's value is is a property of one point in it, averaged over
-/// draws — so between two of them the air is what a sampler says it is between two texels: the
-/// line from one to the next. `fogThrough` integrates that line, and `fogintegrate.comp` and
-/// `fogVolumeAlong` both step through it, so a column's accumulation and a pixel's read of the
-/// slice it ends in agree exactly at the slice's far edge.
-///
-/// **Constant over a slice instead, the grid drew itself.** The accumulation was then a straight
-/// line across every slice with a corner at every edge — or, reconstructed with a cubic to hide the
-/// corners, a bump in the middle of every slice — and either is a pattern with the slices' own
-/// period, laid on the ground as shells around the eye wherever two neighbouring slices held
-/// different air. Banked air holds different air in neighbouring slices everywhere.
-struct FogSlice
-{
-    vec3 mSource;
-    float mDensity;
-    float mSunSource;
-};
-
 /// What the scatter pass measures at one froxel, as `fogscatter.rgen` packs it into two images
 /// and `fogintegrate.comp` and `puffLight` read it back.
 ///
@@ -171,16 +142,6 @@ FogPoint unpackFogPoint(vec4 scatter, vec4 sunward)
     return FogPoint(scatter.xyz, scatter.w, unpackFogSeeing(sunward));
 }
 
-/// The accumulation up to a slice's far edge, as `fogintegrate.comp` packs it and
-/// `fogVolumeAlong` reads it: what scattered in, what is left of the ray, and the sun's transport
-/// alone.
-struct FogColumn
-{
-    vec3 mScattered;
-    float mTransmittance;
-    float mSunward;
-};
-
 vec4 packFogColumn(FogColumn column)
 {
     return vec4(column.mScattered, column.mTransmittance);
@@ -209,38 +170,6 @@ float packFogSliceSunward(FogSlice slice)
 FogSlice unpackFogSlice(vec4 slice, float sunward)
 {
     return FogSlice(slice.xyz, slice.w, sunward);
-}
-
-FogSlice fogSliceBetween(FogSlice from, FogSlice to, float fraction)
-{
-    return FogSlice(mix(from.mSource, to.mSource, fraction), mix(from.mDensity, to.mDensity, fraction),
-        mix(from.mSunSource, to.mSunSource, fraction));
-}
-
-/// Carries a ray `length` units through air of `slice`, under the weather's `extinction` per unit of
-/// density, accumulating what it scattered in and taking off what it lost.
-///
-/// **The source is the extinction times the light, so what a stretch scatters in is
-/// `T (1 - e^-σd) / σ` of it** — the transmittance's share the source keeps over the stretch —
-/// which `mediumKept` holds to its digits however thin the air, and which is the stretch's length times
-/// the transmittance where there is no air at all. What the transmittance loses is the same stretch
-/// times `σ`.
-///
-/// **The transmittance exact over a stretch the line does not bend in, and the light scattered in
-/// the midpoint rule's, second order in the stretch.** A linear density's mean is its middle, so the
-/// optical depth is exact; the light a linear source scatters through a linear density has a closed
-/// form only through `erf`, and the middle's source over the stretch's loss is its midpoint estimate.
-/// Which is why both callers cut a slice at its middle: the line from one slice's sample to the next
-/// bends only at the samples, so each half of a slice is one straight piece.
-void fogThrough(
-    inout float transmittance, inout vec3 scattered, inout float sunward, FogSlice slice, float length, float extinction)
-{
-    const float depth = slice.mDensity * extinction * length;
-    const float share = transmittance * mediumKept(depth);
-
-    scattered += share * length * extinction * slice.mSource;
-    sunward += share * length * extinction * slice.mSunSource;
-    transmittance -= share * depth;
 }
 
 #endif

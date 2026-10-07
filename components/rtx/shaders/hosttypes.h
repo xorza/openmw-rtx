@@ -75,6 +75,18 @@ namespace Rtx::Shaders
     {
         return v * (1.0f / std::sqrt(v * v));
     }
+
+    /// GLSL's `mix`, in the order the device's pinning rounds it (`spirvpin.hpp`):
+    /// `fma(y, a, x (1 - a))`.
+    inline float mix(float x, float y, float a)
+    {
+        return std::fma(y, a, x * (1.0f - a));
+    }
+
+    inline vec3 mix(const vec3& x, const vec3& y, float a)
+    {
+        return vec3(mix(x[0], y[0], a), mix(x[1], y[1], a), mix(x[2], y[2], a));
+    }
 }
 
 #else
