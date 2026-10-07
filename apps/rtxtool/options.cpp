@@ -336,9 +336,10 @@ namespace RtxTool
 
         option(Verbs::Noise, "versus", bpo::value<std::string>()->default_value(""),
             "a second side in the same run: <switch>=<value> takes the frame and its mean again with that "
-            "one switch of the reconstruction changed, at the same draws, and judges both. The reference "
-            "and the bar are the first side's where the switch changes nothing an unfiltered frame "
-            "reads, and its own where it does. What `omw noise --ab` runs");
+            "one switch of the reconstruction changed, at the same draws, and judges both. The bar is "
+            "the first side's where the switch changes nothing an unfiltered frame reads, and the "
+            "reference where it changes nothing the truth traces; each its own where it does. What "
+            "`omw noise --ab` runs");
 
         option(sRuns, "views", bpo::value<std::string>()->default_value(""),
             "which views.cfg views to visit, comma separated, by name rather than by suite. "

@@ -1050,6 +1050,13 @@ namespace RtxTool
                 truth.mLampCandidates = 0u;
                 return truth;
             };
+            // **And its own reference only where the truth it traces is another**: a switch the truth
+            // sets for itself — the jitter, the noise, the level epsilon, the floor, the lamps it
+            // weighs — leaves the first side's, which is 256 frames a place not traced twice. Every
+            // field the truth keeps is one the unfiltered request keeps, so an own reference comes
+            // with an own bar.
+            const bool ownReference = versus.has_value() && referenceOf(*versus) != referenceOf(played);
+            assert(!ownReference || ownBar);
             const Rtx::ExposureRule held = Rtx::HeldExposure{};
 
             // One picture of `place` after `frames` frames: their sum where `summed`, and the last of
@@ -1111,54 +1118,69 @@ namespace RtxTool
 
             // `sNoiseMeanDraws` draws of `drawn`, each adding its last frame to the mean `suffix`
             // names, as shown.
-            const auto drawMean
-                = [&](const Stop& place, const Stop& drawn, const std::string_view suffix, std::vector<Stop>& into) {
-                      for (std::uint32_t draw = 0; draw < sNoiseMeanDraws; ++draw)
-                      {
-                          Stop again = drawn;
-                          again.mName = place.mName + std::string(suffix);
-                          again.mActions.mCapture.clear();
-                          again.mActions.mMean = Actions::Mean{
-                              .mFile = folder / (place.mName + std::string(suffix) + ".png"),
-                              .mOf = sNoiseMeanDraws,
-                          };
-                          into.push_back(std::move(again));
-                      }
-                  };
-
-            // One side of a place: its reference, its bar and the bar's limit where `bar` asks, then its
-            // frame and the frame's mean. **The sample offsets are the stop's place in a whole side**,
-            // so the other side draws what the first drew, and an A/B compares two reconstructions of
-            // one set of draws. A side that asks what the first asked took the frame to the byte at
-            // the glow-lit chamber, and the frame's mean to within 50 bytes of 8.3 million, each by
-            // one level, which no figure of the report showed: the card's arithmetic under the
-            // wavelet (`docs/rtx/architecture.md`, the denoiser), which two runs differ by too.
+            // **The sample offsets are each stop's place in a whole side**, so the other side draws
+            // what the first drew, and an A/B compares two reconstructions of one set of draws. A side
+            // that asks what the first asked took the frame to the byte at the glow-lit chamber, and
+            // the frame's mean to within 50 bytes of 8.3 million, each by one level, which no figure
+            // of the report showed: the card's arithmetic under the wavelet
+            // (`docs/rtx/architecture.md`, the denoiser), which two runs differ by too. The places:
+            // the reference, the bar, the bar's limit's draws, the frame, the frame's mean's draws.
             constexpr std::size_t stopsASide = 3 + 2 * sNoiseMeanDraws;
             static_assert(stopsASide * std::uint64_t{ sNoiseSampleStride } <= ~std::uint32_t{ 0 },
                 "the sample offsets of one place past what a frame number holds");
-            const auto drawSide = [&](const Stop& place, const Rtx::ReconstructionRequest& side, const bool bar,
-                                      std::vector<Stop>& into) {
-                const std::size_t first = into.size();
+            const auto offsetAt = [](const std::size_t at, const std::uint32_t later) {
+                return static_cast<std::uint32_t>(at * sNoiseSampleStride) + later;
+            };
+
+            // `sNoiseMeanDraws` draws of `drawn`, at the places from `at` on, each adding its last
+            // frame to the mean `suffix` names, as shown.
+            const auto drawMean = [&](const Stop& place, const Stop& drawn, const std::string_view suffix,
+                                      const std::size_t at, const std::uint32_t later, std::vector<Stop>& into) {
+                for (std::uint32_t draw = 0; draw < sNoiseMeanDraws; ++draw)
+                {
+                    Stop again = drawn;
+                    again.mName = place.mName + std::string(suffix);
+                    again.mActions.mCapture.clear();
+                    again.mActions.mMean = Actions::Mean{
+                        .mFile = folder / (place.mName + std::string(suffix) + ".png"),
+                        .mOf = sNoiseMeanDraws,
+                    };
+                    again.mSchedule.mSampleOffset = offsetAt(at + draw, later);
+                    into.push_back(std::move(again));
+                }
+            };
+
+            // One side of a place: its reference where `reference` asks, its bar and the bar's limit
+            // where `bar` asks, then its frame and the frame's mean.
+            //
+            // **The bar and its limit start their samples as much later as their warm-up is shorter**
+            // than a filtered picture's, so each measured frame draws what it drew when they warmed
+            // over `sHistoryFrames`: what moved is the air's tail alone.
+            const auto drawSide = [&](const Stop& place, const Rtx::ReconstructionRequest& side, const bool reference,
+                                      const bool bar, std::vector<Stop>& into) {
+                if (reference)
+                {
+                    Stop truth = picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, referenceOf(side),
+                        std::nullopt, Rtx::Upscale::Off);
+                    truth.mActions.mDeepCapture = true;
+                    truth.mSchedule.mSampleOffset = offsetAt(0, 0);
+                    into.push_back(std::move(truth));
+                }
                 if (bar)
                 {
-                    Stop reference = picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true,
-                        referenceOf(side), std::nullopt, Rtx::Upscale::Off);
-                    reference.mActions.mDeepCapture = true;
-                    into.push_back(std::move(reference));
-                    const Stop averaged
+                    // Unfiltered at a held exposure, so the air's is its one history (`sAirFrames`).
+                    const std::uint32_t shortened = sHistoryFrames - sAirFrames;
+                    Stop averaged
                         = picture(place, sNoiseBarSuffix, barFrames, true, side.unfiltered(), held, Rtx::Upscale::Off);
+                    averaged.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = sAirFrames };
+                    averaged.mSchedule.mSampleOffset = offsetAt(1, shortened);
                     into.push_back(averaged);
-                    drawMean(place, averaged, sNoiseBarLimitSuffix, into);
+                    drawMean(place, averaged, sNoiseBarLimitSuffix, 2, shortened, into);
                 }
-                const Stop judged = frame(place, side);
+                Stop judged = frame(place, side);
+                judged.mSchedule.mSampleOffset = offsetAt(2 + sNoiseMeanDraws, 0);
                 into.push_back(judged);
-                drawMean(place, judged, sNoiseMeanSuffix, into);
-
-                const std::size_t skipped = bar ? 0 : 2 + sNoiseMeanDraws;
-                assert(into.size() - first + skipped == stopsASide);
-                for (std::size_t at = first; at < into.size(); ++at)
-                    into[at].mSchedule.mSampleOffset
-                        = static_cast<std::uint32_t>((at - first + skipped) * sNoiseSampleStride);
+                drawMean(place, judged, sNoiseMeanSuffix, 3 + sNoiseMeanDraws, 0, into);
             };
 
             std::vector<Stop> stops;
@@ -1169,17 +1191,20 @@ namespace RtxTool
             versusSides.reserve(versus.has_value() ? places.size() : 0);
             for (const Stop& place : places)
             {
-                sides.push_back(NoiseSide{ .mPlace = place.mName, .mFrame = place.mName, .mBar = place.mName });
-                drawSide(place, played, true, stops);
+                sides.push_back(NoiseSide{
+                    .mPlace = place.mName, .mFrame = place.mName, .mBar = place.mName, .mReference = place.mName });
+                drawSide(place, played, true, true, stops);
                 if (!versus.has_value())
                     continue;
 
                 // After the first side's reference, whose exposure every picture after it holds.
                 Stop other = place;
                 other.mName += sNoiseVersusSuffix;
-                versusSides.push_back(NoiseSide{
-                    .mPlace = place.mName, .mFrame = other.mName, .mBar = ownBar ? other.mName : place.mName });
-                drawSide(other, *versus, ownBar, stops);
+                versusSides.push_back(NoiseSide{ .mPlace = place.mName,
+                    .mFrame = other.mName,
+                    .mBar = ownBar ? other.mName : place.mName,
+                    .mReference = ownReference ? other.mName : place.mName });
+                drawSide(other, *versus, ownReference, ownBar, stops);
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
@@ -1194,7 +1219,8 @@ namespace RtxTool
             if (!versus.has_value())
                 return judged;
 
-            out() << std::format("versus --{}{}\n", asked, ownBar ? ", against a bar of its own" : "");
+            out() << std::format("versus --{}{}{}\n", asked, ownBar ? ", against a bar of its own" : "",
+                ownReference ? " and a reference of its own" : "");
             return std::max(judged, judgeNoise(folder, versusSides, barFrames));
         }
 

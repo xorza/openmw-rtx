@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/compare.hpp>
+#include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -44,6 +45,16 @@ namespace RtxTool
         ///
         /// **In a directory of this run's own**, because one shared by name was removed under this
         /// test by another copy of the binary running beside it.
+        /// **An unfiltered picture at a held exposure warms over the air's decay** (`sAirFrames`),
+        /// where a filtered one warms over four accumulator lengths (`sHistoryFrames`): the air keeps
+        /// 0.9 of itself a frame, and the accumulator's `(31/32)^128 = 0.0172` is passed at
+        /// `0.9^39 = 0.0164` and not at `0.9^38 = 0.0182`.
+        TEST(RtxNoiseFrameTest, anUnfilteredPictureWarmsOverTheAirsDecay)
+        {
+            EXPECT_EQ(RtxTool::sHistoryFrames, 128u);
+            EXPECT_EQ(RtxTool::sAirFrames, 39u);
+        }
+
         TEST(RtxCompareTest, aRunIsNotComparedAgainstWhatItWrites)
         {
             const std::filesystem::path root = TestingOpenMW::currentTestDirPath();
@@ -425,7 +436,7 @@ namespace RtxTool
             const auto judge = [&](const std::vector<std::string>& names) {
                 std::vector<NoiseSide> places;
                 for (const std::string& name : names)
-                    places.push_back(NoiseSide{ .mPlace = name, .mFrame = name, .mBar = name });
+                    places.push_back(NoiseSide{ .mPlace = name, .mFrame = name, .mBar = name, .mReference = name });
                 return judgeNoise(root, places, 16);
             };
             EXPECT_EQ(judge({ "clean" }), 0);
@@ -436,18 +447,22 @@ namespace RtxTool
             EXPECT_EQ(judge({ "clean", "noisier-tail" }), 1) << "one noisier place among clean ones";
             EXPECT_EQ(judge({}), 1) << "nothing measured";
 
-            // **A side reads its frame under its own name and its bar under the one it names**: the
-            // frame 3 off, noisier than its own bar 2 off, is as clean as a looser bar 4 off; and a
-            // bar or a frame no side wrote is not measured.
+            // **A side reads its frame under its own name, and its bar and its reference under the
+            // ones it names**: the frame 3 off, noisier than its own bar 2 off, is as clean as a
+            // looser bar 4 off, against another side's reference as well as against its bar's; and
+            // a bar, a reference or a frame no side wrote is not measured.
             place("loose", limit, raisedAt(10, 10, 100, 100, 4));
-            const auto against = [&](const std::string& frame, const std::string& bar) {
-                const std::array places{ NoiseSide{ .mPlace = "side", .mFrame = frame, .mBar = bar } };
+            const auto against = [&](const std::string& frame, const std::string& bar, const std::string& reference) {
+                const std::array places{ NoiseSide{
+                    .mPlace = "side", .mFrame = frame, .mBar = bar, .mReference = reference } };
                 return judgeNoise(root, places, 16);
             };
-            EXPECT_EQ(against("noisier-mean", "noisier-mean"), 1);
-            EXPECT_EQ(against("noisier-mean", "loose"), 0);
-            EXPECT_EQ(against("noisier-mean", "nowhere"), 1) << "a bar no side wrote";
-            EXPECT_EQ(against("nowhere", "loose"), 1) << "a frame no side wrote";
+            EXPECT_EQ(against("noisier-mean", "noisier-mean", "noisier-mean"), 1);
+            EXPECT_EQ(against("noisier-mean", "loose", "loose"), 0);
+            EXPECT_EQ(against("noisier-mean", "loose", "clean"), 0) << "another side's reference";
+            EXPECT_EQ(against("noisier-mean", "nowhere", "loose"), 1) << "a bar no side wrote";
+            EXPECT_EQ(against("noisier-mean", "loose", "nowhere"), 1) << "a reference no side wrote";
+            EXPECT_EQ(against("nowhere", "loose", "loose"), 1) << "a frame no side wrote";
 
             const PictureError tail = measureError(raisedAt(10, 10, 100, 2, 10), limit);
             EXPECT_DOUBLE_EQ(tail.mMean, 0.2);

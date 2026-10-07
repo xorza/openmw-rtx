@@ -627,11 +627,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   monitor's lifetime.
 ### 6.5 Performance (each one measured before it stays)
 
-- **[perf] `noise` warms an unfiltered held-exposure stop for 128 frames** (`main.cpp`, `picture`),
-  sized for a history it has not; the air needs about 39. Target: a warm-up derived from the air's
-  decay, about 30% off a run; confirm the bar and limit pictures do not move.
-- **[perf] `noise --ab` retraces an identical reference** (`ownBar` only): `--ab=jitter`, `noise`
-  and `level-epsilon` leave the reference unchanged. Target: `ownReference` beside `ownBar`.
 - **[perf] Picture uploads go through `osg::Image::getColor`** (`slottexture.cpp`), one virtual
   call a pixel, the global map's tens of megapixels with Tamriel Rebuilt. Target: byte loops for the
   formats the game gives, as `Texture::widen` does.
