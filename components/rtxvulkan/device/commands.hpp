@@ -31,7 +31,7 @@ namespace Rtx
         template <class F>
         void submitAndWait(F&& record)
         {
-            const VkCommandBuffer commands = begin();
+            const VkCommandBuffer commands = beginBatch();
             record(commands);
             endAndWait(commands);
         }
@@ -136,7 +136,7 @@ namespace Rtx
         /// retired buffers would wait for a collect that never came.
         explicit CommandPool(const Device& device);
 
-        VkCommandBuffer begin();
+        VkCommandBuffer beginBatch();
         void endAndWait(VkCommandBuffer commands);
 
         /// Begins `commands` and records the head barrier: what `begin` does for a frame and a

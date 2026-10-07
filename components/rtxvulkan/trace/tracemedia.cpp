@@ -19,7 +19,7 @@ namespace Rtx
               device, 2 * sizeof(std::uint32_t), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "no sprites"))
     {
         // `SPRITE_LIST_UNBINNED` and a count of nought are both nought.
-        mNoSprites.clear();
+        mNoSprites.zeroOnHost();
     }
 
     TraceSubject TraceMedia::describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera,

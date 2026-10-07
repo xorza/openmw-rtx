@@ -43,11 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtxvulkan/device/memory/buffer.hpp:155,215`, `device/commands.hpp:55,139` — overloads
-  with one name do different things. `Buffer::clear()` sets host memory, and `clear(commands)` records a
-  device fill. The private `CommandPool::begin()` opens a batch buffer outside the recording bookkeeping,
-  and the public `begin(VkCommandBuffer)` registers a frame recording. Target shape: different names (for
-  example `zeroOnHost`, `beginBatch`). (low)
 - [ ] `apps/openmw/mwworld/worldimp.cpp:554` — a clock jump (`noteHourWritten`) calls
   `RenderingManager::notifyTeleport`, whose doc (`renderingmanager.hpp:211-217`) speaks only of
   `ActionTeleport`. The seam calls this `notifyCut`. Target shape: rename it `RenderingManager::notifyCut`
