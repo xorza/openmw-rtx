@@ -454,15 +454,18 @@ include(FetchContent)
 # starts: no program imports it, so the game starts on a machine with no loader or an old one and the
 # OpenGL renderer runs there, and the ray tracer refuses the loader by name (`Instance`). The system's
 # package if installed, the pinned release otherwise; the header alone, its body compiled in
-# `device/instance.cpp`. `SYSTEM`: its warnings are not ours.
+# `device/instance.cpp`. `SYSTEM`: its warnings are not ours. **A system's volk at the pinned header
+# version or later**, which volk's own version is: an older one lacks the Vulkan 1.4 entry points the
+# backend calls (`vkCmdPushDescriptorSet`), and would be taken and then fail to compile.
 set(VOLK_HEADERS_ONLY ON)
 set(VOLK_PULL_IN_VULKAN OFF)
+set(RTX_VOLK_VERSION 357)
 FetchContent_Declare(volk
-    URL https://github.com/zeux/volk/archive/refs/tags/vulkan-sdk-1.4.357.0.tar.gz
+    URL https://github.com/zeux/volk/archive/refs/tags/vulkan-sdk-1.4.${RTX_VOLK_VERSION}.0.tar.gz
     URL_HASH SHA512=44feaf57236d8f52d4bde05cf4ba59de5df4730b6c8dc38c278a3aa13d02d4bb48e11660832232f7122c2d55b65d60fe9b5f8fe6725ee63d5d5213e5275b7110
     SOURCE_DIR fetched/volk
     SYSTEM
-    FIND_PACKAGE_ARGS CONFIG QUIET
+    FIND_PACKAGE_ARGS ${RTX_VOLK_VERSION} CONFIG QUIET
 )
 FetchContent_MakeAvailable(volk)
 
@@ -481,13 +484,15 @@ target_link_libraries(openmw-rtx-vulkan PUBLIC components PRIVATE openmw-rtx-spi
 add_dependencies(openmw-rtx-vulkan openmw-rtx-vulkan-shaders)
 
 # Vulkan Memory Allocator, behind `device/memory/memory.hpp`: the system's package if installed, the
-# pinned release otherwise, as `extern/` takes Bullet and MyGUI. `SYSTEM`: its warnings are not ours.
+# pinned release otherwise, as `extern/` takes Bullet and MyGUI, and a system's only at the pinned
+# version or a later one of its major. `SYSTEM`: its warnings are not ours.
+set(RTX_VMA_VERSION 3.4.0)
 FetchContent_Declare(VulkanMemoryAllocator
-    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.4.0.tar.gz
+    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v${RTX_VMA_VERSION}.tar.gz
     URL_HASH SHA512=563acbcd8912d10d92c23715eba7acf0e7c1683af36021f415b36f359c2cce065f3906e395c32282a8410ec5c8179fbcb6412935c6629a49357475d4b4410e2a
     SOURCE_DIR fetched/vma
     SYSTEM
-    FIND_PACKAGE_ARGS CONFIG QUIET
+    FIND_PACKAGE_ARGS ${RTX_VMA_VERSION} CONFIG QUIET
 )
 FetchContent_MakeAvailable(VulkanMemoryAllocator)
 target_link_libraries(openmw-rtx-vulkan PRIVATE GPUOpen::VulkanMemoryAllocator)
