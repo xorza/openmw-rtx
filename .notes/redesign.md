@@ -628,14 +628,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 - **[design] Session packages accumulate without bound** (`crashpackage.cpp`): every session with
   a dump writes a zip nothing deletes. Target: write only for a session the player is told about,
   or prune by count.
-- **[bug] `shellWord` is not one word under `cmd`** (`processwin32.cpp`): `%NAME%` expands inside
-  quotes. Target: escape or refuse, or spawn the encoder (`film.cpp`) with an argument vector.
-- **[code] The macOS leg takes Homebrew's shaderc and SPIR-V tools of the day**
-  (`CI/before_install.macos.sh`), not the pinned SDK's, and spells the headers' path twice. Target:
-  the pinned tools, and one variable.
-- **[bug] The release names files after `github.ref_name`** (`rtx-release.yml`), which a hand-run
-  branch with `/` makes refused by `upload-artifact` at the end of the build. Target: sanitise it
-  once into an environment variable both steps read.
 
 ### 6.4 Measurements that can mislead
 
