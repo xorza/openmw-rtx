@@ -416,7 +416,7 @@ add_component_dir (rtx/image
 add_component_dir (rtx/mirror
     chainkeys contentmemory drawableposer emitterresolver extractionstats lightbuilder materialresolver meshreader
     meshresolver mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading statereading
-    walkcontext worlddescent
+    surfacedescription walkcontext worlddescent
     )
 
 add_component_dir (rtx/mirror/cells

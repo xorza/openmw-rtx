@@ -2,7 +2,6 @@
 # device and fails where there is none, so a box without a driver cannot pass by skipping.
 # `RTX_TEST_SUPPORT` goes into both binaries, `RTX_GPU_TEST_SUPPORT` into the second.
 set(RTX_TEST_FILES
-    rtx/scene/nifsurface.cpp
     myguirtx/sharedtexture.cpp
     platform/process.cpp
     rtx/common/hashstate.cpp
@@ -56,6 +55,7 @@ set(RTX_TEST_FILES
     rtx/mirror/lightbuilder.cpp
     rtx/mirror/meshreader.cpp
     rtx/mirror/mirroridentity.cpp
+    rtx/mirror/nifsurface.cpp
     rtx/mirror/nodekind.cpp
     rtx/mirror/shading.cpp
     rtx/mirror/statereading.cpp

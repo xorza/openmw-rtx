@@ -30,6 +30,7 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/statereading.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/texmat.hpp>
