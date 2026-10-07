@@ -2,6 +2,7 @@
 names. Each thing is judged by the directory it leaves, named after its version, so a bump fetches
 anew and an unchanged pin fetches nothing."""
 
+import hashlib
 import os
 import re
 import shutil
@@ -91,29 +92,45 @@ def windows_clang_format() -> Path:
     return found
 
 
+def pinned_folder(name: str, *pinned: pins.Pin) -> Path:
+    """**Where tools fetched by `pinned` stand, named after their digests**, as the SDK's folder is
+    after its version: a pin changed is a folder not there yet, so a desk that has the old tool, and
+    a CI cache that restores it, fetch the new one rather than keep the old under the same name."""
+    digest = hashlib.sha256("".join(pin.sha256 for pin in pinned).encode()).hexdigest()[:16]
+    return DEPS / f"{name}-{digest}"
+
+
 def appimage_tools() -> Path:
-    tools = DEPS / "appimage"
-    for name, pin in pins.APPIMAGE_TOOLS.items():
-        tool = tools / name
-        if not tool.is_file():
-            fetch.download_pin(pin, tool)
-            tool.chmod(0o755)
-    return tools
+    """linuxdeploy, its two plugins and the AppImage runtime, together in one folder, where
+    linuxdeploy looks for its plugins: fetched beside it and given its name once all four are in."""
+    tools = pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values())
+    if tools.is_dir():
+        return tools
+
+    def fill(partial: Path) -> None:
+        for name, pin in pins.APPIMAGE_TOOLS.items():
+            fetch.download_pin(pin, partial / name)
+            (partial / name).chmod(0o755)
+
+    return fetch.build_beside(tools, fill)
 
 
 def crash_tool(name: str) -> Path:
-    """One of Breakpad's two tools, fetched once into deps/crash: the player never has them, and the
-    desk and CI take the versions `pins.py` names."""
-    tools = DEPS / "crash"
+    """One of Breakpad's two tools, fetched once into a folder of its pin's own: the player never has
+    them, and the desk and CI take the versions `pins.py` names."""
+    pin = pins.CRASH_TOOLS[(name, SYSTEM)]
+    tools = pinned_folder(name, pin)
     tool = tools / f"{name}{EXE}"
     if tool.is_file():
         return tool
 
-    pin = pins.CRASH_TOOLS[(name, SYSTEM)]
-    archive = tools / Path(pin.url).name
-    fetch.download_pin(pin, archive)
-    fetch.extract_member(archive, tool.name, tools)
-    archive.unlink()
+    def fill(partial: Path) -> None:
+        archive = partial / Path(pin.url).name
+        fetch.download_pin(pin, archive)
+        fetch.extract_member(archive, tool.name, partial)
+        archive.unlink()
+
+    fetch.build_beside(tools, fill)
     return tool
 
 
