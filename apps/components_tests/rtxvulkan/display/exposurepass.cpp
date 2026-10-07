@@ -149,7 +149,8 @@ namespace Rtx
         /// **And it adapts in stops**: from an eye metered on the frame at 0.18 to the target of one
         /// at 0.018, which wants the eye open, after `ln 2` of the rising time constant the eye has
         /// closed half the gap in stops, to the geometric mean of the two, where half the gap in the
-        /// exposure itself overshot it by `(e + t) / (2 sqrt(e t))`.
+        /// exposure itself overshot it by `(e + t) / (2 sqrt(e t))`. Back the other way, after `ln 2`
+        /// of the falling one, the eye is at the same mean: one rate in stops, at two speeds.
         TEST_F(RtxExposurePassTest, theMeterLeavesOutTheBrightestTenthAndAdaptsInStops)
         {
             std::vector<float> flames = even(0.18f);
@@ -168,6 +169,14 @@ namespace Rtx
             const float adapted = meterAll(std::array{
                 settled[0], settled[1], Metered{ .mLuminances = even(0.018f), .mElapsed = half, .mReset = false } });
             EXPECT_NEAR(adapted, std::sqrt(keyed * dark), std::sqrt(keyed * dark) * 1e-5f) << "half the gap in stops";
+
+            const std::array<Metered, 2> opened = settledOn(even(0.018f));
+            const float closed = meterAll(std::array{ opened[0], opened[1],
+                Metered{ .mLuminances = even(0.18f),
+                    .mElapsed = Shaders::EXPOSURE_FALL_SECONDS * std::numbers::ln2_v<float>,
+                    .mReset = false } });
+            EXPECT_NEAR(closed, std::sqrt(keyed * dark), std::sqrt(keyed * dark) * 1e-5f)
+                << "half the gap in stops, closing";
         }
 
         /// **An eye with no past starts at a bright day and opens toward what it meters**, so a load
