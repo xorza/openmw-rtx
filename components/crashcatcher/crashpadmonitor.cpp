@@ -436,16 +436,24 @@ namespace Crash
         /// **The hang watch**, once a second: a frame counter that stops for the limit is a hang,
         /// reported once until it moves again. It begins at the first frame, so a start that
         /// draws nothing for a while is not one.
+        ///
+        /// **The stall is summed a wake at a time, each at most `sLongestWake`**: a monitor that slept
+        /// through a suspend of the machine, or was not scheduled, wakes once late, and that once is
+        /// a tick and not the hours it missed. And a game something else holds still — a debugger, a
+        /// stop from a shell — stands still by no fault of its own, so its stall starts again once
+        /// it runs (`GameProcess::isHeld`).
         void watch(MonitorState& monitor)
         {
             Heartbeat* const page = monitor.mPage.get();
             if (page == nullptr)
                 return;
 
+            constexpr std::chrono::seconds sLongestWake{ 2 };
             std::uint64_t last = 0;
             bool started = false;
             bool reported = false;
-            auto since = std::chrono::steady_clock::now();
+            auto woke = std::chrono::steady_clock::now();
+            std::chrono::steady_clock::duration stalledFor{};
 
             for (;;)
             {
@@ -458,20 +466,31 @@ namespace Crash
                 const std::uint64_t frames = std::atomic_ref(page->mFrames).load();
                 const std::uint32_t limit = std::atomic_ref(page->mHangSeconds).load();
                 const auto now = std::chrono::steady_clock::now();
-                const auto stalled = std::chrono::duration_cast<std::chrono::seconds>(now - since);
+                const auto step = std::min<std::chrono::steady_clock::duration>(now - woke, sLongestWake);
+                woke = now;
 
                 if (frames != last || !started)
                 {
                     if (reported)
-                        appendToLog(
-                            monitor, { "Hang: frames again after " + std::to_string(stalled.count()) + " seconds" });
+                        appendToLog(monitor,
+                            { "Hang: frames again after "
+                                + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(stalledFor).count())
+                                + " seconds" });
                     started = started || frames != 0;
                     last = frames;
-                    since = now;
+                    stalledFor = {};
                     reported = false;
                     continue;
                 }
 
+                if (monitor.mGame.isHeld())
+                {
+                    stalledFor = {};
+                    continue;
+                }
+
+                stalledFor += step;
+                const auto stalled = std::chrono::duration_cast<std::chrono::seconds>(stalledFor);
                 if (limit == 0 || reported || stalled.count() < limit)
                     continue;
 

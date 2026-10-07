@@ -32,12 +32,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   and `heldToFast`, as ReLAX clamps specular. (medium)
 ## The crash catcher: hang handling
 
-- [ ] `components/crashcatcher/crashpadmonitor.cpp:427-442` — the stall is `now - since` on
-  `steady_clock`, read once on each wake. A hung game and a stopped game look the same: a debugger at a
-  breakpoint, SIGSTOP or Ctrl+Z (the monitor is in its own session), and on Windows a resume from sleep
-  (MSVC's `steady_clock` is QPC). The box can then say "has not drawn a frame for 3600 seconds". Target
-  shape: add the stall in bounded steps per tick, so one late wake counts as one tick. Skip the check
-  while the game is stopped or traced (`/proc/<pid>/stat` state `T`/`t`, `CheckRemoteDebuggerPresent`). (medium)
 - [ ] `components/crashcatcher/crashpadclientwin32.cpp:27-31` — `fatal`, `std::terminate`, `abort`,
   pure-call and invalid-parameter go to `reportAndEnd`, whose `CRASHPAD_SIMULATE_CRASH` is
   `DumpWithoutCrash`. That waits `INFINITE` for `dump_completed`. If the monitor died earlier, the game
