@@ -19,15 +19,17 @@
 #include "moonbuilder.hpp"
 #include "nightsky.hpp"
 #include "skylight.hpp"
+#include "weather.hpp"
 
 namespace Rtx
 {
     struct ThreadContent;
     class SceneDesc;
 
-    /// Which meshes the sky's two surfaces are read off — `Models/skyclouds` and the two star
-    /// domes — named by the host, because this library holds no settings registry.
-    struct SkyMeshes
+    /// What the sky is read off — `Models/skyclouds`, the atmosphere and the two star domes, and
+    /// each weather's cloud sheet — named by the host, because this library holds no settings or
+    /// fallback registry.
+    struct SkySources
     {
         /// The cap the cloud deck is painted on.
         VFS::Path::Normalized mClouds;
@@ -38,6 +40,10 @@ namespace Rtx
         /// The star dome, and the one to fall back to where the archives hold no `mStars`.
         VFS::Path::Normalized mStars;
         VFS::Path::Normalized mStarsFallback;
+
+        /// Each weather's sheet by `Weather`, as `Weather_<name>_Cloud_Texture` names it: a bare
+        /// file name, and empty where a weather names none.
+        std::array<std::string, sWeatherCount> mCloudSheets;
     };
 
     /// One cloud sheet the sky holds, found by the name a weather gives it.
@@ -69,7 +75,7 @@ namespace Rtx
     /// nothing holds is freed.
     struct SkyContent
     {
-        /// Every sheet held, by name: the ten weathers' from the fallbacks at attach, under a
+        /// Every sheet held, by name: the ten weathers' the host named at attach, under a
         /// megabyte, so a storm arriving costs no upload, and whatever a script named since —
         /// `SkyReader::follow`.
         std::vector<CloudSheet> mSheets;
@@ -109,7 +115,7 @@ namespace Rtx
     /// two skies without Bloodmoon.
     ///
     /// @param thread what each sheet's mean is read through: the frame thread's.
-    SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes,
+    SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkySources& sources,
         ThreadContent& thread, std::vector<TextureHold>& holds);
 
     /// What a cloud deck radiates from below, where its own body shadows it and where it does not.

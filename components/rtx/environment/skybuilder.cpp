@@ -12,7 +12,6 @@
 #include <osg/Vec2f>
 #include <osg/ref_ptr>
 
-#include <components/fallback/fallback.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/result.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -104,7 +103,7 @@ namespace Rtx
         return at;
     }
 
-    SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes,
+    SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkySources& sources,
         ThreadContent& thread, std::vector<TextureHold>& holds)
     {
         SkyContent loaded;
@@ -112,36 +111,32 @@ namespace Rtx
         // Every weather's sheet now, under a megabyte for all ten, so a storm arriving costs no
         // upload. Empty where the weather names none, which the shipped fallbacks do for ash and
         // blight; named once where two weathers share one.
-        for (std::size_t weather = 0; weather < sWeatherCount; ++weather)
-        {
-            const std::string_view sheet = Fallback::Map::getString(
-                "Weather_" + std::string(nameOf(static_cast<Weather>(weather))) + "_Cloud_Texture");
+        for (const std::string& sheet : sources.mCloudSheets)
             if (!sheet.empty() && loaded.sheetNamed(sheet) == sNoSheet)
                 addCloudSheet(scene, scenes, thread, holds, sheet, loaded);
-        }
 
         // The shape the deck hangs on is the mesh's, both of its numbers: how high the layer is
         // in tiles of its own sheet, and how far it falls away over the ground it covers.
-        if (const Misc::Result<CloudShell, std::string> shell = readCloudShell(scenes, meshes.mClouds); shell.isOk())
+        if (const Misc::Result<CloudShell, std::string> shell = readCloudShell(scenes, sources.mClouds); shell.isOk())
             loaded.mShell = shell.value();
         else
-            scene.refusals().refuse(Refused::SkyLayer, meshes.mClouds.value(), shell.error());
+            scene.refusals().refuse(Refused::SkyLayer, sources.mClouds.value(), shell.error());
 
         // Where the fog colour fades to the sky colour is the atmosphere mesh's.
-        if (const Misc::Result<Atmosphere, std::string> atmosphere = readAtmosphere(scenes, meshes.mAtmosphere);
+        if (const Misc::Result<Atmosphere, std::string> atmosphere = readAtmosphere(scenes, sources.mAtmosphere);
             atmosphere.isOk())
             loaded.mAtmosphere = atmosphere.value();
         else
-            scene.refusals().refuse(Refused::SkyLayer, meshes.mAtmosphere.value(), atmosphere.error());
+            scene.refusals().refuse(Refused::SkyLayer, sources.mAtmosphere.value(), atmosphere.error());
 
         // The night sky is the mesh's, every number of it: which sheet the field wears, how much
         // sky a tile of it covers, where it fades out, and where the six patches sit.
         if (const Misc::Result<NightSky, std::string> night
-            = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback, thread, holds);
+            = readNightSky(scene, scenes, sources.mStars, sources.mStarsFallback, thread, holds);
             night.isOk())
             loaded.mNight = night.value();
         else
-            scene.refusals().refuse(Refused::SkyLayer, meshes.mStars.value(), night.error());
+            scene.refusals().refuse(Refused::SkyLayer, sources.mStars.value(), night.error());
 
         return loaded;
     }
