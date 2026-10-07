@@ -33,11 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Facts of one layer are in another layer
 
-- [ ] `components/rtx/environment/skybuilder.cpp:114-120` — `addSkyContent` reads
-  `Fallback::Map::getString("Weather_<name>_Cloud_Texture")` from the global registry and makes a string
-  for each weather. Its own `SkyMeshes` doc says the library "holds no settings registry"
-  (`skybuilder.hpp:28-29`), and the moon sizes come from the host (`moonbuilder.hpp:139-141`). Target
-  shape: the host gives the ten sheet names, for example beside `SkyMeshes`. (medium)
 - [ ] `components/rtx/mirror/cells/mirrorknobs.hpp:16` — nothing in `components/` reads `MirrorKnobs`.
   Only `apps/openmw/mwrender/rtx/{rtxsettings,worldmirror}.cpp` and `apps/rtxtool` read it. Target shape:
   move it to `apps/openmw/mwrender/rtx`. (low)

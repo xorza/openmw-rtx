@@ -103,8 +103,9 @@ namespace MWRender
             const Rtx::WorldReading& reading, Rtx::Shaders::VisibilityConstants& constants, Rtx::FrameOptions& options);
 
     private:
-        /// The sky's own meshes, as the settings name them.
-        static Rtx::SkyMeshes meshes();
+        /// The sky's own meshes, as the settings name them, and each weather's sheet, as the
+        /// fallbacks do.
+        static Rtx::SkySources sources();
 
         /// The moons' portraits and the sky's own meshes, named from `attach` to `detach`.
         Rtx::MoonFaces mMoonFaces;

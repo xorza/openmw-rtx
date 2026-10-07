@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <limits>
 #include <optional>
 
@@ -21,6 +22,7 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -53,20 +55,25 @@ namespace MWRender
     {
     }
 
-    Rtx::SkyMeshes SkyReader::meshes()
+    Rtx::SkySources SkyReader::sources()
     {
-        return Rtx::SkyMeshes{
+        Rtx::SkySources sources{
             .mClouds = Settings::models().mSkyclouds,
             .mAtmosphere = Settings::models().mSkyatmosphere,
             .mStars = Settings::models().mSkynight02,
             .mStarsFallback = Settings::models().mSkynight01,
+            .mCloudSheets = {},
         };
+        for (std::size_t weather = 0; weather < Rtx::sWeatherCount; ++weather)
+            sources.mCloudSheets[weather] = Fallback::Map::getString(
+                std::format("Weather_{}_Cloud_Texture", Rtx::nameOf(static_cast<Rtx::Weather>(weather))));
+        return sources;
     }
 
     void SkyReader::listAssets(const VFS::Manager& vfs, std::vector<VFS::Path::Normalized>& models,
         std::vector<VFS::Path::Normalized>& textures)
     {
-        const Rtx::SkyMeshes sky = meshes();
+        const Rtx::SkySources sky = sources();
         models.push_back(sky.mClouds);
         models.push_back(sky.mAtmosphere);
         if (vfs.exists(sky.mStars))
@@ -80,7 +87,7 @@ namespace MWRender
     void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ThreadContent& thread)
     {
         mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds, thread);
-        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), thread, mHolds);
+        mSkyContent = Rtx::addSkyContent(scene, scenes, sources(), thread, mHolds);
         mTimescaleClouds = Fallback::Map::getBool("Weather_Timescale_Clouds");
     }
 
