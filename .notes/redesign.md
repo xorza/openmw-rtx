@@ -627,9 +627,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   monitor's lifetime.
 ### 6.5 Performance (each one measured before it stays)
 
-- **[perf] Picture uploads go through `osg::Image::getColor`** (`slottexture.cpp`), one virtual
-  call a pixel, the global map's tens of megapixels with Tamriel Rebuilt. Target: byte loops for the
-  formats the game gives, as `Texture::widen` does.
 - **[perf] The pane and glossy filters gather history for pixels they discard** (`pane.comp`
   without `stands`, `specular.comp` without `reflects`). Target: gate the gather on the kept
   result, and measure the zones.
