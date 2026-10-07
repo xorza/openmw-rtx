@@ -69,12 +69,6 @@ namespace Rtx
         mErrors.erase(taken, mErrors.end());
     }
 
-    void ValidationLog::clear()
-    {
-        const std::lock_guard<std::mutex> lock(mMutex);
-        mErrors.clear();
-    }
-
     AdoptedThread::AdoptedThread(std::thread::id owner)
         : mPrevious(sFiledUnder)
     {

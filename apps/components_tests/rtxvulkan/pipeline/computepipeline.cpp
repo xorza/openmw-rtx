@@ -69,10 +69,12 @@ namespace Rtx
             // Pushed a float, so the layout the unwind has to give back holds a push range too.
             EXPECT_THROW(ComputePipeline<float>(*device, bindings, {}, "no-such.comp.spv", "scratch"), InputError);
 
-            log->clear();
+            // What the failed build raised, taken away, so what is left to read is the teardown's.
+            std::vector<std::string> raised;
+            log->takeErrorsOnThisThread(raised);
+            raised.clear();
             device.reset();
 
-            std::vector<std::string> raised;
             log->takeErrorsOnThisThread(raised);
             for (const std::string& message : raised)
                 ADD_FAILURE() << "validation error at device teardown: " << message;

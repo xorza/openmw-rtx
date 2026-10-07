@@ -113,8 +113,6 @@ namespace Rtx
         /// handed between owners that do not know each other.
         inline constexpr ImageUse sAnyGeneral{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT };
-        inline constexpr ImageUse sAnyGeneralWrite{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-            VK_ACCESS_2_MEMORY_WRITE_BIT };
         inline constexpr ImageUse sAnyGeneralRead{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             VK_ACCESS_2_MEMORY_READ_BIT };
 
