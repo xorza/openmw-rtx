@@ -945,7 +945,7 @@ namespace Rtx::Shaders
         float mRadius;
 
         /// The streak's own axis in the world, per unit of `mRadius`, or zero for a sprite that
-        /// faces the eye. Per particle, because `Weather::RainShooter` leans each drop into the wind
+        /// faces the eye. Per particle, because `MWRender::RainShooter` leans each drop into the wind
         /// it was fired under. Not normalised, because its length is the shape.
         vec3 mAxis RTX_ZERO;
 
