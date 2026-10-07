@@ -302,7 +302,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         const Passage passage
             = skyPassageThrough(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw, split);
 
-        // **Each source's term whole, as the lamps' unshadowed sum is** (D3.2): split, every source
+        // **Each source's term whole, as the lamps' unshadowed sum is**: split, every source
         // with a weight is in the light the bit multiplies, so a pixel's hue is the sources' and
         // not the pick's; unsplit, the drawn one over its chance and the minor ones whole, under
         // the one ray.
@@ -416,7 +416,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
 
         // In the surface's own footprints, which is what the denoiser's reach is counted in; and the
         // whole reach where the bit was drawn — where its own source carries less than all but the
-        // floor of the light (D3.3), since that bit is noise however hard its shadow. As products,
+        // floor of the light, since that bit is noise however hard its shadow. As products,
         // for the reason `pickByWeight` compares against weights and not quotients.
         const float whole = (1.0 - frame.mShadowFloor) * shares;
         // A bit the translucency was drawn into is noise as well.
@@ -461,9 +461,10 @@ vec3 pathEnd(vec3 position, float reaching)
 }
 
 /// What the lobe's light is divided by before the glossy filter averages it, and the composite
-/// multiplies back: `gloss`'s split-sum specular albedo (`Gloss::mAlbedo`), the D6 contract, so a
-/// history blended over a replacer's speckled reflectance keeps the speckle sharp, as the bounce's
-/// demodulation keeps a texture. Held at `SPECULAR_ALBEDO_FLOOR` from below, which says why it is
+/// multiplies back: `gloss`'s split-sum specular albedo (`Gloss::mAlbedo`). Every channel a filter
+/// averages holds light per unit of the albedo the composite puts back, so a history blended over a
+/// replacer's speckled reflectance keeps the speckle sharp, as the bounce's demodulation keeps a
+/// texture. Held at `SPECULAR_ALBEDO_FLOOR` from below, which says why it is
 /// a floor, and one where there is no lobe.
 ///
 /// **Rounded to what the payload carries before anything is divided by it** (`packRgb9e5`, whose

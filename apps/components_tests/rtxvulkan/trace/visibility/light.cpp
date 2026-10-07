@@ -1180,7 +1180,7 @@ namespace Rtx::Testing
                 << "the tint on the reflectance";
 
             // **The lobe's light is divided by its albedo held at `SPECULAR_ALBEDO_FLOOR` from
-            // below** (D6): the dielectric's own at the eye's 45°, and a tint of a twentieth, which
+            // below**: the dielectric's own at the eye's 45°, and a tint of a twentieth, which
             // takes the reflectance to 0.2% and the albedo under the floor in every channel, at the
             // floor where it was one. To the shared exponent's nine-bit mantissa that
             // `specularModulation` rounds to, `2^-9` of the value, and the host's 1e-4 above.

@@ -1398,8 +1398,10 @@ namespace Rtx::Shaders
     /// `(1 - 2^(-200 r²)) r^¼`. **What bounds a sharp reflection's lag**: the view's turn drops a
     /// history only where the eye moves, and a lamp or a body moving before a still eye left a
     /// mirror's reflection thirty-two frames behind it. NRD ships it off, at nought, and names
-    /// animated water as its use; here no fast history bounds the lag instead (`redesign.md`, Phase 3
-    /// step 5). At a quarter: 0.05 keeps seven frames, 0.02 three, and 0.15 twenty-seven.
+    /// animated water as its use; here no fast history bounds the lag instead: a two-frame fast mean
+    /// clamping the slow one took a still eye's filtered means off the mean of their frames, since a
+    /// lamp drawn rarely and bright is held by the slow mean and seldom by the box of fast ones. At a
+    /// quarter: 0.05 keeps seven frames, 0.02 three, and 0.15 twenty-seven.
     const float SPECULAR_RESPONSIVE_ROUGHNESS = 0.25f;
 
     /// The fewest frames a responsive history keeps, NRD's default: a mirror's reflection is a sample

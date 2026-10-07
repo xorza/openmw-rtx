@@ -103,7 +103,7 @@ struct PaneStack
     /// before the floor. Kept out of `mRadiance`, which holds what they glow with and the air between
     /// them.
     ///
-    /// **Their lobes' light is not here but in `mRadiance`, composed unfiltered** (D6): the pane
+    /// **Their lobes' light is not here but in `mRadiance`, composed unfiltered**: the pane
     /// filter keeps a layer's history whole over every turn of the view, which a reflection does not
     /// survive, and divided by the diffuse albedo it was taken apart by an albedo it is not of. Every
     /// vanilla layer has no lobe, and the upscaler's accumulation takes a replacer's.
@@ -475,7 +475,7 @@ void main()
     // filters.
     const vec3 unshadowed = answer.mShadowed * transmittance;
     const float open = answer.mOpen ? 1.0 : 0.0;
-    // The lobe's light per unit of its specular albedo, which the composite puts back (D6).
+    // The lobe's light per unit of its specular albedo, which the composite puts back.
     const vec3 lobe = answer.mSpecular * transmittance;
 
     // **The layers' drawn light, the world's behind the arms' as their pictures meet.** Divided by
