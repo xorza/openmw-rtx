@@ -279,7 +279,7 @@ namespace RtxTool
             const std::string& place = side.mPlace;
             const std::array<Misc::Result<Rtx::PngImage, std::string>, 5> pictures{ read(side.mFrame, ""),
                 read(side.mFrame, sNoiseMeanSuffix), read(side.mBar, sNoiseBarSuffix),
-                read(side.mBar, sNoiseBarLimitSuffix), read(side.mBar, sNoiseReferenceSuffix) };
+                read(side.mBar, sNoiseBarLimitSuffix), read(side.mReference, sNoiseReferenceSuffix) };
             const auto unread = std::ranges::find_if(pictures, [](const auto& one) { return !one.isOk(); });
             if (unread != pictures.end())
             {

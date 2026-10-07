@@ -213,6 +213,10 @@ namespace RtxTool
         std::string mPlace;
         std::string mFrame;
         std::string mBar;
+
+        /// Whose reference the side is held against: its own where it traced one, and the first
+        /// side's where its truth is that one.
+        std::string mReference;
     };
 
     /// What `noise --versus` names the second side's pictures of a place, after the place's name.
