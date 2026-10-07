@@ -448,42 +448,57 @@ uvec2 binnedPixel(uvec2 pixel, vec3 direction, bool arms)
     return arms ? through : pixel;
 }
 
-/// How many of the covering puffs nearest the eye a walk keeps apart, in order: the rest merged into
-/// the farthest of them (`PuffLayers`).
+/// One covering puff a walk keeps apart: its light, already multiplied by its own coverage, and the
+/// coverage; and how far along the ray it stands. An empty one stands past every puff, so it sorts
+/// last and merging it changes nothing.
+struct KeptPuff
+{
+    vec4 mLight;
+    float mAt;
+};
+
+KeptPuff noPuff()
+{
+    return KeptPuff(vec4(0.0), 3.0e38);
+}
+
+/// The covering puffs a walk has met, the nearest four of them apart and in order of depth, and every
+/// one past them merged into the farthest: Salvi and Vaidyanathan's multi-layer alpha blending
+/// (2014). One slot past the kept ones, which a newcomer lands in before it is sorted.
 ///
 /// **Four and not two, because the two cost the same.** Measured on the skies suite, three
 /// alternated rounds each: the order took 0.02 to 0.04 ms from the trace's median against the
 /// weighted mean before it — the storm's 1.25 to 1.28 ms became 1.29 to 1.31 — and two layers took
 /// no less than four, within a hundredth.
-const int SPRITE_LAYERS = 4;
-
-/// The covering puffs a walk has met, the nearest `SPRITE_LAYERS` of them apart and in order of
-/// depth, and every one past them merged into the last: Salvi and Vaidyanathan's multi-layer alpha
-/// blending (2014). One slot past the kept ones, which a newcomer lands in before it is sorted.
 ///
 /// **In order and not weighed by alpha alone**, because a coverage-weighted mean lets a farther,
 /// denser layer win: a thin wisp in front of a thick plume came out the plume's colour, where what
-/// the eye sees is the wisp over it. Kept in registers, so the insertion is a fixed run of selects
-/// down a fixed number of slots, and no slot is read at an index a lane works out.
+/// the eye sees is the wisp over it. **Named slots and not an array**, so the insertion is a fixed
+/// run of selects down a fixed number of slots, no slot is read at an index a lane works out, and
+/// nothing of the walk stands in an array the driver has to promote out of memory.
 struct PuffLayers
 {
-    /// Each layer's light, already multiplied by its own coverage, and the coverage.
-    vec4 mLayers[SPRITE_LAYERS + 1];
-
-    /// How far along the ray each stands. An empty slot stands past every puff, so it sorts last
-    /// and merging it changes nothing.
-    float mAt[SPRITE_LAYERS + 1];
+    KeptPuff mNearest;
+    KeptPuff mSecond;
+    KeptPuff mThird;
+    KeptPuff mFarthest;
+    KeptPuff mIncoming;
 };
 
 PuffLayers noPuffLayers()
 {
-    PuffLayers layers;
-    for (int i = 0; i <= SPRITE_LAYERS; ++i)
-    {
-        layers.mLayers[i] = vec4(0.0);
-        layers.mAt[i] = 3.0e38;
-    }
-    return layers;
+    return PuffLayers(noPuff(), noPuff(), noPuff(), noPuff(), noPuff());
+}
+
+/// `front` and `back` in order of depth, the nearer first: selects and not a branch.
+void orderPuffs(inout KeptPuff front, inout KeptPuff back)
+{
+    const bool nearer = back.mAt < front.mAt;
+    const KeptPuff was = front;
+    front.mLight = nearer ? back.mLight : was.mLight;
+    front.mAt = nearer ? back.mAt : was.mAt;
+    back.mLight = nearer ? was.mLight : back.mLight;
+    back.mAt = nearer ? was.mAt : back.mAt;
 }
 
 /// `layers` with a puff of `light`, already multiplied by `alpha`, met `at` along the ray: sorted in
@@ -491,34 +506,42 @@ PuffLayers noPuffLayers()
 /// would draw them, at the depth their shares of the light weigh.
 void addPuff(inout PuffLayers layers, vec3 light, float alpha, float at)
 {
-    layers.mLayers[SPRITE_LAYERS] = vec4(light, alpha);
-    layers.mAt[SPRITE_LAYERS] = at;
+    layers.mIncoming = KeptPuff(vec4(light, alpha), at);
+    orderPuffs(layers.mFarthest, layers.mIncoming);
+    orderPuffs(layers.mThird, layers.mFarthest);
+    orderPuffs(layers.mSecond, layers.mThird);
+    orderPuffs(layers.mNearest, layers.mSecond);
 
-    for (int i = SPRITE_LAYERS; i > 0; --i)
-    {
-        const bool nearer = layers.mAt[i] < layers.mAt[i - 1];
-        const vec4 front = layers.mLayers[i - 1];
-        const vec4 back = layers.mLayers[i];
-        const float frontAt = layers.mAt[i - 1];
-        const float backAt = layers.mAt[i];
-        layers.mLayers[i - 1] = nearer ? back : front;
-        layers.mLayers[i] = nearer ? front : back;
-        layers.mAt[i - 1] = nearer ? backAt : frontAt;
-        layers.mAt[i] = nearer ? frontAt : backAt;
-    }
-
-    const vec4 front = layers.mLayers[SPRITE_LAYERS - 1];
-    const vec4 back = layers.mLayers[SPRITE_LAYERS];
+    const vec4 front = layers.mFarthest.mLight;
+    const vec4 back = layers.mIncoming.mLight;
     const float frontShare = front.a;
     const float backShare = (1.0 - front.a) * back.a;
     const float shares = frontShare + backShare;
-    layers.mAt[SPRITE_LAYERS - 1] = shares > 0.0
-        ? (layers.mAt[SPRITE_LAYERS - 1] * frontShare + layers.mAt[SPRITE_LAYERS] * backShare) / shares
-        : layers.mAt[SPRITE_LAYERS - 1];
-    layers.mLayers[SPRITE_LAYERS - 1]
-        = vec4(front.rgb + (1.0 - front.a) * back.rgb, front.a + (1.0 - front.a) * back.a);
-    layers.mLayers[SPRITE_LAYERS] = vec4(0.0);
-    layers.mAt[SPRITE_LAYERS] = 3.0e38;
+    layers.mFarthest.mAt = shares > 0.0
+        ? (layers.mFarthest.mAt * frontShare + layers.mIncoming.mAt * backShare) / shares
+        : layers.mFarthest.mAt;
+    layers.mFarthest.mLight = vec4(front.rgb + (1.0 - front.a) * back.rgb, front.a + (1.0 - front.a) * back.a);
+    layers.mIncoming = noPuff();
+}
+
+/// The kept puffs composited front to back as far as one: the light in order under what the ones
+/// before it left, what that leaves through, and the coverage and the depth at each one's share of
+/// the light.
+struct PuffsInOrder
+{
+    vec3 mLight;
+    float mThrough;
+    float mShown;
+    float mShownAt;
+};
+
+/// `inOrder` with `kept` behind it.
+void layPuffBehind(inout PuffsInOrder inOrder, KeptPuff kept)
+{
+    inOrder.mLight += inOrder.mThrough * kept.mLight.rgb;
+    inOrder.mShown += inOrder.mThrough * kept.mLight.a;
+    inOrder.mShownAt += inOrder.mThrough * kept.mLight.a * kept.mAt;
+    inOrder.mThrough *= 1.0 - kept.mLight.a;
 }
 
 /// Every emitter's sprites the ray crosses, composited.
@@ -529,8 +552,8 @@ void addPuff(inout PuffLayers layers, vec3 light, float alpha, float at)
 /// is small, so one rejection throws an emitter away for almost every pixel of the frame.
 ///
 /// **The covering ones in order, the nearest few of them**: `osgParticle` keeps its array in birth
-/// order and sorting tens of sprites per pixel is not affordable, so a walk keeps the nearest
-/// `SPRITE_LAYERS` apart and merges the rest behind them (`PuffLayers`), and the coverage it
+/// order and sorting tens of sprites per pixel is not affordable, so a walk keeps the nearest four
+/// apart and merges the rest behind them (`PuffLayers`), and the coverage it
 /// reports, `1 - prod(1 - a)`, is exact. Exact in order up to that many, and where they agree past
 /// it. The adding ones accumulate a screen, `1 - prod(1 - e)` per channel — what a stack of things that
 /// emit and absorb alike comes to, order-free, and the smooth form of the clamp the original's
@@ -781,23 +804,16 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     // share of the light each gave. The colour is what fills the coverage, so the caller's
     // `mColour * (1 - mTransmittance)` is the sum in order. **The coverage as the shares' sum**, which
     // is `1 - through` and keeps its digits where a thin puff leaves `through` a hair under one.
-    vec3 inOrder = vec3(0.0);
-    float through = 1.0;
-    float shown = 0.0;
-    float shownAt = 0.0;
-    for (int i = 0; i < SPRITE_LAYERS; ++i)
-    {
-        const vec4 kept = layers.mLayers[i];
-        inOrder += through * kept.rgb;
-        shown += through * kept.a;
-        shownAt += through * kept.a * layers.mAt[i];
-        through *= 1.0 - kept.a;
-    }
+    PuffsInOrder inOrder = PuffsInOrder(vec3(0.0), 1.0, 0.0, 0.0);
+    layPuffBehind(inOrder, layers.mNearest);
+    layPuffBehind(inOrder, layers.mSecond);
+    layPuffBehind(inOrder, layers.mThird);
+    layPuffBehind(inOrder, layers.mFarthest);
 
     if (coverage > 0.0)
     {
-        layer.mColour = inOrder / max(shown, 1.0e-12);
-        layer.mCoveredAt = shownAt / max(shown, 1.0e-12);
+        layer.mColour = inOrder.mLight / max(inOrder.mShown, 1.0e-12);
+        layer.mCoveredAt = inOrder.mShownAt / max(inOrder.mShown, 1.0e-12);
         layer.mWeight = coverage;
     }
 
