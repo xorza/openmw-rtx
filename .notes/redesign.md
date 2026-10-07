@@ -551,10 +551,9 @@ on every geometry, against the bit everywhere, at the dawn deck over eight runs 
 7.53 against 7.56 ms and the trace zone 3.48 against 3.49, within the runs' own spread; the mages'
 guild 5.34–5.37 on both sides (`~/.cache/omw-redesign/ab-nodup`). The bit costs this card nothing it
 measures, so the split by material and its rebuild are not built.
-**Not measurable yet: the arms' `tmax`.** No bench place draws the arms (a probe of
-`mArmsInFrame` read nought at the deck and at the guild: the harness's body readies nothing), so the
-arms' ray is never traced in a measured run and no A/B can keep the change. It waits for a place
-that stands the player with a weapon drawn, which section 6.5 now adds.
+**Measured and declined: the arms' `tmax`.** A bound at 512 units, past the arms and the blade,
+moved the trace by nothing at `seyda-neen-ship-armed`: 2.82 ms at the median either way, three
+alternated rounds (`visibility.rgen` says so).
 **Declined by its bound: the everywhere-presence word.** The atomic ORs it would save are a part of
 the sprite bin's whole zone, 0.03 ms at the dawn deck, under a bench median's noise.
 
