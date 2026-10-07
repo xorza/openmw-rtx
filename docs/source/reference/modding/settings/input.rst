@@ -107,7 +107,7 @@ Input Settings
    :default: false
 
    Enables camera control via gyroscope (built-in or controller-based).
-   Controller gyroscopes require SDL 2.0.14+ (tested on Windows).
+   Controller gyroscopes are tested on Windows.
 
 .. omw-setting::
    :title: gyro horizontal axis

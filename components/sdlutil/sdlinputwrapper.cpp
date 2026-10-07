@@ -6,7 +6,10 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_video.h>
 
+#include "sdlvideowrapper.hpp"
+
 #include <components/debug/debuglog.hpp>
+#include <components/settings/values.hpp>
 
 #include <osgViewer/Viewer>
 
@@ -197,7 +200,7 @@ namespace SDLUtil
                         mWindowListener->windowClosed();
                     break;
                 case SDL_EVENT_DISPLAY_ORIENTATION:
-                    if (mSensorListener && evt.display.displayID == SDL_GetDisplayForWindow(mSDLWindow))
+                    if (mSensorListener && evt.display.displayID == displayAt(Settings::video().mScreen))
                         mSensorListener->displayOrientationChanged();
                     break;
                 case SDL_EVENT_DISPLAY_ADDED:
