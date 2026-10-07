@@ -59,3 +59,22 @@ The glossy reflection takes 54–56 frames to come within a tenth, against the c
 | C. Keep | Accept the lag. | A reflection keeps old light for about a second at 60 frames a second. |
 
 Blocked: the item "`components/rtxvulkan/shaders/lib/historyclamp.glsl:63-66`".
+
+## Q4. What the seam's frame calls take (`components/rtx/renderer/renderer.hpp:438-439,492`)
+
+`renderFrame` and `traceGuiTexture` take the 1616-byte device block `Shaders::VisibilityConstants`.
+Four parties write into it: the camera builder (`frame/camera.cpp`), `describeWorld`
+(`environment/frameworld.cpp`, called by the game's `SkyReader::describe`), `sampleFrame` and the
+backend. The harness also reads the block back (`FrameReport::mConstants`, the scene digest). The
+item's target moves the block behind the seam. That change reaches about 40 files in the core, the
+backend, the game side (`RtxRenderer::describeTrace` and `trace`, `SkyReader`), the view pictures
+(`OffscreenTrace`), the harness instruments and their tests. It also moves state: the fog drift that
+`SkyReader` keeps for `describeWorld` goes to the backend.
+
+| Option | What it does | Cost |
+| --- | --- | --- |
+| A. Host description at the seam **(recommended)** | `renderFrame` takes a `FrameRequest` (the two eyes as `Shaders::Camera`, the ray mask and lamp flag, the `WorldReading`, the `FrameOptions`). `traceGuiTexture` takes the same eyes. The backend calls `describeWorld` and `sampleFrame` and owns the block and the fog drift. `leavesSamplingAlone` goes. The harness reads the block from the frame result, not from what it handed in. | The largest change in the plan: the seam, both hosts and about 40 files. |
+| B. One sub-block per writer | Keep the block at the seam, but split it into nested structs, one for each writer (camera, world, sampling, backend). Each function takes only its part, so a cross-write does not compile. | A layout change that every shader that reads the block sees. The device type stays in the seam. |
+| C. Keep | Delete the item. | The seam keeps a device type, and `leavesSamplingAlone` stays the only guard. |
+
+Blocked: the item "`components/rtx/renderer/renderer.hpp:438-439,492`".
