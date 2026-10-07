@@ -507,12 +507,11 @@ namespace Rtx::Testing
             std::vector<float> lifted() const
             {
                 std::vector<float> heights;
-                for (const PlacementRow& row : mScene.placements().getRows())
-                {
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
                     const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
-                    if (row.mInstance.isPlaced() && height > 50.0f)
+                    if (height > 50.0f)
                         heights.push_back(height);
-                }
+                });
                 std::sort(heights.begin(), heights.end());
                 return heights;
             }
@@ -524,11 +523,12 @@ namespace Rtx::Testing
                 const osg::Vec3f centre((static_cast<float>(cell.x()) + 0.5f) * sCellSize,
                     (static_cast<float>(cell.y()) + 0.5f) * sCellSize, 0.0f);
 
-                for (const PlacementRow& row : mScene.placements().getRows())
-                    if (row.mInstance.isPlaced() && row.mInstance.mTransform.getTrans() == centre)
-                        return row.mInstance;
-
-                return std::nullopt;
+                std::optional<MeshInstance> found;
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                    if (!found.has_value() && row.mInstance.mTransform.getTrans() == centre)
+                        found = row.mInstance;
+                });
+                return found;
             }
 
             /// The frame the next walk is for, so every walk of a test is a frame of its own.
@@ -951,8 +951,8 @@ namespace Rtx::Testing
             // **Of the three, the flame's lantern alone is a lamp body**: the ember glows with no lamp
             // to carry its light, and the dark lamp's lantern stands with a lamp that takes light.
             std::uint32_t bodies = 0;
-            for (const PlacementRow& row : mScene.placements().getRows())
-                bodies += row.mInstance.isPlaced() && row.mInstance.mLampBody ? 1 : 0;
+            mScene.placements().forEachPlaced(
+                [&](Index, const PlacementRow& row) { bodies += row.mInstance.mLampBody ? 1 : 0; });
             EXPECT_EQ(bodies, 1u);
         }
 
@@ -986,10 +986,9 @@ namespace Rtx::Testing
             // of five is scaled with the reference, so a tree at scale `s` stands at `105 s`.
             const auto standing = [this] {
                 std::vector<std::pair<std::size_t, float>> slots;
-                const std::span<const PlacementRow> all = mScene.placements().getRows();
-                for (std::size_t slot = 0; slot < all.size(); ++slot)
-                    if (all[slot].mInstance.isPlaced())
-                        slots.emplace_back(slot, all[slot].mInstance.mTransform.getTrans().z());
+                mScene.placements().forEachPlaced([&](Index slot, const PlacementRow& row) {
+                    slots.emplace_back(slot, row.mInstance.mTransform.getTrans().z());
+                });
                 return slots;
             };
             const auto heights = [](const std::vector<std::pair<std::size_t, float>>& slots) {
@@ -1449,11 +1448,12 @@ namespace Rtx::Testing
                 << "each sheet five units over where its file placed it";
 
             const auto materialAt = [&](const float height) {
-                for (const PlacementRow& row : mScene.placements().getRows())
-                    if (row.mInstance.isPlaced()
-                        && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
-                        return row.mInstance.mMaterial;
-                return sNoIndex;
+                Index worn = sNoIndex;
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                    if (worn == sNoIndex && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
+                        worn = row.mInstance.mMaterial;
+                });
+                return worn;
             };
             const Index grass = materialAt(105.0f);
             const Index fern = materialAt(405.0f);
@@ -1506,17 +1506,14 @@ namespace Rtx::Testing
 
             std::optional<bool> grass;
             std::optional<bool> fern;
-            for (const PlacementRow& row : mScene.placements().getRows())
-            {
-                if (!row.mInstance.isPlaced())
-                    continue;
+            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
                 const bool lit = mScene.materials().getRows()[row.mInstance.mMaterial].mLampLit;
                 const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
                 if (height == 105.0f)
                     grass = lit;
                 else if (height == 405.0f)
                     fern = lit;
-            }
+            });
             EXPECT_EQ(grass, std::optional(false));
             EXPECT_EQ(fern, std::optional(true));
         }

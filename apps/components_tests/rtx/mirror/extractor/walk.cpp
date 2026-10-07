@@ -260,8 +260,8 @@ namespace Rtx::Testing
             EXPECT_EQ(mExtractor.retire().mMeshes, 1u);
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
             ASSERT_EQ(mScene.placements().getRows().size(), 2u);
-            EXPECT_FALSE(mScene.placements().getRows()[0].mInstance.isPlaced()) << "the day branch outlived the sweep";
-            ASSERT_TRUE(mScene.placements().getRows()[1].mInstance.isPlaced());
+            EXPECT_FALSE(mScene.placements().isPlaced(0)) << "the day branch outlived the sweep";
+            ASSERT_TRUE(mScene.placements().isPlaced(1));
             EXPECT_EQ(placedAt(mScene, 1), osg::Vec3f(0.0f, 20.0f, 0.0f));
         }
 

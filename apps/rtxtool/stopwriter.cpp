@@ -283,14 +283,13 @@ namespace RtxTool
         // from, so a run says what the rule caught.
         std::uint32_t lampBodies = 0;
         std::uint32_t glowingBodies = 0;
-        for (const Rtx::PlacementRow& row : scene.placements().getRows())
-        {
-            if (!row.mInstance.isPlaced() || !row.mInstance.mLampBody)
-                continue;
+        scene.placements().forEachPlaced([&](Rtx::Index, const Rtx::PlacementRow& row) {
+            if (!row.mInstance.mLampBody)
+                return;
             ++lampBodies;
             const Rtx::Index material = row.mInstance.mMaterial;
             glowingBodies += material != Rtx::sNoIndex && glows(scene.materials().getRows()[material]) ? 1 : 0;
-        }
+        });
 
         std::uint32_t sheets = 0;
         std::uint32_t pocketed = 0;
@@ -537,27 +536,23 @@ namespace RtxTool
         // once it is a run of triangles: what a walk keeps is the material it arrived wearing, and a
         // material names the file it samples.
         std::uint32_t met = 0;
-        for (const Rtx::PlacementRow& row : scene.placements().getRows())
-        {
+        scene.placements().forEachPlaced([&](Rtx::Index, const Rtx::PlacementRow& row) {
             const Rtx::MeshInstance& instance = row.mInstance;
-            if (!instance.isPlaced())
-                continue;
-
             if (instance.mMaterial == Rtx::sNoIndex)
-                continue;
+                return;
 
             const Rtx::Material& material = scene.materials().getRows()[instance.mMaterial];
             if (material.mDiffuse == Rtx::sNoIndex)
-                continue;
+                return;
 
             const std::string_view path = rows[material.mDiffuse].mPath.value();
             if (path.find(needle) == std::string_view::npos)
-                continue;
+                return;
 
             const osg::Vec3f at = instance.mTransform.getTrans();
             into.mRecord.note(std::format("  {:.0f}, {:.0f}, {:.0f}   {}\n", at.x(), at.y(), at.z(), path));
             ++met;
-        }
+        });
 
         into.mRecord.note(std::format("{} placements wear a texture matching \"{}\"\n", met, needle));
     }

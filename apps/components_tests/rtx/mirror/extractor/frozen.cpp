@@ -72,10 +72,10 @@ namespace Rtx::Testing
             /// Where the one placement standing stands.
             osg::Vec3f standing() const
             {
-                for (const PlacementRow& row : mScene.placements().getRows())
-                    if (row.mInstance.isPlaced())
-                        return osg::Vec3f() * row.mInstance.mTransform;
-                return osg::Vec3f(-1.0f, -1.0f, -1.0f);
+                osg::Vec3f found(-1.0f, -1.0f, -1.0f);
+                mScene.placements().forEachPlaced(
+                    [&](Index, const PlacementRow& row) { found = osg::Vec3f() * row.mInstance.mTransform; });
+                return found;
             }
 
             osg::ref_ptr<osg::Group> mRoot = new osg::Group;

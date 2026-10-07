@@ -535,8 +535,8 @@ namespace Rtx
             return false;
 
         const MeshInstance& standing = placed[stood.mSlot].mInstance;
-        return standing.isPlaced() && standing.mStander == Stander::Ring && standing.mMesh == stood.mMesh
-            && standing.mMaterial == stood.mMaterial;
+        return mScene.placements().isPlaced(stood.mSlot) && standing.mStander == Stander::Ring
+            && standing.mMesh == stood.mMesh && standing.mMaterial == stood.mMaterial;
     }
 
     bool CellPlacer::standsAsHeld(const HeldGrass& grass, const WorldAround& around) const
@@ -587,9 +587,8 @@ namespace Rtx
     bool CellPlacer::standsNoMore() const
     {
         std::uint32_t standing = 0;
-        for (const PlacementRow& row : mScene.placements().getRows())
-            if (row.mInstance.isPlaced() && row.mInstance.mStander == Stander::Ring)
-                ++standing;
+        mScene.placements().forEachPlaced(
+            [&](Index, const PlacementRow& row) { standing += row.mInstance.mStander == Stander::Ring ? 1u : 0u; });
 
         return standing == getPlaced() + getGroundPlaced() + getGrassPlaced();
     }
