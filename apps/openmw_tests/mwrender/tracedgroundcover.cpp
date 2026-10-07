@@ -154,7 +154,8 @@ namespace MWRender
         /// numbers. A turn for the deleted 3 would have kept 5 and 1.
         ///
         /// **Every cell counts from nought**: (-1, 0) after (2, 3) keeps 8 and 10 at a half, where
-        /// the half (2, 3) left over would have kept 7 and 9.
+        /// the half (2, 3) left over would have kept 7 and 9. **And reads only its own files**: a
+        /// cell no file lists, after (-1, 0), stands nothing.
         TEST_F(TracedGroundcoverTest, theDensityKeepsTheRasterizersPlantsCellByCell)
         {
             EXPECT_EQ(kept(1.0f, osg::Vec2i(2, 3)), (std::vector<std::uint32_t>{ 1, 2, 4, 5, 6 }))
@@ -172,6 +173,10 @@ namespace MWRender
             EXPECT_EQ(refs[1].mRefNum.mIndex, 10u);
 
             EXPECT_EQ(kept(1.0f, osg::Vec2i(0, 0)), std::vector<std::uint32_t>{}) << "a cell no file lists";
+            refs.clear();
+            groundcover.collect(osg::Vec2i(0, 0), refs);
+            EXPECT_TRUE(refs.empty())
+                << "a cell no file lists, read after one a file does, stood the last one's plants";
         }
 
         /// A plant is handed on where the file placed it, and its record names the model the store

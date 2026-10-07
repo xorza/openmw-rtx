@@ -596,10 +596,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.1 Pictures that are quietly wrong (fork code, no approval needed)
 
-- **[bug] A reused `ESM::Cell` carries the last cell's groundcover into the next.**
-  `TracedGroundcover::collect` refills one `mCell` with `GroundcoverStore::initCell`, whose
-  `Cell::blank()` leaves `mContextList` alone; a grass-free cell read after a grassy one stands a
-  second copy of its plants. Target: clear `mContextList` before `initCell` (or in it).
 - **[bug] The night sky reader skips what its sibling readers apply.** `LayerReader`
   (`nightsky.cpp`) takes each vertex's direction raw, where `readCloudShell` and `readAtmosphere`
   place theirs through `computeLocalToWorld`; a transform on a star dome is ignored, and `imageOf`
