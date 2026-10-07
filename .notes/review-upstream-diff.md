@@ -3,43 +3,79 @@
 Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without tests and without
 `extern/fidelityfx`. Whoever addresses an item deletes it. When a group is empty, delete its heading.
 
+## Open issues from `.notes/ISSUES.md`
+
+Whoever fixes one of these deletes it from the issue log as well.
+
+- [ ] `components/rtxvulkan/shaders/trace/visibility.rgen:486-490` — a pane's first filtered frame is
+  0.04–0.07% darker than the frame the trace composes. Reproduced at full float, frame 2000, the pane
+  `(0.3, 0.37, 0.41)` at opacity 0.43 under `addLampsBefore`: red 0.006459 against 0.006455, green
+  0.007967 against 0.007963; every other channel is nought at the centre. **The cause:** the trace
+  divides the layers' light by `paneModulation`, rounded to a half by
+  `unpackHalf2x16(packHalf2x16(x))`, and composes with it; the composite multiplies by
+  `CHANNEL_PANE_ALBEDO` as stored. The stored albedo is 0.12890625, and the trace composed with
+  0.12900: the driver folds the round trip back to `x` (both instructions are in the module), and
+  the store then rounds toward nought. Target shape: round to a half by integer operations no compiler
+  folds — the low 13 mantissa bits cleared, exact for every value from `PANE_ALBEDO_FLOOR` (1/255,
+  past the least normal half) to 65504 — as `specularModulation` rounds by bits; the comment says why
+  the GLSL round trip is not used; and a test of `pane.cpp` holds the first filtered frame to the
+  composed one, to the bit, with that pane. (medium)
+- [ ] `trace/denoise/specular.comp:126-151`, `trace/denoise/pane.comp:77-92` — both blend with
+  `blendedMean`, with no fast mean and no box, so a rough reflection, or a pane's light, keeps up to
+  `ACCUMULATE_FRAMES` of old light after a lamp changes on a still surface; only the bounce is clamped,
+  which the comments already say. Measured on this card (`-O2`, a grey sky that halves after 64 still
+  frames, the clamp on, a temporary test), frames until within a tenth of the new level: the glossy
+  metal floor at roughness 64, 128 and 200 of 255 took 56, 56 and 54 (0.250 → 0.163 of a target 0.151 by
+  frame 63, at 64); a half-opaque pane took 16–32; the clamped bounce (`RtxBounceClampTest`) takes 31.
+  **Decided 2026-10-08: clamp both.** Target shape: `specular.comp` and `pane.comp` keep fast means
+  and clamp through `heldToFast`, as ReLAX clamps specular — two more history images a filter and a
+  5×5 square of loads each — each with a test like `theFloorFollowsASkyWhoseLightHalves`. (medium)
+- [ ] `tools/omw/deps.py:162` — `omw kernels` refuses on a box `omw bootstrap` set up: it wants
+  `spirv-dis` beside the build's `spirv-opt`, and the SDK fetch keeps only `glslc`, `spirv-val` and
+  `spirv-opt`. The folder is named after the SDK's version alone, so a desk that has it keeps it
+  without the new tool. Target shape: the fetch keeps `spirv-dis` on both systems, the folder's name
+  says what is kept as well as the version (so the next `bootstrap` fetches it and `prune` removes the
+  old one), and `bootstrap` proves `spirv-dis` with the other three. (low)
+
 ## The frame path allocates, copies, or rebuilds behind a threshold
 
-- [ ] **Blocked: Q1 in `review-upstream-diff_QUESTIONS.md`.** `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
-  (`rtxvulkan/scene/scenebuffers.cpp:341`). It matches lamps by index into a list sorted by position
-  (`scenedesc.cpp:284`), so a lamp that appears or goes (a glow effect, a bolt) rebuilds the full grid.
-  `build` fits the extent exactly to the lamps' reach, so a carried torch or a bolt that moves outward
-  fails `covers` and rebuilds the grid on each frame. A lamp that crosses a cell re-`fill`s the full
-  `RunList`. Target shape: pad the extent, give lamps stable identities, and update only the bins of the
-  lamps that changed. (medium)
-- [ ] **Blocked: Q2 in `review-upstream-diff_QUESTIONS.md`.** `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
-  outgrow a copy, `SlotTable::sync` doubles it, makes a new host-written buffer, and rewrites every row.
-  The world's top-level row table (`scene/sceneacceleration.hpp:208`) gets this spike on the frame a
-  cell pushes it past the threshold. Without resizable BAR, the old and new copies are both in the
-  ~246 MiB host-written heap until the graveyard collects the old one. Target shape: fixed-size blocks
-  with an address table, as `BlockedBuffer` has, or a capacity set at load. (medium)
-
-## Wrong behaviour in a single place
-
-- [ ] **Blocked: Q3 in `review-upstream-diff_QUESTIONS.md`; the comments are corrected and the lag measured.** `components/rtxvulkan/shaders/lib/historyclamp.glsl:63-66`, `trace/denoise/accumulateclamp.comp:20` —
-  both say that the glossy and pane filters keep their means with `heldToFast`. Only
-  `accumulateclamp.comp` includes the library. `trace/denoise/specular.comp:126-151` and
-  `trace/denoise/pane.comp:77-92` blend with `blendedMean`, with no fast mean and no box. Thus a rough
-  reflection, or a pane's light, keeps up to `ACCUMULATE_FRAMES` of old light after a lamp changes on a
-  still surface. Commit 2e237e8c8a said that these filters "will" use the clamp. **Decided 2026-10-07: measure
-  first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
-  measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
-  and `heldToFast`, as ReLAX clamps specular. (medium)
+- [ ] `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
+  (`rtxvulkan/scene/scenebuffers.cpp:341`), and a lamp whose box changes cells — a carried torch, every
+  few frames — re-`fill`s the whole `RunList`; a lamp that appears, goes or moves past the extent
+  `build`s it again. At 400 lamps over 3×3 exterior cells (a 51×51×8 grid, 58,364 entries, `-O2`, this
+  desk) `build` takes 98 µs and `fill` 95 µs, so padding the extent saves only the 3 µs between them:
+  the frames that pay ~0.1 ms are the ones on which a lamp crosses a cell. **Decided 2026-10-08: an
+  incremental grid.** Target shape: each cell keeps fixed-capacity slots (or a delta list), a lamp
+  that moves writes only the cells it left and entered, and a cell that overflows has a rule of its
+  own; `lightRunInCell` (`lib/lights.glsl`) and the upload in `scenebuffers.cpp` read the new layout.
+  (medium)
+- [ ] `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
+  outgrow a copy, `SlotTable::sync` doubles it, makes a new host-written buffer, and rewrites every row,
+  on the frame a cell pushes the table past its size. Five tables grow so: the mesh, instance and
+  material tables (`scenebuffers.hpp:155-175`), the top-level row table (`scene/sceneacceleration.hpp:208`)
+  and the texel table. Without resizable BAR, the old and new copies are both in the ~246 MiB
+  host-written heap until the graveyard collects the old one. Cells arrive in bursts, so growing early
+  or copying over several frames does not help: one cell can need more rows than the slack. **Decided
+  2026-10-08: the top-level row table alone.** Target shape: its rows in fixed blocks that never move,
+  which the build reaches by `arrayOfPointers`, as `BlockedBuffer` keeps its rows; the four tables the
+  shaders read stay flat, since a block there is an indirection on every read of the trace. (medium)
 
 ## One truth has more than one source
 
-- [ ] **Blocked: Q4 in `review-upstream-diff_QUESTIONS.md`.** `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
+- [ ] `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
   1616-byte `Shaders::VisibilityConstants` as "the camera". Four parties write its fields: the camera
-  builder (`frame/camera.cpp:47-86`), `describeWorld` (`environment/frameworld.cpp:108-214`, which also
-  splits the rest into `FrameOptions`), `sampleFrame`, and the backend (`visibilitypass.cpp:484-527`,
-  `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
-  writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
-  reading, options), and only the backend fills the device block. (medium)
+  builder (`frame/camera.cpp:47-86`), `describeWorld` (`environment/frameworld.cpp:108-214`, called by
+  the game's `SkyReader::describe`, which also splits the rest into `FrameOptions`), `sampleFrame`, and
+  the backend (`visibilitypass.cpp:484-527`, `tracemedia.cpp:58`). `leavesSamplingAlone`
+  (`frame/framesampling.cpp:29-39,46`) exists only to catch a writer of another party's field, and the
+  harness reads the block back (`FrameReport::mConstants`, the scene digest). **Decided 2026-10-08: a
+  host description at the seam**, the largest change in the plan: about 40 files over the core, the
+  backend, both hosts (`RtxRenderer::describeTrace` and `trace`, `SkyReader`), `OffscreenTrace`, the
+  harness's instruments and their tests. Target shape: `renderFrame` takes a frame request — the two
+  eyes as `Shaders::Camera`, the ray mask and the lamp flag, the `WorldReading`, the `FrameOptions` —
+  and `traceGuiTexture` the same eyes; the backend calls `describeWorld` and `sampleFrame` and owns the
+  block and the fog drift `SkyReader` keeps now; `leavesSamplingAlone` goes; and the harness reads the
+  block from the frame result, not from what it handed in. (high)
 
 ## Shader structure
 
