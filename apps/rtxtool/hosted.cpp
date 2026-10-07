@@ -139,7 +139,7 @@ namespace RtxTool
             // directory, and Home with where it stands, through the session; the played game names
             // neither the directory nor the file.
             if (played)
-                dataDirs.push_back(harnessDirectory() / "vfs");
+                dataDirs.push_back(keysDirectory());
 
             engine.setDataDirs(dataDirs);
 

@@ -40,14 +40,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
-- [ ] `CMakeLists.txt:822-828` — the harness folder layout is defined here, but only its root goes to C++
-  (`apps/rtxtool/CMakeLists.txt:108`). The subfolder and file names are written again in
-  `apps/rtxtool/harnessfolder.cpp:16`, `apps/rtxtool/main.cpp:286,292`, `instruments/drivercache.cpp`
-  (`-driver-cache`), `tools/omw/kernels.py:148`, `tools/omw/package.py:42,92` (`HARNESS_NAMES`) and
-  `.github/workflows/ci.yml:249-250`. The two "install has no harness" lists already disagree: `package.py`
-  accepts `openmw-rtxtool`/`rtx-gpu-tests`, and `ci.yml` accepts `test-output`/`crash-matrix`. Target
-  shape: CMake gives each folder to C++ as its own definition, the driver reads the paths from the CMake
-  cache, and one shared install-check list. (medium)
 - [ ] `components/shader/automaps.cpp:269` — `MapVisitor::buildTangents` repeats `ShaderVisitor::adjustGeometry`'s
   choice of the UV set that a normal map reads, and the two already differ (one skips unit 7). Target
   shape: one tangent helper in `automaps` that both visitors call. (low)

@@ -125,6 +125,14 @@ class Build:
                 return value
         return None
 
+    def cached_folder(self, name: str) -> Path:
+        """The folder the build names `name` in its cache: the harness's and the tests' (`RTX_HARNESS_DIR`
+        and its siblings), which the top-level `CMakeLists.txt` and `cmake/Tests.cmake` name once."""
+        value = self.cache_value(name)
+        if not value:
+            raise Refusal(f"the {self.flavour} build's cache names no {name}: configure it again")
+        return Path(value)
+
     def configure(self, stdout=None) -> None:
         """**Configured again whenever what its preset expands from changes, and from nothing
         else.** A directory configured once and never again keeps the cache it was first given, so a

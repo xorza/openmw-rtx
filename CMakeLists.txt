@@ -813,19 +813,22 @@ if (APPLE)
 else()
     set(RTX_RESOURCES_ROOT "${OPENMW_RESOURCES_ROOT}")
 endif()
-set(RTX_SPIRV_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders")
+set(RTX_SPIRV_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders" CACHE INTERNAL "The game's shaders")
 
 # The harness's folder: its places, suites and scripts, the shaders with their source and the
 # driver's caches. In the build tree and outside any bundle, because no install carries the harness
-# and the macOS bundle is installed whole. The harness and the tests are built with it
-# (`OPENMW_RTX_HARNESS_DIR`), since the harness only ever runs from the tree that built it.
-set(RTX_HARNESS_DIR "${OpenMW_BINARY_DIR}/rtxtool")
-set(RTX_SPIRV_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-source")
+# and the macOS bundle is installed whole. The harness and the tests are built with each folder
+# (`OPENMW_RTX_HARNESS_DIR` and its siblings), since the harness only ever runs from the tree that
+# built it, and the driver reads them from the cache (`Build.cache_value`): this is the one place
+# that names them.
+set(RTX_HARNESS_DIR "${OpenMW_BINARY_DIR}/rtxtool" CACHE INTERNAL "The harness's folder")
+set(RTX_SPIRV_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-source" CACHE INTERNAL "The shaders with their source")
 
 # The same two sets compiled with the census (`lib/census.glsl`), which every harness run but a
 # measured one reads: the game's modules carry no census code at all, so they are not here.
-set(RTX_SPIRV_CENSUS_DIR "${RTX_HARNESS_DIR}/shaders-census")
-set(RTX_SPIRV_CENSUS_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-census-source")
+set(RTX_SPIRV_CENSUS_DIR "${RTX_HARNESS_DIR}/shaders-census" CACHE INTERNAL "The shaders with the census")
+set(RTX_SPIRV_CENSUS_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-census-source"
+    CACHE INTERNAL "The shaders with the census and their source")
 add_subdirectory (components/rtxvulkan)
 
 # Apps and tools

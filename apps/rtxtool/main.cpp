@@ -280,18 +280,6 @@ namespace RtxTool
             Verbs mVerb;
         };
 
-        /// The places a run can visit, in the harness's folder.
-        std::filesystem::path viewsFile()
-        {
-            return harnessDirectory() / "views.cfg";
-        }
-
-        /// The suites, each a list of places in `viewsFile`.
-        std::filesystem::path suitesFile()
-        {
-            return harnessDirectory() / "benches.cfg";
-        }
-
         /// Where a verb writes its pictures: `--out`, or a directory named for the verb.
         std::filesystem::path outOf(const Command& command)
         {

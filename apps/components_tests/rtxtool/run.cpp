@@ -409,7 +409,7 @@ namespace RtxTool
             const std::filesystem::path harness = harnessDirectory();
             const std::filesystem::path resources
                 = std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path().parent_path();
-            EXPECT_TRUE(std::filesystem::is_regular_file(harness / "vfs" / "rtxtool.omwscripts"));
+            EXPECT_TRUE(std::filesystem::is_regular_file(keysDirectory() / "rtxtool.omwscripts"));
             // **A verb that measures reads the game's modules**, and every other counts: `bench` and
             // `film` time the game's kernels, and the rest are where a NaN is found.
             const std::array<std::pair<Verbs, bool>, 8> counts{ { { Verbs::Info, true }, { Verbs::Scene, true },
@@ -432,8 +432,8 @@ namespace RtxTool
             const std::filesystem::path within = harness.lexically_relative(resources);
             EXPECT_TRUE(within.empty() || *within.begin() == "..") << "the harness's folder inside the resources";
 
-            const std::vector<RtxTool::Stop> views = loadViews(harness / "views.cfg");
-            const std::vector<BenchSuite> suites = loadSuites(harness / "benches.cfg");
+            const std::vector<RtxTool::Stop> views = loadViews(viewsFile());
+            const std::vector<BenchSuite> suites = loadSuites(suitesFile());
 
             EXPECT_NE(findSuite(suites, "default"), nullptr) << "`bench` with no arguments runs [default]";
 
