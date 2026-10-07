@@ -33,11 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Facts of one layer are in another layer
 
-- [ ] `apps/openmw/mwrender/rtx/rtxwindow.cpp:38`, `rtxrenderer.cpp:200-203` — the game side selects
-  `SDL_WINDOW_VULKAN` and reads the Vulkan validation switches (`OPENMW_RTX_SYNC_VALIDATION`/
-  `GPU_VALIDATION`), with a comment about `vkWaitForFences` and `VK_ERROR_DEVICE_LOST`.
-  `architecture.md` §2 calls a Vulkan fact in `apps/openmw` a bug. Target shape: the backend factory beside
-  `Rtx::createVulkanRenderer` names the window flag and reads its own layer switches. (medium)
 - [ ] `components/rtx/shaders/wave.h:28-38,82,89,103`, `scene.h:257`, `digest.h:81`,
   `skinning.h:97,116`, `shadingmap.h:78` — descriptor bindings (`WAVE_ROWS_BIND_*`,
   `WAVE_COLUMNS_BIND_*`), workgroup sizes (`WAVE_WORKGROUP`, `FOG_COLUMN_WORKGROUP`) and per-dispatch push
