@@ -64,11 +64,6 @@ namespace SDLUtil
         bool mWarpCompensate;
         bool mWrapPointer;
 
-        /// Whether a warp moves the system's pointer, which wrapping it stands on. Wayland lets no
-        /// window move it: SDL moves its own idea of the pointer alone, and the next real motion
-        /// is the way back from there to the pointer, a turn of hundreds of pixels in one event.
-        bool mWarpMovesPointer;
-
         bool mAllowGrab;
         bool mWantMouseVisible;
         bool mWantGrab;
