@@ -94,7 +94,8 @@ namespace Rtx::Testing
                         sampled.mFrame = first + at;
                         mRenderer.renderFrame(sampled,
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                                .mReconstruction = ReconstructionRequest{ .mDenoise = true, .mAntilag = antilag },
+                                .mReconstruction
+                                = ReconstructionRequest{ .mDenoise = true, .mFilters = { .mAntilag = antilag } },
                                 .mExposure = FixedExposure{ 1.0f } });
 
                         // **Two frames in flight, as the game keeps them**, and not each waited out:
@@ -205,7 +206,8 @@ namespace Rtx::Testing
                     sampled.mFrame = first + at;
                     mRenderer.renderFrame(sampled,
                         FrameOptions{ .mLoss = cut && at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction = ReconstructionRequest{ .mDenoise = true, .mAntilag = antilag },
+                            .mReconstruction
+                            = ReconstructionRequest{ .mDenoise = true, .mFilters = { .mAntilag = antilag } },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     mRenderer.readComposite(radiance);

@@ -780,9 +780,8 @@ namespace Rtx::Testing
                             mRenderer.renderFrame(standing(at >= still ? to : from, 1000 + 100 * draw + at),
                                 FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                     .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                        .mAntilag = antilag,
-                                        .mHistoryFix = fix,
-                                        .mAntiFirefly = false },
+                                        .mFilters
+                                        = { .mAntilag = antilag, .mHistoryFix = fix, .mAntiFirefly = false } },
                                     .mExposure = FixedExposure{ 1.0f } });
                             EXPECT_TRUE(mRenderer.finishFrame().has_value());
                         }
@@ -990,9 +989,7 @@ namespace Rtx::Testing
                         mRenderer.renderFrame(camera,
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                    .mAntilag = false,
-                                    .mDualMotion = dual,
-                                    .mAntiFirefly = false },
+                                    .mFilters = { .mAntilag = false, .mDualMotion = dual, .mAntiFirefly = false } },
                                 .mExposure = FixedExposure{ 1.0f } });
                         EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     }
@@ -1080,8 +1077,8 @@ namespace Rtx::Testing
                     camera.mFrame = first + at;
                     mRenderer.renderFrame(camera,
                         FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction
-                            = ReconstructionRequest{ .mDenoise = true, .mAntilag = false, .mAntiFirefly = ring },
+                            .mReconstruction = ReconstructionRequest{ .mDenoise = true,
+                                .mFilters = { .mAntilag = false, .mAntiFirefly = ring } },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                 }
@@ -1150,8 +1147,8 @@ namespace Rtx::Testing
                     camera.mFrame = 2000 + at;
                     mRenderer.renderFrame(camera,
                         FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction
-                            = ReconstructionRequest{ .mDenoise = filter, .mAntilag = false, .mAntiFirefly = false },
+                            .mReconstruction = ReconstructionRequest{ .mDenoise = filter,
+                                .mFilters = { .mAntilag = false, .mAntiFirefly = false } },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                 }

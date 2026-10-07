@@ -403,14 +403,14 @@ namespace RtxTool
 
         option(sFramed, "antilag",
             bpo::value<bool>()
-                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntilag)
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mAntilag)
                 ->implicit_value(true),
             "hold the denoiser's slow mean of the bounce to its fast one, so a change of the light on "
             "a surface that did not move is followed and not dragged. Off is the A/B");
 
         option(sFramed, "history-fix",
             bpo::value<bool>()
-                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mHistoryFix)
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mHistoryFix)
                 ->implicit_value(true),
             std::format("rebuild the denoiser's mean of the bounce, where it holds {:g} frames or fewer, from "
                         "the surface around it, so what the eye uncovers shows the light beside it and not one "
@@ -420,7 +420,7 @@ namespace RtxTool
 
         option(sFramed, "dual-motion",
             bpo::value<bool>()
-                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mDualMotion)
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mDualMotion)
                 ->implicit_value(true),
             "where the previous frame did not see a surface, take the denoiser's history of the bounce "
             "along the motion of what hid it, so what the eye uncovers starts with the history of the "
@@ -428,7 +428,7 @@ namespace RtxTool
 
         option(sFramed, "antifirefly",
             bpo::value<bool>()
-                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntiFirefly)
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mAntiFirefly)
                 ->implicit_value(true),
             std::format("hold the denoiser's mean of the bounce, where it holds {:g} frames or fewer, under "
                         "the light around it, so a bounce that found a small bright thing on one leaf is not "
@@ -696,15 +696,15 @@ namespace RtxTool
         request.mDenoise = variables["filter"].as<bool>();
         request.mJitter = variables["jitter"].as<bool>();
         const std::string& noise = variables["noise"].as<std::string>();
-        request.mNoise = noise == "auto" ? Rtx::ReconstructionRequest{}.mNoise
-                                         : Rtx::sNoiseSourceNames.require(noise, "a noise source");
+        request.mSampling.mNoise = noise == "auto" ? Rtx::ReconstructionRequest{}.mSampling.mNoise
+                                                   : Rtx::sNoiseSourceNames.require(noise, "a noise source");
         request.mLevelEpsilon = variables["level-epsilon"].as<float>();
-        request.mShadowFloor = variables["shadow-floor"].as<float>();
-        request.mLampCandidates = variables["lamp-candidates"].as<std::uint32_t>();
-        request.mAntilag = variables["antilag"].as<bool>();
-        request.mHistoryFix = variables["history-fix"].as<bool>();
-        request.mDualMotion = variables["dual-motion"].as<bool>();
-        request.mAntiFirefly = variables["antifirefly"].as<bool>();
+        request.mSampling.mShadowFloor = variables["shadow-floor"].as<float>();
+        request.mSampling.mLampCandidates = variables["lamp-candidates"].as<std::uint32_t>();
+        request.mFilters.mAntilag = variables["antilag"].as<bool>();
+        request.mFilters.mHistoryFix = variables["history-fix"].as<bool>();
+        request.mFilters.mDualMotion = variables["dual-motion"].as<bool>();
+        request.mFilters.mAntiFirefly = variables["antifirefly"].as<bool>();
     }
 
     std::optional<FilmLength> filmLengthFrom(const bpo::variables_map& variables)

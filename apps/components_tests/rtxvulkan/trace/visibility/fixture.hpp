@@ -518,10 +518,10 @@ namespace Rtx::Testing
                         .mLoss = at == shot.mLossAt ? shot.mLoss : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
-                            .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon,
-                            .mShadowFloor = shot.mShadowFloor,
-                            .mLampCandidates = shot.mLampCandidates },
+                            .mSampling = { .mNoise = shot.mNoise,
+                                .mShadowFloor = shot.mShadowFloor,
+                                .mLampCandidates = shot.mLampCandidates } },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,

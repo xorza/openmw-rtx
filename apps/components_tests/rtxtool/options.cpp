@@ -72,15 +72,15 @@ namespace RtxTool
             const bpo::variables_map variables = read({ "--antilag=false", "--lamp-candidates=4" });
             Rtx::ReconstructionRequest played;
             readReconstruction(variables, played);
-            ASSERT_FALSE(played.mAntilag);
-            ASSERT_EQ(played.mLampCandidates, 4u);
+            ASSERT_FALSE(played.mFilters.mAntilag);
+            ASSERT_EQ(played.mSampling.mLampCandidates, 4u);
 
             Rtx::ReconstructionRequest ringed = played;
-            ringed.mAntiFirefly = true;
+            ringed.mFilters.mAntiFirefly = true;
             EXPECT_EQ(options.versus(variables, played, "antifirefly=true"), ringed);
             EXPECT_EQ(options.versus(variables, played, "antifirefly"), ringed) << "the implicit value";
             Rtx::ReconstructionRequest every = played;
-            every.mLampCandidates = 0;
+            every.mSampling.mLampCandidates = 0;
             EXPECT_EQ(options.versus(variables, played, "lamp-candidates=0"), every);
             EXPECT_EQ(options.versus(variables, played, "antilag=false"), played) << "the same side again";
 
