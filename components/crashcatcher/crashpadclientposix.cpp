@@ -6,14 +6,15 @@
 #include <ctime>
 #include <string_view>
 
+#include <fcntl.h>
+
 #include "crashnote.hpp"
 
-// Linux's alternate signal stack, which macOS has no call for; and macOS's pipe to the thread that
-// takes a hang report.
+// Linux's alternate signal stack and socket to the monitor, which macOS has no call for; and
+// macOS's pipe to the thread that takes a hang report.
 #if !defined(__APPLE__)
 #include <client/crashpad_client.h>
 #else
-#include <fcntl.h>
 #include <thread>
 #include <unistd.h>
 #endif
@@ -80,6 +81,17 @@ namespace Crash::Client
             errno = interrupted;
             return false;
         }
+#endif
+    }
+
+    void keepConnectionToThisProcess()
+    {
+#if !defined(__APPLE__)
+        // `StartHandler` makes the pair with `socketpair` and no `SOCK_CLOEXEC`.
+        int socket = -1;
+        pid_t monitor = 0;
+        if (crashpad::CrashpadClient::GetHandlerSocket(&socket, &monitor))
+            fcntl(socket, F_SETFD, fcntl(socket, F_GETFD) | FD_CLOEXEC);
 #endif
     }
 

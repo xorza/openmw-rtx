@@ -144,6 +144,8 @@ namespace Crash::Client
         }
     }
 
+    void keepConnectionToThisProcess() {}
+
     void prepareInstallingThread()
     {
         guaranteeStack();

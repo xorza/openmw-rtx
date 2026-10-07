@@ -1,6 +1,10 @@
 #include "crashtestssystem.hpp"
 
 #include <cstring>
+#include <filesystem>
+#include <optional>
+#include <string>
+#include <string_view>
 
 #include <intrin.h>
 
@@ -47,6 +51,13 @@ namespace CrashTests
         // module the catcher listed, which asks the monitor for the dump: raised as the code
         // `__fastfail` raises, on the thread that called it.
         into.push_back({ "fast-fail", "Crash: ", { "STATUS_STACK_BUFFER_OVERRUN" }, {}, true, crashed });
+    }
+
+    void prepareModeOfThisSystem(std::string_view) {}
+
+    std::optional<std::string> checkModeOfThisSystem(std::string_view, const std::filesystem::path&)
+    {
+        return std::nullopt;
     }
 
     std::optional<int> runModeOfThisSystem(std::string_view mode)

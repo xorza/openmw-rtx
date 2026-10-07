@@ -128,6 +128,7 @@ namespace Crash
             return Misc::Err{ "its monitor did not start" };
         }
 
+        Client::keepConnectionToThisProcess();
         Client::prepareInstallingThread();
         std::set_terminate(Client::onTerminate);
         Client::hookEveryEnd(*sPage.get());

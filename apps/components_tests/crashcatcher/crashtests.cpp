@@ -270,12 +270,6 @@ namespace CrashTests
             return 2;
         }
 
-        std::string contentsOf(const std::filesystem::path& path)
-        {
-            std::ifstream file(path, std::ios::binary);
-            return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        }
-
         /// The summary stream of a minidump, or nothing where it has none.
         std::optional<std::string> summaryOf(const std::filesystem::path& dump)
         {
@@ -392,8 +386,16 @@ namespace CrashTests
         {
             if (inconclusive(ended))
                 return "no run of " + std::to_string(sInconclusiveRuns) + " gave it the case it tests";
-            if (ended.succeeded() == mode.mHeadline.starts_with("Crash: "))
+            if (mode.mEndsBy != 0)
+            {
+                if (ended.mSignal != mode.mEndsBy && ended.mExitCode != 128u + static_cast<std::uint32_t>(mode.mEndsBy))
+                    return "it ended with " + ended.describe() + ", not signal " + std::to_string(mode.mEndsBy);
+            }
+            else if (ended.succeeded() == mode.mHeadline.starts_with("Crash: "))
                 return "it ended with " + ended.describe();
+            // Read before anything that waits for the monitor.
+            if (mode.mKept && mode.mReports && filesIn(folder, { "user data/crashes" }, ".zip").empty())
+                return "the run ended before its monitor packaged the session";
 
             std::vector<std::string> lines;
             {
@@ -504,7 +506,7 @@ namespace CrashTests
             if (!mode.mFollows.empty() && !follows(folder, mode.mFollows))
                 return "nothing says \"" + std::string(mode.mFollows) + "\"";
 
-            return std::nullopt;
+            return checkModeOfThisSystem(mode.mName, folder);
         }
 
         /// Where a mode's errors go, and its monitor's, which share them: to show where the mode fails.
@@ -608,6 +610,12 @@ namespace CrashTests
         Log(Debug::Info) << "crash-tests lived on";
         return 0;
     }
+
+    std::string contentsOf(const std::filesystem::path& path)
+    {
+        std::ifstream file(path, std::ios::binary);
+        return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    }
 }
 
 int main(int argc, char* argv[])
@@ -629,6 +637,7 @@ int main(int argc, char* argv[])
         if (CrashTests::answersEnd(mode))
             Platform::Process::setEnvironment(
                 "OPENMW_CRASH_END_AFTER_MS", std::string(CrashTests::sEndAfterMs).c_str());
+        CrashTests::prepareModeOfThisSystem(mode);
 
         const int ended = Debug::wrapApplication(
             [](int, char* arguments[]) {
