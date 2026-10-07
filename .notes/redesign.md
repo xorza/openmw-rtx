@@ -638,7 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[code] `spirvfile.cpp` defines its own SPIR-V magic** beside `spv::MagicNumber`. Target: use it.
 - **[code] The 3×3 tent is written three times** (`atrous.comp`, `shadowfilter.comp`'s
   `filteredVariance`, `fogTentWeight`). Target: one `tentWeight`.
 - **[code] `skyVisible`'s two overloads take their arguments in two orders** (`lights.glsl`).
