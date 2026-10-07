@@ -111,7 +111,7 @@ namespace Rtx
                 arrival.record(setup, passes);
                 TextureArray array(device, setup, layout, passes, 2);
                 std::vector<Refusal> refused;
-                array.write(setup, textures, refused);
+                array.write(setup, passes, textures, refused);
                 array.sync(FrameSlot{});
                 std::vector<Index> everyMesh;
                 const SceneBuffers buffers(
