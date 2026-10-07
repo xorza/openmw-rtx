@@ -43,8 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtx/image/imagedescription.hpp:53-59` — the two `describeImage` overloads have different
-  argument orders. Target shape: one order, with the out-parameters last. (low)
 - [ ] `components/rtx/mirror/cells/cellring.cpp:314-323`, `cellplacer.cpp:477` — `CellRing::adopt` fills a
   cell's model list, and then the placer is called two times (`hold`, `adoptPlacements`). Grass does the
   same bookkeeping in one call (`holdGrass`). `dropUnless`/`dropGrassUnless` (`cellplacer.hpp:290-338`) are

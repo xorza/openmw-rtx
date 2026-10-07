@@ -242,8 +242,8 @@ namespace Rtx
         return laidBytesOf(image, format, keptLevels(image));
     }
 
-    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, std::vector<MipLevel>& levels,
-        std::vector<std::byte>& texels, const TextureEncoding encoding)
+    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureEncoding encoding,
+        std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
     {
         return describeImage(image, readFormat(image, encoding), encoding, levels, texels);
     }
