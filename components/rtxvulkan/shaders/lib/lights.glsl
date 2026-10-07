@@ -697,6 +697,11 @@ float skyPenumbra(SkySource sky, float occluder)
                                             : SHADOW_PENUMBRA_CLEAR;
 }
 
+/// The same for the lamp a reservoir held, `radius occluder / (distance - occluder)`.
+///
+/// **The lamp's row read again and not handed over from `lampPassage`**: with this read and the
+/// caller's for the cosine both taken out, the trace's median moved by nothing on the interiors
+/// suite, three alternated rounds — the guild's 1.62 ms either way.
 float lampPenumbra(Reservoir kept, float occluder)
 {
     const GpuLight lamp = lightAt(kept.mLamp);
