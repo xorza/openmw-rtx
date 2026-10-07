@@ -334,14 +334,6 @@ namespace Rtx
         });
     }
 
-    osg::BoundingBoxf SceneDesc::getBounds() const
-    {
-        osg::BoundingBoxf bounds;
-        forEachPlacement([&](const PlacementRow&, const osg::BoundingBoxf& box) { bounds.expandBy(box); });
-
-        return bounds;
-    }
-
     osg::BoundingBoxf SceneDesc::getContentBoundsWithin(const osg::BoundingBoxf& region) const
     {
         osg::BoundingBoxf bounds;

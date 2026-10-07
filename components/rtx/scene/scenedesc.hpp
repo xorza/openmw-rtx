@@ -47,10 +47,6 @@ namespace Rtx
     class SceneDesc
     {
     public:
-        /// What a mesh's geometry may not straddle — `MeshTable::sVertexBlock` says why.
-        static constexpr Index sVertexBlock = MeshTable::sVertexBlock;
-        static constexpr Index sIndexBlock = MeshTable::sIndexBlock;
-
         SceneDesc();
 
         /// Moved whole: no table holds a reference to a sibling, so what a moved description's
@@ -224,12 +220,9 @@ namespace Rtx
         /// says where its run sits, and the deformers hold it.
         std::span<const PoseWord> getMeshPose(Index mesh) const;
 
-        /// Every placement's own box, in the world.
-        osg::BoundingBoxf getBounds() const;
-
-        /// The same, clipped to `region` and with the water left out: the sea is one sheet a
-        /// hundred and fifty cells across, so a caller asking how far the ground reaches would
-        /// clear any threshold at every coastline.
+        /// Every placement's own box in the world, clipped to `region` and with the water left
+        /// out: the sea is one sheet a hundred and fifty cells across, so a caller asking how far the
+        /// ground reaches would clear any threshold at every coastline.
         osg::BoundingBoxf getContentBoundsWithin(const osg::BoundingBoxf& region) const;
 
         /// Sorts the lights so that a frame's own order is a fact about the world. `SceneUploader`

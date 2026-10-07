@@ -40,10 +40,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
-- [ ] `components/rtx/scene/scenedesc.hpp:52-53,229` — `SceneDesc::sVertexBlock`/`sIndexBlock` and
-  `getBounds()` are read only by tests, with no mark, and are a third name for
-  `MeshTable::sVertexBlock`/`Shaders::VERTEX_BLOCK`. Target shape: one constant, and `getBounds` removed or
-  marked. (low)
 - [ ] `apps/rtxtool/main.cpp:853-854`, `apps/rtxtool/model/runrecord.cpp:19-21` — the rule "hashed =
   `--hashes`, `--against` or `--pictures`" is calculated two times. After `main` sets `mActions.mHash` on
   each stop, the three request clauses in `RunRecord::begin` are redundant. Target shape: keep only the
