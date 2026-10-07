@@ -3,10 +3,12 @@ import os
 import shutil
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from omw.build import CONFIGURED_FROM, Build, configured_from, manifest_inputs, redate_ahead
-from omw.fetch import build_beside, download, partial_of, settle
+from omw.deps import pinned_folder
+from omw.fetch import build_beside, download, extract_member, partial_of, settle
 from omw.package import (
     CONTAINER_DIR,
     RELEASE_IMAGE,
@@ -18,7 +20,8 @@ from omw.package import (
     used_osg_plugins,
     wayland_platform_plugins,
 )
-from omw.system import ROOT, Refusal, environment_key, parse_set_output
+from omw.pins import Pin
+from omw.system import DEPS, ROOT, Refusal, environment_key, parse_set_output
 
 
 class ParseSetOutputTest(unittest.TestCase):
@@ -169,6 +172,36 @@ class SettleTest(unittest.TestCase):
         with self.assertRaises(Refusal):
             download("http://example.com/f", folder / "f")
         self.assertEqual(list(folder.iterdir()), [])
+
+
+class ExtractMemberTest(unittest.TestCase):
+    def test_the_member_is_found_wherever_it_is_and_stands_whole_with_no_partial_beside_it(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        archive = folder / "tools.zip"
+        with zipfile.ZipFile(archive, "w") as made:
+            made.writestr("bin/other", b"no")
+            made.writestr("release/bin/dump_syms", b"the tool")
+
+        into = folder / "out"
+        self.assertEqual(extract_member(archive, "dump_syms", into), into / "dump_syms")
+        self.assertEqual((into / "dump_syms").read_bytes(), b"the tool")
+        self.assertEqual(sorted(path.name for path in into.iterdir()), ["dump_syms"])
+        with self.assertRaises(Refusal):
+            extract_member(archive, "minidump-stackwalk", into)
+
+
+class PinnedFolderTest(unittest.TestCase):
+    def test_a_folder_is_named_after_its_pins_so_a_changed_pin_is_a_folder_not_there_yet(self):
+        old = Pin("https://example.com/a", "a" * 64)
+        new = Pin("https://example.com/a", "b" * 64)
+        other = Pin("https://example.com/b", "c" * 64)
+        self.assertEqual(pinned_folder("crash", old), pinned_folder("crash", old))
+        self.assertEqual(pinned_folder("crash", old).parent, DEPS)
+        self.assertTrue(pinned_folder("crash", old).name.startswith("crash-"))
+        self.assertNotEqual(pinned_folder("crash", old), pinned_folder("crash", new))
+        self.assertNotEqual(pinned_folder("tools", old, other), pinned_folder("tools", new, other),
+                            "one pin of several changed and the folder did not")
 
 
 class UsedOsgPluginsTest(unittest.TestCase):

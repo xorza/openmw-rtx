@@ -43,16 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The driver and its dependencies
 
-- [ ] `tools/omw/deps.py:92-99` (`appimage_tools`), `:102-115` (`crash_tool`) — the AppImage tools and
-  Breakpad's two tools are kept under names with no version (`deps/appimage/linuxdeploy`,
-  `deps/crash/dump_syms`) and are used again when the file exists. A change in `pins.py` thus never
-  reaches a computer that has the tool, nor Windows CI, whose cache restores the old files
-  (`.github/actions/openmw-deps/action.yml:51-53`). This breaks the promise at `deps.py:1-3`. Target
-  shape: a folder named after the pin's version or digest, as `vulkan_sdk_dir` and `windows_set` have. (high)
-- [ ] `tools/omw/fetch.py:114-137` (`extract_member`) — writes directly to the final path. An interrupted
-  extract leaves a truncated `dump_syms` or `minidump-stackwalk` that `crash_tool` accepts, because it
-  checks only `is_file()`. Target shape: extract into a `.partial` file and rename it (`settle`/
-  `build_beside`). (medium)
 - [ ] `tools/omw/deps.py`, `.github/actions/openmw-deps/action.yml:48-53` — nothing removes the folder of a
   replaced `VCPKG_TAG`, Qt or SDK version, so the Windows cache grows with each change. Target shape: after
   a fetch, delete sibling folders that the current pins do not name. (medium)

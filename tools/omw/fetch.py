@@ -113,15 +113,17 @@ def unpack_7z(archive: Path, into: Path, *members: str, flat: bool = False) -> N
 
 def extract_member(archive: Path, name: str, into: Path) -> Path:
     """The one file called `name` inside a .zip or .tar.xz, wherever in it, into `into` under its own
-    name."""
+    name — written beside it and given the name once it is whole, so an extract cut off leaves no
+    truncated tool that a later run takes for the one it asked for."""
     into.mkdir(parents=True, exist_ok=True)
     target = into / name
+    partial = partial_of(target)
     if archive.name.endswith(".zip"):
         with zipfile.ZipFile(archive) as opened:
             member = next((m for m in opened.namelist() if PurePosixPath(m).name == name), None)
             if member is None:
                 raise Refusal(f"{archive.name} holds no {name}")
-            with opened.open(member) as source, open(target, "wb") as out:
+            with opened.open(member) as source, open(partial, "wb") as out:
                 shutil.copyfileobj(source, out)
     else:
         with tarfile.open(archive) as opened:
@@ -130,8 +132,9 @@ def extract_member(archive: Path, name: str, into: Path) -> Path:
                 raise Refusal(f"{archive.name} holds no {name}")
             extracted = opened.extractfile(found)
             assert extracted is not None, "a regular member always has contents"
-            with extracted, open(target, "wb") as out:
+            with extracted, open(partial, "wb") as out:
                 shutil.copyfileobj(extracted, out)
     if not WINDOWS:
-        target.chmod(0o755)
+        partial.chmod(0o755)
+    partial.replace(target)
     return target
