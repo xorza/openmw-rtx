@@ -17,7 +17,7 @@ namespace Rtx
             return true;
 
         // Counted and not reported: a table does not reach the scene's `Refusals`, and
-        // `SceneTextures` reports the limit with the rest of what an arrival stood in for.
+        // `SceneUploader` reports the limit on the hand-over that met it.
         ++mRefused;
         ++mRefusedArrivals;
         return false;

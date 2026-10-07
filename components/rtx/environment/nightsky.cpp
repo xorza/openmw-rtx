@@ -126,7 +126,8 @@ namespace Rtx
             void apply(osg::Geometry& geometry) override
             {
                 const auto* coords = dynamic_cast<const osg::Vec2Array*>(geometry.getTexCoordArray(0));
-                std::vector<osg::Vec3f> directions;
+                std::vector<osg::Vec3f>& directions = mDirections;
+                directions.clear();
                 if (coords == nullptr || !placedVertices(geometry, getNodePath(), directions)
                     || directions.size() != coords->size() || directions.empty())
                     return;
@@ -200,6 +201,9 @@ namespace Rtx
             std::vector<Layer> mLayers;
 
         private:
+            /// Each drawable's vertices placed and then turned to directions, refilled for each.
+            std::vector<osg::Vec3f> mDirections;
+
             /// The sheet on the first texture unit as the rasterizer's state stack resolves it down
             /// `path`, which ends at the drawable: the nearest state set that binds one, unless one
             /// above binds it `OVERRIDE` and the nearer one is not `PROTECTED`. Null where none is
