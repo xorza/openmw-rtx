@@ -3,16 +3,7 @@
 Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without tests and without
 `extern/fidelityfx`. Whoever addresses an item deletes it. When a group is empty, delete its heading.
 
-## Open issues from `.notes/ISSUES.md`
-
 Whoever fixes one of these deletes it from the issue log as well.
-
-- [ ] `tools/omw/deps.py:162` — `omw kernels` refuses on a box `omw bootstrap` set up: it wants
-  `spirv-dis` beside the build's `spirv-opt`, and the SDK fetch keeps only `glslc`, `spirv-val` and
-  `spirv-opt`. The folder is named after the SDK's version alone, so a desk that has it keeps it
-  without the new tool. Target shape: the fetch keeps `spirv-dis` on both systems, the folder's name
-  says what is kept as well as the version (so the next `bootstrap` fetches it and `prune` removes the
-  old one), and `bootstrap` proves `spirv-dis` with the other three. (low)
 
 ## The frame path allocates, copies, or rebuilds behind a threshold
 

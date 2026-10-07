@@ -37,7 +37,7 @@ runs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: deps/vulkan-sdk-*
-        key: vulkan-sdk-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py') }}
+        key: vulkan-sdk-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py', 'tools/omw/deps.py') }}
 
     - name: Windows dependencies cache
       # Everything `omw` fetches into deps/ on Windows — upstream's prebuilt set, Qt

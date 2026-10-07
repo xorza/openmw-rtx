@@ -135,17 +135,25 @@ def crash_tool(name: str) -> Path:
     return tool
 
 
+# The SDK's tools a build and the driver run, kept out of it beside its headers and its loader:
+# `spirv-dis` is `omw kernels`', which names a module's constants by it.
+SDK_TOOLS = ("glslc", "spirv-val", "spirv-opt", "spirv-dis")
+
+
 def vulkan_sdk_dir() -> Path:
+    """**Named after the version and what is kept of it**, so a desk that has the SDK without a tool
+    the list gained fetches it again, and `prune` takes the old folder."""
     version = pins.VULKAN_SDK_WINDOWS_VERSION if WINDOWS else pins.VULKAN_SDK_LINUX_VERSION
-    return DEPS / f"vulkan-sdk-{version}"
+    kept = hashlib.sha256(",".join(SDK_TOOLS).encode()).hexdigest()[:8]
+    return DEPS / f"vulkan-sdk-{version}-{kept}"
 
 
 def vulkan_sdk() -> Path:
     """**The Vulkan SDK from LunarG, only what the build needs out of it.** The backend needs
     VK_KHR_shader_fma, which entered the SDK at 1.4.329, and a pinned SDK is the same headers and
     tools on every desk and runner, whatever the distribution packages. What is kept: the headers,
-    SPIR-V's among them, the loader the tests start against, and glslc, spirv-val and spirv-opt, which
-    link nothing of the SDK's. No layers: a runner has no device to validate on, and a desk that
+    SPIR-V's among them, the loader the tests start against, and `SDK_TOOLS`, which link nothing of the
+    SDK's. No layers: a runner has no device to validate on, and a desk that
     validates has an SDK installed for it."""
     sdk = vulkan_sdk_dir()
     if sdk.is_dir():
@@ -159,7 +167,7 @@ def _vulkan_sdk_linux(into: Path) -> None:
     tarball = DEPS / Path(pins.VULKAN_SDK_LINUX.url).name
     fetch.download_pin(pins.VULKAN_SDK_LINUX, tarball)
     wanted = re.compile(r"[^/]+/x86_64/(include/.*|lib/VulkanLoader/lib/libvulkan\.so.*"
-                        r"|bin/(glslc|spirv-val|spirv-opt))")
+                        rf"|bin/({'|'.join(re.escape(tool) for tool in SDK_TOOLS)}))")
     with tarfile.open(tarball) as opened:
         members: list[tarfile.TarInfo] = []
         for member in opened:
@@ -177,7 +185,7 @@ def _vulkan_sdk_linux(into: Path) -> None:
 def _vulkan_sdk_windows(into: Path) -> None:
     """**Out of a 288 MB installer that has no tarball beside it**: run unattended into a directory of
     its own, through PowerShell's wait, since the installer is a windowed program; then the headers
-    and the three tools are taken out of it and the rest left behind. No import library: no program
+    and `SDK_TOOLS` are taken out of it and the rest left behind. No import library: no program
     links the loader, which volk loads at run time. The loader the tests load comes from the runtime
     components, because the installer leaves it to the driver and a runner has no driver."""
     installer = DEPS / Path(pins.VULKAN_SDK_WINDOWS.url).name
@@ -189,7 +197,7 @@ def _vulkan_sdk_windows(into: Path) -> None:
                                                  "--confirm-command", "install"))
         run(["powershell", "-NoProfile", "-Command",
              f"Start-Process -Wait -FilePath '{installer}' -ArgumentList @({arguments})"])
-        tools = ("glslc.exe", "spirv-val.exe", "spirv-opt.exe")
+        tools = tuple(f"{tool}.exe" for tool in SDK_TOOLS)
         for needed in ["Include/vulkan/vulkan.h", "Include/spirv/unified1/spirv.hpp",
                        *(f"Bin/{tool}" for tool in tools)]:
             if not (full / needed).is_file():
@@ -263,7 +271,7 @@ def bootstrap() -> None:
     sdk = vulkan_sdk()
     env = dict(os.environ)
     sdk_environment(env)
-    for tool in ("glslc", "spirv-val", "spirv-opt"):
+    for tool in SDK_TOOLS:
         found = shutil.which(tool, path=env[environment_key("PATH")])
         if found is None:
             raise Refusal(f"{sdk} holds no {tool}")
