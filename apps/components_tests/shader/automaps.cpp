@@ -1,5 +1,7 @@
 #include <cstdint>
+#include <initializer_list>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -346,6 +348,23 @@ namespace Shader
                 group->accept(visitor);
                 EXPECT_EQ(tangentsOf(*first), alongX);
                 EXPECT_EQ(tangentsOf(*second), "none") << "a normal map reached past its own subtree";
+            }
+
+            // **Which unit's coordinates a unit is read through**, the rule both renderers share:
+            // its own, unit nought's, then the first other than the tangents' unit, then none.
+            {
+                const auto coordinatesAt = [](std::initializer_list<unsigned int> units, unsigned int unit) {
+                    osg::ref_ptr<osg::Geometry> square = makeSquare();
+                    for (const unsigned int at : units)
+                        square->setTexCoordArray(at, squareCoordinates(false));
+                    return coordinatesFor(*square, unit);
+                };
+                EXPECT_EQ(coordinatesAt({ 0, 1 }, 1), 1u);
+                EXPECT_EQ(coordinatesAt({ 0, 2 }, 1), 0u);
+                EXPECT_EQ(coordinatesAt({ 3, 5 }, 1), 3u);
+                EXPECT_EQ(coordinatesAt({ sTangentUnit, 9 }, 1), 9u) << "tangents read as coordinates";
+                EXPECT_EQ(coordinatesAt({ sTangentUnit }, 1), std::nullopt);
+                EXPECT_EQ(coordinatesAt({}, 0), std::nullopt);
             }
 
             // A skinned square: the tangents on the source geometry it is posed from.

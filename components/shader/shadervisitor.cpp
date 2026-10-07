@@ -1,5 +1,6 @@
 #include "shadervisitor.hpp"
 
+#include <optional>
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
@@ -14,8 +15,6 @@
 #include <osg/ValueObject>
 
 #include <osgParticle/ParticleSystem>
-
-#include <osgUtil/TangentSpaceGenerator>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/osguservalues.hpp>
@@ -592,19 +591,11 @@ namespace Shader
             // if there are none at all, bail.
             // the TangentSpaceGenerator would bail, but getTangentArray would give an empty array, which is enough to
             // bypass null checks, but feeds the driver a bad pointer
-            if (sourceGeometry.getTexCoordArray(0) == nullptr)
-            {
-                for (const auto& array : sourceGeometry.getTexCoordArrayList())
-                {
-                    if (array)
-                    {
-                        sourceGeometry.setTexCoordArray(0, array);
-                        break;
-                    }
-                }
-                if (sourceGeometry.getTexCoordArray(0) == nullptr)
-                    return changed;
-            }
+            const std::optional<unsigned int> first = coordinatesFor(sourceGeometry, 0);
+            if (!first.has_value())
+                return changed;
+            if (*first != 0)
+                sourceGeometry.setTexCoordArray(0, sourceGeometry.getTexCoordArray(*first));
 
             for (const auto& [unit, name] : reqs.mTextures)
             {
@@ -615,15 +606,9 @@ namespace Shader
                 }
             }
 
-            bool generateTangents = reqs.mTexStageRequiringTangents != -1;
-
-            if (generateTangents)
+            if (reqs.mTexStageRequiringTangents != -1)
             {
-                osg::ref_ptr<osgUtil::TangentSpaceGenerator> generator(new osgUtil::TangentSpaceGenerator);
-                generator->generate(&sourceGeometry, reqs.mTexStageRequiringTangents);
-
-                sourceGeometry.setTexCoordArray(
-                    sTangentUnit, generator->getTangentArray(), osg::Array::BIND_PER_VERTEX);
+                generateTangents(sourceGeometry, static_cast<unsigned int>(reqs.mTexStageRequiringTangents));
                 changed = true;
             }
         }

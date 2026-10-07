@@ -40,9 +40,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
-- [ ] `components/shader/automaps.cpp:269` — `MapVisitor::buildTangents` repeats `ShaderVisitor::adjustGeometry`'s
-  choice of the UV set that a normal map reads, and the two already differ (one skips unit 7). Target
-  shape: one tangent helper in `automaps` that both visitors call. (low)
 - [ ] `components/rtx/frame/reconstruction.hpp:44-110,115-217` — `Reconstruction` repeats seven
   `ReconstructionRequest` switches one by one. `resolve` copies each, and `unfiltered()` resets four by
   name. A new switch needs four edits, and a missed `unfiltered()` makes two requests unequal without an
