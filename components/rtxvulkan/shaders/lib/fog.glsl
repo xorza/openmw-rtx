@@ -713,13 +713,9 @@ vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direct
             const float crossed
                 = falloffAlong(perpendicular, from - closest, to - closest, held.mReach, held.mSourceRadius);
 
-            // The ray this may buy is aimed when it is cast, off the lamp's own row, so nothing
-            // about where the lamp stands has to be worked out here.
-            const vec3 place = origin + direction * clamp(closest, from, to);
-
             const vec3 share = held.mIntensity * (INV_FOUR_PI * crossed);
             scattered += share;
-            considerLamp(kept, state, place, airCandidate(share), row);
+            considerLamp(kept, state, airCandidate(share), row);
         }
 
         if (leave >= exit)
