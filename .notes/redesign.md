@@ -635,8 +635,10 @@ device here measures the GL path's memory, and the change would be checked only 
   the denoiser filters the translucency as it filters a penumbra. A pixel the draw shuts carries a
   reach in `CHANNEL_PENUMBRA`, so the levels run on it.
 - **[decision] The glossy filter has no virtual-motion history** (`specular.comp`): a sharp lobe
-  resets at each turn. ReLAX's needs the lobe's hit distance stored. Decide whether that is worth a
-  channel. Blocked: question 9 in `redesign_QUESTIONS.md`.
+  resets at each turn. ReLAX's needs the lobe's hit distance stored. **Waits for replacer content**
+  (decided 2026-10-07): a PBR replacer with specular maps installed and a view of it in
+  `views.cfg`, then the second history built and measured there with `noise --strafe`. This
+  machine has only the vanilla `Data Files`, on which no lobe stands.
 
 ### 6.10 Fork hunks the Accepted diff does not cover
 
