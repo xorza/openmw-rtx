@@ -428,12 +428,12 @@ namespace Rtx
 
     std::optional<FrameResult> VulkanRenderer::finishFrame()
     {
-        return mRing.collect();
+        return mRing.finishFrame();
     }
 
     std::optional<FrameResult> VulkanRenderer::collectFrame()
     {
-        return mRing.collectFinished();
+        return mRing.collectFrame();
     }
 
     void VulkanRenderer::resize(std::uint32_t width, std::uint32_t height)

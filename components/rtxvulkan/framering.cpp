@@ -220,7 +220,7 @@ namespace Rtx
         frame.mTimer.resolve(report.mGpu);
     }
 
-    std::optional<FrameResult> FrameRing::collect()
+    std::optional<FrameResult> FrameRing::finishFrame()
     {
         // What is already in hand before anything is waited for. A frame the ring drained to
         // make room has been finished and its report is here; waiting again would wait the frame
@@ -234,7 +234,7 @@ namespace Rtx
         return takeReport();
     }
 
-    std::optional<FrameResult> FrameRing::collectFinished()
+    std::optional<FrameResult> FrameRing::collectFrame()
     {
         makeRoom();
         return takeReport();
