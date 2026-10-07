@@ -17,7 +17,6 @@
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
-#include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
@@ -31,6 +30,8 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/terrain/pagedcellref.hpp>
+
+#include "mirrorknobs.hpp"
 
 namespace Resource
 {
@@ -66,7 +67,7 @@ namespace MWRender
     class WorldMirror
     {
     public:
-        explicit WorldMirror(const Rtx::MirrorKnobs& knobs);
+        explicit WorldMirror(const MirrorKnobs& knobs);
 
         /// Asserts the scene empty: a world detached has given every row back, and the one that
         /// did not is named here rather than found at the next frame's horizon. Not while an

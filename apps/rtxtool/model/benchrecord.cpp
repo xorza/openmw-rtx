@@ -12,6 +12,7 @@
 #include <string_view>
 #include <variant>
 
+#include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
@@ -99,7 +100,7 @@ namespace RtxTool
         std::string asJson(const MWRender::RunSetup& setup, const std::optional<float>& step)
         {
             const Rtx::RenderProfile& profile = setup.mRun.mProfile;
-            const Rtx::MirrorKnobs& mirror = setup.mMirror;
+            const MWRender::MirrorKnobs& mirror = setup.mMirror;
             return std::format(R"(  "filter": {}, "jitter": {}, "delight": {:.3f}, "gamma": {:.3f}, "show": "{}", )"
                                R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {:.3f},)"
                                "\n"
@@ -344,7 +345,7 @@ namespace RtxTool
         // **The build and the layers first, because either makes every figure below one not to
         // quote**, and the command's own word on whether it measures beside them.
         const Rtx::RenderProfile& profile = header.mSetup.mRun.mProfile;
-        const Rtx::MirrorKnobs& mirror = header.mSetup.mMirror;
+        const MWRender::MirrorKnobs& mirror = header.mSetup.mMirror;
         std::string out = std::format("\nrun  {}, layers {}, {}{}{}\n",
             header.mAsserts ? "a build with asserts, not one to quote" : "a release build",
             header.mValidating ? "on, not a figure to quote" : "off", header.mMeasures ? "measured" : "not measured",
