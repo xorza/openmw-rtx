@@ -8,6 +8,7 @@
 #include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/channeldigest.h>
 
 namespace Rtx
 {

@@ -18,6 +18,7 @@
 
 #include "colour.h"
 #include "shared/sets.h"
+#include "shared/shading.h"
 #include "shadingmap.h"
 
 #include "lib/census.glsl"

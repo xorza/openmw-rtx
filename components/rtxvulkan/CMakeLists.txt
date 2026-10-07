@@ -344,6 +344,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/atrous.h
     shaders/shared/bindings.h
     shaders/shared/bloom.h
+    shaders/shared/channeldigest.h
     shaders/shared/composite.h
     shaders/shared/counts.h
     shaders/shared/exposure.h
@@ -362,7 +363,9 @@ set(RTX_VULKAN_FILES
     shaders/shared/probe.h
     shaders/shared/ripple.h
     shaders/shared/sets.h
+    shaders/shared/shading.h
     shaders/shared/shadow.h
+    shaders/shared/skin.h
     shaders/shared/specular.h
     shaders/shared/spritebin.h
     shaders/shared/spritelight.h
@@ -371,6 +374,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/tables.h
     shaders/shared/tone.h
     shaders/shared/tracerecords.h
+    shaders/shared/wavetransform.h
     texture/groundcompositepass.cpp
     texture/groundcompositepass.hpp
     texture/mipchainpass.cpp

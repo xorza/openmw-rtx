@@ -29,6 +29,7 @@
 // filtered every frame is blurred again every frame.
 
 #include "scene.h"
+#include "shared/fogvolume.h"
 
 #include "lib/bindings.glsl"
 #include "lib/census.glsl"

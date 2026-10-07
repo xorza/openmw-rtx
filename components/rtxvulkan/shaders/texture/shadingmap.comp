@@ -24,6 +24,7 @@
 // and differs by a block's edge for the few smaller ones, where this is the exact quantity.
 
 #include "shared/sets.h"
+#include "shared/shading.h"
 #include "shadingmap.h"
 
 #include "lib/census.glsl"

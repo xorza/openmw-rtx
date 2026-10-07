@@ -74,20 +74,8 @@ namespace Rtx::Shaders
         float mWeight;
     };
 
-    /// What the dispatch is told about the texture's finest level.
-    struct ShadingConstants
-    {
-        uint mWidth;
-        uint mHeight;
-
-        /// How the texture is addressed past its edges, `Rtx::TextureWrap`: bit nought clamps the
-        /// blur across, bit one down.
-        uint mWrap;
-    };
-
 #ifdef RTX_HOST
     static_assert(sizeof(ShadingSum) == 8, "ShadingSum must be scalar-packed on every side");
-    static_assert(sizeof(ShadingConstants) == 12, "ShadingConstants must be scalar-packed on every side");
 }
 #endif
 
