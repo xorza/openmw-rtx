@@ -40,8 +40,14 @@ from omw.system import Refusal, Switches, read_text
 # `RtxTool::sDifferedStatus`: the run's one fault is a frame that differed from its reference.
 DIFFERED_STATUS = 3
 
-# What `bench` would walk instead: named twice, `bench` refuses the line and the run reads as failed.
-WALK_SWITCHES = ("--views", "--suite", "--seconds", "--frames")
+# **What `repeat` sets on every run, in one list**: what the walk is and how it is taken. Named twice,
+# `bench` refuses the line and the run reads as failed, so each is refused here first.
+WALK = {"--views": "one-cell-walk", "--seconds": "6"}
+TAKEN = {"--window": "false", "--upscale": "off", "--filter": "false", "--validation": "off"}
+
+# What would walk another way than `WALK` says, and what each run sets for itself.
+WALK_SWITCHES = (*WALK, "--suite", "--frames")
+RUN_SWITCHES = ("--hold", "--hashes", "--against")
 
 
 def _tail(log: Path) -> str:
@@ -56,13 +62,15 @@ def repeat(build: Build, args: list[str]) -> int:
     pairs: int = asked.pairs
     if pairs < 1:
         raise Refusal(f"--pairs={pairs} is not a count of one or more")
-    moved = next((arg for arg in extra if arg.split("=", 1)[0] in WALK_SWITCHES), None)
-    if moved is not None:
-        raise Refusal(f"repeat walks `one-cell-walk` for six seconds, always, and {moved} would move it")
+    for arg in extra:
+        switch = arg.split("=", 1)[0]
+        if switch in WALK_SWITCHES:
+            raise Refusal(f"repeat walks `one-cell-walk` for six seconds, always, and {arg} would move it")
+        if switch in TAKEN or switch in RUN_SWITCHES:
+            raise Refusal(f"repeat sets {switch} itself, on every run")
 
     out = Path(tempfile.mkdtemp(prefix="omw-repeat-"))
-    bench = ["--views=one-cell-walk", "--seconds=6", "--window=false", "--upscale=off", "--filter=false",
-             "--validation=off", *extra]
+    bench = [f"{switch}={value}" for switch, value in (WALK | TAKEN).items()] + extra
 
     def run(index: int) -> tuple[Path, int]:
         log = out / f"{index}.log"
