@@ -525,6 +525,11 @@ namespace Rtx
         if (material.isBlended() && material.mDiffuse != sNoIndex)
         {
             std::optional<ImageFacts> read = reading.mDiffuseFacts;
+            // The reader asked what this asks, of the same image: a reading that holds the other fact
+            // would walk the texels here, on the frame, into a copy that keeps nothing.
+            assert((!read.has_value()
+                       || (material.isAdditive() ? read->mMean.has_value() : read->mReachesSolid.has_value()))
+                && "a reading that read another fact than its material wants");
             if (ImageFacts* const facts = read.has_value() ? &*read : diffuseFacts(diffuse); facts != nullptr)
                 takeBlendFact(mThread, *facts, *diffuse, material);
         }
