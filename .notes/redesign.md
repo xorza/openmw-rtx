@@ -611,9 +611,16 @@ device here measures the GL path's memory, and the change would be checked only 
 ### 6.3 Crash reports, CI and the release
 
 - **[bug] Windows fail-fast crashes get no dump**: `/GS`, heap corruption and `__fastfail` skip
-  the in-process filter, and nothing ships or registers `crashpad_wer.dll`. Target: build, install
-  and `RegisterWerModule` it. Blocked: question 11 in `redesign_QUESTIONS.md`. (The monitor logs
-  the exit code when no dump came: done.)
+  the in-process filter, and nothing ships or registers `crashpad_wer.dll`. (The monitor logs the
+  exit code when no dump came: done.) **Decided (2026-10-07): the game registers itself under the
+  player's key.** The package ships the DLL beside the executable; at start the Windows client
+  writes `HKEY_CURRENT_USER\Software\Microsoft\Windows\Windows Error Reporting\RuntimeExceptionHelperModules`'s
+  value for that DLL, removes a value of its own name that points elsewhere, and calls
+  `RegisterWerModule`.
+- **[check, on Windows] The WER module takes a fail-fast crash's dump.** After the item above, on
+  a Windows machine: run the packaged game with a `fast-fail` crash (`crash-tests`' Windows mode),
+  and see that a dump arrives in the crash folder and the registry value names the DLL beside the
+  executable. No machine here runs Windows.
 - **[bug, check on the AppImage] The monitor runs from the AppImage's mount after the game is
   gone.** Packaging and the dialog run after exit, when the mount may be gone. Target: verify by
   crashing the AppImage with `OPENMW_CRASH_DIALOG=1`; if confirmed, keep the mount for the
