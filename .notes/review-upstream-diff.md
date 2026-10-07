@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtx/environment/moonbuilder.hpp:159-160` — `addMoonFaces` takes `(…, holds, thread)`,
-  but `addCloudSheet`, `addSkyContent` and `readNightSky` take `(…, thread, holds)`
-  (`skybuilder.hpp:102-113`, `nightsky.hpp:334-336`). (low)
 - [ ] `components/rtx/environment/nightsky.hpp:340` — `readNightSky` takes `const osg::Node&` and casts the
   const away inside (`nightsky.cpp:273`). `readAtmosphere` and `readCloudShell` take `osg::Node&`
   (`atmosphere.hpp:93`, `cloudshell.hpp:293`), so their callers cast it away (`atmosphere.cpp:234`,

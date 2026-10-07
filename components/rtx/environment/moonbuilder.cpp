@@ -118,7 +118,7 @@ namespace Rtx
     }
 
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
-        std::vector<TextureHold>& holds, ThreadContent& thread)
+        ThreadContent& thread, std::vector<TextureHold>& holds)
     {
         // A moon of a size that is no size is refused and not drawn.
         const auto drawnWidth = [&](Moon moon, float size) {

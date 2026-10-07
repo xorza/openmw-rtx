@@ -151,13 +151,13 @@ namespace Rtx
         return faces[indexOf(moon)];
     }
 
-    /// Adds each moon's face, `moonFaceOf`, opened from `images`, to `scene`, appending a hold on
-    /// each to `holds`, which the caller gives back when the world goes, how wide `sizes` draws each
-    /// moon, and what each face averages, read through `thread`. A moon drawn from the mean of
+    /// Adds each moon's face, `moonFaceOf`, opened from `images`, to `scene`, with how wide `sizes`
+    /// draws each moon and what each face averages, read through `thread`, appending a hold on each
+    /// to `holds`, which the caller gives back when the world goes. A moon drawn from the mean of
     /// its portrait is a coloured circle. A moon of size nought is not drawn, as the game draws
     /// none; one whose size is below nought or not finite is refused to `scene`.
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
-        std::vector<TextureHold>& holds, ThreadContent& thread);
+        ThreadContent& thread, std::vector<TextureHold>& holds);
 
     /// A moon placed from angles `MWWorld::MoonModel` worked out. What a moon *is* once those
     /// angles are known — where its face points, how wide it is, which way its terminator falls —
