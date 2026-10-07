@@ -141,3 +141,20 @@ nothing here can measure the gain or the cost.
 | C. Decline it | The upscaler's accumulation stays the only help for a sharp lobe in motion. | The noise stays. |
 
 **What it blocks.** Only this item.
+
+## 10. Section 6.10: the fork's hunks the Accepted diff does not cover
+
+**Item.** Section 6.10. Each hunk below is the fork's and no Accepted-diff entry names it, so by
+AGENTS.md's rule it is either written into the Accepted diff with its reason or reverted. That
+section of AGENTS.md is the user's policy, so the call is the user's.
+
+| Hunk | Why it is there | My pick |
+|---|---|---|
+| MSVC's `4244` and `4267` off for the whole tree (`CMakeLists.txt`) | GCC's `-Wall -Wextra` leave `-Wconversion` out, so `/W4` held MSVC builds alone to narrowing rules no other compiler checks; off, every compiler checks one set, the rule the five added checks already state. | **Accept**, under the five checks' entry: "one set of checks for every file, on every compiler". |
+| The build floor and toolchain: CMake 3.31, Boost 1.83, `CMAKE_CXX_SCAN_FOR_MODULES OFF`, the ccache fallback, `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT`, the `$<COMPILE_LANGUAGE:C,CXX>` wrapping | 3.31 reads `CMakePresets.json`'s `$comment`; 1.83 is the Boost the flat maps of the scene identities need (`77cde9132a`); the scan preprocessed every file twice for modules the tree has none of; a runner with no ccache builds without it; ccache cannot cache a compile that writes a shared PDB; and Crashpad's MASM sources took the C++ flags. | **Accept**, as one entry: "the build the fork's presets and its Crashpad need". |
+| `install_fork_licenses` and `files/licenses/*` | The fork ships Crashpad, VMA, FidelityFX and the Vulkan loader, whose licences ask to be shipped with them. | **Accept**: "the licences of what the fork ships". |
+| The fork's workflows in place of upstream's four, and the root tooling (`CMakePresets.json`, `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes`, `.gitignore`) | The CI the fork runs and the driver every verification step in AGENTS.md goes through. | **Accept**, beside `CI/`: "the fork's workflows and its driver". |
+
+Revert is the other option for each row: the hunk goes, with what depends on it.
+
+**What it blocks.** Only section 6.10.

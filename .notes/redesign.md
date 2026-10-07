@@ -641,7 +641,8 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.10 Fork hunks the Accepted diff does not cover
 
-Each is a decision: an Accepted-diff entry with its reason, or the hunk reverted.
+Each is a decision: an Accepted-diff entry with its reason, or the hunk reverted. Blocked:
+question 10 in `redesign_QUESTIONS.md`.
 
 - MSVC's `4244` and `4267` turned off for the whole tree (`CMakeLists.txt`), upstream's code
   included.
