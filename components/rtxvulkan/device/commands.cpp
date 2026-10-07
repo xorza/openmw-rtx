@@ -260,7 +260,7 @@ namespace Rtx
         checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
     }
 
-    VkCommandBuffer CommandPool::begin()
+    VkCommandBuffer CommandPool::beginBatch()
     {
         const VkCommandBuffer commands = take();
         open(commands);
@@ -303,7 +303,7 @@ namespace Rtx
     VkCommandBuffer Batch::getCommands()
     {
         if (mCommands == VK_NULL_HANDLE)
-            mCommands = mPool.begin();
+            mCommands = mPool.beginBatch();
 
         return mCommands;
     }
