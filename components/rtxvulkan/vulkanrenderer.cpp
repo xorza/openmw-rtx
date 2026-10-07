@@ -111,19 +111,15 @@ namespace Rtx
 
     VulkanRenderer::~VulkanRenderer()
     {
-        // What the interface handed over, before the pool holding it is taken apart. A GUI
-        // texture write waits for nothing and rides the next submit this pool makes, and there is
-        // no next submit here.
-        tearDown("the interface's last writes were not submitted", [&] { mGui.getTextures().finish(); });
-
-        // Every frame in flight, and the presenter's last blit, before the swapchain goes, which
-        // is the one handle here not buried.
-        tearDown("the device would not finish before the renderer was taken apart", [&] { mDevice.waitIdle(); });
+        // What the interface handed over, before the pool holding it is taken apart, and every
+        // frame in flight and the presenter's last blit, before the swapchain goes, which is the
+        // one handle here not buried.
+        tearDown("the device would not finish before the renderer was taken apart", [&] { drain(); });
     }
 
     void VulkanRenderer::drain()
     {
-        mDevice.getPool().finishDeferred();
+        mGui.getTextures().finish();
         mRing.finishAll();
         mDevice.waitIdle();
 
@@ -398,7 +394,7 @@ namespace Rtx
         // and only there: most settings change no present mode, and the drain is a submit and a
         // wait.
         if (mPresenter->rebuildsFor(mode))
-            mGui.getTextures().finish();
+            drain();
         mPresenter->setVerticalSync(mode);
     }
 
@@ -459,7 +455,7 @@ namespace Rtx
         // submit. What that costs where no rebuild follows is `Presenter::wantsResize`.
         if (mPresenter->wantsResize(VkExtent2D{ width, height }))
         {
-            mGui.getTextures().finish();
+            drain();
             mPresenter->rebuild(VkExtent2D{ width, height });
         }
     }
@@ -720,10 +716,7 @@ namespace Rtx
 
     void VulkanRenderer::finishGuiTraces()
     {
-        // The pictures recorded and not yet carried, and then the frames carrying the rest; the
-        // frame's own chain is left standing.
-        mDevice.getPool().finishDeferred();
-        mRing.finishAll();
+        drain();
     }
 
     void VulkanRenderer::readGuiTexture(const GuiSlot texture, std::vector<std::uint8_t>& pixels)

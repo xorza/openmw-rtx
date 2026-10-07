@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtxvulkan/vulkanrenderer.cpp:112-120,384-385,444-447,715-721` — four hand-written ways to
-  empty the queue: `drain`, `finishGuiTraces`, the GUI-texture `finish` before a presenter rebuild, and the
-  destructor's. Target shape: one drain on the renderer. (low)
 - [ ] `components/rtxvulkan/framering.hpp:164,168` — the names are crossed with the seam's:
   `Renderer::finishFrame` calls `FrameRing::collect`, and `Renderer::collectFrame` calls
   `FrameRing::collectFinished`. Target shape: name the ring's methods after the seam calls. (low)
