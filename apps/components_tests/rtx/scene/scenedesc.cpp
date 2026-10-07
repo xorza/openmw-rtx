@@ -2076,11 +2076,11 @@ namespace Rtx
         /// tail stays behind; sixty thousand then fits the tail and takes it at 200,000.
         TEST(RtxSceneDescTest, aMeshNeverStraddlesABlockAndTheTailItSkippedIsReused)
         {
-            ASSERT_EQ(SceneDesc::sVertexBlock, 262144u) << "the arithmetic below is written against this";
+            ASSERT_EQ(MeshTable::sVertexBlock, 262144u) << "the arithmetic below is written against this";
 
             // One buffer, sliced. A block is a quarter of a million vertices and three separate
             // copies of that is memory this test has no use for.
-            const std::vector<osg::Vec3f> room(SceneDesc::sVertexBlock);
+            const std::vector<osg::Vec3f> room(MeshTable::sVertexBlock);
             const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
             const auto vertices = [&](std::size_t count) { return std::span(room).first(count); };
@@ -2090,7 +2090,7 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getRows()[first].mVertices.mOffset, 0u);
 
             const Index second = scene.addMesh(MeshArrays{ .mPositions = vertices(100000), .mIndices = triangle });
-            EXPECT_EQ(scene.meshes().getRows()[second].mVertices.mOffset, SceneDesc::sVertexBlock)
+            EXPECT_EQ(scene.meshes().getRows()[second].mVertices.mOffset, MeshTable::sVertexBlock)
                 << "a run was laid across a block boundary";
             EXPECT_EQ(scene.meshes().getPositions().size(), std::size_t{ 362144 });
 
@@ -2106,8 +2106,8 @@ namespace Rtx
             for (const Index mesh : { first, second, third })
             {
                 const MeshRange& range = scene.meshes().getRows()[mesh];
-                EXPECT_EQ(range.mVertices.mOffset / SceneDesc::sVertexBlock,
-                    (range.mVertices.mOffset + range.mVertices.mCount - 1) / SceneDesc::sVertexBlock)
+                EXPECT_EQ(range.mVertices.mOffset / MeshTable::sVertexBlock,
+                    (range.mVertices.mOffset + range.mVertices.mCount - 1) / MeshTable::sVertexBlock)
                     << "mesh " << mesh << " straddles a block";
             }
         }
@@ -2121,19 +2121,19 @@ namespace Rtx
         /// whoever reads a mesh asks before `addMesh`, which asserts the same.
         TEST(RtxSceneDescTest, aMeshLongerThanABlockIsRefusedByName)
         {
-            const std::vector<osg::Vec3f> tooMany(SceneDesc::sVertexBlock + 1);
+            const std::vector<osg::Vec3f> tooMany(MeshTable::sVertexBlock + 1);
             const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
             const Misc::Result<void, std::string> pastABlock
                 = MeshTable::checkFits(MeshArrays{ .mPositions = tooMany, .mIndices = triangle });
             ASSERT_FALSE(pastABlock.isOk());
             EXPECT_EQ(pastABlock.error(),
-                "its " + std::to_string(SceneDesc::sVertexBlock + 1) + " vertices and 3 indices are past the "
-                    + std::to_string(SceneDesc::sVertexBlock) + " and " + std::to_string(SceneDesc::sIndexBlock)
+                "its " + std::to_string(MeshTable::sVertexBlock + 1) + " vertices and 3 indices are past the "
+                    + std::to_string(MeshTable::sVertexBlock) + " and " + std::to_string(MeshTable::sIndexBlock)
                     + " one block of the shared buffers holds");
 
             // And exactly a block is not too many, so the refusal is a boundary and not a ban.
-            const MeshArrays aBlock{ .mPositions = std::span(tooMany).first(SceneDesc::sVertexBlock),
+            const MeshArrays aBlock{ .mPositions = std::span(tooMany).first(MeshTable::sVertexBlock),
                 .mIndices = triangle };
             EXPECT_TRUE(MeshTable::checkFits(aBlock).isOk());
             SceneDesc scene;
@@ -2167,9 +2167,6 @@ namespace Rtx
             scene.addInstance(MeshInstance{ .mMesh = quad, .mMaterial = ground });
             scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::scale(10000.0f, 10000.0f, 1.0f), .mMesh = quad, .mMaterial = sea });
-
-            // Everything, which is what a far plane asks for and why the sea is still in the table.
-            EXPECT_FLOAT_EQ(scene.getBounds().xMax(), 10000.0f);
 
             const osg::BoundingBoxf everywhere(-1e9f, -1e9f, -1e9f, 1e9f, 1e9f, 1e9f);
             const osg::BoundingBoxf content = scene.getContentBoundsWithin(everywhere);
@@ -2214,8 +2211,9 @@ namespace Rtx
             const Index placed = scene.addInstance(MeshInstance{ .mMesh = quad, .mMaterial = material });
 
             // The unit square in the xy plane that the fixture is.
-            EXPECT_FLOAT_EQ(scene.getBounds().xMin(), 0.0f);
-            EXPECT_FLOAT_EQ(scene.getBounds().xMax(), 1.0f);
+            const osg::BoundingBoxf everywhere(-1e9f, -1e9f, -1e9f, 1e9f, 1e9f, 1e9f);
+            EXPECT_FLOAT_EQ(scene.getContentBoundsWithin(everywhere).xMin(), 0.0f);
+            EXPECT_FLOAT_EQ(scene.getContentBoundsWithin(everywhere).xMax(), 1.0f);
 
             // The same square three units along x, which is what a pose is: the count a deforming
             // mesh keeps and the places it keeps none of, with the reach the caller read.
@@ -2223,14 +2221,15 @@ namespace Rtx
             Testing::poseRig(
                 scene, quad, along, osg::BoundingBoxf(osg::Vec3f(3.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 1.0f, 0.0f)));
 
-            EXPECT_FLOAT_EQ(scene.getBounds().xMin(), 3.0f) << "the extent stayed where the first pose put it";
-            EXPECT_FLOAT_EQ(scene.getBounds().xMax(), 4.0f);
+            EXPECT_FLOAT_EQ(scene.getContentBoundsWithin(everywhere).xMin(), 3.0f)
+                << "the extent stayed where the first pose put it";
+            EXPECT_FLOAT_EQ(scene.getContentBoundsWithin(everywhere).xMax(), 4.0f);
 
             // And a slot handed back reaches nowhere: an empty answer is what a camera is not
             // placed from. The placement's drop gives back the last hold on its mesh.
             scene.dropInstance(placed, Stander::Walk);
             ASSERT_FALSE(scene.meshes().isLive(quad));
-            EXPECT_FALSE(scene.getBounds().valid());
+            EXPECT_FALSE(scene.getContentBoundsWithin(everywhere).valid());
         }
 
     }
