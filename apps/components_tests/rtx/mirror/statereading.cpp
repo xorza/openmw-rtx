@@ -26,6 +26,7 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/statereading.hpp>
@@ -639,6 +640,33 @@ namespace Rtx
                 way.mSet(surface, *image);
                 EXPECT_EQ(surface.emits(), way.mEmits) << way.mName;
             }
+        }
+
+        /// **A uniform is found by its name and keeps its flags**, and the lookup allocates nothing:
+        /// it is asked of every state set of every drawable's chain, every frame. A name longer than
+        /// any small-string buffer holds, twenty-four characters, is found without one being built.
+        TEST(RtxStateReadingTest, aUniformIsFoundByNameWithItsFlagsAndAllocatesNothing)
+        {
+            osg::ref_ptr<osg::StateSet> stateSet = new osg::StateSet;
+            EXPECT_EQ(findUniform(*stateSet, "alpha"), nullptr) << "an empty list";
+
+            osg::ref_ptr<osg::Uniform> alpha = new osg::Uniform("alpha", 0.5f);
+            osg::ref_ptr<osg::Uniform> named = new osg::Uniform("aVeryLongUniformNameHere", 2);
+            stateSet->addUniform(alpha, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+            stateSet->addUniform(named);
+
+            const std::size_t before = Testing::getAllocationCount();
+            const osg::StateSet::RefUniformPair* const foundAlpha = findUniform(*stateSet, "alpha");
+            const osg::StateSet::RefUniformPair* const foundNamed = findUniform(*stateSet, "aVeryLongUniformNameHere");
+            const osg::StateSet::RefUniformPair* const missing = findUniform(*stateSet, "alphaRef");
+            EXPECT_EQ(Testing::getAllocationCount(), before);
+
+            ASSERT_NE(foundAlpha, nullptr);
+            EXPECT_EQ(foundAlpha->first.get(), alpha.get());
+            EXPECT_EQ(foundAlpha->second, osg::StateAttribute::OVERRIDE) << "the flags a lock reads";
+            ASSERT_NE(foundNamed, nullptr);
+            EXPECT_EQ(foundNamed->first.get(), named.get());
+            EXPECT_EQ(missing, nullptr) << "a name that begins another is not that name";
         }
     }
 }
