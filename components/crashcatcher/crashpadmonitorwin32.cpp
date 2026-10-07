@@ -103,7 +103,7 @@ namespace Crash::Monitor
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t)
     {
         const std::uint32_t code = exception.Exception();
-        if (code == 0x517a7ed)
+        if (code == sSimulatedException)
             return {};
 
         std::string text = nameOf(sExceptionNames, code, "exception " + hex(code));

@@ -30,14 +30,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
-## The crash catcher: hang handling
-
-- [ ] `components/crashcatcher/crashpadclientwin32.cpp:27-31` — `fatal`, `std::terminate`, `abort`,
-  pure-call and invalid-parameter go to `reportAndEnd`, whose `CRASHPAD_SIMULATE_CRASH` is
-  `DumpWithoutCrash`. That waits `INFINITE` for `dump_completed`. If the monitor died earlier, the game
-  hangs forever and does not crash. Target shape: end through a bounded path, for example
-  `CrashpadClient::DumpAndCrash` with a custom exception record, and keep `finalReport`'s kind and
-  reason. (low)
 
 ## The crash catcher: setup, the keeper, and leftovers
 

@@ -12,22 +12,36 @@
 #include <vector>
 
 #include <client/crashpad_client.h>
-#include <client/simulate_crash.h>
+#include <util/misc/capture_context.h>
+#include <util/win/context_wrappers.h>
 
 #include <components/misc/windows.hpp>
 
 #include "crashnote.hpp"
+#include "crashsummary.hpp"
 
 namespace Crash::Client
 {
     namespace
     {
-        /// A crash reported the way the system's own would not be: Crashpad dumps the process as it
-        /// stands and returns, and the process ends here.
+        /// A crash reported the way the system's own would not be, which ends the process.
+        ///
+        /// **Through Crashpad's unhandled-exception path and not its simulated crash**, which waits
+        /// for the dump with no limit: where the monitor had died before, the game hung for good
+        /// rather than crashing. This one waits sixty seconds and ends the process either way. Under
+        /// `sSimulatedException`, so the monitor reads the dump as one the game asked for, and the
+        /// notes say why.
         [[noreturn]] void reportAndEnd(std::string_view reason)
         {
             finalReport(ReportKind::Crash, reason);
-            CRASHPAD_SIMULATE_CRASH();
+
+            CONTEXT context;
+            crashpad::CaptureContext(&context);
+            EXCEPTION_RECORD record{};
+            record.ExceptionCode = sSimulatedException;
+            record.ExceptionAddress = crashpad::ProgramCounterFromCONTEXT(&context);
+            EXCEPTION_POINTERS pointers{ .ExceptionRecord = &record, .ContextRecord = &context };
+            crashpad::CrashpadClient::DumpAndCrash(&pointers);
             std::_Exit(3);
         }
 
