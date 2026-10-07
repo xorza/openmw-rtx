@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -87,15 +88,10 @@ namespace Rtx
         /// `setReferenceEnabled` would stand each.
         void forgetReferences();
 
-        /// Holds `cell` from now on, its ground adopted into the scene on rows held on the scene,
-        /// and returns it for its models to be adopted into. `around` says whether the ground
-        /// shades from its stack. Nothing stands until `adoptPlacements` and a `place`.
-        HeldCell& hold(const PreparedCell& cell, const WorldAround& around, ExtractionStats& stats);
-
-        /// Fills `held.mPlacements` from the cell's references, one per part of each model as
-        /// `holds` adopted it, disabled where a script said so, and sorted for `place`; and
-        /// `held.mLights` from the cell's lamps, with what the game said of each.
-        void adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds);
+        /// Holds `cell` from now on: its ground adopted into the scene on rows held on the scene,
+        /// and a placement a part of each model, as `holds` adopted its models. `around` says
+        /// whether the ground shades from its stack. Nothing stands until a `place`.
+        void holdCell(const PreparedCell& cell, const WorldAround& around, ExtractionStats& stats, CellHolds& holds);
 
         /// Whether a cell at `cell` is held.
         bool holds(const osg::Vec2i& cell) const { return mCells.contains(cell); }
@@ -111,7 +107,10 @@ namespace Rtx
         /// `letGo(grass)`, and its vectors kept for the next.
         /// @return how many went.
         template <class Keep, class LetGo>
-        std::size_t dropGrassUnless(Keep keep, LetGo letGo);
+        std::size_t dropGrassUnless(Keep keep, LetGo letGo)
+        {
+            return dropHeldUnless(mGrass, mSpareGrass, keep, letGo);
+        }
 
         /// Whether the ground of the cell at `cell` stands in the top level: held, read with land,
         /// and in the reach.
@@ -125,7 +124,10 @@ namespace Rtx
         /// after this walk frees them. The cell's vectors are kept for the next one.
         /// @return how many cells went.
         template <class Keep, class LetGo>
-        std::size_t dropUnless(Keep keep, LetGo letGo);
+        std::size_t dropUnless(Keep keep, LetGo letGo)
+        {
+            return dropHeldUnless(mCells, mSpareCells, keep, letGo);
+        }
 
         /// Takes every held cell's placements and groundcover out of the top level, keeping the cells.
         void dropSlots();
@@ -174,6 +176,20 @@ namespace Rtx
             const osg::Vec2i& operator()(const HeldCell& held) const { return held.mCell; }
             const osg::Vec2i& operator()(const HeldGrass& held) const { return held.mCell; }
         };
+
+        /// One kind of thing held a cell: the cells, or their groundcover.
+        template <class Held>
+        using HeldSet = boost::container::flat_set<Held, KeyedLess<osg::Vec2i, CellAt>, std::vector<Held>>;
+
+        /// `dropUnless` and `dropGrassUnless`, over `held`, the vectors of what went given to
+        /// `spares`; a cell's ground goes after `letGo` too.
+        template <class Held, class Keep, class LetGo>
+        std::size_t dropHeldUnless(HeldSet<Held>& held, Recycled<Held>& spares, Keep keep, LetGo letGo);
+
+        /// Fills `held.mPlacements` from the cell's references, one per part of each model as
+        /// `holds` adopted it, disabled where a script said so, and sorted for `place`; and
+        /// `held.mLights` from the cell's lamps, with what the game said of each.
+        void adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds);
 
         /// Adopts a cell's ground into the scene, on rows held on the scene.
         void adoptGround(const PreparedCell& cell, HeldCell& held, const WorldAround& around, ExtractionStats& stats);
@@ -279,58 +295,36 @@ namespace Rtx
         std::vector<MaterialLayer> mLayerScratch;
 
         /// The cells held, in `CellAt`'s order, and the room a dropped cell's vectors grew.
-        boost::container::flat_set<HeldCell, KeyedLess<osg::Vec2i, CellAt>, std::vector<HeldCell>> mCells;
+        HeldSet<HeldCell> mCells;
         Recycled<HeldCell> mSpareCells;
 
         /// The cells' groundcover held, the same way.
-        boost::container::flat_set<HeldGrass, KeyedLess<osg::Vec2i, CellAt>, std::vector<HeldGrass>> mGrass;
+        HeldSet<HeldGrass> mGrass;
         Recycled<HeldGrass> mSpareGrass;
     };
 
-    template <class Keep, class LetGo>
-    std::size_t CellPlacer::dropUnless(Keep keep, LetGo letGo)
+    template <class Held, class Keep, class LetGo>
+    std::size_t CellPlacer::dropHeldUnless(HeldSet<Held>& held, Recycled<Held>& spares, Keep keep, LetGo letGo)
     {
         // Erased one by one and not `erase_if`, because a cell that goes is given back first, which
         // a remove's predicate may not do to its row. A band is a hundred or so cells and a
         // crossing drops a few, so the shifts are nobody's concern.
         std::size_t dropped = 0;
-        for (auto cell = mCells.begin(); cell != mCells.end();)
+        for (auto at = held.begin(); at != held.end();)
         {
-            if (keep(*cell))
+            if (keep(*at))
             {
-                ++cell;
+                ++at;
                 continue;
             }
 
-            dropSlots(*cell);
-            letGo(*cell);
-            dropGround(*cell);
-            cell->reuse();
-            mSpareCells.give(std::move(*cell));
-            cell = mCells.erase(cell);
-            ++dropped;
-        }
-
-        return dropped;
-    }
-
-    template <class Keep, class LetGo>
-    std::size_t CellPlacer::dropGrassUnless(Keep keep, LetGo letGo)
-    {
-        std::size_t dropped = 0;
-        for (auto grass = mGrass.begin(); grass != mGrass.end();)
-        {
-            if (keep(*grass))
-            {
-                ++grass;
-                continue;
-            }
-
-            dropSlots(*grass);
-            letGo(*grass);
-            grass->reuse();
-            mSpareGrass.give(std::move(*grass));
-            grass = mGrass.erase(grass);
+            dropSlots(*at);
+            letGo(*at);
+            if constexpr (std::is_same_v<Held, HeldCell>)
+                dropGround(*at);
+            at->reuse();
+            spares.give(std::move(*at));
+            at = held.erase(at);
             ++dropped;
         }
 
