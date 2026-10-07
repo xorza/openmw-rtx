@@ -43,10 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Untrusted input and external packages
 
-- [ ] `components/rtxvulkan/spirv/spirvbindings.cpp:136,140,170` — `readBindings` reads `operands[0..2]`
-  of `OpDecorate`, `OpType*` and `OpVariable` without a check of the instruction's length, but its
-  contract is to throw `InputError` for an invalid module. A short last instruction reads past the span.
-  Target shape: check the operand count for each opcode, as `operandOf` does. (low)
 - [ ] `components/rtxvulkan/CMakeLists.txt:460,485` — volk and VMA use `FIND_PACKAGE_ARGS CONFIG QUIET`
   without a version. The code needs volk's Vulkan 1.4 entry points (`vkCmdPushDescriptorSet` in
   `pipeline/dispatch.cpp`), so an old distro volk is accepted and fails to compile. Target shape: put the
