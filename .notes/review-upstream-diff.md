@@ -33,8 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `components/debug/debugging.cpp:397`, `:476` — the folder name `"crashes"` is written two times.
-  Target shape: one constant. (low)
 - [ ] `components/crashcatcher/crashpadclient.cpp:91`, `:124` — the application name goes to the monitor
   two times: as `--openmw-application` (`crashmonitorarguments.cpp:44`) and as Crashpad's `product`
   annotation. Target shape: `MonitorArguments::read` takes it from Crashpad's argument, as it does for
