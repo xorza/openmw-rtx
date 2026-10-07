@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtxvulkan/framering.hpp:164,168` — the names are crossed with the seam's:
-  `Renderer::finishFrame` calls `FrameRing::collect`, and `Renderer::collectFrame` calls
-  `FrameRing::collectFinished`. Target shape: name the ring's methods after the seam calls. (low)
 - [ ] `components/rtxvulkan/texture/texture.hpp:303` — `TextureArray::mPasses` holds a reference to the
   renderer's `TexturePasses` only to give it to `mArrival.record` (`texture.cpp:553`), but
   `bakeComposites` takes its `GroundCompositePass` at the call. Target shape: `write(batch, passes, …)`

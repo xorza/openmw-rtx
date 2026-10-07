@@ -179,7 +179,7 @@ namespace Rtx
             submitEmpty(ring);
 
             // Collected before the frame that takes its slot, as the renderer does.
-            const std::optional<FrameResult> came = ring.collectFinished();
+            const std::optional<FrameResult> came = ring.collectFrame();
             ASSERT_TRUE(came.has_value());
             EXPECT_EQ(came->mFrame, 0u);
             ASSERT_EQ(came->mPixels.size(), picture.size());
@@ -193,12 +193,12 @@ namespace Rtx
             EXPECT_TRUE(std::equal(came->mPixels.begin(), came->mPixels.end(), picture.begin()))
                 << "the frame that took the slot wrote over the picture";
 
-            const std::optional<FrameResult> next = ring.collect();
+            const std::optional<FrameResult> next = ring.finishFrame();
             ASSERT_TRUE(next.has_value());
             EXPECT_EQ(next->mFrame, 1u);
             EXPECT_TRUE(next->mPixels.empty()) << "a frame that asked for no picture came back with one";
 
-            const std::optional<FrameResult> after = ring.collect();
+            const std::optional<FrameResult> after = ring.finishFrame();
             ASSERT_TRUE(after.has_value());
             EXPECT_EQ(after->mFrame, 2u);
             ASSERT_EQ(after->mPixels.size(), other.size());
@@ -231,10 +231,10 @@ namespace Rtx
             EXPECT_EQ(ring.getRecording(), skipped) << "a skipped frame went unnumbered";
 
             submitEmpty(ring);
-            const std::optional<FrameResult> traced = ring.collect();
+            const std::optional<FrameResult> traced = ring.finishFrame();
             ASSERT_TRUE(traced.has_value()) << "the skipped frames stood in front of the traced one";
             EXPECT_EQ(traced->mFrame, skipped);
-            EXPECT_FALSE(ring.collect().has_value()) << "a skipped frame came back with a report";
+            EXPECT_FALSE(ring.finishFrame().has_value()) << "a skipped frame came back with a report";
         }
     }
 }

@@ -161,12 +161,13 @@ namespace Rtx
         /// buffers come back once it is waited for, and no report.
         void skip();
 
-        /// The oldest report in hand, waiting a frame out for one where there is none.
-        std::optional<FrameResult> collect();
+        /// The oldest report in hand, waiting a frame out for one where there is none —
+        /// `Renderer::finishFrame`.
+        std::optional<FrameResult> finishFrame();
 
         /// The oldest report in hand, waiting only where the ring has no room for the next frame
         /// — `Renderer::collectFrame`.
-        std::optional<FrameResult> collectFinished();
+        std::optional<FrameResult> collectFrame();
 
         /// Waits for every frame in flight. What an arrival, a rebuild, a resize and a picture
         /// inside the interface do first.
