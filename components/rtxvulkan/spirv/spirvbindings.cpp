@@ -127,14 +127,28 @@ namespace Rtx
                 throw InputError(std::format("an instruction at word {} runs past the module", at));
 
             const std::span<const std::uint32_t> operands = module.subspan(at + 1, count - 1);
+            const std::size_t start = at;
             at += count;
+
+            // An instruction shorter than its opcode needs is a module no compiler wrote, and is refused
+            // rather than read past.
+            const auto need = [&](const std::size_t words) {
+                if (operands.size() < words)
+                    throw InputError(
+                        std::format("the instruction at word {} has {} operands of the {} its opcode {} "
+                                    "needs",
+                            start, operands.size(), words, static_cast<std::uint32_t>(op)));
+            };
 
             switch (op)
             {
                 case spv::OpDecorate:
                 {
+                    need(2);
                     Facts& target = ids[operands[0]];
                     const auto decoration = static_cast<spv::Decoration>(operands[1]);
+                    if (decoration == spv::DecorationDescriptorSet || decoration == spv::DecorationBinding)
+                        need(3);
                     if (decoration == spv::DecorationDescriptorSet)
                     {
                         target.mSet = operands[2];
@@ -158,6 +172,7 @@ namespace Rtx
                 case spv::OpTypePointer:
                 case spv::OpTypeAccelerationStructureKHR:
                 {
+                    need(1);
                     Facts& type = ids[operands[0]];
                     type.mOp = op;
                     type.mOperands = operands.subspan(1);
@@ -167,6 +182,7 @@ namespace Rtx
                 case spv::OpSpecConstant:
                 case spv::OpVariable:
                 {
+                    need(2);
                     Facts& value = ids[operands[1]];
                     value.mOp = op;
                     value.mType = operands[0];

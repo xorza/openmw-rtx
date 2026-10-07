@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <spirv/unified1/spirv.hpp>
+
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/pane.h>
@@ -70,6 +72,24 @@ namespace Rtx
                 at += cut[at] >> 16;
             cut.resize(at + 1);
             EXPECT_THROW(readBindings(cut, into), InputError);
+
+            // **An instruction shorter than its opcode is refused, and not read past**: a module that
+            // ends in a decoration of a set with no set in it, a type with no id, and a variable with
+            // no id after its type, each a whole instruction the module holds.
+            const std::vector<std::uint32_t> header{ spv::MagicNumber, 0x00010600u, 0u, 1u, 0u };
+            const std::uint32_t set = spv::DecorationDescriptorSet;
+            for (const std::vector<std::uint32_t>& last :
+                { std::vector<std::uint32_t>{ (3u << 16) | spv::OpDecorate, 1u, set },
+                    std::vector<std::uint32_t>{ (1u << 16) | spv::OpTypeStruct },
+                    std::vector<std::uint32_t>{ (2u << 16) | spv::OpVariable, 7u } })
+            {
+                std::vector<std::uint32_t> shortened = header;
+                shortened.insert(shortened.end(), last.begin(), last.end());
+                EXPECT_THROW(readBindings(shortened, into), InputError) << "opcode " << (last[0] & 0xffffu);
+            }
+            std::vector<std::uint32_t> whole = header;
+            whole.insert(whole.end(), { (4u << 16) | spv::OpDecorate, 1u, set, 0u });
+            EXPECT_NO_THROW(readBindings(whole, into)) << "a decoration of a set, whole";
         }
     }
 }
