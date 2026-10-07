@@ -378,7 +378,11 @@ SpriteCrossing quadCrossing(GpuSprite sprite, vec3 toSprite, vec3 direction, flo
     // alone reads the width sharper than the ray can carry, which is a drop that aliases into a
     // hard mark instead of fading. A disc is the same extent both ways, which is why one number
     // served until a quad hung in the world.
-    const float rate = 0.5 * max(texels.x / width, texels.y * inverseAxis) / sprite.mRadius;
+    //
+    // **The length as the ray sees it**: a cone across the ray covers `1 / sin θ` of an axis θ off
+    // it, which is rain seen from above, and `sin θ` is `swing` over the axis's length — so the
+    // axis's own `inverseAxis` cancels. The width was swung to face the ray and is seen whole.
+    const float rate = 0.5 * max(texels.x / width, texels.y / swing) / sprite.mRadius;
 
     return SpriteCrossing(true, depth, 1.0, at, length(at), 0.0, rate, axis * inverseAxis);
 }

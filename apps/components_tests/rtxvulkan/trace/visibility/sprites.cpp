@@ -1071,6 +1071,11 @@ namespace Rtx::Testing
         /// pixel's cone at eight hundred units is `atan(2 tan 30 / 33) * 800 = 27.98` units, which
         /// is under one texel of the first and 3.73 of the second — so the first reads level nought
         /// and the second reads the level below it.
+        ///
+        /// **And the length as the ray sees it, foreshortened.** A cone across the ray covers
+        /// `1 / sin θ` of an axis θ off the ray, which is rain seen from above. The square quad with
+        /// its axis leaned 15° off the ray covers `27.98 / 30 / sin 15° = 3.60` texels along it, and
+        /// reads the level below; taken face-on, 0.93 read level nought and shimmered.
         TEST_F(RtxVisibilityTest, theLevelAStreakIsReadAtComesFromTheAxisItsTexelsAreDensestAlong)
         {
             constexpr std::uint32_t size = 33;
@@ -1090,12 +1095,12 @@ namespace Rtx::Testing
             layered.mLevels.push_back(MipLevel{ .mOffset = 4 * 4 * 4, .mWidth = 2, .mHeight = 2 });
             layered.describe(4, 4, "layered.dds");
 
-            const auto green = [&](float width) {
+            const auto green = [&](float width, const osg::Vec3f& axis) {
                 SceneDesc scene;
                 const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
-                    .mAxis = osg::Vec3f(0.0f, 0.0f, -1.0f),
+                    .mAxis = axis,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
 
@@ -1114,8 +1119,13 @@ namespace Rtx::Testing
                 return frame.at(centre + 1) / std::max(frame.at(centre), 1.0e-6f);
             };
 
-            EXPECT_NEAR(green(1.0f), 1.0f, 0.05f) << "a square quad read the level below its own";
-            EXPECT_NEAR(green(0.25f), 0.0f, 0.05f) << "a streak read its length rather than its width";
+            const osg::Vec3f upright(0.0f, 0.0f, -1.0f);
+            EXPECT_NEAR(green(1.0f, upright), 1.0f, 0.05f) << "a square quad read the level below its own";
+            EXPECT_NEAR(green(0.25f, upright), 0.0f, 0.05f) << "a streak read its length rather than its width";
+
+            const float leaned = osg::DegreesToRadians(15.0f);
+            EXPECT_NEAR(green(1.0f, osg::Vec3f(0.0f, std::cos(leaned), -std::sin(leaned))), 0.0f, 0.05f)
+                << "a streak along the ray read its length as though it stood across it";
         }
 
         /// A puff is lit from the side the light is on, and by what its own texture lets through.

@@ -102,3 +102,22 @@ item only with a measurement, and no device here can make one.
 | C. Drop the item | The driver keeps its own choice. | A possible gain on AMD goes unmeasured. |
 
 **What it blocks.** Only this item.
+
+## 8. Section 6.6: a translucent surface's shadow is one ray's
+
+**Item.** Section 6.6's "A translucent surface's shadow sums are one ray's". Split, `gather` writes
+every source's light times the drawn ray's `mThrough` into `CHANNEL_SHADOWED.rgb`, and the open or
+shut bit into `a`. `gbuffer.h` says the `rgb` is exact per pixel. It is not where the ray crossed a
+translucent surface: `mThrough` is that one ray's, and it changes with the cone draw every frame.
+
+**Why it needs a call.** The shadow denoiser filters one bit a pixel and nothing else: `shadowmask.comp`
+packs the bits, and the temporal pass and the levels read the packed words, never the float. So
+`mThrough` cannot join the bit as a fraction, and each fix changes what the denoiser takes.
+
+| Option | What it does | Cost |
+|---|---|---|
+| **A. Draw the translucency into the bit** (my pick) | The bit is open where the ray got through and a draw falls under `mThrough`, and `rgb` is the unshadowed light, exact. The bit's mean is `mOpen · mThrough`, which is what the product was, so the estimate stays unbiased, and the denoiser filters the translucency as it filters a penumbra. A pixel shut by the draw needs a reach for the levels to run (`CHANNEL_PENUMBRA`). | One draw per split pixel from a hash, so no other draw moves. The denoiser sees noise under glass that it does not see now. |
+| B. Filter `mThrough` beside the bit, as SIGMA's translucent mode does | A second signal through the temporal pass and the levels. | A channel, its history and its filter: the largest change. |
+| C. Keep it, and say so | `gbuffer.h` says `rgb` is exact except for what translucent surfaces let through, which is one ray's. | The noise under translucent surfaces stays. |
+
+**What it blocks.** Only this item.

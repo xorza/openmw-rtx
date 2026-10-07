@@ -630,10 +630,8 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 - **[bug] A translucent surface's shadow sums are one ray's** (`gather`: the unshadowed sums times
   the drawn source's `mThrough`), against `gbuffer.h`'s "`rgb` is exact per pixel". Target: filter
-  `mThrough` with the bit (SIGMA's translucency), or drop "exact".
-- **[bug] A streak's footprint along its axis** (`sprites.glsl`, `rate = 0.5 * max(…, texels.y *
-  inverseAxis) / sprite.mRadius`) ignores `1 / sin θ`; rain from above shimmers. Target:
-  `texels.y * inverseAxis / max(swing * inverseAxis, ε)`.
+  `mThrough` with the bit (SIGMA's translucency), or drop "exact". Blocked: question 8 in
+  `redesign_QUESTIONS.md`.
 - **[bug] The star field's seam**: `mTile = 1 / mUvRate` (`nightsky.cpp`), so `u` jumps at azimuth
   ±π unless `2π / mTile` is whole. Target: round it, or confirm the unwrap.
 - **[decision] The glossy filter has no virtual-motion history** (`specular.comp`): a sharp lobe
