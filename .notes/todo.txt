@@ -1,3 +1,2 @@
 mouse teleporting
-shader pinning performance
 ambient lighting

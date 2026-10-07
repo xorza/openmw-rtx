@@ -31,6 +31,7 @@
 #include "gbuffer.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
 #include "lib/sharedexponent.glsl"
@@ -211,11 +212,11 @@ void main()
         // surface straight through, so one this never wrote would arrive there as whatever the
         // allocation held — and the composite multiplies it by an albedo of nought, which turns a
         // stray infinity into a NaN rather than into nothing.
-        imageStore(blendedOut, at, vec4(sampled, 0.0));
-        imageStore(fillBlendedOut, at, vec4(sampledFill, 0.0));
-        imageStore(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale));
-        imageStore(momentsOut, at, vec4(0.0));
-        imageStore(fastOut, at, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u));
+        RTX_STORE_COUNTED(blendedOut, at, vec4(sampled, 0.0))
+        RTX_STORE_COUNTED(fillBlendedOut, at, vec4(sampledFill, 0.0))
+        RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale))
+        RTX_STORE_COUNTED(momentsOut, at, vec4(0.0))
+        RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u))
 
         return;
     }
@@ -308,9 +309,9 @@ void main()
         blendedFastFill = mix(fastFill, sampledFill, fastAlpha);
     }
 
-    imageStore(blendedOut, at, vec4(blended, 0.0));
-    imageStore(fillBlendedOut, at, vec4(blendedFill, 0.0));
-    imageStore(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale));
-    imageStore(momentsOut, at, vec4(blendedMoments, 0.0, count));
-    imageStore(fastOut, at, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u));
+    RTX_STORE_COUNTED(blendedOut, at, vec4(blended, 0.0))
+    RTX_STORE_COUNTED(fillBlendedOut, at, vec4(blendedFill, 0.0))
+    RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale))
+    RTX_STORE_COUNTED(momentsOut, at, vec4(blendedMoments, 0.0, count))
+    RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u))
 }

@@ -18,7 +18,8 @@ namespace Rtx
         const Device& device, const VkPipelineLayout layout, const GraphicsPipelineOptions& options, ShaderCode& code)
     {
         PipelineCreation creation(device, options.mName);
-        const Specialization constants(options.mSpecialization);
+        const Specialization vertexConstants(device, options.mVertexModule, options.mSpecialization);
+        const Specialization fragmentConstants(device, options.mFragmentModule, options.mSpecialization);
 
         const std::array<VkPipelineShaderStageCreateInfo, 2> stages{
             VkPipelineShaderStageCreateInfo{
@@ -28,7 +29,7 @@ namespace Rtx
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
                 .module = VK_NULL_HANDLE,
                 .pName = "main",
-                .pSpecializationInfo = constants.getInfo(),
+                .pSpecializationInfo = vertexConstants.getInfo(),
             },
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -37,7 +38,7 @@ namespace Rtx
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
                 .module = VK_NULL_HANDLE,
                 .pName = "main",
-                .pSpecializationInfo = constants.getInfo(),
+                .pSpecializationInfo = fragmentConstants.getInfo(),
             },
         };
 

@@ -75,6 +75,10 @@ namespace Rtx
         GpuTimer mTimer;
         Buffer mCounts;
 
+        /// Where the frame copies the device's census as it ends (`NotFiniteCensus::record`), read
+        /// after the wait as the counts are. Empty where the device does not count.
+        Buffer mNotFinite;
+
         /// How many primary rays the trace launched, where the frame counts them, and nought
         /// where it does not: the device sums the misses, and the hits the report carries are
         /// the launch less those.

@@ -22,6 +22,7 @@
 #include "shared/sets.h"
 #include "wave.h"
 
+#include "lib/census.glsl"
 #include "lib/turns.glsl"
 #include "lib/wavelines.glsl"
 
@@ -107,6 +108,8 @@ void main()
     for (uint column = thread; column < count; column += WAVE_WORKGROUP)
     {
         const uint at = row * count + column;
+        countNotFinite(vec4(gLines[0][column], gLines[1][column]));
+        countNotFinite(gLines[2][column]);
         field[at] = gLines[0][column];
         field[grid + at] = gLines[1][column];
         field[2u * grid + at] = gLines[2][column];

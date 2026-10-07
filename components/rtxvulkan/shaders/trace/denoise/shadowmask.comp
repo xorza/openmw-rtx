@@ -47,6 +47,7 @@
 #include "shared/sets.h"
 #include "shared/shadow.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 
 layout(local_size_x = SHADOW_MASK_WIDTH, local_size_y = 2 * SHADOW_MASK_HEIGHT) in;
@@ -113,12 +114,12 @@ void main()
     barrier();
 
     if (gl_LocalInvocationIndex == 0u)
-        imageStore(penumbraTiles, ivec2(gl_WorkGroupID.xy), vec4(uintBitsToFloat(gWidest)));
+        RTX_STORE_COUNTED(penumbraTiles, ivec2(gl_WorkGroupID.xy), vec4(uintBitsToFloat(gWidest)))
 
     if (gl_LocalInvocationIndex < 2u)
     {
         const ivec2 tile = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * 2u + gl_LocalInvocationIndex);
         if (tile.y * int(SHADOW_MASK_HEIGHT) < int(frame.mHeight))
-            imageStore(mask, tile, uvec4(gOpen[gl_LocalInvocationIndex], gReceiving[gl_LocalInvocationIndex], 0u, 0u));
+            RTX_STORE_WORDS(mask, tile, uvec4(gOpen[gl_LocalInvocationIndex], gReceiving[gl_LocalInvocationIndex], 0u, 0u))
     }
 }

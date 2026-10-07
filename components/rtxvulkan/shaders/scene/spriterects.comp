@@ -24,6 +24,7 @@
 
 #include "shared/spritebin.h"
 
+#include "lib/census.glsl"
 #include "lib/spritelist.glsl"
 
 layout(local_size_x = SPRITE_BIN_WORKGROUP) in;
@@ -222,10 +223,13 @@ vec2 capsuleSpan(vec2 from, vec2 to, float radius, float halfExtent)
 /// ray meets the capsule only where both of its coordinates do. Orthographic, the rectangle around
 /// the two balls that cap it: a streak lying across the frame covers a long thin rectangle, and a
 /// ball holding the same two ends covers the square that rectangle sits in.
+/// Counted where its floats become the pixels it is made of, by every lane that works it out.
 TileRect capsuleTiles(Bound bound, SpriteBinFrame frame)
 {
     if (bin.mCamera.mOrthographic != 0u)
     {
+        countNotFinite(vec4(bound.mFrom, bound.mRadius));
+        countNotFinite(bound.mTo);
         ivec4 rect = orthographicPixels(bound.mFrom, bound.mRadius, frame);
         if (bound.mOriented)
         {
@@ -248,6 +252,7 @@ TileRect capsuleTiles(Bound bound, SpriteBinFrame frame)
     const vec2 upright = capsuleSpan(vec2(-dot(from, frame.mUp), fromDepth), vec2(-dot(to, frame.mUp), toDepth),
         bound.mRadius, frame.mHalfHeight);
 
+    countNotFinite(vec4(sideways, upright));
     const vec2 axis = bin.mCamera.mBasis.mCentre;
     return tilesOf(ivec4(toPixel(sideways.x, axis.x, bin.mCamera.mWidth, -1.0),
         toPixel(upright.x, axis.y, bin.mCamera.mHeight, -1.0), toPixel(sideways.y, axis.x, bin.mCamera.mWidth, 1.0),

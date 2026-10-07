@@ -6,6 +6,16 @@
 
 namespace Rtx
 {
+    /// A directory of compiled shaders, and whether its modules count their stores that were not
+    /// finite into the census (`lib/census.glsl`): one value, because the two cannot disagree — a
+    /// census module binds what a device that does not count lays out nowhere, and a device that
+    /// counts handed modules that do not would count nothing and say nought.
+    struct ShaderSet
+    {
+        std::filesystem::path mDirectory;
+        bool mCensus = false;
+    };
+
     /// Where a renderer reads its compiled shaders under `resources`: the modules with their source
     /// taken out, which is what the driver's caches are keyed on. A harness can hand a renderer the
     /// same modules with their source instead, for a profiler that shows a shader's lines.

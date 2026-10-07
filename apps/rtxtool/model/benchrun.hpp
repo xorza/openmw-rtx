@@ -110,10 +110,10 @@ namespace RtxTool
         /// barrier gate, and said so nowhere but in a figure among twenty.
         QueueHeld,
 
-        /// No frame wrote a NaN or an infinity into a history or handed one to the denoiser,
-        /// summed over the measured frames at every boundary `Rtx::NotFinite` names. A history
-        /// keeps one and spreads it, so the picture goes black in blocks; a froxel that took
-        /// `0 / 0` once did that to a whole night, and nothing on the way refused it.
+        /// No shader stored a NaN or an infinity, summed over the measured frames by the module
+        /// that wrote it (`Rtx::NotFinite`). A history keeps one and spreads it, so the picture
+        /// goes black in blocks; a froxel that took `0 / 0` once did that to a whole night, and
+        /// nothing on the way refused it.
         Finite,
     };
 

@@ -71,7 +71,7 @@ namespace Rtx
 
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
         : mInstance(options.mRun.mValidation, surfaceExtensionsFor(options))
-        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), options.mShaderDirectory,
+        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), options.mShaders,
               PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
         , mCounting(options.mCounting)
         , mProfile(options.mRun.mProfile)

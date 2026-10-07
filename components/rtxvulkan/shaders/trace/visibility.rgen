@@ -25,6 +25,7 @@
 #include "visibility.h"
 
 #include "lib/bindings.glsl"
+#include "lib/census.glsl"
 #include "lib/compose.glsl"
 #include "lib/counts.glsl"
 #include "lib/fog.glsl"
@@ -434,7 +435,7 @@ void main()
     // puff's did at a silhouette.
     const PuffLayer sprites
         = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
-    imageStore(puffs, ivec2(pixel), vec4(sprites.mColour, sprites.mTransmittance));
+    RTX_STORE_COUNTED(puffs, ivec2(pixel), vec4(sprites.mColour, sprites.mTransmittance))
 
     // **The sun glare fader's query, one ray at a time.** The rasterizer draws the sun's quad
     // against the world's depth and counts the pixels that survived; here every primary ray inside
@@ -504,32 +505,32 @@ void main()
     // frame's digest hashes every channel, which one left undefined would make differ between
     // two runs of the same frame.
     const vec3 light = frame.mComposed != 0u ? pixelLight : shaded;
-    RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
+    RTX_STORE_COUNTED(direct, at, vec4(light, 1.0))
 
-    RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
-    RTX_STORE_COUNTED(fill, at, BOUNDARY_COLOUR, vec4(filled, 1.0))
-    RTX_STORE_COUNTED(shadowed, at, BOUNDARY_COLOUR, vec4(unshadowed, open))
-    RTX_STORE_COUNTED(penumbra, at, BOUNDARY_GUIDE, vec4(answer.mPenumbra))
-    RTX_STORE_COUNTED(specular, at, BOUNDARY_COLOUR, vec4(lobe, answer.mRoughness))
-    RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
-    RTX_STORE_COUNTED(ambientAlbedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mAmbient, 1.0))
-    RTX_STORE_COUNTED(specularAlbedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mSpecular, 1.0))
+    RTX_STORE_COUNTED(indirect, at, vec4(bounce, 1.0))
+    RTX_STORE_COUNTED(fill, at, vec4(filled, 1.0))
+    RTX_STORE_COUNTED(shadowed, at, vec4(unshadowed, open))
+    RTX_STORE_COUNTED(penumbra, at, vec4(answer.mPenumbra))
+    RTX_STORE_COUNTED(specular, at, vec4(lobe, answer.mRoughness))
+    RTX_STORE_COUNTED(albedo, at, vec4(answer.mResponse.mDiffuse, 1.0))
+    RTX_STORE_COUNTED(ambientAlbedo, at, vec4(answer.mResponse.mAmbient, 1.0))
+    RTX_STORE_COUNTED(specularAlbedo, at, vec4(answer.mResponse.mSpecular, 1.0))
 
     // **The layers' lift, the world's behind the arms', and the surface's behind both**, by what the
     // path let through — the layers, the water and the air: each lit thing the pixel shows, by the
     // share of the pixel it is, as the rasterizer blends a lit layer over a lit wall.
     const vec3 lifted = armsStack.mLift + armsStack.mThrough * panes.mLift + transmittance * answer.mLift;
-    RTX_STORE_COUNTED(lift, at, BOUNDARY_GUIDE, vec4(lifted, 1.0))
-    RTX_STORE_COUNTED(pane, at, BOUNDARY_COLOUR, vec4(paneLight, 1.0))
-    RTX_STORE_COUNTED(paneAlbedo, at, BOUNDARY_GUIDE, vec4(paneModulation, 1.0))
-    RTX_STORE_COUNTED(paneSurface, at, BOUNDARY_GUIDE, vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))
-    RTX_STORE_COUNTED(paneMotion, at, BOUNDARY_GUIDE, vec4(nearest.mMotion, 0.0))
-    RTX_STORE_COUNTED(upscaleMasks, at, BOUNDARY_GUIDE,
+    RTX_STORE_COUNTED(lift, at, vec4(lifted, 1.0))
+    RTX_STORE_COUNTED(pane, at, vec4(paneLight, 1.0))
+    RTX_STORE_COUNTED(paneAlbedo, at, vec4(paneModulation, 1.0))
+    RTX_STORE_COUNTED(paneSurface, at, vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))
+    RTX_STORE_COUNTED(paneMotion, at, vec4(nearest.mMotion, 0.0))
+    RTX_STORE_COUNTED(upscaleMasks, at,
         vec4(min(vec2(paneMisMoved, waterMisMoved), vec2(UPSCALE_MASK_CEILING)), 0.0, 0.0))
 
     // **The vector as the shader that answered worked it out**: where the surface or the sky stood
     // last frame. `Answer::mMotion` says whose and why there.
-    RTX_STORE_COUNTED(motion, at, BOUNDARY_GUIDE, vec4(answer.mMotion, 0.0))
+    RTX_STORE_COUNTED(motion, at, vec4(answer.mMotion, 0.0))
 
     // **What the display pass has to draw the backdrop through**, which is everything this frame
     // put between it and the eye: the sky's own layers in `mBackdropShown`, and the panes, the arms,
@@ -537,12 +538,12 @@ void main()
     // puffs are not here: the composite leaves theirs in the frame's alpha for the same pass.
     // `backdrop` in `bindings.glsl` says why that pass cannot work any of it out for itself, and
     // what the arms' share beside it is for.
-    imageStore(backdrop, at, vec4(answer.mBackdropShown * transmittance, armsStack.mThrough));
+    RTX_STORE_COUNTED(backdrop, at, vec4(answer.mBackdropShown * transmittance, armsStack.mThrough))
 
     // A miss is as far away as anything can be, and the miss shader answered `mFar` for it. And
     // which eye this pixel's ray was cast from, in the distance's sign, for every pass that
     // rebuilds the ray — the world's behind a see-through arm, whose puffs the composite lays
     // down by what the arms let through.
-    RTX_STORE_COUNTED(surfaceChannel, at, BOUNDARY_GUIDE,
+    RTX_STORE_COUNTED(surfaceChannel, at,
         vec4(answer.mResponse.mNormal, packSurfaceDistance(distance, arms), 0.0, 0.0))
 }

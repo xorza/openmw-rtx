@@ -71,7 +71,7 @@ namespace Rtx::Testing
             throw std::runtime_error("no Vulkan device is installed");
 
         harness->mDevice = std::make_unique<Device>(*harness->mInstance,
-            PhysicalDevice::select(harness->mInstance->getHandle()), getShaderDirectory(), getPipelineCacheSpec());
+            PhysicalDevice::select(harness->mInstance->getHandle()), getCensusShaders(), getPipelineCacheSpec());
         if (ValidationLog* log = harness->mInstance->getValidationLog(); log != nullptr)
             log->takeErrorsOnThisThread(harness->mMadeWith);
 
@@ -197,6 +197,11 @@ namespace Rtx::Testing
         return std::filesystem::path(OPENMW_RTX_SHADER_DIR);
     }
 
+    ShaderSet getCensusShaders()
+    {
+        return ShaderSet{ .mDirectory = std::filesystem::path(OPENMW_RTX_CENSUS_SHADER_DIR), .mCensus = true };
+    }
+
     PipelineCacheSpec getPipelineCacheSpec()
     {
         // Silent, and built once: what is wanted is the path rule and not a configuration, and this
@@ -209,7 +214,7 @@ namespace Rtx::Testing
     RendererOptions describeRenderer(std::uint32_t width, std::uint32_t height, bool validation)
     {
         RendererOptions options;
-        options.mShaderDirectory = getShaderDirectory();
+        options.mShaders = getCensusShaders();
         options.mCacheDirectory = getPipelineCacheSpec().mDirectory;
         options.mWidth = width;
         options.mHeight = height;

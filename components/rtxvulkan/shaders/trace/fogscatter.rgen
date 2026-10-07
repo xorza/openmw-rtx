@@ -53,6 +53,7 @@
 #include "sky.h"
 
 #include "lib/bindings.glsl"
+#include "lib/census.glsl"
 #include "lib/counts.glsl"
 #include "lib/fog.glsl"
 #include "lib/froxel.glsl"
@@ -303,7 +304,7 @@ void main()
     }
 
     const FogPoint point = FogPoint(source, held, FogSeeing(transport, seen, ambient, sunSource));
-    RTX_STORE_COUNTED(fogScatterTarget, froxel, BOUNDARY_FOG, packFogScatter(point))
-    RTX_STORE_COUNTED(fogSunwardTarget, froxel, BOUNDARY_FOG, packFogSeeing(point.mSeeing))
-    RTX_STORE_COUNTED(fogLampsTarget, froxel, BOUNDARY_FOG, vec4(lampScatter, 0.0))
+    RTX_STORE_COUNTED(fogScatterTarget, froxel, packFogScatter(point))
+    RTX_STORE_COUNTED(fogSunwardTarget, froxel, packFogSeeing(point.mSeeing))
+    RTX_STORE_COUNTED(fogLampsTarget, froxel, vec4(lampScatter, 0.0))
 }

@@ -33,15 +33,15 @@
 // `Rtx::VisibilityVariant` is the other half. It reads each of these off the frame's own constants,
 // and `VisibilityPass` keeps one pipeline per tuple.
 
-/// Whether the frame counts for the host — `counts.h`: the primary rays that hit something, and
-/// the values that were not finite at each boundary they crossed.
+/// Whether the frame counts its hits for the host — `FrameCounts::mMisses`. The stores that were
+/// not finite are the census's, compiled in or out apart from this (`census.glsl`), because a
+/// measured run counts its hits and times the game's kernels.
 ///
-/// **A harness facility, so the game's module does not carry the atomics at all.** `shot` prints the
-/// hits, `bench` reports them, `check` asserts the finiteness and a test asserts on both, and
-/// nothing in the game ever reads either — so an unconditional `atomicAdd` was a debug write
-/// compiled into the shipping kernel. Specialized rather than branched on a uniform because the
-/// branch is what has to go, not just the write: with this false the constant folds away and the
-/// buffer is never touched.
+/// **A harness facility, so the game's module does not carry the atomic at all.** `shot` prints the
+/// hits, `bench` reports them and a test asserts on them, and nothing in the game ever reads them —
+/// so an unconditional `atomicAdd` was a debug write compiled into the shipping kernel. Specialized
+/// rather than branched on a uniform because the branch is what has to go, not just the write: with
+/// this false the constant folds away and the buffer is never touched.
 ///
 /// **Counted as misses, in the miss shader, and turned into hits on the host.** Every lane adding
 /// to one word serialises at that word: a million hits took four tenths of a millisecond of the

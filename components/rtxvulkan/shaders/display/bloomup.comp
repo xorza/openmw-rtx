@@ -11,6 +11,7 @@
 #include "shared/bloom.h"
 #include "shared/sets.h"
 #include "lib/bloom.glsl"
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 
 layout(local_size_x = BLOOM_WORKGROUP, local_size_y = BLOOM_WORKGROUP) in;
@@ -37,5 +38,5 @@ void main()
 
     const vec3 spread = bloomSpread(coarser, uv, frame.mTexel);
 
-    imageStore(level, at, vec4(mix(imageLoad(level, at).rgb, spread, frame.mMix), 1.0));
+    RTX_STORE_COUNTED(level, at, vec4(mix(imageLoad(level, at).rgb, spread, frame.mMix), 1.0))
 }

@@ -1,5 +1,7 @@
 #version 460
 
+#extension GL_GOOGLE_include_directive : require
+
 // The GUI's vertices arrive in clip space already: MyGUI multiplies widget pixels by the view size
 // itself, so there is no matrix here and nothing for this shader to do but hand them on. The one
 // difference between its clip space and Vulkan's — which way +Y points — is answered by a flipped
@@ -11,6 +13,8 @@
 // sub-widgets write is a layer depth inside that range while OpenMW's book page writes minus one
 // for every glyph (`mwgui/bookpage.cpp`, built against a GL projection that keeps it). That was
 // every dialogue's text, every book and every scroll clipped away whole.
+
+#include "lib/census.glsl"
 
 
 layout(location = 0) in vec3 inPosition;
@@ -26,4 +30,8 @@ void main()
 
     outColour = inColour;
     outTexCoord = inTexCoord;
+
+    countNotFinite(gl_Position);
+    countNotFinite(outColour);
+    countNotFinite(outTexCoord);
 }

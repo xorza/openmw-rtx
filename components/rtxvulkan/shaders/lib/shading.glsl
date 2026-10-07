@@ -10,6 +10,7 @@
 #include "look.h"
 #include "scene.h"
 #include "bindings.glsl"
+#include "census.glsl"
 #include "frame.glsl"
 #include "gloss.glsl"
 #include "lights.glsl"
@@ -466,6 +467,8 @@ vec3 specularModulation(Gloss gloss)
 /// light is not taken apart.
 SurfaceResponse responseOf(Surface surface, vec3 specular)
 {
+    // Counted here, because its code is a whole number whatever the normal was.
+    countNotFinite(surface.mNormal);
     return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo, surface.mAmbientAlbedo, specular);
 }
 

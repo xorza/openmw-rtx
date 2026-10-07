@@ -10,6 +10,7 @@
 
 #include "skinning.h"
 
+#include "lib/census.glsl"
 #include "lib/runs.glsl"
 
 layout(local_size_x = SKIN_WORKGROUP) in;
@@ -35,5 +36,6 @@ void main()
         position += weight * Vec3Run(morph.mOffsets).at[target * morph.mCount + vertex];
     }
 
+    countNotFinite(position);
     Vec3Written(morph.mPositions).at[vertex] = position;
 }

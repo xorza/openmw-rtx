@@ -2,6 +2,7 @@
 #include <array>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -20,6 +21,7 @@
 #include <components/files/conversion.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtxvulkan/shaders/shared/counts.h>
 
 namespace Rtx
 {
@@ -406,6 +408,52 @@ namespace Rtx
             EXPECT_TRUE(found.empty()) << "a compute shader traces a ray, which answers differently under another "
                                           "process's preemption — make the pass a launch:\n"
                                        << joined(found);
+        }
+
+        /// **Every store of an image goes through the census** (`census.glsl`): `RTX_STORE_COUNTED` for
+        /// a float, which counts it, and `RTX_STORE_WORDS` for words, whose packing counted the
+        /// floats it took. A raw `imageStore` is a store a NaN crosses uncounted. The probes are the
+        /// tests' instruments, which store what a test hands them and run in no frame.
+        TEST(RtxSourceTreeTest, everyImageStoreGoesThroughTheCensus)
+        {
+            const std::filesystem::path shaders = sBackend / "shaders";
+            const std::filesystem::path census = shaders / "lib" / "census.glsl";
+
+            std::vector<std::string> found;
+            for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(shaders))
+            {
+                const std::filesystem::path& file = entry.path();
+                if (!entry.is_regular_file() || file == census || file.parent_path() == shaders / "probes")
+                    continue;
+
+                const std::vector<std::string> lines = linesOf(file);
+                for (std::size_t at = 0; at < lines.size(); ++at)
+                    if (lines[at].find("imageStore(") != std::string::npos)
+                        found.push_back(genericName(file.lexically_relative(shaders)) + ":" + std::to_string(at + 1));
+            }
+
+            EXPECT_TRUE(found.empty()) << "a store no census counts — use RTX_STORE_COUNTED or RTX_STORE_WORDS:\n"
+                                       << joined(found);
+        }
+
+        /// **The census has a word for every module the build compiles**, the probes among them,
+        /// since the tests' device counts: one past `CENSUS_KERNELS` stops the device as its first
+        /// pipeline is made, which a run that never makes it would not see.
+        TEST(RtxSourceTreeTest, theCensusHasAWordForEveryModule)
+        {
+            constexpr std::array<std::string_view, 7> stages{ ".comp", ".rgen", ".rchit", ".rahit", ".rmiss", ".vert",
+                ".frag" };
+
+            std::uint32_t modules = 0;
+            for (const std::filesystem::directory_entry& entry :
+                std::filesystem::recursive_directory_iterator(sBackend / "shaders"))
+            {
+                const std::string extension = genericName(entry.path().extension());
+                if (std::find(stages.begin(), stages.end(), extension) != stages.end())
+                    ++modules;
+            }
+
+            EXPECT_LE(modules, Shaders::CENSUS_KERNELS);
         }
 
         /// Every zone the backend can open in a frame fits the timer.

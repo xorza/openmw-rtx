@@ -88,6 +88,7 @@ namespace Rtx
             if (bound != &mSkin)
             {
                 bind(commands, mSkin);
+                pushCensus(commands, mSkin);
                 bound = &mSkin;
             }
 
@@ -107,6 +108,7 @@ namespace Rtx
             if (bound != &mMorph)
             {
                 bind(commands, mMorph);
+                pushCensus(commands, mMorph);
                 bound = &mMorph;
             }
 

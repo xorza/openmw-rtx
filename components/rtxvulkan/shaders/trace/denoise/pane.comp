@@ -28,6 +28,7 @@
 #include "shared/pane.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
 #include "lib/surfacematch.glsl"
@@ -90,6 +91,6 @@ void main()
 
     // Selected and not branched around, for the rule the tree keeps: a lane with no layer runs the
     // blend over a history of nothing and keeps none of it.
-    imageStore(mean, at, stands ? texelOf(blended) : vec4(sampled, 0.0));
-    imageStore(held, at, heldSurfaceOf(seen, frame.mDistanceScale));
+    RTX_STORE_COUNTED(mean, at, stands ? texelOf(blended) : vec4(sampled, 0.0))
+    RTX_STORE_COUNTED(held, at, heldSurfaceOf(seen, frame.mDistanceScale))
 }

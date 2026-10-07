@@ -1,8 +1,12 @@
 #include "handles.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
+
+#include <components/rtxvulkan/shaders/shared/counts.h>
 
 #include "device.hpp"
 
@@ -43,6 +47,29 @@ namespace Rtx
             .flags = VK_FENCE_CREATE_SIGNALED_BIT,
         };
         return Fence::make(device, vkCreateFence, create, "vkCreateFence");
+    }
+
+    namespace
+    {
+        /// `bindings`, and the census after them where `counted`: past every binding a pass numbers.
+        BindingTable withCensus(std::span<const VkDescriptorSetLayoutBinding> bindings, const bool counted)
+        {
+            std::array<VkDescriptorSetLayoutBinding, BindingTable::sMost> all{};
+            std::copy(bindings.begin(), bindings.end(), all.begin());
+            std::size_t count = bindings.size();
+            if (counted)
+            {
+                assert(count < BindingTable::sMost && "a pass with no room left for the census");
+                assert((bindings.empty() || bindings.back().binding < Shaders::BIND_CENSUS)
+                    && "a pass binding past the census");
+                all[count++] = VkDescriptorSetLayoutBinding{ .binding = Shaders::BIND_CENSUS,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_ALL,
+                    .pImmutableSamplers = nullptr };
+            }
+            return BindingTable(std::span(all.data(), count));
+        }
     }
 
     SetLayout makeSetLayout(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
@@ -145,7 +172,10 @@ namespace Rtx
 
     PipelineLayout::PipelineLayout(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
         const VkPushConstantRange& push, const SharedSetLayouts& shared)
-        : mSetLayout(makeSetLayout(device, bindings, VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT))
+        : mOwn(bindings)
+        , mCensus(device.getCensus())
+        , mSetLayout(makeSetLayout(device, withCensus(bindings, mCensus != nullptr).get(),
+              VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT))
         , mPush(push)
     {
         assert(push.offset == 0 && "a push range that does not start at nought");

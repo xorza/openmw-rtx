@@ -16,6 +16,7 @@
 #include "shared/sets.h"
 #include "wave.h"
 
+#include "lib/census.glsl"
 #include "lib/wavelines.glsl"
 #include "lib/wavetile.glsl"
 
@@ -88,7 +89,7 @@ void main()
         const vec3 curve = shift * vec3(second.y, third.x, third.y);
 
         const ivec2 texel = ivec2(column, row);
-        imageStore(surface, texel, waveSurfaceTexel(height, slope));
-        imageStore(curvature, texel, waveCurvatureTexel(curve));
+        RTX_STORE_COUNTED(surface, texel, waveSurfaceTexel(height, slope))
+        RTX_STORE_COUNTED(curvature, texel, waveCurvatureTexel(curve))
     }
 }

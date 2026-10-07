@@ -18,6 +18,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -117,8 +118,10 @@ namespace Rtx
 
     struct RendererOptions
     {
-        /// Where the build wrote the compiled shaders for whichever backend this is.
-        std::filesystem::path mShaderDirectory;
+        /// Where the build wrote the compiled shaders for whichever backend this is, and whether
+        /// they count their stores that were not finite — `FrameResult::mNotFinite`. The game's
+        /// do not, and nor do a measured run's, whose figures are of the game's kernels.
+        ShaderSet mShaders;
 
         /// Where a backend keeps what it compiled, so that a later run need not compile it again.
         /// The user's cache directory (`ConfigurationManager::getCachePath`), because what goes here
@@ -142,9 +145,8 @@ namespace Rtx
         /// its own setting over, and `Renderer::setVerticalSync` follows a change to it.
         SDLUtil::VSyncMode mVerticalSync = SDLUtil::VSyncMode::Disabled;
 
-        /// Whether the frame counts for the host: the primary rays that hit anything, and the
-        /// values that were not finite at each boundary they crossed — `FrameResult::mHits` and
-        /// `mNotFinite`. On by default, so a reader who forgets it gets a number rather than a
+        /// Whether the frame counts for the host the primary rays that hit anything —
+        /// `FrameResult::mHits`. On by default, so a reader who forgets it gets a number rather than a
         /// silent nought; the game clears it. Not a knob of the run's picture, which is why it is
         /// not in the profile.
         bool mCounting = true;
@@ -241,25 +243,73 @@ namespace Rtx
         std::uint32_t mCount = 0;
     };
 
-    /// Stores whose value was a NaN or an infinity, at each boundary a frame writes across into
-    /// a history or hands to the denoiser — `Shaders::FrameCounts::mNotFinite` by name. Every one
-    /// is a logic error: a history that takes one keeps it and spreads it to its neighbours a
-    /// frame, so the picture goes black in blocks from there, and nothing on the way refuses it.
-    /// Summed over a stop for `Check::Finite`.
-    struct NotFinite
+    /// The most shader modules one census tells apart: `Shaders::CENSUS_KERNELS`, which the backend
+    /// holds to this.
+    inline constexpr std::uint32_t sMaxCensusKernels = 96;
+
+    /// One shader module's stores that were not finite.
+    struct NotFiniteStores
     {
-        std::uint32_t mFog = 0;
-        std::uint32_t mColour = 0;
-        std::uint32_t mGuide = 0;
+        /// The module's name, which the backend keeps for as long as it lives.
+        std::string_view mKernel;
+        std::uint32_t mStores = 0;
+    };
+
+    /// Stores whose value was a NaN or an infinity, by the shader module that wrote them — the
+    /// backend's census, which every store of a float is counted into. Every one is a logic error: a
+    /// history that takes one keeps it and spreads it to its neighbours a frame, so the picture goes
+    /// black in blocks from there, and nothing on the way refuses it. Holds the modules that wrote
+    /// one, in the order they were first added. Summed over a stop for `Check::Finite`.
+    class NotFinite
+    {
+    public:
+        /// Adds `stores` against `kernel`, beside what it holds already.
+        void add(std::string_view kernel, std::uint32_t stores)
+        {
+            if (stores == 0)
+                return;
+
+            for (std::uint32_t at = 0; at < mCount; ++at)
+            {
+                if (mKernels[at].mKernel == kernel)
+                {
+                    mKernels[at].mStores += stores;
+                    return;
+                }
+            }
+
+            assert(mCount < sMaxCensusKernels && "more modules than a census tells apart");
+            mKernels[mCount++] = NotFiniteStores{ .mKernel = kernel, .mStores = stores };
+        }
 
         void add(const NotFinite& more)
         {
-            mFog += more.mFog;
-            mColour += more.mColour;
-            mGuide += more.mGuide;
+            for (const NotFiniteStores& kernel : more.kernels())
+                add(kernel.mKernel, kernel.mStores);
         }
 
-        std::uint32_t total() const { return mFog + mColour + mGuide; }
+        std::uint32_t total() const
+        {
+            std::uint32_t sum = 0;
+            for (const NotFiniteStores& kernel : kernels())
+                sum += kernel.mStores;
+            return sum;
+        }
+
+        /// What `kernel` wrote, or nought where it wrote nothing.
+        std::uint32_t of(std::string_view kernel) const
+        {
+            for (const NotFiniteStores& held : kernels())
+                if (held.mKernel == kernel)
+                    return held.mStores;
+            return 0;
+        }
+
+        std::span<const NotFiniteStores> kernels() const { return { mKernels.data(), mCount }; }
+
+    private:
+        std::array<NotFiniteStores, sMaxCensusKernels> mKernels{};
+        std::uint32_t mCount = 0;
     };
 
     struct FrameResult
@@ -268,8 +318,8 @@ namespace Rtx
         /// away" without opening the image. Nought where `RendererOptions::mCounting` was cleared.
         std::uint32_t mHits = 0;
 
-        /// What the frame wrote that was not finite, by boundary. Nought where
-        /// `RendererOptions::mCounting` was cleared.
+        /// What the frame wrote that was not finite, by shader module. Nothing where the shaders
+        /// do not count (`ShaderSet::mCensus`).
         NotFinite mNotFinite;
 
         /// What the hold's own clock said the hold came to, in milliseconds: what

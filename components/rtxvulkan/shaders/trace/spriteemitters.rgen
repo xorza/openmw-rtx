@@ -18,6 +18,7 @@
 #include "scene.h"
 
 #include "lib/bindings.glsl"
+#include "lib/census.glsl"
 #include "lib/fog.glsl"
 #include "lib/frame.glsl"
 #include "lib/spritelist.glsl"
@@ -59,6 +60,8 @@ void main()
     const float layerMean = covered / float(grid.x * grid.y);
 
     // Both axes, because a streak carries them at different densities — `quadCrossing` says why.
-    EmitterFrames(frame.mTables.mEmitterFrames).at[index] = GpuEmitterFrame(slantCoverage(from, towards, along),
+    const GpuEmitterFrame made = GpuEmitterFrame(slantCoverage(from, towards, along),
         log2(1.0 - min(layerMean, SPRITE_ALPHA_LIMIT)), vec2(textureSize(textures[nonuniformEXT(emitter.mTexture)], 0)));
+    countNotFinite(vec4(made.mBand, made.mLayerThrough, made.mTexels));
+    EmitterFrames(frame.mTables.mEmitterFrames).at[index] = made;
 }

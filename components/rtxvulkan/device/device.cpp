@@ -20,6 +20,7 @@
 #include "commands.hpp"
 #include "graveyard.hpp"
 #include "instance.hpp"
+#include "notfinitecensus.hpp"
 #include "pipelinecache.hpp"
 #include "requirements.hpp"
 #include "result.hpp"
@@ -96,10 +97,10 @@ namespace Rtx
         }
     }
 
-    Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice,
-        const std::filesystem::path& shaderDirectory, const PipelineCacheSpec& cache)
+    Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
+        const PipelineCacheSpec& cache)
         : mPhysicalDevice(std::move(physicalDevice))
-        , mShaderDirectory(shaderDirectory)
+        , mShaderDirectory(shaders.mDirectory)
     {
         const Crash::NoteScope noted("making the device");
         std::vector<const char*> extensions;
@@ -257,6 +258,9 @@ namespace Rtx
 
         if (markerWrite != nullptr)
             mMarkers = std::make_unique<BufferMarkers>(*this, markerWrite);
+
+        if (shaders.mCensus)
+            mCensus = std::make_unique<NotFiniteCensus>(*this, mShaderDirectory);
     }
 
     VkDevice vulkanHandleOf(const Device& device)

@@ -81,8 +81,8 @@ namespace Rtx
         TEST_F(RtxVisibilityKernelsTest, aKernelThatCannotBeMadeIsThrownToEveryAsk)
         {
             const Instance& instance = *mHarness.mInstance;
-            const Device empty(
-                instance, PhysicalDevice::select(instance.getHandle()), "no-such-directory", PipelineCacheSpec{});
+            const Device empty(instance, PhysicalDevice::select(instance.getHandle()),
+                ShaderSet{ .mDirectory = "no-such-directory" }, PipelineCacheSpec{});
             const SetLayout textures = TextureArray::describeLayout(empty);
             const SetLayout channels = GBuffer::describeLayout(empty);
             const SetLayout volume = FogVolume::describeLayout(empty);

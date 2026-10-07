@@ -10,6 +10,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 
 namespace MWRender
 {
@@ -45,11 +46,12 @@ namespace MWRender
         /// draw one picture; a run timing the streaming path says no (`Rtx::CellRing::setSettled`).
         std::optional<bool> mSettled{};
 
-        /// Where the renderer reads its shaders, where not under the resources
-        /// (`Rtx::shaderDirectory`): the harness's set with their source in them, for a profiler
-        /// that shows a shader's lines. Never a played session's: the driver's cache is keyed on the
-        /// modules without it.
-        std::optional<std::filesystem::path> mShaderDirectory{};
+        /// The shaders the renderer reads, where not the game's under the resources
+        /// (`Rtx::shaderDirectory`): the harness's sets, which count their stores that were not
+        /// finite into the census for every run but a measured one, and keep their source for a
+        /// profiler that shows a shader's lines. Never a played session's: the driver's cache is
+        /// keyed on the modules, and the game's carry neither.
+        std::optional<Rtx::ShaderSet> mShaders{};
     };
 
     /// A run the harness drives through this renderer, as the renderer sees it per frame: what

@@ -26,6 +26,7 @@
 #include "scene.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/ground.glsl"
 #include "lib/pixels.glsl"
 
@@ -84,10 +85,10 @@ void main()
     // Opaque, because ground is not see-through: a composite left with its alpha at nought is a
     // chunk the cutout test throws every ray straight through.
     if ((chunk.mOutputs & GROUND_COMPOSITE_ALBEDO) != 0u)
-        imageStore(composite, ivec2(texel), vec4(encodeSrgb(sum.mAlbedo), 1.0));
+        RTX_STORE_COUNTED(composite, ivec2(texel), vec4(encodeSrgb(sum.mAlbedo), 1.0))
 
     // Data and not a picture: stored as it is, through a view with no curve over a format with
     // none. Where no layer shows, the ground is a Lambert surface.
     if ((chunk.mOutputs & GROUND_COMPOSITE_GLOSS) != 0u)
-        imageStore(gloss, ivec2(texel), vec4(groundGloss(sum), 1.0));
+        RTX_STORE_COUNTED(gloss, ivec2(texel), vec4(groundGloss(sum), 1.0))
 }

@@ -11,6 +11,8 @@
 #include "shared/glare.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
+
 layout(local_size_x = 1) in;
 
 layout(set = SET_PASS, binding = SUN_GLARE_BIND_COUNT, scalar) readonly buffer Count
@@ -40,10 +42,12 @@ void main()
     if (frame.mReset != 0u)
     {
         share = found;
+        countNotFinite(share);
         return;
     }
 
     // `OcclusionCallback::getVisibleRatio`, verbatim: at most `dt * 10` a frame either way.
     const float most = frame.mElapsed * SUN_GLARE_RATE;
     share = clamp(found, share - most, share + most);
+    countNotFinite(share);
 }

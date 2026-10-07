@@ -10,6 +10,8 @@
 #include "shared/exposure.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
+
 layout(local_size_x = EXPOSURE_BINS) in;
 
 layout(set = SET_PASS, binding = EXPOSURE_BIND_HISTOGRAM, scalar) buffer Histogram
@@ -117,6 +119,7 @@ void main()
     if (frame.mReset != EXPOSURE_RESET_NONE)
     {
         exposure = frame.mReset == EXPOSURE_RESET_SETTLED ? target : held;
+        countNotFinite(exposure);
         return;
     }
 
@@ -132,4 +135,5 @@ void main()
     // the asymmetry the two rates are for around.
     const float closed = clamp(1.0 - exp(-frame.mElapsed / tau), 0.0, 1.0);
     exposure = held * exp2(log2(target / held) * closed);
+    countNotFinite(exposure);
 }

@@ -16,6 +16,7 @@
 #include "shared/line.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/pixels.glsl"
 
 layout(push_constant, scalar) uniform Push
@@ -42,4 +43,5 @@ void main()
     const float shown = float(length(inOffset) <= surfaceDistance(imageLoad(surfaceChannel, ivec2(traced)).y));
 
     outColour = vec4(displayGamma(inColour.rgb, frame.mInverseGamma), inColour.a * shown);
+    countNotFinite(outColour);
 }

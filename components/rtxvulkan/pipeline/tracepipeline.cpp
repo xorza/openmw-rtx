@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
+#include <span>
 #include <vector>
 
 #include <components/rtxvulkan/device/device.hpp>
@@ -45,33 +46,33 @@ namespace Rtx
         // closest-hit stages may all run one module under their own constants.
         ShaderCode code(device);
 
-        const Specialization constants(specialization);
-
-        // A closest-hit stage's own table, kept until the pipeline is made because the info the
-        // stage names points into it. A deque, because `Specialization` points into itself and may
+        // Each stage's own table, kept until the pipeline is made because the info the stage names
+        // points into it: its module names its word of the census, and a closest-hit stage may
+        // carry constants of its own. A deque, because `Specialization` points into itself and may
         // not move.
-        std::deque<Specialization> hitConstants;
+        std::deque<Specialization> constants;
 
         std::vector<VkPipelineShaderStageCreateInfo> stages;
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups;
         stages.reserve(1 + shaders.mMiss.size() + (anyHitWanted ? 1 : 0) + shaders.mHit.size());
         groups.reserve(groupsOf(shaders));
 
-        const auto addStage
-            = [&](VkShaderStageFlagBits stage, const std::string_view module, const VkSpecializationInfo* specialized) {
-                  const auto at = static_cast<std::uint32_t>(stages.size());
-                  stages.push_back(VkPipelineShaderStageCreateInfo{
-                      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                      .pNext = code.stage(module),
-                      .flags = 0,
-                      .stage = stage,
-                      .module = VK_NULL_HANDLE,
-                      .pName = "main",
-                      .pSpecializationInfo = specialized,
-                  });
+        const auto addStage = [&](VkShaderStageFlagBits stage, const std::string_view module,
+                                  std::span<const std::uint32_t> words) {
+            const VkSpecializationInfo* const specialized = constants.emplace_back(device, module, words).getInfo();
+            const auto at = static_cast<std::uint32_t>(stages.size());
+            stages.push_back(VkPipelineShaderStageCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .pNext = code.stage(module),
+                .flags = 0,
+                .stage = stage,
+                .module = VK_NULL_HANDLE,
+                .pName = "main",
+                .pSpecializationInfo = specialized,
+            });
 
-                  return at;
-              };
+            return at;
+        };
 
         const auto addGeneral = [&](std::uint32_t stage) {
             groups.push_back(VkRayTracingShaderGroupCreateInfoKHR{
@@ -86,21 +87,19 @@ namespace Rtx
             });
         };
 
-        addGeneral(addStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shaders.mRaygen, constants.getInfo()));
+        addGeneral(addStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shaders.mRaygen, specialization));
         for (const std::string_view module : shaders.mMiss)
-            addGeneral(addStage(VK_SHADER_STAGE_MISS_BIT_KHR, module, constants.getInfo()));
+            addGeneral(addStage(VK_SHADER_STAGE_MISS_BIT_KHR, module, specialization));
 
         const std::uint32_t anyHit = anyHitWanted
-            ? addStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shaders.mAnyHit, constants.getInfo())
+            ? addStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shaders.mAnyHit, specialization)
             : VK_SHADER_UNUSED_KHR;
 
         for (const HitShader& hit : shaders.mHit)
         {
-            const VkSpecializationInfo* specialized = hit.mSpecialization.empty()
-                ? constants.getInfo()
-                : hitConstants.emplace_back(hit.mSpecialization).getInfo();
-
-            const std::uint32_t closestHit = addStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, hit.mModule, specialized);
+            const std::span<const std::uint32_t> words
+                = hit.mSpecialization.empty() ? specialization : hit.mSpecialization;
+            const std::uint32_t closestHit = addStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, hit.mModule, words);
             for (std::uint32_t record = 0; record < shaders.mHitRecordsPerShader; ++record)
                 groups.push_back(VkRayTracingShaderGroupCreateInfoKHR{
                     .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,

@@ -16,6 +16,7 @@
 
 namespace Rtx
 {
+    class NotFiniteCensus;
     class Device;
 
     /// The handles this renderer makes in one place and holds in many, each as its `Owned`: the
@@ -119,6 +120,10 @@ namespace Rtx
         /// whole at offset zero, and a size of nought declares none, because Vulkan takes no empty
         /// range and a pass whose constants moved into a buffer asks for exactly that; `shared` is
         /// every other set the layout will ever be handed.
+        ///
+        /// **And the census at `BIND_CENSUS`, where the device counts**, which every census module
+        /// binds in its pass's own set: added here, so no pass declares it, and pushed by
+        /// `pushDescriptors`, so no pass writes it.
         PipelineLayout(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
             const VkPushConstantRange& push, const SharedSetLayouts& shared);
 
@@ -132,10 +137,15 @@ namespace Rtx
         /// between `SET_PASS` and this, which is what a bind has to hand over.
         std::uint32_t getSetCount() const { return mSetCount; }
 
-        /// `SET_PASS`'s bindings.
-        const BindingTable& getBindings() const { return mSetLayout.getBindings(); }
+        /// `SET_PASS`'s bindings as the pass declared them, the census's left out.
+        const BindingTable& getBindings() const { return mOwn; }
+
+        /// The census the set binds at `BIND_CENSUS`, or null where the device does not count.
+        const NotFiniteCensus* getCensus() const { return mCensus; }
 
     private:
+        BindingTable mOwn;
+        const NotFiniteCensus* mCensus;
         SetLayout mSetLayout;
         Owned<VkPipelineLayout, vkDestroyPipelineLayout> mHandle;
         VkPushConstantRange mPush;

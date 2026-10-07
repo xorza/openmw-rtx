@@ -26,6 +26,7 @@
 #include "shared/normalspread.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/normaldecode.glsl"
 #include "lib/pixels.glsl"
 
@@ -90,6 +91,6 @@ void main()
         }
     }
 
-    imageStore(mean, ivec2(texel), vec4(averaged, loss));
-    imageStore(spread, ivec2(texel), vec4(slopeRoughness(normalSpreadSlopes(loss)), 0.0, 0.0, 0.0));
+    RTX_STORE_COUNTED(mean, ivec2(texel), vec4(averaged, loss))
+    RTX_STORE_COUNTED(spread, ivec2(texel), vec4(slopeRoughness(normalSpreadSlopes(loss)), 0.0, 0.0, 0.0))
 }

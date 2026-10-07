@@ -6,7 +6,7 @@
 // nought on this card** (`RtxHalfStoreTest`), so a running mean kept in it does not fall a little at
 // every store.
 
-#include "finite.glsl"
+#include "census.glsl"
 
 /// The largest value `RGB9E5` holds: nine bits of mantissa at the largest of its exponents.
 const float RGB9E5_LARGEST = 65408.0;
@@ -14,10 +14,15 @@ const float RGB9E5_LARGEST = 65408.0;
 /// A colour as three nine-bit mantissas sharing one five-bit exponent: the one each channel needs
 /// for the brightest of them. **What a radiance loses is relative to its brightest channel**: half a
 /// step, a part in 512 of it at worst, where three halves would cost the same six bytes twice over.
-/// Anything not a number, or below nought, is nought.
+/// Below nought is nought, and past `RGB9E5_LARGEST` is that.
+///
+/// **Counted where the shaders count, because the format has no NaN to keep one in**: what reads
+/// the word back reads a number, so a NaN packed here would be one no later store sees. Not refused
+/// either: a NaN is the logic error it is, and its word whatever the conversions make of it.
 uint packRgb9e5(vec3 colour)
 {
-    const vec3 held = clamp(mix(colour, vec3(0.0), notANumber(colour)), vec3(0.0), vec3(RGB9E5_LARGEST));
+    countNotFinite(colour);
+    const vec3 held = clamp(colour, vec3(0.0), vec3(RGB9E5_LARGEST));
     const float brightest = max(held.r, max(held.g, held.b));
 
     // The exponent that puts the brightest channel just under one at nine bits, held to what five

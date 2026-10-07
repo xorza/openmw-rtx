@@ -60,6 +60,7 @@
 #include "gbuffer.h"
 #include "shared/sets.h"
 
+#include "lib/census.glsl"
 #include "lib/hash.glsl"
 #include "lib/pixels.glsl"
 #include "lib/sharedexponent.glsl"
@@ -187,8 +188,8 @@ void main()
     // A pixel with no surface under it has nothing to filter and nothing to say to its neighbours.
     if (seen.x == SURFACE_NO_NORMAL)
     {
-        imageStore(filtered, at, texelFetch(source, at, 0));
-        imageStore(fillFiltered, at, texelFetch(fillSource, at, 0));
+        RTX_STORE_COUNTED(filtered, at, texelFetch(source, at, 0))
+        RTX_STORE_COUNTED(fillFiltered, at, texelFetch(fillSource, at, 0))
         return;
     }
 
@@ -273,8 +274,8 @@ void main()
     // The centre always passes its own tests, so the weight can only be zero if it underflowed.
     const vec4 answer = weight > 0.0 ? vec4(sum / weight, variance / (weight * weight)) : centre;
     const vec4 answerFill = weight > 0.0 ? vec4(sumFill / weight, 0.0) : texelFetch(fillSource, at, 0);
-    imageStore(filtered, at, answer);
-    imageStore(fillFiltered, at, answerFill);
+    RTX_STORE_COUNTED(filtered, at, answer)
+    RTX_STORE_COUNTED(fillFiltered, at, answerFill)
     if (fixing)
-        imageStore(fast, at, uvec4(packRgb9e5(answer.rgb), packRgb9e5(answerFill.rgb), 0u, 0u));
+        RTX_STORE_WORDS(fast, at, uvec4(packRgb9e5(answer.rgb), packRgb9e5(answerFill.rgb), 0u, 0u))
 }

@@ -51,6 +51,7 @@
 #include "shared/sets.h"
 
 #include "lib/bindings.glsl"
+#include "lib/census.glsl"
 #include "lib/fog.glsl"
 #include "lib/frame.glsl"
 #include "lib/medium.glsl"
@@ -172,7 +173,7 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
 
     if (!(opacity > 0.0) && !any(greaterThan(layer.mAdded, vec3(0.0))))
     {
-        imageStore(shown, ivec2(pixel), vec4(before.rgb, 1.0));
+        RTX_STORE_COUNTED(shown, ivec2(pixel), vec4(before.rgb, 1.0))
         return;
     }
 
@@ -201,7 +202,7 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     const float armsThrough = arms ? 1.0 : imageLoad(backdrop, ivec2(traced)).a;
     const vec3 laid = armsThrough < 1.0 ? mix(before.rgb, composited, armsThrough) : composited;
 
-    imageStore(shown, ivec2(pixel), vec4(laid, layer.mTransmittance));
+    RTX_STORE_COUNTED(shown, ivec2(pixel), vec4(laid, layer.mTransmittance))
 }
 
 void main()

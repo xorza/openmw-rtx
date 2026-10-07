@@ -62,6 +62,7 @@ set(RTX_TEST_FILES
     rtx/preprocess/shape/shapefold.cpp
     rtx/renderer/frameimage.cpp
     rtx/renderer/memoryreport.cpp
+    rtx/renderer/notfinite.cpp
     rtx/renderer/png.cpp
     rtx/renderer/sceneuploader.cpp
     rtx/renderer/shaderdirectory.cpp
@@ -243,7 +244,8 @@ target_include_directories(components-tests SYSTEM PRIVATE "${OPENMW_SPIRV_HEADE
 
 # Where the build wrote the shaders, told to the two test binaries alone: a build-tree path is no
 # fact about the backend.
-target_compile_definitions(components-tests PRIVATE OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}")
+target_compile_definitions(components-tests PRIVATE OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
+    OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}")
 
 # The same `main.cpp`, which sets up the settings' defaults both binaries read.
 openmw_add_executable(rtx-gpu-tests main.cpp rtx/support/allocations.cpp
@@ -257,7 +259,8 @@ target_link_libraries(rtx-gpu-tests
 target_compile_definitions(rtx-gpu-tests
     PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
             OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
-            OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}")
+            OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
+            OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}")
 if (UNIX AND NOT APPLE)
     target_link_libraries(rtx-gpu-tests ${CMAKE_THREAD_LIBS_INIT})
 endif()

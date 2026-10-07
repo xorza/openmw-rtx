@@ -13,6 +13,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/notfinitecensus.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
@@ -41,6 +42,9 @@ namespace Rtx
         , mDebugVertices(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "debug vertices")
         , mDigestLanes(Buffer::readBack(device, DigestPass::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame digest"))
     {
+        if (device.getCensus() != nullptr)
+            mNotFinite = Buffer::readBack(
+                device, NotFiniteCensus::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame not-finite census");
     }
 
     FrameRing::FrameRing(const Device& device, const bool readsCounts, const double holdTickMs)
@@ -134,6 +138,12 @@ namespace Rtx
         if (mReadsCounts)
             frame.mCounts.orderForHostRead(frame.mWorld.mCommands);
 
+        if (const NotFiniteCensus* const census = mDevice.getCensus(); census != nullptr)
+        {
+            census->record(frame.mWorld.mCommands, frame.mNotFinite);
+            frame.mNotFinite.orderForHostRead(frame.mWorld.mCommands);
+        }
+
         close(frame, true);
     }
 
@@ -191,11 +201,13 @@ namespace Rtx
 
         assert(counted.mMisses <= frame.mCountedRays && "more primary rays missed than were launched");
 
+        NotFinite notFinite;
+        if (const NotFiniteCensus* const census = mDevice.getCensus(); census != nullptr)
+            census->readInto(frame.mNotFinite, notFinite);
+
         FrameResult& report = mReports.emplace_back(FrameResult{
             .mHits = frame.mCountedRays - counted.mMisses,
-            .mNotFinite = NotFinite{ .mFog = counted.mNotFinite[Shaders::BOUNDARY_FOG],
-                .mColour = counted.mNotFinite[Shaders::BOUNDARY_COLOUR],
-                .mGuide = counted.mNotFinite[Shaders::BOUNDARY_GUIDE] },
+            .mNotFinite = notFinite,
             .mHeldMs = counted.mHeldTicks * mHoldTickMs,
             .mWaitMs = waited,
             .mInFlight = frame.mInFlight,

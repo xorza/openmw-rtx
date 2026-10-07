@@ -23,6 +23,7 @@
 #include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories/video.hpp>
 #include <components/settings/values.hpp>
@@ -391,8 +392,15 @@ namespace RtxTool
             const std::filesystem::path resources
                 = std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path().parent_path();
             EXPECT_TRUE(std::filesystem::is_regular_file(harness / "vfs" / "rtxtool.omwscripts"));
-            EXPECT_TRUE(std::filesystem::is_directory(shaderSourceDirectory()));
-            EXPECT_EQ(shaderSourceDirectory().parent_path(), harness);
+            EXPECT_EQ(shadersFor(resources, false, false).mDirectory, Rtx::shaderDirectory(resources));
+            for (const bool source : { false, true })
+                for (const bool census : { false, true })
+                {
+                    const Rtx::ShaderSet set = shadersFor(resources, source, census);
+                    EXPECT_TRUE(std::filesystem::is_directory(set.mDirectory)) << set.mDirectory;
+                    EXPECT_EQ(set.mCensus, census) << set.mDirectory;
+                    EXPECT_EQ(set.mDirectory.parent_path() == harness, source || census) << set.mDirectory;
+                }
             const std::filesystem::path within = harness.lexically_relative(resources);
             EXPECT_TRUE(within.empty() || *within.begin() == "..") << "the harness's folder inside the resources";
 

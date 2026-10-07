@@ -25,6 +25,7 @@
 
 #include "gbuffer.h"
 
+#include "census.glsl"
 #include "records.glsl"
 #include "sharedexponent.glsl"
 
@@ -199,6 +200,9 @@ const uint ANSWER_NO_LOBE = 255u;
 
 VisibilityPayload packAnswer(Answer answer)
 {
+    // The roughness becomes a whole number of steps, which keeps no NaN for a store to count.
+    countNotFinite(answer.mRoughness);
+
     VisibilityPayload packed;
     packed.mRadiance = answer.mRadiance;
     packed.mBounced = answer.mBounced;

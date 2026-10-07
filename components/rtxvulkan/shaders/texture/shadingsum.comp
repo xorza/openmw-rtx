@@ -20,6 +20,8 @@
 #include "shared/sets.h"
 #include "shadingmap.h"
 
+#include "lib/census.glsl"
+
 layout(local_size_x = SHADING_EXTENT, local_size_y = SHADING_EXTENT) in;
 
 layout(set = SET_PASS, binding = SHADING_SUM_BIND_SOURCE) uniform texture2D source;
@@ -84,5 +86,8 @@ void main()
     barrier();
 
     if (lane == 0u)
+    {
+        countNotFinite(vec2(partSum[column], partWeight[column]));
         sums[row * SHADING_EXTENT + column] = ShadingSum(partSum[column], partWeight[column]);
+    }
 }
