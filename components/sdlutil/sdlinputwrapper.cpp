@@ -458,8 +458,9 @@ namespace SDLUtil
         {
             packEvt.x = evt.motion.x * mPixelDensity;
             packEvt.y = evt.motion.y * mPixelDensity;
-            packEvt.xrel = evt.motion.xrel * mPixelDensity;
-            packEvt.yrel = evt.motion.yrel * mPixelDensity;
+            // Mouse-look speed must not change with the display's pixel density.
+            packEvt.xrel = evt.motion.xrel;
+            packEvt.yrel = evt.motion.yrel;
             packEvt.type = SDL_EVENT_MOUSE_MOTION;
             if (mFirstMouseMove)
             {
