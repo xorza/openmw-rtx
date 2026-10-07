@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The driver and its dependencies
 
-- [ ] `tools/omw/deps.py`, `.github/actions/openmw-deps/action.yml:48-53` — nothing removes the folder of a
-  replaced `VCPKG_TAG`, Qt or SDK version, so the Windows cache grows with each change. Target shape: after
-  a fetch, delete sibling folders that the current pins do not name. (medium)
 - [ ] `tools/omw/repeat.py:97-100` — a differing run counts as "not repeatable" only with the exit status
   `DIFFERED_STATUS` and a line that starts with `"against "`. `sDifferedStatus` exists so that `repeat`
   does not depend on the report's words (`apps/rtxtool/model/benchrun.hpp:471-476`). Target shape: decide
