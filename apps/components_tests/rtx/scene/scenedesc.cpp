@@ -37,7 +37,6 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/scenetextures.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
@@ -243,14 +242,12 @@ namespace Rtx
             scene.drop(scene.holdTexture(Shaders::TEXTURE_NEUTRAL));
             EXPECT_EQ(textures.getLiveCount(), TextureTable::sCapacity);
 
-            // Refused where the textures are described, and once for all of them, because what they
-            // share is the limit: 4095 slots beside the neutral texel.
-            SceneTextures described;
-            described.describe(scene, {});
-            ASSERT_EQ(described.getRefusals().size(), 1u);
-            EXPECT_EQ(described.getRefusals()[0].mKind, Refused::Texture);
-            EXPECT_TRUE(described.getRefusals()[0].mName.empty());
-            EXPECT_EQ(described.getRefusals()[0].mWhy, "past the 4095 textures the array holds");
+            // Counted for the hand-over as well, which reports the limit once for all of them
+            // (`SceneUploader`), and from nought again after it.
+            EXPECT_EQ(textures.getRefusedArrivals(), 2u);
+            scene.clearArrivals();
+            EXPECT_EQ(textures.getRefusedArrivals(), 0u);
+            EXPECT_EQ(textures.getRefused(), 2u) << "the count since the table began";
         }
 
         /// **Which slot a thing lands in cannot depend on the order the dead left in.**

@@ -19,6 +19,7 @@ namespace Rtx
         // Counted and not reported: a table does not reach the scene's `Refusals`, and
         // `SceneTextures` reports the limit with the rest of what an arrival stood in for.
         ++mRefused;
+        ++mRefusedArrivals;
         return false;
     }
 

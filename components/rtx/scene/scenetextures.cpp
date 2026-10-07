@@ -119,13 +119,6 @@ namespace Rtx
 
         assert(mLevels.capacity() == reserved && "the level table grew while descriptions spanned it");
         assert(mTexels.capacity() == reservedTexels && "the laid texels grew while descriptions spanned them");
-
-        // The array's own limit, met where a texture was added rather than here, and reported with
-        // the rest of what an arrival stood in for: one refusal for all of them, because what they
-        // share is the limit.
-        if (scene.textures().getRefused() > 0)
-            mRefusals.push_back(Refusal{ .mKind = Refused::Texture,
-                .mWhy = "past the " + std::to_string(TextureTable::sCapacity) + " textures the array holds" });
     }
 
     Misc::Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)

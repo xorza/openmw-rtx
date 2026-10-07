@@ -3,11 +3,15 @@
 #include <chrono>
 #include <cstdint>
 #include <span>
+#include <string>
 
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
+#include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 
 #include "framespend.hpp"
 #include "renderer.hpp"
@@ -130,6 +134,17 @@ namespace Rtx
             scene.refusals().refuse(renderer.getRefusals(slot));
 
             timed.at(Timing::Upload) = since(described, std::chrono::steady_clock::now());
+        }
+
+        // **The array's own limit, met where a texture was added and not where one is described**:
+        // one refusal for what this hand-over could not take, on whichever branch it went, since
+        // an add the table refused arrives nowhere and a placement describes nothing. The text
+        // built once, and not on every hand-over of a table full for the session.
+        if (tables.textures().getRefusedArrivals() > 0)
+        {
+            static const std::string past
+                = "past the " + std::to_string(TextureTable::sCapacity) + " textures the array holds";
+            scene.refusals().refuse(Refused::Texture, {}, past);
         }
 
         // One tail, because all three hand-overs end the same way: each has uploaded, so each is
