@@ -97,11 +97,9 @@ namespace Crash::Client
 
     void prepareInstallingThread()
     {
-#if !defined(__APPLE__)
-        // Every thread made after this gets its own through `pthread_create_linux.cc`; the one
-        // installing is older than that.
-        crashpad::CrashpadClient::InitializeSignalStackForThread();
-#endif
+        // Nothing: on Linux Crashpad's install gives the installing thread its signal stack
+        // (`SignalHandler::Install`), as `pthread_create_linux.cc` gives every thread made after; on
+        // macOS a fault is taken through a Mach port, off the faulting thread's stack.
     }
 
     std::string_view catchPastTheProcess(crashpad::CrashpadClient&, const std::filesystem::path&)
