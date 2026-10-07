@@ -33,8 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `components/crashcatcher/crash.hpp:53` (`Crash::report`), `crashnote.hpp:113` (`isReporting`) — only
-  `apps/components_tests` calls them. Target shape: remove them, or name the production caller. (low)
 - [ ] `components/crashcatcher/crashunsupported.cpp:20` — "Crashpad does not support this system" is also
   what a supported system built with `OPENMW_CRASHPAD=OFF` logs (`CMakeLists.txt:73`). Target shape: a
   message for both cases, for example "this build has no crash catcher". (low)

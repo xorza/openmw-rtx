@@ -109,7 +109,8 @@ namespace Crash
     /// the first's kind and reason. Not for a signal handler that may have interrupted a report.
     void finalReport(ReportKind kind, std::string_view reason);
 
-    /// Whether a report is being written, or the process is ending on one.
+    /// Whether a report is being written, or the process is ending on one. Read by the tests and by
+    /// nothing else: what lets the crash matrix land a fault or a hang request inside a report.
     bool isReporting();
 
     /// What a fault finds at the gate.
