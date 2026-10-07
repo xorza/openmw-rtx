@@ -30,12 +30,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
-- [ ] `components/rtxvulkan/shaders/trace/visibility.rgen:486-487,527`, `trace/denoise/composite.comp:96-98` —
-  `paneLight` is divided by `paneModulation` in full float, but `CHANNEL_PANE_ALBEDO` stores the
-  modulation as RGBA16F. The composite multiplies by the stored half, so each filtered frame's pane light
-  is a little too low, always in one direction, and the `mComposed` path disagrees with it.
-  `specularModulation` (`lib/shading.glsl:470-479`) rounds before it divides for this reason. Target
-  shape: round `paneModulation` to a half before the divide and the store. (low)
 - [ ] `components/rtxvulkan/shaders/trace/denoise/accumulateclamp.comp:135` — the ring tile loads `fast`
   at each apron pixel, also at negative coordinates and past the frame, with no guard (the loads at
   `:144-148` have one). The device does not enable `robustImageAccess`. Target shape:
