@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <functional>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -215,6 +216,27 @@ namespace Rtx::Testing
             EXPECT_EQ(frame().mMeshesReused, 1u) << "it froze on a frame it moved";
             EXPECT_EQ(frame().mMeshesReused, 0u) << "standing still, it did not freeze";
             EXPECT_EQ(standing(), osg::Vec3f(4.0f, 0.0f, 0.0f));
+        }
+
+        /// A node a walk cannot read, which throws where the walk reaches it.
+        struct Throwing : osg::Node
+        {
+            void accept(osg::NodeVisitor&) override { throw std::runtime_error("a node the walk cannot read"); }
+        };
+
+        /// **A walk that threw in the middle of a reference's record leaves no record open**: the
+        /// walk after it records its own references as any walk does, where a record left open
+        /// was a reference root recorded inside another.
+        TEST_F(RtxFrozenSubtreeTest, aWalkThatThrowsInsideAReferenceLeavesNoRecordOpen)
+        {
+            const osg::ref_ptr<osg::MatrixTransform> broken = addReference(osg::Vec3f());
+            broken->addChild(new Throwing);
+            EXPECT_THROW(frame(), std::runtime_error);
+
+            mCell->removeChild(broken);
+            addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
+            EXPECT_EQ(frame().mInstances, 1u);
+            EXPECT_EQ(frame().mPassedFrozen, 1u) << "the walk after the throw recorded nothing";
         }
 
         /// **A view that sees another part of the world walks every reference again**: a mask

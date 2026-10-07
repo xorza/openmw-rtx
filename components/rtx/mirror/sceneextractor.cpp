@@ -644,9 +644,10 @@ namespace Rtx
     }
 
     SceneExtractor::WalkGuard::WalkGuard(
-        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const bool falls)
+        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const bool falls, bool& recording)
         : mPass(pass)
         , mPhase(phase)
+        , mRecording(recording)
     {
         mPhase.step(Phase::Walking, Phase::Between);
         mPass.mStats = &stats;
@@ -659,6 +660,7 @@ namespace Rtx
         // report that has gone.
         mPass.mStats = nullptr;
         mPass.mFalls = false;
+        mRecording = false;
         mPhase.step(Phase::Between, Phase::Walking);
     }
 
@@ -666,7 +668,7 @@ namespace Rtx
         std::size_t frame, CellRing* const ring, const bool falls)
     {
         ExtractionStats stats;
-        const WalkGuard walking(mPass, mPhase, stats, falls);
+        const WalkGuard walking(mPass, mPhase, stats, falls, mRecording);
 
         // Before anything is placed, so a walk that threw has still marked the scene: what it
         // stamped before the throw is standing, and the sweep is owed for the rest.

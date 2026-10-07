@@ -220,13 +220,14 @@ namespace Rtx
         };
 
         /// The pass opened for one walk and closed however the walk ends: the counts pointer back
-        /// to null, the falls flag cleared and the phase back to `Between`, on the ordinary return
-        /// and on a throw alike. A resolver reached after a walk that threw would otherwise count
-        /// into an unwound local.
+        /// to null, the falls flag cleared, no reference's record left open and the phase back to
+        /// `Between`, on the ordinary return and on a throw alike. A resolver reached after a walk
+        /// that threw would otherwise count into an unwound local, and the next walk's first
+        /// reference would be recorded inside the one the throw left.
         class WalkGuard
         {
         public:
-            WalkGuard(MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, bool falls);
+            WalkGuard(MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, bool falls, bool& recording);
             ~WalkGuard();
 
             WalkGuard(const WalkGuard&) = delete;
@@ -235,6 +236,7 @@ namespace Rtx
         private:
             MirrorPass& mPass;
             Stepped<Phase>& mPhase;
+            bool& mRecording;
         };
 
         /// What the ring may do, and nothing else may. `Rtx::SceneAdopter` is implemented

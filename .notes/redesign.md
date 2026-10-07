@@ -638,8 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[code] A walk that throws leaves `mRecording` set** (`WalkGuard` resets the rest). Target:
-  `WalkGuard` clears it.
 - **[code] A lifetime refusal count is reported as this frame's** (`scenetextures.cpp`,
   `getRefused`), which builds a string on every arrival after the first overflow. Target: a count
   since the last hand-over.
