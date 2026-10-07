@@ -3,7 +3,7 @@
 # `RTX_TEST_SUPPORT` goes into both binaries, `RTX_GPU_TEST_SUPPORT` into the second.
 set(RTX_TEST_FILES
     myguirtx/sharedtexture.cpp
-    platform/process.cpp
+    platform/linuxtext.cpp
     rtx/common/hashstate.cpp
     rtx/common/job.cpp
     rtx/common/monitor.cpp
