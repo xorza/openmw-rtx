@@ -1,10 +1,9 @@
 #pragma once
 
+#include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 
-#include "cellgrid.hpp"
-
-namespace Rtx
+namespace MWRender
 {
     /// What the mirror is handed of the settings, and never reads for itself: the two knobs the
     /// paging read for the distance's statics, which this renderer stands itself, the three the
@@ -15,8 +14,8 @@ namespace Rtx
     /// statics need a restart, and the reach follows the menu through `WorldMirror::setReach`.
     struct MirrorKnobs
     {
-        /// How far out the world is built, in cells — `CellGrid::reachOf` puts it in units.
-        LandReach mReach;
+        /// How far out the world is built, in cells — `Rtx::CellGrid::reachOf` puts it in units.
+        Rtx::LandReach mReach;
 
         /// `object paging`: whether the distance's statics stand at all.
         bool mDistantStatics = true;
@@ -25,7 +24,7 @@ namespace Rtx
         float mMinSize = 0.0f;
 
         /// `[Groundcover] rendering distance`, in units, where `[Groundcover] enabled` is on, and
-        /// nought where it is off: `WorldAround::mGroundcoverReach`.
+        /// nought where it is off: `Rtx::WorldAround::mGroundcoverReach`.
         float mGroundcoverReach = 0.0f;
 
         /// `[Groundcover] density`: the share of each cell's plants that stand.
@@ -36,6 +35,6 @@ namespace Rtx
 
         /// `[RTX] specular map layout`: what the content's `_spec` maps mean, for every scene the
         /// mirror and the pictures inside the interface read materials into.
-        SpecularLayout mSpecularLayout = SpecularLayout::Ignore;
+        Rtx::SpecularLayout mSpecularLayout = Rtx::SpecularLayout::Ignore;
     };
 }

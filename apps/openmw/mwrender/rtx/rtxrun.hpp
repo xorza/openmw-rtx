@@ -8,9 +8,10 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
+
+#include "mirrorknobs.hpp"
 
 namespace MWRender
 {
@@ -30,7 +31,7 @@ namespace MWRender
         /// its command line, a played session from `[RTX] distant land cells` and the paging's
         /// two. Here and not written into the registry by the harness, because the registry is the
         /// player's and a knob of a run travels with the run.
-        Rtx::MirrorKnobs mMirror{};
+        MirrorKnobs mMirror{};
 
         /// Whether the window stays hidden, which saves a present per frame and nothing else.
         bool mHeadless = false;

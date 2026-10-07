@@ -33,7 +33,6 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
-#include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -45,6 +44,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "classmasks.hpp"
+#include "mirrorknobs.hpp"
 #include "tracedgroundcover.hpp"
 
 namespace MWRender
@@ -135,7 +135,7 @@ namespace MWRender
         }
     }
 
-    WorldMirror::WorldMirror(const Rtx::MirrorKnobs& knobs)
+    WorldMirror::WorldMirror(const MirrorKnobs& knobs)
         : mWalk{ .mSpecular = knobs.mSpecularLayout }
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
