@@ -43,11 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Shader structure
 
-- [ ] `components/rtxvulkan/shaders/lib/geometry.glsl:80-81` — `smoothLift`'s `fromCorner[3]` and
-  `weight[3]` are indexed by the loop counter. The release `visibilityhit.rchit.spv` has six
-  Function-storage array pairs for them. `lib/lights.glsl:469-478` and `trace/denoise/atrous.comp:124-129`
-  say such arrays become scratch on this hardware and remove them. Target shape: three named corners and
-  selects, or a measurement noted where the arrays stay. (low)
 - [ ] `components/rtxvulkan/shaders/lib/sprites.glsl:467-520` — `PuffLayers::mLayers[5]`/`mAt[5]`, walked
   by `addPuff`'s insertion loop, are Function-storage arrays in `visibility.rgen.spv` and
   `spritecomposite.rgen.spv`, live across the full sprite walk. Target shape: as above. (low)
