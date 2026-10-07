@@ -30,12 +30,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
-- [ ] `components/rtx/image/mipchain.hpp:24-70`, `ownedtexture.cpp:44-54` — `OwnedTexture::describe`
-  never sets `mEncoding`, so a chain built from a data or normal map says `Colour`, and `getCompanion()`
-  returns `Shading`. Production uses only `MipChain::wantedFor`. `build`, `describe` and all of
-  `OwnedTexture` are for tests only. Target shape: `wantedFor` becomes a free rule beside `TextureData`,
-  and the CPU reference chain moves to the test tree. At minimum, `describe` carries the source's
-  encoding. (low)
 - [ ] `components/sceneutil/lightmanager.cpp:673` — the copy constructor copies `mController` as is.
   `SceneUtil::CopyOp` sets `DEEP_COPY_CALLBACKS`, so a cloned light runs a cloned controller while
   `getController()` returns the original's. Target shape: in the copy, find the copied callback, or get

@@ -152,6 +152,10 @@ set(RTX_TEST_SUPPORT
     rtx/support/instanceobstacle.hpp
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
+    rtx/support/mipchain.cpp
+    rtx/support/mipchain.hpp
+    rtx/support/ownedtexture.cpp
+    rtx/support/ownedtexture.hpp
     rtx/support/pngtext.hpp
     rtx/support/sceneholds.hpp
     rtx/support/spritelightbake.cpp

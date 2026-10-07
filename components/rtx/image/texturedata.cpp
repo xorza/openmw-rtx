@@ -53,4 +53,9 @@ namespace Rtx
 
         return bytes;
     }
+
+    bool TextureData::wantsCompletedChain() const
+    {
+        return mLevels.size() == 1 && std::size_t{ mWidth } * mHeight > 1;
+    }
 }

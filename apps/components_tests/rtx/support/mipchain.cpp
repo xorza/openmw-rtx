@@ -11,11 +11,11 @@
 
 #include <components/rtx/shaders/halving.h>
 
-#include "colour.hpp"
-#include "texels.hpp"
-#include "textureencoding.hpp"
+#include <components/rtx/image/colour.hpp>
+#include <components/rtx/image/texels.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 
-namespace Rtx
+namespace Rtx::Testing
 {
     namespace
     {
@@ -25,17 +25,12 @@ namespace Rtx
         }
     }
 
-    bool MipChain::wantedFor(const TextureData& described)
-    {
-        return described.mLevels.size() == 1 && std::size_t{ described.mWidth } * described.mHeight > 1;
-    }
-
     void MipChain::build(const TextureData& described)
     {
         mTexture.reuse();
         mEncoded = true;
 
-        if (!wantedFor(described))
+        if (!described.wantsCompletedChain())
             return;
 
         const MipLevel& finest = described.mLevels.front();
@@ -43,8 +38,8 @@ namespace Rtx
         const bool coverage = described.mEncoding == TextureEncoding::Colour;
 
         // The whole shape first, so the texels are asked for once and the levels never move.
-        mTexture.openChain(
-            finest.mWidth, finest.mHeight, mEncoded ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm);
+        mTexture.openChain(finest.mWidth, finest.mHeight,
+            mEncoded ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm, described.mEncoding);
         mTexture.setName(described.mName);
 
         const std::uint32_t width = mTexture.getWidth();

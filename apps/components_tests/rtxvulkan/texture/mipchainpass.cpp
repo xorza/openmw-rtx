@@ -11,8 +11,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/mipchain.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -75,7 +75,7 @@ namespace Rtx
             /// How many levels `Texture` stands `file` with, which says whether it made a chain.
             std::uint32_t levelsStood(TextureData file, std::string_view name)
             {
-                file.mCompleteChain = MipChain::wantedFor(file);
+                file.mCompleteChain = file.wantsCompletedChain();
 
                 Device& device = getDevice();
                 const TexturePasses passes(device);
@@ -98,7 +98,7 @@ namespace Rtx
             /// through a table, and a mean can land on a rounding boundary.
             void expectHosts(const TextureData& file, std::string_view name)
             {
-                const MipChain host(file);
+                const Testing::MipChain host(file);
                 ASSERT_FALSE(host.isEmpty()) << name;
                 const TextureData built = host.describe();
 
@@ -232,7 +232,7 @@ namespace Rtx
 
         /// A texture stands with the chain its file did not carry, down to one texel, and with the
         /// chain it did carry as it came; a file of one texel has no chain to make. The builder
-        /// marks a description by `MipChain::wantedFor`, and this says `Texture` keeps it.
+        /// marks a description by `TextureData::wantsCompletedChain`, and this says `Texture` keeps it.
         TEST_F(RtxMipChainPassTest, aTextureStandsWithTheChainItsFileDidNotCarry)
         {
             Testing::TestTexture single;

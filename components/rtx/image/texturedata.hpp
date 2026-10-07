@@ -497,7 +497,7 @@ namespace Rtx
         std::span<const MipLevel> mLevels{};
 
         /// Whether a backend completes the chain the file did not carry, `MipChainPass`, from the
-        /// one level here down to one texel. Set by the builder where `MipChain::wantedFor` says,
+        /// one level here down to one texel. Set by the builder where `wantsCompletedChain` says,
         /// and never for a texture a test paints to be read at its one level. Under `File` alone.
         bool mCompleteChain = false;
 
@@ -537,6 +537,20 @@ namespace Rtx
             assert(level < mLevels.size() && "a level past the end of the chain");
             return mBytes.size() - mLevels[level].mOffset;
         }
+
+        /// Whether this is a file whose chain a backend completes: one level, and more than a texel.
+        ///
+        /// **Only a file that carried no chain at all.** Morrowind ships a hundred and eighty-seven
+        /// such textures and its rain is one: read at its finest, a drop's peak alpha is 0.400 where
+        /// the missing levels hold 0.283, 0.129 and 0.068, so a storm comes out as hard white marks
+        /// that flicker; the rasterizer has the driver generate them. Morrowind's own chains stop
+        /// short of a single texel — a 256-square texture ships six levels and ends at 8 by 8, and
+        /// that last level is already the texture's own mean to within what a ray can tell —
+        /// and rebuilding those would decompress the whole game to gain nothing. A texel has no
+        /// level below it, and a level with no extent has no texel to read. **Completed in loose
+        /// texels** and not compressed again, because a block format cannot be filtered without an
+        /// encoder, and the largest of these files is five hundred and twelve square.
+        bool wantsCompletedChain() const;
     };
 
 }

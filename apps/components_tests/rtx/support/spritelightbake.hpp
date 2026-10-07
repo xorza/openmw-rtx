@@ -2,8 +2,9 @@
 
 #include <cstdint>
 
-#include <components/rtx/image/ownedtexture.hpp>
 #include <components/rtx/image/texturedata.hpp>
+
+#include "ownedtexture.hpp"
 
 namespace Rtx
 {

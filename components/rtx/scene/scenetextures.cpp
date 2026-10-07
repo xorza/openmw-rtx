@@ -11,7 +11,6 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/image/imagedescription.hpp>
-#include <components/rtx/image/mipchain.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "refusal.hpp"
@@ -128,10 +127,10 @@ namespace Rtx
             if (!read.isOk())
                 return read;
 
-            // What the file did not carry, the device makes. `MipChain` says why almost nothing in
-            // the game needs this and why the rain does.
+            // What the file did not carry, the device makes. `wantsCompletedChain` says why almost
+            // nothing in the game needs this and why the rain does.
             TextureData described = read.value();
-            described.mCompleteChain = MipChain::wantedFor(described);
+            described.mCompleteChain = described.wantsCompletedChain();
             return described;
         }
 

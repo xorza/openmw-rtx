@@ -49,9 +49,9 @@ namespace Rtx
 
         /// Stands a texture from its file's bytes in this one, which is empty, from level `first`
         /// on: uploaded level by level where the file carried a chain, and where it carried one
-        /// level of more than a texel, uploaded once and the chain made from that upload — `MipChain`
-        /// says which files and why — into a four-byte image of the same curve, the upload buried
-        /// under the batch. Left empty, and why, where the device has no room for it as `use`. Every
+        /// level of more than a texel, uploaded once and the chain made from that upload —
+        /// `TextureData::wantsCompletedChain` says which files and why — into a four-byte image of the same curve, the
+        /// upload buried under the batch. Left empty, and why, where the device has no room for it as `use`. Every
         /// image is made before anything is handed to `arrival`, so a refusal leaves it as it found
         /// it. What makes the texture is `arrival`'s to record, and this stays where it is until then:
         /// the work names its images.
