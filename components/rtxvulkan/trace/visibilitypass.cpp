@@ -41,6 +41,7 @@
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/shaders/shared/bindings.h>
+#include <components/rtxvulkan/shaders/shared/fogvolume.h>
 #include <components/rtxvulkan/shaders/shared/tables.h>
 #include <components/rtxvulkan/shaders/shared/tracerecords.h>
 

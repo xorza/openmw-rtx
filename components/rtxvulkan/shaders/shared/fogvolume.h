@@ -102,6 +102,13 @@ namespace Rtx::Shaders
     const uint FOG_SAMPLED_COUNT = BIND_FOG_SCATTER_TARGET;
     const uint FOG_BINDING_COUNT = BIND_FOG_COLUMN_MOONS + 1;
 
+    /// How many columns one workgroup of the integrate pass covers, on each axis.
+    ///
+    /// **A thread to a column there, and that is not a shape to be improved.** Front to back is the
+    /// only order transmittance can be carried in, so the sixty-four slices of a column are a scan
+    /// and not a fan-out — and the scan is reads and multiply-adds, with no ray and no walk in it.
+    const uint FOG_COLUMN_WORKGROUP = 8u;
+
 #ifdef RTX_HOST
 }
 #endif

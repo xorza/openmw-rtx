@@ -19,6 +19,7 @@
 // which is what the structure is refitted from and what a hit reads its shading frame out of.
 
 #include "skinning.h"
+#include "shared/skin.h"
 #include "tangent.h"
 
 #include "lib/census.glsl"

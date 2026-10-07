@@ -33,14 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Facts of one layer are in another layer
 
-- [ ] `components/rtx/shaders/wave.h:28-38,82,89,103`, `scene.h:257`, `digest.h:81`,
-  `skinning.h:97,116`, `shadingmap.h:78` — descriptor bindings (`WAVE_ROWS_BIND_*`,
-  `WAVE_COLUMNS_BIND_*`), workgroup sizes (`WAVE_WORKGROUP`, `FOG_COLUMN_WORKGROUP`) and per-dispatch push
-  blocks (`WaveRowsConstants`, `WaveColumnsConstants`, `DigestConstants`, `SkinConstants` and
-  `MorphConstants` with 64-bit device addresses, `ShadingConstants`) are in the core. Only
-  `components/rtxvulkan` reads them, and `architecture.md` §3 puts them in
-  `components/rtxvulkan/shaders/shared/`. Target shape: move them there. Keep in the core only what core
-  C++ reads. (medium)
 - [ ] `components/rtx/scene/lightbuilder.hpp:14`, `lightbuilder.cpp:19-20` — only `mirror/` calls
   `lightbuilder` (`makeLight`, the `SceneUtil::LightSource`/`LightCommon` readers, `Glow`), but it makes
   `scene/` include `SceneUtil::LightManager`/`LightController`. Target shape: `scene/` keeps the `Light`

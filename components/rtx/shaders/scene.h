@@ -249,13 +249,6 @@ namespace Rtx::Shaders
     /// per pixel; this spends 64 per sixty-four pixels.
     const uint FOG_VOLUME_SLICES = 64u;
 
-    /// How many columns one workgroup of the integrate pass covers, on each axis.
-    ///
-    /// **A thread to a column there, and that is not a shape to be improved.** Front to back is the
-    /// only order transmittance can be carried in, so the sixty-four slices of a column are a scan
-    /// and not a fan-out — and the scan is reads and multiply-adds, with no ray and no walk in it.
-    const uint FOG_COLUMN_WORKGROUP = 8u;
-
     /// How far under its nominal level the sea's own surface is placed, in world units.
     ///
     /// **Coplanar surfaces have no intersection order, so one has to be imposed.** Morrowind's

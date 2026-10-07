@@ -20,6 +20,7 @@
 
 #include "scene.h"
 #include "shared/sets.h"
+#include "shared/wavetransform.h"
 #include "wave.h"
 
 #include "lib/census.glsl"
