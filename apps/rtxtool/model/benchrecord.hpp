@@ -283,6 +283,9 @@ namespace RtxTool
     /// The header as the lines the report opens with.
     std::string describeHeader(const BenchHeader& header);
 
+    /// What `wrote` holds as a report says it: the stores in all, and each module's after a colon.
+    std::string describeNotFinite(const Rtx::NotFinite& wrote);
+
     /// What a whole run came to, under the places. Empty for a run of one place, which has already
     /// said everything this would.
     std::string describeTotal(std::span<const BenchPlace> places);

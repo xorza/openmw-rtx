@@ -219,12 +219,9 @@ namespace RtxTool
 
     void Measurer::answered(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
     {
-        // **Where somebody plays the run, a NaN ends it, at the frame that stored it**: a window
-        // that flies until it is closed measures nothing, so nothing after would say so, and what
-        // a NaN reaches it spreads to — the picture the player went on looking at.
-        if (mRequest.mPlayed && finished.mNotFinite.total() > 0)
+        if (std::optional<std::string> stopping = mRequest.stopAt(finished); stopping.has_value())
         {
-            mFailure = std::format("frame {}: {}", finished.mFrame, describeNotFinite(finished.mNotFinite));
+            mFailure = std::move(*stopping);
             return;
         }
 

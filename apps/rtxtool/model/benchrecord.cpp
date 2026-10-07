@@ -326,6 +326,18 @@ namespace RtxTool
         }
     }
 
+    std::string describeNotFinite(const Rtx::NotFinite& wrote)
+    {
+        std::string text = std::format("{} stores not finite", wrote.total());
+        std::string_view separator = ": ";
+        for (const Rtx::NotFiniteStores& kernel : wrote.kernels())
+        {
+            text += std::format("{}{} in {}", separator, kernel.mStores, kernel.mKernel);
+            separator = ", ";
+        }
+        return text;
+    }
+
     std::string describeHeader(const BenchHeader& header)
     {
         // **The build and the layers first, because either makes every figure below one not to

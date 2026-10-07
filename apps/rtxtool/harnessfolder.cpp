@@ -7,8 +7,9 @@ namespace RtxTool
         return std::filesystem::path(OPENMW_RTX_HARNESS_DIR);
     }
 
-    Rtx::ShaderSet shadersFor(const std::filesystem::path& resources, const bool source, const bool census)
+    Rtx::ShaderSet shadersFor(const std::filesystem::path& resources, const Verbs verb, const bool source)
     {
+        const bool census = !policyOf(verb).mMeasures;
         if (!source && !census)
             return Rtx::ShaderSet{ .mDirectory = Rtx::shaderDirectory(resources) };
 

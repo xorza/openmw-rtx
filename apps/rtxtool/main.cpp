@@ -1419,11 +1419,7 @@ namespace RtxTool
 
             // **Before any verb makes a device, because the driver reads where its cache is once.**
             // A cache of the shaders this run reads and of nothing else (`DriverCache`).
-            //
-            // **A measured run reads the game's modules**, which test no store for a NaN; every
-            // other run counts them, `check` to assert and `view` to stop at one.
-            const Rtx::ShaderSet shaders
-                = shadersFor(resources, variables["shader-source"].as<bool>(), !policyOf(found->mVerb).mMeasures);
+            const Rtx::ShaderSet shaders = shadersFor(resources, found->mVerb, variables["shader-source"].as<bool>());
             const DriverCache driverCache(harnessDirectory(), shaders.mDirectory);
             driverCache.applyToDriver();
             driverCache.sweep();
