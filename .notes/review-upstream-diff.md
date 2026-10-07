@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Owners that are not pinned or encapsulated as the conventions say
 
-- [ ] `components/rtxvulkan/device/memory/accelerationstructure.hpp:66`, `structurestorage.hpp:35` — each
-  structure keeps a raw `StructureStorage*`, and `StructureStorage` can be copied and moved. Target shape:
-  delete copy and move on `StructureStorage`. (low)
 - [ ] `components/rtx/scene/materialtable.hpp:39,45`, `meshtable.hpp:46,50`, `deformertable.hpp:123-139` —
   the cross-table writers (`MaterialTable::add`/`set`, `MeshTable::add`/`notePosed`,
   `DeformerTable::addRig`/`addMorph`/`stand`/`pose`/`release`) are public, while `hold`/`drop` are private
