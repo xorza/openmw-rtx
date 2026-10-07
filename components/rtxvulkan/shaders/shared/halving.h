@@ -1,12 +1,13 @@
-#ifndef OPENMW_COMPONENTS_RTX_SHADERS_HALVING_H
-#define OPENMW_COMPONENTS_RTX_SHADERS_HALVING_H
+#ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_HALVING_H
+#define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_HALVING_H
 
-#include "hosttypes.h"
-#include "portable.h"
+#include <components/rtx/shaders/hosttypes.h>
+#include <components/rtx/shaders/portable.h>
 
 // How a level of a mip chain is made from the one above it: which texels each of its texels covers,
-// and what each is worth. Read by the host's chain (`Rtx::MipChain`) and by both the device's passes
-// that halve a texture, `mipchain.comp` and `normalspread.comp`, so the three halve alike. Included
+// and what each is worth. Read by both the device's passes that halve a texture, `mipchain.comp`
+// and `normalspread.comp`, and by the host's chain a test holds the first to, so the three halve
+// alike. Included
 // verbatim by both sides, for the reason `visibility.h` is.
 
 #ifdef RTX_HOST

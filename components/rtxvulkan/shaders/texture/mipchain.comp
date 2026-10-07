@@ -5,7 +5,7 @@
 
 // The levels a texture needs, built on the device where its file carried none.
 //
-// **`Rtx::MipChain`, on the device.** A hundred and eighty-seven of Morrowind's textures ship one
+// **The chain `Rtx::TextureData::wantsCompletedChain` asks for, on the device.** A hundred and eighty-seven of Morrowind's textures ship one
 // level, the rain among them, and read at their finest a drop's peak alpha is 0.400 where the
 // levels below hold 0.283, 0.129 and 0.068 — a storm as hard white marks that flicker. Made on the
 // host this decoded every texel of the finest level and box-filtered every level under it on the
@@ -25,7 +25,7 @@
 // texel, so that `RtxMipChainPassTest` can hold the two to a byte.
 
 #include "colour.h"
-#include "halving.h"
+#include "shared/halving.h"
 #include "shared/mipchain.h"
 #include "scene.h"
 #include "shared/sets.h"

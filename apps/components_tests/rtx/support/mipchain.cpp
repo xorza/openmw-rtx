@@ -9,7 +9,7 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/shaders/halving.h>
+#include <components/rtxvulkan/shaders/shared/halving.h>
 
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
