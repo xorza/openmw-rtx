@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The driver and its dependencies
 
-- [ ] `tools/omw/listing.py:59` — `check` returns success and prints nothing when the build has no
-  `components_qt` (`asan`, `tsan`, `release`, and `debug` on Windows). Target shape: say that the check was
-  skipped and why, or exclude the Qt-only libraries by rule. (low)
 - [ ] `tools/omw/testing.py:19-22`, `omw/main.py` `_build` — `--without-device` removes only the device
   label from CTest. The sanitizer jobs thus compile `rtx-gpu-tests` under ASan and TSan and never run it.
   Target shape: do not build targets whose tests all have the `device` label. (low)

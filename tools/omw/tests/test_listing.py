@@ -1,6 +1,6 @@
 import unittest
 
-from omw.listing import unlisted
+from omw.listing import qt_sources, unlisted
 
 
 class UnlistedTest(unittest.TestCase):
@@ -40,6 +40,17 @@ class UnlistedTest(unittest.TestCase):
                 self.assertEqual(unlisted(tracked, compiled - {counts}, windows),
                                  sorted([*forgotten, *unshield, counts]))
 
+
+
+class QtSourcesTest(unittest.TestCase):
+    def test_every_name_of_every_qt_list_is_a_source_of_its_folder(self):
+        text = ("add_component_dir (misc\n    strings\n    )\n"
+                "if (USE_QT)\n    add_component_qt_dir (config\n        gamesettings\n        launchersettings\n        )\n"
+                "    add_component_qt_dir (misc helpviewer scalableicon)\nendif()\n")
+        self.assertEqual(qt_sources(text), {"components/config/gamesettings.cpp",
+                                            "components/config/launchersettings.cpp",
+                                            "components/misc/helpviewer.cpp", "components/misc/scalableicon.cpp"})
+        self.assertEqual(qt_sources("add_component_dir (misc strings)\n"), set())
 
 if __name__ == "__main__":
     unittest.main()
