@@ -50,3 +50,26 @@ Decided on 2026-10-08: the top-level row table's rows in fixed blocks, which the
 | C. Keep | Delete the item. | A growth costs a frame a row copy and a structure, a logarithmic number of times a session. |
 
 Blocked: the item "`components/rtxvulkan/device/memory/slottable.hpp:99-100`".
+
+## Q8. The seam cannot name the world reading where it stands (`components/rtx/renderer/renderer.hpp`)
+
+Decided on 2026-10-08: `renderFrame` takes a frame request with the `WorldReading`, and the backend
+calls `describeWorld` and owns the fog drift. Found while starting it:
+
+- **The folders' order forbids it.** `renderer/` stands before `environment/`
+  (`RtxSourceTreeTest.everyFolderIncludesOnlyTheFoldersBeforeIt`), and `environment/` cannot move up:
+  `nightsky.cpp` reads the star dome's state sets through `mirror/statereading.hpp`, and `mirror/`
+  stands after `renderer/`.
+- **The tests are not in the way.** They drive `VulkanRenderer` and write about 600 world fields into
+  the block directly, in 25 files; the backend can keep its block-taking `renderFrame` as an overload
+  of its own, off the seam, and the tests stay as they are.
+- **The drift is the harness's to hold** (`SkyReader::holdAir`, from a stop's `AirClock`), so where it
+  moves, the seam gains a call to hold the air and hands the air back with the frame.
+
+| Option | What it does | Cost |
+| --- | --- | --- |
+| A. Split `environment/` **(recommended)** | What describes a frame's world — `WorldReading`, `SkyContent`'s indices, `describeWorld`, `FogDrift` — moves to a folder before `renderer/`; what reads the sky out of the content (`nightsky`, `skybuilder`, the moon faces) stays after `mirror/`. Then the decided shape as it stands: the request carries the reading and the sky, the backend describes and owns the drift, `Renderer` gains `holdAir`, and the frame hands the air back. | Two refactors in one: the folder split (about 15 files moved, the order table, the tests' includes) and the seam (about 40 files). |
+| B. The host describes into a host-side world record | The request carries the world as described — a core struct the host fills with `describeWorld` — and the backend copies it into the block; the drift stays with the host. | A struct of some sixty fields beside the block's, kept in step by hand; the drift stays where the decision moved it from. |
+| C. One sub-block per writer | The block split into nested structs, one for each writer; the seam keeps the block, and each function takes only its part. | A layout change every shader sees; the device type stays in the seam. |
+
+Blocked: the item "`components/rtx/renderer/renderer.hpp:438-439,492`".
