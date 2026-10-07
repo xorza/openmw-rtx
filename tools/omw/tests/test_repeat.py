@@ -21,7 +21,7 @@ OUTLIVED = ("import subprocess, sys; "
 
 class OutlivedHarness:
     def harness(self, verb: str, *args, **options) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, "-c", OUTLIVED], **options)
+        return subprocess.run([sys.executable, "-c", OUTLIVED], check=False, **options)
 
 
 class RepeatTest(unittest.TestCase):
