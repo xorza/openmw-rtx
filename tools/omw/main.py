@@ -29,7 +29,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                listing, which tuples moved
   gate                         {gate}
   exec <command> [args]        a command in the build directory, under the flavour's environment
-  archive [name]               the release archive into dist/, with its symbols: the package flavour
+  archive [name]               the release archive into dist/, with its symbols: the package flavour,
+                               on Linux in an Ubuntu 24.04 container where the system is another
   profile [args]               the harness's CPU side under perf: the release flavour
   info, scene, shot, view, bench, check, film, noise [args]
                                openmw-rtxtool's own verbs, from the build directory

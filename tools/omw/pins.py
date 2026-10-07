@@ -90,3 +90,9 @@ VULKAN_SDK_MACOS = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/mac/vulkansdk-macos-{VULKAN_SDK_WINDOWS_VERSION}.zip",
     "539433589c83522e6f31b1c7b418a4167e21597a4a361ab119e1dc0760cf3865",
 )
+# The CMake the release-base container builds with (`CI/release-base.Dockerfile`): the tree's floor,
+# 3.31, which Ubuntu 24.04's own 3.28 is under. CI's runner image carries a newer CMake of its own.
+CMAKE_LINUX = Pin(
+    "https://github.com/Kitware/CMake/releases/download/v3.31.12/cmake-3.31.12-linux-x86_64.tar.gz",
+    "0dc2e9a6860f06bf10bd8fadc03e35d9eeb4df46e33763a7e480e987758f385c",
+)
