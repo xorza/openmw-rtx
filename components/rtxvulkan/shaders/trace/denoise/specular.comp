@@ -114,42 +114,44 @@ void main()
     // Both write their sample, which is nought, and a history of no frames.
     const bool reflects = dot(normal, normal) > 0.0 && sampled.a >= 0.0;
 
-    const vec3 toEye = -rayAt(eyeOfPixel(seen.y, frame.mEyes), vec2(at)).mDirection;
-
-    const vec3 moved = imageLoad(motion, at).xyz;
-    const HistoryFootprint footprint = historyFootprint(at, moved);
-    const HistoryPlane plane = historyPlane(frame, at, seen, moved);
-
     // A parallel projection has no direction a surface is seen from to compare; where there was no
     // previous eye, the plane refuses every texel itself.
     const bool previous = frame.mReset == 0u && frame.mEyes.mWorld.mOrthographic == 0u;
 
-    // A texel that reflected nothing holds no history, and would pull the mean toward nought.
-    RTX_HISTORY_SHARES(shares, footprint, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight),
-        heldSurface, imageLoad(meanBefore, historyAt).a > 0.0, plane)
-    if (!previous)
-        shares = vec4(0.0);
-
-    vec4 held = vec4(0.0);
-    for (int i = 0; i < 4; ++i)
-        if (shares[i] > 0.0)
-            held += imageLoad(meanBefore, historyTap(footprint, i)) * shares[i];
-    const float weight = historyCovered(shares);
-
     RunningMean blended = startedMean(sampled.rgb);
-    if (weight > 0.0)
+    // A branch, where the tree selects, as the pane filter's over the same gather: the sky and the
+    // surfaces with no lobe skip the motion and the history's taps. Not measured here, where no
+    // scene the suites hold wears a map and the pass does not run; the pane filter's measurement
+    // is the same gather's.
+    if (reflects && previous)
     {
-        const float facing = abs(dot(normal, toEye));
-        // The direction toward the previous eye from where the surface stood: its point from that
-        // eye, where this frame's jittered ray met it and not the footprint's centre.
-        const vec3 toEyeBefore = -normalize(plane.mAnchor);
-        const float kept = reflectionKept(toEye, toEyeBefore, turnAllowed(sampled.a, facing));
-        RunningMean history = runningMeanOf(held, weight);
-        history.mFrames = min(history.mFrames, framesKept(sampled.a) - 1.0);
-        blended = blendedMean(sampled.rgb, history, kept);
+        const vec3 moved = imageLoad(motion, at).xyz;
+        const HistoryFootprint footprint = historyFootprint(at, moved);
+        const HistoryPlane plane = historyPlane(frame, at, seen, moved);
+
+        // A texel that reflected nothing holds no history, and would pull the mean toward nought.
+        RTX_HISTORY_SHARES(shares, footprint, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight),
+            heldSurface, imageLoad(meanBefore, historyAt).a > 0.0, plane)
+        vec4 held = vec4(0.0);
+        for (int i = 0; i < 4; ++i)
+            if (shares[i] > 0.0)
+                held += imageLoad(meanBefore, historyTap(footprint, i)) * shares[i];
+        const float weight = historyCovered(shares);
+        if (weight > 0.0)
+        {
+            const vec3 toEye = -rayAt(eyeOfPixel(seen.y, frame.mEyes), vec2(at)).mDirection;
+            const float facing = abs(dot(normal, toEye));
+            // The direction toward the previous eye from where the surface stood: its point from
+            // that eye, where this frame's jittered ray met it and not the footprint's centre.
+            const vec3 toEyeBefore = -normalize(plane.mAnchor);
+            const float kept = reflectionKept(toEye, toEyeBefore, turnAllowed(sampled.a, facing));
+            RunningMean history = runningMeanOf(held, weight);
+            history.mFrames = min(history.mFrames, framesKept(sampled.a) - 1.0);
+            blended = blendedMean(sampled.rgb, history, kept);
+        }
     }
 
-    // Selected and not branched around, for the rule the tree keeps: a lane with no lobe runs the
-    // blend over a history of nothing and keeps none of it.
+    // A lane with no lobe stores no frames, where `startedMean` counts one, so no later frame takes
+    // its texel for a history.
     RTX_STORE_COUNTED(mean, at, reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0))
 }
