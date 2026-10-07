@@ -46,14 +46,6 @@ ivec2 fogTentOffset(int i)
     return ivec2(i % 3, i / 3) - 1;
 }
 
-/// The tent `[1 2 1]` squared, which is that row against itself across and up.
-float fogTentWeight(int i)
-{
-    const ivec2 offset = fogTentOffset(i);
-
-    return (offset.x == 0 ? 2.0 : 1.0) * (offset.y == 0 ? 2.0 : 1.0);
-}
-
 /// The `i`th column of the tent around `column`, clamped to the edge of the grid — which is the
 /// neighbour the sampler would have read there.
 ivec2 fogTentAt(ivec2 column, int i, ivec2 grid)
@@ -103,7 +95,7 @@ FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9], out ve
             continue;
 
         const ivec2 at = fogTentAt(column, i, grid);
-        const float tent = fogTentWeight(i);
+        const float tent = tentWeight(fogTentOffset(i));
 
         point += tent * texelFetch(fogScatter, ivec3(at, int(slice)), 0);
         seeing += tent * texelFetch(fogSunward, ivec3(at, int(slice)), 0);
