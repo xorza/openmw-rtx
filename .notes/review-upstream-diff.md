@@ -33,9 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `components/debug/debugging.cpp:438`, `components/crashcatcher/sources.cmake:12-16` — the keeper
-  forks also with `OPENMW_DISABLE_CRASH_CATCHER=1` or `OPENMW_CRASHPAD=OFF`, where no monitor exists.
-  Target shape: keep the image only where a catcher is installed. (low)
 - [ ] `components/debug/debugging.cpp:410-412` — the log is opened again with `ios::app`, so the
   monitor's appends go to the end of the file. On MSVC's CRT, `_O_APPEND` is a seek and then a write, and
   is not atomic between processes, so a hang summary can be overwritten. Target shape: on Windows, open

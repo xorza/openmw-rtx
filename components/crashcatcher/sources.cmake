@@ -10,7 +10,8 @@ add_component_dir (crashcatcher
     crashuncaught
 )
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+# The image is kept for a monitor, and a build with no Crashpad starts none.
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND OPENMW_CRASHPAD)
     add_component_dir (crashcatcher crashimagelinux)
 else()
     add_component_dir (crashcatcher crashimagenone)

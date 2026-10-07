@@ -441,7 +441,11 @@ namespace Debug
     {
         // Before anything else, because a monitor is this executable doing nothing but that.
         Crash::runMonitorIfAsked(argc, argv);
-        const std::string_view unkept = Crash::keepImageMounted();
+
+        // The image is kept for a monitor, so only where one will start.
+        const char* const disable = std::getenv("OPENMW_DISABLE_CRASH_CATCHER");
+        const bool catches = disable == nullptr || Misc::StringUtils::toNumeric<int>(disable, 0) == 0;
+        const std::string_view unkept = catches ? Crash::keepImageMounted() : std::string_view();
 
 #if defined _WIN32
         (void)attachParentConsole();
@@ -470,8 +474,7 @@ namespace Debug
         // reports go under the user data folder, which is known before any configuration is, and the
         // log is handed over once `setupLogging` knows it. What this says lands in the log then,
         // since the lines before it are held until it opens.
-        const char* const disable = std::getenv("OPENMW_DISABLE_CRASH_CATCHER");
-        if (disable == nullptr || Misc::StringUtils::toNumeric<int>(disable, 0) == 0)
+        if (catches)
         {
             Crash::Settings settings;
             settings.mApplication = std::string(appName);

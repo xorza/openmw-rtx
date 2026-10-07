@@ -92,6 +92,8 @@ namespace CrashTests
             .mFollows = "crash-tests lived on",
             .mReports = false,
             .mKept = true });
+        // Under an image with the catcher turned off: nothing is kept, because no monitor starts.
+        into.push_back({ "unkept-disabled", "", {}, "crash-tests lived on", false });
         into.push_back({ .mName = "kept-leaves",
             .mHeadline = "",
             .mRaised = {},
@@ -126,10 +128,24 @@ namespace CrashTests
         }
         if (mode == "kept-ignoring-children")
             signal(SIGCHLD, SIG_IGN);
+        if (mode == "unkept-disabled")
+        {
+            Platform::Process::setEnvironment("APPIMAGE", "crash-tests: no image, and no catcher to keep one for");
+            Platform::Process::setEnvironment("OPENMW_DISABLE_CRASH_CATCHER", "1");
+        }
     }
 
     std::optional<int> runModeOfThisSystem(std::string_view mode)
     {
+        if (mode == "unkept-disabled")
+        {
+            if (kept())
+            {
+                Log(Debug::Error) << "crash-tests is kept with no catcher to keep it for";
+                return 3;
+            }
+            return livedOn();
+        }
         if (keptMode(mode))
         {
             if (!kept())
