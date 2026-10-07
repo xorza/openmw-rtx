@@ -205,7 +205,9 @@ void main()
     // the depth under them, so they stand in front of everything — a decision about what the
     // picture is, which `worldMask` says the world's ray keeps out of. A miss of the arms' ray runs
     // the unshaded record, so a pixel beside the arms pays one traversal on a mask a handful of
-    // instances carry and no second shading of the sky.
+    // instances carry and no second shading of the sky. **To the far plane, as the world's**: a
+    // bound at 512 units, past the arms and the blade, moved the trace by nothing at
+    // `seyda-neen-ship-armed` — 2.82 ms at the median either way, three alternated rounds.
     bool arms = false;
     vec3 origin;
     vec3 direction;

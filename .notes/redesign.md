@@ -623,10 +623,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   monitor's lifetime.
 ### 6.5 Performance (each one measured before it stays)
 
-- **[perf] The arms' ray runs to `mFar`** with `MASK_FIRST_PERSON` (`visibility.rgen`), a full
-  traversal on a miss. Target: `tmax` at the farthest first-person bound. Decided (2026-10-07):
-  first a bench place that stands the player with a weapon drawn (the harness's body readies it),
-  then the A/B.
 - **[perf] The shadow filter rebuilds every position at every level** (`shadowfilter.comp`,
   `readSquare`). Target: positions and normals once a frame.
 - **[perf] FSR runs in full floats with the driver's wave size** (`fsrcallbacks.glsl`, `FFX_HALF 0`).

@@ -75,7 +75,8 @@ namespace RtxTool
 
             mFlown = pose.mEye;
             mFacing = pose.mRotation;
-            moveBodyTo(pose.mEye);
+            if (!throughArms(stop))
+                moveBodyTo(pose.mEye);
 
             holdSky(pose.mWeather, pose.mNextWeather, pose.mCrossed);
 
@@ -100,7 +101,11 @@ namespace RtxTool
         if (measured.has_value())
         {
             if (stop.mSchedule.mRoute.has_value() && *measured > 0)
+            {
                 fly(*stop.mSchedule.mRoute, seconds);
+                if (!throughArms(stop))
+                    moveBodyTo(mFlown);
+            }
 
             turnWeather(stop, seconds);
         }
@@ -242,7 +247,6 @@ namespace RtxTool
         // on every machine, and where they fall is the whole measurement. The height is the line's
         // between the two ends, which is what a view states when it names both.
         mFlown += along * std::min(route.mSpeed * step, left);
-        moveBodyTo(mFlown);
     }
 
     void CameraDriver::turnWeather(const Stop& stop, const float step)
@@ -271,24 +275,38 @@ namespace RtxTool
         // **The body is hidden from a camera this stands inside it**, through the seam's view mask
         // that both renderers read: a stop flies the player to its route's point so that cells load
         // around it and stands the camera on the same coordinates, and would trace a boot thirteen
-        // units from the eye. A free camera is the player's own again.
+        // units from the eye. A free camera is the player's own again, and an armed stop sees
+        // through the body's own eye, which shows the arms alone.
         if (stop.mSchedule.mFreeCamera)
             showInView(MWRender::Mask_Player, true);
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
             return;
 
-        showInView(MWRender::Mask_Player, false);
-
-        if (stop.mSchedule.mTrack.has_value())
+        const osg::Vec3f rotation = facingOf(stop);
+        if (throughArms(stop))
         {
-            aimCamera(mFlown, mFacing);
+            showInView(MWRender::Mask_Player, true);
+            aimThroughBody(mFlown, rotation);
             return;
         }
 
+        showInView(MWRender::Mask_Player, false);
+        aimCamera(mFlown, rotation);
+    }
+
+    osg::Vec3f CameraDriver::facingOf(const Stop& stop) const
+    {
+        if (stop.mSchedule.mTrack.has_value())
+            return mFacing;
+
         const std::optional<Route>& route = stop.mSchedule.mRoute;
         const osg::Vec3f look = route.has_value() ? route->mLookTo : mFlown + (mFromLook - mFrom);
+        return Stand{ .mCell = {}, .mEye = mFlown, .mLook = look }.getRotation();
+    }
 
-        aimCamera(mFlown, Stand{ .mCell = {}, .mEye = mFlown, .mLook = look }.getRotation());
+    bool CameraDriver::throughArms(const Stop& stop)
+    {
+        return !stop.mStand.mArms.empty() && !stop.mSchedule.mFreeCamera && stop.mStand.mEye.has_value();
     }
 
     float CameraDriver::getTravelled(const Route& route) const
@@ -371,5 +389,31 @@ namespace RtxTool
         // `Camera::rotateCameraToTrackingPtr` negates a tracked body's.
         camera->setPitch(-rotation.x(), true);
         camera->setYaw(-rotation.z(), true);
+    }
+
+    void CameraDriver::aimThroughBody(const osg::Vec3f& eye, const osg::Vec3f& rotation)
+    {
+        MWBase::World& world = *MWBase::Environment::get().getWorld();
+        MWRender::Camera* camera = world.getRenderingManager()->getCamera();
+        const MWWorld::Ptr player = world.getPlayerPtr();
+
+        // **Forced, because the draw is not an animation the view change may wait out**: the body
+        // was built drawn (`Stager::arm`), and a change asked for unforced while an upper-body
+        // animation plays is queued behind it.
+        camera->setMode(MWRender::Camera::Mode::FirstPerson, true);
+
+        // The body turned and not only the eye, because a first-person camera follows the body's
+        // facing and the arms its pitch.
+        world.rotateObject(player, rotation);
+        camera->setPitch(-rotation.x(), true);
+        camera->setYaw(-rotation.z(), true);
+
+        // **Moved by how far the eye stands off, as `settleBody` moves a window's**, since the eye is
+        // the head's and follows the body an update behind; on every frame and not until it is
+        // exact, because a route or a track moves where it has to stand. The first frame of a stop
+        // reads the eye the last stop left, and the second stands it.
+        const osg::Vec3f off = eye - osg::Vec3f(camera->getPosition());
+        if (off.length2() > 0.0f)
+            world.moveObjectBy(player, off, true);
     }
 }
