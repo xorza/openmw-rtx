@@ -1,7 +1,10 @@
 #include "presentation.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cstdint>
+#include <string_view>
+#include <system_error>
 
 namespace Misc
 {
@@ -85,5 +88,38 @@ namespace Misc
         const auto left = static_cast<int>(std::max<std::int64_t>(0, wide / asked.y()) / 2);
         const auto top = static_cast<int>(std::max<std::int64_t>(0, -wide / asked.x()) / 2);
         return Crop{ .mOrigin = osg::Vec2i(left, top), .mSize = osg::Vec2i(frame.x() - 2 * left, frame.y() - 2 * top) };
+    }
+
+    osg::Vec2i resolutionPicked(const ResolutionPick pick, const std::string_view listed, const osg::Vec2i custom)
+    {
+        switch (pick)
+        {
+            case ResolutionPick::Native:
+                return osg::Vec2i();
+            case ResolutionPick::Custom:
+                return custom;
+            case ResolutionPick::Listed:
+                break;
+        }
+
+        // `getResolutionText`'s opening: a width, a multiplication sign between spaces, a height.
+        constexpr std::string_view by = " × ";
+        int width = 0;
+        int height = 0;
+        const char* const end = listed.data() + listed.size();
+        const std::from_chars_result first = std::from_chars(listed.data(), end, width);
+        if (first.ec != std::errc() || !std::string_view(first.ptr, end).starts_with(by))
+            return osg::Vec2i();
+        const std::from_chars_result second = std::from_chars(first.ptr + by.size(), end, height);
+        if (second.ec != std::errc() || width <= 0 || height <= 0)
+            return osg::Vec2i();
+        return osg::Vec2i(width, height);
+    }
+
+    ResolutionPick resolutionPickOf(const osg::Vec2i stored, const bool listed)
+    {
+        if (stored.x() == 0 || stored.y() == 0)
+            return ResolutionPick::Native;
+        return listed ? ResolutionPick::Listed : ResolutionPick::Custom;
     }
 }
