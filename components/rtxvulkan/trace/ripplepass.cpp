@@ -57,7 +57,7 @@ namespace Rtx
         constexpr VkImageUsageFlags tileUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
             | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        const std::uint32_t levels = levelsFor(sGrid);
+        const std::uint32_t levels = levelsTo1x1(sGrid, sGrid);
 
         mFields[0] = Image(device, sGrid, sGrid, sFieldFormat, fieldUsage, "ripple field 0");
         mFields[1] = Image(device, sGrid, sGrid, sFieldFormat, fieldUsage, "ripple field 1");

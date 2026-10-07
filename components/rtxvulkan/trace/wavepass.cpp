@@ -70,7 +70,7 @@ namespace Rtx
         {
             Tile& tile = mTiles[index];
             const std::uint32_t grid = gridOf(index);
-            const std::uint32_t levels = levelsFor(sWaveTiles[index].mGrid);
+            const std::uint32_t levels = sWaveTiles[index].levels();
 
             tile.mField = Buffer::deviceLocal(mDevice, fieldOf(sWaveTiles[index].mGrid) * 2 * sizeof(float),
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, tileName("field", index));

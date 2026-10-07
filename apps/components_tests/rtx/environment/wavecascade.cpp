@@ -79,13 +79,13 @@ namespace Rtx
             for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
             {
                 const WaveCascade& cascade = cascades[index];
-                EXPECT_EQ(cascade.mExtent, sWaveTiles[index].mExtent);
-                EXPECT_EQ(cascade.mGrid, sWaveTiles[index].mGrid);
-                ASSERT_EQ(cascade.mAmplitudes.size(), cascade.mGrid * cascade.mGrid);
+                EXPECT_EQ(cascade.mTile.mExtent, sWaveTiles[index].mExtent);
+                EXPECT_EQ(cascade.mTile.mGrid, sWaveTiles[index].mGrid);
+                ASSERT_EQ(cascade.mAmplitudes.size(), cascade.mTile.mGrid * cascade.mTile.mGrid);
 
-                const float nyquist = 2.0f * cascade.mExtent / static_cast<float>(cascade.mGrid);
+                const float nyquist = 2.0f * cascade.mTile.mExtent / static_cast<float>(cascade.mTile.mGrid);
                 EXPECT_LT(nyquist, sShortestWave) << "tile " << index << " cannot reach the spectrum's short end";
-                EXPECT_GT(cascade.mExtent, 1000.0f) << "tile " << index << " cannot hold the swell";
+                EXPECT_GT(cascade.mTile.mExtent, 1000.0f) << "tile " << index << " cannot hold the swell";
 
                 std::size_t carried = 0;
                 for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)
@@ -94,7 +94,7 @@ namespace Rtx
                         continue;
 
                     const float wavelength = wavelengthAt(cascade, at);
-                    ASSERT_LE(wavelength, cascade.mExtent) << "tile " << index << " holds a wave it cannot fit";
+                    ASSERT_LE(wavelength, cascade.mTile.mExtent) << "tile " << index << " holds a wave it cannot fit";
                     ASSERT_GT(wavelength, sShortestWave) << "tile " << index << " holds a wave past the cutoff";
 
                     ++carried;
@@ -103,7 +103,7 @@ namespace Rtx
                 // The band runs from the tile's own width down to `sShortestWave`, so it fills the
                 // disc of radius `mExtent / sShortestWave` — 51 420 cells of the wide tile and 7088
                 // of the narrow one. Half of that is a floor no rounding reaches.
-                const float radius = cascade.mExtent / sShortestWave;
+                const float radius = cascade.mTile.mExtent / sShortestWave;
                 EXPECT_GT(static_cast<float>(carried), 1.5f * radius * radius)
                     << "tile " << index << " carries too few components to be water";
             }
@@ -147,7 +147,7 @@ namespace Rtx
 
                     const float wavenumber = Shaders::TAU / wavelengthAt(cascade, at);
                     ASSERT_NEAR(cascade.mTurnRates[at], sea.getFrequency(wavenumber) / Shaders::TAU, 1e-5f)
-                        << "at " << at << " of a tile " << cascade.mExtent << " across";
+                        << "at " << at << " of a tile " << cascade.mTile.mExtent << " across";
                 }
         }
 

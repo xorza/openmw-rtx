@@ -40,9 +40,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
-- [ ] `components/rtx/environment/wavecascade.hpp:155-161,182-185` — `WaveCascade` copies `mExtent` and
-  `mGrid` from `sWaveTiles` and does not hold its `WaveTile`. `levelsFor(grid)` repeats
-  `levelsTo1x1(grid, grid)` (`image/texturedata.hpp:45-48`). (low)
 - [ ] `components/rtx/scene/scenedesc.hpp:52-53,229` — `SceneDesc::sVertexBlock`/`sIndexBlock` and
   `getBounds()` are read only by tests, with no mark, and are a third name for
   `MeshTable::sVertexBlock`/`Shaders::VERTEX_BLOCK`. Target shape: one constant, and `getBounds` removed or
