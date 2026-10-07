@@ -71,13 +71,15 @@ namespace Rtx
     }
 
     CellReader::CellReader(const Terrain::ObjectStorage& storage, Terrain::Storage& ground, ContentSource& content,
-        const ESM::RefId worldspace, const osg::Node::NodeMask mask, GroundcoverSource* const groundcover)
+        const ESM::RefId worldspace, const osg::Node::NodeMask mask, GroundcoverSource* const groundcover,
+        const osg::StateSet* const above)
         : mStorage(storage)
         , mContent(content)
         , mWorldspace(worldspace)
         , mMask(mask)
         , mGroundcover(groundcover)
         , mGround(ground, worldspace)
+        , mWalk(above)
         , mCollector(storage.makeCollector())
     {
     }
@@ -152,7 +154,7 @@ namespace Rtx
                 };
                 reading.mDescribed->mLampLit = mGroundcover->lampLit();
                 reading.mDiffuseFacts.reset();
-                reading.mKey = new osg::StateSet;
+                reading.mGroundcover = true;
             }
         });
 

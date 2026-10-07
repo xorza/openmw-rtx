@@ -1,7 +1,11 @@
 #pragma once
 
+#include <span>
+
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+
+#include "materialresolver.hpp"
 
 namespace osg
 {
@@ -12,7 +16,6 @@ namespace osg
 namespace Rtx
 {
     struct ExtractionStats;
-    struct MaterialReading;
     struct MeshReading;
     class SceneDesc;
 
@@ -32,9 +35,13 @@ namespace Rtx
         SceneAdopter(const SceneAdopter&) = delete;
         SceneAdopter& operator=(const SceneAdopter&) = delete;
 
-        /// The material of a reading somebody else made, adopted under the state set it names, with
-        /// one hold taken on it. `sNoIndex` and no hold where the reading names no state set.
-        virtual Index adoptMaterial(const MaterialReading& reading) = 0;
+        /// The material of a reading somebody else made, with one hold taken on it, and the key it
+        /// is held under: `chain` keyed by the walk's own table (`ChainKeys::keyOf`), so a chain the
+        /// walk meets as well is one material. `sNoIndex`, a null key and no hold for an empty
+        /// chain.
+        virtual MaterialResolver::Resolved adoptMaterial(
+            const MaterialReading& reading, std::span<const osg::StateSet* const> chain)
+            = 0;
 
         /// The same for a mesh, held under the identity the walk will find a clone's mesh under.
         virtual Index adoptMesh(const osg::Drawable& drawable, const MeshReading& reading) = 0;
@@ -42,7 +49,7 @@ namespace Rtx
         /// Gives one hold back on what `adoptMesh` held under `drawable`.
         virtual void releaseMesh(const osg::Drawable& drawable) = 0;
 
-        /// The same for `adoptMaterial`, by the state set the reading named. Nothing for null.
+        /// The same for `adoptMaterial`, by the key it handed back. Nothing for null.
         virtual void releaseMaterial(const osg::StateSet* key) = 0;
 
         /// The scene every adoption lands in.

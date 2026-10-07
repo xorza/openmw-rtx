@@ -4,6 +4,7 @@
 
 #include <osg/Image>
 #include <osg/Node>
+#include <osg/StateSet>
 #include <osg/Vec3f>
 #include <osg/Vec4i>
 #include <osg/ref_ptr>
@@ -70,6 +71,13 @@ namespace Rtx
 
         /// Which nodes a walk of a template may descend into — the frame walk's own.
         osg::Node::NodeMask mMask = ~0u;
+
+        /// The state set every reference stands under: the world walk's root's, which
+        /// `SceneExtractor::extractWorld` holds a reference root to, or null for none. The first link
+        /// of every chain the reader reads (`TemplateWalk`), so a part is described and keyed as the
+        /// walk finds its clone. Read on the reader's thread: the game states it once, when the
+        /// rendering manager is made, and writes it never after.
+        const osg::StateSet* mAbove = nullptr;
 
         /// Whether there is enough here to read anything at all.
         bool isReadable() const { return mStorage != nullptr && mGround != nullptr && mContent != nullptr; }

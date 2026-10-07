@@ -33,7 +33,7 @@ namespace Rtx
             // link from the defaults, a controller's link animated through everything under it,
             // and the fade of the link above carried down.
             ChainKeys keys;
-            const Shading first = Shading::under({}, *bare, false, keys);
+            const Shading first = Shading::under({}, *bare, false, &keys);
             EXPECT_EQ(first.mStateSet, bare.get());
             EXPECT_EQ(first.mFade.mPlacement, 1.0f);
             EXPECT_FALSE(first.mAnimatedThrough);
@@ -42,7 +42,7 @@ namespace Rtx
                 .mFade = Fade{ .mPlacement = 0.25f, .mActor = 0.5f },
                 .mAnimated = true,
                 .mAnimatedThrough = true };
-            const Shading below = Shading::under(std::span(&controller, 1), *bare, false, keys);
+            const Shading below = Shading::under(std::span(&controller, 1), *bare, false, &keys);
             EXPECT_FALSE(below.mAnimated) << "a link was animated for its controller above";
             EXPECT_TRUE(below.mAnimatedThrough) << "what stands under a controller is not animated by it";
             EXPECT_EQ(below.mFade.mPlacement, 0.25f) << "the fade above was not carried down";
@@ -69,7 +69,7 @@ namespace Rtx
             const auto keyOf = [&](std::initializer_list<const osg::StateSet*> links) {
                 std::vector<Shading> chain;
                 for (const osg::StateSet* link : links)
-                    chain.push_back(Shading::under(chain, *link, false, keys));
+                    chain.push_back(Shading::under(chain, *link, false, &keys));
                 return chain.back().materialKey();
             };
 

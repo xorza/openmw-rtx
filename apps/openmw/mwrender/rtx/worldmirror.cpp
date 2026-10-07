@@ -295,6 +295,8 @@ namespace MWRender
                 // `Rtx::CellRing::forget` read the ring from nothing, and the player bit moves
                 // while the camera settles.
                 .mMask = sWorldTraversal,
+                // What `extractWorld` walks every reference root under, below.
+                .mAbove = frame.mScene.getStateSet(),
             },
             .mEye = eye,
             .mReach = getReach(),

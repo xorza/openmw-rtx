@@ -1,11 +1,12 @@
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <stdexcept>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/pane.h>
 #include <components/rtxvulkan/shaders/shared/sets.h>
@@ -58,7 +59,17 @@ namespace Rtx
 
             const std::vector<std::uint32_t> notAModule{ 1u, 2u, 3u, 4u, 5u };
             std::vector<ModuleBinding> into;
-            EXPECT_THROW(readBindings(notAModule, into), std::runtime_error);
+            EXPECT_THROW(readBindings(notAModule, into), InputError);
+
+            // **A module cut short is refused as the installation's**, as its file is: the pane
+            // filter's words to the first word of its first instruction longer than one, whose length
+            // then runs past the end.
+            std::vector<std::uint32_t> cut = readSpirv(std::filesystem::path(OPENMW_RTX_SHADER_DIR) / "pane.comp.spv");
+            std::size_t at = 5;
+            while ((cut[at] >> 16) < 2)
+                at += cut[at] >> 16;
+            cut.resize(at + 1);
+            EXPECT_THROW(readBindings(cut, into), InputError);
         }
     }
 }

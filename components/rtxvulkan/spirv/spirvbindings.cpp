@@ -2,10 +2,11 @@
 
 #include <cstddef>
 #include <format>
-#include <stdexcept>
 #include <unordered_map>
 
 #include <spirv/unified1/spirv.hpp>
+
+#include <components/rtx/common/error.hpp>
 
 namespace Rtx
 {
@@ -33,29 +34,43 @@ namespace Rtx
             bool mBufferBlock = false;
         };
 
+        /// What the module says of `id`, which `variable`'s type names: refused where it says nothing.
+        const Facts& factsOf(
+            const std::unordered_map<std::uint32_t, Facts>& ids, const std::uint32_t id, const std::uint32_t variable)
+        {
+            const auto found = ids.find(id);
+            if (found == ids.end())
+                throw InputError(std::format("the type %{} of variable %{} is defined nowhere", id, variable));
+            return found->second;
+        }
+
+        /// Operand `index` of what `facts` describes, which `variable`'s type reads: refused where the
+        /// instruction is shorter than its opcode's.
+        std::uint32_t operandOf(const Facts& facts, const std::size_t index, const std::uint32_t variable)
+        {
+            if (index >= facts.mOperands.size())
+                throw InputError(std::format("variable %{} names a type of opcode {} with no operand {}", variable,
+                    static_cast<std::uint32_t>(facts.mOp), index));
+            return facts.mOperands[index];
+        }
+
         /// The kind and count of the resource a variable's pointee `type` is, in `storage`.
         ModuleBinding describe(const std::unordered_map<std::uint32_t, Facts>& ids, std::uint32_t type,
             const spv::StorageClass storage, const std::uint32_t variable)
         {
-            const auto at = [&](std::uint32_t id) -> const Facts& {
-                const auto found = ids.find(id);
-                if (found == ids.end())
-                    throw std::runtime_error(
-                        std::format("the type %{} of variable %{} is defined nowhere", id, variable));
-                return found->second;
-            };
+            const auto at = [&](std::uint32_t id) -> const Facts& { return factsOf(ids, id, variable); };
 
             ModuleBinding binding;
             const Facts* facts = &at(type);
             if (facts->mOp == spv::OpTypeArray)
             {
-                binding.mCount = at(facts->mOperands[1]).mOperands[0];
-                facts = &at(facts->mOperands[0]);
+                binding.mCount = operandOf(at(operandOf(*facts, 1, variable)), 0, variable);
+                facts = &at(operandOf(*facts, 0, variable));
             }
             else if (facts->mOp == spv::OpTypeRuntimeArray)
             {
                 binding.mCount = 0;
-                facts = &at(facts->mOperands[0]);
+                facts = &at(operandOf(*facts, 0, variable));
             }
 
             switch (facts->mOp)
@@ -73,8 +88,8 @@ namespace Rtx
                 {
                     // `Dim` is the second operand and `Sampled` the sixth: one where a sampler reads
                     // it, two where it is read and written as storage.
-                    const bool buffer = facts->mOperands[1] == spv::DimBuffer;
-                    const bool storageImage = facts->mOperands[5] == 2;
+                    const bool buffer = operandOf(*facts, 1, variable) == spv::DimBuffer;
+                    const bool storageImage = operandOf(*facts, 5, variable) == 2;
                     if (buffer)
                         binding.mKind
                             = storageImage ? DescriptorKind::StorageTexelBuffer : DescriptorKind::UniformTexelBuffer;
@@ -89,7 +104,7 @@ namespace Rtx
                         : DescriptorKind::UniformBuffer;
                     return binding;
                 default:
-                    throw std::runtime_error(
+                    throw InputError(
                         std::format("variable %{} binds a resource of opcode {}, which is no descriptor this reads",
                             variable, static_cast<std::uint32_t>(facts->mOp)));
             }
@@ -100,7 +115,7 @@ namespace Rtx
     {
         into.clear();
         if (module.size() < sHeaderWords || module[0] != spv::MagicNumber)
-            throw std::runtime_error("not a SPIR-V module in this machine's byte order");
+            throw InputError("not a SPIR-V module in this machine's byte order");
 
         std::unordered_map<std::uint32_t, Facts> ids;
         std::vector<std::uint32_t> variables;
@@ -109,7 +124,7 @@ namespace Rtx
             const std::uint32_t count = module[at] >> 16;
             const auto op = static_cast<spv::Op>(module[at] & 0xffffu);
             if (count == 0 || at + count > module.size())
-                throw std::runtime_error(std::format("an instruction at word {} runs past the module", at));
+                throw InputError(std::format("an instruction at word {} runs past the module", at));
 
             const std::span<const std::uint32_t> operands = module.subspan(at + 1, count - 1);
             at += count;
@@ -171,9 +186,11 @@ namespace Rtx
             if (!facts.mHasSet || !facts.mHasBinding)
                 continue;
 
-            const Facts& pointer = ids.at(facts.mType);
-            const auto storage = static_cast<spv::StorageClass>(pointer.mOperands[0]);
-            ModuleBinding binding = describe(ids, pointer.mOperands[1], storage, variable);
+            const Facts& pointer = factsOf(ids, facts.mType, variable);
+            if (pointer.mOp != spv::OpTypePointer)
+                throw InputError(std::format("variable %{} is typed by no pointer", variable));
+            const auto storage = static_cast<spv::StorageClass>(operandOf(pointer, 0, variable));
+            ModuleBinding binding = describe(ids, operandOf(pointer, 1, variable), storage, variable);
             binding.mSet = facts.mSet;
             binding.mBinding = facts.mBinding;
             into.push_back(binding);

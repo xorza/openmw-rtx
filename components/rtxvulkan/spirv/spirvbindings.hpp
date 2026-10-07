@@ -38,7 +38,7 @@ namespace Rtx
     /// GLSL's own statement of each binding's type and count, read off the module the build wrote.
     /// A push block, which binds nothing, is not one.
     ///
-    /// Throws `std::runtime_error` for words that are no module, or a resource of a type this does
-    /// not know, naming it.
+    /// Throws `InputError` for words that are no module, or a resource of a type this does not
+    /// know, naming it: the module is the installation's, as its file is (`readSpirv`).
     void readBindings(std::span<const std::uint32_t> module, std::vector<ModuleBinding>& into);
 }

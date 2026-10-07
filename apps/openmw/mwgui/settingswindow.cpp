@@ -164,19 +164,19 @@ namespace
         }
     }
 
-    constexpr std::array<Rtx::MenuLabel, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
-        { "off", "#{OMWEngine:RayTracingUpscaleOff}" },
-        { "ultraperformance", "#{OMWEngine:RayTracingUpscaleUltraPerformance}" },
-        { "performance", "#{OMWEngine:RayTracingUpscalePerformance}" },
-        { "balanced", "#{OMWEngine:RayTracingUpscaleBalanced}" },
-        { "quality", "#{OMWEngine:RayTracingUpscaleQuality}" },
-        { "native", "#{OMWEngine:RayTracingUpscaleNative}" },
+    constexpr std::array<Rtx::MenuLabel<Rtx::Upscale>, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
+        { Rtx::Upscale::Off, "#{OMWEngine:RayTracingUpscaleOff}" },
+        { Rtx::Upscale::UltraPerformance, "#{OMWEngine:RayTracingUpscaleUltraPerformance}" },
+        { Rtx::Upscale::Performance, "#{OMWEngine:RayTracingUpscalePerformance}" },
+        { Rtx::Upscale::Balanced, "#{OMWEngine:RayTracingUpscaleBalanced}" },
+        { Rtx::Upscale::Quality, "#{OMWEngine:RayTracingUpscaleQuality}" },
+        { Rtx::Upscale::Native, "#{OMWEngine:RayTracingUpscaleNative}" },
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel> labels)
+    void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel<Rtx::Upscale>> labels)
     {
-        for (const Rtx::MenuLabel& label : labels)
+        for (const Rtx::MenuLabel<Rtx::Upscale>& label : labels)
             box->addItem(MyGUI::LanguageManager::getInstance().replaceTags(label.mLabel));
     }
 }
@@ -622,11 +622,11 @@ namespace MWGui
 
     void SettingsWindow::onRayTracingUpscaleChanged(MyGUI::ComboBox* sender, size_t pos)
     {
-        const std::optional<std::string_view> chosen = Rtx::menuName(Rtx::sUpscaleMenu, pos);
+        const std::optional<Rtx::Upscale> chosen = Rtx::menuValue(Rtx::sUpscaleMenu, pos);
         if (!chosen.has_value())
             return;
 
-        Settings::rtx().mUpscale.set(Rtx::sUpscaleNames.require(*chosen, "an upscale mode"));
+        Settings::rtx().mUpscale.set(*chosen);
         apply();
     }
 
@@ -958,11 +958,8 @@ namespace MWGui
 
     void SettingsWindow::updateRayTracingSettings()
     {
-        // Nothing selected where the setting names a mode the menu does not offer, or the list would overwrite it
-        const std::optional<std::size_t> offered
-            = Rtx::menuIndex(Rtx::sUpscaleMenu, Rtx::sUpscaleNames.name(Settings::rtx().mUpscale.get()));
-
-        mRayTracingUpscale->setIndexSelected(offered.value_or(MyGUI::ITEM_NONE));
+        // The menu offers every mode the setting can hold
+        mRayTracingUpscale->setIndexSelected(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value());
     }
 
     void SettingsWindow::layoutControlsBox()

@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/common/menu.hpp>
 #include <components/rtx/common/namedenum.hpp>
 
 namespace Rtx
@@ -38,8 +39,14 @@ namespace Rtx
             EXPECT_EQ(sFruitNames.named(""), std::nullopt);
 
             EXPECT_EQ(sFruitNames.values(), (std::array{ Fruit::Pear, Fruit::Apple, Fruit::Plum }));
-            EXPECT_EQ(sFruitNames.spellings(),
-                (std::array{ std::string_view("pear"), std::string_view("apple"), std::string_view("plum") }));
+
+            // **A menu of the values** finds each where the table lists it, and has nothing past its
+            // end, and nothing for a value it leaves out.
+            constexpr std::array menu = sFruitNames.values();
+            EXPECT_EQ(menuIndex(menu, Fruit::Apple), 1u);
+            EXPECT_EQ(menuValue(menu, 2), Fruit::Plum);
+            EXPECT_EQ(menuValue(menu, 3), std::nullopt);
+            EXPECT_EQ(menuIndex(std::array{ Fruit::Pear }, Fruit::Plum), std::nullopt);
             EXPECT_EQ(sFruitNames.list(), "pear, apple or plum");
 
             EXPECT_EQ(sFruitNames.require("pear", "a fruit"), Fruit::Pear);

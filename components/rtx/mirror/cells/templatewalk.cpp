@@ -59,8 +59,9 @@ namespace Rtx
         }
     }
 
-    TemplateWalk::TemplateWalk()
+    TemplateWalk::TemplateWalk(const osg::StateSet* const above)
         : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+        , mAbove(above)
     {
     }
 
@@ -70,7 +71,8 @@ namespace Rtx
         mHere = osg::Matrix();
         mModes = NightDayModes{};
         mShading.clear();
-        mKeys.clear();
+        if (mAbove != nullptr)
+            pushShading(*mAbove);
         setTraversalMask(mask);
 
         // OSG's visitor API is non-const throughout, and this walk writes nothing: the cast happens
@@ -88,7 +90,7 @@ namespace Rtx
 
     void TemplateWalk::pushShading(const osg::StateSet& stateSet)
     {
-        mShading.push_back(Shading::under(mShading, stateSet, false, mKeys));
+        mShading.push_back(Shading::under(mShading, stateSet, false, nullptr));
     }
 
     void TemplateWalk::apply(osg::Node& node)
@@ -165,6 +167,9 @@ namespace Rtx
         PreparedPart part;
         part.mDrawable = &drawable;
         part.mMaterial = MaterialResolver::read(mShading, mContent);
+        const auto chained = static_cast<std::uint32_t>(into.mChains.size());
+        MaterialResolver::chainOf(mShading, into.mChains);
+        part.mChain = Run{ .mOffset = chained, .mCount = static_cast<std::uint32_t>(into.mChains.size()) - chained };
         part.mLocal = osg::Matrixf(mHere);
         part.mShape = reading.mShape;
         part.mModes = mModes;

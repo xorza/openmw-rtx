@@ -89,10 +89,12 @@ namespace Rtx
 
     void ShaderCode::readModule(const std::string_view module)
     {
+        // Both read before the entry is made, so a module either refuses leaves none behind.
         std::vector<std::uint32_t> words = readSpirv(mDevice.getShaderDirectory() / module);
-        Read& read
-            = mRead.emplace_back(Read{ .mModule = std::string(module), .mWords = std::move(words), .mBindings = {} });
-        readBindings(read.mWords, read.mBindings);
+        std::vector<ModuleBinding> bindings;
+        readBindings(words, bindings);
+        Read& read = mRead.emplace_back(
+            Read{ .mModule = std::string(module), .mWords = std::move(words), .mBindings = std::move(bindings) });
 
         read.mCreate = VkShaderModuleCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,

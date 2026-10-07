@@ -78,6 +78,7 @@
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
+#include <components/sceneutil/material.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/terrain/objectstorage.hpp>
@@ -446,6 +447,7 @@ namespace Rtx::Testing
                     .mGroundcover = mGroundcover,
                     .mWorldspace = worldspace,
                     .mMask = ~0u,
+                    .mAbove = mEmpty->getStateSet(),
                 };
                 mRing.follow(mAround);
             }
@@ -775,6 +777,54 @@ namespace Rtx::Testing
             ASSERT_NE(awayLayers[1].mNormal, sNoIndex);
             EXPECT_EQ(mScene.textures().getRows()[awayLayers[1].mNormal].mPath, "textures/rock_nh.dds");
             EXPECT_TRUE(awayMaterial.mLayersMapped);
+        }
+
+        /// **A model the ring stands and the walk meets wears one material**: both key the chain's
+        /// state sets that state anything, root first, by the walk's one table (`ChainKeys`), and the
+        /// ring's reader starts each chain at the state set every reference stands under
+        /// (`CellWorld::mAbove`). Here the root states a material, the tree's root turns culling off
+        /// and its sheet paints the bark — three links — and the walk meets them again in the clone
+        /// the game stands under the root, and adds no material for it.
+        TEST_F(RtxCellRingMetalTest, aModelTheRingStandsAndTheWalkMeetsWearsOneMaterial)
+        {
+            mEmpty->getOrCreateStateSet()->setAttribute(new SceneUtil::Material);
+            mContent.mTree->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+            const Placed tree{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "tree.nif",
+                .mRefNum = ESM::RefNum{ 1, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 0.0f) };
+            mStorage.mPlaced = { tree };
+
+            start();
+            fill();
+
+            const auto treeWorn = [this](const Stander stander) {
+                Index worn = sNoIndex;
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                    if (row.mInstance.mStander == stander
+                        && mScene.materials().getRows()[row.mInstance.mMaterial].mKind != MaterialKind::Terrain)
+                        worn = row.mInstance.mMaterial;
+                });
+                return worn;
+            };
+            const Index stood = treeWorn(Stander::Ring);
+            ASSERT_NE(stood, sNoIndex);
+            EXPECT_TRUE(mScene.materials().getRows()[stood].mTwoSided) << "the tree's root was not in force";
+
+            // The game's clone, under the root as `MWRender::Objects` stands one, wearing the
+            // template's own state sets, which `SceneUtil::CopyOp` shares.
+            osg::ref_ptr<osg::Group> cell = new osg::Group;
+            osg::ref_ptr<osg::MatrixTransform> clone = new osg::MatrixTransform(gameStands(tree));
+            clone->addChild(mContent.mTree);
+            cell->addChild(clone);
+            mEmpty->addChild(cell);
+
+            const ExtractionStats met = walk(mWalked++);
+            EXPECT_EQ(met.mMaterialsAdded, 0u) << "the walk read again a surface the ring adopted";
+            EXPECT_EQ(treeWorn(Stander::Walk), stood);
+
+            mEmpty->removeChild(cell);
+            walk(mWalked++);
         }
 
         /// The lamps of the cells the game has not loaded stand with their cells: outside the active
@@ -1586,7 +1636,7 @@ namespace Rtx::Testing
                     Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "face", .mRefNum = ESM::RefNum{ at, 0 } });
             ShortMorph content;
 
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
             for (int pass = 0; pass < 3; ++pass)
                 reader.giveBack(reader.read(osg::Vec2i(0, 0), true));
 
@@ -1605,7 +1655,7 @@ namespace Rtx::Testing
             land.mWithData = { osg::Vec2i(0, 0), osg::Vec2i(1, 0) };
             FewStatics storage;
             FewContent content;
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
 
             PreparedCell& west = reader.read(osg::Vec2i(0, 0), true);
             EXPECT_EQ(content.mImages.getOpened(), 3u) << "grass, rock and the rock's normal map";
@@ -1817,7 +1867,7 @@ namespace Rtx::Testing
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "tree.nif" });
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "broken.nif" });
             FewContent content;
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
 
             const ReaderMemory none = reader.measure();
             EXPECT_EQ(none.mLentModels + none.mSpareModels, 0u);
@@ -1859,7 +1909,7 @@ namespace Rtx::Testing
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "face" });
             ShortMorph content;
 
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
 
             const int held = content.mFace->referenceCount();
             for (int pass = 0; pass < 3; ++pass)
