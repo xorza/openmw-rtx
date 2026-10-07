@@ -15,6 +15,11 @@ namespace Crash
     /// log got: "OMW" and a version.
     inline constexpr std::uint32_t sSummaryStream = 0x4F4D5701;
 
+    /// The exception code Crashpad gives a dump the process asked for rather than one a fault raised
+    /// (`DumpWithoutCrash`'s, spelled "simulated"), which the monitor reads as no fault and the notes
+    /// then name; Windows alone writes a code for it.
+    inline constexpr std::uint32_t sSimulatedException = 0x517a7ed;
+
     /// What the monitor learnt of one report, in words and numbers it can print on any system.
     struct CrashFacts
     {
