@@ -3,6 +3,7 @@
 #include "sdlinit.hpp"
 
 #include <components/misc/display.hpp>
+#include <components/misc/presentation.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -162,18 +163,22 @@ bool Launcher::GraphicsPage::loadSettings()
     screenComboBox->setCurrentIndex(Settings::video().mScreen);
 
     // Native is the list's first item, and a side of nought in the settings
-    int resIndex = width == 0 || height == 0 ? 0 : resolutionComboBox->findText(resolution, Qt::MatchStartsWith);
-
-    if (resIndex != -1)
+    const int listed = resolutionComboBox->findText(resolution, Qt::MatchStartsWith);
+    switch (Misc::resolutionPickOf(osg::Vec2i(width, height), listed != -1))
     {
-        standardRadioButton->toggle();
-        resolutionComboBox->setCurrentIndex(resIndex);
-    }
-    else
-    {
-        customRadioButton->toggle();
-        customWidthSpinBox->setValue(width);
-        customHeightSpinBox->setValue(height);
+        case Misc::ResolutionPick::Native:
+            standardRadioButton->toggle();
+            resolutionComboBox->setCurrentIndex(0);
+            break;
+        case Misc::ResolutionPick::Listed:
+            standardRadioButton->toggle();
+            resolutionComboBox->setCurrentIndex(listed);
+            break;
+        case Misc::ResolutionPick::Custom:
+            customRadioButton->toggle();
+            customWidthSpinBox->setValue(width);
+            customHeightSpinBox->setValue(height);
+            break;
     }
 
     const float fpsLimit = Settings::video().mFramerateLimit;
@@ -210,26 +215,15 @@ void Launcher::GraphicsPage::saveSettings()
     if (rayTracingDistantLandSpinBox->value() != mLoadedDistantLandCells)
         Settings::rtx().mDistantLandCells.set(static_cast<float>(rayTracingDistantLandSpinBox->value()));
 
-    int cWidth = 0;
-    int cHeight = 0;
-    if (standardRadioButton->isChecked() && resolutionComboBox->currentIndex() > 0)
-    {
-        QRegularExpression resolutionRe("^(\\d+) × (\\d+)");
-        QRegularExpressionMatch match = resolutionRe.match(resolutionComboBox->currentText().simplified());
-        if (match.hasMatch())
-        {
-            cWidth = match.captured(1).toInt();
-            cHeight = match.captured(2).toInt();
-        }
-    }
-    else
-    {
-        cWidth = customWidthSpinBox->value();
-        cHeight = customHeightSpinBox->value();
-    }
+    // Native is the list's first item: what was typed into the custom sides is not what it saves.
+    const Misc::ResolutionPick pick = customRadioButton->isChecked() ? Misc::ResolutionPick::Custom
+        : resolutionComboBox->currentIndex() > 0                     ? Misc::ResolutionPick::Listed
+                                                                     : Misc::ResolutionPick::Native;
+    const osg::Vec2i picked = Misc::resolutionPicked(pick, resolutionComboBox->currentText().simplified().toStdString(),
+        osg::Vec2i(customWidthSpinBox->value(), customHeightSpinBox->value()));
 
-    Settings::video().mResolutionX.set(cWidth);
-    Settings::video().mResolutionY.set(cHeight);
+    Settings::video().mResolutionX.set(picked.x());
+    Settings::video().mResolutionY.set(picked.y());
     Settings::video().mScreen.set(screenComboBox->currentIndex());
 
     if (framerateLimitCheckBox->checkState() != Qt::Unchecked)

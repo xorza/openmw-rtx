@@ -609,16 +609,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.2 Upstream files (decision 5: approved)
 
-- **[bug] The rasterizer's no-technique resolve draws into the bound framebuffer.**
-  `PingPongCanvas` (the `filtered.empty() || !mPostprocessing` branch) applies the viewport but
-  never `bindDestinationFbo()`; with a frame unlike the window, the world is drawn outside `mFrame`.
-  Target: every path ends in the one destination. Confirm under GL first.
-- **[bug] Gamma under multiview reads no texture.** Only `mMultiviewResolveStateSet` gets the
-  resolve texture; `mMultiviewGammaStateSet` samples whatever unit 0 held. Target: one state set
-  per resolve, swapping only the program.
-- **[bug] The launcher cannot save Native.** `GraphicsPage::saveSettings` sends index 0 to the
-  custom branch, which writes the spin boxes' 800 × 600. Target: three explicit cases, and a load →
-  save → load test on a Native file.
 - **[bug] The migration undoes the fork's own frame resolution.** `migrateUserSettings` treats any
   file with `resolution x` and no `window width` as upstream's; the fork writes `window width`
   only from windowed mode. Target: a marker only the fork writes, and a test that a fork file is
