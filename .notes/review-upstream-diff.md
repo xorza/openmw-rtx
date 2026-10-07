@@ -12,7 +12,7 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   fails `covers` and rebuilds the grid on each frame. A lamp that crosses a cell re-`fill`s the full
   `RunList`. Target shape: pad the extent, give lamps stable identities, and update only the bins of the
   lamps that changed. (medium)
-- [ ] `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
+- [ ] **Blocked: Q2 in `review-upstream-diff_QUESTIONS.md`.** `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
   outgrow a copy, `SlotTable::sync` doubles it, makes a new host-written buffer, and rewrites every row.
   The world's top-level row table (`scene/sceneacceleration.hpp:208`) gets this spike on the frame a
   cell pushes it past the threshold. Without resizable BAR, the old and new copies are both in the

@@ -19,3 +19,20 @@ some lamp crosses a cell, and padding saves only the 3 µs between `build` and `
 | C. Keep as is | Accept the variance; delete the item. | Frames on which a lamp crosses a cell cost ~0.1 ms more. |
 
 Blocked: the item "`components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165`".
+
+## Q2. `SlotTable`'s growth on the frame path (`components/rtxvulkan/device/memory/slottable.hpp`)
+
+Five tables grow by doubling: the mesh, instance and material tables (`scenebuffers.hpp:155-175`), the
+top-level row table (`sceneacceleration.hpp:208`) and the texel table. A growth makes a new
+host-written buffer and rewrites every row on the frame a cell pushes the table past its size. The
+item's two target shapes both reach beyond `SlotTable`:
+
+| Option | What it does | Cost |
+| --- | --- | --- |
+| A. Blocked rows **(recommended for the TLAS row table only)** | The TLAS build takes `arrayOfPointers`, so its rows can live in fixed blocks that never move, as `BlockedBuffer` does. The other four stay flat. | Only the largest table is fixed; the shader-read tables keep their spike. |
+| B. Blocked rows everywhere | Every table in fixed blocks with an address table. | Every shader read of an instance, mesh or material row gains an indirection on the hot trace path; a shader-wide change. |
+| C. Capacity at load | Each table opens at a budget's size (for example the cell ring's) and never grows. | A budget to choose and enforce; memory held at the budget from the start. |
+| D. Keep | Accept a spike a logarithmic number of times per session. | The spike stays. |
+
+Cells arrive in bursts, so growing early or copying over several frames does not help: one cell can
+need more rows than the slack. Blocked: the item "`components/rtxvulkan/device/memory/slottable.hpp:99-100`".
