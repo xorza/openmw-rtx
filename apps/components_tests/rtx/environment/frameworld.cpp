@@ -164,9 +164,10 @@ namespace Rtx
             Rtx::Shaders::VisibilityConstants constants{};
             FogDrift drift;
             FrameOptions options;
+            const SkyContent& sheets = sky();
             const std::size_t before = Testing::getAllocationCount();
             const WorldReading read = made;
-            describeWorld(read, sky(), drift, constants, options);
+            describeWorld(read, sheets, drift, constants, options);
             const std::size_t after = Testing::getAllocationCount();
             EXPECT_EQ(after, before) << after - before << " allocations to read and describe a frame's world";
 

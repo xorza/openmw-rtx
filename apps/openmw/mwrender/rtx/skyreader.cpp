@@ -186,7 +186,7 @@ namespace MWRender
         if (world.mMoonRed)
             moons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint = mMoonPaint;
 
-        // **Nothing recorded is not a rate.** `Weather::transitionDelta` divides by
+        // **Nothing recorded is not a rate.** `MWWorld::Weather::transitionDelta` divides by
         // `Clouds_Maximum_Percent`, which the shipped fallbacks leave at nought for ash and blight,
         // so a transition into either hands over an infinity or a NaN. The rasterizer survives one —
         // a NaN opacity draws nothing and the old sky stays — and a tracer mixes its whole sky by
