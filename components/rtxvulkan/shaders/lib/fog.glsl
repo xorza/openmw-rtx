@@ -163,7 +163,7 @@ float fogHeightAt(vec3 position)
 
 /// The bank's coverage a stretch of `length` from `from` along `direction` is charged with: read at
 /// the stretch's middle, its mean-value point, with the stretch as the spacing the field is resolved
-/// at (D7). **One reading for every stretch charged by a closed form** — a leg a surface sent on, the
+/// at. **One reading for every stretch charged by a closed form** — a leg a surface sent on, the
 /// path to a sprite emitter, and the slant a beam crosses to a point in the air — so none of them
 /// charges a column with the coverage of the one point it left from.
 float slantCoverage(vec3 from, vec3 direction, float length)
@@ -173,7 +173,7 @@ float slantCoverage(vec3 from, vec3 direction, float length)
 
 /// How much fog stands at a point, as a share of the weather's extinction (`mFogExtinction`): the
 /// layer's height falloff times the bank's coverage, nought to one. **What the froxel volume stores
-/// and blends** (D7), in a half's normal range where the extinction itself, a few hundred-thousandths
+/// and blends**, in a half's normal range where the extinction itself, a few hundred-thousandths
 /// a unit, stood under it.
 ///
 /// @param spacing how far apart the march is sampling here, which decides how much of the field it
@@ -231,8 +231,8 @@ float fogPhase(float cosine)
 ///
 /// Closed form rather than a second march: the density falls off exponentially with height, so the
 /// column along a straight line out of it integrates to `sigma * H / cos(zenith)`, `sigma` the
-/// density at the point's height. **Charged with the coverage the slant crosses** (`slantCoverage`,
-/// D7), and not with the point's own: an exponential's mean along the line lies one e-folding up it,
+/// density at the point's height. **Charged with the coverage the slant crosses** (`slantCoverage`),
+/// and not with the point's own: an exponential's mean along the line lies one e-folding up it,
 /// `H / cos(zenith)` toward the light, which is the middle of a stretch twice that long — so a point
 /// at a bank's edge, its slant leaving the bank, is lit as the clear air it looks through and not as
 /// though the bank went on. A source on the horizon lights an infinite column; the floor on the

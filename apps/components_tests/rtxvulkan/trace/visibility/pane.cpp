@@ -119,7 +119,7 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A jittered still's history is registered at the pixel's centre** (D2's registration): a
+        /// **A jittered still's history is registered at the pixel's centre**: a
         /// mean of many jittered samples stands for the pixel, and is fetched at `at + 0.5 + motion`,
         /// never at this frame's jitter against the last. Over a still eye that jitters, sixteen
         /// filtered frames are then the mean of the same sixteen frames, as an unjittered still's
@@ -234,7 +234,7 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A pane's lobe is composed and not filtered** (D6): the pane filter keeps a layer's history
+        /// **A pane's lobe is composed and not filtered**: the pane filter keeps a layer's history
         /// whole over every turn of the view, which a reflection does not survive. A metal pane at half
         /// its opacity under the four lamps: a metal has no diffuse half, and the black sky lights
         /// nothing, so what the pane sends is its lobe alone. `CHANNEL_PANE` holds nought at every
