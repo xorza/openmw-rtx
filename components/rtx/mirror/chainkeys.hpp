@@ -48,9 +48,6 @@ namespace Rtx
         /// Room for `count` pairs before the table rehashes, which no frame of a walk should pay.
         void reserve(std::size_t count) { mKeys.reserve(count); }
 
-        /// Drops every pair, for a walk whose keys its readings hold.
-        void clear() { mKeys.clear(); }
-
         std::size_t size() const { return mKeys.size(); }
 
     private:
