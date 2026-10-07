@@ -1,5 +1,4 @@
 #include "crashinstall.hpp"
-#include "crashnote.hpp"
 
 #include <algorithm>
 #include <array>
@@ -43,6 +42,7 @@
 #include <components/platform/process.hpp>
 
 #include "crashmonitorarguments.hpp"
+#include "crashnote.hpp"
 #include "crashpackage.hpp"
 #include "crashpadmonitorsystem.hpp"
 #include "crashpage.hpp"

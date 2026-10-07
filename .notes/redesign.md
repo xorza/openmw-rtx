@@ -639,12 +639,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 ### 6.7 Design, duplication and dead code
 
 
-### 6.9 Conventions
-
-- **[code] Include blocks in the crash catcher and the platform**: `crashpadmonitor.cpp`'s first
-  block, `crashunsupported.cpp`'s order, `libraryposix.cpp`'s `<cstdint>` first, and
-  `librarywin32.cpp`'s `<windows.h>` where the folder uses `components/misc/windows.hpp`.
-
 ### 6.10 Fork hunks the Accepted diff does not cover
 
 Each is a decision: an Accepted-diff entry with its reason, or the hunk reverted.
