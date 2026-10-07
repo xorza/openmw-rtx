@@ -3,23 +3,6 @@
 Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without tests and without
 `extern/fidelityfx`. Whoever addresses an item deletes it. When a group is empty, delete its heading.
 
-## The frame path allocates, copies, or rebuilds behind a threshold
-
-- [ ] `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
-  outgrow a copy, `SlotTable::sync` doubles it, makes a new host-written buffer, and rewrites every row,
-  on the frame a cell pushes the table past its size. Five tables grow so: the mesh, instance and
-  material tables (`scenebuffers.hpp:155-175`), the top-level row table (`scene/sceneacceleration.hpp:208`)
-  and the texel table. Without resizable BAR, the old and new copies are both in the ~246 MiB
-  host-written heap until the graveyard collects the old one. Cells arrive in bursts, so growing early
-  or copying over several frames does not help: one cell can need more rows than the slack. **Decided
-  2026-10-08: the top-level row table alone, made at a budget's capacity at load.** Blocks reached by
-  `arrayOfPointers` were declined: the pointer array grows the same O(rows) on the same frame, the
-  structure grows with it (`SceneAcceleration::prepareTopLevel`, `sizeTopLevel`), and every build reads
-  one more indirection a row. Target shape: the row table and the top-level structure made once at a
-  budget (for example 2^18 instances, 16 MiB of rows a copy in the host-written heap) and grown only
-  past it, which no scene the suites hold reaches. The four tables the shaders read stay as they are.
-  (medium)
-
 ## One truth has more than one source
 
 - [ ] `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
