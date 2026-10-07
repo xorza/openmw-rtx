@@ -5,7 +5,7 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The frame path allocates, copies, or rebuilds behind a threshold
 
-- [ ] `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
+- [ ] **Blocked: Q6 in `review-upstream-diff_QUESTIONS.md`.** `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
   (`rtxvulkan/scene/scenebuffers.cpp:341`), and a lamp whose box changes cells — a carried torch, every
   few frames — re-`fill`s the whole `RunList`; a lamp that appears, goes or moves past the extent
   `build`s it again. At 400 lamps over 3×3 exterior cells (a 51×51×8 grid, 58,364 entries, `-O2`, this
