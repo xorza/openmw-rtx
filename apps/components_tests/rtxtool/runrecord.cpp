@@ -55,6 +55,7 @@ namespace RtxTool
         {
             Stop turning;
             turning.mSky.mTurnThrough = { Rtx::Weather::Rain };
+            turning.mActions.mHash = true;
 
             SessionRequest request;
             request.mStops = { turning };

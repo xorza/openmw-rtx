@@ -40,10 +40,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
-- [ ] `apps/rtxtool/main.cpp:853-854`, `apps/rtxtool/model/runrecord.cpp:19-21` — the rule "hashed =
-  `--hashes`, `--against` or `--pictures`" is calculated two times. After `main` sets `mActions.mHash` on
-  each stop, the three request clauses in `RunRecord::begin` are redundant. Target shape: keep only the
-  per-stop flag. (low)
 - [ ] `tools/omw/repeat.py:47`, `tools/omw/perf.py:75` — both pass `--validation=off`, which `bench`'s
   `VerbPolicy` (`validationForMeasuring`) already applies. `repeat` also refuses `--validation=sync`
   because of it. Target shape: remove both. (low)
