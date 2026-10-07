@@ -19,7 +19,6 @@
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/imagedescription.hpp>
-#include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -294,7 +293,7 @@ namespace Rtx
         }
         else
         {
-            assert(MipChain::wantedFor(data) && "a chain completed for a file that has one");
+            assert(data.wantsCompletedChain() && "a chain completed for a file that has one");
 
             // The file's one level, uploaded as the bytes it holds, in a format with no curve under
             // it so that the chain's first dispatch fetches those bytes and not the light behind
@@ -305,7 +304,8 @@ namespace Rtx
                 return Misc::Err{ uploaded.error() };
 
             // Four bytes a texel down to one texel, with the file's own curve over the sampler's
-            // read and none over the dispatch's store — `MipChain` says why the chain is loose.
+            // read and none over the dispatch's store — `TextureData::wantsCompletedChain` says why the
+            // chain is loose.
             const bool encoded = isSrgb(data.mFormat);
             Misc::Result<Image, std::string_view> chain = Image::tryMake(use, device, data.mWidth, data.mHeight,
                 encoded ? sWrittenEncoded : sWrittenFormat, sWritten, name, levelsTo1x1(data.mWidth, data.mHeight), 1,

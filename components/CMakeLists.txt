@@ -409,7 +409,7 @@ add_component_dir (rtx/frame
     )
 
 add_component_dir (rtx/image
-    alphaimage colour colourblock formatcensus imagedescription mipchain ownedtexture shadingmap
+    alphaimage colour colourblock formatcensus imagedescription shadingmap
     texels texturedata textureencoding texturewrap
     )
 

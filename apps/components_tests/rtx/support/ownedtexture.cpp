@@ -1,17 +1,21 @@
 #include "ownedtexture.hpp"
 
-namespace Rtx
+namespace Rtx::Testing
 {
-    void OwnedTexture::openChain(const std::uint32_t width, const std::uint32_t height, const TextureFormat format)
+    void OwnedTexture::openChain(const std::uint32_t width, const std::uint32_t height, const TextureFormat format,
+        const TextureEncoding encoding)
     {
         mFormat = format;
+        mEncoding = encoding;
         mName = {};
         mBytes.assign(mShape.layOutTo1x1(width, height, sLayout), std::byte{});
     }
 
-    void OwnedTexture::openLike(const std::span<const MipLevel> shape, const TextureFormat format)
+    void OwnedTexture::openLike(
+        const std::span<const MipLevel> shape, const TextureFormat format, const TextureEncoding encoding)
     {
         mFormat = format;
+        mEncoding = encoding;
         mName = {};
         mBytes.assign(mShape.layOutLike(shape, sLayout), std::byte{});
     }
@@ -45,6 +49,7 @@ namespace Rtx
     {
         return TextureData{
             .mFormat = mFormat,
+            .mEncoding = mEncoding,
             .mWidth = mShape.getWidth(),
             .mHeight = mShape.getHeight(),
             .mBytes = mBytes,

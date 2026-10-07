@@ -6,9 +6,10 @@
 #include <string_view>
 #include <vector>
 
-#include "texturedata.hpp"
+#include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 
-namespace Rtx
+namespace Rtx::Testing
 {
     /// A four-channel texture this process built and owns, which describes itself the way a file
     /// does. The description spans this object's storage, so it is valid only while this is, and
@@ -20,11 +21,12 @@ namespace Rtx
         static constexpr TexelLayout sLayout{ .mBytes = sStride };
 
         /// Lays out a chain from `width` by `height` down to one texel, and clears its bytes and
-        /// its name — a name is the source's and does not survive being opened over.
-        void openChain(std::uint32_t width, std::uint32_t height, TextureFormat format);
+        /// its name — a name is the source's and does not survive being opened over. `encoding` is
+        /// what the description says the texels are read as, the source's.
+        void openChain(std::uint32_t width, std::uint32_t height, TextureFormat format, TextureEncoding encoding);
 
         /// The same, keeping the extents `shape` states rather than halving to one texel.
-        void openLike(std::span<const MipLevel> shape, TextureFormat format);
+        void openLike(std::span<const MipLevel> shape, TextureFormat format, TextureEncoding encoding);
 
         void reuse();
 
@@ -50,6 +52,7 @@ namespace Rtx
         MipPyramid mShape;
         std::vector<std::byte> mBytes;
         TextureFormat mFormat = TextureFormat::Rgba8Unorm;
+        TextureEncoding mEncoding = TextureEncoding::Colour;
         std::string_view mName;
     };
 }

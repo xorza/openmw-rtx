@@ -7,8 +7,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/mipchain.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -62,7 +62,7 @@ namespace Rtx
             EXPECT_EQ(barriersFor(painted.mData, 8), 4u);
 
             TextureData chained = painted.mData;
-            chained.mCompleteChain = MipChain::wantedFor(chained);
+            chained.mCompleteChain = chained.wantsCompletedChain();
             ASSERT_TRUE(chained.mCompleteChain);
             EXPECT_EQ(barriersFor(chained, 1), 12u);
             EXPECT_EQ(barriersFor(chained, 3), 12u);

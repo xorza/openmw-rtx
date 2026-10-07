@@ -32,7 +32,7 @@ namespace Rtx::Testing
 
     SpriteLightBake::SpriteLightBake(const AlphaImage& alpha)
     {
-        mTexture.openLike(alpha.getShape().mLevels, TextureFormat::Rgba8Unorm);
+        mTexture.openLike(alpha.getShape().mLevels, TextureFormat::Rgba8Unorm, TextureEncoding::Colour);
         mTexture.setName("sprite light");
 
         const std::uint32_t count = alpha.getLevelCount();
