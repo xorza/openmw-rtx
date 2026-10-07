@@ -43,10 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtx/mirror/cells/cellring.cpp:314-323`, `cellplacer.cpp:477` — `CellRing::adopt` fills a
-  cell's model list, and then the placer is called two times (`hold`, `adoptPlacements`). Grass does the
-  same bookkeeping in one call (`holdGrass`). `dropUnless`/`dropGrassUnless` (`cellplacer.hpp:290-338`) are
-  almost copies. Target shape: one adopt call for each kind, and one drop template. (low)
 - [ ] `apps/rtxtool/hosted.cpp:85,200`, `apps/rtxtool/main.cpp:924` — the `printLeft` argument always
   equals `request.mPlayed`. Seven call sites (`main.cpp:551,833,882,924,972,1210,1282`) give `variables,
   config, resources, window` again, although `runStops(Command, Framed, …)` exists. Target shape:

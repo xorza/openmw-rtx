@@ -306,8 +306,6 @@ namespace Rtx
         const Crash::NoteScope noted("adopting the cell {}, {}", cell.mCell.x(), cell.mCell.y());
 
         ExtractionStats& stats = mAdopter.getStats();
-        HeldCell& held = mPlacer.hold(cell, mAround, stats);
-
         mAdopter.getScene().refusals().refuse(cell.mRefusals);
         stats.mPreprocessed.mOffFrame += cell.mPreprocessed;
 
@@ -316,11 +314,12 @@ namespace Rtx
             CellHolds::HeldModel& known = mHolds.knownOf(*model);
             if (known.mParts.empty())
                 mHolds.adoptParts(known, mAdopter);
-
-            held.mModels.push_back(model);
         }
 
-        mPlacer.adoptPlacements(cell, held, mHolds);
+        // The ground after the models, as the groundcover's: where the texture table has no room
+        // left, the ground's layers take the neutral texel and the models keep theirs, as the
+        // ground gives way where the device's room runs out (`TextureArray::write`).
+        mPlacer.holdCell(cell, mAround, stats, mHolds);
 
         mSupply.giveBack().mCells.push_back(&cell);
     }

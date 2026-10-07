@@ -247,7 +247,8 @@ namespace Rtx
         return ground.mLayers.mCount > 1 && !inActiveGrid(cell, around.mActiveGrid);
     }
 
-    HeldCell& CellPlacer::hold(const PreparedCell& cell, const WorldAround& around, ExtractionStats& stats)
+    void CellPlacer::holdCell(
+        const PreparedCell& cell, const WorldAround& around, ExtractionStats& stats, CellHolds& holds)
     {
         // A spare comes back through `reuse`, so what it holds is room and nothing else.
         HeldCell held = mSpareCells.take();
@@ -255,10 +256,11 @@ namespace Rtx
         held.mStatics = cell.mStatics;
 
         adoptGround(cell, held, around, stats);
+        held.mModels.assign(cell.mModels.begin(), cell.mModels.end());
+        adoptPlacements(cell, held, holds);
 
         [[maybe_unused]] const auto [at, fresh] = mCells.insert(std::move(held));
         assert(fresh && "a cell adopted twice");
-        return *at;
     }
 
     void CellPlacer::adoptGround(
