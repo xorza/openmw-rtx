@@ -3,12 +3,6 @@
 Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without tests and without
 `extern/fidelityfx`. Whoever addresses an item deletes it. When a group is empty, delete its heading.
 
-## Shader structure
-
-- [ ] `components/rtxvulkan/shaders/lib/sprites.glsl:467-520` — `PuffLayers::mLayers[5]`/`mAt[5]`, walked
-  by `addPuff`'s insertion loop, are Function-storage arrays in `visibility.rgen.spv` and
-  `spritecomposite.rgen.spv`, live across the full sprite walk. Target shape: as above. (low)
-
 ## Dead code
 
 - [ ] `components/rtxvulkan/shaders/lib/traversal.glsl:886-905` — `solidBetween` has no caller. Its doc
