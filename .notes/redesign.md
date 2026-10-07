@@ -614,7 +614,8 @@ device here measures the GL path's memory, and the change would be checked only 
   `openmw-wer.dll` under the player's `RuntimeExceptionHelperModules` and registers it
   (`Client::catchPastTheProcess`), and the crash matrix's `fast-fail` mode expects its dump. On a
   Windows machine, with the packaged game: a fail-fast leaves a dump and a package in the crash
-  folder, and the registry value names the DLL beside the executable. No machine here runs Windows.
+  folder, and the registry value names the DLL beside the executable. No machine here runs Windows:
+  the steps for an agent on one are in `.notes/windows-wer-check.md`.
 ### 6.5 Performance (each one measured before it stays)
 
 - **[perf] FSR runs with the driver's wave size** (`fsrcallbacks.glsl`). Target: request 64-lane
