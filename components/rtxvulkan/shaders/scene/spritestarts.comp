@@ -4,7 +4,7 @@
 
 // Where each tile's run starts, from how many sprites `spriterects.comp` counted into it.
 //
-// **`Rtx::RunList::place`, on the device and in place.** `spritelist.glsl` says which entry holds
+// **A prefix sum of the counts, on the device and in place.** `spritelist.glsl` says which entry holds
 // what on the way in and on the way out. One workgroup: each lane sums a contiguous chunk of the
 // counts, the chunk totals are scanned in shared memory, and each lane then walks its chunk again
 // turning counts into starts from where its chunk begins.

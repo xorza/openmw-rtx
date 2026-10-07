@@ -84,18 +84,17 @@ float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 /// ray spends inside one cell is one list asked once, which is what `weighLamps` is built on.
 ///
 /// @param key nought for the lamps that light, one for those that take light away: each cell keeps
-///        the two runs one after the other — `Rtx::LightGrid::getList`.
+///        the two runs side by side — `Rtx::LightGrid::getCells`.
 uvec2 lightRunInCell(vec3 cell, uint key)
 {
     if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(frame.mLightGrid.mSize))))
         return uvec2(0u, 0u);
 
     const uvec3 at = uvec3(cell);
-    // `flat` is what this wants to be called, and GLSL reserves it for interpolation.
-    const uint index
-        = 2u * lightGridCell(at.x, at.y, at.z, frame.mLightGrid.mSize.x, frame.mLightGrid.mSize.y) + key;
+    const GpuLightCell held
+        = lightCellAt(lightGridCell(at.x, at.y, at.z, frame.mLightGrid.mSize.x, frame.mLightGrid.mSize.y));
 
-    return uvec2(lightListAt(index), lightListAt(index + 1u));
+    return uvec2(held.mFirst[key], held.mFirst[key] + held.mCount[key]);
 }
 
 /// The grid cell `position` stands in, which may lie outside the grid.

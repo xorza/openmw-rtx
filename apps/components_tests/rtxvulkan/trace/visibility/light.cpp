@@ -962,6 +962,55 @@ namespace Rtx::Testing
                 << "the quad shadowed a lamp that takes light away";
         }
 
+        /// **A lamp carried across the light grid lights every copy of the list where it stands.** The
+        /// grid writes only the records a lamp left and entered, and each frame in flight's copy of
+        /// the list takes what changed since that copy was last written — so a copy that missed a
+        /// record a frame on the other copy wrote is a lamp missing from a cell it reaches, and a
+        /// dark patch under it.
+        ///
+        /// Two unlit lamps at the corners hold the grid's extent, and a lit one of reach 200 walks
+        /// along a wall in steps of 150, across cells of 256. Both copies draw the lamp's last place
+        /// as a scene handed over fresh with the lamp there draws it, to the bit.
+        TEST_F(RtxVisibilityTest, aLampCarriedAcrossTheLightGridLightsEveryCopyWhereItStands)
+        {
+            constexpr std::uint32_t size = 32;
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1500.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto lit = [](float x) {
+                return std::array{
+                    Light{ .mPosition = osg::Vec3f(-1000.0f, -300.0f, -1000.0f), .mReach = 300.0f },
+                    Light{ .mPosition = osg::Vec3f(1000.0f, -300.0f, 1000.0f), .mReach = 300.0f },
+                    Light{ .mPosition = osg::Vec3f(x, -50.0f, 0.0f),
+                        .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                        .mReach = 200.0f },
+                };
+            };
+
+            SceneDesc scene = makeWall(5.0f);
+            const auto carry = [&](float x, bool handOver) {
+                scene.clearPlacement();
+                for (const Light& lamp : lit(x))
+                    scene.addLight(lamp);
+                return shoot(scene, {}, camera, size, { .mSetScene = handOver }).mRadiance;
+            };
+
+            const std::vector<float> first = carry(-600.0f, true);
+            for (float x = -450.0f; x < 600.0f; x += 150.0f)
+                carry(x, false);
+            const std::vector<float> one = carry(600.0f, false);
+            const std::vector<float> other = carry(600.0f, false);
+
+            SceneDesc fresh = makeWall(5.0f);
+            for (const Light& lamp : lit(600.0f))
+                fresh.addLight(lamp);
+            const std::vector<float> placed = shoot(fresh, {}, camera, size).mRadiance;
+
+            EXPECT_NE(placed, first) << "the lamp lights the wall where it stands, or this proves nothing";
+            EXPECT_EQ(one, placed) << "one copy of the list";
+            EXPECT_EQ(other, placed) << "the other copy of the list";
+        }
+
         /// **A lamp that takes light away takes it off the lamps' exact sum on a surface that draws one
         /// lamp, too.** A white pane half there, which the eye peels and shades with its lamps
         /// composed (`shadePane`), over a black sky, under a red lamp and a blue one at one place,
