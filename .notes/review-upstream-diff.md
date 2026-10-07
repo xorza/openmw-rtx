@@ -68,10 +68,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 - [ ] `components/rtxvulkan/shaders/lib/sprites.glsl:467-520` — `PuffLayers::mLayers[5]`/`mAt[5]`, walked
   by `addPuff`'s insertion loop, are Function-storage arrays in `visibility.rgen.spv` and
   `spritecomposite.rgen.spv`, live across the full sprite walk. Target shape: as above. (low)
-- [ ] `components/rtxvulkan/shaders/trace/visibility.rgen:261-281,337-355` — the arms' peel and the
-  world's peel are the same body. They differ only in eye, mask, miss record, arms flag and the arms'
-  early exit on a miss. Target shape: one `peelLayers(...)` that returns the last `Answer` and whether it
-  ended in a miss, called two times. (low)
 
 ## Dead code
 
