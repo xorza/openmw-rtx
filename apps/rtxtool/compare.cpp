@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <format>
+#include <fstream>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -15,6 +16,7 @@
 
 #include <osg/Vec3f>
 
+#include <apps/rtxtool/instruments/jsontext.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
@@ -258,8 +260,8 @@ namespace RtxTool
         return worst / static_cast<double>(std::size_t{ picture.mWidth } * picture.mHeight);
     }
 
-    int judgeNoise(
-        const std::filesystem::path& wrote, const std::span<const NoiseSide> places, const std::uint32_t barFrames)
+    int judgeNoise(const std::filesystem::path& wrote, const std::span<const NoiseSide> places,
+        const std::uint32_t barFrames, std::vector<NoiseFigures>& measured)
     {
         // A run that measured nothing has not shown that anything is as clean as its bar.
         if (places.empty())
@@ -306,15 +308,21 @@ namespace RtxTool
                 continue;
             }
 
-            const bool clean = frame.mMean <= bar.mMean && frame.mP99 <= bar.mP99;
-            if (!clean)
+            const NoiseFigures& figures = measured.emplace_back(NoiseFigures{ .mPlace = place,
+                .mNoise = frame,
+                .mBarNoise = bar,
+                .mBias = *frameBias,
+                .mBarBias = *barBias,
+                .mFireflies = *fireflies });
+            if (!figures.clean())
                 ++noisier;
 
             out() << std::format(
                 "  {:<28} noise: frame mean {:.2f} p99 {:.2f}, {} averaged mean {:.2f} p99 {:.2f} — {}; "
                 "bias: frame {:.2f}, {} averaged {:.2f}; fireflies {:.2f} in a thousand\n",
-                place, frame.mMean, frame.mP99, barFrames, bar.mMean, bar.mP99, clean ? "as clean" : "noisier",
-                *frameBias, barFrames, *barBias, *fireflies);
+                place, frame.mMean, frame.mP99, barFrames, bar.mMean, bar.mP99,
+                figures.clean() ? "as clean" : "noisier", figures.mBias, barFrames, figures.mBarBias,
+                figures.mFireflies);
         }
 
         if (noisier == 0 && missing == 0)
@@ -326,6 +334,34 @@ namespace RtxTool
         out() << std::format("  {} of {} frames noisier than {} frames averaged, {} could not be measured\n", noisier,
             places.size(), barFrames, missing);
         return 1;
+    }
+
+    Misc::Result<void, std::string> writeNoiseRecord(
+        const std::filesystem::path& path, const std::span<const std::vector<NoiseFigures>> sides)
+    {
+        std::ofstream file(path);
+        file << "{\"sides\": [";
+        for (std::size_t side = 0; side < sides.size(); ++side)
+        {
+            file << (side == 0 ? "\n  [" : ",\n  [");
+            for (std::size_t at = 0; at < sides[side].size(); ++at)
+            {
+                const NoiseFigures& place = sides[side][at];
+                file << (at == 0 ? "\n    " : ",\n    ")
+                     << std::format(R"({{"place": {}, "mean": {:.4f}, "p99": {:.4f}, "barMean": {:.4f}, )"
+                                    R"("barP99": {:.4f}, "bias": {:.4f}, "barBias": {:.4f}, "fireflies": {:.4f}, )"
+                                    R"("clean": {}}})",
+                            jsonString(place.mPlace), place.mNoise.mMean, place.mNoise.mP99, place.mBarNoise.mMean,
+                            place.mBarNoise.mP99, place.mBias, place.mBarBias, place.mFireflies, place.clean());
+            }
+            file << "\n  ]";
+        }
+        file << "\n]}\n";
+
+        file.flush();
+        if (!file)
+            return Misc::Err{ "could not write " + Files::pathToUnicodeString(path) };
+        return {};
     }
 
     Misc::Result<void, std::string> checkAgainst(const std::filesystem::path& out, const std::filesystem::path& against)

@@ -13,6 +13,7 @@
 #include <variant>
 
 #include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
+#include <apps/rtxtool/instruments/jsontext.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
@@ -24,38 +25,9 @@ namespace RtxTool
 {
     namespace
     {
-        /// `text` as a JSON string, quotes included: a name comes from a file somebody wrote or from
-        /// the process table, and one with a quote or a backslash in it would end the record there.
         std::string asJson(std::string_view text)
         {
-            std::string quoted = "\"";
-            for (const char c : text)
-            {
-                switch (c)
-                {
-                    case '"':
-                        quoted += "\\\"";
-                        break;
-                    case '\\':
-                        quoted += "\\\\";
-                        break;
-                    case '\n':
-                        quoted += "\\n";
-                        break;
-                    case '\t':
-                        quoted += "\\t";
-                        break;
-                    case '\r':
-                        quoted += "\\r";
-                        break;
-                    default:
-                        if (static_cast<unsigned char>(c) < 0x20)
-                            quoted += std::format("\\u{:04x}", static_cast<unsigned>(c));
-                        else
-                            quoted += c;
-                }
-            }
-            return quoted + '"';
+            return jsonString(text);
         }
 
         /// Null where no reading read it.
