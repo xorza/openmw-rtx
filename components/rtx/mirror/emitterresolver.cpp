@@ -130,10 +130,26 @@ namespace Rtx
             return;
         }
 
+        takeLighting(held);
+    }
+
+    void EmitterResolver::takeLighting(HeldSprite& held)
+    {
+        const std::uint64_t freed = mScene.textures().getFreedCount();
+        if (held.mRefused.stands(sLightingTake, freed))
+            return;
+
         // The bake is keyed on the file, so two emitters drawing with one texture share one
         // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
         // where the sprite stands, because the bake is of its alpha.
-        held.mLighting = mScene.holdTexture(mScene.textures().addSpriteLight(path));
+        const Index bake = mScene.textures().addSpriteLight(VFS::Path::Normalized(held.mSprite->getFileName()));
+        if (bake == sNoIndex)
+        {
+            held.mRefused.refuse(sLightingTake, freed);
+            return;
+        }
+
+        held.mLighting = mScene.holdTexture(bake);
     }
 
     void EmitterResolver::releaseSprite(HeldSprite& held)
@@ -158,6 +174,8 @@ namespace Rtx
             describeSprite(particles, held, shading);
         else if (held.mSprite != nullptr && held.mSlot.empty())
             takeSprite(particles, held);
+        else if (held.mSprite != nullptr && held.mLighting.empty())
+            takeLighting(held);
 
         // No image it can draw, or an image the texture table had no room for: a slot the shader
         // reads the sprite out of is what an emitter is drawn with, and it has none.

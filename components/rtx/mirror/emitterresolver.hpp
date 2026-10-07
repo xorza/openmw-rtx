@@ -161,8 +161,13 @@ namespace Rtx
         /// room — or where a refusal stood and the table has freed a slot since.
         void takeSprite(const osgParticle::ParticleSystem& particles, HeldSprite& held);
 
-        /// The one take a sprite makes, as a `RefusedTakes` bit.
+        /// Takes the bake of `held`'s sprite, which stands in its slot, on the same terms: a bake the
+        /// table refused is asked again once it frees a slot, and the sprite is lit flat until then.
+        void takeLighting(HeldSprite& held);
+
+        /// The two takes a sprite makes, as `RefusedTakes` bits.
         static constexpr std::uint16_t sSpriteTake = 1;
+        static constexpr std::uint16_t sLightingTake = 2;
 
         /// Gives back the slots `held` took, where it took any.
         void releaseSprite(HeldSprite& held);

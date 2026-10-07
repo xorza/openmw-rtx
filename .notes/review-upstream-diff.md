@@ -30,10 +30,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
-- [ ] `components/rtx/mirror/emitterresolver.cpp:137-138,161-162` — when the sprite slot is granted but
-  the table refuses the bake, `mLighting` stays empty. `add` tries again only while `mSlot` is empty, so
-  this emitter is never baked, while later emitters on the same file are. Target shape: give the bake its
-  own `RefusedTakes` bit, and try again when the table frees a slot. (low)
 - [ ] `components/rtx/mirror/sceneextractor.cpp:1003` — `FrozenFace::of(root, mHere)` does not include
   `mRoot`, but placements are `mHere * mRoot` (:167). A mask change thaws frozen runs (:700-703), but a
   change of `extractWorld`'s `transform` does not. This is latent: the only caller gives identity

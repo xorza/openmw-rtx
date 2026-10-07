@@ -456,8 +456,9 @@ namespace Rtx::Testing
 
         /// **A sprite a full table refused draws once the table frees room, and is not asked again
         /// before.** The rule a material's texture keeps (`RefusedTakes`): an emitter refused a slot
-        /// once stood unlit for as long as it stood. And no bake is taken for a sprite with no slot,
-        /// because the bake is of the sprite's alpha.
+        /// once stood unlit for as long as it stood. No bake is taken for a sprite with no slot,
+        /// because the bake is of the sprite's alpha; and a bake refused where the sprite found room
+        /// keeps the same rule, where once it was never asked for again.
         TEST_F(RtxSceneExtractorTest, aRefusedSpriteDrawsOnceTheTableFreesASlot)
         {
             TextureTable& textures = mScene.textures();
@@ -477,19 +478,28 @@ namespace Rtx::Testing
                 EXPECT_EQ(textures.getRows().size(), TextureTable::sCapacity) << "a bake taken for no sprite";
             }
 
-            // Two slots, for the sprite and its bake.
+            // **One slot, which the sprite takes, and the bake is refused on its own terms**: the
+            // sprite draws lit flat, and the bake is not asked again until the table frees more.
             holds.dropTexture(9);
+            for (unsigned int frame = 3; frame <= 4; ++frame)
+            {
+                mScene.clearPlacement();
+                walk(*plume.mRoot, 0, frame);
+                ASSERT_EQ(mScene.emitters().size(), 1u) << "the freed room was not asked for on frame " << frame;
+                EXPECT_EQ(mScene.emitters().front().mTexture, 9u);
+                EXPECT_EQ(mScene.emitters().front().mLighting, sNoIndex) << "on frame " << frame;
+                EXPECT_EQ(textures.getRefused(), 2u) << "the bake asked again on frame " << frame;
+            }
+
+            // A second slot, which the bake takes on the walk after.
             holds.dropTexture(10);
-
             mScene.clearPlacement();
-            walk(*plume.mRoot, 0, 3);
+            walk(*plume.mRoot, 0, 5);
 
-            EXPECT_EQ(textures.getRefused(), 1u);
-            ASSERT_EQ(mScene.emitters().size(), 1u) << "the freed room was not asked for";
-            const SpriteEmitter& drawn = mScene.emitters().front();
-            EXPECT_TRUE(
-                (drawn.mTexture == 9u && drawn.mLighting == 10u) || (drawn.mTexture == 10u && drawn.mLighting == 9u))
-                << drawn.mTexture << " and " << drawn.mLighting;
+            EXPECT_EQ(textures.getRefused(), 2u);
+            ASSERT_EQ(mScene.emitters().size(), 1u);
+            EXPECT_EQ(mScene.emitters().front().mTexture, 9u);
+            EXPECT_EQ(mScene.emitters().front().mLighting, 10u) << "a refused bake was never asked for again";
         }
 
         /// What a system draws with is read off its chain once and kept: a texture swapped on a
