@@ -242,7 +242,8 @@ void main()
         // another point of the surface, as far off as the occluder moved, which a test on one point's
         // distance refused on a floor five pixels on.
         const vec2 landed = vec2(at) + 0.5 + moved.xy;
-        const bool hidden = frame.mDualMotion != 0u && dot(frame.mHistory.mPrevious.mForward, frame.mHistory.mPrevious.mForward) > 0.0
+        const vec3 previousForward = frame.mHistory.mPrevious.mForward;
+        const bool hidden = frame.mDualMotion != 0u && dot(previousForward, previousForward) > 0.0
             && !(held.mWeight > 0.0) && !outsideOf(ivec2(floor(landed)), extent);
         if (hidden)
         {
