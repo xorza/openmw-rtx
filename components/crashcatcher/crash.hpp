@@ -50,5 +50,9 @@ namespace Crash
 
     /// A report without a crash, for a contract broken where the game can go on: a dump of every
     /// thread and a summary, and the game continues. Nothing where no catcher is installed.
+    ///
+    /// **Kept with no caller in the game**, as `fatal`'s counterpart for what the game survives: the
+    /// path a hang report takes, which the crash matrix drives through this to put a fault and a
+    /// hang request under a report at a moment it chooses.
     void report(std::string_view reason);
 }
