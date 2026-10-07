@@ -61,7 +61,7 @@ namespace Rtx
             const TextureData arrived = Testing::describeTexel(white, 0);
             Batch arrival(pool);
             std::vector<Refusal> refused;
-            textures.write(arrival, std::span(&arrived, 1), refused);
+            textures.write(arrival, passes, std::span(&arrived, 1), refused);
             EXPECT_TRUE(refused.empty());
             arrival.flush();
 
@@ -223,7 +223,7 @@ namespace Rtx
             const std::array arrived{ wide.mData, single.mData, unread.mData };
             std::vector<Refusal> refused;
             Batch arrival(getPool());
-            textures.write(arrival, arrived, refused);
+            textures.write(arrival, passes, arrived, refused);
             arrival.flush();
 
             ASSERT_EQ(refused.size(), 1u);
@@ -292,7 +292,7 @@ namespace Rtx
             std::vector<Refusal> refused;
             {
                 Batch arrival(getPool());
-                textures.write(arrival, std::span(&ladder.mData, 1), refused);
+                textures.write(arrival, passes, std::span(&ladder.mData, 1), refused);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty()) << "a texture with a level the device had room for was refused";
@@ -302,7 +302,7 @@ namespace Rtx
 
             {
                 Batch arrival(getPool());
-                textures.write(arrival, std::span(&lone.mData, 1), refused);
+                textures.write(arrival, passes, std::span(&lone.mData, 1), refused);
                 arrival.flush();
             }
             ASSERT_EQ(refused.size(), 1u);
@@ -318,7 +318,7 @@ namespace Rtx
             {
                 const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
                 Batch arrival(getPool());
-                textures.write(arrival, std::span(&lone.mData, 1), refused);
+                textures.write(arrival, passes, std::span(&lone.mData, 1), refused);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty());

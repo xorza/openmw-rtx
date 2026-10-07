@@ -378,7 +378,6 @@ namespace Rtx
     TextureArray::TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
         const std::uint32_t slots, const std::uint32_t anisotropy)
         : mDevice(device)
-        , mPasses(passes)
         , mArrival(device)
         , mSamplers{ makeContentSampler(device, "textures repeating", TextureWrap::Repeat),
             makeContentSampler(device, "textures clamped along s", TextureWrap::ClampS),
@@ -436,7 +435,8 @@ namespace Rtx
             mSlots.resize(slot + 1);
     }
 
-    void TextureArray::write(Batch& batch, std::span<const TextureData> arrived, std::vector<Refusal>& refused)
+    void TextureArray::write(
+        Batch& batch, const TexturePasses& passes, std::span<const TextureData> arrived, std::vector<Refusal>& refused)
     {
         if (arrived.empty())
             return;
@@ -475,7 +475,7 @@ namespace Rtx
             if (texture.mSource == TextureSource::GroundComposite || texture.mSource == TextureSource::GroundGloss)
                 stand(batch, texture, side, refused);
 
-        mArrival.record(batch, mPasses);
+        mArrival.record(batch, passes);
     }
 
     std::uint32_t TextureArray::chooseSide(std::span<const TextureData> arrived, const VkDeviceSize room) const

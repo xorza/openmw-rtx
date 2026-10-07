@@ -50,7 +50,7 @@ namespace Rtx
         // takes it on the first placement that writes it.
         mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{}));
         mAcceleration.build(batch, scene, mEveryMesh, mRecords, mRefusals);
-        mTextures.write(batch, textures, mRefusals);
+        mTextures.write(batch, mPasses.mTextures, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedFreed = scene.meshes().getFreedCount();
         mBuiltStructure = scene.getStructureRevision();
@@ -126,7 +126,7 @@ namespace Rtx
             mBuiltMeshes = scene.meshes().getRevision();
         }
 
-        mTextures.write(batch, arrived, mRefusals);
+        mTextures.write(batch, mPasses.mTextures, arrived, mRefusals);
 
         mBuiltStructure = scene.getStructureRevision();
     }

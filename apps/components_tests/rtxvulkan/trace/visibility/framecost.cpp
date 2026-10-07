@@ -262,7 +262,7 @@ namespace Rtx::Testing
             std::vector<Refusal> refused;
             const auto arrive = [&](Batch& batch, std::uint32_t slot) {
                 const TextureData described = describe(slot);
-                array.write(batch, std::span(&described, 1), refused);
+                array.write(batch, passes, std::span(&described, 1), refused);
             };
 
             {

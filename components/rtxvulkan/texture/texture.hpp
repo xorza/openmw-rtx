@@ -161,7 +161,7 @@ namespace Rtx
         ///
         /// @param layout what `describeLayout` made: every array is shaped by the one the renderer
         ///        keeps, which is what lets one pass be handed any scene's set.
-        /// @param passes the renderer's, which every texture is made with as it arrives.
+        /// @param passes the renderer's, which the stand-in and the neutral texel are made with.
         /// @param anisotropy `RenderProfile::mAnisotropy`: what the footprint binding filters by.
         TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
             std::uint32_t slots, std::uint32_t anisotropy = 1);
@@ -184,7 +184,10 @@ namespace Rtx
         /// down a level at a time, and one with no level at all it can hold draws the stand-in, as
         /// does one past the device's side at every level; each of those is appended to `refused`,
         /// saying why.
-        void write(Batch& batch, std::span<const TextureData> arrived, std::vector<Refusal>& refused);
+        ///
+        /// @param passes the renderer's, which every texture is made with as it arrives.
+        void write(Batch& batch, const TexturePasses& passes, std::span<const TextureData> arrived,
+            std::vector<Refusal>& refused);
 
         /// Writes the descriptors `slot`'s set owes. Before the placement that binds it, after
         /// `finishReads`: the bindings allow an update after a bind, but not of a descriptor a
@@ -300,7 +303,6 @@ namespace Rtx
         void reserveSlot(std::uint32_t slot);
 
         const Device& mDevice;
-        const TexturePasses& mPasses;
 
         /// What an arrival's textures leave the device to do, recorded once every one of them
         /// stands.

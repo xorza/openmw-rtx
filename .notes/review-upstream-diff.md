@@ -43,10 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtxvulkan/texture/texture.hpp:303` — `TextureArray::mPasses` holds a reference to the
-  renderer's `TexturePasses` only to give it to `mArrival.record` (`texture.cpp:553`), but
-  `bakeComposites` takes its `GroundCompositePass` at the call. Target shape: `write(batch, passes, …)`
-  takes `const TexturePasses&`, and the member goes. (low)
 - [ ] `components/rtxvulkan/device/memory/buffer.hpp:155,215`, `device/commands.hpp:55,139` — overloads
   with one name do different things. `Buffer::clear()` sets host memory, and `clear(commands)` records a
   device fill. The private `CommandPool::begin()` opens a batch buffer outside the recording bookkeeping,
