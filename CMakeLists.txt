@@ -553,7 +553,6 @@ endif()
 if(OPENMW_USE_SYSTEM_SDL3)
     find_package(SDL3 3.2.12 REQUIRED CONFIG)
 endif()
-# The gamepad code keeps SDL2's names, which SDL3 renamed and keeps as aliases in SDL_oldnames.h.
 add_compile_definitions(SDL_ENABLE_OLD_NAMES)
 find_package(OpenAL REQUIRED)
 find_package(ZLIB REQUIRED)

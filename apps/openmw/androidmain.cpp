@@ -37,7 +37,6 @@ extern "C" int Java_org_libsdl_app_SDLActivity_isMouseShown(JNIEnv* env, jclass 
     return SDL_CursorVisible();
 }
 
-// SDL's own internals, which the Java side reaches through these: their SDL3 signatures.
 extern SDL_Window* Android_Window;
 extern "C" void SDL_SendMouseMotion(
     Uint64 timestamp, SDL_Window* window, SDL_MouseID mouseID, bool relative, float x, float y);

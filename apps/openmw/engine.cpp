@@ -504,7 +504,6 @@ void OMW::Engine::createWindow()
 
     const SDL_DisplayID display = SDLUtil::displayAt(screen);
 
-    // Hidden until setVideoMode has sized it in pixels and applied the window mode.
     SDL_WindowFlags flags
         = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
@@ -564,8 +563,7 @@ void OMW::Engine::createWindow()
 
         SDLUtil::VideoWrapper::setVideoMode(mWindow, width, height, windowMode, windowBorder);
         SDL_ShowWindow(mWindow);
-        // So that the traits below read the size and the mode just set: a window system applies them
-        // asynchronously.
+        // The traits below need the new size, which window systems apply asynchronously.
         SDL_SyncWindow(mWindow);
 
         setWindowIcon();

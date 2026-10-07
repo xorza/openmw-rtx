@@ -20,13 +20,12 @@ namespace Settings
 
 namespace SDLUtil
 {
-    /// The display at `index` in SDL's list of displays, or the primary display if there is none at `index`.
+    /// The display at `index`, or the primary display if there is none.
     SDL_DisplayID displayAt(int index);
 
-    /// The size of `mode` in pixels, as the resolution settings give it. SDL gives display modes in points.
+    /// The size of `mode` in pixels. SDL gives display modes in points.
     osg::Vec2i modePixels(const SDL_DisplayMode& mode);
 
-    /// The size in a window's points that gives `pixels` pixels at `density` pixels per point.
     int windowPoints(int pixels, float density);
 
     class VideoWrapper
@@ -37,7 +36,7 @@ namespace SDLUtil
 
         void setSyncToVBlank(VSyncMode vsyncMode);
 
-        /// Puts `window` in `windowMode`, at `width` by `height` pixels unless it is borderless fullscreen.
+        /// Sets the mode of `window`, and its size in pixels unless it is borderless fullscreen.
         static void setVideoMode(
             SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder);
 

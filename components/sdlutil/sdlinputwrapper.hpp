@@ -36,7 +36,7 @@ namespace SDLUtil
         bool getMouseRelative() { return mMouseRelative; }
         void setGrabPointer(bool grab);
 
-        /// Moves the pointer to a point in the window's pixels, the space the motion events report.
+        /// Moves the pointer to a position in window pixels.
         void warpMouse(float x, float y);
 
         void updateMouseSettings();

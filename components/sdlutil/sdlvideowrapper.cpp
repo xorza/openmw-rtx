@@ -15,8 +15,6 @@ namespace SDLUtil
 {
     namespace
     {
-        // SDL lists a mode per refresh rate and per pixel density, so a mode matches by its size in pixels, at
-        // the refresh rate nearest the desktop's.
         std::optional<SDL_DisplayMode> findFullscreenMode(SDL_DisplayID display, int width, int height)
         {
             const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(display);
@@ -122,7 +120,7 @@ namespace SDLUtil
             const float density = SDL_GetWindowPixelDensity(window);
             SDL_SetWindowSize(window, windowPoints(width, density), windowPoints(height, density));
             SDL_SetWindowBordered(window, windowBorder);
-            // centerWindow reads the size back, and a window system can apply it asynchronously.
+            // centerWindow reads the size back, which window systems apply asynchronously.
             SDL_SyncWindow(window);
 
             centerWindow(window);

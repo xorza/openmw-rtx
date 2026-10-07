@@ -299,7 +299,6 @@ namespace MWInput
 
     void MouseManager::warpMouse()
     {
-        // The scale mouseMoved divides by, so that the pointer lands where the cursor is drawn.
         const float uiScale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
         mInputWrapper->warpMouse(mGuiCursorX * uiScale, mGuiCursorY * uiScale);
     }

@@ -76,7 +76,7 @@ endif()
 
 if(NOT OPENMW_USE_SYSTEM_SDL3)
 
-    # Static, so that a package does not depend on an SDL3 that the target system may not provide.
+    # Static, so that packages do not need a system SDL3.
     set(SDL_SHARED OFF CACHE BOOL "" FORCE)
     set(SDL_STATIC ON CACHE BOOL "" FORCE)
     set(SDL_TEST_LIBRARY OFF CACHE BOOL "")

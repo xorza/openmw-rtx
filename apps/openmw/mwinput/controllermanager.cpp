@@ -515,8 +515,7 @@ namespace MWInput
             || controllerType == SDL_CONTROLLER_TYPE_PS5;
         bool isSwitch = controllerType == SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO;
 
-        // SDL3 names the face buttons by their position, so the icon follows the label the pad prints on the
-        // button: the south button of a Nintendo pad is labelled B.
+        // SDL3 face buttons are positional, so the icon follows the printed label: B on a Nintendo pad's south.
         SDL_GameController* cntrl = mBindingsManager->getControllerOrNull();
         const auto gamepadButton = static_cast<SDL_GameControllerButton>(button);
         const SDL_GamepadButtonLabel label = cntrl != nullptr

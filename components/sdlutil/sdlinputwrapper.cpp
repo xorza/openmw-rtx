@@ -166,8 +166,6 @@ namespace SDLUtil
                         mConListener->controllerRemoved(evt.gdevice);
                     break;
                 case SDL_CONTROLLERDEVICEREMAPPED:
-                    // SDL keeps an open controller on its newest mapping itself, and every event
-                    // after this one already carries it.
                     break;
                 case SDL_CONTROLLERBUTTONDOWN:
                     if (mConListener)
@@ -413,8 +411,7 @@ namespace SDLUtil
         if (!mWarpCompensate)
             return false;
 
-        // this was a warp event, signal the caller to eat it. Compare whole points, as X11 and Win32 move the
-        // pointer to a whole point whatever the warp asked for.
+        // this was a warp event, signal the caller to eat it. X11 and Win32 warp to whole points.
         if (std::round(evt.x) == std::round(mWarpX) && std::round(evt.y) == std::round(mWarpY))
         {
             mWarpCompensate = false;

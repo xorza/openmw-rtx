@@ -13,7 +13,7 @@ declare -rA GROUPED_DEPS=(
   [clang]="binutils clang make cmake ccache curl unzip git pkg-config mold"
   [coverity]="binutils clang make cmake ccache curl unzip git pkg-config file"
   [coverity_upload]="curl"
-  # libsdl2-dev is for the target branch, which the job preprocesses as well, until it uses SDL3.
+  # libsdl2-dev: the job also preprocesses the target branch, which still uses SDL2.
   [gcc_preprocess]="
     binutils
     build-essential
@@ -31,8 +31,7 @@ declare -rA GROUPED_DEPS=(
   "
 
   # Common dependencies for building OpenMW.
-  #
-  # Ubuntu 24.04 has no SDL3, so it is built from source, with the window systems and input devices it supports.
+  # The X11, Wayland and input libraries build SDL3, which Ubuntu 24.04 lacks.
   [openmw-deps]="
     libboost-program-options-dev
     libboost-system-dev libboost-iostreams-dev

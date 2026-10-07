@@ -213,9 +213,8 @@ namespace MWRender
 
         auto buffer = buffers[0];
 
-        // A technique's resolve uses the technique's own shader, which has no gamma or contrast. So the resolve
-        // goes into a ping-pong buffer instead, and one more draw carries it into the window with them. Under
-        // multiview, the multiview resolve below is the last draw and applies them.
+        // A technique's resolve shader has no gamma or contrast, so it goes into a ping-pong buffer and an extra
+        // draw applies them. Under multiview, the multiview resolve applies them.
         const bool deferResolve = mGammaContrast && !Stereo::getMultiview();
         bool resolveDeferred = false;
 
