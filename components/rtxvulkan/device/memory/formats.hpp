@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
@@ -29,9 +30,10 @@ namespace Rtx
         TexelDecode mDecode;
     };
 
-    /// The one table of `FormatInfo`, asked by a read-back and by nothing else. Ends the process
-    /// for a format no image here is read back in — every block format among them, whose texels
-    /// have no size of their own — because one read here is a contract broken.
+    /// What a read-back needs of `format`: a storage format's row of `sStorageFormats`, and the
+    /// formats no shader stores in beside them. Ends the process for a format no image here is read
+    /// back in — every block format among them, whose texels have no size of their own — because
+    /// one read here is a contract broken.
     FormatInfo formatInfoOf(VkFormat format);
 
     /// The one place a `TextureFormat` becomes Vulkan's. A colour's cases are sRGB, because the files
@@ -40,42 +42,51 @@ namespace Rtx
     /// contract broken and not a file.
     VkFormat toVulkanFormat(TextureFormat format);
 
-    /// The one place a shader's declared layout becomes Vulkan's: the format of the Vulkan
-    /// specification's "Compatibility Between SPIR-V Image Formats and Vulkan Formats" table.
-    /// Constant, so a format a pass names at namespace scope stays one.
+    /// One format a shader declares an image in, as the backend makes and reads it.
+    struct StorageFormatRow
+    {
+        Shaders::StorageFormat mStorage;
+
+        /// The format of the Vulkan specification's "Compatibility Between SPIR-V Image Formats and
+        /// Vulkan Formats" table.
+        VkFormat mVulkan;
+
+        /// What an image of it is priced at, and how a read-back takes it.
+        FormatInfo mInfo;
+    };
+
+    /// Every storage format, in `Shaders::StorageFormat`'s order: the one table its Vulkan format,
+    /// its texel size and its decode are read off.
+    inline constexpr std::array sStorageFormats{
+        StorageFormatRow{ Shaders::StorageFormat::Rgba8, VK_FORMAT_R8G8B8A8_UNORM, { 4, TexelDecode::Unorm8 } },
+        StorageFormatRow{ Shaders::StorageFormat::R8, VK_FORMAT_R8_UNORM, { 1, TexelDecode::Unorm8 } },
+        StorageFormatRow{ Shaders::StorageFormat::Rg8, VK_FORMAT_R8G8_UNORM, { 2, TexelDecode::Unorm8 } },
+        StorageFormatRow{ Shaders::StorageFormat::R16, VK_FORMAT_R16_UNORM, { 2, TexelDecode::Bytes } },
+        StorageFormatRow{ Shaders::StorageFormat::R16f, VK_FORMAT_R16_SFLOAT, { 2, TexelDecode::Half } },
+        StorageFormatRow{ Shaders::StorageFormat::R32f, VK_FORMAT_R32_SFLOAT, { 4, TexelDecode::Float } },
+        StorageFormatRow{ Shaders::StorageFormat::R32ui, VK_FORMAT_R32_UINT, { 4, TexelDecode::Bytes } },
+        StorageFormatRow{ Shaders::StorageFormat::Rg16f, VK_FORMAT_R16G16_SFLOAT, { 4, TexelDecode::Half } },
+        StorageFormatRow{ Shaders::StorageFormat::Rg32f, VK_FORMAT_R32G32_SFLOAT, { 8, TexelDecode::Float } },
+        StorageFormatRow{ Shaders::StorageFormat::Rg32ui, VK_FORMAT_R32G32_UINT, { 8, TexelDecode::Bytes } },
+        StorageFormatRow{ Shaders::StorageFormat::Rgba16, VK_FORMAT_R16G16B16A16_UNORM, { 8, TexelDecode::Bytes } },
+        StorageFormatRow{ Shaders::StorageFormat::Rgba16f, VK_FORMAT_R16G16B16A16_SFLOAT, { 8, TexelDecode::Half } },
+        StorageFormatRow{ Shaders::StorageFormat::Rgba32f, VK_FORMAT_R32G32B32A32_SFLOAT, { 16, TexelDecode::Float } },
+    };
+
+    /// `format`'s row of `sStorageFormats`. Constant, so a format a pass names at namespace scope
+    /// stays one.
+    constexpr const StorageFormatRow& rowOf(const Shaders::StorageFormat format)
+    {
+        const StorageFormatRow& row = sStorageFormats.at(static_cast<std::size_t>(format));
+        if (row.mStorage != format)
+            Crash::fatal("sStorageFormats is out of Shaders::StorageFormat's order");
+        return row;
+    }
+
+    /// The one place a shader's declared layout becomes Vulkan's.
     constexpr VkFormat toVulkanFormat(const Shaders::StorageFormat format)
     {
-        switch (format)
-        {
-            case Shaders::StorageFormat::Rgba8:
-                return VK_FORMAT_R8G8B8A8_UNORM;
-            case Shaders::StorageFormat::R8:
-                return VK_FORMAT_R8_UNORM;
-            case Shaders::StorageFormat::Rg8:
-                return VK_FORMAT_R8G8_UNORM;
-            case Shaders::StorageFormat::R16:
-                return VK_FORMAT_R16_UNORM;
-            case Shaders::StorageFormat::R16f:
-                return VK_FORMAT_R16_SFLOAT;
-            case Shaders::StorageFormat::R32f:
-                return VK_FORMAT_R32_SFLOAT;
-            case Shaders::StorageFormat::R32ui:
-                return VK_FORMAT_R32_UINT;
-            case Shaders::StorageFormat::Rg16f:
-                return VK_FORMAT_R16G16_SFLOAT;
-            case Shaders::StorageFormat::Rg32f:
-                return VK_FORMAT_R32G32_SFLOAT;
-            case Shaders::StorageFormat::Rg32ui:
-                return VK_FORMAT_R32G32_UINT;
-            case Shaders::StorageFormat::Rgba16:
-                return VK_FORMAT_R16G16B16A16_UNORM;
-            case Shaders::StorageFormat::Rgba16f:
-                return VK_FORMAT_R16G16B16A16_SFLOAT;
-            case Shaders::StorageFormat::Rgba32f:
-                return VK_FORMAT_R32G32B32A32_SFLOAT;
-        }
-
-        Crash::fatal("a storage format with no Vulkan format");
+        return rowOf(format).mVulkan;
     }
 
     /// A format with a transfer curve and its twin without one: the same bytes in the same
@@ -125,28 +136,6 @@ namespace Rtx
     /// How many bytes a texel of `format` takes, which is what an image made from it is priced at.
     constexpr std::uint32_t texelBytes(const Shaders::StorageFormat format)
     {
-        switch (format)
-        {
-            case Shaders::StorageFormat::R8:
-                return 1;
-            case Shaders::StorageFormat::Rg8:
-            case Shaders::StorageFormat::R16:
-            case Shaders::StorageFormat::R16f:
-                return 2;
-            case Shaders::StorageFormat::Rgba8:
-            case Shaders::StorageFormat::R32f:
-            case Shaders::StorageFormat::R32ui:
-            case Shaders::StorageFormat::Rg16f:
-                return 4;
-            case Shaders::StorageFormat::Rg32f:
-            case Shaders::StorageFormat::Rg32ui:
-            case Shaders::StorageFormat::Rgba16:
-            case Shaders::StorageFormat::Rgba16f:
-                return 8;
-            case Shaders::StorageFormat::Rgba32f:
-                return 16;
-        }
-
-        Crash::fatal("a storage format with no texel size");
+        return rowOf(format).mInfo.mTexelBytes;
     }
 }

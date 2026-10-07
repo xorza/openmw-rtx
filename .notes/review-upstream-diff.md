@@ -40,9 +40,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
-- [ ] `components/rtxvulkan/device/memory/formats.hpp:81`, `formats.cpp:7` — `texelBytes(StorageFormat)`
-  and `formatInfoOf(VkFormat).mTexelBytes` are two hand-written tables for the same formats. Target shape:
-  one table. `formatInfoOf` gets storage formats from `texelBytes` through `toVulkanFormat`. (low)
 - [ ] `components/rtx/environment/wavecascade.hpp:155-161,182-185` — `WaveCascade` copies `mExtent` and
   `mGrid` from `sWaveTiles` and does not hold its `WaveTile`. `levelsFor(grid)` repeats
   `levelsTo1x1(grid, grid)` (`image/texturedata.hpp:45-48`). (low)
