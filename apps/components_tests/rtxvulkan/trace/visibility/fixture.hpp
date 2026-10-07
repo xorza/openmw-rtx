@@ -474,6 +474,13 @@ namespace Rtx::Testing
     class RtxVisibilityTest : public Testing::RendererTest
     {
     protected:
+        /// Hands `scene` over as the world, with `textures` at the slots it numbers them by, as
+        /// `shoot` hands its own: for a test that reads the shown picture, which `shoot` does not.
+        void setWorld(const SceneDesc& scene, std::span<const TextureData> textures)
+        {
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(scene, textures));
+        }
+
         /// Draws `scene` at `size` square and returns the last frame of the shot.
         ///
         /// **The one render loop over this fixture**, so what a shot means is said once rather than
@@ -486,7 +493,7 @@ namespace Rtx::Testing
             mRenderer.setAnisotropy(shot.mAnisotropy);
             mRenderer.setGamma(shot.mGamma);
             if (shot.mSetScene)
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(scene, textures));
+                setWorld(scene, textures);
             else
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
@@ -745,7 +752,7 @@ namespace Rtx::Testing
         /// back has a hole in its table and none in its descriptions.
         ///
         /// **The span reaches into `mNumbered` and the next render overwrites it**, which is safe
-        /// because `shoot` is the one caller and hands it straight to `setScene`.
+        /// because `setWorld` is the one caller and hands it straight to `setScene`.
         /// `textures` at the slots `scene` numbers them by, each under the encoding the slot was
         /// taken as: what `SceneTextures` makes of a scene's table, so a normal map is described as
         /// one and stood with its spread whatever the test's own description says.
