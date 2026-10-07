@@ -93,12 +93,13 @@ def repeat(build: Build, args: list[str]) -> int:
     status = 0
     for pair in range(1, pairs + 1):
         second, code = run(pair)
-        lines = read_text(second).splitlines()
-        against = next((i for i, line in enumerate(lines) if line.startswith("against ")), None)
         if code == 0:
             print(f"pair {pair} of {pairs}: identical")
-        elif code == DIFFERED_STATUS and against is not None:
+        elif code == DIFFERED_STATUS:
+            # Decided by the status alone; the report's comparison is only shown, from where it opens.
             status = 1
+            lines = read_text(second).splitlines()
+            against = next((i for i, line in enumerate(lines) if line.startswith("against ")), max(len(lines) - 20, 0))
             print(f"pair {pair} of {pairs}: NOT repeatable", file=sys.stderr)
             print("\n".join(lines[against:]), file=sys.stderr)
         else:

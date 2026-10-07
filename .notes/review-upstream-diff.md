@@ -43,10 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The driver and its dependencies
 
-- [ ] `tools/omw/repeat.py:97-100` — a differing run counts as "not repeatable" only with the exit status
-  `DIFFERED_STATUS` and a line that starts with `"against "`. `sDifferedStatus` exists so that `repeat`
-  does not depend on the report's words (`apps/rtxtool/model/benchrun.hpp:471-476`). Target shape: decide
-  on the status alone. (medium)
 - [ ] `tools/omw/perf.py:121-124` — gets the frame count and wall time with a regex over the bench report
   text, although `bench --json` writes the same figures. Target shape: `profile` passes `--json` and reads
   it. (low)
