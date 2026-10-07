@@ -3,21 +3,6 @@
 Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without tests and without
 `extern/fidelityfx`. Whoever addresses an item deletes it. When a group is empty, delete its heading.
 
-## The fork's markers take a node's only user-data slot, which other code uses
-
-- [ ] `components/sceneutil/lightutil.cpp:109`, `components/sceneutil/lampbody.hpp:46` —
-  `LampBody::mark` overwrites `setUserData` on the group that `addLight` gets. OpenMW-CS puts its
-  `ObjectTag` into that slot first (`apps/opencs/view/render/object.cpp:208`), and then `update()` calls
-  `addLight(mBaseNode, …)` (`object.cpp:149`). A debug editor asserts. In a release editor,
-  `Object::getTag()`'s `static_cast<TagBase*>` (`object.cpp:370`) reads a `LampBody` as a tag, which is
-  undefined behaviour, and `checkTag`'s `dynamic_cast` (`worldspacewidget.cpp:402`) cannot select lights.
-  Target shape: keep the marker as a user object in the `UserDataContainer`, or on a node that `addLight`
-  makes itself. Never use the shared `getUserData` slot. (high)
-- [ ] `components/sceneutil/lampbody.hpp:24`, `components/sceneutil/stableidentity.hpp:19` — the docs say
-  "the slot is free on every node `addLight` is given" and "the slot's one other writer is `LampBody`".
-  OpenCS's `ObjectTag`, `CellNodeContainer`, `CellArrowTag`, `CellMarkerTag` and `PathgridTag` all write
-  that slot. Target shape: rewrite both docs with the fix above. (low)
-
 ## The frame path allocates, copies, or rebuilds behind a threshold
 
 - [ ] `components/rtx/environment/frameworld.hpp:55` — `WorldReading::mSky` holds `SkyContent` by value.

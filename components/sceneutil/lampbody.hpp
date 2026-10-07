@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cassert>
 #include <typeinfo>
 
 #include <osg/CopyOp>
@@ -20,10 +19,8 @@ namespace SceneUtil
     /// model glows with, so a renderer that also gathered the model's glow by a bounce would light
     /// the room twice. The rasterizer bounces nothing and never asks.
     ///
-    /// Kept in the node's user data slot, as `StableIdentity` is and for its reason: a reader finds
-    /// it in one load. The slot is free on every node `addLight` is given — an object root or a
-    /// shield part — or holds the marker of the light hung there before, and is the instance's own,
-    /// since a model is cloned with its user data.
+    /// Kept among the node's user objects and not in its user data slot, which `StableIdentity`
+    /// holds on the game's roots and the editor's tags hold on every node it hands `addLight`.
     class LampBody final : public osg::Object
     {
     public:
@@ -42,12 +39,15 @@ namespace SceneUtil
 
         META_Object(SceneUtil, LampBody)
 
-        /// Marks `group` as the model of `light`.
+        /// Marks `group` as the model of `light`, in place of the marker of a light hung there before.
         static void mark(osg::Node& group, LightSource& light)
         {
-            assert((group.getUserData() == nullptr || find(group) != nullptr)
-                && "a lamp body's marker over another user data: the slot holds one");
-            group.setUserData(new LampBody(light));
+            osg::UserDataContainer& held = *group.getOrCreateUserDataContainer();
+            const unsigned int at = indexIn(held);
+            if (at < held.getNumUserObjects())
+                held.setUserObject(at, new LampBody(light));
+            else
+                held.addUserObject(new LampBody(light));
         }
 
         /// The marker `node` carries, or null where it carries none.
@@ -57,12 +57,10 @@ namespace SceneUtil
             if (held == nullptr)
                 return nullptr;
 
-            // An exact type test, as `StableIdentity::find` makes for the same reason.
-            const osg::Referenced* data = held->getUserData();
-            if (data == nullptr || typeid(*data) != typeid(LampBody))
+            const unsigned int at = indexIn(*held);
+            if (at == held->getNumUserObjects())
                 return nullptr;
-
-            return static_cast<const LampBody*>(data);
+            return static_cast<const LampBody*>(held->getUserObject(at));
         }
 
         /// The light this group is the model of, or null where it has gone: a light detached
@@ -70,6 +68,20 @@ namespace SceneUtil
         const LightSource* getLight() const { return mLight.get(); }
 
     private:
+        /// Where among `held`'s user objects the marker is, or their count where it is none of them.
+        /// An exact type test, as `StableIdentity::find` makes for the same reason.
+        static unsigned int indexIn(const osg::UserDataContainer& held)
+        {
+            const unsigned int count = held.getNumUserObjects();
+            for (unsigned int at = 0; at < count; ++at)
+            {
+                const osg::Object* object = held.getUserObject(at);
+                if (object != nullptr && typeid(*object) == typeid(LampBody))
+                    return at;
+            }
+            return count;
+        }
+
         osg::observer_ptr<LightSource> mLight;
     };
 }
