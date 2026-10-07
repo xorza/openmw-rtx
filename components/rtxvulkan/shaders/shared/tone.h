@@ -37,7 +37,7 @@ namespace Rtx::Shaders
 /// image in it.
 #define TONE_TARGET_FORMAT STORAGE_RGBA8
 
-/// What a summed frame's picture is written as beside it (`PresentTarget::requireDeep`): a mean of many
+/// What a summed frame's picture is written as beside it (`PresentTarget::beginPicture`): a mean of many
 /// frames falls between the levels a byte holds, and rounded to one it carries half a level of
 /// error into every measure taken against it.
 #define TONE_DEEP_FORMAT STORAGE_RGBA16

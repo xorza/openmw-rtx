@@ -30,19 +30,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
-- [ ] `components/rtxvulkan/present/presenttarget.cpp:12`, `upscale/upscaler.cpp:399`,
-  `vulkanrenderer.cpp:122-131,147-172` — `PresentTarget::resize` and `Upscaler::resize` always rebuild
-  and `submitAndWait`. `TraceChain::resize` and `BloomPass::resize` return early when the extent is the
-  same. Thus `setUpscale` → `createTargets` stalls the queue, makes both output images again at the same
-  extent, blanks the picture, and drops `mDeep`. `RtxRenderer::renderFrame` (`rtxrenderer.cpp:759-765`)
-  calls `fit` and then `setUpscale`, so a frame that changes both rebuilds every target two times. Target
-  shape: each target's `resize` decides if the extent is new, or the seam gets one
-  `setTargets(output, mode)`. (medium)
-- [ ] `components/rtxvulkan/vulkanrenderer.hpp:201,205` — `mShownCurrent` and `mDeepCurrent` describe
-  `PresentTarget`'s images but are members of `VulkanRenderer`. `createTargets` replaces the images and
-  drops `mDeep` (`presenttarget.cpp:32`), and does not clear the flags. After a resize, `readDeepPixels`
-  passes its assert (`vulkanrenderer.cpp:737`) and then fails in `PresentTarget::getDeep`. Target shape:
-  `PresentTarget` holds both flags, and its `resize` resets them. (low)
 - [ ] `components/rtxvulkan/shaders/trace/visibility.rgen:486-487,527`, `trace/denoise/composite.comp:96-98` —
   `paneLight` is divided by `paneModulation` in full float, but `CHANNEL_PANE_ALBEDO` stores the
   modulation as RGBA16F. The composite multiplies by the stored half, so each filtered frame's pane light

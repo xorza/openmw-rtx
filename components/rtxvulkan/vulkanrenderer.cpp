@@ -154,6 +154,13 @@ namespace Rtx
         const VkExtent2D output{ width, height };
         const FrameExtents extents = extentsFor(width, height, mProfile.mUpscale);
         const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
+
+        // A frame of a different size is not one this one can be reprojected against; a mode that
+        // traces and shows at the sizes the last did keeps every history.
+        if (render.width != mFrame.getWidth() || render.height != mFrame.getHeight() || !mTarget.isOpen()
+            || output.width != mTarget.getExtent().width || output.height != mTarget.getExtent().height)
+            mPast |= FramePast::resized();
+
         mFrame.resize(render.width, render.height);
 
         mTarget.resize(mDevice, width, height);
@@ -167,9 +174,6 @@ namespace Rtx
         // Over the output extent, which is what the frame is by the time the curve maps it: the
         // upscaler's output where one runs, and the trace itself, at the same size, where none does.
         mDisplay.resize(width, height);
-
-        // A frame of a different size is not one this one can be reprojected against.
-        mPast |= FramePast::resized();
     }
 
     std::string VulkanRenderer::describeDevice() const
@@ -478,7 +482,7 @@ namespace Rtx
         // it after the frame, and the present blits after both. Drawn with no batches as well,
         // because what is shown is the picture under them either way.
         mGui.draw(vertices, batches, mTarget.getPicture(), mTarget.getShown());
-        mShownCurrent = true;
+        mTarget.showInterface();
     }
 
     void VulkanRenderer::presentFrame()
@@ -486,11 +490,11 @@ namespace Rtx
         assert(mPresenter != nullptr && "presentFrame on a renderer that was given no window");
         assert(mTarget.isOpen());
 
-        if (!mShownCurrent)
+        if (!mTarget.isShownCurrent())
             mGui.draw({}, {}, mTarget.getPicture(), mTarget.getShown());
 
         mPresenter->present(mTarget.getShown());
-        mShownCurrent = false;
+        mTarget.spendShown();
     }
 
     FrameExtents VulkanRenderer::getExtents() const
@@ -574,9 +578,8 @@ namespace Rtx
             mMedia.placeRipples(sampled);
         }
 
+        Image* const deep = mTarget.beginPicture(mDevice, options.mAccumulate > 0);
         Image& target = mTarget.getPicture();
-        mShownCurrent = false;
-        mDeepCurrent = options.mAccumulate > 0;
 
         const TraceResult traced = mFrame.record(commands,
             TraceRecording{
@@ -656,7 +659,7 @@ namespace Rtx
                     .mInverseGamma = mInverseGamma,
                     .mNightEye = options.mNightEye,
                     .mDither = options.mDither.value_or(mProfile.mDither),
-                    .mDeep = mDeepCurrent ? &mTarget.requireDeep(mDevice) : nullptr,
+                    .mDeep = deep,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
                     .mTimer = timer,
@@ -735,8 +738,6 @@ namespace Rtx
 
     void VulkanRenderer::readDeepPixels(std::vector<std::uint16_t>& samples)
     {
-        assert(mDeepCurrent && "a sixteen-bit picture asked of a frame that did not sum");
-
         std::vector<std::uint8_t> bytes;
         mTarget.getDeep().read(VK_IMAGE_LAYOUT_GENERAL, bytes);
         samples.resize(bytes.size() / sizeof(std::uint16_t));

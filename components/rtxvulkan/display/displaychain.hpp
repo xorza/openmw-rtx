@@ -75,7 +75,7 @@ namespace Rtx
 
         /// Where the curve writes the frame a second time at sixteen bits a channel, undithered
         /// and without the lines, left as `Display::mLeftAs` leaves the picture; or null. A summed
-        /// frame's, `PresentTarget::requireDeep`.
+        /// frame's, `PresentTarget::beginPicture`.
         Image* mDeep;
 
         /// The debug modes' lines and triangles over the picture, and the slot's own buffer they
