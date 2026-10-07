@@ -4,7 +4,7 @@
 #include <string>
 
 #include <components/misc/result.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace MWBase
 {

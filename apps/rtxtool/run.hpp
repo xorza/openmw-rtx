@@ -16,12 +16,12 @@
 #include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/verbs.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
 namespace Files

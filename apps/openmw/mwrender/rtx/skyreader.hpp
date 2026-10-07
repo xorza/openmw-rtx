@@ -4,12 +4,13 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/skybuilder.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/moon.hpp>
+#include <components/rtx/world/skycontent.hpp>
 #include <components/sky/skyclock.hpp>
 #include <components/sky/sunglarefader.hpp>
 #include <components/vfs/pathutil.hpp>

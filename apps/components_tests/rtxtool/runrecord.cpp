@@ -10,7 +10,6 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -18,6 +17,7 @@
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool

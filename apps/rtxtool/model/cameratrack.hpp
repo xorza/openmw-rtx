@@ -9,7 +9,7 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/weather.hpp>
 
 #include "camerapath.hpp"
 #include "cruise.hpp"

@@ -15,8 +15,8 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/sky/skyclock.hpp>
 
-#include "moonbuilder.hpp"
-#include "skybuilder.hpp"
+#include "moon.hpp"
+#include "skycontent.hpp"
 #include "skylight.hpp"
 
 namespace Rtx

@@ -20,7 +20,6 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtx/support/wavemoments.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
@@ -32,6 +31,7 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"

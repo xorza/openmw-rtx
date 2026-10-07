@@ -49,8 +49,6 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -63,6 +61,8 @@
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/moon.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sceneutil/screencapture.hpp>
 #include <components/sdlutil/imagetosurface.hpp>

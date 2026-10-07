@@ -13,7 +13,6 @@
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
@@ -25,6 +24,7 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/moon.hpp>
 
 #include "fixture.hpp"
 

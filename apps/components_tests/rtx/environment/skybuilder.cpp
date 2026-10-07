@@ -30,12 +30,9 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/environment/cloudshell.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
-#include <components/rtx/environment/nightsky.hpp>
+#include <components/rtx/environment/moonfaces.hpp>
 #include <components/rtx/environment/skybuilder.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/environment/starmesh.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -43,6 +40,12 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
+#include <components/rtx/world/cloudshell.hpp>
+#include <components/rtx/world/moon.hpp>
+#include <components/rtx/world/nightsky.hpp>
+#include <components/rtx/world/skycontent.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>

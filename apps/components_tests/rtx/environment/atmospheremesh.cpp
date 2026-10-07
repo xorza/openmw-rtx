@@ -9,8 +9,9 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include <components/rtx/environment/atmosphere.hpp>
+#include <components/rtx/environment/atmospheremesh.hpp>
 #include <components/rtx/shaders/sky.h>
+#include <components/rtx/world/atmosphere.hpp>
 #include <components/sky/vertexrules.hpp>
 
 namespace Rtx

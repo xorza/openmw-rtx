@@ -11,11 +11,11 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/weather.hpp>
 
 #include "benchrecord.hpp"
 #include "benchspec.hpp"

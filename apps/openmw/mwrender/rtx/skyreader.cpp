@@ -20,12 +20,13 @@
 #include <components/fallback/fallback.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/environment/moonfaces.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/settings/values.hpp>
 #include <components/sky/moonstate.hpp>
 #include <components/sky/skyclock.hpp>

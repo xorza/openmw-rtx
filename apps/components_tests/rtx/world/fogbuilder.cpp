@@ -12,10 +12,10 @@
 #include <osg/Vec3f>
 
 #include <components/esm3/loadcell.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/skylight.hpp>
 #include <components/settings/values.hpp>
 
 namespace Rtx

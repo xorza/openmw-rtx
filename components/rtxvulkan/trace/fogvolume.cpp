@@ -7,10 +7,10 @@
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/storageformat.h>
+#include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>

@@ -5,11 +5,11 @@
 #include <optional>
 #include <string_view>
 
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/world/frameworld.hpp>
 
 #include "mirrorknobs.hpp"
 

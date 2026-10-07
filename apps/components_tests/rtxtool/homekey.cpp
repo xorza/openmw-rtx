@@ -17,10 +17,10 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/run.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 
 #include "../rtx/support/pngtext.hpp"

@@ -399,8 +399,7 @@ add_component_dir (rtx/common
     )
 
 add_component_dir (rtx/environment
-    atmosphere cloudshell fogbuilder frameworld moonbuilder nightsky skybuilder skylight skymesh skysheet
-    wavecascade wavespectrum weather
+    atmospheremesh cloudmesh moonfaces skybuilder skymesh skysheet starmesh wavecascade wavespectrum
     )
 
 add_component_dir (rtx/frame
@@ -454,6 +453,10 @@ add_component_dir (rtx/shaders
 
 add_component_dir (rtx/view
     offscreentrace viewscene
+    )
+
+add_component_dir (rtx/world
+    atmosphere fogbuilder frameworld moon skycontent skylight weather
     )
 
 add_component_dir (myguirtx

@@ -18,8 +18,6 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framepast.hpp>
@@ -35,6 +33,8 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>

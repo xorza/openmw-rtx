@@ -23,8 +23,8 @@
 #include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool

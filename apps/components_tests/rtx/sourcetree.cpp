@@ -491,8 +491,8 @@ namespace Rtx
 
         const std::array<FolderOrder, 3> sFolderOrders{
             FolderOrder{ "components/rtx",
-                { "shaders", "common", "image", "preprocess", "scene", "frame", "renderer", "mirror", "environment",
-                    "view" } },
+                { "shaders", "common", "image", "preprocess", "scene", "frame", "world", "renderer", "mirror",
+                    "environment", "view" } },
             FolderOrder{ "components/rtxvulkan",
                 { "shaders", "spirv", "device", "pipeline", "texture", "scene", "trace", "upscale", "display",
                     "present", "gui", "" } },

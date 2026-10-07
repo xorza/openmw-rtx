@@ -1,5 +1,4 @@
 #include "frameworld.hpp"
-
 #include <algorithm>
 #include <array>
 #include <cassert>

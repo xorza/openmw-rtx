@@ -1,20 +1,6 @@
 #pragma once
 
-#include <string>
-
-#include <components/misc/result.hpp>
 #include <components/rtx/shaders/sky.h>
-#include <components/vfs/pathutil.hpp>
-
-namespace osg
-{
-    class Node;
-}
-
-namespace Resource
-{
-    class SceneManager;
-}
 
 namespace Rtx
 {
@@ -33,16 +19,6 @@ namespace Rtx
         /// 0.9076 on Morrowind's own mesh.
         float mZenithShare = 0.0f;
     };
-
-    /// Reads it off the atmosphere mesh the configuration names. An error where the file does not
-    /// exist, as `readCloudShell` answers, saying why and leaving the name to whoever reports it.
-    Misc::Result<Atmosphere, std::string> readAtmosphere(
-        Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh);
-
-    /// The same reading, of a mesh already in hand: the mean radius and height of each of the two
-    /// rings `Sky::atmosphereAlphaOf` names, as the graph places them. No atmosphere where the mesh
-    /// holds no two rings with the upper one higher.
-    Atmosphere readAtmosphere(const osg::Node& mesh);
 
     /// `Atmosphere::mZenithShare` of `ramp`, in closed form.
     float zenithShareOf(const Shaders::SkyRamp& ramp);

@@ -14,15 +14,10 @@ set(RTX_TEST_FILES
     rtx/common/slots.cpp
     rtx/common/stepped.cpp
     rtx/common/worker.cpp
-    rtx/environment/atmosphere.cpp
-    rtx/environment/cloudshell.cpp
-    rtx/environment/fogbuilder.cpp
-    rtx/environment/frameworld.cpp
-    rtx/environment/moonbuilder.cpp
-    rtx/environment/nightsky.cpp
+    rtx/environment/atmospheremesh.cpp
+    rtx/environment/cloudmesh.cpp
     rtx/environment/skybuilder.cpp
-    rtx/environment/skylight.cpp
-    rtx/environment/sun.cpp
+    rtx/environment/starmesh.cpp
     rtx/environment/wavecascade.cpp
     rtx/environment/wavespectrum.cpp
     rtx/frame/bluenoise.cpp
@@ -83,6 +78,11 @@ set(RTX_TEST_FILES
     rtx/sourcetree.cpp
     rtx/support/halfstep.cpp
     rtx/view/offscreentrace.cpp
+    rtx/world/fogbuilder.cpp
+    rtx/world/frameworld.cpp
+    rtx/world/moon.cpp
+    rtx/world/skylight.cpp
+    rtx/world/sun.cpp
     rtxtool/benchrecord.cpp
     rtxtool/benchrun.cpp
     rtxtool/benchspec.cpp

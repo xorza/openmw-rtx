@@ -11,7 +11,7 @@
 #include <apps/rtxtool/model/camerapath.hpp>
 #include <apps/rtxtool/model/cameratrack.hpp>
 #include <apps/rtxtool/model/cruise.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace RtxTool
 {

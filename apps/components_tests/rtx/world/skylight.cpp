@@ -6,14 +6,14 @@
 #include <osg/Vec3f>
 
 #include <components/esm3/loadcell.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/sky/timeofday.hpp>
 
 namespace Rtx

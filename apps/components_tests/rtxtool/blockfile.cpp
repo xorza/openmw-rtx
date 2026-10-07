@@ -15,7 +15,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/run.hpp>
-#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool

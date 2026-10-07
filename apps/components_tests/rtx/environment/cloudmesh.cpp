@@ -20,8 +20,9 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/environment/cloudshell.hpp>
+#include <components/rtx/environment/cloudmesh.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/world/cloudshell.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
