@@ -13,11 +13,11 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/trace/sunglarepass.hpp>
 
 #include "bloompass.hpp"
 #include "exposurepass.hpp"
 #include "linepass.hpp"
+#include "sunglarepass.hpp"
 #include "tonepass.hpp"
 
 namespace Rtx

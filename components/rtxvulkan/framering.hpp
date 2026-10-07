@@ -17,7 +17,8 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
-#include <components/rtxvulkan/display/digestpass.hpp>
+
+#include "digestpass.hpp"
 
 namespace Rtx
 {
