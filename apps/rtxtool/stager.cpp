@@ -42,6 +42,7 @@
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/rng.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 
 namespace RtxTool
 {
@@ -265,10 +266,10 @@ namespace RtxTool
         return why.empty() ? std::string("no reason the game names") : why;
     }
 
-    void Stager::setWeather(MWBase::World& world, const std::uint32_t weather)
+    void Stager::setWeather(MWBase::World& world, const Rtx::Weather weather)
     {
         world.changeWeather(world.getPlayerPtr().getCell()->getCell()->getRegion(),
-            ESM::Weather::indexToRefId(static_cast<int>(weather)));
+            ESM::Weather::indexToRefId(Rtx::scriptIdOf(weather)));
     }
 
     void Stager::boostPlayer()

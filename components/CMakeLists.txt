@@ -400,7 +400,7 @@ add_component_dir (rtx/common
 
 add_component_dir (rtx/environment
     atmosphere cloudshell fogbuilder frameworld moonbuilder nightsky skybuilder skylight skymesh skysheet
-    wavecascade wavespectrum
+    wavecascade wavespectrum weather
     )
 
 add_component_dir (rtx/frame

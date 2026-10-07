@@ -25,11 +25,13 @@
 #include <apps/openmw/mwworld/timestamp.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/cameratrack.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 
 #include "run.hpp"
 
@@ -133,9 +135,9 @@ namespace RtxTool
             return;
         }
 
-        std::vector<std::uint32_t> rolled;
-        for (std::uint32_t weather = 0; !Rtx::weatherName(weather).empty(); ++weather)
-            if (chanceOf(*record, weather) > 0)
+        std::vector<Rtx::Weather> rolled;
+        for (std::size_t at = 0; at < Rtx::sWeatherCount; ++at)
+            if (const auto weather = static_cast<Rtx::Weather>(at); chanceOf(*record, weather) > 0)
                 rolled.push_back(weather);
 
         if (rolled.empty())
@@ -146,7 +148,7 @@ namespace RtxTool
 
         SkyCrossing& sky = takeSky();
         const std::size_t at = sky.stepAmong(rolled, steps);
-        const std::uint32_t chosen = rolled[at];
+        const Rtx::Weather chosen = rolled[at];
 
         const bool stopped = !(world.getTimeManager()->getGameTimeScale() > 0.0f);
         if (atOnce || stopped)
@@ -157,18 +159,18 @@ namespace RtxTool
 
         const std::string_view how = atOnce ? "at once" : stopped ? "at once under the stopped clock" : "arriving";
         Log(Debug::Info) << std::format("Ray tracing session: {} {}, {} of {} the region rolls, {}%",
-            Rtx::weatherName(chosen), how, at + 1, rolled.size(), chanceOf(*record, chosen));
+            Rtx::nameOf(chosen), how, at + 1, rolled.size(), chanceOf(*record, chosen));
     }
 
     void CameraDriver::beginTurn(const Stop& stop)
     {
-        const std::vector<std::uint32_t>& through = stop.mSky.mTurnThrough;
+        const std::vector<Rtx::Weather>& through = stop.mSky.mTurnThrough;
         if (through.empty())
             return;
 
         // **From the stop's own weather where it names one**, which the stager asked the world to
         // settle under: the world settles it in its next update, and a held sky has none.
-        const std::optional<std::uint32_t>& named = stop.mSky.mWeather;
+        const std::optional<Rtx::Weather>& named = stop.mSky.mWeather;
         mSky = named.has_value() ? SkyCrossing(*named, *named, 0.0f) : skyOfTheWorld();
 
         mSky->ask(through.front());
@@ -192,10 +194,10 @@ namespace RtxTool
         holdSky(mSky->getWeather(), mSky->getNextWeather(), mSky->getCrossed());
     }
 
-    void CameraDriver::holdSky(const std::uint32_t weather, const std::uint32_t next, const float crossed)
+    void CameraDriver::holdSky(const Rtx::Weather weather, const Rtx::Weather next, const float crossed)
     {
-        MWBase::Environment::get().getWorld()->holdWeather(ESM::Weather::indexToRefId(static_cast<int>(weather)),
-            ESM::Weather::indexToRefId(static_cast<int>(next)), crossed);
+        MWBase::Environment::get().getWorld()->holdWeather(ESM::Weather::indexToRefId(Rtx::scriptIdOf(weather)),
+            ESM::Weather::indexToRefId(Rtx::scriptIdOf(next)), crossed);
     }
 
     SkyCrossing& CameraDriver::takeSky()
@@ -209,23 +211,23 @@ namespace RtxTool
     SkyCrossing CameraDriver::skyOfTheWorld()
     {
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
-        const auto current = static_cast<std::uint32_t>(world.getCurrentWeatherScriptId());
-        const int next = world.getNextWeatherScriptId();
+        const std::optional<Rtx::Weather> current = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId());
+        Crash::contract(current.has_value(), "the world stands under a weather past the ten");
+        const std::optional<Rtx::Weather> next = Rtx::weatherOfScriptId(world.getNextWeatherScriptId());
 
         // The factor the world counts down from one, so what has crossed counts up.
-        return SkyCrossing(current, next < 0 ? current : static_cast<std::uint32_t>(next),
-            std::max(1.0f - world.getWeatherTransition(), 0.0f));
+        return SkyCrossing(*current, next.value_or(*current), std::max(1.0f - world.getWeatherTransition(), 0.0f));
     }
 
-    float CameraDriver::transitionDeltaOf(const std::uint32_t weather)
+    float CameraDriver::transitionDeltaOf(const Rtx::Weather weather)
     {
         // What the world reads for the same weather (`MWWorld::Weather::mTransitionDelta`).
-        return Fallback::Map::getFloat(std::format("Weather_{}_Transition_Delta", Rtx::weatherName(weather)));
+        return Fallback::Map::getFloat(std::format("Weather_{}_Transition_Delta", Rtx::nameOf(weather)));
     }
 
-    int CameraDriver::chanceOf(const ESM::Region& region, const std::uint32_t weather)
+    int CameraDriver::chanceOf(const ESM::Region& region, const Rtx::Weather weather)
     {
-        const auto found = region.mData.mProbabilities.find(ESM::Weather::indexToRefId(static_cast<int>(weather)));
+        const auto found = region.mData.mProbabilities.find(ESM::Weather::indexToRefId(Rtx::scriptIdOf(weather)));
         return found != region.mData.mProbabilities.end() ? found->second : 0;
     }
 
@@ -251,7 +253,7 @@ namespace RtxTool
 
     void CameraDriver::turnWeather(const Stop& stop, const float step)
     {
-        const std::vector<std::uint32_t>& through = stop.mSky.mTurnThrough;
+        const std::vector<Rtx::Weather>& through = stop.mSky.mTurnThrough;
         if (through.size() < 2)
             return;
 

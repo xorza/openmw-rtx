@@ -25,6 +25,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -412,7 +413,8 @@ namespace RtxTool
         // closing hour under its opening sky.
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
         place.mHour = world.getTimeStamp().getHour();
-        place.mWeather = Rtx::weatherName(static_cast<std::uint32_t>(world.getCurrentWeatherScriptId()));
+        const std::optional<Rtx::Weather> weather = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId());
+        place.mWeather = weather.has_value() ? Rtx::nameOf(*weather) : std::string_view();
         place.mFrames = mProgress.mSamples.size();
         place.mWallSeconds = mProgress.mWallMs / 1000.0;
         for (std::size_t at = 0; at < Rtx::sTimingCount; ++at)

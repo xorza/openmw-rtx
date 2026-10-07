@@ -43,6 +43,7 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -177,11 +178,11 @@ namespace RtxTool
             return hour;
         }
 
-        /// The weather the line names, as `Rtx::weatherIndex` numbers it, read as a view file's is;
-        /// refused with the option that named it where it is none of the ten.
-        std::uint32_t weatherNamed(const std::string_view option, const std::string_view weather)
+        /// The weather the line names, read as a view file's is; refused with the option that named
+        /// it where it is none of the ten.
+        Rtx::Weather weatherNamed(const std::string_view option, const std::string_view weather)
         {
-            const std::optional<std::uint32_t> named = Rtx::weatherIndex(weather);
+            const std::optional<Rtx::Weather> named = Rtx::weatherNamed(weather);
             if (!named.has_value())
                 throw std::runtime_error(
                     std::format("--{}: \"{}\" {}: {}", option, weather, checkWeather(weather).error(), listWeathers()));
@@ -189,16 +190,16 @@ namespace RtxTool
         }
 
         /// What `--turn-weather` named, in its order.
-        std::vector<std::uint32_t> weathersToTurn(const bpo::variables_map& variables)
+        std::vector<Rtx::Weather> weathersToTurn(const bpo::variables_map& variables)
         {
-            std::vector<std::uint32_t> turn;
+            std::vector<Rtx::Weather> turn;
             for (const std::string& weather : splitNames(variables["turn-weather"].as<std::string>()))
                 turn.push_back(weatherNamed("turn-weather", weather));
             return turn;
         }
 
         /// What `--weather` named, or nothing where it was left at its default.
-        std::optional<std::uint32_t> weatherGiven(const bpo::variables_map& variables)
+        std::optional<Rtx::Weather> weatherGiven(const bpo::variables_map& variables)
         {
             if (variables["weather"].defaulted())
                 return std::nullopt;
@@ -704,7 +705,7 @@ namespace RtxTool
                     out() << " at " << describeHour(*view.mSky.mHour);
 
                 if (view.mSky.mWeather.has_value())
-                    out() << " in " << *view.mSky.mWeather;
+                    out() << " in " << Rtx::nameOf(*view.mSky.mWeather);
 
                 out() << "\n      " << view.mNote << '\n';
             }
@@ -849,7 +850,7 @@ namespace RtxTool
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);
 
             const BenchSpec spec = specFrom(variables);
-            const std::vector<std::uint32_t> turn = weathersToTurn(variables);
+            const std::vector<Rtx::Weather> turn = weathersToTurn(variables);
             const bool hashing = !variables["hashes"].as<std::string>().empty()
                 || !variables["against"].as<std::string>().empty() || !variables["pictures"].as<std::string>().empty();
 

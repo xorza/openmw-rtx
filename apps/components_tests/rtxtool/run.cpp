@@ -25,6 +25,7 @@
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories/video.hpp>
@@ -47,7 +48,7 @@ namespace RtxTool
                 .mStand = { .mCell = "Balmora, Guild of Mages",
                     .mEye = osg::Vec3f(-283.29843f, -671.29584f, -580.77014f),
                     .mLook = osg::Vec3f(503.60007f, -1265.436f, -747.46844f) },
-                .mSky = { .mHour = 12.0f, .mDay = 0, .mWeather = Rtx::sWeatherClear },
+                .mSky = { .mHour = 12.0f, .mDay = 0, .mWeather = Rtx::Weather::Clear },
             };
         }
 
@@ -84,7 +85,7 @@ namespace RtxTool
             // A quarter past five in the evening, because a decimal hour is not a time anyone reads.
             RtxTool::Stop evening = makeSpot();
             evening.mSky.mHour = 17.25f;
-            evening.mSky.mWeather = Rtx::sWeatherAshstorm;
+            evening.mSky.mWeather = Rtx::Weather::Ashstorm;
             EXPECT_NE(describeSpot(evening).find("17:15, Ashstorm"), std::string::npos) << describeSpot(evening);
         }
 
@@ -100,7 +101,7 @@ namespace RtxTool
             RtxTool::Stop dawn = makeSpot();
             dawn.mSky.mHour = 6.5f;
             dawn.mSky.mDay = 17;
-            dawn.mSky.mWeather = Rtx::sWeatherThunderstorm;
+            dawn.mSky.mWeather = Rtx::Weather::Thunderstorm;
             EXPECT_NE(describeCommand(dawn).find("--hour=6.5 --day=17 --weather=Thunderstorm"), std::string::npos)
                 << describeCommand(dawn);
 
@@ -158,7 +159,7 @@ namespace RtxTool
             // a drift no float holds either.
             RtxTool::Stop dawn = spot;
             dawn.mSky.mHour = 6.5f;
-            dawn.mSky.mWeather = Rtx::sWeatherThunderstorm;
+            dawn.mSky.mWeather = Rtx::Weather::Thunderstorm;
             dawn.mSky.mAir = Rtx::AirClock{ .mSky = { .mSeconds = 36000.123456789, .mCloudScroll = 3.9999998f },
                 .mCarried = osg::Vec2d(-123456.78901234, 0.1) };
 
@@ -175,7 +176,7 @@ namespace RtxTool
             ASSERT_TRUE(back.front().mSky.mHour.has_value());
             EXPECT_EQ(*back.front().mSky.mHour, 6.5f);
             ASSERT_TRUE(back.front().mSky.mWeather.has_value());
-            EXPECT_EQ(*back.front().mSky.mWeather, Rtx::sWeatherThunderstorm);
+            EXPECT_EQ(*back.front().mSky.mWeather, Rtx::Weather::Thunderstorm);
             ASSERT_TRUE(back.front().mSky.mAir.has_value());
             EXPECT_EQ(back.front().mSky.mAir->mSky.mSeconds, dawn.mSky.mAir->mSky.mSeconds);
             EXPECT_EQ(back.front().mSky.mAir->mSky.mCloudScroll, dawn.mSky.mAir->mSky.mCloudScroll);
@@ -593,7 +594,7 @@ arms = iron longsword
             ASSERT_NE(overcast, nullptr);
             ASSERT_TRUE(overcast->mSky.mWeather.has_value());
             ASSERT_TRUE(overcast->mStand.mEye.has_value());
-            EXPECT_EQ(*overcast->mSky.mWeather, Rtx::sWeatherOvercast);
+            EXPECT_EQ(*overcast->mSky.mWeather, Rtx::Weather::Overcast);
             EXPECT_FALSE(overcast->mSky.mHour.has_value());
             EXPECT_EQ(*overcast->mStand.mEye, osg::Vec3f(100.0f, 200.0f, 300.0f));
 
@@ -667,7 +668,7 @@ arms = iron longsword
             const std::vector<RtxTool::Stop> lowered
                 = readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = overcast\n");
             ASSERT_EQ(lowered.size(), 2u);
-            EXPECT_EQ(lowered[1].mSky.mWeather, std::optional<std::uint32_t>(Rtx::sWeatherOvercast))
+            EXPECT_EQ(lowered[1].mSky.mWeather, std::optional<Rtx::Weather>(Rtx::Weather::Overcast))
                 << "a weather kept as the file spelled it";
 
             EXPECT_NO_THROW(readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = Thunderstorm\n"));
@@ -743,7 +744,7 @@ arms = iron longsword
                     .mEye = osg::Vec3f(1.0f, 2.0f, 3.0f),
                     .mLook = osg::Vec3f(4.0f, 5.0f, 6.0f) },
                 .mSky = { .mHour = 6.5f,
-                    .mWeather = Rtx::sWeatherOvercast,
+                    .mWeather = Rtx::Weather::Overcast,
                     .mAir = Rtx::AirClock{ .mSky = { .mSeconds = 100.0 } } },
                 .mSchedule = { .mRoute = RtxTool::Route{ .mTo = osg::Vec3f(7.0f, 8.0f, 9.0f),
                                    .mLookTo = osg::Vec3f(),
@@ -755,7 +756,7 @@ arms = iron longsword
             const StopSky silent{ .mDay = 0 };
             const StopSky rain{ .mHour = 9.0f,
                 .mDay = 0,
-                .mWeather = Rtx::sWeatherRain,
+                .mWeather = Rtx::Weather::Rain,
                 .mAir = Rtx::AirClock{ .mSky = { .mSeconds = 200.0 } } };
 
             // Neither says anything: noon under a clear sky, which is how a picture of a place is
@@ -766,15 +767,15 @@ arms = iron longsword
 
             // Only the place: the place decides, which is what makes a view id one frame.
             EXPECT_EQ(stopFor(entry, silent).mSky.mHour, 6.5f);
-            EXPECT_EQ(stopFor(entry, silent).mSky.mWeather, Rtx::sWeatherOvercast);
+            EXPECT_EQ(stopFor(entry, silent).mSky.mWeather, Rtx::Weather::Overcast);
             EXPECT_EQ(stopFor(entry, silent).mSky.mAir->mSky.mSeconds, 100.0);
 
             // The command line, over a place that fixes one and over a place that does not.
             EXPECT_EQ(stopFor(entry, rain).mSky.mHour, 9.0f);
-            EXPECT_EQ(stopFor(entry, rain).mSky.mWeather, Rtx::sWeatherRain);
+            EXPECT_EQ(stopFor(entry, rain).mSky.mWeather, Rtx::Weather::Rain);
             EXPECT_EQ(stopFor(entry, rain).mSky.mAir->mSky.mSeconds, 200.0);
             EXPECT_EQ(stopFor(bare, rain).mSky.mHour, 9.0f);
-            EXPECT_EQ(stopFor(bare, rain).mSky.mWeather, Rtx::sWeatherRain);
+            EXPECT_EQ(stopFor(bare, rain).mSky.mWeather, Rtx::Weather::Rain);
             EXPECT_EQ(stopFor(bare, rain).mSky.mAir->mSky.mSeconds, 200.0);
 
             // And the three answers differ, so the rule is doing something.

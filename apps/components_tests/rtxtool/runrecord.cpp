@@ -10,6 +10,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/files/conversion.hpp>
+#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -53,7 +54,7 @@ namespace RtxTool
         TEST(RtxRunRecordTest, theReportOpensWithWhatTheRunStoodUnder)
         {
             Stop turning;
-            turning.mSky.mTurnThrough = { Rtx::sWeatherRain };
+            turning.mSky.mTurnThrough = { Rtx::Weather::Rain };
 
             SessionRequest request;
             request.mStops = { turning };

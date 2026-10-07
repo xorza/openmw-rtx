@@ -4,16 +4,16 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/model/skycrossing.hpp>
+#include <components/rtx/environment/weather.hpp>
 
 namespace RtxTool
 {
     namespace
     {
-        /// As `Rtx::weatherIndex` numbers them.
-        constexpr std::uint32_t sClear = 0;
-        constexpr std::uint32_t sCloudy = 1;
-        constexpr std::uint32_t sRain = 4;
-        constexpr std::uint32_t sSnow = 8;
+        constexpr Rtx::Weather sClear = Rtx::Weather::Clear;
+        constexpr Rtx::Weather sCloudy = Rtx::Weather::Cloudy;
+        constexpr Rtx::Weather sRain = Rtx::Weather::Rain;
+        constexpr Rtx::Weather sSnow = Rtx::Weather::Snow;
 
         /// **A press during a crossing turns it at once, and the weather that shows most keeps its
         /// share.** The sky shows `1 - c` of the one it leaves and `c` of the one it goes to.
@@ -127,7 +127,7 @@ namespace RtxTool
         /// list does not hold, Snow, is before its first going on and after its last going back.
         TEST(RtxSkyCrossingTest, aKeyStepsFromTheLastWeatherAskedFor)
         {
-            const std::array<std::uint32_t, 3> rolled{ sClear, sCloudy, sRain };
+            const std::array<Rtx::Weather, 3> rolled{ sClear, sCloudy, sRain };
 
             const SkyCrossing cloudy(sCloudy, sCloudy, 0.0f);
             EXPECT_EQ(cloudy.stepAmong(rolled, 1), 2u);

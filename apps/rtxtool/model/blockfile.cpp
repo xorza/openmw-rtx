@@ -12,6 +12,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 
 #include "benchrun.hpp"
 #include "wholenumber.hpp"
@@ -216,7 +217,7 @@ namespace RtxTool
         // **Checked where it is read rather than at the frame**, for the reason a mistyped view id
         // is: a place that quietly stood under another sky reports a number against a frame nobody
         // asked for.
-        if (!Rtx::weatherIndex(weather).has_value())
+        if (!Rtx::weatherNamed(weather).has_value())
             return Misc::Err{ "is none of the weathers the content files name" };
 
         return {};
@@ -225,11 +226,11 @@ namespace RtxTool
     std::string listWeathers()
     {
         std::string list;
-        for (std::uint32_t weather = 0; !Rtx::weatherName(weather).empty(); ++weather)
+        for (std::size_t weather = 0; weather < Rtx::sWeatherCount; ++weather)
         {
             if (!list.empty())
                 list += ", ";
-            list += Rtx::weatherName(weather);
+            list += Rtx::nameOf(static_cast<Rtx::Weather>(weather));
         }
 
         return list;
@@ -244,9 +245,9 @@ namespace RtxTool
         return value;
     }
 
-    std::uint32_t BlockFile::weather(const BlockField& field) const
+    Rtx::Weather BlockFile::weather(const BlockField& field) const
     {
-        const std::optional<std::uint32_t> named = Rtx::weatherIndex(field.mValue);
+        const std::optional<Rtx::Weather> named = Rtx::weatherNamed(field.mValue);
         if (!named.has_value())
             refuseValue(field, checkWeather(field.mValue).error());
 
