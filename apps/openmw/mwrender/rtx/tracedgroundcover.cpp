@@ -23,6 +23,10 @@ namespace MWRender
         if (mDensity <= 0.0f)
             return;
 
+        // `Cell::blank` leaves the list of files alone, and the store assigns one only for a cell
+        // a file lists: a cell no file lists read after one that some do read the files of the
+        // last.
+        mCell.mContextList.clear();
         mStore.initCell(mCell, cell.x(), cell.y());
         mKept.clear();
 
