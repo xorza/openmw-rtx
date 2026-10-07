@@ -192,8 +192,8 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/probe.cpp
     rtxvulkan/device/readstamp.cpp
     rtxvulkan/display/bloompass.cpp
-    rtxvulkan/display/digestpass.cpp
     rtxvulkan/display/exposurepass.cpp
+    rtxvulkan/digestpass.cpp
     rtxvulkan/framering.cpp
     rtxvulkan/frames.cpp
     rtxvulkan/gui/guipass.cpp

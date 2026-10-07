@@ -34,13 +34,14 @@ target_link_libraries(openmw-rtx-spirv-digest PRIVATE openmw-rtx-spirv)
 set_target_properties(openmw-rtx-spirv-digest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
 set(RTX_SHADERS
+    shaders/digest.comp
     shaders/display/bloomdown.comp
     shaders/display/bloomup.comp
-    shaders/display/digest.comp
     shaders/display/exposure.comp
     shaders/display/histogram.comp
     shaders/display/line.frag
     shaders/display/line.vert
+    shaders/display/sunglare.comp
     shaders/display/tone.comp
     shaders/gui/gui.frag
     shaders/gui/gui.vert
@@ -81,7 +82,6 @@ set(RTX_SHADERS
     shaders/trace/spriteemitters.rgen
     shaders/trace/spriteshelter.rgen
     shaders/trace/stress.comp
-    shaders/trace/sunglare.comp
     shaders/trace/visibility.rahit
     shaders/trace/visibility.rgen
     shaders/trace/visibility.rmiss
@@ -281,16 +281,18 @@ set(RTX_VULKAN_FILES
     device/validation.hpp
     display/bloompass.cpp
     display/bloompass.hpp
-    display/digestpass.cpp
-    display/digestpass.hpp
     display/displaychain.cpp
     display/displaychain.hpp
     display/exposurepass.cpp
     display/exposurepass.hpp
     display/linepass.cpp
     display/linepass.hpp
+    display/sunglarepass.cpp
+    display/sunglarepass.hpp
     display/tonepass.cpp
     display/tonepass.hpp
+    digestpass.cpp
+    digestpass.hpp
     framering.cpp
     framering.hpp
     gui/guidrawer.cpp
@@ -423,8 +425,6 @@ set(RTX_VULKAN_FILES
     trace/spritepasses.hpp
     trace/stresspass.cpp
     trace/stresspass.hpp
-    trace/sunglarepass.cpp
-    trace/sunglarepass.hpp
     trace/tracechain.cpp
     trace/tracechain.hpp
     trace/tracemedia.cpp

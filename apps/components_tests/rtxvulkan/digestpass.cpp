@@ -17,7 +17,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/display/digestpass.hpp>
+#include <components/rtxvulkan/digestpass.hpp>
 
 namespace Rtx
 {

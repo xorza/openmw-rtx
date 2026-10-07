@@ -33,10 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Facts of one layer are in another layer
 
-- [ ] `components/rtxvulkan/trace/sunglarepass.hpp:17` — only `DisplayChain` includes and owns it, and its
-  job belongs to the display. Target shape: `display/sunglarepass.*`. (low)
-- [ ] `components/rtxvulkan/display/digestpass.hpp:21` — not a `DisplayChain` pass. Only `FrameRing` uses
-  it, to digest the trace's channels for read-back. Target shape: beside `framering.*`. (low)
 - [ ] `components/platform/process.hpp:122-192` — `hugePageShare(rollup)` and `parseCpuList` parse
   Linux-only text and are not platform differences, but they are in the cross-platform process header.
   Target shape: move them beside their Linux caller, or into the harness's instruments. (low)
