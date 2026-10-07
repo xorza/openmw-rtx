@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 #include <osg/StateAttribute>
+#include <osg/StateSet>
 
 #include <components/rtx/scene/surface.hpp>
 
@@ -75,4 +77,10 @@ namespace Rtx
     /// raster pipeline's — a depth test, a program, a winding — describes nothing, and a material
     /// key passes it by (`ChainKeys`).
     bool describesAnything(const osg::StateSet& stateSet);
+
+    /// The uniform `stateSet` holds under `name` and the flags it was set with, or null. Compared
+    /// along the list rather than looked up, because the list's `std::map` takes only a
+    /// `std::string` key: a name built for every state set of every drawable's chain, every frame,
+    /// where a list holds a handful of uniforms and nearly every one holds none.
+    const osg::StateSet::RefUniformPair* findUniform(const osg::StateSet& stateSet, std::string_view name);
 }
