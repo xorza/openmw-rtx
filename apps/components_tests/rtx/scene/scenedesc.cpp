@@ -1695,7 +1695,7 @@ namespace Rtx
             const std::array<float, 4> weights{ 1.0f, 0.0f, 0.0f, 1.0f };
             const Rtx::Run mask = scene.materials().addMask(weights);
             EXPECT_EQ(mask, (Rtx::Run{ .mOffset = 0, .mCount = 4 }));
-            EXPECT_EQ(runs(scene.materials().getArrived().mMasks),
+            EXPECT_EQ(runs(scene.materials().getArrivedRuns().mMasks),
                 (std::vector<Rtx::Run>{ Rtx::Run{ .mOffset = 0, .mCount = 4 } }));
 
             const std::array layers{
@@ -1704,22 +1704,22 @@ namespace Rtx
             };
             const Rtx::Run run = scene.materials().addLayers(layers);
             EXPECT_EQ(run, (Rtx::Run{ .mOffset = 0, .mCount = 2 }));
-            EXPECT_EQ(runs(scene.materials().getArrived().mLayers), (std::vector<Rtx::Run>{ run }));
+            EXPECT_EQ(runs(scene.materials().getArrivedRuns().mLayers), (std::vector<Rtx::Run>{ run }));
 
             const Index chunk = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain, .mLayers = run });
             scene.clearArrivals();
-            EXPECT_TRUE(scene.materials().getArrived().mMasks.empty());
-            EXPECT_TRUE(scene.materials().getArrived().mLayers.empty());
+            EXPECT_TRUE(scene.materials().getArrivedRuns().mMasks.empty());
+            EXPECT_TRUE(scene.materials().getArrivedRuns().mLayers.empty());
 
             // A second chunk lands past the first: its runs are its own and say where they are.
             const std::array<float, 2> more{ 0.5f, 0.5f };
             EXPECT_EQ(scene.materials().addMask(more), (Rtx::Run{ .mOffset = 4, .mCount = 2 }));
-            EXPECT_EQ(runs(scene.materials().getArrived().mMasks),
+            EXPECT_EQ(runs(scene.materials().getArrivedRuns().mMasks),
                 (std::vector<Rtx::Run>{ Rtx::Run{ .mOffset = 4, .mCount = 2 } }));
 
             const std::array one{ Testing::layerOf(sNoIndex, Rtx::Run{ .mOffset = 4, .mCount = 2 }, 2, 1) };
             EXPECT_EQ(scene.materials().addLayers(one), (Rtx::Run{ .mOffset = 2, .mCount = 1 }));
-            EXPECT_EQ(runs(scene.materials().getArrived().mLayers),
+            EXPECT_EQ(runs(scene.materials().getArrivedRuns().mLayers),
                 (std::vector<Rtx::Run>{ Rtx::Run{ .mOffset = 2, .mCount = 1 } }));
             scene.clearArrivals();
 
@@ -1727,14 +1727,14 @@ namespace Rtx
             // reads a run nothing names. The next chunk that fits lands in the hole, and that
             // arrival is what names the run again.
             Testing::letGoMaterial(scene, chunk);
-            EXPECT_TRUE(scene.materials().getArrived().mMasks.empty())
+            EXPECT_TRUE(scene.materials().getArrivedRuns().mMasks.empty())
                 << "a material let go of reported a run to write";
-            EXPECT_TRUE(scene.materials().getArrived().mLayers.empty());
+            EXPECT_TRUE(scene.materials().getArrivedRuns().mLayers.empty());
             EXPECT_TRUE(scene.materials().getWritten().empty());
 
             EXPECT_EQ(scene.materials().addMask(weights), (Rtx::Run{ .mOffset = 0, .mCount = 4 }))
                 << "the freed run was not the one handed out";
-            EXPECT_EQ(runs(scene.materials().getArrived().mMasks),
+            EXPECT_EQ(runs(scene.materials().getArrivedRuns().mMasks),
                 (std::vector<Rtx::Run>{ Rtx::Run{ .mOffset = 0, .mCount = 4 } }));
         }
 
