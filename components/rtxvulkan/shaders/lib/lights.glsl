@@ -61,7 +61,7 @@ Passage skyPassage(SkySource sky, vec3 position, vec3 step, vec2 draw, bool near
     return lightPassage(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
 }
 
-/// The same as one number, which is exactly the product `lightThrough` makes of its own halves.
+/// The same as one number, which is exactly the product `throughToward` makes of its own halves.
 float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 {
     const Passage passage = skyPassage(sky, position, step, draw, false);
