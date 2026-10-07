@@ -638,9 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[design] The sprites' order-free composite lets the farther, denser layer win** (alpha-only
-  weights). Target: a k = 2–4 register buffer by depth with the tail merged (MLAB), or at least a
-  depth weight. The largest item here: its own measured step.
 
 ### 6.8 Narration and documents
 
