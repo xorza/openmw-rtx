@@ -41,15 +41,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
 
-## The upstream merge workflow trusts the dispatched ref
-
-- [ ] `.github/workflows/upstream.yml:94,171` — the checkouts have no `ref: master`. `:113` counts
-  `HEAD..upstream/master`, and `:218` makes the merge branch from `HEAD`, which is the dispatched ref. The
-  prompt tells the agent that the branch was "made off master" (`:372`), `publish` opens the PR against
-  `master` (`:635`), and the bundle excludes only `^origin/master` (`:527`). A dispatch from a feature
-  branch thus puts that branch's commits into a PR that merges automatically. Target shape: `ref: master`
-  on both checkouts, or refuse other refs. (medium)
-
 ## Untrusted input and external packages
 
 - [ ] `components/rtxvulkan/spirv/spirvbindings.cpp:136,140,170` — `readBindings` reads `operands[0..2]`
