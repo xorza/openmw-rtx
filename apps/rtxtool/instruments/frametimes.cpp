@@ -18,6 +18,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/platform/fifo.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 
 namespace RtxTool
 {
@@ -166,12 +167,12 @@ namespace RtxTool
             // The index and not the iterator: adding a row invalidates whatever `find_if` returned,
             // and the row about to be pushed to is the one that name is at.
             const auto at = static_cast<std::size_t>(std::find_if(mRows.begin(), mRows.end(), [&](const ZoneRow& row) {
-                return row.mName == span.mName;
+                return row.mZone == span.mZone;
             }) - mRows.begin());
 
             if (at == mRows.size())
             {
-                mRows.push_back(ZoneRow{ .mName = span.mName });
+                mRows.push_back(ZoneRow{ .mZone = span.mZone });
 
                 // **Room for the run taken on the frame the zone first appears.** A row that grows
                 // does it inside a frame it is timing, and what a growth costs is a copy of every
@@ -210,7 +211,7 @@ namespace RtxTool
             const double spent = std::accumulate(row.mTimes.begin(), row.mTimes.end(), 0.0);
 
             mZones.push_back(GpuZone{
-                .mName = row.mName,
+                .mZone = row.mZone,
                 .mTimes = summarise(row.mTimes),
                 .mFrames = static_cast<std::uint32_t>(row.mTimes.size()),
                 .mOfFrames = mFrames,
@@ -243,13 +244,13 @@ namespace RtxTool
     std::string describeZone(const GpuZone& zone)
     {
         if (zone.isEveryFrame())
-            return std::format("{} {:.2f}", zone.mName, zone.mShareMs);
+            return std::format("{} {:.2f}", Rtx::sFrameZoneNames.name(zone.mZone), zone.mShareMs);
 
         // What it cost when it ran, and how rarely — the two figures the share is the product of,
         // and without them a pass that stalls a frame every sixty of them reads as a rounding
         // error.
-        return std::format("{} {:.2f} ({:.2f} on {} of {})", zone.mName, zone.mShareMs, zone.mTimes.mMedian,
-            zone.mFrames, zone.mOfFrames);
+        return std::format("{} {:.2f} ({:.2f} on {} of {})", Rtx::sFrameZoneNames.name(zone.mZone), zone.mShareMs,
+            zone.mTimes.mMedian, zone.mFrames, zone.mOfFrames);
     }
 
     std::string describeZones(std::span<const GpuZone> zones)

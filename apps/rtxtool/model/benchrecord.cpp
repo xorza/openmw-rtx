@@ -16,6 +16,7 @@
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
 namespace RtxTool
@@ -548,8 +549,8 @@ namespace RtxTool
             file << R"("gpuMs": {)";
 
             for (std::size_t zone = 0; zone < place.mGpu.size(); ++zone)
-                file << std::format(
-                    R"({}{}: {})", zone == 0 ? "" : ", ", asJson(place.mGpu[zone].mName), asJson(place.mGpu[zone]));
+                file << std::format(R"({}{}: {})", zone == 0 ? "" : ", ",
+                    asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)), asJson(place.mGpu[zone]));
 
             file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard)
                  << ", \"thread\": " << asJson(place.mThread) << "}" << (at + 1 < places.size() ? "," : "") << '\n';

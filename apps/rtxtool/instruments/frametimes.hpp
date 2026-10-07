@@ -12,6 +12,7 @@
 #include <components/misc/result.hpp>
 #include <components/platform/file.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
@@ -144,7 +145,7 @@ namespace RtxTool
     /// One stretch of the device's frame, over a run of frames.
     struct GpuZone
     {
-        std::string_view mName;
+        Rtx::FrameZone mZone = Rtx::FrameZone::Count;
 
         /// What the zone cost on the frames that ran it, which for an occasional pass is a
         /// distribution over a handful of frames and not over the run.
@@ -201,15 +202,14 @@ namespace RtxTool
         void clear();
 
     private:
-        /// One zone's name and what it has cost.
+        /// One zone and what it has cost.
         ///
         /// **One row and not three vectors kept level by hand.** A zone met for the first time has
         /// to reach all three, and a name pushed without its row is an index that reads another
         /// zone's samples.
         struct ZoneRow
         {
-            /// The backend's own literal — see `GpuSpan::mName` for why a view over one is kept.
-            std::string_view mName;
+            Rtx::FrameZone mZone = Rtx::FrameZone::Count;
 
             /// One sample a frame, never one a span.
             ///

@@ -346,11 +346,9 @@ namespace Rtx
         /// hold it not at all. A held queue keeps the device that far behind the host, so every
         /// frame is recorded over a frame still running: what makes a hazard that needs the
         /// overlap show on the first frame of every run. `check` sets it, and so does the second
-        /// leg of `repeat`. What the hold came to on each frame is the zone `sHoldZone` of the
-        /// frame's report, which is what the run's `QueueHeld` check reads it back by.
+        /// leg of `repeat`. What the hold came to on each frame is the zone `FrameZone::Stress` of
+        /// the frame's report, which is what the run's `QueueHeld` check reads it back by.
         double mStressOverlapMs = 0.0;
-
-        static constexpr std::string_view sHoldZone = "stress";
 
         /// Whether the trace keeps a launch per tuple of the frame's facts — the sun, the moons,
         /// the sea, `VisibilityVariant` — or one launch that carries every case. The picture is

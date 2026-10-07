@@ -21,10 +21,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## A typed referent is carried as a string and parsed back
 
-- [ ] `components/rtx/frame/reconstruction.hpp:353` — `RenderProfile::sHoldZone = "stress"` is a zone
-  name in a settings record. The harness finds the zone by a string compare (`apps/rtxtool/stopwriter.cpp:761`),
-  but `FrameResult::mHeldMs` already reports the hold. Target shape: a typed zone identity, or a field on
-  the report. (low)
 - [ ] `components/rtx/environment/skylight.hpp:164-181` — the ten weathers are `std::uint32_t` constants
   with an `sNoSheet` sentinel, in the sun-light header. Target shape: a `Weather` enum with its name
   table in its own file. (low)

@@ -18,6 +18,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
@@ -212,14 +213,14 @@ namespace Rtx
     /// structure build cost, which a wall clock around a submit cannot tell.
     struct GpuSpan
     {
-        /// A literal, so the view outlives the span and `GpuBreakdown` may keep it over a run.
-        std::string_view mName;
+        FrameZone mZone = FrameZone::Count;
         double mMs = 0.0;
     };
 
-    /// The most zones one frame may open: every zone the backend names (`RtxSourceTreeTest` counts
-    /// them), and room past them to bisect one.
+    /// The most zones one frame may open: every zone there is, and room past them for a pass
+    /// recorded in batches, which opens its zone once a batch.
     inline constexpr std::uint32_t sMaxGpuZones = 40;
+    static_assert(sFrameZoneCount <= sMaxGpuZones, "a zone a frame opens that the timer cannot hold");
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
     /// cannot write timestamps. Owned by the report rather than borrowed from the timer that

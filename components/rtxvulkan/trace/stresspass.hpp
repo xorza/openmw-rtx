@@ -17,7 +17,7 @@ namespace Rtx
     /// `RenderProfile::mStressOverlapMs`. Appended to every frame's trace, it keeps the device
     /// that far behind the host, so every frame is recorded over a frame still running: a hazard
     /// that needs the overlap to show shows on the first frame of every run rather than on one run
-    /// in four. The zone it is timed as is `RenderProfile::sHoldZone`, so the report shows what it
+    /// in four. The zone it is timed as is `FrameZone::Stress`, so the report shows what it
     /// actually held.
     ///
     /// **The time is measured where it passes, in the loop, off the device's real-time clock.**
@@ -45,7 +45,7 @@ namespace Rtx
         /// The ticks every hold asks for.
         std::uint32_t getTicks() const { return mTicks; }
 
-        /// Records the hold into `commands`, timed as `RenderProfile::sHoldZone`, leaving what the
+        /// Records the hold into `commands`, timed as `FrameZone::Stress`, leaving what the
         /// loop's clock read in `counts`: the frame's own block, so the reading is the frame's and
         /// not whichever frame in flight wrote last.
         void record(VkCommandBuffer commands, GpuTimer& timer, const Buffer& counts);

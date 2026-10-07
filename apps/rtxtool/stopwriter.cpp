@@ -57,6 +57,7 @@
 #include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -758,7 +759,7 @@ namespace RtxTool
             case Check::QueueHeld:
             {
                 const auto zone = std::find_if(facts.mZones.begin(), facts.mZones.end(),
-                    [](const GpuZone& held) { return held.mName == Rtx::RenderProfile::sHoldZone; });
+                    [](const GpuZone& held) { return held.mZone == Rtx::FrameZone::Stress; });
                 if (zone == facts.mZones.end() || zone->mFrames == 0)
                 {
                     found = "no frame timed the hold";

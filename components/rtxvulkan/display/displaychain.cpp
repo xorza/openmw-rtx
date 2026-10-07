@@ -11,6 +11,7 @@
 
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
@@ -119,7 +120,7 @@ namespace Rtx
         // untouched.
         if (look != nullptr)
         {
-            openZone(timer, commands, "bloom");
+            openZone(timer, commands, FrameZone::Bloom);
             mBloom.record(commands, shown, mExposure.getExposure());
             closeZone(timer, commands);
         }
@@ -131,7 +132,7 @@ namespace Rtx
         const Buffer* exposure = &mExposure.getPictureExposure();
         if (look != nullptr)
         {
-            openZone(timer, commands, "exposure");
+            openZone(timer, commands, FrameZone::Exposure);
             if (const auto* fixed = std::get_if<FrameLook::Fixed>(&look->mExposure); fixed != nullptr)
                 mExposure.recordFixed(commands, fixed->mValue);
             else if (std::holds_alternative<FrameLook::Held>(look->mExposure))
@@ -156,7 +157,7 @@ namespace Rtx
         const Buffer* share = &mSunGlare.getNoShare();
         if (look != nullptr)
         {
-            openZone(timer, commands, "glare");
+            openZone(timer, commands, FrameZone::Glare);
             mSunGlare.record(commands, look->mGlare.mSeconds, mGlareStale);
             mGlareStale = false;
             closeZone(timer, commands);
@@ -182,7 +183,7 @@ namespace Rtx
                 });
         };
 
-        openZone(timer, commands, "tone");
+        openZone(timer, commands, FrameZone::Tone);
         toneInto(what.mTarget, constants);
 
         // **The curve run a second time, because a copy of the picture would carry its byte**, and
@@ -222,7 +223,7 @@ namespace Rtx
         std::copy(debug.mLines.begin(), debug.mLines.end(), written.begin());
         std::copy(debug.mTriangles.begin(), debug.mTriangles.end(), written.begin() + debug.mLines.size());
 
-        openZone(&look.mTimer, commands, "lines");
+        openZone(&look.mTimer, commands, FrameZone::Lines);
 
         // Drawn over what the curve wrote, and left where the curve left it, for the chain's last
         // transition to take it from.

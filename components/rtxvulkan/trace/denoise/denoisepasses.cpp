@@ -4,6 +4,7 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -74,18 +75,18 @@ namespace Rtx
 
         // The temporal half first: the accumulator hands on the variance of its mean, which is
         // what lets the levels below stop at an edge in the light and not only in the geometry.
-        openZone(timer, commands, "accumulate");
+        openZone(timer, commands, FrameZone::Accumulate);
         mAccumulate.record(commands, accumulated, buffer, frame);
         closeZone(timer, commands);
 
-        openZone(timer, commands, "clamp");
+        openZone(timer, commands, FrameZone::Clamp);
         mAccumulate.recordClamp(commands, accumulated, buffer, frame);
         closeZone(timer, commands);
 
         const Image* shadow = nullptr;
         if (runs[Temporal::Shadow])
         {
-            openZone(timer, commands, "shadow");
+            openZone(timer, commands, FrameZone::Shadow);
             shadow = &mShadow.record(commands, history.shadow(step), buffer, frame);
             closeZone(timer, commands);
         }
@@ -93,12 +94,12 @@ namespace Rtx
         const Image* specular = &buffer.get(Channel::Specular);
         if (runs[Temporal::Specular])
         {
-            openZone(timer, commands, "specular");
+            openZone(timer, commands, FrameZone::Specular);
             specular = &mSpecular.record(commands, history.specular(step), buffer, frame);
             closeZone(timer, commands);
         }
 
-        openZone(timer, commands, "pane");
+        openZone(timer, commands, FrameZone::Pane);
         const Image& pane = mPane.record(commands, history.pane(step), buffer, frame);
         closeZone(timer, commands);
 
@@ -124,7 +125,7 @@ namespace Rtx
 
         ready.flush();
 
-        openZone(timer, commands, "filter");
+        openZone(timer, commands, FrameZone::Filter);
         const AtrousPass::Filtered filtered = mFilter.record(commands, accumulated, buffer, frame);
         closeZone(timer, commands);
 

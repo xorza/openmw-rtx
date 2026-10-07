@@ -8,6 +8,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -111,7 +112,7 @@ namespace Rtx
         // The builds a crossing brings, bracketed as one zone. Without it they are device time
         // the frame's fence carries and no zone accounts for, so the frame a player feels is the one
         // frame whose report says nothing about what made it slow.
-        openZone(timer, batch.getCommands(), "blas");
+        openZone(timer, batch.getCommands(), FrameZone::Blas);
 
         // Noted as built on the next posed placement, which is the one that brings them: built whole
         // here, nothing on it builds them whole again.
@@ -261,7 +262,7 @@ namespace Rtx
 
     void SceneAcceleration::recordRefit(VkCommandBuffer commands, GpuTimer* timer)
     {
-        openZone(timer, commands, "refit");
+        openZone(timer, commands, FrameZone::Refit);
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands,
             static_cast<std::uint32_t>(mRefit.mBuilds.size()), mRefit.mBuilds.data(), mRefit.mRangePointers.data());
 
@@ -484,7 +485,7 @@ namespace Rtx
         };
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
 
-        openZone(timer, commands, "tlas");
+        openZone(timer, commands, FrameZone::Tlas);
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);
         barrierAfterBuild(commands);
         closeZone(timer, commands);

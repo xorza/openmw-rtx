@@ -20,6 +20,7 @@
 #include <components/rtx/frame/bluenoise.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/shaders/camera.h>
@@ -544,7 +545,7 @@ namespace Rtx
         if (constants.mShelterHeight <= 0.0f || count == 0)
             return;
 
-        openZone(timer, commands, "shelter");
+        openZone(timer, commands, FrameZone::Shelter);
 
         const auto& shelter = *kernels().mSpriteShelter;
         bind(commands, shelter);
@@ -565,7 +566,7 @@ namespace Rtx
         if (count == 0)
             return;
 
-        openZone(timer, commands, "emitters");
+        openZone(timer, commands, FrameZone::Emitters);
 
         const auto& emitters = *kernels().mSpriteEmitters;
         bind(commands, emitters);
@@ -603,7 +604,7 @@ namespace Rtx
         const std::uint32_t columns = inputs.mFogVolume.getColumns();
         const std::uint32_t rows = inputs.mFogVolume.getRows();
 
-        openZone(timer, commands, "air");
+        openZone(timer, commands, FrameZone::Air);
 
         // Where each column's ray stops, before anything is drawn along it. One ray a
         // column, and the froxels of the column keep their draws short of the answer.
@@ -627,7 +628,7 @@ namespace Rtx
 
         inputs.mFogVolume.scattered(commands);
 
-        openZone(timer, commands, "column");
+        openZone(timer, commands, FrameZone::Column);
 
         // The integrate pass is a dispatch and reads what the launches wrote, so it is handed the
         // set again at its own bind point.
@@ -642,7 +643,7 @@ namespace Rtx
 
         inputs.mFogVolume.handOver(commands);
 
-        openZone(timer, commands, "trace");
+        openZone(timer, commands, FrameZone::Trace);
 
         const TracePipeline<NoConstants>& pipeline = pipelineFor(variant);
         bind(commands, pipeline);
@@ -666,7 +667,7 @@ namespace Rtx
 
         // Its own zone and not the bin's `sprites`, so a report says what the march at the shown
         // extent costs apart from what binning the sprites over the traced one does.
-        openZone(timer, commands, "puffs");
+        openZone(timer, commands, FrameZone::Puffs);
 
         const auto& composite = *kernels().mSpriteComposite;
         bind(commands, composite);
