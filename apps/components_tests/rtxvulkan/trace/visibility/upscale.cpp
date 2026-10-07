@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -11,13 +12,18 @@
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
 
@@ -123,6 +129,79 @@ namespace Rtx::Testing
 
                 EXPECT_LE(highest.x() - lowest.x(), 0.25) << "the picture moved across";
                 EXPECT_LE(highest.y() - lowest.y(), 0.25) << "the picture moved down";
+            }
+        }
+
+        /// **Behind a post, upscaled, a puff is hidden where the traced pixel's centre meets the post**,
+        /// and so holds still under the jitter: the composite finds the depth once along the ray
+        /// through that centre, which does not move with the jitter, and each shown pixel over it
+        /// reads it. The edge is the traced grid's, and still.
+        ///
+        /// **At quality a 48-pixel picture traces 32.** Over sixty degrees, at the post's two
+        /// hundred, a traced pixel is `2 * 200 * tan 30° / 32 = 7.217` units across and a shown one
+        /// `4.811`. Shown pixel 24's centre is at `0.5 * 4.811 = 2.406`, and the centre of the traced
+        /// pixel under it, 16, at `0.5 * 7.217 = 3.608`, so the post's edge at 3 stands between
+        /// them: that pixel's own ray meets the post and its traced centre passes beside it, and the
+        /// puff is drawn there as at pixel 25, where neither meets it. Pixel 23 and its traced pixel
+        /// 15 both meet the post, which is black, as is the sky, and what the shown picture holds
+        /// there is the bloom of the puff beside it: a tenth of the open pixel, measured, where a
+        /// puff drawn there would be all of it, so a quarter tells the two apart. Every one of the
+        /// last 32 of 64 jittered frames holds, where a depth that moved with the sample — the
+        /// traced pixel's jittered one, which the composite once read — would hide the puff on the
+        /// frames whose sample landed left of the edge.
+        TEST_F(RtxVisibilityTest, anUpscaledPuffBehindAPostIsHiddenWhereTheTracedCentreMeetsIt)
+        {
+            constexpr std::uint32_t size = 48;
+            constexpr std::uint32_t frames = 64;
+            constexpr std::uint32_t row = size / 2;
+            constexpr float edge = 3.0f;
+
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            const std::array<TextureData, 1> textures{ describeTexel(white) };
+
+            SceneDesc scene;
+            const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+            const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 400.0f, 0.0f),
+                .mRadius = 60.0f,
+                .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                .mAlpha = 1.0f } };
+            scene.addEmitter(sprites, cut, BlendKind::Over);
+            addQuad(scene,
+                std::array{ osg::Vec3f(-500.0f, 200.0f, -500.0f), osg::Vec3f(edge, 200.0f, -500.0f),
+                    osg::Vec3f(edge, 200.0f, 500.0f), osg::Vec3f(-500.0f, 200.0f, 500.0f) });
+
+            mRenderer.resize(size, size);
+            const UpscaleFor upscale(mRenderer, Upscale::Quality);
+            setWorld(scene, textures);
+            ASSERT_EQ(mRenderer.getExtents().mRenderWidth, 32u) << "the figures above are for 32 traced pixels";
+
+            Shaders::VisibilityConstants camera
+                = Testing::makeCameraAlong(osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f,
+                    mRenderer.getExtents().mRenderWidth, mRenderer.getExtents().mRenderHeight, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+            camera.mAmbient = osg::Vec3f();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+
+            std::vector<std::uint8_t> pixels;
+            const auto green = [&](std::uint32_t x) { return static_cast<float>(pixels[(row * size + x) * 4 + 1]); };
+            for (std::uint32_t at = 0; at < frames; ++at)
+            {
+                Shaders::VisibilityConstants sampled = camera;
+                sampled.mFrame = at;
+                mRenderer.renderFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
+                ASSERT_TRUE(mRenderer.finishFrame().has_value());
+                if (at < frames / 2)
+                    continue;
+
+                mRenderer.readPixels(pixels);
+                const float open = green(25);
+                ASSERT_GT(open, 2.0f) << "the puff did not reach the pixel clear of the post, frame " << at;
+                EXPECT_NEAR(green(24) / open, 1.0f, 0.05f)
+                    << "the puff over the post's edge was not drawn where its traced centre passes the post, frame "
+                    << at;
+                EXPECT_LT(green(23), 0.25f * open) << "the post did not hide the puff behind it, frame " << at;
             }
         }
 

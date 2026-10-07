@@ -33,14 +33,17 @@
 // registers allow: 0.30 ms of a 4K frame, where the traced grid takes 0.12. The shown pixels are
 // the run `shownPixelsFrom` gives, so each is composited exactly as it was.
 //
-// **Where the eye's view ends, found again along the shown pixel's own ray.** The traced grid is
-// jittered for the upscaler, so the depth one of its pixels holds at a silhouette is the post on one
-// frame and the water behind it on the next — and a puff hidden by the one and not the other was
-// drawn over the post's edge on every other frame, in blocks of the traced grid: the rope and the
-// posts of Seyda Neen's pier shook under M[FR]'s mist, which stood still with the puffs taken away.
-// The shown ray is not jittered and neither is the picture the upscaler reconstructs, so a depth
-// found along it holds still with the edge it hides a puff behind. One ray query, with no material
-// resolved, where a puff can stand at all.
+// **Where the eye's view ends, found again along the ray through the traced pixel's centre.** The
+// traced grid is jittered for the upscaler, so the depth one of its pixels holds at a silhouette is
+// the post on one frame and the water behind it on the next — and a puff hidden by the one and not
+// the other was drawn over the post's edge on every other frame, in blocks of the traced grid: the
+// rope and the posts of Seyda Neen's pier shook under M[FR]'s mist, which stood still with the puffs
+// taken away. The centre does not move with the jitter, so a depth found along it holds still with
+// the edge it hides a puff behind. One ray query a traced pixel, with no material resolved, where a
+// puff can stand at all, and its depth along the eye's forward axis is each shown pixel's over it:
+// exact for a surface square to the eye. A query a shown pixel, along each one's own ray, drew that
+// edge at the shown extent and cost 0.72 ms of a 1.12 ms launch at 2560 by 1440 under M[FR]'s mist,
+// which reaches nearly every tile; the edge is now the traced grid's, and still.
 //
 // **A launch and not a dispatch**, for the reason `RtxSourceTreeTest` gives: this traces, and so
 // does the fog the sprite march reaches, and a dispatch that can trace answers differently under
@@ -78,10 +81,29 @@ void gatherLit(ivec2 tap, uvec2 tracedExtent, float near, inout vec3 lit, inout 
     weight += covered;
 }
 
+/// How far ahead of the eye, along its forward axis, the eye's view ends through the centre of
+/// `traced`: the eye's own rule — the world's mask, what the eye sees through walked past and the
+/// eye's culling, as `fogdepth.rgen` finds where a column's view ends. The whole ray, and not only
+/// as far as the last emitter it passes: that bound is exact, since a surface beyond every emitter
+/// hides none, and it lost — under M[FR]'s mist nearly every ray passes one, and the walk of the
+/// tile's sprites it took to find the bound cost the launch a tenth to a fifth of a millisecond more
+/// than the longer query it saved, at 2560 by 1440.
+float surfaceDepthAt(uvec2 traced, uvec2 extent, uvec2 tracedExtent)
+{
+    const Camera camera = picture.mShown.mWorld;
+    const vec2 centre = (vec2(traced) + 0.5) * vec2(extent) / vec2(tracedExtent) - 0.5;
+    const Ray ray = rayAt(camera, centre);
+    const float distance = surfaceWithin(WorldRay(frame.mOrigin + ray.mOffset, ray.mDirection), 0.0, frame.mFar,
+        coneAt(camera), RayRule(worldMask(frame.mRayMask), MEET_WALK_PAST, true));
+
+    return distance * dot(ray.mDirection, camera.mBasis.mForward);
+}
+
 /// Composites the puffs over one shown pixel, whose centre falls in `traced`.
 ///
 /// @param arms whether the trace drew `traced` on an arm, whose eye the pixel's ray then leaves.
-void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bool arms)
+/// @param depth `surfaceDepthAt(traced)`, which an arm's pixel does not read.
+void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bool arms, float depth)
 {
     const vec2 across = vec2(tracedExtent) / vec2(extent);
 
@@ -98,18 +120,11 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     const uint present = presenceAt(SpriteTileList(frame.mTables.mSpriteTileList),
         SpritePresence(frame.mTables.mSpritePresence), tracedExtent.x, binned);
 
-    // **Where a puff is hidden: the eye's own rule, along this pixel's own ray** — the world's
-    // mask, what the eye sees through walked past and the eye's culling, as `fogdepth.rgen` finds
-    // where a column's view ends. The header says why not the traced grid's. Not for the arms,
-    // whose ray leaves an eye of its own a few units off and whose depth the trace already has.
-    //
-    // **The whole ray, and not only as far as the last emitter it passes.** That bound is exact —
-    // a surface beyond every emitter hides none — and it lost: under M[FR]'s mist nearly every ray
-    // passes one, and the walk of the tile's sprites it took to find the bound cost this launch a
-    // tenth to a fifth of a millisecond more than the longer query it saved, at 2560 by 1440.
+    // **Where a puff is hidden: the traced pixel's depth, along this pixel's own ray** — the header
+    // says why not the traced grid's jittered one. Not for the arms, whose ray leaves an eye of its
+    // own a few units off and whose depth the trace already has.
     const float distance = arms ? surfaceDistance(imageLoad(surfaceChannel, ivec2(traced)).y)
-                                : surfaceWithin(WorldRay(origin, direction), 0.0, frame.mFar, cone,
-                                    RayRule(worldMask(frame.mRayMask), MEET_WALK_PAST, true));
+                                : depth / dot(direction, camera.mBasis.mForward);
 
     // The sprites' shape, and where they stand, off this pixel's own march.
     PuffLayer layer = spritesAlong(binned, origin, direction, distance, cone, false);
@@ -221,9 +236,11 @@ void main()
             tracedExtent.x, traced, arms))
         return;
 
+    const float depth = arms ? 0.0 : surfaceDepthAt(traced, extent, tracedExtent);
+
     const uvec2 first = shownPixelsFrom(traced, extent, tracedExtent);
     const uvec2 end = shownPixelsFrom(traced + 1u, extent, tracedExtent);
     for (uint y = first.y; y < end.y; ++y)
         for (uint x = first.x; x < end.x; ++x)
-            compositeAt(uvec2(x, y), extent, tracedExtent, traced, arms);
+            compositeAt(uvec2(x, y), extent, tracedExtent, traced, arms, depth);
 }

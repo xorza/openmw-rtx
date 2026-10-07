@@ -304,7 +304,9 @@ namespace Rtx::Testing
         /// there on the frames the sample missed the post and gone on the frames it hit it, and
         /// Seyda Neen's pier shook under M[FR]'s mist wherever a rope or a post stood in front of
         /// it. A shell gathered by the trace stopped where the sample stopped in the same way. So
-        /// the composite finds the depth along the shown pixel's ray, and gathers the shells there.
+        /// the composite finds the depth along the ray through the traced pixel's centre, which on
+        /// this fixture's unscaled grid is the pixel's own, and gathers the shells there;
+        /// `anUpscaledPuffBehindAPostIsHiddenWhereTheTracedCentreMeetsIt` takes the upscaled grid.
         ///
         /// **The centre pixel's ray passes a quarter of a pixel right of the post's edge, and a
         /// sample moved four tenths of a pixel left lands on the post.** Thirty-three pixels over
