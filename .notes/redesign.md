@@ -273,10 +273,6 @@ place: the reuse, its kernels and its reservoirs are removed, and D4.1 to D4.5 w
   a pixel), or the composite rebuilds it from a stored F0 and the roughness that
   `CHANNEL_SPECULAR.a` holds. Choose the cheaper one when you build it.
 
-The pane redesign also removes the wasted gather that U › "pane and glossy filters gather history
-for pixels whose answer they throw away" reports. The pane's history then holds only diffuse light,
-and the gather runs through the D2 library.
-
 ### D7. Participating media: store the product, and keep one estimator per stretch (done)
 
 **Cause.**
@@ -627,9 +623,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   monitor's lifetime.
 ### 6.5 Performance (each one measured before it stays)
 
-- **[perf] The pane and glossy filters gather history for pixels they discard** (`pane.comp`
-  without `stands`, `specular.comp` without `reflects`). Target: gate the gather on the kept
-  result, and measure the zones.
 - **[perf] A level of detail keeps its reference root changeable** (`NodeKind::Lod` in the
   changeable test, `sceneextractor.cpp`), though the mirror always takes the nearest level. Target:
   take `Lod` out.
