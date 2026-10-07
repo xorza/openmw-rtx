@@ -31,11 +31,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
 
-## The crash catcher: setup, the keeper, and leftovers
-
-- [ ] `extern/crashpad.cmake:38` — the `else` branch of `if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.25)` is
-  dead, because the root requires 3.31. Target shape: an unconditional `add_subdirectory(... SYSTEM)`. (low)
-
 ## Device capabilities are asked outside `PhysicalDevice::profileOf`
 
 - [ ] `components/rtxvulkan/texture/texture.cpp:187,463` (`sideLimitOf`) — each `TextureArray` asks
