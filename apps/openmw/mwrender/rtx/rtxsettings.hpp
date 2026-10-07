@@ -6,6 +6,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/mirrorknobs.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 
 namespace MWRender
 {
@@ -14,11 +15,12 @@ namespace MWRender
     /// command line, the player's registry for a watched window, the shipped defaults for a
     /// measured one. The sources stay apart and the meaning is `RtxSettings::derive`'s alone.
     ///
-    /// The spellings are views into whatever filled them, so one lives for the one call it is
-    /// read in.
+    /// The upscaler and the map layout arrive read: each source parses its own text where it
+    /// enters, the registry at load. The indirect light's spelling is a view into whatever filled it,
+    /// so it lives for the one call it is read in.
     struct RtxSettingValues
     {
-        std::string_view mUpscale;
+        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
         float mDistantLandCells = 0.0f;
         float mViewingDistance = 0.0f;
         bool mObjectPaging = true;
@@ -27,7 +29,7 @@ namespace MWRender
         float mGroundcoverDistance = 0.0f;
         float mGroundcoverDensity = 0.0f;
         bool mGroundcoverPointLighting = true;
-        std::string_view mSpecularMapLayout;
+        Rtx::SpecularLayout mSpecularMapLayout = Rtx::SpecularLayout::Ignore;
         std::string_view mIndirectLight;
         int mAnisotropy = 0;
         float mGamma = 1.0f;

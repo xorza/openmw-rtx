@@ -348,23 +348,26 @@ namespace RtxTool
             Settings::groundcover().mEnabled.set(grass);
 
             // What a `_spec` map's channels mean under the rules the line named, or the player's.
-            const std::string specularLayout = [&]() -> std::string {
+            const Rtx::SpecularLayout specularLayout = [&] {
                 if (!framed.mMaps.has_value())
                     return Settings::rtx().mSpecularMapLayout.get();
                 switch (*framed.mMaps)
                 {
                     case MapRules::Shipped:
-                        return shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout");
+                        return Rtx::sSpecularLayoutNames.require(
+                            shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout"),
+                            "a specular map layout");
                     case MapRules::Classic:
-                        return std::string(Rtx::sSpecularLayoutNames.name(Rtx::SpecularLayout::Classic));
+                        return Rtx::SpecularLayout::Classic;
                     case MapRules::MetalRoughness:
-                        return std::string(Rtx::sSpecularLayoutNames.name(Rtx::SpecularLayout::MetalRoughness));
+                        return Rtx::SpecularLayout::MetalRoughness;
                 }
                 Crash::fatal("map rules with no name");
             }();
 
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
-                .mUpscale = typed("upscale") ? spelled("upscale") : Settings::rtx().mUpscale.get(),
+                .mUpscale = typed("upscale") ? Rtx::sUpscaleNames.require(spelled("upscale"), "an upscale mode")
+                                             : Settings::rtx().mUpscale.get(),
                 .mDistantLandCells = given("distant-cells") ? variables["distant-cells"].as<float>()
                     : watched                               ? Settings::rtx().mDistantLandCells.get()
                               : shippedDefault<float>(command.mConfig, "RTX", "distant land cells"),

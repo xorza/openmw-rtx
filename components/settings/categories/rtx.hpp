@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
@@ -32,15 +34,15 @@ namespace Settings
         SettingValue<float> mDistantLandCells{ mIndex, "RTX", "distant land cells",
             makeClampSanitizerFloat(0.0f, sMaxDistantLandCells) };
 
-        /// How hard the upscaler works, or `off`: a name `Rtx::sUpscaleNames` refuses rather than
-        /// defaults. Changing it rebuilds every target. `Rtx::sUpscaleMenu` is what the launcher and
-        /// the settings window offer of it.
-        SettingValue<std::string> mUpscale{ mIndex, "RTX", "upscale" };
+        /// How hard the upscaler works, or `off`, as `Rtx::sUpscaleNames` spells the modes and read
+        /// by it at load. Changing it rebuilds every target. `Rtx::sUpscaleMenu` is what the launcher
+        /// and the settings window offer of it.
+        SettingValue<Rtx::Upscale> mUpscale{ mIndex, "RTX", "upscale" };
 
         /// What the content's `_spec` maps mean, as `Rtx::sSpecularLayoutNames` spells the layouts:
-        /// `ignore`, `classic` or `metal roughness`. Read where the renderer is made, because the maps are
-        /// loaded with the models.
-        SettingValue<std::string> mSpecularMapLayout{ mIndex, "RTX", "specular map layout" };
+        /// `ignore`, `classic` or `metal roughness`, read by it at load. Read where the renderer is
+        /// made, because the maps are loaded with the models.
+        SettingValue<Rtx::SpecularLayout> mSpecularMapLayout{ mIndex, "RTX", "specular map layout" };
 
         /// Whether a surface takes light from anything that is not a light, as
         /// `Rtx::sIndirectLightNames` spells it: `traced`, one bounce and the passes that clean it, or

@@ -44,7 +44,7 @@ namespace MWRender
                 std::format("a gamma of {} is not a finite number greater than nought", values.mGamma));
 
         return RtxSettings{
-            .mUpscale = Rtx::sUpscaleNames.require(values.mUpscale, "an upscale mode"),
+            .mUpscale = values.mUpscale,
             .mMirror = {
                 .mReach = { .mCells = values.mDistantLandCells, .mViewingDistance = values.mViewingDistance },
                 .mDistantStatics = values.mObjectPaging,
@@ -52,7 +52,7 @@ namespace MWRender
                 .mGroundcoverReach = values.mGroundcover ? values.mGroundcoverDistance : 0.0f,
                 .mGroundcoverDensity = values.mGroundcoverDensity,
                 .mGroundcoverLampLit = values.mGroundcoverPointLighting,
-                .mSpecularLayout = Rtx::sSpecularLayoutNames.require(values.mSpecularMapLayout, "a specular map layout"),
+                .mSpecularLayout = values.mSpecularMapLayout,
             },
             .mAnisotropy = static_cast<std::uint32_t>(std::max(values.mAnisotropy, 1)),
             .mGamma = values.mGamma,

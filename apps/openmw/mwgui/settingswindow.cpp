@@ -637,7 +637,7 @@ namespace MWGui
         if (!chosen.has_value())
             return;
 
-        Settings::rtx().mUpscale.set(std::string(*chosen));
+        Settings::rtx().mUpscale.set(Rtx::sUpscaleNames.require(*chosen, "an upscale mode"));
         apply();
     }
 
@@ -980,7 +980,8 @@ namespace MWGui
     void SettingsWindow::updateRayTracingSettings()
     {
         // Nothing selected where the setting names a mode the menu does not offer, or the list would overwrite it
-        const std::optional<std::size_t> offered = Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get());
+        const std::optional<std::size_t> offered
+            = Rtx::menuIndex(Rtx::sUpscaleMenu, Rtx::sUpscaleNames.name(Settings::rtx().mUpscale.get()));
 
         mRayTracingUpscale->setIndexSelected(offered.value_or(MyGUI::ITEM_NONE));
 
