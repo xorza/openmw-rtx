@@ -1022,16 +1022,16 @@ namespace RtxTool
             const auto referenceOf = [](const Rtx::ReconstructionRequest& side) {
                 Rtx::ReconstructionRequest truth = side.unfiltered();
                 truth.mJitter = true;
-                truth.mNoise = Rtx::NoiseSource::WhiteHash;
+                truth.mSampling.mNoise = Rtx::NoiseSource::WhiteHash;
                 // **The truth reads every texture at the level its footprint asks**, whatever the
                 // run's epsilon: an epsilon is a knob on the frame, and a reference that moved with
                 // it would take the frame's softness for its own and report no bias at all.
                 truth.mLevelEpsilon = 0.0f;
                 // **And draws every source for its bit**: a floor rides a minor source's light on
                 // another's shadow, which is the bias the A/B of the floor measures.
-                truth.mShadowFloor = 0.0f;
+                truth.mSampling.mShadowFloor = 0.0f;
                 // And weighs every lamp, which a fixed count of candidates estimates.
-                truth.mLampCandidates = 0u;
+                truth.mSampling.mLampCandidates = 0u;
                 return truth;
             };
             // **And its own reference only where the truth it traces is another**: a switch the truth

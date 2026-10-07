@@ -87,14 +87,9 @@ namespace RtxTool
             header.mReconstruction = Rtx::Reconstruction{ .mDenoised = false,
                 .mUpscale = Rtx::Upscale::Performance,
                 .mJitter = true,
-                .mNoise = Rtx::NoiseSource::WhiteHash,
                 .mLevelBias = -1.0f,
-                .mAntilag = true,
-                .mHistoryFix = false,
-                .mDualMotion = true,
-                .mAntiFirefly = true,
-                .mShadowFloor = 0.0625f,
-                .mLampCandidates = 4u };
+                .mSampling = { .mNoise = Rtx::NoiseSource::WhiteHash, .mShadowFloor = 0.0625f, .mLampCandidates = 4u },
+                .mFilters = { .mAntilag = true, .mHistoryFix = false, .mDualMotion = true, .mAntiFirefly = true } };
             header.mValidating = true;
 
             BenchPlace place;

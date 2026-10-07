@@ -40,10 +40,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
-- [ ] `components/rtx/frame/reconstruction.hpp:44-110,115-217` — `Reconstruction` repeats seven
-  `ReconstructionRequest` switches one by one. `resolve` copies each, and `unfiltered()` resets four by
-  name. A new switch needs four edits, and a missed `unfiltered()` makes two requests unequal without an
-  error. Target shape: one nested struct of switches that both types hold. (low)
 - [ ] `components/rtxvulkan/display/displaychain.hpp:41-65` — `FrameLook::Exposure` (Measured/Fixed/Held)
   repeats `Rtx::ExposureRule`, and `vulkanrenderer.cpp:634-641` converts it with an if-chain. The elapsed
   seconds are stored two times (`Measured::mSeconds`, `Glare::mSeconds`). Target shape: `FrameLook` has the

@@ -62,12 +62,12 @@ namespace Rtx
         // soft edge's texels by their alpha, under which share a source is never drawn for the
         // shadow bit, and how many lamps a composing point draws. A picture's `Reconstruction{}`
         // says the tile, nought, no and the two defaults.
-        sampled.mNoise
-            = reconstruction.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH : Shaders::NOISE_BLUE_TILE;
+        sampled.mNoise = reconstruction.mSampling.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH
+                                                                                   : Shaders::NOISE_BLUE_TILE;
         sampled.mLevelBias = reconstruction.mLevelBias;
         sampled.mSoftEdgeDither = reconstruction.mAveraged ? 1u : 0u;
-        sampled.mShadowFloor = reconstruction.mShadowFloor;
-        sampled.mLampCandidates = reconstruction.mLampCandidates;
+        sampled.mShadowFloor = reconstruction.mSampling.mShadowFloor;
+        sampled.mLampCandidates = reconstruction.mSampling.mLampCandidates;
 
         // The sampler takes the setting as it is: the settings clamp it to sixteen, and a device
         // with `samplerAnisotropy`, which the requirements ask for, takes at least sixteen.
