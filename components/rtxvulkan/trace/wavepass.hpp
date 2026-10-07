@@ -19,6 +19,7 @@
 namespace Rtx
 {
     class Device;
+    class GpuTimer;
 
     /// The sea, synthesised into textures a trace reads: one tile a cascade, three textures a tile.
     /// A frame turns the phases and inverse-transforms them, and that is all it does. What comes
@@ -45,7 +46,7 @@ namespace Rtx
         /// rebuilds every texture and every level from them, leaving each in
         /// `VK_IMAGE_LAYOUT_GENERAL` ordered against a sampled read. A cell with no water never
         /// samples them, so it need not synthesise them.
-        void record(VkCommandBuffer commands, const osg::Vec2f& seconds) const;
+        void record(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer) const;
 
         /// Whether the tiles already hold the sea at `seconds`, which a trace then reads as they
         /// are: **every picture of the world shares its frame's water time**, and a cell crossing

@@ -5,7 +5,9 @@
 #include <cstdint>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/specular.h>
@@ -25,8 +27,10 @@ namespace Rtx
     }
 
     const Image& SpecularPass::record(VkCommandBuffer commands, const DenoiseHistory::SpecularImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Specular);
+
         const Shaders::VisibilityConstants& sampled = frame.mSampled;
         const std::uint32_t width = sampled.mEyes.mWorld.mWidth;
         const std::uint32_t height = sampled.mEyes.mWorld.mHeight;
@@ -43,6 +47,7 @@ namespace Rtx
         dispatch(commands, mPipeline, writes, frame.history(images.mFresh),
             Groups::covering(width, height, Shaders::SPECULAR_WORKGROUP));
 
+        closeZone(timer, commands);
         return images.mMean;
     }
 }

@@ -11,6 +11,7 @@ namespace Rtx
 {
     class Buffer;
     class Device;
+    class GpuTimer;
     class Image;
     class ShaderCode;
 
@@ -46,7 +47,7 @@ namespace Rtx
         /// Draws over the curve's picture, in `TonePass::sTargetFormat`.
         explicit LinePass(const Device& device);
 
-        void record(VkCommandBuffer commands, const Lines& what) const;
+        void record(VkCommandBuffer commands, const Lines& what, GpuTimer* timer) const;
 
     private:
         /// The pipelines made of one read of their two files, which `code` holds until they are.

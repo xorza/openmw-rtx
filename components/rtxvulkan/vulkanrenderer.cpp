@@ -629,8 +629,7 @@ namespace Rtx
             if (!reconstruction.upscaled())
                 return traced.mColour;
 
-            timer.open(commands, FrameZone::Upscale);
-            const HandedImage upscaled = mUpscaler.record(commands,
+            return mUpscaler.record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour.mImage,
                     .mSurface = channels.get(Channel::Surface),
@@ -641,9 +640,8 @@ namespace Rtx
                     .mJitterPhases = reconstruction.mJitterPhases,
                     .mSeconds = options.mSinceLast,
                     .mSlot = mRing.getRecordingSlot(),
-                });
-            timer.close(commands);
-            return upscaled;
+                },
+                &timer);
         }();
 
         mDisplay.record(commands,
@@ -677,7 +675,7 @@ namespace Rtx
         // After the picture and inside the frame's trace, so the frame is finished when its value
         // has passed and the hold is the last thing it did.
         if (mStress != nullptr)
-            mStress->record(commands, timer, frame.mCounts);
+            mStress->record(commands, frame.mCounts, &timer);
 
         // Submitted and not waited for: `finishFrame` or `collectFrame` brings the counts and the
         // report back a frame or two late.

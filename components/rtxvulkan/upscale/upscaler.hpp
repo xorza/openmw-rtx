@@ -21,6 +21,7 @@
 namespace Rtx
 {
     class Device;
+    class GpuTimer;
 
     /// Everything one reconstruction reads. Every image is created with `VK_IMAGE_USAGE_SAMPLED_BIT`,
     /// since the upscaler samples all of them.
@@ -92,7 +93,7 @@ namespace Rtx
 
         /// Records one reconstruction at the output extent, and hands over the image it wrote,
         /// which the display composites the puffs over and maps. After `resize`.
-        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs);
+        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: which upscaler this renderer has.
         static std::string_view describe() { return "FSR 3.1.4, ported"; }

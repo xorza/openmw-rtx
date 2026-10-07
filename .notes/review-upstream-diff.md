@@ -43,12 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtxvulkan/trace/stresspass.hpp:51` — zone ownership is split. `StressPass::record`
-  takes a `GpuTimer&` in the middle of its arguments and opens its own zone. `SpriteBinPass`,
-  `RipplePass`, `DigestPass` and `VisibilityPass` take `GpuTimer*` last and open their own zones.
-  `WavePass`, `Upscaler`, `BloomPass`, `ExposurePass` and `SunGlarePass` are opened by their callers
-  (`trace/tracechain.cpp:100`, `vulkanrenderer.cpp:617`, `display/displaychain.cpp:122,159`). Target
-  shape: every pass takes `GpuTimer*` last and opens its own zone. (low)
 - [ ] `components/rtxvulkan/vulkanrenderer.cpp:112-120,384-385,444-447,715-721` — four hand-written ways to
   empty the queue: `drain`, `finishGuiTraces`, the GUI-texture `finish` before a presenter rebuild, and the
   destructor's. Target shape: one drain on the renderer. (low)

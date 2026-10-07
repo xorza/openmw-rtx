@@ -6,7 +6,9 @@
 #include <span>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -56,8 +58,10 @@ namespace Rtx
     }
 
     const Image& ShadowPass::record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Shadow);
+
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const std::uint32_t width = camera.mWidth;
         const std::uint32_t height = camera.mHeight;
@@ -125,6 +129,7 @@ namespace Rtx
                 Groups::covering(width, height, Shaders::SHADOW_WORKGROUP));
         }
 
+        closeZone(timer, commands);
         return images.mVisibility;
     }
 }

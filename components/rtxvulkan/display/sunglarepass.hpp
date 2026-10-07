@@ -9,6 +9,7 @@
 namespace Rtx
 {
     class Device;
+    class GpuTimer;
 
     /// How much of the sun's quad the eye can see, as the sun glare fader wants it: the two counts
     /// the eye's rays take, zeroed before the trace and read after it, and the share eased toward
@@ -27,7 +28,7 @@ namespace Rtx
         /// @param elapsedSeconds since the previous frame.
         /// @param reset true where there is no previous share to move from — the first frame, and
         ///        any frame the renderer was told has no past. What the rays found is taken outright.
-        void record(VkCommandBuffer commands, float elapsedSeconds, bool reset) const;
+        void record(VkCommandBuffer commands, float elapsedSeconds, bool reset, GpuTimer* timer) const;
 
         /// The two counts, which the trace is bound at `BIND_SUN_GLARE`.
         const Buffer& getCounts() const { return mCounts; }

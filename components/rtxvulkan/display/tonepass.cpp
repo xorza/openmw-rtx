@@ -5,7 +5,9 @@
 
 #include <osg/Vec2f>
 
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -40,8 +42,10 @@ namespace Rtx
     {
     }
 
-    void TonePass::record(VkCommandBuffer commands, const Tone& what) const
+    void TonePass::record(VkCommandBuffer commands, const Tone& what, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Tone);
+
         const Image& colour = what.mColour;
         const Buffer& exposure = what.mExposure;
         const Buffer& sunGlare = what.mSunGlare;
@@ -78,5 +82,7 @@ namespace Rtx
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(constants.mCamera.mWidth, constants.mCamera.mHeight, Shaders::TONE_WORKGROUP));
+
+        closeZone(timer, commands);
     }
 }

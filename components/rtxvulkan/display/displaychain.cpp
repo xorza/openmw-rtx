@@ -120,9 +120,7 @@ namespace Rtx
         // untouched.
         if (look != nullptr)
         {
-            openZone(timer, commands, FrameZone::Bloom);
-            mBloom.record(commands, shown, mExposure.getExposure());
-            closeZone(timer, commands);
+            mBloom.record(commands, shown, mExposure.getExposure(), timer);
         }
 
         // Measured off the image the curve is about to map, which is the upscaled one wherever
@@ -132,9 +130,8 @@ namespace Rtx
         const Buffer* exposure = &mExposure.getPictureExposure();
         if (look != nullptr)
         {
-            openZone(timer, commands, FrameZone::Exposure);
             if (const auto* fixed = std::get_if<FixedExposure>(&look->mExposure); fixed != nullptr)
-                mExposure.recordFixed(commands, fixed->mScale);
+                mExposure.recordFixed(commands, fixed->mScale, timer);
             else if (std::holds_alternative<HeldExposure>(look->mExposure))
             {
                 // Nothing recorded: the buffer holds what the last write left, and the head barrier
@@ -144,10 +141,9 @@ namespace Rtx
             {
                 const MeasuredExposure& measured = std::get<MeasuredExposure>(look->mExposure);
                 mExposure.record(commands, shown, look->mSeconds,
-                    mExposureStale ? std::optional(measured.mStart) : std::nullopt, look->mExposureBias);
+                    mExposureStale ? std::optional(measured.mStart) : std::nullopt, look->mExposureBias, timer);
                 mExposureStale = false;
             }
-            closeZone(timer, commands);
             exposure = &mExposure.getExposure();
         }
 
@@ -157,10 +153,8 @@ namespace Rtx
         const Buffer* share = &mSunGlare.getNoShare();
         if (look != nullptr)
         {
-            openZone(timer, commands, FrameZone::Glare);
-            mSunGlare.record(commands, look->mSeconds, mGlareStale);
+            mSunGlare.record(commands, look->mSeconds, mGlareStale, timer);
             mGlareStale = false;
-            closeZone(timer, commands);
             share = &mSunGlare.getShare();
         }
 
@@ -180,10 +174,10 @@ namespace Rtx
                     .mTextures = inputs.mSubject.mScene->getTextures(),
                     .mTarget = target,
                     .mConstants = into,
-                });
+                },
+                timer);
         };
 
-        openZone(timer, commands, FrameZone::Tone);
         toneInto(what.mTarget, constants);
 
         // **The curve run a second time, because a copy of the picture would carry its byte**, and
@@ -198,7 +192,6 @@ namespace Rtx
             toneInto(*look->mDeep, deep);
             look->mDeep->transition(commands, Use::sComputeWrite, what.mLeftAs);
         }
-        closeZone(timer, commands);
 
         if (look != nullptr)
             recordDebugLines(commands, what, *look);
@@ -223,8 +216,6 @@ namespace Rtx
         std::copy(debug.mLines.begin(), debug.mLines.end(), written.begin());
         std::copy(debug.mTriangles.begin(), debug.mTriangles.end(), written.begin() + debug.mLines.size());
 
-        openZone(&look.mTimer, commands, FrameZone::Lines);
-
         // Drawn over what the curve wrote, and left where the curve left it, for the chain's last
         // transition to take it from.
         Image& target = what.mTarget;
@@ -247,10 +238,9 @@ namespace Rtx
                 .mVertices = look.mDebugVertices.get(),
                 .mLineCount = static_cast<std::uint32_t>(debug.mLines.size()),
                 .mTriangleCount = static_cast<std::uint32_t>(debug.mTriangles.size()),
-            });
+            },
+            &look.mTimer);
 
         target.transition(commands, Use::sColourAttachment, Use::sComputeWrite);
-
-        closeZone(&look.mTimer, commands);
     }
 }

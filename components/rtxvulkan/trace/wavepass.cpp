@@ -10,9 +10,11 @@
 
 #include <osg/Vec2f>
 
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/wave.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -86,7 +88,7 @@ namespace Rtx
         // Every tile in the layout the trace binds it in, from the first frame: a frame with no
         // water synthesises nothing and binds the tiles anyway, and a descriptor naming an image
         // that was never transitioned is an error whether or not a ray samples it.
-        mDevice.getPool().submitAndWait([&](VkCommandBuffer commands) { record(commands, osg::Vec2f()); });
+        mDevice.getPool().submitAndWait([&](VkCommandBuffer commands) { record(commands, osg::Vec2f(), nullptr); });
     }
 
     void WavePass::describe(const SeaState& sea)
@@ -120,8 +122,10 @@ namespace Rtx
                 VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT });
     }
 
-    void WavePass::record(VkCommandBuffer commands, const osg::Vec2f& seconds) const
+    void WavePass::record(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Waves);
+
         mSynthesised = seconds;
 
         // **The cascades in step, one barrier a stage for both.** A cascade's stages wait on each
@@ -182,5 +186,7 @@ namespace Rtx
         }
 
         Image::buildMips(commands, images);
+
+        closeZone(timer, commands);
     }
 }

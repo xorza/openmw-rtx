@@ -28,7 +28,8 @@ namespace Rtx
         /// Runs one synthesis at `seconds` and hands back the pass that holds it.
         void synthesise(const WavePass& waves, CommandPool& pool, double seconds)
         {
-            pool.submitAndWait([&](VkCommandBuffer commands) { waves.record(commands, splitSeconds(seconds)); });
+            pool.submitAndWait(
+                [&](VkCommandBuffer commands) { waves.record(commands, splitSeconds(seconds), nullptr); });
         }
 
         struct RtxWavePassTest : Testing::DeviceTest

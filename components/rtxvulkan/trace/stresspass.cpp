@@ -28,15 +28,14 @@ namespace Rtx
     {
     }
 
-    void StressPass::record(VkCommandBuffer commands, GpuTimer& timer, const Buffer& counts)
+    void StressPass::record(VkCommandBuffer commands, const Buffer& counts, GpuTimer* timer)
     {
-        // A literal, so its view is terminated.
-        timer.open(commands, FrameZone::Stress);
+        openZone(timer, commands, FrameZone::Stress);
 
         DescriptorWrites writes(mPipeline);
         writes.buffer(Shaders::STRESS_BIND_COUNTS, counts.describe());
         dispatch(commands, mPipeline, writes, Shaders::StressConstants{ .mTicks = mTicks }, Groups{});
 
-        timer.close(commands);
+        closeZone(timer, commands);
     }
 }
