@@ -16,10 +16,10 @@ namespace osg
 namespace Rtx
 {
     /// The one way the renderer computes anything from what the content files hold. Every pass is
-    /// asked through here: its key is made of everything it reads, the cache is asked for the
-    /// output under that key, and the pass runs only where the cache has none — and then the cache
-    /// is offered what it computed. `ContentCache` holds nothing, so for now every pass runs, and
-    /// what each cost is counted.
+    /// asked through here: once a cache holds anything, its key is made of everything it reads, the
+    /// cache is asked for the output under that key, and the pass runs only where the cache has none
+    /// — and then the cache is offered what it computed. `ContentCache` holds nothing, so for now no
+    /// key is made, every pass runs, and what each cost is counted.
     ///
     /// **One a thread**, as the passes' scratch is: the frame's walk has one and the cell ring's
     /// reader another. Not copyable: each texture pass's description spans its own scratch.
