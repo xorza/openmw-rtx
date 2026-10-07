@@ -64,7 +64,9 @@ the window's size there, has it moved to the window on the first start, and the 
 - The `[RTX]` settings pages and their translations.
 - `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
   Crashpad monitor process, with the calls that set it up from the configuration
-  (`Debug::setCrashReports`, the hang limit and the version).
+  (`Debug::setCrashReports`, the hang limit and the version), and the keeper `wrapApplication`
+  forks first under an AppImage (`Crash::keepImageMounted`): the runtime unmounts the image once no
+  process holds its keepalive pipe, which a monitor, outliving its client, does not.
 - `README.md`, which is the fork's own page and what a package ships, and `CI/`.
 - The fork's workflows in place of upstream's four, and the root tooling: `CMakePresets.json`,
   `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes` and `.gitignore`. The CI the fork

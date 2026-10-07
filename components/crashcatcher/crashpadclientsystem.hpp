@@ -21,6 +21,12 @@ namespace Crash::Client
     /// callback gives them.
     void prepareInstallingThread();
 
+    /// **Keeps the connection to the monitor to this process**, so the monitor ends with it and not
+    /// with the last program it started: the monitor serves the connection until every holder has
+    /// closed it. On Linux the socket, which Crashpad makes inheritable; nothing on Windows, where the
+    /// monitor ends once its last client process has, whatever holds that process's handles.
+    void keepConnectionToThisProcess();
+
     /// Hooks every way this system ends a process that neither a fault nor `std::terminate` reaches,
     /// and the way the monitor asks for a hang report, which `page` carries where the monitor needs
     /// to be told it.

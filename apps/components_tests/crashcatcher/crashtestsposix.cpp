@@ -2,19 +2,46 @@
 
 #include <atomic>
 #include <csignal>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <vector>
 
 #include <pthread.h>
+#include <spawn.h>
+#include <unistd.h>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/platform/process.hpp>
 
 namespace CrashTests
 {
+    namespace
+    {
+        /// Whether this process is the application a keeper forked: its parent runs the command line
+        /// a fork copies, and the variable the keeper sets stands.
+        bool kept()
+        {
+            return std::getenv("OPENMW_IMAGE_KEPT") != nullptr
+                && contentsOf("/proc/" + std::to_string(getppid()) + "/cmdline") == contentsOf("/proc/self/cmdline");
+        }
+
+        bool keptMode(std::string_view mode)
+        {
+            return mode == "kept-abort" || mode == "kept-end" || mode == "kept-leaves";
+        }
+
+        /// The line `kept-leaves` names the process it left with, before its id.
+        constexpr std::string_view sLeft = "crash-tests left ";
+    }
+
     Raised raisedOnThisSystem()
     {
 #if defined(__APPLE__)
@@ -38,13 +65,76 @@ namespace CrashTests
         into.push_back({ "abort", "Crash: ", { "EXC_CRASH", "SIGABRT" }, {}, true, crashed });
 #else
         into.push_back({ "abort", "Crash: ", { "SIGABRT" }, {}, true, crashed });
+        // Under an AppImage's keeper: a crash, whose package the run outlasts; a termination the
+        // keeper is sent and passes on; and a process from outside the image, which neither the
+        // keeper waits for nor the monitor, though it inherits what the application lets it.
+        into.push_back({ .mName = "kept-abort",
+            .mHeadline = "Crash: ",
+            .mRaised = { "SIGABRT" },
+            .mFollows = "crash-tests kept",
+            .mMarked = crashed,
+            .mEndsBy = SIGABRT,
+            .mKept = true });
+        into.push_back({ .mName = "kept-end",
+            .mHeadline = "",
+            .mRaised = {},
+            .mFollows = "crash-tests kept",
+            .mReports = false,
+            .mEndsBy = SIGTERM,
+            .mKept = true });
+        into.push_back({ .mName = "kept-leaves",
+            .mHeadline = "",
+            .mRaised = {},
+            .mFollows = "crash-tests lived on",
+            .mReports = false,
+            .mKept = true });
 #endif
         into.push_back({ "report-under-hang", "Report: crash-tests asked under a hang request", {},
             "crash-tests lived on", true, ", which asked" });
     }
 
+    void prepareModeOfThisSystem(std::string_view mode)
+    {
+        // The keeper asks whether `APPIMAGE` stands, and nothing of where it points; the image is
+        // this binary's folder, so the monitor runs a program from it and `sleep` does not.
+        if (keptMode(mode))
+        {
+            Platform::Process::setEnvironment("APPIMAGE", "crash-tests: no image, kept all the same");
+            Platform::Process::setEnvironmentPath(
+                "APPDIR", std::filesystem::read_symlink("/proc/self/exe").parent_path());
+        }
+    }
+
     std::optional<int> runModeOfThisSystem(std::string_view mode)
     {
+        if (keptMode(mode))
+        {
+            if (!kept())
+            {
+                Log(Debug::Error) << "crash-tests is not the application of a keeper";
+                return 3;
+            }
+            Log(Debug::Info) << "crash-tests kept";
+            if (mode == "kept-abort")
+                std::abort();
+            if (mode == "kept-leaves")
+            {
+                // Long enough that a keeper waiting for it outlasts the matrix's check of it; and with
+                // every descriptor the application lets it inherit, as a program the game starts has
+                // them: one holding the catcher's socket would keep the monitor, which is the image's.
+                char sleep[] = "sleep";
+                char seconds[] = "60";
+                char* arguments[] = { sleep, seconds, nullptr };
+                pid_t left = 0;
+                if (posix_spawn(&left, "/bin/sleep", nullptr, nullptr, arguments, environ) != 0)
+                    return 3;
+                Log(Debug::Info) << sLeft << left;
+                return livedOn();
+            }
+            kill(getppid(), SIGTERM);
+            for (;;)
+                pause();
+        }
         if (mode == "report-under-hang")
         {
             // **One hang request, at the reporting thread, once its report is being written**: the
@@ -87,6 +177,28 @@ namespace CrashTests
             return livedOn();
         }
         return std::nullopt;
+    }
+
+    std::optional<std::string> checkModeOfThisSystem(std::string_view mode, const std::filesystem::path& folder)
+    {
+        if (mode != "kept-leaves")
+            return std::nullopt;
+
+        std::ifstream log(folder / "crash-tests.log");
+        for (std::string line; std::getline(log, line);)
+            if (const std::size_t at = line.find(sLeft); at != std::string::npos)
+            {
+                const pid_t left = std::stoi(line.substr(at + sLeft.size()));
+                std::error_code gone;
+                const std::filesystem::path program
+                    = std::filesystem::read_symlink("/proc/" + std::to_string(left) + "/exe", gone);
+                if (gone || program.filename() != "sleep")
+                    return "the run lasted as long as the process it left, which neither the keeper nor the monitor "
+                           "may wait for";
+                kill(left, SIGKILL);
+                return std::nullopt;
+            }
+        return "the mode named no process it left";
     }
 
     void illegalInstruction()

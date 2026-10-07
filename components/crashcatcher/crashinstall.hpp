@@ -44,6 +44,15 @@ namespace Crash
     /// otherwise. Called first in `main`, before anything else starts.
     void runMonitorIfAsked(int argc, char** argv);
 
+    /// **Under an AppImage, keeps the image mounted while a process it started runs a program from
+    /// it**, the monitors among them: this process forks, and returns in the child, which goes on as
+    /// the application; the parent holds the mount, passes a termination on, and ends as the
+    /// application did once none is left. Returns at once anywhere else. Called while the process
+    /// has one thread, which is all a fork keeps, and before `install`, so the monitor is the
+    /// application's. Says why the image is not kept, where it is due and could not be, and nothing
+    /// otherwise.
+    std::string_view keepImageMounted();
+
     /// Starts the monitor and hooks every way this process can end in a crash. Whether it did, and
     /// why not where it did not: a system Crashpad does not support, or a monitor that would
     /// not start. Once in a process, as early as it can be: a crash before the log is set up is a

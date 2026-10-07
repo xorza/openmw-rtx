@@ -435,6 +435,7 @@ namespace Debug
     {
         // Before anything else, because a monitor is this executable doing nothing but that.
         Crash::runMonitorIfAsked(argc, argv);
+        const std::string_view unkept = Crash::keepImageMounted();
 
 #if defined _WIN32
         (void)attachParentConsole();
@@ -490,6 +491,8 @@ namespace Debug
                     Log(Debug::Warning) << "The crash catcher goes without " << installed.value().mWithout;
             }
         }
+        if (!unkept.empty())
+            Log(Debug::Warning) << "The AppImage's mount is not kept for the monitor: " << unkept;
 
         // **No frame is due once the application is over**, so the hang watch ends there, as it
         // begins at the first frame: what follows — the fatal error box, the statics' destructors,

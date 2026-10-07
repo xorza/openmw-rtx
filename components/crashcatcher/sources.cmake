@@ -9,6 +9,12 @@ add_component_dir (crashcatcher
     crashuncaught
 )
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_component_dir (crashcatcher crashimagelinux)
+else()
+    add_component_dir (crashcatcher crashimagenone)
+endif()
+
 if (OPENMW_CRASHPAD)
     add_component_dir (crashcatcher
         crashpadclient
