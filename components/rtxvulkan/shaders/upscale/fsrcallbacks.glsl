@@ -49,6 +49,12 @@
 // **The SDK's configuration, stated here for every pass rather than on a command line**: GLSL, full
 // floats, a frame in HDR radiance, motion vectors at the render extent and from the pixel's centre,
 // a reversed depth, and no sharpening. Before any SDK header, which reads it.
+//
+// **Full floats where the SDK's own host takes halves on a device that has them**: with `FFX_HALF`,
+// which reaches the two pyramids' arithmetic and nothing else the upscaler computes, the upscale
+// zone's median fell from 0.364 to 0.320 ms on the default suite, and a still picture moved by 0.30
+// to 0.58 of a pixel across its frames, against the quarter `aStillPictureHoldsStillThroughEveryUpscale`
+// allows. The pyramids alone in halves moved it as much.
 
 #define FFX_GPU 1
 #define FFX_GLSL 1

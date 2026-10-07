@@ -84,3 +84,21 @@ depth buffer a mapped segment, at `[Map] local map resolution` squared: a megaby
 
 **What it blocks.** Only this item.
 
+
+## 7. Section 6.5: the upscaler's 64-lane subgroups
+
+**Item.** Section 6.5's "FSR runs in full floats with the driver's wave size", the wave half. The
+half-float half is done: measured and declined, and `fsrcallbacks.glsl` says why.
+
+**Why it needs a call.** The SDK's own host asks for its 64-lane permutations on a device that runs
+both 32 and 64 lanes, which RDNA does. NVIDIA runs 32 lanes only, so this card cannot take the
+request, and the drm-shim device compiles every kernel and runs none. Section 6 keeps a `[perf]`
+item only with a measurement, and no device here can make one.
+
+| Option | What it does | Cost |
+|---|---|---|
+| **A. Wait for a measurement on RDNA** (my pick) | The item stays open until someone runs the default suite on an RDNA 2 or later card, with and without `VkPipelineShaderStageRequiredSubgroupSizeCreateInfo` at 64 on the upscaler's pipelines. | Nothing now. |
+| B. Ask for 64 lanes as the SDK does, unmeasured | The upscaler's pipelines ask for 64 lanes where `subgroupSizeControl` allows it for compute. | A change no device here runs, kept on the SDK's word. |
+| C. Drop the item | The driver keeps its own choice. | A possible gain on AMD goes unmeasured. |
+
+**What it blocks.** Only this item.
