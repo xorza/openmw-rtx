@@ -325,16 +325,13 @@ namespace Rtx
     template <class Visit>
     void SceneDesc::forEachPlacement(Visit&& visit) const
     {
-        for (const PlacementRow& row : mPlacements.getRows())
-        {
+        mPlacements.forEachPlaced([&](Index, const PlacementRow& row) {
             const MeshInstance& instance = row.mInstance;
-            if (!instance.isPlaced())
-                continue;
 
             const osg::BoundingBoxf placed = instance.placedBox(mMeshes.getRows()[instance.mMesh].mBounds);
             if (placed.valid())
                 visit(row, placed);
-        }
+        });
     }
 
     osg::BoundingBoxf SceneDesc::getBounds() const

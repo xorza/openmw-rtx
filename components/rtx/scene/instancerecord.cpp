@@ -72,10 +72,11 @@ namespace Rtx
         /// afterwards.
         InstanceRecord recordOf(const SceneDesc& scene, const Index slot)
         {
+            if (!scene.placements().isPlaced(slot))
+                return InstanceRecord{};
+
             const PlacementRow& row = scene.placements().getRows()[slot];
             const MeshInstance& instance = row.mInstance;
-            if (!instance.isPlaced())
-                return InstanceRecord{};
 
             const Material::Traversed& worn = row.mWorn;
             const PlacedTraversal traversed = worn.placedAt(instance.mOpacity);
@@ -126,10 +127,11 @@ namespace Rtx
         /// applied to both, while the placement carries no rotation, which the sea's does not.
         void moveRecord(const SceneDesc& scene, const Index slot, InstanceRecord& record)
         {
+            if (!scene.placements().isPlaced(slot))
+                return;
+
             const PlacementRow& row = scene.placements().getRows()[slot];
             const MeshInstance& instance = row.mInstance;
-            if (!instance.isPlaced())
-                return;
 
             // A slot can be on the list without having moved — just placed, or faded — and keeps
             // the identity outright: `inverse(T) * T` is a few ulps of a six-figure coordinate in

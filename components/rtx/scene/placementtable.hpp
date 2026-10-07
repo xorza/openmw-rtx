@@ -105,8 +105,23 @@ namespace Rtx
         /// row no copy of the tables is ever told about.
         void advance();
 
-        /// Every slot, standing or empty, in slot order. `MeshInstance::isPlaced` tells them apart.
+        /// Every slot, standing or empty, in slot order. `isPlaced` tells them apart.
         std::span<const PlacementRow> getRows() const { return mRows.getRows(); }
+
+        /// Whether `slot` holds a placement. A dropped placement leaves its slot behind rather than
+        /// closing the gap, because the slot index is what a hit reads back; the free list says
+        /// which, and nothing in the row does.
+        bool isPlaced(Index slot) const { return mRows.isLive(slot); }
+
+        /// Calls `visit` with every slot that holds a placement and its row, in slot order.
+        template <class Visit>
+        void forEachPlaced(Visit&& visit) const
+        {
+            const std::span<const PlacementRow> rows = mRows.getRows();
+            for (Index slot = 0; slot < rows.size(); ++slot)
+                if (mRows.isLive(slot))
+                    visit(slot, rows[slot]);
+        }
 
         /// How many slots hold a placement and how many of those each kind of traversal has to
         /// stop for, as the rows stand now.

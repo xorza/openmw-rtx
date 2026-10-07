@@ -21,7 +21,7 @@ namespace Rtx
         /// retire reports what went by.
         TEST(RtxSlotRowsTest, aRowIsFreedByTheDropAfterWhichNothingHoldsIt)
         {
-            SlotRows<int> rows;
+            HeldSlotRows<int> rows;
             const Index first = rows.take(1);
             const Index second = rows.take(2);
             ASSERT_EQ(rows.getLiveCount(), 2u);

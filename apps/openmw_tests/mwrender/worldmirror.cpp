@@ -136,7 +136,7 @@ namespace MWRender
             EXPECT_EQ(shifted.mRestood, 0u);
             EXPECT_EQ(mirror.getScene().placements().getCounts().mPlaced, 1u) << "the second's old slot still stands";
             EXPECT_EQ(Rtx::Testing::placedAt(mirror.getScene(), 0), osg::Vec3f(9.0f, 0.0f, 0.0f));
-            EXPECT_FALSE(mirror.getScene().placements().getRows()[1].mInstance.isPlaced()) << "the old slot was kept";
+            EXPECT_FALSE(mirror.getScene().placements().isPlaced(1)) << "the old slot was kept";
 
             // And a body the graph let go of is placed nowhere on the frame it went.
             world.mRoot->removeChild(world.mSecond);
