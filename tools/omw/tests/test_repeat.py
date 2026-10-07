@@ -1,12 +1,38 @@
+import contextlib
+import io
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from omw.build import Build
 from omw.repeat import DIFFERED_STATUS, repeat
 from omw.system import ROOT, Refusal, read_text
 
+# A harness that passes and leaves a child holding its output for 0.3 s, as the crash monitor does.
+OUTLIVED = ("import subprocess, sys; "
+            "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(0.3)'], stdout=sys.stdout); "
+            "print('identical')")
+
+
+class OutlivedHarness:
+    def harness(self, verb: str, *args, **options) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-c", OUTLIVED], **options)
+
 
 class RepeatTest(unittest.TestCase):
+    def test_a_pair_that_agreed_leaves_no_folder_though_a_child_outlived_the_run(self):
+        out = Path(tempfile.mkdtemp(prefix="omw-repeat-test-"))
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        with (mock.patch("omw.repeat.tempfile.mkdtemp", return_value=str(out)),
+              contextlib.redirect_stdout(io.StringIO())):
+            self.assertEqual(repeat(OutlivedHarness(), []), 0)
+        self.assertFalse(out.exists())
+
     def test_the_differed_status_is_the_harness_own(self):
         text = read_text(ROOT / "apps" / "rtxtool" / "model" / "benchrun.hpp")
         stated = re.search(r"inline constexpr int sDifferedStatus = (\d+);", text)

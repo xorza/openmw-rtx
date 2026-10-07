@@ -18,11 +18,15 @@ if (OPENMW_CRASHPAD)
         # **Crashpad's WER module, beside the executables**, where the client lists it for the WER
         # service, which loads it at a fail-fast no handler inside the game sees. Named the fork's
         # own, so a stale entry the client removes is never another program's `crashpad_wer.dll`;
-        # in the runtime folder, which the tree sets after `extern/` is added, so the install's
-        # `*.dll` rule ships it.
+        # in the runtime folder, which the tree sets after `extern/` is added.
         set_target_properties(crashpad_wer PROPERTIES OUTPUT_NAME "openmw-wer"
             RUNTIME_OUTPUT_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
         add_dependencies(components crashpad_wer)
+        # Installed here, at the executables' destination and without its import library: no
+        # program links the module, so the runtime dependency set never sees it, and Crashpad's own
+        # rule sits under `extern/`, whose `EXCLUDE_FROM_ALL` keeps its install script out of the
+        # package.
+        install(FILES $<TARGET_FILE:crashpad_wer> TYPE BIN)
         set_property(SOURCE crashcatcher/crashpadclientwin32.cpp
             APPEND PROPERTY COMPILE_DEFINITIONS "OPENMW_WER_MODULE=\"$<TARGET_FILE_NAME:crashpad_wer>\"")
     endif()

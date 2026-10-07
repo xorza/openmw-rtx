@@ -186,6 +186,12 @@ namespace Crash::Client
 
         if (!client.RegisterWerModule(wer.wstring()))
             return "a fail-fast's dump: WER refused the module";
+
+        // **WER calls no module for a process whose error mode asks for no fault box**, and a
+        // process inherits its parent's mode: started from Git Bash, the game lost every
+        // fail-fast's dump. The box shows only where the module could not reach the monitor, as it
+        // does for any program, since every other crash is the catcher's own.
+        SetErrorMode(GetErrorMode() & ~SEM_NOGPFAULTERRORBOX);
         return {};
     }
 

@@ -8,6 +8,8 @@
 
 #include <intrin.h>
 
+#include <components/misc/windows.hpp>
+
 namespace CrashTests
 {
     namespace
@@ -53,7 +55,13 @@ namespace CrashTests
         into.push_back({ "fast-fail", "Crash: ", { "STATUS_STACK_BUFFER_OVERRUN" }, {}, true, crashed });
     }
 
-    void prepareModeOfThisSystem(std::string_view) {}
+    void prepareModeOfThisSystem(std::string_view mode)
+    {
+        // The error mode a shell like Git Bash hands its children, under which WER calls no module:
+        // the fail-fast's dump then also proves the catcher clears it.
+        if (mode == "fast-fail")
+            SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+    }
 
     std::optional<std::string> checkModeOfThisSystem(std::string_view, const std::filesystem::path&)
     {
