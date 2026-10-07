@@ -16,9 +16,8 @@ namespace RtxTool
         mHeader.mAsserts = Rtx::sAssertsOn;
         mHeader.mMeasures = request.mMeasures;
         mHeader.mMaps = request.mMaps;
-        mHeader.mHashed = !request.mHashes.empty() || !request.mAgainst.empty() || !request.mPictures.empty()
-            || std::any_of(
-                request.mStops.begin(), request.mStops.end(), [](const Stop& stop) { return stop.mActions.mHash; });
+        mHeader.mHashed = std::any_of(
+            request.mStops.begin(), request.mStops.end(), [](const Stop& stop) { return stop.mActions.mHash; });
         mHeader.mTurnsWeather = std::any_of(request.mStops.begin(), request.mStops.end(),
             [](const Stop& stop) { return !stop.mSky.mTurnThrough.empty(); });
         mHeader.mSetup = request.mSetup;
