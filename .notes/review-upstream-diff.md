@@ -33,9 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `components/crashcatcher/crashunsupported.cpp:20` — "Crashpad does not support this system" is also
-  what a supported system built with `OPENMW_CRASHPAD=OFF` logs (`CMakeLists.txt:73`). Target shape: a
-  message for both cases, for example "this build has no crash catcher". (low)
 - [ ] `extern/crashpad.cmake:38` — the `else` branch of `if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.25)` is
   dead, because the root requires 3.31. Target shape: an unconditional `add_subdirectory(... SYSTEM)`. (low)
 
