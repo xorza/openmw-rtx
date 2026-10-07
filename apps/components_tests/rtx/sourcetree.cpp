@@ -436,6 +436,31 @@ namespace Rtx
                                        << joined(found);
         }
 
+        /// **Every temporal filter weighs its taps by the one gather** (`RTX_HISTORY_SHARES` in
+        /// `surfacematch.glsl`): a kernel that calls `historyShare` itself has written the gather
+        /// again, and the five copies the reviews found had drifted apart — one lost its "no history"
+        /// test. A kernel still reads its own payload at each tap (`historyTap`).
+        TEST(RtxSourceTreeTest, everyHistoryIsWeighedByTheOneGather)
+        {
+            const std::filesystem::path shaders = sBackend / "shaders";
+            const std::filesystem::path library = shaders / "lib" / "surfacematch.glsl";
+
+            std::vector<std::string> found;
+            for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(shaders))
+            {
+                const std::filesystem::path& file = entry.path();
+                if (!entry.is_regular_file() || file == library)
+                    continue;
+
+                const std::vector<std::string> lines = linesOf(file);
+                for (std::size_t at = 0; at < lines.size(); ++at)
+                    if (lines[at].find("historyShare(") != std::string::npos)
+                        found.push_back(genericName(file.lexically_relative(shaders)) + ":" + std::to_string(at + 1));
+            }
+
+            EXPECT_TRUE(found.empty()) << "a history weighed outside RTX_HISTORY_SHARES:\n" << joined(found);
+        }
+
         /// **The census has a word for every module the build compiles**, the probes among them,
         /// since the tests' device counts: one past `CENSUS_KERNELS` stops the device as its first
         /// pipeline is made, which a run that never makes it would not see.

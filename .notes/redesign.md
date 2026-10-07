@@ -390,7 +390,7 @@ Each check lands with its contract, and each is one the gate runs.
 
 | | The check |
 |---|---|
-| D2 | `RtxSourceTreeTest`: `historyShare` and `historyTap` appear in `surfacematch.glsl` alone. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean. |
+| D2 | `RtxSourceTreeTest.everyHistoryIsWeighedByTheOneGather` (done): no kernel calls `historyShare`, the gather's weight, outside `surfacematch.glsl`; a kernel still reads its payload by `historyTap`. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean. |
 | D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model (done); the split sky is every source's sum, and a source under a floor draws no bit (done); a lamp that takes light away takes it off the exact sum where one lamp is drawn (done). |
 | D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall; a pane of opacity one half is met by half the secondary rays, in the mean. |
 | D6 | A host test: the composite's remodulation inverts the trace's demodulation for every channel. |
