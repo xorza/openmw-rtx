@@ -63,31 +63,3 @@ The pocket rule (`dropPockets`) has the same blind spot, and option A answers it
 dropped wall's corners become the kept wall's back face.
 
 **What it blocks.** Only this item.
-
-## 12. Section 6.3: the crash monitor after an AppImage's game is gone
-
-**Item.** Section 6.3's "The monitor runs from the AppImage's mount after the game is gone". The
-monitor is the game's own executable, started from the AppImage's mount, and it packages the
-session and shows the dialog after the game exits, when the AppImage's runtime may have unmounted
-the image. A file the monitor opens only then — SDL's video driver, which it loads for the dialog —
-may not open.
-
-**Why it needs you.** The check is a crash of the packaged game on your desktop, with its window and
-a dialog that waits for a click, and AGENTS.md keeps the game window out of what I run.
-
-**The check.** `./omw archive appimage-check` builds the AppImage into `dist/`. Then:
-
-```
-OPENMW_CRASH_DIALOG=1 ./dist/<the AppImage> &
-sleep 20; kill -SEGV $(pgrep -x openmw)
-```
-
-The bug stands if no dialog shows, or the log under the crash folder ends without the package's
-line. Send me the log's last lines either way.
-
-| Option | What it does | Cost |
-|---|---|---|
-| **A. You run the check, then I fix what it shows** (my pick) | If confirmed, the monitor holds the mount: the AppRun keeps a file of the image open until the monitor ends. | One run on your desktop. |
-| B. Fix it unverified | The same change, kept on the reasoning above. | A change no run here shows is needed. |
-
-**What it blocks.** Only this item.
