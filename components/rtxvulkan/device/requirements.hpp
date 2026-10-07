@@ -104,6 +104,17 @@ namespace Rtx
         std::string_view mFor;
     };
 
+    /// An image a texture is made as, which the device has to take: the format, what it is used
+    /// for, how it is created, and what for. Asked once, when the device is chosen, both whether the
+    /// device takes it and how large (`PhysicalDevice::Profile::mTextureSide`).
+    struct RequiredImage
+    {
+        VkFormat mFormat;
+        VkImageUsageFlags mUsage;
+        VkImageCreateFlags mFlags;
+        std::string mFor;
+    };
+
     /// The first release of one driver that offers an extension, in the driver's own numbering:
     /// "595" for NVIDIA's, "26.2" for Mesa's. `releaseSeriesOf` names whose numbering it is.
     struct DriverFloor
@@ -145,6 +156,11 @@ namespace Rtx
 
     /// The table itself, in the order `PhysicalDevice::profileOf` reads the device's answers in.
     std::span<const RequiredFormat> getRequiredFormats();
+
+    /// Every image a texture is made as: each format a file is uploaded in, its twin without the
+    /// curve a chain is completed from, and the four-byte image a chain, a bake or a composite is
+    /// written as, under the curve and off it. In the order `profileOf` reads the answers in.
+    std::span<const RequiredImage> getRequiredTextureImages();
 
     /// What the renderer does where the driver offers it and goes without where it does not.
     enum class DeviceOption : std::uint8_t

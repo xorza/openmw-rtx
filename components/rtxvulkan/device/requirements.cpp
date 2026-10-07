@@ -1,9 +1,14 @@
 #include "requirements.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <string>
+#include <utility>
+#include <vector>
 
+#include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/shaders/shared/fogvolume.h>
@@ -278,6 +283,38 @@ namespace Rtx
     std::span<const RequiredFormat> getRequiredFormats()
     {
         return sRequiredFormats;
+    }
+
+    std::span<const RequiredImage> getRequiredTextureImages()
+    {
+        static const std::vector<RequiredImage> images = [] {
+            std::vector<RequiredImage> made;
+            const auto add = [&](VkFormat format, VkImageUsageFlags usage, VkImageCreateFlags flags, std::string what) {
+                const bool held = std::ranges::any_of(made, [&](const RequiredImage& image) {
+                    return image.mFormat == format && image.mUsage == usage && image.mFlags == flags;
+                });
+                if (!held)
+                    made.push_back(RequiredImage{ format, usage, flags, std::move(what) });
+            };
+
+            for (std::size_t at = 0; at < sTextureFormatCount; ++at)
+            {
+                const auto format = static_cast<TextureFormat>(at);
+                if (!isUploadable(format))
+                    continue;
+                const std::string named(traitsOf(format).mName);
+                add(toVulkanFormat(format), sUploadedTextureUsage, 0, "files in " + named);
+                add(withoutCurve(toVulkanFormat(format)), sUploadedTextureUsage, 0, "chains completed from " + named);
+            }
+
+            const VkFormat written = toVulkanFormat(TEXTURE_WRITTEN_FORMAT);
+            add(withCurve(written), sWrittenTextureUsage,
+                VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT | VK_IMAGE_CREATE_EXTENDED_USAGE_BIT,
+                "textures written under a curve");
+            add(written, sWrittenTextureUsage, 0, "textures written");
+            return made;
+        }();
+        return images;
     }
 
     DeviceFeatures::DeviceFeatures()
