@@ -17,10 +17,10 @@
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
-#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>

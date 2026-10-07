@@ -10,12 +10,12 @@
 #include <string>
 #include <utility>
 
+#include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/environment/weather.hpp>
 
 #include "benchrun.hpp"
-#include "wholenumber.hpp"
 
 namespace RtxTool
 {

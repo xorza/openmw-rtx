@@ -12,7 +12,7 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
-#include <apps/rtxtool/model/wholenumber.hpp>
+#include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <apps/rtxtool/numbervalue.hpp>
 
 namespace RtxTool

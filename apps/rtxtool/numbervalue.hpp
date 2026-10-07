@@ -10,7 +10,7 @@
 #include <boost/program_options/errors.hpp>
 #include <boost/program_options/value_semantic.hpp>
 
-#include <apps/rtxtool/model/wholenumber.hpp>
+#include <apps/rtxtool/instruments/wholenumber.hpp>
 
 namespace RtxTool
 {
