@@ -79,6 +79,13 @@ namespace Crash::Monitor
         return TerminateProcess(handle, 3) != FALSE ? Ending::Ended : Ending::Failed;
     }
 
+    bool GameProcess::isHeld() const
+    {
+        BOOL debugged = FALSE;
+        const HANDLE handle = handleOf(mHold);
+        return handle != nullptr && CheckRemoteDebuggerPresent(handle, &debugged) != FALSE && debugged != FALSE;
+    }
+
     std::optional<std::uint32_t> GameProcess::exitCode() const
     {
         DWORD code = 0;

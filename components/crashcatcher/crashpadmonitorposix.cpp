@@ -4,6 +4,8 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdint>
+#include <cstdlib>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <utility>
@@ -15,9 +17,12 @@
 
 #include "crashsummary.hpp"
 
-// Linux holds the game by a pidfd, which the C library has no wrapper for everywhere.
+// Linux holds the game by a pidfd, which the C library has no wrapper for everywhere; macOS says
+// whether a process is stopped or traced through `sysctl`.
 #if defined(__linux__)
 #include <sys/syscall.h>
+#elif defined(__APPLE__)
+#include <sys/sysctl.h>
 #endif
 
 namespace Crash::Monitor
@@ -72,6 +77,35 @@ namespace Crash::Monitor
     std::optional<std::uint32_t> GameProcess::exitCode() const
     {
         return std::nullopt;
+    }
+
+    bool GameProcess::isHeld() const
+    {
+#if defined(__APPLE__)
+        int name[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, static_cast<int>(mId) };
+        kinfo_proc info{};
+        std::size_t size = sizeof(info);
+        if (sysctl(name, 4, &info, &size, nullptr, 0) != 0 || size == 0)
+            return false;
+        return (info.kp_proc.p_flag & P_TRACED) != 0 || info.kp_proc.p_stat == SSTOP;
+#else
+        // The state follows the name in parentheses, which may hold anything, so after the last of
+        // them: `T` stopped, `t` stopped by a tracer.
+        const std::string folder = "/proc/" + std::to_string(mId);
+        std::ifstream stat(folder + "/stat");
+        std::string line;
+        std::getline(stat, line);
+        const std::size_t named = line.rfind(')');
+        if (named != std::string::npos && named + 2 < line.size() && (line[named + 2] == 'T' || line[named + 2] == 't'))
+            return true;
+
+        // A tracer that lets the game run stands at a breakpoint as often as not.
+        std::ifstream status(folder + "/status");
+        for (std::string field; std::getline(status, field);)
+            if (field.starts_with("TracerPid:"))
+                return std::strtol(field.c_str() + sizeof("TracerPid:") - 1, nullptr, 10) != 0;
+        return false;
+#endif
     }
 
     std::string describeExitCode(std::uint32_t code)

@@ -47,6 +47,10 @@ namespace Crash::Monitor
         /// Ends the game, and says what that came to.
         Ending end() const;
 
+        /// Whether something holds the game still that is not the game: a debugger, or on POSIX a
+        /// stop signal from a shell. A stall it spends so is no hang.
+        bool isHeld() const;
+
         /// What the game exited with, once it is gone, where the system tells a process that is
         /// not its parent: Windows does, and a POSIX system tells the parent alone.
         std::optional<std::uint32_t> exitCode() const;

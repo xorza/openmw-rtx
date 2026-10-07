@@ -1,6 +1,7 @@
 #include "crashtestssystem.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
@@ -94,6 +95,9 @@ namespace CrashTests
         // **Ended while its report is written**: End answered at once, so the monitor's kill would
         // land while Crashpad still reads the game, and the hang's dump has to be there all the same.
         // POSIX alone, where the end is a signal the run says.
+        // **Stopped past the limit by somebody else**, as a shell's Ctrl+Z or a debugger stops it:
+        // no frame for twice the limit, and no hang, because the game was not what stood still.
+        into.push_back({ "stopped-past-limit", "", {}, "crash-tests lived on", false });
         into.push_back({ .mName = "ended-in-report",
             .mHeadline = "Hang: no frame for",
             .mRaised = {},
@@ -142,6 +146,32 @@ namespace CrashTests
             kill(getppid(), SIGTERM);
             for (;;)
                 pause();
+        }
+        if (mode == "stopped-past-limit")
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                Crash::heartbeat();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+            // Somebody else's continue, four seconds on: twice the limit.
+            const std::string resume = "sleep 4; kill -CONT " + std::to_string(getpid());
+            char shell[] = "sh";
+            char command[] = "-c";
+            std::string line = resume;
+            char* arguments[] = { shell, command, line.data(), nullptr };
+            pid_t continuer = 0;
+            if (posix_spawn(&continuer, "/bin/sh", nullptr, nullptr, arguments, environ) != 0)
+                return 3;
+            raise(SIGSTOP);
+
+            for (int i = 0; i < 20; ++i)
+            {
+                Crash::heartbeat();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            return livedOn();
         }
         if (mode == "report-under-hang")
         {
