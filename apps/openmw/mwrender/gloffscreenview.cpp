@@ -395,7 +395,7 @@ namespace MWRender
     template class GlOffscreenView<SubjectView>;
 
     // Upstream's, from InventoryPreview::getSlotSelected.
-    bool GlDollView::pick(float x, float y, osg::NodePath& hit) const
+    bool GlDollView::pick(float x, float y, osg::NodePath& hit)
     {
         // With Intersector::WINDOW, the intersection ratios are slightly inaccurate. Seems to be a
         // precision issue - compiling with OSG_USE_FLOAT_MATRIX=0, Intersector::WINDOW works ok.

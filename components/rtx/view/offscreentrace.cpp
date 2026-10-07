@@ -199,7 +199,7 @@ namespace Rtx
         return mRenderer.takeGuiCopy(texture, into);
     }
 
-    bool OffscreenTrace::pick(float x, float y, osg::NodePath& hit) const
+    bool OffscreenTrace::pick(float x, float y, osg::NodePath& hit)
     {
         if (mSubject == nullptr)
             return false;

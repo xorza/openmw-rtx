@@ -91,7 +91,7 @@ namespace MWRender
 
         void keepCopy() override;
         const osg::Image* getCopy() override;
-        bool pick(float x, float y, osg::NodePath& hit) const override { return mTrace.pick(x, y, hit); }
+        bool pick(float x, float y, osg::NodePath& hit) override { return mTrace.pick(x, y, hit); }
         MyGUI::ITexture& getTexture() const override;
 
     private:
