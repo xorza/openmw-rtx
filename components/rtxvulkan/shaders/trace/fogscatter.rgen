@@ -235,7 +235,7 @@ void main()
     float visible = 1.0;
     float lunar = 1.0;
     if (sources.mSunlit)
-        visible = skyVisible(position, vec3(0.0), SKY_SOURCE_SUN, sunDraw);
+        visible = skyVisible(skySourceAt(SKY_SOURCE_SUN), position, vec3(0.0), sunDraw);
     if (sources.mMoonlit)
         lunar = skyVisible(sources.mDrawnSky, position, vec3(0.0), moonDraw);
 
