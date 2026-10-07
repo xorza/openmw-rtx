@@ -33,11 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `components/crashcatcher/crashpadclientposix.cpp:98-105`, `crashpadclientsystem.hpp:18-21` — on
-  Linux, `prepareInstallingThread` repeats what `StartHandler` → `Initialize` → `SignalHandler::Install`
-  already does for the installing thread (`InitializeSignalStackForThread`). The comment "the one
-  installing is older than that" is wrong. Target shape: an empty Linux body, as macOS has, and correct
-  docs. (low)
 - [ ] `components/crashcatcher/crash.hpp:53` (`Crash::report`), `crashnote.hpp:113` (`isReporting`) — only
   `apps/components_tests` calls them. Target shape: remove them, or name the production caller. (low)
 - [ ] `components/crashcatcher/crashunsupported.cpp:20` — "Crashpad does not support this system" is also
