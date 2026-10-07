@@ -57,6 +57,7 @@ set(RTX_TEST_FILES
     rtx/mirror/mirroridentity.cpp
     rtx/mirror/nodekind.cpp
     rtx/mirror/shading.cpp
+    rtx/mirror/statereading.cpp
     rtx/preprocess/contentkey.cpp
     rtx/preprocess/contentpreprocessor.cpp
     rtx/preprocess/shape/creasesplit.cpp
@@ -74,7 +75,6 @@ set(RTX_TEST_FILES
     rtx/scene/refusals.cpp
     rtx/scene/scenedesc.cpp
     rtx/scene/scenetextures.cpp
-    rtx/scene/surface.cpp
     rtx/shaders/brdf.cpp
     rtx/shaders/lights.cpp
     rtx/shaders/pixelgrid.cpp

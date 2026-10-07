@@ -10,6 +10,7 @@
 #include <components/rtx/scene/surface.hpp>
 
 #include "chainkeys.hpp"
+#include "statereading.hpp"
 
 namespace Rtx
 {
