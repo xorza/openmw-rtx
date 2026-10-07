@@ -1,5 +1,6 @@
 #pragma once
 
+#include <compare>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -112,14 +113,27 @@ namespace Rtx
         std::vector<GroupState> mGroupState;
         std::vector<osg::Vec3f> mPieceNormal;
 
-        /// Which vertex each vertex of the fan went to for each piece: the input's for the first
-        /// piece it met, an added one for every other.
-        struct Placed
+        /// A corner of the fan under a key of two numbers, sorted by both and then by its place:
+        /// its group and a neighbouring position, to find the corners across an edge, or its vertex
+        /// and piece, to find where it was placed.
+        struct Keyed
         {
-            std::uint32_t mVertex;
-            std::uint32_t mPiece;
-            std::uint32_t mPlacedAt;
+            std::uint32_t mFirst;
+            std::uint32_t mSecond;
+            std::uint32_t mAt;
+
+            auto operator<=>(const Keyed& other) const = default;
         };
-        std::vector<Placed> mPlaced;
+        std::vector<Keyed> mKeyed;
+
+        /// The fan's corners that carry a normal, sorted by it.
+        std::vector<std::uint32_t> mOrder;
+
+        /// For each cut corner of the fan: the first corner of its vertex and piece, the first corner
+        /// of its vertex, and — at a corner that is the first of its vertex and piece — the vertex
+        /// it went to, the input's for the vertex's first piece and an added one for every other.
+        std::vector<std::uint32_t> mPlacedBy;
+        std::vector<std::uint32_t> mVertexFirst;
+        std::vector<std::uint32_t> mPlacedAt;
     };
 }

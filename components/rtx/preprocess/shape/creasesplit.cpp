@@ -133,53 +133,67 @@ namespace Rtx
         };
 
         // Every corner's group is named by its first corner, and every corner starts a piece of its
-        // own. A corner with no normal belongs to no group, and is left as it is.
+        // own. A corner with no normal belongs to no group, and is left as it is. Sorted by normal
+        // and then by place, so a group is a run whose first corner names it — a pole's or a
+        // degenerate fan's hundreds of corners in a sort, not in a search each.
         mGroup.resize(size);
         mParent.resize(size);
         mGroupState.assign(size, GroupState::Smooth);
+        mOrder.clear();
         for (std::uint32_t at = 0; at < size; ++at)
         {
             mParent[at] = at;
             mGroup[at] = sNoEntry;
-            if (!(normalOf(at).length2() > 0.0f))
-                continue;
-
-            std::uint32_t first = 0;
-            while (normalOf(first) != normalOf(at))
-                ++first;
-            mGroup[at] = first;
+            if (normalOf(at).length2() > 0.0f)
+                mOrder.push_back(at);
         }
+        std::sort(mOrder.begin(), mOrder.end(), [&](std::uint32_t a, std::uint32_t b) {
+            return normalOf(a) != normalOf(b) ? normalOf(a) < normalOf(b) : a < b;
+        });
+        for (std::size_t at = 0; at < mOrder.size(); ++at)
+            mGroup[mOrder[at]]
+                = at > 0 && normalOf(mOrder[at]) == normalOf(mOrder[at - 1]) ? mGroup[mOrder[at - 1]] : mOrder[at];
 
         // Two corners of one group across an edge of the fan: one piece where the edge is smooth, and
-        // the group marked where it is hard.
+        // the group marked where it is hard. Corners meet across an edge where they share a
+        // neighbouring position, so each corner is keyed by its group and each of its two
+        // neighbours, and only corners of one key are compared.
+        mKeyed.clear();
+        for (std::uint32_t at = 0; at < size; ++at)
+            if (mGroup[at] != sNoEntry)
+                for (const std::uint32_t ahead : { 1u, 2u })
+                    mKeyed.push_back(
+                        Keyed{ .mFirst = mGroup[at], .mSecond = mPositionOf[neighbour(at, ahead)], .mAt = at });
+        std::sort(mKeyed.begin(), mKeyed.end());
+
         bool anyHard = false;
-        for (std::uint32_t i = 0; i < size; ++i)
+        for (std::size_t from = 0; from < mKeyed.size();)
         {
-            if (mGroup[i] == sNoEntry)
-                continue;
+            std::size_t to = from + 1;
+            while (to < mKeyed.size() && mKeyed[to].mFirst == mKeyed[from].mFirst
+                && mKeyed[to].mSecond == mKeyed[from].mSecond)
+                ++to;
 
-            const std::uint32_t mine[2] = { mPositionOf[neighbour(i, 1)], mPositionOf[neighbour(i, 2)] };
-            for (std::uint32_t j = i + 1; j < size; ++j)
-            {
-                if (mGroup[j] != mGroup[i] || triangleOf(j) == triangleOf(i))
-                    continue;
-
-                const std::uint32_t theirs[2] = { mPositionOf[neighbour(j, 1)], mPositionOf[neighbour(j, 2)] };
-                const bool adjacent
-                    = mine[0] == theirs[0] || mine[0] == theirs[1] || mine[1] == theirs[0] || mine[1] == theirs[1];
-                if (!adjacent)
-                    continue;
-
-                const osg::Vec3f a = facing(mFaces[triangleOf(i)], normalOf(i));
-                const osg::Vec3f b = facing(mFaces[triangleOf(j)], normalOf(j));
-                if (a.length2() > 0.0f && b.length2() > 0.0f && a * b < sHardCosine)
+            for (std::size_t one = from; one < to; ++one)
+                for (std::size_t other = one + 1; other < to; ++other)
                 {
-                    mGroupState[mGroup[i]] = GroupState::Hard;
-                    anyHard = true;
+                    const std::uint32_t i = mKeyed[one].mAt;
+                    const std::uint32_t j = mKeyed[other].mAt;
+                    if (triangleOf(j) == triangleOf(i))
+                        continue;
+
+                    const osg::Vec3f a = facing(mFaces[triangleOf(i)], normalOf(i));
+                    const osg::Vec3f b = facing(mFaces[triangleOf(j)], normalOf(j));
+                    if (a.length2() > 0.0f && b.length2() > 0.0f && a * b < sHardCosine)
+                    {
+                        mGroupState[mGroup[i]] = GroupState::Hard;
+                        anyHard = true;
+                    }
+                    else
+                        mParent[pieceOf(i)] = pieceOf(j);
                 }
-                else
-                    mParent[pieceOf(i)] = pieceOf(j);
-            }
+
+            from = to;
         }
 
         if (!anyHard)
@@ -201,7 +215,33 @@ namespace Rtx
                 mPieceNormal[pieceOf(at)] += facing(mFaces[triangleOf(at)], normalOf(at))
                     * cornerAngle(positions[vertexOf(at)], positions[neighbour(at, 1)], positions[neighbour(at, 2)]);
 
-        mPlaced.clear();
+        // Each cut corner's first corner of the same vertex and piece, which places the vertex every
+        // later one moves to, and its first corner of the same vertex, whose piece keeps the vertex.
+        mKeyed.clear();
+        for (std::uint32_t at = 0; at < size; ++at)
+            if (cut(at))
+                mKeyed.push_back(Keyed{ .mFirst = vertexOf(at), .mSecond = pieceOf(at), .mAt = at });
+        std::sort(mKeyed.begin(), mKeyed.end());
+
+        mPlacedBy.resize(size);
+        mVertexFirst.resize(size);
+        for (std::size_t from = 0; from < mKeyed.size();)
+        {
+            std::size_t to = from;
+            std::uint32_t first = mKeyed[from].mAt;
+            while (to < mKeyed.size() && mKeyed[to].mFirst == mKeyed[from].mFirst)
+                first = std::min(first, mKeyed[to++].mAt);
+
+            for (std::size_t at = from; at < to; ++at)
+            {
+                const bool newPiece = at == from || mKeyed[at].mSecond != mKeyed[at - 1].mSecond;
+                mPlacedBy[mKeyed[at].mAt] = newPiece ? mKeyed[at].mAt : mPlacedBy[mKeyed[at - 1].mAt];
+                mVertexFirst[mKeyed[at].mAt] = first;
+            }
+            from = to;
+        }
+
+        mPlacedAt.resize(size);
         for (std::uint32_t at = 0; at < size; ++at)
         {
             if (!cut(at))
@@ -212,24 +252,19 @@ namespace Rtx
             if (split.mNormals.empty())
                 split.mNormals.assign(normals.begin(), normals.end());
 
-            const std::uint32_t vertex = vertexOf(at);
-            const std::uint32_t piece = pieceOf(at);
-            const auto held = std::find_if(mPlaced.begin(), mPlaced.end(),
-                [&](const Placed& placed) { return placed.mVertex == vertex && placed.mPiece == piece; });
-            if (held != mPlaced.end())
+            if (mPlacedBy[at] != at)
             {
-                triangles[fan[at]] = held->mPlacedAt;
+                triangles[fan[at]] = mPlacedAt[mPlacedBy[at]];
                 continue;
             }
 
-            const osg::Vec3f summed = mPieceNormal[piece];
+            const osg::Vec3f summed = mPieceNormal[pieceOf(at)];
             const osg::Vec3f normal = summed.length2() > 0.0f ? summed / summed.length() : normalOf(at);
 
             // The vertex's first piece keeps the vertex, and every other one is a copy of it.
-            const bool met = std::any_of(
-                mPlaced.begin(), mPlaced.end(), [&](const Placed& placed) { return placed.mVertex == vertex; });
+            const std::uint32_t vertex = vertexOf(at);
             std::uint32_t placedAt = vertex;
-            if (met)
+            if (mVertexFirst[at] != at)
             {
                 placedAt = static_cast<std::uint32_t>(split.mNormals.size());
                 split.mSources.push_back(vertex);
@@ -238,7 +273,7 @@ namespace Rtx
             else
                 split.mNormals[vertex] = normal;
 
-            mPlaced.push_back(Placed{ .mVertex = vertex, .mPiece = piece, .mPlacedAt = placedAt });
+            mPlacedAt[at] = placedAt;
             triangles[fan[at]] = placedAt;
         }
     }

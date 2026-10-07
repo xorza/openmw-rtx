@@ -18,11 +18,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   cell pushes it past the threshold. Without resizable BAR, the old and new copies are both in the
   ~246 MiB host-written heap until the graveyard collects the old one. Target shape: fixed-size blocks
   with an address table, as `BlockedBuffer` has, or a capacity set at load. (medium)
-- [ ] `components/rtx/preprocess/shape/creasesplit.cpp:147-150,156-183,217-230` — `cutFan` is quadratic
-  in a fan's corners (group search, pairwise edge test, linear `mPlaced` scans). It runs on the frame
-  thread for each mesh the walk meets for the first time, so a pole vertex or many coincident vertices
-  cause a spike. Target shape: sort the fan's corners by normal and neighbour position, and look them
-  up. (low)
 - [ ] `components/rtx/mirror/statereading.cpp:94` — `uniformNamed` makes a `std::string` for each lookup,
   and animated materials are read again each frame. `shading.cpp:189-190` keeps static strings for the
   same lookup. Target shape: one idiom, with the names held once. (low)
