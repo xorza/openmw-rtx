@@ -646,15 +646,6 @@ namespace Rtx
             return upscaled;
         }();
 
-        const ExposureRule rule = options.mExposure.value_or(mProfile.mExposure);
-        FrameLook::Exposure exposure = FrameLook::Held{};
-        if (const FixedExposure* fixed = std::get_if<FixedExposure>(&rule))
-            exposure = FrameLook::Fixed{ fixed->mScale };
-        else if (const MeasuredExposure* measured = std::get_if<MeasuredExposure>(&rule))
-            exposure = FrameLook::Measured{
-                .mSeconds = options.mSinceLast, .mBias = options.mExposureBias, .mStart = measured->mStart
-            };
-
         mDisplay.record(commands,
             Display{
                 .mTrace = traced,
@@ -665,8 +656,10 @@ namespace Rtx
                 .mTarget = target,
                 .mLeftAs = PresentTarget::sResting,
                 .mFrame = FrameLook{
-                    .mExposure = exposure,
-                    .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast },
+                    .mExposure = options.mExposure.value_or(mProfile.mExposure),
+                    .mExposureBias = options.mExposureBias,
+                    .mSeconds = options.mSinceLast,
+                    .mGlare = options.mGlare,
                     .mInverseGamma = mInverseGamma,
                     .mNightEye = options.mNightEye,
                     .mDither = options.mDither.value_or(mProfile.mDither),
