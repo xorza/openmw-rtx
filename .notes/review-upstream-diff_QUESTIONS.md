@@ -36,3 +36,26 @@ item's two target shapes both reach beyond `SlotTable`:
 
 Cells arrive in bursts, so growing early or copying over several frames does not help: one cell can
 need more rows than the slack. Blocked: the item "`components/rtxvulkan/device/memory/slottable.hpp:99-100`".
+
+## Q3. The glossy and pane filters' lag (`trace/denoise/specular.comp`, `trace/denoise/pane.comp`)
+
+The comments now say what the code does: only the bounce is clamped. Measured on this card, with a
+grey sky that halves after 64 still frames (`--denoise`, the clamp on, `-O2`, a temporary test):
+
+| Light | Frame 1 after | Frame 16 | Frame 32 | Frame 63 | Within 10% of the new level |
+| --- | --- | --- | --- | --- | --- |
+| Glossy metal floor, roughness 64/255 (target 0.151) | 0.250 | 0.207 | 0.184 | 0.163 | frame 56 |
+| Glossy metal floor, roughness 128/255 (target 0.146) | 0.240 | 0.198 | 0.177 | 0.157 | frame 56 |
+| Glossy metal floor, roughness 200/255 (target 0.133) | 0.214 | 0.177 | 0.159 | 0.142 | frame 54 |
+| Half-opaque pane before the sky (target 0.188) | 0.224 | 0.210 | 0.201 | 0.192 | between frames 16 and 32 |
+| The bounce, clamped (`RtxBounceClampTest`) | | | | | frame 31 |
+
+The glossy reflection takes 54–56 frames to come within a tenth, against the clamped bounce's 31.
+
+| Option | What it does | Cost |
+| --- | --- | --- |
+| A. Clamp both **(recommended)** | `specular.comp` and `pane.comp` keep fast means and clamp through `heldToFast`, as ReLAX clamps specular. | Two more history images a filter, a 5×5 square of loads each, and a test like `theFloorFollowsASkyWhoseLightHalves` for each. |
+| B. Clamp the glossy filter only | The pane lags less than the reflection; clamp only the reflection. | The pane keeps its lag. |
+| C. Keep | Accept the lag. | A reflection keeps old light for about a second at 60 frames a second. |
+
+Blocked: the item "`components/rtxvulkan/shaders/lib/historyclamp.glsl:63-66`".
