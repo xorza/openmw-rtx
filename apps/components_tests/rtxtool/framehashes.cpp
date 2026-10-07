@@ -6,6 +6,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -481,6 +482,51 @@ namespace RtxTool
             out.close();
 
             EXPECT_THROW(FrameHashes::read(file), Rtx::InputError) << "frame 2 before frame 1 of one view";
+            std::filesystem::remove(file);
+        }
+
+        /// **A number is read whole or the file is refused**: a frame of `1x`, and a picture's hash
+        /// whose last digit is no hexadecimal one, each read up to the stray character and kept
+        /// what came before it.
+        TEST(RtxFrameHashesTest, aFileWithAPartialNumberIsRefused)
+        {
+            FrameHashes run;
+            add(run, 1, sPixels, partsOf(100));
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-partial.csv");
+            ASSERT_TRUE(run.write(file).isOk());
+
+            std::string header;
+            std::string row;
+            {
+                std::ifstream in(file);
+                std::getline(in, header);
+                std::getline(in, row);
+            }
+            ASSERT_NO_THROW(FrameHashes::read(file));
+
+            const auto field = [&](std::size_t at) {
+                std::size_t from = 0;
+                for (std::size_t skipped = 0; skipped < at; ++skipped)
+                    from = row.find(',', from) + 1;
+                return std::pair(from, row.find(',', from) - from);
+            };
+            const auto [frameAt, frameLength] = field(1);
+            const auto [pictureAt, pictureLength] = field(4);
+            ASSERT_EQ(pictureLength, 32u);
+
+            std::string partialFrame = row;
+            partialFrame.insert(frameAt + frameLength, "x");
+            std::string partialHash = row;
+            partialHash[pictureAt + pictureLength - 1] = 'g';
+
+            for (const std::string& written : { partialFrame, partialHash })
+            {
+                {
+                    std::ofstream out(file);
+                    out << header << '\n' << written << '\n';
+                }
+                EXPECT_THROW(FrameHashes::read(file), Rtx::InputError) << written;
+            }
             std::filesystem::remove(file);
         }
 
