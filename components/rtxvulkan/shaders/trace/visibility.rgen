@@ -483,7 +483,11 @@ void main()
     // bounce's demodulation, for the bounce's reason.
     const vec3 paneDrawn = armsStack.mDrawn + armsStack.mThrough * panes.mDrawn;
     const vec3 paneAlbedoSum = armsStack.mAlbedo + armsStack.mThrough * panes.mAlbedo;
-    const vec3 paneModulation = max(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR));
+    // **Rounded to what `CHANNEL_PANE_ALBEDO` holds before anything is divided by it**, as
+    // `specularModulation` is: the light divided by this and the channel the composite multiplies by
+    // are one number, so the two meet to the rounding of a product. A half holds the floor.
+    const vec3 paneHeld = max(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR));
+    const vec3 paneModulation = vec3(unpackHalf2x16(packHalf2x16(paneHeld.rg)), unpackHalf2x16(packHalf2x16(paneHeld.bb)).x);
     const vec3 paneLight = paneDrawn / paneModulation;
 
     // **What the upscaler is told its motion vector does not describe**, `CHANNEL_UPSCALE_MASKS`:
