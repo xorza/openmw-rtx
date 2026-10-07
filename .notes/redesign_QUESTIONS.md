@@ -121,3 +121,23 @@ packs the bits, and the temporal pass and the levels read the packed words, neve
 | C. Keep it, and say so | `gbuffer.h` says `rgb` is exact except for what translucent surfaces let through, which is one ray's. | The noise under translucent surfaces stays. |
 
 **What it blocks.** Only this item.
+
+## 9. Section 6.6: the glossy filter's second history
+
+**Item.** Section 6.6's "The glossy filter has no virtual-motion history". `specular.comp` keeps
+one history, reprojected by the surface's motion and held by ReLAX's rule for how far the view
+turned. A sharp lobe therefore starts again on every frame the eye turns. ReLAX keeps a second
+history, reprojected along the reflected ray by the reflection's own parallax, and that needs the
+lobe's hit distance in a channel.
+
+**Why it needs a call.** It is a channel and a pass of new work, and the gain is for PBR replacers
+alone: no vanilla surface has a lobe, so the filter does not run on any place the suites hold, and
+nothing here can measure the gain or the cost.
+
+| Option | What it does | Cost |
+|---|---|---|
+| **A. Wait for replacer content in the suites** (my pick) | A view with a mapped replacer goes into `views.cfg`, then the second history is built and measured there with `noise --strafe`. | The sharp reflections stay noisy in motion until then. |
+| B. Build it now | The trace stores the lobe's hit distance (one `r16f` channel), and the glossy filter takes both histories and keeps the one that holds, as ReLAX does. | A channel and its history, unmeasured. |
+| C. Decline it | The upscaler's accumulation stays the only help for a sharp lobe in motion. | The noise stays. |
+
+**What it blocks.** Only this item.
