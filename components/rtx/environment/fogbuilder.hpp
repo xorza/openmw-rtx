@@ -19,11 +19,13 @@ namespace Rtx
 
         /// Where each level begins in `mBytes`.
         std::vector<std::size_t> mOffsets;
-    };
 
-    /// Draws the tile. Every level is normalised to one mean and one spread, so a coarse step
-    /// loses the detail and never the amount of air.
-    FogNoise bakeFogNoise();
+        /// The one tile, drawn on first use and kept for the process, as `BlueNoise` and
+        /// `SpecularAlbedo` are: every renderer reads the same field, and a test states another by
+        /// value. Every level is normalised to one mean and one spread, so a coarse step loses the
+        /// detail and never the amount of air.
+        static const FogNoise& shared();
+    };
 
     /// The air in a cell, in the units the shader takes.
     struct Fog

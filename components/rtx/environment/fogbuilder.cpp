@@ -169,61 +169,67 @@ namespace Rtx
 
             return out;
         }
+
+        FogNoise bake()
+        {
+            // Two fields and not one, because the shape and the displacement are read together. The
+            // domain is warped by a noise of its own, and a warp is a vector: taking it from one channel
+            // means a second fetch at a second place, where two channels of one fetch are already there.
+            std::array<std::vector<float>, 2> channels;
+            for (std::uint32_t channel = 0; channel < channels.size(); ++channel)
+            {
+                channels[channel].resize(static_cast<std::size_t>(sSize) * sSize * sSize);
+
+                for (int z = 0; z < sSize; ++z)
+                    for (int y = 0; y < sSize; ++y)
+                        for (int x = 0; x < sSize; ++x)
+                        {
+                            // The texel's centre, which is where a sampler puts the texel's own value.
+                            const osg::Vec3f unit((static_cast<float>(x) + 0.5f) / static_cast<float>(sSize),
+                                (static_cast<float>(y) + 0.5f) / static_cast<float>(sSize),
+                                (static_cast<float>(z) + 0.5f) / static_cast<float>(sSize));
+
+                            // Four texels a cell and one octave. A lattice finer than that aliases
+                            // into the level it is drawn at, and the chain then averages a mistake rather
+                            // than the field; a second octave is what `fogShape`'s scales are for.
+                            channels[channel][(static_cast<std::size_t>(z) * sSize + y) * sSize + x]
+                                = noiseAt(unit * static_cast<float>(sCells), sCells, 0x9e3779b9u * (channel + 1u));
+                        }
+            }
+
+            FogNoise noise;
+            noise.mOffsets.reserve(sLevels);
+
+            std::size_t texels = 0;
+            for (int level = 0; level < sLevels; ++level)
+                texels += static_cast<std::size_t>(sizeAt(level)) * sizeAt(level) * sizeAt(level);
+            noise.mBytes.reserve(texels * channels.size());
+
+            for (int level = 0; level < sLevels; ++level)
+            {
+                noise.mOffsets.push_back(noise.mBytes.size());
+
+                for (auto& channel : channels)
+                    normalise(channel, sizeAt(level));
+
+                const std::size_t count = static_cast<std::size_t>(sizeAt(level)) * sizeAt(level) * sizeAt(level);
+                for (std::size_t at = 0; at < count; ++at)
+                    for (const auto& channel : channels)
+                        noise.mBytes.push_back(static_cast<std::uint8_t>(std::lround(channel[at] * 255.0f)));
+
+                if (level + 1 < sLevels)
+                    for (auto& channel : channels)
+                        channel = halved(channel, level);
+            }
+
+            return noise;
+        }
     }
 
-    FogNoise bakeFogNoise()
+    const FogNoise& FogNoise::shared()
     {
-        // Two fields and not one, because the shape and the displacement are read together. The
-        // domain is warped by a noise of its own, and a warp is a vector: taking it from one channel
-        // means a second fetch at a second place, where two channels of one fetch are already there.
-        std::array<std::vector<float>, 2> channels;
-        for (std::uint32_t channel = 0; channel < channels.size(); ++channel)
-        {
-            channels[channel].resize(static_cast<std::size_t>(sSize) * sSize * sSize);
-
-            for (int z = 0; z < sSize; ++z)
-                for (int y = 0; y < sSize; ++y)
-                    for (int x = 0; x < sSize; ++x)
-                    {
-                        // The texel's centre, which is where a sampler puts the texel's own value.
-                        const osg::Vec3f unit((static_cast<float>(x) + 0.5f) / static_cast<float>(sSize),
-                            (static_cast<float>(y) + 0.5f) / static_cast<float>(sSize),
-                            (static_cast<float>(z) + 0.5f) / static_cast<float>(sSize));
-
-                        // Four texels a cell and one octave. A lattice finer than that aliases
-                        // into the level it is drawn at, and the chain then averages a mistake rather
-                        // than the field; a second octave is what `fogShape`'s scales are for.
-                        channels[channel][(static_cast<std::size_t>(z) * sSize + y) * sSize + x]
-                            = noiseAt(unit * static_cast<float>(sCells), sCells, 0x9e3779b9u * (channel + 1u));
-                    }
-        }
-
-        FogNoise noise;
-        noise.mOffsets.reserve(sLevels);
-
-        std::size_t texels = 0;
-        for (int level = 0; level < sLevels; ++level)
-            texels += static_cast<std::size_t>(sizeAt(level)) * sizeAt(level) * sizeAt(level);
-        noise.mBytes.reserve(texels * channels.size());
-
-        for (int level = 0; level < sLevels; ++level)
-        {
-            noise.mOffsets.push_back(noise.mBytes.size());
-
-            for (auto& channel : channels)
-                normalise(channel, sizeAt(level));
-
-            const std::size_t count = static_cast<std::size_t>(sizeAt(level)) * sizeAt(level) * sizeAt(level);
-            for (std::size_t at = 0; at < count; ++at)
-                for (const auto& channel : channels)
-                    noise.mBytes.push_back(static_cast<std::uint8_t>(std::lround(channel[at] * 255.0f)));
-
-            if (level + 1 < sLevels)
-                for (auto& channel : channels)
-                    channel = halved(channel, level);
-        }
-
-        return noise;
+        static const FogNoise tile = bake();
+        return tile;
     }
 
     float fogExtinction(float depth, float over)

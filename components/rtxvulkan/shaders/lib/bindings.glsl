@@ -449,7 +449,7 @@ layout(set = SET_PASS, binding = BIND_RIPPLE_CURVATURE) uniform sampler2D ripple
 /// **A volume and not a ground plan**, for the reason `FOG_FIELD_SIZE` gives: a field with no third
 /// axis holds one value all the way up, so every bank in it is a column.
 ///
-/// `Rtx::bakeFogNoise` says what is in it, and why every level of the chain carries one spread.
+/// `Rtx::FogNoise::shared` says what is in it, and why every level of the chain carries one spread.
 layout(set = SET_PASS, binding = BIND_FOG_FIELD) uniform sampler3D fogField;
 
 // The air in front of the eye, integrated once for a block of pixels rather than once per pixel.

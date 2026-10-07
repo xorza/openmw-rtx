@@ -39,7 +39,7 @@ namespace Rtx
         Crash::contract(noise.mBytes.size() == 2 * texels, "a fog field of another size");
 
         // Every level uploaded rather than halved from the one above, because each is stretched
-        // back to one spread (`bakeFogNoise`). Seventy-three kilobytes, once.
+        // back to one spread (`FogNoise::shared`). Seventy-three kilobytes, once.
         std::vector<VkBufferImageCopy> regions;
         regions.reserve(Shaders::FOG_FIELD_LEVELS);
         for (std::uint32_t level = 0; level < Shaders::FOG_FIELD_LEVELS; ++level)

@@ -1289,7 +1289,7 @@ namespace Rtx::Testing
             constexpr float extinction = 8.9e-4f;
             constexpr float irradiance = 20.0f;
 
-            // The field the shader reads at each level, `bakeFogNoise`'s layout: two channels a
+            // The field the shader reads at each level, `FogNoise::shared`'s layout: two channels a
             // texel, slice by slice. Banked, the lower half of the tile's height is full and the
             // upper half empty; whole, every texel is full.
             const auto fieldOf = [](bool banked) {
@@ -1310,7 +1310,7 @@ namespace Rtx::Testing
             struct Restored
             {
                 VulkanRenderer& mRenderer;
-                ~Restored() { mRenderer.setFogField(bakeFogNoise()); }
+                ~Restored() { mRenderer.setFogField(FogNoise::shared()); }
             } restored{ mRenderer };
 
             const osg::Vec3f towards(0.6f, 0.0f, 0.8f);

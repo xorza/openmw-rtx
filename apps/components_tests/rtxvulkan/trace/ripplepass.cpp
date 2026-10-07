@@ -305,7 +305,7 @@ namespace Rtx
             scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
 
             const auto field = [&](const int traces) {
-                TraceMedia media(getDevice(), bakeFogNoise());
+                TraceMedia media(getDevice(), FogNoise::shared());
                 media.keepRipples(scene);
                 getPool().submitAndWait([&](VkCommandBuffer commands) {
                     for (int trace = 0; trace < traces; ++trace)
