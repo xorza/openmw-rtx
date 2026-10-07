@@ -1,9 +1,4 @@
 # Open issues
 
-- `rtx-gpu-tests` shard 0 (seed 14691) crashed once under `./omw gate` with SIGSEGV (SEGV_MAPERR) in a `libnvidia-glcore.so.615.71.09` worker thread, during the global setup, while other threads were in `Rtx::makeTracePipeline` under the validation layer (core of PID 76775, 2026-10-07 01:28). Fifteen reruns of the shard, warm, with `__GL_SHADER_DISK_CACHE=0`, and beside shard 1, passed.
+- `rtx-gpu-tests` shard 0 (seed 14691) crashed once under `./omw gate` with SIGSEGV (SEGV_MAPERR) in a `libnvidia-glcore.so.615.71.09` worker thread, during the global setup, while other threads were in `Rtx::makeTracePipeline` under the validation layer (core of PID 76775, 2026-10-07 01:28). Fifteen reruns of the shard, warm, with `__GL_SHADER_DISK_CACHE=0`, and beside shard 1, passed. Shard 1 ended in a segmentation fault the same way once more under the gate, on a tree that differed from `4d8f1c79ba` in include lines of the crash catcher and the platform alone; the whole binary passed alone right after, and so did the next gate, and the next run overwrote CTest's log.
 - Code comments cite the labels of `.notes/redesign.md` — `(D2 point 5)` in `historyclamp.glsl`, `(D3.2)` and `the D6 contract` in `shading.glsl`, `(D7)` in `fog.glsl`, `(D6)` and `(D2's registration)` in the pane and specular tests — and the plan is a working note that goes when its items are done.
-
-- `rtx-gpu-tests`' second shard (`rtx.gpu.1`) ended in a segmentation fault once under `./omw gate`,
-  run beside the other suites, on a tree that differed from `4d8f1c79ba` in include lines of the
-  crash catcher and the platform alone. The whole binary passed alone right after, and so did the
-  next gate. The test that crashed was not recorded: the next run overwrote CTest's log.
