@@ -14,13 +14,14 @@ as good as its call graph, and a stock Release build has neither line numbers no
 the release flavour carries `-g1 -fno-omit-frame-pointer` instead, which costs less than the
 run-to-run spread. A second build directory would explain a frame nobody timed."""
 
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import IO
+from typing import IO, NamedTuple
 
 from omw.build import Build
 from omw.system import WINDOWS, Refusal, Switches, read_text, require
@@ -31,13 +32,14 @@ SAMPLES_A_SECOND = "5999"
 def profile(build: Build, args: list[str]) -> int:
     if WINDOWS:
         raise Refusal("profile is perf's, and perf is Linux's")
-    require("perf", "it is what records the profile: perf")
-
     switches = Switches("profile", "the renderer's CPU side under perf, over the frames `bench` measures; the "
                                    "rest of the line goes to `bench`, `--views=` or `--suite=` among it")
     switches.add_argument("--offcpu", action="store_true", help="where the frame waits, and not where it works")
     switches.add_argument("--out", type=Path, default=build.dir / "perf", help="where the recording and its reports go")
     asked, extra = switches.parse_known_args(args)
+    if any(arg.split("=", 1)[0] == "--json" for arg in extra):
+        raise Refusal("profile reads the frames it measured off bench's record, so it names --json itself")
+    require("perf", "it is what records the profile: perf")
     offcpu: bool = asked.offcpu
     out: Path = asked.out
     # One place unless told otherwise. A profile that averaged an exterior and an interior would
@@ -73,7 +75,8 @@ def profile(build: Build, args: list[str]) -> int:
             record += ["-e", "task-clock", "-F", SAMPLES_A_SECOND, "--call-graph", "fp"]
 
         bench = [str(part) for part in build.harness_line("bench", "--window=false", *place,
-                                                          f"--perf-control={control}", *extra)]
+                                                          f"--perf-control={control}", f"--json={out / 'bench.json'}",
+                                                          *extra)]
         with open(out / "bench.txt", "w", encoding="utf-8") as log:
             if offcpu:
                 code = _record_offcpu(build, record, bench, data, log)
@@ -89,6 +92,19 @@ def profile(build: Build, args: list[str]) -> int:
         return code
     _report(data, out, "blocked" if offcpu else "cpu", offcpu)
     return 0
+
+
+class Measured(NamedTuple):
+    frames: int
+    seconds: float
+
+
+def measured_window(record: dict) -> Measured:
+    """The frames `bench --json` measured and the wall seconds they took, over every place: the window
+    the recording is bounded to."""
+    places = record.get("places", [])
+    return Measured(sum(int(place["frames"]) for place in places),
+                    sum(float(place["wallSeconds"]) for place in places))
 
 
 def _perf_report(*args: str) -> str:
@@ -115,13 +131,8 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
     optimisation level that address usually lands in whatever was inlined *after* the call — so a
     chain through `placeScene` comes back as `~basic_string`. Real symbols and a chain that can be
     read beat inline names that name the wrong thing."""
-    wall = 0.0
-    frames = 0.0
-    for line in read_text(out / "bench.txt").splitlines():
-        if re.search(r"frames in .* s ", line):
-            fields = line.split()
-            frames += float(fields[0])
-            wall += float(fields[3])
+    measured = measured_window(json.loads(read_text(out / "bench.json")))
+    frames, wall = measured.frames, measured.seconds
 
     common = ["-i", str(data), "--stdio", "--no-inline"]
     summary = _perf_report(*common, "-g", "none", "--sort", "dso")
