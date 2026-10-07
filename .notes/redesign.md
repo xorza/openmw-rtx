@@ -638,8 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[code] `getArrived` means slots on three tables and runs on `MaterialTable`.** Target: one
-  meaning.
 - **[code] The sky readers take textures two ways** (moons `add` then `holdTexture`, the rest
   `checkUploadable` then `takeTexture`), in two argument orders. Target: one helper.
 - **[code] Which texel fact a blended surface needs is stated twice** (`MaterialResolver::read` by
