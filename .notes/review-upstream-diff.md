@@ -33,12 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Facts of one layer are in another layer
 
-- [ ] `components/rtx/scene/surface.hpp:49,127,153,222,270,375`, `surface.cpp:21` — the state-set reading
-  vocabulary (`UnreadState`/`whyUnread`, `TextureRole`/`sTextureRoleNames` with OpenGL uniform names,
-  `TextureUse`, `SurfaceDescription`, `setTexture(osg::Texture*)`) is used only by `mirror/`. `scene/` needs
-  only `AlphaMode`, `AlphaTest`, `BlendKind`, `VertexColour` and `additiveSurface`. The header also
-  includes `osg/CopyOp` and `osg/StateAttribute` and does not use them. Target shape: split the header,
-  and move the reading half beside `mirror/statereading`. (medium)
 - [ ] `components/rtx/environment/skybuilder.cpp:114-120` — `addSkyContent` reads
   `Fallback::Map::getString("Weather_<name>_Cloud_Texture")` from the global registry and makes a string
   for each weather. Its own `SkyMeshes` doc says the library "holds no settings registry"

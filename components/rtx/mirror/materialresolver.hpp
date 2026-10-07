@@ -18,11 +18,11 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
-#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 
 #include "mirroridentity.hpp"

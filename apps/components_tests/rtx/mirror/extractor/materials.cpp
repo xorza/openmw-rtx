@@ -47,6 +47,7 @@
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/statereading.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>

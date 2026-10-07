@@ -5,7 +5,7 @@
 #include <osg/StateSet>
 #include <osg/Uniform>
 
-#include <components/rtx/scene/surface.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 
 #include "chainkeys.hpp"
 #include "statereading.hpp"

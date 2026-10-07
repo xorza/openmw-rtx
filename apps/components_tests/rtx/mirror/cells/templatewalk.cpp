@@ -34,7 +34,6 @@
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/scene/meshtable.hpp>
-#include <components/rtx/scene/surface.hpp>
 #include <components/sceneutil/extradata.hpp>
 #include <components/shader/automaps.hpp>
 

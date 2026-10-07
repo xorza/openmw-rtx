@@ -161,10 +161,10 @@ source-tree test holds the order.
 | `common/`           | what knows no scene: contracts, results, slots, runs, threads, the clock |
 | `image/`            | a texture file read: its formats, texels, alpha, levels and painted light |
 | `preprocess/`       | `ContentPreprocessor`, its keys, cache and costs; the passes in `shape/` and `texture/` |
-| `scene/`            | `SceneDesc`, its rows and tables, and what makes lights and textures of it |
+| `scene/`            | `SceneDesc`, its rows and tables, and what makes textures of it          |
 | `frame/`            | what a frame is asked for and sampled with: the camera, the reconstruction |
 | `renderer/`         | `Rtx::Renderer` and what it hands, reports and writes                    |
-| `mirror/`           | the walk from the scene graph; the cell ring in `cells/`, which runs inside it |
+| `mirror/`           | the walk from the scene graph, what it reads a surface and a lamp as; the cell ring in `cells/`, which runs inside it |
 | `environment/`      | the sky, the air and the sea a frame is told                             |
 | `view/`             | the pictures traced away from the eye                                    |
 

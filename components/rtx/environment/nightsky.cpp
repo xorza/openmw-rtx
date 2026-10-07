@@ -23,7 +23,6 @@
 #include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/sky/vertexrules.hpp>
 #include <components/vfs/manager.hpp>

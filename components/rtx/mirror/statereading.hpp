@@ -6,7 +6,7 @@
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 
-#include <components/rtx/scene/surface.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 
 namespace osg
 {
