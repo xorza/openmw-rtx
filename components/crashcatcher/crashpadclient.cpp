@@ -59,6 +59,11 @@ namespace Crash
     void Client::reportHang()
     {
         reportAndContinue(ReportKind::Hang, {});
+
+        // Counted after the report and also where one being written already stood in for it: the
+        // monitor's End waits on this, and a count that never came would hold it to its limit.
+        if (Heartbeat* const page = sPage.get())
+            std::atomic_ref(page->mHangReports).fetch_add(1, std::memory_order_release);
     }
 
     void Client::onTerminate()
@@ -89,8 +94,7 @@ namespace Crash
         monitor.mClient = process;
         monitor.mNotes = reinterpret_cast<std::uint64_t>(noteTable().data());
         monitor.mApplication = settings.mApplication;
-        monitor.mDialog = settings.mDialog;
-        monitor.mEndAfter = settings.mEndAfter;
+        monitor.mAnswering = settings.mAnswering;
         monitor.mIssues = settings.mIssues;
 
         crashpad::CrashpadInfo* const info = crashpad::CrashpadInfo::GetCrashpadInfo();

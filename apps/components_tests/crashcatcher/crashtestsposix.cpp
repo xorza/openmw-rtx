@@ -91,6 +91,14 @@ namespace CrashTests
 #endif
         into.push_back({ "report-under-hang", "Report: crash-tests asked under a hang request", {},
             "crash-tests lived on", true, ", which asked" });
+        // **Ended while its report is written**: End answered at once, so the monitor's kill would
+        // land while Crashpad still reads the game, and the hang's dump has to be there all the same.
+        // POSIX alone, where the end is a signal the run says.
+        into.push_back({ .mName = "ended-in-report",
+            .mHeadline = "Hang: no frame for",
+            .mRaised = {},
+            .mFollows = "crash-tests stood still",
+            .mEndsBy = SIGKILL });
     }
 
     void prepareModeOfThisSystem(std::string_view mode)
