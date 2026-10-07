@@ -625,26 +625,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   gone.** Packaging and the dialog run after exit, when the mount may be gone. Target: verify by
   crashing the AppImage with `OPENMW_CRASH_DIALOG=1`; if confirmed, keep the mount for the
   monitor's lifetime.
-### 6.4 Measurements that can mislead
-
-- **[design] `omw release gate` ends `clean` with no test run** (`gate.py`: "has none" and on).
-  Target: refuse `gate` on a flavour with no tests.
-- **[code] The gate runs `spellings.check()` and `testing.timing()`**, which AGENTS.md and USAGE do
-  not name. Target: one statement of the order.
-- **[code] `FrameHashes::read` accepts a partial number** (`from_chars` on `ec` alone). Target:
-  require the whole field (`wholeNumber` with a base).
-- **[code] `repeat` refuses only the walk switches** (`WALK_SWITCHES`); every other switch it sets
-  fails as a Boost `multiple_occurrences`. Target: refuse each switch `repeat` sets, from one list.
-- **[code] `noise`'s leg log for a decimal distance** loses it (`folder.with_suffix(".log")` on
-  `walk1.5`). Target: `folder.parent / (folder.name + ".log")`.
-- **[design, conditional] A frozen walk no longer counts what `WalkTwice` asserts**: a frozen root
-  adds only `mInstances`, so `mMeshesReused` can read nought on a second walk where nothing is wrong.
-  Target: a frozen run adds back its counts, or the stats name a passed-frozen count.
-- **[code] `commandCheck`'s "two measured frames"** claim (`main.cpp`) names a claim no check makes.
-  Target: hash `check`'s still stops, or drop the frames and the comment.
-- **[code] `sHistoryFrames`'s derivation** (`run.hpp`) is a 16-frame accumulator's. Target: state
-  it from `ACCUMULATE_FRAMES`.
-
 ### 6.5 Performance (each one measured before it stays)
 
 - **[perf] `noise` warms an unfiltered held-exposure stop for 128 frames** (`main.cpp`, `picture`),
