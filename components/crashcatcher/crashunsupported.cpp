@@ -1,11 +1,11 @@
+#include "crash.hpp"
+#include "crashinstall.hpp"
+
 #include <chrono>
 #include <filesystem>
 #include <string_view>
 
 #include <components/misc/result.hpp>
-
-#include "crash.hpp"
-#include "crashinstall.hpp"
 
 #include "crashuncaught.hpp"
 
