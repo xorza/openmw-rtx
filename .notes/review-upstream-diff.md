@@ -41,13 +41,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
 
-## Untrusted input and external packages
-
-- [ ] `components/rtxvulkan/CMakeLists.txt:460,485` — volk and VMA use `FIND_PACKAGE_ARGS CONFIG QUIET`
-  without a version. The code needs volk's Vulkan 1.4 entry points (`vkCmdPushDescriptorSet` in
-  `pipeline/dispatch.cpp`), so an old distro volk is accepted and fails to compile. Target shape: put the
-  pinned versions in `FIND_PACKAGE_ARGS`. (low)
-
 ## Shader structure
 
 - [ ] `components/rtxvulkan/shaders/lib/geometry.glsl:80-81` — `smoothLift`'s `fromCorner[3]` and
