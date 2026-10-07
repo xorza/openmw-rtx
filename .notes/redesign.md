@@ -638,8 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[code] The sky readers take textures two ways** (moons `add` then `holdTexture`, the rest
-  `checkUploadable` then `takeTexture`), in two argument orders. Target: one helper.
 - **[code] Which texel fact a blended surface needs is stated twice** (`MaterialResolver::read` by
   `additiveSurface`, `describe` by `isBlended`), held together by a debug assert over an
   `optional` a release build would dereference. Target: one function.

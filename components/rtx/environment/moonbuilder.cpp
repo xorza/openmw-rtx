@@ -26,6 +26,7 @@
 #include <components/rtx/shaders/sky.h>
 
 #include "skylight.hpp"
+#include "skysheet.hpp"
 
 namespace Rtx
 {
@@ -130,10 +131,10 @@ namespace Rtx
         };
 
         // Clamped: a portrait is one image edge to edge, and a repeating tap at its limb would
-        // blend the far edge's paint into the disc's antialiasing. A face that does not open takes
-        // its slot with no image, which the upload stands in for and refuses; the image manager
-        // logged why. The mean read here and not on a frame, as a cloud deck's is: a face that does
-        // not open keeps the shipped portrait's.
+        // blend the far edge's paint into the disc's antialiasing. A face that does not open, or
+        // that the upload cannot take, takes no slot, and the moon is drawn its mean colour. The mean
+        // read here and not on a frame, as a cloud deck's is: a face that does not open keeps the
+        // shipped portrait's.
         MoonFaces faces;
         for (std::size_t at = 0; at < sMoonCount; ++at)
         {
@@ -143,10 +144,13 @@ namespace Rtx
 
             const VFS::Path::NormalizedView path = moonFaceOf(moon);
             const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
-            face.mSlot = scene.textures().add(path, image.isOk() ? image.value().get() : nullptr, TextureWrap::Clamp);
-            holds.push_back(scene.holdTexture(face.mSlot));
-            if (image.isOk() && image.value() != nullptr)
-                face.mMean = thread.meanOf(*image.value()).opaque();
+            TextureHold held = takeSkySheet(scene, path, image, TextureWrap::Clamp);
+            face.mSlot = held.get();
+            if (face.mSlot == sNoIndex)
+                continue;
+
+            holds.push_back(std::move(held));
+            face.mMean = thread.meanOf(*image.value()).opaque();
         }
         return faces;
     }
