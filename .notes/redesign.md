@@ -641,8 +641,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.9 Conventions
 
-- **[code] `threadcounterswin32.cpp` repeats the POSIX file's macOS branch.** Target: one
-  `threadcountersnone.cpp` that CMake chooses, and a Linux-only file.
 - **[code] Include blocks in the crash catcher and the platform**: `crashpadmonitor.cpp`'s first
   block, `crashunsupported.cpp`'s order, `libraryposix.cpp`'s `<cstdint>` first, and
   `librarywin32.cpp`'s `<windows.h>` where the folder uses `components/misc/windows.hpp`.
