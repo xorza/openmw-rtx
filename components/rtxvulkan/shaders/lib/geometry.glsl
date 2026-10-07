@@ -64,6 +64,14 @@ vec4 acrossTriangle(vec4 first, vec4 second, vec4 third, vec2 bary)
     return first + (second - first) * bary.x + (third - first) * bary.y;
 }
 
+/// One corner's share of `smoothLift`: the hit, `fromCorner` away from the corner, projected onto its
+/// tangent plane where it lies under it, by the corner's barycentric `weight`.
+vec3 cornerLift(vec3 normal, vec3 fromCorner, float weight)
+{
+    const vec3 unit = dot(normal, normal) > 0.0 ? normalize(normal) : vec3(0.0);
+    return -unit * (weight * min(dot(fromCorner, unit), 0.0));
+}
+
 /// How far above a hit the surface its triangle's vertex normals describe stands: Hanika's offset
 /// (*Hacking the Shadow Terminator*, Ray Tracing Gems II, ch. 4), which RTX Remix and Cycles build
 /// on. The hit is projected onto each corner's tangent plane where it lies under that plane, and
@@ -71,23 +79,20 @@ vec4 acrossTriangle(vec4 first, vec4 second, vec4 third, vec2 bary)
 /// its facet's, projects nothing. Sound where the normals describe a surface, which the content's
 /// creases were split for at load (`Rtx::CreaseSplit`).
 ///
+/// **Three corners named rather than walked in arrays**, because a local array with a computed index
+/// is a spill on this hardware (`SkyChoice` says so): as arrays, the corners and their weights stood
+/// in `visibilityhit.rchit.spv` as six `vec3[3]` and six `float[3]` of the function storage class,
+/// and named they stand in none.
+///
 /// @param edges the triangle's, in the world.
 /// @param normals the three corner normals, in the world, not unit, and turned to the side the ray
 ///        met. A zero normal is a corner with none, and projects nothing.
 vec3 smoothLift(TriangleEdges edges, vec3 normals[3], vec2 bary)
 {
     const vec3 fromFirst = edges.mFirst * bary.x + edges.mSecond * bary.y;
-    const vec3 fromCorner[3] = vec3[3](fromFirst, fromFirst - edges.mFirst, fromFirst - edges.mSecond);
-    const float weight[3] = float[3](1.0 - bary.x - bary.y, bary.x, bary.y);
-
-    vec3 lift = vec3(0.0);
-    for (int i = 0; i < 3; ++i)
-    {
-        const vec3 normal = dot(normals[i], normals[i]) > 0.0 ? normalize(normals[i]) : vec3(0.0);
-        lift -= normal * (weight[i] * min(dot(fromCorner[i], normal), 0.0));
-    }
-
-    return lift;
+    return cornerLift(normals[0], fromFirst, 1.0 - bary.x - bary.y)
+        + cornerLift(normals[1], fromFirst - edges.mFirst, bary.x)
+        + cornerLift(normals[2], fromFirst - edges.mSecond, bary.y);
 }
 
 /// The texture coordinates of the triangle a hit landed on.
