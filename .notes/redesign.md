@@ -596,12 +596,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.1 Pictures that are quietly wrong (fork code, no approval needed)
 
-- **[bug, conditional] An animated copy is keyed on a drawable that clones share.**
-  `MaterialResolver::animate` keys `mAnimated` on the node handed in (`mAnimated.reach(&node)`);
-  for a drawable with its own state set under an animated chain that is the drawable, which
-  `SceneUtil::CopyOp` shares between clones. Two enchantments on one base model then show the glow
-  of whichever was walked last, and the row is written twice a frame. Target: key on the placement
-  (the drawable with the path identity), never on the shared drawable.
 - **[bug] A reused `ESM::Cell` carries the last cell's groundcover into the next.**
   `TracedGroundcover::collect` refills one `mCell` with `GroundcoverStore::initCell`, whose
   `Cell::blank()` leaves `mContextList` alone; a grass-free cell read after a grassy one stands a

@@ -4,9 +4,11 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Node>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
@@ -124,8 +126,8 @@ namespace Rtx
         Resolved resolveWater();
 
         /// The state set `node` shades with where that is not simply the one it wears, or null
-        /// where it is — which is nearly every node in a cell. One per node, rewritten in place, so
-        /// a material keyed on its address is the same material next frame.
+        /// where it is — which is nearly every node in a cell. One per placement of the node,
+        /// rewritten in place, so a material keyed on its address is the same material next frame.
         ///
         /// **Two nodes need one: the node a controller writes, and a node standing under one.** For
         /// the first it is what the controller wrote. For the second it is an identity: what a
@@ -135,9 +137,17 @@ namespace Rtx
         /// on the shared state set, one material stands for the enchanted sword and the plain one
         /// beside it at once, is read once, and never cycles its sheet.
         ///
+        /// **Per placement and not per node**, because `SceneUtil::CopyOp` shares a drawable
+        /// between the clones of a model, and a template node stands under every reference walked
+        /// from it: one state set for two enchantments on one base model showed whichever was
+        /// applied last, and was written twice a frame.
+        ///
+        /// @param placement the identity of the path the walk reached `node` by, which tells its
+        ///        placements apart.
         /// @param underAnimated whether an animated state set is above `node` on the chain —
         ///        `Shading::mAnimatedThrough`.
-        const osg::StateSet* animate(osg::Node& node, osg::NodeVisitor* visitor, bool underAnimated);
+        const osg::StateSet* animate(
+            osg::Node& node, std::size_t placement, osg::NodeVisitor* visitor, bool underAnimated);
 
         /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
         /// its material and on every image it wore.
@@ -242,9 +252,53 @@ namespace Rtx
             }
         };
 
-        /// The state set a node's controllers write into, kept so that the address a material is
-        /// keyed on is the same one next frame. See `animate`. An entry like any other, so the map
-        /// sweeps it by the reach every entry carries.
+        /// Where an animated state set stands: a node, and the identity of the path the walk reached
+        /// it by. Looked up by the address, and held by `Placed`, which keeps the node so its
+        /// address cannot be handed to another while the entry stands (`ByAddress`).
+        struct Placement
+        {
+            const osg::Node* mNode;
+            std::size_t mPath;
+        };
+
+        struct Placed
+        {
+            explicit Placed(const Placement& at)
+                : mNode(at.mNode)
+                , mPath(at.mPath)
+            {
+            }
+
+            osg::ref_ptr<const osg::Node> mNode;
+            std::size_t mPath;
+        };
+
+        struct ByPlacement
+        {
+            using is_transparent = void;
+
+            static std::size_t hash(const osg::Node* node, std::size_t path)
+            {
+                return std::hash<const osg::Node*>{}(node) ^ (path * 0x9e3779b97f4a7c15ull);
+            }
+
+            std::size_t operator()(const Placed& placed) const { return hash(placed.mNode.get(), placed.mPath); }
+            std::size_t operator()(const Placement& at) const { return hash(at.mNode, at.mPath); }
+
+            bool operator()(const Placed& left, const Placed& right) const
+            {
+                return left.mNode == right.mNode && left.mPath == right.mPath;
+            }
+            bool operator()(const Placed& left, const Placement& right) const
+            {
+                return left.mNode.get() == right.mNode && left.mPath == right.mPath;
+            }
+            bool operator()(const Placement& left, const Placed& right) const { return operator()(right, left); }
+        };
+
+        /// The state set a node's controllers write into at one placement, kept so that the
+        /// address a material is keyed on is the same one next frame. See `animate`. An entry like
+        /// any other, so the map sweeps it by the reach every entry carries.
         struct Animated
         {
             Reach mReach;
@@ -321,7 +375,7 @@ namespace Rtx
 
         /// Owning for the same reason the identity maps are: a node freed and replaced at the same
         /// address would otherwise be handed the state set the first one's controllers were writing.
-        Identity<const osg::Node, Animated> mAnimated{ mPass };
+        Kept<boost::unordered_flat_map<Placed, Animated, ByPlacement, ByPlacement>> mAnimated{ mPass };
 
         /// The extractor's. The ring's reader has its own and hands its answers over in the reading.
         ThreadContent& mThread;

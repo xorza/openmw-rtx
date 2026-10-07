@@ -81,7 +81,8 @@ namespace Rtx
         return shape;
     }
 
-    const osg::StateSet* MaterialResolver::animate(osg::Node& node, osg::NodeVisitor* visitor, const bool underAnimated)
+    const osg::StateSet* MaterialResolver::animate(
+        osg::Node& node, const std::size_t placement, osg::NodeVisitor* visitor, const bool underAnimated)
     {
         // Asked of every node in the graph every frame, and nearly all of a cell hangs off no
         // callback at all and stands under nothing animated.
@@ -94,7 +95,7 @@ namespace Rtx
         // found and what the chains looked like when it found it; a controller swapped, appended or
         // removed under the walk changes the signature, and a node whose chains carry no updater
         // keeps a null one.
-        const auto [entry, arrived] = mAnimated.reach(&node);
+        const auto [entry, arrived] = mAnimated.reach(Placement{ .mNode = &node, .mPath = placement });
         Animated& held = entry->second;
         const ChainShape chains = ChainShape::of(node);
         if (arrived || chains != held.mChains)

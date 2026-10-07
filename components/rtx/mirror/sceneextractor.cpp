@@ -397,7 +397,7 @@ namespace Rtx
 
         // Above the node's own, which is where a rasterizing cull would push it too: what a
         // controller decided this frame overrides what the model was authored with.
-        if (const osg::StateSet* animated = mExtractor.animate(node, animatedThrough(mShading)))
+        if (const osg::StateSet* animated = mExtractor.animate(node, identity, animatedThrough(mShading)))
         {
             pushShading(*animated, true);
             mChangeable = true;
@@ -564,21 +564,21 @@ namespace Rtx
             mChangeable = true;
 
         const std::size_t held = mShading.size();
+        const std::size_t placement = identityWith(mPathHash, mChildIndex);
         if (const osg::StateSet* own = drawable.getStateSet())
         {
             pushShading(*own, false);
 
             // A drawable carries no controller of its own, so what this asks is the other half of
             // `animate`: a state set of its own under an animated one.
-            if (const osg::StateSet* animated = mExtractor.animate(drawable, animatedThrough(mShading)))
+            if (const osg::StateSet* animated = mExtractor.animate(drawable, placement, animatedThrough(mShading)))
             {
                 pushShading(*animated, true);
                 mChangeable = true;
             }
         }
 
-        mExtractor.addDrawable(
-            drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow, mJumping, mLampBody);
+        mExtractor.addDrawable(drawable, placement, mShading, placed(), mClass, mGlow, mJumping, mLampBody);
 
         mShading.resize(held);
     }
@@ -788,9 +788,9 @@ namespace Rtx
         return went;
     }
 
-    const osg::StateSet* SceneExtractor::animate(osg::Node& node, const bool underAnimated)
+    const osg::StateSet* SceneExtractor::animate(osg::Node& node, const std::size_t placement, const bool underAnimated)
     {
-        return mMaterials.animate(node, mWalk.get(), underAnimated);
+        return mMaterials.animate(node, placement, mWalk.get(), underAnimated);
     }
 
     void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place,
