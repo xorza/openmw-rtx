@@ -18,7 +18,7 @@ namespace MWRender
         RtxSettingValues valid()
         {
             return RtxSettingValues{
-                .mUpscale = "balanced",
+                .mUpscale = Rtx::Upscale::Balanced,
                 .mDistantLandCells = 6.0f,
                 .mViewingDistance = 7168.0f,
                 .mObjectPaging = false,
@@ -27,7 +27,7 @@ namespace MWRender
                 .mGroundcoverDistance = 3072.0f,
                 .mGroundcoverDensity = 0.5f,
                 .mGroundcoverPointLighting = false,
-                .mSpecularMapLayout = "metal roughness",
+                .mSpecularMapLayout = Rtx::SpecularLayout::MetalRoughness,
                 .mIndirectLight = "off",
                 .mAnisotropy = 8,
                 .mGamma = 1.5f,
@@ -39,18 +39,6 @@ namespace MWRender
         /// harness alike, since both derive through this.
         TEST(RtxSettingsTest, eachSpellingDerivesItsModeAndTheCellsTheReach)
         {
-            for (const auto& [mode, spelling] : Rtx::sUpscaleNames.mNames)
-            {
-                RtxSettingValues values = valid();
-                values.mUpscale = spelling;
-                EXPECT_EQ(RtxSettings::derive(values).mUpscale, mode) << spelling;
-            }
-            for (const auto& [layout, spelling] : Rtx::sSpecularLayoutNames.mNames)
-            {
-                RtxSettingValues values = valid();
-                values.mSpecularMapLayout = spelling;
-                EXPECT_EQ(RtxSettings::derive(values).mMirror.mSpecularLayout, layout) << spelling;
-            }
             for (const auto& [indirect, spelling] : Rtx::sIndirectLightNames.mNames)
             {
                 RtxSettingValues values = valid();
@@ -90,19 +78,11 @@ namespace MWRender
             EXPECT_EQ(RtxSettings::derive(unfiltered).mAnisotropy, 1u) << "nought filters as one does";
         }
 
-        /// A spelling that names no mode is refused rather than defaulted, whichever of the two it
-        /// is: a typo that quietly traced under `off` would be a session of the wrong picture.
+        /// A spelling that names no mode is refused rather than defaulted: a typo that quietly traced
+        /// under `off` would be a session of the wrong picture. The upscaler's and the map layout's
+        /// are refused where the registry reads them (`SettingsValuesTest`).
         TEST(RtxSettingsTest, aSpellingNoModeHasIsRefused)
         {
-            RtxSettingValues upscale = valid();
-            upscale.mUpscale = "Quality";
-            EXPECT_THROW(RtxSettings::derive(upscale), Rtx::InputError);
-
-            // A layout is spelled as the documentation spells it, and read by that name alone.
-            RtxSettingValues layout = valid();
-            layout.mSpecularMapLayout = "Classic";
-            EXPECT_THROW(RtxSettings::derive(layout), Rtx::InputError);
-
             RtxSettingValues indirect = valid();
             indirect.mIndirectLight = "ambient";
             EXPECT_THROW(RtxSettings::derive(indirect), Rtx::InputError);

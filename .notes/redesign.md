@@ -609,10 +609,7 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.2 Upstream files (decision 5: approved)
 
-- **[code] Typed RTX settings.** `upscale` and `specular map layout` are `SettingValue<std::string>`
-  parsed by each reader. Target: typed settings parsed at load with a sanitizer, as `WindowMode`
-  is; the names stay the one spelling list.
-- **[perf] Rasterizer local-map tiles keep their render targets.** `GlTileView` holds the RTT
+- **[perf] Rasterizer local-map tiles keep their render targets** (waits on `redesign_QUESTIONS.md` question 6). `GlTileView` holds the RTT
   camera, FBO and `D24S8` buffer for every mapped segment; upstream freed them once drawn. Target:
   drop the attachments after the draw, and make them again on `redraw`.
 

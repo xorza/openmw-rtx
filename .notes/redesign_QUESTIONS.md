@@ -64,3 +64,23 @@ dropped wall's corners become the kept wall's back face.
 
 **What it blocks.** Only this item.
 
+## 6. Section 6.2: the rasterizer's local-map tiles keep their render targets
+
+**Item.** Section 6.2's "Rasterizer local-map tiles keep their render targets". `GlTileView` holds
+its render-to-texture node, with the camera, the framebuffer and the `D24S8` buffer, for as long
+as the map segment stands. Upstream's `LocalMap::cleanupCameras` took each node out of the graph
+once it had drawn, and kept only the colour texture in the segment.
+
+**Why it needs a call.** Section 6 keeps a `[perf]` item only with a measurement, and this one is
+the GL path's video memory, which nothing here can draw: the harness drives the ray tracer alone,
+and AGENTS.md keeps the game window out of a rendering check. The cost is one framebuffer and one
+depth buffer a mapped segment, at `[Map] local map resolution` squared: a megabyte a segment at
+512, and a session explores hundreds.
+
+| Option | What it does | Cost |
+|---|---|---|
+| **A. Free them as upstream did, checked by you in the game** (my pick) | After its draw the tile keeps its colour texture and lets go of the node; a redraw makes a new node and points the interface's texture at its texture. You run the GL renderer once with the map open over a few cells, and send the log. | A change of ownership in `GlOffscreenView` that only a played session checks. |
+| B. Leave it | The GL path keeps a framebuffer a segment. | The memory stays spent. |
+
+**What it blocks.** Only this item.
+

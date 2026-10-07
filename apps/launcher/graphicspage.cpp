@@ -139,7 +139,8 @@ bool Launcher::GraphicsPage::loadSettings()
         rayTracingCheckBox->setCheckState(Qt::Checked);
 
     // Nothing selected where the setting names a mode the list does not offer, so saveSettings leaves it alone
-    const std::optional<std::size_t> offered = Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get());
+    const std::optional<std::size_t> offered
+        = Rtx::menuIndex(Rtx::sUpscaleMenu, Rtx::sUpscaleNames.name(Settings::rtx().mUpscale.get()));
     rayTracingUpscaleComboBox->setCurrentIndex(offered ? static_cast<int>(*offered) : -1);
     const std::optional<std::size_t> indirect
         = Rtx::menuIndex(Rtx::sIndirectLightMenu, Settings::rtx().mIndirectLight.get());
@@ -206,7 +207,7 @@ void Launcher::GraphicsPage::saveSettings()
     if (chosenIndex >= 0)
         if (const std::optional<std::string_view> chosen
             = Rtx::menuName(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
-            Settings::rtx().mUpscale.set(std::string(*chosen));
+            Settings::rtx().mUpscale.set(Rtx::sUpscaleNames.require(*chosen, "an upscale mode"));
     const int indirectIndex = rayTracingIndirectLightComboBox->currentIndex();
     if (indirectIndex >= 0)
         if (const std::optional<std::string_view> chosen
