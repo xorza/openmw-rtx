@@ -27,3 +27,26 @@ writing only the cells it left and entered. Found while starting it:
 | C. Keep | Delete the item. | Frames on which a lamp crosses a cell cost ~0.1 ms more. |
 
 Blocked: the item "`components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165`".
+
+## Q7. Blocked top-level rows leave two spikes standing (`components/rtxvulkan/device/memory/slottable.hpp`)
+
+Decided on 2026-10-08: the top-level row table's rows in fixed blocks, which the build reaches by
+`arrayOfPointers`. Found while starting it:
+
+- **The pointers are a table that grows too.** `arrayOfPointers` reads one contiguous array of
+  addresses, a row each, one copy per frame in flight. Blocks keep the 64-byte rows still, but a growth
+  still makes a new pointer array and writes every row's address into it: an eighth of the bytes,
+  the same O(rows) on the same frame.
+- **The top level grows on that frame as well.** `SceneAcceleration::prepareTopLevel` sizes the
+  structure at twice its rows when they outgrow it (`sizeTopLevel`): a new structure, new storage and
+  a size query, which the rows' blocks do not touch.
+- **A build through pointers reads one more indirection a row on every frame**, and nobody measured
+  what that costs this card's top-level build, which runs every frame that moves anything.
+
+| Option | What it does | Cost |
+| --- | --- | --- |
+| A. Blocked rows, pointers reserved | The rows in fixed blocks; each copy's pointer array opened at a reserve (2^18 rows, 2 MiB a copy) and grown past it only; then a release bench says what the pointers cost the build. | The structure's own growth stays; a build through pointers on every frame. |
+| B. Capacity at load **(recommended)** | The row table and the top-level structure made once at a budget's size (for example 2^18 instances) and grown only past it, which no scene the suites hold reaches. | Memory held from the start: 16 MiB of rows a copy in the host-written heap, and the structure's storage at the budget on the device. No growth on the frame path at all. |
+| C. Keep | Delete the item. | A growth costs a frame a row copy and a structure, a logarithmic number of times a session. |
+
+Blocked: the item "`components/rtxvulkan/device/memory/slottable.hpp:99-100`".
