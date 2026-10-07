@@ -24,6 +24,7 @@
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/sceneutil/controller.hpp>
 #include <components/vfs/manager.hpp>

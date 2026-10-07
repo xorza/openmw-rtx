@@ -638,9 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[design] The scene graph's state reading lives in `scene/`** (`surface.hpp`:
-  `describeStateSet`, `SurfaceLocks`, `TextureRole`); every caller is in `mirror/`. Target: keep
-  the vocabulary in `scene/`, move the reader next to `shading.hpp`.
 - **[design] A placement's liveness has two sources** (`MeshInstance::isPlaced` and `SlotRows`'
   free list, kept in step by `drop`), and the table carries hold counts it never takes. Target: one
   source.
