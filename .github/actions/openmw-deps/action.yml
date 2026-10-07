@@ -26,19 +26,10 @@ runs:
         python-version: "3.11"
 
     - name: Linux packages
-      # Upstream's list, plus Ninja, the system Google Test, the clang-format `omw build` checks with,
-      # Qt's Wayland platform and zsync for the archive, and the window systems and input devices of
-      # the SDL3 CMake builds, as Ubuntu 24.04 has no SDL3.
+      # The one list, which the container a desk builds a release in installs too.
       if: runner.os == 'Linux'
       shell: bash
-      run: |
-        sudo add-apt-repository -y ppa:openmw/openmw
-        sudo apt-get update
-        sudo CI/install_debian_deps.sh gcc openmw-deps openmw-deps-dynamic
-        sudo apt-get install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync clang-format-14
-        sudo apt-get install -y libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
-          libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev \
-          libgbm-dev libdbus-1-dev libibus-1.0-dev libudev-dev
+      run: sudo CI/install_ubuntu_deps.sh
 
     - name: Vulkan SDK cache
       # On Linux, the SDK alone: the rest of deps/ is small, or fetched by one job only.

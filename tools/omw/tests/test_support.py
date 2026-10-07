@@ -7,8 +7,18 @@ from pathlib import Path
 
 from omw.build import CONFIGURED_FROM, configured_from, manifest_inputs, redate_ahead
 from omw.fetch import build_beside, download, partial_of, settle
-from omw.package import harness_files, prune_empty, used_osg_plugins, wayland_platform_plugins
-from omw.system import Refusal, environment_key, parse_set_output
+from omw.package import (
+    CONTAINER_DIR,
+    RELEASE_IMAGE,
+    container_command,
+    harness_files,
+    on_release_base,
+    os_release,
+    prune_empty,
+    used_osg_plugins,
+    wayland_platform_plugins,
+)
+from omw.system import ROOT, Refusal, environment_key, parse_set_output
 
 
 class ParseSetOutputTest(unittest.TestCase):
@@ -176,6 +186,28 @@ class WaylandPlatformPluginsTest(unittest.TestCase):
                         wayland_platform_plugins(platforms)
                 else:
                     self.assertEqual(wayland_platform_plugins(platforms), expected)
+
+
+class ReleaseBaseTest(unittest.TestCase):
+    def test_ubuntu_24_04_alone_builds_a_release_where_it_stands(self):
+        noble = 'PRETTY_NAME="Ubuntu 24.04.3 LTS"\nNAME="Ubuntu"\nVERSION_ID="24.04"\nID=ubuntu\nID_LIKE=debian\n'
+        self.assertEqual(os_release(noble)["VERSION_ID"], "24.04")
+        self.assertEqual(os_release("# ID=arch\nID='arch'\n"), {"ID": "arch"})
+        self.assertTrue(on_release_base(noble))
+        for other in ('NAME="Arch Linux"\nID=arch\nBUILD_ID=rolling\n',
+                      'NAME="Ubuntu"\nVERSION_ID="26.04"\nID=ubuntu\n', ""):
+            with self.subTest(other=other):
+                self.assertFalse(on_release_base(other))
+
+    def test_the_container_runs_omw_on_the_tree_with_its_own_build_and_cache(self):
+        command = container_command("/usr/bin/docker", ["archive", "v1"], "1000:1000")
+        self.assertEqual(command[:4], ["/usr/bin/docker", "run", "--rm", "--user"])
+        self.assertEqual(command[command.index("--user") + 1], "1000:1000")
+        volumes = [command[at + 1] for at, word in enumerate(command) if word == "--volume"]
+        self.assertEqual(volumes, [f"{ROOT}:{ROOT}", f"{CONTAINER_DIR / 'package'}:{ROOT / 'build-package'}"])
+        self.assertIn(f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}", command)
+        self.assertEqual(command[command.index("--workdir") + 1], str(ROOT))
+        self.assertEqual(command[-5:], [RELEASE_IMAGE, "python3", "omw", "archive", "v1"])
 
 
 class InstallTest(unittest.TestCase):
