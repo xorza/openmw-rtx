@@ -35,15 +35,6 @@ namespace Rtx
     class MaterialTable : public HeldRows<Material>
     {
     public:
-        /// Puts `material` in a slot, holding every texture it names on `textures`.
-        Index add(TextureTable& textures, const Material& material);
-
-        /// Rewrites a material in place, keeping its slot and everything standing on it, and says
-        /// whether what traversal is told about the surfaces wearing it changed — a fade crossing
-        /// opaque does, a flipbook turning does not. What it names anew is held on `textures` and
-        /// what it stops naming given back.
-        bool set(TextureTable& textures, Index material, const Material& what);
-
         /// Copies `weights` into the shared mask table and returns where they landed. One float per
         /// weight rather than the byte the source holds: a cell's worth is tens of kilobytes.
         Run addMask(std::span<const float> weights);
@@ -67,8 +58,18 @@ namespace Rtx
 
     private:
         /// What `SceneDesc::holdMaterial` and `SceneDesc::drop` stand on, so every hold on a
-        /// material is taken and given back in one place.
+        /// material is taken and given back in one place, and every write that crosses into the
+        /// texture table or the placements wearing a material is made through the scene.
         friend class SceneDesc;
+
+        /// Puts `material` in a slot, holding every texture it names on `textures`.
+        Index add(TextureTable& textures, const Material& material);
+
+        /// Rewrites a material in place, keeping its slot and everything standing on it, and says
+        /// whether what traversal is told about the surfaces wearing it changed — a fade crossing
+        /// opaque does, a flipbook turning does not. What it names anew is held on `textures` and
+        /// what it stops naming given back.
+        bool set(TextureTable& textures, Index material, const Material& what);
 
         void hold(Index material) { mRows.hold(material); }
 
