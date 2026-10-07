@@ -167,9 +167,8 @@ backend ever arrives.
   means a device ran it; `--without-device` leaves it out on a box with no driver.
 - The first run after a shader change includes the driver compiling its pipelines: time a suite on
   a second run.
-- `./omw gate` once at the end: format check, the driver's tests, build, the listing check, the
-  release compile, tests, `check`, one repeat pair, stopping at the first failure. Never a gate
-  beside a build or another gate.
+- `./omw gate` once at the end: the steps `./omw help` lists, from `tools/omw/gate.py`, stopping
+  at the first failure. Never a gate beside a build or another gate.
 - Do not open the game window to check a rendering change. The harness's verbs go through the
   driver, which builds `openmw-rtxtool` and runs it in the flavour's directory:
   `./omw [flavour] info|scene|shot|view|bench|check|film|noise`, and `./omw exec ./openmw-rtxtool --help`
