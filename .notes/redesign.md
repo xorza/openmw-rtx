@@ -609,10 +609,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.2 Upstream files (decision 5: approved)
 
-- **[bug] The migration undoes the fork's own frame resolution.** `migrateUserSettings` treats any
-  file with `resolution x` and no `window width` as upstream's; the fork writes `window width`
-  only from windowed mode. Target: a marker only the fork writes, and a test that a fork file is
-  left alone.
 - **[bug] SDL3 port regressions.** `SdlCursorManager::_setGUICursor` lost upstream's fallback to
   `arrow`; `centerWindow` reads the size before SDL3's asynchronous resize lands (use
   `SDL_WINDOWPOS_CENTERED_DISPLAY` or `SDL_SyncWindow`); `displayResolutions` truncates
