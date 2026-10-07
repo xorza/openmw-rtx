@@ -100,10 +100,11 @@ namespace Rtx
         return float(1.0 - top * top + wall);
     }
 
-    Atmosphere readAtmosphere(osg::Node& mesh)
+    Atmosphere readAtmosphere(const osg::Node& mesh)
     {
+        // OSG's visitor API is non-const throughout, and this walk writes nothing.
         RingReader read;
-        mesh.accept(read);
+        const_cast<osg::Node&>(mesh).accept(read);
 
         if (read.mUpper.mCount == 0 || read.mLower.mCount == 0)
             return Atmosphere{};
@@ -134,6 +135,6 @@ namespace Rtx
         if (!scenes.getVFS()->exists(mesh))
             return Misc::Err{ "the archives hold no such file" };
 
-        return readAtmosphere(const_cast<osg::Node&>(*scenes.getTemplate(mesh, false)));
+        return readAtmosphere(*scenes.getTemplate(mesh, false));
     }
 }

@@ -42,7 +42,7 @@ namespace Rtx
     /// The same reading, of a mesh already in hand: the mean radius and height of each of the two
     /// rings `Sky::atmosphereAlphaOf` names, as the graph places them. No atmosphere where the mesh
     /// holds no two rings with the upper one higher.
-    Atmosphere readAtmosphere(osg::Node& mesh);
+    Atmosphere readAtmosphere(const osg::Node& mesh);
 
     /// `Atmosphere::mZenithShare` of `ramp`, in closed form.
     float zenithShareOf(const Shaders::SkyRamp& ramp);

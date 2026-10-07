@@ -43,10 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `components/rtx/environment/nightsky.hpp:340` — `readNightSky` takes `const osg::Node&` and casts the
-  const away inside (`nightsky.cpp:273`). `readAtmosphere` and `readCloudShell` take `osg::Node&`
-  (`atmosphere.hpp:93`, `cloudshell.hpp:293`), so their callers cast it away (`atmosphere.cpp:234`,
-  `cloudshell.cpp:250`). Target shape: one constness, with the cast in one place. (low)
 - [ ] `components/rtx/image/imagedescription.hpp:53-59` — the two `describeImage` overloads have different
   argument orders. Target shape: one order, with the out-parameters last. (low)
 - [ ] `components/rtx/mirror/cells/cellring.cpp:314-323`, `cellplacer.cpp:477` — `CellRing::adopt` fills a
