@@ -516,7 +516,8 @@ SkyChoice skyChoiceAt(uint source, Facing facing, bool asked, Gloss gloss)
     return SkyChoice(sky, cosine, light);
 }
 
-/// Offers one candidate to `kept`, already resolved to what it delivers at `from`.
+/// Offers one candidate to `kept`, already resolved to what it delivers where the asker stands. Where
+/// the held lamp's ray leaves from is the asker's to set after the walk (`Reservoir::mFrom`).
 ///
 /// **The reservoir's own rule, written once**, because two walks feed it: the point one below, and
 /// the walk along a ray that `lampsInAir` takes. A second copy of this is a second chance for the
@@ -525,7 +526,7 @@ SkyChoice skyChoiceAt(uint source, Facing facing, bool asked, Gloss gloss)
 ///        `airCandidate`. The weight is a scalar because a colour cannot be drawn in proportion to,
 ///        and positive wherever the candidate is anything the asker keeps.
 /// @param lamp which row of the light table the candidate is.
-void considerLamp(inout Reservoir kept, inout uint state, vec3 from, LightCandidate candidate, uint lamp)
+void considerLamp(inout Reservoir kept, inout uint state, LightCandidate candidate, uint lamp)
 {
     const float weight = candidate.mWeight;
     if (!(weight > 0.0))
@@ -537,7 +538,6 @@ void considerLamp(inout Reservoir kept, inout uint state, vec3 from, LightCandid
     // proportion to its weight however many follow it — one-deep reservoir sampling.
     if (randomNext(state) * kept.mTotal <= weight)
     {
-        kept.mFrom = from;
         kept.mRadiance = candidate.mRadiance;
         kept.mSpecular = candidate.mSpecular;
         kept.mFresnel = candidate.mFresnel;
@@ -616,7 +616,7 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
             facing.mSide);
 
         kept.mUnshadowed += candidate.mRadiance * (1.0 - candidate.mFresnel);
-        considerLamp(kept, state, from, candidate, row);
+        considerLamp(kept, state, candidate, row);
     }
 
     const float spread = sampled ? float(count) / float(steps) : 1.0;
