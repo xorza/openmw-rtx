@@ -36,7 +36,8 @@ namespace CrashTests
 
         bool keptMode(std::string_view mode)
         {
-            return mode == "kept-abort" || mode == "kept-end" || mode == "kept-leaves";
+            return mode == "kept-abort" || mode == "kept-end" || mode == "kept-leaves"
+                || mode == "kept-ignoring-children";
         }
 
         /// The line `kept-leaves` names the process it left with, before its id.
@@ -83,6 +84,14 @@ namespace CrashTests
             .mReports = false,
             .mEndsBy = SIGTERM,
             .mKept = true });
+        // Started with `SIGCHLD` ignored, as a launcher may start it: the keeper still hears its
+        // application end, and ends as it did.
+        into.push_back({ .mName = "kept-ignoring-children",
+            .mHeadline = "",
+            .mRaised = {},
+            .mFollows = "crash-tests lived on",
+            .mReports = false,
+            .mKept = true });
         into.push_back({ .mName = "kept-leaves",
             .mHeadline = "",
             .mRaised = {},
@@ -115,6 +124,8 @@ namespace CrashTests
             Platform::Process::setEnvironmentPath(
                 "APPDIR", std::filesystem::read_symlink("/proc/self/exe").parent_path());
         }
+        if (mode == "kept-ignoring-children")
+            signal(SIGCHLD, SIG_IGN);
     }
 
     std::optional<int> runModeOfThisSystem(std::string_view mode)
@@ -129,6 +140,8 @@ namespace CrashTests
             Log(Debug::Info) << "crash-tests kept";
             if (mode == "kept-abort")
                 std::abort();
+            if (mode == "kept-ignoring-children")
+                return livedOn();
             if (mode == "kept-leaves")
             {
                 // Long enough that a keeper waiting for it outlasts the matrix's check of it; and with

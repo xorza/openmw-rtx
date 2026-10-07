@@ -33,10 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `components/crashcatcher/crashimagelinux.cpp:181-188` — the keeper does not reset SIGCHLD to
-  `SIG_DFL`. With an inherited `SIG_IGN`, the kernel reaps children itself and sends no SIGCHLD, so
-  `sigwaitinfo` never wakes, the keeper outlives the game, and the image stays mounted. Target shape:
-  `signal(SIGCHLD, SIG_DFL)` before the fork. (low)
 - [ ] `components/debug/debugging.cpp:438`, `components/crashcatcher/sources.cmake:12-16` — the keeper
   forks also with `OPENMW_DISABLE_CRASH_CATCHER=1` or `OPENMW_CRASHPAD=OFF`, where no monitor exists.
   Target shape: keep the image only where a catcher is installed. (low)
