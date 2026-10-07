@@ -28,8 +28,9 @@ namespace Rtx
     public:
         explicit ShadowPass(const Device& device);
 
-        /// Records the five dispatches and hands back the filtered visibility, its mean in `r`,
-        /// ordered for a compute read. `buffer` must have been handed over, and
+        /// Records the five dispatches and hands back the filtered visibility, its mean in `r`, as
+        /// the last level wrote it: the caller orders it for a read, beside the passes that run
+        /// alongside (`DenoisePasses::record`). `buffer` must have been handed over, and
         /// `DenoiseHistory::discard` has readied the images.
         const Image& record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images, const GBuffer& buffer,
             const DenoiseFrame& frame) const;

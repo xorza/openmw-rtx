@@ -378,15 +378,12 @@ same rule on the host and on the device (`MipChain`, `ShadingMap`):
 - `Buffer`'s fill, update and barrier do not name the buffer for the next submit.
 - An optional extension is enabled even where its feature was declined.
 
-**Contract.** Points 1, 2, 4 and 5 are done: the indirect light is set before a frame's recording
-opens and `CommandPool` asserts no submit beside an open one; a discard's first scope is every
-stage; every buffer hand-out names the buffer; and a device option is taken whole, its needs met to a
-fixed point (`dropUnmetNeeds`), with quad subgroups and Vulkan 1.4's push constants required. What is
-left:
-
-- **A pass returns its writes, and the chain places the barrier.** The shadow, glossy and pane
-  passes hand their images back untransitioned. `DenoisePasses::record` puts one `Barriers` batch
-  after the three. The display chain does the same for its independent passes (D9). Phase 8.
+**Contract.** Done: the indirect light is set before a frame's recording opens and `CommandPool`
+asserts no submit beside an open one; a discard's first scope is every stage; every buffer hand-out
+names the buffer; a device option is taken whole, its needs met to a fixed point
+(`dropUnmetNeeds`), with quad subgroups and Vulkan 1.4's push constants required; and the shadow,
+glossy and pane passes hand their images back as they wrote them, ordered by one batch in
+`DenoisePasses::record` with the wavelet's inputs. The display chain's overlap was declined (Phase 7).
 ### What holds each contract
 
 Each check lands with its contract, and each is one the gate runs.

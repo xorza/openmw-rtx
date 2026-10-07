@@ -43,7 +43,6 @@ namespace Rtx
         dispatch(commands, mPipeline, writes, frame.history(images.mFresh),
             Groups::covering(width, height, Shaders::SPECULAR_WORKGROUP));
 
-        images.mMean.transition(commands, Use::sComputeWrite, Use::sComputeRead);
         return images.mMean;
     }
 }

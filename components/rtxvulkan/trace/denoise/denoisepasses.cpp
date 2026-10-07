@@ -112,24 +112,37 @@ namespace Rtx
         const Image& pane = mPane.record(commands, history.pane(step), buffer, frame);
         closeZone(timer, commands);
 
+        // **One dependency after the three filters and none between them**: the shadow, glossy
+        // and pane passes read nothing another of them writes, so a barrier each held every one
+        // back for the tail of the one before. Their answers are ordered for the composite's read.
+        Barriers ready(commands);
+        if (shadow != nullptr)
+            shadow->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
+        if (runs[Temporal::Specular])
+            specular->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
+        pane.addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
+
         if (!bounce)
+        {
+            ready.flush();
             return Denoised{ .mIndirect = buffer.get(Channel::Indirect),
                 .mFill = buffer.get(Channel::Fill),
                 .mSpecular = *specular,
                 .mPane = pane,
                 .mShadow = shadow };
+        }
 
         // The cascade reads what the accumulator just wrote, the moments' count for the history fix
         // among it, and it reads through the texture unit — so the dependency names the sampled
         // access and not only the storage one. The history the cascade writes for the next frame
-        // is ordered by the discard, which named a compute write as what would come next.
-        Barriers blends(commands);
+        // is ordered by the discard, which named a compute write as what would come next. In the
+        // same batch as the filters' answers.
         for (const Image* image : { &accumulated.mBlended, &accumulated.mFillBlended, &accumulated.mMoments })
-            image->addTransition(blends, Use::sComputeWrite, Use::sComputeReadOrSample);
+            image->addTransition(ready, Use::sComputeWrite, Use::sComputeReadOrSample);
         // The history fix writes its answer over the clamp's fast means.
-        accumulated.mFast.addTransition(blends, Use::sComputeWrite, Use::sComputeWrite);
+        accumulated.mFast.addTransition(ready, Use::sComputeWrite, Use::sComputeWrite);
 
-        blends.flush();
+        ready.flush();
 
         openZone(timer, commands, "filter");
         const AtrousPass::Filtered filtered = mFilter.record(commands, accumulated, buffer, frame);
