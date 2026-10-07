@@ -878,6 +878,62 @@ namespace Rtx::Testing
             }
         }
 
+        /// **Two glows over one shared shape each show their own sheet.** `SceneUtil::CopyOp` shares
+        /// a drawable between the clones of a model, and a template node stands under every
+        /// reference walked from it: here one shape stands under two enchanted roots whose glows
+        /// show sheets sixteen apart. The copy a controller writes is the placement's, so each
+        /// placement wears its own root's sheet on every frame; one copy for the shape showed the
+        /// sheet of whichever root the walk applied last, at both.
+        TEST_F(RtxSceneExtractorTest, twoGlowsOverOneSharedShapeEachShowTheirOwnSheet)
+        {
+            for (const bool onDrawable : { false, true })
+            {
+                Rtx::SceneDesc scene;
+                SceneExtractor extractor(scene, mContext);
+
+                const osg::ref_ptr<osg::Group> shape = makeShape(shapeState(), onDrawable);
+                const std::array<osg::ref_ptr<FlipController>, 2> glows{ makeFlip(), new FlipController };
+                glows[1]->mSheets = glows[0]->mSheets;
+
+                osg::ref_ptr<osg::Group> both = new osg::Group;
+                for (const osg::ref_ptr<FlipController>& glow : glows)
+                {
+                    osg::ref_ptr<osg::Group> enchanted = new osg::Group;
+                    enchanted->addChild(shape);
+                    enchanted->addUpdateCallback(glow);
+                    both->addChild(enchanted);
+                }
+
+                const char* const where = onDrawable ? " with the state set on the drawable" : "";
+
+                osgUtil::UpdateVisitor update;
+                for (unsigned int frame = 1; frame <= 4; ++frame)
+                {
+                    glows[0]->mShown = frame % 32;
+                    glows[1]->mShown = (frame + 16) % 32;
+                    update.setTraversalNumber(frame);
+                    both->accept(update);
+
+                    scene.clearPlacement();
+                    extractor.extract(*both, osg::Matrixf::identity(), 0, frame);
+
+                    const auto placements = scene.placements().getRows();
+                    ASSERT_EQ(placements.size(), 2u) << "on frame " << frame << where;
+                    for (std::size_t at = 0; at < 2; ++at)
+                    {
+                        const Rtx::Material& worn = scene.materials().getRows()[placements[at].mInstance.mMaterial];
+                        ASSERT_NE(worn.mEnvironment, Rtx::sNoIndex) << "on frame " << frame << where;
+                        EXPECT_EQ(scene.textures().getRows()[worn.mEnvironment].mPath,
+                            VFS::Path::Normalized(glows[at]->mSheets[glows[at]->mShown]->getFileName()))
+                            << "placement " << at << " on frame " << frame << where;
+                    }
+
+                    extractor.retire();
+                    scene.clearArrivals();
+                }
+            }
+        }
+
         /// An actor's fade rides its placement, and a model's own alpha does not ride it twice.
         ///
         /// **`alpha` has two writers and they mean different things.** `MWRender::TransparencyUpdater`
@@ -1467,15 +1523,20 @@ namespace Rtx::Testing
                 new SceneUtil::TextureType(std::string(sTextureRoleNames.name(TextureRole::Diffuse))),
                 osg::StateAttribute::ON);
 
+            // Under one parent from the first frame, so the animated surface is one placement
+            // throughout and the clamped one joins it beside.
+            osg::ref_ptr<osg::Group> both = new osg::Group;
+            both->addChild(node);
+
             osgUtil::UpdateVisitor update;
             for (unsigned int frame = 1; frame <= 3; ++frame)
             {
                 update.setTraversalNumber(frame);
-                node->accept(update);
+                both->accept(update);
                 mScene.clearPlacement();
 
                 const std::size_t before = Testing::getAllocationCount();
-                walk(*node, 0, frame);
+                walk(*both, 0, frame);
                 const std::size_t spent = Testing::getAllocationCount() - before;
 
                 if (frame > 1)
@@ -1490,8 +1551,6 @@ namespace Rtx::Testing
                 mExtractor.retire();
             }
 
-            osg::ref_ptr<osg::Group> both = new osg::Group;
-            both->addChild(node);
             both->addChild(clamped);
 
             update.setTraversalNumber(4);
