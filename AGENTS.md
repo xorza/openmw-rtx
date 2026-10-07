@@ -23,21 +23,24 @@ them.
 - **Upstream code changes for three reasons only**: a change [Accepted diff](#accepted-diff)
   lists, an improvement to the ray tracer's integration — the seam and the hooks it needs — or a
   bug fix the user approved, which is proposed and waits for a yes. A cleanup or a quality change
-  is not made, and one already made is reverted. The diff stays small, but never at the cost of
-  reuse or of the abstraction's quality.
+  is not made, and one already made is reverted. A fault the rasterizer alone has is not proposed:
+  a fix to upstream's code changes what the ray tracer does as well. The diff stays small, but never
+  at the cost of reuse or of the abstraction's quality.
 - Both renderers stand behind one interface that exposes no implementation detail. Where the game
-  would branch on which renderer it has, the seam abstracts the question instead.
-- Performance matters. Compute nothing twice; compute as early as possible.
+  would branch on which renderer it has, the seam abstracts the question instead. One binary ships
+  both, and the one not chosen never starts.
 - Target hardware: NVIDIA RTX 20 series and later, and AMD RDNA 2 and later. Only the NVIDIA card
   here runs anything; an AMD device is stood up under Mesa's drm-shim (`~/Projects/mesa/build-shim`),
   which compiles every kernel and executes none.
-- One binary ships both renderers, and the one not chosen never starts.
-- Tried, declined, and not to be proposed again: opacity micromaps (`VK_EXT_opacity_micromap`)
-  for the cutouts, which made the trace no faster and only added loading time; async compute (a
-  second queue, the next trace beside this frame's reconstruction), whose overlap gained 0.1–0.2 ms
-  (the branch `async` has the record); and Shader Execution Reordering
-  (`VK_EXT_ray_tracing_invocation_reorder`), whose sorting cost 17–23% of the trace and which
-  shuts out Mesa's drivers.
+- Tried, declined, and not to be proposed again:
+  - opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts: no faster, and longer loading;
+  - async compute (the next trace on a second queue beside this frame's reconstruction): 0.1–0.2 ms
+    gained (the branch `async` has the record);
+  - Shader Execution Reordering (`VK_EXT_ray_tracing_invocation_reorder`): its sorting cost 17–23%
+    of the trace, and it shuts out Mesa's drivers;
+  - in the rasterizer alone, which the ray tracer already does right: the ripple field that loses
+    its sixtieths under 60 frames a second, and the object paging that copies a `NightDaySwitch`'s
+    authored child and stands every stage a visibility gate would take down.
 
 ## Accepted diff
 
@@ -97,23 +100,22 @@ the window's size there, has it moved to the window on the first start, and the 
   its terminator follows this one rather than jumping a quarter phase in plain view.
 - The port to SDL3, through the input, the GUI and the window code: the presentation reads a
   window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
-  SDL2 cannot report. SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the
-  rasterizer's canvas applies it in its last draw into the frame (`PingPongCanvas`), as the tone
-  pass does in the ray tracer. `[Video] contrast` went with the ramp and is not restored: it had no
-  menu control, upstream applied it on Windows alone, and the tone pass has a contrast grade of its
-  own. SDL3 names a controller's buttons by their place (`SDL_GAMEPAD_BUTTON_SOUTH`) where SDL2
-  named them by Xbox's labels, and the bindings keep the places: a pad with other labels is played
-  with the same thumb. A Lua cursor is sized in the frame's pixels, as upstream sized it in the
-  window's, so it is scaled by the frame's shown scale alone (`Presentation::shownScale`), and not
-  by the interface's scaling as well. Where relative mouse mode is refused, upstream wraps the
-  pointer by warping it; Wayland, which SDL3 takes where SDL2 took X11, lets no window move the
-  pointer, so there it goes unwrapped and stops at the window's edge
-  (`InputWrapper::mWarpMovesPointer`), where the way back from each warp turned the camera.
-- The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
-  the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
-  `components/files/configurationmanager` included: one set of checks for every file. And MSVC's
-  `4244` and `4267` off for the whole tree: GCC's `-Wall -Wextra` leave `-Wconversion` out, so the
-  narrowing they warn of held MSVC's builds alone, and one set of checks is one on every compiler.
+  SDL2 cannot report. What the port changes:
+  - SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the rasterizer applies it in
+    its last draw into the frame (`PingPongCanvas`), the ray tracer in its tone pass.
+    `[Video] contrast` went with the ramp and is not restored: it had no menu control, upstream
+    applied it on Windows alone, and the tone pass has a contrast grade of its own.
+  - A controller's buttons are bound by place (`SDL_GAMEPAD_BUTTON_SOUTH`), not by Xbox's labels,
+    so a pad with other labels is played with the same thumb.
+  - A Lua cursor is sized in the frame's pixels, as upstream sized it in the window's, so it is
+    scaled by `Presentation::shownScale` alone, not by the interface's scaling as well.
+  - Wayland lets no window warp the pointer, so where relative mouse mode is refused, the pointer
+    goes unwrapped and stops at the window's edge (`InputWrapper::mWarpMovesPointer`): there, the
+    way back from each of upstream's warps turned the camera.
+- One set of checks for every file, on every compiler: the five checks the top-level
+  `CMakeLists.txt` adds to upstream's, and the hunks in upstream code that keep it clean under them,
+  the patches to `extern/sol3` and `components/files/configurationmanager` included. MSVC's `4244`
+  and `4267` are off, since GCC's `-Wall -Wextra` leave `-Wconversion` out.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
   through): `std::from_chars` reads `inf` and `nan`, and no sanitizer stopped either reaching
   the picture. Where `from_chars` has no floating point, the stream reads only the prefix it would
@@ -122,6 +124,13 @@ the window's size there, has it moved to the window on the first start, and the 
   moves with its physics placed outright is told as a jump (`World::moveObject`'s `jumps`,
   `RenderingManager::notifyJumped`), and a write of `GameHour` that moves the clock by more than the
   frame's own step is a cut (`World::noteHourWritten`, `DateTimeManager::jumps`).
+- What the harness holds of the game through `OMW::EngineHost`, which the game alone asks nothing
+  of: a sky stood part of the way between two weathers for one update
+  (`WeatherManager::holdWeather`), since the game's crossing runs on a clock of its own and a filmed
+  frame must name its sky; a game hour the host stated left where it put it (`holdsGameClock`), the
+  clock and not its time scale; and a content script's message box logged rather than shown
+  (`WindowManager::scriptMessageBox`, `showsScriptMessageBoxes`), since a box pauses the world and a
+  measured run does not stop for an answer.
 - What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
   handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
   renderer draws rain the other hides.
@@ -137,15 +146,14 @@ the window's size there, has it moved to the window on the first start, and the 
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
 - A look of the ray tracer's own against upstream's: its ripple field steps every frame by the time
-  the water's clock moved (`RipplePass::record`), where upstream's steps once a sixtieth. The same
+  the water's clock moved (`RipplePass::record`), where upstream's steps once a sixtieth: the same
   springs over the same time, at a cost every frame pays alike, and a wake that keeps its pace under
-  sixty frames a second, where upstream's slows.
+  sixty frames a second.
 
 ## Where the code lives
 
-**Vulkan on ray-tracing hardware, NVIDIA Turing and AMD RDNA 2 and later**, behind an API-neutral core rather than
-a portability layer. A fact about Vulkan that leaks into the core is a bug whether or not a second
-backend ever arrives.
+**Vulkan behind an API-neutral core**, not a portability layer. A fact about Vulkan that leaks into
+the core is a bug whether or not a second backend ever arrives.
 
 - `components/rtx/` — the core: the scene description, the light transport, what the scene _is_. No
   graphics API, no game headers.
@@ -166,80 +174,70 @@ backend ever arrives.
 
 ## Verification
 
-- Build the targets you touched and run the covering test binary with a filter. `./omw build`
-  formats the tree first, except on CI, whose checks job checks it once; `./omw format` rewrites
-  the tree alone, and `./omw format --check` changes nothing and is what the gate and CI run.
-  Compiling is not verifying.
 - `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both. The
-  flavour is `debug` unless named: every assert and the tests. A flavour comes before the verb and is
-  refused after it (`omw release build`, not `omw build release`). `release` is the build a number is
-  quoted from, and `profile` runs in it and refuses another flavour named before it. `asan` adds
-  the address and undefined-behaviour sanitizers and `tsan` the thread sanitizer, which the daily
-  run builds apart, `full` builds every program the tree has, the CS among them, and `package` is
-  the one `archive` puts into `dist/`.
-- `./omw test <binary> --gtest_filter=...` builds and runs one test binary with a filter.
+  flavour comes before the verb (`omw release build`, not `omw build release`) and is `debug`
+  unless named: every assert and the tests. `release` is the build a number is quoted from, and
+  `profile` runs in it and refuses another flavour. `asan` adds the address and undefined-behaviour
+  sanitizers and `tsan` the thread sanitizer, which the daily run builds apart; `full` builds every
+  program the tree has, the CS among them; `package` is the one `archive` puts into `dist/`.
+- Compiling is not verifying. Build the targets you touched and run the covering binary with a
+  filter: `./omw test <binary> --gtest_filter=...`. `./omw build` formats the tree first, except on
+  CI, whose checks job checks it once; `./omw format` rewrites the tree alone, and
+  `./omw format --check` changes nothing and is what the gate and CI run.
 - `./omw test` once before saying it works: every suite CTest has, `rtx-gpu-tests` and the crash
   matrix among them. The GPU binary fails without a device rather than skipping, so a green run
   means a device ran it; `--without-device` leaves it out on a box with no driver.
-- The first run after a shader change includes the driver compiling its pipelines: time a suite on
-  a second run.
 - `./omw gate` once at the end: the steps `./omw help` lists, from `tools/omw/gate.py`, stopping
-  at the first failure. Never a gate beside a build or another gate.
+  at the first failure. Never a gate beside a build or another gate, and never two runs at once:
+  they only share the card.
 - Do not open the game window to check a rendering change. The harness's verbs go through the
   driver, which builds `openmw-rtxtool` and runs it in the flavour's directory:
   `./omw [flavour] info|scene|shot|view|bench|check|film|noise`, and `./omw exec ./openmw-rtxtool --help`
   for their options. The places are `files/rtx/views.cfg`, the suites `files/rtx/benches.cfg`.
+  `scene` reports what the renderer was handed, `check` asserts the tree's claims at every place of
+  its suite, `bench` has the moving camera, `view` is for what only a window shows, and `film` flies
+  through the keys `view --keys` wrote.
 - `./omw shot --views=all --map --upscale=off --out=<dir>` ahead of a change and `--against=<dir>`
-  after it says which pictures the change moved: 56 s for every place, 9 s for one, so an
-  investigation narrows to its place and `all` is the last run. A baseline stays outside `/tmp`,
+  after it names the pictures the change moved: 56 s for every place, 9 s for one, so an
+  investigation narrows to its place and `all` is the last run. Keep the baseline outside `/tmp`,
   whose cleaner empties it under a long session. `--upscale=off`, because the harness upscales at
-  `quality` unless told, and an upscaled picture moves with anything its history saw. `scene` reports what the renderer was handed. `check` asserts
-  the tree's claims at every place of its suite. `bench` has the moving camera. `view` is for what
-  only a window shows, and `film` flies through the keys `view --keys` wrote. `noise` holds the
-  frame's noise — its distance from the mean of its own independent draws — against sixteen frames
-  averaged, and fails a frame noisier; beside it, each one's bias against a converged reference;
-  `--strafe=150` takes the frame after the eye flew in from the side, and `--walk=150` from
-  behind, which is what a history length or a filter's reach shows in; `--cut=N` takes the frame N
-  frames after the cut a stop begins with, standing, which is where fireflies show; and
-  `--upscale=native` standing is jittered with no upscaled resampling over it, which is where a
-  temporal filter that fetches its history off the pixel shows, as a bias. Each place's
-  line counts its fireflies, pixels four times over the reference, in a thousand. A run is five minutes a
-  suite with the card at 99%, so an A/B is `./omw release noise --ab=<switch>`: the strafe and the
-  walk legs, both sides in one run a leg (`noise --versus`), and the still leg with `--still`, which a
-  switch that touches short histories still moves, since the upscaler's jitter keeps edges short.
-  Narrow an A/B to one place and leg first (`--views=`, `--strafe=0 --walk=0 --still`); the suite is
-  the verdict. Two runs at once only share the card.
-- `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after
-  it names the kernels the change moved, per tuple of their constants; a tuple it did not name
-  draws what it drew.
+  `quality` unless told, and an upscaled picture moves with anything its history saw.
+- `./omw noise` holds the frame's noise — its distance from the mean of its own independent draws —
+  against sixteen frames averaged, and fails a noisier frame; beside it, each place's bias against a
+  converged reference and its fireflies (pixels four times over the reference) in a thousand. Its
+  legs show different faults: `--strafe=150` and `--walk=150` a history length or a filter's reach,
+  `--cut=N` the fireflies after a cut, and `--upscale=native` standing a temporal filter that fetches
+  its history off the pixel. A suite is five minutes with the card at 99%, so an A/B is
+  `./omw release noise --ab=<switch>`, both sides in one run a leg (`noise --versus`), with `--still` for a switch that touches short histories,
+  which the upscaler's jitter keeps at every edge. Narrow it to one place and leg first
+  (`--views=`, `--strafe=0 --walk=0 --still`); the suite is the verdict.
+- `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after it names
+  the kernels the change moved, per tuple of their constants; a tuple it did not name draws what it
+  drew.
 - `./omw repeat --pairs=10` after touching anything a frame reads: two processes walk
   `one-cell-walk` for six seconds with the upscaler and the denoiser off, the second with the queue
-  held behind the host, and must agree frame for frame. The walk is always the same one, so every
-  repeat compares with every other. A run is the same run twice, and a pair that finds nothing has
-  found nothing. Read a difference with `--exposure=1` and `--pictures=<dir>`.
+  held behind the host, and must agree frame for frame. A pair that finds nothing has found nothing.
+  Read a difference with `--exposure=1` and `--pictures=<dir>`.
 - **The denoised frame is not bit-exact on this card** (`docs/rtx/architecture.md`; notes in
   `6b3978a065`): under a busy queue, the first wavelet dispatch after a pipeline drain sometimes
-  differs by an ulp on identical inputs, one level of 255 in the picture. The card's, not a missing
-  barrier; a wait for idle per frame hides it. `repeat` runs unfiltered and cannot see it; a
-  difference in the composed frame alone is the card's.
-- Measure with `./omw release bench`, on a hot card, back to back, never with a sleep between
-  runs. Take a throwaway warm-up leg first. No frame times until the renderer draws everything the
-  game has.
-- Measure on a quiet desktop. A bench started from this session's foreground runs under Claude
-  Code's spinner, which Zed redraws and KWin composites nine times a second, and every figure
-  moves with it — the host rows by half, the zone shares by a tenth, the tail by 4 ms. Start the
-  run in the background and end the turn; the report's `card` lines name another process's work,
-  and `--frame-times=<dir>` writes the series behind a tail. KWin's slices are not in them: a slice
-  stops the queue for its switch and holds little work, and only `nsys profile --gpuctxsw=true`
-  shows them. The renderer cannot outrank them: the driver refuses a high-priority queue to a
-  process without `CAP_SYS_NICE`, which KWin holds. So an A/B reads medians and the p99, which a
-  slice in a few frames hardly moves, and never a mean, which takes all of it: the rows' own, and
-  the zones' from the record `--json` writes, since the `gpu` row is each zone's share of the mean.
+  differs by an ulp on identical inputs, one level of 255. The card's, not a missing barrier.
+  `repeat` runs unfiltered and cannot see it; a difference in the composed frame alone is the card's.
+- Measure with `./omw release bench`, on a hot card, back to back, never with a sleep between runs,
+  after a throwaway warm-up leg; the first run after a shader change compiles the pipelines. No
+  frame times until the renderer draws everything the game has.
+- Measure on a quiet desktop: start the run in the background and end the turn. In this session's
+  foreground it runs under Claude Code's spinner, which Zed redraws and KWin composites nine times a
+  second — the host rows move by half, the zone shares by a tenth, the tail by 4 ms. The report's
+  `card` lines name another process's work, and `--frame-times=<dir>` writes the series behind a
+  tail. KWin's own slices show only under `nsys profile --gpuctxsw=true`, and the renderer cannot
+  outrank them (a high-priority queue needs `CAP_SYS_NICE`). So an A/B reads medians and the p99,
+  never a mean — the zones' from the record `--json` writes, since the `gpu` row is each zone's
+  share of the mean.
 - Profiling: `./omw profile` for the CPU — the measured frames alone, at `seyda-neen-ship` unless
   `--views=` or `--suite=` names another, into `build-release/perf/`: a summary by total and by self
-  time, and the full reports beside it as text — by library, by source line, the callers — which
-  are what to read. `--offcpu` says where it waits.
-  `./omw release exec nsys profile ./openmw-rtxtool bench ...` for the GPU. `ncu` is not installed.
+  time, and the full text reports beside it (by library, by source line, the callers), which are
+  what to read. `--offcpu` says where it waits. For the GPU,
+  `./omw release exec nsys profile ./openmw-rtxtool bench ...`; `ncu` is not installed.
 - `./omw crash <dump>` reads a player's crash dump against a release's `-symbols.zip`, or the
   newest in `dist/`. `./omw game` is the game on the newest quicksave. A fresh box takes
   `./omw bootstrap` for the pinned Vulkan SDK, and `./omw setup <morrowind dir>`.
@@ -272,14 +270,12 @@ the posture behind them does.
   in its `…system.hpp`. A build flag is defined in every build as `0` or `1` and read once into a
   `constexpr bool` (`Rtx::sDebugNames`, `Rtx::sValidationByDefault`), which code asks with
   `if constexpr`. Code only one build has is a file CMake chooses (`crashunsupported.cpp`), never an
-  `#ifdef` around it. A test of an `assert` calls
-  `Testing::expectAssertDies`, not `#ifndef NDEBUG`. What stays: a chain inside the one file that
+  `#ifdef` around it. A test of an `assert` calls `Testing::expectAssertDies`, not `#ifndef NDEBUG`. What stays: a chain inside the one file that
   owns a system's difference (Linux beside macOS in a POSIX file), an include only one system has,
   and the headers GLSL and C++ both read, whose differences `shaders/portable.h` holds.
 - **Comments say _why_**: an invariant, a workaround and its cause, a trade-off against the obvious
-  alternative — never a restatement of the line under it. No decorative dividers.
-- **Fix stale narration in code you are already editing.** Sweeping files you are not otherwise in
-  is a separate task.
+  alternative — never a restatement of the line under it. No decorative dividers. Stale narration
+  in code you are editing is fixed with it; sweeping other files is a separate task.
 - **Frame times are uniform**, and an average that hides a spike is not an answer. Work is
   _incremental_, never _batched behind a threshold_: a table recycles its slots, a resource is
   appended rather than rebuilt. What cannot be made cheap belongs off the frame path entirely, not
@@ -290,8 +286,8 @@ the posture behind them does.
 - **Loading allocates no more freely than a frame does.** A loader is a persistent object owning its
   buffers, `clear()`ed and refilled for each thing it reads. Cells arrive while the game is running,
   so a spike taken at load is a spike a player feels.
-- **Whatever can be computed once is computed once** — at initialization or at load. A frame reads
-  what it was handed.
+- **Nothing is computed twice, and everything as early as it can be** — at initialization or at
+  load. A frame reads what it was handed.
 - **A shader's float arithmetic is the build's, not the driver's.** Every module is pinned
   (`components/rtxvulkan/spirv/spirvpin.hpp`), so GLSL is written as usual; an operation the pinning
   refuses stops the build, and the message says what it is. `precise` is for a value two shaders
