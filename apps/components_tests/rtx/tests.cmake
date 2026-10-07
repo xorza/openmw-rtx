@@ -20,6 +20,7 @@ set(RTX_TEST_FILES
     rtx/environment/fogbuilder.cpp
     rtx/environment/frameworld.cpp
     rtx/environment/moonbuilder.cpp
+    rtx/environment/nightsky.cpp
     rtx/environment/skybuilder.cpp
     rtx/environment/skylight.cpp
     rtx/environment/sun.cpp

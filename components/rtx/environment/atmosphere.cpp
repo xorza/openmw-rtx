@@ -4,18 +4,19 @@
 #include <cmath>
 #include <cstddef>
 #include <string>
+#include <vector>
 
-#include <osg/Array>
 #include <osg/Geometry>
-#include <osg/Matrixf>
 #include <osg/NodeVisitor>
-#include <osg/Transform>
 #include <osg/Vec3d>
+#include <osg/Vec3f>
 
 #include <components/misc/result.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sky/vertexrules.hpp>
 #include <components/vfs/manager.hpp>
+
+#include "skymesh.hpp"
 
 namespace Rtx
 {
@@ -36,8 +37,8 @@ namespace Rtx
             }
         };
 
-        /// Every vertex of the mesh into the ring its alpha puts it in. Placed, because Morrowind's
-        /// atmosphere hangs upside down under a root rotation of `diag(1, -1, -1)`.
+        /// Every vertex of the mesh into the ring its alpha puts it in, placed where the graph puts
+        /// it (`placedVertices`).
         class RingReader : public osg::NodeVisitor
         {
         public:
@@ -48,17 +49,19 @@ namespace Rtx
 
             void apply(osg::Geometry& geometry) override
             {
-                const auto* vertices = dynamic_cast<const osg::Vec3Array*>(geometry.getVertexArray());
-                if (vertices == nullptr)
+                mPlaced.clear();
+                if (!placedVertices(geometry, getNodePath(), mPlaced))
                     return;
 
-                const osg::Matrixf placed = osg::computeLocalToWorld(getNodePath());
-                for (std::size_t i = 0; i < vertices->size(); ++i)
-                    (Sky::atmosphereAlphaOf(i) > 0.0f ? mUpper : mLower).add(placed.preMult((*vertices)[i]));
+                for (std::size_t i = 0; i < mPlaced.size(); ++i)
+                    (Sky::atmosphereAlphaOf(i) > 0.0f ? mUpper : mLower).add(mPlaced[i]);
             }
 
             RingSum mUpper;
             RingSum mLower;
+
+        private:
+            std::vector<osg::Vec3f> mPlaced;
         };
 
         /// The antiderivative of `sin e cos e · Q'(e) / Q(e)` for `Q = C cos e - D sin e`, written
