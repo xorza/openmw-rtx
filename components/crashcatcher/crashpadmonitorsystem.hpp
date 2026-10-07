@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -46,6 +47,10 @@ namespace Crash::Monitor
         /// Ends the game, and says what that came to.
         Ending end() const;
 
+        /// What the game exited with, once it is gone, where the system tells a process that is
+        /// not its parent: Windows does, and a POSIX system tells the parent alone.
+        std::optional<std::uint32_t> exitCode() const;
+
     private:
         std::uint32_t mId = 0;
 
@@ -57,6 +62,9 @@ namespace Crash::Monitor
     /// raised by a fault. `process` is the game's id, by which a signal it sent itself is told from
     /// one another process sent.
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t process);
+
+    /// An exit code as the system names it, where it has a name, and in hex where it has none.
+    std::string describeExitCode(std::uint32_t code);
 
     /// The folder in Crashpad's database that each system's handler leaves a finished dump in.
     std::string_view dumpFolder();

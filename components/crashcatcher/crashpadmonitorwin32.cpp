@@ -3,6 +3,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +22,22 @@ namespace Crash::Monitor
         {
             return hold < 0 ? nullptr : reinterpret_cast<HANDLE>(hold);
         }
+
+        /// What an exception code, or the exit code a fail-fast leaves, is called.
+        constexpr std::array<std::pair<std::uint32_t, std::string_view>, 12> sExceptionNames{ {
+            { EXCEPTION_ACCESS_VIOLATION, "EXCEPTION_ACCESS_VIOLATION" },
+            { EXCEPTION_IN_PAGE_ERROR, "EXCEPTION_IN_PAGE_ERROR" },
+            { EXCEPTION_STACK_OVERFLOW, "EXCEPTION_STACK_OVERFLOW" },
+            { EXCEPTION_ILLEGAL_INSTRUCTION, "EXCEPTION_ILLEGAL_INSTRUCTION" },
+            { EXCEPTION_PRIV_INSTRUCTION, "EXCEPTION_PRIV_INSTRUCTION" },
+            { EXCEPTION_INT_DIVIDE_BY_ZERO, "EXCEPTION_INT_DIVIDE_BY_ZERO" },
+            { EXCEPTION_INT_OVERFLOW, "EXCEPTION_INT_OVERFLOW" },
+            { EXCEPTION_DATATYPE_MISALIGNMENT, "EXCEPTION_DATATYPE_MISALIGNMENT" },
+            { EXCEPTION_BREAKPOINT, "EXCEPTION_BREAKPOINT" },
+            { EXCEPTION_NONCONTINUABLE_EXCEPTION, "EXCEPTION_NONCONTINUABLE_EXCEPTION" },
+            { 0xC0000374, "STATUS_HEAP_CORRUPTION" },
+            { 0xC0000409, "STATUS_STACK_BUFFER_OVERRUN" },
+        } };
     }
 
     GameProcess::GameProcess(std::uint32_t id)
@@ -61,27 +78,27 @@ namespace Crash::Monitor
         return TerminateProcess(handle, 3) != FALSE ? Ending::Ended : Ending::Failed;
     }
 
+    std::optional<std::uint32_t> GameProcess::exitCode() const
+    {
+        DWORD code = 0;
+        const HANDLE handle = handleOf(mHold);
+        if (handle == nullptr || GetExitCodeProcess(handle, &code) == FALSE || code == STILL_ACTIVE)
+            return std::nullopt;
+        return static_cast<std::uint32_t>(code);
+    }
+
+    std::string describeExitCode(std::uint32_t code)
+    {
+        return nameOf(sExceptionNames, code, hex(code));
+    }
+
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t)
     {
         const std::uint32_t code = exception.Exception();
         if (code == 0x517a7ed)
             return {};
 
-        static constexpr std::array<std::pair<std::uint32_t, std::string_view>, 12> sNames{ {
-            { EXCEPTION_ACCESS_VIOLATION, "EXCEPTION_ACCESS_VIOLATION" },
-            { EXCEPTION_IN_PAGE_ERROR, "EXCEPTION_IN_PAGE_ERROR" },
-            { EXCEPTION_STACK_OVERFLOW, "EXCEPTION_STACK_OVERFLOW" },
-            { EXCEPTION_ILLEGAL_INSTRUCTION, "EXCEPTION_ILLEGAL_INSTRUCTION" },
-            { EXCEPTION_PRIV_INSTRUCTION, "EXCEPTION_PRIV_INSTRUCTION" },
-            { EXCEPTION_INT_DIVIDE_BY_ZERO, "EXCEPTION_INT_DIVIDE_BY_ZERO" },
-            { EXCEPTION_INT_OVERFLOW, "EXCEPTION_INT_OVERFLOW" },
-            { EXCEPTION_DATATYPE_MISALIGNMENT, "EXCEPTION_DATATYPE_MISALIGNMENT" },
-            { EXCEPTION_BREAKPOINT, "EXCEPTION_BREAKPOINT" },
-            { EXCEPTION_NONCONTINUABLE_EXCEPTION, "EXCEPTION_NONCONTINUABLE_EXCEPTION" },
-            { 0xC0000374, "STATUS_HEAP_CORRUPTION" },
-            { 0xC0000409, "STATUS_STACK_BUFFER_OVERRUN" },
-        } };
-        std::string text = nameOf(sNames, code, "exception " + hex(code));
+        std::string text = nameOf(sExceptionNames, code, "exception " + hex(code));
 
         const std::vector<std::uint64_t>& codes = exception.Codes();
         if ((code == EXCEPTION_ACCESS_VIOLATION || code == EXCEPTION_IN_PAGE_ERROR) && codes.size() >= 2)
