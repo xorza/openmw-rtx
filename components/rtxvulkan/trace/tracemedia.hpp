@@ -19,6 +19,7 @@ namespace Rtx
 {
     class Device;
     class DeviceScene;
+    struct FogNoise;
     class GpuTimer;
     class SceneDesc;
     struct TraceSubject;
@@ -29,7 +30,8 @@ namespace Rtx
     class TraceMedia
     {
     public:
-        explicit TraceMedia(const Device& device);
+        /// @param fog the fog's field, `bakeFogNoise`'s unless a test states another.
+        TraceMedia(const Device& device, const FogNoise& fog);
 
         /// What a trace of `held` under `camera` reads, for the copy its last placement wrote, and
         /// what its launches bind beside it — but for the chain's own images, which
@@ -56,6 +58,9 @@ namespace Rtx
 
         /// Draws another sea's amplitudes. Nothing may be in flight: `WavePass::describe` says why.
         void describeSea(const SeaState& sea) { mWaves.describe(sea); }
+
+        /// Draws another fog field. Nothing may be in flight.
+        void describeFog(const Device& device, const FogNoise& fog) { mFog.describe(device, fog); }
 
         /// Copies what the world's scene says disturbed the water, at the two places the world's
         /// scene passes through: built and placed. A copy and not a span, because the scene's list

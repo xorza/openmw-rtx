@@ -47,6 +47,7 @@
 
 namespace Rtx
 {
+    struct FogNoise;
     class Presenter;
 
     /// `Renderer` over Vulkan.
@@ -115,6 +116,10 @@ namespace Rtx
         /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum and
         /// waits the frames in flight out first.
         void setSea(const SeaState& sea);
+
+        /// The fog's field every trace reads, `bakeFogNoise`'s until told: for a test that states
+        /// where the air is banked. Drains the frames in flight first, since each reads the field.
+        void setFogField(const FogNoise& noise);
 
         /// Copies one of the last frame's g-buffer channels into `values`, tightly packed, widened
         /// to floats whatever the channel holds. The frame's, never a view scene's.

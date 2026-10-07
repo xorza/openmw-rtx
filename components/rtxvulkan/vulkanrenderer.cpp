@@ -18,6 +18,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -83,7 +84,7 @@ namespace Rtx
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
         , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, mProfile.mReconstruction.mIndirect)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
-        , mMedia(mDevice)
+        , mMedia(mDevice, bakeFogNoise())
         , mGui(mDevice)
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth,
               mProfile.mReconstruction.mIndirect)
@@ -136,6 +137,12 @@ namespace Rtx
             return;
 
         mMedia.describeSea(sea);
+    }
+
+    void VulkanRenderer::setFogField(const FogNoise& noise)
+    {
+        drain();
+        mMedia.describeFog(mDevice, noise);
     }
 
     void VulkanRenderer::createTargets(std::uint32_t width, std::uint32_t height)
