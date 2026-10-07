@@ -48,7 +48,7 @@ Changes to upstream
 * `[Video] resolution` sets the frame size, and the frame is scaled into the window.
 * A crash reporter of its own, built on Crashpad.
 * Four rasterizer fixes: the optimizer's merge order, the land of a map tile, a day-night
-  switch's first frame, and the first frame of a model's saved particles.
+  switch's first frame, and a groundcover plant's transforms.
 
 Goal
 ----

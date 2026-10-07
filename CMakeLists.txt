@@ -1153,9 +1153,6 @@ elseif(NOT APPLE)
                                                                                                                             PATTERN "Testing" EXCLUDE
                                                                                                                             PATTERN "tests_output" EXCLUDE
                                                                                                                             PATTERN "try-compile" EXCLUDE)
-        # Beside the binaries, as the Linux portable layout keeps them. The GPL's own text and the
-        # rest of the documentation are installed for every system below.
-        install_fork_licenses("licenses")
 
         SET(CPACK_GENERATOR "NSIS")
         SET(CPACK_PACKAGE_EXECUTABLES "openmw;OpenMW")
@@ -1211,28 +1208,20 @@ elseif(NOT APPLE)
             INSTALL(FILES "${OpenMW_SOURCE_DIR}/files/opencs/openmw-cs.png" DESTINATION "${ICONDIR}" COMPONENT "opencs")
         ENDIF(BUILD_OPENCS)
 
-        # Beside the binaries in the portable layout an AppImage is made of, and where a distribution
-        # keeps a package's licences otherwise.
-        if (OPENMW_LOCAL_INSTALL)
-            install(FILES "${OpenMW_SOURCE_DIR}/LICENSE" DESTINATION ".")
-            install_fork_licenses("licenses")
-        else()
-            install(FILES "${OpenMW_SOURCE_DIR}/LICENSE" DESTINATION "${LICDIR}")
-            install_fork_licenses("${LICDIR}/third-party")
-        endif()
     endif(WIN32)
     
     install(FILES "${OpenMW_SOURCE_DIR}/CHANGELOG.md" TYPE DOC)
     install(FILES "${OpenMW_SOURCE_DIR}/README.md" TYPE DOC)
     install(FILES "${OpenMW_SOURCE_DIR}/LICENSE" TYPE DOC RENAME "LICENSE.txt")
     install(FILES "${OpenMW_SOURCE_DIR}/AUTHORS.md" TYPE DOC)
+    install_fork_licenses("${CMAKE_INSTALL_DOCDIR}/licenses")
 
     install(FILES "${RUNTIME_OUTPUT_DIRECTORY}/CI-ID.txt" TYPE DOC OPTIONAL)
 
     install(FILES "${RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
                   "${RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
                   TYPE SYSCONF)
-
+    
     if (OPENMW_LOCAL_INSTALL)
         install(FILES "${OpenMW_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
     else ()

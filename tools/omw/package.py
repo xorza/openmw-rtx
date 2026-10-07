@@ -189,7 +189,8 @@ def _archive_linux(build: Build, name: str) -> None:
     run(["cmake", "--install", build.dir, "--prefix", appdir / "usr" / "bin"], env=build.env, stdout=subprocess.DEVNULL)
     _refuse_harness(appdir)
     (appdir / "usr" / "bin" / "share").rename(appdir / "usr" / "share")
-    shutil.copy2(ROOT / "files" / "licenses" / "Vulkan-Loader.txt", appdir / "usr" / "bin" / "licenses")
+    licenses = appdir / "usr" / "share" / "doc" / "OpenMW" / "licenses"
+    shutil.copy2(ROOT / "files" / "licenses" / "Vulkan-Loader.txt", licenses)
 
     osg_version = output(["pkg-config", "--modversion", "openscenegraph-osg"]).strip()
     osg_libdir = Path(output(["pkg-config", "--variable=libdir", "openscenegraph-osg"]).strip())
