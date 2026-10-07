@@ -1,14 +1,18 @@
 #include "renderingmanager.hpp"
 
 #include <cstdlib>
+#include <sstream>
 
 #include <osg/Camera>
 #include <osg/ClipControl>
 #include <osg/ComputeBoundsVisitor>
 #include <osg/FrameStamp>
 #include <osg/Group>
+#include <osg/Image>
 #include <osg/Matrix>
 #include <osg/Stats>
+
+#include <osgDB/Registry>
 
 #include <osgUtil/LineSegmentIntersector>
 
@@ -543,9 +547,33 @@ namespace MWRender
         mPrecipitation->setWaterHeight(height);
     }
 
-    void RenderingManager::screenshot(osg::Image* image, int w, int h)
+    std::vector<char> RenderingManager::screenshot(int w, int h)
     {
+        osg::ref_ptr<osg::Image> image(new osg::Image);
         mRenderer.capture(*image, w, h);
+        // A renderer with no frame to read hands back the image untouched, which the writer below
+        // would meet with no pixels at all.
+        if (!image->valid())
+            return {};
+
+        osgDB::ReaderWriter* readerwriter = osgDB::Registry::instance()->getReaderWriterForExtension("jpg");
+        if (!readerwriter)
+        {
+            Log(Debug::Error) << "Error: Unable to write screenshot, can't find a jpg ReaderWriter";
+            return {};
+        }
+
+        std::ostringstream ostream;
+        osgDB::ReaderWriter::WriteResult result = readerwriter->writeImage(*image, ostream);
+        if (!result.success())
+        {
+            Log(Debug::Error) << "Error: Unable to write screenshot: " << result.message() << " code "
+                              << result.status();
+            return {};
+        }
+
+        const std::string data = ostream.str();
+        return std::vector<char>(data.begin(), data.end());
     }
 
     osg::Vec2f RenderingManager::getScreenCoords(const osg::BoundingBox& bb)
