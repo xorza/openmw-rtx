@@ -634,7 +634,7 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   `redesign_QUESTIONS.md`.
 - **[decision] The glossy filter has no virtual-motion history** (`specular.comp`): a sharp lobe
   resets at each turn. ReLAX's needs the lobe's hit distance stored. Decide whether that is worth a
-  channel.
+  channel. Blocked: question 9 in `redesign_QUESTIONS.md`.
 
 ### 6.7 Design, duplication and dead code
 
