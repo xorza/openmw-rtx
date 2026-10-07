@@ -67,10 +67,7 @@ namespace Rtx
         const DenoiseFrame frame{
             .mSampled = sampled,
             .mDistanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar),
-            .mAntilag = reconstruction.mFilters.mAntilag,
-            .mHistoryFix = reconstruction.mFilters.mHistoryFix,
-            .mDualMotion = reconstruction.mFilters.mDualMotion,
-            .mAntiFirefly = reconstruction.mFilters.mAntiFirefly,
+            .mFilters = reconstruction.mFilters,
         };
 
         // The temporal half first: the accumulator hands on the variance of its mean, which is

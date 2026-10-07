@@ -44,8 +44,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   repeats `Rtx::ExposureRule`, and `vulkanrenderer.cpp:634-641` converts it with an if-chain. The elapsed
   seconds are stored two times (`Measured::mSeconds`, `Glare::mSeconds`). Target shape: `FrameLook` has the
   `ExposureRule`, one `mSeconds` and the bias. (low)
-- [ ] `components/rtxvulkan/trace/denoise/denoiseframe.hpp:19-31` — `DenoiseFrame` copies four flags from
-  `Reconstruction`. Target shape: hold a `const Reconstruction&`, as it holds `mSampled`. (low)
 - [ ] `components/rtxvulkan/device/memory/formats.hpp:81`, `formats.cpp:7` — `texelBytes(StorageFormat)`
   and `formatInfoOf(VkFormat).mTexelBytes` are two hand-written tables for the same formats. Target shape:
   one table. `formatInfoOf` gets storage formats from `texelBytes` through `toVulkanFormat`. (low)

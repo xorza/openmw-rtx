@@ -1,5 +1,6 @@
 #pragma once
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/shaders/shared/accumulate.h>
 
@@ -15,20 +16,8 @@ namespace Rtx
         /// `HistoryConstants::mDistanceScale` says why — worked out once for the frame.
         float mDistanceScale;
 
-        /// `Reconstruction::mAntilag`: whether the accumulator holds its slow mean to its fast one.
-        bool mAntilag;
-
-        /// `Reconstruction::mHistoryFix`: whether the wavelet's first level rebuilds a short history
-        /// from the surface around it.
-        bool mHistoryFix;
-
-        /// `Reconstruction::mDualMotion`: whether a surface the previous frame did not see takes the
-        /// accumulator's history along its occluder's motion.
-        bool mDualMotion;
-
-        /// `Reconstruction::mAntiFirefly`: whether the accumulator holds a short history of the bounce
-        /// under the light around it.
-        bool mAntiFirefly;
+        /// `Reconstruction::mFilters`: how the bounce is filtered past the wavelet.
+        FilterSwitches mFilters;
 
         /// What every temporal filter's history is handed this frame, from the one place each
         /// field has: `fresh` where the history holds nothing to reuse.
