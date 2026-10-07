@@ -19,7 +19,6 @@ namespace MWRender
         constexpr std::string_view sFiltering = "The ray tracer filters every texture trilinearly.";
         constexpr std::string_view sStillGrass
             = "The ray tracer stands each plant still: no wind and no step bends it.";
-        constexpr std::string_view sDrawThreads = "This sets the rasterizer's draw threads.";
         constexpr std::string_view sPostProcessing
             = "Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone "
               "curve.";
@@ -97,7 +96,7 @@ namespace MWRender
             { "Navigator", "enable nav mesh render", {} },
             { "Navigator", "enable recast mesh render", {} },
             { "Navigator", "nav mesh render mode", {} },
-            { "Physics", "async num threads", sDrawThreads },
+            { "Physics", "async num threads", {} },
             { "Post Processing", "", sPostProcessing },
             { "RTX", "distant land cells", {} },
             { "RTX", "enabled", {} },
