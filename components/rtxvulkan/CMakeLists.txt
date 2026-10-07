@@ -61,6 +61,7 @@ set(RTX_SHADERS
     shaders/trace/denoise/accumulateclamp.comp
     shaders/trace/denoise/atrous.comp
     shaders/trace/denoise/composite.comp
+    shaders/trace/denoise/historyclamp.comp
     shaders/trace/denoise/pane.comp
     shaders/trace/denoise/shadowfilter.comp
     shaders/trace/denoise/shadowmask.comp
@@ -360,6 +361,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/line.h
     shaders/shared/mipchain.h
     shaders/shared/normalspread.h
+    shaders/shared/historyclamp.h
     shaders/shared/pane.h
     shaders/shared/pinning.h
     shaders/shared/probe.h
@@ -406,6 +408,8 @@ set(RTX_VULKAN_FILES
     trace/denoise/denoisehistory.hpp
     trace/denoise/denoisepasses.cpp
     trace/denoise/denoisepasses.hpp
+    trace/denoise/historyclamppass.cpp
+    trace/denoise/historyclamppass.hpp
     trace/denoise/panepass.cpp
     trace/denoise/panepass.hpp
     trace/denoise/shadowpass.cpp

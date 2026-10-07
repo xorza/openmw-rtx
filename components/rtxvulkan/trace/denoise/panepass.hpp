@@ -7,6 +7,7 @@
 
 #include "denoiseframe.hpp"
 #include "denoisehistory.hpp"
+#include "historyclamppass.hpp"
 
 namespace Rtx
 {
@@ -27,7 +28,7 @@ namespace Rtx
         /// orders it for a read (`DenoisePasses::record`). `buffer` must have been handed over, and
         /// `DenoiseHistory::discard` has readied the images.
         const Image& record(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images, const GBuffer& buffer,
-            const DenoiseFrame& frame, GpuTimer* timer) const;
+            const DenoiseFrame& frame, const HistoryClampPass& clamp, GpuTimer* timer) const;
 
     private:
         ComputePipeline<Shaders::HistoryConstants> mPipeline;

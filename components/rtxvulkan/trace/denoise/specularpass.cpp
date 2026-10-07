@@ -27,7 +27,7 @@ namespace Rtx
     }
 
     const Image& SpecularPass::record(VkCommandBuffer commands, const DenoiseHistory::SpecularImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
+        const GBuffer& buffer, const DenoiseFrame& frame, const HistoryClampPass& clamp, GpuTimer* timer) const
     {
         openZone(timer, commands, FrameZone::Specular);
 
@@ -43,9 +43,17 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_FAST_BEFORE, images.mFastBefore.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_FAST_BLENDED, images.mFastBlended.describeStorage());
 
         dispatch(commands, mPipeline, writes, frame.history(images.mFresh),
             Groups::covering(width, height, Shaders::SPECULAR_WORKGROUP));
+        clamp.record(commands,
+            HistoryClampPass::Images{ .mSampled = buffer.get(Channel::Specular),
+                .mMean = images.mMean,
+                .mFastBlended = images.mFastBlended,
+                .mFast = images.mFast },
+            width, height, frame.mFilters.mAntilag);
 
         closeZone(timer, commands);
         return images.mMean;

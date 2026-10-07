@@ -20,6 +20,7 @@ namespace Rtx
     DenoisePasses::DenoisePasses(const Device& device)
         : mAccumulate(device)
         , mShadow(device)
+        , mHistoryClamp(device)
         , mSpecular(device)
         , mPane(device)
         , mFilter(device)
@@ -81,9 +82,9 @@ namespace Rtx
 
         const Image* specular = &buffer.get(Channel::Specular);
         if (runs[Temporal::Specular])
-            specular = &mSpecular.record(commands, history.specular(step), buffer, frame, timer);
+            specular = &mSpecular.record(commands, history.specular(step), buffer, frame, mHistoryClamp, timer);
 
-        const Image& pane = mPane.record(commands, history.pane(step), buffer, frame, timer);
+        const Image& pane = mPane.record(commands, history.pane(step), buffer, frame, mHistoryClamp, timer);
 
         // **One dependency after the three filters and none between them**: the shadow, glossy
         // and pane passes read nothing another of them writes, so a barrier each held every one

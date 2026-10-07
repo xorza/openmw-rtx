@@ -101,7 +101,7 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
 
             const Frame averaged = shoot(scene, {}, camera, sSize, { .mFrames = 16, .mFirstFrame = 2000 });
-            const Frame filtered = shoot(scene, {}, camera, sSize, filteredRun(16, 2000));
+            const Frame filtered = shoot(scene, {}, camera, sSize, filteredRun(16, 2000, false));
 
             camera.mFrame = 2015;
             const Frame raw = shoot(scene, {}, camera, sSize);
@@ -137,6 +137,40 @@ namespace Rtx::Testing
             ASSERT_GT(composed.mean(0), 0.0f) << "a pane that is lit by nothing proves nothing";
             for (std::size_t value = 0; value < composed.mRadiance.size(); ++value)
                 ASSERT_EQ(filtered.at(value), composed.at(value)) << "value " << value;
+        }
+
+        /// **A pane follows an ambient whose light halves** (`historyclamp.comp`). The grey pane at
+        /// half its opacity before the black sky, lit by a grey ambient and no lamp — what a layer is
+        /// lit by at the end of its path (`pathEnd`) — filtered for 64 still frames, then 30 more under
+        /// half the ambient: the pane is the whole of every pixel and linear in the ambient, so the
+        /// new level is half the old one exactly. Measured, the clamp's 30th frame stood at 1.000
+        /// of it, and without the clamp at 1.386.
+        TEST_F(RtxVisibilityTest, aPaneFollowsAnAmbientWhoseLightHalves)
+        {
+            for (const bool antilag : { true, false })
+            {
+                SceneDesc scene;
+                addPane(scene, uprightQuadAt(4000.0f, 200.0f), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
+                Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
+                camera.mAmbient = osg::Vec3f(0.6f, 0.6f, 0.6f);
+                const Frame before = shoot(scene, {}, camera, sSize, filteredRun(64, 7000, antilag));
+                ASSERT_GT(before.mean(1), 0.0f) << "a pane that is lit by nothing proves nothing";
+
+                camera.mAmbient *= 0.5f;
+                const Frame after = shoot(scene, {}, camera, sSize,
+                    Shot{ .mFrames = 30,
+                        .mAverage = false,
+                        .mFirstFrame = 7064,
+                        .mFilter = true,
+                        .mAntilag = antilag,
+                        .mSetScene = false });
+                const float share = after.mean(1) / (0.5f * before.mean(1));
+                if (antilag)
+                    EXPECT_LT(share, 1.05f) << "the clamp did not follow the ambient down";
+                else
+                    EXPECT_GT(share, 1.05f)
+                        << "the history followed the ambient without the clamp, so this proves nothing";
+            }
         }
 
         /// **A jittered still's history is registered at the pixel's centre**: a

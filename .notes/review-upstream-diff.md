@@ -7,16 +7,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 Whoever fixes one of these deletes it from the issue log as well.
 
-- [ ] `trace/denoise/specular.comp:126-151`, `trace/denoise/pane.comp:77-92` — both blend with
-  `blendedMean`, with no fast mean and no box, so a rough reflection, or a pane's light, keeps up to
-  `ACCUMULATE_FRAMES` of old light after a lamp changes on a still surface; only the bounce is clamped,
-  which the comments already say. Measured on this card (`-O2`, a grey sky that halves after 64 still
-  frames, the clamp on, a temporary test), frames until within a tenth of the new level: the glossy
-  metal floor at roughness 64, 128 and 200 of 255 took 56, 56 and 54 (0.250 → 0.163 of a target 0.151 by
-  frame 63, at 64); a half-opaque pane took 16–32; the clamped bounce (`RtxBounceClampTest`) takes 31.
-  **Decided 2026-10-08: clamp both.** Target shape: `specular.comp` and `pane.comp` keep fast means
-  and clamp through `heldToFast`, as ReLAX clamps specular — two more history images a filter and a
-  5×5 square of loads each — each with a test like `theFloorFollowsASkyWhoseLightHalves`. (medium)
 - [ ] `tools/omw/deps.py:162` — `omw kernels` refuses on a box `omw bootstrap` set up: it wants
   `spirv-dis` beside the build's `spirv-opt`, and the SDK fetch keeps only `glslc`, `spirv-val` and
   `spirv-opt`. The folder is named after the SDK's version alone, so a desk that has it keeps it

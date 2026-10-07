@@ -370,6 +370,11 @@ namespace Rtx::Testing
         /// the thing it was written to measure. The tests that are about the filter ask for it.
         bool mFilter = false;
 
+        /// Whether the filters hold their histories to their fast means (`FilterSwitches::mAntilag`):
+        /// on, as a frame has it, unless a test holds a filter to the law of its own running mean,
+        /// which a clamp to a box of a few frames' noise moves it off.
+        bool mAntilag = true;
+
         /// Whether the sample point moves inside its pixel, which buys nothing on a single frame
         /// and is what several of them cover between them.
         bool mJitter = false;
@@ -464,11 +469,16 @@ namespace Rtx::Testing
     ///
     /// @param first the sampler's frame the run starts at, so a run can be handed a stream of its
     ///        own rather than the one every other run in the test consumed.
-    inline Shot filteredRun(std::uint32_t frames, std::uint32_t first = 0)
+    /// @param antilag off for a test of a filter's own law, which the clamp moves off it
+    ///        (`Shot::mAntilag`).
+    inline Shot filteredRun(std::uint32_t frames, std::uint32_t first = 0, bool antilag = true)
     {
-        return Shot{
-            .mFrames = frames, .mAverage = false, .mFirstFrame = first, .mFilter = true, .mLoss = HistoryLoss::Cut
-        };
+        return Shot{ .mFrames = frames,
+            .mAverage = false,
+            .mFirstFrame = first,
+            .mFilter = true,
+            .mAntilag = antilag,
+            .mLoss = HistoryLoss::Cut };
     }
 
     class RtxVisibilityTest : public Testing::RendererTest
@@ -521,7 +531,8 @@ namespace Rtx::Testing
                             .mLevelEpsilon = shot.mLevelEpsilon,
                             .mSampling = { .mNoise = shot.mNoise,
                                 .mShadowFloor = shot.mShadowFloor,
-                                .mLampCandidates = shot.mLampCandidates } },
+                                .mLampCandidates = shot.mLampCandidates },
+                            .mFilters = { .mAntilag = shot.mAntilag } },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,

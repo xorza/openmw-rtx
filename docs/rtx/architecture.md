@@ -296,7 +296,9 @@ at the top, over all of them.
   where its step fits the penumbra.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
   filter averages what was drawn for the see-through layers over time, against a history of the
-  nearest layer's own surface and motion. The accumulator, the shadow denoiser and the glossy filter
+  nearest layer's own surface and motion. Each holds its slow mean to a fast one as the accumulator
+  does (`historyclamp.comp`), so a lamp that changes on a still surface is followed in a reflection
+  and a window as in the bounce. The accumulator, the shadow denoiser and the glossy filter
   read one surface history, the accumulator's. Every history is matched from the eye it was measured
   from: the motion vector carries how much farther the surface stood from the previous eye.
 

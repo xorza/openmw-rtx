@@ -1,0 +1,130 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The glossy and the pane filters' anti-lag: each one's slow mean held to what its fast mean says
+// around the pixel, after the filter and before the composite. ReLAX's history clamp (NVIDIA NRD,
+// `RELAX_HistoryClamping`), which ReLAX applies to its specular as to its diffuse, and the
+// accumulator's own (`accumulateclamp.comp`) less what only the bounce needs: the ring, the fill and
+// the wavelet's variance.
+//
+// **Why.** A filter drops a history only where the surface changed, so where a lamp changes on a
+// still surface a rough reflection kept up to `ACCUMULATE_FRAMES` of the old light: measured, a
+// glossy floor under a sky that halved stood within a tenth of the new level on frame 54 to 56, and a
+// pane on frame 16 to 32, against the clamped bounce's 31.
+//
+// **How**, as the accumulator's: where the slow mean stands outside the fast means' mean ± two
+// deviations over a 5×5 square, on any axis of YCoCg, it is moved to that edge (`heldToFast`), and
+// both means are pushed on toward the square's mean of samples in proportion
+// (`antilagAcceleration`). The square takes the pixels that hold a mean of the same filter, whatever
+// their surface, as the accumulator's does.
+//
+// **In place** for the slow mean, which each pixel alone reads and writes; the fast means are read
+// from the blend the filter left and written to its history.
+
+#include "shared/accumulate.h"
+#include "shared/historyclamp.h"
+#include "colour.h"
+#include "shared/sets.h"
+
+#include "lib/census.glsl"
+#include "lib/historyclamp.glsl"
+#include "lib/pixels.glsl"
+#include "lib/sharedexponent.glsl"
+
+layout(local_size_x = HISTORY_CLAMP_WORKGROUP, local_size_y = HISTORY_CLAMP_WORKGROUP) in;
+
+/// The frame's samples of the filter's light, whose mean over the square the push goes toward. No
+/// format, as radiance has none here.
+layout(set = SET_PASS, binding = HISTORY_CLAMP_BIND_SAMPLED) uniform readonly image2D sampled;
+
+/// The slow mean as the filter blended it and its frame count, which this holds in place.
+layout(set = SET_PASS, binding = HISTORY_CLAMP_BIND_MEAN, HISTORY_CLAMP_MEAN) uniform image2D mean;
+
+/// The fast means as the filter blended them, and this frame's, which the filter reads next frame.
+layout(set = SET_PASS, binding = HISTORY_CLAMP_BIND_FAST, HISTORY_CLAMP_FAST) uniform readonly uimage2D fast;
+layout(set = SET_PASS, binding = HISTORY_CLAMP_BIND_FAST_OUT, HISTORY_CLAMP_FAST) uniform writeonly uimage2D fastOut;
+
+layout(push_constant, scalar) uniform Push
+{
+    HistoryClampConstants frame;
+};
+
+const int REACH = int(ACCUMULATE_CLAMP_REACH);
+const uint SPAN = HISTORY_CLAMP_WORKGROUP + 2u * ACCUMULATE_CLAMP_REACH;
+
+/// Over the square, each pixel's fast mean in YCoCg in `xyz` and in `w` one where it holds a mean and
+/// below nought where it holds none, and its sample.
+shared vec4 gFast[SPAN][SPAN];
+shared vec3 gSampled[SPAN][SPAN];
+
+void main()
+{
+    const uint threads = HISTORY_CLAMP_WORKGROUP * HISTORY_CLAMP_WORKGROUP;
+    const ivec2 origin = ivec2(gl_WorkGroupID.xy * HISTORY_CLAMP_WORKGROUP);
+    const ivec2 last = ivec2(frame.mWidth, frame.mHeight) - 1;
+
+    // Every load at a pixel clamped into the frame, and one outside it discarded by the select after
+    // it, for the reason `accumulateclamp.comp` gives.
+    for (uint i = gl_LocalInvocationIndex; i < SPAN * SPAN; i += threads)
+    {
+        const uvec2 square = uvec2(i % SPAN, i / SPAN);
+        const ivec2 pixel = origin - REACH + ivec2(square);
+        const ivec2 inside = clamp(pixel, ivec2(0), last);
+        const uvec2 there = imageLoad(fast, inside).xy;
+        const bool held = pixel == inside && there.y != 0u;
+        gFast[square.y][square.x] = held ? vec4(ycocgOf(unpackRgb9e5(there.x)), 1.0) : vec4(-1.0);
+        gSampled[square.y][square.x] = held ? imageLoad(sampled, inside).rgb : vec3(0.0);
+    }
+    barrier();
+
+    const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+    if (outsideOf(uvec2(at), uvec2(frame.mWidth, frame.mHeight)))
+        return;
+
+    // **A mean of one frame is left as it is**: it is its own fast mean, which the shared exponent
+    // stores only to its rounding, and a clamp to the box grown to that rounding moved the frame a
+    // history had just started from — or dropped — off the frame the trace composed.
+    const uvec2 fastPacked = imageLoad(fast, at).xy;
+    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
+    const vec4 slow = imageLoad(mean, at);
+    if (gFast[centre.y][centre.x].w < 0.0 || slow.a <= 1.0)
+    {
+        RTX_STORE_WORDS(fastOut, at, uvec4(fastPacked, 0u, 0u))
+        return;
+    }
+    const vec3 fastHere = unpackRgb9e5(fastPacked.x);
+
+    // The square's statistics, in a fixed order, over the pixels that hold a mean; the centre is one.
+    float count = 0.0;
+    vec3 fastSum = vec3(0.0);
+    vec3 fastSquares = vec3(0.0);
+    vec3 sampledSum = vec3(0.0);
+    for (int y = -REACH; y <= REACH; ++y)
+        for (int x = -REACH; x <= REACH; ++x)
+        {
+            const ivec2 tap = centre + ivec2(x, y);
+            const vec4 there = gFast[tap.y][tap.x];
+            const float weight = there.w >= 0.0 ? 1.0 : 0.0;
+            count += weight;
+            fastSum += weight * there.xyz;
+            fastSquares += weight * there.xyz * there.xyz;
+            sampledSum += weight * gSampled[tap.y][tap.x];
+        }
+    const FastBox box = fastBoxOf(fastSum, fastSquares, count);
+    const vec3 sampledMean = sampledSum / count;
+
+    const float antilag = float(frame.mAntilag);
+    const HeldHistory clamped = heldToFast(slow.rgb, fastHere, box);
+    const float share = antilag * clamped.mShare;
+    const float pushed = antilag
+        * antilagAcceleration(dot(abs(fastHere - slow.rgb), LUMINANCE_WEIGHTS), share,
+            dot(abs(sampledMean - fastHere), LUMINANCE_WEIGHTS));
+
+    // Held at nought, for the reason `accumulateclamp.comp` gives.
+    const vec3 toward = sampledMean - fastHere;
+    const vec3 held = max(mix(slow.rgb, clamped.mHeld, antilag) + pushed * toward, vec3(0.0));
+    RTX_STORE_COUNTED(mean, at, vec4(held, slow.a))
+    RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(fastHere + pushed * toward), 1u, 0u, 0u))
+}
