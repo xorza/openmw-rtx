@@ -621,7 +621,9 @@ device here measures the GL path's memory, and the change would be checked only 
 ### 6.5 Performance (each one measured before it stays)
 
 - **[perf] FSR runs with the driver's wave size** (`fsrcallbacks.glsl`). Target: request 64-lane
-  subgroups where the device allows. Blocked: question 7 in `redesign_QUESTIONS.md`.
+  subgroups where the device allows. **Waits for an RDNA 2 or later card** (decided 2026-10-07):
+  the default suite with and without `VkPipelineShaderStageRequiredSubgroupSizeCreateInfo` at 64 on
+  the upscaler's pipelines. This card runs 32 lanes only, and the drm-shim device runs nothing.
 
 ### 6.6 Light that is not the estimate it claims
 
