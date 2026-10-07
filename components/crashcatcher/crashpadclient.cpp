@@ -93,7 +93,6 @@ namespace Crash
         MonitorArguments monitor;
         monitor.mClient = process;
         monitor.mNotes = reinterpret_cast<std::uint64_t>(noteTable().data());
-        monitor.mApplication = settings.mApplication;
         monitor.mAnswering = settings.mAnswering;
         monitor.mIssues = settings.mIssues;
 

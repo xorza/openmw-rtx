@@ -14,7 +14,6 @@ namespace Crash
     {
         constexpr std::string_view sClient = "--openmw-client";
         constexpr std::string_view sNotes = "--openmw-notes";
-        constexpr std::string_view sApplication = "--openmw-application";
         constexpr std::string_view sIssues = "--openmw-issues";
 
         /// Who answers: `player`, `nobody`, or `end-after-<milliseconds>`.
@@ -41,6 +40,10 @@ namespace Crash
         }
         constexpr std::string_view sDatabase = "--database";
 
+        /// Crashpad's own annotation of the application's name, which the monitor reads its name off.
+        constexpr std::string_view sAnnotation = "--annotation";
+        constexpr std::string_view sProduct = "product=";
+
         std::string option(std::string_view name, std::string_view value)
         {
             return std::string(name) + "=" + std::string(value);
@@ -64,7 +67,6 @@ namespace Crash
             std::string(sMonitorSwitch),
             option(sClient, std::to_string(mClient)),
             option(sNotes, notes),
-            option(sApplication, mApplication),
             option(sIssues, mIssues),
             option(sAnswering, spell(mAnswering)),
         };
@@ -92,8 +94,6 @@ namespace Crash
                 if (end == text.c_str() || *end != '\0')
                     read.mNotes = 0;
             }
-            else if (const auto application = valueOf(argument, sApplication))
-                read.mApplication = *application;
             else if (const auto issues = valueOf(argument, sIssues))
                 read.mIssues = *issues;
             else if (const auto answering = valueOf(argument, sAnswering))
@@ -102,6 +102,9 @@ namespace Crash
             {
                 if (const auto database = valueOf(argument, sDatabase))
                     read.mDatabase = Files::pathFromUnicodeString(*database);
+                else if (const auto annotation = valueOf(argument, sAnnotation);
+                         annotation && annotation->starts_with(sProduct))
+                    read.mApplication = annotation->substr(sProduct.size());
                 handler.push_back(argument);
             }
         }
