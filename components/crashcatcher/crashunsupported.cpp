@@ -15,7 +15,7 @@ namespace Crash
 {
     void runMonitorIfAsked(int, char**) {}
 
-    Misc::Result<void, std::string_view> install(const Settings&)
+    Misc::Result<Installed, std::string_view> install(const Settings&)
     {
         return Misc::Err{ "Crashpad does not support this system" };
     }

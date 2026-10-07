@@ -593,7 +593,8 @@ namespace Crash
             report = monitor.mLastReport;
         }
         // **An end no handler inside the game saw**: a fail-fast — a failed security check, a
-        // corrupted heap — ends the process past every filter, and leaves no dump. Its exit code is
+        // corrupted heap — ends the process past every filter, and leaves no dump where the
+        // system's reporting did not ask for one (`Client::catchPastTheProcess`). Its exit code is
         // all there is to say what it was, where the system tells the monitor one.
         if (dumps.empty())
             if (const std::optional<std::uint32_t> code = monitor.mGame.exitCode(); code.has_value() && *code != 0)

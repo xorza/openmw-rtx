@@ -92,6 +92,12 @@ namespace Crash::Client
 #endif
     }
 
+    std::string_view catchPastTheProcess(crashpad::CrashpadClient&, const std::filesystem::path&)
+    {
+        // A signal reaches the handler whatever raised it.
+        return {};
+    }
+
     void hookEveryEnd(Heartbeat&)
     {
 #if defined(__APPLE__)

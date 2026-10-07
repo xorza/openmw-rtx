@@ -72,7 +72,7 @@ namespace Crash
         return sInstalled.load(std::memory_order_acquire);
     }
 
-    Misc::Result<void, std::string_view> install(const Settings& settings)
+    Misc::Result<Installed, std::string_view> install(const Settings& settings)
     {
         static std::atomic<bool> tried{ false };
         if (tried.exchange(true))
@@ -131,8 +131,9 @@ namespace Crash
         Client::prepareInstallingThread();
         std::set_terminate(Client::onTerminate);
         Client::hookEveryEnd(*sPage.get());
+        const Installed installed{ .mWithout = Client::catchPastTheProcess(sClient, *self) };
         sInstalled = true;
-        return {};
+        return installed;
     }
 
     void setLogFile(const std::filesystem::path& log)

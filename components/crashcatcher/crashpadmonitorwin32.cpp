@@ -24,7 +24,7 @@ namespace Crash::Monitor
         }
 
         /// What an exception code, or the exit code a fail-fast leaves, is called.
-        constexpr std::array<std::pair<std::uint32_t, std::string_view>, 12> sExceptionNames{ {
+        constexpr std::array<std::pair<std::uint32_t, std::string_view>, 13> sExceptionNames{ {
             { EXCEPTION_ACCESS_VIOLATION, "EXCEPTION_ACCESS_VIOLATION" },
             { EXCEPTION_IN_PAGE_ERROR, "EXCEPTION_IN_PAGE_ERROR" },
             { EXCEPTION_STACK_OVERFLOW, "EXCEPTION_STACK_OVERFLOW" },
@@ -37,6 +37,7 @@ namespace Crash::Monitor
             { EXCEPTION_NONCONTINUABLE_EXCEPTION, "EXCEPTION_NONCONTINUABLE_EXCEPTION" },
             { 0xC0000374, "STATUS_HEAP_CORRUPTION" },
             { 0xC0000409, "STATUS_STACK_BUFFER_OVERRUN" },
+            { 0xC0000602, "STATUS_FAIL_FAST_EXCEPTION" },
         } };
     }
 
