@@ -14,10 +14,13 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
+#include <apps/rtxtool/options.hpp>
+#include <apps/rtxtool/verbs.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/sdlutil/vsyncmode.hpp>
 
@@ -193,6 +196,19 @@ namespace RtxTool
         std::optional<MapRules> mMaps = MapRules::Shipped;
     };
 
+    /// What every command is handed: the line it was given, the configuration that line was
+    /// read against, where the resources are, and which of their shader sets a renderer reads —
+    /// the one the driver's cache was pointed at.
+    struct Command
+    {
+        const boost::program_options::variables_map& mVariables;
+        const ToolOptions& mOptions;
+        Files::ConfigurationManager& mConfig;
+        const std::filesystem::path& mResources;
+        const Rtx::ShaderSet& mShaders;
+        Verbs mVerb;
+    };
+
     /// What a setting is where nobody has set it: the shipped default, out of the `defaults.bin`
     /// beside the first configuration file `config` found, and never the player's own value. A
     /// measured run reads these so that two runs of it are one run whatever a settings file says.
@@ -210,11 +226,9 @@ namespace RtxTool
     /// status. The game and not a world of this tool's own, because a staged world never pays for
     /// the whole-graph walk, the sweep or a cell arriving, and stands in a world nobody plays. The
     /// engine is built exactly as `apps/openmw/main.cpp` builds one, out of `variables`, after the
-    /// window is written into the settings it reads. `printLeft` prints where the eye was left as a
-    /// `views.cfg` block.
-    int runHosted(const boost::program_options::variables_map& variables, Files::ConfigurationManager& config,
-        const std::filesystem::path& resources, const WindowRequest& window, SessionRequest request,
-        bool printLeft = false);
+    /// window is written into the settings it reads. A played run prints where the eye was left as
+    /// a `views.cfg` block.
+    int runHosted(const Command& command, const Framed& framed, SessionRequest request);
 
     /// A list of places to profile, by view id and not by coordinates, so the frame a screenshot
     /// shows and the frame a number was measured on are the same frame.

@@ -267,19 +267,6 @@ namespace RtxTool
             return stops;
         }
 
-        /// What every command is handed: the line it was given, the configuration that line was
-        /// read against, where the resources are, and which of their shader sets a renderer reads —
-        /// the one the driver's cache was pointed at.
-        struct Command
-        {
-            const bpo::variables_map& mVariables;
-            const ToolOptions& mOptions;
-            Files::ConfigurationManager& mConfig;
-            const std::filesystem::path& mResources;
-            const Rtx::ShaderSet& mShaders;
-            Verbs mVerb;
-        };
-
         /// Where a verb writes its pictures: `--out`, or a directory named for the verb.
         std::filesystem::path outOf(const Command& command)
         {
@@ -536,8 +523,7 @@ namespace RtxTool
         /// pictures or reports does.
         int runStops(const Command& command, const Framed& framed, std::vector<Stop> stops)
         {
-            return runHosted(command.mVariables, command.mConfig, command.mResources, framed.mWindow,
-                sessionFor(command, framed, std::move(stops)));
+            return runHosted(command, framed, sessionFor(command, framed, std::move(stops)));
         }
 
         /// How long every stop of a run lasts, from what the command line asked for.
@@ -817,8 +803,7 @@ namespace RtxTool
 
             // Compared whatever the session answered, because a moved frame is what fails it, and
             // the run where something moved is the run whose tiles, dolls and sheets are wanted.
-            const int status
-                = runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
+            const int status = runHosted(command, framed, std::move(request));
             const int compared = compareRuns(out, against, written);
             return status != 0 ? status : compared;
         }
@@ -867,7 +852,7 @@ namespace RtxTool
             request.mPerfControl = variables["perf-control"].as<std::string>();
             request.mSetup.mSettled = run.mSettled;
 
-            return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
+            return runHosted(command, framed, std::move(request));
         }
 
         /// A window on a place, with the game running behind it.
@@ -909,7 +894,7 @@ namespace RtxTool
             request.mKeys = variables["keys"].as<std::string>();
             request.mHomePictures = outOf(command);
 
-            return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request), true);
+            return runHosted(command, framed, std::move(request));
         }
 
         /// Every claim the tree makes about what the renderer is handed and what it draws, asked
@@ -957,7 +942,7 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
 
-            return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
+            return runHosted(command, framed, std::move(request));
         }
 
         /// How noisy the frame a player sees is, against sixteen frames averaged, and how far what it
@@ -1194,9 +1179,7 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
 
-            if (const int status
-                = runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
-                status != 0)
+            if (const int status = runHosted(command, framed, std::move(request)); status != 0)
                 return status;
 
             const int judged = judgeNoise(folder, sides, barFrames);
@@ -1267,8 +1250,7 @@ namespace RtxTool
             if (const std::size_t cleared = clearFrames(frames); cleared > 0)
                 out() << std::format("cleared {} frames of the last film\n", cleared);
 
-            if (const int status = runHosted(variables, command.mConfig, command.mResources, framed.mWindow,
-                    sessionFor(command, framed, stopsFor(plan, frames)));
+            if (const int status = runHosted(command, framed, sessionFor(command, framed, stopsFor(plan, frames)));
                 status != 0)
                 return status;
 
