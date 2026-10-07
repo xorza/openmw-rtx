@@ -15,7 +15,7 @@
 namespace Rtx
 {
     Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(
-        const Device& device, const VkPipelineLayout layout, const GraphicsPipelineOptions& options, ShaderCode& code)
+        const Device& device, const PipelineLayout& layout, const GraphicsPipelineOptions& options, ShaderCode& code)
     {
         PipelineCreation creation(device, options.mName);
         const Specialization vertexConstants(device, options.mVertexModule, options.mSpecialization);
@@ -24,7 +24,7 @@ namespace Rtx
         const std::array<VkPipelineShaderStageCreateInfo, 2> stages{
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(options.mVertexModule),
+                .pNext = code.stage(options.mVertexModule, layout.getBindings()),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
                 .module = VK_NULL_HANDLE,
@@ -33,7 +33,7 @@ namespace Rtx
             },
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(options.mFragmentModule),
+                .pNext = code.stage(options.mFragmentModule, layout.getBindings()),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
                 .module = VK_NULL_HANDLE,
@@ -166,7 +166,7 @@ namespace Rtx
             .pDepthStencilState = nullptr,
             .pColorBlendState = &blend,
             .pDynamicState = &dynamic,
-            .layout = layout,
+            .layout = layout.getHandle(),
             .renderPass = VK_NULL_HANDLE,
             .subpass = 0,
             .basePipelineHandle = VK_NULL_HANDLE,
