@@ -640,20 +640,6 @@ device here measures the GL path's memory, and the change would be checked only 
   `views.cfg`, then the second history built and measured there with `noise --strafe`. This
   machine has only the vanilla `Data Files`, on which no lobe stands.
 
-### 6.10 Fork hunks the Accepted diff does not cover
-
-Each is a decision: an Accepted-diff entry with its reason, or the hunk reverted. Blocked:
-question 10 in `redesign_QUESTIONS.md`.
-
-- MSVC's `4244` and `4267` turned off for the whole tree (`CMakeLists.txt`), upstream's code
-  included.
-- The build floor and toolchain: CMake 3.31 (for comments in `CMakePresets.json`), Boost 1.83,
-  `CMAKE_CXX_SCAN_FOR_MODULES OFF`, the ccache fallback, `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT`, and
-  the `$<COMPILE_LANGUAGE:C,CXX>` wrapping for Crashpad's MASM.
-- `install_fork_licenses` and `files/licenses/*`.
-- The fork's workflows in place of upstream's four, and the root tooling (`CMakePresets.json`,
-  `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes`, `.gitignore`).
-
 ## 7. Where the findings went
 
 The two reviews' groups went to the contracts (D2 to D10, cited by their old labels, **S§n** and
