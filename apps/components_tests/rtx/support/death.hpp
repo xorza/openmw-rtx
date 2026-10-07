@@ -14,6 +14,8 @@
 #include <components/platform/process.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
+#include "testplatform.hpp"
+
 namespace Rtx::Testing
 {
     /// What a death test's child finds in its environment, which is how it knows it is one.
@@ -34,7 +36,7 @@ namespace Rtx::Testing
 
     /// Expects `statement` to end the process with `message`, the way a failed `assert` does.
     ///
-    /// **The child leaves no core**, by `Platform::Process::disableCoreDump`, and the binary itself
+    /// **The child leaves no core**, by `TestPlatform::disableCoreDump`, and the binary itself
     /// still leaves one where it really crashes.
     ///
     /// **An uncaught exception says what the crash catcher's report would**, `Crash::terminateReason`,
@@ -51,7 +53,7 @@ namespace Rtx::Testing
 
         EXPECT_DEATH(
             {
-                Platform::Process::disableCoreDump();
+                TestPlatform::disableCoreDump();
                 std::set_terminate([] {
                     char reason[Crash::sNoteCapacity];
                     const std::string_view said = Crash::terminateReason(reason);

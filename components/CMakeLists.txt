@@ -568,7 +568,6 @@ add_component_dir(platform
     file
     process
     sharedmemory
-    memory
     fifo
     library
     thread
@@ -579,7 +578,6 @@ if (WIN32)
         filewin32
         localtimewin32
         processwin32
-        memorywin32
         sharedmemorywin32
         fifowin32
         librarywin32
@@ -590,7 +588,6 @@ elseif (UNIX)
         fileposix
         localtimeposix
         processposix
-        memoryposix
         sharedmemoryposix
         fifoposix
         libraryposix

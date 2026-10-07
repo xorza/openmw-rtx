@@ -129,6 +129,9 @@ target_link_libraries(components-tests
     components
 )
 
+# The system's half of the test support, one file a system (`rtx/support/testplatform.hpp`).
+target_sources(components-tests PRIVATE rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
+
 include(rtx/tests.cmake)
 
 if (USE_QT)
