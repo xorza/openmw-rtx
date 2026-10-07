@@ -195,15 +195,6 @@ namespace Rtx
         /// have to keep level.
         PresentTarget mTarget;
 
-        /// Whether what is shown holds the picture as it stands now, with this frame's interface
-        /// over it: set by `drawGui`, and spent by a new picture and by a present. A present of a
-        /// frame nothing drew the interface on draws the picture alone.
-        bool mShownCurrent = false;
-
-        /// Whether the last frame summed, and so wrote `PresentTarget::getDeep`, which
-        /// `readDeepPixels` reads: a frame after it that did not sum left the image a picture behind.
-        bool mDeepCurrent = false;
-
         /// Before the trace's passes and the display, which read the scenes' texture layout.
         ScenePasses mScenePasses;
 

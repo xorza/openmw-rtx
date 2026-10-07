@@ -33,7 +33,8 @@ namespace Rtx
         static constexpr const ImageUse& sResting = Use::sAnyGeneral;
 
         /// Makes both, black and in `VK_IMAGE_LAYOUT_GENERAL`, because the interface is drawn over
-        /// the picture whether or not a frame was traced into it.
+        /// the picture whether or not a frame was traced into it. **The one owner of "is this a new
+        /// extent"**: one this already has keeps its images, its deep picture and what they hold.
         void resize(const Device& device, std::uint32_t width, std::uint32_t height);
 
         bool isOpen() const { return !mShown.isEmpty(); }
@@ -52,19 +53,32 @@ namespace Rtx
         Image& getShown() { return mShown; }
         const Image& getShown() const { return mShown; }
 
-        /// The picture again at sixteen bits a channel, which the curve writes beside it for a
-        /// summed frame alone, without the debug lines: made at the output extent the first time
-        /// one asks, in `TonePass::sDeepFormat`, and dropped by `resize`.
+        /// A new picture is about to be traced into `getPicture`: what is shown no longer holds it,
+        /// and the deep picture holds it only where `deep`. Answers the deep picture to write, or
+        /// null.
         ///
-        /// **Made on demand, because only a harness sums**: the frame at the window's extent and
-        /// eight bytes a pixel is 133 megabytes at 7680 by 2160, which no player's frame
-        /// reads.
-        Image& requireDeep(const Device& device);
+        /// The deep picture is the picture again at sixteen bits a channel, which the curve writes
+        /// beside it for a summed frame alone, without the debug lines: made at the output extent
+        /// the first time one asks, in `TonePass::sDeepFormat`, and dropped by a new extent. **Made
+        /// on demand, because only a harness sums**: the frame at the window's extent and eight
+        /// bytes a pixel is 133 megabytes at 7680 by 2160, which no player's frame reads.
+        Image* beginPicture(const Device& device, bool deep);
 
-        /// What `requireDeep` made, which it has since the last `resize`.
+        /// The interface was drawn over the picture into what is shown.
+        void showInterface() { mShownCurrent = true; }
+
+        /// Whether what is shown holds the picture as it stands now, with this frame's interface
+        /// over it: spent by a new picture and by a present. A present of a frame nothing drew the
+        /// interface on draws the picture alone.
+        bool isShownCurrent() const { return mShownCurrent; }
+
+        /// A present took what is shown.
+        void spendShown() { mShownCurrent = false; }
+
+        /// The last picture at sixteen bits a channel, where it was summed.
         const Image& getDeep() const
         {
-            assert(!mDeep.isEmpty() && "a sixteen-bit picture nothing made");
+            assert(mDeepCurrent && "a sixteen-bit picture asked of a frame that did not sum");
             return mDeep;
         }
 
@@ -72,5 +86,11 @@ namespace Rtx
         Image mPicture;
         Image mShown;
         Image mDeep;
+
+        bool mShownCurrent = false;
+
+        /// Whether the last picture was summed, and so wrote `mDeep`: a picture after it that was
+        /// not left the image a picture behind.
+        bool mDeepCurrent = false;
     };
 }

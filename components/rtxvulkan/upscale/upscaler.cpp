@@ -400,6 +400,12 @@ namespace Rtx
     {
         assert(render.width > 0 && render.height > 0 && output.width >= render.width && output.height >= render.height);
 
+        // **The one owner of "is this a new extent"**, as `TraceChain::resize` is: a mode changed
+        // between two that trace and show at one size keeps the targets and the history in them.
+        const auto same = [](VkExtent2D a, VkExtent2D b) { return a.width == b.width && a.height == b.height; };
+        if (mTargets != nullptr && same(mTargets->mRender, render) && same(mTargets->mOutput, output))
+            return;
+
         mTargets = std::make_unique<Targets>(mDevice, render, output);
         mFrame.restart();
 
