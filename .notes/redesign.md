@@ -623,8 +623,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   monitor's lifetime.
 ### 6.5 Performance (each one measured before it stays)
 
-- **[perf] The shadow filter rebuilds every position at every level** (`shadowfilter.comp`,
-  `readSquare`). Target: positions and normals once a frame.
 - **[perf] FSR runs in full floats with the driver's wave size** (`fsrcallbacks.glsl`, `FFX_HALF 0`).
   Target: request 64-lane subgroups where the device allows; FP16 needs the pinner's 16-bit ops.
 - **[perf] `considerLamp` takes `from` and `lampsInAir` computes a `place`** that both callers

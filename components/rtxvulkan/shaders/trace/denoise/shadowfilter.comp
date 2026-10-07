@@ -97,6 +97,11 @@ shared float gNormal[SPAN][SPAN];
 shared vec3 gPosition[SPAN][SPAN];
 
 /// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them.
+///
+/// **Each level rebuilds its positions from the surface it reads anyway**, and no pass stores them
+/// once a frame: skipping the rebuild outright took 0.025 to 0.033 ms off the shadow zone of the
+/// default suite, three alternated rounds, and an image of positions in full floats at 1280×720 is
+/// 14.7 MB a frame, whose write alone takes 0.026 ms at the card's 576 GB/s before a level reads it.
 void readSquare(ivec2 corner)
 {
     const ivec2 last = ivec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight) - 1;
