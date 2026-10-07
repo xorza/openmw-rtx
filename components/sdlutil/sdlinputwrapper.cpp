@@ -1,7 +1,13 @@
 #include "sdlinputwrapper.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <ios>
+#include <string_view>
+
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_timer.h>
+#include <SDL3/SDL_video.h>
 
 #include <components/debug/debuglog.hpp>
 
@@ -82,6 +88,16 @@ namespace SDLUtil
             switch (evt.type)
             {
                 case SDL_EVENT_MOUSE_MOTION:
+                {
+                    // TODO: remove with the spinning camera's fix (`.notes/redesign.md` 8.1). a quarter of the window's
+                    // narrower side in one event is no hand's move.
+                    int width = 0;
+                    int height = 0;
+                    SDL_GetWindowSize(mSDLWindow, &width, &height);
+                    const float largest = static_cast<float>(std::min(width, height)) / 4;
+                    if (std::abs(evt.motion.xrel) > largest || std::abs(evt.motion.yrel) > largest)
+                        logMouseState("a large motion", &evt.motion);
+
                     // Ignore this if it happened due to a warp
                     if (!_handleWarpMotion(evt.motion))
                     {
@@ -94,6 +110,7 @@ namespace SDLUtil
                             _wrapMousePointer(evt.motion);
                     }
                     break;
+                }
                 case SDL_EVENT_MOUSE_WHEEL:
                     mMouseListener->mouseMoved(_packageMouseMotion(evt));
                     mMouseListener->mouseWheelMoved(evt.wheel);
@@ -272,10 +289,12 @@ namespace SDLUtil
         {
             case SDL_EVENT_WINDOW_MOUSE_ENTER:
                 mMouseInWindow = true;
+                logMouseState("the pointer entered the window", nullptr);
                 updateMouseSettings();
                 break;
             case SDL_EVENT_WINDOW_MOUSE_LEAVE:
                 mMouseInWindow = false;
+                logMouseState("the pointer left the window", nullptr);
                 updateMouseSettings();
                 break;
             case SDL_EVENT_WINDOW_MOVED:
@@ -314,10 +333,12 @@ namespace SDLUtil
 
             case SDL_EVENT_WINDOW_FOCUS_GAINED:
                 mWindowHasFocus = true;
+                logMouseState("the window gained focus", nullptr);
                 updateMouseSettings();
                 break;
             case SDL_EVENT_WINDOW_FOCUS_LOST:
                 mWindowHasFocus = false;
+                logMouseState("the window lost focus", nullptr);
                 updateMouseSettings();
                 break;
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
@@ -356,6 +377,8 @@ namespace SDLUtil
         mWarpCompensate = true;
         mWarpX = x;
         mWarpY = y;
+        mLastWarpNs = SDL_GetTicksNS();
+        logMouseState("a warp", nullptr);
     }
 
     /// \brief Locks the pointer to the window
@@ -405,9 +428,29 @@ namespace SDLUtil
         if (relative && !success)
             mWrapPointer = true;
 
+        mLastRelativeChangeNs = SDL_GetTicksNS();
+        logMouseState(relative ? "relative mode asked on" : "relative mode asked off", nullptr);
+
         // now remove all mouse events using the old setting from the queue
         SDL_PumpEvents();
         SDL_FlushEvent(SDL_EVENT_MOUSE_MOTION);
+    }
+
+    void InputWrapper::logMouseState(const std::string_view what, const SDL_MouseMotionEvent* const motion) const
+    {
+        const Uint64 now = SDL_GetTicksNS();
+        const auto msSince
+            = [&](const Uint64 then) { return then == 0 ? -1.0 : static_cast<double>(now - then) / 1e6; };
+
+        Log log(Debug::Warning);
+        log << "Mouse diagnostic: " << what;
+        if (motion != nullptr)
+            log << " of (" << motion->xrel << ", " << motion->yrel << ") at (" << motion->x << ", " << motion->y << ")";
+        log << "; SDL relative " << SDL_GetWindowRelativeMouseMode(mSDLWindow) << ", game relative " << mMouseRelative
+            << " (wanted " << mWantRelative << ", wrapped " << mWrapPointer << "), grab " << mGrabPointer << ", focus "
+            << mWindowHasFocus << ", in window " << mMouseInWindow << ", warp pending " << mWarpCompensate << " at ("
+            << mWarpX << ", " << mWarpY << "), " << msSince(mLastWarpNs) << " ms since the last warp, "
+            << msSince(mLastRelativeChangeNs) << " ms since relative mode changed";
     }
 
     /// \brief Internal method for ignoring relative motions as a side effect
