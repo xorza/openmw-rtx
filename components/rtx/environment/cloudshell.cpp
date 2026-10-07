@@ -9,9 +9,7 @@
 
 #include <osg/Array>
 #include <osg/Geometry>
-#include <osg/Matrixf>
 #include <osg/NodeVisitor>
-#include <osg/Transform>
 #include <osg/Vec3f>
 
 #include <components/misc/result.hpp>
@@ -20,13 +18,15 @@
 #include <components/sky/vertexrules.hpp>
 #include <components/vfs/manager.hpp>
 
+#include "skymesh.hpp"
+
 namespace Rtx
 {
     namespace
     {
-        /// Every vertex of the mesh, placed where the graph puts it, beside the sheet coordinate it
-        /// carries. Placed, because the vanilla cap's `NiTriShape` sits fifteen units below its
-        /// `NiNode` — a twentieth of the height everything else is a ratio against.
+        /// Every vertex of the mesh, placed where the graph puts it (`placedVertices`), beside the
+        /// sheet coordinate it carries. The vanilla cap's offset is a twentieth of the height
+        /// everything else is a ratio against.
         class ShellReader : public osg::NodeVisitor
         {
         public:
@@ -37,20 +37,21 @@ namespace Rtx
 
             void apply(osg::Geometry& geometry) override
             {
-                const auto* vertices = dynamic_cast<const osg::Vec3Array*>(geometry.getVertexArray());
                 const auto* coords = dynamic_cast<const osg::Vec2Array*>(geometry.getTexCoordArray(0));
-                if (vertices == nullptr || coords == nullptr || vertices->size() != coords->size())
+                const std::size_t first = mPlaced.size();
+                if (coords == nullptr || !placedVertices(geometry, getNodePath(), mPlaced))
                     return;
-
-                const osg::Matrixf placed = osg::computeLocalToWorld(getNodePath());
-                mPlaced.reserve(mPlaced.size() + vertices->size());
-                mCoords.reserve(mCoords.size() + coords->size());
-
-                mAlphas.reserve(mAlphas.size() + vertices->size());
-
-                for (std::size_t i = 0; i < vertices->size(); ++i)
+                if (mPlaced.size() - first != coords->size())
                 {
-                    mPlaced.push_back(placed.preMult((*vertices)[i]));
+                    mPlaced.resize(first);
+                    return;
+                }
+
+                mCoords.reserve(mCoords.size() + coords->size());
+                mAlphas.reserve(mAlphas.size() + coords->size());
+
+                for (std::size_t i = 0; i < coords->size(); ++i)
+                {
                     mCoords.push_back((*coords)[i]);
 
                     // The engine's rows, applied here rather than read: it writes by vertex index

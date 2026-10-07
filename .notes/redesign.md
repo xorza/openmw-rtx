@@ -596,11 +596,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.1 Pictures that are quietly wrong (fork code, no approval needed)
 
-- **[bug] The night sky reader skips what its sibling readers apply.** `LayerReader`
-  (`nightsky.cpp`) takes each vertex's direction raw, where `readCloudShell` and `readAtmosphere`
-  place theirs through `computeLocalToWorld`; a transform on a star dome is ignored, and `imageOf`
-  finds no texture bound above the drawable's first parent. Target: one `placedVertices(geometry,
-  nodePath)` for the three readers, and the state sets folded down the path for the sheet.
 - **[bug] The constellations are drawn turned and squashed.** `skybuilder.cpp` redraws each patch
   as a disc with an invented orientation and a radius only (`NightSky::Patch`: a direction and an
   angular radius). Target: fit each patch's UV axes against its directions at read time, as

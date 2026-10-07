@@ -12,6 +12,11 @@
 #include <components/rtx/shaders/sky.h>
 #include <components/vfs/pathutil.hpp>
 
+namespace osg
+{
+    class Node;
+}
+
 namespace Resource
 {
     class SceneManager;
@@ -76,4 +81,9 @@ namespace Rtx
     Misc::Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
         std::vector<TextureHold>& holds);
+
+    /// The same, off a mesh already loaded: each drawable's vertices placed through the transforms
+    /// above it (`placedVertices`), and its sheet the one the state sets down its path bind.
+    NightSky readNightSky(
+        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<TextureHold>& holds);
 }
