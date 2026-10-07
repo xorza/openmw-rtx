@@ -130,7 +130,7 @@ namespace Rtx
         // sampled would be paying for views nothing may name.
         if ((mMipLevels > 1 || twoFormats) && (mUsage & VK_IMAGE_USAGE_STORAGE_BIT) != 0)
         {
-            mLevelViews.reserve(mMipLevels);
+            assert(mMipLevels <= sMaxLevels && "a chain longer than the largest side a device takes");
             for (std::uint32_t level = 0; level < mMipLevels; ++level)
             {
                 VkImageViewCreateInfo one = view;
@@ -138,9 +138,10 @@ namespace Rtx
                 one.format = twoFormats ? mStorageFormat : mFormat;
                 one.subresourceRange.baseMipLevel = level;
                 one.subresourceRange.levelCount = 1;
-                mLevelViews.push_back(
-                    Owned<VkImageView, vkDestroyImageView>::make(device, vkCreateImageView, one, "vkCreateImageView"));
-                device.setName(mLevelViews.back().get(), name);
+                mLevelViews[level]
+                    = Owned<VkImageView, vkDestroyImageView>::make(device, vkCreateImageView, one, "vkCreateImageView");
+                device.setName(mLevelViews[level].get(), name);
+                mLevelViewCount = level + 1;
             }
         }
 
@@ -163,6 +164,7 @@ namespace Rtx
             mHandle = std::move(other.mHandle);
             mView = std::move(other.mView);
             mLevelViews = std::move(other.mLevelViews);
+            mLevelViewCount = std::exchange(other.mLevelViewCount, 0);
             mMemory = std::move(other.mMemory);
             mWidth = other.mWidth;
             mHeight = other.mHeight;
@@ -179,7 +181,9 @@ namespace Rtx
     void Image::bury()
     {
         mView.reset();
-        mLevelViews.clear();
+        for (std::uint32_t level = 0; level < mLevelViewCount; ++level)
+            mLevelViews[level].reset();
+        mLevelViewCount = 0;
         if (!isEmpty())
             mDevice->getGraveyard().bury(std::move(mHandle), std::move(mMemory));
     }
