@@ -610,17 +610,11 @@ device here measures the GL path's memory, and the change would be checked only 
 
 ### 6.3 Crash reports, CI and the release
 
-- **[bug] Windows fail-fast crashes get no dump**: `/GS`, heap corruption and `__fastfail` skip
-  the in-process filter, and nothing ships or registers `crashpad_wer.dll`. (The monitor logs the
-  exit code when no dump came: done.) **Decided (2026-10-07): the game registers itself under the
-  player's key.** The package ships the DLL beside the executable; at start the Windows client
-  writes `HKEY_CURRENT_USER\Software\Microsoft\Windows\Windows Error Reporting\RuntimeExceptionHelperModules`'s
-  value for that DLL, removes a value of its own name that points elsewhere, and calls
-  `RegisterWerModule`.
-- **[check, on Windows] The WER module takes a fail-fast crash's dump.** After the item above, on
-  a Windows machine: run the packaged game with a `fast-fail` crash (`crash-tests`' Windows mode),
-  and see that a dump arrives in the crash folder and the registry value names the DLL beside the
-  executable. No machine here runs Windows.
+- **[check, on Windows] The WER module takes a fail-fast crash's dump.** The game lists
+  `openmw-wer.dll` under the player's `RuntimeExceptionHelperModules` and registers it
+  (`Client::catchPastTheProcess`), and the crash matrix's `fast-fail` mode expects its dump. On a
+  Windows machine, with the packaged game: a fail-fast leaves a dump and a package in the crash
+  folder, and the registry value names the DLL beside the executable. No machine here runs Windows.
 ### 6.5 Performance (each one measured before it stays)
 
 - **[perf] FSR runs with the driver's wave size** (`fsrcallbacks.glsl`). Target: request 64-lane

@@ -43,10 +43,10 @@ namespace CrashTests
         into.push_back(
             { "invalid-parameter", "Crash: the C runtime was given an invalid parameter", {}, {}, true, crashed });
 
-        // **A fail-fast ends the process past every filter inside it**, so no summary and no dump:
-        // the monitor's line is what is left, with the code `__fastfail` exits by.
-        into.push_back(
-            { "fast-fail", "Crash: ", {}, "The game ended with STATUS_STACK_BUFFER_OVERRUN and left no dump", false });
+        // **A fail-fast ends the process past every filter inside it**, and WER hands it to the
+        // module the catcher listed, which asks the monitor for the dump: raised as the code
+        // `__fastfail` raises, on the thread that called it.
+        into.push_back({ "fast-fail", "Crash: ", { "STATUS_STACK_BUFFER_OVERRUN" }, {}, true, crashed });
     }
 
     std::optional<int> runModeOfThisSystem(std::string_view mode)

@@ -33,6 +33,13 @@ namespace Crash
         std::string mIssues;
     };
 
+    /// What a started catcher goes without, said for the log: nothing, or what it could not hook and
+    /// why.
+    struct Installed
+    {
+        std::string_view mWithout;
+    };
+
     /// Runs the monitor and ends the process, where this process was started as one; returns
     /// otherwise. Called first in `main`, before anything else starts.
     void runMonitorIfAsked(int argc, char** argv);
@@ -41,7 +48,7 @@ namespace Crash
     /// why not where it did not: a system Crashpad does not support, or a monitor that would
     /// not start. Once in a process, as early as it can be: a crash before the log is set up is a
     /// crash all the same.
-    Misc::Result<void, std::string_view> install(const Settings& settings);
+    Misc::Result<Installed, std::string_view> install(const Settings& settings);
 
     /// Where the monitor appends each summary: the game's own log, known once the configuration has
     /// been read, which is after `install`. Before this, a summary is in its dump alone. Nothing

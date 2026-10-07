@@ -480,10 +480,15 @@ namespace Debug
                 settings.mDialog = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
             if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
                 settings.mEndAfter = std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0));
-            if (const Misc::Result<void, std::string_view> installed = Crash::install(settings); !installed.isOk())
+            if (const Misc::Result<Crash::Installed, std::string_view> installed = Crash::install(settings);
+                !installed.isOk())
                 Log(Debug::Warning) << "No crash catcher: " << installed.error();
             else
+            {
                 Log(Debug::Info) << "Crash reports go to " << settings.mReportFolder;
+                if (!installed.value().mWithout.empty())
+                    Log(Debug::Warning) << "The crash catcher goes without " << installed.value().mWithout;
+            }
         }
 
         // **No frame is due once the application is over**, so the hang watch ends there, as it
