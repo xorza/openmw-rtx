@@ -5,7 +5,7 @@
 #include <components/rtx/shaders/portable.h>
 
 // The sprite light bake's dispatch: what `spritelight.comp` is told about the level it bakes.
-// `Rtx::SpriteLightMap` says what the bake is and why.
+// `Rtx::TextureKind::SpriteLight` says what the bake is and why.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

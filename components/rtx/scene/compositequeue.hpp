@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <string>
 #include <vector>
 
 #include <components/rtx/common/runs.hpp>
@@ -90,7 +89,5 @@ namespace Rtx
         /// The texture table's refusal of a composite, which holds the schedule until the table
         /// frees a slot: every chunk wants one, so the next would be refused the same way.
         RefusedTakes mRefused;
-
-        std::string mKey;
     };
 }

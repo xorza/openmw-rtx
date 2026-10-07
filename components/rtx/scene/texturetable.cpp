@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <format>
 #include <string>
 #include <utility>
 
@@ -96,30 +97,55 @@ namespace Rtx
         return sNoIndex;
     }
 
-    Index TextureTable::addBaked(
-        const std::string_view key, const TextureKind kind, const TextureEncoding encoding, const Index groundOf)
+    Index TextureTable::takeBaked(TextureRow row)
     {
-        assert(!key.empty() && "a baked texture with no key is one nothing can find again");
-        assert(kind != TextureKind::File && "a file is added by its path");
-        assert((groundOf != sNoIndex) == (kind == TextureKind::GroundAlbedo || kind == TextureKind::GroundGloss)
-            && "a ground composite names its material, and nothing else does");
-
-        const auto known = mBakedIndex.find(key);
-        if (known != mBakedIndex.end())
-            return known->second;
-
         if (!hasRoom())
             return sNoIndex;
 
-        const Index index = takeSlot(TextureRow{
-            .mKind = kind,
-            .mBaked = std::string(key),
-            .mGroundOf = groundOf,
-            .mWrap = TextureWrap::Clamp,
-            .mEncoding = encoding,
-        });
+        row.mWrap = TextureWrap::Clamp;
+        return takeSlot(std::move(row));
+    }
 
-        mBakedIndex.emplace(key, index);
+    Index TextureTable::addSpriteLight(const VFS::Path::NormalizedView source)
+    {
+        assert(!source.value().empty() && "a bake of no file is one nothing can find again");
+
+        const auto known = mSpriteLightIndex.find(source);
+        if (known != mSpriteLightIndex.end())
+            return known->second;
+
+        const Index index = takeBaked(TextureRow{
+            .mKind = TextureKind::SpriteLight,
+            .mPath = VFS::Path::Normalized(source),
+            .mEncoding = TextureEncoding::Colour,
+        });
+        if (index != sNoIndex)
+            mSpriteLightIndex.emplace(source, index);
+        return index;
+    }
+
+    Index TextureTable::addGround(const Index material, const TextureKind kind)
+    {
+        assert(material != sNoIndex && "a ground composite names its material");
+        assert((kind == TextureKind::GroundAlbedo || kind == TextureKind::GroundGloss) && "a ground is one of two");
+
+        const std::size_t side = kind == TextureKind::GroundGloss ? 1 : 0;
+        const auto known = mGroundIndex.find(material);
+        if (known != mGroundIndex.end() && known->second[side] != sNoIndex)
+            return known->second[side];
+
+        const Index index = takeBaked(TextureRow{
+            .mKind = kind,
+            .mGroundOf = material,
+            .mEncoding = kind == TextureKind::GroundGloss ? TextureEncoding::Data : TextureEncoding::Colour,
+        });
+        if (index == sNoIndex)
+            return sNoIndex;
+
+        GroundSlots& slots = known != mGroundIndex.end()
+            ? known->second
+            : mGroundIndex.emplace(material, GroundSlots{ sNoIndex, sNoIndex }).first->second;
+        slots[side] = index;
         return index;
     }
 
@@ -159,15 +185,39 @@ namespace Rtx
                     mFormats.discount(row.mFormat, row.mImage->getNumMipmapLevels() > 1);
                 break;
             }
-            case TextureKind::Baked:
+            case TextureKind::SpriteLight:
+                mSpriteLightIndex.erase(row.mPath);
+                break;
             case TextureKind::GroundAlbedo:
             case TextureKind::GroundGloss:
-                mBakedIndex.erase(row.mBaked);
+            {
+                const auto known = mGroundIndex.find(row.mGroundOf);
+                Crash::contract(known != mGroundIndex.end(), "a ground slot the ground index does not know");
+                known->second[row.mKind == TextureKind::GroundGloss ? 1 : 0] = sNoIndex;
+                if (known->second[0] == sNoIndex && known->second[1] == sNoIndex)
+                    mGroundIndex.erase(known);
                 break;
+            }
         }
 
         row = TextureRow{};
         mRows.free(texture);
         mChanges.note(texture, SlotNews::Freed);
+    }
+
+    std::string TextureRow::getName() const
+    {
+        switch (mKind)
+        {
+            case TextureKind::File:
+                return std::string(mPath.value());
+            case TextureKind::SpriteLight:
+                return std::format("the light of {}", mPath.value());
+            case TextureKind::GroundAlbedo:
+                return std::format("the ground of material {}", mGroundOf);
+            case TextureKind::GroundGloss:
+                return std::format("the ground gloss of material {}", mGroundOf);
+        }
+        return {};
     }
 }

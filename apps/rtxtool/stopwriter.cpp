@@ -409,7 +409,7 @@ namespace RtxTool
         }
 
         // Left to right, top to bottom, the way it was drawn.
-        std::vector<std::string_view> names;
+        std::vector<std::string> names;
         listSheetNames(described.getDescriptions(), scene.textures().getRows(), names);
         for (std::size_t at = 0; at < names.size(); ++at)
             into.mRecord.note(std::format("  {}  {}\n", at, names[at]));

@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <optional>
 #include <span>
-#include <string_view>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -146,14 +146,11 @@ namespace RtxTool
         return drawn;
     }
 
-    void listSheetNames(std::span<const Rtx::TextureData> drawn, std::span<const Rtx::TextureRow> rows,
-        std::vector<std::string_view>& into)
+    void listSheetNames(
+        std::span<const Rtx::TextureData> drawn, std::span<const Rtx::TextureRow> rows, std::vector<std::string>& into)
     {
         for (const Rtx::TextureData& texture : drawn)
-        {
-            const Rtx::TextureRow& row = rows[texture.mSlot];
-            into.push_back(row.mKind == Rtx::TextureKind::File ? row.mPath.value() : std::string_view(row.mBaked));
-        }
+            into.push_back(rows[texture.mSlot].getName());
     }
 
 }

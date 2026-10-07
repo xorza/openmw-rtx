@@ -6,7 +6,7 @@
 // What a sprite's own texture leaves of the light crossing it, baked from its alpha, made where
 // the texture is.
 //
-// **`Rtx::SpriteLightMap`, on the device.** Six-way lighting for a billboard: for every texel and
+// **`Rtx::TextureKind::SpriteLight`, on the device.** Six-way lighting for a billboard: for every texel and
 // each of the four in-plane directions, how much light from that side reaches it through the
 // texels between, as a running product of `(1 - a) ^ (1 / N)` over a level `N` texels across —
 // written to a texel *before* that texel's own alpha is multiplied in, because what reaches a

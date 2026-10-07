@@ -23,7 +23,6 @@
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
@@ -229,7 +228,7 @@ namespace Rtx
                 ASSERT_EQ(textures.add(names[at]), at);
 
             EXPECT_EQ(textures.add(names.back()), sNoIndex);
-            EXPECT_EQ(textures.addBaked("chunk/1", TextureKind::GroundAlbedo, TextureEncoding::Colour, 1), sNoIndex);
+            EXPECT_EQ(textures.addGround(1, TextureKind::GroundAlbedo), sNoIndex);
             EXPECT_EQ(textures.getRefused(), 2u);
             EXPECT_EQ(textures.add(names[7]), 7u) << "a texture that stands takes no slot";
 
@@ -1104,9 +1103,8 @@ namespace Rtx
 
             // The bake of the texture's alpha sits in the same table, which is why the count of
             // textures at the end is two.
-            const Index lighting = scene.textures().addBaked(
-                SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")), TextureKind::Baked,
-                TextureEncoding::Colour);
+            const Index lighting
+                = scene.textures().addSpriteLight(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
 
             const std::array sPlume{
                 Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -1965,20 +1963,19 @@ namespace Rtx
         {
             SceneDesc scene;
 
-            const Index baked
-                = scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2);
+            const Index baked = scene.textures().addGround(2, TextureKind::GroundAlbedo);
             ASSERT_EQ(baked, 0u);
 
             // Standing, and standing is not free — the path is empty because it has none, which is
             // the same thing a free slot's path says and not the same fact.
             EXPECT_TRUE(scene.textures().isLive(baked));
             EXPECT_TRUE(scene.textures().getRows()[baked].mPath.value().empty()) << "it came from no file";
-            EXPECT_EQ(scene.textures().getRows()[baked].mBaked, "composite/-3,-2/2");
+            EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, 2u);
+            EXPECT_EQ(scene.textures().getRows()[baked].mEncoding, TextureEncoding::Colour);
+            EXPECT_EQ(scene.textures().getRows()[baked].mWrap, TextureWrap::Clamp);
 
-            // The key is what makes two chunks that would bake the same image share one slot.
-            EXPECT_EQ(
-                scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2),
-                baked)
+            // The material is what makes two asks for the same ground share one slot.
+            EXPECT_EQ(scene.textures().addGround(2, TextureKind::GroundAlbedo), baked)
                 << "the same bake took a second slot";
             EXPECT_EQ(scene.textures().getRows().size(), 1u);
 
@@ -1989,7 +1986,7 @@ namespace Rtx
             scene.drop(scene.holdTexture(baked));
 
             EXPECT_FALSE(scene.textures().isLive(baked)) << "nothing names it and it is still standing";
-            EXPECT_TRUE(scene.textures().getRows()[baked].mBaked.empty());
+            EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, sNoIndex);
             EXPECT_EQ(sorted(scene.textures().getFreed()), (std::vector<Index>{ baked }));
 
             // And the slot comes back, to a file this time — a freed slot is a row and not a kind.
@@ -1997,13 +1994,22 @@ namespace Rtx
             EXPECT_EQ(next, baked) << "the table grew past a free slot";
             EXPECT_EQ(scene.textures().getRows().size(), 2u);
             EXPECT_EQ(scene.textures().getRows()[next].mPath, VFS::Path::NormalizedView("textures/tx_sand.dds"));
-            EXPECT_TRUE(scene.textures().getRows()[next].mBaked.empty()) << "the slot kept what the last tenant was";
+            EXPECT_EQ(scene.textures().getRows()[next].mGroundOf, sNoIndex) << "the slot kept what the last tenant was";
 
-            // The key is free again too, or a bake that came back would find a slot somebody else has.
-            const Index again
-                = scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2);
-            EXPECT_EQ(again, 2u) << "a key the table gave back found a slot somebody else has";
+            // The material is free again too, or a bake that came back would find a slot somebody
+            // else has.
+            const Index again = scene.textures().addGround(2, TextureKind::GroundAlbedo);
+            EXPECT_EQ(again, 2u) << "a material the table gave back found a slot somebody else has";
             EXPECT_TRUE(scene.textures().isLive(file)) << "the file beside it was never touched";
+
+            // The gloss is a slot of its own beside the albedo, read as data, and its going leaves the
+            // albedo where it was found.
+            const Index gloss = scene.textures().addGround(2, TextureKind::GroundGloss);
+            EXPECT_EQ(gloss, 3u);
+            EXPECT_EQ(scene.textures().getRows()[gloss].mEncoding, TextureEncoding::Data);
+            scene.drop(scene.holdTexture(gloss));
+            EXPECT_EQ(scene.textures().addGround(2, TextureKind::GroundAlbedo), again)
+                << "the gloss's going took the albedo's entry with it";
         }
 
         /// A material rewritten gives back what it stopped naming and keeps what it still names.

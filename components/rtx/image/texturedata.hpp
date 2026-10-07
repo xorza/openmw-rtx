@@ -438,7 +438,7 @@ namespace Rtx
         /// own, and `mCompleteChain` says whether the device finishes a chain it did not carry.
         File,
 
-        /// The light bake of a sprite texture — `SpriteLightMap` says what a bake is — made on
+        /// The light bake of a sprite texture — `TextureKind::SpriteLight` says what a bake is — made on
         /// the device from that texture's alpha, `SpriteLightPass`. `TextureData::mFrom` is the
         /// slot it is made from, and it carries no bytes: a bake is shaped like its source.
         SpriteBake,

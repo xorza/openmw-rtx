@@ -369,7 +369,7 @@ namespace Rtx
         mImage = std::move(image.value());
 
         // Clamped, because a bake is one image whose coordinates run edge to edge — what
-        // `TextureTable::addBaked` says of its row.
+        // `TextureTable::addSpriteLight` says of its row.
         mWrap = TextureWrap::Clamp;
 
         mCompanion = std::move(shading.value());
@@ -420,7 +420,7 @@ namespace Rtx
         mImage = std::move(image.value());
 
         // Clamped, because a composite is one image whose coordinates run edge to edge — what
-        // `TextureTable::addBaked` says of its row.
+        // `TextureTable::addGround` says of its row.
         mWrap = TextureWrap::Clamp;
 
         mCompanion = std::move(shading.value());

@@ -21,14 +21,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## A typed referent is carried as a string and parsed back
 
-- [ ] `components/rtx/image/spritelight.hpp:24-32`, `components/rtx/scene/texturetable.hpp:51,117,194` —
-  sprite bakes are keyed by `SpriteLightMap::keyFor(path)` (`"sprite/" + path`,
-  `emitterresolver.cpp:138`). `SceneTextures` gets the path back with `sourceOf` and an assert, and makes
-  a new `VFS::Path::Normalized` on each arrival frame (`scenetextures.cpp:66-68`). Ground composites put
-  the material slot into `"chunk/<hex>"` (`compositequeue.cpp:26-33,146`), and the row also keeps the same
-  index in `mGroundOf` (:55). `SpriteLightMap` has no state. Target shape: a typed bake key
-  `{TextureKind, source path | material Index}`, with the referent kept in the row (`mPath`,
-  `mGroundOf`), and no string round trip and no `mKey` scratch. (medium)
 - [ ] `components/rtx/frame/reconstruction.hpp:353` — `RenderProfile::sHoldZone = "stress"` is a zone
   name in a settings record. The harness finds the zone by a string compare (`apps/rtxtool/stopwriter.cpp:761`),
   but `FrameResult::mHeldMs` already reports the hold. Target shape: a typed zone identity, or a field on
