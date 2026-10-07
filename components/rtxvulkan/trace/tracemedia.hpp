@@ -30,7 +30,7 @@ namespace Rtx
     class TraceMedia
     {
     public:
-        /// @param fog the fog's field, `bakeFogNoise`'s unless a test states another.
+        /// @param fog the fog's field, `FogNoise::shared`'s unless a test states another.
         TraceMedia(const Device& device, const FogNoise& fog);
 
         /// What a trace of `held` under `camera` reads, for the copy its last placement wrote, and

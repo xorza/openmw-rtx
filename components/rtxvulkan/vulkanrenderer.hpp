@@ -118,7 +118,7 @@ namespace Rtx
         /// (`WavePass::describe`). Only the tests tell it.
         void setSea(const SeaState& sea);
 
-        /// The fog's field every trace reads, `bakeFogNoise`'s until told: for a test that states
+        /// The fog's field every trace reads, `FogNoise::shared`'s until told: for a test that states
         /// where the air is banked. Drains the frames in flight first, since each reads the field.
         void setFogField(const FogNoise& noise);
 

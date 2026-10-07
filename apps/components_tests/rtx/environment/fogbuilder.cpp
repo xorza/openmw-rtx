@@ -161,7 +161,7 @@ namespace Rtx
         /// tests each making their own would be the slowest thing in the suite.
         const FogNoise& baked()
         {
-            static const FogNoise noise = bakeFogNoise();
+            const FogNoise& noise = FogNoise::shared();
             return noise;
         }
 
