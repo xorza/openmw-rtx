@@ -57,15 +57,17 @@ struct DirectLight
 
     /// The shadowed sources, kept out of the two above where `gather` was asked to split them: the
     /// sky's diffuse half and every lamp's, per unit albedo and net of the lobe's share, and the
-    /// sky's lobe whole, each as though its rays got through — and whether the kept ray did, one or
-    /// nought. Nought and one where nothing was split.
+    /// sky's lobe whole, each as though its rays got through, translucent surfaces and all — and
+    /// whether the kept ray did, one or nought, drawn open by what the translucent surfaces it crossed
+    /// let through. Nought and one where nothing was split.
     vec3 mShadowedDiffuse;
     vec3 mShadowedSpecular;
     float mOpen;
 
     /// The penumbra where the kept ray was stopped, in the surface's own footprints:
     /// `SHADOW_PENUMBRA_CLEAR` where it got through or nothing was split, and
-    /// `SHADOW_PENUMBRA_DRAWN` where the source it went to was drawn: `CHANNEL_PENUMBRA`.
+    /// `SHADOW_PENUMBRA_DRAWN` where the source it went to was drawn, or what it let through:
+    /// `CHANNEL_PENUMBRA`.
     float mPenumbra;
 };
 
@@ -282,8 +284,10 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         drawable(secunda.mLight.mWeight, minor), skyPick);
 
     // What the bit's source carries of the sky's light, as the pair `skyCarried / skyWeight`: its
-    // weight over every source's, the minor ones counted against it.
+    // weight over every source's, the minor ones counted against it. And what the translucent
+    // surfaces its ray crossed let through, which a split bit is drawn by.
     float skyCarried = 0.0;
+    float skyThrough = 1.0;
     if (pick.mTotal > 0.0)
     {
         const SkyChoice picked = pick.mIndex == 0u ? sun : (pick.mIndex == 1u ? masser : secunda);
@@ -310,9 +314,10 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         if (split)
         {
             const SkyTerm every = joinedTerms(joinedTerms(sunTerm, masserTerm, 1.0), secundaTerm, 1.0);
-            lit.mShadowedDiffuse = (every.mDiffuse - every.mTaken) * passage.mThrough;
-            lit.mShadowedSpecular = every.mSpecular * passage.mThrough;
+            lit.mShadowedDiffuse = every.mDiffuse - every.mTaken;
+            lit.mShadowedSpecular = every.mSpecular;
             lit.mOpen = passage.mOpen;
+            skyThrough = passage.mThrough;
             lit.mPenumbra = skyPenumbra(picked.mSky, passage.mOccluder) * receiverStretch(picked.mCosine);
         }
         else
@@ -368,7 +373,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // rays disagree the bit leans toward the lamps the lobe reflects most. Exact wherever every ray
     // agrees. Correcting the sum by the held lamp's own estimate would lean nowhere, and put the
     // reservoir's speckle back into a light nothing filters.
-    const vec3 lampsArriving = split ? kept.mUnshadowed * lampPass.mThrough : kept.mRadiance * held * lampSeen;
+    const vec3 lampsArriving = split ? kept.mUnshadowed : kept.mRadiance * held * lampSeen;
 
     // **The lamps that take light away take it off the lamps' exact sum and no further**, floored at
     // nought as the rasterizer clamps its lighting: the sun, the sky and the bounce stay whole.
@@ -395,7 +400,15 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         const float shares = skyShare + lampShare;
         const bool lamp = keepsSecond(
             drawable(skyShare, frame.mShadowFloor * shares), drawable(lampShare, frame.mShadowFloor * shares), shadowedPick);
-        lit.mOpen = lamp ? lampPass.mOpen : lit.mOpen;
+        // **What the translucent surfaces let through is drawn into the bit**, open where the kept
+        // ray got through and a draw falls under it: the bit's mean is then the open half times the
+        // through, the product the sum carried before, and the shadow denoiser filters a pane's
+        // shadow as it filters a penumbra. In the sum, one ray's through was a speckle under every
+        // pane and leaf that nothing filtered.
+        const float through = lamp ? lampPass.mThrough : skyThrough;
+        uint passing = randomSeed(key + SEED_SHADOW_THROUGH);
+        const bool passed = randomNext(passing) < through;
+        lit.mOpen = (lamp ? lampPass.mOpen : lit.mOpen) * (passed ? 1.0 : 0.0);
         lit.mPenumbra = lamp ? lampPenumbra(kept, lampPass.mOccluder)
                 * receiverStretch(litCosine(facing, normalize(lightAt(kept.mLamp).mPosition - position)))
                              : lit.mPenumbra;
@@ -406,8 +419,10 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         // floor of the light (D3.3), since that bit is noise however hard its shadow. As products,
         // for the reason `pickByWeight` compares against weights and not quotients.
         const float whole = (1.0 - frame.mShadowFloor) * shares;
-        const bool drawn = lamp ? lampShare * kept.mWeight < whole * kept.mTotal
-                                : skyShare * skyCarried < whole * skyWeight;
+        // A bit the translucency was drawn into is noise as well.
+        const bool drawn = (lamp ? lampShare * kept.mWeight < whole * kept.mTotal
+                                 : skyShare * skyCarried < whole * skyWeight)
+            || through < 1.0;
         lit.mPenumbra = drawn ? SHADOW_PENUMBRA_DRAWN
             : lit.mPenumbra < SHADOW_PENUMBRA_CLEAR
             ? min(lit.mPenumbra / max(surface.mFootprint, 1e-6), SHADOW_PENUMBRA_CLEAR)
@@ -671,16 +686,11 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float rounding, fl
     return weight * ambientThrough(leaveSurface(position, plane * rounding, towards), towards, frame.mReach) / rate;
 }
 
-/// `ambientReaching` for a surface a path ends at — the bounce's far hit, a water leg's, a pane —
-/// and nought, with no ray traced, where surfaces take no indirect light (`bounceTraced`). **The fill
-/// `pathEnd` gives is the bounces nobody traces**, which that setting takes away with the one that
-/// is: kept here, a pane or a wall a reflection shows would stand in the cell's ambient while the
-/// wall the eye sees beside it is black.
+/// `ambientReaching` for a surface a path ends at — the bounce's far hit, a water leg's, a pane.
+/// **The fill `pathEnd` gives is the bounces nobody traces.**
 float surfaceAmbient(Surface hit, uint seed, float rate)
 {
-    return bounceTraced()
-        ? ambientReaching(hit.mPosition, hit.mNormal, hit.mGeometric, hit.mRounding, hit.mTransmission, seed, rate)
-        : 0.0;
+    return ambientReaching(hit.mPosition, hit.mNormal, hit.mGeometric, hit.mRounding, hit.mTransmission, seed, rate);
 }
 
 /// What a surface a path ends at sends back, with the fill apart from the lights.
@@ -921,9 +931,6 @@ Arriving bounceLanding(Surface landed, uint key, uint ambient, uint lamps, uint 
 /// **Off the near face only.** The lobe reflects, and the far face of a sheet transmits: `gather`
 /// gives a light behind a sheet no lobe and its diffuse half the whole of it, and so does this.
 ///
-/// **The lobe at a chance of one where no bounce is traced** (`bounceTraced`): the diffuse half is
-/// gone, and the one ray left is the reflection.
-///
 /// **One pair for either half**, `STREAM_BOUNCE`'s: only one half is kept, so the pair's spread
 /// across the screen serves whichever it is.
 ///
@@ -946,7 +953,7 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
     // A metal's diffuse albedo is nought and its chance one, which the draw always takes; the
     // diffuse weight it divides by nought is never the one selected.
     const float reflected = dot(gloss.mAlbedo, LUMINANCE_WEIGHTS);
-    const float chance = bounceTraced() ? reflected / (reflected + dot(surface.mAlbedo, LUMINANCE_WEIGHTS)) : 1.0;
+    const float chance = reflected / (reflected + dot(surface.mAlbedo, LUMINANCE_WEIGHTS));
 
     uint lobe = randomSeed(pixelKey(pixel) + SEED_BOUNCE_LOBE);
     const bool specular = randomNext(lobe) < chance;
@@ -1012,7 +1019,7 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
 }
 
 /// What reaches a surface from everything that is not a light: one bounce, off the half
-/// `bounceDraw` chose; or, where no bounce is traced, the lobe's reflection alone.
+/// `bounceDraw` chose.
 ///
 /// **Traced only from the hit the eye found.** A shader with no recursion cannot bounce a bounce, and
 /// it should not: what the second hit gathers is `pathEnd`, the flat ambient that stands in for the
@@ -1038,11 +1045,8 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
     const BounceDraw drawn = bounceDraw(surface, gloss, face, pixel, cone);
 
     // A reflection below the shading normal's horizon brings nothing back, and is not traced to
-    // find that out. **Where no bounce is traced, nor does the diffuse half**, and a ray is traced
-    // only for a lobe: a lane on a matte surface skips the ray, which is the saving the setting is
-    // for, and on vanilla content, which has no lobe, no lane traces one.
-    if (behindTheFace(drawn.mTowards, surface.mGeometric, face) || !(brightest(drawn.mWeight) > 0.0)
-        || !(bounceTraced() || drawn.mSpecular))
+    // find that out.
+    if (behindTheFace(drawn.mTowards, surface.mGeometric, face) || !(brightest(drawn.mWeight) > 0.0))
         return Bounce(vec3(0.0), vec3(0.0), vec3(0.0));
 
     const Arriving arriving = bounceArriving(surface, drawn, drawn.mWeight * sided, pixel);

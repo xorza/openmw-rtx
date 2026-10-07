@@ -16,7 +16,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -117,6 +117,53 @@ namespace Rtx::Testing
                 EXPECT_NEAR(filtered.mean(channel), averaged.mean(channel), averaged.mean(channel) * 1e-5f)
                     << "channel " << channel << " keeps its light";
             }
+        }
+
+        /// **A jittered still's history is registered at the pixel's centre** (D2's registration): a
+        /// mean of many jittered samples stands for the pixel, and is fetched at `at + 0.5 + motion`,
+        /// never at this frame's jitter against the last. Over a still eye that jitters, sixteen
+        /// filtered frames are then the mean of the same sixteen frames, as an unjittered still's
+        /// are; fetched at the jitter's offset, every frame would resample the history between
+        /// neighbours, and an edge would blur.
+        ///
+        /// The edge is in the light and not in the pane, which fills the frame, so every pixel's
+        /// history is its own surface's whatever the jitter: one lamp a hundred units behind the eye,
+        /// and a two-sided blocker fifty behind it whose edge stands 0.3 units right of the axis,
+        /// casting the shadow's edge `0.3 · 300 / 50` = 1.8 units right of it on the pane 200 ahead.
+        /// A column is `2 · 200 tan 30° / 64` = 3.608 units there, so the edge runs half a pixel into
+        /// column 32, which the jitter lights on some frames and shadows on others.
+        TEST_F(RtxVisibilityTest, aJitteredStillsPaneHistoryIsRegisteredAtThePixelsCentre)
+        {
+            constexpr float away = 200.0f;
+            SceneDesc scene;
+            addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
+            const Index blocker
+                = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
+            addQuad(scene, uprightQuadAt(1000.0f, -50.0f, osg::Vec2f(-1000.0f + 0.3f, 0.0f)), blocker);
+            scene.addLight(Light{
+                .mPosition = osg::Vec3f(0.0f, -100.0f, 0.0f),
+                .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                .mReach = 500.0f,
+            });
+
+            Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
+            Shot averagedShot{ .mFrames = 16, .mFirstFrame = 3000 };
+            averagedShot.mJitter = true;
+            Shot filteredShot = filteredRun(16, 3000);
+            filteredShot.mJitter = true;
+            const Frame averaged = shoot(scene, {}, camera, sSize, averagedShot);
+            const Frame filtered = shoot(scene, {}, camera, sSize, filteredShot);
+
+            camera.mFrame = 3015;
+            Shot rawShot;
+            rawShot.mJitter = true;
+            const Frame raw = shoot(scene, {}, camera, sSize, rawShot);
+
+            const float rawError = raw.errorFrom(averaged, 0);
+            const float filteredError = filtered.errorFrom(averaged, 0);
+            ASSERT_GT(rawError, averaged.mean(0) * 1e-3f) << "the jitter moves the edge's column between frames";
+            EXPECT_LT(filteredError, rawError * 1e-3f) << "raw " << rawError << ", filtered " << filteredError;
+            EXPECT_NEAR(filtered.mean(0), averaged.mean(0), averaged.mean(0) * 1e-5f) << "the history keeps its light";
         }
 
         /// **A pane's history is its own, and goes where the pane goes.** Sixteen filtered frames of

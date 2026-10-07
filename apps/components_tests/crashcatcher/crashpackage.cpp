@@ -343,6 +343,36 @@ namespace
         EXPECT_EQ(entries[2].mContent, "MDMP last");
     }
 
+    /// **A folder keeps the newest `sKeptPackages` of an application's packages**, and nothing else is
+    /// touched. Twelve sessions a minute apart and a second in the last one's second: the oldest
+    /// three go, the second of the same second outlasts the first, and another application's
+    /// package and a file that only looks like one stay.
+    TEST_F(CrashPackageTest, aFolderKeepsTheNewestPackagesAndNothingElseGoes)
+    {
+        const std::filesystem::path reports = mFolder / "crashes";
+        std::filesystem::create_directories(reports);
+        const std::filesystem::path dump = write("one.dmp", "MDMP");
+        const std::vector<std::filesystem::path> dumps{ dump };
+        const std::filesystem::path other = reports / "OpenMW-CS-crash-2026-09-27-100000.zip";
+        const std::filesystem::path notes = reports / "OpenMW-crash-notes.zip";
+        std::ofstream(other).put('x');
+        std::ofstream(notes).put('x');
+
+        std::vector<std::filesystem::path> written;
+        for (int minute = 0; minute < 12; ++minute)
+            written.push_back(
+                Crash::writeSessionPackage(reports, "OpenMW", {}, dumps, localOf(2026, 9, 27, 14, minute, 0)).mZip);
+        written.push_back(
+            Crash::writeSessionPackage(reports, "OpenMW", {}, dumps, localOf(2026, 9, 27, 14, 11, 0)).mZip);
+        ASSERT_EQ(written.back(), reports / "OpenMW-crash-2026-09-27-141100-2.zip");
+        ASSERT_EQ(Crash::sKeptPackages, 10u);
+
+        for (std::size_t at = 0; at < written.size(); ++at)
+            EXPECT_EQ(std::filesystem::exists(written[at]), at >= 3) << written[at];
+        EXPECT_TRUE(std::filesystem::exists(other)) << "another application's package went";
+        EXPECT_TRUE(std::filesystem::exists(notes)) << "a file with no time in its name went";
+    }
+
     /// **The log is what the game had**: none at all, from a crash before the log was set up, is no
     /// missing file and packages the dumps alone, and one named but gone is a missing one. A
     /// session with no dump reported nothing and is not packaged, and one with nothing on disk

@@ -37,7 +37,7 @@
 
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>

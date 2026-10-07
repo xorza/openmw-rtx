@@ -10,7 +10,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>

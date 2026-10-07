@@ -38,13 +38,14 @@
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
+#include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
@@ -333,7 +334,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
             paint(*quad->getOrCreateStateSet(), *glass);
             quad->getOrCreateStateSet()->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
-            TemplateWalk walk;
+            TemplateWalk walk(nullptr);
             walk.read(*quad, ~0u, model);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
@@ -878,6 +879,62 @@ namespace Rtx::Testing
             }
         }
 
+        /// **Two glows over one shared shape each show their own sheet.** `SceneUtil::CopyOp` shares
+        /// a drawable between the clones of a model, and a template node stands under every
+        /// reference walked from it: here one shape stands under two enchanted roots whose glows
+        /// show sheets sixteen apart. The copy a controller writes is the placement's, so each
+        /// placement wears its own root's sheet on every frame; one copy for the shape showed the
+        /// sheet of whichever root the walk applied last, at both.
+        TEST_F(RtxSceneExtractorTest, twoGlowsOverOneSharedShapeEachShowTheirOwnSheet)
+        {
+            for (const bool onDrawable : { false, true })
+            {
+                Rtx::SceneDesc scene;
+                SceneExtractor extractor(scene, mContext);
+
+                const osg::ref_ptr<osg::Group> shape = makeShape(shapeState(), onDrawable);
+                const std::array<osg::ref_ptr<FlipController>, 2> glows{ makeFlip(), new FlipController };
+                glows[1]->mSheets = glows[0]->mSheets;
+
+                osg::ref_ptr<osg::Group> both = new osg::Group;
+                for (const osg::ref_ptr<FlipController>& glow : glows)
+                {
+                    osg::ref_ptr<osg::Group> enchanted = new osg::Group;
+                    enchanted->addChild(shape);
+                    enchanted->addUpdateCallback(glow);
+                    both->addChild(enchanted);
+                }
+
+                const char* const where = onDrawable ? " with the state set on the drawable" : "";
+
+                osgUtil::UpdateVisitor update;
+                for (unsigned int frame = 1; frame <= 4; ++frame)
+                {
+                    glows[0]->mShown = frame % 32;
+                    glows[1]->mShown = (frame + 16) % 32;
+                    update.setTraversalNumber(frame);
+                    both->accept(update);
+
+                    scene.clearPlacement();
+                    extractor.extract(*both, osg::Matrixf::identity(), 0, frame);
+
+                    const auto placements = scene.placements().getRows();
+                    ASSERT_EQ(placements.size(), 2u) << "on frame " << frame << where;
+                    for (std::size_t at = 0; at < 2; ++at)
+                    {
+                        const Rtx::Material& worn = scene.materials().getRows()[placements[at].mInstance.mMaterial];
+                        ASSERT_NE(worn.mEnvironment, Rtx::sNoIndex) << "on frame " << frame << where;
+                        EXPECT_EQ(scene.textures().getRows()[worn.mEnvironment].mPath,
+                            VFS::Path::Normalized(glows[at]->mSheets[glows[at]->mShown]->getFileName()))
+                            << "placement " << at << " on frame " << frame << where;
+                    }
+
+                    extractor.retire();
+                    scene.clearArrivals();
+                }
+            }
+        }
+
         /// An actor's fade rides its placement, and a model's own alpha does not ride it twice.
         ///
         /// **`alpha` has two writers and they mean different things.** `MWRender::TransparencyUpdater`
@@ -1300,6 +1357,65 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.placements().getRows()[1].mInstance.mMaterial, 1u);
         }
 
+        /// **One shared state set under two parents that name two textures is two materials**
+        /// (`ChainKeys`). NifOsg puts an `NiNode`'s own texturing on that node's state set, and
+        /// `SharedStateManager` makes equal state sets one object across files: here one quad
+        /// whose own state set turns culling off stands under two parents, each painting its own
+        /// texture. Keyed on the quad's state set alone, the first chain met decided both. And the
+        /// same chains walked again resolve to the same two materials, so nothing arrives twice.
+        TEST_F(RtxSceneExtractorTest, aSharedStateSetUnderTwoParentsWearsEachParentsTexture)
+        {
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            quad->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            std::vector<osg::ref_ptr<const osg::StateSet>> painted;
+            for (const char* const file : { "textures/tx_first.dds", "textures/tx_second.dds" })
+            {
+                osg::ref_ptr<osg::Group> parent = new osg::Group;
+                paint(*parent->getOrCreateStateSet(), file);
+                painted.emplace_back(parent->getStateSet());
+                parent->addChild(quad);
+                root->addChild(parent);
+            }
+
+            walk(*root, 0, 1);
+
+            const auto materials = mScene.materials().getRows();
+            const auto textures = mScene.textures().getRows();
+            ASSERT_EQ(materials.size(), 2u);
+            ASSERT_EQ(textures.size(), 2u);
+            const auto placements = mScene.placements().getRows();
+            ASSERT_EQ(placements.size(), 2u);
+            for (std::size_t at = 0; at < 2; ++at)
+            {
+                const Material& worn = materials[placements[at].mInstance.mMaterial];
+                EXPECT_TRUE(worn.mTwoSided) << "the quad's own state set is in force at " << at;
+                ASSERT_NE(worn.mDiffuse, sNoIndex);
+                EXPECT_EQ(textures[worn.mDiffuse].mPath,
+                    VFS::Path::NormalizedView(at == 0 ? "textures/tx_first.dds" : "textures/tx_second.dds"))
+                    << "placement " << at << " wears its own parent's texture";
+            }
+
+            mExtractor.retire();
+            mScene.clearPlacement();
+            const ExtractionStats again = walk(*root, 0, 2);
+            EXPECT_EQ(again.mMaterialsAdded, 0u);
+            EXPECT_EQ(again.mMaterialsReused, 2u);
+            mExtractor.retire();
+
+            // **And a key goes with the last material under it**: the graph let go of, the walk
+            // meets nothing, and nothing but this test holds the parents' state sets, which the
+            // pairs of the two chains held.
+            root = nullptr;
+            const osg::ref_ptr<osg::Group> empty = new osg::Group;
+            mScene.clearPlacement();
+            walk(*empty, 0, 3);
+            EXPECT_EQ(mExtractor.retire().mMaterials, 2u);
+            for (const osg::ref_ptr<const osg::StateSet>& parent : painted)
+                EXPECT_EQ(parent->referenceCount(), 1) << "a key outlived its material";
+        }
+
         /// A material a controller rewrites resolves its texture out of the image, not its name.
         ///
         /// **Every frame it is met, because that is what an animated material costs.** The state set
@@ -1408,15 +1524,20 @@ namespace Rtx::Testing
                 new SceneUtil::TextureType(std::string(sTextureRoleNames.name(TextureRole::Diffuse))),
                 osg::StateAttribute::ON);
 
+            // Under one parent from the first frame, so the animated surface is one placement
+            // throughout and the clamped one joins it beside.
+            osg::ref_ptr<osg::Group> both = new osg::Group;
+            both->addChild(node);
+
             osgUtil::UpdateVisitor update;
             for (unsigned int frame = 1; frame <= 3; ++frame)
             {
                 update.setTraversalNumber(frame);
-                node->accept(update);
+                both->accept(update);
                 mScene.clearPlacement();
 
                 const std::size_t before = Testing::getAllocationCount();
-                walk(*node, 0, frame);
+                walk(*both, 0, frame);
                 const std::size_t spent = Testing::getAllocationCount() - before;
 
                 if (frame > 1)
@@ -1431,8 +1552,6 @@ namespace Rtx::Testing
                 mExtractor.retire();
             }
 
-            osg::ref_ptr<osg::Group> both = new osg::Group;
-            both->addChild(node);
             both->addChild(clamped);
 
             update.setTraversalNumber(4);

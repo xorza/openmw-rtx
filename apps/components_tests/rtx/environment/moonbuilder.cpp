@@ -79,8 +79,8 @@ namespace Rtx
             const float masser = Fallback::Map::getFloat("Moons_Masser_Size");
             const float secunda = Fallback::Map::getFloat("Moons_Secunda_Size");
 
-            // Masser's face opens and Secunda's does not: the one keeps the image the upload reads
-            // and the other keeps its slot with none, which the upload stands in for.
+            // Masser's face opens and Secunda's does not: the one keeps the image the upload reads,
+            // and the other is refused as a sky layer and takes no slot.
             VFS::Manager vfs;
             Testing::HeldImages images(&vfs, 0);
             const osg::ref_ptr<osg::Image> portrait = new osg::Image;
@@ -106,14 +106,13 @@ namespace Rtx
             EXPECT_EQ(faces.of(Moon::Masser).mMean, osg::Vec3f(1.0f, 0.0f, 0.0f)) << "a replaced portrait's own colour";
             EXPECT_EQ(faces.of(Moon::Secunda).mMean, sShippedSecundaFace);
             EXPECT_EQ(placeMoon(faces, Moon::Masser, 47.0f, 35.0f, 0.0f, 1.0f).mColour, osg::Vec3f(1.0f, 0.0f, 0.0f));
-            EXPECT_EQ(holds.size(), 2u) << "a hold on each face";
+            EXPECT_EQ(holds.size(), 1u) << "a hold on the face that opened";
             EXPECT_EQ(faces.of(Moon::Masser).mRadius, moonAngularRadius(masser)) << "the size it was handed";
             EXPECT_EQ(faces.of(Moon::Secunda).mRadius, moonAngularRadius(secunda));
             EXPECT_EQ(scene.textures().getRows()[faces.of(Moon::Masser).mSlot].mImage, portrait)
                 << "the portrait was not kept";
-            EXPECT_EQ(scene.textures().getRows()[faces.of(Moon::Secunda).mSlot].mImage, nullptr);
-            EXPECT_EQ(
-                scene.textures().getRows()[faces.of(Moon::Secunda).mSlot].mPath, moonFaceOf(Moon::Secunda).value());
+            EXPECT_EQ(faces.of(Moon::Secunda).mSlot, sNoIndex);
+            EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 1u) << "the face that did not open";
             scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
             EXPECT_EQ(scene.refusals().count(Refused::Moon), 0u);

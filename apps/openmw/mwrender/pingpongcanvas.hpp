@@ -70,7 +70,8 @@ namespace MWRender
 
     private:
         /// The state the resolve into the destination draws with: `mFallbackStateSet` or
-        /// `mMultiviewResolveStateSet`, or its gamma twin where the gamma is not one.
+        /// `mMultiviewResolveStateSet`, with the program that raises it to the gamma where the gamma
+        /// is not one.
         osg::StateSet* resolveStateSet(bool multiview) const;
 
         bool mAvgLum = false;
@@ -88,8 +89,8 @@ namespace MWRender
         /// The two resolves over again with the gamma in their last line, and the one uniform both
         /// read it from. A second program rather than a power of one, which a device does not
         /// evaluate exactly, so a gamma of one draws upstream's picture to the bit.
-        osg::ref_ptr<osg::StateSet> mGammaStateSet;
-        osg::ref_ptr<osg::StateSet> mMultiviewGammaStateSet;
+        osg::ref_ptr<osg::Program> mFallbackGammaProgram;
+        osg::ref_ptr<osg::Program> mMultiviewGammaProgram;
         osg::ref_ptr<osg::Uniform> mInverseGammaUniform;
 
         osg::ref_ptr<osg::Texture> mTextureScene;

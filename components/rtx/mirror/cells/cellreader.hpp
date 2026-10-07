@@ -42,8 +42,10 @@ namespace Rtx
         /// @param mask which nodes the walk of a template may descend into — the frame walk's own
         ///        traversal mask, so the two reach the same drawables.
         /// @param groundcover the world's groundcover, or null for a world with none.
+        /// @param above the state set every reference stands under, `CellWorld::mAbove`.
         CellReader(const Terrain::ObjectStorage& storage, Terrain::Storage& ground, ContentSource& content,
-            ESM::RefId worldspace, osg::Node::NodeMask mask, GroundcoverSource* groundcover);
+            ESM::RefId worldspace, osg::Node::NodeMask mask, GroundcoverSource* groundcover,
+            const osg::StateSet* above);
 
         /// Reads the cell at `cell`: its ground, the lights of its `LIGH` references, and — where
         /// `statics` — every reference that names a model with something to trace, a lamp's
@@ -112,8 +114,9 @@ namespace Rtx
         /// **Read as groundcover where `groundcover` says**, and filed apart from the same file read
         /// as a static: upstream's groundcover states an alpha test of 128 / 255 with no blend over
         /// every model it draws, `OVERRIDE` both, because MGE's content states no alpha it can be
-        /// trusted with (`MWRender::Groundcover`). Each part wears that reading under a key of its
-        /// own (`PreparedPart::mOwnKey`).
+        /// trusted with (`MWRender::Groundcover`). Each such reading says so
+        /// (`MaterialReading::mGroundcover`), and the frame keys it apart from the material a
+        /// static of the same model wears.
         PreparedModel* readModel(VFS::Path::NormalizedView path, bool groundcover);
 
         /// `readModel` for a reference: null where it stands nothing, no model or one with no part,

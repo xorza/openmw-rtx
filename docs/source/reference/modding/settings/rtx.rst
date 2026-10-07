@@ -6,13 +6,13 @@ indirect light, sky, water and fog; the OpenGL renderer is what you get with :co
 and is upstream's but for the changes this fork's :code:`AGENTS.md` names: five to its picture, the
 frame shown scaled into the window, and the gamma it applies in its last draw.
 
-A build configured with :code:`-DOPENMW_RTX=OFF` leaves it out. It needs a GPU with hardware ray
-tracing, NVIDIA Turing or AMD RDNA 2 or later: acceleration structures, ray query, ray tracing
-pipelines, position fetch and the fused multiply-add of :code:`VK_KHR_shader_fma` are all required,
-and a device missing any of them refuses to start rather than falling back.
+Every build carries both renderers. The ray tracer needs a GPU with hardware ray tracing, NVIDIA
+Turing or AMD RDNA 2 or later: acceleration structures, ray query, ray tracing pipelines, position
+fetch and the fused multiply-add of :code:`VK_KHR_shader_fma` are all required, and a device missing
+any of them refuses to start rather than falling back.
 
-Most settings here are read once, at startup. :code:`upscale`, :code:`indirect light` and
-:code:`distant land cells` also follow the settings window while the game runs.
+Most settings here are read once, at startup. :code:`upscale` and :code:`distant land cells` also
+follow the settings window while the game runs.
 
 .. omw-setting::
    :title: enabled
@@ -52,20 +52,6 @@ Most settings here are read once, at startup. :code:`upscale`, :code:`indirect l
    :code:`native`, which upscales nothing and reconstructs each frame from the frames before it, as
    the anti-aliasing. :code:`off` traces at the frame's size with no upscaler: the denoisers alone,
    and no anti-aliasing. A name this does not know is refused rather than quietly defaulted.
-
-.. omw-setting::
-   :title: indirect light
-   :type: string
-   :range: traced, off
-   :default: traced
-
-   Whether a surface takes light that does not come straight from a lamp, the sun or the moons.
-   :code:`traced` follows one bounce of light from every surface the eye sees, which brings lamp
-   light off walls into the shade and the cell's ambient colour into every room, and cleans the
-   noise of that one ray over the frames and across the screen. :code:`off` traces no bounce and
-   runs none of those passes, which is much faster and keeps less of the frame in memory: what no
-   lamp, sun or moon reaches is black. A reflection on a surface with a specular map is traced
-   either way. A name this does not know is refused rather than quietly defaulted.
 
 .. omw-setting::
    :title: specular map layout
@@ -109,7 +95,6 @@ Settings
 * ``[General] texture mipmap``: The ray tracer filters every texture trilinearly.
 * ``[Groundcover] stomp intensity``: The ray tracer stands each plant still: no wind and no step bends it.
 * ``[Groundcover] stomp mode``: The ray tracer stands each plant still: no wind and no step bends it.
-* ``[Physics] async num threads``: This sets the rasterizer's draw threads.
 * ``[Post Processing]`` every key: Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone curve.
 * ``[Shaders] adjust coverage for alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
 * ``[Shaders] antialias alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.

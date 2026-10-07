@@ -9,6 +9,9 @@
 
 #include <components/rtx/scene/surface.hpp>
 
+#include "chainkeys.hpp"
+#include "statereading.hpp"
+
 namespace Rtx
 {
     bool describeSurface(std::span<const Shading> shading, SurfaceDescription& material)
@@ -21,9 +24,15 @@ namespace Rtx
         return said;
     }
 
-    Shading Shading::under(const std::span<const Shading> chain, const osg::StateSet& stateSet, const bool animated)
+    Shading Shading::under(
+        const std::span<const Shading> chain, const osg::StateSet& stateSet, const bool animated, ChainKeys* const keys)
     {
         const Shading* const above = chain.empty() ? nullptr : &chain.back();
+        const bool states = describesAnything(stateSet);
+        const osg::StateSet* const key = keys != nullptr
+            ? keys->join(above != nullptr ? above->mMaterialKey : nullptr, stateSet, animated, states)
+            : nullptr;
+
         Shading link{
             .mStateSet = &stateSet,
             .mFade = fadeThrough(stateSet, above != nullptr ? above->mFade : Fade{}),
@@ -31,6 +40,8 @@ namespace Rtx
             .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
             .mClockwise = above != nullptr && above->mClockwise,
             .mClockwiseLocked = above != nullptr && above->mClockwiseLocked,
+            .mStates = states,
+            .mMaterialKey = key,
         };
 
         if (const osg::StateSet::RefAttributePair* front = stateSet.getAttributePair(osg::StateAttribute::FRONTFACE);

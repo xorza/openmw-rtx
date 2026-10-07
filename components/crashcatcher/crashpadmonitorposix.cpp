@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -66,6 +67,16 @@ namespace Crash::Monitor
         if (send(mId, mHold, SIGKILL))
             return Ending::Ended;
         return errno == ESRCH ? Ending::Gone : Ending::Failed;
+    }
+
+    std::optional<std::uint32_t> GameProcess::exitCode() const
+    {
+        return std::nullopt;
+    }
+
+    std::string describeExitCode(std::uint32_t code)
+    {
+        return hex(code);
     }
 
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t process)

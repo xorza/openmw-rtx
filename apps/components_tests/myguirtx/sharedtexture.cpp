@@ -7,6 +7,7 @@
 #include <osg/GL>
 #include <osg/Image>
 #include <osg/Texture2D>
+#include <osg/Vec4f>
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>
 
@@ -116,6 +117,50 @@ namespace MyGUIRtx
 
             mirror.refresh();
             EXPECT_FALSE(watched.valid());
+        }
+
+        /// **A picture is sent as `osg::Image::getColor` reads it, in every format the game hands
+        /// one in**, byte by byte where the format is bytes: RGBA and BGRA as they stand, RGB and BGR
+        /// opaque, a luminance three times with its alpha or opaque. Three pixels by two in each, so
+        /// a row of a three-byte format is padded to four bytes, which the copy steps over. A float
+        /// picture, which is no bytes, goes through `getColor` itself.
+        TEST(RtxSharedTextureTest, aPictureIsSentAsItsColoursReadInEveryFormat)
+        {
+            constexpr int width = 3;
+            constexpr int height = 2;
+            const std::array formats{ GL_RGBA, GL_BGRA, GL_RGB, GL_BGR, GL_LUMINANCE, GL_LUMINANCE_ALPHA };
+            for (const GLenum format : formats)
+            {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->allocateImage(width, height, 1, format, GL_UNSIGNED_BYTE, 4);
+                for (unsigned int at = 0; at < image->getTotalSizeInBytes(); ++at)
+                    image->data()[at] = static_cast<std::uint8_t>(17 + 37 * at);
+
+                std::vector<std::uint8_t> read;
+                for (int y = 0; y < height; ++y)
+                    for (int x = 0; x < width; ++x)
+                    {
+                        const osg::Vec4f colour = image->getColor(x, y);
+                        for (int channel = 0; channel < 4; ++channel)
+                            read.push_back(static_cast<std::uint8_t>(colour[channel] * 255.0f + 0.5f));
+                    }
+
+                Rtx::Testing::CountingRenderer renderer;
+                const osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D(image);
+                const SharedTexture mirror(renderer, *texture);
+                EXPECT_EQ(renderer.mLending, read) << "format " << format;
+            }
+
+            osg::ref_ptr<osg::Image> floats = new osg::Image;
+            floats->allocateImage(width, height, 1, GL_RGBA, GL_FLOAT);
+            auto* values = reinterpret_cast<float*>(floats->data());
+            for (int at = 0; at < width * height * 4; ++at)
+                values[at] = static_cast<float>(at) / 23.0f;
+            Rtx::Testing::CountingRenderer renderer;
+            const osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D(floats);
+            const SharedTexture mirror(renderer, *texture);
+            ASSERT_EQ(renderer.mLending.size(), std::size_t{ width * height * 4 });
+            EXPECT_EQ(renderer.mLending[4], static_cast<std::uint8_t>(4.0f / 23.0f * 255.0f + 0.5f));
         }
     }
 }

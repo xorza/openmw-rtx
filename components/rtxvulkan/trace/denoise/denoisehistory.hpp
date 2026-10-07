@@ -62,15 +62,7 @@ namespace Rtx
 
         /// Makes room for a frame this size, anew: `TraceChain::resize` is what asks whether the size
         /// changed. A resize is a reset.
-        ///
-        /// @param bounce whether the accumulator's mean of the bounce and the wavelet's images are
-        ///        made: `Reconstruction::filtersBounce`, as the chain last heard it.
-        void resize(std::uint32_t width, std::uint32_t height, bool bounce);
-
-        /// Makes the bounce's images at the extent the history stands at, or lets them go, where
-        /// `bounce` differs from what was made. **Images made anew are a fresh history**, whether or
-        /// not a frame ran between the two calls.
-        void keepBounce(bool bounce);
+        void resize(std::uint32_t width, std::uint32_t height);
 
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
@@ -94,7 +86,6 @@ namespace Rtx
 
         /// The accumulator's and the wavelet's images: the three histories the accumulator reads and
         /// writes, the blend it hands the cascade, and the pair its narrow levels ping-pong through.
-        /// Past the surface's two, empty where the bounce's images were let go (`keepBounce`).
         struct AccumulateImages
         {
             const Image& mColourBefore;
@@ -199,23 +190,14 @@ namespace Rtx
     private:
         const Device& mDevice;
 
-        /// Makes the images of the filter `filter` at `mWidth` by `mHeight`, anew.
-        void make(Temporal filter);
-
-        /// Lets the images of the filter `filter` go.
-        void release(Temporal filter);
-
         /// The half of a pair the last frame wrote, the half this frame writes, and the one image of
         /// what is not a pair.
         const Image& before(DenoiseImage image, const TemporalTurns::Step& step) const;
         const Image& now(DenoiseImage image, const TemporalTurns::Step& step) const;
         const Image& only(DenoiseImage image) const;
 
-        std::uint32_t mWidth = 0;
-        std::uint32_t mHeight = 0;
-
         /// Indexed by `DenoiseImage`: both halves of a pair, the first alone of what is not one.
-        /// Empty until `resize`, and the bounce's own while `keepBounce` lets them go.
+        /// Empty until `resize`.
         std::array<std::array<Image, 2>, sDenoiseImages> mImages;
 
         /// Started again by `resize`, so the first frame after one reads no image nothing wrote.

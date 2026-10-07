@@ -1,8 +1,14 @@
 #pragma once
 
+#include <filesystem>
 #include <string_view>
 
 #include "crashpage.hpp"
+
+namespace crashpad
+{
+    class CrashpadClient;
+}
 
 /// **The game's side of the catcher that each system spells its own way**, in
 /// `crashpadclientposix.cpp` and `crashpadclientwin32.cpp`, and the three calls the shared half in
@@ -19,6 +25,13 @@ namespace Crash::Client
     /// and the way the monitor asks for a hang report, which `page` carries where the monitor needs
     /// to be told it.
     void hookEveryEnd(Heartbeat& page);
+
+    /// **What ends the process past every handler inside it**, handed to the system's own reporting
+    /// where that has a way back to the monitor: on Windows, a fail-fast — a failed security check, a
+    /// corrupted heap, `__fastfail` — which WER alone sees, through the module beside `executable`.
+    /// What the catcher goes without where that could not be set up, for the log; nothing where it
+    /// was, or where the system's handlers see every end already.
+    std::string_view catchPastTheProcess(crashpad::CrashpadClient& client, const std::filesystem::path& executable);
 
     /// A crash for `reason`, taken here, whose dump is the stacks as they stand.
     [[noreturn]] void endAsCrash(std::string_view reason);

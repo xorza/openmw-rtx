@@ -12,6 +12,9 @@
 // description — thirteen hundred bytes and a 64-bit extension — for one struct.
 
 #ifdef RTX_HOST
+
+#include <cmath>
+
 namespace Rtx::Shaders
 {
 #endif
@@ -291,10 +294,11 @@ namespace Rtx::Shaders
     const uint MOON_COUNT = 2u;
 
 #ifdef RTX_HOST
-    /// A moon as the frame carries it, from the angle its disc subtends: the host's one spelling
-    /// of `MoonDisc::mSource`, beside `sunSource` for the sun, so a moon assembled by hand cannot
-    /// leave its limb at nought and cast a hard edge.
-    inline SkySource moonSource(const vec3& direction, const vec3& irradiance, float angularRadius)
+    /// A source in the sky as the frame carries it, from the angle its disc subtends: the sine of
+    /// it, on the host, which alone writes it. The host's one spelling of a `SkySource`, the sun's
+    /// (`sunSource`) and each moon's `MoonDisc::mSource`, so a source assembled by hand cannot leave
+    /// its limb at nought and cast a hard edge.
+    inline SkySource skySource(const vec3& direction, const vec3& irradiance, float angularRadius)
     {
         return SkySource{ direction, irradiance, std::sin(angularRadius) };
     }

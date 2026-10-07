@@ -15,6 +15,8 @@ class UnlistedTest(unittest.TestCase):
             "components/misc/rng.hpp",
             "components/platform/processposix.cpp",
             "components/platform/processwin32.cpp",
+            "apps/openmw/countslinux.cpp",
+            "apps/openmw/countsnone.cpp",
             "components/platform/filestdio.cpp",
             "components/toutf8/geniconv.cpp",
             "components/crashcatcher/crashunsupported.cpp",
@@ -24,16 +26,19 @@ class UnlistedTest(unittest.TestCase):
         # The CS compiled nothing, so its program is off in this flavour; a header is no source; a
         # file of another system, Android's entry, the generator and the other catcher are excused.
         # The system decides which half of a pair is the other's: each build compiles its own.
-        # The wizard's unshield half is Windows's to leave out, and every other system's to build.
+        # The wizard's unshield half is Windows's to leave out, and every other system's to build. A
+        # facility only Linux has is a `linux` file and its absence a `none` one, each the other's.
         forgotten = ["apps/openmw/forgotten.cpp", "components/misc/forgotten.cpp"]
         wizard = "apps/wizard/installationpage.cpp"
-        for windows, own in ((False, "components/platform/processposix.cpp"),
-                             (True, "components/platform/processwin32.cpp")):
+        for windows, own, counts in ((False, "components/platform/processposix.cpp", "apps/openmw/countslinux.cpp"),
+                                     (True, "components/platform/processwin32.cpp", "apps/openmw/countsnone.cpp")):
             with self.subTest(windows=windows):
-                compiled = {"apps/openmw/engine.cpp", "apps/wizard/main.cpp", "components/misc/rng.cpp", own}
+                compiled = {"apps/openmw/engine.cpp", "apps/wizard/main.cpp", "components/misc/rng.cpp", own, counts}
                 unshield = [] if windows else [wizard]
                 self.assertEqual(unlisted(tracked, compiled, windows), sorted([*forgotten, *unshield]))
                 self.assertEqual(unlisted(tracked, compiled - {own}, windows), sorted([*forgotten, *unshield, own]))
+                self.assertEqual(unlisted(tracked, compiled - {counts}, windows),
+                                 sorted([*forgotten, *unshield, counts]))
 
 
 if __name__ == "__main__":

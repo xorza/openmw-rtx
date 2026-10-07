@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import IO, cast
 
 from omw.build import Build
-from omw.noise import Figures, Leg, Plan, Side, ab, plan, read_report, read_sides, table, wants_ab
+from omw.noise import Figures, Leg, Plan, Side, ab, leg_log, plan, read_report, read_sides, table, wants_ab
 from omw.system import ROOT, Refusal, read_text
 
 
@@ -28,6 +28,12 @@ class PlanTest(unittest.TestCase):
                  legs=(Leg("still", ()), Leg("cut 1", ("--cut=1",)), Leg("cut 2", ("--cut=2",)),
                        Leg("strafe 150", ("--strafe=150",)), Leg("walk -80", ("--walk=-80",))),
                  out=Path("/tmp/ab"), rest=("--views=x",)))
+
+    def test_a_legs_log_keeps_the_whole_of_its_name(self):
+        out = Path("/tmp/ab")
+        self.assertEqual(leg_log(out / "walk1.5"), out / "walk1.5.log")
+        self.assertNotEqual(leg_log(out / "walk1.5"), leg_log(out / "walk1"))
+        self.assertEqual(leg_log(out / "still"), out / "still.log")
 
     def test_a_distance_of_nought_leaves_its_leg_out(self):
         self.assertEqual(plan(["--ab=antilag", "--views=x", "--still", "--strafe=0", "--walk=0"]).legs,

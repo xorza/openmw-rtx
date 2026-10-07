@@ -19,15 +19,17 @@
 
 #include <components/misc/result.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
+#include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
-#include <components/rtx/scene/refusal.hpp>
-#include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/sky/vertexrules.hpp>
 #include <components/vfs/manager.hpp>
+
+#include "skymesh.hpp"
+#include "skysheet.hpp"
 
 namespace Rtx
 {
@@ -123,26 +125,24 @@ namespace Rtx
 
             void apply(osg::Geometry& geometry) override
             {
-                const auto* vertices = dynamic_cast<const osg::Vec3Array*>(geometry.getVertexArray());
                 const auto* coords = dynamic_cast<const osg::Vec2Array*>(geometry.getTexCoordArray(0));
-                if (vertices == nullptr || coords == nullptr || vertices->size() != coords->size() || vertices->empty())
+                std::vector<osg::Vec3f>& directions = mDirections;
+                directions.clear();
+                if (coords == nullptr || !placedVertices(geometry, getNodePath(), directions)
+                    || directions.size() != coords->size() || directions.empty())
                     return;
 
                 Layer layer;
-                layer.mImage = imageOf(geometry);
+                layer.mImage = sheetAlong(getNodePath());
                 if (layer.mImage == nullptr)
                     return;
 
-                std::vector<osg::Vec3f> directions;
-                directions.reserve(vertices->size());
-                for (const osg::Vec3f& vertex : *vertices)
+                for (osg::Vec3f& towards : directions)
                 {
-                    osg::Vec3f towards = vertex;
                     if (towards.length2() <= 0.0f)
                         return;
 
                     towards.normalize();
-                    directions.push_back(towards);
                     layer.mDirection += towards;
                 }
 
@@ -201,31 +201,32 @@ namespace Rtx
             std::vector<Layer> mLayers;
 
         private:
-            /// The sheet on a drawable's first texture unit, wherever it is bound.
-            static const osg::Image* imageOf(const osg::Geometry& geometry)
+            /// Each drawable's vertices placed and then turned to directions, refilled for each.
+            std::vector<osg::Vec3f> mDirections;
+
+            /// The sheet on the first texture unit as the rasterizer's state stack resolves it down
+            /// `path`, which ends at the drawable: the nearest state set that binds one, unless one
+            /// above binds it `OVERRIDE` and the nearer one is not `PROTECTED`. Null where none is
+            /// bound or it names no file.
+            static const osg::Image* sheetAlong(const osg::NodePath& path)
             {
-                for (const osg::StateSet* state : { geometry.getStateSet(), stateOfParents(geometry) })
+                const osg::Texture2D* sheet = nullptr;
+                bool locked = false;
+                for (const osg::Node* node : path)
                 {
+                    const osg::StateSet* state = node->getStateSet();
                     if (state == nullptr)
                         continue;
 
-                    const auto* texture = dynamic_cast<const osg::Texture2D*>(
-                        state->getTextureAttribute(0, osg::StateAttribute::TEXTURE));
-                    if (texture != nullptr && texture->getImage() != nullptr
-                        && !texture->getImage()->getFileName().empty())
-                        return texture->getImage();
+                    const osg::StateSet::RefAttributePair* bound
+                        = state->getTextureAttributePair(0, osg::StateAttribute::TEXTURE);
+                    if (bound != nullptr && SurfaceLocks::takes(locked, bound->second))
+                        sheet = dynamic_cast<const osg::Texture2D*>(bound->first.get());
                 }
 
-                return nullptr;
-            }
-
-            static const osg::StateSet* stateOfParents(const osg::Geometry& geometry)
-            {
-                for (const osg::Node* parent : geometry.getParents())
-                    if (parent->getStateSet() != nullptr)
-                        return parent->getStateSet();
-
-                return nullptr;
+                if (sheet == nullptr || sheet->getImage() == nullptr || sheet->getImage()->getFileName().empty())
+                    return nullptr;
+                return sheet->getImage();
             }
 
             /// The engine draws a vertex of the star dome only where `Sky::starVertexShown` says, and
@@ -250,37 +251,35 @@ namespace Rtx
         /// leaves a factor of two either side of this: its widest patch repeats half a tile across
         /// its short axis and its field two whole ones.
         constexpr float sTiledSpan = 1.5f;
+
+        /// The sky one tile covers, in radians, from the unwrap's measured rate in tiles a radian.
+        /// **A whole number of tiles around**, because a dome closes seamlessly only on one, and the
+        /// field's `u` runs from the azimuth, which wraps at a half turn: Morrowind's measures
+        /// 7.9999992 around, and a count off a whole one is a seam in the west.
+        float tileOf(float rate)
+        {
+            const float around = std::max(std::round(2.0f * osg::PIf * rate), 1.0f);
+            return 2.0f * osg::PIf / around;
+        }
     }
 
-    Misc::Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
-        VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
-        std::vector<TextureHold>& holds)
+    NightSky readNightSky(
+        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<TextureHold>& holds)
     {
         NightSky sky;
 
-        const VFS::Path::NormalizedView chosen = scenes.getVFS()->exists(mesh) ? mesh : fallback;
-
-        // A gap in the content is refused rather than read as a night with no stars in it, which
-        // reads as a renderer that forgot them. Before any hold, so a refusal leaves none behind.
-        if (!scenes.getVFS()->exists(chosen))
-            return Misc::Err{ "the archives hold neither it nor \"" + std::string(fallback.value()) + '"' };
-
+        // OSG's visitor API is non-const throughout, and this walk writes nothing.
         LayerReader read;
-        const_cast<osg::Node&>(*scenes.getTemplate(chosen, false)).accept(read);
+        const_cast<osg::Node&>(mesh).accept(read);
 
         std::size_t next = 0;
         for (const Layer& layer : read.mLayers)
         {
-            // Asked before a slot is taken, as a deck's sheet is: one the upload refuses would stand
-            // in as an opaque grey, and the field is laid over the whole dome.
-            if (const Misc::Result<void, std::string> uploadable = checkUploadable(*layer.mImage); !uploadable.isOk())
-            {
-                scene.refusals().refuse(Refused::SkyLayer, layer.mImage->getFileName(), uploadable.error());
-                continue;
-            }
-
-            TextureHold held = scene.takeTexture(VFS::Path::Normalized(layer.mImage->getFileName()), *layer.mImage);
+            TextureHold held = takeSkySheet(scene, VFS::Path::Normalized(layer.mImage->getFileName()),
+                osg::ref_ptr<const osg::Image>(layer.mImage));
             const Index slot = held.get();
+            if (slot == sNoIndex)
+                continue;
 
             if (std::min(layer.mUvSpan.x(), layer.mUvSpan.y()) > sTiledSpan)
             {
@@ -294,7 +293,7 @@ namespace Rtx
                 holds.push_back(std::move(held));
 
                 sky.mField = slot;
-                sky.mTile = layer.mUvRate > 0.0f ? 1.0f / layer.mUvRate : 0.0f;
+                sky.mTile = layer.mUvRate > 0.0f ? tileOf(layer.mUvRate) : 0.0f;
                 sky.mHorizon = layer.mKeptFrom;
 
                 // The field is laid over the whole dome, so its own mean is what it adds to the
@@ -325,5 +324,19 @@ namespace Rtx
         }
 
         return sky;
+    }
+
+    Misc::Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
+        VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
+        std::vector<TextureHold>& holds)
+    {
+        const VFS::Path::NormalizedView chosen = scenes.getVFS()->exists(mesh) ? mesh : fallback;
+
+        // A gap in the content is refused rather than read as a night with no stars in it, which
+        // reads as a renderer that forgot them. Before any hold, so a refusal leaves none behind.
+        if (!scenes.getVFS()->exists(chosen))
+            return Misc::Err{ "the archives hold neither it nor \"" + std::string(fallback.value()) + '"' };
+
+        return readNightSky(scene, *scenes.getTemplate(chosen, false), thread, holds);
     }
 }

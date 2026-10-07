@@ -889,7 +889,7 @@ namespace Rtx::Testing
                 camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 0.0f, 0.0f));
 
                 Shaders::MoonDisc masser{};
-                masser.mSource = Shaders::moonSource(osg::Vec3f(0.0f, 0.0f, 1.0f), irradiance, 0.02f);
+                masser.mSource = Shaders::skySource(osg::Vec3f(0.0f, 0.0f, 1.0f), irradiance, 0.02f);
                 masser.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
                 masser.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
                 masser.mColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
@@ -898,8 +898,8 @@ namespace Rtx::Testing
                 camera.mMoons[0] = masser;
                 camera.mMoons[1] = Shaders::MoonDisc{};
 
-                return shoot(makeOpenWater(4000.0f), {}, camera, size,
-                    { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mIndirect = IndirectLight::Off });
+                return shoot(
+                    makeOpenWater(4000.0f), {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
             };
 
             const Frame lit = look(moonlight);

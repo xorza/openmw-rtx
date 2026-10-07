@@ -34,7 +34,7 @@ namespace Rtx
         }
     }
 
-    Owned<VkPipeline, vkDestroyPipeline> makeTracePipeline(const Device& device, const VkPipelineLayout layout,
+    Owned<VkPipeline, vkDestroyPipeline> makeTracePipeline(const Device& device, const PipelineLayout& layout,
         const TraceShaders& shaders, const std::string_view name, const std::span<const std::uint32_t> specialization)
     {
         PipelineCreation creation(device, name);
@@ -63,7 +63,7 @@ namespace Rtx
             const auto at = static_cast<std::uint32_t>(stages.size());
             stages.push_back(VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(module),
+                .pNext = code.stage(module, layout.getBindings()),
                 .flags = 0,
                 .stage = stage,
                 .module = VK_NULL_HANDLE,
@@ -149,7 +149,7 @@ namespace Rtx
             .pLibraryInfo = nullptr,
             .pLibraryInterface = nullptr,
             .pDynamicState = nullptr,
-            .layout = layout,
+            .layout = layout.getHandle(),
             .basePipelineHandle = VK_NULL_HANDLE,
             .basePipelineIndex = 0,
         };

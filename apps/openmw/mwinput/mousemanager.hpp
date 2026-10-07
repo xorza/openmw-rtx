@@ -71,10 +71,6 @@ namespace MWInput
 
         float mMouseMoveX;
         float mMouseMoveY;
-
-        // TODO: remove with the spinning camera's fix (`.notes/redesign.md` 8.1). whether a look axis turned the camera
-        // last frame.
-        bool mLookAxisTurning = false;
     };
 }
 #endif

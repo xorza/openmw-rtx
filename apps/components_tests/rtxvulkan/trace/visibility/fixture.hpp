@@ -390,10 +390,6 @@ namespace Rtx::Testing
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
-        /// Where the indirect light comes from: the traced bounce every figure over this fixture was
-        /// derived against, unless a test of none names the other.
-        IndirectLight mIndirect = IndirectLight::Traced;
-
         /// What the past of the run's frame `mLossAt` is worth (`FrameOptions::mLoss`). A shot that
         /// sets its scene has lost every history at its first frame already, as a new world does.
         ///
@@ -518,8 +514,7 @@ namespace Rtx::Testing
                             .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon,
                             .mShadowFloor = shot.mShadowFloor,
-                            .mLampCandidates = shot.mLampCandidates,
-                            .mIndirect = shot.mIndirect },
+                            .mLampCandidates = shot.mLampCandidates },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,

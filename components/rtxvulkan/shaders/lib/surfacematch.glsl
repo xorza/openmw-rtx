@@ -16,8 +16,8 @@
 /// What a surface history holds of a pixel whose `CHANNEL_SURFACE` reads `seen`: the shading
 /// normal and the distance from the eye times `distanceScale` (`HistoryConstants::mDistanceScale`),
 /// or nought where no surface stands, which no surface matches. **One statement** for the
-/// accumulator, which keeps it beside the bounce's mean, its surface-only kernel, which keeps it
-/// where nothing filters the bounce, and the pane filter, which keeps the nearest layer's.
+/// accumulator, which keeps it beside the bounce's mean, and the pane filter, which keeps the
+/// nearest layer's.
 vec4 heldSurfaceOf(vec2 seen, float distanceScale)
 {
     const vec3 normal = unpackSurfaceNormal(seen.x);

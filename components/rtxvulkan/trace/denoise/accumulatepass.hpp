@@ -16,7 +16,7 @@ namespace Rtx
     /// The denoiser's temporal half: this frame's bounce averaged with what the same surface gave on
     /// the frames before it. SVGF, A-SVGF, ReLAX and ReBLUR are all a temporal accumulator with a
     /// cascade attached, and the cascade fills in where the accumulator was rejected rather than
-    /// doing the averaging itself. It runs exactly when the wavelet does.
+    /// doing the averaging itself. It runs on every frame the denoisers do, as the wavelet does.
     class AccumulatePass
     {
     public:
@@ -34,16 +34,9 @@ namespace Rtx
         void recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
             const GBuffer& buffer, const DenoiseFrame& frame) const;
 
-        /// Writes the surface's history alone (`accumulatesurface.comp`), in place of `record` on a
-        /// frame whose bounce nothing filters: what the shadow denoiser and the glossy filter read
-        /// next frame.
-        void recordSurface(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-            const GBuffer& buffer, const DenoiseFrame& frame) const;
-
     private:
         ComputePipeline<Shaders::AccumulateConstants> mPipeline;
         ComputePipeline<Shaders::AccumulateClampConstants> mClamp;
         ComputePipeline<Shaders::AccumulateClampConstants> mClampRing;
-        ComputePipeline<Shaders::HistoryConstants> mSurface;
     };
 }

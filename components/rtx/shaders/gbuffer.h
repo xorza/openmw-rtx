@@ -121,8 +121,10 @@ namespace Rtx::Shaders
     /// it found, or what the water reflects and what is seen through it. Each has two bits, the
     /// sky's and the lamps', and `a` is one of them, drawn by the light each adds (`keepsSecond`).
     /// The one bit a pixel's shadow is, which the shadow denoiser filters in its place: `rgb` is
-    /// exact per pixel, so a texture under a penumbra stays sharp. Nought and one wherever nothing
-    /// split it off, which no filter reads as a shadow.
+    /// exact per pixel, so a texture under a penumbra stays sharp. What a translucent surface on the
+    /// way lets through is drawn into the bit and not carried in `rgb`, which one ray's through
+    /// would leave noisy. Nought and one wherever nothing split it off, which no filter reads as a
+    /// shadow.
     const uint CHANNEL_SHADOWED = 7;
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, times the

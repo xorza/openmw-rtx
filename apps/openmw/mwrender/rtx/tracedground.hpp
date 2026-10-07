@@ -2,7 +2,8 @@
 
 #include <cstdint>
 
-#include "../ground.hpp"
+#include <apps/openmw/mwrender/ground.hpp>
+
 #include "tracedterrain.hpp"
 
 namespace Resource

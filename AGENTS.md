@@ -68,6 +68,17 @@ the window's size there, has it moved to the window on the first start, and the 
   Crashpad monitor process, with the calls that set it up from the configuration
   (`Debug::setCrashReports`, the hang limit and the version).
 - `README.md`, which is the fork's own page and what a package ships, and `CI/`.
+- The fork's workflows in place of upstream's four, and the root tooling: `CMakePresets.json`,
+  `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes` and `.gitignore`. The CI the fork
+  runs, and the driver every verification step goes through.
+- The build the fork's presets and its Crashpad need: CMake 3.31, which reads the `$comment`s in
+  `CMakePresets.json`; Boost 1.83, whose flat maps the scene identities are; no scan for modules
+  (`CMAKE_CXX_SCAN_FOR_MODULES OFF`), which preprocessed every file twice for modules the tree has
+  none of; the ccache fallback, so a runner without it builds; the embedded debug information
+  (`CMAKE_MSVC_DEBUG_INFORMATION_FORMAT`), since ccache caches no compile that writes a shared PDB;
+  and the `$<COMPILE_LANGUAGE:C,CXX>` wrapping, which keeps the C++ flags off Crashpad's MASM.
+- `install_fork_licenses` and `files/licenses/`: the licences of what the fork ships — Crashpad,
+  VMA, FidelityFX and the Vulkan loader — which ask to be shipped with them.
 - The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them
   the distance stands scripted stages the game keeps down.
 - The lamp body marker (`SceneUtil::LampBody`), which `SceneUtil::addLight` leaves on the group it
@@ -90,10 +101,19 @@ the window's size there, has it moved to the window on the first start, and the 
   rasterizer's canvas applies it in its last draw into the frame (`PingPongCanvas`), as the tone
   pass does in the ray tracer. `[Video] contrast` went with the ramp and is not restored: it had no
   menu control, upstream applied it on Windows alone, and the tone pass has a contrast grade of its
-  own.
+  own. SDL3 names a controller's buttons by their place (`SDL_GAMEPAD_BUTTON_SOUTH`) where SDL2
+  named them by Xbox's labels, and the bindings keep the places: a pad with other labels is played
+  with the same thumb. A Lua cursor is sized in the frame's pixels, as upstream sized it in the
+  window's, so it is scaled by the frame's shown scale alone (`Presentation::shownScale`), and not
+  by the interface's scaling as well. Where relative mouse mode is refused, upstream wraps the
+  pointer by warping it; Wayland, which SDL3 takes where SDL2 took X11, lets no window move the
+  pointer, so there it goes unwrapped and stops at the window's edge
+  (`InputWrapper::mWarpMovesPointer`), where the way back from each warp turned the camera.
 - The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
   the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
-  `components/files/configurationmanager` included: one set of checks for every file.
+  `components/files/configurationmanager` included: one set of checks for every file. And MSVC's
+  `4244` and `4267` off for the whole tree: GCC's `-Wall -Wextra` leave `-Wconversion` out, so the
+  narrowing they warn of held MSVC's builds alone, and one set of checks is one on every compiler.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
   through): `std::from_chars` reads `inf` and `nan`, and no sanitizer stopped either reaching
   the picture. Where `from_chars` has no floating point, the stream reads only the prefix it would
@@ -163,9 +183,8 @@ backend ever arrives.
   means a device ran it; `--without-device` leaves it out on a box with no driver.
 - The first run after a shader change includes the driver compiling its pipelines: time a suite on
   a second run.
-- `./omw gate` once at the end: format check, the driver's tests, build, the listing check, the
-  release compile, tests, `check`, one repeat pair, stopping at the first failure. Never a gate
-  beside a build or another gate.
+- `./omw gate` once at the end: the steps `./omw help` lists, from `tools/omw/gate.py`, stopping
+  at the first failure. Never a gate beside a build or another gate.
 - Do not open the game window to check a rendering change. The harness's verbs go through the
   driver, which builds `openmw-rtxtool` and runs it in the flavour's directory:
   `./omw [flavour] info|scene|shot|view|bench|check|film|noise`, and `./omw exec ./openmw-rtxtool --help`

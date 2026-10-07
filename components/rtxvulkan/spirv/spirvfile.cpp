@@ -5,16 +5,12 @@
 #include <ios>
 #include <string>
 
+#include <spirv/unified1/spirv.hpp>
+
 #include <components/rtx/common/error.hpp>
 
 namespace Rtx
 {
-    namespace
-    {
-        constexpr std::uint32_t sSpirvMagic = 0x07230203;
-
-    }
-
     std::string spelledPath(const std::filesystem::path& path)
     {
         const std::u8string spelled = path.u8string();
@@ -38,7 +34,7 @@ namespace Rtx
         if (!stream)
             throw InputError("cannot read " + spelledPath(path));
 
-        if (words.front() != sSpirvMagic)
+        if (words.front() != spv::MagicNumber)
             throw InputError(spelledPath(path) + " does not begin with the SPIR-V magic number");
 
         return words;

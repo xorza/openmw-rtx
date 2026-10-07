@@ -8,6 +8,8 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/collisionshapetype.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include <map>
@@ -43,6 +45,8 @@ namespace Settings
         WindowMode,
         VSyncMode,
         NormalizedPath,
+        Upscale,
+        SpecularLayout,
     };
 
     template <class T>
@@ -174,6 +178,18 @@ namespace Settings
         return SettingValueType::NormalizedPath;
     }
 
+    template <>
+    inline constexpr SettingValueType getSettingValueType<Rtx::Upscale>()
+    {
+        return SettingValueType::Upscale;
+    }
+
+    template <>
+    inline constexpr SettingValueType getSettingValueType<Rtx::SpecularLayout>()
+    {
+        return SettingValueType::SpecularLayout;
+    }
+
     inline constexpr std::string_view getSettingValueTypeName(SettingValueType type)
     {
         switch (type)
@@ -220,6 +236,10 @@ namespace Settings
                 return "vsync mode";
             case SettingValueType::NormalizedPath:
                 return "normalized path";
+            case SettingValueType::Upscale:
+                return "upscale mode";
+            case SettingValueType::SpecularLayout:
+                return "specular map layout";
         }
         return "unsupported";
     }

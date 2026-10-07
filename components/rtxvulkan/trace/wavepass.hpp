@@ -32,9 +32,9 @@ namespace Rtx
         /// waits.
         explicit WavePass(const Device& device);
 
-        /// Draws the amplitudes for another sea, replacing whatever was drawn before. Submits and
-        /// waits, and frees the spectrum it replaces, so nothing may be in flight:
-        /// `VulkanRenderer::setSea` waits the frames out first.
+        /// Draws the amplitudes for another sea, replacing whatever was drawn before. Submits its
+        /// upload and waits for it; the spectrum it replaces goes to the graveyard, so a frame in
+        /// flight still reads the one it was recorded with.
         void describe(const SeaState& sea);
 
         /// What the amplitudes were last drawn for.

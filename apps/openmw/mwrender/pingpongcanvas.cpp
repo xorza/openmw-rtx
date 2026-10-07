@@ -16,8 +16,6 @@ namespace MWRender
         Shader::ShaderManager& shaderManager, const std::shared_ptr<LuminanceCalculator>& luminanceCalculator)
         : mFallbackStateSet(new osg::StateSet)
         , mMultiviewResolveStateSet(new osg::StateSet)
-        , mGammaStateSet(new osg::StateSet)
-        , mMultiviewGammaStateSet(new osg::StateSet)
         , mInverseGammaUniform(new osg::Uniform("inverseGamma", 1.0f))
         , mLuminanceCalculator(luminanceCalculator)
     {
@@ -39,35 +37,32 @@ namespace MWRender
         Stereo::shaderStereoDefines(defines);
 
         mFallbackProgram = shaderManager.getProgram("fullscreen_tri", { { "gamma", "0" } });
+        mFallbackGammaProgram = shaderManager.getProgram("fullscreen_tri", { { "gamma", "1" } });
+        mMultiviewResolveProgram = shaderManager.getProgram("multiview_resolve", { { "gamma", "0" } });
+        mMultiviewGammaProgram = shaderManager.getProgram("multiview_resolve", { { "gamma", "1" } });
 
         mFallbackStateSet->setAttributeAndModes(mFallbackProgram);
         mFallbackStateSet->addUniform(new osg::Uniform("lastShader", 0));
         mFallbackStateSet->addUniform(new osg::Uniform("scaling", osg::Vec2f(1, 1)));
+        mFallbackStateSet->addUniform(mInverseGammaUniform);
 
-        mMultiviewResolveProgram = shaderManager.getProgram("multiview_resolve", { { "gamma", "0" } });
         mMultiviewResolveStateSet->setAttributeAndModes(mMultiviewResolveProgram);
         mMultiviewResolveStateSet->addUniform(new osg::Uniform("lastShader", 0));
-
-        mGammaStateSet->setAttributeAndModes(shaderManager.getProgram("fullscreen_tri", { { "gamma", "1" } }));
-        mGammaStateSet->addUniform(new osg::Uniform("lastShader", 0));
-        mGammaStateSet->addUniform(new osg::Uniform("scaling", osg::Vec2f(1, 1)));
-        mGammaStateSet->addUniform(mInverseGammaUniform);
-
-        mMultiviewGammaStateSet->setAttributeAndModes(
-            shaderManager.getProgram("multiview_resolve", { { "gamma", "1" } }));
-        mMultiviewGammaStateSet->addUniform(new osg::Uniform("lastShader", 0));
-        mMultiviewGammaStateSet->addUniform(mInverseGammaUniform);
+        mMultiviewResolveStateSet->addUniform(mInverseGammaUniform);
     }
 
     osg::StateSet* PingPongCanvas::resolveStateSet(const bool multiview) const
     {
-        if (mInverseGamma == 1.0f)
-            return multiview ? mMultiviewResolveStateSet.get() : mFallbackStateSet.get();
-
-        // Written by the draw that reads it, from what the cull handed this canvas: the state set is
-        // in no graph, so nothing else traverses it.
+        // **The program and nothing else**, so what the resolve reads — the multiview resolve's
+        // texture above all, which the draw binds into this one state set — is the same whatever
+        // the gamma. Written by the draw that reads it, from what the cull handed this canvas: the
+        // state sets are in no graph, so nothing else traverses them.
+        const bool gamma = mInverseGamma != 1.0f;
+        osg::StateSet& resolve = multiview ? *mMultiviewResolveStateSet : *mFallbackStateSet;
+        resolve.setAttributeAndModes(multiview ? (gamma ? mMultiviewGammaProgram : mMultiviewResolveProgram)
+                                               : (gamma ? mFallbackGammaProgram : mFallbackProgram));
         mInverseGammaUniform->set(mInverseGamma);
-        return multiview ? mMultiviewGammaStateSet.get() : mGammaStateSet.get();
+        return &resolve;
     }
 
     void PingPongCanvas::setPasses(Fx::DispatchArray&& passes)
@@ -143,6 +138,12 @@ namespace MWRender
 
         if (filtered.empty() || !mPostprocessing)
         {
+            // Into the destination where there is one, as every draw below ends: the frame a window
+            // shows scaled where the two differ (`Misc::Presentation`). Drawn into whatever the
+            // camera had bound, the world stood in the window outside the frame, under the frame.
+            if (mDestinationFBO)
+                mDestinationFBO->apply(state, osg::FrameBufferObject::READ_DRAW_FRAMEBUFFER);
+
             state.pushStateSet(resolveStateSet(false));
             state.apply();
 

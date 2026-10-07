@@ -35,14 +35,14 @@ namespace Rtx
 
         for (const PreparedPart& part : model.mParts)
         {
-            const Index material = into.adoptMaterial(part.mMaterial);
+            const MaterialResolver::Resolved material = into.adoptMaterial(part.mMaterial, model.chainOf(part));
             const Index mesh = into.adoptMesh(*part.mDrawable, model.readingOf(part));
 
             held.mParts.push_back(AdoptedPart{
                 .mMesh = mesh,
-                .mMaterial = material,
+                .mMaterial = material.mIndex,
                 .mDrawable = part.mDrawable.get(),
-                .mKey = part.mMaterial.mKey,
+                .mKey = material.mKey,
             });
         }
     }

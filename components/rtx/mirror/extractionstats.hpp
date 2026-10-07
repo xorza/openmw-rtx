@@ -28,6 +28,11 @@ namespace Rtx
         std::uint32_t mMaterialsReused = 0;
         std::uint32_t mInstances = 0;
 
+        /// Drawables a frozen reference stood without a walk, each one its walk resolved to a known
+        /// mesh and material when it froze. Apart from the reuses above, which count lookups a walk
+        /// made: a world standing still passes most of itself and looks nothing up.
+        std::uint32_t mPassedFrozen = 0;
+
         /// Of the instances, the placements found under their identity and standing another mesh,
         /// material or class than the walk resolved, so dropped and stood again: a deforming
         /// drawable whose source was replaced, a state set a controller rewrote into another

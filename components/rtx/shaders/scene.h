@@ -188,9 +188,10 @@ namespace Rtx::Shaders
     /// Edge of the blue-noise tile, in pixels.
     ///
     /// **Small enough that generating it costs a fraction of a second, large enough that the repeat
-    /// does not read as one.** The tile is turned by an irrational step every frame, so what would
-    /// be a fixed grid of sixty-four is a different arrangement each time; and the pattern inside it
-    /// has no low frequencies to begin with, which is the whole point of it.
+    /// does not read as one.** The tile is turned by an irrational step every frame, which moves
+    /// each pixel's values and not where the tile repeats: the grid of sixty-four stands in every
+    /// frame. What keeps it from reading is that the pattern inside it has no low frequencies to
+    /// begin with, which is the whole point of it.
     const uint BLUE_NOISE_EXTENT = 64;
 
     /// How many texels along each side of the fog's baked volume, how many cells of noise it holds

@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -165,6 +167,33 @@ namespace Rtx
             EXPECT_EQ(hand().mKind, SceneUpload::Kind::Extended);
             EXPECT_EQ(scene.refusals().count(Refused::Mesh), 1u);
             EXPECT_EQ(scene.refusals().count(Refused::Texture), 3u);
+        }
+
+        /// **The array's limit is reported on the hand-over that met it, whichever branch it went**:
+        /// a texture the full table refused arrives nowhere, so the hand-over after it only places,
+        /// and a placement describes nothing.
+        TEST(RtxSceneUploaderTest, theTextureArraysLimitIsReportedOnAHandOverThatOnlyPlaces)
+        {
+            Rtx::SceneDesc scene;
+            SceneUploader uploader;
+            Testing::CountingRenderer renderer;
+            const auto hand = [&] {
+                return uploader.hand(
+                    renderer, Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = scene });
+            };
+
+            Rtx::TextureTable& textures = scene.textures();
+            for (std::size_t filled = 0; textures.getLiveCount() < Rtx::TextureTable::sCapacity; ++filled)
+                ASSERT_NE(textures.add(VFS::Path::Normalized("textures/fill" + std::to_string(filled) + ".dds")),
+                    Rtx::sNoIndex);
+            Testing::addModel(scene, VFS::Path::NormalizedView("textures/fill0.dds"));
+            EXPECT_EQ(hand().mKind, SceneUpload::Kind::Rebuilt);
+            const std::uint32_t before = scene.refusals().count(Refused::Texture);
+
+            EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/over.dds")), Rtx::sNoIndex);
+            EXPECT_EQ(hand().mKind, SceneUpload::Kind::Placed);
+            EXPECT_EQ(scene.refusals().count(Refused::Texture), before + 1) << "the limit went unreported";
+            EXPECT_EQ(textures.getRefusedArrivals(), 0u) << "the hand-over kept its refusals for the next";
         }
 
         /// Two uploaders over one scene do not share a decision, which is what makes one per renderer

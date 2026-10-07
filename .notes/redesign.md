@@ -166,8 +166,8 @@ The copies have drifted apart:
    history fix in from the still-shadowed floor.
 5. **One running mean with a fast companion.** The bounce's slow mean is clamped to the
    neighbourhood of its fast means in YCoCg, per channel, by a shared library (done). The glossy and
-   pane filters' companions were declined (Phase 3 step 5), and the glossy roughness cap waits on a
-   question.
+   pane filters' companions were declined (Phase 3 step 5), and the glossy roughness cap is done
+   (`SPECULAR_RESPONSIVE_ROUGHNESS`).
 6. **Fed-back precision** (done). A history that is read back into its own blend is never stored in
    a format whose store may round toward nought (`mayRoundTowardNought`); `DenoiseHistory`'s table
    names each image's role and checks it at compile time. The shadow history is `RG32F`.
@@ -220,9 +220,7 @@ one answer:
    no figure moved there.
 6. **The draws are blue at the primary hit.** Done for the split hit's shadow rays: its sun pair,
    lamp pair and two picks come from tile streams (`STREAM_SUN_DISC`), and deeper paths keep the
-   hash, which D4's replay needs. **Left:** the bounce pair takes a vec2 or cosine STBN mask in place
-   of two scalar channels, whose per-frame turn moves the values and leaves the 64-pixel period on
-   screen.
+   hash. The bounce pair's STBN mask was tried and declined (Phase 2 step 1).
 7. **One flag answers one question**, is done: `frame.mNoSkyShadows` opens the leg under the water as
    it opens the one over it. The moons in the water column go with D7.3.
 
@@ -235,7 +233,7 @@ Decision 4's cheap fixes were made (`bd990fb38b`), and the A/B after them found 
 place: the reuse, its kernels and its reservoirs are removed, and D4.1 to D4.5 with them.
 `.notes/reuse.md` has the figures.
 
-### D5. One ray contract for every ray
+### D5. One ray contract for every ray (done)
 
 **Cause.**
 
@@ -249,7 +247,7 @@ place: the reuse, its kernels and its reservoirs are removed, and D4.1 to D4.5 w
    nought, the peel carries on `CONTINUATION_ULPS` past its layer, and a committing ray meets a
    see-through surface as often as it is there (`MEET_BY_CHANCE`).
 2. **Coverage at every level.** The mip chain preserves alpha-test coverage at the material's
-   reference (D8). The trace then needs no LOD scale in `candidateStops`.
+   reference (D8). Done, with the rasterizer's LOD scale kept in `candidateStops` (Phase 6).
 
 **What goes away.** The thin far foliage.
 
@@ -275,11 +273,7 @@ place: the reuse, its kernels and its reservoirs are removed, and D4.1 to D4.5 w
   a pixel), or the composite rebuilds it from a stored F0 and the roughness that
   `CHANNEL_SPECULAR.a` holds. Choose the cheaper one when you build it.
 
-The pane redesign also removes the wasted gather that U › "pane and glossy filters gather history
-for pixels whose answer they throw away" reports. The pane's history then holds only diffuse light,
-and the gather runs through the D2 library.
-
-### D7. Participating media: store the product, and keep one estimator per stretch
+### D7. Participating media: store the product, and keep one estimator per stretch (done)
 
 **Cause.**
 
@@ -366,7 +360,7 @@ same rule on the host and on the device (`MipChain`, `ShadingMap`):
     coarse levels.
 - The reactive and transparency masks are clamped to 0.9 at the store.
 
-### D10. Frame state changes before recording, and barriers between dependency levels
+### D10. Frame state changes before recording, and barriers between dependency levels (done)
 
 **Cause.**
 
@@ -378,29 +372,26 @@ same rule on the host and on the device (`MipChain`, `ShadingMap`):
 - `Buffer`'s fill, update and barrier do not name the buffer for the next submit.
 - An optional extension is enabled even where its feature was declined.
 
-**Contract.** Points 1, 2, 4 and 5 are done: the indirect light is set before a frame's recording
-opens and `CommandPool` asserts no submit beside an open one; a discard's first scope is every
-stage; every buffer hand-out names the buffer; and a device option is taken whole, its needs met to a
-fixed point (`dropUnmetNeeds`), with quad subgroups and Vulkan 1.4's push constants required. What is
-left:
-
-- **A pass returns its writes, and the chain places the barrier.** The shadow, glossy and pane
-  passes hand their images back untransitioned. `DenoisePasses::record` puts one `Barriers` batch
-  after the three. The display chain does the same for its independent passes (D9). Phase 8.
+**Contract.** Done: the indirect light is set before a frame's recording opens and `CommandPool`
+asserts no submit beside an open one; a discard's first scope is every stage; every buffer hand-out
+names the buffer; a device option is taken whole, its needs met to a fixed point
+(`dropUnmetNeeds`), with quad subgroups and Vulkan 1.4's push constants required; and the shadow,
+glossy and pane passes hand their images back as they wrote them, ordered by one batch in
+`DenoisePasses::record` with the wavelet's inputs. The display chain's overlap was declined (Phase 7).
 ### What holds each contract
 
 Each check lands with its contract, and each is one the gate runs.
 
 | | The check |
 |---|---|
-| D2 | `RtxSourceTreeTest`: `historyShare` and `historyTap` appear in `surfacematch.glsl` alone. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean. |
+| D2 | `RtxSourceTreeTest.everyHistoryIsWeighedByTheOneGather` (done): no kernel calls `historyShare`, the gather's weight, outside `surfacematch.glsl`; a kernel still reads its payload by `historyTap`. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean (done, the pane filter's). |
 | D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model (done); the split sky is every source's sum, and a source under a floor draws no bit (done); a lamp that takes light away takes it off the exact sum where one lamp is drawn (done). |
-| D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall; a pane of opacity one half is met by half the secondary rays, in the mean. |
-| D6 | A host test: the composite's remodulation inverts the trace's demodulation for every channel. |
-| D7 | Host tests: the froxel's blend of `σ·L` and `σ` equals the mean of `σ·L`; `waterColumn`'s closed form equals a numerical integral at several directions. |
-| D8 | The host/device tests that exist, plus: an odd extent's halving reads every texel of the level above, and preserves its sum. |
-| D9 | A host test: adaptation closes a gap at the same rate in stops either way, after the asymmetry the constants state. |
-| D10 | `CommandPool`'s open recordings, asserted at each submit (done). Synchronization validation clean on one `shot` run. |
+| D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall (done, `theFloorAtAWallsFootIsShadowedByTheWallNoMatterHowNear`); a pane of opacity one half is met by half the secondary rays, in the mean (done, `aBounceMeetsASeeThroughPaneAsOftenAsThePaneIsThere`). |
+| D6 | A GPU test: one frame through the filters is the frame the trace composed itself, on a grey floor and a metal one (done, `theCompositePutsBackWhatTheTraceDividedOut`). |
+| D7 | Host tests: the froxel's blend of `σ·L` and `σ` equals the mean of `σ·L`, and a stretch integrates it at the midpoint rule's order (done, `aStretchIntegratesTheProductItsFroxelsHold`); `waterColumn`'s closed form equals a numerical integral at several directions (done, `theWatersColumnGathersItsClosedForm`). |
+| D8 | The host/device tests that exist, plus: an odd extent's halving reads every texel of the level above, and preserves its sum (done, `anOddExtentIsHalvedByTheBoxOfItsOwnWidth`). |
+| D9 | A GPU test: adaptation closes a gap at the same rate in stops either way, after the asymmetry the constants state (done, `theMeterLeavesOutTheBrightestTenthAndAdaptsInStops`). |
+| D10 | `CommandPool`'s open recordings, asserted at each submit (done). Synchronization validation clean on one `shot` run (done: every place and its map under `--validation=sync`, which a validation error aborts). |
 
 ## 5. Implementation plan
 
@@ -448,12 +439,14 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
 1. **The gather library is done** (`RTX_HISTORY_SHARES`): one rule for the four filters' taps, and the
-   shadow's "no history" test with it. **Owed:** a GPU test of the shadow's "no history" test — a tile with shadowed receivers, lit
-   receivers and non-receivers on one plane, under a soft penumbra and a jittered history.
+   shadow's "no history" test with it, held by `aShadowsHistoryTakesNothingFromAPixelThatReceivesNothing`:
+   lit receivers, receivers in a soft penumbra and non-receivers on one plane, under an eye that moves
+   half a pixel a frame. Unjittered, because a jittered pixel at the seam lands on either side of it.
 2. **The registration rule is done**: means are fetched at `at + 0.5 + motion`, the held surface's plane
    test rebuilds through the previous jitter, and the reuse keeps its tap at the surface's own point.
-   **Owed:** the GPU test of a still, jittered edge accumulating to its unjittered-centre mean, which
-   needs an edge in the accumulator's own history, isolated from the wavelet.
+   Its GPU test is the pane filter's, which no spatial pass follows
+   (`aJitteredStillsPaneHistoryIsRegisteredAtThePixelsCentre`): a shadow's edge on a pane, jittered,
+   filters to the mean of its frames; a fetch 0.3 of a pixel off doubled the raw frame's error.
 5. **The YCoCg clamp is done** (`lib/historyclamp.glsl`, the accumulator's). **The fast companion for
    the glossy and pane filters was tried and declined**: a 2-frame fast mean beside each, held by the
    accumulator's clamp in one kernel, took the still eye's filtered means off the mean of their frames
@@ -475,9 +468,8 @@ In the order of D7's points. Each step is a `shot --against` at the fog and wate
 fog's zones in `bench`. **Point 1 is done**: the froxel stores the density as a share of the
 weather's extinction, the light and the sun's transport times it, and `fogThrough` integrates them
 by `mediumKept`. The pictures before it are in `~/.cache/omw-redesign/shots-before-d7`. **Point 2 is
-done** (`slantCoverage`). **Owed:** a GPU test of a point at a bank's edge, lit as the clear air its
-slant leaves through, which needs a way for a test to state a coverage field: the field is
-procedural, and a test can only make it even, where the slant's coverage and the point's agree.
+done** (`slantCoverage`), held by `aPointUnderABanksTopIsLitThroughTheClearAirItsSlantCrosses`, which
+states the field through `VulkanRenderer::setFogField`.
 **Point 3 is done**, with one change to the contract: the interface factor is computed in the shader
 from the source's direction (`waterCrossingOf`), not on the host. A stored factor is a second
 statement of the direction, and a writer that sets only the direction leaves it stale.
@@ -559,10 +551,9 @@ on every geometry, against the bit everywhere, at the dawn deck over eight runs 
 7.53 against 7.56 ms and the trace zone 3.48 against 3.49, within the runs' own spread; the mages'
 guild 5.34–5.37 on both sides (`~/.cache/omw-redesign/ab-nodup`). The bit costs this card nothing it
 measures, so the split by material and its rebuild are not built.
-**Not measurable yet: the arms' `tmax`.** No bench place draws the arms (a probe of
-`mArmsInFrame` read nought at the deck and at the guild: the harness's body readies nothing), so the
-arms' ray is never traced in a measured run and no A/B can keep the change. It waits for a place
-that stands the player with a weapon drawn; the finding is in section 6.5.
+**Measured and declined: the arms' `tmax`.** A bound at 512 units, past the arms and the blade,
+moved the trace by nothing at `seyda-neen-ship-armed`: 2.82 ms at the median either way, three
+alternated rounds (`visibility.rgen` says so).
 **Declined by its bound: the everywhere-presence word.** The atomic ORs it would save are a part of
 the sprite bin's whole zone, 0.03 ms at the dawn deck, under a bench median's noise.
 
@@ -585,14 +576,7 @@ over the eye and the layer draw the same pictures at every place, and are slower
 median 3.68 → 3.82 ms at the dawn deck and 1.75 → 1.77 at the guild over six runs a side
 (`~/.cache/omw-redesign/ab-site`).
 
-**Stopped here on the user's word** (2026-10-06): Phase 8 is done; Phase 9 and section 6 are not
-started.
-
-- **Uniform frame times.**
-- **Unused work.**
-
-Each one is a `release bench` A/B, and is kept only if its median or p99 improves. A per-lane
-branch is kept only with its measurement written beside it.
+**Done** on the user's word (2026-10-06).
 
 ### Phase 9. The rest of the tree
 
@@ -607,376 +591,48 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.1 Pictures that are quietly wrong (fork code, no approval needed)
 
-- **[bug] A material is keyed on the nearest state set but read from the whole chain.**
-  `MaterialResolver::resolve` and `read` (`materialresolver.cpp`, `MaterialReading{ .mKey =
-  shading.back().mStateSet }`) key on the last link, while `describeSurface` folds every link
-  (textures, two-sidedness, `OVERRIDE` locks). NifOsg puts an `NiNode`'s own texturing and stencil
-  properties on that node's state set, and `SharedStateManager` (`SHARE_ALL`) makes equal state sets
-  one object across files. Two shapes with equal own state sets under parents that name different
-  textures or sidedness resolve to one material, and the first one met decides; the ring adopts
-  under the same key. Target: key on the chain's identity, folded while the chain is built
-  (`Shading::under`, as `mAnimatedThrough` is) from the links that state something, by one function
-  both `resolve` and `read` call. The highest priority in this list.
-- **[bug, conditional] An animated copy is keyed on a drawable that clones share.**
-  `MaterialResolver::animate` keys `mAnimated` on the node handed in (`mAnimated.reach(&node)`);
-  for a drawable with its own state set under an animated chain that is the drawable, which
-  `SceneUtil::CopyOp` shares between clones. Two enchantments on one base model then show the glow
-  of whichever was walked last, and the row is written twice a frame. Target: key on the placement
-  (the drawable with the path identity), never on the shared drawable.
-- **[bug] A reused `ESM::Cell` carries the last cell's groundcover into the next.**
-  `TracedGroundcover::collect` refills one `mCell` with `GroundcoverStore::initCell`, whose
-  `Cell::blank()` leaves `mContextList` alone; a grass-free cell read after a grassy one stands a
-  second copy of its plants. Target: clear `mContextList` before `initCell` (or in it).
-- **[bug] The night sky reader skips what its sibling readers apply.** `LayerReader`
-  (`nightsky.cpp`) takes each vertex's direction raw, where `readCloudShell` and `readAtmosphere`
-  place theirs through `computeLocalToWorld`; a transform on a star dome is ignored, and `imageOf`
-  finds no texture bound above the drawable's first parent. Target: one `placedVertices(geometry,
-  nodePath)` for the three readers, and the state sets folded down the path for the sheet.
-- **[bug] The constellations are drawn turned and squashed.** `skybuilder.cpp` redraws each patch
+- **[bug] The constellations are drawn turned and squashed** (waits on `redesign_QUESTIONS.md` question 4). `skybuilder.cpp` redraws each patch
   as a disc with an invented orientation and a radius only (`NightSky::Patch`: a direction and an
   angular radius). Target: fit each patch's UV axes against its directions at read time, as
   `fitSheet` does for the cloud cap, and store them in `Patch`.
-- **[bug, conditional] The twin fold ignores the attributes it throws away.** `shapefold.cpp`
+- **[bug, conditional] The twin fold ignores the attributes it throws away** (waits on `redesign_QUESTIONS.md` question 5). `shapefold.cpp`
   drops a reversed twin when its positions match; `ShapePass::Input` carries no coordinates or
   colours, so a back face with its own mapping or baked colour shows the front's. `dropPockets` has
   the same blind spot. Target: a twin only where the reversed corners also carry equal coordinates
   and colours, and a mesh flagged so a ray takes the face its winding faces. Count the differing
   pairs over the vanilla archives first.
-- **[bug] `TracedTerrain` answers for a worldspace that is no longer current.** It does not
-  override `Terrain::World::enable`, so after `RenderingManager::enableTerrain` swaps worldspaces
-  its two answers (`mAnswer`, `mStaticsAnswer`) keep answering CPU rays with the old storage's
-  heights. Target: `enable(bool)` masks the answers and `mBorders`.
-- **[bug] The overlay drops a pending paint the local map let go of.** `TracedOverlay::finish`
-  erases a pending paint whose tile `use_count() == 1`; a cell crossed quickly after a load stays
-  black on the world map for the session. Target: the pending paint keeps its view until the copy
-  lands, and an explicit stop where the map lets go.
 
 ### 6.2 Upstream files (decision 5: approved)
 
-- **[bug] The rasterizer's no-technique resolve draws into the bound framebuffer.**
-  `PingPongCanvas` (the `filtered.empty() || !mPostprocessing` branch) applies the viewport but
-  never `bindDestinationFbo()`; with a frame unlike the window, the world is drawn outside `mFrame`.
-  Target: every path ends in the one destination. Confirm under GL first.
-- **[bug] Gamma under multiview reads no texture.** Only `mMultiviewResolveStateSet` gets the
-  resolve texture; `mMultiviewGammaStateSet` samples whatever unit 0 held. Target: one state set
-  per resolve, swapping only the program.
-- **[bug] The launcher cannot save Native.** `GraphicsPage::saveSettings` sends index 0 to the
-  custom branch, which writes the spin boxes' 800 × 600. Target: three explicit cases, and a load →
-  save → load test on a Native file.
-- **[bug] The migration undoes the fork's own frame resolution.** `migrateUserSettings` treats any
-  file with `resolution x` and no `window width` as upstream's; the fork writes `window width`
-  only from windowed mode. Target: a marker only the fork writes, and a test that a fork file is
-  left alone.
-- **[bug] SDL3 port regressions.** `SdlCursorManager::_setGUICursor` lost upstream's fallback to
-  `arrow`; `centerWindow` reads the size before SDL3's asynchronous resize lands (use
-  `SDL_WINDOWPOS_CENTERED_DISPLAY` or `SDL_SyncWindow`); `displayResolutions` truncates
-  `mode.w * pixel_density` where SDL rounds (one pixel short on a fractional output). Decided:
-  the controller's positional buttons stay, recorded in AGENTS.md's SDL3 entry, and a Lua cursor
-  is scaled by `shownScale()` alone (`WindowManager::createLuaCursor` uses `mCursorScale`).
-- **[code] `rtxsupport.cpp` gives physics' `async num threads` a false reason** (`sDrawThreads`,
-  "the rasterizer's draw threads"). Target: honoured, with no reason, and `sDrawThreads` goes.
-- **[code] `settings-default.cfg`'s `[RTX] enabled` names `-DOPENMW_RTX=ON`**, which no CMake
-  file defines. Target: drop the clause.
-- **[code] Typed RTX settings.** `upscale` and `specular map layout` are `SettingValue<std::string>`
-  parsed by each reader. Target: typed settings parsed at load with a sanitizer, as `WindowMode`
-  is; the names stay the one spelling list.
-- **[perf] Rasterizer local-map tiles keep their render targets.** `GlTileView` holds the RTT
-  camera, FBO and `D24S8` buffer for every mapped segment; upstream freed them once drawn. Target:
-  drop the attachments after the draw, and make them again on `redraw`.
+**Declined (2026-10-07): freeing the rasterizer's local-map render targets.** `GlTileView` keeps the
+RTT camera, FBO and `D24S8` buffer of every mapped segment, where upstream freed them once drawn: no
+device here measures the GL path's memory, and the change would be checked only by a played session.
 
 ### 6.3 Crash reports, CI and the release
 
-- **[bug] Windows fail-fast crashes get no report**: `/GS`, heap corruption and `__fastfail` skip
-  the in-process filter, and nothing ships or registers `crashpad_wer.dll`. Target: build, install
-  and `RegisterWerModule` it, and have the monitor log the exit code when no dump came.
-- **[bug] The macOS hang report allocates in a signal handler** on a thread the kernel picks
-  (`onHangSignal` → `CRASHPAD_SIMULATE_CRASH`). Target: the handler only signals (a semaphore or a
-  pipe), and a reporter thread calls `reportHang()`, as Windows does.
-- **[bug, check on the AppImage] The monitor runs from the AppImage's mount after the game is
-  gone.** Packaging and the dialog run after exit, when the mount may be gone. Target: verify by
-  crashing the AppImage with `OPENMW_CRASH_DIALOG=1`; if confirmed, keep the mount for the
-  monitor's lifetime.
-- **[design] Session packages accumulate without bound** (`crashpackage.cpp`): every session with
-  a dump writes a zip nothing deletes. Target: write only for a session the player is told about,
-  or prune by count.
-- **[bug] `shellWord` is not one word under `cmd`** (`processwin32.cpp`): `%NAME%` expands inside
-  quotes. Target: escape or refuse, or spawn the encoder (`film.cpp`) with an argument vector.
-- **[code] Test-only code in the library**: `Platform::Memory::allocateAligned`/`freeAligned` and
-  `Process::disableCoreDump` serve only the tests, and `allocateAligned`'s rounding wraps near
-  `SIZE_MAX`. Target: move them to the test support, or check the size.
-- **[code] The macOS leg takes Homebrew's shaderc and SPIR-V tools of the day**
-  (`CI/before_install.macos.sh`), not the pinned SDK's, and spells the headers' path twice. Target:
-  the pinned tools, and one variable.
-- **[bug] The release names files after `github.ref_name`** (`rtx-release.yml`), which a hand-run
-  branch with `/` makes refused by `upload-artifact` at the end of the build. Target: sanitise it
-  once into an environment variable both steps read.
-
-### 6.4 Measurements that can mislead
-
-- **[design] `omw release gate` ends `clean` with no test run** (`gate.py`: "has none" and on).
-  Target: refuse `gate` on a flavour with no tests.
-- **[code] The gate runs `spellings.check()` and `testing.timing()`**, which AGENTS.md and USAGE do
-  not name. Target: one statement of the order.
-- **[code] `FrameHashes::read` accepts a partial number** (`from_chars` on `ec` alone). Target:
-  require the whole field (`wholeNumber` with a base).
-- **[code] `repeat` refuses only the walk switches** (`WALK_SWITCHES`); every other switch it sets
-  fails as a Boost `multiple_occurrences`. Target: refuse each switch `repeat` sets, from one list.
-- **[code] `noise`'s leg log for a decimal distance** loses it (`folder.with_suffix(".log")` on
-  `walk1.5`). Target: `folder.parent / (folder.name + ".log")`.
-- **[design, conditional] A frozen walk no longer counts what `WalkTwice` asserts**: a frozen root
-  adds only `mInstances`, so `mMeshesReused` can read nought on a second walk where nothing is wrong.
-  Target: a frozen run adds back its counts, or the stats name a passed-frozen count.
-- **[code] `commandCheck`'s "two measured frames"** claim (`main.cpp`) names a claim no check makes.
-  Target: hash `check`'s still stops, or drop the frames and the comment.
-- **[code] `sHistoryFrames`'s derivation** (`run.hpp`) is a 16-frame accumulator's. Target: state
-  it from `ACCUMULATE_FRAMES`.
-
+- **[check, on Windows] The WER module takes a fail-fast crash's dump.** The game lists
+  `openmw-wer.dll` under the player's `RuntimeExceptionHelperModules` and registers it
+  (`Client::catchPastTheProcess`), and the crash matrix's `fast-fail` mode expects its dump. On a
+  Windows machine, with the packaged game: a fail-fast leaves a dump and a package in the crash
+  folder, and the registry value names the DLL beside the executable. No machine here runs Windows:
+  the steps for an agent on one are in `.notes/windows-wer-check.md`.
 ### 6.5 Performance (each one measured before it stays)
 
-- **[perf] `noise` warms an unfiltered held-exposure stop for 128 frames** (`main.cpp`, `picture`),
-  sized for a history it has not; the air needs about 39. Target: a warm-up derived from the air's
-  decay, about 30% off a run; confirm the bar and limit pictures do not move.
-- **[perf] `noise --ab` retraces an identical reference** (`ownBar` only): `--ab=jitter`, `noise`
-  and `level-epsilon` leave the reference unchanged. Target: `ownReference` beside `ownBar`.
-- **[perf] Picture uploads go through `osg::Image::getColor`** (`slottexture.cpp`), one virtual
-  call a pixel, the global map's tens of megapixels with Tamriel Rebuilt. Target: byte loops for the
-  formats the game gives, as `Texture::widen` does.
-- **[perf] The pane and glossy filters gather history for pixels they discard** (`pane.comp`
-  without `stands`, `specular.comp` without `reflects`). Target: gate the gather on the kept
-  result, and measure the zones.
-- **[perf] A level of detail keeps its reference root changeable** (`NodeKind::Lod` in the
-  changeable test, `sceneextractor.cpp`), though the mirror always takes the nearest level. Target:
-  take `Lod` out.
-- **[perf] The arms' ray runs to `mFar`** with `MASK_FIRST_PERSON` (`visibility.rgen`), a full
-  traversal on a miss. Target: `tmax` at the farthest first-person bound. Not measurable until a
-  bench place stands the player with a weapon drawn (Phase 8).
-- **[perf] The shadow filter rebuilds every position at every level** (`shadowfilter.comp`,
-  `readSquare`). Target: positions and normals once a frame.
-- **[perf] FSR runs in full floats with the driver's wave size** (`fsrcallbacks.glsl`, `FFX_HALF 0`).
-  Target: request 64-lane subgroups where the device allows; FP16 needs the pinner's 16-bit ops.
-- **[perf] `considerLamp` takes `from` and `lampsInAir` computes a `place`** that both callers
-  overwrite. Target: drop the parameter and the computation.
-- **[perf] `lampPenumbra` reloads the lamp row and its distance** that `lampPassage` just read.
-  Target: `Passage` carries the source's `radius / distance`.
-- **[perf] The wavelet's first level pays the prefilter on fixed pixels** (`atrous.comp`: `noise =
-  ATROUS_WIDE ? varianceAround(at) : centre.a`), against its comment. Target: `&& !fixing`, or drop
-  the claim.
+- **[perf] FSR runs with the driver's wave size** (`fsrcallbacks.glsl`). Target: request 64-lane
+  subgroups where the device allows. **Waits for an RDNA 2 or later card** (decided 2026-10-07):
+  the default suite with and without `VkPipelineShaderStageRequiredSubgroupSizeCreateInfo` at 64 on
+  the upscaler's pipelines. This card runs 32 lanes only, and the drm-shim device runs nothing.
 
 ### 6.6 Light that is not the estimate it claims
 
-- **[bug] A translucent surface's shadow sums are one ray's** (`gather`: the unshadowed sums times
-  the drawn source's `mThrough`), against `gbuffer.h`'s "`rgb` is exact per pixel". Target: filter
-  `mThrough` with the bit (SIGMA's translucency), or drop "exact".
-- **[bug] A streak's footprint along its axis** (`sprites.glsl`, `rate = 0.5 * max(…, texels.y *
-  inverseAxis) / sprite.mRadius`) ignores `1 / sin θ`; rain from above shimmers. Target:
-  `texels.y * inverseAxis / max(swing * inverseAxis, ε)`.
-- **[bug] The star field's seam**: `mTile = 1 / mUvRate` (`nightsky.cpp`), so `u` jumps at azimuth
-  ±π unless `2π / mTile` is whole. Target: round it, or confirm the unwrap.
 - **[decision] The glossy filter has no virtual-motion history** (`specular.comp`): a sharp lobe
-  resets at each turn. ReLAX's needs the lobe's hit distance stored. Decide whether that is worth a
-  channel.
-
-### 6.7 Design, duplication and dead code
-
-- **[design] The scene graph's state reading lives in `scene/`** (`surface.hpp`:
-  `describeStateSet`, `SurfaceLocks`, `TextureRole`); every caller is in `mirror/`. Target: keep
-  the vocabulary in `scene/`, move the reader next to `shading.hpp`.
-- **[design] A placement's liveness has two sources** (`MeshInstance::isPlaced` and `SlotRows`'
-  free list, kept in step by `drop`), and the table carries hold counts it never takes. Target: one
-  source.
-- **[code] `getArrived` means slots on three tables and runs on `MaterialTable`.** Target: one
-  meaning.
-- **[code] The sky readers take textures two ways** (moons `add` then `holdTexture`, the rest
-  `checkUploadable` then `takeTexture`), in two argument orders. Target: one helper.
-- **[code] Which texel fact a blended surface needs is stated twice** (`MaterialResolver::read` by
-  `additiveSurface`, `describe` by `isBlended`), held together by a debug assert over an
-  `optional` a release build would dereference. Target: one function.
-- **[code] The content cache's key machinery is dead** (`sHolds = false`) while its docs and the
-  reports say otherwise. Target: say so and drop the zero columns, or remove it until the store.
-- **[code] A walk that throws leaves `mRecording` set** (`WalkGuard` resets the rest). Target:
-  `WalkGuard` clears it.
-- **[code] A lifetime refusal count is reported as this frame's** (`scenetextures.cpp`,
-  `getRefused`), which builds a string on every arrival after the first overflow. Target: a count
-  since the last hand-over.
-- **[code] `sunSource` and `moonSource` spell one rule twice** (`visibility.h`, `sky.h`); `sky.h`
-  names `std::sin` without `<cmath>`. Target: one `skySource`.
-- **[code] `spirvfile.cpp` defines its own SPIR-V magic** beside `spv::MagicNumber`. Target: use it.
-- **[code] The 3×3 tent is written three times** (`atrous.comp`, `shadowfilter.comp`'s
-  `filteredVariance`, `fogTentWeight`). Target: one `tentWeight`.
-- **[code] `skyVisible`'s two overloads take their arguments in two orders** (`lights.glsl`).
-  Target: one overload.
-- **[code] `lightThrough` has no caller** (`traversal.glsl`) and comments still name it. Target:
-  remove it and point them at `lightPassage`.
-- **[code] FSR's dead Lanczos table and `FFX_PREFER_WAVE64`** (`fsrcallbacks.glsl`). Target:
-  remove both.
-- **[code] `Use::sAnyGeneralWrite` and `ValidationLog::clear` have no reader.** Target: remove.
-- **[code] Each descriptor's type and count are written twice**, in the C++ layout and in GLSL.
-  Target: `openmw-rtx-spirv` writes each module's binding table, and a test holds the layouts to it.
-- **[design] The sprites' order-free composite lets the farther, denser layer win** (alpha-only
-  weights). Target: a k = 2–4 register buffer by depth with the tail merged (MLAB), or at least a
-  depth weight. The largest item here: its own measured step.
-- **[code] The stress loop assumes the shader clock ticks at `timestampPeriod`**
-  (`stresspass.cpp`). Target: calibrate once, or assert the ratio.
-- **[code] The shadow passes branch per lane with no measurement** (`shadowtiles.comp`'s `if
-  (receiver)`, the filter's no-normal tests). Target: selects, or the measurement named.
-
-### 6.8 Narration and documents
-
-- **[code] Comments that contradict the code**: `fogscatter.rgen` (`lampVisible` "returns one for
-  an empty reservoir"; `skyVisible` "reads the cloud deck") and `underwater.glsl` (the same deck);
-  `scene.h` (`BLUE_NOISE_EXTENT`: the turn moves values, not positions, so the period stays);
-  `sea.glsl` (the caustics fade "as the inverse square root", where `WATER_CAUSTIC_FADE` is 1);
-  `specularpass.hpp` ("runs where the wavelet does"; it runs where the frame is denoised and
-  mapped); `surface.hpp`/`surface.cpp` ("three vertex modes"; four map); `texturedata.hpp` (points
-  at `describeImage`; the reason is `readFormat`); `scenedesc.hpp` ("appends and dedups, and nothing
-  else"); `sceneacceleration.hpp` ("Two totals" over one member); `wavepass.hpp` and
-  `vulkanrenderer.hpp` (`setSea` "waits the frames out"; it waits for nothing, and only the tests
-  call it); `vulkanrenderer.hpp` (`mPresenter`'s order cites `VUID-vkDestroyImage-image-01000`,
-  which is about submitted commands).
-- **[code] `architecture.md`**: "four corrections" (five, and the seam's is the sixth); the
-  folder table lists `shaders/` last (first, as `RtxSourceTreeTest` has it); the companion maps
-  omit the normal encoding; the harness verbs omit `noise`; §11 omits the one-shot parallel builds
-  at construction.
-
-### 6.9 Conventions
-
-- **[code] `runs.hpp` used as the index header** (`slots.hpp`, `scenedesc.hpp`, `texturetable.hpp`,
-  `skybuilder.hpp` and more). Target: `index.hpp`.
-- **[code] Relative includes across folders** in `mwrender/rtx/` and the fork's `mwrender/` files,
-  and quoted `"instruments/…"`/`"model/…"` includes in the harness. Target: spelled from the root.
-- **[code] `RtxRenderer::poseForIntersection` and `groundReadsGates` lack `noexcept`**, against the
-  class's own contract.
-- **[code] `threadcounterswin32.cpp` repeats the POSIX file's macOS branch.** Target: one
-  `threadcountersnone.cpp` that CMake chooses, and a Linux-only file.
-- **[code] Include blocks in the crash catcher and the platform**: `crashpadmonitor.cpp`'s first
-  block, `crashunsupported.cpp`'s order, `libraryposix.cpp`'s `<cstdint>` first, and
-  `librarywin32.cpp`'s `<windows.h>` where the folder uses `components/misc/windows.hpp`.
-
-### 6.10 Fork hunks the Accepted diff does not cover
-
-Each is a decision: an Accepted-diff entry with its reason, or the hunk reverted.
-
-- MSVC's `4244` and `4267` turned off for the whole tree (`CMakeLists.txt`), upstream's code
-  included.
-- The build floor and toolchain: CMake 3.31 (for comments in `CMakePresets.json`), Boost 1.83,
-  `CMAKE_CXX_SCAN_FOR_MODULES OFF`, the ccache fallback, `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT`, and
-  the `$<COMPILE_LANGUAGE:C,CXX>` wrapping for Crashpad's MASM.
-- `install_fork_licenses` and `files/licenses/*`.
-- The fork's workflows in place of upstream's four, and the root tooling (`CMakePresets.json`,
-  `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes`, `.gitignore`).
+  resets at each turn. ReLAX's needs the lobe's hit distance stored. **Waits for replacer content**
+  (decided 2026-10-07): a PBR replacer with specular maps installed and a view of it in
+  `views.cfg`, then the second history built and measured there with `noise --strafe`. This
+  machine has only the vanilla `Data Files`, on which no lobe stands.
 
 ## 7. Where the findings went
 
 The two reviews' groups went to the contracts (D2 to D10, cited by their old labels, **S§n** and
 **U › heading**) or to section 6. A closed item is deleted from section 6, and a group with none
 left goes with it.
-
-## 8. Two items from play (2026-10-07)
-
-### 8.1 The camera that spins
-
-**Found.** In the game, the camera sometimes turns fast by itself, as if the mouse moved. The mouse
-is sound. Nothing reproduces it on demand, so the cause is not known yet.
-
-**What the code says.** A camera turn comes from three places, and each one is a candidate:
-
-1. **A mouse motion event.** `MouseManager::mouseMoved` turns the player by `xrel` and `yrel` times
-   the sensitivity, with no time scale, so a spin needs motion events that carry large deltas. The
-   path is upstream's, ported to SDL3 (`37778677fe`): the deltas are scaled by the window's pixel
-   density (1.5 on this desktop) where SDL2 scaled them by a whole number (1 here), which changes the
-   sensitivity and not the spin. What SDL3 changed underneath it is the likely place:
-   - On Wayland, SDL3 turns a warp of a hidden cursor into its own relative mode
-     (`SDL_HINT_VIDEO_WAYLAND_EMULATE_MOUSE_WARP`, on by default). The game warps the cursor each time
-     it leaves mouse-look (`MouseManager::warpMouse`, from `setCursorPosition` and from the switch to
-     a menu), and `InputWrapper::_wrapMousePointer` warps it in its fallback. SDL's relative state and
-     the game's (`mMouseRelative`) can then disagree.
-   - `InputWrapper::_handleWarpMotion` waits for a motion event at the warp's point to eat it. A warp
-     that Wayland never delivers leaves `mWarpCompensate` set until a later event happens to land on
-     that point.
-   - `updateMouseSettings` flushes the queued motion when relative mode turns on or off, but a motion
-     the compositor sends after the flush, for the jump of the pointer, is taken as a real move.
-     `mFirstMouseMove` zeroes only the first event of the session.
-2. **A look axis.** `MouseManager::update` turns the player every frame by the look actions' value
-   (`A_LookLeftRight`, `A_LookUpDown`) times the frame time. A gamepad axis that stays off its centre
-   turns the camera steadily, which a spin looks like. Steam Input's virtual gamepad is one such
-   device. The SDL3 port of `ControllerManager` renames calls and changes no logic.
-3. **The gyroscope** (`SensorManager`), only where `[Input] enable gyroscope` is on.
-
-**Plan.** Measure before any fix, in a played session where it happens:
-
-1. A log line for each motion event whose delta passes a threshold: `xrel`, `yrel`, the pointer's
-   position, SDL's relative mode (`SDL_GetWindowRelativeMouseMode`), the game's own
-   (`mMouseRelative`, `mWantRelative`), `mWarpCompensate`, focus and the time since the last warp.
-   Beside it, a line for each frame that turns the camera by a look axis or the gyroscope.
-2. Reproduce with the line on. Each candidate leaves its own record: a large `xrel` next to a warp
-   or a mode switch, a look axis off its centre, or a gyroscope event.
-3. Then the fix, at the layer the record names. For candidate 1 that is the SDL3 port, which
-   AGENTS.md's Accepted diff covers; a change to it is a bug fix that needs approval. Two cheap
-   checks for candidate 1 come first: the same session under `SDL_VIDEODRIVER=x11`, and one with
-   `SDL_VIDEO_WAYLAND_EMULATE_MOUSE_WARP=0`.
-
-**Decided (2026-10-07): the line, temporary, at `Debug::Warning`**, removed with the fix (a
-`TODO` at each site). **Done**: every line starts with `Mouse diagnostic:`. The input wrapper logs
-each warp, each change of relative mode, each change of focus or of the pointer's presence, and each
-motion event past a quarter of the window's narrower side, with SDL's and the game's relative mode,
-the grab, the warp in wait and the time since the last warp and mode change. The mouse manager logs
-when a look axis starts and stops turning the camera, and the gyroscope manager the same for the
-gyroscope. A warp and a mode change are rare: they come with a menu, a focus change and a load.
-
-### 8.2 Indirect light always traced
-
-**Decided (2026-10-07).** The bounce is always traced, in one path: no setting, no harness switch
-and no test turns it off, and no code asks whether it is on.
-
-**What goes away (the player's side):**
-
-- `[RTX] indirect light`: its line and its comment in `files/settings-default.cfg`, and
-  `Settings::rtx().mIndirectLight` (`components/settings/categories/rtx.hpp`).
-- The settings window's list (`SettingsWindow::mRayTracingIndirectLight`, its handler, its labels,
-  its row in the support table) and its widget in `openmw_settings_window.layout`.
-- The launcher's list (`graphicspage.cpp`, `ui/graphicspage.ui`).
-- The labels in `files/data/l10n/OMWEngine/*.yaml` (six languages) and `files/lang/launcher_*.ts`
-  (seven).
-- `RtxSettingValues::mIndirectLight` and `RtxSettings::mIndirect` (`apps/openmw/mwrender/rtx/`),
-  with their test (`apps/openmw_tests/mwrender/rtxsettings.cpp`).
-- The live change: `Renderer::setIndirectLight`, `VulkanRenderer::setIndirectLight`, the counting
-  renderer's override in the tests, and the call in `RtxRenderer::applyChangedSettings`.
-- `sIndirectLightMenu`, which only the two menus read.
-- The setting's entries in the renderers' declarations (`rtxsupport.cpp`, `glsupport.cpp`).
-- The docs: `architecture.md`'s bullet on the indirect light, which names the setting and the menu.
-
-A player's `settings.cfg` that still says `indirect light = off` is harmless: the parser keeps a key
-that no category declares and nothing reads it. No migration.
-
-**What goes away below the setting (decided 2026-10-07: the off path whole):**
-
-- `Rtx::IndirectLight`, `sIndirectLightNames` and `sIndirectLightMenu`
-  (`components/rtx/frame/reconstruction.hpp`).
-- `ReconstructionRequest::mIndirect` and `Reconstruction::mIndirect`. `Reconstruction::filtersBounce`
-  becomes `mDenoised` alone, and `Reconstruction::forPicture` takes no argument.
-- `VisibilityConstants::mBounceTraced` and the sampling that fills it (`framesampling.cpp`), and in
-  the shaders `bounceTraced` (`lib/frame.glsl`) with every branch on it: `surfaceAmbient`'s and the
-  lobe's chance of one in `lib/shading.glsl`.
-- The chain's switch: `TraceChain::setIndirect` and `mIndirect`, `PictureTracer::setIndirect`, the
-  per-frame `mFrame.setIndirect` in `VulkanRenderer::record`, and the indirect light the chains and
-  the picture tracer are made with. `DenoiseHistory::resize` keeps the bounce's histories always,
-  and `DenoisePasses`' surface-only mode goes (the accumulator always keeps its mean; the wavelet
-  always runs where the frame is denoised).
-- The harness's `--indirect`, its line in the record's header and its field in the JSON
-  (`benchrecord.cpp`), and the tests of the option and of the header.
-- In the tests, every `.mIndirect = IndirectLight::Off` (27 GPU tests; `shadow.cpp` has ten). Each
-  is written again against a traced bounce: a scene the bounce cannot reach where the test reads a
-  lamp's exact light — a receiver with nothing around it to bounce from, or a black surround — or a
-  tolerance that its noise is held under, stated with the arithmetic that sets it.
-- The docs: `architecture.md`'s bullet on the indirect light, and the denoiser's "where the frame
-  takes no indirect light".
-
-**What stays.** Whether the frame is denoised at all (`Reconstruction::mDenoised`): an undenoised
-frame is the harness's and the tests' unfiltered sum, a branch of its own and not this one.
-
-**Order.** The tests first, each against a traced bounce while the switch still exists, so each one
-is proven before the path it used goes; then the engine's off path; then the player's side. Each
-step builds and runs its covering tests; the last ends with the gate.
-
-**Check.** The gate, and a `shot --views=all --map --upscale=off --against` a baseline taken
-before, which must move no picture: every `shot` traces the bounce already.

@@ -7,10 +7,15 @@
 #include <osg/Vec3f>
 
 #include <components/misc/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/sky.h>
 #include <components/vfs/pathutil.hpp>
+
+namespace osg
+{
+    class Node;
+}
 
 namespace Resource
 {
@@ -43,7 +48,8 @@ namespace Rtx
 
         /// How much sky one tile of that sheet covers, in radians — the unwrap is isotropic, which
         /// is what keeps a star round. The median of that rate over every edge, so a mesh that
-        /// disagrees with itself somewhere still lands where most of it says.
+        /// disagrees with itself somewhere still lands where most of it says, and a whole number of
+        /// tiles around the sky.
         float mTile = 0.0f;
 
         /// The elevation the field fades out below, in radians. `MWRender::ModVertexAlphaVisitor`
@@ -76,4 +82,9 @@ namespace Rtx
     Misc::Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
         std::vector<TextureHold>& holds);
+
+    /// The same, off a mesh already loaded: each drawable's vertices placed through the transforms
+    /// above it (`placedVertices`), and its sheet the one the state sets down its path bind.
+    NightSky readNightSky(
+        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<TextureHold>& holds);
 }

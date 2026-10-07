@@ -10,7 +10,7 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/ref_ptr>
 
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 
 #include "mirrorpass.hpp"
 

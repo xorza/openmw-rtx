@@ -29,7 +29,13 @@
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/mapoverlay.hpp>
+#include <apps/openmw/mwrender/offscreenview.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/sceneframe.hpp>
+#include <apps/openmw/mwrender/skystate.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
@@ -67,12 +73,6 @@
 #include <components/shader/automaps.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../ground.hpp"
-#include "../offscreenview.hpp"
-#include "../renderingmanager.hpp"
-#include "../sceneframe.hpp"
-#include "../skystate.hpp"
-#include "../vismask.hpp"
 #include "classmasks.hpp"
 #include "rtxsettings.hpp"
 #include "rtxsupport.hpp"
@@ -105,7 +105,6 @@ namespace MWRender
                 .mRun = {
                     .mProfile = {
                         .mUpscale = settings.mUpscale,
-                        .mReconstruction = { .mIndirect = settings.mIndirect },
                         .mAnisotropy = settings.mAnisotropy,
                         .mGamma = settings.mGamma,
                         .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
@@ -357,7 +356,7 @@ namespace MWRender
         mRipples.splash(position);
     }
 
-    void RtxRenderer::poseForIntersection(osg::Drawable& drawable)
+    void RtxRenderer::poseForIntersection(osg::Drawable& drawable) noexcept
     {
         mPoser.pose(drawable, getFrameStamp());
     }
@@ -630,12 +629,11 @@ namespace MWRender
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
         const bool gamma = changed.contains({ "Video", "gamma" });
-        const bool indirect = changed.contains({ "RTX", "indirect light" });
-        if (!upscale && !reach && !anisotropy && !gamma && !indirect)
+        if (!upscale && !reach && !anisotropy && !gamma)
             return;
 
-        // What asks is somebody choosing from a menu, so a spelling no mode has is reported and
-        // everything is left where it was.
+        // What asks is somebody choosing from a menu, so a value the derivation refuses is reported
+        // and everything is left where it was.
         std::optional<RtxSettings> settings;
         try
         {
@@ -661,9 +659,6 @@ namespace MWRender
 
         if (gamma)
             mRenderer->setGamma(settings->mGamma);
-
-        if (indirect)
-            mRenderer->setIndirectLight(settings->mIndirect);
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept

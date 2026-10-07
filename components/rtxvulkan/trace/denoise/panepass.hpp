@@ -22,8 +22,9 @@ namespace Rtx
     public:
         explicit PanePass(const Device& device);
 
-        /// Records the one dispatch and hands back the filtered light, ordered for a compute read.
-        /// `buffer` must have been handed over, and `DenoiseHistory::discard` has readied the images.
+        /// Records the one dispatch and hands back the filtered light as it wrote it: the caller
+        /// orders it for a read (`DenoisePasses::record`). `buffer` must have been handed over, and
+        /// `DenoiseHistory::discard` has readied the images.
         const Image& record(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images, const GBuffer& buffer,
             const DenoiseFrame& frame) const;
 

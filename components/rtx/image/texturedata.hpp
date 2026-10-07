@@ -100,7 +100,7 @@ namespace Rtx
     enum class TextureFormat : std::uint8_t
     {
         /// BC1 with its punch-through alpha bit read. Both DXT1 spellings land here, and
-        /// `describeImage` says why the header's alpha flag is not consulted.
+        /// `readFormat`'s table says why the header's alpha flag is not consulted.
         Bc1RgbaSrgb,
         Bc2Srgb,
         Bc3Srgb,

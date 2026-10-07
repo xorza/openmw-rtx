@@ -306,22 +306,6 @@
         <source> cells</source>
         <translation></translation>
     </message>
-    <message>
-        <source>Indirect Light</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Whether surfaces take light that no lamp, sun or moon gives. Traced follows one bounce of light from every surface and cleans its noise. Off traces none, which is much faster: what no light reaches is black.</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Traced</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Off (Faster)</source>
-        <translation></translation>
-    </message>
 </context>
 <context>
     <name>ImportPage</name>

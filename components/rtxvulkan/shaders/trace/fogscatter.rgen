@@ -210,11 +210,10 @@ void main()
 
     const FogSources sources = fogSourcesFrom(terms, moonPick);
 
-    // **Nought where no lamp reaches, which is not what `lampVisible` answers there.** That function
-    // returns one for an empty reservoir, and it is right to: its own caller multiplies it by a
-    // radiance of nought. Stored, that one is read by the neighbours the integrate pass averages
-    // over — so a froxel with no lamp in it handed full sight of a lamp to the froxel beside it, and
-    // a lantern behind a lid lit the air in front of it after all.
+    // **Nought where no lamp reaches.** `lampVisible` is asked only of a reservoir that holds a lamp
+    // (`lampPassage`), and what an empty one stores is read by the neighbours the integrate pass
+    // averages over — a one there handed full sight of a lamp to the froxel beside it, and a lantern
+    // behind a lid lit the air in front of it after all.
     const float lampsSeen
         = lamps.mWeight > 0.0 ? lampVisible(lamps, vec3(0.0), vec2(randomNext(lampState), randomNext(lampState))) : 0.0;
 
@@ -225,9 +224,9 @@ void main()
     // looks — `puffLight` — and a shadow it does not have is a splash under a canton lip lit as
     // though in the open.
     //
-    // **The question a surface asks, asked here too.** `skyVisible` draws the ray across the disc
-    // and reads the cloud deck over the point, so the air under a cloud is as dark as the ground
-    // under it, and so is every puff that reads this froxel.
+    // **The question a surface asks, asked here too.** `skyVisible` draws the ray across the disc,
+    // so the air in a shadow is as dark as the ground in it, and so is every puff that reads this
+    // froxel.
     //
     // **One path and not two.** A frame with no puff in it could skip both rays below, and the
     // flag, the second history channel and the second way of forming the sun's beam it takes to
@@ -235,7 +234,7 @@ void main()
     float visible = 1.0;
     float lunar = 1.0;
     if (sources.mSunlit)
-        visible = skyVisible(position, vec3(0.0), SKY_SOURCE_SUN, sunDraw);
+        visible = skyVisible(skySourceAt(SKY_SOURCE_SUN), position, vec3(0.0), sunDraw);
     if (sources.mMoonlit)
         lunar = skyVisible(sources.mDrawnSky, position, vec3(0.0), moonDraw);
 

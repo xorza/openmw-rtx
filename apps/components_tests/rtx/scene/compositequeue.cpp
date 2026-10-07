@@ -8,7 +8,7 @@
 
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>

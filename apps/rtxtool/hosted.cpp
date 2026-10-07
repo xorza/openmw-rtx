@@ -177,11 +177,13 @@ namespace RtxTool
             engine.setSaveGameFile(variables["load-savegame"].as<Files::MaybeQuotedPath>().u8string());
             engine.setRandomSeed(seed);
 
-            // **No sound and no mouse, because nobody is here.** A run measured with an audio device
-            // open measures the mixer as well, and a grabbed pointer in a headless run is a pointer
-            // somebody has to get back.
+            // **No sound, and no mouse where nobody plays.** A run measured with an audio device open
+            // measures the mixer as well, and a grabbed pointer in a run nobody plays is a pointer
+            // somebody has to get back. A played one looks around as the game does: ungrabbed, it
+            // went without relative mode and turned the camera by warps, which Wayland lets no
+            // window make.
             engine.setSoundUsage(false);
-            engine.setGrabMouse(false);
+            engine.setGrabMouse(played);
 
             // The session is the host: it makes the renderer, states the step and runs the
             // schedule, so the engine never reads `[RTX] enabled` and never sees the run.

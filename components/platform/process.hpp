@@ -66,7 +66,9 @@ namespace Platform::Process
 
     /// `text` as one word of the system's shell: in single quotes for a POSIX one, where nothing
     /// inside them is expanded, a quote inside closed, escaped and opened again; in double quotes
-    /// for `cmd`, which has no others.
+    /// for `cmd`, which has no others. Throws `std::invalid_argument` on Windows for a text that
+    /// holds two `%` or a `"`: `cmd` expands a `%NAME%` inside its quotes and ends the word at a
+    /// quote. A lone `%` names nothing and stays.
     std::string shellWord(std::string_view text);
 
     /// How a command the shell ran ended.
@@ -188,8 +190,4 @@ namespace Platform::Process
             text.remove_prefix(comma + 1);
         }
     }
-
-    /// Leaves the system nothing to keep of this process when it aborts: for a process that dies on
-    /// purpose, as a death test's child does, whose core nobody wants.
-    void disableCoreDump();
 }

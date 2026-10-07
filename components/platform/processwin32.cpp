@@ -7,6 +7,7 @@
 #include <cstring>
 #include <filesystem>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -120,6 +121,12 @@ namespace Platform::Process
 
     std::string shellWord(std::string_view text)
     {
+        // `cmd` expands `%NAME%` inside double quotes, and a quote inside ends the word: neither has
+        // a spelling that survives `std::system`, so such a word is refused rather than run as
+        // another. A lone `%` is no name and stays, which is what a frame pattern's `%05d` is.
+        if (text.find('"') != std::string_view::npos || std::ranges::count(text, '%') > 1)
+            throw std::invalid_argument(
+                "\"" + std::string(text) + "\" holds a \" or two %, which cmd cannot take as one word");
         return '"' + std::string(text) + '"';
     }
 
@@ -181,6 +188,4 @@ namespace Platform::Process
 
         return fastest.size();
     }
-
-    void disableCoreDump() {}
 }

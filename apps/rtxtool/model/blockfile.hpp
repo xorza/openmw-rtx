@@ -143,9 +143,13 @@ namespace RtxTool
         /// A whole number of days from the one a new game begins on.
         int day(const BlockField& field) const;
 
+        /// A weapon's id as the content files spell it, which only the game can resolve: here,
+        /// anything but nothing.
+        std::string weaponId(const BlockField& field) const;
+
         /// Reads `field` into `stop` where it is one of the fields every place states — `cell`,
-        /// `pos`, `look`, `note`, `hour`, `weather` and `air` — and says whether it was: what a view and a
-        /// film's key have in common is a stop.
+        /// `pos`, `look`, `note`, `hour`, `weather`, `air`, `lamps` and `arms` — and says whether it
+        /// was: what a view and a film's key have in common is a stop.
         bool readPlace(const BlockField& field, Stop& stop) const;
 
     private:

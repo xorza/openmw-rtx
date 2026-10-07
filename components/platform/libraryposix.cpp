@@ -1,6 +1,6 @@
-#include <cstdint>
-
 #include "library.hpp"
+
+#include <cstdint>
 
 #include <dlfcn.h>
 

@@ -15,16 +15,15 @@
 #include <osg/Math>
 #include <osg/Vec3f>
 
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/blockfile.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/parser.hpp>
 #include <components/settings/values.hpp>
-
-#include "model/benchrecord.hpp"
-#include "model/benchspec.hpp"
-#include "model/blockfile.hpp"
 
 namespace RtxTool
 {
@@ -154,6 +153,9 @@ namespace RtxTool
 
         if (!stop.mStand.mLamps)
             block += "lamps = false\n";
+
+        if (!stop.mStand.mArms.empty())
+            block += std::format("arms = {}\n", stop.mStand.mArms);
 
         // Always where it is known, since no air is the file's own: one left out is whatever the
         // run's frames carried it to.
@@ -441,8 +443,15 @@ namespace RtxTool
         resolveLikes(file, views, likes);
 
         for (std::size_t at = 0; at < views.size(); ++at)
+        {
             if (views[at].mStand.mCell.empty())
                 file.refuse(blocks[at].mLine, std::format("view \"{}\" names no cell", views[at].mName));
+
+            // The body's own eye is put where a view's eye is, and one that names none leaves the
+            // camera to the game, which would show no arms and say nothing.
+            if (!views[at].mStand.mArms.empty() && !views[at].mStand.mEye.has_value())
+                file.refuse(blocks[at].mLine, std::format("view \"{}\" names arms but no pos", views[at].mName));
+        }
 
         resolveRoutes(file, views, ends, speeds);
         return views;

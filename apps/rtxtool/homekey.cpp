@@ -15,6 +15,7 @@
 #include <SDL3/SDL_scancode.h>
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
@@ -24,7 +25,6 @@
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
-#include "model/benchrun.hpp"
 #include "run.hpp"
 
 namespace RtxTool

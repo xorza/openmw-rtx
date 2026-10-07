@@ -20,6 +20,7 @@ set(RTX_TEST_FILES
     rtx/environment/fogbuilder.cpp
     rtx/environment/frameworld.cpp
     rtx/environment/moonbuilder.cpp
+    rtx/environment/nightsky.cpp
     rtx/environment/skybuilder.cpp
     rtx/environment/skylight.cpp
     rtx/environment/sun.cpp
@@ -56,6 +57,7 @@ set(RTX_TEST_FILES
     rtx/mirror/mirroridentity.cpp
     rtx/mirror/nodekind.cpp
     rtx/mirror/shading.cpp
+    rtx/mirror/statereading.cpp
     rtx/preprocess/contentkey.cpp
     rtx/preprocess/contentpreprocessor.cpp
     rtx/preprocess/shape/creasesplit.cpp
@@ -73,7 +75,6 @@ set(RTX_TEST_FILES
     rtx/scene/refusals.cpp
     rtx/scene/scenedesc.cpp
     rtx/scene/scenetextures.cpp
-    rtx/scene/surface.cpp
     rtx/shaders/brdf.cpp
     rtx/shaders/lights.cpp
     rtx/shaders/pixelgrid.cpp
@@ -123,6 +124,8 @@ set(RTX_TEST_FILES
     rtxvulkan/shaders/medium.cpp
     rtxvulkan/shaders/sharedconstants.cpp
     rtxvulkan/shaders/shadow.cpp
+    rtxvulkan/pipeline/passbindings.cpp
+    rtxvulkan/spirv/spirvbindings.cpp
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
@@ -154,6 +157,7 @@ set(RTX_TEST_SUPPORT
     rtx/support/spritelightbake.cpp
     rtx/support/spritelightbake.hpp
     rtx/support/statistics.hpp
+    rtx/support/testplatform.hpp
     rtx/support/testcamera.hpp
     rtx/support/testtexture.hpp
     rtx/support/wavemoments.hpp
@@ -250,6 +254,7 @@ target_compile_definitions(components-tests PRIVATE OPENMW_RTX_SHADER_DIR="${RTX
 # The same `main.cpp`, which sets up the settings' defaults both binaries read.
 openmw_add_executable(rtx-gpu-tests main.cpp rtx/support/allocations.cpp
                       ${RTX_GPU_TEST_FILES} ${RTX_GPU_TEST_SUPPORT} ${RTX_TEST_SUPPORT})
+target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
 target_link_libraries(rtx-gpu-tests
     GTest::GTest
     GMock::GMock

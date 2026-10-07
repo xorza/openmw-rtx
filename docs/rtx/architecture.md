@@ -12,12 +12,12 @@ field's words in [`components/rtx/GLOSSARY.md`](../../components/rtx/GLOSSARY.md
 Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather,
 GUI logic. A second renderer stands beside the OpenGL rasterizer and replaces the whole picture:
 primary visibility, shadows, direct and indirect light, sky, water and fog are ray traced. The
-rasterizer's picture is upstream's but for four corrections the ray tracer needed, each where
+rasterizer's picture is upstream's but for five corrections the ray tracer needed, each where
 upstream's was wrong: the optimizer merges in child order, an exterior map tile keeps its land
 where the quad tree has not built the chunk yet, a `NightDaySwitch` shows its mode's child from
-its first frame, and the particles a NIF saves wear what their age affectors give them from their
-first frame. A fifth change is the seam's: the frame is drawn at `[Video] resolution x/y` and shown
-scaled into the window (§4). Both renderers stand behind one interface, one binary ships both, and
+its first frame, the particles a NIF saves wear what their age affectors give them from their
+first frame, and a groundcover plant stands under its model's own transforms. A sixth change is the
+seam's: the frame is drawn at `[Video] resolution x/y` and shown scaled into the window (§4). Both renderers stand behind one interface, one binary ships both, and
 the one not chosen never starts.
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan with ray
@@ -27,8 +27,10 @@ the sun's and the moons' shadow, and a temporal filter over the glossy light. Th
 port of AMD's FSR 3.1.4 in compute shaders. At `native` it is the anti-aliasing, and every other
 mode traces fewer pixels than the window shows.
 Vanilla content is read as it is: its textures are pre-lit, so the renderer estimates the painted
-light and divides it out. A PBR replacer's companion maps reach the trace, and a
-vanilla scene draws the same whether or not the renderer can read them.
+light and divides it out. A PBR replacer's companion maps reach the trace — a normal map read as
+the direction it encodes and not as a colour, with the roughness its levels lose beside it
+(`TextureEncoding::Normal`) — and a vanilla scene draws the same whether or not the renderer can
+read them.
 
 `[RTX] enabled` chooses the renderer, which every build has. The player's settings are in
 [`rtx.rst`](../source/reference/modding/settings/rtx.rst).
@@ -156,6 +158,7 @@ source-tree test holds the order.
 
 | folder              | holds                                                                   |
 |---------------------|-------------------------------------------------------------------------|
+| `shaders/`          | the structures core C++ and GLSL both read                               |
 | `common/`           | what knows no scene: contracts, results, slots, runs, threads, the clock |
 | `image/`            | a texture file read: its formats, texels, alpha, levels and painted light |
 | `preprocess/`       | `ContentPreprocessor`, its keys, cache and costs; the passes in `shape/` and `texture/` |
@@ -165,7 +168,6 @@ source-tree test holds the order.
 | `mirror/`           | the walk from the scene graph; the cell ring in `cells/`, which runs inside it |
 | `environment/`      | the sky, the air and the sea a frame is told                             |
 | `view/`             | the pictures traced away from the eye                                    |
-| `shaders/`          | the structures core C++ and GLSL both read                               |
 
 - **`Rtx::Renderer`** (`renderer/renderer.hpp`) is one traced image, whichever API makes it. Each
   call is worth a whole scene or a whole frame, never an instance or a pixel: build, extend or
@@ -192,9 +194,9 @@ source-tree test holds the order.
   mean. One lives on each thread that reads content (`Rtx::ThreadContent`): the frame's, which the
   world's walk, the sky and every picture's walk share inside the frame thread's `Rtx::WalkContext`
   beside the traversal numbers and the specular layout, and the ring's reader's. Every
-  pass is keyed on everything it reads and asked of `ContentCache` first; the cache holds nothing
-  yet, so every pass runs, and what each costs is counted into the walk's stats and the
-  `preprocess` row of a frame.
+  pass states everything it reads, which is the key a cache would file its output under; the
+  cache (`ContentCache`) holds nothing yet, so no key is made, every pass runs, and what each costs
+  is counted into the walk's stats and the `preprocess` row of a frame.
 - **`Rtx::SceneUploader`** hands a scene to the backend once a frame, in the cheapest of three
   ways: place what moved, extend with what arrived, or rebuild.
 - **The world a frame is told** (`environment/`) turns a `WorldReading` into the frame's
@@ -269,13 +271,6 @@ at the top, over all of them.
 - **No reuse of the bounce.** ReSTIR GI's reservoirs ran here as a temporal and a spatial reuse,
   and were removed: once the denoiser kept a rare bright sample's light, they gained nothing at any
   place and added bias in the room they were kept for (`.notes/reuse.md`).
-- **The indirect light** (`[RTX] indirect light`, `Reconstruction::mIndirect`) is `traced`, the
-  bounce above and the passes that clean it, or `off`, none: the trace draws no diffuse bounce and
-  traces only a glossy surface's reflection (`bounceTraced`), no surface a path ends at takes the
-  cell's ambient (`surfaceAmbient`), and the denoiser keeps the
-  accumulator's surface history alone. A menu changes it while the game runs
-  (`Renderer::setIndirectLight`), and the chain lets go of the bounce's histories where it is
-  `off`.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
@@ -393,8 +388,11 @@ history. A setting that changes the extent or the upscaler takes effect at once.
 
 - **The main thread** makes every seam call, every walk, every submit and every wait.
 - **The cell reader** (`CellSupply`) reads cells and lends their models and images to the frame.
-- **The launch compile** (`VisibilityPass`) builds the ray tracing pipelines from construction.
-  Loading waits for it behind a "Compiling Shaders" step.
+- **The launch compile** (`VisibilityPass`) builds the ray tracing pipelines from construction,
+  over as many hands as there is work for (`Rtx::runInParallel`). Loading waits for it behind a
+  "Compiling Shaders" step.
+- **One-shot batches** (`Rtx::runInParallel`) build what is made once over parallel hands and join
+  them before they return: the specular albedo's table (`SpecularAlbedo`), at its first use.
 - **The driver** recompiles launches on its own threads. The pinned arithmetic makes both codes
   trace the same frame.
 
@@ -416,7 +414,7 @@ was found, so the crash report shows it.
 ## 13. Harness and tests
 
 `openmw-rtxtool` drives a real game headless: `info`, `scene`, `shot`, `view`, `bench`, `check`,
-`film`. `RtxTool::Session` is both the engine's host and the renderer's run. It places the world
+`film`, `noise`. `RtxTool::Session` is both the engine's host and the renderer's run. It places the world
 where a stop stands, moves the camera a frame at a time, holds the clock and the weather, and
 measures each frame. What a verb does with a place is one row of `VerbPolicy` (`verbs.hpp`). The
 instruments (`apps/rtxtool/instruments/`) measure frames and know nothing of a world. The model

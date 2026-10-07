@@ -133,7 +133,7 @@ namespace Rtx::Testing
             camera.mSun.mIrradiance = osg::Vec3f();
 
             Shaders::MoonDisc overhead{};
-            overhead.mSource = Shaders::moonSource(
+            overhead.mSource = Shaders::skySource(
                 osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(2.0f, 2.0f, 2.0f), moonAngularRadius(94.0f));
             overhead.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
             overhead.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
@@ -203,7 +203,7 @@ namespace Rtx::Testing
 
             const float root = std::sqrt(0.5f);
             Shaders::MoonDisc facing{};
-            facing.mSource = Shaders::moonSource(osg::Vec3f(0.0f, root, root), osg::Vec3f(), 0.2f);
+            facing.mSource = Shaders::skySource(osg::Vec3f(0.0f, root, root), osg::Vec3f(), 0.2f);
             facing.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
             facing.mUp = osg::Vec3f(0.0f, -root, root);
             facing.mColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
@@ -533,7 +533,7 @@ namespace Rtx::Testing
             // is that number. A disc of black, so what is measured is the covering and not the face.
             const float root = std::sqrt(0.5f);
             Shaders::MoonDisc covering{};
-            covering.mSource = Shaders::moonSource(osg::Vec3f(0.0f, root, root), osg::Vec3f(), 1.2f);
+            covering.mSource = Shaders::skySource(osg::Vec3f(0.0f, root, root), osg::Vec3f(), 1.2f);
             covering.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
             covering.mUp = osg::Vec3f(0.0f, -root, root);
             covering.mColour = osg::Vec3f();

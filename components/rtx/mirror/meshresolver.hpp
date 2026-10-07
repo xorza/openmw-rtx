@@ -11,7 +11,7 @@
 #include <osg/Vec3f>
 
 #include <components/misc/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

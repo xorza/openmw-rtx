@@ -1,4 +1,6 @@
+#include <initializer_list>
 #include <span>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -6,6 +8,7 @@
 #include <osg/Uniform>
 #include <osg/ref_ptr>
 
+#include <components/rtx/mirror/chainkeys.hpp>
 #include <components/rtx/mirror/shading.hpp>
 
 namespace Rtx
@@ -29,7 +32,8 @@ namespace Rtx
             // **And a link built under a chain carries it**, as both walks build theirs: the first
             // link from the defaults, a controller's link animated through everything under it,
             // and the fade of the link above carried down.
-            const Shading first = Shading::under({}, *bare, false);
+            ChainKeys keys;
+            const Shading first = Shading::under({}, *bare, false, &keys);
             EXPECT_EQ(first.mStateSet, bare.get());
             EXPECT_EQ(first.mFade.mPlacement, 1.0f);
             EXPECT_FALSE(first.mAnimatedThrough);
@@ -38,10 +42,60 @@ namespace Rtx
                 .mFade = Fade{ .mPlacement = 0.25f, .mActor = 0.5f },
                 .mAnimated = true,
                 .mAnimatedThrough = true };
-            const Shading below = Shading::under(std::span(&controller, 1), *bare, false);
+            const Shading below = Shading::under(std::span(&controller, 1), *bare, false, &keys);
             EXPECT_FALSE(below.mAnimated) << "a link was animated for its controller above";
             EXPECT_TRUE(below.mAnimatedThrough) << "what stands under a controller is not animated by it";
             EXPECT_EQ(below.mFade.mPlacement, 0.25f) << "the fade above was not carried down";
+        }
+
+        /// **A chain is keyed by every link that states anything** (`ChainKeys`). Two parents that
+        /// name two textures over one shared state set make two keys, and the same chain met again
+        /// makes the same one. The first stating link is its own key, a link that states nothing
+        /// keeps the key above it, and a chain where nothing states anything keys on its nearest
+        /// link. A pair goes once nothing but the table holds its key, and the pair above it with it.
+        TEST(RtxShadingTest, aChainIsKeyedByEveryLinkThatStatesAnything)
+        {
+            const auto stating = [] {
+                osg::ref_ptr<osg::StateSet> stateSet = new osg::StateSet;
+                stateSet->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+                return stateSet;
+            };
+            const osg::ref_ptr<osg::StateSet> first = stating();
+            const osg::ref_ptr<osg::StateSet> second = stating();
+            const osg::ref_ptr<osg::StateSet> shared = stating();
+            const osg::ref_ptr<osg::StateSet> bare = new osg::StateSet;
+
+            ChainKeys keys;
+            const auto keyOf = [&](std::initializer_list<const osg::StateSet*> links) {
+                std::vector<Shading> chain;
+                for (const osg::StateSet* link : links)
+                    chain.push_back(Shading::under(chain, *link, false, &keys));
+                return chain.back().materialKey();
+            };
+
+            EXPECT_EQ(keyOf({ bare.get() }), bare.get()) << "nothing states anything";
+            EXPECT_EQ(keyOf({ bare.get(), first.get(), bare.get() }), first.get()) << "the one stating link";
+
+            const osg::StateSet* const underFirst = keyOf({ first.get(), shared.get() });
+            const osg::StateSet* const underSecond = keyOf({ second.get(), shared.get() });
+            EXPECT_NE(underFirst, shared.get());
+            EXPECT_NE(underFirst, underSecond) << "one shared state set under two parents is one material";
+            EXPECT_EQ(keyOf({ first.get(), bare.get(), shared.get(), bare.get() }), underFirst)
+                << "the same chain of stating links met again";
+            EXPECT_EQ(keys.size(), 2u);
+
+            const osg::StateSet* const deeper = keyOf({ first.get(), shared.get(), second.get() });
+            EXPECT_EQ(keys.size(), 3u);
+
+            // Held as a material entry holds its key: the deeper pair holds the pair above it.
+            osg::ref_ptr<const osg::StateSet> held = deeper;
+            keys.retire();
+            EXPECT_EQ(keys.size(), 2u) << "the pair under the second parent is held by nothing";
+            EXPECT_EQ(keyOf({ first.get(), shared.get(), second.get() }), deeper) << "a held key is found again";
+
+            held = nullptr;
+            keys.retire();
+            EXPECT_EQ(keys.size(), 0u) << "the deeper pair, and then the pair above it";
         }
 
         /// A state set carrying a uniform that is not the fade inherits too.

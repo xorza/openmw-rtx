@@ -46,23 +46,19 @@ namespace Rtx
         // A filter that does not run is fresh the next time it does, since the frames it would
         // have carried were not recorded (`TemporalTurns`).
         //
-        // **The accumulator runs on every frame the denoisers do**, so its history is fresh only
-        // after a reset, which makes every history fresh: the shadow denoiser and the glossy filter,
-        // which read the surface it holds, need no freshness but their own. **Its mean of the
-        // bounce, the clamp and the wavelet only where the bounce is traced**: with none there is
-        // nothing to filter, and the composite reads the channels of nought as the trace wrote them.
-        const bool bounce = reconstruction.filtersBounce();
+        // **The accumulator runs on every frame the denoisers do**, its mean of the bounce, the clamp
+        // and the wavelet with it, so its history is fresh only after a reset, which makes every
+        // history fresh: the shadow denoiser and the glossy filter, which read the surface it holds,
+        // need no freshness but their own.
         TemporalFlags runs;
         runs[Temporal::Accumulate] = true;
-        runs[Temporal::Bounce] = bounce;
         runs[Temporal::Shadow] = Shaders::skySourceLights(sampled) || (lamps && sampled.mNoLamps == 0u);
         runs[Temporal::Specular] = mapped;
         runs[Temporal::Pane] = true;
 
         const TemporalTurns::Step step = history.turn(runs);
         assert((!step.mFresh[Temporal::Accumulate]
-                   || (step.mFresh[Temporal::Bounce] && step.mFresh[Temporal::Shadow] && step.mFresh[Temporal::Specular]
-                       && step.mFresh[Temporal::Pane]))
+                   || (step.mFresh[Temporal::Shadow] && step.mFresh[Temporal::Specular] && step.mFresh[Temporal::Pane]))
             && "a fresh accumulator beside a history that is not");
         history.discard(commands, step);
 
@@ -79,18 +75,12 @@ namespace Rtx
         // The temporal half first: the accumulator hands on the variance of its mean, which is
         // what lets the levels below stop at an edge in the light and not only in the geometry.
         openZone(timer, commands, "accumulate");
-        if (bounce)
-            mAccumulate.record(commands, accumulated, buffer, frame);
-        else
-            mAccumulate.recordSurface(commands, accumulated, buffer, frame);
+        mAccumulate.record(commands, accumulated, buffer, frame);
         closeZone(timer, commands);
 
-        if (bounce)
-        {
-            openZone(timer, commands, "clamp");
-            mAccumulate.recordClamp(commands, accumulated, buffer, frame);
-            closeZone(timer, commands);
-        }
+        openZone(timer, commands, "clamp");
+        mAccumulate.recordClamp(commands, accumulated, buffer, frame);
+        closeZone(timer, commands);
 
         const Image* shadow = nullptr;
         if (runs[Temporal::Shadow])
@@ -112,24 +102,27 @@ namespace Rtx
         const Image& pane = mPane.record(commands, history.pane(step), buffer, frame);
         closeZone(timer, commands);
 
-        if (!bounce)
-            return Denoised{ .mIndirect = buffer.get(Channel::Indirect),
-                .mFill = buffer.get(Channel::Fill),
-                .mSpecular = *specular,
-                .mPane = pane,
-                .mShadow = shadow };
+        // **One dependency after the three filters and none between them**: the shadow, glossy
+        // and pane passes read nothing another of them writes, so a barrier each held every one
+        // back for the tail of the one before. Their answers are ordered for the composite's read.
+        Barriers ready(commands);
+        if (shadow != nullptr)
+            shadow->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
+        if (runs[Temporal::Specular])
+            specular->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
+        pane.addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
 
         // The cascade reads what the accumulator just wrote, the moments' count for the history fix
         // among it, and it reads through the texture unit — so the dependency names the sampled
         // access and not only the storage one. The history the cascade writes for the next frame
-        // is ordered by the discard, which named a compute write as what would come next.
-        Barriers blends(commands);
+        // is ordered by the discard, which named a compute write as what would come next. In the
+        // same batch as the filters' answers.
         for (const Image* image : { &accumulated.mBlended, &accumulated.mFillBlended, &accumulated.mMoments })
-            image->addTransition(blends, Use::sComputeWrite, Use::sComputeReadOrSample);
+            image->addTransition(ready, Use::sComputeWrite, Use::sComputeReadOrSample);
         // The history fix writes its answer over the clamp's fast means.
-        accumulated.mFast.addTransition(blends, Use::sComputeWrite, Use::sComputeWrite);
+        accumulated.mFast.addTransition(ready, Use::sComputeWrite, Use::sComputeWrite);
 
-        blends.flush();
+        ready.flush();
 
         openZone(timer, commands, "filter");
         const AtrousPass::Filtered filtered = mFilter.record(commands, accumulated, buffer, frame);

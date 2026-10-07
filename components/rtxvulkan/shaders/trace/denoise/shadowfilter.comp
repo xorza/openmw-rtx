@@ -97,6 +97,11 @@ shared float gNormal[SPAN][SPAN];
 shared vec3 gPosition[SPAN][SPAN];
 
 /// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them.
+///
+/// **Each level rebuilds its positions from the surface it reads anyway**, and no pass stores them
+/// once a frame: skipping the rebuild outright took 0.025 to 0.033 ms off the shadow zone of the
+/// default suite, three alternated rounds, and an image of positions in full floats at 1280×720 is
+/// 14.7 MB a frame, whose write alone takes 0.026 ms at the card's 576 GB/s before a level reads it.
 void readSquare(ivec2 corner)
 {
     const ivec2 last = ivec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight) - 1;
@@ -121,17 +126,15 @@ vec2 inputAt(ivec2 square)
     return unpackHalf2x16(gInput[square.y][square.x]);
 }
 
-/// The SDK's 3×3 Gaussian over the variance, `1/4` at the centre, `1/8` along the axes and `1/16`
-/// at the corners. A select and not a table, for the reason `atrous.comp`'s `kernelAt` gives. A
-/// pixel that receives nothing adds a variance of nought, as the SDK's sky does.
+/// The SDK's 3×3 Gaussian over the variance, which is the tent (`tentWeight`). A pixel that
+/// receives nothing adds a variance of nought, as the SDK's sky does.
 float filteredVariance(ivec2 square)
 {
     float variance = 0.0;
     for (int y = -1; y <= 1; ++y)
         for (int x = -1; x <= 1; ++x)
         {
-            const float weight = (x == 0 ? 0.5 : 0.25) * (y == 0 ? 0.5 : 0.25);
-            variance += weight * max(inputAt(square + ivec2(x, y)).y, 0.0);
+            variance += tentWeight(ivec2(x, y)) * max(inputAt(square + ivec2(x, y)).y, 0.0);
         }
     return variance;
 }
@@ -178,7 +181,6 @@ void main()
 
     // One that receives nothing is nought, with nothing to filter, and says so to the next level.
     vec2 result = vec2(0.0, SHADOW_NO_RECEIVER);
-    if (normalCode != SURFACE_NO_NORMAL)
     {
         const vec2 here = inputAt(centre);
         const vec3 normal = unpackSurfaceNormal(normalCode);
@@ -198,19 +200,20 @@ void main()
 
                 const ivec2 tap = centre + ivec2(x, y) * step;
                 const float tapNormal = gNormal[tap.y][tap.x];
-                if (tapNormal == SURFACE_NO_NORMAL)
-                    continue;
 
                 const vec2 there = inputAt(tap);
-                const float weight = kernelAt(x) * kernelAt(y) * exp(-abs(here.x - there.x) / deviation)
+                const float tested = kernelAt(x) * kernelAt(y) * exp(-abs(here.x - there.x) / deviation)
                     * coplanarWeight(normal, position, gPosition[tap.y][tap.x], footprint)
                     * facingWeight(normal, unpackSurfaceNormal(tapNormal), ATROUS_NORMAL_POWER);
+                // Selected and not skipped, as the temporal pass selects what it stores
+                // (`shadowtiles.comp` names the measurement).
+                const float weight = tapNormal != SURFACE_NO_NORMAL ? tested : 0.0;
 
                 sum += vec2(weight, weight * weight) * there;
                 weightSum += weight;
             }
 
-        result = vec2(sum.x / weightSum, sum.y / (weightSum * weightSum));
+        result = normalCode != SURFACE_NO_NORMAL ? vec2(sum.x / weightSum, sum.y / (weightSum * weightSum)) : result;
     }
 
     RTX_STORE_COUNTED(filtered, at, vec4(result, 0.0, 0.0))

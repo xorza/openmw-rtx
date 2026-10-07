@@ -30,7 +30,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/menu.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
@@ -165,25 +164,19 @@ namespace
         }
     }
 
-    constexpr std::array<Rtx::MenuLabel, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
-        { "off", "#{OMWEngine:RayTracingUpscaleOff}" },
-        { "ultraperformance", "#{OMWEngine:RayTracingUpscaleUltraPerformance}" },
-        { "performance", "#{OMWEngine:RayTracingUpscalePerformance}" },
-        { "balanced", "#{OMWEngine:RayTracingUpscaleBalanced}" },
-        { "quality", "#{OMWEngine:RayTracingUpscaleQuality}" },
-        { "native", "#{OMWEngine:RayTracingUpscaleNative}" },
+    constexpr std::array<Rtx::MenuLabel<Rtx::Upscale>, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
+        { Rtx::Upscale::Off, "#{OMWEngine:RayTracingUpscaleOff}" },
+        { Rtx::Upscale::UltraPerformance, "#{OMWEngine:RayTracingUpscaleUltraPerformance}" },
+        { Rtx::Upscale::Performance, "#{OMWEngine:RayTracingUpscalePerformance}" },
+        { Rtx::Upscale::Balanced, "#{OMWEngine:RayTracingUpscaleBalanced}" },
+        { Rtx::Upscale::Quality, "#{OMWEngine:RayTracingUpscaleQuality}" },
+        { Rtx::Upscale::Native, "#{OMWEngine:RayTracingUpscaleNative}" },
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    constexpr std::array<Rtx::MenuLabel, Rtx::sIndirectLightMenu.size()> sIndirectLightLabels{ {
-        { "traced", "#{OMWEngine:RayTracingIndirectLightTraced}" },
-        { "off", "#{OMWEngine:RayTracingIndirectLightOff}" },
-    } };
-    static_assert(Rtx::followsMenu(sIndirectLightLabels, Rtx::sIndirectLightMenu));
-
-    void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel> labels)
+    void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel<Rtx::Upscale>> labels)
     {
-        for (const Rtx::MenuLabel& label : labels)
+        for (const Rtx::MenuLabel<Rtx::Upscale>& label : labels)
             box->addItem(MyGUI::LanguageManager::getInstance().replaceTags(label.mLabel));
     }
 }
@@ -352,10 +345,6 @@ namespace MWGui
         addMenuItems(mRayTracingUpscale, sUpscaleLabels);
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
-        getWidget(mRayTracingIndirectLight, "RayTracingIndirectLightList");
-        addMenuItems(mRayTracingIndirectLight, sIndirectLightLabels);
-        mRayTracingIndirectLight->eventComboChangePosition
-            += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingIndirectLightChanged);
 
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &SettingsWindow::onWindowResize);
@@ -633,21 +622,11 @@ namespace MWGui
 
     void SettingsWindow::onRayTracingUpscaleChanged(MyGUI::ComboBox* sender, size_t pos)
     {
-        const std::optional<std::string_view> chosen = Rtx::menuName(Rtx::sUpscaleMenu, pos);
+        const std::optional<Rtx::Upscale> chosen = Rtx::menuValue(Rtx::sUpscaleMenu, pos);
         if (!chosen.has_value())
             return;
 
-        Settings::rtx().mUpscale.set(std::string(*chosen));
-        apply();
-    }
-
-    void SettingsWindow::onRayTracingIndirectLightChanged(MyGUI::ComboBox* sender, size_t pos)
-    {
-        const std::optional<std::string_view> chosen = Rtx::menuName(Rtx::sIndirectLightMenu, pos);
-        if (!chosen.has_value())
-            return;
-
-        Settings::rtx().mIndirectLight.set(std::string(*chosen));
+        Settings::rtx().mUpscale.set(*chosen);
         apply();
     }
 
@@ -979,14 +958,8 @@ namespace MWGui
 
     void SettingsWindow::updateRayTracingSettings()
     {
-        // Nothing selected where the setting names a mode the menu does not offer, or the list would overwrite it
-        const std::optional<std::size_t> offered = Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get());
-
-        mRayTracingUpscale->setIndexSelected(offered.value_or(MyGUI::ITEM_NONE));
-
-        const std::optional<std::size_t> indirect
-            = Rtx::menuIndex(Rtx::sIndirectLightMenu, Settings::rtx().mIndirectLight.get());
-        mRayTracingIndirectLight->setIndexSelected(indirect.value_or(MyGUI::ITEM_NONE));
+        // The menu offers every mode the setting can hold
+        mRayTracingUpscale->setIndexSelected(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value());
     }
 
     void SettingsWindow::layoutControlsBox()
@@ -1161,7 +1134,6 @@ namespace MWGui
             { mLightsResetButton, { "Shaders", "max lights" } },
             { mShadowMapResolution, { "Shadows", "shadow map resolution" } },
             { mRayTracingUpscale, { "RTX", "upscale" } },
-            { mRayTracingIndirectLight, { "RTX", "indirect light" } },
         };
         for (const auto& [control, setting] : wired)
             if (const std::string_view declined = mSupport.declinedSetting(setting.first, setting.second);

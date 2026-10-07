@@ -16,8 +16,9 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -81,12 +82,11 @@ namespace Rtx
         , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, mProfile.mReconstruction.mIndirect)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
-        , mMedia(mDevice)
+        , mMedia(mDevice, bakeFogNoise())
         , mGui(mDevice)
-        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth,
-              mProfile.mReconstruction.mIndirect)
+        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth)
         , mUpscaler(mDevice)
     {
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
@@ -136,6 +136,12 @@ namespace Rtx
             return;
 
         mMedia.describeSea(sea);
+    }
+
+    void VulkanRenderer::setFogField(const FogNoise& noise)
+    {
+        drain();
+        mMedia.describeFog(mDevice, noise);
     }
 
     void VulkanRenderer::createTargets(std::uint32_t width, std::uint32_t height)
@@ -397,13 +403,6 @@ namespace Rtx
         mInverseGamma = 1.0f / gamma;
     }
 
-    void VulkanRenderer::setIndirectLight(const IndirectLight indirect)
-    {
-        mProfile.mReconstruction.mIndirect = indirect;
-        mFrame.setIndirect(indirect);
-        mPictures.setIndirect(indirect);
-    }
-
     void VulkanRenderer::skipFrame()
     {
         if (mRing.isOpen())
@@ -556,10 +555,6 @@ namespace Rtx
             mDisplay.loseEye();
         if (past.mWaterLost)
             mMedia.resetRipples();
-
-        // **What can make or replace a resource, before the recording opens**: the bounce's histories
-        // the indirect light keeps.
-        mFrame.setIndirect(reconstruction.mIndirect);
 
         GpuTimer& timer = frame.mTimer;
         const VkCommandBuffer commands = frame.mWorld.mCommands;

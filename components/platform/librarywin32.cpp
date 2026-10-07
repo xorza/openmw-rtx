@@ -1,6 +1,6 @@
 #include "library.hpp"
 
-#include <windows.h>
+#include <components/misc/windows.hpp>
 
 namespace Platform::Library
 {

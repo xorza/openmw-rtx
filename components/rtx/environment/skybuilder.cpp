@@ -31,6 +31,7 @@
 
 #include "frameworld.hpp"
 #include "skylight.hpp"
+#include "skysheet.hpp"
 
 namespace Rtx
 {
@@ -84,23 +85,14 @@ namespace Rtx
             return at;
         }
 
-        // Opened and asked here, where the deck's mean and cover are read off the image anyway: a
-        // sheet the upload cannot take is refused as the sky layer it is, and takes no slot to
-        // stand in, which the device would read as no deck.
+        // Opened here, where the deck's mean and cover are read off the image anyway: a sheet the
+        // upload cannot take takes no slot, which the device reads as no deck.
         const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image
             = openImage(*scenes.getImageManager(), path);
-        if (!image.isOk())
-        {
-            scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
+        TextureHold deck = takeSkySheet(scene, path, image);
+        if (deck.get() == sNoIndex)
             return at;
-        }
-        if (const Misc::Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
-        {
-            scene.refusals().refuse(Refused::SkyLayer, path.value(), uploadable.error());
-            return at;
-        }
 
-        TextureHold deck = scene.takeTexture(path, *image.value());
         sheet.mTexture = deck.get();
         holds.push_back(std::move(deck));
 

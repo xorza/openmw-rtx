@@ -48,9 +48,9 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_INDIRECT) uniform readonly image
 /// What to put back: the surface's own albedo, and nothing of the path.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D albedo;
 
-/// The share of the bounce that is the fill: the cascade's mean of it where the bounce has one, and
-/// `CHANNEL_FILL` itself where it does not. No format, for the reason `indirect` has none. And what
-/// puts it back in place of `albedo`, `CHANNEL_AMBIENT_ALBEDO`.
+/// The share of the bounce that is the fill: the cascade's mean of it on a denoised frame, and
+/// `CHANNEL_FILL` itself on an undenoised one. No format, for the reason `indirect` has none. And
+/// what puts it back in place of `albedo`, `CHANNEL_AMBIENT_ALBEDO`.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_FILL) uniform readonly image2D fill;
 layout(set = SET_PASS, binding = COMPOSITE_BIND_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D ambientAlbedo;
 

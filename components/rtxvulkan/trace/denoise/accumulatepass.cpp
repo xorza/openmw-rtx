@@ -39,17 +39,12 @@ namespace Rtx
             return ComputePipeline<Shaders::AccumulateClampConstants>(
                 device, sClampBindings, {}, "accumulateclamp.comp.spv", name, specialization);
         }
-
-        /// The surface read, and its history written.
-        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_SURFACE_BINDINGS> sSurfaceBindings
-            = computeBindings<Shaders::ACCUMULATE_SURFACE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
 
     AccumulatePass::AccumulatePass(const Device& device)
         : mPipeline(device, sBindings, {}, "accumulate.comp.spv", "accumulate")
         , mClamp(makeClamp(device, false, "accumulate-clamp"))
         , mClampRing(makeClamp(device, true, "accumulate-clamp-ring"))
-        , mSurface(device, sSurfaceBindings, {}, "accumulatesurface.comp.spv", "accumulate-surface")
     {
     }
 
@@ -57,7 +52,6 @@ namespace Rtx
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-        assert(!images.mBlended.isEmpty() && "the bounce accumulated with its images let go");
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
         DescriptorWrites writes(mPipeline);
@@ -111,22 +105,6 @@ namespace Rtx
 
         dispatch(commands, clamp, clampWrites,
             Shaders::AccumulateClampConstants{ .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mAntilag ? 1u : 0u },
-            Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
-    }
-
-    void AccumulatePass::recordSurface(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
-    {
-        const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-
-        DescriptorWrites writes(mSurface);
-        writes.image(Shaders::ACCUMULATE_SURFACE_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
-        writes.image(Shaders::ACCUMULATE_SURFACE_BIND_SURFACE_OUT, images.mSurface.describeStorage());
-
-        // A reset, since the kernel reads no history at all.
-        const Shaders::HistoryConstants constants = frame.history(true);
-
-        dispatch(commands, mSurface, writes, constants,
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 }

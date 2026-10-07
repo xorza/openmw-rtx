@@ -8,6 +8,7 @@
 #include <optional>
 #include <span>
 #include <utility>
+#include <vector>
 
 #include <osg/Callback>
 #include <osg/CopyOp>
@@ -55,6 +56,18 @@ namespace Rtx
             return count;
         }
 
+        /// The one fact of its diffuse texels a blended material keeps, read through `thread` into
+        /// `facts`, which keeps it for the next asker: the mean an additive sheet glows by, or
+        /// whether a blend over what is behind ever reaches solid. One function for the reader,
+        /// whose walk over the texels is the reading's whole cost, and for `describe`, which reads
+        /// the reader's answer back out of `facts` without a walk.
+        void takeBlendFact(ThreadContent& thread, ImageFacts& facts, const osg::Image& image, Material& into)
+        {
+            if (into.isAdditive())
+                into.mDiffuseMean = meanUnder(thread.meanOf(facts, image), into.mBlend);
+            else
+                into.mDiffuseNeverSolid = !thread.reachesSolid(facts, image);
+        }
     }
 
     MaterialResolver::ChainShape MaterialResolver::ChainShape::of(const osg::Node& node)
@@ -81,7 +94,8 @@ namespace Rtx
         return shape;
     }
 
-    const osg::StateSet* MaterialResolver::animate(osg::Node& node, osg::NodeVisitor* visitor, const bool underAnimated)
+    const osg::StateSet* MaterialResolver::animate(
+        osg::Node& node, const std::size_t placement, osg::NodeVisitor* visitor, const bool underAnimated)
     {
         // Asked of every node in the graph every frame, and nearly all of a cell hangs off no
         // callback at all and stands under nothing animated.
@@ -94,7 +108,7 @@ namespace Rtx
         // found and what the chains looked like when it found it; a controller swapped, appended or
         // removed under the walk changes the signature, and a node whose chains carry no updater
         // keeps a null one.
-        const auto [entry, arrived] = mAnimated.reach(&node);
+        const auto [entry, arrived] = mAnimated.reach(Placement{ .mNode = &node, .mPath = placement });
         Animated& held = entry->second;
         const ChainShape chains = ChainShape::of(node);
         if (arrived || chains != held.mChains)
@@ -211,7 +225,7 @@ namespace Rtx
         if (shading.empty())
             return MaterialReading{};
 
-        MaterialReading reading{ .mKey = shading.back().mStateSet };
+        MaterialReading reading;
         if (!describeSurface(shading, reading.mDescribed.emplace()))
         {
             reading.mDescribed.reset();
@@ -226,24 +240,35 @@ namespace Rtx
         if (described.mAlphaMode == AlphaMode::Blend && diffuse != nullptr && !diffuse->getFileName().empty())
         {
             ImageFacts& known = thread.factsOf(*diffuse);
-            if (additiveSurface(described.mAlphaMode, described.mBlend))
-                thread.meanOf(known, *diffuse);
-            else
-                thread.reachesSolid(known, *diffuse);
+            Material blended{ .mAlphaMode = described.mAlphaMode, .mBlend = described.mBlend };
+            takeBlendFact(thread, known, *diffuse, blended);
             reading.mDiffuseFacts = known;
         }
 
         return reading;
     }
 
-    Index MaterialResolver::adopt(const MaterialReading& reading)
+    void MaterialResolver::chainOf(const std::span<const Shading> shading, std::vector<const osg::StateSet*>& into)
     {
-        if (reading.mKey == nullptr)
+        assert(!animatedThrough(shading) && "a reading of a chain a controller stands on");
+
+        const std::size_t first = into.size();
+        for (const Shading& link : shading)
+            if (link.mStates)
+                into.push_back(link.mStateSet);
+
+        if (into.size() == first && !shading.empty())
+            into.push_back(shading.back().mStateSet);
+    }
+
+    Index MaterialResolver::adopt(const osg::StateSet* const key, const MaterialReading& reading)
+    {
+        if (key == nullptr)
             return sNoIndex;
 
-        Entry known = reuse(reading.mKey);
+        Entry known = reuse(key);
         if (known == mMaterials.end())
-            known = adopt(reading.mKey, describe(reading, false, nullptr));
+            known = adopt(key, describe(reading, false, nullptr));
 
         mMaterials.hold(known);
         return known->second.mRow.get();
@@ -274,13 +299,13 @@ namespace Rtx
         if (shading.empty())
             return Resolved{};
 
-        // The material's identity is the state set nearest the drawable. Two drawables that share
-        // it share their shading: OpenMW's optimizer collapses equivalent state sets into one
-        // object, so sharing the pointer means sharing the values, and what the parents above
-        // contribute in this graph is light and render-bin state rather than material.
+        // The material's identity is the chain's key: two drawables under one chain of stating
+        // state sets share their shading, and `ChainKeys` says why the nearest state set alone
+        // does not.
         const Shading& own = shading.back();
+        const osg::StateSet* const key = own.materialKey();
 
-        if (const Entry known = reuse(own.mStateSet); known != mMaterials.end())
+        if (const Entry known = reuse(key); known != mMaterials.end())
         {
             // Read again, because a controller rewrote it since the last frame. The state set
             // is the same object — that is what lets the material keep its slot and every placement
@@ -296,20 +321,19 @@ namespace Rtx
                 mScene.setMaterial(held.mRow.get(), readMaterial(shading, &*held.mWorn));
             }
 
-            return Resolved{ .mIndex = known->second.mRow.get(), .mKey = own.mStateSet };
+            return Resolved{ .mIndex = known->second.mRow.get(), .mKey = key };
         }
 
         // An arrival under a controller starts wearing what it wears from its first frame.
         if (!own.mAnimated)
-            return Resolved{ .mIndex = adopt(own.mStateSet, readMaterial(shading, nullptr))->second.mRow.get(),
-                .mKey = own.mStateSet };
+            return Resolved{ .mIndex = adopt(key, readMaterial(shading, nullptr))->second.mRow.get(), .mKey = key };
 
         Worn worn;
         const Material material = readMaterial(shading, &worn);
-        const Entry added = adopt(own.mStateSet, material);
+        const Entry added = adopt(key, material);
         added->second.mWorn = worn;
 
-        return Resolved{ .mIndex = added->second.mRow.get(), .mKey = own.mStateSet };
+        return Resolved{ .mIndex = added->second.mRow.get(), .mKey = key };
     }
 
     Index MaterialResolver::takeTexture(const TextureUse& use, Worn* const worn, const TextureEncoding encoding)
@@ -498,23 +522,16 @@ namespace Rtx
         // opaque, tested, or has no diffuse map to read: whether a blend is a pane or a cut, and a
         // pane a medium, is the texture's alpha, and a glow is asked of an additive sheet alone. The
         // reading's answer where one was made, and the walk over the texels only where none was.
-        if (material.isBlended() && material.mDiffuse != sNoIndex && reading.mDiffuseFacts.has_value())
+        if (material.isBlended() && material.mDiffuse != sNoIndex)
         {
-            // The reader asked what the same rule below asks of the same image.
-            const ImageFacts& read = *reading.mDiffuseFacts;
-            assert((material.isAdditive() ? read.mMean.has_value() : read.mReachesSolid.has_value())
+            std::optional<ImageFacts> read = reading.mDiffuseFacts;
+            // The reader asked what this asks, of the same image: a reading that holds the other fact
+            // would walk the texels here, on the frame, into a copy that keeps nothing.
+            assert((!read.has_value()
+                       || (material.isAdditive() ? read->mMean.has_value() : read->mReachesSolid.has_value()))
                 && "a reading that read another fact than its material wants");
-            if (material.isAdditive())
-                material.mDiffuseMean = meanUnder(*read.mMean, material.mBlend);
-            else
-                material.mDiffuseNeverSolid = !*read.mReachesSolid;
-        }
-        else if (material.isBlended() && material.mDiffuse != sNoIndex)
-        {
-            if (ImageFacts* const facts = diffuseFacts(diffuse); facts != nullptr && material.isAdditive())
-                material.mDiffuseMean = meanUnder(mThread.meanOf(*facts, *diffuse), material.mBlend);
-            else if (facts != nullptr)
-                material.mDiffuseNeverSolid = !mThread.reachesSolid(*facts, *diffuse);
+            if (ImageFacts* const facts = read.has_value() ? &*read : diffuseFacts(diffuse); facts != nullptr)
+                takeBlendFact(mThread, *facts, *diffuse, material);
         }
 
         return material;

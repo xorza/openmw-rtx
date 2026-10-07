@@ -239,22 +239,6 @@
         <translation> celler</translation>
     </message>
     <message>
-        <source>Indirect Light</source>
-        <translation>Indirekt ljus</translation>
-    </message>
-    <message>
-        <source>Whether surfaces take light that no lamp, sun or moon gives. Traced follows one bounce of light from every surface and cleans its noise. Off traces none, which is much faster: what no light reaches is black.</source>
-        <translation>Om ytor får ljus som ingen lampa, sol eller måne ger. Spårat följer en studs av ljus från varje yta och tar bort dess brus. Av spårar ingen, vilket är mycket snabbare: det som inget ljus når är svart.</translation>
-    </message>
-    <message>
-        <source>Traced</source>
-        <translation>Spårat</translation>
-    </message>
-    <message>
-        <source>Off (Faster)</source>
-        <translation>Av (snabbare)</translation>
-    </message>
-    <message>
         <source>Custom:</source>
         <translation>Egen:</translation>
     </message>

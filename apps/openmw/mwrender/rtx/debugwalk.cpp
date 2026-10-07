@@ -17,7 +17,7 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
-#include "../vismask.hpp"
+#include <apps/openmw/mwrender/vismask.hpp>
 
 namespace MWRender
 {

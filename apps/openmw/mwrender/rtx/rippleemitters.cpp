@@ -4,11 +4,11 @@
 
 #include <osg/Vec2f>
 
-#include "../../mwbase/environment.hpp"
-#include "../../mwbase/world.hpp"
-#include "../../mwworld/cellstore.hpp"
-#include "../../mwworld/class.hpp"
-#include "../ripplerules.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/ripplerules.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 
 namespace MWRender
 {

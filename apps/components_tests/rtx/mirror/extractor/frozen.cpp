@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <functional>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -8,6 +9,7 @@
 #include <osg/Callback>
 #include <osg/Geometry>
 #include <osg/Group>
+#include <osg/LOD>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
@@ -71,10 +73,10 @@ namespace Rtx::Testing
             /// Where the one placement standing stands.
             osg::Vec3f standing() const
             {
-                for (const PlacementRow& row : mScene.placements().getRows())
-                    if (row.mInstance.isPlaced())
-                        return osg::Vec3f() * row.mInstance.mTransform;
-                return osg::Vec3f(-1.0f, -1.0f, -1.0f);
+                osg::Vec3f found(-1.0f, -1.0f, -1.0f);
+                mScene.placements().forEachPlaced(
+                    [&](Index, const PlacementRow& row) { found = osg::Vec3f() * row.mInstance.mTransform; });
+                return found;
             }
 
             osg::ref_ptr<osg::Group> mRoot = new osg::Group;
@@ -90,7 +92,7 @@ namespace Rtx::Testing
         ///
         /// What a walk resolved is what `mMeshesReused` counts: one for the quad on a frame that
         /// walks the reference, and nought on one that passes it, while `mInstances` counts the
-        /// placement either way, as the report reads it.
+        /// placement either way, as the report reads it, and `mPassedFrozen` the quad a pass stood.
         TEST_F(RtxFrozenSubtreeTest, aStillReferenceIsPassedAndKeptAndAMovedOneIsWalkedAgain)
         {
             const osg::ref_ptr<osg::MatrixTransform> reference = addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
@@ -104,6 +106,7 @@ namespace Rtx::Testing
                 const ExtractionStats passed = frame();
                 EXPECT_EQ(passed.mMeshesReused, 0u) << "a frozen reference was walked";
                 EXPECT_EQ(passed.mInstances, 1u) << "a passed reference was not counted";
+                EXPECT_EQ(passed.mPassedFrozen, 1u) << "what a pass stood was not counted";
                 EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u) << "a sweep dropped what a hold keeps";
                 EXPECT_EQ(standing(), osg::Vec3f(10.0f, 0.0f, 0.0f));
             }
@@ -111,6 +114,7 @@ namespace Rtx::Testing
             reference->setMatrix(osg::Matrix::translate(0.0f, 20.0f, 0.0f));
             const ExtractionStats moved = frame();
             EXPECT_EQ(moved.mMeshesReused, 1u) << "a moved reference was passed";
+            EXPECT_EQ(moved.mPassedFrozen, 0u);
             EXPECT_EQ(standing(), osg::Vec3f(0.0f, 20.0f, 0.0f));
 
             EXPECT_EQ(frame().mMeshesReused, 1u) << "it froze on the frame it moved";
@@ -126,6 +130,8 @@ namespace Rtx::Testing
         /// **A reference that changes on its own is walked on every frame**: a controller on its
         /// root, a state set a controller writes, a switch anywhere under it. And **what the game
         /// hangs on a frozen root thaws it**: a state set, which an enchantment's glow is, or a child.
+        /// **A level of detail does not change**: the walk takes the nearest level, which the ranges
+        /// choose and not the eye, so its reference freezes standing that level alone.
         TEST_F(RtxFrozenSubtreeTest, aReferenceThatChangesIsWalkedEveryFrameAndOneTheGameChangesThaws)
         {
             const std::vector<std::pair<const char*, std::function<void(osg::MatrixTransform&)>>> changing{
@@ -152,6 +158,23 @@ namespace Rtx::Testing
                     EXPECT_GT(frame().mMeshesReused, 0u) << what << " froze";
 
                 mCell->removeChild(reference);
+                frame();
+            }
+
+            {
+                const osg::ref_ptr<osg::MatrixTransform> leveled = addReference(osg::Vec3f());
+                osg::ref_ptr<osg::LOD> levels = new osg::LOD;
+                levels->addChild(makeQuad(), 100.0f, 1000.0f);
+                levels->addChild(makeQuad(), 0.0f, 100.0f);
+                leveled->addChild(levels);
+
+                frame();
+                const ExtractionStats passed = frame();
+                EXPECT_EQ(passed.mMeshesReused, 0u) << "a level of detail kept its reference walked";
+                // Its own quad and the nearer level, and not the farther one.
+                EXPECT_EQ(passed.mPassedFrozen, 2u);
+
+                mCell->removeChild(leveled);
                 frame();
             }
 
@@ -193,6 +216,27 @@ namespace Rtx::Testing
             EXPECT_EQ(frame().mMeshesReused, 1u) << "it froze on a frame it moved";
             EXPECT_EQ(frame().mMeshesReused, 0u) << "standing still, it did not freeze";
             EXPECT_EQ(standing(), osg::Vec3f(4.0f, 0.0f, 0.0f));
+        }
+
+        /// A node a walk cannot read, which throws where the walk reaches it.
+        struct Throwing : osg::Node
+        {
+            void accept(osg::NodeVisitor&) override { throw std::runtime_error("a node the walk cannot read"); }
+        };
+
+        /// **A walk that threw in the middle of a reference's record leaves no record open**: the
+        /// walk after it records its own references as any walk does, where a record left open
+        /// was a reference root recorded inside another.
+        TEST_F(RtxFrozenSubtreeTest, aWalkThatThrowsInsideAReferenceLeavesNoRecordOpen)
+        {
+            const osg::ref_ptr<osg::MatrixTransform> broken = addReference(osg::Vec3f());
+            broken->addChild(new Throwing);
+            EXPECT_THROW(frame(), std::runtime_error);
+
+            mCell->removeChild(broken);
+            addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
+            EXPECT_EQ(frame().mInstances, 1u);
+            EXPECT_EQ(frame().mPassedFrozen, 1u) << "the walk after the throw recorded nothing";
         }
 
         /// **A view that sees another part of the world walks every reference again**: a mask

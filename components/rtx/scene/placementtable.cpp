@@ -129,7 +129,7 @@ namespace Rtx
     void PlacementTable::fade(const Index slot, const float opacity)
     {
         PlacementRow& row = mRows.at(slot);
-        assert(row.mInstance.isPlaced() && "a slot nothing stands in");
+        assert(isPlaced(slot) && "a slot nothing stands in");
         assert(row.mInstance.mStander == Stander::Walk && "a fade of a placement the ring stood");
 
         if (row.mInstance.mOpacity == opacity)
@@ -146,7 +146,7 @@ namespace Rtx
     bool PlacementTable::move(const Index slot, const osg::Matrixf& transform)
     {
         PlacementRow& row = mRows.at(slot);
-        assert(row.mInstance.isPlaced() && "a slot nothing stands in");
+        assert(isPlaced(slot) && "a slot nothing stands in");
         assert(row.mInstance.mStander == Stander::Walk && "a move of a placement the ring stood");
 
         if (row.mInstance.mTransform == transform)
@@ -169,15 +169,14 @@ namespace Rtx
     void PlacementTable::drop(const Index slot, const Stander by)
     {
         PlacementRow& row = mRows.at(slot);
-        assert(row.mInstance.isPlaced() && "a slot dropped twice, or one nothing stood in");
+        assert(isPlaced(slot) && "a slot dropped twice, or one nothing stood in");
         assert(row.mInstance.mStander == by && "a slot dropped by a stander that did not stand it");
 
         unlink(slot, row.mInstance.mMaterial, mFirstWearing, &PlacementRow::mWearing);
         unlink(slot, row.mInstance.mMesh, mFirstPlacing, &PlacementRow::mPlacing);
         discount(slot);
 
-        // Emptied, so a slot keeps no link: what the row holds after this is what `isPlaced`
-        // says, and nothing else reads it until `add` writes it whole.
+        // Emptied, so a slot keeps no link and no mesh: nothing reads it until `add` writes it whole.
         row = PlacementRow{};
 
         mRows.free(slot);

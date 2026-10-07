@@ -88,7 +88,6 @@ namespace RtxTool
                 .mJitter = true,
                 .mNoise = Rtx::NoiseSource::WhiteHash,
                 .mLevelBias = -1.0f,
-                .mIndirect = Rtx::IndirectLight::Off,
                 .mAntilag = true,
                 .mHistoryFix = false,
                 .mDualMotion = true,
@@ -105,7 +104,7 @@ namespace RtxTool
             const std::string expected = "\nrun  " + build
                 + ", layers on, not a figure to quote, not measured, every frame hashed, the weather turned\n"
                   "     1920x1080 from 960x540, upscale performance, filter off, jitter on, noise white-hash, "
-                  "level bias -1.000, indirect off, antilag on, history fix off, dual motion on, anti-firefly on, "
+                  "level bias -1.000, antilag on, history fix off, dual motion on, anti-firefly on, "
                   "shadow floor 0.0625, lamp candidates 4\n"
                   "     delight 0.50, gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, maps player, step 0.0625 s, "
@@ -140,7 +139,7 @@ namespace RtxTool
             EXPECT_NE(json.find(premises), std::string::npos) << json;
             EXPECT_NE(json.find(setup), std::string::npos) << json;
             EXPECT_NE(json.find(mirror), std::string::npos) << json;
-            EXPECT_NE(json.find(R"("indirect": "off", "antilag": true, "historyFix": false, "dualMotion": true, )"
+            EXPECT_NE(json.find(R"("antilag": true, "historyFix": false, "dualMotion": true, )"
                                 R"("antiFirefly": true, "shadowFloor": 0.0625, "lampCandidates": 4,)"),
                 std::string::npos)
                 << json;

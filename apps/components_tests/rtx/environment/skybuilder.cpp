@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -27,7 +28,7 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/cloudshell.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/nightsky.hpp>
@@ -401,7 +402,15 @@ namespace Rtx
         {
             SceneDesc scene;
             VFS::Manager vfs;
-            Resource::ImageManager images(&vfs, 0);
+            Testing::HeldImages images(&vfs, 0);
+            for (const Moon moon : { Moon::Masser, Moon::Secunda })
+            {
+                const osg::ref_ptr<osg::Image> portrait = new osg::Image;
+                portrait->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                std::fill_n(portrait->data(), 16, std::uint8_t{ 255 });
+                portrait->setFileName(std::string(moonFaceOf(moon).value()));
+                images.hold(moonFaceOf(moon), portrait);
+            }
 
             std::vector<TextureHold> moonHolds;
             ThreadContent thread;

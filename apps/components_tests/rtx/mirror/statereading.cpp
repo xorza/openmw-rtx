@@ -28,6 +28,7 @@
 
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/texmat.hpp>
@@ -40,7 +41,7 @@ namespace Rtx
     {
         /// Every role is spelled as the loader binds it, which the content decides and a renamed role
         /// would stop reading; `blendMap` is bound the same way and is not a role.
-        TEST(RtxSurfaceTest, everyRoleIsSpelledAsTheLoaderBindsIt)
+        TEST(RtxStateReadingTest, everyRoleIsSpelledAsTheLoaderBindsIt)
         {
             constexpr std::array bound{
                 std::pair{ TextureRole::Diffuse, "diffuseMap" },
@@ -64,7 +65,7 @@ namespace Rtx
 
         /// A state set that sets only modes and uniforms describes no surface, and leaves the
         /// material it was folded into as it was.
-        TEST(RtxSurfaceTest, aStateSetWithNoMaterialAndNoTextureSaysNothing)
+        TEST(RtxStateReadingTest, aStateSetWithNoMaterialAndNoTextureSaysNothing)
         {
             osg::ref_ptr<osg::StateSet> state = new osg::StateSet;
             state->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
@@ -82,7 +83,7 @@ namespace Rtx
         /// A texture's role is the `TextureType` beside it or the sampler uniform naming its unit,
         /// and a unit nothing names is not the surface's: the rasterizer's own effects bind one
         /// that way, and a walk must not take the water's ripples for a surface.
-        TEST(RtxSurfaceTest, aTextureIsReadByItsTypeOrItsSamplerAndAnUnnamedUnitIsNot)
+        TEST(RtxStateReadingTest, aTextureIsReadByItsTypeOrItsSamplerAndAnUnnamedUnitIsNot)
         {
             osg::ref_ptr<osg::Image> diffuse = new osg::Image;
             osg::ref_ptr<osg::Image> glow = new osg::Image;
@@ -163,7 +164,7 @@ namespace Rtx
         /// The colours come off the material attribute, and the opacity off it too until an
         /// `alpha` uniform animates it — unless `actorFade` stands beside that, which is the game
         /// fading an actor and not the surface's own.
-        TEST(RtxSurfaceTest, theColoursAreTheMaterialsAndTheOpacityFollowsTheAlphaUniform)
+        TEST(RtxStateReadingTest, theColoursAreTheMaterialsAndTheOpacityFollowsTheAlphaUniform)
         {
             osg::ref_ptr<SceneUtil::Material> colours = new SceneUtil::Material;
             colours->setDiffuse(osg::Vec4f(0.25f, 0.5f, 0.75f, 0.5f));
@@ -236,7 +237,7 @@ namespace Rtx
         /// beside an `alphaRef` uniform — reads the same as the attribute it replaced. `ALWAYS` is
         /// no test, which is what the scene root wears. A test is a cutout wherever it fails some
         /// alpha: `GREATER` at nought cuts the bare texels, and `GEQUAL` at nought cuts nothing.
-        TEST(RtxSurfaceTest, alphaTestingAndBlendingReadAsTheLoaderWroteThem)
+        TEST(RtxStateReadingTest, alphaTestingAndBlendingReadAsTheLoaderWroteThem)
         {
             osg::ref_ptr<osg::StateSet> tested = new osg::StateSet;
             tested->setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, 128.0f / 255.0f));
@@ -311,7 +312,7 @@ namespace Rtx
         /// `PROTECTED`, which is how OpenGL resolves the chain and how `MWRender::overrideTexture`
         /// puts the blood's texture on an effect's root. The lock is the fold's and not the
         /// description's: a fresh fold over the same leaf reads the leaf.
-        TEST(RtxSurfaceTest, aParentsOverrideKeepsItsTextureAgainstAChildUnlessTheChildIsProtected)
+        TEST(RtxStateReadingTest, aParentsOverrideKeepsItsTextureAgainstAChildUnlessTheChildIsProtected)
         {
             osg::ref_ptr<osg::Image> blood = new osg::Image;
             osg::ref_ptr<osg::Image> own = new osg::Image;
@@ -362,7 +363,7 @@ namespace Rtx
         /// The other things a parent can claim: the material's colours, the alpha uniform, the
         /// modes. Each under its own lock, so a `GL_CULL_FACE` a root overrides leaves a leaf's
         /// blend alone.
-        TEST(RtxSurfaceTest, aParentsOverrideLocksEachThingItSetsAndNothingElse)
+        TEST(RtxStateReadingTest, aParentsOverrideLocksEachThingItSetsAndNothingElse)
         {
             osg::ref_ptr<SceneUtil::Material> rootColours = new SceneUtil::Material;
             rootColours->setDiffuse(osg::Vec4f(0.25f, 0.25f, 0.25f, 1.0f));
@@ -394,7 +395,7 @@ namespace Rtx
         /// The wrap comes off the texture, the one piece of sampler state the content decides per
         /// texture: every banner and every torch flame in the game clamps, and a description that
         /// dropped it repeated their edges.
-        TEST(RtxSurfaceTest, theWrapComesOffTheTextureAndAnImageAloneRepeats)
+        TEST(RtxStateReadingTest, theWrapComesOffTheTextureAndAnImageAloneRepeats)
         {
             osg::ref_ptr<osg::Image> image = new osg::Image;
 
@@ -436,7 +437,7 @@ namespace Rtx
         /// How a blend composites comes off the function's factors: a destination of `ONE` adds,
         /// and so does `DST_ALPHA` because the frame's alpha is one; a source of `ONE` adds whole.
         /// A `GL_BLEND` mode on its own says only that the surface blends over.
-        TEST(RtxSurfaceTest, theBlendKindComesOffTheFunctionsFactors)
+        TEST(RtxStateReadingTest, theBlendKindComesOffTheFunctionsFactors)
         {
             const auto kindOf = [](GLenum source, GLenum destination) {
                 osg::ref_ptr<osg::StateSet> state = new osg::StateSet;
@@ -466,7 +467,7 @@ namespace Rtx
         /// clockwise front, which is the winding a mirror turns round — and what the reader carries
         /// say nothing, so a vanilla surface states none. A nearer state set restating a fact is the
         /// nearer one's.
-        TEST(RtxSurfaceTest, whatAStateSetStatesAndTheTraceDoesNotReadIsSaid)
+        TEST(RtxStateReadingTest, whatAStateSetStatesAndTheTraceDoesNotReadIsSaid)
         {
             const auto unreadOf = [](const osg::StateSet& state) {
                 SurfaceDescription material;
@@ -520,7 +521,7 @@ namespace Rtx
 
         /// The environment map's tint, the ambient the game overrides for a magic effect, and the
         /// unit a dark map is bound at are all read where the loader and the game put them.
-        TEST(RtxSurfaceTest, theEnvironmentTintTheAmbientOverrideAndTheDarkUnitAreRead)
+        TEST(RtxStateReadingTest, theEnvironmentTintTheAmbientOverrideAndTheDarkUnitAreRead)
         {
             osg::ref_ptr<osg::Image> sheet = new osg::Image;
             osg::ref_ptr<osg::Image> dark = new osg::Image;
@@ -552,7 +553,7 @@ namespace Rtx
 
         /// The texture transform is the scale and offset `NifOsg::UVController` built its matrix
         /// from, undone: scaled about the middle of the texture, then offset.
-        TEST(RtxSurfaceTest, theTextureTransformIsUndoneToWhatTheControllerBuiltItFrom)
+        TEST(RtxStateReadingTest, theTextureTransformIsUndoneToWhatTheControllerBuiltItFrom)
         {
             const osg::Vec3f origin(0.5f, 0.5f, 0.0f);
             osg::Matrixf transform = osg::Matrixf::translate(origin);
@@ -574,7 +575,7 @@ namespace Rtx
         /// A surface emits by any one of the five things `litSurface` adds past the light it
         /// receives, and by nothing else: a colour its multiplier leaves at nought is none, and an
         /// additive blend counts only where the surface blends at all.
-        TEST(RtxSurfaceTest, aSurfaceEmitsByAnyOfTheFiveThingsTheTraceAddsOfItsOwn)
+        TEST(RtxStateReadingTest, aSurfaceEmitsByAnyOfTheFiveThingsTheTraceAddsOfItsOwn)
         {
             struct Way
             {

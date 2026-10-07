@@ -24,6 +24,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 
+#include "chainkeys.hpp"
 #include "emitterresolver.hpp"
 #include "extractionstats.hpp"
 #include "materialresolver.hpp"
@@ -219,13 +220,14 @@ namespace Rtx
         };
 
         /// The pass opened for one walk and closed however the walk ends: the counts pointer back
-        /// to null, the falls flag cleared and the phase back to `Between`, on the ordinary return
-        /// and on a throw alike. A resolver reached after a walk that threw would otherwise count
-        /// into an unwound local.
+        /// to null, the falls flag cleared, no reference's record left open and the phase back to
+        /// `Between`, on the ordinary return and on a throw alike. A resolver reached after a walk
+        /// that threw would otherwise count into an unwound local, and the next walk's first
+        /// reference would be recorded inside the one the throw left.
         class WalkGuard
         {
         public:
-            WalkGuard(MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, bool falls);
+            WalkGuard(MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, bool falls, bool& recording);
             ~WalkGuard();
 
             WalkGuard(const WalkGuard&) = delete;
@@ -234,6 +236,7 @@ namespace Rtx
         private:
             MirrorPass& mPass;
             Stepped<Phase>& mPhase;
+            bool& mRecording;
         };
 
         /// What the ring may do, and nothing else may. `Rtx::SceneAdopter` is implemented
@@ -246,11 +249,8 @@ namespace Rtx
             mPhase.expect(Phase::Walking);
             return mMeshes.adopt(drawable, reading);
         }
-        Index adoptMaterial(const MaterialReading& reading) override
-        {
-            mPhase.expect(Phase::Walking);
-            return mMaterials.adopt(reading);
-        }
+        MaterialResolver::Resolved adoptMaterial(
+            const MaterialReading& reading, std::span<const osg::StateSet* const> chain) override;
         void releaseMesh(const osg::Drawable& drawable) override { mMeshes.release(drawable); }
         void releaseMaterial(const osg::StateSet* key) override { mMaterials.release(key); }
         SceneDesc& getScene() override { return mScene; }
@@ -293,11 +293,13 @@ namespace Rtx
         /// than left to a callback: a `SceneUtil::StateSetUpdater` as a cull callback writes a state
         /// set that exists only inside a cull traversal, and as an update callback alternates the
         /// node's own between two copies, so a material keyed on the address is added and swept
-        /// once a frame. One state set per node, rewritten in place, keeps the address stable.
+        /// once a frame. One state set per placement of the node, rewritten in place, keeps the
+        /// address stable.
         ///
+        /// @param placement the identity of the path the walk reached `node` by.
         /// @param underAnimated whether an animated state set stands above `node` on the chain,
         ///        which makes a node with a state set of its own animated too.
-        const osg::StateSet* animate(osg::Node& node, bool underAnimated);
+        const osg::StateSet* animate(osg::Node& node, std::size_t placement, bool underAnimated);
 
         /// Whether a drawable carrying `mask` is the world's water.
         bool isWater(osg::Node::NodeMask mask) const;
@@ -446,6 +448,14 @@ namespace Rtx
 
         /// What the content says each surface is, and the textures those name.
         MaterialResolver mMaterials{ mScene, mPass, mContext.mContent, mContext.mSpecular };
+
+        /// The keys the walk's chains of state sets fold to, which `mMaterials` holds its entries
+        /// under, and the ring's readings as they are adopted.
+        ChainKeys mChainKeys;
+
+        /// What a groundcover reading's key is paired with last (`MaterialReading::mGroundcover`):
+        /// an empty state set of the walk's own, standing for the override no chain states.
+        const osg::ref_ptr<const osg::StateSet> mGroundcoverOverride = new osg::StateSet;
 
         /// The particle systems the walk met, and the sprite textures they hold.
         EmitterResolver mEmitters{ mScene, mPass, mContext.mContent };

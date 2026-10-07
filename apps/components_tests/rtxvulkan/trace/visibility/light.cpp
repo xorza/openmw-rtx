@@ -8,6 +8,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -24,7 +25,7 @@
 #include <apps/components_tests/rtx/support/lobeintegrals.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -391,9 +392,13 @@ namespace Rtx::Testing
         /// needs all three.
         ///
         /// Measured against the neighbouring test's own numbers rather than against a byte worked out
-        /// here: the tone curve is not the sRGB encode, so half a radiance is not half a byte. What
-        /// *is* exact is that a half-transmitting pane and a half-bright sun are the same
-        /// multiplication, so they have to land on the same pixel.
+        /// here: the tone curve is not the sRGB encode, so half a radiance is not half a byte. A pane
+        /// that lets all or nothing through lands where no pane and a solid one do, to the byte.
+        ///
+        /// **Half a pane is drawn into the shadow's bit and not into its light** (`gather`): the
+        /// shadowed light under it is the whole sun's, to the bit, and the bit is open on as many of
+        /// its draws as the pane lets through, with the drawn reach. Over 64 frames, n >= 64 draws of
+        /// a half: the mean's deviation is `0.5 / sqrt(n)`, held at four of it.
         TEST_F(RtxVisibilityTest, aTranslucentOccluderDimsTheSunRatherThanStoppingIt)
         {
             // Square in the sun's path to the middle of the wall, which is where the centre pixel
@@ -408,14 +413,52 @@ namespace Rtx::Testing
             EXPECT_EQ(litThroughPane(occluder, white(1.0f), bright), 0)
                 << "a pane that is all there is not translucent at all";
 
-            // Half the sun through the pane is the same multiplication as half a sun with none, and
-            // the tests above pin that at 111.
-            EXPECT_EQ(litThroughPane(occluder, white(0.5f), bright), 111) << "and half of it through half a pane";
-            EXPECT_EQ(litThroughPane(occluder, std::nullopt, osg::Vec3f(1.0f, 1.0f, 1.0f)), 111)
-                << "which is where it came from";
-
             // A pane that stops nothing is a pane that is not there.
             EXPECT_EQ(litThroughPane(occluder, white(0.0f), bright), 153);
+
+            constexpr std::uint32_t size = 33;
+            const std::size_t centre = centreOf(size);
+            std::vector<float> shadowed;
+            std::vector<float> penumbrae;
+            shoot(makeWall(), {}, wallCamera(size, bright), size);
+            mRenderer.readChannel(Channel::Shadowed, shadowed);
+            const float whole = shadowed[centre * 4];
+            ASSERT_GT(whole, 0.0f) << "the sun on the wall, split off";
+
+            // What each frame's bits under a translucent occluder say: how many were drawn by it,
+            // and how many of those came out open.
+            struct Drawn
+            {
+                std::size_t mDraws = 0;
+                std::size_t mOpen = 0;
+            };
+            const auto drawnUnder = [&](const SceneDesc& scene, std::span<const TextureData> textures) {
+                constexpr std::uint32_t frames = 64;
+                Drawn drawn;
+                shoot(scene, textures, wallCamera(size, bright), size,
+                    { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                         mRenderer.readChannel(Channel::Shadowed, shadowed);
+                         mRenderer.readChannel(Channel::Penumbra, penumbrae);
+                         EXPECT_EQ(shadowed[centre * 4], whole) << "the light under the pane, as though it got through";
+                         EXPECT_EQ(penumbrae[centre], Shaders::SHADOW_PENUMBRA_DRAWN);
+                         for (std::size_t pixel = 0; pixel < penumbrae.size(); ++pixel)
+                             if (penumbrae[pixel] == Shaders::SHADOW_PENUMBRA_DRAWN)
+                             {
+                                 ++drawn.mDraws;
+                                 drawn.mOpen += shadowed[pixel * 4 + 3] == 1.0f ? 1 : 0;
+                             }
+                     } });
+                EXPECT_GE(drawn.mDraws, std::size_t{ frames });
+                return drawn;
+            };
+            const auto expectHalfOpen = [](const Drawn& drawn, std::string_view what) {
+                const double open = static_cast<double>(drawn.mOpen) / static_cast<double>(drawn.mDraws);
+                EXPECT_NEAR(open, 0.5, 4.0 * 0.5 / std::sqrt(static_cast<double>(drawn.mDraws))) << what;
+            };
+
+            SceneDesc halfPane = makeWall();
+            addPane(halfPane, occluder, white(0.5f));
+            expectHalfOpen(drawnUnder(halfPane, {}), "half of it through half a pane");
 
             // **A cutout the game is fading lets the sun through its holes, as the eye sees them.**
             // The eye passes a texel under the cutoff and peels what is left by its alpha times the
@@ -424,8 +467,6 @@ namespace Rtx::Testing
             // alpha instead, a quarter under a half fade, the wall stood at 144 where the eye saw
             // nothing standing in the sun's way.
             const auto throughFadedCutout = [&](std::uint8_t alpha, float fade) {
-                constexpr std::uint32_t size = 33;
-
                 const std::array<std::uint8_t, 4> texel{ 255, 255, 255, alpha };
                 const std::array<TextureData, 1> textures{ describeTexel(texel) };
 
@@ -445,7 +486,18 @@ namespace Rtx::Testing
 
             EXPECT_EQ(throughFadedCutout(64, 1.0f), 153) << "a hole in a cutout the game shows whole";
             EXPECT_EQ(throughFadedCutout(64, 0.5f), 153) << "and in one the game is fading";
-            EXPECT_EQ(throughFadedCutout(255, 0.5f), 111) << "whose opaque texels are half there, as half a pane is";
+
+            const std::array<std::uint8_t, 4> solid{ 255, 255, 255, 255 };
+            const std::array<TextureData, 1> painted{ describeTexel(solid) };
+            SceneDesc fading = makeWall();
+            const Index cut = fading.addMaterial(Material{
+                .mDiffuse = fading.textures().add(VFS::Path::NormalizedView("cutout.dds")),
+                .mAlphaTest = { .mReference = 0.5f },
+                .mAlphaMode = AlphaMode::Cutout,
+            });
+            fading.addInstance(
+                MeshInstance{ .mMesh = addQuadMesh(fading, occluder), .mMaterial = cut, .mOpacity = 0.5f });
+            expectHalfOpen(drawnUnder(fading, painted), "whose opaque texels are half there, as half a pane is");
         }
 
         /// A glow, which the engine treats as two different things and so does this.
@@ -936,7 +988,7 @@ namespace Rtx::Testing
                 camera.mSun.mIrradiance = osg::Vec3f();
                 camera.mAmbient = osg::Vec3f();
 
-                const Frame frame = shoot(scene, {}, camera, size, { .mFrames = 16, .mIndirect = IndirectLight::Off });
+                const Frame frame = shoot(scene, {}, camera, size, { .mFrames = 16 });
                 return osg::Vec3f(frame.mean(0), frame.mean(1), frame.mean(2));
             };
 
@@ -987,8 +1039,7 @@ namespace Rtx::Testing
                 camera.mSun.mIrradiance = osg::Vec3f();
                 camera.mAmbient = osg::Vec3f();
 
-                return shoot(scene, {}, camera, size,
-                    { .mFrames = frames, .mLampCandidates = candidates, .mIndirect = IndirectLight::Off });
+                return shoot(scene, {}, camera, size, { .mFrames = frames, .mLampCandidates = candidates });
             };
 
             const Frame walked = lit(0u, 64);
@@ -1624,7 +1675,7 @@ namespace Rtx::Testing
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
             camera.mSun = Shaders::sunSource(toSun, osg::Vec3f(sunlight, sunlight, sunlight));
-            camera.mMoons[0].mSource = Shaders::moonSource(toMoon, osg::Vec3f(moonlight, moonlight, moonlight), 0.05f);
+            camera.mMoons[0].mSource = Shaders::skySource(toMoon, osg::Vec3f(moonlight, moonlight, moonlight), 0.05f);
             camera.mMoons[0].mRight = osg::Vec3f(0.0f, 0.0f, 1.0f);
             camera.mMoons[0].mUp = osg::Vec3f(1.0f, 0.0f, 0.0f);
             camera.mMoons[0].mColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
@@ -2361,145 +2412,6 @@ namespace Rtx::Testing
             ASSERT_GT(brightest(lit.mIndirect), 0.0f) << "the lamp lights the lid the bounce finds";
             EXPECT_EQ(brightest(lit.mFill), 0.0f) << "and a lamp is no fill";
             EXPECT_EQ(litHalf.mFrame.mRadiance, lit.mFrame.mRadiance) << "so the ambient colour moves nothing";
-        }
-
-        /// **Where no bounce is traced, a surface takes no indirect light at all**: the indirect and
-        /// fill channels are nought exactly, and the picture is the direct light alone.
-        ///
-        /// The floor under a lid of the two tests above, lit by an ambient of a half and nothing
-        /// else: traced, the floor takes the fill the bounce brings off the lid, and with none it is
-        /// black to the bit, in a room and under a sky, on a run of frames drawn from two streams and
-        /// through the denoisers, which have nothing of the bounce to filter.
-        ///
-        /// **A pane takes none either**, though it ends its path in `pathEnd` and no bounce: a white
-        /// pane at half opacity between the eye and the floor is lit by the room's fill where the
-        /// bounce is traced, and is black with the floor behind it where none is.
-        TEST_F(RtxVisibilityTest, noIndirectLightLeavesWhatNoLightReachesBlack)
-        {
-            constexpr std::uint32_t size = 32;
-            constexpr float lid = 70.0f;
-
-            const auto floorUnder
-                = [&](float fromSky, std::uint32_t first, bool filter, IndirectLight indirect, bool pane) {
-                      SceneDesc scene;
-                      addQuad(scene, sheetAt(4000.0f, 0.0f));
-                      addQuad(scene, sheetAt(4000.0f, lid));
-                      if (pane)
-                          addPane(scene, sheetAt(4000.0f, 0.25f * lid), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
-
-                      Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, -1.0f, 0.5f * lid),
-                          osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
-                      camera.mSkyHorizon = osg::Vec3f(0.3f, 0.3f, 0.3f);
-                      camera.mSkyZenith = osg::Vec3f(0.3f, 0.3f, 0.3f);
-                      camera.mSun.mIrradiance = osg::Vec3f();
-                      camera.mAmbient = osg::Vec3f(0.5f, 0.5f, 0.5f);
-                      camera.mAmbientFromSky = fromSky;
-
-                      const Frame frame = shoot(scene, {}, camera, size,
-                          { .mFrames = 4,
-                              .mAverage = false,
-                              .mFirstFrame = first,
-                              .mFilter = filter,
-                              .mIndirect = indirect });
-                      EXPECT_EQ(frame.mHits, size * size);
-                      return frame;
-                  };
-
-            std::vector<float> indirect;
-            std::vector<float> fill;
-            const Frame traced = floorUnder(0.0f, 0u, false, IndirectLight::Traced, false);
-            mRenderer.readChannel(Channel::Indirect, indirect);
-            float taken = 0.0f;
-            for (std::size_t value = 0; value < indirect.size(); value += 4)
-                taken += indirect[value];
-            ASSERT_GT(taken, 0.0f) << "the traced floor took no fill, so this proves nothing";
-            ASSERT_GT(traced.mean(), 0.0f);
-
-            std::vector<float> paneLight;
-            floorUnder(0.0f, 0u, false, IndirectLight::Traced, true);
-            mRenderer.readChannel(Channel::Pane, paneLight);
-            float drawn = 0.0f;
-            for (std::size_t value = 0; value < paneLight.size(); value += 4)
-                drawn += paneLight[value];
-            ASSERT_GT(drawn, 0.0f) << "the traced pane took no fill, so this proves nothing";
-
-            for (const auto& [fromSky, first, filter, pane] : { std::tuple{ 0.0f, 0u, false, false },
-                     std::tuple{ 1.0f, 100u, false, false }, std::tuple{ 0.0f, 200u, true, false },
-                     std::tuple{ 0.0f, 300u, false, true }, std::tuple{ 0.0f, 400u, true, true } })
-            {
-                const std::string where = std::string(fromSky > 0.0f ? "under a sky" : "in a room")
-                    + (filter ? ", filtered" : "") + (pane ? ", through a pane" : "");
-                const Frame frame = floorUnder(fromSky, first, filter, IndirectLight::Off, pane);
-                mRenderer.readChannel(Channel::Indirect, indirect);
-                mRenderer.readChannel(Channel::Fill, fill);
-                for (std::size_t value = 0; value < indirect.size(); ++value)
-                {
-                    if (value % 4 == 3)
-                        continue;
-                    ASSERT_EQ(indirect[value], 0.0f) << where << ": value " << value;
-                    ASSERT_EQ(fill[value], 0.0f) << where << ": value " << value;
-                    ASSERT_EQ(frame.at(value), 0.0f) << where << ": value " << value;
-                }
-            }
-        }
-
-        /// **A glossy surface still traces its lobe where no bounce is traced**, and a metal, which
-        /// draws its lobe at a chance of one either way, draws the same reflection: the metal wall of
-        /// the tests above under a sky that lights, its `CHANNEL_SPECULAR` with the bounce traced and
-        /// with none, from one stream.
-        ///
-        /// **To the rounding of two divisions, and not to the bit.** Traced, the chance is the lobe's
-        /// albedo over itself plus a diffuse one of nought, and the lobe's weight is divided by it;
-        /// with none the chance is one as written. Vulkan holds a division to 2.5 ULP, so
-        /// the traced chance may be a step short of one and the weight two steps off: five ULP at
-        /// most, `5 × 2^-23` of the value. Measured, 639 of the 4356 values moved, by `2.2e-7` at most.
-        TEST_F(RtxVisibilityTest, aMetalReflectsTheSameWorldWhetherOrNotTheBounceIsTraced)
-        {
-            constexpr std::uint32_t size = 33;
-            constexpr float sDivided = 5.0f * std::numeric_limits<float>::epsilon();
-
-            constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
-            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 255, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
-
-            const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
-            const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
-            const std::array normals{ normal, normal, normal, normal };
-            const std::array tangents{ tangent, tangent, tangent, tangent };
-
-            SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-            const Index map = scene.textures().add(
-                VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-            scene.addInstance(MeshInstance{
-                .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
-
-            Shaders::VisibilityConstants camera = Testing::makeCamera(
-                osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-            camera.mSkyHorizon = osg::Vec3f(0.4f, 0.5f, 0.6f);
-            camera.mSkyZenith = osg::Vec3f(0.2f, 0.3f, 0.6f);
-            camera.mSun.mIrradiance = osg::Vec3f();
-            camera.mAmbientFromSky = 1.0f;
-
-            std::vector<float> traced;
-            std::vector<float> none;
-            shoot(scene, textures, camera, size, { .mFirstFrame = 5 });
-            mRenderer.readChannel(Channel::Specular, traced);
-            shoot(scene, textures, camera, size, { .mFirstFrame = 5, .mIndirect = IndirectLight::Off });
-            mRenderer.readChannel(Channel::Specular, none);
-
-            float brightest = 0.0f;
-            for (std::size_t value = 0; value < traced.size(); value += 4)
-                brightest = std::max(brightest, traced[value]);
-            ASSERT_GT(brightest, 0.0f) << "the metal reflected nothing to compare";
-            for (std::size_t value = 0; value < traced.size(); ++value)
-                ASSERT_LE(std::abs(none[value] - traced[value]), sDivided * std::abs(traced[value]))
-                    << "value " << value << ": no indirect light moved the metal's reflection";
         }
 
         /// Which side of a surface a light is on is its normal's answer, and a sheet's triangle's.

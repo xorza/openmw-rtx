@@ -12,7 +12,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/material.hpp>

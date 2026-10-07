@@ -261,6 +261,15 @@ namespace Rtx
         /// and refilled, because a cell is tens of thousands of drawables and this is the frame
         /// path.
         std::vector<Shading> mShading;
+
+        /// The material key in force under the walk's root, which every reference root of a world
+        /// walk must stand under and nothing more: the cell ring's reader starts each chain at that
+        /// root's state set (`CellWorld::mAbove`), so a reading keys as this walk keys its clone
+        /// only where nothing between the root and a reference states anything.
+        const osg::StateSet* mKeyUnderRoot = nullptr;
+
+        /// The material key in force where the walk is standing.
+        const osg::StateSet* keyInForce() const { return mShading.empty() ? nullptr : mShading.back().mMaterialKey; }
     };
 
     SceneExtractor::Traversal::Traversal(SceneExtractor& extractor, const NodeKinds& kinds)
@@ -290,6 +299,7 @@ namespace Rtx
         mChildIndex = 0;
         mDepth = 0;
         mShading.clear();
+        mKeyUnderRoot = nullptr;
 
         // A walk that threw left the class and the effect it was inside where the throw found
         // them.
@@ -335,6 +345,10 @@ namespace Rtx
         const bool root = mFreezes && mDepth == mStampDepth;
         if (root)
         {
+            // A stamped one is a reference the game stood in a cell, as the ring stands one.
+            assert((SceneUtil::StableIdentity::find(node) == nullptr || keyInForce() == mKeyUnderRoot)
+                && "a reference under state the cell ring's reader does not read");
+
             const bool jumped = jumps(node);
             if (!jumped && mExtractor.passFrozen(node, mHere))
                 return;
@@ -352,9 +366,10 @@ namespace Rtx
     void SceneExtractor::Traversal::enterWalked(osg::Node& node, const std::size_t identity, const NodeKind kind)
     {
         // What changes between frames on its own and keeps a reference root walked: the classes
-        // the rest of this marks as it meets them, and a controller or a switch on any node.
+        // the rest of this marks as it meets them, and a controller or a switch on any node. Not a
+        // level of detail, whose nearest level the ranges choose and not the eye.
         if (node.getUpdateCallback() != nullptr || node.asSwitch() != nullptr || kind == NodeKind::Sequence
-            || kind == NodeKind::Billboard || kind == NodeKind::Lod
+            || kind == NodeKind::Billboard
             || (node.getStateSet() != nullptr && node.getStateSet()->getUpdateCallback() != nullptr))
             mChangeable = true;
 
@@ -397,11 +412,14 @@ namespace Rtx
 
         // Above the node's own, which is where a rasterizing cull would push it too: what a
         // controller decided this frame overrides what the model was authored with.
-        if (const osg::StateSet* animated = mExtractor.animate(node, animatedThrough(mShading)))
+        if (const osg::StateSet* animated = mExtractor.animate(node, identity, animatedThrough(mShading)))
         {
             pushShading(*animated, true);
             mChangeable = true;
         }
+
+        if (mDepth == 1)
+            mKeyUnderRoot = keyInForce();
 
         const InstanceClass outerClass = mClass;
         const std::optional<std::size_t> outerGlow = mGlow;
@@ -547,7 +565,7 @@ namespace Rtx
 
     void SceneExtractor::Traversal::pushShading(const osg::StateSet& stateSet, const bool animated)
     {
-        mShading.push_back(Shading::under(mShading, stateSet, animated));
+        mShading.push_back(Shading::under(mShading, stateSet, animated, &mExtractor.mChainKeys));
     }
 
     void SceneExtractor::Traversal::apply(osg::Drawable& drawable)
@@ -564,21 +582,21 @@ namespace Rtx
             mChangeable = true;
 
         const std::size_t held = mShading.size();
+        const std::size_t placement = identityWith(mPathHash, mChildIndex);
         if (const osg::StateSet* own = drawable.getStateSet())
         {
             pushShading(*own, false);
 
             // A drawable carries no controller of its own, so what this asks is the other half of
             // `animate`: a state set of its own under an animated one.
-            if (const osg::StateSet* animated = mExtractor.animate(drawable, animatedThrough(mShading)))
+            if (const osg::StateSet* animated = mExtractor.animate(drawable, placement, animatedThrough(mShading)))
             {
                 pushShading(*animated, true);
                 mChangeable = true;
             }
         }
 
-        mExtractor.addDrawable(
-            drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow, mJumping, mLampBody);
+        mExtractor.addDrawable(drawable, placement, mShading, placed(), mClass, mGlow, mJumping, mLampBody);
 
         mShading.resize(held);
     }
@@ -599,6 +617,7 @@ namespace Rtx
         mFrozen.reserve(sFrozenBudget);
         mMeshes.reserve(sMeshBudget, sDeformerBudget);
         mMaterials.reserve(sMaterialBudget, sTextureBudget, sAnimatedBudget);
+        mChainKeys.reserve(sMaterialBudget);
         mEmitters.reserve(sEmitterBudget);
         mGlows.reserve(sEffectBudget);
     }
@@ -642,9 +661,10 @@ namespace Rtx
     }
 
     SceneExtractor::WalkGuard::WalkGuard(
-        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const bool falls)
+        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const bool falls, bool& recording)
         : mPass(pass)
         , mPhase(phase)
+        , mRecording(recording)
     {
         mPhase.step(Phase::Walking, Phase::Between);
         mPass.mStats = &stats;
@@ -657,6 +677,7 @@ namespace Rtx
         // report that has gone.
         mPass.mStats = nullptr;
         mPass.mFalls = false;
+        mRecording = false;
         mPhase.step(Phase::Between, Phase::Walking);
     }
 
@@ -664,7 +685,7 @@ namespace Rtx
         std::size_t frame, CellRing* const ring, const bool falls)
     {
         ExtractionStats stats;
-        const WalkGuard walking(mPass, mPhase, stats, falls);
+        const WalkGuard walking(mPass, mPhase, stats, falls, mRecording);
 
         // Before anything is placed, so a walk that threw has still marked the scene: what it
         // stamped before the throw is standing, and the sweep is owed for the rest.
@@ -760,6 +781,11 @@ namespace Rtx
         mMeshesFreed = mScene.meshes().getFreedCount();
         mMaterialsFreed = mScene.materials().getFreedCount();
 
+        // A key goes once no material is held under it, so only a sweep that let a material go
+        // can have left one held by nothing else.
+        if (went.mMaterials > 0)
+            mChainKeys.retire();
+
         // Swept whatever the two tables above did, because an image a material stopped reading, a
         // state set whose node left the graph and a sprite's texture each go stale on a frame where
         // no material died at all.
@@ -782,9 +808,21 @@ namespace Rtx
         return went;
     }
 
-    const osg::StateSet* SceneExtractor::animate(osg::Node& node, const bool underAnimated)
+    MaterialResolver::Resolved SceneExtractor::adoptMaterial(
+        const MaterialReading& reading, const std::span<const osg::StateSet* const> chain)
     {
-        return mMaterials.animate(node, mWalk.get(), underAnimated);
+        mPhase.expect(Phase::Walking);
+
+        const osg::StateSet* key = mChainKeys.keyOf(chain);
+        if (key != nullptr && reading.mGroundcover)
+            key = mChainKeys.join(key, *mGroundcoverOverride, false, true);
+
+        return MaterialResolver::Resolved{ .mIndex = mMaterials.adopt(key, reading), .mKey = key };
+    }
+
+    const osg::StateSet* SceneExtractor::animate(osg::Node& node, const std::size_t placement, const bool underAnimated)
+    {
+        return mMaterials.animate(node, placement, mWalk.get(), underAnimated);
     }
 
     void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place,
@@ -976,6 +1014,7 @@ namespace Rtx
             return false;
 
         mPass.getStats().mInstances += run.mInstances;
+        mPass.getStats().mPassedFrozen += run.mKeys.mCount;
         return true;
     }
 

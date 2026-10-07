@@ -8,7 +8,7 @@
 
 #include <osg/Vec3f>
 
-#include "model/skycrossing.hpp"
+#include <apps/rtxtool/model/skycrossing.hpp>
 
 namespace ESM
 {
@@ -59,7 +59,8 @@ namespace RtxTool
         /// stop's teleport reactivates the player: aimed once, every view drew its frames from a
         /// camera 192 units behind the body. `Check::CameraStands` says it still holds. A standing
         /// stop and a heading route are one case, carrying the heading forward from where the route
-        /// has flown; nothing where the stop named no camera or gave it to the player.
+        /// has flown; nothing where the stop named no camera or gave it to the player. An armed stop
+        /// stands the body's own first-person eye there (`aimThroughBody`).
         void aim(const Stop& stop);
 
         /// Whether the route has reached the destination it named. What ends a routed stop: the
@@ -79,7 +80,7 @@ namespace RtxTool
         /// no camera falls back to, and what a free-camera stop starts from.
         void standWhereThePlayerIs();
 
-        /// Flies the player along `route` by one frame's worth of `step` seconds.
+        /// Flies the eye along `route` by one frame's worth of `step` seconds.
         void fly(const Route& route, float step);
 
         /// Asks for the next weather of `through` where one frame of `step` seconds brings a turn's
@@ -120,6 +121,18 @@ namespace RtxTool
         /// Stands the game's camera at `eye` facing `rotation`, `Stand::getRotation`'s angles, for
         /// as long as nothing else moves it.
         static void aimCamera(const osg::Vec3f& eye, const osg::Vec3f& rotation);
+
+        /// The way the eye faces this frame: a track's own facing, or toward the look a route or a
+        /// stand names from where the eye has flown.
+        osg::Vec3f facingOf(const Stop& stop) const;
+
+        /// Whether `stop` is seen through the body's own first-person eye, its weapon drawn
+        /// (`Stand::mArms`): a stop that names an eye and does not hand the camera to the player.
+        static bool throughArms(const Stop& stop);
+
+        /// Stands the body's first-person eye at `eye`, facing `rotation`, `Stand::getRotation`'s
+        /// angles: the camera the player's own, and the body moved under it.
+        static void aimThroughBody(const osg::Vec3f& eye, const osg::Vec3f& rotation);
 
         /// Whether the eye's view mask keeps `classes` in the picture: the player's own body, and the
         /// lamps (`Stand::mLamps`).
