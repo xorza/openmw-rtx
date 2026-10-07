@@ -5,6 +5,9 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <format>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #include <components/rtx/common/namedenum.hpp>
@@ -181,5 +184,13 @@ namespace RtxTool
     bool Actions::walksTwice() const
     {
         return mWalkTwice || std::ranges::find(mChecks, Check::WalkTwice) != mChecks.end();
+    }
+
+    std::optional<std::string> SessionRequest::stopAt(const Rtx::FrameResult& finished) const
+    {
+        if (!mPlayed || finished.mNotFinite.total() == 0)
+            return std::nullopt;
+
+        return std::format("frame {}: {}", finished.mFrame, describeNotFinite(finished.mNotFinite));
     }
 }

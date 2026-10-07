@@ -1,4 +1,6 @@
+#include <optional>
 #include <span>
+#include <string>
 
 #include <gtest/gtest.h>
 
@@ -7,6 +9,7 @@
 
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
 {
@@ -177,6 +180,31 @@ namespace RtxTool
             actions.mChecks.clear();
             actions.mWalkTwice = true;
             EXPECT_TRUE(actions.walksTwice());
+        }
+
+        /// **A played run stops at the first frame that stored a value that was not finite**, with
+        /// the frame and each module's count, and no other run does: a measured stop says it at its
+        /// end, where `Check::Finite` is asked. A frame that stored none goes on either way.
+        TEST(RtxBenchRunTest, aPlayedRunStopsAtTheFirstFrameThatStoredANaN)
+        {
+            Rtx::FrameResult clean;
+            clean.mFrame = 41;
+
+            Rtx::FrameResult stored;
+            stored.mFrame = 42;
+            stored.mNotFinite.add("shadowtiles.comp", 3);
+            stored.mNotFinite.add("shadowfilter.comp", 7);
+
+            SessionRequest played;
+            played.mPlayed = true;
+            EXPECT_EQ(played.stopAt(clean), std::nullopt);
+            EXPECT_EQ(played.stopAt(stored),
+                std::optional<std::string>(
+                    "frame 42: 10 stores not finite: 3 in shadowtiles.comp, 7 in shadowfilter.comp"));
+
+            const SessionRequest measured;
+            EXPECT_EQ(measured.stopAt(clean), std::nullopt);
+            EXPECT_EQ(measured.stopAt(stored), std::nullopt);
         }
     }
 }

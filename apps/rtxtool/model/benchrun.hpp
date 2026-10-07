@@ -14,6 +14,7 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "benchrecord.hpp"
 #include "benchspec.hpp"
@@ -453,6 +454,13 @@ namespace RtxTool
 
         /// Which suite the stops came from, for the record's own header.
         std::string mSuite;
+
+        /// Why the run stops at the frame `finished` answers for, or nothing where it goes on.
+        /// **Where somebody plays the run, at the first frame that stored a value that was not
+        /// finite**: a window that flies until it is closed measures nothing, so nothing after
+        /// would say so, and what a NaN reaches it spreads to — the picture the player went on
+        /// looking at. Elsewhere the stop's end says it, where `Check::Finite` is asked.
+        std::optional<std::string> stopAt(const Rtx::FrameResult& finished) const;
     };
 
     /// The exit status of a run whose one fault is a hashed frame that differed from its reference.

@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -21,6 +22,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/run.hpp>
+#include <apps/rtxtool/verbs.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
@@ -392,15 +394,25 @@ namespace RtxTool
             const std::filesystem::path resources
                 = std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path().parent_path();
             EXPECT_TRUE(std::filesystem::is_regular_file(harness / "vfs" / "rtxtool.omwscripts"));
-            EXPECT_EQ(shadersFor(resources, false, false).mDirectory, Rtx::shaderDirectory(resources));
-            for (const bool source : { false, true })
-                for (const bool census : { false, true })
+            // **A verb that measures reads the game's modules**, and every other counts: `bench` and
+            // `film` time the game's kernels, and the rest are where a NaN is found.
+            const std::array<std::pair<Verbs, bool>, 8> counts{ { { Verbs::Info, true }, { Verbs::Scene, true },
+                { Verbs::Shot, true }, { Verbs::View, true }, { Verbs::Bench, false }, { Verbs::Check, true },
+                { Verbs::Film, false }, { Verbs::Noise, true } } };
+            Verbs covered = Verbs::None;
+            for (const auto& [verb, census] : counts)
+            {
+                covered = covered | verb;
+                for (const bool source : { false, true })
                 {
-                    const Rtx::ShaderSet set = shadersFor(resources, source, census);
+                    const Rtx::ShaderSet set = shadersFor(resources, verb, source);
                     EXPECT_TRUE(std::filesystem::is_directory(set.mDirectory)) << set.mDirectory;
-                    EXPECT_EQ(set.mCensus, census) << set.mDirectory;
+                    EXPECT_EQ(set.mCensus, census) << verbName(verb);
                     EXPECT_EQ(set.mDirectory.parent_path() == harness, source || census) << set.mDirectory;
                 }
+            }
+            EXPECT_EQ(covered, Verbs::Every) << "a verb this table has no row for";
+            EXPECT_EQ(shadersFor(resources, Verbs::Bench, false).mDirectory, Rtx::shaderDirectory(resources));
             const std::filesystem::path within = harness.lexically_relative(resources);
             EXPECT_TRUE(within.empty() || *within.begin() == "..") << "the harness's folder inside the resources";
 
