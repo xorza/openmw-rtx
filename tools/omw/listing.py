@@ -4,10 +4,12 @@ A `CMakeLists.txt` lists files by base name, and a source no list names is never
 nothing else reports. So the compile database is read against `git ls-files`. Excused by rule: a
 program this flavour does not build, a file for another system (named `win32` or `posix` for the
 other one, `linux` on Windows and `none` on Linux — the build of a facility only Linux has, and of
-its absence — `stdio`, or `android…`, and `NOT_ON_WINDOWS` on Windows), and `ELSEWHERE`."""
+its absence — `stdio`, or `android…`, and `NOT_ON_WINDOWS` on Windows), `components_qt` in a build
+without Qt, and `ELSEWHERE`."""
 
 import json
 import os
+import re
 from pathlib import PurePosixPath
 
 from omw.build import Build
@@ -52,13 +54,24 @@ def unlisted(tracked: list[str], compiled: set[str], windows: bool) -> list[str]
                   and not (name.startswith("apps/") and _program(name) not in built_apps))
 
 
+def qt_sources(cmake_text: str) -> set[str]:
+    """The sources of `components_qt`, read off the `add_component_qt_dir` lists of
+    `components/CMakeLists.txt`, the one place that names them: what a build without Qt leaves out."""
+    found: set[str] = set()
+    for folder, names in re.findall(r"^\s*add_component_qt_dir\s*\(\s*(\S+)(.*?)\)", cmake_text,
+                                    re.MULTILINE | re.DOTALL):
+        found |= {f"components/{folder}/{name}.cpp" for name in names.split()}
+    return found
+
+
 def check(build: Build) -> int:
     tracked = working_tree_files("apps/*.cpp", "components/*.cpp")
     database = json.loads(read_text(build.dir / "compile_commands.json"))
-    # Without Qt a build leaves out libraries no rule can name; debug, full and package have Qt.
-    if not any("components_qt.dir" in entry.get("output", "") for entry in database):
-        return 0
     compiled = {os.path.relpath(entry["file"], ROOT).replace(os.sep, "/") for entry in database}
+    # A build without Qt — asan, tsan, release, and debug on Windows — leaves `components_qt` out.
+    if not any("components_qt.dir" in entry.get("output", "") for entry in database):
+        tracked = [name for name in tracked
+                   if name not in qt_sources(read_text(ROOT / "components" / "CMakeLists.txt"))]
     missing = unlisted(tracked, compiled, WINDOWS)
     for name in missing:
         print(f"{name}: tracked, and no list names it")
