@@ -33,10 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `components/debug/debugging.cpp:410-412` — the log is opened again with `ios::app`, so the
-  monitor's appends go to the end of the file. On MSVC's CRT, `_O_APPEND` is a seek and then a write, and
-  is not atomic between processes, so a hang summary can be overwritten. Target shape: on Windows, open
-  both sides with `FILE_APPEND_DATA`, behind the platform pair. (low)
 - [ ] `components/crashcatcher/crashpadclientposix.cpp:98-105`, `crashpadclientsystem.hpp:18-21` — on
   Linux, `prepareInstallingThread` repeats what `StartHandler` → `Initialize` → `SignalHandler::Install`
   already does for the installing thread (`InitializeSignalStackForThread`). The comment "the one

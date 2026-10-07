@@ -3,7 +3,6 @@
 #include <chrono>
 #include <deque>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -26,6 +25,7 @@
 #include <components/misc/result.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
+#include <components/platform/appendfile.hpp>
 #include <components/platform/process.hpp>
 #include <components/version/version.hpp>
 
@@ -248,22 +248,24 @@ namespace Debug
 #endif
         }
 
+        /// The log's own file, written as it was said, at its end whoever else wrote there since: the
+        /// crash catcher's monitor appends its summaries from a process of its own
+        /// (`Platform::AppendFile`).
         class Identity
         {
         public:
-            explicit Identity(std::ostream& stream)
-                : mStream(stream)
+            explicit Identity(const Platform::AppendFile& file)
+                : mFile(file)
             {
             }
 
             void write(const char* str, std::streamsize size, Level /*level*/)
             {
-                mStream.write(str, size);
-                mStream.flush();
+                mFile.write(std::string_view(str, static_cast<std::size_t>(size)));
             }
 
         private:
-            std::ostream& mStream;
+            const Platform::AppendFile& mFile;
         };
 
         class Coloured
@@ -354,7 +356,7 @@ namespace Debug
         static std::unique_ptr<std::ostream> rawStdout = nullptr;
         static std::unique_ptr<std::ostream> rawStderr = nullptr;
         static std::unique_ptr<std::mutex> rawStderrMutex = nullptr;
-        static std::ofstream logfile;
+        static Platform::AppendFile logfile;
 
 #if defined(_WIN32) && defined(_DEBUG)
         static boost::iostreams::stream_buffer<DebugOutput> sb;
@@ -412,10 +414,8 @@ namespace Debug
 #if !(defined(_WIN32) && defined(_DEBUG))
         // Emptied once and then opened to append, so every write lands at the end of the file: the
         // crash catcher's monitor appends its summaries from a process of its own, and a write at
-        // this stream's own offset would land over them.
-        logfile.open(logFile, std::ios::out);
-        logfile.close();
-        logfile.open(logFile, std::ios::app);
+        // this process's own offset would land over them.
+        logfile = Platform::AppendFile::open(logFile, true);
 
         Identity log(logfile);
 
