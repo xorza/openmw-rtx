@@ -111,6 +111,7 @@ jobs:
         -D BUILD_OPENCS_TESTS=${{ ! inputs.package }}
         -D OPENMW_USE_SYSTEM_SQLITE3=OFF
         -D OPENMW_USE_SYSTEM_YAML_CPP=OFF
+        -D OPENMW_USE_SYSTEM_SDL3=OFF
         -D OPENMW_LTO_BUILD=ON
         ${{ inputs.package && '-D "VCREDIST64=$env:VCToolsRedistDir/vc_redist.x64.exe"' || '' }}
         -D CMAKE_EXPORT_COMPILE_COMMANDS=ON
