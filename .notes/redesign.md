@@ -625,9 +625,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 - **[perf] FSR runs with the driver's wave size** (`fsrcallbacks.glsl`). Target: request 64-lane
   subgroups where the device allows. Blocked: question 7 in `redesign_QUESTIONS.md`.
-- **[perf] The wavelet's first level pays the prefilter on fixed pixels** (`atrous.comp`: `noise =
-  ATROUS_WIDE ? varianceAround(at) : centre.a`), against its comment. Target: `&& !fixing`, or drop
-  the claim.
 
 ### 6.6 Light that is not the estimate it claims
 
