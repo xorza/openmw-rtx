@@ -1,8 +1,8 @@
 #include "inputbindings.hpp"
 
-#include <SDL_events.h>
-#include <SDL_gamecontroller.h>
-#include <SDL_mouse.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_mouse.h>
 
 #include <components/lua/inputactions.hpp>
 #include <components/lua/luastate.hpp>
@@ -20,7 +20,7 @@
 namespace sol
 {
     template <>
-    struct is_automagical<SDL_Keysym> : std::false_type
+    struct is_automagical<SDL_KeyboardEvent> : std::false_type
     {
     };
 
@@ -46,21 +46,22 @@ namespace MWLua
         sol::state_view lua = context.sol();
 
         context.cachePackage("openmw_input_keyevent", [&lua]() {
-            sol::usertype<SDL_Keysym> keyEvent = lua.new_usertype<SDL_Keysym>("KeyEvent");
-            keyEvent["symbol"] = sol::readonly_property([](const SDL_Keysym& e) {
-                if (e.sym > 0 && e.sym <= 255)
-                    return std::string(1, static_cast<char>(e.sym));
+            sol::usertype<SDL_KeyboardEvent> keyEvent = lua.new_usertype<SDL_KeyboardEvent>("KeyEvent");
+            keyEvent["symbol"] = sol::readonly_property([](const SDL_KeyboardEvent& e) {
+                if (e.key > 0 && e.key <= 255)
+                    return std::string(1, static_cast<char>(e.key));
                 else
                     return std::string();
             });
-            keyEvent["code"] = sol::readonly_property([](const SDL_Keysym& e) -> int { return e.scancode; });
+            keyEvent["code"] = sol::readonly_property([](const SDL_KeyboardEvent& e) -> int { return e.scancode; });
             keyEvent["withShift"]
-                = sol::readonly_property([](const SDL_Keysym& e) -> bool { return e.mod & KMOD_SHIFT; });
+                = sol::readonly_property([](const SDL_KeyboardEvent& e) -> bool { return e.mod & KMOD_SHIFT; });
             keyEvent["withCtrl"]
-                = sol::readonly_property([](const SDL_Keysym& e) -> bool { return e.mod & KMOD_CTRL; });
-            keyEvent["withAlt"] = sol::readonly_property([](const SDL_Keysym& e) -> bool { return e.mod & KMOD_ALT; });
+                = sol::readonly_property([](const SDL_KeyboardEvent& e) -> bool { return e.mod & KMOD_CTRL; });
+            keyEvent["withAlt"]
+                = sol::readonly_property([](const SDL_KeyboardEvent& e) -> bool { return e.mod & KMOD_ALT; });
             keyEvent["withSuper"]
-                = sol::readonly_property([](const SDL_Keysym& e) -> bool { return e.mod & KMOD_GUI; });
+                = sol::readonly_property([](const SDL_KeyboardEvent& e) -> bool { return e.mod & KMOD_GUI; });
 
             return sol::table(lua, sol::create);
         });
@@ -241,7 +242,7 @@ namespace MWLua
             return input->isControllerButtonPressed(static_cast<SDL_GameControllerButton>(button));
         };
         api["isMouseButtonPressed"]
-            = [](int button) -> bool { return SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON(button); };
+            = [](int button) -> bool { return SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_MASK(button); };
         api["_isGamepadCursorActive"] = [input]() -> bool { return input->isGamepadGuiCursorEnabled(); };
         api["_isControllerMenusEnabled"] = []() -> bool { return Settings::gui().mControllerMenus; };
         api["_setGamepadCursorActive"] = [input](bool v) {

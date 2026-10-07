@@ -1,37 +1,82 @@
 #include "sdlvideowrapper.hpp"
 
+#include <cmath>
+#include <optional>
+
 #include <components/debug/debuglog.hpp>
 #include <components/sdlutil/sdlgraphicswindow.hpp>
 #include <components/settings/settings.hpp>
 
 #include <osgViewer/Viewer>
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 
 namespace SDLUtil
 {
+    namespace
+    {
+        // SDL lists a mode per refresh rate and per pixel density, so a mode matches by its size in pixels, at
+        // the refresh rate nearest the desktop's.
+        std::optional<SDL_DisplayMode> findFullscreenMode(SDL_DisplayID display, int width, int height)
+        {
+            const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(display);
+            const float desktopRate = desktop != nullptr ? desktop->refresh_rate : 0.f;
+
+            std::optional<SDL_DisplayMode> found;
+            int count = 0;
+            SDL_DisplayMode** modes = SDL_GetFullscreenDisplayModes(display, &count);
+            for (int i = 0; i < count; ++i)
+            {
+                const SDL_DisplayMode& mode = *modes[i];
+                if (modePixels(mode) != osg::Vec2i(width, height))
+                    continue;
+                if (!found || std::abs(mode.refresh_rate - desktopRate) < std::abs(found->refresh_rate - desktopRate))
+                    found = mode;
+            }
+            SDL_free(modes);
+
+            if (found)
+                return found;
+
+            SDL_DisplayMode closest;
+            if (SDL_GetClosestFullscreenDisplayMode(display, width, height, 0.f, false, &closest))
+                return closest;
+            return std::nullopt;
+        }
+    }
+
+    SDL_DisplayID displayAt(int index)
+    {
+        int count = 0;
+        SDL_DisplayID* displays = SDL_GetDisplays(&count);
+        const SDL_DisplayID display = index >= 0 && index < count ? displays[index] : SDL_GetPrimaryDisplay();
+        SDL_free(displays);
+        return display;
+    }
+
+    osg::Vec2i modePixels(const SDL_DisplayMode& mode)
+    {
+        return osg::Vec2i(static_cast<int>(std::lround(mode.w * mode.pixel_density)),
+            static_cast<int>(std::lround(mode.h * mode.pixel_density)));
+    }
+
+    int windowPoints(int pixels, float density)
+    {
+        return static_cast<int>(std::lround(pixels / density));
+    }
 
     VideoWrapper::VideoWrapper(SDL_Window* window, osg::ref_ptr<osgViewer::Viewer> viewer)
         : mWindow(window)
         , mViewer(std::move(viewer))
-        , mGamma(1.f)
-        , mContrast(1.f)
-        , mHasSetGammaContrast(false)
     {
-        SDL_GetWindowGammaRamp(mWindow, mOldSystemGammaRamp, &mOldSystemGammaRamp[256], &mOldSystemGammaRamp[512]);
     }
 
     VideoWrapper::~VideoWrapper()
     {
         // Only exclusive fullscreen needs an early display-mode reset. Leaving desktop fullscreen here
         // can bring a background window to the foreground on macOS; let window destruction handle it.
-        const Uint32 fullscreenFlags = SDL_GetWindowFlags(mWindow) & SDL_WINDOW_FULLSCREEN_DESKTOP;
-        if (fullscreenFlags == SDL_WINDOW_FULLSCREEN)
-            SDL_SetWindowFullscreen(mWindow, 0);
-
-        // If user hasn't touched the defaults no need to restore
-        if (mHasSetGammaContrast)
-            SDL_SetWindowGammaRamp(mWindow, mOldSystemGammaRamp, &mOldSystemGammaRamp[256], &mOldSystemGammaRamp[512]);
+        if ((SDL_GetWindowFlags(mWindow) & SDL_WINDOW_FULLSCREEN) && SDL_GetWindowFullscreenMode(mWindow) != nullptr)
+            SDL_SetWindowFullscreen(mWindow, false);
     }
 
     void VideoWrapper::setSyncToVBlank(VSyncMode vsyncMode)
@@ -50,67 +95,41 @@ namespace SDLUtil
         mViewer->startThreading();
     }
 
-    void VideoWrapper::setGammaContrast(float gamma, float contrast)
+    void VideoWrapper::setVideoMode(
+        SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder)
     {
-        if (gamma == mGamma && contrast == mContrast)
-            return;
+        SDL_SetWindowFullscreen(window, false);
 
-        mGamma = gamma;
-        mContrast = contrast;
+        if (SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED)
+            SDL_RestoreWindow(window);
 
-        mHasSetGammaContrast = true;
-
-        Uint16 red[256], green[256], blue[256];
-        for (int i = 0; i < 256; i++)
+        if (windowMode == Settings::WindowMode::Fullscreen)
         {
-            float k = i / 256.0f;
-            k = (k - 0.5f) * contrast + 0.5f;
-            k = pow(k, 1.f / gamma);
-            k *= 256;
-            float value = k * 256;
-            if (value > 65535)
-                value = 65535;
-            else if (value < 0)
-                value = 0;
-
-            red[i] = green[i] = blue[i] = static_cast<Uint16>(value);
+            const std::optional<SDL_DisplayMode> mode
+                = findFullscreenMode(SDL_GetDisplayForWindow(window), width, height);
+            if (!mode || !SDL_SetWindowFullscreenMode(window, &*mode))
+                Log(Debug::Warning) << "Couldn't set a " << width << "x" << height
+                                    << " fullscreen mode: " << SDL_GetError();
+            SDL_SetWindowFullscreen(window, true);
         }
-        if (SDL_SetWindowGammaRamp(mWindow, red, green, blue) < 0)
-            Log(Debug::Warning) << "Couldn't set gamma: " << SDL_GetError();
-    }
-
-    void VideoWrapper::setVideoMode(int width, int height, Settings::WindowMode windowMode, bool windowBorder)
-    {
-        SDL_SetWindowFullscreen(mWindow, 0);
-
-        if (SDL_GetWindowFlags(mWindow) & SDL_WINDOW_MAXIMIZED)
-            SDL_RestoreWindow(mWindow);
-
-        int w, h;
-        SDL_GetWindowSize(mWindow, &w, &h);
-        int dw, dh;
-        SDL_GL_GetDrawableSize(mWindow, &dw, &dh);
-
-        if (windowMode == Settings::WindowMode::Fullscreen || windowMode == Settings::WindowMode::WindowedFullscreen)
+        else if (windowMode == Settings::WindowMode::WindowedFullscreen)
         {
-            SDL_DisplayMode mode;
-            SDL_GetWindowDisplayMode(mWindow, &mode);
-            mode.w = width / (dw / w);
-            mode.h = height / (dh / h);
-            SDL_SetWindowDisplayMode(mWindow, &mode);
-            SDL_SetWindowFullscreen(mWindow,
-                windowMode == Settings::WindowMode::Fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_FULLSCREEN_DESKTOP);
+            SDL_SetWindowFullscreenMode(window, nullptr);
+            SDL_SetWindowFullscreen(window, true);
         }
         else
         {
-            SDL_SetWindowSize(mWindow, width / (dw / w), height / (dh / h));
-            SDL_SetWindowBordered(mWindow, windowBorder ? SDL_TRUE : SDL_FALSE);
+            const float density = SDL_GetWindowPixelDensity(window);
+            SDL_SetWindowSize(window, windowPoints(width, density), windowPoints(height, density));
+            SDL_SetWindowBordered(window, windowBorder);
+            // centerWindow reads the size back, and a window system can apply it asynchronously.
+            SDL_SyncWindow(window);
 
-            centerWindow();
+            centerWindow(window);
         }
     }
 
-    void VideoWrapper::centerWindow()
+    void VideoWrapper::centerWindow(SDL_Window* window)
     {
         // Resize breaks the sdl window in some cases; see issue: #5539
         SDL_Rect rect{};
@@ -118,9 +137,8 @@ namespace SDLUtil
         int y = 0;
         int w = 0;
         int h = 0;
-        auto index = SDL_GetWindowDisplayIndex(mWindow);
-        SDL_GetDisplayBounds(index, &rect);
-        SDL_GetWindowSize(mWindow, &w, &h);
+        SDL_GetDisplayBounds(SDL_GetDisplayForWindow(window), &rect);
+        SDL_GetWindowSize(window, &w, &h);
 
         x = rect.x;
         y = rect.y;
@@ -135,7 +153,7 @@ namespace SDLUtil
             y = rect.y + rect.h / 2 - h / 2;
         }
 
-        SDL_SetWindowPosition(mWindow, x, y);
+        SDL_SetWindowPosition(window, x, y);
     }
 
 }

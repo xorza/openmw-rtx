@@ -490,9 +490,9 @@ namespace ICS
 		{
 			MouseWheelClick click = MouseWheelClick::UNASSIGNED;
 			int value;
-			if (evt.y != 0)
+			if (evt.integer_y != 0)
 			{
-				value = evt.y;
+				value = evt.integer_y;
 				if (evt.direction == SDL_MOUSEWHEEL_FLIPPED)
 					value *= -1;
 				if (value > 0)
@@ -500,9 +500,9 @@ namespace ICS
 				else
 					click = MouseWheelClick::DOWN;
 			}
-			else if (evt.x != 0)
+			else if (evt.integer_x != 0)
 			{
-				value = evt.x;
+				value = evt.integer_x;
 				if (evt.direction == SDL_MOUSEWHEEL_FLIPPED)
 					value *= -1;
 				if (value > 0)

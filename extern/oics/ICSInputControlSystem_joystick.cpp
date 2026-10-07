@@ -300,9 +300,9 @@ namespace ICS
 
     void InputControlSystem::controllerAdded(int deviceID, const SDL_ControllerDeviceEvent &args)
 	{
-		ICS_LOG("Adding joystick (index: " + ToString<int>(args.which) + ")");
-		SDL_GameController* cntrl = SDL_GameControllerOpen(args.which);
-        int instanceID = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(cntrl));
+		ICS_LOG("Adding joystick (instance id: " + ToString<int>(args.which) + ")");
+		SDL_GameController* cntrl = SDL_OpenGamepad(args.which);
+        int instanceID = SDL_GetJoystickID(SDL_GetGamepadJoystick(cntrl));
         if(std::find(mJoystickIDList.begin(), mJoystickIDList.end(), deviceID)==mJoystickIDList.end())
         {
             for(int j = 0 ; j < ICS_MAX_JOYSTICK_AXIS ; j++)
@@ -325,7 +325,7 @@ namespace ICS
         ICS_LOG("Removing joystick (instance id: " + ToString<int>(args.which) + ")");
         if(mJoystickInstanceMap.count(args.which)!=0)
         {
-            SDL_GameControllerClose(mJoystickInstanceMap.at(args.which));
+            SDL_CloseGamepad(mJoystickInstanceMap.at(args.which));
             mJoystickInstanceMap.erase(args.which);
         }
 	}

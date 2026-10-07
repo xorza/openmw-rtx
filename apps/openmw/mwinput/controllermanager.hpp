@@ -16,7 +16,7 @@ namespace MWInput
     class ControllerManager : public SDLUtil::ControllerListener
     {
     public:
-        ControllerManager(BindingsManager* bindingsManager, MouseManager* mouseManager,
+        ControllerManager(BindingsManager* bindingsManager, MouseManager* mouseManager, SDL_Window* window,
             const std::filesystem::path& userControllerBindingsFile,
             const std::filesystem::path& controllerBindingsFile);
 
@@ -62,6 +62,7 @@ namespace MWInput
 
         BindingsManager* mBindingsManager;
         MouseManager* mMouseManager;
+        SDL_Window* mWindow;
 
         bool mGyroAvailable;
         bool mGamepadGuiCursorEnabled;
