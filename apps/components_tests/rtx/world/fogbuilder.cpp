@@ -439,16 +439,32 @@ namespace Rtx
             // which is what the original engine reads it as too.
             EXPECT_EQ(fogExtinction(0.0f, view), 0.0f);
 
-            // **A depth of two or more is the densest air, and never an infinity or a negative.**
-            // A cell's `AMBI` density reaches here unclamped: at 2 the divisor was nought, above it
-            // the air grew brighter with distance. Both, and an infinite depth, are a half-life of
-            // one unit, so ln 2 per unit; just short of 2 the ramp's own half-life still stands:
-            // 7168 * (1 - 1.99 / 2) = 35.84 units.
-            const float densest = std::log(2.0f);
-            EXPECT_EQ(fogExtinction(2.0f, view), densest);
-            EXPECT_EQ(fogExtinction(3.0f, view), densest);
-            EXPECT_EQ(fogExtinction(std::numeric_limits<float>::infinity(), view), densest);
-            EXPECT_NEAR(fogExtinction(1.99f, view), std::log(2.0f) / 35.84f, 1e-5f);
+            // **Past 1.514 the mean visibility over the view, and never the densest air.** The ramp
+            // beyond a depth of one starts behind the eye, and its mean visibility over the view is
+            // `1 / (2 depth)`: for Blizzard's 2.8, 1 / 5.6, which `(1 - e^-x) / x` reaches at an
+            // optical depth of 5.5788493, 7.783e-4 per unit over 7168 — a half-life of 891 units,
+            // where the half point was behind the eye and the air the densest there is, a screen of
+            // fog colour. Each depth's air gives back its own mean, 2 and 3 as well; 1.5 still reads
+            // the half point, `ln 2 / (7168 * 0.25)`. Only an infinite depth, which a cell's `AMBI`
+            // density may be, is the densest air, a half-life of one unit.
+            EXPECT_NEAR(deepestHalfPointDepth(), 1.5142767f, 1e-6f);
+            EXPECT_NEAR(fogExtinction(2.8f, view), 7.783e-4f, 1e-7f) << "a blizzard";
+            for (const float depth : { 1.6f, 2.0f, 2.8f, 3.0f, 40.0f })
+            {
+                const double x = double{ fogExtinction(depth, view) } * double{ view };
+                EXPECT_NEAR((1.0 - std::exp(-x)) / x, 0.5 / double{ depth }, 1e-6) << "depth " << depth;
+            }
+            EXPECT_NEAR(fogExtinction(1.5f, view), std::log(2.0f) / (7168.0f * 0.25f), 1e-9f);
+            EXPECT_LT(fogExtinction(2.8f, view), fogExtinction(3.0f, view)) << "a deeper record is denser air";
+
+            // Continuous across the join, where the two rules agree: a part in ten thousand of
+            // the depth either side moves the air by about as much, and not by a step.
+            const float join = deepestHalfPointDepth();
+            const float below = fogExtinction(join * (1.0f - 1e-4f), view);
+            const float above = fogExtinction(join * (1.0f + 1e-4f), view);
+            EXPECT_NEAR(above / below, 1.0f, 1e-3f);
+
+            EXPECT_EQ(fogExtinction(std::numeric_limits<float>::infinity(), view), std::log(2.0f));
             EXPECT_EQ(fogExtinction(std::numeric_limits<float>::quiet_NaN(), view), 0.0f) << "no depth is no fog";
 
             // **And the reach is what scales it**, which is the whole of §3.4: the same weather over

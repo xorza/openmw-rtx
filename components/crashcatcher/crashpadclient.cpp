@@ -175,6 +175,13 @@ namespace Crash
                     std::memory_order_relaxed);
     }
 
+    std::chrono::seconds getHangLimit()
+    {
+        Heartbeat* const page = sharedPage();
+        return std::chrono::seconds(
+            page != nullptr ? std::atomic_ref(page->mHangSeconds).load(std::memory_order_relaxed) : 0);
+    }
+
     void heartbeat()
     {
         // One writer, the thread that draws, so a load and a store rather than a locked add.

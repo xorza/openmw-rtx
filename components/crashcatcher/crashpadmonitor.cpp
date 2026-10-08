@@ -506,6 +506,16 @@ namespace Crash
                 if (monitor.mGame.isHeld())
                     continue;
 
+                // **While the limit is nought, nothing stalls**, so a limit set again counts from
+                // then: a game that turns the watch off for a wait it chose (`Crash::HangPause`) or
+                // after its last frame was reported the moment it turned it back on. A stall already
+                // reported keeps its count, which the line for its frames coming again says.
+                if (limit == 0 && !reported)
+                {
+                    stalledFor = {};
+                    continue;
+                }
+
                 stalledFor += step;
                 const auto stalled = std::chrono::duration_cast<std::chrono::seconds>(stalledFor);
                 if (limit == 0 || reported || stalled.count() < limit)

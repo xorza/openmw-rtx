@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <numbers>
 
 #include <osg/Vec3f>
 
@@ -232,6 +233,61 @@ namespace Rtx
         return tile;
     }
 
+    namespace
+    {
+        /// The optical depth `sigma * over` at which a medium's mean transmittance over `over` is
+        /// `mean`, below one: the root of `(1 - e^-x) / x = mean`. **Newton's method from `1 / mean`**,
+        /// which is right of the root: `1 - e^-x - mean * x` is concave and falling there, so each
+        /// step lands nearer the root and never past it, and the steps stop when one no longer
+        /// moves the estimate down — the root to the last place a double holds.
+        double opticalDepthForMean(const double mean)
+        {
+            double x = 1.0 / mean;
+            while (true)
+            {
+                const double step = (1.0 - std::exp(-x) - mean * x) / (std::exp(-x) - mean);
+                const double next = x - step;
+                if (!(next < x))
+                    return x;
+                x = next;
+            }
+        }
+
+        /// The optical depth over the view that halves where the original's ramp does.
+        double opticalDepthAtHalfPoint(const double depth)
+        {
+            return std::numbers::ln2 / (1.0 - 0.5 * depth);
+        }
+
+        /// The optical depth over the view that gives the ramp's own mean visibility, for a depth
+        /// beyond one, where the ramp starts behind the eye: `1 / (2 * depth)`.
+        double opticalDepthForRampMean(const double depth)
+        {
+            return opticalDepthForMean(0.5 / depth);
+        }
+    }
+
+    float deepestHalfPointDepth()
+    {
+        // Bisected once, between a depth of one, where the half point is the thinner, and two,
+        // where it is infinite, until the bracket is two neighbouring doubles.
+        static const float deepest = [] {
+            double low = 1.0;
+            double high = 2.0;
+            while (true)
+            {
+                const double middle = 0.5 * (low + high);
+                if (!(middle > low && middle < high))
+                    return static_cast<float>(low);
+                if (opticalDepthAtHalfPoint(middle) < opticalDepthForRampMean(middle))
+                    low = middle;
+                else
+                    high = middle;
+            }
+        }();
+        return deepest;
+    }
+
     float fogExtinction(float depth, float over)
     {
         // The original engine reads a depth of zero as no fog at all rather than as a ramp starting
@@ -239,13 +295,16 @@ namespace Rtx
         if (!(depth > 0.0f))
             return 0.0f;
 
-        // **A depth of two or more is half fogged at the eye**: the original's ramp then starts a
-        // whole view or more behind it. A medium puts its half-life no nearer than the eye, so such
-        // a record is the densest air there is, a half-life of the shortest distance the world
-        // measures — and a divisor that reached nought or crossed it was an infinite or negative
-        // extinction, a frame of black or of NaN.
-        constexpr float leastHalfLife = 1.0f;
-        return std::log(2.0f) / std::max(over * (1.0f - 0.5f * depth), leastHalfLife);
+        // **Only an infinite depth is the densest air**, a half-life of the shortest distance the
+        // world measures: a cell's `AMBI` density reaches here unclamped, and the mean rule's
+        // extinction grows without bound as the depth does.
+        constexpr double densest = std::numbers::ln2;
+        if (std::isinf(depth))
+            return static_cast<float>(densest);
+
+        const double opticalDepth
+            = depth <= deepestHalfPointDepth() ? opticalDepthAtHalfPoint(depth) : opticalDepthForRampMean(depth);
+        return static_cast<float>(std::min(opticalDepth / double{ over }, densest));
     }
 
     float fogLift(float depth, float wind)

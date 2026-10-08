@@ -30,6 +30,7 @@
 #include <apps/openmw/mwworld/inventorystore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/waitconditiontype.hpp>
@@ -206,8 +207,13 @@ namespace RtxTool
         // tile landing a frame earlier or later is a different path, and a different place on
         // every frame after. Waited for here and not every frame, because a route's cells bring
         // tiles with them and a frame that waited for those would be measuring the navmesh.
+        // **No hang, as long as it takes**: the wait is the stop's own, and the frame it holds up is
+        // drawn after it.
         if (DetourNavigator::Navigator* navigator = world.getNavigator())
+        {
+            const Crash::HangPause waiting;
             navigator->wait(DetourNavigator::WaitConditionType::allJobsDone, nullptr);
+        }
 
         // **A stop is a discontinuity, and only a worldspace change says so on its own.** A
         // teleport from Balmora to Vivec stays in one worldspace, so nothing tells the renderer its
