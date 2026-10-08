@@ -126,6 +126,24 @@ namespace Rtx
             getPool().submitAndWait([](VkCommandBuffer) {});
 
             EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a batch given up on still ran";
+
+            // **And a one-off whose recording throws**, which went back to nobody: the buffer stayed
+            // recording, and the pool never handed it out again. It goes back as the batch's does,
+            // takes no staging, and is the next buffer a one-off records into.
+            const std::size_t blocks = getPool().getStagingBlockCount();
+            VkCommandBuffer thrown = VK_NULL_HANDLE;
+            EXPECT_THROW(getPool().submitAndWait([&](VkCommandBuffer commands) {
+                thrown = commands;
+                vkCmdCopyBuffer(commands, source.getHandle(), target.getHandle(), 1, &whole);
+                throw Abandoned{};
+            }),
+                Abandoned);
+            VkCommandBuffer next = VK_NULL_HANDLE;
+            getPool().submitAndWait([&](VkCommandBuffer commands) { next = commands; });
+
+            EXPECT_EQ(next, thrown) << "the thrown one-off's buffer was not given back";
+            EXPECT_EQ(getPool().getStagingBlockCount(), blocks);
+            EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a thrown one-off's copy ran";
         }
 
         /// A staged write names its destination for the submit the batch rides.

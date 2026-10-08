@@ -63,17 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.1 One one-shot submit path, and an exception-safe `~Batch`.**
-  `device/commands.hpp:31-37`: `submitAndWait` calls `beginBatch`, `record`, `endAndWait`. When
-  `record` throws, the buffer stays recording and never returns to `mSpare`. `commands.cpp:289-301`:
-  `~Batch` calls `discard`, whose `checkVk(vkResetCommandBuffer…)` can throw during unwinding and
-  ends in `std::terminate`. Target: `submitAndWait` is defined after `Batch` as
-  `Batch batch(*this); record(batch.getCommands()); batch.flush();` (`getCommands()` opens the
-  buffer even for an empty lambda, so `finishDeferred` keeps its behaviour). `beginBatch` and
-  `endAndWait` then have `Batch` as their only caller. `~Batch`'s body runs inside `tearDown`.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxBatchTest.*'`, plus a case whose lambda
-  throws and then checks `getStagingBlockCount` and that the pool hands the buffer out again.
-
 - [ ] **2.2 Frame, placement, GUI and present recordings are begun and closed by hand.**
   `vulkanrenderer.cpp:605→710` (the trace), `:371→379/381` (a placement), `framering.cpp:153→161`
   (`skip`), `gui/guidrawer.cpp:81→90`, `present/presenter.cpp:202→275`. Each span is local to one
