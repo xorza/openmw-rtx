@@ -8,7 +8,7 @@
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/rtx/image/texels.hpp>
+#include <components/rtx/image/textureformat.hpp>
 
 namespace Rtx
 {

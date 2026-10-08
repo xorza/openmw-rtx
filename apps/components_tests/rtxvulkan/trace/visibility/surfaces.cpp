@@ -29,6 +29,7 @@
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>

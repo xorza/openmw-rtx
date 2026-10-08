@@ -13,6 +13,7 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 
 #include "refusal.hpp"
 

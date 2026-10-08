@@ -30,6 +30,7 @@
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>

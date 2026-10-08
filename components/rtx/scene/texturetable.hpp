@@ -16,6 +16,7 @@
 #include <components/rtx/image/formatcensus.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>

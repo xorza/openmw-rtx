@@ -14,6 +14,7 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 
 namespace Rtx::Testing
 {

@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "texturedata.hpp"
+#include "textureformat.hpp"
 
 namespace Rtx
 {

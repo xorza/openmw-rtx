@@ -21,6 +21,7 @@
 #include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>

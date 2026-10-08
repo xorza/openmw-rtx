@@ -14,6 +14,7 @@
 
 #include "colourblock.hpp"
 #include "imagedescription.hpp"
+#include "textureformat.hpp"
 
 namespace Rtx
 {
@@ -193,7 +194,7 @@ namespace Rtx
         }
     }
 
-    std::optional<TextureData> describeFinest(const osg::Image& image, AlphaScratch& scratch)
+    std::optional<TextureData> describeFinest(const osg::Image& image, TexelScratch& scratch)
     {
         scratch.mLevels.clear();
         scratch.mTexels.clear();

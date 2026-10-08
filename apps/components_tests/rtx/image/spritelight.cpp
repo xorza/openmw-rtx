@@ -8,6 +8,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 
 namespace Rtx
 {

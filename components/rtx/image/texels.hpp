@@ -3,22 +3,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
-#include <string_view>
 #include <vector>
 
 #include <osg/Vec3f>
 
 #include "texturedata.hpp"
-#include "textureencoding.hpp"
-
-namespace osg
-{
-    class Image;
-}
+#include "textureformat.hpp"
 
 namespace Rtx
 {
-    struct AlphaScratch;
+    struct TexelScratch;
 
     /// The colour half of the block that begins at `block`: its last eight bytes whichever format it
     /// is, because BC2 and BC3 put their alpha in front of it and BC1 has none.
@@ -75,19 +69,5 @@ namespace Rtx
     /// Averages a finest level `describeFinest` gave, every texel and not a sample, because a mean
     /// of a sheet that is mostly empty cannot be sampled. The alpha and the colours are read into
     /// `scratch`.
-    MeanTexel meanTexel(const TextureData& finest, AlphaScratch& scratch);
-
-    /// Which format `image` arrived in, read as `encoding` — the one place a texture's `GLenum`
-    /// decides its format, so the uploader and the report cannot disagree. A blend map is weights
-    /// and not a texture, and `GroundReader` reads its bytes itself.
-    TextureFormat readFormat(const osg::Image& image, TextureEncoding encoding = TextureEncoding::Colour);
-
-    /// Whether a normal map bound for its height has one: not a map of red and green, BC5 or a
-    /// loose one, by the rule the rasterizer's `ShaderVisitor` and `Terrain` turn parallax off by
-    /// (`SceneUtil::computeUnsizedPixelFormat`). A sampler hands such a map an alpha of one, so the
-    /// shift would be the same everywhere.
-    bool carriesHeight(const osg::Image& normalMap);
-
-    /// What `format` is called, for a report to print.
-    std::string_view nameOf(TextureFormat format);
+    MeanTexel meanTexel(const TextureData& finest, TexelScratch& scratch);
 }

@@ -54,12 +54,6 @@ What is left:
 
 ### Core
 
-- [ ] **5.9 `image/` files do several jobs.**
-  `image/texturedata.hpp` holds the mip types, the format enum with its traits, and the texture
-  data. `image/texels.hpp` mixes format identification with decoding. Target: a
-  `textureformat.hpp/.cpp` for the enum, the traits, `readFormat`, `nameOf` and `carriesHeight`.
-  Rename `AlphaScratch` to `TexelScratch`, since it serves colours too.
-
 - [ ] **5.10 Two bounds policies for a validated `TextureData`.**
   The alpha readers clamp (`alphaimage.cpp:125,140,187`, `texturepass.cpp:45-48`), and the colour
   readers trust the bytes. `describeImage` already guarantees the bytes. Target: one debug-only

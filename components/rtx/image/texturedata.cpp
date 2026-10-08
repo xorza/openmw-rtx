@@ -1,4 +1,5 @@
 #include "texturedata.hpp"
+#include "textureformat.hpp"
 
 #include <algorithm>
 #include <cassert>

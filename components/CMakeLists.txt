@@ -409,7 +409,7 @@ add_component_dir (rtx/frame
 
 add_component_dir (rtx/image
     alphaimage colour colourblock formatcensus imagedescription shadingmap
-    texels texturedata textureencoding texturewrap
+    texels texturedata textureencoding textureformat texturewrap
     )
 
 add_component_dir (rtx/mirror
