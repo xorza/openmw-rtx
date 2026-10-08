@@ -79,12 +79,9 @@ namespace Rtx
         void hold(const osg::Drawable& drawable);
 
         /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
-        /// its mesh; the drawable goes to `released`.
+        /// its mesh, and then the deformers no mesh named this epoch; the drawables and the
+        /// deformers go to `released`.
         void retire(Released& released);
-
-        /// Drops the deformers no mesh named this epoch, into `released`. Nearly always two
-        /// comparisons and nothing else, because a deformer goes stale only where a mesh on it died.
-        void retireDeformers(Released& released);
 
         /// Reserves the identity maps once, so no frame rehashes them. `SceneExtractor` states the
         /// budgets.

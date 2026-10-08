@@ -458,6 +458,12 @@ namespace Rtx
     void MeshResolver::retire(Released& released)
     {
         mMeshes.retire(released, [this](KnownMesh& gone) { mScene.drop(std::move(gone.mRow)); });
+
+        // A deformer is swept on the meshes' stamp and not on a use count of its own; the scene
+        // counts uses for itself, and the two agree because a deformer is stamped exactly where a
+        // mesh on it is met. Nearly always two comparisons and nothing else, because a deformer goes
+        // stale only where a mesh on it died.
+        mDeformers.retire(released);
     }
 
     MeshResolver::~MeshResolver()
@@ -470,11 +476,4 @@ namespace Rtx
         return mMeshes.add(&drawable, KnownMesh{ .mRow = mScene.holdMesh(mesh) });
     }
 
-    void MeshResolver::retireDeformers(Released& released)
-    {
-        // A deformer is swept on the meshes' stamp and not on a use count of its own; the scene
-        // counts uses for itself, and the two agree because a deformer is stamped exactly where a
-        // mesh on it is met.
-        mDeformers.retire(released);
-    }
 }

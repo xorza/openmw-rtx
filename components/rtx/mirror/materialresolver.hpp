@@ -156,13 +156,9 @@ namespace Rtx
             osg::Node& node, std::size_t placement, osg::NodeVisitor* visitor, bool underAnimated);
 
         /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
-        /// its material and on every image it wore; the state set goes to `released`.
+        /// its material and on every image it wore, and then the images and the animated state
+        /// sets this epoch did not meet; what each held goes to `released`.
         void retire(Released& released);
-
-        /// Lets go of the images and the animated state sets this epoch did not meet, into
-        /// `released`. Asked whatever the materials did, because a cached material's images go
-        /// stale on the frame after they arrived.
-        void retireHolds(Released& released);
 
         /// Reserves the identity maps once, so no frame rehashes them. `SceneExtractor` states the
         /// budgets.
