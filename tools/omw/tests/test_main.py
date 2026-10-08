@@ -1,10 +1,12 @@
+import contextlib
+import io
 import re
 import unittest
 
 from omw import gate
 from omw.build import Build
-from omw.main import BUILD_VERBS, BUILDLESS_VERBS, HARNESS_VERBS, USAGE, Line, parse
-from omw.system import FORK, ROOT, Refusal, read_text
+from omw.main import BUILD_VERBS, BUILDLESS_VERBS, HARNESS_VERBS, USAGE, Line, main, parse
+from omw.system import FORK, ROOT, Refusal, read_text, status
 from omw.testing import ctest_arguments
 
 
@@ -20,6 +22,9 @@ class ParseTest(unittest.TestCase):
             (["profile", "--offcpu"], Line("release", "profile", ["--offcpu"])),
             (["crash", "a.dmp"], Line(None, "crash", ["a.dmp"])),
             (["format"], Line(None, "format", [])),
+            (["help"], Line(None, "help", [])),
+            (["--help"], Line(None, "help", [])),
+            (["release", "-h"], Line(None, "help", [])),
             (["format", "--check"], Line(None, "format", ["--check"])),
             (["full", "exec", "ls", "-l"], Line("full", "exec", ["ls", "-l"])),
         ]
@@ -27,11 +32,20 @@ class ParseTest(unittest.TestCase):
             with self.subTest(argv=argv):
                 self.assertEqual(parse(argv), expected)
 
+    def test_help_asked_for_succeeds_and_a_child_s_death_is_the_shell_s_status(self):
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            self.assertEqual(main(["help"]), 0)
+        self.assertEqual(printed.getvalue(), USAGE + "\n")
+        # SIGSEGV is signal 11, which Python reports as -11 and a shell as 128 + 11.
+        self.assertEqual(status(-11), 139)
+        self.assertEqual(status(-2), 130)
+        self.assertEqual(status(0), 0)
+        self.assertEqual(status(3), 3)
+
     def test_a_line_that_says_nothing_or_contradicts_itself_is_refused(self):
         cases = [
             ([], USAGE),
             (["debug"], USAGE),
-            (["help"], USAGE),
             (["debug", "crash", "a.dmp"], "crash is not made of a build, so it takes no flavour"),
             (["release", "archive"], "archive is made of the package flavour: `omw archive`"),
             (["debug", "--views=x"], "name a verb before the switches: `omw debug view --views=x`"),

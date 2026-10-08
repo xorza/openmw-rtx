@@ -6,7 +6,7 @@ from pathlib import Path
 
 from omw.build import Build
 from omw.fetch import partial_of
-from omw.system import Refusal
+from omw.system import Refusal, status
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ def game(build: Build, args: list[str]) -> int:
         if not saves:
             raise Refusal(f"no Quicksave.omwsave under {saved}; name one with --load-savegame")
         save = ["--load-savegame", max(saves, key=lambda found: found.stat().st_mtime)]
-    return build.run_here([build.binary("openmw"), "--skip-menu", *save, *args]).returncode
+    return status(build.run_here([build.binary("openmw"), "--skip-menu", *save, *args]).returncode)
 
 
 def setup(build: Build, args: list[str]) -> int:
