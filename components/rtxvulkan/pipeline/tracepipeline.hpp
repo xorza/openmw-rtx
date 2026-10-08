@@ -109,9 +109,13 @@ namespace Rtx
         TracePipeline(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
             const SharedSetLayouts& shared, const TraceShaders& shaders, std::string_view name,
             std::span<const std::uint32_t> specialization = {})
-            : TracePipeline(device,
+            : TypedPipeline<Constants>(
                 PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_RAYGEN_BIT_KHR), shared),
-                shaders, name, specialization)
+                [&](const PipelineLayout& layout) {
+                    return makeTracePipeline(device, layout, shaders, name, specialization);
+                },
+                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
+            , mTable(device, this->getHandle(), shaders, name)
         {
         }
 
@@ -125,15 +129,6 @@ namespace Rtx
         const Buffer& getTable() const { return mTable.getBuffer(); }
 
     private:
-        TracePipeline(const Device& device, PipelineLayout&& layout, const TraceShaders& shaders, std::string_view name,
-            std::span<const std::uint32_t> specialization)
-            : TypedPipeline<Constants>(std::move(layout),
-                makeTracePipeline(device, layout, shaders, name, specialization),
-                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
-            , mTable(device, this->getHandle(), shaders, name)
-        {
-        }
-
         ShaderBindingTable mTable;
     };
 }

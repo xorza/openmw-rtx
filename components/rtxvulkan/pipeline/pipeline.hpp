@@ -104,9 +104,9 @@ namespace Rtx
 
     /// What the three kinds of pipeline share: the handle, the layout descriptors are pushed
     /// against and push constants written through, and the bind point the two are addressed at.
-    /// One object with its layout because they fail as one: the handle is made against the
-    /// layout before either is handed here, so a handle that cannot be made leaves the layout to
-    /// the caller's unwind rather than behind for `vkDestroyDevice` to find.
+    /// One object with its layout because they fail as one: the handle is made against the layout
+    /// once it is this object's member, so a handle that cannot be made leaves the layout to the
+    /// unwind rather than behind for `vkDestroyDevice` to find.
     class Pipeline
     {
     public:
@@ -119,9 +119,12 @@ namespace Rtx
         const NotFiniteCensus* getCensus() const { return mLayout.getCensus(); }
 
     protected:
-        Pipeline(PipelineLayout&& layout, Owned<VkPipeline, vkDestroyPipeline>&& handle, VkPipelineBindPoint bindPoint)
+        /// @param make makes the handle against the layout, handed the member, which `layout`
+        ///        was moved into first.
+        template <class Make>
+        Pipeline(PipelineLayout&& layout, Make&& make, VkPipelineBindPoint bindPoint)
             : mLayout(std::move(layout))
-            , mHandle(std::move(handle))
+            , mHandle(std::forward<Make>(make)(std::as_const(mLayout)))
             , mBindPoint(bindPoint)
         {
         }
@@ -149,9 +152,9 @@ namespace Rtx
         }
 
     protected:
-        TypedPipeline(
-            PipelineLayout&& layout, Owned<VkPipeline, vkDestroyPipeline>&& handle, VkPipelineBindPoint bindPoint)
-            : Pipeline(std::move(layout), std::move(handle), bindPoint)
+        template <class Make>
+        TypedPipeline(PipelineLayout&& layout, Make&& make, VkPipelineBindPoint bindPoint)
+            : Pipeline(std::move(layout), std::forward<Make>(make), bindPoint)
         {
         }
     };
