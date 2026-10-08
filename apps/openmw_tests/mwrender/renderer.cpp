@@ -292,9 +292,12 @@ namespace MWRender
 
             Settings::video().mResolutionX.set(1280);
             Settings::video().mResolutionY.set(720);
-            renderer.resolutionChanged();
-            renderer.resolutionChanged();
-            EXPECT_EQ(renderer.mPresented, 2u);
+            const Settings::CategorySettingVector resized{ { "Video", "resolution x" }, { "Video", "resolution y" } };
+            renderer.processChangedSettings(resized);
+            renderer.processChangedSettings(resized);
+            EXPECT_EQ(renderer.mPresented, 2u) << "both halves of one change are one presentation";
+            renderer.processChangedSettings({ { "Camera", "field of view" } });
+            EXPECT_EQ(renderer.mPresented, 2u) << "a change of anything else presented the frame again";
             EXPECT_EQ(renderer.getPresentation().mFrame, osg::Vec2i(1280, 720));
             EXPECT_EQ(renderer.getPresentation().mShownSize, osg::Vec2i(1920, 1080));
 

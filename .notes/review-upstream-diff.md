@@ -54,14 +54,6 @@ What is left:
 
 ### Seam and game side
 
-- [ ] **5.11 `Renderer::resolutionChanged` has one caller and costs an upstream hunk.**
-  `renderer.hpp:134`, `renderer.cpp:192`, `renderingmanager.cpp:1062-1065`. The same function calls
-  `processChangedSettings` at `:1091`. Target: the base `processChangedSettings` re-presents when
-  `[Video] resolution x/y` changed. Delete `resolutionChanged` and restore upstream's
-  `updateProjection = true;`. Rewrite `RendererTest.thePresentationIsAppliedWhenItMovesAndOnlyThen`.
-  Verify: `./omw test openmw-tests --gtest_filter='RendererTest.*'`,
-  `./omw test components-tests --gtest_filter='MiscPresentationTest.*'`.
-
 - [ ] **5.12 The seam breaks its own pure-versus-default rule in three places.**
   `renderer.hpp:294` (`eventTraversal`) and `:458` (`applyPresentation`) are pure, and `RtxRenderer`
   answers both with nothing. `renderer.hpp:390`: `setScreenshotWriter` is virtual only so

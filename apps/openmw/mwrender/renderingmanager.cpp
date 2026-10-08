@@ -1060,8 +1060,7 @@ namespace MWRender
             }
             else if (it->first == "Video" && (it->second == "resolution x" || it->second == "resolution y"))
             {
-                // The renderer sizes the frame to it, and the projection follows from there.
-                mRenderer.resolutionChanged();
+                updateProjection = true;
             }
             else if (it->first == "Camera" && it->second == "viewing distance")
             {
