@@ -50,16 +50,6 @@ What is left:
 - **Frame-path costs in the mirror.** Unloaded cells are deleted on the frame thread (phase 4).
 - **Simplifications and dead code** (phases 5 and 6).
 
-## Phase 1 — bugs, and the error paths that leak
-
-Where a pairing caused the bug, the item replaces the pairing and not only the one site.
-
-- [ ] **1.15 `omw repeat` and `omw noise --ab` leave empty temporary folders when the build fails.**
-  `tools/omw/repeat.py:223`, `tools/omw/noise.py:162`: `mkdtemp` runs before the harness compiles.
-  Target: remove the folder when it is empty and an exception leaves. Keep it in every other case,
-  because the logs are named in the message.
-  Verify: `cd tools && python -m unittest omw.tests.test_repeat` with a raising harness.
-
 ## Phase 2 — structural ownership of manual pairings
 
 Items 2.1 to 2.3 give the command pool one model, so each owns one thing:

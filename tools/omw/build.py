@@ -262,10 +262,15 @@ class Build:
     def harness_line(self, verb: str, *args: str | Path) -> list[str | Path]:
         """`openmw-rtxtool <verb> [args]`, for a caller that runs it under another program — perf —
         with the binary built first, once a run."""
+        self.build_harness()
+        return [self.binary("openmw-rtxtool"), verb, *args]
+
+    def build_harness(self) -> None:
+        """`openmw-rtxtool`, built once a run: asked first by a caller that makes a folder for the
+        harness's output, so a build that fails leaves no folder behind."""
         if not self._harness_built:
             self.build(["openmw-rtxtool"])
             self._harness_built = True
-        return [self.binary("openmw-rtxtool"), verb, *args]
 
     def harness(self, verb: str, *args: str | Path, **options) -> subprocess.CompletedProcess:
         """The harness's `verb`, from the build directory: the one way the driver starts it."""

@@ -24,14 +24,14 @@ after a door, where the fireflies were reported.
 **Every run keeps its pictures and its log**, under `--out` where it is given and a directory of its
 own where it is not, one directory a leg, because what an A/B finds is read in them."""
 
+import contextlib
 import json
 import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import Refusal, Switches, read_text
+from omw.system import Refusal, Switches, read_text, temporary_folder
 
 # The distance `look.h` quotes the moving legs at.
 DEFAULT_DISTANCE = "150"
@@ -159,25 +159,27 @@ def leg_log(folder: Path) -> Path:
 
 def ab(build: Build, args: list[str]) -> int:
     asked = plan(args)
-    out = asked.out or Path(tempfile.mkdtemp(prefix="omw-noise-ab-"))
-    out.mkdir(parents=True, exist_ok=True)
+    build.build_harness()
+    stated = contextlib.nullcontext(asked.out) if asked.out else temporary_folder("omw-noise-ab-")
+    with stated as out:
+        out.mkdir(parents=True, exist_ok=True)
 
-    first, second = asked.sides
-    tables: list[str] = []
-    for leg in asked.legs:
-        folder = out / leg.label.replace(" ", "")
-        log = leg_log(folder)
-        print(f"noise: {leg.label}, {first.switch} against {second.switch}", flush=True)
-        with open(log, "w", encoding="utf-8") as written:
-            ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
-                                  *leg.switches, *asked.rest, f"--out={folder}", stdout=written, stderr=written)
-        record = folder / RECORD
-        sides = read_record(json.loads(read_text(record))) if record.is_file() else ()
-        if ended.returncode not in JUDGED or len(sides) != 2 or not all(sides):
-            print(f"the run failed with status {ended.returncode}, see {log}", file=sys.stderr)
-            return 1
-        tables.append(table(leg.label, asked.sides, *sides))
+        first, second = asked.sides
+        tables: list[str] = []
+        for leg in asked.legs:
+            folder = out / leg.label.replace(" ", "")
+            log = leg_log(folder)
+            print(f"noise: {leg.label}, {first.switch} against {second.switch}", flush=True)
+            with open(log, "w", encoding="utf-8") as written:
+                ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
+                                      *leg.switches, *asked.rest, f"--out={folder}", stdout=written, stderr=written)
+            record = folder / RECORD
+            sides = read_record(json.loads(read_text(record))) if record.is_file() else ()
+            if ended.returncode not in JUDGED or len(sides) != 2 or not all(sides):
+                print(f"the run failed with status {ended.returncode}, see {log}", file=sys.stderr)
+                return 1
+            tables.append(table(leg.label, asked.sides, *sides))
 
-    print("\n\n".join(tables))
-    print(f"\nthe runs are in {out}")
-    return 0
+        print("\n\n".join(tables))
+        print(f"\nthe runs are in {out}")
+        return 0

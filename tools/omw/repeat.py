@@ -32,11 +32,10 @@ its phase that two comparisons read."""
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import Refusal, Switches, read_text
+from omw.system import Refusal, Switches, read_text, temporary_folder
 
 # `RtxTool::sDifferedStatus`: the run's one fault is a frame that differed from its reference.
 DIFFERED_STATUS = 3
@@ -70,45 +69,46 @@ def repeat(build: Build, args: list[str]) -> int:
         if switch in TAKEN or switch in RUN_SWITCHES:
             raise Refusal(f"repeat sets {switch} itself, on every run")
 
-    out = Path(tempfile.mkdtemp(prefix="omw-repeat-"))
-    bench = [f"{switch}={value}" for switch, value in (WALK | TAKEN).items()] + extra
+    build.build_harness()
+    with temporary_folder("omw-repeat-") as out:
+        bench = [f"{switch}={value}" for switch, value in (WALK | TAKEN).items()] + extra
 
-    def run(index: int) -> tuple[Path, int]:
-        log = out / f"{index}.log"
-        held = ["--hold"] if index % 2 else []
-        against = [f"--against={out / str(index - 1)}"] if index else []
-        # **Through a pipe and not into the log**: the crash monitor shares the run's output and
-        # ends after the harness, so a file handed to the harness is still open when it returns,
-        # and Windows refuses to remove it. A pipe ends with its last writer.
-        ended = build.harness("bench", *bench, *held, f"--out={out / str(index)}", *against,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        log.write_bytes(ended.stdout)
-        return log, ended.returncode
+        def run(index: int) -> tuple[Path, int]:
+            log = out / f"{index}.log"
+            held = ["--hold"] if index % 2 else []
+            against = [f"--against={out / str(index - 1)}"] if index else []
+            # **Through a pipe and not into the log**: the crash monitor shares the run's output and
+            # ends after the harness, so a file handed to the harness is still open when it returns,
+            # and Windows refuses to remove it. A pipe ends with its last writer.
+            ended = build.harness("bench", *bench, *held, f"--out={out / str(index)}", *against,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            log.write_bytes(ended.stdout)
+            return log, ended.returncode
 
-    first, code = run(0)
-    if code != 0:
-        print(f"the run itself failed, see {first}:\n{_tail(first)}", file=sys.stderr)
-        return 1
-
-    status = 0
-    for pair in range(1, pairs + 1):
-        second, code = run(pair)
-        if code == 0:
-            print(f"pair {pair} of {pairs}: identical")
-        elif code == DIFFERED_STATUS:
-            # Decided by the status alone; the report's comparison is only shown, from where it opens.
-            status = 1
-            lines = read_text(second).splitlines()
-            against = next((i for i, line in enumerate(lines) if line.startswith("against ")), max(len(lines) - 20, 0))
-            print(f"pair {pair} of {pairs}: NOT repeatable", file=sys.stderr)
-            print("\n".join(lines[against:]), file=sys.stderr)
-        else:
-            print(f"the run itself failed, see {second}:\n{_tail(second)}", file=sys.stderr)
+        first, code = run(0)
+        if code != 0:
+            print(f"the run itself failed, see {first}:\n{_tail(first)}", file=sys.stderr)
             return 1
 
-    if status == 0:
-        print(f"repeat: {pairs} pair(s), identical over every one")
-        shutil.rmtree(out)
-    else:
-        print(f"the runs are in {out}", file=sys.stderr)
-    return status
+        status = 0
+        for pair in range(1, pairs + 1):
+            second, code = run(pair)
+            if code == 0:
+                print(f"pair {pair} of {pairs}: identical")
+            elif code == DIFFERED_STATUS:
+                # Decided by the status alone; the report's comparison is only shown, from where it opens.
+                status = 1
+                lines = read_text(second).splitlines()
+                against = next((i for i, line in enumerate(lines) if line.startswith("against ")), max(len(lines) - 20, 0))
+                print(f"pair {pair} of {pairs}: NOT repeatable", file=sys.stderr)
+                print("\n".join(lines[against:]), file=sys.stderr)
+            else:
+                print(f"the run itself failed, see {second}:\n{_tail(second)}", file=sys.stderr)
+                return 1
+
+        if status == 0:
+            print(f"repeat: {pairs} pair(s), identical over every one")
+            shutil.rmtree(out)
+        else:
+            print(f"the runs are in {out}", file=sys.stderr)
+        return status
