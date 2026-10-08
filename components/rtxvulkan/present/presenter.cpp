@@ -136,14 +136,6 @@ namespace Rtx
         mStale = false;
     }
 
-    void Presenter::setVerticalSync(SDLUtil::VSyncMode mode)
-    {
-        // A present mode is a property of the swapchain object. Not `rebuild`, because that
-        // clears a staleness a window that changed size meanwhile still owes.
-        if (mSwapchain.setVerticalSync(mode))
-            remake(mAsked);
-    }
-
     void Presenter::remake(const VkExtent2D extent)
     {
         // The sync released between the idle and the recreate, because the present fences it waits

@@ -46,10 +46,6 @@ namespace Rtx
         /// because two settings collapse onto one mode where a driver is missing the other.
         bool setVerticalSync(SDLUtil::VSyncMode mode);
 
-        /// Whether `setVerticalSync(mode)` would change the present mode, asked without changing
-        /// anything: what a caller with something to drain before a rebuild asks first.
-        bool changesPresentMode(SDLUtil::VSyncMode mode) const;
-
         VkExtent2D getExtent() const { return mExtent; }
         VkImage getImage(std::uint32_t index) const { return mImages[index]; }
         std::uint32_t getImageCount() const { return static_cast<std::uint32_t>(mImages.size()); }

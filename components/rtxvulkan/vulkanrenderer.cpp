@@ -399,10 +399,8 @@ namespace Rtx
 
         // A handed-over batch is submitted first where a rebuild follows, exactly as a resize does,
         // and only there: most settings change no present mode, and the drain is a submit and a
-        // wait.
-        if (mPresenter->rebuildsFor(mode))
-            drain();
-        mPresenter->setVerticalSync(mode);
+        // wait. A present mode is a property of the swapchain object.
+        mPresenter->setVerticalSync(mode, [this] { drain(); });
     }
 
     void VulkanRenderer::setAnisotropy(const std::uint32_t anisotropy)
