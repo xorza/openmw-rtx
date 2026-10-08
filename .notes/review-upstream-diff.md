@@ -52,12 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.10 `SceneTextures`' spans rest on a debug assert.**
-  `scene/scenetextures.cpp:85-115`. Two `reserve`s and the fill agree through two separate
-  computations. If they diverge, release hands the backend dangling spans. Target: both capacity
-  checks become `Crash::contract`.
-  Verify: `./omw test components-tests --gtest_filter='RtxSceneTexturesTest.*:RtxSceneUploaderTest.*'`.
-
 - [ ] **3.11 A non-finite placement transform reaches the top level.**
   `mirror/sceneextractor.cpp:546` inverts a world matrix that a zero-scale ancestor makes singular.
   `:167` and `:924-976` place the transform unchecked. Sprites and lamps already refuse non-finite
