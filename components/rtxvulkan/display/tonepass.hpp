@@ -12,6 +12,7 @@
 namespace Rtx
 {
     class Device;
+    class GpuTimer;
 
     /// What one run of the curve is over. A frame's and a picture's inside the interface differ
     /// in the pyramid and the sun's share and in nothing else, so the two are one record and not
@@ -78,9 +79,9 @@ namespace Rtx
 
         /// @param textureLayout the scene's bindless textures, which this samples the star sheet
         ///        out of — `ToneConstants::mStars` says why the field is drawn here.
-        TonePass(const Device& device, VkDescriptorSetLayout textureLayout);
+        TonePass(const Device& device, const SetLayout& textureLayout);
 
-        void record(VkCommandBuffer commands, const Tone& what) const;
+        void record(VkCommandBuffer commands, const Tone& what, GpuTimer* timer) const;
 
     private:
         ComputePipeline<Shaders::ToneConstants> mPipeline;

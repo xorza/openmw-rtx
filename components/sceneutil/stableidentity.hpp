@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <typeinfo>
 
 #include <osg/CopyOp>
 #include <osg/Node>
@@ -17,9 +18,8 @@ namespace SceneUtil
     /// everything under such a node is told apart by its place in the subtree.
     ///
     /// Kept in the node's user data slot (`osg::Object::setUserData`) rather than among its user
-    /// objects, so a reader finds it in one load rather than a scan. The slot's one other writer is
-    /// `LampBody`, whose groups are never the nodes stamped here: a lamp's model stands under its
-    /// reference's root, which is.
+    /// objects, so a reader finds it in one load rather than a scan. The game writes nothing else
+    /// there on the nodes it stamps.
     class StableIdentity final : public osg::Object
     {
     public:

@@ -56,7 +56,7 @@ namespace Rtx
         TEST_F(RtxComputePipelineTest, aMissingShaderLeavesNothingBehindOnTheDevice)
         {
             const Instance& instance = *mHarness.mInstance;
-            auto device = std::make_unique<Device>(instance, PhysicalDevice::select(instance.getHandle()),
+            auto device = std::make_unique<Device>(instance, PhysicalDevice::select(instance.getHandle(), {}),
                 ShaderSet{ .mDirectory = Testing::getShaderDirectory() }, PipelineCacheSpec{});
 
             ValidationLog* log = instance.getValidationLog();

@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import FORK, ROOT, Refusal, read_text
+from omw.system import FORK, ROOT, Refusal, read_text, status
 
 
 def test(build: Build, args: list[str]) -> int:
@@ -16,14 +16,14 @@ def test(build: Build, args: list[str]) -> int:
     if args and not args[0].startswith("-"):
         return _one(build, args[0], args[1:])
 
-    targets = build.test_targets()
+    targets = build.test_targets(without_device="--without-device" in args)
     if not targets:
         raise Refusal(f"the {build.flavour} build has no tests: `omw debug test` runs them")
     build.build(targets)
     shutil.rmtree(times_folder(build), ignore_errors=True)
     # From the source tree, where CTest finds the presets.
-    return build.run_here(["ctest", "--preset", build.preset, *ctest_arguments(args)],
-                          cwd=ROOT).returncode
+    return status(build.run_here(["ctest", "--preset", build.preset, *ctest_arguments(args)],
+                          cwd=ROOT).returncode)
 
 
 def ctest_arguments(args: list[str]) -> list[str]:
@@ -42,7 +42,7 @@ def _one(build: Build, binary: str, args: list[str]) -> int:
     if binary not in build.test_targets():
         raise Refusal(f"the {build.flavour} build has no test binary called {binary}")
     build.build([binary])
-    return build.run_here([build.binary(binary), *args]).returncode
+    return status(build.run_here([build.binary(binary), *args]).returncode)
 
 
 # Two seconds, in the debug build: the fork's slowest test took 0.9 s alone and 1.1 s beside the other
@@ -52,7 +52,7 @@ LIMIT_SECONDS = 2.0
 
 def times_folder(build: Build) -> Path:
     """Where each suite's GoogleTest report lands, one a CTest test, as `cmake/Tests.cmake` sets."""
-    return build.dir / "test-output" / "times"
+    return build.cached_folder("RTX_TEST_OUTPUT_DIR") / "times"
 
 
 def durations(report: dict, root: Path = ROOT) -> dict[str, float]:
@@ -71,7 +71,7 @@ def timing(build: Build) -> int:
     beside the others is under it alone."""
     targets = {test["name"]: property["value"] for test in build.tests()
                for property in test.get("properties", []) if property["name"] == "OPENMW_TARGET"}
-    alone = build.dir / "test-output" / "alone.json"
+    alone = build.cached_folder("RTX_TEST_OUTPUT_DIR") / "alone.json"
     slow = 0
     for path in sorted(times_folder(build).glob("*.json")):
         for name, shared in durations(json.loads(read_text(path))).items():

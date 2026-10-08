@@ -10,9 +10,8 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/imagedescription.hpp>
-#include <components/rtx/image/mipchain.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "refusal.hpp"
@@ -40,7 +39,7 @@ namespace Rtx
         {
             // A free slot is not a texture. `SceneDesc` empties one the last thing naming it
             // gave back and leaves it in the table until something takes it over; describing it
-            // would build an image, a shading map and a descriptor write for a slot no material can
+            // would build an image, a shading map and a binding for a slot no material can
             // reach — and count it as a texture that arrived.
             if (!scene.textures().isLive(slot))
                 continue;
@@ -59,13 +58,11 @@ namespace Rtx
             }
             else if (row.mKind == TextureKind::File)
                 kept.mImage = Misc::Err{ std::string(sNoImage) };
-            else if (row.mKind == TextureKind::Baked)
+            else if (row.mKind == TextureKind::SpriteLight)
             {
                 // Made on the device from the sprite texture's own slot, which the emitter holds
                 // beside this one: a bake carries no bytes and is shaped like its source there.
-                const std::optional<VFS::Path::Normalized> source = SpriteLightMap::sourceOf(row.mBaked);
-                assert(source.has_value() && "a bake's key is made by `SpriteLightMap::keyFor`");
-                kept.mBakedFrom = scene.textures().findFile(*source);
+                kept.mBakedFrom = scene.textures().findFile(row.mPath);
             }
             else
                 kept.mGround = Ground{ .mMaterial = row.mGroundOf, .mGloss = row.mKind == TextureKind::GroundGloss };
@@ -89,10 +86,11 @@ namespace Rtx
         mLevels.reserve(levels);
         mTexels.reserve(texels);
 
-        // What the assertions below are taken against: the reserve and the fill agree by argument
-        // through branches that push a different number of levels each, and a growth is the failure.
-        [[maybe_unused]] const std::size_t reserved = mLevels.capacity();
-        [[maybe_unused]] const std::size_t reservedTexels = mTexels.capacity();
+        // What the contracts below are taken against: the reserve and the fill agree by argument
+        // through branches that push a different number of levels each, and a growth is the failure
+        // — in a release build too, where it would hand the backend spans into freed storage.
+        const std::size_t reserved = mLevels.capacity();
+        const std::size_t reservedTexels = mTexels.capacity();
 
         mDescriptions.reserve(mKept.size());
         for (const Kept& kept : mKept)
@@ -105,10 +103,8 @@ namespace Rtx
                 data = described.value();
             else
             {
-                // Whichever of the two named the slot.
-                mRefusals.push_back(Refusal{ .mKind = Refused::Texture,
-                    .mName = std::string(row.mKind == TextureKind::File ? row.mPath.value() : row.mBaked),
-                    .mWhy = described.error() });
+                mRefusals.push_back(
+                    Refusal{ .mKind = Refused::Texture, .mName = row.getName(), .mWhy = described.error() });
                 data = describeStandIn();
             }
 
@@ -117,8 +113,8 @@ namespace Rtx
             mDescriptions.push_back(data);
         }
 
-        assert(mLevels.capacity() == reserved && "the level table grew while descriptions spanned it");
-        assert(mTexels.capacity() == reservedTexels && "the laid texels grew while descriptions spanned them");
+        Crash::contract(mLevels.capacity() == reserved, "the level table grew while descriptions spanned it");
+        Crash::contract(mTexels.capacity() == reservedTexels, "the laid texels grew while descriptions spanned them");
     }
 
     Misc::Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)
@@ -133,10 +129,10 @@ namespace Rtx
             if (!read.isOk())
                 return read;
 
-            // What the file did not carry, the device makes. `MipChain` says why almost nothing in
-            // the game needs this and why the rain does.
+            // What the file did not carry, the device makes. `wantsCompletedChain` says why almost
+            // nothing in the game needs this and why the rain does.
             TextureData described = read.value();
-            described.mCompleteChain = MipChain::wantedFor(described);
+            described.mCompleteChain = described.wantsCompletedChain();
             return described;
         }
 

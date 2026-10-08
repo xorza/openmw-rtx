@@ -1,5 +1,6 @@
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -32,6 +33,7 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/nif/niftypes.hpp>
 #include <components/nifosg/autotransform.hpp>
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
@@ -429,6 +431,50 @@ namespace Rtx::Testing
                 ViewBasis{ .mOrigin = osg::Vec3f(100.0f, 0.0f, 0.0f), .mForward = osg::Vec3f(-1.0f, 0.0f, 0.0f) }, 3);
             expectAxis(towardX, osg::Vec3f(-1.0f, 0.0f, 0.0f), "z toward an eye looking along -x");
             expectAxis(upStill, osg::Vec3f(0.0f, 0.0f, 1.0f), "y up for an eye looking along -x");
+        }
+
+        /// **A place that is not finite stands nothing, and a billboard under a scale of nought
+        /// stands where it was authored.** The billboard's frame has no inverse, so the eye has no
+        /// way into it: inverted anyway, the eye was a NaN and so was the placement, every element.
+        /// Under a scale of nought it is a quad of no size, placed and finite. A transform of a NaN
+        /// is refused once by the drawable's name, and walked again it is not refused twice.
+        TEST_F(RtxSceneExtractorTest, aPlaceThatIsNotFiniteStandsNothingAndABillboardWithNoInverseStandsStill)
+        {
+            osg::Matrix broken;
+            broken(3, 0) = std::numeric_limits<double>::quiet_NaN();
+            osg::ref_ptr<osg::MatrixTransform> nowhere = new osg::MatrixTransform(broken);
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            quad->setName("nowhere");
+            nowhere->addChild(quad);
+
+            for (std::size_t frame = 1; frame < 3; ++frame)
+            {
+                mScene.clearPlacement();
+                walk(*nowhere, 0, frame);
+                EXPECT_EQ(mScene.placements().getCounts().mPlaced, 0u) << "a NaN was placed";
+                EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u) << "refused once and by name, walk " << frame;
+            }
+            mExtractor.retire();
+
+            Nif::NiTransform authored;
+            authored.mTranslation = osg::Vec3f();
+            authored.mScale = 1.0f;
+            osg::ref_ptr<NifOsg::AutoTransform> billboard
+                = new NifOsg::AutoTransform(authored, NifOsg::AutoTransform::Mode::RigidFaceCamera);
+            billboard->addChild(makeQuad());
+            osg::ref_ptr<osg::MatrixTransform> collapsed = new osg::MatrixTransform(osg::Matrix::scale(0.0, 0.0, 0.0));
+            collapsed->addChild(billboard);
+
+            mExtractor.setEye(
+                ViewBasis{ .mOrigin = osg::Vec3f(0.0f, -100.0f, 0.0f), .mForward = osg::Vec3f(0.0f, 1.0f, 0.0f) });
+            mScene.clearPlacement();
+            walk(*collapsed, 0, 3);
+            ASSERT_EQ(mScene.placements().getCounts().mPlaced, 1u);
+            EXPECT_TRUE(isFinite(mScene.placements().getRows()[0].mInstance.mTransform))
+                << "a billboard with no inverse was placed through one";
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u) << "a quad of no size was refused";
+            mExtractor.retire();
+            EXPECT_TRUE(mScene.isConsistent());
         }
 
         /// The basis a view matrix stands is its inverse's translation, its own +X, -Z and +Y.

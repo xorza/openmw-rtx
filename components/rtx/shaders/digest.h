@@ -77,15 +77,7 @@ namespace Rtx::Shaders
         return hash;
     }
 
-    /// What the dispatch is told: how far the images reach, which is one extent for all of them.
-    struct DigestConstants
-    {
-        uint mWidth;
-        uint mHeight;
-    };
-
 #ifdef RTX_HOST
-    static_assert(sizeof(DigestConstants) == 8, "DigestConstants must be scalar-packed on every side");
 }
 #endif
 

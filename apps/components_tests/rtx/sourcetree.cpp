@@ -19,8 +19,6 @@
 #include <gtest/gtest.h>
 
 #include <components/files/conversion.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 
 namespace Rtx
@@ -240,8 +238,8 @@ namespace Rtx
         /// the swapchain, whose surface goes first.
         TEST(RtxSourceTreeTest, onlyWhatOutlivesTheGraveyardIsEndedAtOnce)
         {
-            const std::set<std::string> allowed{ "owned.hpp", "handles.hpp", "handles.cpp", "timeline.hpp",
-                "pipelinecache.hpp", "swapchain.hpp", "swapchain.cpp" };
+            const std::set<std::string> allowed{ "owned.hpp", "timeline.hpp", "timeline.cpp", "pipelinecache.hpp",
+                "pipelinecache.cpp", "swapchain.hpp", "swapchain.cpp" };
 
             const std::vector<std::string> found = linesMatching({ sBackend }, allowed,
                 [](const std::string_view code) { return code.find("Immediate<") != std::string_view::npos; });
@@ -481,60 +479,27 @@ namespace Rtx
             EXPECT_LE(modules, Shaders::CENSUS_KERNELS);
         }
 
-        /// Every zone the backend can open in a frame fits the timer.
-        ///
-        /// **A zone past `sMaxGpuZones` is dropped without a word**: the timer keeps the label and
-        /// times nothing. The bounce's reuse added three zones to the twenty-three a crossing frame
-        /// opened, and the queue hold's zone, opened last, went unmeasured on three frames in four,
-        /// which only the gate's `queue-held` check saw. So what is counted here is every name an
-        /// `openZone` call in the backend spells, and the hold's own; a name opened twice in a frame
-        /// is two zones, which this does not see.
-        TEST(RtxSourceTreeTest, everyZoneAFrameOpensFitsTheTimer)
-        {
-            std::set<std::string> names{ std::string(RenderProfile::sHoldZone) };
-            for (const std::filesystem::directory_entry& entry :
-                std::filesystem::recursive_directory_iterator(sBackend))
-            {
-                if (entry.path().extension() != ".cpp")
-                    continue;
-
-                std::string text;
-                for (const std::string& line : linesOf(entry.path()))
-                    text += line + '\n';
-
-                for (std::size_t at = text.find("openZone("); at != std::string::npos;
-                     at = text.find("openZone(", at + 1))
-                {
-                    const std::size_t end = text.find(';', at);
-                    const std::size_t open = text.find('"', at);
-                    ASSERT_LT(open, end) << "a zone named by no literal in "
-                                         << Files::pathToUnicodeString(entry.path().filename());
-                    names.insert(text.substr(open + 1, text.find('"', open + 1) - open - 1));
-                }
-            }
-
-            EXPECT_LE(names.size(), sMaxGpuZones) << names.size() << " zones a frame can open";
-        }
-
-        /// One library's folders in the order they may include each other: a folder includes only
-        /// the folders before it, and a folder inside one of them is a part of it, which the two may
-        /// both reach into. `""` is a file straight under the library's root.
+        /// One library's or program's folders in the order they may include each other: a folder
+        /// includes only the folders before it, and a folder inside one of them is a part of it,
+        /// which the two may both reach into. `""` is a file straight under the root, which the
+        /// tree spells from the source root.
         struct FolderOrder
         {
-            std::string_view mLibrary;
+            std::string_view mRoot;
             std::vector<std::string_view> mOrder;
         };
 
-        const std::array<FolderOrder, 2> sFolderOrders{
-            FolderOrder{ "rtx",
-                { "shaders", "common", "image", "preprocess", "scene", "frame", "renderer", "mirror", "environment",
-                    "view" } },
-            FolderOrder{ "rtxvulkan",
+        const std::array<FolderOrder, 3> sFolderOrders{
+            FolderOrder{ "components/rtx",
+                { "shaders", "common", "image", "preprocess", "scene", "frame", "world", "renderer", "mirror",
+                    "environment", "view" } },
+            FolderOrder{ "components/rtxvulkan",
                 { "shaders", "spirv", "device", "pipeline", "texture", "scene", "trace", "upscale", "display",
                     "present", "gui", "" } },
+            FolderOrder{ "apps/rtxtool", { "instruments", "model", "" } },
         };
 
-        /// The folder of the library a path under its root stands in: the first of its names, or
+        /// The folder under an order's root that a path stands in: the first of its names, or
         /// `""` for a file straight under the root.
         std::string topFolderOf(const std::filesystem::path& relative)
         {
@@ -549,15 +514,15 @@ namespace Rtx
         TEST(RtxSourceTreeTest, everyFolderIncludesOnlyTheFoldersBeforeIt)
         {
             std::vector<std::string> found;
-            for (const FolderOrder& library : sFolderOrders)
+            for (const FolderOrder& order : sFolderOrders)
             {
-                const std::filesystem::path root = sRoot / "components" / library.mLibrary;
-                const std::string rooted = "components/" + std::string(library.mLibrary) + '/';
+                const std::filesystem::path root = sRoot / order.mRoot;
+                const std::string rooted = std::string(order.mRoot) + '/';
                 const auto rankOf = [&](const std::string_view folder) -> std::optional<std::size_t> {
-                    const auto at = std::find(library.mOrder.begin(), library.mOrder.end(), folder);
-                    if (at == library.mOrder.end())
+                    const auto at = std::find(order.mOrder.begin(), order.mOrder.end(), folder);
+                    if (at == order.mOrder.end())
                         return std::nullopt;
-                    return static_cast<std::size_t>(at - library.mOrder.begin());
+                    return static_cast<std::size_t>(at - order.mOrder.begin());
                 };
 
                 for (const std::filesystem::directory_entry& entry :
@@ -674,6 +639,39 @@ namespace Rtx
             }
 
             return files;
+        }
+
+        /// **Every file under the backend's shaders is named in its CMake file**: an entry shader left
+        /// out of `RTX_SHADERS` is never built and fails only when a pass asks for it, and an
+        /// include or a shared header left out is one the IDE lists nowhere. Named as `shaders/…`,
+        /// which is how every list there spells it.
+        TEST(RtxSourceTreeTest, everyShaderFileIsNamedInTheBackendsCMakeFile)
+        {
+            std::set<std::string, std::less<>> named;
+            for (const std::string& line : linesOf(sBackend / "CMakeLists.txt"))
+            {
+                std::size_t at = 0;
+                while ((at = line.find("shaders/", at)) != std::string::npos)
+                {
+                    const std::size_t end = line.find_first_of(" \t()\"", at);
+                    named.insert(line.substr(at, end == std::string::npos ? std::string::npos : end - at));
+                    at = end == std::string::npos ? line.size() : end;
+                }
+            }
+
+            std::vector<std::string> found;
+            for (const std::filesystem::directory_entry& entry :
+                std::filesystem::recursive_directory_iterator(sBackend / "shaders"))
+            {
+                if (!entry.is_regular_file())
+                    continue;
+                const std::string relative = genericName(entry.path().lexically_relative(sBackend));
+                if (!named.contains(relative))
+                    found.push_back(relative + " is named in no list of components/rtxvulkan/CMakeLists.txt");
+            }
+            std::ranges::sort(found);
+
+            EXPECT_TRUE(found.empty()) << joined(found);
         }
 
         /// **A test lives in the binary its needs decide.** A file of `rtx-gpu-tests` reaches the

@@ -271,8 +271,8 @@ namespace SDLUtil
                     break;
 
                 default:
-                    // `Log` writes to `std::cout`, whose base every later line keeps: the game's
-                    // counts came out in hex after the first controller was remapped.
+                    // `Log` writes to `std::cout`, whose base every later line keeps: one event this
+                    // does not handle would leave every number the log prints after it in hex.
                     Log(Debug::Info) << "Unhandled SDL event of type 0x" << std::hex << evt.type << std::dec;
                     break;
             }

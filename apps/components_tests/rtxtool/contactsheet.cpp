@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
-#include <string_view>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -10,6 +10,7 @@
 #include <apps/rtxtool/instruments/contactsheet.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -56,25 +57,28 @@ namespace RtxTool
         /// **The legend names what each pair shows, by its slot.** A table whose middle slot was
         /// freed describes two textures, slots 0 and 2, and the sheet draws them as pairs 0 and 1:
         /// the legend reads the first file and the third, where one counted along the table named
-        /// the freed slot's empty path second. A bake is named by its key.
+        /// the freed slot's empty path second. A bake is named by what it was made from.
         TEST(RtxContactSheetTest, theLegendNamesEachPairBySlot)
         {
-            std::array<Rtx::TextureRow, 4> rows{};
+            std::array<Rtx::TextureRow, 5> rows{};
             rows[0].mPath = VFS::Path::Normalized("textures/first.dds");
             rows[2].mPath = VFS::Path::Normalized("textures/third.dds");
-            rows[3].mKind = Rtx::TextureKind::Baked;
-            rows[3].mBaked = "bake:textures/first.dds";
+            rows[3].mKind = Rtx::TextureKind::SpriteLight;
+            rows[3].mPath = VFS::Path::Normalized("textures/first.dds");
+            rows[4].mKind = Rtx::TextureKind::GroundGloss;
+            rows[4].mGroundOf = 7;
 
-            std::array<Rtx::TextureData, 3> drawn{};
+            std::array<Rtx::TextureData, 4> drawn{};
             drawn[0].mSlot = 0;
             drawn[1].mSlot = 2;
             drawn[2].mSlot = 3;
+            drawn[3].mSlot = 4;
 
-            std::vector<std::string_view> names;
+            std::vector<std::string> names;
             listSheetNames(drawn, rows, names);
             EXPECT_EQ(names,
-                (std::vector<std::string_view>{
-                    "textures/first.dds", "textures/third.dds", "bake:textures/first.dds" }));
+                (std::vector<std::string>{ "textures/first.dds", "textures/third.dds",
+                    "the light of textures/first.dds", "the ground gloss of material 7" }));
         }
 
         /// **What has no colour to read is a checker of eight-texel squares, 32 and 96, in both

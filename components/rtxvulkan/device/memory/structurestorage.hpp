@@ -46,6 +46,10 @@ namespace Rtx
         /// @param name what a block is called in a capture, numbered from there.
         StructureStorage(VkBufferUsageFlags usage, std::string name);
 
+        /// Pinned: every structure placed here keeps a pointer to it, to give its room back.
+        StructureStorage(const StructureStorage&) = delete;
+        StructureStorage& operator=(const StructureStorage&) = delete;
+
         /// Room for a structure of `bytes`, taken from the first block that has it, or why the
         /// device has none: a block is memory a mesh can be left out for — `MemoryUse::Structure`.
         ///

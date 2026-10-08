@@ -4,6 +4,7 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -19,6 +20,7 @@ namespace Rtx
     DenoisePasses::DenoisePasses(const Device& device)
         : mAccumulate(device)
         , mShadow(device)
+        , mHistoryClamp(device)
         , mSpecular(device)
         , mPane(device)
         , mFilter(device)
@@ -66,41 +68,23 @@ namespace Rtx
         const DenoiseFrame frame{
             .mSampled = sampled,
             .mDistanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar),
-            .mAntilag = reconstruction.mAntilag,
-            .mHistoryFix = reconstruction.mHistoryFix,
-            .mDualMotion = reconstruction.mDualMotion,
-            .mAntiFirefly = reconstruction.mAntiFirefly,
+            .mFilters = reconstruction.mFilters,
         };
 
         // The temporal half first: the accumulator hands on the variance of its mean, which is
         // what lets the levels below stop at an edge in the light and not only in the geometry.
-        openZone(timer, commands, "accumulate");
-        mAccumulate.record(commands, accumulated, buffer, frame);
-        closeZone(timer, commands);
-
-        openZone(timer, commands, "clamp");
-        mAccumulate.recordClamp(commands, accumulated, buffer, frame);
-        closeZone(timer, commands);
+        mAccumulate.record(commands, accumulated, buffer, frame, timer);
+        mAccumulate.recordClamp(commands, accumulated, buffer, frame, timer);
 
         const Image* shadow = nullptr;
         if (runs[Temporal::Shadow])
-        {
-            openZone(timer, commands, "shadow");
-            shadow = &mShadow.record(commands, history.shadow(step), buffer, frame);
-            closeZone(timer, commands);
-        }
+            shadow = &mShadow.record(commands, history.shadow(step), buffer, frame, timer);
 
         const Image* specular = &buffer.get(Channel::Specular);
         if (runs[Temporal::Specular])
-        {
-            openZone(timer, commands, "specular");
-            specular = &mSpecular.record(commands, history.specular(step), buffer, frame);
-            closeZone(timer, commands);
-        }
+            specular = &mSpecular.record(commands, history.specular(step), buffer, frame, mHistoryClamp, timer);
 
-        openZone(timer, commands, "pane");
-        const Image& pane = mPane.record(commands, history.pane(step), buffer, frame);
-        closeZone(timer, commands);
+        const Image& pane = mPane.record(commands, history.pane(step), buffer, frame, mHistoryClamp, timer);
 
         // **One dependency after the three filters and none between them**: the shadow, glossy
         // and pane passes read nothing another of them writes, so a barrier each held every one
@@ -124,9 +108,7 @@ namespace Rtx
 
         ready.flush();
 
-        openZone(timer, commands, "filter");
-        const AtrousPass::Filtered filtered = mFilter.record(commands, accumulated, buffer, frame);
-        closeZone(timer, commands);
+        const AtrousPass::Filtered filtered = mFilter.record(commands, accumulated, buffer, frame, timer);
 
         return Denoised{ .mIndirect = filtered.mIndirect,
             .mFill = filtered.mFill,

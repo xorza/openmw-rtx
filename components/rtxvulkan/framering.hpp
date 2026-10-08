@@ -13,25 +13,18 @@
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/digest.h>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
-#include <components/rtxvulkan/display/digestpass.hpp>
+
+#include "digestpass.hpp"
 
 namespace Rtx
 {
     class Device;
     class Image;
-
-    /// One command buffer and the timeline value it was submitted under.
-    struct Submission
-    {
-        VkCommandBuffer mCommands = VK_NULL_HANDLE;
-
-        /// What the submit signalled on the device's timeline, which is what says it has run.
-        std::uint64_t mSubmitted = 0;
-    };
 
     /// Where a frame's slot stands between one use and the next: nothing recorded, begun by a
     /// placement or a trace and not yet submitted, or submitted and not yet waited for. One
@@ -52,13 +45,15 @@ namespace Rtx
         /// the interface is traced between the two. Only the trace's value is waited on: it is
         /// later on the queue, so its signal covers every placement before it. One buffer per
         /// placement, because a cell crossing places twice and two placements sharing a buffer
-        /// is a recording over a submit in flight. Grown to the busiest frame so far and never
-        /// freed.
-        std::vector<VkCommandBuffer> mPlaceCommands;
+        /// is a recording over a submit in flight. Grown to the busiest frame so far and given
+        /// back with the ring.
+        LentCommands mPlaceCommands;
         std::size_t mPlacements = 0;
+        LentCommands mTraceCommands;
 
-        /// The world's: every placement of this frame, then the trace.
-        Submission mWorld;
+        /// What the trace's submit signalled on the device's timeline, which is what says every
+        /// placement of this frame and the trace have run.
+        std::uint64_t mSubmitted = 0;
 
         Stepped<FrameState> mState{ FrameState::Idle };
 
@@ -149,9 +144,13 @@ namespace Rtx
         void readDigest(FrameRecord& frame, VkCommandBuffer commands,
             const std::array<const Image*, Shaders::DIGEST_IMAGES>& images, const FrameDigest& facts, GpuTimer* timer);
 
-        /// Submits what a frame recorded and counts it as in flight, with its counts ordered for
-        /// the host after every pass that could have written them.
-        void submit(FrameRecord& frame);
+        /// The recording of `frame`'s trace, begun on the frame's own buffer. An exception that
+        /// leaves it unsubmitted leaves the frame begun, and the next trace begins it again.
+        Recording recordWorld(FrameRecord& frame);
+
+        /// Submits what a frame recorded into `world`, `recordWorld`'s, and counts it as in flight,
+        /// with its counts ordered for the host after every pass that could have written them.
+        void submit(FrameRecord& frame, Recording&& world);
 
         /// Whether the frame being recorded was begun and not yet submitted.
         bool isOpen() const { return mSlots.at(getRecordingSlot()).mState.get() == FrameState::Begun; }
@@ -160,12 +159,13 @@ namespace Rtx
         /// buffers come back once it is waited for, and no report.
         void skip();
 
-        /// The oldest report in hand, waiting a frame out for one where there is none.
-        std::optional<FrameResult> collect();
+        /// The oldest report in hand, waiting a frame out for one where there is none —
+        /// `Renderer::finishFrame`.
+        std::optional<FrameResult> finishFrame();
 
         /// The oldest report in hand, waiting only where the ring has no room for the next frame
         /// — `Renderer::collectFrame`.
-        std::optional<FrameResult> collectFinished();
+        std::optional<FrameResult> collectFrame();
 
         /// Waits for every frame in flight. What an arrival, a rebuild, a resize and a picture
         /// inside the interface do first.
@@ -203,7 +203,7 @@ namespace Rtx
         /// Waits until the ring has a slot for the next frame.
         void makeRoom();
 
-        void close(FrameRecord& frame, bool traced);
+        void close(FrameRecord& frame, bool traced, Recording&& world);
 
         std::optional<FrameResult> takeReport();
 

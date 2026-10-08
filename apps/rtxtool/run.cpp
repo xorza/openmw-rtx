@@ -21,6 +21,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/parser.hpp>
 #include <components/settings/values.hpp>
@@ -52,6 +53,11 @@ namespace RtxTool
             return slug.empty() ? "new-view" : slug;
         }
 
+    }
+
+    void measureFrames(Stop& stop, const std::uint32_t frames)
+    {
+        stop.mSchedule.mSpec = BenchSpec{ .mRun = { .mFrames = frames }, .mWarm = { .mFrames = sHistoryFrames } };
     }
 
     template <class T>
@@ -116,7 +122,7 @@ namespace RtxTool
         return std::format("# {} at {:.0f}, {:.0f}, {:.0f} — bearing {:.0f}°, climb {:.0f}° — day {}, {}, {}\n",
             stop.mStand.mCell, eye.x(), eye.y(), eye.z(), bearingOf(stop.mStand), climbOf(stop.mStand),
             stop.mSky.mDay.value_or(0), describeHour(stop.mSky.mHour.value_or(sDefaultHour)),
-            Rtx::weatherName(stop.mSky.mWeather.value_or(sDefaultWeather)));
+            Rtx::nameOf(stop.mSky.mWeather.value_or(sDefaultWeather)));
     }
 
     std::string describeAir(const Rtx::AirClock& air)
@@ -149,7 +155,7 @@ namespace RtxTool
             block += std::format("hour = {}\n", *stop.mSky.mHour);
 
         if (stop.mSky.mWeather.has_value() && *stop.mSky.mWeather != sDefaultWeather)
-            block += std::format("weather = {}\n", Rtx::weatherName(*stop.mSky.mWeather));
+            block += std::format("weather = {}\n", Rtx::nameOf(*stop.mSky.mWeather));
 
         if (!stop.mStand.mLamps)
             block += "lamps = false\n";
@@ -176,7 +182,7 @@ namespace RtxTool
             "# openmw-rtxtool view --cell=\"{}\" --pos={},{},{} --look={},{},{} --hour={} --day={} --weather={}",
             stop.mStand.mCell, eye.x(), eye.y(), eye.z(), look.x(), look.y(), look.z(),
             stop.mSky.mHour.value_or(sDefaultHour), stop.mSky.mDay.value_or(0),
-            Rtx::weatherName(stop.mSky.mWeather.value_or(sDefaultWeather)));
+            Rtx::nameOf(stop.mSky.mWeather.value_or(sDefaultWeather)));
 
         if (stop.mSky.mAir.has_value())
             command += std::format(" --air={}", describeAir(*stop.mSky.mAir));
@@ -368,7 +374,7 @@ namespace RtxTool
             return given.has_value() ? *given : fixed.value_or(sDefaultHour);
         }
 
-        std::uint32_t weatherFor(const std::optional<std::uint32_t>& given, const std::optional<std::uint32_t>& fixed)
+        Rtx::Weather weatherFor(const std::optional<Rtx::Weather>& given, const std::optional<Rtx::Weather>& fixed)
         {
             return given.has_value() ? *given : fixed.value_or(sDefaultWeather);
         }

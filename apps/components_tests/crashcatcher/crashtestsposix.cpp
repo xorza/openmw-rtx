@@ -1,6 +1,7 @@
 #include "crashtestssystem.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
@@ -35,7 +36,8 @@ namespace CrashTests
 
         bool keptMode(std::string_view mode)
         {
-            return mode == "kept-abort" || mode == "kept-end" || mode == "kept-leaves";
+            return mode == "kept-abort" || mode == "kept-end" || mode == "kept-leaves"
+                || mode == "kept-ignoring-children";
         }
 
         /// The line `kept-leaves` names the process it left with, before its id.
@@ -82,6 +84,16 @@ namespace CrashTests
             .mReports = false,
             .mEndsBy = SIGTERM,
             .mKept = true });
+        // Started with `SIGCHLD` ignored, as a launcher may start it: the keeper still hears its
+        // application end, and ends as it did.
+        into.push_back({ .mName = "kept-ignoring-children",
+            .mHeadline = "",
+            .mRaised = {},
+            .mFollows = "crash-tests lived on",
+            .mReports = false,
+            .mKept = true });
+        // Under an image with the catcher turned off: nothing is kept, because no monitor starts.
+        into.push_back({ "unkept-disabled", "", {}, "crash-tests lived on", false });
         into.push_back({ .mName = "kept-leaves",
             .mHeadline = "",
             .mRaised = {},
@@ -91,6 +103,17 @@ namespace CrashTests
 #endif
         into.push_back({ "report-under-hang", "Report: crash-tests asked under a hang request", {},
             "crash-tests lived on", true, ", which asked" });
+        // **Stopped past the limit by somebody else**, as a shell's Ctrl+Z or a debugger stops it:
+        // no frame for twice the limit, and no hang, because the game was not what stood still.
+        into.push_back({ "stopped-past-limit", "", {}, "crash-tests lived on", false });
+        // **Ended while its report is written**: End answered at once, so the monitor's kill would
+        // land while Crashpad still reads the game, and the hang's dump has to be there all the same.
+        // POSIX alone, where the end is a signal the run says.
+        into.push_back({ .mName = "ended-in-report",
+            .mHeadline = "Hang: no frame for",
+            .mRaised = {},
+            .mFollows = "crash-tests stood still",
+            .mEndsBy = SIGKILL });
     }
 
     void prepareModeOfThisSystem(std::string_view mode)
@@ -103,10 +126,26 @@ namespace CrashTests
             Platform::Process::setEnvironmentPath(
                 "APPDIR", std::filesystem::read_symlink("/proc/self/exe").parent_path());
         }
+        if (mode == "kept-ignoring-children")
+            signal(SIGCHLD, SIG_IGN);
+        if (mode == "unkept-disabled")
+        {
+            Platform::Process::setEnvironment("APPIMAGE", "crash-tests: no image, and no catcher to keep one for");
+            Platform::Process::setEnvironment("OPENMW_DISABLE_CRASH_CATCHER", "1");
+        }
     }
 
     std::optional<int> runModeOfThisSystem(std::string_view mode)
     {
+        if (mode == "unkept-disabled")
+        {
+            if (kept())
+            {
+                Log(Debug::Error) << "crash-tests is kept with no catcher to keep it for";
+                return 3;
+            }
+            return livedOn();
+        }
         if (keptMode(mode))
         {
             if (!kept())
@@ -117,6 +156,8 @@ namespace CrashTests
             Log(Debug::Info) << "crash-tests kept";
             if (mode == "kept-abort")
                 std::abort();
+            if (mode == "kept-ignoring-children")
+                return livedOn();
             if (mode == "kept-leaves")
             {
                 // Long enough that a keeper waiting for it outlasts the matrix's check of it; and with
@@ -134,6 +175,32 @@ namespace CrashTests
             kill(getppid(), SIGTERM);
             for (;;)
                 pause();
+        }
+        if (mode == "stopped-past-limit")
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                Crash::heartbeat();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+            // Somebody else's continue, four seconds on: twice the limit.
+            const std::string resume = "sleep 4; kill -CONT " + std::to_string(getpid());
+            char shell[] = "sh";
+            char command[] = "-c";
+            std::string line = resume;
+            char* arguments[] = { shell, command, line.data(), nullptr };
+            pid_t continuer = 0;
+            if (posix_spawn(&continuer, "/bin/sh", nullptr, nullptr, arguments, environ) != 0)
+                return 3;
+            raise(SIGSTOP);
+
+            for (int i = 0; i < 20; ++i)
+            {
+                Crash::heartbeat();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            return livedOn();
         }
         if (mode == "report-under-hang")
         {

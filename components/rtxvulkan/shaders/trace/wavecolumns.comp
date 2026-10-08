@@ -14,6 +14,7 @@
 // make, so the answer goes from shared memory to the textures, and never to memory and back.
 
 #include "shared/sets.h"
+#include "shared/wavetransform.h"
 #include "wave.h"
 
 #include "lib/census.glsl"

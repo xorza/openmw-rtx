@@ -7,17 +7,28 @@
 
 namespace Rtx
 {
+    namespace
+    {
+        /// The models a ring of cells names at the most: Seyda Neen's, the busiest landing met, is
+        /// 908.
+        constexpr std::size_t sModelBudget = 4096;
+    }
+
+    CellHolds::CellHolds()
+    {
+        mModels.reserve(sModelBudget);
+    }
+
     CellHolds::HeldModel& CellHolds::know(PreparedModel& model)
     {
         // One search either way: a cell arriving asks this once per model it names.
-        const auto at = mModels.lower_bound(&model);
-        if (at != mModels.end() && at->mModel == &model)
-            return *at;
-
-        HeldModel taking = mSpareModels.take();
-        taking.mModel = &model;
-
-        return *mModels.insert(at, std::move(taking));
+        const auto [at, fresh] = mModels.try_emplace(&model);
+        if (fresh)
+        {
+            at->second = mSpareModels.take();
+            at->second.mModel = &model;
+        }
+        return at->second;
     }
 
     CellHolds::HeldModel& CellHolds::knownOf(const PreparedModel& model)
@@ -25,7 +36,7 @@ namespace Rtx
         const auto known = mModels.find(&model);
         Crash::contract(known != mModels.end(), "a model read that the frame does not know of");
 
-        return *known;
+        return known->second;
     }
 
     void CellHolds::adoptParts(HeldModel& held, SceneAdopter& into)
@@ -52,13 +63,14 @@ namespace Rtx
         const auto known = mModels.find(&model);
         Crash::contract(known != mModels.end(), "a model released that the frame does not know of");
 
-        assert(known->mNamed > 0 && "a model released by more cells than named it");
-        if (--known->mNamed > 0)
+        HeldModel& held = known->second;
+        assert(held.mNamed > 0 && "a model released by more cells than named it");
+        if (--held.mNamed > 0)
             return;
 
-        mReleasing.insert(mReleasing.end(), known->mParts.begin(), known->mParts.end());
-        known->reuse();
-        mSpareModels.give(std::move(*known));
+        mReleasing.insert(mReleasing.end(), held.mParts.begin(), held.mParts.end());
+        held.reuse();
+        mSpareModels.give(std::move(held));
         mModels.erase(known);
     }
 
@@ -77,7 +89,7 @@ namespace Rtx
     {
         // The holds on the parts outlive the models they were adopted from, which die with the
         // reader: `AdoptedPart` says why it keeps what the release needs.
-        for (HeldModel& held : mModels)
+        for (auto& [model, held] : mModels)
         {
             mReleasing.insert(mReleasing.end(), held.mParts.begin(), held.mParts.end());
 

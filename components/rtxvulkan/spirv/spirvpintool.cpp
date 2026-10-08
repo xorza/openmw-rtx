@@ -49,15 +49,22 @@ int main(int argc, char* argv[])
     }
 
     const std::filesystem::path path(argv[1]);
+    std::vector<std::uint32_t> words;
     try
     {
-        writeWords(path, Rtx::pinFloatArithmetic(Rtx::readSpirv(path)));
-        return 0;
+        words = Rtx::readSpirv(path);
     }
     catch (const Rtx::InputError& error)
     {
+        // Named already: the reader says which file it could not read.
         std::cerr << error.what() << '\n';
         return 1;
+    }
+
+    try
+    {
+        writeWords(path, Rtx::pinFloatArithmetic(words));
+        return 0;
     }
     catch (const std::exception& error)
     {

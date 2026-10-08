@@ -25,7 +25,8 @@ LLVM = Pin(
     "e8dbb2f7de8e37915273d65c1c2f2d96844b96bb8e8035f62c5182475e80b9fc",
 )
 
-# The tools an AppImage is made with, by the name each is kept under in deps/appimage.
+# The tools an AppImage is made with, by the name each is kept under in its folder of deps/
+# (`deps.appimage_tools`).
 APPIMAGE_TOOLS = {
     "linuxdeploy": Pin(
         "https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage",

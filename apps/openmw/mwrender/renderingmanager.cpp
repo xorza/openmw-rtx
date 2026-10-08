@@ -1,6 +1,7 @@
 #include "renderingmanager.hpp"
 
 #include <cstdlib>
+#include <optional>
 
 #include <osg/Camera>
 #include <osg/ClipControl>
@@ -180,7 +181,7 @@ namespace MWRender
         mPrecipitation
             = std::make_unique<Precipitation>(sceneRoot, &mRenderer.getCamera(), resourceSystem->getSceneManager());
 
-        mRenderer.attachWorld(*this, *mRootNode);
+        mAttachment = mRenderer.attachWorld(*this, *mRootNode, unrefQueue);
 
         mCamera = std::make_unique<Camera>(&mRenderer.getCamera());
 
@@ -201,7 +202,7 @@ namespace MWRender
 
     RenderingManager::~RenderingManager()
     {
-        mRenderer.detachWorld();
+        mAttachment.reset();
 
         // let background loading thread finish before we delete anything else
         mWorkQueue = nullptr;
@@ -484,6 +485,53 @@ namespace MWRender
             updateProjectionMatrix();
         }
         mCamera->update(dt, paused);
+    }
+
+    EyeState RenderingManager::describeEye() const
+    {
+        return EyeState{
+            .mNearClip = mNearClip,
+            .mViewDistance = mViewDistance,
+            .mScriptViewDistance
+            = mViewDistance != Settings::camera().mViewingDistance ? std::optional<float>(mViewDistance) : std::nullopt,
+            .mFieldOfView = getFieldOfView(),
+            .mArmsFieldOfView = mFirstPersonFieldOfView,
+        };
+    }
+
+    void RenderingManager::describeFrame()
+    {
+        mRenderer.describeFrame(mFrame.describe(FrameSources{
+            .mScene = *mSceneRoot,
+            .mWhen = mRenderer.getFrameStamp(),
+            .mSun = *mSunLight,
+            .mAmbientBeforeNightEye = mAmbientColor,
+            .mFog = *mFog,
+            .mEyePosition = mCamera->getPosition(),
+            .mPrecipitation = *mPrecipitation,
+            .mTerrain = *mTerrain,
+            .mObjectStorage = mObjectStorage,
+            .mEye = describeEye(),
+        }));
+    }
+
+    void RenderingManager::renderFrame()
+    {
+        // **Where the eye is, told to the precipitation before the draw**, so the underwater
+        // switch that freezes the rain reads this frame's eye and not the point a traversal last
+        // left. Here and not in `describeFrame`, because `Camera::updateCamera` writes the view
+        // matrix from the update traversal, which runs between the two.
+        const osg::Camera& camera = mRenderer.getCamera();
+        mPrecipitation->setViewPoint(camera.getInverseViewMatrix().getTrans());
+
+        mRenderer.renderFrame(mFrame.get());
+        mFrame.frameDrawn();
+    }
+
+    void RenderingManager::notifyJumped(const MWWorld::Ptr& ptr)
+    {
+        if (const osg::Node* node = ptr.getRefData().getBaseNode())
+            mFrame.noteJumped(*node);
     }
 
     void RenderingManager::updatePlayerPtr(const MWWorld::Ptr& ptr)
@@ -802,7 +850,7 @@ namespace MWRender
         mRenderer.notifyCut();
     }
 
-    void RenderingManager::notifyTeleport()
+    void RenderingManager::notifyCut()
     {
         mRenderer.notifyCut();
     }
@@ -1012,8 +1060,7 @@ namespace MWRender
             }
             else if (it->first == "Video" && (it->second == "resolution x" || it->second == "resolution y"))
             {
-                // The renderer sizes the frame to it, and the projection follows from there.
-                mRenderer.resolutionChanged();
+                updateProjection = true;
             }
             else if (it->first == "Camera" && it->second == "viewing distance")
             {

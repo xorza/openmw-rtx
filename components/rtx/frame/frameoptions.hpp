@@ -4,12 +4,10 @@
 #include <optional>
 
 #include <osg/Vec2f>
-#include <osg/Vec3f>
 
 #include "debuglines.hpp"
 #include "framepast.hpp"
 #include "reconstruction.hpp"
-#include "sunglare.hpp"
 #include "surfaceview.hpp"
 
 namespace Rtx
@@ -36,25 +34,6 @@ namespace Rtx
         /// frames, draws the same pictures however fast it drew them; and one rule in both modes,
         /// so frames nobody traced — a menu over a hidden world — are time the eye had.
         float mSinceLast = 0.0f;
-
-        /// What to multiply the measured exposure by: the hour, which the histogram cannot see
-        /// (`Rtx::Skylight::mExposureBias`). A fixed exposure is not touched by it.
-        float mExposureBias = 1.0f;
-
-        /// The sun glare fader over the picture, which the display chain washes it with. None for a
-        /// frame the world did not describe.
-        SunGlare mGlare{};
-
-        /// What Night-Eye adds to the ambient, in the engine's colour values, which the display
-        /// chain lays over the picture after the curve (`ToneConstants::mNightEye`). None for a
-        /// frame the world did not describe.
-        osg::Vec3f mNightEye{};
-
-        /// The water's clock in seconds, as the host keeps it, which the wake steps by: what the
-        /// frame block carries split in two for a shader (`VisibilityConstants::mWaterTime`), here
-        /// whole, so a step boundary is read off the clock and not off its split rebuilt. Filled
-        /// where the world describes the frame (`describeWorld`).
-        double mWaterSeconds = 0.0;
 
         /// What this frame's past is worth, as the host tells it: the one route by which a loss
         /// reaches the histories, each of which reads its column of `FramePast`.

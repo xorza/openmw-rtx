@@ -197,7 +197,8 @@ namespace LuaUtil
             sol.open_libraries(sol::lib::jit);
 #endif // NO_LUAJIT
 
-            sol["math"]["randomseed"](static_cast<unsigned>(std::time(nullptr)));
+            mSeedRandom = sol["math"]["randomseed"];
+            mSeedRandom(static_cast<unsigned>(std::time(nullptr)));
             sol["math"]["randomseed"] = [] {};
 
             sol["utf8"] = LuaUtf8::initUtf8Package(sol);
@@ -348,6 +349,11 @@ namespace LuaUtil
     sol::table getMutableFromReadOnly(const sol::userdata& ro)
     {
         return ro[sol::metatable_key].get<sol::table>()["t"];
+    }
+
+    void LuaState::seedRandom(const unsigned seed)
+    {
+        protectedCall([&](LuaView&) { throwIfError(mSeedRandom(seed)); });
     }
 
     void LuaState::addCommonPackage(std::string packageName, sol::object package)

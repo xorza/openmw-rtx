@@ -10,6 +10,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/files/conversion.hpp>
+#include <components/rtx/common/asserts.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -17,6 +18,7 @@
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -53,7 +55,8 @@ namespace RtxTool
         TEST(RtxRunRecordTest, theReportOpensWithWhatTheRunStoodUnder)
         {
             Stop turning;
-            turning.mSky.mTurnThrough = { Rtx::sWeatherRain };
+            turning.mSky.mTurnThrough = { Rtx::Weather::Rain };
+            turning.mActions.mHash = true;
 
             SessionRequest request;
             request.mStops = { turning };
@@ -86,14 +89,9 @@ namespace RtxTool
             header.mReconstruction = Rtx::Reconstruction{ .mDenoised = false,
                 .mUpscale = Rtx::Upscale::Performance,
                 .mJitter = true,
-                .mNoise = Rtx::NoiseSource::WhiteHash,
                 .mLevelBias = -1.0f,
-                .mAntilag = true,
-                .mHistoryFix = false,
-                .mDualMotion = true,
-                .mAntiFirefly = true,
-                .mShadowFloor = 0.0625f,
-                .mLampCandidates = 4u };
+                .mSampling = { .mNoise = Rtx::NoiseSource::WhiteHash, .mShadowFloor = 0.0625f, .mLampCandidates = 4u },
+                .mFilters = { .mAntilag = true, .mHistoryFix = false, .mDualMotion = true, .mAntiFirefly = true } };
             header.mValidating = true;
 
             BenchPlace place;

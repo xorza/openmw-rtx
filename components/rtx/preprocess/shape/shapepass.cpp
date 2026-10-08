@@ -12,7 +12,7 @@ namespace Rtx
         digest.add(input.mPositions);
         digest.add(input.mNormals);
         digest.add(input.mTriangles);
-        digest.addValue(input.mSplits);
+        digest.add(input.mSplits);
     }
 
     void ShapePass::run(const Input& input, Output& output)

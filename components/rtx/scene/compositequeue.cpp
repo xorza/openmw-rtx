@@ -1,12 +1,9 @@
 #include "compositequeue.hpp"
 
 #include <algorithm>
-#include <array>
-#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <span>
-#include <string_view>
 
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -19,18 +16,6 @@ namespace Rtx
     {
         /// The one take `mRefused` records.
         constexpr std::uint16_t sCompositeTake = 1;
-
-        /// The key a chunk's composite is found under — `chunk/` — or its gloss — `gloss/`: the
-        /// material's own slot, because one material is one chunk, and one that takes the slot over
-        /// is a different chunk that wants the slot overwritten.
-        void nameComposite(std::string& key, std::string_view kind, Index material)
-        {
-            std::array<char, 16> digits{};
-            const auto written = std::to_chars(digits.data(), digits.data() + digits.size(), material, 16);
-
-            key.assign(kind);
-            key.append(digits.data(), written.ptr);
-        }
 
         /// Whether any layer of `layers` reflects, which is whether a gloss says anything.
         bool reflects(const SceneDesc& scene, const Run& layers)
@@ -143,13 +128,10 @@ namespace Rtx
             if (!stillWants(scene, asked.mMaterial, asked.mLayers))
                 continue;
 
-            nameComposite(mKey, "chunk/", asked.mMaterial);
-
             // A table with no room left keeps the chunk on its stack, which the shader sums at the
             // hit as it does for every chunk still waiting, and keeps its place in line: dropped, it
             // would never ask again, because its material is not written again.
-            const Index slot
-                = scene.textures().addBaked(mKey, TextureKind::GroundAlbedo, TextureEncoding::Colour, asked.mMaterial);
+            const Index slot = scene.textures().addGround(asked.mMaterial, TextureKind::GroundAlbedo);
             if (slot == sNoIndex)
             {
                 putBack(asked);
@@ -163,11 +145,7 @@ namespace Rtx
             // A table with room for the albedo and not the gloss flattens the chunk with no lobe,
             // which is what it was before it could have one.
             if (reflects(scene, given.mLayers))
-            {
-                nameComposite(mKey, "gloss/", asked.mMaterial);
-                given.mSpecular
-                    = scene.textures().addBaked(mKey, TextureKind::GroundGloss, TextureEncoding::Data, asked.mMaterial);
-            }
+                given.mSpecular = scene.textures().addGround(asked.mMaterial, TextureKind::GroundGloss);
 
             scene.setMaterial(asked.mMaterial, given);
             ++finished;

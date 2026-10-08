@@ -1,6 +1,6 @@
 import unittest
 
-from omw.listing import unlisted
+from omw.listing import qt_guarded_sources, qt_sources, unlisted
 
 
 class UnlistedTest(unittest.TestCase):
@@ -39,6 +39,34 @@ class UnlistedTest(unittest.TestCase):
                 self.assertEqual(unlisted(tracked, compiled - {own}, windows), sorted([*forgotten, *unshield, own]))
                 self.assertEqual(unlisted(tracked, compiled - {counts}, windows),
                                  sorted([*forgotten, *unshield, counts]))
+
+
+class QtSourcesTest(unittest.TestCase):
+    def test_every_name_of_every_qt_list_is_a_source_of_its_folder(self):
+        text = ("add_component_dir (misc\n    strings\n    )\n"
+                "if (USE_QT)\n    add_component_qt_dir (config\n        gamesettings\n        launchersettings\n        )\n"
+                "    add_component_qt_dir (misc helpviewer scalableicon)\nendif()\n")
+        self.assertEqual(qt_sources(text), {"components/config/gamesettings.cpp",
+                                            "components/config/launchersettings.cpp",
+                                            "components/misc/helpviewer.cpp", "components/misc/scalableicon.cpp"})
+        self.assertEqual(qt_sources("add_component_dir (misc strings)\n"), set())
+
+    def test_a_source_a_list_adds_only_with_qt_is_qts(self):
+        text = ("target_sources(components-tests PRIVATE always.cpp)\n"
+                "if (USE_QT)\n    target_sources(components-tests PRIVATE config/testlaunchersettings.cpp extra.hpp)\n"
+                "endif()\n")
+        self.assertEqual(qt_guarded_sources(text, "apps/components_tests"),
+                         {"apps/components_tests/config/testlaunchersettings.cpp"})
+        self.assertEqual(qt_guarded_sources("if(USE_QT)\n    set_property(TARGET a PROPERTY AUTOMOC ON)\nendif(USE_QT)\n",
+                                            "apps/launcher"), set())
+        # A block nested inside does not end the guarded one at its own `endif`.
+        nested = ("if (USE_QT)\n    if (WIN32)\n        target_sources(t PRIVATE win.cpp)\n    endif()\n"
+                  "    target_sources(t PRIVATE after.cpp)\nendif()\ntarget_sources(t PRIVATE always.cpp)\n")
+        self.assertEqual(qt_guarded_sources(nested, "apps/x"), {"apps/x/win.cpp", "apps/x/after.cpp"})
+        # And the block's `else` is the build without Qt, whose sources are no Qt build's.
+        branched = ("if (USE_QT)\n    target_sources(t PRIVATE qt.cpp)\nelse()\n"
+                    "    target_sources(t PRIVATE plain.cpp)\nendif()\n")
+        self.assertEqual(qt_guarded_sources(branched, "apps/x"), {"apps/x/qt.cpp"})
 
 
 if __name__ == "__main__":

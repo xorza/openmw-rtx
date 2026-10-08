@@ -12,8 +12,8 @@
 
 namespace Rtx
 {
-    /// A run of dependencies emitted as one `vkCmdPipelineBarrier2`: the G-buffer's fourteen
-    /// channels change state together twice a frame, and a pass that clears a buffer and takes an
+    /// A run of dependencies emitted as one `vkCmdPipelineBarrier2`: the G-buffer's channels
+    /// change state together twice a frame, and a pass that clears a buffer and takes an
     /// image has one barrier to record and not two. No allocation, because this is a frame path; a
     /// batch that fills up emits what it holds and carries on.
     class Barriers
@@ -59,18 +59,18 @@ namespace Rtx
         /// Emits what has been added, and empties. Does nothing where nothing was added.
         void flush();
 
+        /// The longest runs this renderer has: the G-buffer's channels, which change state
+        /// together twice a frame, and which `GBuffer` asserts fit. A run longer than this emits
+        /// what it holds and carries on, so the figures bound the arrays rather than the caller.
+        static constexpr std::size_t sMostImages = 24;
+        static constexpr std::size_t sMostBuffers = 4;
+
         // Read by the tests and by nothing else.
         std::size_t getImageCount() const { return mImageCount; }
         std::size_t getEmitted() const { return mEmitted; }
         const VkMemoryBarrier2* getMemory() const { return mHasMemory ? &mMemory : nullptr; }
 
     private:
-        /// The longest runs this renderer has: the G-buffer's channels, which change state
-        /// together twice a frame, and a test's pair of readings. A run longer than this emits
-        /// what it holds and carries on, so the figures bound the arrays rather than the caller.
-        static constexpr std::size_t sMostImages = 16;
-        static constexpr std::size_t sMostBuffers = 4;
-
         VkCommandBuffer mCommands = VK_NULL_HANDLE;
         std::array<VkImageMemoryBarrier2, sMostImages> mOwnImages{};
         std::span<VkImageMemoryBarrier2> mImages;

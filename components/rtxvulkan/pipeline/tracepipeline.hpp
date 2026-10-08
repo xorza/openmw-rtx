@@ -17,6 +17,7 @@
 namespace Rtx
 {
     class Device;
+    class ShaderCode;
 
     /// One closest-hit stage: a module, and its own whole table of specialization words, indexed by
     /// `constant_id` as the pipeline's is — so three stages may be one module under three
@@ -58,8 +59,11 @@ namespace Rtx
     ///
     /// @param specialization one word per specialization constant, as `ComputePipeline` takes them:
     ///        every stage's, but a closest-hit stage that names its own.
+    ///
+    /// @param code where the stages' files were read, which holds every module `shaders` names.
     Owned<VkPipeline, vkDestroyPipeline> makeTracePipeline(const Device& device, const PipelineLayout& layout,
-        const TraceShaders& shaders, std::string_view name, std::span<const std::uint32_t> specialization);
+        const ShaderCode& code, const TraceShaders& shaders, std::string_view name,
+        std::span<const std::uint32_t> specialization);
 
     /// The records a launch reads its shaders out of: every group's handle, in video memory the
     /// host wrote it straight into, and the three regions a launch is handed. Laid out by
@@ -103,15 +107,21 @@ namespace Rtx
         /// @param bindings `SET_PASS`, which every binding declares every stage of this pipeline in.
         /// @param shared the shared sets the pipeline reads. A pipeline layout has to name every set it
         ///        will ever be handed.
+        /// @param code where the stages' files were read, shared by the pipelines a pass makes of
+        ///        one set of modules.
         /// @param shaders the compiled SPIR-V the build wrote, by name in the device's shader
         ///        directory.
         /// @param name what a capture calls the pipeline.
         TracePipeline(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
-            const SharedSetLayouts& shared, const TraceShaders& shaders, std::string_view name,
+            const SharedSetLayouts& shared, const ShaderCode& code, const TraceShaders& shaders, std::string_view name,
             std::span<const std::uint32_t> specialization = {})
-            : TracePipeline(device,
+            : TypedPipeline<Constants>(
                 PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_RAYGEN_BIT_KHR), shared),
-                shaders, name, specialization)
+                [&](const PipelineLayout& layout) {
+                    return makeTracePipeline(device, layout, code, shaders, name, specialization);
+                },
+                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
+            , mTable(device, this->getHandle(), shaders, name)
         {
         }
 
@@ -125,15 +135,6 @@ namespace Rtx
         const Buffer& getTable() const { return mTable.getBuffer(); }
 
     private:
-        TracePipeline(const Device& device, PipelineLayout&& layout, const TraceShaders& shaders, std::string_view name,
-            std::span<const std::uint32_t> specialization)
-            : TypedPipeline<Constants>(std::move(layout),
-                makeTracePipeline(device, layout, shaders, name, specialization),
-                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
-            , mTable(device, this->getHandle(), shaders, name)
-        {
-        }
-
         ShaderBindingTable mTable;
     };
 }

@@ -10,12 +10,12 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
-#include <components/rtx/shaders/visibility.h>
 #include <components/sceneutil/offscreenframing.hpp>
 
 #include "viewscene.hpp"
@@ -77,7 +77,7 @@ namespace Rtx
 
     /// One picture traced from somewhere other than the eye: an inventory doll, a map tile. The
     /// trace writes straight into a slot of the renderer's GUI texture table, so the picture is
-    /// never a framebuffer and never in main memory unless somebody asks `readGuiTexture`. Two
+    /// never a framebuffer and never in main memory unless somebody asks for a copy (`takeCopy`). Two
     /// kinds, and `ViewRequest::mSubject` says which: a picture of the world traces against the
     /// scene the renderer already holds, and a picture of a subject is of a group assembled for it,
     /// mirrored into a scene of its own and walked again whenever the picture is asked for. The
@@ -144,13 +144,13 @@ namespace Rtx
         /// through that point. The one place a skinned body is still posed on the processor: the
         /// drawable's own copy holds the bind pose, so the subject is put through a cull of its own
         /// once per pick.
-        bool pick(float x, float y, osg::NodePath& hit) const;
+        bool pick(float x, float y, osg::NodePath& hit);
 
     private:
         /// The camera this picture is taken with, as the trace takes it. What `traceInto` traces
         /// with and what `pick` builds its ray from, so the two cannot disagree. Nothing for a view
         /// with no basis, which neither can use.
-        std::optional<Shaders::VisibilityConstants> describeCamera() const;
+        std::optional<Viewpoint> describeCamera() const;
 
         Renderer& mRenderer;
 

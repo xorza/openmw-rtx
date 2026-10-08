@@ -1,0 +1,67 @@
+#include "sunglarepass.hpp"
+
+#include <array>
+
+#include <components/rtx/renderer/framezone.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/glare.h>
+
+namespace Rtx
+{
+    namespace
+    {
+        /// The counts in, the share out.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::SUN_GLARE_BINDINGS> sBindings
+            = computeBindings<Shaders::SUN_GLARE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    SunGlarePass::SunGlarePass(const Device& device)
+        : mPipeline(device, sBindings, {}, "sunglare.comp.spv", "sun glare")
+        , mCounts(Buffer::deviceLocal(device, sizeof(Shaders::SunGlareCount),
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "sun glare counts"))
+        , mShare(Buffer::deviceLocal(device, sizeof(float),
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "sun glare share"))
+        , mNoShare(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "no sun glare"))
+    {
+        mNoShare.writable<float>(0, 1).front() = 0.0f;
+    }
+
+    void SunGlarePass::begin(const VkCommandBuffer commands) const
+    {
+        // The previous frame's easing, which read the counts, is behind the head barrier
+        // `CommandPool::begin` recorded; the launch that adds to them is behind the clear.
+        mCounts.clear(commands);
+        mCounts.transition(commands, Use::sBufferClearWrite,
+            BufferUse{ VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
+                VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT });
+    }
+
+    void SunGlarePass::record(
+        const VkCommandBuffer commands, const float elapsedSeconds, const bool reset, GpuTimer* timer) const
+    {
+        const GpuZone timed(timer, commands, FrameZone::Glare);
+
+        // The counts the launch added to. The share this easing moves was last read by the
+        // previous frame's curve and written by its easing, both behind the head barrier
+        // `CommandPool::begin` recorded.
+        mCounts.transition(commands,
+            BufferUse{ VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT },
+            Use::sBufferComputeRead);
+
+        DescriptorWrites writes(mPipeline);
+        writes.buffer(Shaders::SUN_GLARE_BIND_COUNT, mCounts.describe());
+        writes.buffer(Shaders::SUN_GLARE_BIND_SHARE, mShare.describe());
+
+        const Shaders::SunGlareConstants constants{
+            .mElapsed = elapsedSeconds,
+            .mReset = reset ? 1u : 0u,
+        };
+
+        dispatch(commands, mPipeline, writes, constants, Groups{});
+
+        // The curve reads what the easing wrote.
+        mShare.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
+    }
+}

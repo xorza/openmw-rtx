@@ -124,8 +124,6 @@ namespace MWRender
         /// A `TracedGround`: the storage, the worldspace and the active grid, and no chunks.
         std::unique_ptr<Ground> createGround(const GroundSpec& spec) noexcept override;
 
-        void detachWorld() noexcept override;
-
         float getGroundReach() const noexcept override;
         bool groundReadsGates() const noexcept override { return true; }
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
@@ -133,10 +131,7 @@ namespace MWRender
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
         void windowResized(int x, int y, int width, int height) noexcept override;
 
-        void attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept override;
-
         void advance(double simulationTime) noexcept override;
-        void eventTraversal() noexcept override;
         void updateTraversal() noexcept override;
 
         void renderFrame(const SceneFrame& frame) override;
@@ -200,11 +195,6 @@ namespace MWRender
         /// against 6.8.
         static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
 
-        /// The backend the frames and the pictures are traced into, for the host that made this
-        /// renderer and asks of the device before the first frame; a frame's reads go through
-        /// `FrameContext::mBackend`.
-        Rtx::Renderer& getBackend() { return *mRenderer; }
-
         /// The pictures inside the interface this renderer holds, for the harness to find the
         /// game's own map tile in.
         ViewQueue& getViews() { return mViews; }
@@ -219,16 +209,16 @@ namespace MWRender
         /// a model's state is read as the loader left it.
         void configureResources(Resource::ResourceSystem& resources) noexcept override;
 
+        void onAttachWorld(
+            RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) noexcept override;
+        void onDetachWorld() noexcept override;
+
         void adoptTraversalRoot(osg::Group& root) noexcept override;
 
         /// The walk is told the world's view mask, and the trace reads it off the seam. A cover is
         /// asked at the frame, which neither walks nor traces under one.
         void applyViewMask() noexcept override { mMirror.setViewMask(worldViewMask()); }
         void applyWorldShown() noexcept override { mMirror.setViewMask(worldViewMask()); }
-
-        /// Nothing here: the trace and the surface follow at the next frame's fit, which waits for a
-        /// window being dragged to settle, and the projection is `RenderingManager`'s to follow.
-        void applyPresentation() noexcept override {}
 
         void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
 
@@ -285,17 +275,16 @@ namespace MWRender
         /// report, and says whether it was rebuilt from nothing.
         void handOver(const SceneFrame& frame, FrameReport& report);
 
-        /// Everything the frame is traced with that is the host's to say: the eye the frame
-        /// arrived with, built for the render extent, the arms' own, the classes the eye sees, the
-        /// sample to take, and the profile's rules for the textures. The world's half is
-        /// `Rtx::describeWorld`'s. Nothing for a camera the builder refused, which is reported once.
-        std::optional<Rtx::Shaders::VisibilityConstants> describeTrace(
-            const SceneFrame& frame, const osg::Matrixd& view);
+        /// The eye's half of the frame, which is the host's to say: the eye the frame arrived with,
+        /// built for the render extent, the arms' own, the classes the eye sees and the sample to
+        /// take. The world's half is `trace`'s. Nothing for a camera the builder refused, which is
+        /// reported once.
+        std::optional<Rtx::FrameRequest> describeTrace(const SceneFrame& frame, const osg::Matrixd& view);
 
-        /// Traces one frame from `constants`, with the world's sky described into it, and closes
-        /// the report with what it came to.
-        void trace(const SceneFrame& frame, Rtx::Shaders::VisibilityConstants constants, FrameReport& report,
-            std::optional<double> since);
+        /// Traces one frame from `request`, with the world the frame stands in read into it, and
+        /// closes the report with what it came to.
+        void trace(
+            const SceneFrame& frame, Rtx::FrameRequest request, FrameReport& report, std::optional<double> since);
 
         /// What a measured stop is allowed to look at beyond the report.
         FrameContext describeContext();
@@ -309,16 +298,6 @@ namespace MWRender
         osg::ref_ptr<osg::Image> readFrame(int width = 0, int height = 0, Rtx::Channels channels = Rtx::Channels::Rgba);
 
         Rtx::Stepped<Phase> mPhase{ Phase::Between };
-
-        /// Whether a world is attached: `attachWorld` and `detachWorld` are a pair, and a second
-        /// attach would hold the sky's sheets twice and give neither back.
-        enum class Attachment
-        {
-            Detached,
-            Attached,
-        };
-
-        Rtx::Stepped<Attachment> mAttachment{ Attachment::Detached };
 
         ViewQueue mViews;
 
@@ -392,11 +371,11 @@ namespace MWRender
         Rtx::HistoryLoss mLoss = Rtx::HistoryLoss::None;
 
         /// The scene root this renderer made for the game, held from `createSceneRoot` until
-        /// `attachWorld` hangs it under the world root.
+        /// `onAttachWorld` hangs it under the world root.
         osg::ref_ptr<osg::Group> mSceneRoot;
 
         /// The world root the game hangs its debug nodes on, and the walk that reads them off it
-        /// into the frame's lines. Borrowed: the world outlives this, and `detachWorld` lets go.
+        /// into the frame's lines. Borrowed: the world outlives this, and `onDetachWorld` lets go.
         osg::Group* mWorldRoot = nullptr;
         DebugWalk mDebugWalk;
 

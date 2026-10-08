@@ -18,10 +18,10 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/image/colour.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -97,7 +97,7 @@ namespace Rtx
         held.mVertexColour = described.mVertexColour;
         held.mDiffuseColour = decodeColour(described.mDiffuseColour);
         held.mOpacity = described.mOpacity;
-        if (sprite == held.mSprite)
+        if (sprite == held.mSprite.get())
             return;
 
         // The image changed under a controller, which no shipped system does but a chain that
@@ -121,8 +121,7 @@ namespace Rtx
         // Held, because nothing else can name them. An emitter is a placement and is thrown
         // away every frame, so this entry is the only lasting thing that says the sprite is in
         // use; the scene frees the slots when the sweep lets go of them.
-        const VFS::Path::Normalized path(held.mSprite->getFileName());
-        held.mSlot = mScene.takeTexture(path, *held.mSprite, held.mWrap);
+        held.mSlot = mScene.takeTexture(mThread.pathOf(*held.mSprite), *held.mSprite, held.mWrap);
         if (held.mSlot.empty())
         {
             held.mRefused.refuse(sSpriteTake, freed);
@@ -131,11 +130,26 @@ namespace Rtx
             return;
         }
 
+        takeLighting(held);
+    }
+
+    void EmitterResolver::takeLighting(HeldSprite& held)
+    {
+        const std::uint64_t freed = mScene.textures().getFreedCount();
+        if (held.mRefused.stands(sLightingTake, freed))
+            return;
+
         // The bake is keyed on the file, so two emitters drawing with one texture share one
         // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
         // where the sprite stands, because the bake is of its alpha.
-        held.mLighting = mScene.holdTexture(
-            mScene.textures().addBaked(SpriteLightMap::keyFor(path), TextureKind::Baked, TextureEncoding::Colour));
+        const Index bake = mScene.textures().addSpriteLight(mThread.pathOf(*held.mSprite));
+        if (bake == sNoIndex)
+        {
+            held.mRefused.refuse(sLightingTake, freed);
+            return;
+        }
+
+        held.mLighting = mScene.holdTexture(bake);
     }
 
     void EmitterResolver::releaseSprite(HeldSprite& held)
@@ -156,10 +170,16 @@ namespace Rtx
         // Read where the entry arrives, and again where a link of the chain animates; every other
         // frame the reading is the one held. `Shading::mAnimatedThrough` is that scan resolved as
         // the chain is built, so no reader walks the links for it.
-        if (arrived || animatedThrough(shading))
+        const osg::StateSet* const key = shading.empty() ? nullptr : shading.back().mMaterialKey;
+        if (arrived || animatedThrough(shading) || key != held.mKey.get())
+        {
             describeSprite(particles, held, shading);
+            held.mKey = key;
+        }
         else if (held.mSprite != nullptr && held.mSlot.empty())
             takeSprite(particles, held);
+        else if (held.mSprite != nullptr && held.mLighting.empty())
+            takeLighting(held);
 
         // No image it can draw, or an image the texture table had no room for: a slot the shader
         // reads the sprite out of is what an emitter is drawn with, and it has none.
@@ -343,7 +363,7 @@ namespace Rtx
         }
     }
 
-    void EmitterResolver::retire()
+    void EmitterResolver::retire(Released& released)
     {
         // After the flush, because a pending emitter points into the map this erases from.
         assert(mPending.empty() && "a sweep with emitters noted and not yet placed");
@@ -351,7 +371,11 @@ namespace Rtx
         // The sprite's own references go back with the emitter that took them, which is what makes
         // an emitter leaving enough to free its textures — a frame where no mesh and no material
         // died is exactly the frame the mirror's sweep returns from without looking.
-        mHeld.retire([this](HeldSprite& held) { releaseSprite(held); });
+        mHeld.retire(released, [&](HeldSprite& gone) {
+            releaseSprite(gone);
+            released.keep(gone.mSprite);
+            released.keep(gone.mKey);
+        });
     }
 
     EmitterResolver::~EmitterResolver()

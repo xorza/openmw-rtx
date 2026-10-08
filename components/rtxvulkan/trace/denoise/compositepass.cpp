@@ -4,6 +4,8 @@
 #include <cassert>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -29,8 +31,10 @@ namespace Rtx
     }
 
     void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Denoised& denoised,
-        const Image* sum, Shaders::CompositeConstants constants) const
+        const Image* sum, Shaders::CompositeConstants constants, GpuTimer* timer) const
     {
+        const GpuZone timed(timer, commands, FrameZone::Composite);
+
         assert(constants.mShadowed == 0 && "the shadow is the denoiser's to say, and not the caller's");
         constants.mShadowed = denoised.mShadow != nullptr ? 1u : 0u;
 

@@ -670,10 +670,18 @@ namespace SceneUtil
         , mRadius(copy.mRadius)
         , mSourceRadius(copy.mSourceRadius)
         , mActorFade(copy.mActorFade)
-        , mController(copy.mController)
         , mLastAppliedFrame(copy.mLastAppliedFrame)
     {
         mId = sLightId++;
+
+        // The controller this copy runs, where the source's ran in its chain: a deep copy of the
+        // callbacks clones the whole chain, and the source's controller drives the source. None
+        // where the clone is no controller, as OSG clones a class that declares no clone of its own.
+        const osg::Callback* theirs = copy.getUpdateCallback();
+        for (osg::Callback* mine = getUpdateCallback(); mine != nullptr && theirs != nullptr;
+             mine = mine->getNestedCallback(), theirs = theirs->getNestedCallback())
+            if (theirs == copy.mController)
+                mController = dynamic_cast<LightController*>(mine);
 
         for (size_t i = 0; i < mLight.size(); ++i)
             mLight[i] = new Light(*copy.mLight[i].get(), copyop);

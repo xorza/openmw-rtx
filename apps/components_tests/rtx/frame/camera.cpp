@@ -64,8 +64,7 @@ namespace Rtx
                     std::cos(pitch) * std::sin(heading), std::cos(pitch) * std::cos(heading), std::sin(pitch));
                 const osg::Matrixd view = osg::Matrixd::lookAt(eye, eye + look, osg::Vec3d(0.0, 0.0, 1.0));
 
-                const Shaders::VisibilityConstants camera
-                    = makeCameraFromView(view, 60.0f, 64, 64, sNearPlane, 1000.0f).value();
+                const Viewpoint camera = makeCameraFromView(view, 60.0f, 64, 64, sNearPlane, 1000.0f).value();
                 EXPECT_EQ(camera.mOrigin, nearest) << "the eye moved at turn " << step;
                 EXPECT_EQ(makeOrthographicCameraFromView(view, 200.0f, 200.0f, 64, 64, 1.0f, 1000.0f)->mOrigin, nearest)
                     << "the box's eye moved at turn " << step;
@@ -101,8 +100,7 @@ namespace Rtx
             const osg::Matrixf view
                 = osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f));
 
-            const Shaders::VisibilityConstants camera
-                = makeOrthographicCameraFromView(view, 200.0f, 100.0f, 64, 32, 5.0f, 400.0f).value();
+            const Viewpoint camera = makeOrthographicCameraFromView(view, 200.0f, 100.0f, 64, 32, 5.0f, 400.0f).value();
 
             EXPECT_EQ(camera.mEyes.mWorld.mOrthographic, 1u);
 
@@ -193,16 +191,16 @@ namespace Rtx
             EXPECT_EQ(none.mDown, osg::Vec3f());
         }
 
-        /// **The two builders agree on everything a camera carries that is not its own basis.** A
-        /// viewpoint is built before anything has described the world over it, and what the two
-        /// leave behind for `describeWorld` to overwrite has to be one answer — a sea level of
-        /// never, a heading the tiles were drawn on, and a fog layer of the height `FOG_HEIGHT`
-        /// names.
+        /// **A viewpoint's block describes no world, whichever builder made the viewpoint.** What
+        /// `constantsFor` lays the viewpoint over, before anything has described the world, has to
+        /// be one answer for `describeWorld` to overwrite — a sea level of never, a heading the
+        /// tiles were drawn on, and a fog layer of the height `FOG_HEIGHT` names — and the viewpoint
+        /// itself has to arrive whole.
         ///
         /// **The clip is the caller's and the reach is the world's.** A picture that clips at four
         /// hundred units still sends its shadow and ambient rays to `sFarPlane`, because what
         /// lights a point is the world around it and not how near a picture of it stops.
-        TEST(RtxCameraTest, everyBuilderLeavesTheSameWorldBehindIt)
+        TEST(RtxCameraTest, aViewpointsBlockDescribesNoWorldWhicheverBuilderMadeIt)
         {
             const osg::Vec3f eye(0.0f, 0.0f, 100.0f);
             const osg::Matrixf view = osg::Matrixf::lookAt(eye, osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f));
@@ -212,10 +210,17 @@ namespace Rtx
                 makeOrthographicCameraFromView(view, 200.0f, 100.0f, 64, 32, 1.0f, 400.0f).value(),
             };
 
-            for (const Shaders::VisibilityConstants& camera : cameras)
+            for (const Viewpoint& viewpoint : cameras)
             {
+                const Shaders::VisibilityConstants camera = constantsFor(viewpoint);
+                EXPECT_EQ(camera.mOrigin, viewpoint.mOrigin);
+                EXPECT_EQ(camera.mEyes.mWorld.mBasis.mRight, viewpoint.mEyes.mWorld.mBasis.mRight);
+                EXPECT_EQ(camera.mEyes.mArms.mWidth, viewpoint.mEyes.mArms.mWidth);
                 EXPECT_EQ(camera.mWaterLevel, -std::numeric_limits<float>::infinity());
-                EXPECT_EQ(camera.mSeaHeading, Shaders::seaHeading());
+                // The rasterizer's fixed wind, `(0.5, -0.8)` over its length 0.943398, which is
+                // `(0.529999, -0.847998)`: no world turns it.
+                EXPECT_FLOAT_EQ(camera.mSeaHeading.x(), 0.5f / std::sqrt(0.89f));
+                EXPECT_FLOAT_EQ(camera.mSeaHeading.y(), -0.8f / std::sqrt(0.89f));
                 EXPECT_EQ(camera.mFogLift, 1.0f);
                 EXPECT_EQ(camera.mStars.mTexture, Shaders::NO_TEXTURE) << "a star sheet named before a world";
                 EXPECT_EQ(camera.mFar, 400.0f);
@@ -232,8 +237,7 @@ namespace Rtx
             const osg::Vec3f eye(3.0f, 4.0f, 5.0f);
             const osg::Matrixf view
                 = osg::Matrixf::lookAt(eye, eye + osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 1.0f));
-            const Shaders::VisibilityConstants viewed
-                = makeCameraFromView(view, 90.0f, 200, 100, 1.0f, 1000.0f).value();
+            const Viewpoint viewed = makeCameraFromView(view, 90.0f, 200, 100, 1.0f, 1000.0f).value();
 
             EXPECT_NEAR(viewed.mEyes.mWorld.mBasis.mRight.length(), 2.0f, 1e-5f);
             EXPECT_NEAR(viewed.mEyes.mWorld.mBasis.mUp.length(), 1.0f, 1e-5f);
@@ -252,9 +256,8 @@ namespace Rtx
             const osg::Vec3f along(0.0f, 1.0f, 0.0f);
             const osg::Matrixf view = osg::Matrixf::lookAt(eye, eye + along, osg::Vec3f(0.0f, 0.0f, 1.0f));
 
-            for (const Shaders::VisibilityConstants& built :
-                { makeCameraFromView(view, 60.0f, 200, 100, 1.0f, 1000.0f).value(),
-                    makeOrthographicCameraFromView(view, 200.0f, 100.0f, 200, 100, 1.0f, 1000.0f).value() })
+            for (const Viewpoint& built : { makeCameraFromView(view, 60.0f, 200, 100, 1.0f, 1000.0f).value(),
+                     makeOrthographicCameraFromView(view, 200.0f, 100.0f, 200, 100, 1.0f, 1000.0f).value() })
             {
                 EXPECT_EQ(built.mEyes.mArms.mBasis.mForward, built.mEyes.mWorld.mBasis.mForward);
                 EXPECT_EQ(built.mEyes.mArms.mBasis.mRight, built.mEyes.mWorld.mBasis.mRight);
@@ -263,8 +266,7 @@ namespace Rtx
                 EXPECT_EQ(built.mEyes.mArms.mWidth, built.mEyes.mWorld.mWidth);
             }
 
-            const Shaders::VisibilityConstants narrow
-                = makeCameraFromView(view, 60.0f, 200, 100, 1.0f, 1000.0f).value();
+            const Viewpoint narrow = makeCameraFromView(view, 60.0f, 200, 100, 1.0f, 1000.0f).value();
             const Shaders::Camera wide = cameraAtFieldOfView(narrow.mEyes.mWorld, 90.0f);
 
             EXPECT_EQ(wide.mBasis.mForward, narrow.mEyes.mWorld.mBasis.mForward);

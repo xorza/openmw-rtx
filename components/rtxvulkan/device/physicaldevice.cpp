@@ -108,6 +108,20 @@ namespace Rtx
             return missing;
         }
 
+        /// Appends what each required texture image the device does not take was for.
+        std::string listMissingImages(std::span<const std::optional<VkImageFormatProperties>> taken)
+        {
+            const std::span<const RequiredImage> required = getRequiredTextureImages();
+            assert(taken.size() == required.size() && "the image answers are read in the table's order");
+
+            std::string missing;
+            for (std::size_t at = 0; at < required.size(); ++at)
+                if (!taken[at].has_value())
+                    appendListed(missing, required[at].mFor);
+
+            return missing;
+        }
+
         /// The largest heap holding a memory type a `Buffer::hostWritten` could come out of — the
         /// largest and not the sum, because a buffer goes in one heap.
         VkDeviceSize hostWrittenBytes(const VkPhysicalDeviceMemoryProperties& memory)
@@ -120,12 +134,16 @@ namespace Rtx
             return most;
         }
 
-        /// The queue family that can do everything this renderer submits, where there is one.
-        std::optional<std::uint32_t> findQueueFamily(std::span<const VkQueueFamilyProperties> queues)
+        /// The queue family that can do everything this renderer submits, and presents to the window
+        /// where there is one, where there is such a family. Graphics and compute and no more: a
+        /// family that does either does transfers whether or not it says so, which Vulkan leaves it
+        /// free not to.
+        std::optional<std::uint32_t> findQueueFamily(
+            std::span<const VkQueueFamilyProperties> queues, std::span<const VkBool32> presents)
         {
-            constexpr VkQueueFlags wanted = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
+            constexpr VkQueueFlags wanted = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
             for (std::uint32_t at = 0; at < queues.size(); ++at)
-                if ((queues[at].queueFlags & wanted) == wanted)
+                if ((queues[at].queueFlags & wanted) == wanted && (presents.empty() || presents[at] == VK_TRUE))
                     return at;
 
             return std::nullopt;
@@ -138,7 +156,7 @@ namespace Rtx
             PhysicalDevice::Profile mProfile;
         };
 
-        Candidate examine(VkPhysicalDevice handle)
+        Candidate examine(VkPhysicalDevice handle, const PhysicalDevice::PresentQuery& presentsTo)
         {
             Candidate found;
             found.mProperties = std::make_unique<DeviceProperties>();
@@ -160,8 +178,30 @@ namespace Rtx
             for (const RequiredFormat& required : getRequiredFormats())
                 vkGetPhysicalDeviceFormatProperties(handle, required.mFormat, &formats.emplace_back());
 
+            // A combination the device does not take is an answer, and every other failure is the
+            // driver's.
+            std::vector<std::optional<VkImageFormatProperties>> images;
+            for (const RequiredImage& required : getRequiredTextureImages())
+            {
+                VkImageFormatProperties properties{};
+                const VkResult asked = vkGetPhysicalDeviceImageFormatProperties(handle, required.mFormat,
+                    VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, required.mUsage, required.mFlags, &properties);
+                if (asked == VK_ERROR_FORMAT_NOT_SUPPORTED)
+                    images.emplace_back();
+                else
+                {
+                    checkVk(asked, "vkGetPhysicalDeviceImageFormatProperties");
+                    images.emplace_back(properties);
+                }
+            }
+
+            std::vector<VkBool32> presents;
+            if (presentsTo)
+                for (std::uint32_t family = 0; family < queues.size(); ++family)
+                    presents.push_back(presentsTo(handle, family) ? VK_TRUE : VK_FALSE);
+
             found.mProfile = PhysicalDevice::profileOf(
-                *found.mProperties, supported, getDeviceExtensions(handle), queues, formats);
+                *found.mProperties, supported, getDeviceExtensions(handle), queues, formats, images, presents);
 
             return found;
         }
@@ -169,12 +209,20 @@ namespace Rtx
 
     PhysicalDevice::Profile PhysicalDevice::profileOf(const DeviceProperties& properties, DeviceFeatures& supported,
         std::span<const std::string> extensions, std::span<const VkQueueFamilyProperties> queues,
-        std::span<const VkFormatProperties> formats)
+        std::span<const VkFormatProperties> formats, std::span<const std::optional<VkImageFormatProperties>> images,
+        std::span<const VkBool32> presents)
     {
         Profile profile;
         profile.mHostWrittenBytes = hostWrittenBytes(properties.mMemory);
 
-        const std::optional<std::uint32_t> family = findQueueFamily(queues);
+        profile.mTextureSide = properties.mProperties2.properties.limits.maxImageDimension2D;
+        for (const std::optional<VkImageFormatProperties>& taken : images)
+            if (taken.has_value())
+                profile.mTextureSide
+                    = std::min({ profile.mTextureSide, taken->maxExtent.width, taken->maxExtent.height });
+
+        assert((presents.empty() || presents.size() == queues.size()) && "an answer for every family or for none");
+        const std::optional<std::uint32_t> family = findQueueFamily(queues, presents);
         if (family.has_value())
         {
             profile.mQueueFamily = *family;
@@ -201,6 +249,14 @@ namespace Rtx
             return profile;
         }
 
+        // A window is shown through a swapchain, which a device that cannot make one would refuse at
+        // its creation, after every other answer here said yes.
+        if (!presents.empty() && !has(extensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+        {
+            profile.mObstacle = std::string("missing extensions: ") + VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+            return profile;
+        }
+
         if (const std::string missing = listMissingFeatures(supported); !missing.empty())
         {
             profile.mObstacle = "missing features: " + missing;
@@ -210,6 +266,12 @@ namespace Rtx
         if (const std::string missing = listMissingFormats(formats); !missing.empty())
         {
             profile.mObstacle = "missing format features for " + missing;
+            return profile;
+        }
+
+        if (const std::string missing = listMissingImages(images); !missing.empty())
+        {
+            profile.mObstacle = "no texture images for " + missing;
             return profile;
         }
 
@@ -244,7 +306,9 @@ namespace Rtx
 
         if (!family.has_value())
         {
-            profile.mObstacle = "no queue family with graphics, compute and transfer";
+            profile.mObstacle = presents.empty()
+                ? "no queue family with graphics and compute"
+                : "no queue family with graphics and compute that presents to the window";
             return profile;
         }
 
@@ -267,7 +331,7 @@ namespace Rtx
             [name](const char* const listed) { return std::strcmp(listed, name) == 0; });
     }
 
-    PhysicalDevice PhysicalDevice::select(VkInstance instance)
+    PhysicalDevice PhysicalDevice::select(VkInstance instance, const PresentQuery& presents)
     {
         const std::vector<VkPhysicalDevice> handles = enumerateVk<VkPhysicalDevice>(
             "vkEnumeratePhysicalDevices", [&](std::uint32_t* count, VkPhysicalDevice* into) {
@@ -282,7 +346,7 @@ namespace Rtx
 
         for (const VkPhysicalDevice handle : handles)
         {
-            Candidate found = examine(handle);
+            Candidate found = examine(handle, presents);
             if (!found.mProfile.mObstacle.empty())
             {
                 rejections += "\n  ";

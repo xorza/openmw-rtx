@@ -66,6 +66,7 @@ namespace Resource
 namespace SceneUtil
 {
     class AsyncScreenCaptureOperation;
+    class UnrefQueue;
 }
 
 namespace MWWorld
@@ -94,6 +95,34 @@ namespace MWRender
 
         /// Where a renderer keeps what it compiled: regenerable, so the cache directory.
         std::filesystem::path mCachePath;
+    };
+
+    class Renderer;
+
+    /// A world attached to a renderer for as long as this stands: what `Renderer::attachWorld`
+    /// hands back, and whose end is the detach, so a constructor that throws after the attach
+    /// leaves nothing of the world wired into the renderer.
+    class [[nodiscard]] WorldAttachment
+    {
+    public:
+        WorldAttachment() = default;
+        ~WorldAttachment() { reset(); }
+
+        WorldAttachment(WorldAttachment&& other) noexcept;
+        WorldAttachment& operator=(WorldAttachment&& other) noexcept;
+
+        /// Detaches the world, where one is still attached.
+        void reset();
+
+    private:
+        friend class Renderer;
+
+        explicit WorldAttachment(Renderer& renderer)
+            : mRenderer(&renderer)
+        {
+        }
+
+        Renderer* mRenderer = nullptr;
     };
 
     /// One image of the world on the screen, and the window it goes in. Nothing below this line is
@@ -130,9 +159,6 @@ namespace MWRender
         /// shown in.
         const Misc::Presentation& getPresentation() const { return mPresentation; }
 
-        /// `[Video] resolution x/y` changed: the frame is the size they name from now on.
-        void resolutionChanged();
-
         /// The ground of one worldspace and the distance over it, as this renderer draws them. The
         /// rasterizer builds upstream's chunked world with its paging and groundcover; a renderer
         /// that stands the ground itself hands back a `Terrain::World` that holds the storage, the
@@ -163,10 +189,6 @@ namespace MWRender
         {
         }
 
-        /// The world is going, so anything of it a renderer reads from a thread of its own is let go
-        /// of first.
-        virtual void detachWorld() {}
-
         /// How far from the eye ground is built, straight ahead: what the local map is a map of.
         /// Nought where the ground reaches no further than the cells the simulation has loaded.
         virtual float getGroundReach() const = 0;
@@ -184,12 +206,14 @@ namespace MWRender
 
         /// The world exists; build whatever goes between it and the screen. A second phase because
         /// the renderer is made before there is a world, and what the rasterizer puts in front of
-        /// the world needs the world to talk to. Called once, from `RenderingManager`'s constructor.
-        /// `world` is for what is built once off it — upstream's `PostProcessor`, whose constructor
-        /// takes it, the sun light the light manager is given, the precipitation root the
-        /// rasterizer puts state on, the resource system the ray tracer's pictures resolve through.
-        /// What changes per frame comes through `describeFrame` and never through this reference.
-        virtual void attachWorld(RenderingManager& world, osg::Group& worldRoot) = 0;
+        /// the world needs the world to talk to. Called from `RenderingManager`'s constructor, with
+        /// no world attached. `world` is for what is built once off it — upstream's
+        /// `PostProcessor`, whose constructor takes it, the sun light the light manager is given,
+        /// the precipitation root the rasterizer puts state on, the resource system the ray
+        /// tracer's pictures resolve through. What changes per frame comes through `describeFrame`
+        /// and never through this reference. The world stays attached while what this hands back
+        /// stands.
+        WorldAttachment attachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released);
 
         /// Whatever the renderer wants culled and drawn, from the top — the rasterizer's
         /// post-processing group rather than the world's own root. Not the game's "Scene Root",
@@ -283,15 +307,19 @@ namespace MWRender
         /// stepped the interface by the outer frame's time.
         float openNestedFrame();
 
-        /// What `setFrameRateLimit` handed over, nought before it has: the one copy, which a loop
-        /// that paces a thread of its own reads.
+        /// What `setFrameRateLimit` handed over, nought before it has: what the loading screen holds
+        /// its own rate under. The main menu's video paces a thread of its own by the environment's
+        /// copy, as upstream's does.
         float getFrameRateLimit() const { return mFrameRateLimit; }
 
         /// Stamps the next frame. Simulation time stops when the game is paused; reference time
         /// does not.
         virtual void advance(double simulationTime) = 0;
 
-        virtual void eventTraversal() = 0;
+        /// The scene graph's event queue, which a renderer that adopted none has nothing in:
+        /// everything the game acts on came through `SDLUtil::InputWrapper` and MyGUI before this.
+        virtual void eventTraversal() {}
+
         virtual void updateTraversal() = 0;
 
         /// What the world settled on this frame, once per frame from the main loop, between the
@@ -387,7 +415,7 @@ namespace MWRender
 
         /// The writer both renderers hand a captured frame to: `Engine`'s, alive for as long as the
         /// renderer is. Handed over after construction, where upstream built it.
-        virtual void setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer);
+        void setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer);
 
         /// Between these two nothing is reading the scene graph, so it can be mutated. A renderer
         /// that draws on the calling thread has nothing to hold still.
@@ -424,6 +452,15 @@ namespace MWRender
         /// Out of line with the destructor, so a subclass needs none of what the handles point at.
         Renderer();
 
+        /// `attachWorld`'s hook. A throw attaches nothing. `released` is the queue the game releases
+        /// its own objects through, off the frame thread, which a renderer that lets go of what the
+        /// world made hands it to as well.
+        virtual void onAttachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) = 0;
+
+        /// The world is going, so anything of it a renderer reads from a thread of its own is let go
+        /// of first. Once for each `onAttachWorld` that returned.
+        virtual void onDetachWorld() {}
+
         /// Taken from whatever made them, once, before anything asks.
         void adopt(osg::Camera& camera, osg::FrameStamp& frameStamp, osg::Stats& stats);
 
@@ -454,8 +491,9 @@ namespace MWRender
         /// size changes.
         void presentIn(const osg::Vec2i& drawable);
 
-        /// `getPresentation()` has changed; size what draws the frame and what shows it.
-        virtual void applyPresentation() = 0;
+        /// `getPresentation()` has changed; size what draws the frame and what shows it. Nothing for
+        /// a renderer whose next frame sizes itself to the presentation.
+        virtual void applyPresentation() {}
 
         /// The frame stays the window's size whatever the settings ask: for a renderer that cannot
         /// show its frame scaled, the rasterizer under stereo, whose eyes split the window.
@@ -478,6 +516,11 @@ namespace MWRender
         SceneUtil::AsyncScreenCaptureOperation& getScreenshotWriter() const;
 
     private:
+        friend class WorldAttachment;
+
+        /// What a `WorldAttachment` ends with.
+        void detachWorld();
+
         Resource::ResourceSystem* mResources = nullptr;
         Misc::FrameClock* mClock = nullptr;
         float mFrameRateLimit = 0.0f;
@@ -499,6 +542,10 @@ namespace MWRender
 
         /// False while `tws` is off, where the world updates and is not drawn.
         bool mWorldToggled = true;
+
+        /// Whether a `WorldAttachment` this handed out still stands: a second attach would build
+        /// the world's front twice and give the first back never.
+        bool mWorldAttached = false;
     };
 
     /// Which of the two renderers a build ships draws the game: both are in every build, and the

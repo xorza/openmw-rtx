@@ -1,4 +1,3 @@
-#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
@@ -73,7 +72,6 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
     Debug::setupLogging(cfgMgr.getLogPath(), "OpenMW");
     Debug::setCrashReports(cfgMgr.getUserDataPath());
     Log(Debug::Info) << Version::getOpenmwVersionDescription();
-    Crash::annotate("version", Version::getOpenmwVersionDescription());
 
     Settings::Manager::load(cfgMgr);
     Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));

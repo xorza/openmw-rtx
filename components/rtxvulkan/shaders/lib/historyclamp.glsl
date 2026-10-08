@@ -1,10 +1,9 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_HISTORYCLAMP_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_HISTORYCLAMP_GLSL
 
-// The anti-lag every running mean keeps: a slow mean held to the box its fast means
-// span around the pixel, ReLAX's history clamp (NVIDIA NRD, `RELAX_HistoryClamping`). **One rule**,
-// so the bounce, the glossy reflection and a window cannot come to lag by three: each kernel sums
-// its square of fast means and asks this.
+// The temporal filters' anti-lag: a slow mean held to the box its fast means span around the pixel,
+// ReLAX's history clamp (NVIDIA NRD, `RELAX_HistoryClamping`) — the bounce's in
+// `accumulateclamp.comp`, and the glossy and pane filters' in `historyclamp.comp`.
 //
 // **Per axis in YCoCg**, as ReLAX clamps: a box over luma and the two chroma differences holds a
 // change of hue at one brightness, which a box over luminance alone let through.

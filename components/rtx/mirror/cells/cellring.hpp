@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -81,9 +82,12 @@ namespace Rtx
         void setMinSize(float minSize) { mPlacer.setMinSize(minSize); }
 
         /// Whether a walk waits for the cell it is about to adopt, so which frame a cell is adopted
-        /// on is the schedule's answer and not the thread's. The order is what makes it so: one
-        /// reader takes the cells `ask` sorted and hands them back in that order. One cell and one
-        /// cell's groundcover a frame either way.
+        /// on is the schedule's answer and not the thread's. **The order is the frame's**: a walk
+        /// adopts the nearest cell it wants by the rule `ask` sorts by, and waits for it where the
+        /// reader has not handed it over yet. Not the reader's order, which a newer ask breaks off
+        /// at a cell the wall decides: two runs adopted two cells of Seyda Neen in two orders, and
+        /// stood the same ground in other slots. One cell and one cell's groundcover a frame either
+        /// way.
         void setSettled(bool settled);
 
         /// How many cells of its band the ring still has to stand after the last walk, and how many
@@ -147,7 +151,22 @@ namespace Rtx
         std::span<const Placement> placementsIn(const osg::Vec2i& cell) const { return mPlacer.placementsIn(cell); }
 
     private:
-        bool handed(const osg::Vec2i& cell) const;
+        /// Whether the supply handed over and the frame has not adopted `cell`'s, a cell or a
+        /// cell's grass, as `list` holds them.
+        template <class Prepared>
+        static bool handed(const std::vector<Prepared*>& list, const osg::Vec2i& cell)
+        {
+            return std::any_of(list.begin(), list.end(), [&](const Prepared* held) { return held->mCell == cell; });
+        }
+
+        /// Counts one more cell naming each of `models`, so the frame knows of every model a cell
+        /// it may adopt names.
+        void know(std::span<PreparedModel* const> models);
+
+        /// What adopting a cell and a cell's grass share: the reader's refusals and its figures
+        /// taken, and the parts of each of the prepared's models the frame has not adopted yet.
+        template <class Prepared>
+        void adoptModels(Prepared& prepared);
 
         /// Moves the supply's finished cells into the frame's own list, counting their models. A
         /// cell read with the statics the other way is let go of here.
@@ -163,14 +182,15 @@ namespace Rtx
         /// asked for from where the eye stood before.
         void sift(const osg::Vec3f& eye, float band, float grassBand);
 
-        /// Blocks until the supply has read a cell, and a cell's grass, of each kind the last `ask`
-        /// named, that this walk can adopt (`setSettled`), or until the reader has nothing left to
-        /// read, which returns with what was handed.
+        /// Blocks until the supply has handed over the nearest cell the walk wants, and the nearest
+        /// cell's grass, where the last `ask` names one nearer than everything handed already
+        /// (`setSettled`), or until the reader has nothing left to read, which returns with what was
+        /// handed.
         void waitForNext(const osg::Vec3f& eye, float band, float grassBand);
 
-        /// Adopts the next cell the supply read and the next cell's grass, one of each and
-        /// `frame`'s worth.
-        void adoptHanded(std::size_t frame);
+        /// Adopts the nearest handed cell to `eye` and the nearest handed cell's grass, by the rule
+        /// `ask` sorts by, one of each and `frame`'s worth.
+        void adoptHanded(std::size_t frame, const osg::Vec3f& eye);
 
         void adopt(PreparedCell& cell);
         void adopt(PreparedGrass& grass);
@@ -178,9 +198,6 @@ namespace Rtx
         /// Lets go of a handed cell, or a handed cell's grass, the frame will not adopt.
         void discard(PreparedCell& cell);
         void discard(PreparedGrass& grass);
-
-        /// Whether a cell's grass the supply handed over and the frame has not adopted is `cell`'s.
-        bool handedGrass(const osg::Vec2i& cell) const;
 
         /// The grass disc's radius: the groundcover's reach and the prepared band past it, nought
         /// where the world has no groundcover.

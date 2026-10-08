@@ -11,8 +11,8 @@ namespace Rtx
     /// What a submit may still be reading, each entry with the value of the submit that last
     /// does, in the order held — which is stamp order, because the stamp is the next submit's
     /// value and the queue takes submits in order — so what a wait lets go of is a prefix. The
-    /// graveyard keeps one for everything it holds, and the pool one for its command buffers and one
-    /// for its staging blocks.
+    /// graveyard keeps one for everything it holds, the pool one for its command buffers and one for
+    /// its staging blocks, and `StructureStorage` one for the room its structures cool in.
     template <class T>
     class Retiring
     {

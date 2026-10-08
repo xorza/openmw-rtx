@@ -16,9 +16,9 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/wave.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -28,6 +28,7 @@
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/wavetransform.h>
 
 namespace Rtx
 {

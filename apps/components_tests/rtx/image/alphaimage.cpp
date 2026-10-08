@@ -14,9 +14,11 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 
 namespace Rtx
@@ -202,6 +204,18 @@ namespace Rtx
                 EXPECT_EQ(alpha.at(0, texel % 4, texel / 4), 40) << "texel " << texel << " of the largest level";
             for (std::uint32_t texel = 0; texel < 4; ++texel)
                 EXPECT_EQ(alpha.at(1, texel % 2, texel / 2), 200) << "texel " << texel << " of the level below it";
+
+            // The levels take 4 × 4 × 4 + 2 × 2 × 4 = 80 bytes, every one there is: a byte fewer leaves
+            // the second level 15 of its 16, and a reader asserts rather than reading it as opaque.
+            EXPECT_TRUE(texture.levelsFit());
+            TextureData shortOfOne = texture;
+            shortOfOne.mBytes = std::span(bytes).first(bytes.size() - 1);
+            EXPECT_FALSE(shortOfOne.levelsFit());
+            TextureData pastTheEnd = texture;
+            pastTheEnd.mBytes = std::span(bytes).first(4 * 4 * 4 - 1);
+            EXPECT_FALSE(pastTheEnd.levelsFit()) << "the second level begins past the last byte";
+            Testing::expectAssertDies(
+                [&] { AlphaImage{ shortOfOne }; }, "an alpha read of a description short of its bytes");
         }
 
         /// A texture with no levels is one whose cutout could not be read, and nothing is invented for
@@ -214,6 +228,7 @@ namespace Rtx
             EXPECT_TRUE(alpha.isEmpty());
             EXPECT_EQ(alpha.getLevelCount(), 0u);
             EXPECT_EQ(alpha.getWidth(), 0u);
+            EXPECT_TRUE(nothing.levelsFit()) << "no level is a level that fits";
         }
 
         /// An image read again is the texture it was handed and nothing of the one before, and it

@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
@@ -41,8 +42,8 @@ namespace Rtx
         assert(width > 0 && height > 0);
 
         // **The one owner of "is this a new extent"**: an upscaling mode changed between two that
-        // trace at one size asks this again, and fourteen channels and twelve fog images made anew
-        // for it would be made for nothing.
+        // trace at one size asks this again, and the G-buffer's channels and the fog's images made
+        // anew for it would be made for nothing.
         if (isBuilt() && width == mWidth && height == mHeight)
             return;
 
@@ -97,9 +98,7 @@ namespace Rtx
         const WavePass& waves = inputs.mSubject.mMedia->getWaves();
         if (inputs.mSubject.mSea && !waves.holds(what.mSampled.mWaterTime))
         {
-            openZone(what.mTimer, commands, "waves");
-            waves.record(commands, what.mSampled.mWaterTime);
-            closeZone(what.mTimer, commands);
+            waves.record(commands, what.mSampled.mWaterTime, what.mTimer);
         }
 
         // The sprite tiles are screen space, so they belong to the camera and not to the scene.
@@ -171,15 +170,14 @@ namespace Rtx
             // this is the dependency that keeps it so.
             frame.transition(commands, Use::sAnyShaderRead, Use::sComputeReadWrite);
 
-            openZone(what.mTimer, commands, "composite");
             mPasses.mComposite.record(commands, *mChannels, resolved, mSum.isEmpty() ? nullptr : &mSum,
                 Shaders::CompositeConstants{
                     .mWidth = what.mSampled.mEyes.mWorld.mWidth,
                     .mHeight = what.mSampled.mEyes.mWorld.mHeight,
                     .mAccumulate = what.mAccumulate,
                     .mComposed = composed ? 1u : 0u,
-                });
-            closeZone(what.mTimer, commands);
+                },
+                what.mTimer);
 
             // Whatever comes next reads what the composite just wrote. The frame's scope is the
             // wider of the two — an upscaler, a lens and a curve against a picture's one curve —

@@ -224,9 +224,9 @@ namespace RtxTool
         TEST(RtxFrameHashesTest, aComposedFrameThatMovedAloneUnderTheDenoiserIsReportedAndNeverAVerdict)
         {
             Rtx::FrameDigest composed = digestOf(100);
-            composed.mImages[Rtx::bindingOf(Rtx::Channel::Direct)] = hashOf(4242);
+            composed.mImages[Rtx::indexOf(Rtx::Channel::Direct)] = hashOf(4242);
             Rtx::FrameDigest traced = composed;
-            traced.mImages[Rtx::bindingOf(Rtx::Channel::Albedo)] = hashOf(4243);
+            traced.mImages[Rtx::indexOf(Rtx::Channel::Albedo)] = hashOf(4243);
             const FrameHashes reference = denoisedRunOf(sPixels, digestOf(100));
 
             for (const bool pictureToo : { false, true })
@@ -261,9 +261,8 @@ namespace RtxTool
             EXPECT_FALSE(withTrace.same());
             for (std::size_t column = 0; column < sTracedColumns; ++column)
                 EXPECT_EQ(withTrace.mTracedDiffering[column],
-                    column == Rtx::bindingOf(Rtx::Channel::Albedo) || column == Rtx::bindingOf(Rtx::Channel::Direct)
-                        ? 1u
-                        : 0u)
+                    column == Rtx::indexOf(Rtx::Channel::Albedo) || column == Rtx::indexOf(Rtx::Channel::Direct) ? 1u
+                                                                                                                 : 0u)
                     << tracedName(column);
 
             const FrameHashes::ViewDifference unfiltered
@@ -283,7 +282,7 @@ namespace RtxTool
         TEST(RtxFrameHashesTest, aTraceThatMovedIsTheVerdictWhateverThePictureDid)
         {
             Rtx::FrameDigest moved = digestOf(100);
-            moved.mImages[Rtx::bindingOf(Rtx::Channel::Albedo)] = hashOf(4242);
+            moved.mImages[Rtx::indexOf(Rtx::Channel::Albedo)] = hashOf(4242);
 
             // The same picture, past an upscaler: the trace column alone says the run moved.
             const FrameHashes::ViewDifference difference = onlyView(
@@ -295,7 +294,7 @@ namespace RtxTool
             EXPECT_FALSE(difference.same());
 
             for (std::size_t column = 0; column < sTracedColumns; ++column)
-                EXPECT_EQ(difference.mTracedDiffering[column], column == Rtx::bindingOf(Rtx::Channel::Albedo) ? 1u : 0u)
+                EXPECT_EQ(difference.mTracedDiffering[column], column == Rtx::indexOf(Rtx::Channel::Albedo) ? 1u : 0u)
                     << tracedName(column);
 
             const std::string report = describeDifference(difference);
@@ -311,12 +310,12 @@ namespace RtxTool
         TEST(RtxFrameHashesTest, aStillsProbeMovedWhereItsSurfaceOrMotionDiffersFromTheFirstFrame)
         {
             Rtx::FrameDigest lit = digestOf(100);
-            lit.mImages[Rtx::bindingOf(Rtx::Channel::Direct)] = hashOf(4242);
-            lit.mImages[Rtx::bindingOf(Rtx::Channel::Indirect)] = hashOf(4243);
+            lit.mImages[Rtx::indexOf(Rtx::Channel::Direct)] = hashOf(4242);
+            lit.mImages[Rtx::indexOf(Rtx::Channel::Indirect)] = hashOf(4243);
             Rtx::FrameDigest deeper = lit;
-            deeper.mImages[Rtx::bindingOf(Rtx::Channel::Surface)] = hashOf(4244);
+            deeper.mImages[Rtx::indexOf(Rtx::Channel::Surface)] = hashOf(4244);
             Rtx::FrameDigest moving = digestOf(100);
-            moving.mImages[Rtx::bindingOf(Rtx::Channel::Motion)] = hashOf(4245);
+            moving.mImages[Rtx::indexOf(Rtx::Channel::Motion)] = hashOf(4245);
 
             FrameHashes still;
             add(still, 1, sPixels, partsOf(100));
@@ -348,7 +347,7 @@ namespace RtxTool
 
             EXPECT_EQ(difference.mTraceDiffering, std::vector<std::uint32_t>{ 1u });
             EXPECT_EQ(difference.mTracedDiffering[sReconstructionColumn], 1u);
-            EXPECT_EQ(difference.mTracedDiffering[Rtx::bindingOf(Rtx::Channel::Direct)], 0u)
+            EXPECT_EQ(difference.mTracedDiffering[Rtx::indexOf(Rtx::Channel::Direct)], 0u)
                 << "the images were the same";
             EXPECT_NE(describeDifference(difference).find("reconstruction 1"), std::string::npos)
                 << describeDifference(difference);
@@ -377,9 +376,9 @@ namespace RtxTool
 
             // Every column comes back: a run against the file that moved one is told so.
             Rtx::FrameDigest moved = digestOf(100);
-            moved.mImages[Rtx::bindingOf(Rtx::Channel::Direct)] = hashOf(4242);
+            moved.mImages[Rtx::indexOf(Rtx::Channel::Direct)] = hashOf(4242);
             EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels, moved, Rtx::Upscale::Quality).against(read))
-                          .mTracedDiffering[Rtx::bindingOf(Rtx::Channel::Direct)],
+                          .mTracedDiffering[Rtx::indexOf(Rtx::Channel::Direct)],
                 1u);
             EXPECT_EQ(onlyView(plainRun().against(read)).mConfigurationDiffering, 1u);
 

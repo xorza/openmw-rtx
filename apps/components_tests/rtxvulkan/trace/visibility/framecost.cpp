@@ -18,6 +18,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -91,7 +92,7 @@ namespace Rtx::Testing
             // number and the reason written down beside it.
             constexpr std::size_t budgetPerFrame = 0;
 
-            Renderer& renderer = getUnvalidatedRenderer();
+            VulkanRenderer& renderer = getUnvalidatedRenderer();
 
             // A wall to trace, and a second one behind it skinned to one bone so that there is a body
             // to pose.
@@ -262,7 +263,7 @@ namespace Rtx::Testing
             std::vector<Refusal> refused;
             const auto arrive = [&](Batch& batch, std::uint32_t slot) {
                 const TextureData described = describe(slot);
-                array.write(batch, std::span(&described, 1), refused);
+                array.write(batch, passes, std::span(&described, 1), refused);
             };
 
             {

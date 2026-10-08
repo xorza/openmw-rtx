@@ -12,7 +12,8 @@
 #include <osg/Vec3f>
 
 #include <components/misc/result.hpp>
-#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace RtxTool
 {
@@ -126,9 +127,9 @@ namespace RtxTool
         /// An hour of the day, from nought up to but not including twenty-four.
         float hour(const BlockField& field) const;
 
-        /// One of the ten weathers the content files name, in any case, handed back as
-        /// `Rtx::weatherIndex` numbers it, so nothing after the file meets a spelling at all.
-        std::uint32_t weather(const BlockField& field) const;
+        /// One of the ten weathers the content files name, in any case, so nothing after the file
+        /// meets a spelling at all.
+        Rtx::Weather weather(const BlockField& field) const;
 
         /// Three numbers separated by commas; an empty value is no point, and not one left unsaid.
         osg::Vec3f point(const BlockField& field) const;

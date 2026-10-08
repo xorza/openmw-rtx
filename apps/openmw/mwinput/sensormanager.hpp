@@ -4,6 +4,7 @@
 #include <array>
 
 #include <SDL3/SDL_sensor.h>
+#include <SDL3/SDL_video.h>
 
 #include <osg/Matrixf>
 #include <osg/Vec3f>
@@ -26,7 +27,7 @@ namespace MWInput
     class SensorManager : public SDLUtil::SensorListener
     {
     public:
-        SensorManager();
+        explicit SensorManager(SDL_Window* window);
 
         virtual ~SensorManager();
 
@@ -50,6 +51,7 @@ namespace MWInput
         float mGyroUpdateTimer;
 
         SDL_Sensor* mGyroscope;
+        SDL_Window* mWindow;
     };
 }
 #endif

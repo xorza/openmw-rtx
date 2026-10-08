@@ -9,6 +9,7 @@
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/model/skycrossing.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace ESM
 {
@@ -97,7 +98,7 @@ namespace RtxTool
 
         /// Hands the world the sky whole for this frame (`MWBase::World::holdWeather`), as
         /// `SkyCrossing` numbers its weathers.
-        static void holdSky(std::uint32_t weather, std::uint32_t next, float crossed);
+        static void holdSky(Rtx::Weather weather, Rtx::Weather next, float crossed);
 
         /// The sky this holds, taken from the world where it holds none yet.
         SkyCrossing& takeSky();
@@ -106,10 +107,10 @@ namespace RtxTool
         static SkyCrossing skyOfTheWorld();
 
         /// How much of a crossing into `weather` the world runs a second, at the game's own clock.
-        static float transitionDeltaOf(std::uint32_t weather);
+        static float transitionDeltaOf(Rtx::Weather weather);
 
         /// The chance `region` rolls `weather` at, in per cent, and nought where it names none.
-        static int chanceOf(const ESM::Region& region, std::uint32_t weather);
+        static int chanceOf(const ESM::Region& region, Rtx::Weather weather);
 
         /// Puts the player's body at `eye`, where a route or a track has the camera this frame.
         static void moveBodyTo(const osg::Vec3f& eye);

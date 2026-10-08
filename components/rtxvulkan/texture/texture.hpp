@@ -14,6 +14,7 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/hosttypes.h>
@@ -49,12 +50,12 @@ namespace Rtx
 
         /// Stands a texture from its file's bytes in this one, which is empty, from level `first`
         /// on: uploaded level by level where the file carried a chain, and where it carried one
-        /// level of more than a texel, uploaded once and the chain made from that upload — `MipChain`
-        /// says which files and why — into a four-byte image of the same curve, the upload buried
-        /// under the batch. Left empty, and why, where the device has no room for it as `use`. Every
-        /// image is made before anything is handed to `arrival`, so a refusal leaves it as it found
-        /// it. What makes the texture is `arrival`'s to record, and this stays where it is until then:
-        /// the work names its images.
+        /// level of more than a texel, uploaded once and the chain made from that upload —
+        /// `TextureData::wantsCompletedChain` says which files and why — into a four-byte image of
+        /// the same curve, the upload buried under the batch. Left empty, and why, where the device
+        /// has no room for it as `use`. Every image is made before anything is handed to `arrival`,
+        /// so a refusal leaves it as it found it. What makes the texture is `arrival`'s to record, and this stays where
+        /// it is until then: the work names its images.
         ///
         /// @param first the level the image begins at: nought for the file as it is, and further
         ///        down for one held to a smaller side. Nought where the device completes the chain,
@@ -161,7 +162,7 @@ namespace Rtx
         ///
         /// @param layout what `describeLayout` made: every array is shaped by the one the renderer
         ///        keeps, which is what lets one pass be handed any scene's set.
-        /// @param passes the renderer's, which every texture is made with as it arrives.
+        /// @param passes the renderer's, which the stand-in and the neutral texel are made with.
         /// @param anisotropy `RenderProfile::mAnisotropy`: what the footprint binding filters by.
         TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
             std::uint32_t slots, std::uint32_t anisotropy = 1);
@@ -184,7 +185,10 @@ namespace Rtx
         /// down a level at a time, and one with no level at all it can hold draws the stand-in, as
         /// does one past the device's side at every level; each of those is appended to `refused`,
         /// saying why.
-        void write(Batch& batch, std::span<const TextureData> arrived, std::vector<Refusal>& refused);
+        ///
+        /// @param passes the renderer's, which every texture is made with as it arrives.
+        void write(Batch& batch, const TexturePasses& passes, std::span<const TextureData> arrived,
+            std::vector<Refusal>& refused);
 
         /// Writes the descriptors `slot`'s set owes. Before the placement that binds it, after
         /// `finishReads`: the bindings allow an update after a bind, but not of a descriptor a
@@ -300,7 +304,6 @@ namespace Rtx
         void reserveSlot(std::uint32_t slot);
 
         const Device& mDevice;
-        const TexturePasses& mPasses;
 
         /// What an arrival's textures leave the device to do, recorded once every one of them
         /// stands.

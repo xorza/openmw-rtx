@@ -72,24 +72,19 @@ namespace Rtx
 
         Handle get() const { return mHandle; }
 
-        /// Where to put one, for a call that fills a handle in rather than returning it.
-        Handle* put(const Device& device)
-        {
-            reset();
-            mDevice = &device;
-            return &mHandle;
-        }
-
         /// One made by `create(device, &info, allocator, out)`, which is the shape every
         /// `vkCreateX` this backend calls has but the pipelines' — checked, and named by `call`
         /// in the message a failure carries. The string stays: nothing in C++ names a function
         /// pointer's function.
+        ///
+        /// **Made into a local and adopted only once it succeeded**: a failed create leaves its
+        /// output undefined, and an owner it wrote into would end whatever the driver left there.
         template <class Create, class Info>
         static Owned make(const Device& device, Create create, const Info& info, const char* call)
         {
-            Owned made;
-            checkVk(create(vulkanHandleOf(device), &info, nullptr, made.put(device)), call);
-            return made;
+            Handle made = VK_NULL_HANDLE;
+            checkVk(create(vulkanHandleOf(device), &info, nullptr, &made), call);
+            return Owned(device, made);
         }
 
         /// Buries the handle, where there is one.
@@ -154,21 +149,13 @@ namespace Rtx
 
         Handle get() const { return mHandle; }
 
-        /// Where to put one, for a call that fills a handle in rather than returning it.
-        Handle* put(VkDevice device)
-        {
-            reset();
-            mDevice = device;
-            return &mHandle;
-        }
-
         /// `Owned::make`, for a device given as its handle.
         template <class Create, class Info>
         static Immediate make(VkDevice device, Create create, const Info& info, const char* call)
         {
-            Immediate made;
-            checkVk(create(device, &info, nullptr, made.put(device)), call);
-            return made;
+            Handle made = VK_NULL_HANDLE;
+            checkVk(create(device, &info, nullptr, &made), call);
+            return Immediate(device, made);
         }
 
         void reset()
@@ -180,6 +167,56 @@ namespace Rtx
 
     private:
         VkDevice mDevice = VK_NULL_HANDLE;
+        Handle mHandle = VK_NULL_HANDLE;
+    };
+
+    /// A handle with no parent, ended by `Destroy(handle, allocator)` the moment it is let go of:
+    /// the instance and the logical device, which outlive everything made on them and are ended
+    /// last. A member declared before everything made on its handle, so that whatever ends the
+    /// owner — its destructor or a constructor that throws half way — ends those first and this
+    /// last, in the one order.
+    template <class Handle, auto& Destroy>
+    class Root
+    {
+    public:
+        Root() = default;
+
+        /// Takes `handle`, made and checked.
+        explicit Root(Handle handle)
+            : mHandle(handle)
+        {
+        }
+
+        ~Root() { reset(); }
+
+        Root(const Root&) = delete;
+        Root& operator=(const Root&) = delete;
+
+        Root(Root&& other) noexcept
+            : mHandle(std::exchange(other.mHandle, VK_NULL_HANDLE))
+        {
+        }
+
+        Root& operator=(Root&& other) noexcept
+        {
+            if (this != &other)
+            {
+                reset();
+                mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
+            }
+            return *this;
+        }
+
+        Handle get() const { return mHandle; }
+
+    private:
+        void reset()
+        {
+            if (mHandle != VK_NULL_HANDLE)
+                Destroy(mHandle, nullptr);
+            mHandle = VK_NULL_HANDLE;
+        }
+
         Handle mHandle = VK_NULL_HANDLE;
     };
 }

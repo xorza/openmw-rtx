@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -14,8 +16,10 @@
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/notfinitecensus.hpp>
+#include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
@@ -27,6 +31,16 @@ namespace Rtx
         /// Nothing of its own — a name, because `TEST_F` takes one identifier and prints it as the
         /// suite these tests are reported under.
         using RtxDeviceTest = Testing::DeviceTest;
+
+        /// **A wait for a value past every submit is a call out of its turn**, and not a device that
+        /// stopped answering: nothing will signal it, and waited, it sat out its patience and then
+        /// blamed the device.
+        TEST_F(RtxDeviceTest, aWaitForAValueNoSubmitSignalsIsAContractBroken)
+        {
+            const Device& device = *mHarness.mDevice;
+            Testing::expectAssertDies([&] { device.waitFor(device.getTimeline().getNext(), "a submit not made"); },
+                "a wait for a value no submit signals");
+        }
 
         /// A wait on a device that never answers ends the process as a crash, and says which wait it
         /// was.
@@ -55,6 +69,29 @@ namespace Rtx
                 "a submit nobody made did not complete within 1 ms; the device has stopped answering");
 
             vkDestroyFence(mHarness.mDevice->getHandle(), fence, nullptr);
+        }
+
+        /// **A create that fails adopts nothing.** Its output is undefined after a failure, and a
+        /// driver may leave anything there: an owner that took it would end a handle that never
+        /// was. A create that writes a sentinel and fails throws, and nothing waits to be ended.
+        TEST_F(RtxDeviceTest, aCreateThatFailsAdoptsNothing)
+        {
+            const Device& device = *mHarness.mDevice;
+            const auto failing
+                = [](VkDevice, const VkSamplerCreateInfo*, const VkAllocationCallbacks*, VkSampler* out) {
+                      *out = std::bit_cast<VkSampler>(std::uint64_t{ 0xdead });
+                      return VK_ERROR_OUT_OF_HOST_MEMORY;
+                  };
+            const std::size_t held = device.getGraveyard().getHeldCount();
+
+            using Deferred = Owned<VkSampler, vkDestroySampler>;
+            EXPECT_THROW(Deferred::make(device, failing, VkSamplerCreateInfo{}, "a failed create"), DeviceError);
+            EXPECT_EQ(device.getGraveyard().getHeldCount(), held) << "a failed create's output was buried";
+
+            // Ended at once where it was adopted, which would destroy the sentinel here.
+            using AtOnce = Immediate<VkSampler, vkDestroySampler>;
+            EXPECT_THROW(
+                AtOnce::make(device.getHandle(), failing, VkSamplerCreateInfo{}, "a failed create"), DeviceError);
         }
 
         TEST_F(RtxDeviceTest, theValidationLayerIsLoaded)

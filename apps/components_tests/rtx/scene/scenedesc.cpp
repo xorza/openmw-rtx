@@ -23,14 +23,13 @@
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
@@ -60,6 +59,30 @@ namespace Rtx
             std::vector<Index> copy(slots.begin(), slots.end());
             std::sort(copy.begin(), copy.end());
             return copy;
+        }
+
+        /// **A move carries the identity and leaves the source a fresh one**, where the defaulted
+        /// move left the source with the one it handed over, and two descriptions under one
+        /// identity — what the deleted copy exists to prevent. An assignment gives the target the
+        /// source's, and the source another that no description held.
+        TEST(RtxSceneDescTest, aMoveCarriesTheIdentityAndLeavesTheSourceAFreshOne)
+        {
+            SceneDesc first;
+            const std::uint64_t carried = first.getIdentity();
+            EXPECT_NE(carried, 0u);
+
+            SceneDesc moved(std::move(first));
+            EXPECT_EQ(moved.getIdentity(), carried);
+            EXPECT_NE(first.getIdentity(), carried) << "the source kept the identity it handed over";
+            EXPECT_GT(first.getIdentity(), carried) << "the source took an identity held before";
+
+            SceneDesc target;
+            const std::uint64_t replaced = target.getIdentity();
+            const std::uint64_t source = first.getIdentity();
+            target = std::move(first);
+            EXPECT_EQ(target.getIdentity(), source);
+            EXPECT_NE(first.getIdentity(), source);
+            EXPECT_GT(first.getIdentity(), replaced) << "the source took an identity held before";
         }
 
         /// The order the lights come out in is the lights' own, and every field takes its turn.
@@ -229,7 +252,7 @@ namespace Rtx
                 ASSERT_EQ(textures.add(names[at]), at);
 
             EXPECT_EQ(textures.add(names.back()), sNoIndex);
-            EXPECT_EQ(textures.addBaked("chunk/1", TextureKind::GroundAlbedo, TextureEncoding::Colour, 1), sNoIndex);
+            EXPECT_EQ(textures.addGround(1, TextureKind::GroundAlbedo), sNoIndex);
             EXPECT_EQ(textures.getRefused(), 2u);
             EXPECT_EQ(textures.add(names[7]), 7u) << "a texture that stands takes no slot";
 
@@ -1104,9 +1127,8 @@ namespace Rtx
 
             // The bake of the texture's alpha sits in the same table, which is why the count of
             // textures at the end is two.
-            const Index lighting = scene.textures().addBaked(
-                SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")), TextureKind::Baked,
-                TextureEncoding::Colour);
+            const Index lighting
+                = scene.textures().addSpriteLight(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
 
             const std::array sPlume{
                 Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -1270,7 +1292,7 @@ namespace Rtx
             ASSERT_EQ(scene.meshes().getIndices().size(), 15u);
             ASSERT_EQ(scene.meshes().getRows()[last].mVertices.mOffset, 7u);
 
-            const std::uint64_t was = scene.getStructureRevision();
+            const StructureRevision was = scene.getStructureRevision();
             Testing::letGoMesh(scene, middle);
 
             // Nothing moved, nothing shrank, and every index still means what it meant.
@@ -1304,7 +1326,8 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getRows()[moved].mVertices.mOffset, 4u);
             EXPECT_EQ(scene.meshes().getRows()[moved].mVertices.mCount, 3u);
             EXPECT_EQ(scene.meshes().getPositions().size(), 11u) << "a reused slot appended";
-            EXPECT_GT(scene.getStructureRevision(), was) << "a slot taken over holds different geometry";
+            EXPECT_GT(scene.getStructureRevision().mMeshes, was.mMeshes)
+                << "a slot taken over holds different geometry";
 
             // And the last mesh is still where it was, which a compaction is what would break.
             EXPECT_EQ(scene.meshes().getMeshPositions(last)[0].z(), 2.0f);
@@ -1334,12 +1357,12 @@ namespace Rtx
             const Index slot = Testing::addQuadMesh(scene);
 
             const std::uint64_t meshes = scene.meshes().getRevision();
-            const std::uint64_t structure = scene.getStructureRevision();
+            const StructureRevision structure = scene.getStructureRevision();
 
             // A texture is an upload, not a structure to build.
             scene.textures().add(VFS::Path::NormalizedView("textures/tx_stone.dds"));
             EXPECT_EQ(scene.meshes().getRevision(), meshes) << "a texture asked for the structures to be built again";
-            EXPECT_GT(scene.getStructureRevision(), structure);
+            EXPECT_GT(scene.getStructureRevision().mTextures, structure.mTextures);
 
             // The slot comes back and is taken over. The table is the same size it was, and what is
             // in it is not.
@@ -1640,7 +1663,7 @@ namespace Rtx
             const Index mesh = Testing::addQuadMesh(scene);
             const Index first = scene.addMaterial(Material{});
 
-            const std::uint64_t structure = scene.getStructureRevision();
+            const StructureRevision structure = scene.getStructureRevision();
             scene.clearArrivals();
 
             // A second material, which is what a state set with a new address comes to.
@@ -1662,7 +1685,7 @@ namespace Rtx
             // **And a mesh going is not the other answer either.** A slot freed in place moves
             // nothing built from the table, so the frame after a cell leaves costs the top level and
             // nothing else.
-            const std::uint64_t before = scene.getStructureRevision();
+            const StructureRevision before = scene.getStructureRevision();
             Testing::letGoMesh(scene, mesh);
             EXPECT_EQ(scene.getStructureRevision(), before) << "a cell leaving asked for a rebuild";
 
@@ -1799,7 +1822,7 @@ namespace Rtx
             MeshHold meshHold = scene.holdMesh(mesh);
             MaterialHold materialHold = scene.holdMaterial(material);
 
-            const std::uint64_t was = scene.getStructureRevision();
+            const StructureRevision was = scene.getStructureRevision();
             scene.clearArrivals();
 
             scene.drop(scene.holdMesh(mesh));
@@ -1965,20 +1988,19 @@ namespace Rtx
         {
             SceneDesc scene;
 
-            const Index baked
-                = scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2);
+            const Index baked = scene.textures().addGround(2, TextureKind::GroundAlbedo);
             ASSERT_EQ(baked, 0u);
 
             // Standing, and standing is not free — the path is empty because it has none, which is
             // the same thing a free slot's path says and not the same fact.
             EXPECT_TRUE(scene.textures().isLive(baked));
             EXPECT_TRUE(scene.textures().getRows()[baked].mPath.value().empty()) << "it came from no file";
-            EXPECT_EQ(scene.textures().getRows()[baked].mBaked, "composite/-3,-2/2");
+            EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, 2u);
+            EXPECT_EQ(scene.textures().getRows()[baked].mEncoding, TextureEncoding::Colour);
+            EXPECT_EQ(scene.textures().getRows()[baked].mWrap, TextureWrap::Clamp);
 
-            // The key is what makes two chunks that would bake the same image share one slot.
-            EXPECT_EQ(
-                scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2),
-                baked)
+            // The material is what makes two asks for the same ground share one slot.
+            EXPECT_EQ(scene.textures().addGround(2, TextureKind::GroundAlbedo), baked)
                 << "the same bake took a second slot";
             EXPECT_EQ(scene.textures().getRows().size(), 1u);
 
@@ -1989,7 +2011,7 @@ namespace Rtx
             scene.drop(scene.holdTexture(baked));
 
             EXPECT_FALSE(scene.textures().isLive(baked)) << "nothing names it and it is still standing";
-            EXPECT_TRUE(scene.textures().getRows()[baked].mBaked.empty());
+            EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, sNoIndex);
             EXPECT_EQ(sorted(scene.textures().getFreed()), (std::vector<Index>{ baked }));
 
             // And the slot comes back, to a file this time — a freed slot is a row and not a kind.
@@ -1997,13 +2019,22 @@ namespace Rtx
             EXPECT_EQ(next, baked) << "the table grew past a free slot";
             EXPECT_EQ(scene.textures().getRows().size(), 2u);
             EXPECT_EQ(scene.textures().getRows()[next].mPath, VFS::Path::NormalizedView("textures/tx_sand.dds"));
-            EXPECT_TRUE(scene.textures().getRows()[next].mBaked.empty()) << "the slot kept what the last tenant was";
+            EXPECT_EQ(scene.textures().getRows()[next].mGroundOf, sNoIndex) << "the slot kept what the last tenant was";
 
-            // The key is free again too, or a bake that came back would find a slot somebody else has.
-            const Index again
-                = scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2);
-            EXPECT_EQ(again, 2u) << "a key the table gave back found a slot somebody else has";
+            // The material is free again too, or a bake that came back would find a slot somebody
+            // else has.
+            const Index again = scene.textures().addGround(2, TextureKind::GroundAlbedo);
+            EXPECT_EQ(again, 2u) << "a material the table gave back found a slot somebody else has";
             EXPECT_TRUE(scene.textures().isLive(file)) << "the file beside it was never touched";
+
+            // The gloss is a slot of its own beside the albedo, read as data, and its going leaves the
+            // albedo where it was found.
+            const Index gloss = scene.textures().addGround(2, TextureKind::GroundGloss);
+            EXPECT_EQ(gloss, 3u);
+            EXPECT_EQ(scene.textures().getRows()[gloss].mEncoding, TextureEncoding::Data);
+            scene.drop(scene.holdTexture(gloss));
+            EXPECT_EQ(scene.textures().addGround(2, TextureKind::GroundAlbedo), again)
+                << "the gloss's going took the albedo's entry with it";
         }
 
         /// A material rewritten gives back what it stopped naming and keeps what it still names.
@@ -2070,11 +2101,11 @@ namespace Rtx
         /// tail stays behind; sixty thousand then fits the tail and takes it at 200,000.
         TEST(RtxSceneDescTest, aMeshNeverStraddlesABlockAndTheTailItSkippedIsReused)
         {
-            ASSERT_EQ(SceneDesc::sVertexBlock, 262144u) << "the arithmetic below is written against this";
+            ASSERT_EQ(MeshTable::sVertexBlock, 262144u) << "the arithmetic below is written against this";
 
             // One buffer, sliced. A block is a quarter of a million vertices and three separate
             // copies of that is memory this test has no use for.
-            const std::vector<osg::Vec3f> room(SceneDesc::sVertexBlock);
+            const std::vector<osg::Vec3f> room(MeshTable::sVertexBlock);
             const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
             const auto vertices = [&](std::size_t count) { return std::span(room).first(count); };
@@ -2084,7 +2115,7 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getRows()[first].mVertices.mOffset, 0u);
 
             const Index second = scene.addMesh(MeshArrays{ .mPositions = vertices(100000), .mIndices = triangle });
-            EXPECT_EQ(scene.meshes().getRows()[second].mVertices.mOffset, SceneDesc::sVertexBlock)
+            EXPECT_EQ(scene.meshes().getRows()[second].mVertices.mOffset, MeshTable::sVertexBlock)
                 << "a run was laid across a block boundary";
             EXPECT_EQ(scene.meshes().getPositions().size(), std::size_t{ 362144 });
 
@@ -2100,8 +2131,8 @@ namespace Rtx
             for (const Index mesh : { first, second, third })
             {
                 const MeshRange& range = scene.meshes().getRows()[mesh];
-                EXPECT_EQ(range.mVertices.mOffset / SceneDesc::sVertexBlock,
-                    (range.mVertices.mOffset + range.mVertices.mCount - 1) / SceneDesc::sVertexBlock)
+                EXPECT_EQ(range.mVertices.mOffset / MeshTable::sVertexBlock,
+                    (range.mVertices.mOffset + range.mVertices.mCount - 1) / MeshTable::sVertexBlock)
                     << "mesh " << mesh << " straddles a block";
             }
         }
@@ -2115,19 +2146,19 @@ namespace Rtx
         /// whoever reads a mesh asks before `addMesh`, which asserts the same.
         TEST(RtxSceneDescTest, aMeshLongerThanABlockIsRefusedByName)
         {
-            const std::vector<osg::Vec3f> tooMany(SceneDesc::sVertexBlock + 1);
+            const std::vector<osg::Vec3f> tooMany(MeshTable::sVertexBlock + 1);
             const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
             const Misc::Result<void, std::string> pastABlock
                 = MeshTable::checkFits(MeshArrays{ .mPositions = tooMany, .mIndices = triangle });
             ASSERT_FALSE(pastABlock.isOk());
             EXPECT_EQ(pastABlock.error(),
-                "its " + std::to_string(SceneDesc::sVertexBlock + 1) + " vertices and 3 indices are past the "
-                    + std::to_string(SceneDesc::sVertexBlock) + " and " + std::to_string(SceneDesc::sIndexBlock)
+                "its " + std::to_string(MeshTable::sVertexBlock + 1) + " vertices and 3 indices are past the "
+                    + std::to_string(MeshTable::sVertexBlock) + " and " + std::to_string(MeshTable::sIndexBlock)
                     + " one block of the shared buffers holds");
 
             // And exactly a block is not too many, so the refusal is a boundary and not a ban.
-            const MeshArrays aBlock{ .mPositions = std::span(tooMany).first(SceneDesc::sVertexBlock),
+            const MeshArrays aBlock{ .mPositions = std::span(tooMany).first(MeshTable::sVertexBlock),
                 .mIndices = triangle };
             EXPECT_TRUE(MeshTable::checkFits(aBlock).isOk());
             SceneDesc scene;
@@ -2161,9 +2192,6 @@ namespace Rtx
             scene.addInstance(MeshInstance{ .mMesh = quad, .mMaterial = ground });
             scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::scale(10000.0f, 10000.0f, 1.0f), .mMesh = quad, .mMaterial = sea });
-
-            // Everything, which is what a far plane asks for and why the sea is still in the table.
-            EXPECT_FLOAT_EQ(scene.getBounds().xMax(), 10000.0f);
 
             const osg::BoundingBoxf everywhere(-1e9f, -1e9f, -1e9f, 1e9f, 1e9f, 1e9f);
             const osg::BoundingBoxf content = scene.getContentBoundsWithin(everywhere);
@@ -2208,8 +2236,9 @@ namespace Rtx
             const Index placed = scene.addInstance(MeshInstance{ .mMesh = quad, .mMaterial = material });
 
             // The unit square in the xy plane that the fixture is.
-            EXPECT_FLOAT_EQ(scene.getBounds().xMin(), 0.0f);
-            EXPECT_FLOAT_EQ(scene.getBounds().xMax(), 1.0f);
+            const osg::BoundingBoxf everywhere(-1e9f, -1e9f, -1e9f, 1e9f, 1e9f, 1e9f);
+            EXPECT_FLOAT_EQ(scene.getContentBoundsWithin(everywhere).xMin(), 0.0f);
+            EXPECT_FLOAT_EQ(scene.getContentBoundsWithin(everywhere).xMax(), 1.0f);
 
             // The same square three units along x, which is what a pose is: the count a deforming
             // mesh keeps and the places it keeps none of, with the reach the caller read.
@@ -2217,14 +2246,15 @@ namespace Rtx
             Testing::poseRig(
                 scene, quad, along, osg::BoundingBoxf(osg::Vec3f(3.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 1.0f, 0.0f)));
 
-            EXPECT_FLOAT_EQ(scene.getBounds().xMin(), 3.0f) << "the extent stayed where the first pose put it";
-            EXPECT_FLOAT_EQ(scene.getBounds().xMax(), 4.0f);
+            EXPECT_FLOAT_EQ(scene.getContentBoundsWithin(everywhere).xMin(), 3.0f)
+                << "the extent stayed where the first pose put it";
+            EXPECT_FLOAT_EQ(scene.getContentBoundsWithin(everywhere).xMax(), 4.0f);
 
             // And a slot handed back reaches nowhere: an empty answer is what a camera is not
             // placed from. The placement's drop gives back the last hold on its mesh.
             scene.dropInstance(placed, Stander::Walk);
             ASSERT_FALSE(scene.meshes().isLive(quad));
-            EXPECT_FALSE(scene.getBounds().valid());
+            EXPECT_FALSE(scene.getContentBoundsWithin(everywhere).valid());
         }
 
     }

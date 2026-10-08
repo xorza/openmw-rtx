@@ -24,6 +24,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -121,10 +122,12 @@ namespace Rtx::Testing
             Frame frame;
 
             frame = shoot(scene, {},
-                makeOrthographicCameraFromView(view, 200.0f, 200.0f, size, size, 1.0f, 10000.0f).value(), size);
+                constantsFor(makeOrthographicCameraFromView(view, 200.0f, 200.0f, size, size, 1.0f, 10000.0f).value()),
+                size);
             const std::uint32_t parallel = frame.mHits;
 
-            frame = shoot(scene, {}, makeCameraFromView(view, 90.0f, size, size, 1.0f, 10000.0f).value(), size);
+            frame = shoot(
+                scene, {}, constantsFor(makeCameraFromView(view, 90.0f, size, size, 1.0f, 10000.0f).value()), size);
             const std::uint32_t pinhole = frame.mHits;
 
             EXPECT_EQ(parallel, 16u * 16u);
@@ -408,6 +411,21 @@ namespace Rtx::Testing
                 previous = sample;
             }
             EXPECT_GT(scattered, 0u) << "the bytes were not dithered, so the test shows nothing of the second store";
+
+            // **A mode that shows at the same size keeps the picture and its sixteen bits**: the
+            // output's images are the present target's, and a mode changes only what is traced.
+            std::vector<std::uint8_t> bytes;
+            std::vector<std::uint16_t> samples;
+            mRenderer.readPixels(bytes);
+            mRenderer.readDeepPixels(samples);
+            mRenderer.setUpscale(Upscale::Quality);
+            std::vector<std::uint8_t> kept;
+            std::vector<std::uint16_t> keptSamples;
+            mRenderer.readPixels(kept);
+            mRenderer.readDeepPixels(keptSamples);
+            mRenderer.setUpscale(Upscale::Off);
+            EXPECT_EQ(kept, bytes) << "a change of mode blanked the picture";
+            EXPECT_EQ(keptSamples, samples) << "a change of mode dropped the sixteen-bit picture";
         }
 
         /// A wall smaller than the frame leaves sky around it, and the count is the area it covers.

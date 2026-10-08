@@ -19,13 +19,9 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
@@ -34,6 +30,9 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/moon.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -330,7 +329,7 @@ namespace Rtx::Testing
 
         /// An eye under the surface has no air in front of it, and the volume must say so too.
         ///
-        /// **The one path that could not tell on its own.** `fogExtinctionAt` gives nothing under the
+        /// **The one path that could not tell on its own.** `fogDensityAt` gives nothing under the
         /// surface and `fogColumn` integrates nothing there, so the field and the closed form need
         /// nothing more. The volume is an accumulation along a *column's* ray rather than a field
         /// read along the pixel's, and a froxel the surface stands inside draws its sample from the
@@ -1290,7 +1289,7 @@ namespace Rtx::Testing
             constexpr float extinction = 8.9e-4f;
             constexpr float irradiance = 20.0f;
 
-            // The field the shader reads at each level, `bakeFogNoise`'s layout: two channels a
+            // The field the shader reads at each level, `FogNoise::shared`'s layout: two channels a
             // texel, slice by slice. Banked, the lower half of the tile's height is full and the
             // upper half empty; whole, every texel is full.
             const auto fieldOf = [](bool banked) {
@@ -1311,7 +1310,7 @@ namespace Rtx::Testing
             struct Restored
             {
                 VulkanRenderer& mRenderer;
-                ~Restored() { mRenderer.setFogField(bakeFogNoise()); }
+                ~Restored() { mRenderer.setFogField(FogNoise::shared()); }
             } restored{ mRenderer };
 
             const osg::Vec3f towards(0.6f, 0.0f, 0.8f);

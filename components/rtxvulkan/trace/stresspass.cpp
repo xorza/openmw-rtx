@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
-#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
@@ -28,15 +28,12 @@ namespace Rtx
     {
     }
 
-    void StressPass::record(VkCommandBuffer commands, GpuTimer& timer, const Buffer& counts)
+    void StressPass::record(VkCommandBuffer commands, const Buffer& counts, GpuTimer* timer)
     {
-        // A literal, so its view is terminated.
-        timer.open(commands, RenderProfile::sHoldZone.data());
+        const GpuZone timed(timer, commands, FrameZone::Stress);
 
         DescriptorWrites writes(mPipeline);
         writes.buffer(Shaders::STRESS_BIND_COUNTS, counts.describe());
         dispatch(commands, mPipeline, writes, Shaders::StressConstants{ .mTicks = mTicks }, Groups{});
-
-        timer.close(commands);
     }
 }

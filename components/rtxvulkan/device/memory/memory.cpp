@@ -133,11 +133,22 @@ namespace Rtx
             std::exchange(mOwner, nullptr)->give(*this);
     }
 
-    MemoryAllocator::MemoryAllocator(const VkInstance instance, const VkPhysicalDevice physicalDevice,
-        const VkDevice device, const VkPhysicalDeviceMemoryProperties& memory, const bool budget, const bool priority)
-        : mDevice(device)
-        , mMemory(memory)
-        , mBudget(budget)
+    namespace
+    {
+        /// The type the library picks for a resource that asks for video memory and nothing else,
+        /// which is what every structure and texture asks for: the first of the types that request
+        /// is placed in, which costs it nothing more than the others do.
+        std::uint32_t videoTypeOf(const VkPhysicalDeviceMemoryProperties& memory)
+        {
+            const std::uint32_t video = memoryTypesFor(memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (video == 0)
+                throw Unsupported("no memory type is video memory alone among those this device offers");
+            return static_cast<std::uint32_t>(std::countr_zero(video));
+        }
+    }
+
+    MemoryAllocator::Library::Library(const VkInstance instance, const VkPhysicalDevice physicalDevice,
+        const VkDevice device, const bool budget, const bool priority)
     {
         VmaVulkanFunctions functions{};
         functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
@@ -158,35 +169,47 @@ namespace Rtx
         create.pVulkanFunctions = &functions;
 
         checkVk(vmaCreateAllocator(&create, &mAllocator), "vmaCreateAllocator");
+    }
 
-        // The type the library picks for a resource that asks for video memory and nothing else,
-        // which is what every structure and texture asks for: the first of the types that request
-        // is placed in, which costs it nothing more than the others do.
-        const std::uint32_t video = memoryTypesFor(mMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        if (video == 0)
-            throw Unsupported("no memory type is video memory alone among those this device offers");
-        mVideoType = static_cast<std::uint32_t>(std::countr_zero(video));
-        mVideoHeap = mMemory.memoryTypes[mVideoType].heapIndex;
+    MemoryAllocator::Library::~Library()
+    {
+        for (VmaPool_T* const pool : mPools)
+            if (pool != nullptr)
+                vmaDestroyPool(mAllocator, pool);
 
+        vmaDestroyAllocator(mAllocator);
+    }
+
+    void MemoryAllocator::Library::makePool(const std::uint32_t type)
+    {
+        const VmaPoolCreateInfo pool{ .memoryTypeIndex = type,
+            .flags = 0,
+            .blockSize = sBlockBytes,
+            .minBlockCount = 0,
+            .maxBlockCount = 0,
+            .priority = memoryPriorityOf(MemoryUse::Texture),
+            .minAllocationAlignment = 0,
+            .pMemoryAllocateNext = nullptr };
+        checkVk(vmaCreatePool(mAllocator, &pool, &mPools[type]), "vmaCreatePool");
+    }
+
+    MemoryAllocator::MemoryAllocator(const VkInstance instance, const VkPhysicalDevice physicalDevice,
+        const VkDevice device, const VkPhysicalDeviceMemoryProperties& memory, const bool budget, const bool priority)
+        : mDevice(device)
+        , mMemory(memory)
+        , mBudget(budget)
+        , mVideoType(videoTypeOf(memory))
+        , mVideoHeap(memory.memoryTypes[mVideoType].heapIndex)
+        , mLibrary(instance, physicalDevice, device, budget, priority)
+    {
         // Made now and not when first asked for, so no thread ever makes one: a pool with no block
         // holds nothing. One over each type content may be placed in, which leaves out AMD's
         // device-coherent types: the library refuses a pool over one, and a pool asked of each
         // stopped RADV's and AMD's cards at start-up.
+        const std::uint32_t video = memoryTypesFor(mMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         for (std::uint32_t type = 0; type < mMemory.memoryTypeCount; ++type)
-        {
-            if ((video & (1u << type)) == 0)
-                continue;
-
-            const VmaPoolCreateInfo pool{ .memoryTypeIndex = type,
-                .flags = 0,
-                .blockSize = sBlockBytes,
-                .minBlockCount = 0,
-                .maxBlockCount = 0,
-                .priority = memoryPriorityOf(MemoryUse::Texture),
-                .minAllocationAlignment = 0,
-                .pMemoryAllocateNext = nullptr };
-            checkVk(vmaCreatePool(mAllocator, &pool, &mContentPools[type]), "vmaCreatePool");
-        }
+            if ((video & (1u << type)) != 0)
+                mLibrary.makePool(type);
     }
 
     std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, const VkMemoryPropertyFlags required)
@@ -219,12 +242,6 @@ namespace Rtx
         // The ranges and not the blocks: the library keeps an emptied block or two against the
         // next resource, which a range still standing in one is not.
         assert(getLiveCount() == 0 && "a device allocation was still standing a resource when the device went");
-
-        for (VmaPool_T* const pool : mContentPools)
-            if (pool != nullptr)
-                vmaDestroyPool(mAllocator, pool);
-
-        vmaDestroyAllocator(mAllocator);
     }
 
     DeviceMemory MemoryAllocator::take(
@@ -236,7 +253,7 @@ namespace Rtx
         const VmaAllocationCreateInfo create = askingFor(mMemory, properties, MemoryUse::Essential);
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
-        checkAllocated(vmaAllocateMemory(mAllocator, &requirements, &create, &allocation, &placed), properties);
+        checkAllocated(vmaAllocateMemory(mLibrary.get(), &requirements, &create, &allocation, &placed), properties);
 
         return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
             MemoryUse::Essential);
@@ -247,7 +264,7 @@ namespace Rtx
         const VmaAllocationCreateInfo create = askingFor(mMemory, properties, MemoryUse::Essential);
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
-        checkAllocated(vmaAllocateMemoryForImage(mAllocator, image, &create, &allocation, &placed), properties);
+        checkAllocated(vmaAllocateMemoryForImage(mLibrary.get(), image, &create, &allocation, &placed), properties);
 
         return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
             MemoryUse::Essential);
@@ -265,7 +282,7 @@ namespace Rtx
 
         return tryAllocate(requirements.size, requirements.memoryTypeBits, false, properties, use,
             [&](const VmaAllocationCreateInfo& create, VmaAllocation* allocation, VmaAllocationInfo* placed) {
-                return vmaAllocateMemory(mAllocator, &requirements, &create, allocation, placed);
+                return vmaAllocateMemory(mLibrary.get(), &requirements, &create, allocation, placed);
             });
     }
 
@@ -294,7 +311,7 @@ namespace Rtx
         return tryAllocate(requirements.memoryRequirements.size, requirements.memoryRequirements.memoryTypeBits,
             dedicated.requiresDedicatedAllocation == VK_TRUE, properties, use,
             [&](const VmaAllocationCreateInfo& create, VmaAllocation* allocation, VmaAllocationInfo* placed) {
-                return vmaAllocateMemoryForImage(mAllocator, image, &create, allocation, placed);
+                return vmaAllocateMemoryForImage(mLibrary.get(), image, &create, allocation, placed);
             });
     }
 
@@ -305,8 +322,8 @@ namespace Rtx
     {
         VmaAllocationCreateInfo create = askingFor(mMemory, properties, use);
         std::uint32_t type = 0;
-        checkAllocated(vmaFindMemoryTypeIndex(mAllocator, typeBits, &create, &type), properties);
-        assert(mContentPools[type] != nullptr && "content asked for memory that is not video memory");
+        checkAllocated(vmaFindMemoryTypeIndex(mLibrary.get(), typeBits, &create, &type), properties);
+        assert(mLibrary.poolOf(type) != nullptr && "content asked for memory that is not video memory");
 
         // Larger than half a block, an allocation of its own, as the library gives one outside a
         // pool: a block past half full with one resource is a block the next one does not fit.
@@ -320,7 +337,7 @@ namespace Rtx
         {
             // Room in a block content already holds costs the heap nothing, so it is weighed
             // against nothing: a use at its ceiling still fills the gaps its own departures left.
-            create.pool = mContentPools[type];
+            create.pool = mLibrary.poolOf(type);
             create.flags |= VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT;
             const VkResult inBlock = allocate(create, &allocation, &placed);
             if (inBlock == VK_SUCCESS)
@@ -336,7 +353,7 @@ namespace Rtx
         // New memory, which is exactly a block or exactly the resource.
         const std::uint32_t heap = mMemory.memoryTypes[type].heapIndex;
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
-        vmaGetHeapBudgets(mAllocator, budgets);
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VmaBudget& budget = budgets[heap];
         if (budget.usage + (own ? size : sBlockBytes)
             > ceilingOf(heap, use, budget.budget, budget.usage, budget.statistics.blockBytes))
@@ -366,7 +383,7 @@ namespace Rtx
     void MemoryAllocator::give(DeviceMemory& memory)
     {
         mHeld[memory.mHeap][static_cast<std::size_t>(memory.mUse)] -= memory.mSize;
-        vmaFreeMemory(mAllocator, memory.mAllocation);
+        vmaFreeMemory(mLibrary.get(), memory.mAllocation);
     }
 
     VkDeviceSize MemoryAllocator::ceilingOf(const std::uint32_t heap, const MemoryUse use, const VkDeviceSize budget,
@@ -383,11 +400,11 @@ namespace Rtx
     VkDeviceSize MemoryAllocator::getRoom(const MemoryUse use) const
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
-        vmaGetHeapBudgets(mAllocator, budgets);
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VmaBudget& budget = budgets[mVideoHeap];
 
         VmaStatistics content{};
-        vmaGetPoolStatistics(mAllocator, mContentPools[mVideoType], &content);
+        vmaGetPoolStatistics(mLibrary.get(), mLibrary.poolOf(mVideoType), &content);
 
         const VkDeviceSize ceiling
             = ceilingOf(mVideoHeap, use, budget.budget, budget.usage, budget.statistics.blockBytes);
@@ -410,13 +427,13 @@ namespace Rtx
 
     void MemoryAllocator::refreshBudget(const std::uint64_t frame)
     {
-        vmaSetCurrentFrameIndex(mAllocator, static_cast<std::uint32_t>(frame));
+        vmaSetCurrentFrameIndex(mLibrary.get(), static_cast<std::uint32_t>(frame));
     }
 
     std::size_t MemoryAllocator::getLiveCount() const
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
-        vmaGetHeapBudgets(mAllocator, budgets);
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
 
         std::size_t ranges = 0;
         for (std::uint32_t heap = 0; heap < mMemory.memoryHeapCount; ++heap)
@@ -428,7 +445,7 @@ namespace Rtx
     std::size_t MemoryAllocator::getBlockCount() const
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
-        vmaGetHeapBudgets(mAllocator, budgets);
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
 
         std::size_t blocks = 0;
         for (std::uint32_t heap = 0; heap < mMemory.memoryHeapCount; ++heap)
@@ -443,7 +460,7 @@ namespace Rtx
         out.mHeapCount = std::min<std::uint32_t>(mMemory.memoryHeapCount, MemoryReport::sMaxHeaps);
 
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
-        vmaGetHeapBudgets(mAllocator, budgets);
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
 
         for (std::uint32_t heap = 0; heap < out.mHeapCount; ++heap)
         {
@@ -466,7 +483,7 @@ namespace Rtx
         // The host-written figures are per memory type, which the budgets do not split, so this is
         // the walk over every allocation the header says a report is.
         VmaTotalStatistics statistics{};
-        vmaCalculateStatistics(mAllocator, &statistics);
+        vmaCalculateStatistics(mLibrary.get(), &statistics);
 
         for (std::uint32_t type = 0; type < mMemory.memoryTypeCount; ++type)
         {

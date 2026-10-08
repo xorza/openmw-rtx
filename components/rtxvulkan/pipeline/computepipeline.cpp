@@ -1,5 +1,8 @@
 #include "computepipeline.hpp"
 
+#include <array>
+#include <string_view>
+
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
@@ -11,7 +14,8 @@ namespace Rtx
         const std::string_view module, const std::string_view name, const std::span<const std::uint32_t> specialization)
     {
         PipelineCreation creation(device, name);
-        ShaderCode code(device);
+        const std::array<std::string_view, 1> modules{ module };
+        const ShaderCode code(device, modules);
         const Specialization constants(device, module, specialization);
 
         const VkComputePipelineCreateInfo pipeline{
@@ -20,7 +24,7 @@ namespace Rtx
             .flags = PipelineCreation::sFlags,
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(module, layout.getBindings()),
+                .pNext = code.stage(module, layout.getSetTables(), layout.getPushRange().size, specialization),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_COMPUTE_BIT,
                 .module = VK_NULL_HANDLE,
@@ -31,10 +35,10 @@ namespace Rtx
             .basePipelineHandle = VK_NULL_HANDLE,
             .basePipelineIndex = 0,
         };
-        Owned<VkPipeline, vkDestroyPipeline> handle;
-        checkVk(vkCreateComputePipelines(
-                    device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, handle.put(device)),
+        VkPipeline made = VK_NULL_HANDLE;
+        checkVk(vkCreateComputePipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &made),
             "vkCreateComputePipelines");
+        Owned<VkPipeline, vkDestroyPipeline> handle(device, made);
 
         creation.finish(handle.get());
         return handle;

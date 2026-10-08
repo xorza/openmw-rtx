@@ -96,7 +96,7 @@ namespace MWRender
         void setExtent(int width, int height) override;
         void sceneChanged() override;
         void redraw() override;
-        bool pick(float x, float y, osg::NodePath& hit) const override;
+        bool pick(float x, float y, osg::NodePath& hit) override;
 
     protected:
         unsigned int getDrawnFrame() const override;

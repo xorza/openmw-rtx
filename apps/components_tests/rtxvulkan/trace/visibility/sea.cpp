@@ -20,7 +20,6 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtx/support/wavemoments.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
@@ -32,6 +31,7 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -576,8 +576,8 @@ namespace Rtx::Testing
             const auto looking = [&](const osg::Vec2f& heading, std::vector<std::uint8_t>& pixels) {
                 const osg::Matrixf view = osg::Matrixf::lookAt(
                     osg::Vec3f(0.0f, 0.0f, 500.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f));
-                Shaders::VisibilityConstants camera
-                    = makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 100000.0f).value();
+                Shaders::VisibilityConstants camera = constantsFor(
+                    makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 100000.0f).value());
 
                 camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
                 camera.mSunDiscColour = osg::Vec3f(1.0f, 1.0f, 1.0f);

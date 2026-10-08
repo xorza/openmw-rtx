@@ -3,10 +3,13 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <string_view>
 
 #include <volk.h>
 
 #include <components/rtx/frame/debuglines.hpp>
+#include <components/rtx/renderer/framezone.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -19,6 +22,9 @@ namespace Rtx
 {
     namespace
     {
+        /// The two stages both pipelines of the pass run.
+        constexpr std::array<std::string_view, 2> sModules{ "line.vert.spv", "line.frag.spv" };
+
         /// The trace's surface channel, whose distance every fragment reads.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::LINE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
@@ -30,8 +36,10 @@ namespace Rtx
         };
 
         constexpr std::array<VkVertexInputAttributeDescription, 2> sVertexAttributes{
-            VkVertexInputAttributeDescription{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(DebugVertex, mPosition) },
-            VkVertexInputAttributeDescription{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(DebugVertex, mColour) },
+            VkVertexInputAttributeDescription{
+                Shaders::LINE_ATTRIBUTE_POSITION, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(DebugVertex, mPosition) },
+            VkVertexInputAttributeDescription{
+                Shaders::LINE_ATTRIBUTE_COLOUR, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(DebugVertex, mColour) },
         };
 
         GraphicsPipelineOptions describePipeline(VkFormat targetFormat, VkPrimitiveTopology topology)
@@ -43,15 +51,15 @@ namespace Rtx
             options.mColourFormat = targetFormat;
             options.mBlend = Blend::Over;
             options.mTopology = topology;
-            options.mVertexModule = "line.vert.spv";
-            options.mFragmentModule = "line.frag.spv";
+            options.mVertexModule = sModules[0];
+            options.mFragmentModule = sModules[1];
             options.mName = topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ? "debug lines" : "debug triangles";
             return options;
         }
     }
 
     LinePass::LinePass(const Device& device)
-        : LinePass(device, ShaderCode(device))
+        : LinePass(device, ShaderCode(device, sModules))
     {
     }
 
@@ -61,7 +69,7 @@ namespace Rtx
     {
     }
 
-    void LinePass::record(const VkCommandBuffer commands, const Lines& what) const
+    void LinePass::record(const VkCommandBuffer commands, const Lines& what, GpuTimer* timer) const
     {
         const Image& target = what.mTarget;
         const Image& surface = what.mSurface;
@@ -77,6 +85,8 @@ namespace Rtx
 
         if (lineCount == 0 && triangleCount == 0)
             return;
+
+        const GpuZone timed(timer, commands, FrameZone::Lines);
 
         // `line.vert` writes Vulkan's own clip space, `+Y` down as the picture is indexed.
         beginDrawingOver(commands, target, ClipUp::Down, Underneath::Kept);

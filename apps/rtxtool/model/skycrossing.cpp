@@ -5,7 +5,7 @@
 
 namespace RtxTool
 {
-    SkyCrossing::SkyCrossing(const std::uint32_t from, const std::uint32_t to, const float crossed)
+    SkyCrossing::SkyCrossing(const Rtx::Weather from, const Rtx::Weather to, const float crossed)
         : mFrom(from)
         , mTo(to)
         , mCrossed(crossed)
@@ -17,7 +17,7 @@ namespace RtxTool
             settle(to);
     }
 
-    void SkyCrossing::ask(const std::uint32_t weather)
+    void SkyCrossing::ask(const Rtx::Weather weather)
     {
         if (weather == mTo)
             return;
@@ -35,7 +35,7 @@ namespace RtxTool
             settle(weather);
     }
 
-    void SkyCrossing::settle(const std::uint32_t weather)
+    void SkyCrossing::settle(const Rtx::Weather weather)
     {
         mFrom = weather;
         mTo = weather;
@@ -54,7 +54,7 @@ namespace RtxTool
             settle(mTo);
     }
 
-    std::size_t SkyCrossing::stepAmong(const std::span<const std::uint32_t> rolled, const int steps) const
+    std::size_t SkyCrossing::stepAmong(const std::span<const Rtx::Weather> rolled, const int steps) const
     {
         assert(!rolled.empty() && "a step among no weathers");
 

@@ -20,35 +20,6 @@ namespace Rtx
         return Semaphore::make(device, vkCreateSemaphore, create, "vkCreateSemaphore");
     }
 
-    Immediate<VkSemaphore, vkDestroySemaphore> makeTimelineSemaphore(const Device& device, const std::string_view name)
-    {
-        const VkSemaphoreTypeCreateInfo type{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-            .pNext = nullptr,
-            .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-            .initialValue = 0,
-        };
-        const VkSemaphoreCreateInfo create{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = &type,
-            .flags = 0,
-        };
-        Immediate<VkSemaphore, vkDestroySemaphore> handle = Immediate<VkSemaphore, vkDestroySemaphore>::make(
-            device.getHandle(), vkCreateSemaphore, create, "vkCreateSemaphore");
-        device.setName(handle.get(), name);
-        return handle;
-    }
-
-    Fence makeSignalledFence(const Device& device)
-    {
-        const VkFenceCreateInfo create{
-            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
-        };
-        return Fence::make(device, vkCreateFence, create, "vkCreateFence");
-    }
-
     namespace
     {
         /// `bindings`, and the census after them where `counted`: past every binding a pass numbers.
@@ -180,7 +151,14 @@ namespace Rtx
     {
         assert(push.offset == 0 && "a push range that does not start at nought");
 
-        std::array<VkDescriptorSetLayout, Shaders::SET_COUNT> sets = shared.byNumber();
+        std::array<VkDescriptorSetLayout, Shaders::SET_COUNT> sets{};
+        const std::array<const SetLayout*, Shaders::SET_COUNT> named = shared.byNumber();
+        for (std::uint32_t set = 0; set < Shaders::SET_COUNT; ++set)
+            if (named[set] != nullptr)
+            {
+                sets[set] = named[set]->get();
+                mShared[set] = named[set]->getBindings();
+            }
         sets[Shaders::SET_PASS] = mSetLayout.get();
 
         for (std::uint32_t set = 0; set < Shaders::SET_COUNT; ++set)
@@ -203,5 +181,15 @@ namespace Rtx
         };
         mHandle = Owned<VkPipelineLayout, vkDestroyPipelineLayout>::make(
             device, vkCreatePipelineLayout, pipelineLayout, "vkCreatePipelineLayout");
+    }
+
+    SetTables PipelineLayout::getSetTables() const
+    {
+        SetTables tables{};
+        for (std::uint32_t set = 0; set < Shaders::SET_COUNT; ++set)
+            if (mShared[set].has_value())
+                tables[set] = &*mShared[set];
+        tables[Shaders::SET_PASS] = &mOwn;
+        return tables;
     }
 }

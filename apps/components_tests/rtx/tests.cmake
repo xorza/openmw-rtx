@@ -2,9 +2,8 @@
 # device and fails where there is none, so a box without a driver cannot pass by skipping.
 # `RTX_TEST_SUPPORT` goes into both binaries, `RTX_GPU_TEST_SUPPORT` into the second.
 set(RTX_TEST_FILES
-    rtx/scene/nifsurface.cpp
     myguirtx/sharedtexture.cpp
-    platform/process.cpp
+    platform/linuxtext.cpp
     rtx/common/hashstate.cpp
     rtx/common/job.cpp
     rtx/common/monitor.cpp
@@ -15,15 +14,10 @@ set(RTX_TEST_FILES
     rtx/common/slots.cpp
     rtx/common/stepped.cpp
     rtx/common/worker.cpp
-    rtx/environment/atmosphere.cpp
-    rtx/environment/cloudshell.cpp
-    rtx/environment/fogbuilder.cpp
-    rtx/environment/frameworld.cpp
-    rtx/environment/moonbuilder.cpp
-    rtx/environment/nightsky.cpp
+    rtx/environment/atmospheremesh.cpp
+    rtx/environment/cloudmesh.cpp
     rtx/environment/skybuilder.cpp
-    rtx/environment/skylight.cpp
-    rtx/environment/sun.cpp
+    rtx/environment/starmesh.cpp
     rtx/environment/wavecascade.cpp
     rtx/environment/wavespectrum.cpp
     rtx/frame/bluenoise.cpp
@@ -53,8 +47,10 @@ set(RTX_TEST_FILES
     rtx/mirror/extractor/skinning.cpp
     rtx/mirror/extractor/stats.cpp
     rtx/mirror/extractor/walk.cpp
+    rtx/mirror/lightbuilder.cpp
     rtx/mirror/meshreader.cpp
     rtx/mirror/mirroridentity.cpp
+    rtx/mirror/nifsurface.cpp
     rtx/mirror/nodekind.cpp
     rtx/mirror/shading.cpp
     rtx/mirror/statereading.cpp
@@ -70,7 +66,6 @@ set(RTX_TEST_FILES
     rtx/renderer/shaderdirectory.cpp
     rtx/scene/compositequeue.cpp
     rtx/scene/instancerecord.cpp
-    rtx/scene/lightbuilder.cpp
     rtx/scene/lightgrid.cpp
     rtx/scene/refusals.cpp
     rtx/scene/scenedesc.cpp
@@ -83,6 +78,11 @@ set(RTX_TEST_FILES
     rtx/sourcetree.cpp
     rtx/support/halfstep.cpp
     rtx/view/offscreentrace.cpp
+    rtx/world/fogbuilder.cpp
+    rtx/world/frameworld.cpp
+    rtx/world/moon.cpp
+    rtx/world/skylight.cpp
+    rtx/world/sun.cpp
     rtxtool/benchrecord.cpp
     rtxtool/benchrun.cpp
     rtxtool/benchspec.cpp
@@ -100,6 +100,7 @@ set(RTX_TEST_FILES
     rtxtool/frametimes.cpp
     rtxtool/gpuclock.cpp
     rtxtool/homekey.cpp
+    rtxtool/noise.cpp
     rtxtool/numbervalue.cpp
     rtxtool/measurewindow.cpp
     rtxtool/options.cpp
@@ -125,7 +126,7 @@ set(RTX_TEST_FILES
     rtxvulkan/shaders/sharedconstants.cpp
     rtxvulkan/shaders/shadow.cpp
     rtxvulkan/pipeline/passbindings.cpp
-    rtxvulkan/spirv/spirvbindings.cpp
+    rtxvulkan/spirv/spirvinterface.cpp
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
@@ -152,6 +153,10 @@ set(RTX_TEST_SUPPORT
     rtx/support/instanceobstacle.hpp
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
+    rtx/support/mipchain.cpp
+    rtx/support/mipchain.hpp
+    rtx/support/ownedtexture.cpp
+    rtx/support/ownedtexture.hpp
     rtx/support/pngtext.hpp
     rtx/support/sceneholds.hpp
     rtx/support/spritelightbake.cpp
@@ -188,10 +193,11 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/probe.cpp
     rtxvulkan/device/readstamp.cpp
     rtxvulkan/display/bloompass.cpp
-    rtxvulkan/display/digestpass.cpp
     rtxvulkan/display/exposurepass.cpp
+    rtxvulkan/digestpass.cpp
     rtxvulkan/framering.cpp
     rtxvulkan/frames.cpp
+    rtxvulkan/present/presentfence.cpp
     rtxvulkan/gui/guipass.cpp
     rtxvulkan/gui/guitextures.cpp
     rtxvulkan/pipeline/computepipeline.cpp
@@ -241,10 +247,9 @@ endif()
 
 target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})
 
-# Vulkan too, for the tests that reach into the backend's headers, and the SPIR-V headers, for the
-# tests that write a module by hand.
+# Vulkan too, for the tests that reach into the backend's headers, and the SPIR-V library, whose
+# headers carry the opcodes the tests that write a module by hand spell.
 target_link_libraries(components-tests openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api)
-target_include_directories(components-tests SYSTEM PRIVATE "${OPENMW_SPIRV_HEADERS}")
 
 # Where the build wrote the shaders, told to the two test binaries alone: a build-tree path is no
 # fact about the backend.
@@ -259,7 +264,7 @@ target_link_libraries(rtx-gpu-tests
     GTest::GTest
     GMock::GMock
     components
-    openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-vulkan-api
+    openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api
 )
 target_compile_definitions(rtx-gpu-tests
     PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"

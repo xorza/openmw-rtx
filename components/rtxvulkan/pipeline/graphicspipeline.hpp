@@ -84,8 +84,8 @@ namespace Rtx
 
     /// A graphics pipeline's handle against `layout`: the part of `GraphicsPipeline` its constants
     /// do not decide.
-    Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(
-        const Device& device, const PipelineLayout& layout, const GraphicsPipelineOptions& options, ShaderCode& code);
+    Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(const Device& device, const PipelineLayout& layout,
+        const GraphicsPipelineOptions& options, const ShaderCode& code);
 
     /// A graphics pipeline and its layout, pushed a `Constants` to both stages. The one thing in
     /// this backend that is not compute, because there is nothing to be gained by tracing a font
@@ -96,19 +96,12 @@ namespace Rtx
     public:
         /// @param code where the stages' files are read, shared by the pipelines a pass makes of
         ///        one pair of modules.
-        GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options, ShaderCode& code)
-            : GraphicsPipeline(device,
+        GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options, const ShaderCode& code)
+            : TypedPipeline<Constants>(
                 PipelineLayout(device, options.mBindings,
                     pushRangeOf<Constants>(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT), {}),
-                options, code)
-        {
-        }
-
-    private:
-        GraphicsPipeline(
-            const Device& device, PipelineLayout&& layout, const GraphicsPipelineOptions& options, ShaderCode& code)
-            : TypedPipeline<Constants>(
-                std::move(layout), makeGraphicsPipeline(device, layout, options, code), VK_PIPELINE_BIND_POINT_GRAPHICS)
+                [&](const PipelineLayout& layout) { return makeGraphicsPipeline(device, layout, options, code); },
+                VK_PIPELINE_BIND_POINT_GRAPHICS)
         {
         }
     };

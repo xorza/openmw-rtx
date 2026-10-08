@@ -17,9 +17,9 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -247,7 +247,8 @@ namespace Rtx
         return ground.mLayers.mCount > 1 && !inActiveGrid(cell, around.mActiveGrid);
     }
 
-    HeldCell& CellPlacer::hold(const PreparedCell& cell, const WorldAround& around, ExtractionStats& stats)
+    void CellPlacer::holdCell(
+        const PreparedCell& cell, const WorldAround& around, ExtractionStats& stats, CellHolds& holds)
     {
         // A spare comes back through `reuse`, so what it holds is room and nothing else.
         HeldCell held = mSpareCells.take();
@@ -255,10 +256,11 @@ namespace Rtx
         held.mStatics = cell.mStatics;
 
         adoptGround(cell, held, around, stats);
+        held.mModels.assign(cell.mModels.begin(), cell.mModels.end());
+        adoptPlacements(cell, held, holds);
 
         [[maybe_unused]] const auto [at, fresh] = mCells.insert(std::move(held));
         assert(fresh && "a cell adopted twice");
-        return *at;
     }
 
     void CellPlacer::adoptGround(
@@ -346,6 +348,24 @@ namespace Rtx
         ++stats.mMaterialsAdded;
     }
 
+    void CellPlacer::appendPlacements(const PreparedModel& model, const CellHolds::HeldModel& adopted,
+        const PreparedRef& ref, const ReferenceState& state, std::vector<Placement>& into)
+    {
+        for (std::size_t at = 0; at < adopted.mParts.size(); ++at)
+            into.push_back(Placement{
+                .mStood = {
+                    .mMesh = adopted.mParts[at].mMesh,
+                    .mMaterial = adopted.mParts[at].mMaterial,
+                    .mTransform = model.mParts[at].mLocal * ref.mTransform,
+                    .mLampBody = ref.mLampBody,
+                },
+                .mRadius = ref.mRadius,
+                .mModes = model.mParts[at].mModes,
+                .mDrawable = model.mParts[at].mDrawable.get(),
+                .mState = state,
+            });
+    }
+
     void CellPlacer::adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds)
     {
         held.mPlacements.clear();
@@ -354,22 +374,7 @@ namespace Rtx
         for (const PreparedRef& ref : cell.mRefs)
         {
             const PreparedModel& model = *cell.mModels[ref.mModel];
-            const CellHolds::HeldModel& adopted = holds.knownOf(model);
-            const ReferenceState state = heard(ref.mRefNum, ref.mGate);
-
-            for (std::size_t at = 0; at < adopted.mParts.size(); ++at)
-                held.mPlacements.push_back(Placement{
-                    .mStood = {
-                        .mMesh = adopted.mParts[at].mMesh,
-                        .mMaterial = adopted.mParts[at].mMaterial,
-                        .mTransform = model.mParts[at].mLocal * ref.mTransform,
-                        .mLampBody = ref.mLampBody,
-                    },
-                    .mRadius = ref.mRadius,
-                    .mModes = model.mParts[at].mModes,
-                    .mDrawable = model.mParts[at].mDrawable.get(),
-                    .mState = state,
-                });
+            appendPlacements(model, holds.knownOf(model), ref, heard(ref.mRefNum, ref.mGate), held.mPlacements);
         }
 
         // Largest first, once, so the size rule's answer is a prefix on every walk after this.
@@ -460,19 +465,10 @@ namespace Rtx
 
         for (const PreparedRef& ref : grass.mRefs)
         {
+            // A grass reference is no lamp and has no radius: the reader reads it with neither.
             const PreparedModel& model = *grass.mModels[ref.mModel];
-            const CellHolds::HeldModel& adopted = holds.knownOf(model);
-            for (std::size_t at = 0; at < adopted.mParts.size(); ++at)
-                held.mPlacements.push_back(Placement{
-                    .mStood = {
-                        .mMesh = adopted.mParts[at].mMesh,
-                        .mMaterial = adopted.mParts[at].mMaterial,
-                        .mTransform = model.mParts[at].mLocal * ref.mTransform,
-                    },
-                    .mModes = model.mParts[at].mModes,
-                    .mDrawable = model.mParts[at].mDrawable.get(),
-                    .mState = ReferenceState{ .mRefNum = ref.mRefNum },
-                });
+            appendPlacements(
+                model, holds.knownOf(model), ref, ReferenceState{ .mRefNum = ref.mRefNum }, held.mPlacements);
         }
         held.mModels.assign(grass.mModels.begin(), grass.mModels.end());
 

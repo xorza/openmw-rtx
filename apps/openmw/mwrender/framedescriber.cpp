@@ -3,8 +3,6 @@
 #include <cassert>
 #include <optional>
 
-#include <osg/Camera>
-
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/actorutil.hpp>
@@ -16,10 +14,7 @@
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
-#include "camera.hpp"
 #include "fogmanager.hpp"
-#include "renderer.hpp"
-#include "renderingmanager.hpp"
 #include "sky.hpp"
 
 namespace MWRender
@@ -107,6 +102,7 @@ namespace MWRender
             .mJumped = mJumped,
         });
 
+        mDescribed = true;
         return *mFrame;
     }
 
@@ -114,56 +110,5 @@ namespace MWRender
     {
         assert(mFrame.has_value() && "a frame is described before it is drawn");
         return *mFrame;
-    }
-
-    // **`RenderingManager`'s three frame members, defined here and not in its own file**, so that
-    // file reads as upstream's with the seam edits and nothing else: everything below is what this
-    // fork added to the class, and all of it is about the describer above.
-
-    EyeState RenderingManager::describeEye() const
-    {
-        return EyeState{
-            .mNearClip = mNearClip,
-            .mViewDistance = mViewDistance,
-            .mScriptViewDistance
-            = mViewDistance != Settings::camera().mViewingDistance ? std::optional<float>(mViewDistance) : std::nullopt,
-            .mFieldOfView = getFieldOfView(),
-            .mArmsFieldOfView = mFirstPersonFieldOfView,
-        };
-    }
-
-    void RenderingManager::describeFrame()
-    {
-        mRenderer.describeFrame(mFrame.describe(FrameSources{
-            .mScene = *mSceneRoot,
-            .mWhen = mRenderer.getFrameStamp(),
-            .mSun = *mSunLight,
-            .mAmbientBeforeNightEye = mAmbientColor,
-            .mFog = *mFog,
-            .mEyePosition = mCamera->getPosition(),
-            .mPrecipitation = *mPrecipitation,
-            .mTerrain = *mTerrain,
-            .mObjectStorage = mObjectStorage,
-            .mEye = describeEye(),
-        }));
-    }
-
-    void RenderingManager::renderFrame()
-    {
-        // **Where the eye is, told to the precipitation before the draw**, so the underwater
-        // switch that freezes the rain reads this frame's eye and not the point a traversal last
-        // left. Here and not in `describeFrame`, because `Camera::updateCamera` writes the view
-        // matrix from the update traversal, which runs between the two.
-        const osg::Camera& camera = mRenderer.getCamera();
-        mPrecipitation->setViewPoint(camera.getInverseViewMatrix().getTrans());
-
-        mRenderer.renderFrame(mFrame.get());
-        mFrame.clearJumped();
-    }
-
-    void RenderingManager::notifyJumped(const MWWorld::Ptr& ptr)
-    {
-        if (const osg::Node* node = ptr.getRefData().getBaseNode())
-            mFrame.noteJumped(*node);
     }
 }

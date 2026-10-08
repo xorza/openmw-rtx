@@ -131,17 +131,23 @@ the window's size there, has it moved to the window on the first start, and the 
   clock and not its time scale; and a content script's message box logged rather than shown
   (`WindowManager::scriptMessageBox`, `showsScriptMessageBoxes`), since a box pauses the world and a
   measured run does not stop for an answer.
+- The scripts' `math.random` seeded where the harness seeds the world's generators
+  (`LuaUtil::LuaState::seedRandom`, `MWBase::LuaManager::seedRandom`): the engine seeds it from
+  the clock, and the fish `cellhandlers.lua` spawns in an exterior met for the first time stood
+  elsewhere in every run, and drew another list of the world's levelled creatures after them.
 - What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
   handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
   renderer draws rain the other hides.
 - The renderer's answer to what it declines (`Renderer::support`), asked where the console, Lua and
   the settings window would otherwise toggle what does nothing under it, and `ToggleBorders` under
   the ray tracer.
-- Three faults the user approved fixing: `Files::LinuxPath` took a failed `read_symlink` for the
+- Four faults the user approved fixing: `Files::LinuxPath` took a failed `read_symlink` for the
   executable's path (`ec.value() != -1` holds for every error), the SDL3 port truncated a
-  window's size over its pixel density where `SDLUtil::windowPoints` rounds, and
+  window's size over its pixel density where `SDLUtil::windowPoints` rounds,
   `cmake/FindOSGPlugins.cmake` restored `CMAKE_FIND_LIBRARY_PREFIXES` unquoted, which dropped
-  MSVC's empty prefix and left every later `find_library` blind to `bz2.lib`.
+  MSVC's empty prefix and left every later `find_library` blind to `bz2.lib`, and
+  `SDLUtil::InputWrapper` logged an unhandled event's type in hex without `std::dec` after it,
+  which left every later number the log printed in hex.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
@@ -217,7 +223,7 @@ the core is a bug whether or not a second backend ever arrives.
 - `./omw repeat --pairs=10` after touching anything a frame reads: two processes walk
   `one-cell-walk` for six seconds with the upscaler and the denoiser off, the second with the queue
   held behind the host, and must agree frame for frame. A pair that finds nothing has found nothing.
-  Read a difference with `--exposure=1` and `--pictures=<dir>`.
+  Read a difference with `--exposure=1` and `--pictures`.
 - **The denoised frame is not bit-exact on this card** (`docs/rtx/architecture.md`; notes in
   `6b3978a065`): under a busy queue, the first wavelet dispatch after a pipeline drain sometimes
   differs by an ulp on identical inputs, one level of 255. The card's, not a missing barrier.

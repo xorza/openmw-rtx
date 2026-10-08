@@ -3,7 +3,6 @@
 #include <array>
 #include <charconv>
 #include <optional>
-#include <string>
 #include <string_view>
 
 #include <osg/AlphaFunc>
@@ -24,6 +23,7 @@
 #include <osg/Uniform>
 #include <osg/Vec4f>
 
+#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/texturetype.hpp>
@@ -81,18 +81,6 @@ namespace Rtx
             }
 
             return std::nullopt;
-        }
-
-        /// A uniform by name and the flags it was set with, without building a `std::string` where
-        /// the list is empty — which it is on nearly every state set a walk meets.
-        const osg::StateSet::RefUniformPair* uniformNamed(const osg::StateSet& stateSet, std::string_view name)
-        {
-            const osg::StateSet::UniformList& list = stateSet.getUniformList();
-            if (list.empty())
-                return nullptr;
-
-            const auto found = list.find(std::string(name));
-            return found != list.end() ? &found->second : nullptr;
         }
 
         /// How a `BlendFunc` composites. A destination of `ONE` adds, and so does `DST_ALPHA`,
@@ -368,7 +356,7 @@ namespace Rtx
             prefix.copy(name.data(), prefix.size());
             const char* const end = std::to_chars(name.data() + prefix.size(), name.data() + name.size(), unit).ptr;
 
-            const osg::StateSet::RefUniformPair* uniform = uniformNamed(stateSet, std::string_view(name.data(), end));
+            const osg::StateSet::RefUniformPair* uniform = findUniform(stateSet, std::string_view(name.data(), end));
             if (uniform == nullptr || !SurfaceLocks::takes(locks.mTextureMatrix, uniform->second))
                 return;
 
@@ -469,7 +457,7 @@ namespace Rtx
         {
             const auto* alpha = static_cast<const osg::AlphaFunc*>(tested->first.get());
             float reference = alpha->getReferenceValue();
-            if (const osg::StateSet::RefUniformPair* carried = uniformNamed(stateSet, "alphaRef"))
+            if (const osg::StateSet::RefUniformPair* carried = findUniform(stateSet, "alphaRef"))
                 carried->first->get(reference);
 
             // A test that cuts nothing is no test, and is one value whatever its reference: two
@@ -509,14 +497,14 @@ namespace Rtx
         // What `NifOsg::AlphaController` animates. `MWRender::TransparencyUpdater` writes the same
         // name beside `actorFade` to fade a whole actor, which is not the surface's own opacity and
         // is read by the walk as a fade instead.
-        if (const osg::StateSet::RefUniformPair* animated = uniformNamed(stateSet, "alpha"))
-            if (uniformNamed(stateSet, "actorFade") == nullptr && SurfaceLocks::takes(locks.mAlpha, animated->second))
+        if (const osg::StateSet::RefUniformPair* animated = findUniform(stateSet, "alpha"))
+            if (findUniform(stateSet, "actorFade") == nullptr && SurfaceLocks::takes(locks.mAlpha, animated->second))
                 animated->first->get(material.mOpacity);
 
         // What `NifOsg` sets white under a `NiTextureEffect` and `SceneUtil::GlowUpdater` sets to
         // the enchantment's colour. Read on its own lock rather than the texture's, because the
         // glow updater rewrites the texture every frame and the colour once.
-        if (const osg::StateSet::RefUniformPair* tint = uniformNamed(stateSet, "envMapColor"))
+        if (const osg::StateSet::RefUniformPair* tint = findUniform(stateSet, "envMapColor"))
             if (SurfaceLocks::takes(locks.mEnvironmentColour, tint->second))
             {
                 osg::Vec4f colour;
@@ -525,7 +513,7 @@ namespace Rtx
             }
 
         // The ambient the game overrides for a magic effect — `SceneUtil::configureSunAmbientOverride`.
-        if (const osg::StateSet::RefUniformPair* ambient = uniformNamed(stateSet, "sun.ambient"))
+        if (const osg::StateSet::RefUniformPair* ambient = findUniform(stateSet, "sun.ambient"))
             if (SurfaceLocks::takes(locks.mAmbientOverride, ambient->second))
             {
                 osg::Vec4f colour;
@@ -564,5 +552,14 @@ namespace Rtx
                 return true;
 
         return false;
+    }
+
+    const osg::StateSet::RefUniformPair* findUniform(const osg::StateSet& stateSet, std::string_view name)
+    {
+        for (const auto& [held, uniform] : stateSet.getUniformList())
+            if (held == name)
+                return &uniform;
+
+        return nullptr;
     }
 }

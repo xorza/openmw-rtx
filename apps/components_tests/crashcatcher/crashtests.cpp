@@ -119,13 +119,16 @@ namespace CrashTests
             }
         }
 
-        /// The modes whose monitor is asked whether to end the game, and answers End after this many
-        /// milliseconds: long enough that the game has drawn again, or ended, by then.
-        constexpr std::string_view sEndAfterMs = "2500";
-
-        bool answersEnd(std::string_view mode)
+        /// After how many milliseconds a mode's monitor answers End, or nothing for one nobody
+        /// answers: long enough that the game has drawn again, or ended, by then; and at once for the
+        /// one that tests an End landing on its report.
+        std::optional<std::string_view> endAfterOf(std::string_view mode)
         {
-            return mode == "recovers-before-end" || mode == "ends-before-end";
+            if (mode == "recovers-before-end" || mode == "ends-before-end")
+                return "2500";
+            if (mode == "ended-in-report")
+                return "1";
+            return std::nullopt;
         }
 
         /// **Started the way the game starts**: `wrapApplication` starts the catcher with its reports in
@@ -251,6 +254,18 @@ namespace CrashTests
                     Crash::heartbeat();
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
+                return livedOn();
+            }
+            if (mode == "ended-in-report")
+            {
+                // Frames, and then none ever again: the monitor ends it.
+                for (int i = 0; i < 5; ++i)
+                {
+                    Crash::heartbeat();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+                Log(Debug::Info) << "crash-tests stood still";
+                std::this_thread::sleep_for(std::chrono::seconds(30));
                 return livedOn();
             }
             if (mode == "ends-before-end")
@@ -633,10 +648,9 @@ int main(int argc, char* argv[])
         // **Under a folder that is not there yet**, as the game's first start on a fresh box has it:
         // every mode then also proves the catcher makes the whole path before its monitor needs it.
         Platform::Process::setEnvironmentPath("OPENMW_CRASH_REPORTS", folder / "user data" / "crashes");
-        Platform::Process::setEnvironment("OPENMW_CRASH_DIALOG", CrashTests::answersEnd(mode) ? "1" : "0");
-        if (CrashTests::answersEnd(mode))
-            Platform::Process::setEnvironment(
-                "OPENMW_CRASH_END_AFTER_MS", std::string(CrashTests::sEndAfterMs).c_str());
+        Platform::Process::setEnvironment("OPENMW_CRASH_DIALOG", "0");
+        if (const std::optional<std::string_view> after = CrashTests::endAfterOf(mode))
+            Platform::Process::setEnvironment("OPENMW_CRASH_END_AFTER_MS", std::string(*after).c_str());
         CrashTests::prepareModeOfThisSystem(mode);
 
         const int ended = Debug::wrapApplication(

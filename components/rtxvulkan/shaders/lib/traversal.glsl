@@ -363,7 +363,7 @@ struct Candidate
 const uint MEET_WALK_PAST = 0u;
 
 /// **Met as often as it is there**, and passed otherwise: every ray that commits a hit and shades it —
-/// a bounce, a reflection, a refraction, the reuse's rays. Met every time, a pane the eye sees
+/// a bounce, a reflection, a refraction. Met every time, a pane the eye sees
 /// through stood solid in each of them; met by chance, their mean is the blend the eye draws.
 const uint MEET_BY_CHANCE = 1u;
 
@@ -883,26 +883,6 @@ float solidWithin(WorldRay ray, float tmin, float reach, Cone cone)
     return surfaceWithin(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), MEET_BY_CHANCE, false));
 }
 
-/// Whether a solid stands along `ray` between `tmin` and `reach`: a yes or a no, for a ray between
-/// two points that only asks whether one sees the other, as the bounce's reuse asks of a sample.
-///
-/// **The first solid that stops the ray ends the search, and its cutout is read at the finest
-/// level**, the shadow rays' two rules (`passageToward`): an answer that needs no nearest hit pays
-/// for none, and the level is what a width of nought answers at once. Measured on the bounce's
-/// resolve at the guild, 1.17 ms against 1.08 with both; the first hit alone was 1.15. Solids from
-/// either face, as the bounce's own ray meets them.
-bool solidBetween(WorldRay ray, float tmin, float reach)
-{
-    rayQueryEXT query;
-    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, solidMask(frame.mRayMask), ray.mFrom,
-        tmin, ray.mAlong, reach);
-
-    uint blocked = 0u;
-    RTX_RESOLVE(query, ray.mAlong, 0.0, blocked, MEET_BY_CHANCE, false)
-
-    return rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
-}
-
 /// What a ray found, resolved down to the inputs shading needs.
 ///
 /// Geometry and material only — no light. That is what lets water shade by tracing again: the
@@ -1193,7 +1173,11 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
         const vec3 painted = sampleNormalMap(material.mNormal, point);
         lostSlopes += normalMapSlopes(material.mNormal, point);
-        const vec3 mapped = normalize(tangent * painted.x + bitangent * painted.y + normal * painted.z);
+        // A texel of (0.5, 0.5, 0.5) decodes to no direction at all, as the plane and the shading
+        // normal above may be: the plane stands in, where a normalised zero was a NaN in every
+        // history that read it.
+        const vec3 carried = tangent * painted.x + bitangent * painted.y + normal * painted.z;
+        const vec3 mapped = dot(carried, carried) > 0.0 ? normalize(carried) : surface.mGeometric;
 
         surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction);
     }
@@ -1285,8 +1269,9 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         // is what a path tracer can afford, and it parts from that only where the masks blend.
         if (HAS_MAPS && relief)
         {
-            const vec3 mapped
-                = normalize(layerTangent * painted.x + layerBitangent * painted.y + normal * painted.z);
+            // The plane where the sum points nowhere, as for a single map above.
+            const vec3 carried = layerTangent * painted.x + layerBitangent * painted.y + normal * painted.z;
+            const vec3 mapped = dot(carried, carried) > 0.0 ? normalize(carried) : surface.mGeometric;
 
             surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction);
         }

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 #include <volk.h>
 
@@ -20,6 +21,9 @@ namespace Rtx
 {
     namespace
     {
+        /// The two stages every pipeline of the pass runs.
+        constexpr std::array<std::string_view, 2> sModules{ "gui.vert.spv", "gui.frag.spv" };
+
         /// One texture, pushed per batch. Nothing else: a GUI vertex carries its own colour and
         /// its own position, and there is no transform to hand down.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
@@ -35,9 +39,12 @@ namespace Rtx
         /// makes MyGUI's own packing free to consume: `ColourABGR` puts red in the low byte, which
         /// is what `R8G8B8A8_UNORM` reads first.
         constexpr std::array<VkVertexInputAttributeDescription, 3> sVertexAttributes{
-            VkVertexInputAttributeDescription{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GuiVertex, mX) },
-            VkVertexInputAttributeDescription{ 1, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(GuiVertex, mColour) },
-            VkVertexInputAttributeDescription{ 2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) },
+            VkVertexInputAttributeDescription{
+                Shaders::GUI_ATTRIBUTE_POSITION, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GuiVertex, mX) },
+            VkVertexInputAttributeDescription{
+                Shaders::GUI_ATTRIBUTE_COLOUR, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(GuiVertex, mColour) },
+            VkVertexInputAttributeDescription{
+                Shaders::GUI_ATTRIBUTE_TEXCOORD, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) },
         };
 
         /// `gui.frag`'s table, which says the texture's `AlphaForm`.
@@ -63,8 +70,8 @@ namespace Rtx
             options.mBlend = blend;
             options.mSource = source;
             options.mSpecialization = premultiplied ? sPremultiplied : sStraight;
-            options.mVertexModule = "gui.vert.spv";
-            options.mFragmentModule = "gui.frag.spv";
+            options.mVertexModule = sModules[0];
+            options.mFragmentModule = sModules[1];
             if (blend == Blend::None)
                 options.mName = "gui picture";
             else if (blend == Blend::Additive)
@@ -76,7 +83,7 @@ namespace Rtx
     }
 
     GuiPass::GuiPass(const Device& device)
-        : GuiPass(device, ShaderCode(device))
+        : GuiPass(device, ShaderCode(device, sModules))
     {
     }
 

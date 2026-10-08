@@ -13,14 +13,14 @@ namespace Rtx
     {
         holdTextures(textures, material);
 
-        const Index index = mRows.take(material);
+        const Index index = takeRow(material);
         note(index);
         return index;
     }
 
     bool MaterialTable::set(TextureTable& textures, Index material, const Material& what)
     {
-        Material& row = mRows.at(material);
+        Material& row = rowAt(material);
         if (row == what)
             return false;
 
@@ -46,7 +46,7 @@ namespace Rtx
 
     void MaterialTable::note(Index slot)
     {
-        mWritten.grow(mRows.size());
+        mWritten.grow(size());
         mWritten.add(slot);
     }
 
@@ -85,10 +85,10 @@ namespace Rtx
 
     void MaterialTable::drop(TextureTable& textures, const Index material)
     {
-        if (!mRows.drop(material))
+        if (!dropRow(material))
             return;
 
-        Material& going = mRows.at(material);
+        Material& going = rowAt(material);
 
         // What it named goes with it, and before its layer run does: the run is what says which
         // textures those were, and it is about to be handed to an allocator that will let the next
@@ -105,7 +105,7 @@ namespace Rtx
         mLayers.release(going.mLayers);
 
         going = Material{};
-        mRows.free(material);
+        freeRow(material);
     }
 
     void MaterialTable::clearArrivals()

@@ -163,6 +163,82 @@ namespace Rtx
             EXPECT_TRUE(PipelineCache::accepts(grown, properties).isOk()) << "exactly what is kept";
         }
 
+        /// **A file is read back only whole, and only by the device and the driver that wrote it**;
+        /// and a folder that cannot be read starts the cache empty rather than failing.
+        ///
+        /// A cache with nothing compiled into it is written by its own destructor, and read back.
+        /// Then copies of that file, each wrong in one way the driver's own header cannot show: a
+        /// body cut short, a body byte flipped, another driver version, and a file in the format
+        /// before this one, which opens with the driver's blob. **The offsets are written out
+        /// again**, for the reason the blob test gives: the format's magic at nought, the driver's
+        /// version at twenty, and sixty-four bytes of header in all.
+        TEST_F(RtxPipelineCacheTest, aFileIsReadBackOnlyWholeAndByItsOwnDriver)
+        {
+            const std::filesystem::path scratch = TestingOpenMW::outputFilePath("cache-file-test");
+            std::filesystem::remove_all(scratch);
+            const std::filesystem::path cacheDirectory = scratch / "cache";
+            const VkPhysicalDeviceProperties& properties = deviceProperties();
+            const auto made = [&] {
+                return PipelineCache(getDevice().getHandle(), properties,
+                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, Testing::getShaderDirectory());
+            };
+
+            {
+                const PipelineCache written = made();
+            }
+            const std::vector<std::string> files = filesIn(cacheDirectory);
+            ASSERT_EQ(files.size(), 1u) << "the destructor wrote the cache";
+            const std::filesystem::path path = cacheDirectory / files.front();
+
+            const Misc::Result<std::vector<std::uint8_t>, std::string_view> whole
+                = PipelineCache::read(path, properties);
+            ASSERT_TRUE(whole.isOk()) << whole.error();
+            EXPECT_EQ(whole.value(), deviceBlob()) << "the body is the driver's blob as it stood";
+
+            std::vector<char> bytes;
+            {
+                std::ifstream reading(path, std::ios::binary);
+                bytes.assign(std::istreambuf_iterator<char>(reading), std::istreambuf_iterator<char>());
+            }
+            ASSERT_EQ(bytes.size(), 64 + whole.value().size());
+
+            const auto readAs = [&](const std::vector<char>& file) {
+                const std::filesystem::path copy = scratch / "copy.pipelinecache";
+                std::ofstream(copy, std::ios::binary | std::ios::trunc)
+                    .write(file.data(), static_cast<std::streamsize>(file.size()));
+                const Misc::Result<std::vector<std::uint8_t>, std::string_view> read
+                    = PipelineCache::read(copy, properties);
+                return read.isOk() ? std::string_view("read") : read.error();
+            };
+
+            std::vector<char> truncated = bytes;
+            truncated.pop_back();
+            EXPECT_EQ(readAs(truncated), "holds another length than its header says");
+
+            std::vector<char> flipped = bytes;
+            flipped.back() = static_cast<char>(flipped.back() ^ 0x01);
+            EXPECT_EQ(readAs(flipped), "holds another body than its header says");
+
+            std::vector<char> updated = bytes;
+            updated.at(20) = static_cast<char>(updated.at(20) ^ 0x01);
+            EXPECT_EQ(readAs(updated), "was written on another device or driver");
+
+            std::vector<char> old(bytes.begin() + 64, bytes.end());
+            old.resize(std::max<std::size_t>(old.size(), 64), 0);
+            EXPECT_EQ(readAs(old), "is in no format this renderer writes");
+
+            EXPECT_EQ(readAs(bytes), "read") << "and the copy itself, whole";
+
+            // A folder nobody may read: the sweep and the read both fail, and the cache starts empty.
+            std::filesystem::permissions(cacheDirectory, std::filesystem::perms::none);
+            EXPECT_NO_THROW({
+                const PipelineCache unreadable = made();
+                EXPECT_NE(unreadable.getHandle(), VK_NULL_HANDLE);
+            });
+            std::filesystem::permissions(cacheDirectory, std::filesystem::perms::owner_all);
+            std::filesystem::remove_all(scratch);
+        }
+
         /// The name carries the shaders, and every cache that is not this run's is swept.
         ///
         /// **This is the whole of the eviction, and Vulkan supplies none of it.** A blob cannot be

@@ -11,6 +11,7 @@
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -525,14 +526,13 @@ namespace Rtx
 
     void BottomLevelStore::recordCompaction(const VkCommandBuffer commands, GpuTimer* const timer)
     {
-        openZone(timer, commands, "compact");
+        const GpuZone timed(timer, commands, FrameZone::Compact);
 
         const DeviceFunctions& functions = mDevice.getFunctions();
         for (const VkCopyAccelerationStructureInfoKHR& copy : mCompactionCopies)
             functions.mCmdCopyAccelerationStructure(commands, &copy);
 
         barrierAfterBuild(commands);
-        closeZone(timer, commands);
     }
 
 }

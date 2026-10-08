@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <vector>
 
-#include <boost/container/flat_set.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Matrixf>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
@@ -238,7 +238,11 @@ namespace Rtx
             void reuse() { reuseKeeping(*this, &HeldModel::mParts); }
         };
 
-        /// The entry for `model`, made where the frame knows of none.
+        /// Room for every model a ring of cells names, made once.
+        CellHolds();
+
+        /// The entry for `model`, made where the frame knows of none. Good until the next model
+        /// the frame learns of, which may move every entry.
         HeldModel& know(PreparedModel& model);
 
         /// The entry for a model the frame knows of.
@@ -262,14 +266,10 @@ namespace Rtx
         void forget();
 
     private:
-        /// What the table is ordered by, stated once so that no search can disagree with the
-        /// insertion it is looking for.
-        struct ModelAt
-        {
-            const PreparedModel* operator()(const HeldModel& held) const { return held.mModel; }
-        };
-
-        boost::container::flat_set<HeldModel, KeyedLess<const PreparedModel*, ModelAt>, std::vector<HeldModel>> mModels;
+        /// By the model, unordered: a sorted run of rows that each own a vector moved every row
+        /// after a new model, on the frame a cell lands. Reserved at the budget, so no landing
+        /// rehashes it; only `forget` walks it, and in no order it needs.
+        boost::unordered_flat_map<const PreparedModel*, HeldModel> mModels;
 
         /// A model's row taken back out is room the next one refills rather than a heap call on
         /// the frame a cell lands.

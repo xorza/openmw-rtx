@@ -5,10 +5,11 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/components_tests/rtx/support/mipchain.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 
 namespace Rtx
 {
@@ -54,7 +55,7 @@ namespace Rtx
             addLevel(whole, 1, 1);
             whole.describe(4, 4, "whole");
 
-            EXPECT_TRUE(MipChain(whole.mData).isEmpty());
+            EXPECT_TRUE(Testing::MipChain(whole.mData).isEmpty());
 
             // **And a chain that stops short is a chain.** Morrowind's own end at eight texels
             // rather than at one, and rebuilding those would decompress the whole game to gain a
@@ -64,7 +65,7 @@ namespace Rtx
             addLevel(partial, 2, 2);
             partial.describe(4, 4, "partial");
 
-            EXPECT_TRUE(MipChain(partial.mData).isEmpty());
+            EXPECT_TRUE(Testing::MipChain(partial.mData).isEmpty());
 
             // **And a single texel is a whole chain**, which is the one extent that needs no levels
             // under it.
@@ -72,7 +73,7 @@ namespace Rtx
             addLevel(one, 1, 1, { 0, 0, 0, 255 });
             one.describe(1, 1, "one");
 
-            EXPECT_TRUE(MipChain(one.mData).isEmpty());
+            EXPECT_TRUE(Testing::MipChain(one.mData).isEmpty());
         }
 
         /// Every level a file left out is the mean of the one above it.
@@ -91,7 +92,7 @@ namespace Rtx
             four.mLevels.push_back(MipLevel{ 0, 4, 4 });
             four.describe(4, 4, "four");
 
-            const MipChain chain(four.mData);
+            const Testing::MipChain chain(four.mData);
             ASSERT_FALSE(chain.isEmpty());
 
             const TextureData built = chain.describe();
@@ -127,7 +128,7 @@ namespace Rtx
             addLevel(pair, 2, 2, { 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 });
             pair.describe(2, 2, "pair");
 
-            const MipChain chain(pair.mData);
+            const Testing::MipChain chain(pair.mData);
             ASSERT_FALSE(chain.isEmpty());
 
             const TextureData built = chain.describe();
@@ -142,7 +143,7 @@ namespace Rtx
             addLevel(empty, 2, 2, { 60, 60, 60, 0, 20, 20, 20, 0, 60, 60, 60, 0, 20, 20, 20, 0 });
             empty.describe(2, 2, "empty");
 
-            const MipChain none(empty.mData);
+            const Testing::MipChain none(empty.mData);
             ASSERT_FALSE(none.isEmpty());
             EXPECT_EQ(channelAt(none.describe(), 1, 0, 0, 0), 40u);
             EXPECT_EQ(channelAt(none.describe(), 1, 0, 0, 3), 0u);
@@ -154,10 +155,15 @@ namespace Rtx
             data.describe(2, 2, "data");
             data.mData.mEncoding = TextureEncoding::Data;
 
-            const MipChain even(data.mData);
+            const Testing::MipChain even(data.mData);
             ASSERT_FALSE(even.isEmpty());
             EXPECT_EQ(channelAt(even.describe(), 1, 0, 0, 0), 128u) << "data was weighed by its alpha";
             EXPECT_EQ(channelAt(even.describe(), 1, 0, 0, 3), 128u);
+
+            // **And a chain says what it is read as**, its source's encoding, or a chain built from
+            // data would be read as a colour.
+            EXPECT_EQ(even.describe().mEncoding, TextureEncoding::Data);
+            EXPECT_EQ(built.mEncoding, TextureEncoding::Colour);
         }
 
         /// **An odd extent is halved by the box of its own width**, three taps a texel, so its last
@@ -174,7 +180,7 @@ namespace Rtx
             line.mLevels.push_back(MipLevel{ 0, 5, 1 });
             line.describe(5, 1, "line");
 
-            const MipChain chain(line.mData);
+            const Testing::MipChain chain(line.mData);
             ASSERT_FALSE(chain.isEmpty());
             const TextureData built = chain.describe();
             ASSERT_EQ(built.mLevels.size(), 3u) << "five texels run down to one in three levels";
@@ -198,7 +204,7 @@ namespace Rtx
             addLevel(pair, 2, 2, { 255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255 });
             pair.describe(2, 2, "pair", TextureFormat::Rgba8Srgb);
 
-            const MipChain chain(pair.mData);
+            const Testing::MipChain chain(pair.mData);
             ASSERT_FALSE(chain.isEmpty());
 
             const TextureData built = chain.describe();
@@ -226,7 +232,7 @@ namespace Rtx
             addLevel(whole, 1, 1);
             whole.describe(4, 4, "whole");
 
-            MipChain chain;
+            Testing::MipChain chain;
             chain.build(single.mData);
             ASSERT_FALSE(chain.isEmpty()) << "the texture this one has to stop carrying";
             ASSERT_EQ(chain.describe().mLevels.size(), std::size_t{ 3 });

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <optional>
 #include <vector>
 
@@ -66,6 +67,11 @@ namespace MWRender
     class FrameDescriber
     {
     public:
+        /// Pinned: the frame kept holds references into this describer's own records.
+        FrameDescriber() = default;
+        FrameDescriber(const FrameDescriber&) = delete;
+        FrameDescriber& operator=(const FrameDescriber&) = delete;
+
         WaterState& getWater() { return mWater; }
         const WaterState& getWater() const { return mWater; }
 
@@ -94,11 +100,20 @@ namespace MWRender
         }
 
         /// Says `node` was put somewhere else in one step, for the next frame described:
-        /// `SceneFrame::mJumped`.
-        void noteJumped(const osg::Node& node) { mJumped.push_back(&node); }
+        /// `SceneFrame::mJumped`. Never between `describe` and `frameDrawn`, where the described
+        /// frame spans the list and a growth would leave it dangling.
+        void noteJumped(const osg::Node& node)
+        {
+            assert(!mDescribed && "a jump noted while a described frame spans the list");
+            mJumped.push_back(&node);
+        }
 
-        /// Lets go of the jumps a drawn frame carried.
-        void clearJumped() { mJumped.clear(); }
+        /// The described frame was drawn: lets go of the jumps it carried.
+        void frameDrawn()
+        {
+            mJumped.clear();
+            mDescribed = false;
+        }
 
         /// Describes this frame off `sources` and the facts kept here, and keeps it until the next.
         const SceneFrame& describe(const FrameSources& sources);
@@ -119,14 +134,17 @@ namespace MWRender
         float mDeltaTime = 0.f;
         bool mPaused = false;
 
-        /// This frame, from `describe` to the next, and the two records it refers to; empty before
-        /// the first.
-        WorldState mWorld;
-        EyeState mEye;
-        std::optional<SceneFrame> mFrame;
-
         /// Kept across frames and cleared, so a frame allocates none of it once the most jumps any
         /// frame held have been held.
         std::vector<const osg::Node*> mJumped;
+
+        /// Whether a frame `describe` made is not drawn yet, so its span of `mJumped` stands.
+        bool mDescribed = false;
+
+        /// This frame, from `describe` to the next, and the three records it refers to, declared
+        /// before it; empty before the first.
+        WorldState mWorld;
+        EyeState mEye;
+        std::optional<SceneFrame> mFrame;
     };
 }

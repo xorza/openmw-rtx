@@ -62,12 +62,12 @@
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
@@ -469,8 +469,7 @@ namespace Rtx::Testing
             {
                 mScene.clearPlacement();
                 mRing.follow(mAround);
-                const ExtractionStats stats
-                    = mExtractor.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, frame, mRing);
+                const ExtractionStats stats = mExtractor.extractWorld(*mEmpty, 0, frame, mRing);
                 mScene.placements().advance();
                 return stats;
             }
@@ -588,8 +587,34 @@ namespace Rtx::Testing
             WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             SceneDesc other;
             SceneExtractor stranger(other, context);
-            expectAssertDies([&] { stranger.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, 1, mRing); },
+            expectAssertDies([&] { stranger.extractWorld(*mEmpty, 0, 1, mRing); },
                 "a ring made on another extractor adopts into its scene");
+        }
+
+        /// **A ring that ends gives its holds back, detached or not**: the adopter outlives it, and a
+        /// ring that went with no `detach` left the rows it held standing in the scene after the
+        /// sweep. One ring of its own, walked until its band stands whole, then ended.
+        TEST_F(RtxCellRingTest, aRingThatEndsGivesItsHoldsBackWithoutADetach)
+        {
+            start();
+            std::optional<CellRing> ring(std::in_place, mExtractor);
+            ring->setMinSize(0.0f);
+            ring->setSettled(true);
+            std::size_t frame = 0;
+            ExtractionStats walked;
+            do
+            {
+                mScene.clearPlacement();
+                ring->follow(mAround);
+                walked = mExtractor.extractWorld(*mEmpty, 0, frame++, *ring);
+                mScene.placements().advance();
+            } while (walked.mMeshesAdded > 0);
+            ASSERT_EQ(ring->getHeldCellCount(), sPreparedCells);
+
+            ring.reset();
+            mScene.clearPlacement();
+            mExtractor.retire();
+            EXPECT_TRUE(mScene.isEmpty()) << "an ended ring's rows outlived it";
         }
 
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;
@@ -1389,6 +1414,59 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getCellsToStand(), 0u);
         }
 
+        /// **A settled walk adopts the nearest cell it wants, whatever the reader handed first.** The
+        /// reader runs ahead of the walks under the ask the eye last made, and a move breaks its list
+        /// off at a cell the wall decides: adopting in the order the reader handed cells over stood
+        /// the same ground in other slots in two runs. So after the eye moves two cells east, every
+        /// walk adopts exactly the waiting cell that comes first by the ask's own rule — the nearest
+        /// by `CellGrid::distanceSquaredTo`, then the lower cell among equals — and no other.
+        TEST_F(RtxCellRingTest, settledAWalkAdoptsTheNearestCellItWantsWhateverTheReaderHandedFirst)
+        {
+            const auto waits = [&](const osg::Vec2i& cell) {
+                return mRing.waitsUnder(osg::Vec2f(cell.x() * sCellSize, cell.y() * sCellSize),
+                    osg::Vec2f((cell.x() + 1) * sCellSize, (cell.y() + 1) * sCellSize));
+            };
+            const auto waiting = [&] {
+                std::vector<osg::Vec2i> found;
+                for (int x = -8; x <= 14; ++x)
+                    for (int y = -8; y <= 8; ++y)
+                        if (waits(osg::Vec2i(x, y)))
+                            found.emplace_back(x, y);
+                return found;
+            };
+
+            start();
+            for (int walked = 0; walked < 3; ++walked)
+                walk(mWalked++);
+
+            around(osg::Vec3f(2.5f * sCellSize, 0.5f * sCellSize, 0.0f), osg::Vec4i(1, -1, 4, 2));
+            walk(mWalked++);
+
+            const Rtx::CellGrid grid;
+            const auto first = [&](const std::vector<osg::Vec2i>& cells) {
+                return *std::min_element(
+                    cells.begin(), cells.end(), [&](const osg::Vec2i& left, const osg::Vec2i& right) {
+                        const float leftAway = grid.distanceSquaredTo(left, mAround.mEye);
+                        const float rightAway = grid.distanceSquaredTo(right, mAround.mEye);
+                        return leftAway != rightAway ? leftAway < rightAway : left < right;
+                    });
+            };
+            for (int walked = 0; walked < 20; ++walked)
+            {
+                const std::vector<osg::Vec2i> before = waiting();
+                ASSERT_FALSE(before.empty());
+                const osg::Vec2i expected = first(before);
+
+                walk(mWalked++);
+                std::vector<osg::Vec2i> after = waiting();
+                EXPECT_FALSE(waits(expected)) << "walk " << walked << " left the nearest cell " << expected.x() << ", "
+                                              << expected.y() << " waiting";
+                after.push_back(expected);
+                std::sort(after.begin(), after.end());
+                EXPECT_EQ(after, before) << "walk " << walked << " adopted another cell than the nearest";
+            }
+        }
+
         /// **A picture of the ground waits for the ground.** A box over a cell the band asked for and
         /// the ring has not adopted waits, and stops waiting on the walk that adopts the cell. A box
         /// that only touches a cell's edge is not over it, and one past the band has nothing to
@@ -1589,8 +1667,7 @@ namespace Rtx::Testing
         {
             start();
             walk(mWalked++);
-            expectAssertDies([&] { mExtractor.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, mWalked, mRing); },
-                "a call out of its turn");
+            expectAssertDies([&] { mExtractor.extractWorld(*mEmpty, 0, mWalked, mRing); }, "a call out of its turn");
         }
 
         /// Content whose one template is a morph the reader refuses: three vertices over a base

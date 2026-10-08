@@ -61,12 +61,13 @@ namespace Platform
         return memory;
     }
 
-    SharedMemory::~SharedMemory()
+    void SharedMemory::unmap() noexcept
     {
         if (mData == nullptr)
             return;
 
-        UnmapViewOfFile(mData);
-        CloseHandle(mHandle);
+        UnmapViewOfFile(std::exchange(mData, nullptr));
+        CloseHandle(std::exchange(mHandle, nullptr));
+        mSize = 0;
     }
 }

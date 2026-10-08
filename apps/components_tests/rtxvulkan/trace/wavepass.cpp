@@ -12,10 +12,10 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <apps/components_tests/rtx/support/wavemoments.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/shaders/wave.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -28,7 +28,8 @@ namespace Rtx
         /// Runs one synthesis at `seconds` and hands back the pass that holds it.
         void synthesise(const WavePass& waves, CommandPool& pool, double seconds)
         {
-            pool.submitAndWait([&](VkCommandBuffer commands) { waves.record(commands, splitSeconds(seconds)); });
+            pool.submitAndWait(
+                [&](VkCommandBuffer commands) { waves.record(commands, splitSeconds(seconds), nullptr); });
         }
 
         struct RtxWavePassTest : Testing::DeviceTest

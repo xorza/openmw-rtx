@@ -18,8 +18,8 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/camera.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
@@ -27,12 +27,14 @@
 #include "chainkeys.hpp"
 #include "emitterresolver.hpp"
 #include "extractionstats.hpp"
+#include "frozenroots.hpp"
 #include "materialresolver.hpp"
 #include "meshreader.hpp"
 #include "meshresolver.hpp"
 #include "mirroridentity.hpp"
 #include "mirrorpass.hpp"
 #include "nodekind.hpp"
+#include "released.hpp"
 #include "sceneadopter.hpp"
 #include "shading.hpp"
 #include "walkcontext.hpp"
@@ -163,9 +165,12 @@ namespace Rtx
         /// **`ring` is collected for `frame`**, the walk's own: a ring told one frame and walked for
         /// another adopts twice on a frame walked twice.
         ///
+        /// **At the world's own frame and no transform above it**, because what it freezes is
+        /// keyed on each root's face (`FrozenRoots`), and a root that moved would
+        /// leave every frozen run where it stood.
+        ///
         /// @param ring one made on this extractor, which is what it adopts through; asserted.
-        ExtractionStats extractWorld(const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor,
-            std::size_t frame, CellRing& ring);
+        ExtractionStats extractWorld(const osg::Node& root, std::size_t anchor, std::size_t frame, CellRing& ring);
 
         /// `extract`, for what the weather drops: every emitter met under `fall` is placed as one
         /// whose sprites a roof keeps off — `MirrorPass::mFalls`. The precipitation's walk and
@@ -209,6 +214,12 @@ namespace Rtx
         /// the mark, and a hand-over of a marked scene is a call out of its turn.
         Retirement retire();
 
+        /// What the sweeps and the thaws let go of since the owner last handed it over: the roots
+        /// a walk stopped meeting, and the game's objects the maps held. **The owner owes the
+        /// hand-over**, to whatever releases the game's own, and clears it after; until then it
+        /// keeps a cell the world unloaded alive.
+        Released& getReleased() { return mReleased; }
+
     private:
         /// Where the extractor stands: between walks, or inside one. A walk inside a walk would
         /// point the pass at a second set of counts and lose the first's, and a retire inside one
@@ -227,7 +238,7 @@ namespace Rtx
         class WalkGuard
         {
         public:
-            WalkGuard(MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, bool falls, bool& recording);
+            WalkGuard(MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, bool falls, FrozenRoots& frozen);
             ~WalkGuard();
 
             WalkGuard(const WalkGuard&) = delete;
@@ -236,7 +247,7 @@ namespace Rtx
         private:
             MirrorPass& mPass;
             Stepped<Phase>& mPhase;
-            bool& mRecording;
+            FrozenRoots& mFrozen;
         };
 
         /// What the ring may do, and nothing else may. `Rtx::SceneAdopter` is implemented
@@ -285,7 +296,10 @@ namespace Rtx
         /// @param jumped whether the drawable stands under a node `setJumped` named.
         /// @param lampBody whether the drawable is the model of a light that gives light
         ///        (`MeshInstance::mLampBody`).
-        void addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
+        ///
+        /// Answers whether the placement changes between frames on its own — a particle system,
+        /// the sea, a mesh that deforms — which keeps a reference root above it walked.
+        bool addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
             const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped, bool lampBody);
 
         /// The state set a node shades with where that is not the one it wears, or null where it
@@ -316,76 +330,8 @@ namespace Rtx
         ExtractionStats walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
             std::size_t frame, CellRing* ring, bool falls);
 
-        /// One placement of a frozen subtree, by what the walk resolved it under: the placement's
-        /// identity, the drawable its mesh is keyed on and its material's key, each held until the
-        /// subtree thaws. A drawable the mesh resolver refused stands nothing, and only its refusal
-        /// is held.
-        struct FrozenKey
-        {
-            std::size_t mPlacement = 0;
-            const osg::Drawable* mDrawable = nullptr;
-            const osg::StateSet* mMaterial = nullptr;
-            bool mPlaced = false;
-        };
-
-        /// What can change a frozen subtree from outside it, as its root stands: where the root is
-        /// in the world, its state set, and its children, by their count and the first of them.
-        struct FrozenFace
-        {
-            osg::Matrix mWorld;
-            const osg::StateSet* mStateSet = nullptr;
-            const osg::Node* mFirstChild = nullptr;
-            unsigned int mChildren = 0;
-
-            static FrozenFace of(const osg::Node& root, const osg::Matrix& world);
-
-            bool operator==(const FrozenFace& other) const = default;
-        };
-
-        /// A subtree under a reference root whose walk met nothing that changes between frames
-        /// on its own — `Traversal::enter` says what does — and which the world walk passes rather
-        /// than descends while its `FrozenFace` stands. Its entries are held, so every sweep it is
-        /// not walked in keeps them, and nothing in it is read again until it thaws.
-        ///
-        /// **A root whose face changed stays thawed until a walk after that finds it standing
-        /// still**, its run kept with no keys and the face it was last met at. A door the game turns
-        /// a step a frame, or a reference a script moves, would otherwise thaw, freeze again where
-        /// it stood and thaw on the next frame: a hold taken and given back on every entry, and a
-        /// run allocated and freed, on every frame of the motion.
-        struct FrozenRun
-        {
-            FrozenFace mFace;
-            Run mKeys;
-
-            /// What its walk counted, which every walk that passes it counts again.
-            std::uint32_t mInstances = 0;
-
-            /// The world walk that last met it, and the one that last found its face changed.
-            unsigned int mMet = 0;
-            unsigned int mMoved = 0;
-
-            /// Whether its keys are held and the walk passes it: false while it stands thawed.
-            bool mHolding = false;
-        };
-
-        /// Whether the reference root `root`, standing at `world`, is frozen and still what it
-        /// froze as: counted as walked and passed where it is, and thawed where it is not, for the
-        /// walk to descend into it as any other. A thawed root is walked, and its face kept.
-        bool passFrozen(const osg::Node& root, const osg::Matrix& world);
-
-        /// Starts recording what the world walk resolves under the reference root it is about to
-        /// descend into, and `endFrozen` freezes the root with it where `changeable` is false,
-        /// nothing it resolved said otherwise, and its face did not change on this walk.
-        void recordFrozen();
-        void endFrozen(const osg::Node& root, const osg::Matrix& world, bool changeable);
-
-        /// Gives a frozen subtree's holds back, as the walk that thaws it or a sweep that missed it.
-        void thaw(FrozenRun& run);
-
-        /// Thaws every frozen subtree the world walk did not meet — gone from the graph, or masked
-        /// out — ahead of the sweep, which would otherwise keep its rows for ever.
-        void thawUnmet();
-        void thawAll();
+        /// The maps a frozen root's keys are held in, handed to `mFrozen` at each call.
+        FrozenRoots::Holders frozenHolders() { return { mPlacements, mMeshes, mMaterials }; }
 
         SceneDesc& mScene;
 
@@ -451,7 +397,7 @@ namespace Rtx
 
         /// The keys the walk's chains of state sets fold to, which `mMaterials` holds its entries
         /// under, and the ring's readings as they are adopted.
-        ChainKeys mChainKeys;
+        ChainKeys mChainKeys{ mPass };
 
         /// What a groundcover reading's key is paired with last (`MaterialReading::mGroundcover`):
         /// an empty state set of the walk's own, standing for the override no chain states.
@@ -460,20 +406,11 @@ namespace Rtx
         /// The particle systems the walk met, and the sprite textures they hold.
         EmitterResolver mEmitters{ mScene, mPass, mContext.mContent };
 
-        /// The frozen subtrees, by their roots, held so a root the game freed cannot be mistaken
-        /// for the one built where it stood; their keys in one buffer, a run a subtree; and what the
-        /// root being walked has resolved so far. Reserved and kept, never freed.
-        boost::unordered_flat_map<osg::ref_ptr<const osg::Node>, FrozenRun, ByAddress<const osg::Node>,
-            ByAddress<const osg::Node>>
-            mFrozen;
-        RunBuffer<FrozenKey> mFrozenKeys;
-        std::vector<FrozenKey> mRecorded;
+        /// The reference roots the world walk passes rather than descends.
+        FrozenRoots mFrozen;
 
-        /// Whether a root is being recorded, whether what it resolved can change on its own — the
-        /// sea's material, a particle system — and the instance count its walk began at.
-        bool mRecording = false;
-        bool mRecordedChangeable = false;
-        std::uint32_t mRecordedFrom = 0;
+        /// Kept and refilled: grown to the busiest crossing so far, and never shrunk.
+        Released mReleased;
 
         /// The number of the world walk in progress or last made, which a frozen run it met
         /// carries, and the traversal mask the frozen subtrees were walked under: a mask that

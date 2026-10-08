@@ -21,10 +21,9 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/imagedescription.hpp>
-#include <components/rtx/image/spritelight.hpp>
-#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -99,9 +98,15 @@ namespace Rtx
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
 
-            EXPECT_EQ(describeImage(*makeBlock(GL_COMPRESSED_RGB_S3TC_DXT1_EXT), levels, texels).value().mFormat,
+            EXPECT_EQ(
+                describeImage(*makeBlock(GL_COMPRESSED_RGB_S3TC_DXT1_EXT), Rtx::TextureEncoding::Colour, levels, texels)
+                    .value()
+                    .mFormat,
                 Rtx::TextureFormat::Bc1RgbaSrgb);
-            EXPECT_EQ(describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT), levels, texels).value().mFormat,
+            EXPECT_EQ(describeImage(
+                          *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT), Rtx::TextureEncoding::Colour, levels, texels)
+                          .value()
+                          .mFormat,
                 Rtx::TextureFormat::Bc1RgbaSrgb);
         }
 
@@ -112,9 +117,15 @@ namespace Rtx
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
 
-            EXPECT_EQ(describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT), levels, texels).value().mFormat,
+            EXPECT_EQ(describeImage(
+                          *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT), Rtx::TextureEncoding::Colour, levels, texels)
+                          .value()
+                          .mFormat,
                 Rtx::TextureFormat::Bc2Srgb);
-            EXPECT_EQ(describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), levels, texels).value().mFormat,
+            EXPECT_EQ(describeImage(
+                          *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), Rtx::TextureEncoding::Colour, levels, texels)
+                          .value()
+                          .mFormat,
                 Rtx::TextureFormat::Bc3Srgb);
         }
 
@@ -128,39 +139,44 @@ namespace Rtx
             std::vector<std::byte> texels;
 
             const Rtx::TextureData normal = describeImage(
-                *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), levels, texels, Rtx::TextureEncoding::Data)
+                *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), Rtx::TextureEncoding::Data, levels, texels)
                                                 .value();
             EXPECT_EQ(normal.mFormat, Rtx::TextureFormat::Bc3Unorm);
             EXPECT_EQ(normal.mEncoding, Rtx::TextureEncoding::Data);
             EXPECT_EQ(normal.getCompanion(), Rtx::TextureCompanion::Neutral);
 
             const Rtx::TextureData mapped = describeImage(
-                *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), levels, texels, Rtx::TextureEncoding::Normal)
+                *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), Rtx::TextureEncoding::Normal, levels, texels)
                                                 .value();
             EXPECT_EQ(mapped.mFormat, Rtx::TextureFormat::Bc3Unorm) << "stored as data is";
             EXPECT_EQ(mapped.getCompanion(), Rtx::TextureCompanion::Spread) << "and measured for its spread";
 
-            const Rtx::TextureData colour
-                = describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), levels, texels).value();
+            const Rtx::TextureData colour = describeImage(
+                *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), Rtx::TextureEncoding::Colour, levels, texels)
+                                                .value();
             EXPECT_EQ(colour.mEncoding, Rtx::TextureEncoding::Colour);
             EXPECT_EQ(colour.getCompanion(), Rtx::TextureCompanion::Shading)
                 << "a colour file's painted light is estimated";
 
             EXPECT_EQ(
-                describeImage(*makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), levels, texels, Rtx::TextureEncoding::Data)
+                describeImage(*makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), Rtx::TextureEncoding::Data, levels, texels)
                     .value()
                     .mFormat,
                 Rtx::TextureFormat::Bc5Unorm);
-            EXPECT_FALSE(describeImage(*makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), levels, texels).isOk())
+            EXPECT_FALSE(describeImage(
+                *makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), Rtx::TextureEncoding::Colour, levels, texels)
+                             .isOk())
                 << "two channels are no colour";
 
             // One channel the same, its 4 × 4 block the eight bytes OpenSceneGraph counts too.
             const Rtx::TextureData single
-                = describeImage(*makeBlock(GL_COMPRESSED_RED_RGTC1_EXT), levels, texels, Rtx::TextureEncoding::Data)
+                = describeImage(*makeBlock(GL_COMPRESSED_RED_RGTC1_EXT), Rtx::TextureEncoding::Data, levels, texels)
                       .value();
             EXPECT_EQ(single.mFormat, Rtx::TextureFormat::Bc4Unorm);
             EXPECT_EQ(single.mBytes.size(), 8u);
-            EXPECT_FALSE(describeImage(*makeBlock(GL_COMPRESSED_RED_RGTC1_EXT), levels, texels).isOk())
+            EXPECT_FALSE(
+                describeImage(*makeBlock(GL_COMPRESSED_RED_RGTC1_EXT), Rtx::TextureEncoding::Colour, levels, texels)
+                    .isOk())
                 << "one channel is no colour";
         }
 
@@ -180,8 +196,8 @@ namespace Rtx
             std::vector<std::byte> texels;
             levels.reserve(first->getNumMipmapLevels() + second->getNumMipmapLevels());
 
-            const Rtx::TextureData a = describeImage(*first, levels, texels).value();
-            const Rtx::TextureData b = describeImage(*second, levels, texels).value();
+            const Rtx::TextureData a = describeImage(*first, Rtx::TextureEncoding::Colour, levels, texels).value();
+            const Rtx::TextureData b = describeImage(*second, Rtx::TextureEncoding::Colour, levels, texels).value();
 
             // A 4x4 block allocated without a chain is one level, so the table holds exactly two and
             // the second description begins where the first ends.
@@ -211,10 +227,10 @@ namespace Rtx
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
 
-            EXPECT_EQ(
-                describeImage(*makeBlock(GL_RGBA), levels, texels).value().mFormat, Rtx::TextureFormat::Rgba8Srgb);
-            EXPECT_EQ(
-                describeImage(*makeBlock(GL_BGRA), levels, texels).value().mFormat, Rtx::TextureFormat::Bgra8Srgb);
+            EXPECT_EQ(describeImage(*makeBlock(GL_RGBA), Rtx::TextureEncoding::Colour, levels, texels).value().mFormat,
+                Rtx::TextureFormat::Rgba8Srgb);
+            EXPECT_EQ(describeImage(*makeBlock(GL_BGRA), Rtx::TextureEncoding::Colour, levels, texels).value().mFormat,
+                Rtx::TextureFormat::Bgra8Srgb);
 
             // **Display-encoded, which every content format is.** The one uncompressed format that
             // is not exists for tests asserting an exact texel, and a cloud texture read through it
@@ -232,7 +248,8 @@ namespace Rtx
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("textures/tx_odd.dds");
             image->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            const Misc::Result<Rtx::TextureData, std::string> odd = describeImage(*image, levels, texels);
+            const Misc::Result<Rtx::TextureData, std::string> odd
+                = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(odd.isOk());
             EXPECT_EQ(odd.error(), "its format is an unnamed pixel format (6407), which this renderer does not upload");
 
@@ -240,10 +257,38 @@ namespace Rtx
             osg::ref_ptr<osg::Image> empty = new osg::Image;
             empty->setFileName("textures/tx_empty.dds");
             empty->setImage(0, 4, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, nullptr, osg::Image::NO_DELETE);
-            const Misc::Result<Rtx::TextureData, std::string> unsized = describeImage(*empty, levels, texels);
+            const Misc::Result<Rtx::TextureData, std::string> unsized
+                = describeImage(*empty, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(unsized.isOk()) << "an image of no size was described";
             EXPECT_EQ(unsized.error(), "it is 0 by 4 texels, which no device holds");
             EXPECT_TRUE(levels.empty()) << "a refusal adds no level";
+        }
+
+        /// **A widened copy whose levels pass a 32-bit offset is refused**, before a byte of it is
+        /// laid: an eight-bit image of 32768 on a side with its second level is a source of 2³⁰ +
+        /// 2²⁸ bytes, well within the bound on what is read, and a copy of four bytes a texel, 2³² +
+        /// 2³⁰, whose second level would have begun at a truncated nought. Never read: the pointer
+        /// stands for a buffer the description refuses before it reads.
+        TEST(RtxSceneTexturesTest, aWidenedCopyPastWhatALevelsOffsetReachesIsRefused)
+        {
+            constexpr int side = 32768;
+            unsigned char unread = 0;
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/tx_vast.dds");
+            image->setImage(
+                side, side, 1, GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, &unread, osg::Image::NO_DELETE);
+            image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(side) * side });
+
+            std::vector<Rtx::MipLevel> levels;
+            std::vector<std::byte> texels;
+            const Misc::Result<Rtx::TextureData, std::string> vast
+                = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels);
+            ASSERT_FALSE(vast.isOk()) << "a copy past a level's offset was described";
+            EXPECT_EQ(vast.error(),
+                "its levels laid out are " + std::to_string((std::size_t{ 1 } << 32) + (std::size_t{ 1 } << 30))
+                    + " bytes, past what a level's 32-bit offset reaches");
+            EXPECT_TRUE(levels.empty()) << "a refusal adds no level";
+            EXPECT_TRUE(texels.empty()) << "a refused copy was laid";
         }
 
         /// A volume is described as its first slice at every level, which is what the rasterizer
@@ -276,7 +321,8 @@ namespace Rtx
 
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            const Rtx::TextureData gathered = describeImage(*rgba, levels, texels).value();
+            const Rtx::TextureData gathered
+                = describeImage(*rgba, Rtx::TextureEncoding::Colour, levels, texels).value();
             ASSERT_EQ(gathered.mBytes.size(), 84u);
             EXPECT_EQ(texels.size(), 84u);
             EXPECT_EQ(Rtx::laidBytes(*rgba, Rtx::readFormat(*rgba)), 84u) << "the reserve and the gathering disagree";
@@ -300,7 +346,7 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> flat = makeVolume(GL_RGBA, GL_UNSIGNED_BYTE, 4);
             flat->setMipmapLevels({});
             ASSERT_EQ(flat->getTotalSizeInBytesIncludingMipmaps(), 128u) << "both slices, which a stage once read";
-            const Rtx::TextureData spanned = describeImage(*flat, levels, texels).value();
+            const Rtx::TextureData spanned = describeImage(*flat, Rtx::TextureEncoding::Colour, levels, texels).value();
             EXPECT_EQ(spanned.mBytes.data(), reinterpret_cast<const std::byte*>(flat->data()));
             EXPECT_EQ(spanned.mBytes.size(), 64u);
             EXPECT_EQ(Rtx::laidBytes(*flat, Rtx::readFormat(*flat)), 0u) << "spanned where it lies, and laid nowhere";
@@ -308,7 +354,8 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> sixteen = makeVolume(GL_RGB, GL_UNSIGNED_SHORT_5_6_5, 2);
             texels.clear();
             levels.clear();
-            const Rtx::TextureData widened = describeImage(*sixteen, levels, texels).value();
+            const Rtx::TextureData widened
+                = describeImage(*sixteen, Rtx::TextureEncoding::Colour, levels, texels).value();
             ASSERT_EQ(widened.mBytes.size(), 84u);
             EXPECT_EQ(texels.size(), 84u);
             EXPECT_EQ(Rtx::laidBytes(*sixteen, Rtx::readFormat(*sixteen)), 84u);
@@ -360,7 +407,8 @@ namespace Rtx
 
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            const Rtx::TextureData described = describeImage(*image, levels, texels).value();
+            const Rtx::TextureData described
+                = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels).value();
 
             ASSERT_EQ(described.mLevels.size(), 3u);
             EXPECT_EQ(described.mLevels[0].mOffset, 0u);
@@ -428,7 +476,8 @@ namespace Rtx
                 std::vector<Rtx::MipLevel> levels;
                 std::vector<std::byte> texels;
 
-                const Rtx::TextureData described = describeImage(*image, levels, texels).value();
+                const Rtx::TextureData described
+                    = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels).value();
                 EXPECT_EQ(described.mFormat, Rtx::TextureFormat::Rgba8Srgb) << "type " << one.mType;
                 ASSERT_EQ(described.mBytes.size(), one.mTexels.size()) << "type " << one.mType;
                 for (std::size_t at = 0; at < one.mTexels.size(); ++at)
@@ -444,7 +493,7 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> image = makeSixteenBit(GL_UNSIGNED_SHORT_5_6_5, GL_RGB, cases[0].mWords);
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            EXPECT_EQ(describeImage(*image, levels, texels, Rtx::TextureEncoding::Data).value().mFormat,
+            EXPECT_EQ(describeImage(*image, Rtx::TextureEncoding::Data, levels, texels).value().mFormat,
                 Rtx::TextureFormat::Rgba8Unorm);
         }
 
@@ -538,7 +587,8 @@ namespace Rtx
 
                 std::vector<Rtx::MipLevel> levels;
                 std::vector<std::byte> texels;
-                const Rtx::TextureData described = describeImage(*image, levels, texels).value();
+                const Rtx::TextureData described
+                    = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels).value();
                 EXPECT_EQ(described.mFormat, Rtx::TextureFormat::Rgba8Srgb) << "format " << one.mPixelFormat;
                 ASSERT_EQ(described.mBytes.size(), one.mTexels.size()) << "format " << one.mPixelFormat;
                 for (std::size_t at = 0; at < one.mTexels.size(); ++at)
@@ -568,12 +618,14 @@ namespace Rtx
             padded->setFileName("textures/tx_padded.dds");
             padded->setImage(3, 1, 1, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, new unsigned char[8],
                 osg::Image::USE_NEW_DELETE, 4);
-            const Misc::Result<Rtx::TextureData, std::string> rows = describeImage(*padded, levels, texels);
+            const Misc::Result<Rtx::TextureData, std::string> rows
+                = describeImage(*padded, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(rows.isOk());
             EXPECT_EQ(rows.error(), "its level 0 is 8 bytes at byte 0, where A1R5G5B5 at 3 by 1 is 6 at byte 0");
 
             padded->setPacking(1);
-            EXPECT_TRUE(describeImage(*padded, levels, texels).isOk()) << "the packing made no difference";
+            EXPECT_TRUE(describeImage(*padded, Rtx::TextureEncoding::Colour, levels, texels).isOk())
+                << "the packing made no difference";
             levels.clear();
 
             osg::ref_ptr<osg::Image> shifted = new osg::Image;
@@ -581,17 +633,18 @@ namespace Rtx
             shifted->setImage(
                 2, 2, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new unsigned char[24], osg::Image::USE_NEW_DELETE);
             shifted->setMipmapLevels(osg::Image::MipmapDataType{ 20 });
-            const Misc::Result<Rtx::TextureData, std::string> offset = describeImage(*shifted, levels, texels);
+            const Misc::Result<Rtx::TextureData, std::string> offset
+                = describeImage(*shifted, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(offset.isOk());
             EXPECT_EQ(offset.error(), "its level 1 is 4 bytes at byte 20, where RGBA8 at 1 by 1 is 4 at byte 16");
             EXPECT_TRUE(levels.empty()) << "a refusal adds no level";
 
             shifted->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
-            EXPECT_EQ(describeImage(*shifted, levels, texels).value().mBytes.size(), 20u);
+            EXPECT_EQ(describeImage(*shifted, Rtx::TextureEncoding::Colour, levels, texels).value().mBytes.size(), 20u);
 
             osg::ref_ptr<osg::Image> block = new osg::Image;
             block->allocateImage(2, 2, 1, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, GL_UNSIGNED_BYTE);
-            EXPECT_EQ(describeImage(*block, levels, texels).value().mBytes.size(), 16u);
+            EXPECT_EQ(describeImage(*block, Rtx::TextureEncoding::Colour, levels, texels).value().mBytes.size(), 16u);
         }
 
         /// Describing an arrival a second time reaches the heap not at all.
@@ -699,8 +752,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
             Rtx::SceneDesc scene;
-            const Rtx::Index bake = scene.textures().addBaked(
-                SpriteLightMap::keyFor(smoke), Rtx::TextureKind::Baked, TextureEncoding::Colour);
+            const Rtx::Index bake = scene.textures().addSpriteLight(smoke);
 
             SceneTextures described;
             described.describeAll(scene);

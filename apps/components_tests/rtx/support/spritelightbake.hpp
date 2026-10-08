@@ -2,8 +2,9 @@
 
 #include <cstdint>
 
-#include <components/rtx/image/ownedtexture.hpp>
 #include <components/rtx/image/texturedata.hpp>
+
+#include "ownedtexture.hpp"
 
 namespace Rtx
 {
@@ -12,7 +13,7 @@ namespace Rtx
 
 namespace Rtx::Testing
 {
-    /// The host's statement of a sprite's light bake, which `SpriteLightMap` says the meaning of:
+    /// The host's statement of a sprite's light bake, which `TextureKind::SpriteLight` says the meaning of:
     /// what the device's bake, `SpriteLightPass`, is held to, texel for texel.
     class SpriteLightBake
     {

@@ -77,6 +77,22 @@ def configured_from(directory: Path, digest: str) -> bool:
             and (directory / "CMakeCache.txt").is_file() and (directory / "build.ninja").is_file())
 
 
+def targets_of(tests: list[dict]) -> dict[str, bool]:
+    """Each target CTest's tests name (`OPENMW_TARGET`), and whether every test of it needs a device."""
+    found: dict[str, bool] = {}
+    for test in tests:
+        properties = {property["name"]: property["value"] for property in test.get("properties", [])}
+        if "OPENMW_TARGET" in properties:
+            target = properties["OPENMW_TARGET"]
+            found[target] = found.get(target, True) and "device" in properties.get("LABELS", [])
+    return found
+
+
+def device_free(tests: list[dict]) -> list[str]:
+    """The targets of `tests` that run without a device: those with a test not labelled `device`."""
+    return sorted(target for target, device in targets_of(tests).items() if not device)
+
+
 class Build:
     def __init__(self, flavour: str):
         if flavour not in FLAVOURS:
@@ -124,6 +140,14 @@ class Build:
             if key.split(":", 1)[0] == name:
                 return value
         return None
+
+    def cached_folder(self, name: str) -> Path:
+        """The folder the build names `name` in its cache: the harness's and the tests' (`RTX_HARNESS_DIR`
+        and its siblings), which the top-level `CMakeLists.txt` and `cmake/Tests.cmake` name once."""
+        value = self.cache_value(name)
+        if not value:
+            raise Refusal(f"the {self.flavour} build's cache names no {name}: configure it again")
+        return Path(value)
 
     def configure(self, stdout=None) -> None:
         """**Configured again whenever what its preset expands from changes, and from nothing
@@ -226,11 +250,11 @@ class Build:
         listing = output(["ctest", "--test-dir", self.dir, "--show-only=json-v1"], env=self.env)
         return json.loads(listing).get("tests", [])
 
-    def test_targets(self) -> list[str]:
+    def test_targets(self, without_device: bool = False) -> list[str]:
         """The targets the tests run, which `cmake/Tests.cmake` names on each: a test whose binary is
-        not built yet has no command in CTest's listing."""
-        return sorted({property["value"] for test in self.tests() for property in test.get("properties", [])
-                       if property["name"] == "OPENMW_TARGET"})
+        not built yet has no command in CTest's listing. `without_device` leaves out a target whose
+        every test is labelled `device`, which a box with no driver never runs."""
+        return device_free(self.tests()) if without_device else sorted(targets_of(self.tests()))
 
     def binary(self, name: str) -> Path:
         return self.dir / f"{name}{EXE}"
@@ -238,10 +262,15 @@ class Build:
     def harness_line(self, verb: str, *args: str | Path) -> list[str | Path]:
         """`openmw-rtxtool <verb> [args]`, for a caller that runs it under another program — perf —
         with the binary built first, once a run."""
+        self.build_harness()
+        return [self.binary("openmw-rtxtool"), verb, *args]
+
+    def build_harness(self) -> None:
+        """`openmw-rtxtool`, built once a run: asked first by a caller that makes a folder for the
+        harness's output, so a build that fails leaves no folder behind."""
         if not self._harness_built:
             self.build(["openmw-rtxtool"])
             self._harness_built = True
-        return [self.binary("openmw-rtxtool"), verb, *args]
 
     def harness(self, verb: str, *args: str | Path, **options) -> subprocess.CompletedProcess:
         """The harness's `verb`, from the build directory: the one way the driver starts it."""

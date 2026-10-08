@@ -7,8 +7,11 @@
 #include <vector>
 
 #include <osg/Drawable>
+#include <osg/Image>
 #include <osg/Matrixf>
+#include <osg/StateSet>
 #include <osg/Vec3f>
+#include <osg/ref_ptr>
 
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/rowhold.hpp>
@@ -79,8 +82,9 @@ namespace Rtx
         /// what each one under an effect radiates to that effect's glow in `glows`.
         void flush(std::span<Glow> glows);
 
-        /// Lets go of the textures of every system this epoch did not meet.
-        void retire();
+        /// Lets go of the textures of every system this epoch did not meet; the system, its image
+        /// and its key go to `released`.
+        void retire(Released& released);
 
         /// Reserves the identity map once, so no frame rehashes it. `SceneExtractor` states the
         /// budget.
@@ -117,7 +121,12 @@ namespace Rtx
             /// sprite for, which draws nothing and is refused, and for one whose surface names no
             /// image (`mUntextured`). What a rewrite is told apart by, and what the census names
             /// once per emitter.
-            const osg::Image* mSprite = nullptr;
+            osg::ref_ptr<const osg::Image> mSprite;
+
+            /// The material key of the chain the sprite was last described off, held so its
+            /// address stays this chain's: a state set swapped above the system with no controller
+            /// to say so is a new key, and described again.
+            osg::ref_ptr<const osg::StateSet> mKey;
 
             /// Whether the system's surface names no image: drawn with the white texel, coloured
             /// by its particles, as the rasterizer draws an untextured particle system.
@@ -161,8 +170,13 @@ namespace Rtx
         /// room — or where a refusal stood and the table has freed a slot since.
         void takeSprite(const osgParticle::ParticleSystem& particles, HeldSprite& held);
 
-        /// The one take a sprite makes, as a `RefusedTakes` bit.
+        /// Takes the bake of `held`'s sprite, which stands in its slot, on the same terms: a bake the
+        /// table refused is asked again once it frees a slot, and the sprite is lit flat until then.
+        void takeLighting(HeldSprite& held);
+
+        /// The two takes a sprite makes, as `RefusedTakes` bits.
         static constexpr std::uint16_t sSpriteTake = 1;
+        static constexpr std::uint16_t sLightingTake = 2;
 
         /// Gives back the slots `held` took, where it took any.
         void releaseSprite(HeldSprite& held);

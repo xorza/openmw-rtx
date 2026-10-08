@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <osg/BoundingBox>
@@ -18,7 +19,6 @@
 
 #include "deformertable.hpp"
 #include "light.hpp"
-#include "lightbuilder.hpp"
 #include "material.hpp"
 #include "materialtable.hpp"
 #include "mesh.hpp"
@@ -28,6 +28,7 @@
 #include "ripple.hpp"
 #include "rowhold.hpp"
 #include "sprite.hpp"
+#include "structurerevision.hpp"
 #include "surface.hpp"
 #include "texturetable.hpp"
 
@@ -48,10 +49,6 @@ namespace Rtx
     class SceneDesc
     {
     public:
-        /// What a mesh's geometry may not straddle — `MeshTable::sVertexBlock` says why.
-        static constexpr Index sVertexBlock = MeshTable::sVertexBlock;
-        static constexpr Index sIndexBlock = MeshTable::sIndexBlock;
-
         SceneDesc();
 
         /// Moved whole: no table holds a reference to a sibling, so what a moved description's
@@ -66,9 +63,10 @@ namespace Rtx
         SceneDesc& operator=(const SceneDesc&) = delete;
 
         /// Which description this is, for a backend that holds a slot built from one: never
-        /// nought, never handed out twice in a process, and kept across a move — so a slot can say
-        /// what it was built from without naming an address a later description may take over.
-        std::uint64_t getIdentity() const { return mIdentity; }
+        /// nought, never handed out twice in a process, and carried by a move, which leaves the
+        /// source a fresh one — so a slot can say what it was built from without naming an address
+        /// a later description may take over, and no two descriptions share one.
+        std::uint64_t getIdentity() const { return mIdentity.mValue; }
 
         /// Copies the vertex data into the shared buffers and returns the new mesh's index. Every
         /// attribute but `MeshArrays::mPositions` may be empty; when one is not it must match the
@@ -217,20 +215,22 @@ namespace Rtx
             mRipples.push_back(impulse);
         }
 
-        /// What a backend compares against to know whether the geometry or the textures it built
-        /// from are still the ones the scene holds.
-        std::uint64_t getStructureRevision() const { return mMeshes.getRevision() + mTextures.getRevision(); }
+        /// What a backend compares against to know whether the geometry, the textures and the
+        /// material runs it built from are still the ones the scene holds.
+        StructureRevision getStructureRevision() const
+        {
+            return StructureRevision{ .mMeshes = mMeshes.getRevision(),
+                .mTextures = mTextures.getRevision(),
+                .mMaterialRuns = mMaterials.getRunRevision() };
+        }
 
         /// The pose a deforming mesh was last given, in words. Crosses two tables: the mesh row
         /// says where its run sits, and the deformers hold it.
         std::span<const PoseWord> getMeshPose(Index mesh) const;
 
-        /// Every placement's own box, in the world.
-        osg::BoundingBoxf getBounds() const;
-
-        /// The same, clipped to `region` and with the water left out: the sea is one sheet a
-        /// hundred and fifty cells across, so a caller asking how far the ground reaches would
-        /// clear any threshold at every coastline.
+        /// Every placement's own box in the world, clipped to `region` and with the water left
+        /// out: the sea is one sheet a hundred and fifty cells across, so a caller asking how far the
+        /// ground reaches would clear any threshold at every coastline.
         osg::BoundingBoxf getContentBoundsWithin(const osg::BoundingBoxf& region) const;
 
         /// Sorts the lights so that a frame's own order is a fact about the world. `SceneUploader`
@@ -273,10 +273,34 @@ namespace Rtx
             Handed,
         };
 
-        template <class Visit>
-        void forEachPlacement(Visit&& visit) const;
+        /// What `getIdentity` answers. A type of its own, so the defaulted moves carry it and
+        /// leave the source a fresh one.
+        struct Identity
+        {
+            Identity()
+                : mValue(next())
+            {
+            }
 
-        std::uint64_t mIdentity;
+            Identity(Identity&& other) noexcept
+                : mValue(std::exchange(other.mValue, next()))
+            {
+            }
+
+            Identity& operator=(Identity&& other) noexcept
+            {
+                if (this != &other)
+                    mValue = std::exchange(other.mValue, next());
+                return *this;
+            }
+
+            /// The next value no description has held.
+            static std::uint64_t next() noexcept;
+
+            std::uint64_t mValue;
+        };
+
+        Identity mIdentity;
 
         Stepped<Turn> mTurn{ Turn::Open };
 

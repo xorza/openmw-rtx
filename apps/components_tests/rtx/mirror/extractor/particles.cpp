@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/BlendFunc>
+#include <osg/CopyOp>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -35,11 +36,11 @@
 #include <osgParticle/RadialShooter>
 #include <osgParticle/range>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/colour.hpp>
-#include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -114,8 +115,8 @@ namespace Rtx::Testing
             // The texture, and beside it the bake of its alpha the sprites are lit by.
             ASSERT_EQ(mScene.textures().getRows().size(), 2u);
             EXPECT_EQ(mScene.textures().getRows()[0].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-            EXPECT_EQ(mScene.textures().getRows()[1].mBaked,
-                SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")));
+            EXPECT_EQ(mScene.textures().getRows()[1].mKind, TextureKind::SpriteLight);
+            EXPECT_EQ(mScene.textures().getRows()[1].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
             EXPECT_EQ(mScene.emitters().front().mTexture, 0u);
             EXPECT_EQ(mScene.emitters().front().mLighting, 1u);
 
@@ -426,7 +427,8 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.textures().getRows()[0].mPath.value().empty())
                 << "the stone's texture outlived the stone";
             EXPECT_EQ(mScene.textures().getRows()[1].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-            EXPECT_FALSE(mScene.textures().getRows()[2].mBaked.empty()) << "the sprite's bake went with the stone";
+            EXPECT_EQ(mScene.textures().getRows()[2].mKind, TextureKind::SpriteLight)
+                << "the sprite's bake went with the stone";
 
             // And the emitter still draws with it.
             mScene.clearPlacement();
@@ -451,13 +453,14 @@ namespace Rtx::Testing
 
             EXPECT_TRUE(mExtractor.retire().empty()) << "an emitter is neither a mesh nor a material";
             EXPECT_TRUE(mScene.textures().getRows()[1].mPath.value().empty()) << "the sprite outlived the emitter";
-            EXPECT_TRUE(mScene.textures().getRows()[2].mBaked.empty()) << "the bake outlived the emitter";
+            EXPECT_TRUE(mScene.textures().getRows()[2].mPath.value().empty()) << "the bake outlived the emitter";
         }
 
         /// **A sprite a full table refused draws once the table frees room, and is not asked again
         /// before.** The rule a material's texture keeps (`RefusedTakes`): an emitter refused a slot
-        /// once stood unlit for as long as it stood. And no bake is taken for a sprite with no slot,
-        /// because the bake is of the sprite's alpha.
+        /// once stood unlit for as long as it stood. No bake is taken for a sprite with no slot,
+        /// because the bake is of the sprite's alpha; and a bake refused where the sprite found room
+        /// keeps the same rule, where once it was never asked for again.
         TEST_F(RtxSceneExtractorTest, aRefusedSpriteDrawsOnceTheTableFreesASlot)
         {
             TextureTable& textures = mScene.textures();
@@ -477,19 +480,28 @@ namespace Rtx::Testing
                 EXPECT_EQ(textures.getRows().size(), TextureTable::sCapacity) << "a bake taken for no sprite";
             }
 
-            // Two slots, for the sprite and its bake.
+            // **One slot, which the sprite takes, and the bake is refused on its own terms**: the
+            // sprite draws lit flat, and the bake is not asked again until the table frees more.
             holds.dropTexture(9);
+            for (unsigned int frame = 3; frame <= 4; ++frame)
+            {
+                mScene.clearPlacement();
+                walk(*plume.mRoot, 0, frame);
+                ASSERT_EQ(mScene.emitters().size(), 1u) << "the freed room was not asked for on frame " << frame;
+                EXPECT_EQ(mScene.emitters().front().mTexture, 9u);
+                EXPECT_EQ(mScene.emitters().front().mLighting, sNoIndex) << "on frame " << frame;
+                EXPECT_EQ(textures.getRefused(), 2u) << "the bake asked again on frame " << frame;
+            }
+
+            // A second slot, which the bake takes on the walk after.
             holds.dropTexture(10);
-
             mScene.clearPlacement();
-            walk(*plume.mRoot, 0, 3);
+            walk(*plume.mRoot, 0, 5);
 
-            EXPECT_EQ(textures.getRefused(), 1u);
-            ASSERT_EQ(mScene.emitters().size(), 1u) << "the freed room was not asked for";
-            const SpriteEmitter& drawn = mScene.emitters().front();
-            EXPECT_TRUE(
-                (drawn.mTexture == 9u && drawn.mLighting == 10u) || (drawn.mTexture == 10u && drawn.mLighting == 9u))
-                << drawn.mTexture << " and " << drawn.mLighting;
+            EXPECT_EQ(textures.getRefused(), 2u);
+            ASSERT_EQ(mScene.emitters().size(), 1u);
+            EXPECT_EQ(mScene.emitters().front().mTexture, 9u);
+            EXPECT_EQ(mScene.emitters().front().mLighting, 10u) << "a refused bake was never asked for again";
         }
 
         /// What a system draws with is read off its chain once and kept: a texture swapped on a
@@ -517,6 +529,16 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.emitters().size(), 1u);
             EXPECT_EQ(mScene.emitters().front().mTexture, first) << "a chain nothing animates was read again";
             EXPECT_EQ(mScene.textures().getRows().size(), 2u);
+
+            // **A state set swapped above the system is another chain**, read again though nothing
+            // animates: it is keyed apart, and the sprite read off the old chain was kept for it.
+            plume.mRoot->setStateSet(new osg::StateSet(*plume.mRoot->getStateSet(), osg::CopyOp::SHALLOW_COPY));
+            mScene.clearPlacement();
+            walk(*plume.mRoot);
+            ASSERT_EQ(mScene.emitters().size(), 1u);
+            const Index reread = mScene.emitters().front().mTexture;
+            EXPECT_EQ(mScene.textures().getRows()[reread].mPath, VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
+                << "a chain whose state set was swapped kept the sprite of the one it replaced";
 
             /// A controller on the root, which is what makes the chain one the walk reads again.
             class Rebind : public SceneUtil::StateSetUpdater
@@ -546,7 +568,7 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.textures().getRows()[swapped].mPath, VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
                 << "an animated chain kept the sprite it no longer wears";
 
-            // The old sheet and its bake went back with the swap and the new pair took their
+            // The old sheet and its bake went back with the first swap and the new pair took their
             // slots: nothing else named them, and the table is no longer than it was.
             EXPECT_EQ(mScene.textures().getRows().size(), 2u);
             for (const TextureRow& row : mScene.textures().getRows())
@@ -567,6 +589,54 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*plume.mRoot);
             EXPECT_TRUE(mScene.emitters().empty());
+        }
+
+        /// **A chain whose key nothing but the keys' table holds keeps it while the walk meets it.**
+        /// An emitter's and a refused mesh's chains are two stating links each, keyed by a pair
+        /// nothing else holds; a painted quad's material goes on frame 2, which is what sweeps the
+        /// keys. Swept by whether anything held them, the two pairs went with it, and frame 3 made
+        /// a new state set for each: frame 3 must reach the heap not at all.
+        TEST_F(RtxSceneExtractorTest, aKeyTheWalkMeetsIsKeptWhenASweepTakesAMaterial)
+        {
+            const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            plume.mParticles->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+            emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+            osg::ref_ptr<osg::Group> refusedParent = new osg::Group;
+            refusedParent->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+            osg::ref_ptr<osg::Geometry> refused = makeIndexPastItsVertices();
+            refused->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON);
+            refusedParent->addChild(refused);
+
+            osg::ref_ptr<osg::Geometry> painted = makeQuad();
+            paint(*painted->getOrCreateStateSet(), "textures/tx_painted.dds");
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(plume.mRoot);
+            root->addChild(refusedParent);
+            root->addChild(painted);
+
+            for (std::size_t frame = 1; frame <= 3; ++frame)
+            {
+                if (frame == 2)
+                    root->removeChild(painted);
+
+                mScene.clearPlacement();
+                const std::size_t before = Testing::getAllocationCount();
+                walk(*root, 0, frame);
+                const std::size_t spent = Testing::getAllocationCount() - before;
+                const Retirement went = mExtractor.retire();
+                mExtractor.getReleased().clear();
+
+                if (frame == 2)
+                {
+                    EXPECT_EQ(went.mMaterials, 1u) << "the painted quad's material did not go";
+                }
+                if (frame == 3)
+                {
+                    EXPECT_EQ(spent, 0u) << spent << " allocations on the frame after the sweep";
+                }
+            }
         }
 
         /// Gives a plume what makes it run: something emitting at a fixed rate, and the updater

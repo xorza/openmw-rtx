@@ -1,17 +1,20 @@
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <optional>
 #include <vector>
 
 #include <gtest/gtest.h>
 
 #include <osg/Matrixf>
+#include <osg/Vec2d>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
@@ -21,11 +24,14 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/skycontent.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
+#include <components/sky/skyclock.hpp>
 
 namespace Rtx
 {
@@ -632,6 +638,62 @@ namespace Rtx
             }
 
             mRenderer.dropGuiTexture(texture);
+        }
+
+        /// **A frame a host asks for is its viewpoint with its world described over it, and its air
+        /// carried on**: the block the renderer traced and the carry it hands back are what
+        /// `constantsFor` and `describeWorld` make of the request — the one writer of each field —
+        /// and `holdAir` stands the carry where a harness recorded it. Outdoors, so the air drifts
+        /// along the deck's heading, which a sky with no sheet reads as north.
+        TEST_F(RtxFramesTest, aRequestIsTracedAsItsWorldDescribesItAndCarriesTheAirOn)
+        {
+            const SkyContent sky;
+            const auto requestAt = [&](double skySeconds) {
+                FrameRequest request{
+                    .mView = makeCameraFromView(osg::Matrixf::lookAt(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f),
+                                                    osg::Vec3f(0.0f, 0.0f, 1.0f)),
+                        60.0f, sSize, sSize, sNearPlane, 100000.0f)
+                                 .value(),
+                    .mRayMask = Shaders::MASK_STATIC,
+                    .mLamps = false,
+                    .mSampleFrame = 7,
+                    .mWorld = {},
+                    .mSky = &sky,
+                    .mOptions = {},
+                };
+                request.mWorld.mOutdoors = true;
+                request.mWorld.mDaylight.mFog.mWind = 0.5f;
+                request.mWorld.mSkySeconds = skySeconds;
+                return request;
+            };
+
+            // From a carry of nought at nought, whatever a frame before this one left.
+            FogDrift drift;
+            drift.hold(osg::Vec2d(), 0.0);
+            mRenderer.holdAir(AirClock{ .mSky = Sky::SkyClock{ .mSeconds = 0.0 }, .mCarried = osg::Vec2d() });
+
+            for (const double seconds : { 0.0, 10.0 })
+            {
+                const FrameRequest request = requestAt(seconds);
+                const FrameTraced traced = mRenderer.renderFrame(request);
+                finishedHits();
+
+                Shaders::VisibilityConstants expected = constantsFor(request.mView);
+                expected.mRayMask = Shaders::MASK_STATIC;
+                expected.mNoLamps = 1;
+                expected.mFrame = 7;
+                WorldOptions options;
+                describeWorld(request.mWorld, sky, drift, expected, options);
+                EXPECT_EQ(std::memcmp(&traced.mConstants, &expected, sizeof(expected)), 0) << "at " << seconds << " s";
+                EXPECT_EQ(traced.mCarried, drift.get()) << "at " << seconds << " s";
+            }
+            ASSERT_NE(drift.get(), osg::Vec2d()) << "the air was carried, or the carry proves nothing";
+
+            // Held, the next frame at the held clock draws the held carry and moves it nothing.
+            const osg::Vec2d held(123.0, -45.0);
+            mRenderer.holdAir(AirClock{ .mSky = Sky::SkyClock{ .mSeconds = 20.0 }, .mCarried = held });
+            EXPECT_EQ(mRenderer.renderFrame(requestAt(20.0)).mCarried, held);
+            finishedHits();
         }
     }
 }

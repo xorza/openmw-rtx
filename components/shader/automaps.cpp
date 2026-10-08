@@ -1,6 +1,7 @@
 #include "automaps.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -268,26 +269,32 @@ namespace Shader
 
     bool MapVisitor::buildTangents(osg::Geometry& geometry) const
     {
-        // The coordinates the normal map is read through: its own unit's, or unit nought's where it
-        // has none, or the first array there is where unit nought has none either — which is what
-        // `ShaderVisitor::adjustGeometry` binds at the normal map's unit before it builds from it.
-        unsigned int unit = static_cast<unsigned int>(mNormalUnit);
-        if (geometry.getTexCoordArray(unit) == nullptr)
-            unit = 0;
-        if (geometry.getTexCoordArray(unit) == nullptr)
-        {
-            const osg::Geometry::ArrayList& arrays = geometry.getTexCoordArrayList();
-            unsigned int found = 0;
-            while (found < arrays.size() && (found == sTangentUnit || arrays[found] == nullptr))
-                ++found;
-            if (found == arrays.size())
-                return false;
-            unit = found;
-        }
+        const std::optional<unsigned int> unit = coordinatesFor(geometry, static_cast<unsigned int>(mNormalUnit));
+        if (!unit.has_value())
+            return false;
 
+        generateTangents(geometry, *unit);
+        return true;
+    }
+
+    std::optional<unsigned int> coordinatesFor(const osg::Geometry& geometry, const unsigned int unit)
+    {
+        if (geometry.getTexCoordArray(unit) != nullptr)
+            return unit;
+        if (geometry.getTexCoordArray(0) != nullptr)
+            return 0u;
+
+        const osg::Geometry::ArrayList& arrays = geometry.getTexCoordArrayList();
+        for (unsigned int found = 0; found < arrays.size(); ++found)
+            if (found != sTangentUnit && arrays[found] != nullptr)
+                return found;
+        return std::nullopt;
+    }
+
+    void generateTangents(osg::Geometry& geometry, const unsigned int unit)
+    {
         osg::ref_ptr<osgUtil::TangentSpaceGenerator> generator(new osgUtil::TangentSpaceGenerator);
         generator->generate(&geometry, static_cast<int>(unit));
         geometry.setTexCoordArray(sTangentUnit, generator->getTangentArray(), osg::Array::BIND_PER_VERTEX);
-        return true;
     }
 }

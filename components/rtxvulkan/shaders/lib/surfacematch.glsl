@@ -121,17 +121,6 @@ float planeTolerance(Camera eye, float away, vec3 normal, vec3 direction)
     return ACCUMULATE_PLANE * side / mix(0.05, 1.0, abs(dot(normal, direction)));
 }
 
-/// Whether a surface with normal `was`, `there`, is the one with `normal` at `anchor`: the two
-/// normals within `ACCUMULATE_FACING`, and `there` within `tolerance` of the plane through `anchor`.
-///
-/// **The one rule** every temporal filter and the bounce's reuse hold a history to, whatever the
-/// history holds of where its surface stood: `heldSurfaceMatches` rebuilds it from a held distance,
-/// and the reuse reads it off a reservoir's own origin.
-bool samePlane(vec3 was, vec3 there, vec3 normal, vec3 anchor, float tolerance)
-{
-    return dot(was, normal) >= ACCUMULATE_FACING && abs(dot(normal, there - anchor)) <= tolerance;
-}
-
 /// The previous frame's eye of a pixel `onArms` (`surfaceOnArms`): the arms' plane over the
 /// previous basis, as `previousScreenThrough` reads it, or the world's.
 Camera previousEye(HistoryConstants history, bool onArms)
@@ -174,15 +163,17 @@ HistoryPlane historyPlane(HistoryConstants history, ivec2 at, vec2 seen, vec3 mo
 
 /// Whether the history texel at `tap`, which holds `was` — its normal in `xyz`, nought where nothing
 /// was accumulated, and its distance in `w` times `HistoryConstants::mDistanceScale` — is the
-/// surface `plane` stands for: the point it holds, rebuilt along the previous eye's ray through it,
-/// on that plane (`samePlane`).
+/// surface `plane` stands for: its normal within `ACCUMULATE_FACING` of the plane's, and the point it
+/// holds, rebuilt along the previous eye's ray through it, within the plane's tolerance of it. **The
+/// one rule** every temporal filter holds a history to.
 bool heldSurfaceMatches(vec4 was, ivec2 tap, HistoryPlane plane)
 {
     if (dot(was.xyz, was.xyz) <= 0.0)
         return false;
 
     const vec3 there = positionAlong(plane.mBefore, tap, was.w / plane.mDistanceScale);
-    return samePlane(was.xyz, there, plane.mNormal, plane.mAnchor, plane.mTolerance);
+    return dot(was.xyz, plane.mNormal) >= ACCUMULATE_FACING
+        && abs(dot(plane.mNormal, there - plane.mAnchor)) <= plane.mTolerance;
 }
 
 /// What a history fetch takes of each of the four texels `footprint` spans, into a new `vec4`

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string_view>
-
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
@@ -20,9 +18,9 @@ namespace Rtx
         /// Nothing yet, and nothing it can grow into: what a slot holds before its owner opens it.
         GrowableBuffer() = default;
 
-        /// @param name a literal, which is what every caller passes and all a debug name is asked
-        ///        to be.
-        GrowableBuffer(const Device& device, BufferKind kind, VkBufferUsageFlags usage, std::string_view name)
+        /// @param name kept, and named again on every buffer a growth makes, so it lives as long as
+        ///        this does: a literal, which is what every caller passes.
+        GrowableBuffer(const Device& device, BufferKind kind, VkBufferUsageFlags usage, const char* name)
             : mDevice(&device)
             , mKind(kind)
             , mUsage(usage)
@@ -46,7 +44,7 @@ namespace Rtx
         const Device* mDevice = nullptr;
         BufferKind mKind = BufferKind::DeviceLocal;
         VkBufferUsageFlags mUsage = 0;
-        std::string_view mName;
+        const char* mName = "";
 
         Buffer mBuffer;
     };

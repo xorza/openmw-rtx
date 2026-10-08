@@ -24,12 +24,12 @@
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <apps/rtxtool/instruments/drivercache.hpp>
+#include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
-#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
@@ -41,8 +41,6 @@
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -50,6 +48,9 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/settings.hpp>
@@ -59,6 +60,7 @@
 #include "compare.hpp"
 #include "film.hpp"
 #include "harnessfolder.hpp"
+#include "noise.hpp"
 #include "options.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
@@ -71,16 +73,15 @@ namespace RtxTool
 
         constexpr std::string_view applicationName = "RtxTool";
 
-        /// Opens the log, loads the settings and hands the crash catcher what it reads of both: the
-        /// version every report carries and how long without a frame is a hang. The game's own
-        /// sequence, `parseOptions` in `apps/openmw/main.cpp`, restated, so a hang in the harness is
-        /// reported as one in the game is.
+        /// Opens the log, loads the settings and hands the crash catcher what it reads of them: where
+        /// the reports go and how long without a frame is a hang. The game's own sequence,
+        /// `parseOptions` in `apps/openmw/main.cpp`, restated, so a hang in the harness is reported
+        /// as one in the game is.
         void startLogAndSettings(const Files::ConfigurationManager& config)
         {
             Debug::setupLogging(config.getLogPath(), applicationName);
             Debug::setCrashReports(config.getUserDataPath());
             Log(Debug::Info) << Version::getOpenmwVersionDescription();
-            Crash::annotate("version", Version::getOpenmwVersionDescription());
 
             Settings::Manager::load(config);
             Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));
@@ -177,11 +178,11 @@ namespace RtxTool
             return hour;
         }
 
-        /// The weather the line names, as `Rtx::weatherIndex` numbers it, read as a view file's is;
-        /// refused with the option that named it where it is none of the ten.
-        std::uint32_t weatherNamed(const std::string_view option, const std::string_view weather)
+        /// The weather the line names, read as a view file's is; refused with the option that named
+        /// it where it is none of the ten.
+        Rtx::Weather weatherNamed(const std::string_view option, const std::string_view weather)
         {
-            const std::optional<std::uint32_t> named = Rtx::weatherIndex(weather);
+            const std::optional<Rtx::Weather> named = Rtx::weatherNamed(weather);
             if (!named.has_value())
                 throw std::runtime_error(
                     std::format("--{}: \"{}\" {}: {}", option, weather, checkWeather(weather).error(), listWeathers()));
@@ -189,16 +190,16 @@ namespace RtxTool
         }
 
         /// What `--turn-weather` named, in its order.
-        std::vector<std::uint32_t> weathersToTurn(const bpo::variables_map& variables)
+        std::vector<Rtx::Weather> weathersToTurn(const bpo::variables_map& variables)
         {
-            std::vector<std::uint32_t> turn;
+            std::vector<Rtx::Weather> turn;
             for (const std::string& weather : splitNames(variables["turn-weather"].as<std::string>()))
                 turn.push_back(weatherNamed("turn-weather", weather));
             return turn;
         }
 
         /// What `--weather` named, or nothing where it was left at its default.
-        std::optional<std::uint32_t> weatherGiven(const bpo::variables_map& variables)
+        std::optional<Rtx::Weather> weatherGiven(const bpo::variables_map& variables)
         {
             if (variables["weather"].defaulted())
                 return std::nullopt;
@@ -265,31 +266,6 @@ namespace RtxTool
                 stops.push_back(stopFor(view, given));
 
             return stops;
-        }
-
-        /// What every command is handed: the line it was given, the configuration that line was
-        /// read against, where the resources are, and which of their shader sets a renderer reads —
-        /// the one the driver's cache was pointed at.
-        struct Command
-        {
-            const bpo::variables_map& mVariables;
-            const ToolOptions& mOptions;
-            Files::ConfigurationManager& mConfig;
-            const std::filesystem::path& mResources;
-            const Rtx::ShaderSet& mShaders;
-            Verbs mVerb;
-        };
-
-        /// The places a run can visit, in the harness's folder.
-        std::filesystem::path viewsFile()
-        {
-            return harnessDirectory() / "views.cfg";
-        }
-
-        /// The suites, each a list of places in `viewsFile`.
-        std::filesystem::path suitesFile()
-        {
-            return harnessDirectory() / "benches.cfg";
         }
 
         /// Where a verb writes its pictures: `--out`, or a directory named for the verb.
@@ -408,6 +384,7 @@ namespace RtxTool
                 framed.mSetup.mRun.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
             Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
+            profile.mRadianceWidth = policyOf(command.mVerb).radianceWidth();
             profile.mUpscale = derived.mUpscale;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
@@ -420,35 +397,6 @@ namespace RtxTool
             readReconstruction(variables, profile.mReconstruction);
 
             return framed;
-        }
-
-        int runInfo(const Command& command, const Rtx::ValidationOptions& validation)
-        {
-            // A one-pixel target: this reports on a device rather than drawing with it, and the
-            // default would spend fifty megabytes of images to print a page of text.
-            //
-            // **The shaders are still named, because standing a renderer up compiles one.**
-            // Reporting on a device is not a reason to build half a renderer, and a build whose
-            // shaders are missing should say so here rather than at the first frame asked for.
-            //
-            // **And no pipeline cache, as no verb of this tool keeps one**: `RtxRenderer` says why a
-            // measured run compiles from source, and this verb's few seconds are that compile.
-            try
-            {
-                const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createVulkanRenderer(Rtx::RendererOptions{
-                    .mShaders = command.mShaders,
-                    .mWidth = 1,
-                    .mHeight = 1,
-                    .mRun = { .mValidation = validation },
-                });
-                out() << renderer->describeDevice();
-                return 0;
-            }
-            catch (const Rtx::Unsupported& obstacle)
-            {
-                out() << obstacle.what() << '\n';
-                return 1;
-            }
         }
 
         /// Where someone starts when they have said nothing about where: the ship at Seyda Neen,
@@ -478,19 +426,18 @@ namespace RtxTool
             return &requireView(views, name);
         }
 
-        /// What a `shot` writes its frames' hashes to, beside the pictures, and reads a reference's
-        /// from.
-        constexpr std::string_view sShotHashes = "hashes.csv";
+        /// What a `shot` and a `bench --out` write their frames' hashes to, beside the pictures, and
+        /// read a reference's from, in the directory `--against` names.
+        constexpr std::string_view sRunHashes = "hashes.csv";
 
-        /// Runs `stop` for `frames` once the world stood whole and its histories converged over
-        /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
-        /// the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor` applies.
-        ///
-        /// @param frames how many to measure once the world has arrived. Why a command wants more
-        ///        than one is that command's to say.
-        void measureFrames(Stop& stop, const std::uint32_t frames = 1)
+        /// Has `request` write its frames' hashes into `out` and read a reference's from `against`,
+        /// each where it is named.
+        void hashInto(SessionRequest& request, const std::filesystem::path& out, const std::filesystem::path& against)
         {
-            stop.mSchedule.mSpec = BenchSpec{ .mRun = { .mFrames = frames }, .mWarm = { .mFrames = sHistoryFrames } };
+            if (!out.empty())
+                request.mHashes = out / sRunHashes;
+            if (!against.empty())
+                request.mAgainst = against / sRunHashes;
         }
 
         /// What `policy` does to one place: the route and the track a command does not follow go,
@@ -542,14 +489,6 @@ namespace RtxTool
             request.mRandomSeed = variables["random-seed"].as<unsigned int>();
 
             return request;
-        }
-
-        /// Runs a list of stops against a real game, which is what every command that writes
-        /// pictures or reports does.
-        int runStops(const Command& command, const Framed& framed, std::vector<Stop> stops)
-        {
-            return runHosted(command.mVariables, command.mConfig, command.mResources, framed.mWindow,
-                sessionFor(command, framed, std::move(stops)));
         }
 
         /// How long every stop of a run lasts, from what the command line asked for.
@@ -704,7 +643,7 @@ namespace RtxTool
                     out() << " at " << describeHour(*view.mSky.mHour);
 
                 if (view.mSky.mWeather.has_value())
-                    out() << " in " << *view.mSky.mWeather;
+                    out() << " in " << Rtx::nameOf(*view.mSky.mWeather);
 
                 out() << "\n      " << view.mNote << '\n';
             }
@@ -724,7 +663,31 @@ namespace RtxTool
 
             const Rtx::ValidationOptions validation = validationFrom(command.mVariables);
 
-            return runInfo(command, validation);
+            // A one-pixel target: this reports on a device rather than drawing with it, and the
+            // default would spend fifty megabytes of images to print a page of text.
+            //
+            // **The shaders are still named, because standing a renderer up compiles one.**
+            // Reporting on a device is not a reason to build half a renderer, and a build whose
+            // shaders are missing should say so here rather than at the first frame asked for.
+            //
+            // **And no pipeline cache, as no verb of this tool keeps one**: `RtxRenderer` says why a
+            // measured run compiles from source, and this verb's few seconds are that compile.
+            try
+            {
+                const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createVulkanRenderer(Rtx::RendererOptions{
+                    .mShaders = command.mShaders,
+                    .mWidth = 1,
+                    .mHeight = 1,
+                    .mRun = { .mValidation = validation },
+                });
+                out() << renderer->describeDevice();
+                return 0;
+            }
+            catch (const Rtx::Unsupported& obstacle)
+            {
+                out() << obstacle.what() << '\n';
+                return 1;
+            }
         }
 
         /// What the renderer was handed at each place, without looking at what it drew.
@@ -744,7 +707,7 @@ namespace RtxTool
                 stop.mActions.mWalkTwice = true;
             }
 
-            return runStops(command, framed, std::move(stops));
+            return runHosted(command, framed, sessionFor(command, framed, std::move(stops)));
         }
 
         /// The pictures of each place, taken headless: the frame, and the doll, the tile and the
@@ -760,7 +723,7 @@ namespace RtxTool
         /// `--views`, with `--against` saying which pictures a change moved.
         ///
         /// **The frame is judged by its hashes and not by its pixels.** Every frame of a stop is
-        /// hashed the way a `bench --hashes` hashes one — the trace's own images, what the frame
+        /// hashed the way a `bench --out` hashes one — the trace's own images, what the frame
         /// handed the reconstruction, the scene — into `hashes.csv` beside the pictures, and
         /// `--against` compares that table first. `FrameHashes` says why the picture past an
         /// upscaler cannot be the verdict; the tile, the doll and the sheet are traced
@@ -823,14 +786,11 @@ namespace RtxTool
             clearPictures(out, written);
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
-            request.mHashes = out / sShotHashes;
-            if (!against.empty())
-                request.mAgainst = against / sShotHashes;
+            hashInto(request, out, against);
 
             // Compared whatever the session answered, because a moved frame is what fails it, and
             // the run where something moved is the run whose tiles, dolls and sheets are wanted.
-            const int status
-                = runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
+            const int status = runHosted(command, framed, std::move(request));
             const int compared = compareRuns(out, against, written);
             return status != 0 ? status : compared;
         }
@@ -840,26 +800,31 @@ namespace RtxTool
             const bpo::variables_map& variables = command.mVariables;
             Framed framed = frameFrom(command);
 
-            // A bench draws frames the way a player sees them and sums none of them, so it is
-            // measured at the width the game runs at. Every other verb keeps the reference's.
-            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
             framed.mSetup.mHeadless = !variables["window"].as<bool>();
 
             const SuiteRun run = chooseBenchViews(variables, "default");
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);
 
             const BenchSpec spec = specFrom(variables);
-            const std::vector<std::uint32_t> turn = weathersToTurn(variables);
-            const bool hashing = !variables["hashes"].as<std::string>().empty()
-                || !variables["against"].as<std::string>().empty() || !variables["pictures"].as<std::string>().empty();
+            const std::vector<Rtx::Weather> turn = weathersToTurn(variables);
+            // **Nothing written and nothing hashed unless asked**: a bench measures, and a frame read
+            // back waits on the device. `--out` is where its hashes go, and its pictures where asked.
+            const std::filesystem::path out = variables["out"].defaulted() ? std::filesystem::path() : outOf(command);
+            const std::filesystem::path against = variables["against"].as<std::string>();
+            const bool pictures = variables["pictures"].as<bool>();
+            if (pictures && out.empty())
+                throw std::runtime_error("--pictures writes into --out, and no --out was named");
+            if (!out.empty())
+            {
+                std::filesystem::create_directories(out);
+                if (const Misc::Result<void, std::string> checked = checkAgainst(out, against); !checked.isOk())
+                    throw std::runtime_error(checked.error());
+            }
+            const bool hashing = !out.empty() || !against.empty();
 
             const std::filesystem::path frameTimes = variables["frame-times"].as<std::string>();
             if (!frameTimes.empty())
                 std::filesystem::create_directories(frameTimes);
-
-            const std::filesystem::path pictures = variables["pictures"].as<std::string>();
-            if (!pictures.empty())
-                std::filesystem::create_directories(pictures);
 
             for (Stop& stop : stops)
             {
@@ -873,13 +838,13 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
             request.mJson = variables["json"].as<std::string>();
-            request.mHashes = variables["hashes"].as<std::string>();
-            request.mAgainst = variables["against"].as<std::string>();
-            request.mPictures = pictures;
+            hashInto(request, out, against);
+            if (pictures)
+                request.mPictures = out;
             request.mPerfControl = variables["perf-control"].as<std::string>();
             request.mSetup.mSettled = run.mSettled;
 
-            return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
+            return runHosted(command, framed, std::move(request));
         }
 
         /// A window on a place, with the game running behind it.
@@ -896,9 +861,6 @@ namespace RtxTool
         {
             const bpo::variables_map& variables = command.mVariables;
             Framed framed = frameFrom(command);
-
-            // Watched and never summed, like a bench.
-            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
 
             // **On the wall, because somebody is watching.** A stepped world runs as fast as the
             // card draws it, which at two hundred frames a second is three times over; a window
@@ -921,7 +883,7 @@ namespace RtxTool
             request.mKeys = variables["keys"].as<std::string>();
             request.mHomePictures = outOf(command);
 
-            return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request), true);
+            return runHosted(command, framed, std::move(request));
         }
 
         /// Every claim the tree makes about what the renderer is handed and what it draws, asked
@@ -969,7 +931,7 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
 
-            return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
+            return runHosted(command, framed, std::move(request));
         }
 
         /// How noisy the frame a player sees is, against sixteen frames averaged, and how far what it
@@ -1025,199 +987,46 @@ namespace RtxTool
             const std::optional<Rtx::ReconstructionRequest> versus
                 = asked.empty() ? std::nullopt : std::optional(command.mOptions.versus(variables, played, asked));
 
-            // **The reference and the bar trace unfiltered, every frame a draw of its own**
-            // (`ReconstructionRequest::unfiltered`): a frame that reused the ones before it is not
-            // one more sample of the truth, and neither is a frame of the bar. Their indirect light
-            // stays the run's, since a traced bounce and none are two integrands. So the other side
-            // traces its own only where its unfiltered frames trace otherwise.
-            const bool ownBar = versus.has_value() && versus->unfiltered() != played.unfiltered();
-            const auto referenceOf = [](const Rtx::ReconstructionRequest& side) {
-                Rtx::ReconstructionRequest truth = side.unfiltered();
-                truth.mJitter = true;
-                truth.mNoise = Rtx::NoiseSource::WhiteHash;
-                // **The truth reads every texture at the level its footprint asks**, whatever the
-                // run's epsilon: an epsilon is a knob on the frame, and a reference that moved with
-                // it would take the frame's softness for its own and report no bias at all.
-                truth.mLevelEpsilon = 0.0f;
-                // **And draws every source for its bit**: a floor rides a minor source's light on
-                // another's shadow, which is the bias the A/B of the floor measures.
-                truth.mShadowFloor = 0.0f;
-                // And weighs every lamp, which a fixed count of candidates estimates.
-                truth.mLampCandidates = 0u;
-                return truth;
-            };
-            // **And its own reference only where the truth it traces is another**: a switch the truth
-            // sets for itself — the jitter, the noise, the level epsilon, the floor, the lamps it
-            // weighs — leaves the first side's, which is 256 frames a place not traced twice. Every
-            // field the truth keeps is one the unfiltered request keeps, so an own reference comes
-            // with an own bar.
-            const bool ownReference = versus.has_value() && referenceOf(*versus) != referenceOf(played);
-            assert(!ownReference || ownBar);
-            const Rtx::ExposureRule held = Rtx::HeldExposure{};
+            NoisePlan plan = planNoise(NoiseAsk{
+                .mPlaces = places,
+                .mFolder = folder,
+                .mPlayed = played,
+                .mVersus = versus,
+                .mStrafe = variables["strafe"].as<float>(),
+                .mWalk = variables["walk"].as<float>(),
+                .mCut = variables["cut"].as<std::uint32_t>(),
+                .mExtents
+                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale),
+                .mStep = worldStep(framed.mStep),
+            });
 
-            // One picture of `place` after `frames` frames: their sum where `summed`, and the last of
-            // them where not.
-            const auto picture
-                = [&](const Stop& place, const std::string_view suffix, const std::uint32_t frames, const bool summed,
-                      const std::optional<Rtx::ReconstructionRequest>& reconstruction,
-                      const std::optional<Rtx::ExposureRule>& exposure, const std::optional<Rtx::Upscale> upscale) {
-                      Stop stop = place;
-                      stop.mName += suffix;
-                      measureFrames(stop, frames);
-                      stop.mSchedule.mAccumulate = summed ? frames : 0;
-                      stop.mSchedule.mReconstruction = reconstruction;
-                      stop.mSchedule.mExposure = exposure;
-                      stop.mSchedule.mUpscale = upscale;
-                      stop.mActions.mCapture = folder / (stop.mName + ".png");
-                      return stop;
-                  };
-
-            const float strafe = variables["strafe"].as<float>();
-            const float walk = variables["walk"].as<float>();
-            const bool flies = strafe > 0.0f || walk != 0.0f;
-
-            // Each leg's frame is held to the samples a shown pixel its history could hold
-            // (`noiseFrameFor`), standing as well.
-            const Rtx::FrameExtents extents
-                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale);
-            const Misc::Result<NoiseFrame, std::string> taken
-                = noiseFrameFor(variables["cut"].as<std::uint32_t>(), flies, extents);
-            if (!taken.isOk())
-                throw std::runtime_error(taken.error());
-            const NoiseFrame& leg = taken.value();
-            const std::uint32_t barFrames = leg.mBarFrames;
-
-            // The frame's own stop, flying in where the line asks: a route that holds the world, so
-            // the frame flies through the world the reference stands in (`applyPolicy`).
-            const auto frame = [&](const Stop& place, const Rtx::ReconstructionRequest& side) {
-                Stop stop = picture(place, "", flies ? sNoiseFlightFrames : 1, false, side, held, std::nullopt);
-                if (leg.mWarmup.has_value())
-                    stop.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = *leg.mWarmup };
-                if (!flies)
-                    return stop;
-
-                if (!place.mStand.mEye.has_value())
-                    throw std::runtime_error(std::format(
-                        "--strafe and --walk need a place that names an eye, and {} names none", place.mName));
-
-                // An eye that started past the point it faces would fly in facing backwards.
-                if (walk < 0.0f
-                    && -walk >= (place.mStand.getLook() - *place.mStand.mEye) * place.mStand.getLevelAhead())
-                    throw std::runtime_error(
-                        std::format("--walk={} starts past the point {} faces", walk, place.mName));
-
-                Approach approach = stop.mStand.approachFrom(strafe, walk, worldStep(framed.mStep), sNoiseFlightFrames);
-                stop.mStand = std::move(approach.mFrom);
-                stop.mSchedule.mRoute = approach.mRoute;
-                return stop;
-            };
-
-            // `sNoiseMeanDraws` draws of `drawn`, each adding its last frame to the mean `suffix`
-            // names, as shown.
-            // **The sample offsets are each stop's place in a whole side**, so the other side draws
-            // what the first drew, and an A/B compares two reconstructions of one set of draws. A side
-            // that asks what the first asked took the frame to the byte at the glow-lit chamber, and
-            // the frame's mean to within 50 bytes of 8.3 million, each by one level, which no figure
-            // of the report showed: the card's arithmetic under the wavelet
-            // (`docs/rtx/architecture.md`, the denoiser), which two runs differ by too. The places:
-            // the reference, the bar, the bar's limit's draws, the frame, the frame's mean's draws.
-            constexpr std::size_t stopsASide = 3 + 2 * sNoiseMeanDraws;
-            static_assert(stopsASide * std::uint64_t{ sNoiseSampleStride } <= ~std::uint32_t{ 0 },
-                "the sample offsets of one place past what a frame number holds");
-            const auto offsetAt = [](const std::size_t at, const std::uint32_t later) {
-                return static_cast<std::uint32_t>(at * sNoiseSampleStride) + later;
-            };
-
-            // `sNoiseMeanDraws` draws of `drawn`, at the places from `at` on, each adding its last
-            // frame to the mean `suffix` names, as shown.
-            const auto drawMean = [&](const Stop& place, const Stop& drawn, const std::string_view suffix,
-                                      const std::size_t at, const std::uint32_t later, std::vector<Stop>& into) {
-                for (std::uint32_t draw = 0; draw < sNoiseMeanDraws; ++draw)
-                {
-                    Stop again = drawn;
-                    again.mName = place.mName + std::string(suffix);
-                    again.mActions.mCapture.clear();
-                    again.mActions.mMean = Actions::Mean{
-                        .mFile = folder / (place.mName + std::string(suffix) + ".png"),
-                        .mOf = sNoiseMeanDraws,
-                    };
-                    again.mSchedule.mSampleOffset = offsetAt(at + draw, later);
-                    into.push_back(std::move(again));
-                }
-            };
-
-            // One side of a place: its reference where `reference` asks, its bar and the bar's limit
-            // where `bar` asks, then its frame and the frame's mean.
-            //
-            // **The bar and its limit start their samples as much later as their warm-up is shorter**
-            // than a filtered picture's, so each measured frame draws what it drew when they warmed
-            // over `sHistoryFrames`: what moved is the air's tail alone.
-            const auto drawSide = [&](const Stop& place, const Rtx::ReconstructionRequest& side, const bool reference,
-                                      const bool bar, std::vector<Stop>& into) {
-                if (reference)
-                {
-                    Stop truth = picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, referenceOf(side),
-                        std::nullopt, Rtx::Upscale::Off);
-                    truth.mActions.mDeepCapture = true;
-                    truth.mSchedule.mSampleOffset = offsetAt(0, 0);
-                    into.push_back(std::move(truth));
-                }
-                if (bar)
-                {
-                    // Unfiltered at a held exposure, so the air's is its one history (`sAirFrames`).
-                    const std::uint32_t shortened = sHistoryFrames - sAirFrames;
-                    Stop averaged
-                        = picture(place, sNoiseBarSuffix, barFrames, true, side.unfiltered(), held, Rtx::Upscale::Off);
-                    averaged.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = sAirFrames };
-                    averaged.mSchedule.mSampleOffset = offsetAt(1, shortened);
-                    into.push_back(averaged);
-                    drawMean(place, averaged, sNoiseBarLimitSuffix, 2, shortened, into);
-                }
-                Stop judged = frame(place, side);
-                judged.mSchedule.mSampleOffset = offsetAt(2 + sNoiseMeanDraws, 0);
-                into.push_back(judged);
-                drawMean(place, judged, sNoiseMeanSuffix, 3 + sNoiseMeanDraws, 0, into);
-            };
-
-            std::vector<Stop> stops;
-            stops.reserve(places.size() * stopsASide * (versus.has_value() ? 2 : 1));
-            std::vector<NoiseSide> sides;
-            sides.reserve(places.size());
-            std::vector<NoiseSide> versusSides;
-            versusSides.reserve(versus.has_value() ? places.size() : 0);
-            for (const Stop& place : places)
-            {
-                sides.push_back(NoiseSide{
-                    .mPlace = place.mName, .mFrame = place.mName, .mBar = place.mName, .mReference = place.mName });
-                drawSide(place, played, true, true, stops);
-                if (!versus.has_value())
-                    continue;
-
-                // After the first side's reference, whose exposure every picture after it holds.
-                Stop other = place;
-                other.mName += sNoiseVersusSuffix;
-                versusSides.push_back(NoiseSide{ .mPlace = place.mName,
-                    .mFrame = other.mName,
-                    .mBar = ownBar ? other.mName : place.mName,
-                    .mReference = ownReference ? other.mName : place.mName });
-                drawSide(other, *versus, ownReference, ownBar, stops);
-            }
-
-            SessionRequest request = sessionFor(command, framed, std::move(stops));
+            SessionRequest request = sessionFor(command, framed, std::move(plan.mStops));
             request.mSuite = run.mSuite;
 
-            if (const int status
-                = runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
-                status != 0)
+            // An earlier run's record goes before this one draws, so a run that ends before it judges
+            // leaves none to be read as its own.
+            const std::filesystem::path record = folder / sNoiseRecord;
+            std::filesystem::remove(record);
+
+            if (const int status = runHosted(command, framed, std::move(request)); status != 0)
                 return status;
 
-            const int judged = judgeNoise(folder, sides, barFrames);
-            if (!versus.has_value())
-                return judged;
+            std::array<std::vector<NoiseFigures>, 2> measured;
+            int judged = judgeNoise(folder, plan.mSides, plan.mBarFrames, measured[0]);
+            if (versus.has_value())
+            {
+                out() << std::format("versus --{}{}{}\n", asked, plan.mOwnBar ? ", against a bar of its own" : "",
+                    plan.mOwnReference ? " and a reference of its own" : "");
+                judged = std::max(judged, judgeNoise(folder, plan.mVersusSides, plan.mBarFrames, measured[1]));
+            }
 
-            out() << std::format("versus --{}{}{}\n", asked, ownBar ? ", against a bar of its own" : "",
-                ownReference ? " and a reference of its own" : "");
-            return std::max(judged, judgeNoise(folder, versusSides, barFrames));
+            const std::span<const std::vector<NoiseFigures>> written(measured.data(), versus.has_value() ? 2 : 1);
+            if (const Misc::Result<void, std::string> wrote = writeNoiseRecord(record, written); !wrote.isOk())
+            {
+                out() << wrote.error() << '\n';
+                return 1;
+            }
+            return judged;
         }
 
         /// A film of the keys a window wrote: every take drawn headless, its frames numbered through
@@ -1236,9 +1045,6 @@ namespace RtxTool
         {
             const bpo::variables_map& variables = command.mVariables;
             Framed framed = frameFrom(command);
-
-            // Watched and never summed, like a bench.
-            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
 
             const std::filesystem::path keys = variables["keys"].as<std::string>();
             if (keys.empty())
@@ -1279,8 +1085,7 @@ namespace RtxTool
             if (const std::size_t cleared = clearFrames(frames); cleared > 0)
                 out() << std::format("cleared {} frames of the last film\n", cleared);
 
-            if (const int status = runHosted(variables, command.mConfig, command.mResources, framed.mWindow,
-                    sessionFor(command, framed, stopsFor(plan, frames)));
+            if (const int status = runHosted(command, framed, sessionFor(command, framed, stopsFor(plan, frames)));
                 status != 0)
                 return status;
 

@@ -38,11 +38,15 @@ namespace Rtx
         ShadowPenumbra,
         ShadowMask,
         SpecularMean,
+        SpecularFast,
+        SpecularFastBlended,
         PaneMean,
         PaneHeld,
+        PaneFast,
+        PaneFastBlended,
     };
 
-    inline constexpr std::size_t sDenoiseImages = static_cast<std::size_t>(DenoiseImage::PaneHeld) + 1;
+    inline constexpr std::size_t sDenoiseImages = static_cast<std::size_t>(DenoiseImage::PaneFastBlended) + 1;
 
     /// Everything one camera's denoisers keep, at one extent: the four temporal filters' histories,
     /// what each writes of a frame's own, and the wavelet's scratch. A chain's and not the passes',
@@ -159,11 +163,16 @@ namespace Rtx
             bool mFresh;
         };
 
-        /// The glossy filter's: the mean and its frame count, the last frame's and this one's.
+        /// The glossy filter's: the mean and its frame count, the last frame's and this one's; and
+        /// the fast mean (`HISTORY_CLAMP_FAST`), last frame's, this one's and the filter's blend of
+        /// it, which the clamp reads at a pixel's neighbours as it writes the pixel's.
         struct SpecularImages
         {
             const Image& mMeanBefore;
             const Image& mMean;
+            const Image& mFastBefore;
+            const Image& mFast;
+            const Image& mFastBlended;
 
             /// `AccumulateImages::mSurfaceBefore`.
             const Image& mHeldSurface;
@@ -172,13 +181,16 @@ namespace Rtx
         };
 
         /// The pane filter's: the mean with its frame count, and the layer it belongs to, the last
-        /// frame's and this one's.
+        /// frame's and this one's; and the fast mean, as the glossy filter keeps it.
         struct PaneImages
         {
             const Image& mMeanBefore;
             const Image& mHeldBefore;
             const Image& mMean;
             const Image& mHeld;
+            const Image& mFastBefore;
+            const Image& mFast;
+            const Image& mFastBlended;
             bool mFresh;
         };
 

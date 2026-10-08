@@ -40,24 +40,13 @@ namespace Rtx
         std::pair{ NoiseSource::WhiteHash, std::string_view("white-hash") },
     } };
 
-    /// What a frame asks of the reconstruction, before the upscaler has its say.
-    struct ReconstructionRequest
+    /// How the trace draws, which a run names for an A/B and a frame and a picture read alike:
+    /// `ReconstructionRequest` asks them and `Reconstruction` carries them as asked.
+    struct SamplingSwitches
     {
-        /// Whether the denoisers were wanted over the light.
-        bool mDenoise = true;
-
-        /// Whether the primary ray was wanted moved inside its pixel.
-        bool mJitter = false;
-
         /// Where the trace's draws come from: the tile, unless a run names the other, which is the
         /// A/B.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
-
-        /// What is added to the texture level bias past the ratio the upscaler sets, in levels,
-        /// which a run walks on a sign and a book. Nought is the ratio alone. Without an upscaler
-        /// the ratio is nought and this is the whole of the bias, which is what lets a test and an
-        /// A/B read a level off the unupscaled path.
-        float mLevelEpsilon = 0.0f;
 
         /// The share of a pixel's light under which a source is never drawn for its shadow bit
         /// (`Shaders::SHADOW_DRAW_FLOOR`), which a run names for the A/B.
@@ -67,6 +56,13 @@ namespace Rtx
         /// nought for every lamp, which a run names for the A/B.
         std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
 
+        bool operator==(const SamplingSwitches& other) const = default;
+    };
+
+    /// How the bounce is filtered past the wavelet, which a run names for an A/B: each read only
+    /// where the bounce is filtered, and each at its default where nothing named it.
+    struct FilterSwitches
+    {
         /// Whether the accumulator holds its slow mean to its fast one (`accumulateclamp.comp`), so a
         /// change of the light on a surface that did not move is followed and not dragged. On unless
         /// a run names it off, which is the A/B.
@@ -90,19 +86,41 @@ namespace Rtx
         /// bright bounce's light with it (the glow-lit chamber 1.90 against 2.60 without the ring).
         bool mAntiFirefly = false;
 
+        bool operator==(const FilterSwitches& other) const = default;
+    };
+
+    /// Every filter switch off: a picture's, which has no previous frame to hold a history to.
+    inline constexpr FilterSwitches sNoFilterSwitches{
+        .mAntilag = false, .mHistoryFix = false, .mDualMotion = false, .mAntiFirefly = false
+    };
+
+    /// What a frame asks of the reconstruction, before the upscaler has its say.
+    struct ReconstructionRequest
+    {
+        /// Whether the denoisers were wanted over the light.
+        bool mDenoise = true;
+
+        /// Whether the primary ray was wanted moved inside its pixel.
+        bool mJitter = false;
+
+        /// What is added to the texture level bias past the ratio the upscaler sets, in levels,
+        /// which a run walks on a sign and a book. Nought is the ratio alone. Without an upscaler
+        /// the ratio is nought and this is the whole of the bias, which is what lets a test and an
+        /// A/B read a level off the unupscaled path.
+        float mLevelEpsilon = 0.0f;
+
+        SamplingSwitches mSampling{};
+        FilterSwitches mFilters{};
+
         /// This request with no filter, every frame a draw of its own, and each switch
         /// only the bounce's filters read at its default: what an unfiltered frame reads of it, so
         /// two requests whose unfiltered frames trace alike compare equal. An unfiltered frame runs
         /// none of the denoiser's passes, so nothing else reads those switches.
         ReconstructionRequest unfiltered() const
         {
-            const ReconstructionRequest defaults;
             ReconstructionRequest plain = *this;
             plain.mDenoise = false;
-            plain.mAntilag = defaults.mAntilag;
-            plain.mHistoryFix = defaults.mHistoryFix;
-            plain.mDualMotion = defaults.mDualMotion;
-            plain.mAntiFirefly = defaults.mAntiFirefly;
+            plain.mFilters = FilterSwitches{};
             return plain;
         }
 
@@ -133,9 +151,6 @@ namespace Rtx
         /// then runs on without a period.
         std::uint32_t mJitterPhases = 0;
 
-        /// Where the trace drew from: the tile, unless the request named a source.
-        NoiseSource mNoise = NoiseSource::BlueNoiseTile;
-
         /// What every texture level is offset by, in levels: the shown pixel's cone is narrower
         /// than the traced one by the upscaler's ratio, and a level chosen for the traced pixel
         /// reads every texture that much coarser than the picture shows — `log2(render / display)`,
@@ -150,23 +165,13 @@ namespace Rtx
         /// coarser moved the noise down again and the bias up: 0.80, the pond 1.38.
         float mLevelBias = 0.0f;
 
-        /// Whether the accumulator held its slow mean to its fast one. Read only where the bounce is
-        /// filtered.
-        bool mAntilag = false;
+        /// How the trace drew: the request's, and the defaults for a picture.
+        SamplingSwitches mSampling{};
 
-        /// Whether the wavelet's first level rebuilt the short histories. Read only where the bounce
-        /// is filtered, and off for a picture, where every pixel's history is one frame and none has
-        /// a settled neighbour to borrow from.
-        bool mHistoryFix = false;
-
-        /// Whether a surface the previous frame did not see took its history along its occluder's
-        /// motion. Read only where the bounce is filtered, and off for a picture, which has no
-        /// previous frame.
-        bool mDualMotion = false;
-
-        /// Whether the accumulator held a short history of the bounce under the light around it. Read
-        /// only where the bounce is filtered.
-        bool mAntiFirefly = false;
+        /// How the bounce was filtered: the request's, read only where it is filtered, and none
+        /// for a picture, where every pixel's history is one frame and none has a settled
+        /// neighbour to borrow from.
+        FilterSwitches mFilters = sNoFilterSwitches;
 
         /// Whether frames come after this one to average it with — a world's, which the eye, the
         /// upscaler and the filters each take over time — and not a picture, which stands alone.
@@ -174,14 +179,6 @@ namespace Rtx
         /// under the cut by their alpha only where this holds (`VisibilityConstants::mSoftEdgeDither`),
         /// since alone such a draw is stipple on a doll's hair.
         bool mAveraged = false;
-
-        /// The share of a pixel's light under which a source is never drawn for its shadow bit:
-        /// `ReconstructionRequest::mShadowFloor`, and the default for a picture.
-        float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
-
-        /// How many lamp candidates a point that composes its light draws:
-        /// `ReconstructionRequest::mLampCandidates`, and the default for a picture.
-        std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
 
         /// Whether an upscaler reconstructed the frame.
         bool upscaled() const { return upscales(mUpscale); }
@@ -204,15 +201,10 @@ namespace Rtx
                 .mUpscale = upscale,
                 .mJitter = upscaled || asked.mJitter,
                 .mJitterPhases = upscaled ? jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth) : 0u,
-                .mNoise = asked.mNoise,
                 .mLevelBias = upscaled ? levelBiasOf(extents, asked.mLevelEpsilon) : asked.mLevelEpsilon,
-                .mAntilag = asked.mAntilag,
-                .mHistoryFix = asked.mHistoryFix,
-                .mDualMotion = asked.mDualMotion,
-                .mAntiFirefly = asked.mAntiFirefly,
+                .mSampling = asked.mSampling,
+                .mFilters = asked.mFilters,
                 .mAveraged = true,
-                .mShadowFloor = asked.mShadowFloor,
-                .mLampCandidates = asked.mLampCandidates,
             };
         }
 
@@ -346,11 +338,9 @@ namespace Rtx
         /// hold it not at all. A held queue keeps the device that far behind the host, so every
         /// frame is recorded over a frame still running: what makes a hazard that needs the
         /// overlap show on the first frame of every run. `check` sets it, and so does the second
-        /// leg of `repeat`. What the hold came to on each frame is the zone `sHoldZone` of the
-        /// frame's report, which is what the run's `QueueHeld` check reads it back by.
+        /// leg of `repeat`. What the hold came to on each frame is the zone `FrameZone::Stress` of
+        /// the frame's report, which is what the run's `QueueHeld` check reads it back by.
         double mStressOverlapMs = 0.0;
-
-        static constexpr std::string_view sHoldZone = "stress";
 
         /// Whether the trace keeps a launch per tuple of the frame's facts — the sun, the moons,
         /// the sea, `VisibilityVariant` — or one launch that carries every case. The picture is

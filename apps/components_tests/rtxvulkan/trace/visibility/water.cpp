@@ -433,7 +433,7 @@ namespace Rtx::Testing
             const osg::Matrixf view = osg::Matrixf::lookAt(
                 osg::Vec3f(middle, 0.0f, -10.0f), osg::Vec3f(middle, 0.0f, -100.0f), osg::Vec3f(0.0f, 1.0f, 0.0f));
             Shaders::VisibilityConstants camera
-                = makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 1000.0f).value();
+                = constantsFor(makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 1000.0f).value());
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.866025f, 0.0f, 0.5f), osg::Vec3f(10.0f, 10.0f, 10.0f));
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
@@ -646,8 +646,8 @@ namespace Rtx::Testing
             // comparison a second time for a reason that is not the fault.
             const auto expectTheMiddleAtTheWaterline = [&](const osg::Matrixf& view, float worldHeight,
                                                            const char* which) {
-                Shaders::VisibilityConstants camera
-                    = makeOrthographicCameraFromView(view, span, worldHeight, size, size, 5.0f, 20000.0f).value();
+                Shaders::VisibilityConstants camera = constantsFor(
+                    makeOrthographicCameraFromView(view, span, worldHeight, size, size, 5.0f, 20000.0f).value());
                 camera.mWaterLevel = 0.0f;
                 camera.mSkyHorizon = osg::Vec3f(1.0f, 1.0f, 1.0f);
                 camera.mSkyZenith = osg::Vec3f(1.0f, 1.0f, 1.0f);
@@ -727,8 +727,8 @@ namespace Rtx::Testing
 
             const osg::Matrixf above = osg::Matrixf::lookAt(
                 osg::Vec3f(0.0f, 0.0f, 500.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f));
-            Shaders::VisibilityConstants camera
-                = makeOrthographicCameraFromView(above, 100.0f, 100.0f, size, size, 5.0f, 20000.0f).value();
+            Shaders::VisibilityConstants camera = constantsFor(
+                makeOrthographicCameraFromView(above, 100.0f, 100.0f, size, size, 5.0f, 20000.0f).value());
             camera.mWaterLevel = 0.0f;
 
             const auto albedoOver = [&](float depth, bool wet) {

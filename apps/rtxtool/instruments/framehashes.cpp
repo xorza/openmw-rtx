@@ -12,7 +12,6 @@
 #include <string_view>
 #include <utility>
 
-#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
@@ -20,6 +19,7 @@
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "digest.hpp"
+#include "wholenumber.hpp"
 
 namespace RtxTool
 {
@@ -310,7 +310,7 @@ namespace RtxTool
             return false;
 
         return std::ranges::any_of(std::array{ Rtx::Channel::Surface, Rtx::Channel::Motion }, [&](Rtx::Channel still) {
-            return probe.mImages[Rtx::bindingOf(still)] != first->mTraced[Rtx::bindingOf(still)];
+            return probe.mImages[Rtx::indexOf(still)] != first->mTraced[Rtx::indexOf(still)];
         });
     }
 
@@ -383,7 +383,7 @@ namespace RtxTool
             // every other column agrees is that arithmetic; where another column moved too, the
             // composed frame is only following it and is named with the trace.
             const bool denoised = found->mDenoised && held.mDenoised;
-            const std::size_t composed = Rtx::bindingOf(Rtx::Channel::Direct);
+            const std::size_t composed = Rtx::indexOf(Rtx::Channel::Direct);
 
             bool anyTraced = false;
             for (std::size_t column = 0; column < sTracedColumns; ++column)

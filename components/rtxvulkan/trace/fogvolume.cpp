@@ -7,10 +7,10 @@
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/storageformat.h>
+#include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -39,7 +39,7 @@ namespace Rtx
         Crash::contract(noise.mBytes.size() == 2 * texels, "a fog field of another size");
 
         // Every level uploaded rather than halved from the one above, because each is stretched
-        // back to one spread (`bakeFogNoise`). Seventy-three kilobytes, once.
+        // back to one spread (`FogNoise::shared`). Seventy-three kilobytes, once.
         std::vector<VkBufferImageCopy> regions;
         regions.reserve(Shaders::FOG_FIELD_LEVELS);
         for (std::uint32_t level = 0; level < Shaders::FOG_FIELD_LEVELS; ++level)

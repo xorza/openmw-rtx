@@ -21,10 +21,11 @@ unset(_openmw_spirv_fma)
 # The pinning every shader takes between glslc and the validator (`spirv/spirvpin.hpp`), and the
 # digest `omw kernels` names kernels by: a library the tests reach into, and tools the build runs.
 # They link nothing of the renderer's, which waits for the shaders, and stay out of every install.
-set(RTX_SPIRV_PIN_FILES spirv/spirvbindings.cpp spirv/spirvbindings.hpp spirv/spirvfile.cpp spirv/spirvfile.hpp
+set(RTX_SPIRV_PIN_FILES spirv/spirvinterface.cpp spirv/spirvinterface.hpp spirv/spirvfile.cpp spirv/spirvfile.hpp
     spirv/spirvpin.cpp spirv/spirvpin.hpp spirv/spirvdigest.cpp spirv/spirvdigest.hpp)
 add_library(openmw-rtx-spirv STATIC ${RTX_SPIRV_PIN_FILES})
-target_include_directories(openmw-rtx-spirv SYSTEM PRIVATE "${OPENMW_SPIRV_HEADERS}")
+# Public, because `spirvfile.hpp`'s one walk of a module's words names the opcodes in its interface.
+target_include_directories(openmw-rtx-spirv SYSTEM PUBLIC "${OPENMW_SPIRV_HEADERS}")
 target_link_libraries(openmw-rtx-spirv PRIVATE smhasher)
 add_executable(openmw-rtx-spirv-pin spirv/spirvpintool.cpp)
 target_link_libraries(openmw-rtx-spirv-pin PRIVATE openmw-rtx-spirv)
@@ -34,13 +35,14 @@ target_link_libraries(openmw-rtx-spirv-digest PRIVATE openmw-rtx-spirv)
 set_target_properties(openmw-rtx-spirv-digest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
 set(RTX_SHADERS
+    shaders/digest.comp
     shaders/display/bloomdown.comp
     shaders/display/bloomup.comp
-    shaders/display/digest.comp
     shaders/display/exposure.comp
     shaders/display/histogram.comp
     shaders/display/line.frag
     shaders/display/line.vert
+    shaders/display/sunglare.comp
     shaders/display/tone.comp
     shaders/gui/gui.frag
     shaders/gui/gui.vert
@@ -60,6 +62,7 @@ set(RTX_SHADERS
     shaders/trace/denoise/accumulateclamp.comp
     shaders/trace/denoise/atrous.comp
     shaders/trace/denoise/composite.comp
+    shaders/trace/denoise/historyclamp.comp
     shaders/trace/denoise/pane.comp
     shaders/trace/denoise/shadowfilter.comp
     shaders/trace/denoise/shadowmask.comp
@@ -81,7 +84,6 @@ set(RTX_SHADERS
     shaders/trace/spriteemitters.rgen
     shaders/trace/spriteshelter.rgen
     shaders/trace/stress.comp
-    shaders/trace/sunglare.comp
     shaders/trace/visibility.rahit
     shaders/trace/visibility.rgen
     shaders/trace/visibility.rmiss
@@ -175,6 +177,7 @@ set(RTX_SHADER_LIB
     shaders/lib/bindings.glsl
     shaders/lib/bloom.glsl
     shaders/lib/bluenoise.glsl
+    shaders/lib/census.glsl
     shaders/lib/compose.glsl
     shaders/lib/counts.glsl
     shaders/lib/finite.glsl
@@ -185,6 +188,8 @@ set(RTX_SHADER_LIB
     shaders/lib/geometry.glsl
     shaders/lib/gloss.glsl
     shaders/lib/ground.glsl
+    shaders/lib/hash.glsl
+    shaders/lib/historyclamp.glsl
     shaders/lib/hitrecord.glsl
     shaders/lib/lights.glsl
     shaders/lib/medium.glsl
@@ -279,16 +284,18 @@ set(RTX_VULKAN_FILES
     device/timeline.hpp
     device/validation.cpp
     device/validation.hpp
+    digestpass.cpp
+    digestpass.hpp
     display/bloompass.cpp
     display/bloompass.hpp
-    display/digestpass.cpp
-    display/digestpass.hpp
     display/displaychain.cpp
     display/displaychain.hpp
     display/exposurepass.cpp
     display/exposurepass.hpp
     display/linepass.cpp
     display/linepass.hpp
+    display/sunglarepass.cpp
+    display/sunglarepass.hpp
     display/tonepass.cpp
     display/tonepass.hpp
     framering.cpp
@@ -313,6 +320,8 @@ set(RTX_VULKAN_FILES
     pipeline/shadercode.hpp
     pipeline/tracepipeline.cpp
     pipeline/tracepipeline.hpp
+    present/presentfence.cpp
+    present/presentfence.hpp
     present/presenter.cpp
     present/presenter.hpp
     present/presenttarget.cpp
@@ -344,6 +353,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/atrous.h
     shaders/shared/bindings.h
     shaders/shared/bloom.h
+    shaders/shared/channeldigest.h
     shaders/shared/composite.h
     shaders/shared/counts.h
     shaders/shared/exposure.h
@@ -353,7 +363,10 @@ set(RTX_VULKAN_FILES
     shaders/shared/ground.h
     shaders/shared/gui.h
     shaders/shared/halfstore.h
+    shaders/shared/halving.h
+    shaders/shared/historyclamp.h
     shaders/shared/line.h
+    shaders/shared/medium.h
     shaders/shared/mipchain.h
     shaders/shared/normalspread.h
     shaders/shared/pane.h
@@ -361,7 +374,9 @@ set(RTX_VULKAN_FILES
     shaders/shared/probe.h
     shaders/shared/ripple.h
     shaders/shared/sets.h
+    shaders/shared/shading.h
     shaders/shared/shadow.h
+    shaders/shared/skin.h
     shaders/shared/specular.h
     shaders/shared/spritebin.h
     shaders/shared/spritelight.h
@@ -370,6 +385,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/tables.h
     shaders/shared/tone.h
     shaders/shared/tracerecords.h
+    shaders/shared/wavetransform.h
     texture/groundcompositepass.cpp
     texture/groundcompositepass.hpp
     texture/mipchainpass.cpp
@@ -399,6 +415,8 @@ set(RTX_VULKAN_FILES
     trace/denoise/denoisehistory.hpp
     trace/denoise/denoisepasses.cpp
     trace/denoise/denoisepasses.hpp
+    trace/denoise/historyclamppass.cpp
+    trace/denoise/historyclamppass.hpp
     trace/denoise/panepass.cpp
     trace/denoise/panepass.hpp
     trace/denoise/shadowpass.cpp
@@ -418,8 +436,6 @@ set(RTX_VULKAN_FILES
     trace/spritepasses.hpp
     trace/stresspass.cpp
     trace/stresspass.hpp
-    trace/sunglarepass.cpp
-    trace/sunglarepass.hpp
     trace/tracechain.cpp
     trace/tracechain.hpp
     trace/tracemedia.cpp
@@ -449,15 +465,18 @@ include(FetchContent)
 # starts: no program imports it, so the game starts on a machine with no loader or an old one and the
 # OpenGL renderer runs there, and the ray tracer refuses the loader by name (`Instance`). The system's
 # package if installed, the pinned release otherwise; the header alone, its body compiled in
-# `device/instance.cpp`. `SYSTEM`: its warnings are not ours.
+# `device/instance.cpp`. `SYSTEM`: its warnings are not ours. **A system's volk at the pinned header
+# version or later**, which volk's own version is: an older one lacks the Vulkan 1.4 entry points the
+# backend calls (`vkCmdPushDescriptorSet`), and would be taken and then fail to compile.
 set(VOLK_HEADERS_ONLY ON)
 set(VOLK_PULL_IN_VULKAN OFF)
+set(RTX_VOLK_VERSION 357)
 FetchContent_Declare(volk
-    URL https://github.com/zeux/volk/archive/refs/tags/vulkan-sdk-1.4.357.0.tar.gz
+    URL https://github.com/zeux/volk/archive/refs/tags/vulkan-sdk-1.4.${RTX_VOLK_VERSION}.0.tar.gz
     URL_HASH SHA512=44feaf57236d8f52d4bde05cf4ba59de5df4730b6c8dc38c278a3aa13d02d4bb48e11660832232f7122c2d55b65d60fe9b5f8fe6725ee63d5d5213e5275b7110
     SOURCE_DIR fetched/volk
     SYSTEM
-    FIND_PACKAGE_ARGS CONFIG QUIET
+    FIND_PACKAGE_ARGS ${RTX_VOLK_VERSION} CONFIG QUIET
 )
 FetchContent_MakeAvailable(volk)
 
@@ -476,13 +495,15 @@ target_link_libraries(openmw-rtx-vulkan PUBLIC components PRIVATE openmw-rtx-spi
 add_dependencies(openmw-rtx-vulkan openmw-rtx-vulkan-shaders)
 
 # Vulkan Memory Allocator, behind `device/memory/memory.hpp`: the system's package if installed, the
-# pinned release otherwise, as `extern/` takes Bullet and MyGUI. `SYSTEM`: its warnings are not ours.
+# pinned release otherwise, as `extern/` takes Bullet and MyGUI, and a system's only at the pinned
+# version or a later one of its major. `SYSTEM`: its warnings are not ours.
+set(RTX_VMA_VERSION 3.4.0)
 FetchContent_Declare(VulkanMemoryAllocator
-    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.4.0.tar.gz
+    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v${RTX_VMA_VERSION}.tar.gz
     URL_HASH SHA512=563acbcd8912d10d92c23715eba7acf0e7c1683af36021f415b36f359c2cce065f3906e395c32282a8410ec5c8179fbcb6412935c6629a49357475d4b4410e2a
     SOURCE_DIR fetched/vma
     SYSTEM
-    FIND_PACKAGE_ARGS CONFIG QUIET
+    FIND_PACKAGE_ARGS ${RTX_VMA_VERSION} CONFIG QUIET
 )
 FetchContent_MakeAvailable(VulkanMemoryAllocator)
 target_link_libraries(openmw-rtx-vulkan PRIVATE GPUOpen::VulkanMemoryAllocator)

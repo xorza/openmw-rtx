@@ -164,6 +164,7 @@ namespace MWLua
         // At the end of the next `synchronizedUpdate` drops script cache and reloads all scripts.
         // Calls `onSave` and `onLoad` for every script.
         void reloadAllScripts() override { mReloadAllScriptsRequested = true; }
+        void seedRandom(unsigned seed) override { mLua.seedRandom(seed); }
 
         void handleConsoleCommand(
             const std::string& consoleMode, const std::string& command, const MWWorld::Ptr& selectedPtr) override;

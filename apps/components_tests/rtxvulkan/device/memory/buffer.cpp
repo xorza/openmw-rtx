@@ -130,8 +130,9 @@ namespace Rtx
             EXPECT_TRUE(target.isIdle());
 
             Testing::HeldSubmit hold(device);
-            const VkCommandBuffer commands = pool.allocate(1).front();
-            pool.begin(commands);
+            const LentCommands lent = pool.lend(1);
+            Recording recording = pool.begin(lent[0]);
+            const VkCommandBuffer commands = recording.get();
             source.copyTo(commands, target, 64);
 
             const std::uint64_t next = device.getTimeline().getNext();
@@ -139,7 +140,7 @@ namespace Rtx
             EXPECT_EQ(target.getNamedUntil(), next) << "the copy's destination was not named";
             EXPECT_TRUE(target.isIdle()) << "named for a submit nobody has made, which a host write lands ahead of";
 
-            EXPECT_EQ(hold.submit(commands), next);
+            EXPECT_EQ(hold.submit(std::move(recording)), next);
             EXPECT_FALSE(source.isIdle()) << "the copy is on the queue";
             EXPECT_FALSE(target.isIdle()) << "the copy is on the queue";
 
@@ -178,8 +179,9 @@ namespace Rtx
             const Buffer ordered = Buffer::staging(device, 64, writable, "test");
 
             Testing::HeldSubmit hold(device);
-            const VkCommandBuffer commands = pool.allocate(1).front();
-            pool.begin(commands);
+            const LentCommands lent = pool.lend(1);
+            Recording recording = pool.begin(lent[0]);
+            const VkCommandBuffer commands = recording.get();
             filled.clear(commands);
             constexpr std::array<std::byte, 4> word{};
             updated.updateInline(commands, Use::sBufferComputeRead, word);
@@ -190,7 +192,7 @@ namespace Rtx
             EXPECT_EQ(updated.getNamedUntil(), next) << "the inline update did not name its buffer";
             EXPECT_EQ(ordered.getNamedUntil(), next) << "the barrier did not name its buffer";
 
-            EXPECT_EQ(hold.submit(commands), next);
+            EXPECT_EQ(hold.submit(std::move(recording)), next);
             EXPECT_FALSE(filled.isIdle()) << "the fill is on the queue";
 
             hold.release();

@@ -19,19 +19,19 @@ and 0.11 of bias. `--still` adds it, and `--strafe=N` or `--walk=N` moves a leg'
 after a door, where the fireflies were reported.
 
 **A boolean switch by its name**: `--ab=antifirefly` runs `--antifirefly=true` and then
-`--antifirefly=false`. A switch of values names its two: `--ab=bounce-reuse=own,spatiotemporal`.
+`--antifirefly=false`. A switch of values names its two: `--ab=noise=blue-noise,white-hash`.
 
 **Every run keeps its pictures and its log**, under `--out` where it is given and a directory of its
 own where it is not, one directory a leg, because what an A/B finds is read in them."""
 
-import re
+import contextlib
+import json
 import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import Refusal, Switches, read_text
+from omw.system import Refusal, Switches, read_text, temporary_folder
 
 # The distance `look.h` quotes the moving legs at.
 DEFAULT_DISTANCE = "150"
@@ -41,14 +41,8 @@ DEFAULT_DISTANCE = "150"
 # shorter suite.
 JUDGED = (0, 1)
 
-# The line between a run's two sides, as `RtxTool::commandNoise` prints it.
-_VERSUS = "versus --"
-
-# One place's line of the harness's report, as `RtxTool::judgeNoise` prints it.
-_PLACE = re.compile(
-    r"^  (?P<place>\S+)\s+noise: frame mean (?P<mean>[\d.]+) p99 (?P<p99>[\d.]+), (?P<frames>\d+) averaged mean "
-    r"[\d.]+ p99 [\d.]+ — (?:as clean|noisier); bias: frame (?P<bias>[\d.]+), \d+ averaged [\d.]+; "
-    r"fireflies (?P<fireflies>[\d.]+) in a thousand$")
+# What `noise` names the record it writes beside its pictures (`RtxTool::sNoiseRecord`).
+RECORD = "noise.json"
 
 
 @dataclass(frozen=True)
@@ -88,7 +82,7 @@ def wants_ab(args: list[str]) -> bool:
 def _sides(asked: str) -> tuple[Side, Side]:
     name, _, values = asked.partition("=")
     if not name or name.startswith("-"):
-        raise Refusal(f"--ab={asked} names no switch: `--ab=antifirefly` or `--ab=bounce-reuse=own,temporal`")
+        raise Refusal(f"--ab={asked} names no switch: `--ab=antifirefly` or `--ab=noise=blue-noise,white-hash`")
     if not values:
         return Side("on", f"--{name}=true"), Side("off", f"--{name}=false")
     pair = values.split(",")
@@ -128,21 +122,12 @@ def _nought(distance: str) -> bool:
         return False
 
 
-def read_report(text: str) -> dict[str, Figures]:
-    """Every place's figures in a run's report, by the place's name."""
-    found: dict[str, Figures] = {}
-    for line in text.splitlines():
-        matched = _PLACE.match(line)
-        if matched:
-            found[matched["place"]] = Figures(float(matched["mean"]), float(matched["p99"]), float(matched["bias"]),
-                                              float(matched["fireflies"]))
-    return found
-
-
-def read_sides(text: str) -> tuple[dict[str, Figures], dict[str, Figures]]:
-    """A run's two sides: the places it judged before its `versus` line, and the places after it."""
-    first, _, second = text.partition(f"\n{_VERSUS}")
-    return read_report(first), read_report(second)
+def read_record(record: dict) -> tuple[dict[str, Figures], ...]:
+    """Every side's places in a run's record (`RtxTool::writeNoiseRecord`), each by its place's name,
+    the first side first."""
+    return tuple({place["place"]: Figures(float(place["mean"]), float(place["p99"]), float(place["bias"]),
+                                          float(place["fireflies"])) for place in side}
+                 for side in record.get("sides", []))
 
 
 def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second: dict[str, Figures]) -> str:
@@ -174,24 +159,27 @@ def leg_log(folder: Path) -> Path:
 
 def ab(build: Build, args: list[str]) -> int:
     asked = plan(args)
-    out = asked.out or Path(tempfile.mkdtemp(prefix="omw-noise-ab-"))
-    out.mkdir(parents=True, exist_ok=True)
+    build.build_harness()
+    stated = contextlib.nullcontext(asked.out) if asked.out else temporary_folder("omw-noise-ab-")
+    with stated as out:
+        out.mkdir(parents=True, exist_ok=True)
 
-    first, second = asked.sides
-    tables: list[str] = []
-    for leg in asked.legs:
-        folder = out / leg.label.replace(" ", "")
-        log = leg_log(folder)
-        print(f"noise: {leg.label}, {first.switch} against {second.switch}", flush=True)
-        with open(log, "w", encoding="utf-8") as written:
-            ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
-                                  *leg.switches, *asked.rest, f"--out={folder}", stdout=written, stderr=written)
-        reports = read_sides(read_text(log))
-        if ended.returncode not in JUDGED or not all(reports):
-            print(f"the run failed with status {ended.returncode}, see {log}", file=sys.stderr)
-            return 1
-        tables.append(table(leg.label, asked.sides, *reports))
+        first, second = asked.sides
+        tables: list[str] = []
+        for leg in asked.legs:
+            folder = out / leg.label.replace(" ", "")
+            log = leg_log(folder)
+            print(f"noise: {leg.label}, {first.switch} against {second.switch}", flush=True)
+            with open(log, "w", encoding="utf-8") as written:
+                ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
+                                      *leg.switches, *asked.rest, f"--out={folder}", stdout=written, stderr=written)
+            record = folder / RECORD
+            sides = read_record(json.loads(read_text(record))) if record.is_file() else ()
+            if ended.returncode not in JUDGED or len(sides) != 2 or not all(sides):
+                print(f"the run failed with status {ended.returncode}, see {log}", file=sys.stderr)
+                return 1
+            tables.append(table(leg.label, asked.sides, *sides))
 
-    print("\n\n".join(tables))
-    print(f"\nthe runs are in {out}")
-    return 0
+        print("\n\n".join(tables))
+        print(f"\nthe runs are in {out}")
+        return 0

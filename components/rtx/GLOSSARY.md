@@ -35,6 +35,6 @@ that owns each. Read this once and the headers read as the field's.
 | sheet | a texture read as one shading map | `ShadingMap` |
 | fold, folded shape | a mesh's duplicate back faces removed: exact reversed twins, and pocket walls | `ShapeFold` |
 | pocket | an inside-out gap between two faces of one mesh, where its generalized winding number is minus one | `ShapeFold`, `PocketTree` |
-| knobs | the mirror's settings | `MirrorKnobs` |
+| knobs | the mirror's settings | `MWRender::MirrorKnobs` |
 | profile | the run's rendering settings | `RenderProfile` |
 | pin, pinned | float arithmetic every compile computes alike, invariance | `Rtx::pinFloatArithmetic` |

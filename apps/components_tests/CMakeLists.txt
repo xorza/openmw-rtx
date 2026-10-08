@@ -36,8 +36,12 @@ file(GLOB UNITTEST_SRC_FILES
 
     nifloader/testbulletnifloader.cpp
 
+    platform/appendfile.cpp
+    platform/folder.cpp
     platform/localtime.cpp
+    platform/sharedmemory.cpp
     platform/thread.cpp
+    platform/uniquehold.cpp
 
     detournavigator/navigator.cpp
     detournavigator/settingsutils.cpp

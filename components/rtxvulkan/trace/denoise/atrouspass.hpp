@@ -12,6 +12,7 @@ namespace Rtx
 {
     class Device;
     class GBuffer;
+    class GpuTimer;
     class Image;
 
     /// The denoiser: a few edge-stopping wavelet levels over the indirect channel and its fill,
@@ -43,7 +44,7 @@ namespace Rtx
         ///        puffs are read from it.
         /// @param frame whose two eyes the edge tests rebuild the trace's rays through.
         Filtered record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images, const GBuffer& buffer,
-            const DenoiseFrame& frame) const;
+            const DenoiseFrame& frame, GpuTimer* timer) const;
 
     private:
         /// The first level, wide, and every level after it, narrow (`ATROUS_WIDE`).

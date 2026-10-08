@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import Refusal
+from omw.fetch import partial_of
+from omw.system import Refusal, status
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ def game(build: Build, args: list[str]) -> int:
         if not saves:
             raise Refusal(f"no Quicksave.omwsave under {saved}; name one with --load-savegame")
         save = ["--load-savegame", max(saves, key=lambda found: found.stat().st_mtime)]
-    return build.run_here([build.binary("openmw"), "--skip-menu", *save, *args]).returncode
+    return status(build.run_here([build.binary("openmw"), "--skip-menu", *save, *args]).returncode)
 
 
 def setup(build: Build, args: list[str]) -> int:
@@ -63,8 +64,14 @@ def setup(build: Build, args: list[str]) -> int:
 
     build.build(["openmw-iniimporter"])
     cfg.parent.mkdir(parents=True, exist_ok=True)
-    cfg.write_text(f'data="{install / "Data Files"}"\n')
-    build.run_here([build.binary("openmw-iniimporter"), "--game-files", "--encoding", "win1252",
-                    install / "Morrowind.ini", cfg], check=True)
+    # Beside its name until the import is whole, or a failed one leaves a file the next setup refuses.
+    partial = partial_of(cfg)
+    try:
+        partial.write_text(f'data="{install / "Data Files"}"\n')
+        build.run_here([build.binary("openmw-iniimporter"), "--game-files", "--encoding", "win1252",
+                        install / "Morrowind.ini", partial], check=True)
+        partial.rename(cfg)
+    finally:
+        partial.unlink(missing_ok=True)
     print(f"wrote {cfg}")
     return 0

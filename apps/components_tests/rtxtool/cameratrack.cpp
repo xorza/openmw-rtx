@@ -11,6 +11,7 @@
 #include <apps/rtxtool/model/camerapath.hpp>
 #include <apps/rtxtool/model/cameratrack.hpp>
 #include <apps/rtxtool/model/cruise.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace RtxTool
 {
@@ -18,8 +19,8 @@ namespace RtxTool
     {
         constexpr float sDegree = std::numbers::pi_v<float> / 180.0f;
 
-        TrackKey keyAt(double frame, float x, float yawDegrees = 0.0f, float hour = 12.0f, std::uint32_t weather = 0,
-            bool rests = false)
+        TrackKey keyAt(double frame, float x, float yawDegrees = 0.0f, float hour = 12.0f,
+            Rtx::Weather weather = Rtx::Weather::Clear, bool rests = false)
         {
             return TrackKey{ .mFrame = frame,
                 .mEye = osg::Vec3f(x, 0.0f, 0.0f),
@@ -79,8 +80,8 @@ namespace RtxTool
             EXPECT_NEAR(track.pose(11).mEye.x(), 112.5f, 1e-4f);
             EXPECT_NEAR(track.pose(15).mEye.x(), 162.5f, 1e-4f) << "the cruise, 12.5 a frame";
 
-            const std::vector<TrackKey> resting{ keyAt(0, 0.0f), keyAt(10, 100.0f, 0.0f, 12.0f, 0, true),
-                keyAt(20, 200.0f) };
+            const std::vector<TrackKey> resting{ keyAt(0, 0.0f),
+                keyAt(10, 100.0f, 0.0f, 12.0f, Rtx::Weather::Clear, true), keyAt(20, 200.0f) };
             const CameraTrack held = trackOf(resting, cruise);
             EXPECT_NEAR(held.pose(9).mEye.x(), 100.0f - 0.911458f, 1e-4f);
             EXPECT_NEAR(held.pose(11).mEye.x(), 100.0f + 0.911458f, 1e-4f);
@@ -170,26 +171,27 @@ namespace RtxTool
         /// crossing into the next weather has not begun, and at the last the sky has arrived.
         TEST(RtxCameraTrackTest, theSkyCrossesBetweenTwoKeysWeathers)
         {
-            const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 12.0f, 0), keyAt(10, 0.0f, 0.0f, 12.0f, 5),
-                keyAt(20, 0.0f, 0.0f, 12.0f, 5) };
+            constexpr Rtx::Weather storm = Rtx::Weather::Thunderstorm;
+            const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 12.0f, Rtx::Weather::Clear),
+                keyAt(10, 0.0f, 0.0f, 12.0f, storm), keyAt(20, 0.0f, 0.0f, 12.0f, storm) };
             const CameraTrack track = trackOf(keys);
 
             const TrackPose start = track.pose(0);
-            EXPECT_EQ(start.mWeather, 0u);
-            EXPECT_EQ(start.mNextWeather, 5u);
+            EXPECT_EQ(start.mWeather, Rtx::Weather::Clear);
+            EXPECT_EQ(start.mNextWeather, storm);
             EXPECT_FLOAT_EQ(start.mCrossed, 0.0f);
 
             EXPECT_FLOAT_EQ(track.pose(2).mCrossed, 0.104f);
             EXPECT_FLOAT_EQ(track.pose(5).mCrossed, 0.5f);
 
             const TrackPose steady = track.pose(15);
-            EXPECT_EQ(steady.mWeather, 5u);
-            EXPECT_EQ(steady.mNextWeather, 5u);
+            EXPECT_EQ(steady.mWeather, storm);
+            EXPECT_EQ(steady.mNextWeather, storm);
             EXPECT_FLOAT_EQ(steady.mCrossed, 0.0f);
 
             const TrackPose end = track.pose(20);
-            EXPECT_EQ(end.mWeather, 5u);
-            EXPECT_EQ(end.mNextWeather, 5u);
+            EXPECT_EQ(end.mWeather, storm);
+            EXPECT_EQ(end.mNextWeather, storm);
         }
 
         /// **A sky run writes the clock and the weather over the keys', counted in frames of the film,
@@ -204,10 +206,11 @@ namespace RtxTool
         /// the film's tenth does in the turn: four into the second period, Rain into Snow at a half.
         TEST(RtxCameraTrackTest, aSkyRunWritesTheClockAndTheWeatherOverTheKeys)
         {
-            constexpr std::uint32_t cloudy = 1;
-            constexpr std::uint32_t rain = 4;
-            constexpr std::uint32_t snow = 8;
-            const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 12.0f, 0), keyAt(10, 100.0f, 0.0f, 18.0f, rain) };
+            constexpr Rtx::Weather cloudy = Rtx::Weather::Cloudy;
+            constexpr Rtx::Weather rain = Rtx::Weather::Rain;
+            constexpr Rtx::Weather snow = Rtx::Weather::Snow;
+            const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 12.0f, Rtx::Weather::Clear),
+                keyAt(10, 100.0f, 0.0f, 18.0f, rain) };
             const SkyRun run{
                 .mClockPerFrame = 0.5, .mWeathers = { cloudy, rain, snow }, .mHoldFrames = 2, .mCrossingFrames = 4
             };
@@ -247,7 +250,7 @@ namespace RtxTool
 
             // Half a run is the keys' other half: the clock alone leaves the keys' weathers.
             const CameraTrack clockOnly = trackOf(keys, {}, SkyRun{ .mClockPerFrame = 0.5 });
-            EXPECT_EQ(clockOnly.pose(5).mWeather, 0u);
+            EXPECT_EQ(clockOnly.pose(5).mWeather, Rtx::Weather::Clear);
             EXPECT_EQ(clockOnly.pose(5).mNextWeather, rain);
             EXPECT_EQ(clockOnly.pose(5).mClockOn, 2.5);
 

@@ -33,7 +33,8 @@ namespace Rtx
     public:
         /// @param slots how many frames may be in flight, and so how many copies there are.
         /// @param usage what the device does with the copies.
-        void open(const Device& device, std::uint32_t slots, VkBufferUsageFlags usage, std::string_view name)
+        /// @param name a literal, which every copy keeps (`GrowableBuffer`).
+        void open(const Device& device, std::uint32_t slots, VkBufferUsageFlags usage, const char* name)
         {
             mCopies.open(slots);
             mOwed.open(slots);
@@ -76,6 +77,17 @@ namespace Rtx
 
             for (RowDebt& owed : mOwed.live())
                 owed.owe(mAppended);
+        }
+
+        /// Makes the host rows and every copy room for `rows`, so no `sync` up to there makes a copy
+        /// again: for a table that grows on the frame path and whose reach is known when it is
+        /// opened. Adds no row; a copy made here is empty and owes everything.
+        void reserve(std::size_t rows)
+        {
+            mRows.reserve(rows);
+            for (std::uint32_t slot = 0; slot < mCopies.count(); ++slot)
+                if (mCopies.at(FrameSlot{ slot }).growTo(std::max(rows * sizeof(Row), sizeof(Row))))
+                    mOwed.at(FrameSlot{ slot }).oweEverything();
         }
 
         /// Whether `slot`'s copy would change if it were synced now — what an early return asks,

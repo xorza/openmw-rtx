@@ -11,7 +11,8 @@
 // had to agree with each other and with the literals: the layouts a pipeline was made with, the sets
 // a trace bound, and the first set a bind began at. The layers caught a disagreement only because
 // the three shared sets happen to hold different descriptor types, and only in a validated run.
-// `Rtx::SharedSets` names each by what it holds, and puts it at the number here.
+// `Rtx::SharedSets` names each by what it holds, and puts it at the number here, and every stage's
+// module is held to every set its layout names (`Rtx::bindingDisagreement`) in every run.
 //
 // Set zero is each pass's own and is pushed; the others are made once and bound by every pass that
 // reads them.

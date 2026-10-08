@@ -13,6 +13,7 @@
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/accumulate.h>
 #include <components/rtxvulkan/shaders/shared/atrous.h>
+#include <components/rtxvulkan/shaders/shared/historyclamp.h>
 #include <components/rtxvulkan/shaders/shared/pane.h>
 #include <components/rtxvulkan/shaders/shared/shadow.h>
 #include <components/rtxvulkan/shaders/shared/specular.h>
@@ -113,10 +114,18 @@ namespace Rtx
                 Temporal::Shadow },
             { DenoiseImage::SpecularMean, "specular-mean", SPECULAR_MEAN, Role::FedBack, true, Grid::Pixels, sStorage,
                 Temporal::Specular },
+            { DenoiseImage::SpecularFast, "specular-fast", HISTORY_CLAMP_FAST, Role::FedBack, true, Grid::Pixels,
+                sStorage, Temporal::Specular },
+            { DenoiseImage::SpecularFastBlended, "specular-fast-blended", HISTORY_CLAMP_FAST, Role::Scratch, false,
+                Grid::Pixels, sStorage, Temporal::Specular },
             { DenoiseImage::PaneMean, "pane-mean", PANE_MEAN, Role::FedBack, true, Grid::Pixels, sStorage,
                 Temporal::Pane },
             { DenoiseImage::PaneHeld, "pane-held", ACCUMULATE_SURFACE, Role::OneFrame, true, Grid::Pixels, sStorage,
                 Temporal::Pane },
+            { DenoiseImage::PaneFast, "pane-fast", HISTORY_CLAMP_FAST, Role::FedBack, true, Grid::Pixels, sStorage,
+                Temporal::Pane },
+            { DenoiseImage::PaneFastBlended, "pane-fast-blended", HISTORY_CLAMP_FAST, Role::Scratch, false,
+                Grid::Pixels, sStorage, Temporal::Pane },
         } };
 
         constexpr bool inOrder()
@@ -287,6 +296,9 @@ namespace Rtx
         return SpecularImages{
             .mMeanBefore = before(DenoiseImage::SpecularMean, step),
             .mMean = now(DenoiseImage::SpecularMean, step),
+            .mFastBefore = before(DenoiseImage::SpecularFast, step),
+            .mFast = now(DenoiseImage::SpecularFast, step),
+            .mFastBlended = only(DenoiseImage::SpecularFastBlended),
             .mHeldSurface = before(DenoiseImage::Surface, step),
             .mFresh = step.mFresh[Temporal::Specular],
         };
@@ -299,6 +311,9 @@ namespace Rtx
             .mHeldBefore = before(DenoiseImage::PaneHeld, step),
             .mMean = now(DenoiseImage::PaneMean, step),
             .mHeld = now(DenoiseImage::PaneHeld, step),
+            .mFastBefore = before(DenoiseImage::PaneFast, step),
+            .mFast = now(DenoiseImage::PaneFast, step),
+            .mFastBlended = only(DenoiseImage::PaneFastBlended),
             .mFresh = step.mFresh[Temporal::Pane],
         };
     }

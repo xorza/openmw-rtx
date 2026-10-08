@@ -1,0 +1,78 @@
+# The packaging, `omw archive` of the `package` flavour on both systems: what a release ships, and
+# what the daily run builds so the archive does not decay between releases. One job for both, so the
+# archive a release takes is the one the daily run tried.
+name: Package
+
+on:
+  workflow_call:
+    inputs:
+      cache:
+        description: Whether the deps/ cache is read and saved; never for a release, which ships what its own run fetched.
+        type: boolean
+        required: true
+      name:
+        description: What the archives are named after; empty names them after the ref.
+        type: string
+        default: ""
+      keep:
+        description: Whether the archives and their symbols are kept as the run's artifacts.
+        type: boolean
+        default: false
+
+# Nothing by default, and each job names what it needs.
+permissions: {}
+
+jobs:
+  package:
+    name: package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            # An AppImage is compressed already; the Windows folder is not.
+            compression: 0
+          - os: windows-2025
+            compression: 6
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # **No compiler cache**, as a release keeps none: nobody waits on a package, and the
+      # repository's ten gigabytes are CI's and the sanitizers'.
+      - uses: $/.github/actions/openmw-deps
+        with:
+          cache: ${{ inputs.cache }}
+
+      - name: Name
+        # The input, or after the ref, so a tag names its archives and a run by hand names the
+        # branch: once, for the archives and the artifact both, with what a branch may hold and a
+        # file may not — a `/` above all, which `upload-artifact` refuses at the end of the build —
+        # as a `-`. Read from the environment, never spliced into the script.
+        env:
+          ASKED: ${{ inputs.name }}
+        run: |
+          name="${ASKED:-$GITHUB_REF_NAME}"
+          echo "ARCHIVE_NAME=${name//[\/\"<>|]/-}" >> "$GITHUB_ENV"
+
+      - name: Package
+        run: python omw archive "$ARCHIVE_NAME"
+
+      - name: Archive
+        # `dist` whole, so the folder keeps its name inside the zip GitHub wraps around the artifact,
+        # which is the only zip a run's page offers.
+        if: inputs.keep
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: openmw-${{ env.ARCHIVE_NAME }}-${{ matrix.os }}
+          path: dist
+          if-no-files-found: error
+          compression-level: ${{ matrix.compression }}

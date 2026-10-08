@@ -17,24 +17,27 @@
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
-#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
+#include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/world/weather.hpp>
 
 #include "compare.hpp"
 #include "film.hpp"
+#include "noise.hpp"
 #include "numbervalue.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
@@ -265,8 +268,7 @@ namespace RtxTool
                 Rtx::sSurfaceViewNames.list())
                 .c_str());
 
-        option(sOneSky, "weather",
-            bpo::value<std::string>()->default_value(std::string(Rtx::weatherName(sDefaultWeather))),
+        option(sOneSky, "weather", bpo::value<std::string>()->default_value(std::string(Rtx::nameOf(sDefaultWeather))),
             std::format("which weather's sun, sky and precipitation an exterior stands under, named as the "
                         "content files spell it: {}. The ones that drop something drop it here too. Given, "
                         "it beats a weather a view fixes for itself",
@@ -403,14 +405,14 @@ namespace RtxTool
 
         option(sFramed, "antilag",
             bpo::value<bool>()
-                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntilag)
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mAntilag)
                 ->implicit_value(true),
             "hold the denoiser's slow mean of the bounce to its fast one, so a change of the light on "
             "a surface that did not move is followed and not dragged. Off is the A/B");
 
         option(sFramed, "history-fix",
             bpo::value<bool>()
-                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mHistoryFix)
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mHistoryFix)
                 ->implicit_value(true),
             std::format("rebuild the denoiser's mean of the bounce, where it holds {:g} frames or fewer, from "
                         "the surface around it, so what the eye uncovers shows the light beside it and not one "
@@ -420,7 +422,7 @@ namespace RtxTool
 
         option(sFramed, "dual-motion",
             bpo::value<bool>()
-                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mDualMotion)
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mDualMotion)
                 ->implicit_value(true),
             "where the previous frame did not see a surface, take the denoiser's history of the bounce "
             "along the motion of what hid it, so what the eye uncovers starts with the history of the "
@@ -428,7 +430,7 @@ namespace RtxTool
 
         option(sFramed, "antifirefly",
             bpo::value<bool>()
-                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntiFirefly)
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mAntiFirefly)
                 ->implicit_value(true),
             std::format("hold the denoiser's mean of the bounce, where it holds {:g} frames or fewer, under "
                         "the light around it, so a bounce that found a small bright thing on one leaf is not "
@@ -522,8 +524,8 @@ namespace RtxTool
             "`settings-default.cfg`'s `[RTX] distant land cells`, or the player's own under `view`");
 
         option(Verbs::Shot | Verbs::Bench, "against", bpo::value<std::string>()->default_value(""),
-            "what to subtract this run from: the directory a previous `shot` wrote, or the file "
-            "a previous `bench --hashes` wrote, which says which frames of the run now trace "
+            "what to subtract this run from: the directory a previous `shot` or `bench --out` wrote, "
+            "the `hashes.csv` in it, which says which frames of the run now trace "
             "something else, which frames now draw something else, and which parts of the scene "
             "moved. The reference is always a run of the previous build on this machine and never "
             "a corpus in the tree: the picture is a function of the driver and the card as much as "
@@ -537,23 +539,20 @@ namespace RtxTool
             "reported beside the verdict, and `shot` holds that picture to within one level of "
             "255, as it holds every doll and map tile, which are denoised whatever the filter");
 
-        option(Verbs::Bench, "hashes", bpo::value<std::string>()->default_value(""),
-            "write one row a frame to this file — the picture, every image the trace wrote, what "
-            "the frame handed the reconstruction and every part of the scene, each as a hash — "
-            "the oracle a moving camera has instead of `shot`'s stills, since six hundred frames "
-            "of pictures is a few hundred megabytes. Reading a frame back waits on the device, so "
-            "a run under this or --against is not a benchmark and its times are not comparable "
-            "with one");
+        option(Verbs::Bench, "pictures", bpo::bool_switch(),
+            "write every measured frame's picture into --out as <view>-<frame>.png, beside its "
+            "hash, which is what a pair that differed is diffed pixel by pixel from: a hash names "
+            "the frame and never where in it. A PNG a frame on the frame path, some sixty "
+            "milliseconds each, so a run under this is further still from a benchmark");
 
-        option(Verbs::Bench, "pictures", bpo::value<std::string>()->default_value(""),
-            "write every measured frame's picture into this directory as <view>-<frame>.png, "
-            "beside its hash, which is what a pair that differed is diffed pixel by pixel from: a "
-            "hash names the frame and never where in it. A PNG a frame on the frame path, some "
-            "sixty milliseconds each, so a run under this is further still from a benchmark");
-
-        option(Verbs::Shot | Verbs::Check | Verbs::Film | Verbs::View | Verbs::Noise, "out",
+        option(Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Film | Verbs::View | Verbs::Noise, "out",
             bpo::value<std::string>()->default_value(""),
-            "the directory to write every picture into, as <view>.png beside <view>-doll.png, "
+            "the directory to write into: a `bench`'s `hashes.csv`, one row a frame — the picture, "
+            "every image the trace wrote, what the frame handed the reconstruction and every part "
+            "of the scene, each as a hash, the oracle a moving camera has instead of `shot`'s stills "
+            "— which a `bench` writes only where this is named, since reading a frame back waits on "
+            "the device and a run under this or --against is no benchmark; and every picture, as "
+            "<view>.png beside <view>-doll.png, "
             "<view>-map.png and <view>-textures.png, a film's frames/000000.png onwards and "
             "<keys>.mp4, the picture of each Home press in a `view` as <view>-<n>.png, with the "
             "block Home prints inside it as the PNG's Description, or `noise`'s five pictures of a "
@@ -696,15 +695,15 @@ namespace RtxTool
         request.mDenoise = variables["filter"].as<bool>();
         request.mJitter = variables["jitter"].as<bool>();
         const std::string& noise = variables["noise"].as<std::string>();
-        request.mNoise = noise == "auto" ? Rtx::ReconstructionRequest{}.mNoise
-                                         : Rtx::sNoiseSourceNames.require(noise, "a noise source");
+        request.mSampling.mNoise = noise == "auto" ? Rtx::ReconstructionRequest{}.mSampling.mNoise
+                                                   : Rtx::sNoiseSourceNames.require(noise, "a noise source");
         request.mLevelEpsilon = variables["level-epsilon"].as<float>();
-        request.mShadowFloor = variables["shadow-floor"].as<float>();
-        request.mLampCandidates = variables["lamp-candidates"].as<std::uint32_t>();
-        request.mAntilag = variables["antilag"].as<bool>();
-        request.mHistoryFix = variables["history-fix"].as<bool>();
-        request.mDualMotion = variables["dual-motion"].as<bool>();
-        request.mAntiFirefly = variables["antifirefly"].as<bool>();
+        request.mSampling.mShadowFloor = variables["shadow-floor"].as<float>();
+        request.mSampling.mLampCandidates = variables["lamp-candidates"].as<std::uint32_t>();
+        request.mFilters.mAntilag = variables["antilag"].as<bool>();
+        request.mFilters.mHistoryFix = variables["history-fix"].as<bool>();
+        request.mFilters.mDualMotion = variables["dual-motion"].as<bool>();
+        request.mFilters.mAntiFirefly = variables["antifirefly"].as<bool>();
     }
 
     std::optional<FilmLength> filmLengthFrom(const bpo::variables_map& variables)
@@ -740,8 +739,13 @@ namespace RtxTool
 
     void sweepEndedRuns(const std::filesystem::path& runs)
     {
+        // Listed whole before anything goes, as `DriverCache::sweep` says why.
+        const std::optional<std::vector<std::filesystem::directory_entry>> listed = Platform::listFolder(runs);
+        if (!listed.has_value())
+            return;
+
         std::error_code failed;
-        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(runs, failed))
+        for (const std::filesystem::directory_entry& entry : *listed)
         {
             if (!entry.is_directory(failed))
                 continue;

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <utility>
 #include <vector>
 
 #include <components/rtxvulkan/device/commands.hpp>
@@ -20,12 +21,11 @@ namespace Rtx
         , mPass(device)
         , mTextures(device)
     {
-        // Allocated once and recorded into again.
-        const std::vector<VkCommandBuffer> commands = mDevice.getPool().allocate(sFrameSlots);
+        // Lent once and recorded into again.
         for (std::uint32_t slot = 0; slot < sFrameSlots; ++slot)
         {
             Slot& held = mSlots.at(FrameSlot{ slot });
-            held.mCommands = commands[slot];
+            held.mCommands = mDevice.getPool().lend(1);
             held.mVertices
                 = GrowableBuffer(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "gui vertices");
         }
@@ -77,8 +77,8 @@ namespace Rtx
                     mTextures.alphaOf(batch.mTexture) });
         }
 
-        const VkCommandBuffer commands = slot.mCommands;
-        mDevice.getPool().begin(commands);
+        Recording recording = mDevice.getPool().begin(slot.mCommands[0]);
+        const VkCommandBuffer commands = recording.get();
         picture.transition(commands, PresentTarget::sResting, Use::sFragmentGeneralSample);
         shown.transition(commands, Use::sUndefined, Use::sColourAttachment);
         mPass.record(commands, shown, slot.mVertices.get(), mDraws);
@@ -87,7 +87,7 @@ namespace Rtx
         picture.addTransition(rested, Use::sFragmentGeneralSample, PresentTarget::sResting);
         shown.addTransition(rested, Use::sColourAttachment, PresentTarget::sResting);
         rested.flush();
-        mDevice.getPool().submit(commands);
+        std::move(recording).submit();
 
         ++mDrawn;
     }

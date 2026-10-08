@@ -39,14 +39,17 @@ namespace Rtx
                 Upscale::Off, ReconstructionRequest{ .mDenoise = false, .mJitter = true }, sUnscaled);
             EXPECT_FALSE(raw.mDenoised) << "which is what a converged reference is built from";
             EXPECT_TRUE(raw.mJitter) << "and jitter is what makes that reference antialiased";
-            EXPECT_EQ(raw.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR) << "the default floor where none is named";
-            EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mShadowFloor = 0.25f }, sUnscaled)
-                          .mShadowFloor,
+            EXPECT_EQ(raw.mSampling.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR)
+                << "the default floor where none is named";
+            EXPECT_EQ(Reconstruction::resolve(
+                          Upscale::Off, ReconstructionRequest{ .mSampling = { .mShadowFloor = 0.25f } }, sUnscaled)
+                          .mSampling.mShadowFloor,
                 0.25f)
                 << "and the one a run names";
-            EXPECT_EQ(raw.mLampCandidates, Shaders::LAMP_CANDIDATES);
-            EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mLampCandidates = 0u }, sUnscaled)
-                          .mLampCandidates,
+            EXPECT_EQ(raw.mSampling.mLampCandidates, Shaders::LAMP_CANDIDATES);
+            EXPECT_EQ(Reconstruction::resolve(
+                          Upscale::Off, ReconstructionRequest{ .mSampling = { .mLampCandidates = 0u } }, sUnscaled)
+                          .mSampling.mLampCandidates,
                 0u);
 
             // **The same request, and an upscaler behind it.** The wavelet runs as it was asked,
@@ -74,7 +77,7 @@ namespace Rtx
             // the epsilon is the whole of the bias, which is how a test reads a level off this path.
             const Reconstruction wavelet = Reconstruction::resolve(
                 Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mLevelEpsilon = -0.5f }, sUnscaled);
-            EXPECT_EQ(wavelet.mNoise, NoiseSource::BlueNoiseTile);
+            EXPECT_EQ(wavelet.mSampling.mNoise, NoiseSource::BlueNoiseTile);
             EXPECT_FLOAT_EQ(wavelet.mLevelBias, -0.5f);
             EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mLevelBias, 0.0f)
                 << "and nought where nothing was asked";
@@ -84,7 +87,8 @@ namespace Rtx
             // is the number a texture moves by.
             const Reconstruction performance
                 = Reconstruction::resolve(Upscale::Performance, ReconstructionRequest{}, sHalved);
-            EXPECT_EQ(performance.mNoise, NoiseSource::BlueNoiseTile) << "the upscaler does not choose the noise";
+            EXPECT_EQ(performance.mSampling.mNoise, NoiseSource::BlueNoiseTile)
+                << "the upscaler does not choose the noise";
             EXPECT_FLOAT_EQ(performance.mLevelBias, -1.0f);
 
             const Reconstruction balanced = Reconstruction::resolve(
@@ -98,8 +102,9 @@ namespace Rtx
             // The epsilon is added past the ratio, and a request may name the source outright:
             // that is the A/B.
             const Reconstruction tuned = Reconstruction::resolve(Upscale::Performance,
-                ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash, .mLevelEpsilon = -0.25f }, sHalved);
-            EXPECT_EQ(tuned.mNoise, NoiseSource::WhiteHash) << "asked for by name";
+                ReconstructionRequest{ .mLevelEpsilon = -0.25f, .mSampling = { .mNoise = NoiseSource::WhiteHash } },
+                sHalved);
+            EXPECT_EQ(tuned.mSampling.mNoise, NoiseSource::WhiteHash) << "asked for by name";
             EXPECT_FLOAT_EQ(tuned.mLevelBias, -1.25f);
         }
 
@@ -157,7 +162,7 @@ namespace Rtx
             EXPECT_EQ(picture.mUpscale, Upscale::Off);
             EXPECT_FALSE(picture.mJitter);
             EXPECT_EQ(picture.mJitterPhases, 0u);
-            EXPECT_EQ(picture.mNoise, NoiseSource::BlueNoiseTile);
+            EXPECT_EQ(picture.mSampling.mNoise, NoiseSource::BlueNoiseTile);
             EXPECT_EQ(picture.mLevelBias, 0.0f);
             EXPECT_FALSE(picture.mAveraged) << "nor a frame after it to average it with";
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAveraged)
@@ -185,37 +190,41 @@ namespace Rtx
                     EXPECT_EQ(resolved.composedByTrace(), !denoise) << asked;
                 }
 
-            EXPECT_TRUE(ReconstructionRequest{}.mAntilag);
-            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntilag);
+            EXPECT_TRUE(ReconstructionRequest{}.mFilters.mAntilag);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mFilters.mAntilag);
+            EXPECT_FALSE(Reconstruction::resolve(
+                Upscale::Off, ReconstructionRequest{ .mFilters = { .mAntilag = false } }, sUnscaled)
+                             .mFilters.mAntilag);
+            EXPECT_TRUE(ReconstructionRequest{}.mFilters.mHistoryFix);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mFilters.mHistoryFix);
+            EXPECT_FALSE(Reconstruction::resolve(
+                Upscale::Off, ReconstructionRequest{ .mFilters = { .mHistoryFix = false } }, sUnscaled)
+                             .mFilters.mHistoryFix);
+            EXPECT_FALSE(Reconstruction::forPicture().mFilters.mHistoryFix);
+            EXPECT_TRUE(ReconstructionRequest{}.mFilters.mDualMotion);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mFilters.mDualMotion);
+            EXPECT_FALSE(Reconstruction::resolve(
+                Upscale::Off, ReconstructionRequest{ .mFilters = { .mDualMotion = false } }, sUnscaled)
+                             .mFilters.mDualMotion);
+            EXPECT_FALSE(Reconstruction::forPicture().mFilters.mDualMotion);
+            EXPECT_FALSE(ReconstructionRequest{}.mFilters.mAntiFirefly);
             EXPECT_FALSE(
-                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntilag = false }, sUnscaled).mAntilag);
-            EXPECT_TRUE(ReconstructionRequest{}.mHistoryFix);
-            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mHistoryFix);
-            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mHistoryFix = false }, sUnscaled)
-                             .mHistoryFix);
-            EXPECT_FALSE(Reconstruction::forPicture().mHistoryFix);
-            EXPECT_TRUE(ReconstructionRequest{}.mDualMotion);
-            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mDualMotion);
-            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mDualMotion = false }, sUnscaled)
-                             .mDualMotion);
-            EXPECT_FALSE(Reconstruction::forPicture().mDualMotion);
-            EXPECT_FALSE(ReconstructionRequest{}.mAntiFirefly);
-            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntiFirefly);
-            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntiFirefly = true }, sUnscaled)
-                            .mAntiFirefly);
-            EXPECT_FALSE(Reconstruction::forPicture().mAntiFirefly);
+                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mFilters.mAntiFirefly);
+            EXPECT_TRUE(Reconstruction::resolve(
+                Upscale::Off, ReconstructionRequest{ .mFilters = { .mAntiFirefly = true } }, sUnscaled)
+                            .mFilters.mAntiFirefly);
+            EXPECT_FALSE(Reconstruction::forPicture().mFilters.mAntiFirefly);
 
             // **An unfiltered request keeps what the trace reads and nothing the filters read**: a
             // request with every filter switch turned from its default is the default request once
             // unfiltered, and one switch the trace reads keeps two apart.
-            const ReconstructionRequest turned{
-                .mAntilag = false, .mHistoryFix = false, .mDualMotion = false, .mAntiFirefly = true
-            };
+            const ReconstructionRequest turned{ .mFilters
+                = { .mAntilag = false, .mHistoryFix = false, .mDualMotion = false, .mAntiFirefly = true } };
             EXPECT_FALSE(turned.unfiltered().mDenoise);
             EXPECT_EQ(turned.unfiltered(), ReconstructionRequest{}.unfiltered());
-            for (const ReconstructionRequest& traced :
-                { ReconstructionRequest{ .mJitter = true }, ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash },
-                    ReconstructionRequest{ .mLevelEpsilon = 0.5f } })
+            for (const ReconstructionRequest& traced : { ReconstructionRequest{ .mJitter = true },
+                     ReconstructionRequest{ .mSampling = { .mNoise = NoiseSource::WhiteHash } },
+                     ReconstructionRequest{ .mLevelEpsilon = 0.5f } })
                 EXPECT_NE(traced.unfiltered(), ReconstructionRequest{}.unfiltered());
         }
 

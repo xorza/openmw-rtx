@@ -354,10 +354,10 @@ OMW::Engine::~Engine()
 
     mScriptContext = nullptr;
 
-    mRenderer = nullptr;
-
     mUnrefQueue = nullptr;
     mWorkQueue = nullptr;
+
+    mRenderer = nullptr;
 
     mResourceSystem.reset();
 
@@ -674,6 +674,7 @@ void OMW::Engine::go()
 
     setWindowIcon();
 
+    mEnvironment.setFrameRateLimit(Settings::video().mFramerateLimit);
     mRenderer->setFrameRateLimit(Settings::video().mFramerateLimit);
 
     prepareEngine();

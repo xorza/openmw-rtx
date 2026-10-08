@@ -63,7 +63,7 @@ namespace Rtx
     /// The buffers the texture passes read an image through — `describeFinest`, and `meanTexel`'s
     /// alpha and colours — held by a thread's `ContentPreprocessor` rather than made per call,
     /// because a cell arrives with many translucent diffuse maps.
-    struct AlphaScratch
+    struct TexelScratch
     {
         std::vector<MipLevel> mLevels;
         std::vector<std::byte> mTexels;
@@ -82,7 +82,7 @@ namespace Rtx
     /// @param scratch cleared and refilled here. The description spans it, or `image`'s own bytes
     ///        where they need no laying out (`describeImage`), so it lasts until the next reading and
     ///        no longer than `image` does.
-    std::optional<TextureData> describeFinest(const osg::Image& image, AlphaScratch& scratch);
+    std::optional<TextureData> describeFinest(const osg::Image& image, TexelScratch& scratch);
 
     /// Whether any texel of a finest level `describeFinest` gave is fully opaque — what tells a wisp
     /// from a mask, since Morrowind keeps its foliage and its clouds under one alpha mode: a leaf

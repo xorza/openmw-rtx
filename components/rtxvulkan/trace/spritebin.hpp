@@ -112,8 +112,6 @@ namespace Rtx
                 .mPuffs = mPuffs };
         }
 
-        VkDeviceSize getBytes() const;
-
     private:
         const Device& mDevice;
         const SpriteShadePass& mShading;
@@ -135,7 +133,7 @@ namespace Rtx
         GrowableBuffer mRects;
 
         /// The sprite tiles' list, made on the device by `SpriteBinPass` and never written by the
-        /// host: `tiles + 1` starts, then the runs, in `RunList`'s shape.
+        /// host: `tiles + 1` starts, then the runs, as `spritelist.glsl` reads it.
         GrowableBuffer mTileList;
 
         /// One word of presence bits a tile, `Shaders::GpuTables::mSpritePresence`.

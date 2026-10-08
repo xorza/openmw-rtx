@@ -25,10 +25,11 @@
 
 #include <components/misc/result.hpp>
 #include <components/nifosg/autotransform.hpp>
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/sceneutil/lampbody.hpp>
@@ -340,7 +341,7 @@ namespace Rtx
     void SceneExtractor::Traversal::enter(osg::Node& node, const std::size_t identity, const NodeKind kind)
     {
         // **A reference root is passed where it froze and nothing outside it moved it**, and is
-        // recorded as it is walked otherwise: `SceneExtractor::FrozenRun`. A root the game moved in
+        // recorded as it is walked otherwise: `FrozenRoots`. A root the game moved in
         // one step is walked, for its placements' jump.
         const bool root = mFreezes && mDepth == mStampDepth;
         if (root)
@@ -350,17 +351,20 @@ namespace Rtx
                 && "a reference under state the cell ring's reader does not read");
 
             const bool jumped = jumps(node);
-            if (!jumped && mExtractor.passFrozen(node, mHere))
+            if (!jumped
+                && mExtractor.mFrozen.pass(
+                    node, mHere, mExtractor.mWorldWalk, mExtractor.frozenHolders(), mExtractor.mPass.getStats()))
                 return;
 
-            mExtractor.recordFrozen();
+            mExtractor.mFrozen.record(mExtractor.mPass.getStats().mInstances);
             mChangeable = jumped;
         }
 
         enterWalked(node, identity, kind);
 
         if (root)
-            mExtractor.endFrozen(node, mHere, mChangeable);
+            mExtractor.mFrozen.end(node, mHere, mChangeable, mExtractor.mWorldWalk, mExtractor.frozenHolders(),
+                mExtractor.mPass.getStats().mInstances);
     }
 
     void SceneExtractor::Traversal::enterWalked(osg::Node& node, const std::size_t identity, const NodeKind kind)
@@ -539,11 +543,12 @@ namespace Rtx
         // turns only under a cull visitor and this walk is none: handed itself, `computeMatrix`
         // keeps whatever rotation a cull last left, which in this renderer is the one the file was
         // authored with. The three vectors go in the node's own frame, which is what a cull stack
-        // hands it too. A walk told no eye leaves the billboard where it stands.
-        if (auto* billboard = as<NifOsg::AutoTransform>(kind, NodeKind::Billboard, node);
-            billboard != nullptr && mEye.has_value())
+        // hands it too. A walk told no eye leaves the billboard where it stands, and so does a frame
+        // with no inverse — a scale of nought above it — which has no way into the node's own.
+        osg::Matrixd toLocal;
+        if (auto* billboard = as<NifOsg::AutoTransform>(kind, NodeKind::Billboard, node); billboard != nullptr
+            && mEye.has_value() && toLocal.invert(osg::Matrixd(above) * osg::Matrixd(mRoot)) && toLocal.valid())
         {
-            const osg::Matrixd toLocal = osg::Matrixd::inverse(osg::Matrixd(above) * osg::Matrixd(mRoot));
             const osg::Vec3d eyeLocal = osg::Vec3d(mEye->mOrigin) * toLocal;
             const osg::Vec3d lookLocal = osg::Matrixd::transform3x3(osg::Vec3d(mEye->mForward), toLocal);
             const osg::Vec3d upLocal = osg::Matrixd::transform3x3(osg::Vec3d(mEye->mUp), toLocal);
@@ -596,7 +601,8 @@ namespace Rtx
             }
         }
 
-        mExtractor.addDrawable(drawable, placement, mShading, placed(), mClass, mGlow, mJumping, mLampBody);
+        mChangeable
+            |= mExtractor.addDrawable(drawable, placement, mShading, placed(), mClass, mGlow, mJumping, mLampBody);
 
         mShading.resize(held);
     }
@@ -624,7 +630,7 @@ namespace Rtx
 
     SceneExtractor::~SceneExtractor()
     {
-        thawAll();
+        mFrozen.thawAll(frozenHolders(), mReleased);
 
         // The placements before the resolvers go, each giving back what its own maps hold, so a
         // scene that outlives its extractor — a picture's, whose subject is replaced — holds
@@ -644,11 +650,11 @@ namespace Rtx
     }
 
     ExtractionStats SceneExtractor::extractWorld(
-        const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame, CellRing& ring)
+        const osg::Node& root, std::size_t anchor, std::size_t frame, CellRing& ring)
     {
         assert(ring.adoptsThrough(*this) && "a ring made on another extractor adopts into its scene");
 
-        return walk(root, transform, anchor, frame, &ring, false);
+        return walk(root, osg::Matrixf::identity(), anchor, frame, &ring, false);
     }
 
     ExtractionStats SceneExtractor::extractPrecipitation(
@@ -661,10 +667,10 @@ namespace Rtx
     }
 
     SceneExtractor::WalkGuard::WalkGuard(
-        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const bool falls, bool& recording)
+        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const bool falls, FrozenRoots& frozen)
         : mPass(pass)
         , mPhase(phase)
-        , mRecording(recording)
+        , mFrozen(frozen)
     {
         mPhase.step(Phase::Walking, Phase::Between);
         mPass.mStats = &stats;
@@ -677,7 +683,7 @@ namespace Rtx
         // report that has gone.
         mPass.mStats = nullptr;
         mPass.mFalls = false;
-        mRecording = false;
+        mFrozen.abandon();
         mPhase.step(Phase::Between, Phase::Walking);
     }
 
@@ -685,7 +691,7 @@ namespace Rtx
         std::size_t frame, CellRing* const ring, const bool falls)
     {
         ExtractionStats stats;
-        const WalkGuard walking(mPass, mPhase, stats, falls, mRecording);
+        const WalkGuard walking(mPass, mPhase, stats, falls, mFrozen);
 
         // Before anything is placed, so a walk that threw has still marked the scene: what it
         // stamped before the throw is standing, and the sweep is owed for the rest.
@@ -698,7 +704,7 @@ namespace Rtx
         if (freezes)
         {
             if (mFrozenMask != mTraversalMask)
-                thawAll();
+                mFrozen.thawAll(frozenHolders(), mReleased);
             mFrozenMask = mTraversalMask;
             mWorldWalk = traversal;
         }
@@ -721,7 +727,7 @@ namespace Rtx
             ring->collect(frame);
 
         if (freezes)
-            thawUnmet();
+            mFrozen.thawUnmet(mWorldWalk, frozenHolders(), mReleased);
 
         // After the whole walk, including whatever the ring brought in. Everything under it
         // has been stepped by now, so what the sprites are read from is a settled world rather than
@@ -753,7 +759,7 @@ namespace Rtx
         // this epoch reached is nothing.
         ++mPass.mEpoch;
         ring.releaseHolds();
-        thawAll();
+        mFrozen.thawAll(frozenHolders(), mReleased);
 
         return retire();
     }
@@ -768,9 +774,9 @@ namespace Rtx
         // structure in the world on every crossing. The order does not matter, because a
         // placement holds what it stands on. Each map skips its walk where every entry was
         // reached (`Kept::whole`), which is a world that stands still.
-        mPlacements.retire([this](const Known& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
-        mMeshes.retire();
-        mMaterials.retire();
+        mPlacements.retire(mReleased, [this](const Known& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
+        mMeshes.retire(mReleased);
+        mMaterials.retire(mReleased);
 
         // Counted off the tables rather than off the maps, because a row a ground cell or an
         // abandoned identity let go of since the last retire was in no map to be counted here.
@@ -784,14 +790,11 @@ namespace Rtx
         // A key goes once no material is held under it, so only a sweep that let a material go
         // can have left one held by nothing else.
         if (went.mMaterials > 0)
-            mChainKeys.retire();
+            mChainKeys.retire(mReleased);
 
-        // Swept whatever the two tables above did, because an image a material stopped reading, a
-        // state set whose node left the graph and a sprite's texture each go stale on a frame where
-        // no material died at all.
-        mMeshes.retireDeformers();
-        mMaterials.retireHolds();
-        mEmitters.retire();
+        // Swept whatever the two tables above did, because a sprite's texture goes stale on a frame
+        // where no material died at all.
+        mEmitters.retire(mReleased);
 
         // After the sweep and not before it, so that the walk which fills the next epoch is the
         // one this is measured against. Every entry that survived is still carrying the old stamp
@@ -866,7 +869,7 @@ namespace Rtx
         return mGlows.size() - 1;
     }
 
-    void SceneExtractor::addDrawable(const osg::Drawable& drawable, const std::size_t who,
+    bool SceneExtractor::addDrawable(const osg::Drawable& drawable, const std::size_t who,
         const std::span<const Shading> shading, const osg::Matrixf& place, const InstanceClass what,
         const std::optional<std::size_t> glow, const bool jumped, const bool lampBody)
     {
@@ -879,15 +882,23 @@ namespace Rtx
         if (const auto* particles = as<const osgParticle::ParticleSystem>(kind, NodeKind::ParticleSystem, drawable))
         {
             mEmitters.add(*particles, shading, place, glow);
-            mRecordedChangeable = true;
-            return;
+            return true;
         }
 
         const DrawableRead read = readDrawable(drawable, kind);
         if (read.mGeometry == nullptr)
         {
             ++stats.mSkippedUnknown;
-            return;
+            return false;
+        }
+
+        // **A place that is not finite stands nothing**, as a sprite's and a lamp's do not: a NaN
+        // in the top level is a structure the trace walks to no answer, every frame it stands. No
+        // frozen key, because no resolver met the drawable and a freeze has nothing of it to hold.
+        if (!isFinite(place))
+        {
+            mScene.refusals().refuse(Refused::Mesh, drawable.getName(), "its place is not a finite number");
+            return false;
         }
 
         // Asked of the drawable and not of the path. OpenMW marks the water geometry itself, and
@@ -896,17 +907,15 @@ namespace Rtx
 
         // A frozen subtree's meshes stand still, so a mesh that deforms, or the sea, keeps its
         // root walked.
-        if (water || read.mDeform != Deform::None)
-            mRecordedChangeable = true;
+        const bool changes = water || read.mDeform != Deform::None;
 
         // The mesh first: a surface nothing places has no material, and one resolved ahead of a
         // refused mesh held its textures and uploaded them for nothing.
         const Index mesh = mMeshes.resolve(drawable, read);
         if (mesh == sNoIndex)
         {
-            if (mRecording)
-                mRecorded.push_back(FrozenKey{ .mDrawable = &drawable });
-            return;
+            mFrozen.note(FrozenRoots::Key{ .mDrawable = &drawable });
+            return changes;
         }
 
         const MaterialResolver::Resolved material = water ? mMaterials.resolveWater() : mMaterials.resolve(shading);
@@ -933,9 +942,8 @@ namespace Rtx
 
         ++stats.mInstances;
 
-        if (mRecording)
-            mRecorded.push_back(
-                FrozenKey{ .mPlacement = who, .mDrawable = &drawable, .mMaterial = material.mKey, .mPlaced = true });
+        mFrozen.note(
+            FrozenRoots::Key{ .mPlacement = who, .mDrawable = &drawable, .mMaterial = material.mKey, .mPlaced = true });
 
         // What the sheet adds to the effect's lamp, read off the rows the placement stands on
         // this frame: a controller may have rewritten the material on the way here, and
@@ -947,7 +955,7 @@ namespace Rtx
         if (held == mPlacements.end())
         {
             mPlacements.add(who, Known{ .mIndex = mScene.addInstance(resolved) });
-            return;
+            return changes;
         }
 
         mPlacements.stamp(held);
@@ -966,7 +974,7 @@ namespace Rtx
             mScene.dropInstance(slot, Stander::Walk);
             slot = mScene.addInstance(resolved);
             ++stats.mRestood;
-            return;
+            return changes;
         }
 
         if (jumped)
@@ -974,126 +982,7 @@ namespace Rtx
         else
             mScene.placements().move(slot, place);
         mScene.placements().fade(slot, fade);
-    }
-
-    SceneExtractor::FrozenFace SceneExtractor::FrozenFace::of(const osg::Node& root, const osg::Matrix& world)
-    {
-        const osg::Group* group = root.asGroup();
-        const unsigned int children = group != nullptr ? group->getNumChildren() : 0;
-        return FrozenFace{
-            .mWorld = world,
-            .mStateSet = root.getStateSet(),
-            .mFirstChild = children > 0 ? group->getChild(0) : nullptr,
-            .mChildren = children,
-        };
-    }
-
-    bool SceneExtractor::passFrozen(const osg::Node& root, const osg::Matrix& world)
-    {
-        const auto frozen = mFrozen.find(&root);
-        if (frozen == mFrozen.end())
-            return false;
-
-        // **What can move a frozen subtree from outside it**: the game placing the root elsewhere,
-        // giving it a child or taking one, or hanging a state set on it — an enchantment's glow is
-        // the one the game hangs. A change deeper down is a controller's, and a controller never
-        // let it freeze.
-        FrozenRun& run = frozen->second;
-        run.mMet = mWorldWalk;
-        const FrozenFace face = FrozenFace::of(root, world);
-        if (run.mFace != face)
-        {
-            if (run.mHolding)
-                thaw(run);
-            run.mFace = face;
-            run.mMoved = mWorldWalk;
-            return false;
-        }
-
-        if (!run.mHolding)
-            return false;
-
-        mPass.getStats().mInstances += run.mInstances;
-        mPass.getStats().mPassedFrozen += run.mKeys.mCount;
-        return true;
-    }
-
-    void SceneExtractor::recordFrozen()
-    {
-        assert(!mRecording && "a reference root recorded inside another");
-        mRecording = true;
-        mRecordedChangeable = false;
-        mRecordedFrom = mPass.getStats().mInstances;
-        mRecorded.clear();
-    }
-
-    void SceneExtractor::endFrozen(const osg::Node& root, const osg::Matrix& world, const bool changeable)
-    {
-        mRecording = false;
-        if (changeable || mRecordedChangeable || mRecorded.empty())
-            return;
-
-        // A root that moved on this walk is not frozen where it stands yet: the next walk that
-        // finds its face where this one left it freezes it.
-        const auto known = mFrozen.find(&root);
-        assert((known == mFrozen.end() || !known->second.mHolding) && "a frozen root walked and not passed");
-        if (known != mFrozen.end() && known->second.mMoved == mWorldWalk)
-            return;
-
-        // Held from here on: the walk resolved every one of these this frame, and stamped it.
-        for (const FrozenKey& key : mRecorded)
-        {
-            if (key.mPlaced)
-                mPlacements.hold(mPlacements.find(key.mPlacement));
-            mMeshes.hold(*key.mDrawable);
-            mMaterials.hold(key.mMaterial);
-        }
-
-        const FrozenRun run{
-            .mFace = FrozenFace::of(root, world),
-            .mKeys = mFrozenKeys.allocate(std::span<const FrozenKey>(mRecorded)),
-            .mInstances = mPass.getStats().mInstances - mRecordedFrom,
-            .mMet = mWorldWalk,
-            .mMoved = known != mFrozen.end() ? known->second.mMoved : 0,
-            .mHolding = true,
-        };
-        if (known != mFrozen.end())
-            known->second = run;
-        else
-            mFrozen.emplace(osg::ref_ptr<const osg::Node>(&root), run);
-    }
-
-    void SceneExtractor::thaw(FrozenRun& run)
-    {
-        run.mHolding = false;
-        for (const FrozenKey& key : mFrozenKeys.in(run.mKeys))
-        {
-            if (key.mPlaced)
-                mPlacements.drop(mPlacements.find(key.mPlacement));
-            mMeshes.release(*key.mDrawable);
-            mMaterials.release(key.mMaterial);
-        }
-
-        mFrozenKeys.release(run.mKeys);
-        run.mKeys = Run{};
-    }
-
-    void SceneExtractor::thawUnmet()
-    {
-        boost::unordered::erase_if(mFrozen, [&](auto& frozen) {
-            if (frozen.second.mMet == mWorldWalk)
-                return false;
-
-            thaw(frozen.second);
-            return true;
-        });
-    }
-
-    void SceneExtractor::thawAll()
-    {
-        for (auto& frozen : mFrozen)
-            thaw(frozen.second);
-        mFrozen.clear();
+        return changes;
     }
 
     bool SceneExtractor::isWater(osg::Node::NodeMask mask) const

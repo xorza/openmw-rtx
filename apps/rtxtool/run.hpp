@@ -14,10 +14,14 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/skylight.hpp>
+#include <apps/rtxtool/options.hpp>
+#include <apps/rtxtool/verbs.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
 namespace Files
@@ -101,6 +105,14 @@ namespace RtxTool
     inline const std::uint32_t sAirFrames = static_cast<std::uint32_t>(std::ceil(
         std::log(std::pow(1.0 - 1.0 / static_cast<double>(Rtx::Shaders::ACCUMULATE_FRAMES), double(sHistoryFrames)))
         / std::log(static_cast<double>(Rtx::Shaders::FOG_VOLUME_HISTORY))));
+
+    /// Runs `stop` for `frames` once the world stood whole and its histories converged over
+    /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
+    /// the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor` applies.
+    ///
+    /// @param frames how many to measure once the world has arrived. Why a command wants more
+    ///        than one is that command's to say.
+    void measureFrames(Stop& stop, std::uint32_t frames = 1);
 
     /// How long `check` holds the queue after every frame's trace, in milliseconds, where the line
     /// names no `--hold` of its own.
@@ -192,6 +204,19 @@ namespace RtxTool
         std::optional<MapRules> mMaps = MapRules::Shipped;
     };
 
+    /// What every command is handed: the line it was given, the configuration that line was
+    /// read against, where the resources are, and which of their shader sets a renderer reads —
+    /// the one the driver's cache was pointed at.
+    struct Command
+    {
+        const boost::program_options::variables_map& mVariables;
+        const ToolOptions& mOptions;
+        Files::ConfigurationManager& mConfig;
+        const std::filesystem::path& mResources;
+        const Rtx::ShaderSet& mShaders;
+        Verbs mVerb;
+    };
+
     /// What a setting is where nobody has set it: the shipped default, out of the `defaults.bin`
     /// beside the first configuration file `config` found, and never the player's own value. A
     /// measured run reads these so that two runs of it are one run whatever a settings file says.
@@ -209,11 +234,9 @@ namespace RtxTool
     /// status. The game and not a world of this tool's own, because a staged world never pays for
     /// the whole-graph walk, the sweep or a cell arriving, and stands in a world nobody plays. The
     /// engine is built exactly as `apps/openmw/main.cpp` builds one, out of `variables`, after the
-    /// window is written into the settings it reads. `printLeft` prints where the eye was left as a
-    /// `views.cfg` block.
-    int runHosted(const boost::program_options::variables_map& variables, Files::ConfigurationManager& config,
-        const std::filesystem::path& resources, const WindowRequest& window, SessionRequest request,
-        bool printLeft = false);
+    /// window is written into the settings it reads. A played run prints where the eye was left as
+    /// a `views.cfg` block.
+    int runHosted(const Command& command, const Framed& framed, SessionRequest request);
 
     /// A list of places to profile, by view id and not by coordinates, so the frame a screenshot
     /// shows and the frame a number was measured on are the same frame.
@@ -243,7 +266,7 @@ namespace RtxTool
     /// names one: what a picture of a place is taken at. Not the hour a budget is written against
     /// — a low sun doubles the trace — which is why the views the target is judged on fix `hour`.
     inline constexpr float sDefaultHour = 12.0f;
-    inline constexpr std::uint32_t sDefaultWeather = Rtx::sWeatherClear;
+    inline constexpr Rtx::Weather sDefaultWeather = Rtx::Weather::Clear;
 
     /// One stop from a view file entry and the sky the command line named. A view id names one
     /// frame, so a place measured at dawn says so in `mSky.mHour`; the command line still wins, as

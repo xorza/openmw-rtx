@@ -1,0 +1,28 @@
+# What a failed build leaves to read once its runner is gone: the configuration, every log, and the
+# crash matrix's reports, which each mode keeps in the build. One list for every job that builds, so a
+# log one of them learns to keep, every one keeps.
+name: Build logs
+description: Uploads a failed build's configuration, logs and crash reports.
+
+inputs:
+  name:
+    description: The artifact's name, unique in the run.
+    required: true
+  build:
+    description: The build directory, relative to the workspace.
+    required: true
+  more:
+    description: Further paths to keep, one a line.
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.name }}
+        path: |
+          ${{ inputs.build }}/CMakeCache.txt
+          ${{ inputs.build }}/**/*.log
+          ${{ inputs.build }}/test-output/crash-matrix/
+          ${{ inputs.more }}

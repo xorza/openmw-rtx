@@ -103,7 +103,7 @@ namespace Rtx
         writeVertices(range, arrays);
         mTriangles += range.getTriangleCount();
 
-        const Index index = mRows.take(range);
+        const Index index = takeRow(range);
         note(index, SlotNews::Arrived);
         return index;
     }
@@ -113,8 +113,8 @@ namespace Rtx
         // Grown here rather than beside every push, so everything keyed on a mesh slot reaches the
         // table's size in one place. A resize to the size it already is does not allocate, which is
         // what the frame path pays.
-        mChanges.grow(mRows.size());
-        mDeformed.grow(mRows.size());
+        mChanges.grow(size());
+        mDeformed.grow(size());
         mChanges.note(slot, what);
     }
 
@@ -167,7 +167,7 @@ namespace Rtx
 
     void MeshTable::notePosed(Index mesh, const osg::BoundingBoxf& bounds)
     {
-        MeshRange& range = mRows.at(mesh);
+        MeshRange& range = rowAt(mesh);
         range.mPosed = true;
 
         // A pose the size of the last one still reaches somewhere else. An arm that came down is
@@ -182,24 +182,24 @@ namespace Rtx
 
     std::span<const osg::Vec3f> MeshTable::getMeshPositions(Index mesh) const
     {
-        const MeshRange& range = mRows.at(mesh);
+        const MeshRange& range = rowAt(mesh);
         return mPositions.in(range.mVertices);
     }
 
     std::span<const std::uint32_t> MeshTable::getMeshIndices(Index mesh) const
     {
-        const MeshRange& range = mRows.at(mesh);
+        const MeshRange& range = rowAt(mesh);
         return mIndices.in(range.mIndices);
     }
 
     void MeshTable::drop(DeformerTable& deformers, const Index mesh)
     {
-        if (!mRows.drop(mesh))
+        if (!dropRow(mesh))
             return;
 
         // The allocators merge the room with whatever it touches, so a cell leaves as the one hole
         // it came as.
-        MeshRange& range = mRows.at(mesh);
+        MeshRange& range = rowAt(mesh);
         mVertexRuns.release(range.mVertices);
         mIndexRuns.release(range.mIndices);
         mSecondRuns.release(range.mSecondTexCoords);
@@ -217,7 +217,7 @@ namespace Rtx
         // structure has gone with it.
         mDeformed.remove(mesh);
 
-        mRows.free(mesh);
+        freeRow(mesh);
         note(mesh, SlotNews::Freed);
     }
 

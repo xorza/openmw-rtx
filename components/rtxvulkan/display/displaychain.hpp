@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <variant>
 
 #include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
@@ -13,11 +12,11 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/trace/sunglarepass.hpp>
 
 #include "bloompass.hpp"
 #include "exposurepass.hpp"
 #include "linepass.hpp"
+#include "sunglarepass.hpp"
 #include "tonepass.hpp"
 
 namespace Rtx
@@ -35,34 +34,20 @@ namespace Rtx
     /// timer, and cannot be handed any of them. Nothing here is held.
     struct FrameLook
     {
-        /// The eye adapts off the shown frame at its own rate — from a bright day after `loseEye` — or is
-        /// held at a value, or keeps the one the frame before ended on. A picture is measured off
-        /// nothing, which `ExposurePass::getPictureExposure` says is a buffer of its own.
-        struct Measured
-        {
-            float mSeconds;
-            float mBias;
+        /// How the eye scales the frame: adapted off the shown frame at its own rate — from where
+        /// `MeasuredExposure::mStart` says after `loseEye` — or fixed at a scale, or held at the one
+        /// the frame before ended on. A picture is measured off nothing, which
+        /// `ExposurePass::getPictureExposure` says is a buffer of its own.
+        ExposureRule mExposure;
 
-            /// Where the eye starts after `loseEye`, `MeasuredExposure::mStart`.
-            EyeStart mStart;
-        };
-        struct Fixed
-        {
-            float mValue;
-        };
-        struct Held
-        {
-        };
-        using Exposure = std::variant<Measured, Fixed, Held>;
-        Exposure mExposure;
+        /// What a measured eye's scale is offset by, `WorldOptions::mExposureBias`.
+        float mExposureBias;
 
-        /// The sun glare fader and the sun's share, eased at the query's own rate.
-        struct Glare
-        {
-            SunGlare mFader;
-            float mSeconds;
-        };
-        Glare mGlare;
+        /// How long since the frame before, which the eye and the glare both ease over.
+        float mSeconds;
+
+        /// The sun glare fader, laid over the sun's share, which eases at the query's own rate.
+        SunGlare mGlare;
 
         /// One over the player's gamma, `ToneConstants::mInverseGamma`.
         float mInverseGamma;
@@ -75,7 +60,7 @@ namespace Rtx
 
         /// Where the curve writes the frame a second time at sixteen bits a channel, undithered
         /// and without the lines, left as `Display::mLeftAs` leaves the picture; or null. A summed
-        /// frame's, `PresentTarget::requireDeep`.
+        /// frame's, `PresentTarget::beginPicture`.
         Image* mDeep;
 
         /// The debug modes' lines and triangles over the picture, and the slot's own buffer they
@@ -134,7 +119,7 @@ namespace Rtx
         /// @param puffs the trace's own pass, which composites the sprites over what was traced.
         /// @param textureLayout the scene's bindless textures, which the curve samples the star
         ///        sheet out of.
-        DisplayChain(const Device& device, const VisibilityPass& puffs, VkDescriptorSetLayout textureLayout);
+        DisplayChain(const Device& device, const VisibilityPass& puffs, const SetLayout& textureLayout);
 
         /// The lens over `width` by `height`, which is what the frame is by the time the curve
         /// maps it: the upscaler's output where one runs and the trace's own extent where none

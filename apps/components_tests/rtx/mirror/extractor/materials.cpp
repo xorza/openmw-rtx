@@ -29,6 +29,7 @@
 #include <osg/Uniform>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+#include <osg/observer_ptr>
 #include <osg/ref_ptr>
 #include <osgUtil/UpdateVisitor>
 
@@ -44,11 +45,12 @@
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/statereading.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -1412,6 +1414,7 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*empty, 0, 3);
             EXPECT_EQ(mExtractor.retire().mMaterials, 2u);
+            mExtractor.getReleased().clear();
             for (const osg::ref_ptr<const osg::StateSet>& parent : painted)
                 EXPECT_EQ(parent->referenceCount(), 1) << "a key outlived its material";
         }
@@ -1577,6 +1580,47 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, 9u) << "the freed slot is the refused texture's";
         }
 
+        /// **A material over an image that stands names it without a string.** The image is taken by
+        /// its path, normalised into a scratch the thread keeps, where a `VFS::Path::Normalized`
+        /// apiece was a string at every material — a path past the short string's room, as every
+        /// texture's is. Measured where nothing else of an arrival reaches the heap: a material that
+        /// came and went before it left the room the third takes over.
+        TEST_F(RtxSceneExtractorTest, aMaterialOverAStandingImageAllocatesNoPath)
+        {
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/tx_a_path_past_the_short_string.dds");
+            const auto paintedQuad = [&](osg::StateAttribute::GLModeValue culled) {
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                paint(*quad->getOrCreateStateSet(), *image);
+                quad->getStateSet()->setMode(GL_CULL_FACE, culled);
+                return quad;
+            };
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(paintedQuad(osg::StateAttribute::ON));
+            const auto frame = [&](std::size_t number) {
+                mScene.clearPlacement();
+                const std::size_t before = Testing::getAllocationCount();
+                walk(*root, 0, number);
+                const std::size_t spent = Testing::getAllocationCount() - before;
+                mExtractor.retire();
+                mExtractor.getReleased().clear();
+                return spent;
+            };
+            frame(1);
+
+            const osg::ref_ptr<osg::Geometry> passing = paintedQuad(osg::StateAttribute::OFF);
+            root->addChild(passing);
+            frame(2);
+            root->removeChild(passing);
+            frame(3);
+
+            root->addChild(paintedQuad(osg::StateAttribute::OFF));
+            const std::size_t spent = frame(4);
+            EXPECT_EQ(mScene.materials().getLiveCount(), 2u);
+            EXPECT_EQ(spent, 0u) << spent << " allocations for a material over a standing image";
+        }
+
         /// The surface is read from its controller every frame, and from whichever controller the
         /// node carries now.
         ///
@@ -1642,6 +1686,23 @@ namespace Rtx::Testing
             walk(*node, 0, 5);
             ASSERT_EQ(mScene.materials().getRows().size(), 1u);
             expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.0508761f);
+
+            // **A controller the game frees, and the next one made where it stood.** The entry
+            // holds what it found, so the freed one's address is not the next one's while the entry
+            // could take the new for the old, and lets it go once a walk finds the chains changed.
+            const osg::observer_ptr<ColourController> freed = first.get();
+            node->removeCullCallback(first);
+            first = nullptr;
+            EXPECT_TRUE(freed.valid()) << "a controller the walk found was freed under its entry";
+
+            osg::ref_ptr<ColourController> third = new ColourController;
+            third->mRed = 0.5f;
+            node->addCullCallback(third);
+            mScene.clearPlacement();
+            walk(*node, 0, 6);
+            ASSERT_EQ(mScene.materials().getRows().size(), 1u);
+            expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.2140411f);
+            EXPECT_FALSE(freed.valid()) << "the entry kept a controller the chains no longer hold";
         }
     }
 }

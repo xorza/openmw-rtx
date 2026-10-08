@@ -1,6 +1,7 @@
 #include "presenter.hpp"
 
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <SDL3/SDL_video.h>
@@ -32,10 +33,10 @@ namespace Rtx
     }
 
     Presenter::Presenter(
-        const Device& device, const Instance& instance, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
+        const Device& device, const Surface& surface, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
         : mDevice(device)
         , mAsked(drawableSize(window))
-        , mSurface(instance, window)
+        , mSurface(surface)
         , mSwapchain(device, mSurface, mAsked, verticalSync)
     {
         try
@@ -71,17 +72,13 @@ namespace Rtx
         // Waited before the semaphores they guard go. A present holds its wait semaphore until
         // the presentation engine is done, and only these say when that is: the device-idle the
         // caller owes proves the queue is empty and nothing more.
-        if (mDevice.hasPresentFences())
-            for (const SwapImage& image : mImages)
-                awaitVk(mDevice, image.mPresented.get(), "the presentation engine letting go of an image");
+        for (SwapImage& image : mImages)
+            if (image.mPresented.has_value())
+                image.mPresented->settle(mDevice, "the presentation engine letting go of an image");
 
         // Given back to the pool, which is what lets the rebuild take a fresh set: one kept here
         // per resize or vsync change would be a few dozen sets over a window's life.
-        std::vector<VkCommandBuffer> commands;
-        commands.reserve(mImages.size());
-        for (const SwapImage& image : mImages)
-            commands.push_back(image.mCommands);
-        mDevice.getPool().recycle(commands);
+        mCommands = LentCommands();
 
         mAcquiring.clear();
         mImages.clear();
@@ -102,7 +99,7 @@ namespace Rtx
 
         // A blit stamp of nought, which the timeline has passed: no image has been blitted onto
         // yet.
-        const std::vector<VkCommandBuffer> commands = mDevice.getPool().allocate(images);
+        mCommands = mDevice.getPool().lend(images);
         mImages.resize(images);
         for (std::uint32_t index = 0; index < images; ++index)
         {
@@ -110,8 +107,7 @@ namespace Rtx
             image.mRendered = makeSemaphore(mDevice);
             image.mBlitOn = 0;
             if (mDevice.hasPresentFences())
-                image.mPresented = makeSignalledFence(mDevice);
-            image.mCommands = commands[index];
+                image.mPresented.emplace(mDevice);
         }
     }
 
@@ -140,14 +136,6 @@ namespace Rtx
         mStale = false;
     }
 
-    void Presenter::setVerticalSync(SDLUtil::VSyncMode mode)
-    {
-        // A present mode is a property of the swapchain object. Not `rebuild`, because that
-        // clears a staleness a window that changed size meanwhile still owes.
-        if (mSwapchain.setVerticalSync(mode))
-            remake(mAsked);
-    }
-
     void Presenter::remake(const VkExtent2D extent)
     {
         // The sync released between the idle and the recreate, because the present fences it waits
@@ -157,11 +145,6 @@ namespace Rtx
         releaseImageSync();
         mSwapchain.recreate(extent);
         makeImageSync();
-    }
-
-    VkExtent2D Presenter::getExtent() const
-    {
-        return mSwapchain.getExtent();
     }
 
     void Presenter::present(const Image& frame)
@@ -191,15 +174,11 @@ namespace Rtx
         // And the present itself, which is a different moment: the blit's value says the queue has
         // run the copy, and this says the compositor has let go of what it copied into. Without it
         // the semaphore below is signalled again while a present still waits on it.
-        if (mDevice.hasPresentFences())
-        {
-            const VkFence presented = image.mPresented.get();
-            awaitVk(mDevice, presented, "the presentation engine letting go of this image");
-            checkVk(vkResetFences(mDevice.getHandle(), 1, &presented), "vkResetFences");
-        }
+        if (image.mPresented.has_value())
+            image.mPresented->settle(mDevice, "the presentation engine letting go of this image");
 
-        const VkCommandBuffer commands = image.mCommands;
-        mDevice.getPool().begin(commands);
+        Recording recording = mDevice.getPool().begin(mCommands[index]);
+        const VkCommandBuffer commands = recording.get();
 
         frame.transition(commands, PresentTarget::sResting, Use::sBlitRead);
 
@@ -272,13 +251,14 @@ namespace Rtx
             .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             .deviceIndex = 0,
         };
-        const std::uint64_t blitted = mDevice.getPool().submit(commands,
+        const std::uint64_t blitted = std::move(recording).submit(
             std::span<const VkSemaphoreSubmitInfo>(&wait, 1), std::span<const VkSemaphoreSubmitInfo>(&signal, 1));
 
         acquisition.mBlit = blitted;
         image.mBlitOn = blitted;
 
-        if (!mSwapchain.present(image.mRendered.get(), index, image.mPresented.get()))
+        if (!mSwapchain.present(
+                image.mRendered.get(), index, image.mPresented.has_value() ? &*image.mPresented : nullptr))
             mStale = true;
     }
 }

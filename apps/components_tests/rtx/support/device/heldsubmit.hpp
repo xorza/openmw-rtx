@@ -6,6 +6,7 @@
 
 #include <volk.h>
 
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
@@ -31,10 +32,9 @@ namespace Rtx::Testing
         HeldSubmit(const HeldSubmit&) = delete;
         HeldSubmit& operator=(const HeldSubmit&) = delete;
 
-        /// Submits `commands`, begun through the device's pool, behind the hold, with whatever the
-        /// pool has deferred ahead of it. Ends `commands`. Returns the value the submit signals on
-        /// the timeline.
-        std::uint64_t submit(VkCommandBuffer commands);
+        /// Submits `recording` behind the hold, with whatever the pool has deferred ahead of it.
+        /// Returns the value the submit signals on the timeline.
+        std::uint64_t submit(Recording&& recording);
 
         void release();
 

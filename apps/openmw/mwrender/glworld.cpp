@@ -118,6 +118,7 @@ namespace MWRender
         SceneUtil::LightManager& sceneRoot, Resource::ResourceSystem& resources)
         : mViewer(viewer)
         , mResources(resources)
+        , mWorldRoot(&worldRoot)
         , mSceneRoot(&sceneRoot)
     {
         Resource::SceneManager& scene = *resources.getSceneManager();
@@ -220,7 +221,14 @@ namespace MWRender
         applyRootState(worldRoot, sceneRoot, *viewer.getCamera());
     }
 
-    GlWorld::~GlWorld() = default;
+    GlWorld::~GlWorld()
+    {
+        // What the constructor hung on the world's roots, which the world keeps past this.
+        mSceneRoot->removeChild(mDebugDraw);
+        mSceneRoot->removeUpdateCallback(mStateUpdater);
+        mWorldRoot->removeUpdateCallback(mSharedUniformStateUpdater);
+        mWorldRoot->removeCullCallback(mPerViewUniformStateUpdater);
+    }
 
     void GlWorld::addCell(const MWWorld::CellStore* cell)
     {

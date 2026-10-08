@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 
+from omw.build import device_free
 from omw.testing import durations
 
 ROOT = Path("/checkout")
@@ -36,6 +37,19 @@ class DurationsTest(unittest.TestCase):
 
     def test_a_report_without_suites_has_no_cases(self):
         self.assertEqual(durations({"tests": 0}, ROOT), {})
+
+
+def suite(target: str, *labels: str) -> dict:
+    return {"name": target, "properties": [{"name": "LABELS", "value": list(labels)},
+                                           {"name": "OPENMW_TARGET", "value": target}]}
+
+
+class DeviceFreeTest(unittest.TestCase):
+    def test_a_target_is_left_out_only_where_every_test_of_it_needs_a_device(self):
+        tests = [suite("components-tests"), suite("rtx-gpu-tests", "device"), suite("rtx-gpu-tests", "device"),
+                 suite("crash-tests", "device"), suite("crash-tests"), {"name": "no target", "properties": []}]
+        self.assertEqual(device_free(tests), ["components-tests", "crash-tests"])
+        self.assertEqual(device_free([]), [])
 
 
 if __name__ == "__main__":

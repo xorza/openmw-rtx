@@ -11,6 +11,7 @@
 namespace Rtx
 {
     class Device;
+    class PresentFence;
     class Surface;
 
     /// The images the window presents, and the two calls that hand them back and forth. The
@@ -28,10 +29,9 @@ namespace Rtx
         bool acquire(VkSemaphore ready, std::uint32_t& index);
 
         /// Hands the image back. False means the same thing as it does for `acquire`.
-        /// @param presented signalled when the presentation engine has finished with the image, or
-        ///        null where the device offers no such fence. `Presenter::mPresented` says why one
-        ///        is wanted.
-        bool present(VkSemaphore finished, std::uint32_t index, VkFence presented);
+        /// @param presented signalled when the presentation engine has finished with the image, and
+        ///        told whether this present owes it, or null where the device offers no such fence.
+        bool present(VkSemaphore finished, std::uint32_t index, PresentFence* presented);
 
         /// Rebuilds at a new size. The caller must have waited for every frame still in flight.
         void recreate(VkExtent2D extent);
@@ -45,10 +45,6 @@ namespace Rtx
         /// the present mode, which is what says a rebuild is owed. A setting and not a mode,
         /// because two settings collapse onto one mode where a driver is missing the other.
         bool setVerticalSync(SDLUtil::VSyncMode mode);
-
-        /// Whether `setVerticalSync(mode)` would change the present mode, asked without changing
-        /// anything: what a caller with something to drain before a rebuild asks first.
-        bool changesPresentMode(SDLUtil::VSyncMode mode) const;
 
         VkExtent2D getExtent() const { return mExtent; }
         VkImage getImage(std::uint32_t index) const { return mImages[index]; }

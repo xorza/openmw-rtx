@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstring>
 #include <span>
+#include <string_view>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -14,6 +15,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/probe.h>
 
@@ -58,7 +60,9 @@ namespace Rtx
             const TraceShaders shaders{
                 .mRaygen = "traceprobe.rgen.spv",
             };
-            const TracePipeline<NoConstants> pipeline(device, sBindings, {}, shaders, "trace probe");
+            constexpr std::array<std::string_view, 1> modules{ "traceprobe.rgen.spv" };
+            const ShaderCode code(device, modules);
+            const TracePipeline<NoConstants> pipeline(device, sBindings, {}, code, shaders, "trace probe");
             EXPECT_EQ(pipeline.getPushRange().size, 0u) << "a pipeline pushed nothing declared a range";
 
             constexpr std::uint32_t sCount = sWidth * sHeight;

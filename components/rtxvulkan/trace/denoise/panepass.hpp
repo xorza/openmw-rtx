@@ -7,11 +7,13 @@
 
 #include "denoiseframe.hpp"
 #include "denoisehistory.hpp"
+#include "historyclamppass.hpp"
 
 namespace Rtx
 {
     class Device;
     class GBuffer;
+    class GpuTimer;
     class Image;
 
     /// The pane filter: `CHANNEL_PANE` averaged over the frames the nearest see-through layer stood
@@ -26,7 +28,7 @@ namespace Rtx
         /// orders it for a read (`DenoisePasses::record`). `buffer` must have been handed over, and
         /// `DenoiseHistory::discard` has readied the images.
         const Image& record(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images, const GBuffer& buffer,
-            const DenoiseFrame& frame) const;
+            const DenoiseFrame& frame, const HistoryClampPass& clamp, GpuTimer* timer) const;
 
     private:
         ComputePipeline<Shaders::HistoryConstants> mPipeline;

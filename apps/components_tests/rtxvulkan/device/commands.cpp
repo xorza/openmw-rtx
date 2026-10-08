@@ -7,6 +7,7 @@
 
 #include <volk.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -126,6 +127,62 @@ namespace Rtx
             getPool().submitAndWait([](VkCommandBuffer) {});
 
             EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a batch given up on still ran";
+
+            // **And a one-off whose recording throws**, which went back to nobody: the buffer stayed
+            // recording, and the pool never handed it out again. It goes back as the batch's does,
+            // takes no staging, and is the next buffer a one-off records into.
+            const std::size_t blocks = getPool().getStagingBlockCount();
+            VkCommandBuffer thrown = VK_NULL_HANDLE;
+            EXPECT_THROW(getPool().submitAndWait([&](VkCommandBuffer commands) {
+                thrown = commands;
+                vkCmdCopyBuffer(commands, source.getHandle(), target.getHandle(), 1, &whole);
+                // On a condition the compiler cannot decide, or MSVC calls the flush after the
+                // record unreachable, and its warning is an error.
+                if (commands != VK_NULL_HANDLE)
+                    throw Abandoned{};
+            }),
+                Abandoned);
+            VkCommandBuffer next = VK_NULL_HANDLE;
+            getPool().submitAndWait([&](VkCommandBuffer commands) { next = commands; });
+
+            EXPECT_EQ(next, thrown) << "the thrown one-off's buffer was not given back";
+            EXPECT_EQ(getPool().getStagingBlockCount(), blocks);
+            EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a thrown one-off's copy ran";
+        }
+
+        /// **A lent buffer is taken again only once a submit made after its owner ended has run.**
+        /// Given back at once, a ring's buffer went to the next caller while a frame the ring had
+        /// submitted could still be running it; kept by each owner, the pool had no word on it.
+        TEST_F(RtxBatchTest, aLentBufferIsTakenAgainOnlyOnceASubmitAfterItsEndHasRun)
+        {
+            CommandPool& pool = getPool();
+            VkCommandBuffer ended = VK_NULL_HANDLE;
+            {
+                const LentCommands lent = pool.lend(1);
+                ASSERT_EQ(lent.size(), 1u);
+                ended = lent[0];
+            }
+
+            const LentCommands before = pool.lend(1);
+            EXPECT_NE(before[0], ended) << "lent again before any submit after its end had run";
+
+            // The one-off takes a buffer and gives it back after its wait, and the wait gives back
+            // what retired under its value: the ended buffer, ahead of the one-off's own.
+            pool.submitAndWait([](VkCommandBuffer) {});
+            const LentCommands after = pool.lend(2);
+            EXPECT_TRUE(after[0] == ended || after[1] == ended) << "not given back once a submit after its end ran";
+        }
+
+        /// **What the pool gives back on an idle queue is nothing a recording still holds**: the
+        /// graveyard's own idle collect leans on no recording being open beside it.
+        TEST_F(RtxBatchTest, anIdleCollectBesideAnOpenRecordingIsAContractBroken)
+        {
+            getDevice().waitIdle();
+            const LentCommands lent = getPool().lend(1);
+            Recording open = getPool().begin(lent[0]);
+            Testing::expectAssertDies(
+                [&] { getDevice().collectIdle(); }, "command buffers given back while a recording is open");
+            std::move(open).end();
         }
 
         /// A staged write names its destination for the submit the batch rides.

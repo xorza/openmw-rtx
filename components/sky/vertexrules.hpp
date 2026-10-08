@@ -38,9 +38,9 @@ namespace Sky
         return index % 2 != 0 ? 0.f : 1.f;
     }
 
-    /// Whether the star dome draws a vertex authored in `colour`: exactly white, and nothing else,
-    /// which leaves its bottom ring out. `ModVertexAlphaVisitor::Stars` and the ray tracer's night
-    /// sky both read it here.
+    /// Whether the star dome draws a vertex authored in `colour`: its red exactly one, the one channel
+    /// the rule reads, which leaves the dome's bottom ring out. `ModVertexAlphaVisitor::Stars` and
+    /// the ray tracer's night sky both read it here.
     inline bool starVertexShown(const osg::Vec4f& colour)
     {
         return colour.x() == 1.f;

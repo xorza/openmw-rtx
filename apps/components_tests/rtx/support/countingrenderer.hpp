@@ -101,7 +101,12 @@ namespace Rtx::Testing
         void setGamma(float) override {}
         Rtx::JobProgress awaitKernels(std::chrono::milliseconds) override { return {}; }
         Rtx::FrameExtents getExtents() const override { return {}; }
-        void renderFrame(const Rtx::Shaders::VisibilityConstants&, const Rtx::FrameOptions&) override { ++mFrames; }
+        Rtx::FrameTraced renderFrame(const Rtx::FrameRequest&) override
+        {
+            ++mFrames;
+            return {};
+        }
+        void holdAir(const Rtx::AirClock&) override {}
         void skipFrame() override { ++mSkipped; }
         std::uint64_t getFrameCount() const override { return mFrames + mSkipped; }
         std::optional<Rtx::FrameResult> finishFrame() override { return std::nullopt; }
@@ -119,10 +124,9 @@ namespace Rtx::Testing
         void sendGuiTexture(Rtx::GuiSlot) override { ++mGuiSent; }
         void dropGuiTexture(Rtx::GuiSlot) override {}
         void drawGui(std::span<const Rtx::GuiVertex>, std::span<const Rtx::GuiBatch>) override {}
-        void traceGuiTexture(
-            Rtx::GuiSlot, const Rtx::Shaders::VisibilityConstants& camera, const Rtx::GuiTraceOptions&) override
+        void traceGuiTexture(Rtx::GuiSlot, const Rtx::Viewpoint& view, const Rtx::GuiTraceOptions& options) override
         {
-            mTraced = camera;
+            mTraced = TracedPicture{ .mView = view, .mOptions = options };
         }
         Rtx::SceneSlot addViewScene() override
         {
@@ -135,7 +139,7 @@ namespace Rtx::Testing
         struct Built
         {
             std::uint64_t mIdentity = 0;
-            std::uint64_t mRevision = 0;
+            Rtx::StructureRevision mRevision;
         };
 
         Built& heldAt(Rtx::SceneSlot slot) { return slot.isWorld() ? mBuilt : mViewBuilt[slot.getViewIndex()]; }
@@ -212,9 +216,13 @@ namespace Rtx::Testing
         std::vector<std::uint8_t> mLending;
         std::uint32_t mGuiSent = 0;
 
-        /// The constants the last picture inside the interface was traced with, or nothing before
-        /// the first: what says a picture was traced under the run's rules.
-        std::optional<Rtx::Shaders::VisibilityConstants> mTraced;
+        /// What the last picture inside the interface was traced with, or nothing before the first.
+        struct TracedPicture
+        {
+            Rtx::Viewpoint mView;
+            Rtx::GuiTraceOptions mOptions;
+        };
+        std::optional<TracedPicture> mTraced;
 
     private:
         Rtx::SceneStats mStats;

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -18,6 +19,7 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
 
 namespace Rtx
@@ -42,8 +44,8 @@ namespace Rtx
         /// where it is used, so no two launches of a trace can be handed two copies of it.
         const DeviceScene* mScene = nullptr;
 
-        /// What every trace reads beside its scene: the sea, the wake in it, the fog's field and
-        /// the list of no sprites. One for everything traced.
+        /// What every trace reads beside its scene: the sea, the wake in it and the fog's field. One
+        /// for everything traced.
         const TraceMedia* mMedia = nullptr;
 
         /// Which of the chain's sprite bins this trace records into and reads: the frame's own
@@ -56,9 +58,9 @@ namespace Rtx
         /// interface one nothing reads — bound because the shader writes it regardless.
         const Buffer* mCounts = nullptr;
 
-        /// Whether this camera draws sprites. One that draws none reads the media's list of
-        /// nothing in place of its bin's, which holds whatever the last bin into it left, sized for
-        /// another camera.
+        /// Whether this camera draws sprites. One that draws none still bins its tiles, with no
+        /// sprite in them, so each learns which media and additive surfaces a ray through it can
+        /// meet (`TraceChain::record`).
         bool mDrawsSprites = true;
 
         /// The two counts the eye's launch adds to: the frame's, `SunGlarePass::getCounts`, or
@@ -231,15 +233,15 @@ namespace Rtx
         /// the caller's thread, because the whole set takes ten seconds cold and the window has to
         /// go on answering meanwhile. In parallel, because the driver's cache is internally
         /// synchronised, and `PipelineCache` outlives the process.
-        void compileEvery(VkDescriptorSetLayout textureLayout);
+        void compileEvery(const SetLayout& textureLayout);
 
         /// Makes the one kernel `wanted` names, into its slot. On a hand of `compileEvery`'s, each
         /// writing a slot no other hand does.
-        void compile(const Wanted& wanted, VkDescriptorSetLayout textureLayout);
+        void compile(const Wanted& wanted, const SetLayout& textureLayout);
 
         /// The shared sets every kernel of the pass reads. A pipeline layout names every set it will
         /// ever be handed, and the kernels are handed the same.
-        SharedSetLayouts sharedSets(VkDescriptorSetLayout textureLayout) const;
+        SharedSetLayouts sharedSets(const SetLayout& textureLayout) const;
 
         /// Writes the frame's own block into `mConstants`, barriered against both the dispatch
         /// before it and the one after.
@@ -286,11 +288,11 @@ namespace Rtx
 
         /// The second of the two sets bound after the pushed one, which the renderer owns for its
         /// whole life. The first is the scene's and arrives with the frame — `mTextureLayout`.
-        VkDescriptorSetLayout mChannelLayout = VK_NULL_HANDLE;
+        const SetLayout* mChannelLayout = nullptr;
 
         /// The third of the sets nothing pushes, which the fog volume owns. Held for the reason
         /// `mChannelLayout` is.
-        VkDescriptorSetLayout mVolumeLayout = VK_NULL_HANDLE;
+        const SetLayout* mVolumeLayout = nullptr;
 
         /// Every kernel the pass launches, filled by `compileEvery`'s hands, each writing slots no
         /// other hand does.
@@ -331,6 +333,12 @@ namespace Rtx
         /// it is asked — the one way to them, so no launch can be recorded from a table still being
         /// filled. A shared future's read once it is ready.
         const Kernels& kernels() const;
+
+        /// Every trace module the kernels run, read once with its interface by the compile before its
+        /// hands start, and shared by them: on the compile's thread, so a file that cannot be read
+        /// is thrown to every ask of the kernels as a kernel that cannot be made is. Before the
+        /// compile, so its hands are joined before the code goes.
+        std::optional<ShaderCode> mCode;
 
         Kernels mKernels;
 

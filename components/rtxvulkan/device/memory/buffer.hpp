@@ -210,10 +210,6 @@ namespace Rtx
             writeAt(0, data);
         }
 
-        /// Zeroes the whole buffer, for a block, which is made longer than what will be put in it:
-        /// a buffer holding whatever was last in that memory is a picture that depends on it too.
-        void clear() const { std::memset(writable<std::byte>(0, mSize).data(), 0, mSize); }
-
         /// The whole buffer, to be written in place, for a buffer nothing has named yet — which no
         /// submit can read. Asked of the buffer's own stamp and never of the timeline, so a thread
         /// that made the buffer and has not handed it out can fill it while the owner of the

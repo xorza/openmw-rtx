@@ -1,13 +1,16 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
+#include "presentfence.hpp"
 #include "surface.hpp"
 #include "swapchain.hpp"
 
@@ -17,7 +20,6 @@ namespace Rtx
 {
     class Device;
     class Image;
-    class Instance;
 
     /// The surface, the swapchain, and everything that keeps a frame from overtaking the one in
     /// front of it: a semaphore per swapchain image and not per frame in flight, the timeline
@@ -33,7 +35,7 @@ namespace Rtx
         /// submit of the device's pool like any other, so it signals the timeline and carries what
         /// was deferred ahead of it — a submit of its own that took a timeline value would let the
         /// graveyard free what a deferred batch names before it ran.
-        Presenter(const Device& device, const Instance& instance, SDL_Window* window, SDLUtil::VSyncMode verticalSync);
+        Presenter(const Device& device, const Surface& surface, SDL_Window* window, SDLUtil::VSyncMode verticalSync);
         ~Presenter();
 
         /// Blits `frame`, in `VK_IMAGE_LAYOUT_GENERAL` and left there, onto the next swapchain
@@ -54,14 +56,20 @@ namespace Rtx
         void rebuild(VkExtent2D extent);
 
         /// Says how the presented image should meet the refresh, rebuilding only where that changes
-        /// the mode the surface will actually run in.
-        void setVerticalSync(SDLUtil::VSyncMode mode);
+        /// the mode the surface will actually run in, and answers whether it rebuilt. A rebuild frees
+        /// what `wantsResize` says one frees, so `beforeRebuild` runs first there and nowhere else:
+        /// a caller's drain of a handed-over batch. Not `rebuild`, because that clears a staleness a
+        /// window that changed size meanwhile still owes.
+        template <class BeforeRebuild>
+        bool setVerticalSync(SDLUtil::VSyncMode mode, BeforeRebuild&& beforeRebuild)
+        {
+            if (!mSwapchain.setVerticalSync(mode))
+                return false;
 
-        /// Whether `setVerticalSync(mode)` rebuilds, which frees what `wantsResize` says a rebuild
-        /// frees: asked first by a caller with a batch to drain.
-        bool rebuildsFor(SDLUtil::VSyncMode mode) const { return mSwapchain.changesPresentMode(mode); }
-
-        VkExtent2D getExtent() const;
+            beforeRebuild();
+            remake(mAsked);
+            return true;
+        }
 
     private:
         /// Two semaphores and one command buffer per swapchain image, and a present fence where the
@@ -85,8 +93,8 @@ namespace Rtx
         /// that, every frame the two differed waited the device idle and made the swapchain again.
         VkExtent2D mAsked;
 
-        /// Before the swapchain, which is made on it and goes first.
-        Surface mSurface;
+        /// What the swapchain is made on: the renderer's, which outlives this.
+        const Surface& mSurface;
         Swapchain mSwapchain;
 
         /// What an acquire signals and the blit behind it waits.
@@ -123,19 +131,16 @@ namespace Rtx
             std::uint64_t mBlitOn = 0;
 
             /// What the presentation engine signals when it has finished with the image, where the
-            /// device offers `VK_KHR_swapchain_maintenance1` — the only thing that says a present
-            /// is over, since a queue-idle proves the queue is empty rather than that the
-            /// compositor has let go, and the one thing here the timeline cannot say. A present
-            /// rejected with `VK_ERROR_OUT_OF_DATE_KHR` still signals its fence, so waiting on it is
-            /// safe. Null where the device offers none.
-            Fence mPresented;
-
-            /// Out of the device's pool, which allows a buffer to be reset by beginning it again.
-            VkCommandBuffer mCommands = VK_NULL_HANDLE;
+            /// device offers one.
+            std::optional<PresentFence> mPresented;
         };
 
         /// One per swapchain image, indexed by the image the acquire answered with.
         std::vector<SwapImage> mImages;
+
+        /// The blits' buffers, one per swapchain image and indexed as `mImages` is. Out of the
+        /// device's pool, which allows a buffer to be reset by beginning it again.
+        LentCommands mCommands;
 
         /// Whether the surface stopped matching the window since the last rebuild. An acquire or a
         /// present can fail at a size nothing asked to change, and a resize that only rebuilt when
