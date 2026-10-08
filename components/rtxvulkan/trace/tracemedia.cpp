@@ -1,7 +1,6 @@
 #include "tracemedia.hpp"
 
 #include <cmath>
-#include <cstdint>
 
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -15,11 +14,7 @@ namespace Rtx
         : mWaves(device)
         , mRipples(device)
         , mFog(device, fog)
-        , mNoSprites(Buffer::hostWritten(
-              device, 2 * sizeof(std::uint32_t), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "no sprites"))
     {
-        // `SPRITE_LIST_UNBINNED` and a count of nought are both nought.
-        mNoSprites.zeroOnHost();
     }
 
     TraceSubject TraceMedia::describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera,

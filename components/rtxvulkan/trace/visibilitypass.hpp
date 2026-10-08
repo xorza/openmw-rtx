@@ -44,8 +44,8 @@ namespace Rtx
         /// where it is used, so no two launches of a trace can be handed two copies of it.
         const DeviceScene* mScene = nullptr;
 
-        /// What every trace reads beside its scene: the sea, the wake in it, the fog's field and
-        /// the list of no sprites. One for everything traced.
+        /// What every trace reads beside its scene: the sea, the wake in it and the fog's field. One
+        /// for everything traced.
         const TraceMedia* mMedia = nullptr;
 
         /// Which of the chain's sprite bins this trace records into and reads: the frame's own
@@ -58,9 +58,9 @@ namespace Rtx
         /// interface one nothing reads — bound because the shader writes it regardless.
         const Buffer* mCounts = nullptr;
 
-        /// Whether this camera draws sprites. One that draws none reads the media's list of
-        /// nothing in place of its bin's, which holds whatever the last bin into it left, sized for
-        /// another camera.
+        /// Whether this camera draws sprites. One that draws none still bins its tiles, with no
+        /// sprite in them, so each learns which media and additive surfaces a ray through it can
+        /// meet (`TraceChain::record`).
         bool mDrawsSprites = true;
 
         /// The two counts the eye's launch adds to: the frame's, `SunGlarePass::getCounts`, or

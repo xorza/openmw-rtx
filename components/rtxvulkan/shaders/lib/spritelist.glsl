@@ -60,8 +60,7 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_BLOCKS) bu
 };
 
 /// The tiles' list: entry nought is the head, then where each tile's run starts, counted from the
-/// front, then the runs. `SPRITE_TILE_UNBINNED` says what a tile past the room holds, and
-/// `SPRITE_LIST_UNBINNED` what entry nought holds in a list with no runs at all.
+/// front, then the runs. `SPRITE_TILE_UNBINNED` says what a tile past the room holds.
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) buffer SpriteTileList
 {
     uint at[];
@@ -94,9 +93,6 @@ struct SpriteRun
 /// `tile`'s run, `SpriteRun`: its own where it was binned, and every sprite where it was not.
 SpriteRun spriteRunOf(SpriteTileList list, uint tile)
 {
-    if (list.at[0] == SPRITE_LIST_UNBINNED)
-        return SpriteRun(0u, list.at[1], true);
-
     const uint end = list.at[spriteStartSlot(tile + 1u)];
     if ((end & SPRITE_TILE_UNBINNED) != 0u)
         return SpriteRun(0u, end & ~SPRITE_TILE_UNBINNED, true);
@@ -111,7 +107,7 @@ uint spriteTileOf(uvec2 pixel, uint width)
 }
 
 /// The `PRESENCE_` kinds a ray through a traced pixel's tile can meet — every kind where the tile
-/// was not binned, which is a camera that draws no sprites and a tile past the room.
+/// was not binned, which is a tile past the room.
 ///
 /// **Uniform over a tile, so a warp takes a walk or leaves it whole.**
 uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, uvec2 traced)

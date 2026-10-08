@@ -1006,12 +1006,6 @@ namespace Rtx::Shaders
         return spriteTilesOver(width) * spriteTilesOver(height);
     }
 
-    /// What a sprite tiles' list holds in its first entry where it holds no runs at all: the
-    /// stand-in a trace that draws no sprites is handed (`TraceMedia`), two words long, whose
-    /// entry one is the count to walk, nought. Where the runs are binned, entry nought is where
-    /// they begin — `tiles + 1`, never nought.
-    const uint SPRITE_LIST_UNBINNED = 0u;
-
     /// The bit a tile's end entry carries where its run did not fit, beside the frame's sprite
     /// count in the bits under it.
     ///

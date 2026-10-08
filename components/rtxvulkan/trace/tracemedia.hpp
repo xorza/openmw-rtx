@@ -24,9 +24,9 @@ namespace Rtx
     class SceneDesc;
     struct TraceSubject;
 
-    /// What every trace reads beside its scene and its chain: the sea, the wake in it, the fog's
-    /// field and the list of no sprites. One of each for everything traced, the doll and the map
-    /// included, because none of them is a property of a scene.
+    /// What every trace reads beside its scene and its chain: the sea, the wake in it and the fog's
+    /// field. One of each for everything traced, the doll and the map included, because none of them
+    /// is a property of a scene.
     class TraceMedia
     {
     public:
@@ -48,10 +48,6 @@ namespace Rtx
         const WavePass& getWaves() const { return mWaves; }
         const RipplePass& getRipples() const { return mRipples; }
         const FogTile& getFog() const { return mFog; }
-
-        /// Where the list of no sprites is, naming it for the next submit: what a camera that draws
-        /// none reads in place of its bin's list.
-        VkDeviceAddress describeNoSprites() const { return mNoSprites.addressFor(); }
 
         /// What the sea's amplitudes were last drawn for.
         const SeaState& getSea() const { return mWaves.getSea(); }
@@ -92,9 +88,5 @@ namespace Rtx
         /// — those decide the extinction and the layer's height, which are numbers the shader
         /// already has.
         FogTile mFog;
-
-        /// An empty sprite tiles' list, for a camera that draws no sprites and so binned none. An
-        /// empty list is two words, so one buffer serves every extent.
-        Buffer mNoSprites;
     };
 }
