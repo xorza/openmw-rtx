@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <ios>
@@ -17,7 +18,10 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/filesync.hpp>
 #include <components/platform/folder.hpp>
+#include <components/rtx/common/digestwords.hpp>
+#include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "result.hpp"
@@ -38,6 +42,51 @@ namespace Rtx
         /// Why a blob is refused for its size alone, which the read asks before it reads as well.
         constexpr std::string_view sTooShort = "is shorter than a cache header";
         constexpr std::string_view sTooLong = "is larger than a cache is kept";
+
+        /// What the file holds ahead of the driver's blob, which is what lets a run refuse a body
+        /// the driver would be handed whole: Vulkan has the driver check its own header and nothing
+        /// after it, so a short body, or one a power loss zeroed after the rename, passes that check
+        /// and reaches the driver. The established shape for a pipeline cache file, as DXVK and
+        /// Fossilize write theirs: an own header with the body's length and digest, and the device
+        /// it was written on. **The driver's version as well as the UUID**, because some drivers
+        /// keep their UUID across an update.
+        struct FileHeader
+        {
+            std::array<char, 8> mMagic;
+            std::uint32_t mFormat;
+            std::uint32_t mVendor;
+            std::uint32_t mDevice;
+            std::uint32_t mDriver;
+            std::array<std::uint8_t, VK_UUID_SIZE> mUuid;
+            std::uint64_t mBlobBytes;
+            DigestWords mBlobDigest;
+        };
+        static_assert(sizeof(FileHeader) == 64, "the file's header carries no padding");
+
+        constexpr std::array<char, 8> sMagic{ 'O', 'M', 'W', 'R', 'T', 'X', 'P', 'C' };
+        constexpr std::uint32_t sFormat = 1;
+
+        DigestWords digestOf(std::span<const std::uint8_t> blob)
+        {
+            HashState digest;
+            digest.add(blob);
+            return digest.getWords();
+        }
+
+        /// The header the file opens with for `blob`, written on the device `properties` names.
+        FileHeader headerFor(std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties)
+        {
+            FileHeader header{ .mMagic = sMagic,
+                .mFormat = sFormat,
+                .mVendor = properties.vendorID,
+                .mDevice = properties.deviceID,
+                .mDriver = properties.driverVersion,
+                .mUuid = {},
+                .mBlobBytes = blob.size(),
+                .mBlobDigest = digestOf(blob) };
+            std::memcpy(header.mUuid.data(), properties.pipelineCacheUUID, VK_UUID_SIZE);
+            return header;
+        }
 
         /// What every file this renderer keeps in the cache directory is called, before its key.
         constexpr std::string_view sPrefix = "rtx-";
@@ -94,40 +143,6 @@ namespace Rtx
 
             return spec.mDirectory / name;
         }
-
-        /// The file's contents, where `PipelineCache::accepts` takes them, nothing where there is no
-        /// file, and why the file was set aside where there is one it cannot seed from.
-        Misc::Result<std::vector<std::uint8_t>, std::string_view> readCache(
-            const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties)
-        {
-            std::error_code error;
-            if (!std::filesystem::exists(path, error) && !error)
-                return std::vector<std::uint8_t>{};
-
-            std::ifstream file(path, std::ios::binary | std::ios::ate);
-            if (!file)
-                return Misc::Err{ "could not be opened" };
-
-            // Both bounds before the read and not only after it, because the file this refuses
-            // for its size is the one it would be most expensive to read: `PipelineCache::sMostBytes`
-            // says what has been seen in a directory nothing swept.
-            const std::streamoff bytes = file.tellg();
-            if (bytes < static_cast<std::streamoff>(sHeaderBytes))
-                return Misc::Err{ sTooShort };
-            if (bytes > static_cast<std::streamoff>(PipelineCache::sMostBytes))
-                return Misc::Err{ sTooLong };
-
-            std::vector<std::uint8_t> data(static_cast<std::size_t>(bytes));
-            file.seekg(0);
-            if (!file.read(reinterpret_cast<char*>(data.data()), bytes))
-                return Misc::Err{ "could not be read" };
-
-            if (const Misc::Result<void, std::string_view> accepted = PipelineCache::accepts(data, properties);
-                !accepted.isOk())
-                return Misc::Err{ accepted.error() };
-
-            return data;
-        }
     }
 
     Misc::Result<void, std::string_view> PipelineCache::accepts(
@@ -149,9 +164,55 @@ namespace Rtx
         return {};
     }
 
+    Misc::Result<std::vector<std::uint8_t>, std::string_view> PipelineCache::read(
+        const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties)
+    {
+        std::error_code error;
+        if (!std::filesystem::exists(path, error) && !error)
+            return std::vector<std::uint8_t>{};
+
+        std::ifstream file(path, std::ios::binary | std::ios::ate);
+        if (!file)
+            return Misc::Err{ "could not be opened" };
+
+        // Every bound before the body is read, because the file this refuses for its size is the
+        // one it would be most expensive to read: `sMostBytes` says what has been seen in a
+        // directory nothing swept.
+        const std::streamoff bytes = file.tellg();
+        if (bytes < static_cast<std::streamoff>(sizeof(FileHeader)))
+            return Misc::Err{ "is shorter than its own header" };
+
+        FileHeader header{};
+        file.seekg(0);
+        if (!file.read(reinterpret_cast<char*>(&header), sizeof(header)))
+            return Misc::Err{ "could not be read" };
+        if (header.mMagic != sMagic || header.mFormat != sFormat)
+            return Misc::Err{ "is in no format this renderer writes" };
+        if (header.mVendor != properties.vendorID || header.mDevice != properties.deviceID
+            || header.mDriver != properties.driverVersion
+            || std::memcmp(header.mUuid.data(), properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
+            return Misc::Err{ "was written on another device or driver" };
+        if (header.mBlobBytes > sMostBytes)
+            return Misc::Err{ sTooLong };
+        if (header.mBlobBytes != static_cast<std::uint64_t>(bytes) - sizeof(FileHeader))
+            return Misc::Err{ "holds another length than its header says" };
+
+        std::vector<std::uint8_t> data(static_cast<std::size_t>(header.mBlobBytes));
+        if (!file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size())))
+            return Misc::Err{ "could not be read" };
+        if (digestOf(data) != header.mBlobDigest)
+            return Misc::Err{ "holds another body than its header says" };
+
+        if (const Misc::Result<void, std::string_view> accepted = accepts(data, properties); !accepted.isOk())
+            return Misc::Err{ accepted.error() };
+
+        return data;
+    }
+
     PipelineCache::PipelineCache(VkDevice device, const VkPhysicalDeviceProperties& properties,
         const PipelineCacheSpec& spec, const std::filesystem::path& shaderDirectory)
         : mDevice(device)
+        , mProperties(properties)
         , mPath(cachePath(spec, properties, shaderDirectory))
     {
         // No file is no object: `PipelineCacheSpec::mDirectory` says why a measuring process may
@@ -159,15 +220,19 @@ namespace Rtx
         if (mPath.empty())
             return;
 
-        // Before the read and not after it, so that a run which then fails to load its own file has
-        // still taken the rest away.
-        sweep();
-        Misc::Result<std::vector<std::uint8_t>, std::string_view> read = readCache(mPath, properties);
-        if (read.isOk())
-            mLoaded = std::move(read.value());
-        else
-            Log(Debug::Info) << "Rtx: the pipeline cache starts empty: " << Files::pathToUnicodeString(mPath.filename())
-                             << ' ' << read.error();
+        // **Nothing here fails loudly**, which the destructor's `tearDown` holds there and this holds
+        // here: a sweep the filesystem refuses, or a read that cannot allocate, starts the cache
+        // empty. The sweep before the read and not after it, so that a run which then fails to load
+        // its own file has still taken the rest away.
+        tearDown("the pipeline cache starts empty", [&] {
+            sweep();
+            Misc::Result<std::vector<std::uint8_t>, std::string_view> loaded = read(mPath, properties);
+            if (loaded.isOk())
+                mLoaded = std::move(loaded.value());
+            else
+                Log(Debug::Info) << "Rtx: the pipeline cache starts empty: "
+                                 << Files::pathToUnicodeString(mPath.filename()) << ' ' << loaded.error();
+        });
 
         const VkPipelineCacheCreateInfo describe{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
@@ -285,12 +350,16 @@ namespace Rtx
         std::filesystem::path partial = mPath;
         partial.replace_extension("." + std::to_string(std::random_device{}()) + ".partial" + std::string(sSuffix));
 
-        bool written = false;
-        {
-            std::ofstream file(partial, std::ios::binary | std::ios::trunc);
-            written = file
-                && file.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(bytes)).good();
-        }
+        // **Closed before it is judged**, so a final flush that failed is a write that failed and
+        // not a short file renamed over the cache; and on the disk before the rename, or a power loss
+        // after it can leave the name on a body never written.
+        const FileHeader header = headerFor(data, mProperties);
+        std::ofstream file(partial, std::ios::binary | std::ios::trunc);
+        file.write(reinterpret_cast<const char*>(&header), sizeof(header));
+        file.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(bytes));
+        file.flush();
+        file.close();
+        const bool written = !file.fail() && Platform::syncFile(partial);
 
         std::error_code failed;
         if (written)

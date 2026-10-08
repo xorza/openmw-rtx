@@ -245,6 +245,10 @@ at the top, over all of them.
   that replaces a buffer and a destructor that lets a scene go are safe with frames in flight. A
   missing required feature refuses the device, and each optional extension is taken whole or not
   at all.
+- **The pipeline cache** (`device/pipelinecache.hpp`) is a file in the user's cache folder, named
+  for the driver and the shaders. Its own header ahead of the driver's blob names the device, the
+  driver's version, and the blob's length and digest, so a short or damaged file is refused before
+  the driver sees it. A write goes to a partial file, synced to the disk, and is then renamed.
 - **Memory.** What a frame cannot go without is essential and never refused. Content (acceleration
   structures, textures) is taken against the driver's budget and can be refused, and a refusal
   leaves the mesh out or draws the texture's stand-in.

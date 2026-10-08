@@ -54,29 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.8 The pipeline cache trusts any body behind a valid header, and its constructor can throw.**
-  `device/pipelinecache.cpp:282-297` writes the driver's blob as it is. `written` is read before the
-  stream closes, so a failed final flush renames a short file over the cache. A power loss after the
-  rename can leave a short or zeroed body. In both cases the header check passes and the driver is
-  handed a body it may crash on: the spec has the driver check the header, not the body.
-  `:151-184`: `readCache` allocates up to 256 MiB, and `sweep` can throw (item 1.7). The class
-  promises that nothing here fails loudly, and only the destructor keeps it.
-  Target: the established practice for a pipeline cache file (an own header with the body's size and
-  hash, as engines such as DXVK and Fossilize write).
-  1. The file is a small fork-owned header and then the blob. The header holds a magic, a format
-     version, the blob's byte count, a 64-bit hash of the blob (`HashState`), and the device's
-     `vendorID`, `deviceID`, `driverVersion` and `pipelineCacheUUID`. `driverVersion` is there
-     because some drivers keep their UUID across updates.
-  2. `readCache` refuses a file whose header, size or hash disagrees, logs once, and starts empty.
-  3. The write is `write`, `flush`, `close`, then `written = !fail()`. The partial file is synced to
-     disk before the rename (`Platform` gets a `syncFile` pair if none exists).
-  4. The constructor's file work (sweep, read) runs inside a guard that logs and starts empty, as the
-     destructor's `tearDown` does.
-
-  Depends on 1.7 (the sweep's listing). An old cache file fails the magic and is dropped once.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxPipelineCacheTest.*'`, with cases for a
-  truncated body, a flipped body byte, a changed `driverVersion`, and an unreadable folder.
-
 - [ ] **1.9 The present fence is reset long before the present that signals it.**
   `present/presenter.cpp:196-198` resets the image's fence, `:202-275` records and submits the blit,
   and `:281` presents. A throw in between leaves the fence unsignalled. The same happens when

@@ -70,6 +70,14 @@ namespace Rtx
         static Misc::Result<void, std::string_view> accepts(
             std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties);
 
+        /// The blob the file at `path` holds, where its own header says the device, the driver, the
+        /// length and the digest this run has, and `accepts` takes it; nothing where there is no
+        /// file; and why it was set aside where it cannot seed from it. Public for the reason
+        /// `accepts` is: a reader that refused every file would show nothing but a cache that never
+        /// hits.
+        static Misc::Result<std::vector<std::uint8_t>, std::string_view> read(
+            const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties);
+
     private:
         /// Writes the driver's current blob back, through a temporary and a rename — or deletes the
         /// file where the blob has outgrown `sMostBytes`, which is what the next run would do with
@@ -85,6 +93,10 @@ namespace Rtx
         void sweep() const;
 
         VkDevice mDevice = VK_NULL_HANDLE;
+
+        /// The device the file is written for, which its header names.
+        VkPhysicalDeviceProperties mProperties;
+
         /// Immediate, because the device takes its graveyard apart first.
         Immediate<VkPipelineCache, vkDestroyPipelineCache> mHandle;
         std::filesystem::path mPath;
