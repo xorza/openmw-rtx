@@ -60,7 +60,21 @@ namespace Rtx
     /// 0.69 over the game's 7168 comes to 1.476e-4. `over` is the distance the half-life is
     /// measured across — `CellGrid::reachOf` out of doors, `sInteriorFogReach` in a room — and a
     /// parameter, never a setting, because air tuned short of the world swallows the ground beyond.
+    ///
+    /// **Past `deepestHalfPointDepth`, the mean visibility over the view and not the half point.**
+    /// The half point nears the eye as the depth nears two, and the ramp beyond it fades linearly to
+    /// the view where a medium halves again at every half-life: at 1.9 the half-point air was a
+    /// seventh as clear as the ramp a fifth of the view out, and from two, where the half point is
+    /// behind the eye, it was the densest air there is — Blizzard's 2.8 a screen of fog colour,
+    /// where the ramp leaves the land at a third of its contrast. A medium cannot fog the eye
+    /// itself as the ramp does, so the two are matched over the whole view instead:
+    /// `(1 - e^-(sigma view)) / (sigma view) = 1 / (2 depth)`.
     float fogExtinction(float depth, float over);
+
+    /// The depth at which the two rules of `fogExtinction` give one extinction, between one and
+    /// two, 1.514: the half point up to it, and the mean over the view beyond, so the air is
+    /// continuous across it and every weather Morrowind ships but Blizzard reads the half point.
+    float deepestHalfPointDepth();
 
     /// What clear weather records its own land fog depth as, which every other weather's layer is
     /// a ratio of. Morrowind ships 0.69, day and night alike.

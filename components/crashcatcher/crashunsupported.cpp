@@ -27,6 +27,11 @@ namespace Crash
 
     void setHangLimit(std::chrono::seconds) {}
 
+    std::chrono::seconds getHangLimit()
+    {
+        return std::chrono::seconds(0);
+    }
+
     void heartbeat() {}
 
     void annotate(std::string_view, std::string_view) {}

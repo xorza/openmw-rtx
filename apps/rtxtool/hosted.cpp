@@ -1,5 +1,6 @@
 #include "run.hpp"
 
+#include <chrono>
 #include <filesystem>
 #include <ostream>
 #include <set>
@@ -11,6 +12,7 @@
 
 #include <apps/openmw/engine.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>
@@ -30,6 +32,13 @@ namespace RtxTool
         namespace bpo = boost::program_options;
 
         using StringsVector = std::vector<std::string>;
+
+        /// Ends the hang watch as it goes, however the engine's loop ended — returned or thrown —
+        /// since no frame is due after it.
+        struct FramesEnd
+        {
+            ~FramesEnd() { Crash::setHangLimit(std::chrono::seconds(0)); }
+        };
 
         /// Everything a hosted run writes into the settings before the engine reads them: the
         /// window it is presented in.
@@ -114,6 +123,12 @@ namespace RtxTool
 
         {
             OMW::Engine engine(config);
+
+            // **No frame is due once the engine's loop is over**, as `wrapApplication` says of the
+            // game's end: what a verb does after it — comparing pictures, judging the noise,
+            // encoding a film for minutes — draws nothing, and a 4K film's encoding was reported as
+            // a hang. After the engine, so it ends before the engine's own teardown does.
+            const FramesEnd framesEnd;
             engine.setRecastMaxLogLevel(Debug::getRecastMaxLogLevel());
 
             engine.setEncoding(ToUTF8::calculateEncoding(variables["encoding"].as<std::string>()));

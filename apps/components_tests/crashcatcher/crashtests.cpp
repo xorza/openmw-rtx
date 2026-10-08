@@ -73,6 +73,8 @@ namespace CrashTests
                 { "slow-end", "", {}, "crash-tests lived on", false },
                 { "no-frames", "", {}, "crash-tests lived on", false },
                 { "hang-off", "", {}, "crash-tests lived on", false },
+                { "rearmed-after-quiet", "", {}, "crash-tests lived on", false },
+                { "paused-past-limit", "", {}, "crash-tests lived on", false },
                 { "recovers-before-end", "Hang: no frame for", {}, "Hang: the game drew again before End was answered",
                     true, draws },
                 { "ends-before-end", "Hang: no frame for", {}, "Hang: the game ended before End was answered", true,
@@ -244,6 +246,34 @@ namespace CrashTests
             {
                 Crash::setHangLimit(std::chrono::seconds(0));
                 stall(std::chrono::milliseconds(3500));
+                return livedOn();
+            }
+            if (mode == "rearmed-after-quiet")
+            {
+                // Frames, the watch off for longer than the limit, and on again a second before the
+                // next frame: a limit set again counts from then, and the quiet before it was no
+                // stall. **The second holds one tick of the monitor**, which wakes once a second, so
+                // a monitor that counted the quiet reports there; and it is under the limit, so one
+                // that counts from the limit's return does not.
+                stall(std::chrono::milliseconds(0));
+                Crash::setHangLimit(std::chrono::seconds(0));
+                std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+                Crash::setHangLimit(std::chrono::seconds(2));
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                stall(std::chrono::milliseconds(0));
+                return livedOn();
+            }
+            if (mode == "paused-past-limit")
+            {
+                // A wait the game chose, longer than the limit, and the rest of its frame after it,
+                // as `rearmed-after-quiet` times it.
+                stall(std::chrono::milliseconds(0));
+                {
+                    const Crash::HangPause waiting;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                stall(std::chrono::milliseconds(0));
                 return livedOn();
             }
             if (mode == "recovers-before-end")
