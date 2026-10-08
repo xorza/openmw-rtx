@@ -73,6 +73,7 @@ namespace Rtx
     public:
         /// Reads `read` into `into`, shaped by `content`, this thread's, answering whether the
         /// drawable held a triangle to read, and an error for a face this cannot build, saying why:
+        /// lines and points, which a ray has no width of to meet,
         /// a morph's base that is not the length of its source, a triangle naming a vertex the
         /// drawable does not have, an array of normals, coordinates or colours of another length
         /// than the vertices, or an array of a type this does not read.
