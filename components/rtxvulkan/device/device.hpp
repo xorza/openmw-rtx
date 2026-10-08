@@ -12,6 +12,7 @@
 
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
+#include "owned.hpp"
 #include "physicaldevice.hpp"
 #include "requirements.hpp"
 
@@ -117,36 +118,6 @@ namespace Rtx
     {
         std::string_view mName;
         std::uint64_t mFrame = 0;
-    };
-
-    /// The logical device's own handle, with the destructor `Owned` cannot give it: a device is
-    /// destroyed by `vkDestroyDevice(device, allocator)`, with no parent to name. A member declared
-    /// before everything made on the device, so that whatever ends the `Device` — its destructor or
-    /// a constructor that throws half way — destroys those first and this last, in the one order.
-    class LogicalDevice
-    {
-    public:
-        LogicalDevice() = default;
-        ~LogicalDevice()
-        {
-            if (mHandle != VK_NULL_HANDLE)
-                vkDestroyDevice(mHandle, nullptr);
-        }
-
-        LogicalDevice(const LogicalDevice&) = delete;
-        LogicalDevice& operator=(const LogicalDevice&) = delete;
-
-        VkDevice get() const { return mHandle; }
-
-        /// Takes `device`, made and checked, into an owner that holds none.
-        void adopt(VkDevice device)
-        {
-            assert(mHandle == VK_NULL_HANDLE && "a device adopted over another");
-            mHandle = device;
-        }
-
-    private:
-        VkDevice mHandle = VK_NULL_HANDLE;
     };
 
     /// A logical device, its single queue, and the extension entry points.
@@ -304,8 +275,8 @@ namespace Rtx
 
         PhysicalDevice mPhysicalDevice;
 
-        /// Before every member made on it — `LogicalDevice` says why.
-        LogicalDevice mHandle;
+        /// Before every member made on it — `Root` says why.
+        Root<VkDevice, vkDestroyDevice> mHandle;
         VkQueue mQueue = VK_NULL_HANDLE;
         DeviceFunctions mFunctions;
         PFN_vkSetDebugUtilsObjectNameEXT mSetObjectName = nullptr;

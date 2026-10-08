@@ -219,7 +219,11 @@ namespace Rtx
             .ppEnabledExtensionNames = extensions.data(),
         };
 
-        checkVkSupport(vkCreateInstance(&createInfo, nullptr, &mHandle), "vkCreateInstance");
+        // Into a local and adopted on success, as `Owned::make` does. From the adoption on, a throw
+        // ends the instance with the member that holds it.
+        VkInstance created = VK_NULL_HANDLE;
+        checkVkSupport(vkCreateInstance(&createInfo, nullptr, &created), "vkCreateInstance");
+        mHandle = Root<VkInstance, vkDestroyInstance>(created);
         mExtensions.assign(extensions.begin(), extensions.end());
 
         // **One load serves every instance**, so a second one made beside the first, as the tests
@@ -229,43 +233,32 @@ namespace Rtx
         // function an import library would have bound. The surface's are not, and `Surface` asks
         // this instance for its own.
         static std::once_flag loaded;
-        std::call_once(loaded, [&] { volkLoadInstance(mHandle); });
+        std::call_once(loaded, [&] { volkLoadInstance(mHandle.get()); });
 
-        // A constructor that throws runs no destructor, and this throw is caught and reported
-        // rather than ending the process, so anything after a successful create cleans up before it
-        // rethrows.
-        try
+        // What the one load stands on, held of every instance rather than trusted: a loader
+        // that answered this one differently would be calling another's functions through it.
+        const std::pair<const char*, PFN_vkVoidFunction> sameForEvery[] = {
+            { "vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(vkEnumeratePhysicalDevices) },
+            { "vkQueueSubmit2", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit2) },
+            { "vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR) },
+        };
+        for (const auto& [name, held] : sameForEvery)
+            if (vkGetInstanceProcAddr(mHandle.get(), name) != held)
+                throw Unsupported(std::string("the Vulkan loader answers ") + name
+                    + " differently for each instance, which this renderer does not support");
+
+        if (validation)
         {
-            // What the one load stands on, held of every instance rather than trusted: a loader
-            // that answered this one differently would be calling another's functions through it.
-            const std::pair<const char*, PFN_vkVoidFunction> sameForEvery[] = {
-                { "vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(vkEnumeratePhysicalDevices) },
-                { "vkQueueSubmit2", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit2) },
-                { "vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR) },
-            };
-            for (const auto& [name, held] : sameForEvery)
-                if (vkGetInstanceProcAddr(mHandle, name) != held)
-                    throw Unsupported(std::string("the Vulkan loader answers ") + name
-                        + " differently for each instance, which this renderer does not support");
+            const auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+                vkGetInstanceProcAddr(mHandle.get(), "vkCreateDebugUtilsMessengerEXT"));
+            const auto destroy = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+                vkGetInstanceProcAddr(mHandle.get(), "vkDestroyDebugUtilsMessengerEXT"));
+            if (create == nullptr || destroy == nullptr)
+                throw Unsupported("the validation layer is loaded but the debug messenger's entry points are missing");
 
-            if (validation)
-            {
-                const auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-                    vkGetInstanceProcAddr(mHandle, "vkCreateDebugUtilsMessengerEXT"));
-                mDestroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-                    vkGetInstanceProcAddr(mHandle, "vkDestroyDebugUtilsMessengerEXT"));
-                if (create == nullptr || mDestroyMessenger == nullptr)
-                    throw Unsupported(
-                        "the validation layer is loaded but the debug messenger's entry points are missing");
-
-                checkVk(create(mHandle, &messengerInfo, nullptr, &mMessenger), "vkCreateDebugUtilsMessengerEXT");
-            }
-        }
-        catch (...)
-        {
-            vkDestroyInstance(mHandle, nullptr);
-            mHandle = VK_NULL_HANDLE;
-            throw;
+            VkDebugUtilsMessengerEXT messenger = VK_NULL_HANDLE;
+            checkVk(create(mHandle.get(), &messengerInfo, nullptr, &messenger), "vkCreateDebugUtilsMessengerEXT");
+            mMessenger = Messenger(mHandle.get(), destroy, messenger);
         }
     }
 
@@ -277,14 +270,5 @@ namespace Rtx
     bool Instance::hasExtension(const std::string_view name) const
     {
         return std::find(mExtensions.begin(), mExtensions.end(), name) != mExtensions.end();
-    }
-
-    Instance::~Instance()
-    {
-        if (mMessenger != VK_NULL_HANDLE)
-            mDestroyMessenger(mHandle, mMessenger, nullptr);
-
-        if (mHandle != VK_NULL_HANDLE)
-            vkDestroyInstance(mHandle, nullptr);
     }
 }

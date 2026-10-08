@@ -54,15 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.5 `Instance` pairs its handles by hand, and one throw sits outside the `try`.**
-  `device/instance.cpp:222-289`, `instance.hpp:57-66`. `mExtensions.assign` at `:223` runs after
-  `vkCreateInstance` and before the `try`. Target: one owner for parentless handles in `owned.hpp`
-  (`Root<VkInstance, vkDestroyInstance>`, `Root<VkDevice, vkDestroyDevice>`, which replaces
-  `LogicalDevice`), and a `Messenger` member declared after the instance root. Delete the catch
-  block and `~Instance`. Depends on 1.3 (adopt from a local).
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxInstanceTest.*:RtxDeviceTest.*'`,
-  `./omw test components-tests --gtest_filter='RtxSourceTreeTest.*'`.
-
 - [ ] **1.6 The crash catcher's shared page is undone by hand, then destroyed while its handlers live.**
   `components/crashcatcher/crashpadclient.cpp:86-132` fills the global `sPage` first, then empties
   it on three error paths (`:112`, `:122`, `:130`). A fourth return that forgets leaves a page in
