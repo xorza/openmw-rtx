@@ -17,6 +17,7 @@
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
 #include <osg/Node>
+#include <osg/PrimitiveSet>
 #include <osg/Sequence>
 #include <osg/StateSet>
 #include <osg/Switch>
@@ -238,17 +239,24 @@ namespace Rtx::Testing
         /// **A mesh this cannot build is left out on the reader's thread, and its model stands
         /// without it**, as the frame's walk stands a model without a drawable it refuses: the quad
         /// beside it is the model's one part, and the model says why the other went. A mesh past one
-        /// block is one, and a triangle naming a vertex its drawable does not have is another. The
-        /// walk after it is the next model's, with no reason carried into it.
+        /// block is one, a triangle naming a vertex its drawable does not have is another, and lines
+        /// are a third. The walk after it is the next model's, with no reason carried into it.
         TEST(RtxTemplateWalkTest, aMeshThisCannotBuildIsLeftOutAndItsModelStands)
         {
             const std::string pastABlock = "its " + std::to_string(MeshTable::sVertexBlock + 1)
                 + " vertices and 3 indices are past the " + std::to_string(MeshTable::sVertexBlock) + " and "
                 + std::to_string(MeshTable::sIndexBlock) + " one block of the shared buffers holds";
 
+            // **And lines, which the reader refuses for both walks**, where this one dropped them in
+            // silence and the frame's said why.
+            osg::ref_ptr<osg::Geometry> rope = new osg::Geometry;
+            rope->setVertexArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f) }));
+            rope->addPrimitiveSet(new osg::DrawArrays(GL_LINES, 0, 2));
+
             TemplateWalk walk(nullptr);
             for (const auto& [broken, why] : { std::pair{ makePastOneBlock(), pastABlock },
-                     std::pair{ makeIndexPastItsVertices(), std::string("its triangles name vertex 4 of 4") } })
+                     std::pair{ makeIndexPastItsVertices(), std::string("its triangles name vertex 4 of 4") },
+                     std::pair{ rope, std::string("its lines and points have no width a ray can meet") } })
             {
                 osg::ref_ptr<osg::Group> root = new osg::Group;
                 const osg::ref_ptr<osg::Geometry> kept = makeQuad();

@@ -25,6 +25,25 @@ namespace Rtx
 {
     namespace
     {
+        /// Whether `geometry` draws lines or points: an `NiLines`, or a cloud of points.
+        bool drawsLines(const osg::Geometry& geometry)
+        {
+            return std::ranges::any_of(geometry.getPrimitiveSetList(), [](const osg::ref_ptr<osg::PrimitiveSet>& set) {
+                const GLenum mode = set->getMode();
+                return mode == GL_POINTS || mode == GL_LINES || mode == GL_LINE_STRIP || mode == GL_LINE_LOOP;
+            });
+        }
+
+        /// What a drawable with no triangle reads as: nothing to place, or, where it draws lines or
+        /// points, a refusal saying so — the rasterizer draws them, an `NiLines`, and a ray has no
+        /// width of theirs to meet.
+        Misc::Result<bool, std::string> noTriangle(const osg::Geometry& geometry)
+        {
+            if (drawsLines(geometry))
+                return Misc::Err{ std::string("its lines and points have no width a ray can meet") };
+            return false;
+        }
+
         /// `values` with the vertices a split added on the end, each a copy of its source, laid into
         /// `scratch` — or `values` itself where nothing was added or there is nothing to copy.
         template <class T>
@@ -321,7 +340,7 @@ namespace Rtx
         }
 
         if (arrays.mPositions.empty())
-            return false;
+            return noTriangle(geometry);
 
         const std::size_t count = arrays.mPositions.size();
 
@@ -375,7 +394,7 @@ namespace Rtx
         if (!collected.isOk())
             return Misc::Err{ collected.error() };
         if (!collected.value())
-            return false;
+            return noTriangle(geometry);
 
         const ShapePass::Input shape{
             .mPositions = arrays.mPositions,

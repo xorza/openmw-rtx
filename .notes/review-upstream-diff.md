@@ -54,12 +54,6 @@ What is left:
 
 ### Mirror
 
-- [ ] **5.3 The lines-and-points refusal lives in one caller.**
-  `mirror/meshresolver.cpp:144-155` refuses with a reason (the null test at `:148` is dead after
-  `:81`), and `cells/templatewalk.cpp:149-156` drops the same drawables in silence. Target:
-  `MeshReader::read` refuses them, and `drawsLines` moves to `meshreader.cpp`.
-  Verify: `./omw test components-tests --gtest_filter='RtxMeshReaderTest.*:RtxTemplateWalkTest.*:RtxSceneExtractorTest.*'`.
-
 - [ ] **5.4 Cell and grass adoption repeat each other.**
   `cellring.cpp:135-145,161-189,304-345`, `cellplacer.cpp:356-375` against `:463-478`. Target:
   `CellRing::adoptModels`, a template for the "handed" test, and `CellPlacer::appendPlacements` used
