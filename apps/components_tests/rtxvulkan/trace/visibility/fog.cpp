@@ -329,7 +329,7 @@ namespace Rtx::Testing
 
         /// An eye under the surface has no air in front of it, and the volume must say so too.
         ///
-        /// **The one path that could not tell on its own.** `fogExtinctionAt` gives nothing under the
+        /// **The one path that could not tell on its own.** `fogDensityAt` gives nothing under the
         /// surface and `fogColumn` integrates nothing there, so the field and the closed form need
         /// nothing more. The volume is an accumulation along a *column's* ray rather than a field
         /// read along the pixel's, and a froxel the surface stands inside draws its sample from the
