@@ -54,11 +54,6 @@ What is left:
 
 ### Seam and game side
 
-- [ ] **5.17 `SceneFrame::mJumped` is a span into a vector anyone may grow.**
-  `framedescriber.cpp:131`, `framedescriber.hpp` (`noteJumped`). A `notifyJumped` between
-  `describeFrame` and `renderFrame` would leave the span dangling. Nothing does that today. Target:
-  assert in `noteJumped` that no described frame is open.
-
 - [ ] **5.18 A changed vsync queries the surface twice.**
   `vulkanrenderer.cpp:404-406`, `present/swapchain.cpp:185-208`. `rebuildsFor` and `setVerticalSync`
   each enumerate the present modes. `Presenter::setVerticalSync` returns whether it rebuilt. Keep the

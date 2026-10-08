@@ -525,7 +525,7 @@ namespace MWRender
         mPrecipitation->setViewPoint(camera.getInverseViewMatrix().getTrans());
 
         mRenderer.renderFrame(mFrame.get());
-        mFrame.clearJumped();
+        mFrame.frameDrawn();
     }
 
     void RenderingManager::notifyJumped(const MWWorld::Ptr& ptr)
