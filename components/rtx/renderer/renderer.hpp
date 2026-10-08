@@ -27,6 +27,7 @@
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/structurerevision.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -171,7 +172,7 @@ namespace Rtx
         std::uint64_t mIdentity = 0;
 
         /// `SceneDesc::getStructureRevision` as it stood at the last `setScene` or `extendScene`.
-        std::uint64_t mStructureRevision = 0;
+        StructureRevision mStructureRevision;
 
         /// How long the slot's texture array is: the table's length, holes included, and not the
         /// tally, which `SceneStats::mTextureCount` is. Every arrival names its own slot, so nothing

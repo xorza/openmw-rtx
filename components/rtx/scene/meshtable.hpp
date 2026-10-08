@@ -140,8 +140,8 @@ namespace Rtx
         /// Which slots arrived and which were freed, since a backend last read them.
         SlotChanges mChanges;
 
-        /// How many times a mesh has appeared. `SceneDesc::getStructureRevision` says what it is
-        /// read for and why a texture arriving is counted apart from it.
+        /// How many times a mesh has appeared: what `StructureRevision::mMeshes` reads, a structure
+        /// to build for each, which a texture or a material's runs arriving are counted apart from.
         std::uint64_t mRevision = 0;
         std::uint32_t mTriangles = 0;
     };

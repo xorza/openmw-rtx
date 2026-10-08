@@ -52,21 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.8 The upload decision ignores material layer and mask runs.**
-  `scene/scenedesc.hpp:217` sums only the mesh and texture revisions. `renderer/sceneuploader.cpp:78`
-  chooses extend or place on that sum. New runs are staged only on an extend
-  (`rtxvulkan/scene/scenebuffers.cpp:262` asserts it, in debug). It works today only because
-  `CellPlacer::adoptGround` always adds a mesh in the same frame. In release, a material that gains
-  runs with no new mesh or texture leaves the device reading stale layers in silence.
-  Target: `getStructureRevision()` returns a `StructureRevision` struct of the three revisions
-  (meshes, textures, material runs) with `operator==`, in place of a sum. It names what an extend
-  stages, and a fourth kind added later is a field the compiler shows at each reader.
-  `SceneHeld::mStructureRevision` (`renderer.hpp:173`) holds the struct. Fix the comments on
-  `MeshTable::mRevision` (`meshtable.hpp:143`) and `getStructureRevision`. Test: a scene that gains a
-  layered material and no mesh or texture is handed as `Extended`.
-  Verify: `./omw test components-tests --gtest_filter='RtxSceneUploaderTest.*:RtxSceneDescTest.*:RtxCompositeQueueTest.*'`,
-  `./omw test rtx-gpu-tests`, `./omw repeat --pairs=10`.
-
 - [ ] **3.9 32-bit level offsets truncate for a large widened image.**
   `image/imagedescription.cpp:307,348`, `image/texturedata.cpp:28,46`. `describeLevels` bounds the
   source below 4 GiB, not the widened copy (2× for 16-bit packed, 4× for L8, A8 and R8). A 32768² L8
