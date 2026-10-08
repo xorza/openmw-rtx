@@ -52,20 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.3 Specialization IDs and push block sizes are never checked against the modules.**
-  `pipeline/pipeline.cpp:12-37,205`, `pipeline.hpp:33-42`. `Specialization` maps ID `i` to word `i`.
-  A `constant_id` at or past `words.size()` takes its GLSL default in silence. A host push struct
-  larger than the shader's block passes even the validation layers, and `HistoryConstants` alone
-  serves three shaders. Target: `ShaderCode::stage` checks, from item 3.1's interface:
-  - every `SpecId` is below `words.size()` or is `SPEC_CENSUS_KERNEL`, and its type matches the
-    word's (a bool constant takes 0 or 1);
-  - the push block ends at the range's size, save the 64-bit tail rounding `hosttypes.h` documents;
-  - `assert(words.size() < SPEC_CENSUS_KERNEL)` in `Specialization`.
-
-  Depends on 3.1.
-  Verify: hand-built module cases in the `spirvbindings` suite, a death test for a too-short word
-  list, `./omw test`.
-
 - [ ] **3.4 Vertex input locations are numbers on both sides, and nothing compares them.**
   `shaders/gui/gui.vert`, `gui.frag`, `display/line.vert:21-25`, `line.frag:29-32` against
   `gui/guipass.cpp:37-40` and `display/linepass.cpp:34-36`. This is the one binding-like pair still

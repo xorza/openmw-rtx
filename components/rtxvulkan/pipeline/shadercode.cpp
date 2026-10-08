@@ -71,12 +71,46 @@ namespace Rtx
         return std::nullopt;
     }
 
+    std::optional<std::string> specializationDisagreement(
+        const std::span<const ModuleSpecConstant> module, const std::span<const std::uint32_t> words)
+    {
+        for (const ModuleSpecConstant& constant : module)
+        {
+            if (constant.mId == Shaders::SPEC_CENSUS_KERNEL)
+                continue;
+            if (constant.mId >= words.size())
+                return std::format(
+                    "specialization constant {} is past the {} words the stage is handed, and would "
+                    "take its default",
+                    constant.mId, words.size());
+            if (constant.mKind == SpecKind::Bool && words[constant.mId] > 1)
+                return std::format(
+                    "specialization constant {} is a bool and is handed {}", constant.mId, words[constant.mId]);
+        }
+        return std::nullopt;
+    }
+
+    std::optional<std::string> pushDisagreement(const std::optional<std::uint32_t> end, const std::uint32_t range)
+    {
+        if (!end.has_value())
+            return std::nullopt;
+        if (*end > range)
+            return std::format("the push block ends at {} bytes, past the {} the layout declares", *end, range);
+        if (*end < range && (range % 8 != 0 || range - *end >= 8))
+            return std::format(
+                "the push block ends at {} bytes, short of the {} the layout declares by more than a rounding to "
+                "eight",
+                *end, range);
+        return std::nullopt;
+    }
+
     ShaderCode::ShaderCode(const Device& device)
         : mDevice(device)
     {
     }
 
-    const void* ShaderCode::stage(const std::string_view module, const SetTables& sets)
+    const void* ShaderCode::stage(const std::string_view module, const SetTables& sets, const std::uint32_t pushBytes,
+        const std::span<const std::uint32_t> words)
     {
         auto known = std::ranges::find(mRead, module, &Read::mModule);
         if (known == mRead.end())
@@ -85,8 +119,12 @@ namespace Rtx
             known = std::prev(mRead.end());
         }
 
-        if (const std::optional<std::string> disagreement = bindingDisagreement(known->mInterface.mBindings, sets))
-            Crash::fatal(std::format("{}: {}", module, *disagreement));
+        const ModuleInterface& interface = known->mInterface;
+        for (const std::optional<std::string>& disagreement : { bindingDisagreement(interface.mBindings, sets),
+                 specializationDisagreement(interface.mSpecConstants, words),
+                 pushDisagreement(interface.mPushEnd, pushBytes) })
+            if (disagreement.has_value())
+                Crash::fatal(std::format("{}: {}", module, *disagreement));
 
         return known->mStage;
     }

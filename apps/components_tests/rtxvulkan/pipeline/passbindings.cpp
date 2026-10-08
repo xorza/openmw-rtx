@@ -86,5 +86,35 @@ namespace Rtx
             const std::array unnamed{ bound(0, DescriptorKind::StorageImage, 1, Shaders::SET_VOLUME) };
             EXPECT_EQ(bindingDisagreement(unnamed, layout), "the module reads set 3, which the layout does not name");
         }
+
+        /// **A module's constants are held to the words its stage is handed, and its push block to
+        /// the layout's range**: a constant past the words would take its GLSL default in silence,
+        /// a `bool` takes nought or one, and the census's constant is the stage's own. A block may
+        /// end short of the range only where the host rounds a block that ends in an address to a
+        /// multiple of eight: 76 into 80 is that rounding, 72 into 80 and 12 into 20 are not.
+        TEST(RtxPassBindingsTest, aModulesConstantsAndPushBlockAreHeldToItsWordsAndItsRange)
+        {
+            const std::array constants{ ModuleSpecConstant{ .mId = 0, .mKind = SpecKind::Bool },
+                ModuleSpecConstant{ .mId = 3, .mKind = SpecKind::Word },
+                ModuleSpecConstant{ .mId = Shaders::SPEC_CENSUS_KERNEL, .mKind = SpecKind::Word } };
+            EXPECT_EQ(specializationDisagreement(constants, std::array{ 1u, 0u, 0u, 7u }), std::nullopt);
+            EXPECT_EQ(specializationDisagreement(constants, std::array{ 1u, 0u, 0u }),
+                "specialization constant 3 is past the 3 words the stage is handed, and would take its default");
+            EXPECT_EQ(specializationDisagreement(constants, std::array{ 2u, 0u, 0u, 7u }),
+                "specialization constant 0 is a bool and is handed 2");
+
+            EXPECT_EQ(pushDisagreement(std::nullopt, 0), std::nullopt) << "a module that reads no push";
+            EXPECT_EQ(pushDisagreement(80u, 80), std::nullopt);
+            EXPECT_EQ(pushDisagreement(76u, 80), std::nullopt) << "the host's rounding to eight";
+            EXPECT_EQ(pushDisagreement(84u, 80), "the push block ends at 84 bytes, past the 80 the layout declares");
+            EXPECT_EQ(pushDisagreement(72u, 80),
+                "the push block ends at 72 bytes, short of the 80 the layout declares by more than a rounding to "
+                "eight");
+            EXPECT_EQ(pushDisagreement(12u, 20),
+                "the push block ends at 12 bytes, short of the 20 the layout declares by more than a rounding to "
+                "eight");
+            EXPECT_EQ(pushDisagreement(4u, 0), "the push block ends at 4 bytes, past the 0 the layout declares")
+                << "a block a layout declares no range for";
+        }
     }
 }

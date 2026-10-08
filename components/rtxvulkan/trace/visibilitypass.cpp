@@ -56,6 +56,17 @@ namespace Rtx
 {
     namespace
     {
+        /// The words of the whole tuple, which the kernels made once and not per tuple run under:
+        /// the sun, the moons, the sea and the maps all standing, and nothing counted.
+        constexpr std::array<std::uint32_t, Shaders::SPEC_COUNT> sWholeSky = [] {
+            std::array<std::uint32_t, Shaders::SPEC_COUNT> words{};
+            words[Shaders::SPEC_HAS_SUN] = 1u;
+            words[Shaders::SPEC_HAS_MOONS] = 1u;
+            words[Shaders::SPEC_HAS_SEA] = 1u;
+            words[Shaders::SPEC_HAS_MAPS] = 1u;
+            return words;
+        }();
+
         /// Whether every table has an address, and each is aligned as the reference that reads it
         /// declares. Debug-only, through the assert that calls it.
         [[maybe_unused]] bool everyTableAddressed(const Shaders::GpuTables& tables)
@@ -331,28 +342,31 @@ namespace Rtx
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogscatter.rgen.spv" },
                     variant.describe("fog scatter"), specialization);
                 return;
-            // From here on no tuple and no specialization: each reads what a launch before it
-            // wrote, or traces nothing, and has no opinion about the sky.
+            // From here on no tuple: each is made once, at the whole sky and counting nothing. Handed
+            // those words and not left to the GLSL's defaults, which say the same, so that no
+            // constant a module reads takes a default in silence (`specializationDisagreement`).
             case Kernel::Depth:
                 mKernels.mDepth = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogdepth.rgen.spv" }, "fog depth");
+                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogdepth.rgen.spv" }, "fog depth", sWholeSky);
                 return;
             case Kernel::Integrate:
                 mKernels.mIntegrate = std::make_unique<ComputePipeline<NoConstants>>(
-                    mDevice, sBindings, sharedSets(textureLayout), "fogintegrate.comp.spv", "fog integrate");
+                    mDevice, sBindings, sharedSets(textureLayout), "fogintegrate.comp.spv", "fog integrate", sWholeSky);
                 return;
             case Kernel::SpriteComposite:
                 mKernels.mSpriteComposite = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice,
                     sCompositeBindings, sharedSets(textureLayout),
-                    TraceShaders{ .mRaygen = "spritecomposite.rgen.spv" }, "sprite composite");
+                    TraceShaders{ .mRaygen = "spritecomposite.rgen.spv" }, "sprite composite", sWholeSky);
                 return;
             case Kernel::SpriteShelter:
-                mKernels.mSpriteShelter = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteshelter.rgen.spv" }, "sprite shelter");
+                mKernels.mSpriteShelter
+                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
+                        TraceShaders{ .mRaygen = "spriteshelter.rgen.spv" }, "sprite shelter", sWholeSky);
                 return;
             case Kernel::SpriteEmitters:
-                mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters");
+                mKernels.mSpriteEmitters
+                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
+                        TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters", sWholeSky);
                 return;
         }
     }

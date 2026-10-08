@@ -20,7 +20,7 @@ namespace Rtx
             .flags = PipelineCreation::sFlags,
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(module, layout.getSetTables()),
+                .pNext = code.stage(module, layout.getSetTables(), layout.getPushRange().size, specialization),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_COMPUTE_BIT,
                 .module = VK_NULL_HANDLE,

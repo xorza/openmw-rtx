@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -65,18 +66,20 @@ namespace Rtx
             }
         }
 
-        /// `module`'s own bindings in every set it reads, as a layout would declare them, which
-        /// lets a test read the module through tables that agree with it.
+        /// `module`'s own bindings in every set it reads, as a layout would declare them, and a
+        /// range and words that agree with its push block and its constants: what lets a test read
+        /// the module through a statement that agrees with it.
         struct ModuleTables
         {
             std::array<BindingTable, Shaders::SET_COUNT> mTables;
-            SetTables mSets{};
+            std::uint32_t mPushBytes = 0;
+            std::vector<std::uint32_t> mWords;
         };
 
         ModuleTables tablesOf(const Device& device, const char* module)
         {
-            const std::vector<ModuleBinding> bindings
-                = readInterface(readSpirv(device.getShaderDirectory() / module)).mBindings;
+            const ModuleInterface interface = readInterface(readSpirv(device.getShaderDirectory() / module));
+            const std::vector<ModuleBinding>& bindings = interface.mBindings;
 
             ModuleTables tables;
             for (std::uint32_t set = 0; set < Shaders::SET_COUNT; ++set)
@@ -92,6 +95,10 @@ namespace Rtx
                 std::ranges::sort(declared, {}, &VkDescriptorSetLayoutBinding::binding);
                 tables.mTables[set] = BindingTable(declared);
             }
+            tables.mPushBytes = interface.mPushEnd.value_or(0);
+            for (const ModuleSpecConstant& constant : interface.mSpecConstants)
+                if (constant.mId != Shaders::SPEC_CENSUS_KERNEL)
+                    tables.mWords.resize(std::max<std::size_t>(tables.mWords.size(), constant.mId + 1));
             return tables;
         }
 
@@ -114,9 +121,12 @@ namespace Rtx
             const ModuleTables hitTables = tablesOf(device, "visibilityhit.rchit.spv");
             const ModuleTables raygenTables = tablesOf(device, "visibility.rgen.spv");
 
-            const void* hit = code.stage("visibilityhit.rchit.spv", named(hitTables));
-            const void* raygen = code.stage("visibility.rgen.spv", named(raygenTables));
-            EXPECT_EQ(code.stage("visibilityhit.rchit.spv", named(hitTables)), hit);
+            const void* hit
+                = code.stage("visibilityhit.rchit.spv", named(hitTables), hitTables.mPushBytes, hitTables.mWords);
+            const void* raygen
+                = code.stage("visibility.rgen.spv", named(raygenTables), raygenTables.mPushBytes, raygenTables.mWords);
+            EXPECT_EQ(
+                code.stage("visibilityhit.rchit.spv", named(hitTables), hitTables.mPushBytes, hitTables.mWords), hit);
             EXPECT_NE(raygen, hit);
 
             for (const auto& [stage, file] :
@@ -137,7 +147,7 @@ namespace Rtx
         TEST_F(RtxShaderCodeTest, aFileThatIsNotSpirvIsRejectedRatherThanHandedToTheDriver)
         {
             ShaderCode code(*mHarness.mDevice);
-            EXPECT_THROW(code.stage("there-is-no-such-shader.spv", SetTables{}), InputError);
+            EXPECT_THROW(code.stage("there-is-no-such-shader.spv", SetTables{}, 0, {}), InputError);
         }
 
         /// **A stage whose module states its bindings otherwise than the layout ends the process,
@@ -153,11 +163,20 @@ namespace Rtx
             Testing::expectDies(
                 [&] {
                     ShaderCode code(device);
-                    code.stage("visibility.rgen.spv", sets);
+                    code.stage("visibility.rgen.spv", sets, tables.mPushBytes, tables.mWords);
                 },
                 // `.+` for the number: gtest reads its own syntax on Windows, which has no bracket
                 // class, and POSIX's elsewhere, which has no `\d`.
                 "visibility.rgen.spv: binding .+ of set 0 is in the module and not in the layout");
+
+            // **And a word list cut short**, which left the last constant at its GLSL default.
+            const std::span<const std::uint32_t> cut(tables.mWords.data(), tables.mWords.size() - 1);
+            Testing::expectDies(
+                [&] {
+                    ShaderCode code(device);
+                    code.stage("visibility.rgen.spv", named(tables), tables.mPushBytes, cut);
+                },
+                "visibility.rgen.spv: specialization constant .+ is past the .+ words the stage is handed");
         }
     }
 }
