@@ -66,8 +66,8 @@ namespace Rtx
             arrival.flush();
 
             Testing::HeldSubmit hold(device);
-            const VkCommandBuffer binder = pool.allocate(1).front();
-            Recording binding = pool.begin(binder);
+            const LentCommands binder = pool.lend(1);
+            Recording binding = pool.begin(binder[0]);
             EXPECT_NE(textures.getSet(FrameSlot{ 0 }), VK_NULL_HANDLE);
             hold.submit(std::move(binding));
 

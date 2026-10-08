@@ -18,6 +18,7 @@
 namespace Rtx
 {
     class Device;
+    class LentCommands;
     class Recording;
 
     /// The one command pool, the device's own, and both ways a submit is made out of it: a load
@@ -32,18 +33,9 @@ namespace Rtx
         template <class F>
         void submitAndWait(F&& record);
 
-        /// A command buffer to record into. Off the spare list where one has been given back, and
-        /// allocated where none has: the pool allows individual reset, so a buffer given back is
-        /// begun again with `vkBeginCommandBuffer` and nothing else, and an arrival costs no
-        /// allocation once the busiest frame so far has been seen. Nothing is freed until the pool
-        /// goes.
-        VkCommandBuffer take();
-
-        /// `take`, `count` times, for the buffers a ring keeps.
-        std::vector<VkCommandBuffer> allocate(std::uint32_t count);
-
-        /// Gives command buffers back for the next `take`, once the queue has finished with them.
-        void recycle(std::span<const VkCommandBuffer> commands);
+        /// `count` command buffers for a caller that records into them again and again — a ring's,
+        /// a drawer's, a presenter's — given back when what this returns ends.
+        LentCommands lend(std::uint32_t count);
 
         /// Begins one of them, one-shot like everything this pool hands out: a frame's recording, a
         /// placement's or a trace's, open until the `Recording` is submitted or ended. **No other
@@ -96,7 +88,22 @@ namespace Rtx
 
     private:
         friend class Batch;
+        friend class LentCommands;
         friend class Recording;
+
+        /// A command buffer to record into. Off the spare list where one has been given back, and
+        /// allocated where none has: the pool allows individual reset, so a buffer given back is
+        /// begun again with `vkBeginCommandBuffer` and nothing else, and an arrival costs no
+        /// allocation once the busiest frame so far has been seen. Nothing is freed until the pool
+        /// goes.
+        VkCommandBuffer take();
+
+        /// Gives command buffers the queue has finished with back for the next `take`.
+        void recycle(std::span<const VkCommandBuffer> commands);
+
+        /// Gives command buffers back once the next submit has run: a submit before it may still
+        /// carry them, and every one after it was recorded with them out of reach.
+        void retire(std::span<const VkCommandBuffer> commands);
 
         /// `Recording::submit`'s: submits `commands` behind whatever was deferred and does not
         /// wait. Ends `commands`. The deferred batches' command buffers retire under the value this
@@ -213,6 +220,38 @@ namespace Rtx
         /// Refilled per submit: a frame is three of them, and none allocates.
         std::vector<VkCommandBufferSubmitInfo> mSubmitScratch;
         std::vector<VkSemaphoreSubmitInfo> mSignalScratch;
+    };
+
+    /// Command buffers the pool lent out, owned: given back when this ends, under the next
+    /// submit's value, so none is taken again while a submit that carries it may still run.
+    class LentCommands
+    {
+    public:
+        LentCommands() = default;
+        LentCommands(LentCommands&& other) noexcept;
+        LentCommands& operator=(LentCommands&& other) noexcept;
+        ~LentCommands();
+
+        VkCommandBuffer operator[](std::size_t at) const { return mBuffers[at]; }
+        std::size_t size() const { return mBuffers.size(); }
+
+        /// One more, kept with the rest: a ring grown to its busiest frame so far.
+        VkCommandBuffer add();
+
+    private:
+        friend class CommandPool;
+
+        LentCommands(CommandPool& pool, std::vector<VkCommandBuffer>&& buffers)
+            : mPool(&pool)
+            , mBuffers(std::move(buffers))
+        {
+        }
+
+        /// Gives every buffer back, and holds none.
+        void giveBack();
+
+        CommandPool* mPool = nullptr;
+        std::vector<VkCommandBuffer> mBuffers;
     };
 
     /// An open recording, from `CommandPool::begin` to its submit or its end, in one scope. An

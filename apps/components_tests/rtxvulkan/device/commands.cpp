@@ -146,6 +146,29 @@ namespace Rtx
             EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a thrown one-off's copy ran";
         }
 
+        /// **A lent buffer is taken again only once a submit made after its owner ended has run.**
+        /// Given back at once, a ring's buffer went to the next caller while a frame the ring had
+        /// submitted could still be running it; kept by each owner, the pool had no word on it.
+        TEST_F(RtxBatchTest, aLentBufferIsTakenAgainOnlyOnceASubmitAfterItsEndHasRun)
+        {
+            CommandPool& pool = getPool();
+            VkCommandBuffer ended = VK_NULL_HANDLE;
+            {
+                const LentCommands lent = pool.lend(1);
+                ASSERT_EQ(lent.size(), 1u);
+                ended = lent[0];
+            }
+
+            const LentCommands before = pool.lend(1);
+            EXPECT_NE(before[0], ended) << "lent again before any submit after its end had run";
+
+            // The one-off takes a buffer and gives it back after its wait, and the wait gives back
+            // what retired under its value: the ended buffer, ahead of the one-off's own.
+            pool.submitAndWait([](VkCommandBuffer) {});
+            const LentCommands after = pool.lend(2);
+            EXPECT_TRUE(after[0] == ended || after[1] == ended) << "not given back once a submit after its end ran";
+        }
+
         /// A staged write names its destination for the submit the batch rides.
         ///
         /// **The other way a table is written on the queue**, and the one an arrival's rows take

@@ -63,19 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.3 Command buffers handed out by the pool have no owner.**
-  `commands.cpp:145-175` (`take`, `allocate`), `framering.cpp:63`, `gui/guidrawer.cpp:24`,
-  `present/presenter.cpp:84,105`. `FrameRing` and `GuiDrawer` never give theirs back, `Presenter`
-  recycles by hand after an idle, and `GuiDrawer` infers "no longer pending" from its vertex
-  buffer's `ReadStamp`. No Vulkan object leaks, because the pool frees everything with itself. But
-  reuse safety lives in each caller. Target: `allocate` returns a move-only `LentCommands`. Its
-  destructor retires the buffers under `Timeline::getNext()` in the existing `mRetiring` queue, so
-  the next wait that passes the value gives them back. `Presenter::releaseImageSync` loses its
-  manual `recycle`, and `recycle` goes. A `Recording` (item 2.2) is begun on a buffer of a
-  `LentCommands`. Depends on 2.2.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxFrameRingTest.*'`, `./omw repeat --pairs=10`,
-  `./omw view` for a present rebuild.
-
 - [ ] **2.4 Pipeline construction depends on the argument order of three private constructors.**
   `pipeline/computepipeline.hpp:49-55`, `graphicspipeline.hpp:107-113`, `tracepipeline.hpp:127-135`,
   `pipeline.hpp:122-127`. Each passes `std::move(layout)` and `makeX(device, layout, …)` as

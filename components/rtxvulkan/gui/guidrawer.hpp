@@ -41,7 +41,7 @@ namespace Rtx
         /// them, which is what says the slot is free again.
         struct Slot
         {
-            VkCommandBuffer mCommands = VK_NULL_HANDLE;
+            LentCommands mCommands;
 
             /// Rewritten every draw and grown to the busiest one so far. Host-visible device memory,
             /// so writing it is a memcpy and there is no staging copy and no transfer to record.

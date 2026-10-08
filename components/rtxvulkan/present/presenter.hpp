@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
@@ -126,13 +127,14 @@ namespace Rtx
             /// What the presentation engine signals when it has finished with the image, where the
             /// device offers one.
             std::optional<PresentFence> mPresented;
-
-            /// Out of the device's pool, which allows a buffer to be reset by beginning it again.
-            VkCommandBuffer mCommands = VK_NULL_HANDLE;
         };
 
         /// One per swapchain image, indexed by the image the acquire answered with.
         std::vector<SwapImage> mImages;
+
+        /// The blits' buffers, one per swapchain image and indexed as `mImages` is. Out of the
+        /// device's pool, which allows a buffer to be reset by beginning it again.
+        LentCommands mCommands;
 
         /// Whether the surface stopped matching the window since the last rebuild. An acquire or a
         /// present can fail at a size nothing asked to change, and a resize that only rebuilt when

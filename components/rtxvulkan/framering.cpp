@@ -37,7 +37,9 @@ namespace Rtx
     }
 
     FrameRecord::FrameRecord(const Device& device)
-        : mTimer(device)
+        : mPlaceCommands(device.getPool().lend(1))
+        , mTraceCommands(device.getPool().lend(1))
+        , mTimer(device)
         , mCounts(Buffer::readBack(device, sizeof(Shaders::FrameCounts),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame counts"))
         , mDebugVertices(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "debug vertices")
@@ -57,17 +59,6 @@ namespace Rtx
     {
         for (GrowableBuffer& picture : mPictures)
             picture = GrowableBuffer(device, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame readback");
-
-        // Two command buffers a frame to begin with — the first placement's and the trace's —
-        // allocated once and recorded into again. A frame placed more than once takes another from
-        // the same pool and keeps it, which `FrameRecord::mPlaceCommands` explains.
-        const std::vector<VkCommandBuffer> commands = mDevice.getPool().allocate(2 * sFrameSlots);
-        for (std::uint32_t slot = 0; slot < sFrameSlots; ++slot)
-        {
-            FrameRecord& frame = mSlots.at(FrameSlot{ slot });
-            frame.mPlaceCommands.push_back(commands[2 * slot]);
-            frame.mWorld.mCommands = commands[2 * slot + 1];
-        }
     }
 
     FrameRecord& FrameRing::recording()
@@ -128,7 +119,7 @@ namespace Rtx
     VkCommandBuffer FrameRing::takePlaceCommands(FrameRecord& frame)
     {
         if (frame.mPlacements == frame.mPlaceCommands.size())
-            frame.mPlaceCommands.push_back(mDevice.getPool().take());
+            frame.mPlaceCommands.add();
 
         return frame.mPlaceCommands[frame.mPlacements++];
     }
@@ -136,12 +127,12 @@ namespace Rtx
     Recording FrameRing::recordWorld(FrameRecord& frame)
     {
         frame.mState.expect(FrameState::Begun);
-        return mDevice.getPool().begin(frame.mWorld.mCommands);
+        return mDevice.getPool().begin(frame.mTraceCommands[0]);
     }
 
     void FrameRing::submit(FrameRecord& frame, Recording&& world)
     {
-        assert(world.get() == frame.mWorld.mCommands && "a frame submitted with another frame's recording");
+        assert(world.get() == frame.mTraceCommands[0] && "a frame submitted with another frame's recording");
 
         // A wait's access scope is the device's, so the counts need a dependency of their own.
         if (mReadsCounts)
@@ -159,7 +150,7 @@ namespace Rtx
     void FrameRing::skip()
     {
         FrameRecord& frame = slotOf(mFrame);
-        close(frame, false, mDevice.getPool().begin(frame.mWorld.mCommands));
+        close(frame, false, mDevice.getPool().begin(frame.mTraceCommands[0]));
     }
 
     void FrameRing::close(FrameRecord& frame, const bool traced, Recording&& world)
@@ -168,7 +159,7 @@ namespace Rtx
         const std::uint64_t submitted = std::move(world).submit();
         frame.mState.step(FrameState::Submitted, FrameState::Begun);
         frame.mTraced = traced;
-        frame.mWorld.mSubmitted = submitted;
+        frame.mSubmitted = submitted;
         ++mFrame;
         frame.mInFlight = static_cast<std::uint32_t>(mFrame - mFinished);
     }
@@ -181,7 +172,7 @@ namespace Rtx
         frame.mState.expect(FrameState::Submitted);
 
         const auto start = std::chrono::steady_clock::now();
-        mDevice.waitFor(frame.mWorld.mSubmitted, "a frame");
+        mDevice.waitFor(frame.mSubmitted, "a frame");
         const double waited = since(start, std::chrono::steady_clock::now());
 
         frame.mState.step(FrameState::Idle, FrameState::Submitted);

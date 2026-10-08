@@ -328,8 +328,8 @@ namespace Rtx
             sync(0);
 
             Testing::HeldSubmit hold(getDevice());
-            const VkCommandBuffer reader = getPool().allocate(1).front();
-            Recording reading = getPool().begin(reader);
+            const LentCommands reader = getPool().lend(1);
+            Recording reading = getPool().begin(reader[0]);
             EXPECT_NE(mTable.addressFor(FrameSlot{ 0 }), 0u);
             hold.submit(std::move(reading));
 
