@@ -98,20 +98,34 @@ namespace Rtx
                 Temporal::Accumulate },
             { DenoiseImage::FastBlended, "accumulate-fast-blended", ACCUMULATE_FAST, Role::Scratch, false, Grid::Pixels,
                 sStorage, Temporal::Accumulate },
-            { DenoiseImage::ShadowMoments, "shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
-                sStorage, Temporal::Shadow },
-            { DenoiseImage::ShadowHistory, "shadow-history", SHADOW_REPROJECTED, Role::FedBack, false, Grid::Pixels,
-                sStorage, Temporal::Shadow },
-            { DenoiseImage::ShadowScratch, "shadow-scratch", SHADOW_REPROJECTED, Role::Scratch, false, Grid::Pixels,
-                sStorage, Temporal::Shadow },
-            { DenoiseImage::ShadowVisibility, "shadow-visibility", SHADOW_REPROJECTED, Role::Scratch, false,
-                Grid::Pixels, sStorage, Temporal::Shadow },
-            { DenoiseImage::ShadowTiles, "shadow-tiles", SHADOW_TILES, Role::Scratch, false, Grid::ShadowTiles,
-                sStorage, Temporal::Shadow },
-            { DenoiseImage::ShadowPenumbra, "shadow-penumbra", SHADOW_PENUMBRA_TILES, Role::Scratch, false,
-                Grid::ShadowTiles, sStorage, Temporal::Shadow },
-            { DenoiseImage::ShadowMask, "shadow-mask", SHADOW_MASK, Role::Scratch, false, Grid::ShadowMask, sStorage,
-                Temporal::Shadow },
+            { DenoiseImage::SkyShadowMoments, "sky-shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
+                sStorage, Temporal::SkyShadow },
+            { DenoiseImage::SkyShadowHistory, "sky-shadow-history", SHADOW_REPROJECTED, Role::FedBack, false,
+                Grid::Pixels, sStorage, Temporal::SkyShadow },
+            { DenoiseImage::SkyShadowScratch, "sky-shadow-scratch", SHADOW_REPROJECTED, Role::Scratch, false,
+                Grid::Pixels, sStorage, Temporal::SkyShadow },
+            { DenoiseImage::SkyShadowVisibility, "sky-shadow-visibility", SHADOW_REPROJECTED, Role::Scratch, false,
+                Grid::Pixels, sStorage, Temporal::SkyShadow },
+            { DenoiseImage::SkyShadowTiles, "sky-shadow-tiles", SHADOW_TILES, Role::Scratch, false, Grid::ShadowTiles,
+                sStorage, Temporal::SkyShadow },
+            { DenoiseImage::SkyShadowPenumbra, "sky-shadow-penumbra", SHADOW_PENUMBRA_TILES, Role::Scratch, false,
+                Grid::ShadowTiles, sStorage, Temporal::SkyShadow },
+            { DenoiseImage::SkyShadowMask, "sky-shadow-mask", SHADOW_MASK, Role::Scratch, false, Grid::ShadowMask,
+                sStorage, Temporal::SkyShadow },
+            { DenoiseImage::LampShadowMoments, "lamp-shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
+                sStorage, Temporal::LampShadow },
+            { DenoiseImage::LampShadowHistory, "lamp-shadow-history", SHADOW_REPROJECTED, Role::FedBack, false,
+                Grid::Pixels, sStorage, Temporal::LampShadow },
+            { DenoiseImage::LampShadowScratch, "lamp-shadow-scratch", SHADOW_REPROJECTED, Role::Scratch, false,
+                Grid::Pixels, sStorage, Temporal::LampShadow },
+            { DenoiseImage::LampShadowVisibility, "lamp-shadow-visibility", SHADOW_REPROJECTED, Role::Scratch, false,
+                Grid::Pixels, sStorage, Temporal::LampShadow },
+            { DenoiseImage::LampShadowTiles, "lamp-shadow-tiles", SHADOW_TILES, Role::Scratch, false, Grid::ShadowTiles,
+                sStorage, Temporal::LampShadow },
+            { DenoiseImage::LampShadowPenumbra, "lamp-shadow-penumbra", SHADOW_PENUMBRA_TILES, Role::Scratch, false,
+                Grid::ShadowTiles, sStorage, Temporal::LampShadow },
+            { DenoiseImage::LampShadowMask, "lamp-shadow-mask", SHADOW_MASK, Role::Scratch, false, Grid::ShadowMask,
+                sStorage, Temporal::LampShadow },
             { DenoiseImage::SpecularMean, "specular-mean", SPECULAR_MEAN, Role::FedBack, true, Grid::Pixels, sStorage,
                 Temporal::Specular },
             { DenoiseImage::SpecularFast, "specular-fast", HISTORY_CLAMP_FAST, Role::FedBack, true, Grid::Pixels,
@@ -148,10 +162,44 @@ namespace Rtx
         static_assert(fedBackKeepsItsPrecision(),
             "a history read back into its own blend is stored where a store may round toward nought");
 
+        /// The rows each of the shadow's fields takes, indexed by `ShadowField`.
+        struct ShadowRows
+        {
+            DenoiseImage mMoments;
+            DenoiseImage mHistory;
+            DenoiseImage mScratch;
+            DenoiseImage mVisibility;
+            DenoiseImage mTiles;
+            DenoiseImage mPenumbra;
+            DenoiseImage mMask;
+            Temporal mFilter;
+        };
+
+        constexpr std::array<ShadowRows, sShadowFields> sShadowRows{ {
+            { DenoiseImage::SkyShadowMoments, DenoiseImage::SkyShadowHistory, DenoiseImage::SkyShadowScratch,
+                DenoiseImage::SkyShadowVisibility, DenoiseImage::SkyShadowTiles, DenoiseImage::SkyShadowPenumbra,
+                DenoiseImage::SkyShadowMask, Temporal::SkyShadow },
+            { DenoiseImage::LampShadowMoments, DenoiseImage::LampShadowHistory, DenoiseImage::LampShadowScratch,
+                DenoiseImage::LampShadowVisibility, DenoiseImage::LampShadowTiles, DenoiseImage::LampShadowPenumbra,
+                DenoiseImage::LampShadowMask, Temporal::LampShadow },
+        } };
+
         constexpr const Declared& declaredOf(const DenoiseImage image)
         {
             return sDeclared[static_cast<std::size_t>(image)];
         }
+
+        constexpr bool shadowRowsAreTheirFields()
+        {
+            for (const ShadowRows& rows : sShadowRows)
+                for (const DenoiseImage image : { rows.mMoments, rows.mHistory, rows.mScratch, rows.mVisibility,
+                         rows.mTiles, rows.mPenumbra, rows.mMask })
+                    if (declaredOf(image).mFilter != rows.mFilter)
+                        return false;
+            return true;
+        }
+
+        static_assert(shadowRowsAreTheirFields(), "a shadow field takes an image whose freshness is another's");
 
         /// What `declared` is made of for a frame `width` by `height`: its grid's extent and its
         /// format, which `resize` makes and `bytesAt` measures.
@@ -294,19 +342,21 @@ namespace Rtx
         };
     }
 
-    DenoiseHistory::ShadowImages DenoiseHistory::shadow(const TemporalTurns::Step& step) const
+    DenoiseHistory::ShadowImages DenoiseHistory::shadow(const ShadowField field, const TemporalTurns::Step& step) const
     {
+        const ShadowRows& rows = sShadowRows[static_cast<std::size_t>(field)];
         return ShadowImages{
-            .mMomentsBefore = before(DenoiseImage::ShadowMoments, step),
-            .mMoments = now(DenoiseImage::ShadowMoments, step),
-            .mHistory = only(DenoiseImage::ShadowHistory),
-            .mScratch = only(DenoiseImage::ShadowScratch),
-            .mVisibility = only(DenoiseImage::ShadowVisibility),
-            .mTiles = only(DenoiseImage::ShadowTiles),
-            .mPenumbra = only(DenoiseImage::ShadowPenumbra),
-            .mMask = only(DenoiseImage::ShadowMask),
+            .mMomentsBefore = before(rows.mMoments, step),
+            .mMoments = now(rows.mMoments, step),
+            .mHistory = only(rows.mHistory),
+            .mScratch = only(rows.mScratch),
+            .mVisibility = only(rows.mVisibility),
+            .mTiles = only(rows.mTiles),
+            .mPenumbra = only(rows.mPenumbra),
+            .mMask = only(rows.mMask),
             .mHeldSurface = before(DenoiseImage::Surface, step),
-            .mFresh = step.mFresh[Temporal::Shadow],
+            .mField = field,
+            .mFresh = step.mFresh[rows.mFilter],
         };
     }
 

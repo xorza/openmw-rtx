@@ -120,7 +120,7 @@ namespace Rtx::Testing
 
         /// **The lamps' split light on a glossy floor is the same in every frame.** A dielectric at
         /// half roughness, under the four lamps, where nothing stands between a lamp and the floor:
-        /// the shadow denoiser's channel holds every lamp's light, each less the share its own lobe
+        /// the lamps' channel, `CHANNEL_LAMPED`, holds every lamp's light, each less the share its own lobe
         /// took, and the held lamp's bit, which is one. A lobe's share taken off the whole sum by the
         /// held lamp's Fresnel term, or the sum scaled by the held lamp's own estimate, would change
         /// with the lamp each pixel holds, in a light nothing filters.
@@ -129,16 +129,16 @@ namespace Rtx::Testing
             const GlossyFloor floor(128, 0);
             Shaders::VisibilityConstants camera = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
 
-            const auto shadowedAt = [&](std::uint32_t frame) {
+            const auto lampedAt = [&](std::uint32_t frame) {
                 camera.mFrame = frame;
                 shoot(floor.mScene, floor.mTextures, camera, sSize);
                 std::vector<float> read;
-                mRenderer.readChannel(Channel::Shadowed, read);
+                mRenderer.readChannel(Channel::Lamped, read);
                 return read;
             };
 
-            const std::vector<float> first = shadowedAt(1000);
-            const std::vector<float> second = shadowedAt(1001);
+            const std::vector<float> first = lampedAt(1000);
+            const std::vector<float> second = lampedAt(1001);
             ASSERT_EQ(first.size(), std::size_t{ sSize } * sSize * 4);
 
             float brightest = 0.0f;

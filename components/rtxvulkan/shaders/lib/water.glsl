@@ -116,7 +116,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
     if (direction.z < 0.0)
     {
         path.mDistance = WATER_UNBOUNDED_PATH;
-        path.mLight = SplitLight(vec3(0.0), vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR);
+        path.mLight = SplitLight(vec3(0.0), noShadowed(), noShadowed());
         return path;
     }
 
@@ -130,7 +130,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
 
     // The water's surface evaluated no source (`EVALUATED_NONE`), so its legs see the discs whole, as
     // they see a lamp's model (`shadeAtPathEnd` keeps its glow).
-    path.mLight = SplitLight(reflectedSky(origin, direction, blur, true), vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR);
+    path.mLight = SplitLight(reflectedSky(origin, direction, blur, true), noShadowed(), noShadowed());
 
     return path;
 }
@@ -168,14 +168,15 @@ WaterPath alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprin
         // a reflection climbing — which the surface above it would turn back down, and which, sent
         // into the air instead, drew the bright world over the water as specks along the horizon.
         const WaterColumn column = waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, pixel);
-        arrived.mLight = SplitLight(
-            throughWater(light.mRest, column), light.mShadowed * column.mTransmittance, light.mOpen, light.mPenumbra);
+        arrived.mLight = SplitLight(throughWater(light.mRest, column), dimmed(light.mSky, column.mTransmittance),
+            dimmed(light.mLamps, column.mTransmittance));
         arrived.mLift *= column.mTransmittance;
         return arrived;
     }
 
     const vec4 air = fogAlongLeg(leg.mFrom, leg.mAlong, airSpan(path), before);
-    arrived.mLight = SplitLight(throughAir(light.mRest, air), light.mShadowed * air.w, light.mOpen, light.mPenumbra);
+    arrived.mLight
+        = SplitLight(throughAir(light.mRest, air), dimmed(light.mSky, vec3(air.w)), dimmed(light.mLamps, vec3(air.w)));
     arrived.mLift *= air.w;
     return arrived;
 }
@@ -361,7 +362,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WaterPath refractedPath = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
     const SplitLight refracted = refractedPath.mLight;
 
-    // **Shared by the luminance each ray adds**, as `mixSplit` shares the shadowed sources' bit. A
+    // **Shared by the luminance each ray adds**, as `mixShadowed` shares each source's bit. A
     // ray that went down and found nothing brought the column's own colour, which has no image to
     // move.
     const float fromMirror = dot(composed(reflected) * fresnel, LUMINANCE_WEIGHTS);
@@ -371,7 +372,9 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         imageOf(behind, across, fromBed / whole, before, fromBelow ? WATER_IOR : 1.0 / WATER_IOR));
 
     uint legs = randomSeed(key + SEED_SHADOWED_LEGS);
-    shaded.mLight = mixSplit(refracted, reflected, fresnel, randomNext(legs));
+    const float skyDraw = randomNext(legs);
+    const float lampDraw = randomNext(legs);
+    shaded.mLight = mixSplit(refracted, reflected, fresnel, skyDraw, lampDraw);
     shaded.mLift = mix(refractedPath.mLift, reflectedPath.mLift, fresnel);
     return shaded;
 }

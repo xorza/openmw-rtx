@@ -7,10 +7,10 @@
 // the launch's own, so its origin and direction stay there; whether it hit and how far it went are
 // the shader's to say, and travel here.
 //
-// **What crosses the trace is what it costs**, and this is it: twenty-six words. Every field the
+// **What crosses the trace is what it costs**, and this is it: thirty words. Every field the
 // tail reads travels, and travels as small as the frame keeps it — the albedos, the scalars and
 // the motion vector as halves, which is the width of the channels they are stored in, and the
-// normal as the surface channel's own code. What stays whole is the five radiances, because a
+// normal as the surface channel's own code. What stays whole is the six radiances, because a
 // reference is a sum of a thousand frames and a term rounded to a half before the sum does not
 // average away. `Answer` is the same record unpacked, which is what the shaders write and the launch
 // reads; `packAnswer` and `unpackAnswer` are the whole of the boundary.
@@ -27,6 +27,7 @@
 
 #include "census.glsl"
 #include "records.glsl"
+#include "shadowed.glsl"
 #include "sharedexponent.glsl"
 
 /// Where the payload below sits. A literal at every call, as the extension wants. The any-hit
@@ -51,20 +52,16 @@ struct Answer
     /// the ambient albedo in `mResponse`. Nought for a pane, whose drawn light is whole.
     vec3 mFilled;
 
-    /// What the sky's source and the lamps add to what the eye sees — the solid it found, or what
-    /// the water's legs found — as though their rays got through, and whether the kept one did: a
-    /// `SplitLight`'s two halves. Nought and open wherever nothing split it off — a pane, the sky —
-    /// so a shadow denoiser reads such a pixel as lit and as nothing to filter.
-    vec3 mShadowed;
-    bool mOpen;
-
-    /// The kept ray's penumbra in the pixel's footprints, `SplitLight::mPenumbra`:
-    /// `SHADOW_PENUMBRA_CLEAR` wherever the bit is open or nothing split it off.
-    float mPenumbra;
+    /// What the sky's source and the lamps each add to what the eye sees — the solid it found, or
+    /// what the water's legs found — as though their rays got through, whether they did and their
+    /// penumbras: a `SplitLight`'s two shadowed parts. `noShadowed` wherever nothing split them off
+    /// — a pane, the sky — so the shadow denoiser reads such a pixel as lit and as nothing to filter.
+    Shadowed mSky;
+    Shadowed mLamps;
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, per unit of
     /// `mResponse.mSpecular`, and the lobe's roughness: `SeenSolid::mSpecular` and `mRoughness`.
-    /// Nought and `SPECULAR_NO_LOBE` wherever nothing split it off, as `mShadowed` is nought there.
+    /// Nought and `SPECULAR_NO_LOBE` wherever nothing split it off, as `mSky` is nought there.
     /// A pane's lobe light is here too, whole, `SeenPane::mSpecular`, with no roughness: the launch
     /// composes it with the pane's glow, and no filter takes it.
     vec3 mSpecular;
@@ -122,9 +119,8 @@ Answer noAnswer()
     answer.mRadiance = vec3(0.0);
     answer.mBounced = vec3(0.0);
     answer.mFilled = vec3(0.0);
-    answer.mShadowed = vec3(0.0);
-    answer.mOpen = true;
-    answer.mPenumbra = SHADOW_PENUMBRA_CLEAR;
+    answer.mSky = noShadowed();
+    answer.mLamps = noShadowed();
     answer.mSpecular = vec3(0.0);
     answer.mRoughness = SPECULAR_NO_LOBE;
     answer.mLift = vec3(0.0);
@@ -141,18 +137,19 @@ Answer noAnswer()
     return answer;
 }
 
-/// The record as it crosses the trace: twenty-six words, laid out once here.
+/// The record as it crosses the trace: thirty words, laid out once here.
 ///
 /// The flags word carries the backdrop's share as a half in its high bits — or a hit's
 /// `mMisMoved`, since only a miss shows the backdrop and only a hit moves — the lobe's roughness in
-/// the byte under them, and four facts in its low bits: whether the ray hit, whether the launch
-/// peels the surface, whether it is water, and whether the shadowed sources' kept ray got through.
+/// the byte under them, and five facts in its low bits: whether the ray hit, whether the launch
+/// peels the surface, whether it is water, and whether the sky's ray and the lamps' got through.
 struct VisibilityPayload
 {
     vec3 mRadiance;
     vec3 mBounced;
     vec3 mFilled;
-    vec3 mShadowed;
+    vec3 mSky;
+    vec3 mLamps;
     vec3 mSpecular;
 
     /// The response's diffuse, then the opacity: four halves in two words.
@@ -167,8 +164,11 @@ struct VisibilityPayload
     uint mSpecularAlbedo;
 
     /// The lift, three halves in two words: a display value, which a half holds finer than the
-    /// channel's byte. The fourth half is the penumbra, which the channel holds as a half.
+    /// channel's byte. The fourth half is the sky's penumbra, which the channel holds as a half.
     uvec2 mLift;
+
+    /// The lamps' penumbra, a half as its channel holds it, in the low half of the word.
+    uint mLampPenumbra;
 
     /// The response's normal code, `packSurfaceNormal`, as its bits: a whole number or minus one,
     /// never a NaN, so the word comes back as the float it went in as.
@@ -187,7 +187,8 @@ struct VisibilityPayload
 const uint ANSWER_WATER = 1u << 0u;
 const uint ANSWER_PANE = 1u << 1u;
 const uint ANSWER_HIT = 1u << 2u;
-const uint ANSWER_OPEN = 1u << 3u;
+const uint ANSWER_SKY_OPEN = 1u << 3u;
+const uint ANSWER_LAMPS_OPEN = 1u << 4u;
 
 /// Where the roughness sits in the flags word, as a byte: nought to one in steps of 1/254, and
 /// `ANSWER_NO_LOBE` for `SPECULAR_NO_LOBE`.
@@ -207,20 +208,22 @@ VisibilityPayload packAnswer(Answer answer)
     packed.mRadiance = answer.mRadiance;
     packed.mBounced = answer.mBounced;
     packed.mFilled = answer.mFilled;
-    packed.mShadowed = answer.mShadowed;
+    packed.mSky = answer.mSky.mLight;
+    packed.mLamps = answer.mLamps.mLight;
     packed.mSpecular = answer.mSpecular;
     packed.mHalves = uvec2(packHalf2x16(answer.mResponse.mDiffuse.rg),
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
     packed.mAmbient = packHalf2x16(answer.mResponse.mAmbient.gb);
     packed.mSpecularAlbedo = packRgb9e5(answer.mResponse.mSpecular);
-    packed.mLift = uvec2(packHalf2x16(answer.mLift.rg), packHalf2x16(vec2(answer.mLift.b, answer.mPenumbra)));
+    packed.mLift = uvec2(packHalf2x16(answer.mLift.rg), packHalf2x16(vec2(answer.mLift.b, answer.mSky.mPenumbra)));
+    packed.mLampPenumbra = packHalf2x16(vec2(answer.mLamps.mPenumbra, 0.0));
     packed.mMotion = uvec2(packHalf2x16(answer.mMotion.xy), packHalf2x16(vec2(answer.mMotion.z, answer.mResponse.mAmbient.r)));
     packed.mDistance = answer.mDistance;
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mHit ? answer.mMisMoved : answer.mBackdropShown))
         | (answer.mWater ? ANSWER_WATER : 0u)
         | (answer.mPane ? ANSWER_PANE : 0u) | (answer.mHit ? ANSWER_HIT : 0u)
-        | (answer.mOpen ? ANSWER_OPEN : 0u)
+        | (answer.mSky.mOpen > 0.0 ? ANSWER_SKY_OPEN : 0u) | (answer.mLamps.mOpen > 0.0 ? ANSWER_LAMPS_OPEN : 0u)
         | ((answer.mRoughness < 0.0 ? ANSWER_NO_LOBE
                                      : uint(round(min(answer.mRoughness, 1.0) * float(ANSWER_ROUGHNESS_STEPS))))
             << ANSWER_ROUGHNESS_SHIFT);
@@ -237,19 +240,19 @@ Answer unpackAnswer(VisibilityPayload packed)
     answer.mRadiance = packed.mRadiance;
     answer.mBounced = packed.mBounced;
     answer.mFilled = packed.mFilled;
-    answer.mShadowed = packed.mShadowed;
     answer.mSpecular = packed.mSpecular;
     const uint roughness = (packed.mFlags >> ANSWER_ROUGHNESS_SHIFT) & 0xffu;
     answer.mRoughness
         = roughness == ANSWER_NO_LOBE ? SPECULAR_NO_LOBE : float(roughness) / float(ANSWER_ROUGHNESS_STEPS);
-    answer.mOpen = (packed.mFlags & ANSWER_OPEN) != 0u;
     const vec2 motionZAmbientR = unpackHalf2x16(packed.mMotion.y);
     answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x),
         vec3(motionZAmbientR.y, unpackHalf2x16(packed.mAmbient)), unpackRgb9e5(packed.mSpecularAlbedo));
     answer.mMotion = vec3(unpackHalf2x16(packed.mMotion.x), motionZAmbientR.x);
     const vec2 liftBPenumbra = unpackHalf2x16(packed.mLift.y);
     answer.mLift = vec3(unpackHalf2x16(packed.mLift.x), liftBPenumbra.x);
-    answer.mPenumbra = liftBPenumbra.y;
+    answer.mSky = Shadowed(packed.mSky, (packed.mFlags & ANSWER_SKY_OPEN) != 0u ? 1.0 : 0.0, liftBPenumbra.y);
+    answer.mLamps = Shadowed(packed.mLamps, (packed.mFlags & ANSWER_LAMPS_OPEN) != 0u ? 1.0 : 0.0,
+        unpackHalf2x16(packed.mLampPenumbra).x);
     answer.mOpacity = diffuseBOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;

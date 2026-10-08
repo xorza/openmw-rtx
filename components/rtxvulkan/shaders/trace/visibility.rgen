@@ -460,10 +460,10 @@ void main()
     const vec3 filled = answer.mFilled * transmittance;
 
     // **The shadowed sources ride the same path as the bounce**, and the light they would add is
-    // taken down by what the path took, as the bounce is. Their bit is the one a shadow denoiser
-    // filters.
-    const vec3 unshadowed = answer.mShadowed * transmittance;
-    const float open = answer.mOpen ? 1.0 : 0.0;
+    // taken down by what the path took, as the bounce is. Their bits are what the shadow denoiser
+    // filters, a field each.
+    const Shadowed sky = dimmed(answer.mSky, transmittance);
+    const Shadowed lamps = dimmed(answer.mLamps, transmittance);
     // The lobe's light per unit of its specular albedo, which the composite puts back.
     const vec3 lobe = answer.mSpecular * transmittance;
 
@@ -490,8 +490,8 @@ void main()
     // shader measured against the surface. Each by its share of the whole pixel as the trace composed
     // it, the layers in front of the water taking theirs off it.
     const vec3 pixelLight
-        = composedLight(shaded, answer.mResponse.mDiffuse, bounce, answer.mResponse.mAmbient, filled, unshadowed, open,
-            lobe * answer.mResponse.mSpecular, paneModulation, paneLight);
+        = composedLight(shaded, answer.mResponse.mDiffuse, bounce, answer.mResponse.mAmbient, filled, sky.mLight,
+            sky.mOpen, lamps.mLight, lamps.mOpen, lobe * answer.mResponse.mSpecular, paneModulation, paneLight);
     const float pixelLit = max(dot(pixelLight, LUMINANCE_WEIGHTS), 1e-6);
     const vec3 paneOwn = armsStack.mGlow + armsStack.mThrough * panes.mGlow + paneDrawn;
     const float paneApart = motionsApart(nearest.mMotion.xy, answer.mMotion.xy);
@@ -510,8 +510,10 @@ void main()
 
     RTX_STORE_COUNTED(indirect, at, vec4(bounce, 1.0))
     RTX_STORE_COUNTED(fill, at, vec4(filled, 1.0))
-    RTX_STORE_COUNTED(shadowed, at, vec4(unshadowed, open))
-    RTX_STORE_COUNTED(penumbra, at, vec4(answer.mPenumbra))
+    RTX_STORE_COUNTED(shadowed, at, vec4(sky.mLight, sky.mOpen))
+    RTX_STORE_COUNTED(lamped, at, vec4(lamps.mLight, lamps.mOpen))
+    RTX_STORE_COUNTED(penumbra, at, vec4(sky.mPenumbra))
+    RTX_STORE_COUNTED(lampPenumbraChannel, at, vec4(lamps.mPenumbra))
     RTX_STORE_COUNTED(specular, at, vec4(lobe, answer.mRoughness))
     RTX_STORE_COUNTED(albedo, at, vec4(answer.mResponse.mDiffuse, 1.0))
     RTX_STORE_COUNTED(ambientAlbedo, at, vec4(answer.mResponse.mAmbient, 1.0))

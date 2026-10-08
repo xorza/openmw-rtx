@@ -15,26 +15,27 @@ namespace Rtx
 {
     class Device;
     class GBuffer;
-    class GpuTimer;
     class Image;
 
-    /// The shadow denoiser: a port of AMD's FidelityFX Shadow Denoiser over the one bit a pixel
-    /// kept of its rays to the sun or a moon and to a lamp, `CHANNEL_SHADOWED`'s alpha. A pass that
-    /// packs the bits, a temporal pass that also classifies the tiles every receiver of which is
-    /// lit alike, and three levels of a spatial filter over the rest — `shadowtiles.comp` and
-    /// `shadowfilter.comp` say what the port keeps and what it changes. It runs where the wavelet
-    /// does and the sky has a source that lights or the scene a lamp.
+    /// The shadow denoiser: a port of AMD's FidelityFX Shadow Denoiser over the bit a pixel kept of
+    /// its ray to the sun or a moon, `CHANNEL_SHADOWED`'s alpha, and apart from it over the bit of
+    /// its ray to a lamp, `CHANNEL_LAMPED`'s (`ShadowField`). A pass that packs the bits, a temporal
+    /// pass that also classifies the tiles every receiver of which is lit alike, and three levels
+    /// of a spatial filter over the rest — `shadowtiles.comp` and `shadowfilter.comp` say what the
+    /// port keeps and what it changes. It runs where the wavelet does, once for the sky where it
+    /// has a source that lights and once for the lamps where the scene has one: a field a source,
+    /// for the reason `CHANNEL_SHADOWED` gives.
     class ShadowPass
     {
     public:
         explicit ShadowPass(const Device& device);
 
-        /// Records the five dispatches and hands back the filtered visibility, its mean in `r`, as
-        /// the last level wrote it: the caller orders it for a read, beside the passes that run
-        /// alongside (`DenoisePasses::record`). `buffer` must have been handed over, and
-        /// `DenoiseHistory::discard` has readied the images.
+        /// Records the five dispatches over the field `images` names and hands back its filtered
+        /// visibility, its mean in `r`, as the last level wrote it: the caller orders it for a read,
+        /// beside the passes that run alongside (`DenoisePasses::record`), and times it. `buffer`
+        /// must have been handed over, and `DenoiseHistory::discard` has readied the images.
         const Image& record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images, const GBuffer& buffer,
-            const DenoiseFrame& frame, GpuTimer* timer) const;
+            const DenoiseFrame& frame) const;
 
     private:
         ComputePipeline<Shaders::ShadowMaskConstants> mMask;

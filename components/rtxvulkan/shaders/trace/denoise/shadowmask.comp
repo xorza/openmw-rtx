@@ -52,8 +52,9 @@
 
 layout(local_size_x = SHADOW_MASK_WIDTH, local_size_y = 2 * SHADOW_MASK_HEIGHT) in;
 
-/// `CHANNEL_SHADOWED`: the light the shadowed sources would add, and in its alpha whether the
-/// pixel's rays got through. No format, because it is as wide as the run keeps radiance.
+/// The field's channel, `CHANNEL_SHADOWED` or `CHANNEL_LAMPED`: the light its source would add, and
+/// in its alpha whether the pixel's ray got through. No format, because it is as wide as the run
+/// keeps radiance.
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SHADOWED) uniform readonly image2D shadowed;
 
 /// `CHANNEL_SURFACE`, for whether a surface stands at the pixel at all.

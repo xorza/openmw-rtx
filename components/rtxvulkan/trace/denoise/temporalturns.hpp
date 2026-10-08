@@ -10,10 +10,14 @@ namespace Rtx
     ///
     /// **The accumulator's is the surface's history and its mean of the bounce**, which every frame
     /// the denoisers run on keeps: the shadow denoiser and the glossy filter read the surface.
+    ///
+    /// **The shadow denoiser twice**, a history for the sky's field and one for the lamps': a frame
+    /// may have either source alone.
     enum class Temporal : std::uint8_t
     {
         Accumulate,
-        Shadow,
+        SkyShadow,
+        LampShadow,
         Specular,
         Pane,
     };

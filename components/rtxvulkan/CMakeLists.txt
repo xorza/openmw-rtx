@@ -204,6 +204,7 @@ set(RTX_SHADER_LIB
     shaders/lib/sharedexponent.glsl
     shaders/lib/sea.glsl
     shaders/lib/shading.glsl
+    shaders/lib/shadowed.glsl
     shaders/lib/sky.glsl
     shaders/lib/spritelist.glsl
     shaders/lib/sprites.glsl

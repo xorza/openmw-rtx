@@ -164,15 +164,14 @@ namespace Rtx::Shaders
     const uint STREAM_FOG_ALONG = 5u;
 
     /// Where on the sky's disc and on the held lamp's sphere the eye's own split hit aims its two
-    /// shadow rays, which sky source it draws, and whose bit it keeps (`gather`).
+    /// shadow rays, and which sky source it draws (`gather`).
     ///
-    /// **Blue, because the shadow denoiser filters these rays' one bit**, and an error spread blue
+    /// **Blue, because the shadow denoiser filters these rays' bits**, and an error spread blue
     /// across the screen filters away where a white one shimmers (Heitz and Belcour 2019; NRD). The
     /// paths deeper than the eye's hit keep the hash, which a replay of their far end needs.
     const uint STREAM_SUN_DISC = 6u;
     const uint STREAM_LAMP_DISC = 8u;
     const uint STREAM_SKY_PICK = 10u;
-    const uint STREAM_SHADOWED_PICK = 11u;
 
     /// The tone pass's dither under the eight-bit store (`tone.comp`): blue, so the error a byte
     /// leaves is spread where the eye sees least of it, and its own channel, so it follows none of

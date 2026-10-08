@@ -28,7 +28,13 @@ namespace Rtx::Shaders
     const uint COMPOSITE_BIND_FILL = 9;
     const uint COMPOSITE_BIND_AMBIENT_ALBEDO = 10;
     const uint COMPOSITE_BIND_SPECULAR_ALBEDO = 11;
-    const uint COMPOSITE_BINDINGS = 12;
+    const uint COMPOSITE_BIND_LAMPED = 12;
+    const uint COMPOSITE_BIND_LAMP_SHADOW = 13;
+    const uint COMPOSITE_BINDINGS = 14;
+
+    /// `CompositeConstants::mShadowed`'s bits: which of the shadow denoiser's fields ran.
+    const uint COMPOSITE_SHADOWED_SKY = 1u;
+    const uint COMPOSITE_SHADOWED_LAMPS = 2u;
 
 /// What the running sum a reference is built in is kept as: full floats, for the reason
 /// `GBUFFER_RADIANCE_SUMMED` is.
@@ -62,10 +68,10 @@ namespace Rtx::Shaders
         /// the sum. A composite runs on such a frame only to take one.
         uint mComposed;
 
-        /// Non-zero where the shadow denoiser ran, so the shadowed light is scaled by what it made
-        /// of the rays' bits, and nought where the frame had no sky source and no lamp to shadow
-        /// and the pass was not recorded — where the bits themselves stand, and the shadowed light
-        /// is nought under them.
+        /// Which of the shadow denoiser's fields ran (`COMPOSITE_SHADOWED_SKY`,
+        /// `COMPOSITE_SHADOWED_LAMPS`): a light whose field ran is scaled by what the denoiser made
+        /// of its rays' bits. Where a field did not run, the frame had no source of it to shadow,
+        /// and its bits themselves stand over a light of nought.
         uint mShadowed RTX_ZERO;
     };
 

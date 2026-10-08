@@ -6,9 +6,7 @@
 #include <span>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -58,9 +56,11 @@ namespace Rtx
     }
 
     const Image& ShadowPass::record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
+        const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        const GpuZone timed(timer, commands, FrameZone::Shadow);
+        const bool sky = images.mField == ShadowField::Sky;
+        const Image& shadowed = buffer.get(sky ? Channel::Shadowed : Channel::Lamped);
+        const Image& penumbra = buffer.get(sky ? Channel::Penumbra : Channel::LampPenumbra);
 
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const std::uint32_t width = camera.mWidth;
@@ -73,10 +73,10 @@ namespace Rtx
 
         {
             DescriptorWrites writes(mMask);
-            writes.image(Shaders::SHADOW_MASK_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
+            writes.image(Shaders::SHADOW_MASK_BIND_SHADOWED, shadowed.describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_MASK, images.mMask.describeStorage());
-            writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA, buffer.get(Channel::Penumbra).describeStorage());
+            writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA, penumbra.describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
 
             dispatch(commands, mMask, writes, Shaders::ShadowMaskConstants{ .mWidth = width, .mHeight = height },

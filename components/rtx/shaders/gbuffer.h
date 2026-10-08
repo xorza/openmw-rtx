@@ -114,17 +114,20 @@ namespace Rtx::Shaders
     /// nothing the composite draws moves with the jitter the traced grid is sampled at.
     const uint CHANNEL_PUFFS = 6;
 
-    /// What the shadowed sources add to what the eye sees as though every ray to them got through,
-    /// in `rgb` — the albedo, the lobe and the path's transmittance already in — and in `a` whether
-    /// the one kept did, one or nought. The sources are the sky's — the sun, or a moon at night —
-    /// and the lamps' diffuse half, every lamp's summed (`gather`). What the eye sees is the solid
-    /// it found, or what the water reflects and what is seen through it. Each has two bits, the
-    /// sky's and the lamps', and `a` is one of them, drawn by the light each adds (`keepsSecond`).
-    /// The one bit a pixel's shadow is, which the shadow denoiser filters in its place: `rgb` is
-    /// exact per pixel, so a texture under a penumbra stays sharp. What a translucent surface on the
-    /// way lets through is drawn into the bit and not carried in `rgb`, which one ray's through
-    /// would leave noisy. Nought and one wherever nothing split it off, which no filter reads as a
-    /// shadow.
+    /// What the sky's source — the sun, or a moon at night — adds to what the eye sees as though
+    /// its ray got through, in `rgb`, the albedo, the lobe and the path's transmittance already in;
+    /// and in `a` whether the ray did, one or nought (`gather`). What the eye sees is the solid it
+    /// found, or what the water reflects and what is seen through it. The bit the shadow denoiser
+    /// filters in its place: `rgb` is exact per pixel, so a texture under a penumbra stays sharp.
+    /// What a translucent surface on the way lets through is drawn into the bit and not carried in
+    /// `rgb`, which one ray's through would leave noisy. Nought and one wherever nothing split it
+    /// off, which no filter reads as a shadow.
+    ///
+    /// **The sky's alone, and the lamps' beside it in `CHANNEL_LAMPED`**, each filtered as a field
+    /// of its own. One bit a pixel, drawn between the two by the light each adds, was the sun's on
+    /// one face and a lamp's on the next where a face turned from the sun lay beside one turned to
+    /// it: the filter carried the lamp's open bit across the edge and lit the face in the sun's
+    /// shadow with the sun, a bright line along every such edge a PBR replacer's lobe made strong.
     const uint CHANNEL_SHADOWED = 7;
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, times the
@@ -187,10 +190,10 @@ namespace Rtx::Shaders
     /// display pass reads it at the shown extent through the texture unit.
     const uint CHANNEL_LIFT = 16;
 
-    /// How wide the penumbra is where the bit in `CHANNEL_SHADOWED` was kept, as its radius in the
-    /// pixel's own footprints: the kept ray's distance to what stopped it, times the tangent of the
-    /// source's half angle, and for a lamp over what is left of the way to it (`skyPenumbra`,
-    /// `lampPenumbra`).
+    /// How wide the penumbra of `CHANNEL_SHADOWED`'s bit is, as its radius in the pixel's own
+    /// footprints: the ray's distance to what stopped it, times the tangent of the source's half
+    /// angle (`skyPenumbra`). `CHANNEL_LAMP_PENUMBRA` is the same for the lamps' bit, over what is
+    /// left of the way to the lamp (`lampPenumbra`).
     /// `SHADOW_PENUMBRA_CLEAR` where the ray got through, or nothing was split off. What the shadow
     /// denoiser sizes its reach by (NVIDIA's SIGMA sizes its blur the same way): a hard shadow is
     /// noiseless, and a reach wider than its penumbra is what blurs it.
@@ -200,10 +203,10 @@ namespace Rtx::Shaders
     /// a frame can hold in pixels.
     const float SHADOW_PENUMBRA_CLEAR = 65504.0f;
 
-    /// What it holds where the kept bit was drawn from among sources — the sun or a moon, one lamp of
-    /// several, or the sky's source against the lamps — open or not: such a bit is noise whatever
-    /// its penumbra, since the next frame may draw another source, and it takes every step the
-    /// shadow denoiser's levels have (`SHADOW_FILTER_LEVELS`, whose widest is four pixels).
+    /// What it holds where the bit was drawn from among sources — the sun or a moon, one lamp of
+    /// several, or the water's two legs — open or not: such a bit is noise whatever its penumbra,
+    /// since the next frame may draw another source, and it takes every step the shadow denoiser's
+    /// levels have (`SHADOW_FILTER_LEVELS`, whose widest is four pixels).
     const float SHADOW_PENUMBRA_DRAWN = 8.0f;
 
     /// The most a penumbra is stretched onto the receiver it falls on (`receiverStretch`): eight, a
@@ -234,8 +237,17 @@ namespace Rtx::Shaders
     /// what it averages, and a replacer's reflectance is detail the light behind it is not.
     const uint CHANNEL_SPECULAR_ALBEDO = 18;
 
+    /// What every lamp's diffuse half adds to what the eye sees as though their rays got through,
+    /// summed, and whether the held lamp's ray did: `CHANNEL_SHADOWED`'s record for the lamps, which
+    /// the shadow denoiser filters as a field of its own beside the sky's. The held lamp's bit is
+    /// Heitz et al. 2018's ratio estimator over the reservoir's draw (`gather`).
+    const uint CHANNEL_LAMPED = 19;
+
+    /// `CHANNEL_PENUMBRA` for the lamps' bit.
+    const uint CHANNEL_LAMP_PENUMBRA = 20;
+
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 19;
+    const uint CHANNEL_COUNT = 21;
 
     /// How far apart, in traced pixels, an image and the motion vector its pixel is handed may move
     /// in one frame before the upscaler is told to trust none of that image's history: half a
