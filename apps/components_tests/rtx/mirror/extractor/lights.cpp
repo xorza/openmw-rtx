@@ -434,8 +434,9 @@ namespace Rtx::Testing
             const osg::ref_ptr<osg::Group> stamped = new osg::Group;
             SceneUtil::StableIdentity::stamp(*stamped, 1);
             SceneUtil::LampBody::mark(*stamped, *again);
-            ASSERT_NE(SceneUtil::StableIdentity::find(*stamped), nullptr);
-            EXPECT_EQ(SceneUtil::StableIdentity::find(*stamped)->getId(), 1u);
+            const SceneUtil::StableIdentity* const identity = SceneUtil::StableIdentity::find(*stamped);
+            ASSERT_NE(identity, nullptr);
+            EXPECT_EQ(identity->getId(), 1u);
             EXPECT_EQ(SceneUtil::LampBody::find(*stamped)->getLight(), again.get());
 
             const osg::ref_ptr<osg::Group> tagged = new osg::Group;

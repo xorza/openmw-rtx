@@ -71,9 +71,10 @@ namespace Rtx
             ChainKeys keys(pass);
             const auto keyOf = [&](std::initializer_list<const osg::StateSet*> links) {
                 std::vector<Shading> chain;
+                const osg::StateSet* key = nullptr;
                 for (const osg::StateSet* link : links)
-                    chain.push_back(Shading::under(chain, *link, false, &keys));
-                return chain.back().materialKey();
+                    key = chain.emplace_back(Shading::under(chain, *link, false, &keys)).materialKey();
+                return key;
             };
 
             EXPECT_EQ(keyOf({ bare.get() }), bare.get()) << "nothing states anything";
