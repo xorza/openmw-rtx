@@ -1292,7 +1292,7 @@ namespace Rtx
             ASSERT_EQ(scene.meshes().getIndices().size(), 15u);
             ASSERT_EQ(scene.meshes().getRows()[last].mVertices.mOffset, 7u);
 
-            const std::uint64_t was = scene.getStructureRevision();
+            const StructureRevision was = scene.getStructureRevision();
             Testing::letGoMesh(scene, middle);
 
             // Nothing moved, nothing shrank, and every index still means what it meant.
@@ -1326,7 +1326,8 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getRows()[moved].mVertices.mOffset, 4u);
             EXPECT_EQ(scene.meshes().getRows()[moved].mVertices.mCount, 3u);
             EXPECT_EQ(scene.meshes().getPositions().size(), 11u) << "a reused slot appended";
-            EXPECT_GT(scene.getStructureRevision(), was) << "a slot taken over holds different geometry";
+            EXPECT_GT(scene.getStructureRevision().mMeshes, was.mMeshes)
+                << "a slot taken over holds different geometry";
 
             // And the last mesh is still where it was, which a compaction is what would break.
             EXPECT_EQ(scene.meshes().getMeshPositions(last)[0].z(), 2.0f);
@@ -1356,12 +1357,12 @@ namespace Rtx
             const Index slot = Testing::addQuadMesh(scene);
 
             const std::uint64_t meshes = scene.meshes().getRevision();
-            const std::uint64_t structure = scene.getStructureRevision();
+            const StructureRevision structure = scene.getStructureRevision();
 
             // A texture is an upload, not a structure to build.
             scene.textures().add(VFS::Path::NormalizedView("textures/tx_stone.dds"));
             EXPECT_EQ(scene.meshes().getRevision(), meshes) << "a texture asked for the structures to be built again";
-            EXPECT_GT(scene.getStructureRevision(), structure);
+            EXPECT_GT(scene.getStructureRevision().mTextures, structure.mTextures);
 
             // The slot comes back and is taken over. The table is the same size it was, and what is
             // in it is not.
@@ -1662,7 +1663,7 @@ namespace Rtx
             const Index mesh = Testing::addQuadMesh(scene);
             const Index first = scene.addMaterial(Material{});
 
-            const std::uint64_t structure = scene.getStructureRevision();
+            const StructureRevision structure = scene.getStructureRevision();
             scene.clearArrivals();
 
             // A second material, which is what a state set with a new address comes to.
@@ -1684,7 +1685,7 @@ namespace Rtx
             // **And a mesh going is not the other answer either.** A slot freed in place moves
             // nothing built from the table, so the frame after a cell leaves costs the top level and
             // nothing else.
-            const std::uint64_t before = scene.getStructureRevision();
+            const StructureRevision before = scene.getStructureRevision();
             Testing::letGoMesh(scene, mesh);
             EXPECT_EQ(scene.getStructureRevision(), before) << "a cell leaving asked for a rebuild";
 
@@ -1821,7 +1822,7 @@ namespace Rtx
             MeshHold meshHold = scene.holdMesh(mesh);
             MaterialHold materialHold = scene.holdMaterial(material);
 
-            const std::uint64_t was = scene.getStructureRevision();
+            const StructureRevision was = scene.getStructureRevision();
             scene.clearArrivals();
 
             scene.drop(scene.holdMesh(mesh));

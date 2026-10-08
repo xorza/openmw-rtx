@@ -139,7 +139,7 @@ namespace Rtx::Testing
         struct Built
         {
             std::uint64_t mIdentity = 0;
-            std::uint64_t mRevision = 0;
+            Rtx::StructureRevision mRevision;
         };
 
         Built& heldAt(Rtx::SceneSlot slot) { return slot.isWorld() ? mBuilt : mViewBuilt[slot.getViewIndex()]; }

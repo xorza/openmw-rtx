@@ -28,6 +28,7 @@
 #include "ripple.hpp"
 #include "rowhold.hpp"
 #include "sprite.hpp"
+#include "structurerevision.hpp"
 #include "surface.hpp"
 #include "texturetable.hpp"
 
@@ -214,9 +215,14 @@ namespace Rtx
             mRipples.push_back(impulse);
         }
 
-        /// What a backend compares against to know whether the geometry or the textures it built
-        /// from are still the ones the scene holds.
-        std::uint64_t getStructureRevision() const { return mMeshes.getRevision() + mTextures.getRevision(); }
+        /// What a backend compares against to know whether the geometry, the textures and the
+        /// material runs it built from are still the ones the scene holds.
+        StructureRevision getStructureRevision() const
+        {
+            return StructureRevision{ .mMeshes = mMeshes.getRevision(),
+                .mTextures = mTextures.getRevision(),
+                .mMaterialRuns = mMaterials.getRunRevision() };
+        }
 
         /// The pose a deforming mesh was last given, in words. Crosses two tables: the mesh row
         /// says where its run sits, and the deformers hold it.

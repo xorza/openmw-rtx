@@ -13,6 +13,7 @@
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/structurerevision.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -188,7 +189,7 @@ namespace Rtx
 
         /// The revision of the whole structure this was built from: what `describe` answers and
         /// an uploader appends against.
-        std::uint64_t mBuiltStructure = 0;
+        StructureRevision mBuiltStructure;
 
         /// Which description that was — `SceneDesc::getIdentity` — as `SceneHeld::mIdentity`
         /// reports it, and what every placement and extension is asserted against.
