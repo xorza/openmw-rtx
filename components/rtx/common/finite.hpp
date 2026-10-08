@@ -3,11 +3,18 @@
 #include <cmath>
 
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
 namespace Rtx
 {
+    /// Whether every component of `value` is a finite number.
+    inline bool isFinite(const osg::Vec2f& value)
+    {
+        return std::isfinite(value.x()) && std::isfinite(value.y());
+    }
+
     /// Whether every component of `value` is a finite number. What content places, turns or tints
     /// is data, and one that is not finite is left out where it is read rather than carried into a
     /// bound, a grid or a shader.

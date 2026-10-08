@@ -1,4 +1,6 @@
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -19,6 +21,8 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
@@ -146,6 +150,35 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*rigged.mSkeleton, 0, 2);
             EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 99.0f));
+
+            // **A bone that is not a finite number keeps the last pose**, refused once under the
+            // drawable's name: carried, it is a store that is not finite in the skin and a refit
+            // that changes which triangles are active.
+            const std::uint32_t refused = mScene.refusals().count(Rtx::Refused::Mesh);
+            rigged.mBone->setMatrix(osg::Matrix::translate(0.0, std::numeric_limits<double>::quiet_NaN(), 0.0));
+            rigged.update(5);
+            for (std::size_t frame = 3; frame < 5; ++frame)
+            {
+                mScene.clearPlacement();
+                walk(*rigged.mSkeleton, 0, frame);
+                EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 99.0f)) << "held at the last pose";
+                EXPECT_TRUE(mScene.meshes().getDeformed().empty()) << "a held pose named a structure to refit";
+                EXPECT_EQ(mScene.refusals().count(Rtx::Refused::Mesh), refused + 1) << "once, however often";
+            }
+
+            // **One never posed is held at the zeroed rows it stood on**, which stand every vertex at
+            // the skin's origin, where the rasterizer puts one no bone moves; its box is that point.
+            RiggedQuad unposed;
+            unposed.mBone->setMatrix(osg::Matrix::translate(std::numeric_limits<double>::infinity(), 0.0, 0.0));
+            unposed.update(1);
+            mScene.clearPlacement();
+            walk(*unposed.mSkeleton, 0, 5);
+            ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
+            for (const osg::Vec4f& row : Rtx::boneAt(mScene.getMeshPose(1), 0).mRows)
+                EXPECT_EQ(row, osg::Vec4f());
+            EXPECT_TRUE(mScene.meshes().getRows()[1].mPosed);
+            EXPECT_EQ(mScene.meshes().getRows()[1].mBounds, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f()));
+            EXPECT_EQ(mScene.meshes().getDeformed().size(), 1u) << "a first pose reaches the device whatever it is";
         }
 
         /// A drawable whose geometry is not the geometry the mirror met under that address is
@@ -446,6 +479,33 @@ namespace Rtx::Testing
             EXPECT_EQ(Rtx::weightAt(mScene.getMeshPose(sFace), 1), 3.0f) << "at the same weight";
             EXPECT_EQ(mScene.meshes().getMeshPositions(sFace)[2], osg::Vec3f(1.0f, 1.0f, 0.0f)) << "off the same base";
             EXPECT_TRUE(mScene.meshes().getDeformed().empty()) << "a pose that stood still named a structure to refit";
+
+            // **A weight that is not a finite number keeps the last pose**, as a bone that is not one
+            // does.
+            const std::uint32_t refused = mScene.refusals().count(Rtx::Refused::Mesh);
+            morph->getMorphTarget(1).setWeight(std::numeric_limits<float>::quiet_NaN());
+            morph->dirty();
+            mScene.clearPlacement();
+            walk(*root);
+            EXPECT_EQ(Rtx::weightAt(mScene.getMeshPose(sFace), 1), 3.0f) << "held at the last weight";
+            EXPECT_TRUE(mScene.meshes().getDeformed().empty());
+            EXPECT_EQ(mScene.refusals().count(Rtx::Refused::Mesh), refused + 1);
+
+            // **And a target whose offsets are not finite refuses the face**, as a vertex that is not
+            // one does: the morph would carry it into every pose.
+            osg::ref_ptr<SceneUtil::MorphGeometry> torn = new SceneUtil::MorphGeometry;
+            torn->setSourceGeometry(makeQuad());
+            torn->addMorphTarget(makePositions({ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f),
+                osg::Vec3f(1.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) }));
+            torn->addMorphTarget(makePositions({ osg::Vec3f(), osg::Vec3f(),
+                osg::Vec3f(0.0f, 0.0f, std::numeric_limits<float>::infinity()), osg::Vec3f() }));
+            osg::ref_ptr<osg::Group> holder = new osg::Group;
+            holder->addChild(torn);
+            mScene.clearPlacement();
+            const ExtractionStats tornWalk = walk(*holder);
+            EXPECT_EQ(tornWalk.mMeshesAdded, 0u);
+            EXPECT_EQ(mScene.meshes().getRows().size(), 2u) << "a face of offsets that are not finite was mirrored";
+            EXPECT_EQ(mScene.refusals().count(Rtx::Refused::Mesh), refused + 2);
         }
 
         /// **A skin two drawables share is one deformer**, held twice. `NpcAnimation` clones a body
