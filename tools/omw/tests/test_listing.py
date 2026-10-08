@@ -1,6 +1,6 @@
 import unittest
 
-from omw.listing import qt_sources, unlisted
+from omw.listing import qt_guarded_sources, qt_sources, unlisted
 
 
 class UnlistedTest(unittest.TestCase):
@@ -51,6 +51,15 @@ class QtSourcesTest(unittest.TestCase):
                                             "components/config/launchersettings.cpp",
                                             "components/misc/helpviewer.cpp", "components/misc/scalableicon.cpp"})
         self.assertEqual(qt_sources("add_component_dir (misc strings)\n"), set())
+
+    def test_a_source_a_list_adds_only_with_qt_is_qts(self):
+        text = ("target_sources(components-tests PRIVATE always.cpp)\n"
+                "if (USE_QT)\n    target_sources(components-tests PRIVATE config/testlaunchersettings.cpp extra.hpp)\n"
+                "endif()\n")
+        self.assertEqual(qt_guarded_sources(text, "apps/components_tests"),
+                         {"apps/components_tests/config/testlaunchersettings.cpp"})
+        self.assertEqual(qt_guarded_sources("if(USE_QT)\n    set_property(TARGET a PROPERTY AUTOMOC ON)\nendif(USE_QT)\n",
+                                            "apps/launcher"), set())
 
 if __name__ == "__main__":
     unittest.main()
