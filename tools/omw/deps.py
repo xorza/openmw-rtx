@@ -194,31 +194,69 @@ def _vulkan_sdk_linux(into: Path) -> None:
     tarball.unlink()
 
 
+def _quoted(text: str | Path) -> str:
+    """`text` as a PowerShell string that expands nothing, whatever a path holds."""
+    return "'" + str(text).replace("'", "''") + "'"
+
+
+def _run_installer(program: Path, arguments: list[str], log: Path, what: str) -> None:
+    """**A Qt Installer Framework program run unattended**, through PowerShell's wait, since it is a
+    windowed program that answers nothing on a console of its own: its `--verbose` lines go to `log`,
+    and an exit other than nought is refused with the errors it logged."""
+    listed = ", ".join(_quoted(argument) for argument in ["--verbose", *arguments])
+    started = subprocess.run(["powershell", "-NoProfile", "-Command",
+                              f"$p = Start-Process -Wait -PassThru -NoNewWindow -FilePath {_quoted(program)} "
+                              f"-RedirectStandardOutput {_quoted(log)} -ArgumentList @({listed}); exit $p.ExitCode"])
+    if started.returncode != 0:
+        logged = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
+        errors = [line.split("] ", 1)[-1] for line in logged.splitlines() if "Error" in line]
+        raise Refusal(f"the Vulkan SDK's {what} stopped with exit code {started.returncode}"
+                      + "".join(f"\n  {error}" for error in errors))
+
+
 def _vulkan_sdk_windows(into: Path) -> None:
     """**Out of a 288 MB installer that has no tarball beside it**: run unattended into a directory of
-    its own, through PowerShell's wait, since the installer is a windowed program; then the headers
-    and `SDK_TOOLS` are taken out of it and the rest left behind. No import library: no program
-    links the loader, which volk loads at run time. The loader the tests load comes from the runtime
-    components, because the installer leaves it to the driver and a runner has no driver."""
+    its own, then the headers and `SDK_TOOLS` are taken out of it and the rest left behind. No import
+    library: no program links the loader, which volk loads at run time. The loader the tests load
+    comes from the runtime components, because the installer leaves it to the driver and a runner has
+    no driver.
+
+    **`copy_only=1` installs the files alone**, LunarG's switch for an unattended install that
+    changes nothing of the system: without it, the core component asks for administrator rights,
+    which a desk's shell does not have. The installer still registers what it put down as an
+    installed SDK, so its maintenance tool purges it before the directory goes, or every bootstrap
+    left an entry for a folder that no longer exists."""
     installer = DEPS / Path(pins.VULKAN_SDK_WINDOWS.url).name
     fetch.download_pin(pins.VULKAN_SDK_WINDOWS, installer)
-    # What the installer put down is left behind, read-only files and all.
-    with tempfile.TemporaryDirectory(dir=DEPS, ignore_cleanup_errors=True) as scratch:
-        full = Path(scratch) / "installed"
-        arguments = ", ".join(f"'{a}'" for a in ("--root", str(full), "--accept-licenses", "--default-answer",
-                                                 "--confirm-command", "install"))
-        run(["powershell", "-NoProfile", "-Command",
-             f"Start-Process -Wait -FilePath '{installer}' -ArgumentList @({arguments})"])
-        tools = tuple(f"{tool}.exe" for tool in SDK_TOOLS)
-        for needed in ["Include/vulkan/vulkan.h", "Include/spirv/unified1/spirv.hpp",
-                       *(f"Bin/{tool}" for tool in tools)]:
-            if not (full / needed).is_file():
-                raise Refusal(f"the Vulkan SDK installer left no {needed}")
-        (into / "Bin").mkdir(parents=True)
-        shutil.copytree(full / "Include", into / "Include")
-        for tool in tools:
-            shutil.copy2(full / "Bin" / tool, into / "Bin")
-    installer.unlink()
+    try:
+        # What the purge leaves is left behind, read-only files and all.
+        with tempfile.TemporaryDirectory(dir=DEPS, ignore_cleanup_errors=True) as scratch:
+            full = Path(scratch) / "installed"
+            _run_installer(installer, ["--root", str(full), "--accept-licenses", "--default-answer",
+                                      "--confirm-command", "install", "copy_only=1"],
+                          Path(scratch) / "install.log", "installer")
+            try:
+                tools = tuple(f"{tool}.exe" for tool in SDK_TOOLS)
+                for needed in ["Include/vulkan/vulkan.h", "Include/spirv/unified1/spirv.hpp",
+                               *(f"Bin/{tool}" for tool in tools)]:
+                    if not (full / needed).is_file():
+                        raise Refusal(f"the Vulkan SDK installer left no {needed}")
+                (into / "Bin").mkdir(parents=True)
+                shutil.copytree(full / "Include", into / "Include")
+                for tool in tools:
+                    shutil.copy2(full / "Bin" / tool, into / "Bin")
+            finally:
+                # A warning and not a refusal: what was copied is whole, and a refusal here would
+                # stand in for the reason the copy stopped, where it stopped.
+                try:
+                    _run_installer(full / "maintenancetool.exe",
+                                   ["--accept-licenses", "--default-answer", "--confirm-command", "purge"],
+                                   Path(scratch) / "purge.log", "maintenance tool")
+                except Refusal as unpurged:
+                    print(f"omw: warning: {unpurged}; Windows lists a Vulkan SDK at {full}, which is gone, "
+                          "until it is removed under Settings > Apps", file=sys.stderr)
+    finally:
+        installer.unlink(missing_ok=True)
 
     loader = DEPS / Path(pins.VULKAN_LOADER_WINDOWS.url).name
     fetch.download_pin(pins.VULKAN_LOADER_WINDOWS, loader)
