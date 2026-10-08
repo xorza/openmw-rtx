@@ -86,6 +86,12 @@ def run(command: list, **options) -> subprocess.CompletedProcess:
     return subprocess.run(resolved(command, options.get("env")), check=True, **options)
 
 
+def status(code: int) -> int:
+    """A child's `returncode` as the shell spells an exit status: a death by signal N is `128 + N`.
+    Python says `-N`, and an exit of `-N` wraps to `256 - N`, which put a SIGSEGV at 245 and not 139."""
+    return 128 - code if code < 0 else code
+
+
 def output(command: list, **options) -> str:
     return subprocess.run(resolved(command, options.get("env")), check=True, capture_output=True, encoding="utf-8",
                           errors="replace", **options).stdout

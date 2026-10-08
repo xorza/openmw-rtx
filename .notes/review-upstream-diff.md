@@ -54,11 +54,6 @@ What is left:
 
 ### Harness, `./omw` and CI
 
-- [ ] **5.22 `./omw` exit statuses.**
-  `tools/omw/main.py:72,78`, `testing.py:45`, `game.py:268` return a negative `returncode`, so
-  SIGSEGV exits 245, not 139. `main.py:145-146`: `omw help` exits 2. Target: one `status(code)`
-  helper in `system.py`, and `help` returns 0. Update `test_main.ParseTest`.
-
 - [ ] **5.23 `omw profile --offcpu` does not own its children and drops perf's status.**
   `tools/omw/perf.py:84-88,242-252`. `omw profile | head` leaves the harness running, and a refused
   perf shows only the harness's 30 s fifo timeout. Target: `with Popen(...)` for both, a `finally`

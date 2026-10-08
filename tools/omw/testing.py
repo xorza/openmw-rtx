@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import FORK, ROOT, Refusal, read_text
+from omw.system import FORK, ROOT, Refusal, read_text, status
 
 
 def test(build: Build, args: list[str]) -> int:
@@ -22,8 +22,8 @@ def test(build: Build, args: list[str]) -> int:
     build.build(targets)
     shutil.rmtree(times_folder(build), ignore_errors=True)
     # From the source tree, where CTest finds the presets.
-    return build.run_here(["ctest", "--preset", build.preset, *ctest_arguments(args)],
-                          cwd=ROOT).returncode
+    return status(build.run_here(["ctest", "--preset", build.preset, *ctest_arguments(args)],
+                          cwd=ROOT).returncode)
 
 
 def ctest_arguments(args: list[str]) -> list[str]:
@@ -42,7 +42,7 @@ def _one(build: Build, binary: str, args: list[str]) -> int:
     if binary not in build.test_targets():
         raise Refusal(f"the {build.flavour} build has no test binary called {binary}")
     build.build([binary])
-    return build.run_here([build.binary(binary), *args]).returncode
+    return status(build.run_here([build.binary(binary), *args]).returncode)
 
 
 # Two seconds, in the debug build: the fork's slowest test took 0.9 s alone and 1.1 s beside the other

@@ -77,9 +77,9 @@ class RecordTest(unittest.TestCase):
         self.assertEqual(read_record({"sides": [[]]}), ({},))
 
     def test_the_record_is_where_the_harness_writes_it(self):
-        text = read_text(ROOT / "apps" / "rtxtool" / "compare.hpp")
+        text = read_text(ROOT / "apps" / "rtxtool" / "noise.hpp")
         named = re.search(r'sNoiseRecord = "([^"]+)"', text)
-        self.assertIsNotNone(named, "compare.hpp no longer names the record where this looks for it")
+        self.assertIsNotNone(named, "noise.hpp no longer names the record where this looks for it")
         self.assertEqual(named.group(1), RECORD)
 
 
