@@ -264,6 +264,33 @@ namespace Rtx
             EXPECT_TRUE(levels.empty()) << "a refusal adds no level";
         }
 
+        /// **A widened copy whose levels pass a 32-bit offset is refused**, before a byte of it is
+        /// laid: an eight-bit image of 32768 on a side with its second level is a source of 2³⁰ +
+        /// 2²⁸ bytes, well within the bound on what is read, and a copy of four bytes a texel, 2³² +
+        /// 2³⁰, whose second level would have begun at a truncated nought. Never read: the pointer
+        /// stands for a buffer the description refuses before it reads.
+        TEST(RtxSceneTexturesTest, aWidenedCopyPastWhatALevelsOffsetReachesIsRefused)
+        {
+            constexpr int side = 32768;
+            unsigned char unread = 0;
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/tx_vast.dds");
+            image->setImage(
+                side, side, 1, GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, &unread, osg::Image::NO_DELETE);
+            image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(side) * side });
+
+            std::vector<Rtx::MipLevel> levels;
+            std::vector<std::byte> texels;
+            const Misc::Result<Rtx::TextureData, std::string> vast
+                = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels);
+            ASSERT_FALSE(vast.isOk()) << "a copy past a level's offset was described";
+            EXPECT_EQ(vast.error(),
+                "its levels laid out are " + std::to_string((std::size_t{ 1 } << 32) + (std::size_t{ 1 } << 30))
+                    + " bytes, past what a level's 32-bit offset reaches");
+            EXPECT_TRUE(levels.empty()) << "a refusal adds no level";
+            EXPECT_TRUE(texels.empty()) << "a refused copy was laid";
+        }
+
         /// A volume is described as its first slice at every level, which is what the rasterizer
         /// draws of a file bound as a flat texture.
         ///
