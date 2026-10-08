@@ -244,8 +244,9 @@ the core is a bug whether or not a second backend ever arrives.
   time, and the full text reports beside it (by library, by source line, the callers), which are
   what to read. `--offcpu` says where it waits. For the GPU,
   `./omw release exec nsys profile ./openmw-rtxtool bench ...`; `ncu` is not installed.
-- `./omw crash <dump>` reads a player's crash dump against a release's `-symbols.zip`, or the
-  newest in `dist/`. `./omw game` is the game on the newest quicksave. A fresh box takes
+- `./omw crash <dump>` reads a player's crash dump or package against the symbols of the build
+  that wrote it: a release's `-symbols.zip`, the build folder, or the newest in `dist/` that holds
+  them. `./omw game` is the game on the newest quicksave. A fresh box takes
   `./omw bootstrap` for the pinned Vulkan SDK, and `./omw setup <morrowind dir>`.
 
 ## Conventions

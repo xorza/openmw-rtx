@@ -30,7 +30,7 @@ namespace
     {
         Crash::CrashFacts facts;
         facts.mException = "EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000";
-        facts.mThread = 12632;
+        facts.mNotes.mThread = 12632;
         facts.mWhere = "VCRUNTIME140.dll+0x1dd06";
         facts.mStack = { "openmw.exe+0x112a9a7", "openmw.exe+0x112b1f7" };
         facts.mNotes.mCount = 2;
@@ -68,14 +68,14 @@ namespace
 
     /// A reason given by the code that asked leads, and the exception it was raised as follows
     /// it: `std::terminate`'s abort names nothing of its cause. A report the game asked for marks
-    /// the thread that asked. A hang marks none, since the thread that took the request is any.
-    /// With nothing known, each says so rather than leaving a line out.
+    /// the thread that asked, and a hang the thread that draws. With nothing known, each says so
+    /// rather than leaving a line out.
     TEST(CrashSummaryTest, eachKindHeadsItsLinesAndMarksItsThread)
     {
         Crash::CrashFacts terminate;
         std::strcpy(terminate.mNotes.mReason, "std::terminate on an uncaught exception: bad");
         terminate.mException = "SIGABRT";
-        terminate.mThread = 7;
+        terminate.mNotes.mThread = 7;
         std::vector<std::string> lines;
         Crash::summarise(terminate, lines);
         EXPECT_EQ(lines[0], "Crash: std::terminate on an uncaught exception: bad in thread 7");
@@ -88,7 +88,7 @@ namespace
         Crash::CrashFacts report;
         report.mNotes.mKind = Crash::ReportKind::Report;
         std::strcpy(report.mNotes.mReason, "a contract broken");
-        report.mThread = 7;
+        report.mNotes.mThread = 7;
         report.mNotes.mCount = 1;
         report.mNotes.mNotes[0] = noteOf(7, "placing");
         lines.clear();
@@ -100,14 +100,16 @@ namespace
         Crash::CrashFacts hang;
         hang.mNotes.mKind = Crash::ReportKind::Hang;
         hang.mStalledFor = 20;
-        hang.mThread = 7;
-        hang.mNotes.mCount = 1;
+        hang.mNotes.mThread = 7;
+        hang.mNotes.mCount = 2;
         hang.mNotes.mNotes[0] = noteOf(7, "compiling");
+        hang.mNotes.mNotes[1] = noteOf(9, "walking");
         lines.clear();
         Crash::summarise(hang, lines);
         EXPECT_EQ(lines[0], "Hang: no frame for 20 seconds in thread 7");
         EXPECT_EQ(Crash::title(hang), "Hang: no frame for 20 seconds");
-        EXPECT_EQ(lines[1], "Hang: note of thread 7: compiling");
+        EXPECT_EQ(lines[1], "Hang: note of thread 7, which draws: compiling");
+        EXPECT_EQ(lines[2], "Hang: note of thread 9: walking");
 
         Crash::CrashFacts nothing;
         lines.clear();

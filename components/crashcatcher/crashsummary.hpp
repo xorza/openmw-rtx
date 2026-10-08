@@ -30,9 +30,6 @@ namespace Crash
         /// for, which faulted nothing.
         std::string mException;
 
-        /// The system's id of the thread that faulted or asked. Nought where none is known.
-        std::uint64_t mThread = 0;
-
         /// How long the game drew no frame, where the monitor asked for a hang report.
         std::uint32_t mStalledFor = 0;
 

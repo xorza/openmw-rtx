@@ -30,9 +30,8 @@ namespace Crash
             fatal("a report kind the summary does not name");
         }
 
-        /// What the thread that raised the report did, as its note says: the one that faulted, or
-        /// the one that asked. A hang's is whichever thread took the monitor's request, which says
-        /// nothing, so it is not marked.
+        /// What the thread the report is about did, as its note says: the one that faulted, the one
+        /// that asked, or the one that draws, which a hang stopped.
         std::string_view markOf(ReportKind kind)
         {
             switch (kind)
@@ -40,7 +39,7 @@ namespace Crash
                 case ReportKind::Crash:
                     return ", which crashed";
                 case ReportKind::Hang:
-                    return "";
+                    return ", which draws";
                 case ReportKind::Report:
                     return ", which asked";
             }
@@ -115,8 +114,8 @@ namespace Crash
         const std::string reason = reasonOf(facts);
 
         std::string headline = titleOf(facts, kind, reason);
-        if (facts.mThread != 0)
-            headline += " in thread " + std::to_string(facts.mThread);
+        if (notes.mThread != 0)
+            headline += " in thread " + std::to_string(notes.mThread);
         lines.push_back(std::move(headline));
 
         if (!reason.empty() && !facts.mException.empty())
@@ -137,7 +136,7 @@ namespace Crash
         {
             const NoteCopy& note = notes.mNotes[i];
             lines.push_back(kind + "note of thread " + std::to_string(note.mThread)
-                + std::string(note.mThread == facts.mThread ? markOf(notes.mKind) : "") + ": " + note.mText
+                + std::string(note.mThread == notes.mThread ? markOf(notes.mKind) : "") + ": " + note.mText
                 + (note.mWhole ? "" : " (half written)"));
         }
         if (notes.mCount == 0)
