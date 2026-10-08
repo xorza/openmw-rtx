@@ -66,9 +66,9 @@ class RepeatTest(unittest.TestCase):
                 self.addCleanup(shutil.rmtree, parent, ignore_errors=True)
                 out = parent / "run"
 
-                def make(prefix: str) -> str:
-                    out.mkdir()
-                    return str(out)
+                def make(prefix: str, made: Path = out) -> str:
+                    made.mkdir()
+                    return str(made)
 
                 with (mock.patch("omw.system.tempfile.mkdtemp", side_effect=make) as made,
                       self.assertRaises(raised)):
