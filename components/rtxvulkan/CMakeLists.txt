@@ -176,6 +176,7 @@ set(RTX_SHADER_LIB
     shaders/lib/bindings.glsl
     shaders/lib/bloom.glsl
     shaders/lib/bluenoise.glsl
+    shaders/lib/census.glsl
     shaders/lib/compose.glsl
     shaders/lib/counts.glsl
     shaders/lib/finite.glsl
@@ -186,6 +187,8 @@ set(RTX_SHADER_LIB
     shaders/lib/geometry.glsl
     shaders/lib/gloss.glsl
     shaders/lib/ground.glsl
+    shaders/lib/hash.glsl
+    shaders/lib/historyclamp.glsl
     shaders/lib/hitrecord.glsl
     shaders/lib/lights.glsl
     shaders/lib/medium.glsl
@@ -360,10 +363,11 @@ set(RTX_VULKAN_FILES
     shaders/shared/gui.h
     shaders/shared/halfstore.h
     shaders/shared/halving.h
+    shaders/shared/historyclamp.h
     shaders/shared/line.h
+    shaders/shared/medium.h
     shaders/shared/mipchain.h
     shaders/shared/normalspread.h
-    shaders/shared/historyclamp.h
     shaders/shared/pane.h
     shaders/shared/pinning.h
     shaders/shared/probe.h

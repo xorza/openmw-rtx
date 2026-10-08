@@ -52,13 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.6 Nothing keeps the CMake shader lists complete.**
-  `components/rtxvulkan/CMakeLists.txt`: `RTX_SHADER_LIB` lacks `lib/census.glsl`, `lib/hash.glsl`,
-  `lib/historyclamp.glsl`, and the header list lacks `shared/medium.h`. An entry shader left out of
-  `RTX_SHADERS` fails only at runtime. Target: a `RtxSourceTreeTest` rule that every tracked file
-  under `components/rtxvulkan/shaders/` is named in the CMake file, then add the four names.
-  Verify: `./omw test components-tests --gtest_filter='RtxSourceTreeTest.*'`.
-
 - [ ] **3.7 Small shader header gaps.**
   `shaders/shared/historyclamp.h:37-42` has no size `static_assert`, unlike every other shared
   struct. `shaders/upscale/fsrcallbacks.glsl:1` is the one header without an include guard.
