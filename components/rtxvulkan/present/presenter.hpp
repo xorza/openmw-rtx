@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -8,6 +9,7 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
+#include "presentfence.hpp"
 #include "surface.hpp"
 #include "swapchain.hpp"
 
@@ -122,12 +124,8 @@ namespace Rtx
             std::uint64_t mBlitOn = 0;
 
             /// What the presentation engine signals when it has finished with the image, where the
-            /// device offers `VK_KHR_swapchain_maintenance1` — the only thing that says a present
-            /// is over, since a queue-idle proves the queue is empty rather than that the
-            /// compositor has let go, and the one thing here the timeline cannot say. A present
-            /// rejected with `VK_ERROR_OUT_OF_DATE_KHR` still signals its fence, so waiting on it is
-            /// safe. Null where the device offers none.
-            Fence mPresented;
+            /// device offers one.
+            std::optional<PresentFence> mPresented;
 
             /// Out of the device's pool, which allows a buffer to be reset by beginning it again.
             VkCommandBuffer mCommands = VK_NULL_HANDLE;

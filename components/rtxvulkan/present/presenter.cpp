@@ -71,9 +71,9 @@ namespace Rtx
         // Waited before the semaphores they guard go. A present holds its wait semaphore until
         // the presentation engine is done, and only these say when that is: the device-idle the
         // caller owes proves the queue is empty and nothing more.
-        if (mDevice.hasPresentFences())
-            for (const SwapImage& image : mImages)
-                awaitVk(mDevice, image.mPresented.get(), "the presentation engine letting go of an image");
+        for (SwapImage& image : mImages)
+            if (image.mPresented.has_value())
+                image.mPresented->settle(mDevice, "the presentation engine letting go of an image");
 
         // Given back to the pool, which is what lets the rebuild take a fresh set: one kept here
         // per resize or vsync change would be a few dozen sets over a window's life.
@@ -110,7 +110,7 @@ namespace Rtx
             image.mRendered = makeSemaphore(mDevice);
             image.mBlitOn = 0;
             if (mDevice.hasPresentFences())
-                image.mPresented = makeSignalledFence(mDevice);
+                image.mPresented.emplace(mDevice);
             image.mCommands = commands[index];
         }
     }
@@ -191,12 +191,8 @@ namespace Rtx
         // And the present itself, which is a different moment: the blit's value says the queue has
         // run the copy, and this says the compositor has let go of what it copied into. Without it
         // the semaphore below is signalled again while a present still waits on it.
-        if (mDevice.hasPresentFences())
-        {
-            const VkFence presented = image.mPresented.get();
-            awaitVk(mDevice, presented, "the presentation engine letting go of this image");
-            checkVk(vkResetFences(mDevice.getHandle(), 1, &presented), "vkResetFences");
-        }
+        if (image.mPresented.has_value())
+            image.mPresented->settle(mDevice, "the presentation engine letting go of this image");
 
         const VkCommandBuffer commands = image.mCommands;
         mDevice.getPool().begin(commands);
@@ -278,7 +274,8 @@ namespace Rtx
         acquisition.mBlit = blitted;
         image.mBlitOn = blitted;
 
-        if (!mSwapchain.present(image.mRendered.get(), index, image.mPresented.get()))
+        if (!mSwapchain.present(
+                image.mRendered.get(), index, image.mPresented.has_value() ? &*image.mPresented : nullptr))
             mStale = true;
     }
 }

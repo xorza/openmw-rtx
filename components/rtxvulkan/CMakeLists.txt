@@ -316,6 +316,8 @@ set(RTX_VULKAN_FILES
     pipeline/shadercode.hpp
     pipeline/tracepipeline.cpp
     pipeline/tracepipeline.hpp
+    present/presentfence.cpp
+    present/presentfence.hpp
     present/presenter.cpp
     present/presenter.hpp
     present/presenttarget.cpp

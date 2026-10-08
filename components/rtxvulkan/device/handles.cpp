@@ -39,16 +39,6 @@ namespace Rtx
         return handle;
     }
 
-    Fence makeSignalledFence(const Device& device)
-    {
-        const VkFenceCreateInfo create{
-            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
-        };
-        return Fence::make(device, vkCreateFence, create, "vkCreateFence");
-    }
-
     namespace
     {
         /// `bindings`, and the census after them where `counted`: past every binding a pass numbers.

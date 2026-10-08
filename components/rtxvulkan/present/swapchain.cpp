@@ -13,6 +13,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
+#include "presentfence.hpp"
 #include "surface.hpp"
 
 namespace Rtx
@@ -230,20 +231,20 @@ namespace Rtx
         return true;
     }
 
-    bool Swapchain::present(VkSemaphore finished, std::uint32_t index, VkFence presented)
+    bool Swapchain::present(VkSemaphore finished, std::uint32_t index, PresentFence* presented)
     {
-        // The fence only where the device signals one.
+        const VkFence fence = presented != nullptr ? presented->arm(mDevice) : VK_NULL_HANDLE;
         const VkSwapchainPresentFenceInfoKHR signalled{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_KHR,
             .pNext = nullptr,
             .swapchainCount = 1,
-            .pFences = &presented,
+            .pFences = &fence,
         };
 
         const VkSwapchainKHR presenting = mHandle.get();
         const VkPresentInfoKHR present{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .pNext = presented != VK_NULL_HANDLE ? &signalled : nullptr,
+            .pNext = presented != nullptr ? &signalled : nullptr,
             .waitSemaphoreCount = 1,
             .pWaitSemaphores = &finished,
             .swapchainCount = 1,
@@ -253,6 +254,8 @@ namespace Rtx
         };
 
         const VkResult result = vkQueuePresentKHR(mDevice.getQueue(), &present);
+        if (presented != nullptr)
+            presented->answered(result);
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             return false;
 

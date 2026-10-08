@@ -261,12 +261,16 @@ namespace Rtx
                 << "a water surface with no level stepped no field";
         }
 
+        /// A device alone, because a death test's child stands its fixture again, and a renderer's
+        /// is seconds of it.
+        using RtxGpuTimerReadTest = Testing::DeviceTest;
+
         /// **A zone no submit wrote ends the process and names the zone**, where the read waited
         /// for it without end. Its queries reset on the device and the zone recorded into a buffer
         /// that is ended and never submitted: what a zone in a discarded batch leaves.
-        TEST_F(RtxGpuTimerTest, aZoneNoSubmitWroteEndsTheProcessNamingIt)
+        TEST_F(RtxGpuTimerReadTest, aZoneNoSubmitWroteEndsTheProcessNamingIt)
         {
-            const Device& device = mRenderer.getDevice();
+            const Device& device = *mHarness.mDevice;
             if (device.getPhysicalDevice().getTimestampBits() == 0)
                 GTEST_SKIP() << "this device cannot write timestamps";
 
