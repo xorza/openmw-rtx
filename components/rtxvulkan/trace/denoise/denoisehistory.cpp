@@ -39,7 +39,12 @@ namespace Rtx
             /// One frame's geometry, which the next frame reads and no frame blends: a held surface.
             OneFrame,
 
-            /// Read by nothing after the frame that wrote it.
+            /// Read by nothing after the frame that wrote it, but a step of a history's loop: what a
+            /// history is blended into and filtered from before the next frame reads it back. Never
+            /// stored where a store may round toward nought, for the reason `FedBack` is not.
+            InLoop,
+
+            /// Read by nothing after the frame that wrote it, and by no history.
             Scratch,
         };
 
@@ -60,10 +65,13 @@ namespace Rtx
             Shaders::StorageFormat mFormat;
             Role mRole;
 
-            /// Two halves, the last frame's and this one's, by `TemporalTurns::Step`. One image where
-            /// nothing reads it on the next frame, or where the frame reads it before a later pass
-            /// writes it again — the shadow's history, which its temporal pass reads and its first
-            /// filter level writes.
+            /// Two halves, the last frame's and this one's, by `TemporalTurns::Step`, where one dispatch
+            /// reads last frame's at its neighbours' texels while it writes this frame's. One image
+            /// where nothing reads it on the next frame, or where the frame reads it before a later pass
+            /// writes it again: the shadow's history, which its temporal pass reads and its first
+            /// filter level writes; the bounce's and the fill's means, which the accumulator reads and
+            /// the cascade's first level writes; and each fast mean, which a filter reads and its clamp
+            /// writes.
             bool mPair;
 
             Grid mGrid;
@@ -76,35 +84,35 @@ namespace Rtx
         constexpr std::array<Declared, sDenoiseImages> sDeclared{ {
             { DenoiseImage::Surface, "accumulate-surface", ACCUMULATE_SURFACE, Role::OneFrame, true, Grid::Pixels,
                 sStorage, Temporal::Accumulate },
-            { DenoiseImage::Colour, "accumulate-colour", ACCUMULATE_COLOUR, Role::FedBack, true, Grid::Pixels,
+            { DenoiseImage::Colour, "accumulate-colour", ACCUMULATE_COLOUR, Role::FedBack, false, Grid::Pixels,
                 sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::Moments, "accumulate-moments", ACCUMULATE_MOMENTS, Role::FedBack, true, Grid::Pixels,
                 sReadAndWrite, Temporal::Accumulate },
-            { DenoiseImage::Blended, "accumulate-blended", ATROUS_CHANNEL, Role::Scratch, false, Grid::Pixels,
+            { DenoiseImage::Blended, "accumulate-blended", ATROUS_CHANNEL, Role::InLoop, false, Grid::Pixels,
                 sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::Narrow, "atrous-narrow", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels, sReadAndWrite,
                 Temporal::Accumulate },
             { DenoiseImage::NarrowOther, "atrous-narrow-other", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels,
                 sReadAndWrite, Temporal::Accumulate },
-            { DenoiseImage::Fill, "accumulate-fill", ACCUMULATE_COLOUR, Role::FedBack, true, Grid::Pixels,
+            { DenoiseImage::Fill, "accumulate-fill", ACCUMULATE_COLOUR, Role::FedBack, false, Grid::Pixels,
                 sReadAndWrite, Temporal::Accumulate },
-            { DenoiseImage::FillBlended, "accumulate-fill-blended", ATROUS_CHANNEL, Role::Scratch, false, Grid::Pixels,
+            { DenoiseImage::FillBlended, "accumulate-fill-blended", ATROUS_CHANNEL, Role::InLoop, false, Grid::Pixels,
                 sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::FillNarrow, "atrous-fill-narrow", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels,
                 sReadAndWrite, Temporal::Accumulate },
             { DenoiseImage::FillNarrowOther, "atrous-fill-narrow-other", ATROUS_NARROW, Role::Scratch, false,
                 Grid::Pixels, sReadAndWrite, Temporal::Accumulate },
-            { DenoiseImage::Fast, "accumulate-fast", ACCUMULATE_FAST, Role::FedBack, true, Grid::Pixels, sStorage,
+            { DenoiseImage::Fast, "accumulate-fast", ACCUMULATE_FAST, Role::FedBack, false, Grid::Pixels, sStorage,
                 Temporal::Accumulate },
-            { DenoiseImage::FastBlended, "accumulate-fast-blended", ACCUMULATE_FAST, Role::Scratch, false, Grid::Pixels,
+            { DenoiseImage::FastBlended, "accumulate-fast-blended", ACCUMULATE_FAST, Role::InLoop, false, Grid::Pixels,
                 sStorage, Temporal::Accumulate },
             { DenoiseImage::SkyShadowMoments, "sky-shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
                 sStorage, Temporal::SkyShadow },
             { DenoiseImage::SkyShadowHistory, "sky-shadow-history", SHADOW_REPROJECTED, Role::FedBack, false,
                 Grid::Pixels, sStorage, Temporal::SkyShadow },
-            { DenoiseImage::SkyShadowScratch, "sky-shadow-scratch", SHADOW_REPROJECTED, Role::Scratch, false,
+            { DenoiseImage::SkyShadowScratch, "sky-shadow-scratch", SHADOW_REPROJECTED, Role::InLoop, false,
                 Grid::Pixels, sStorage, Temporal::SkyShadow },
-            { DenoiseImage::SkyShadowVisibility, "sky-shadow-visibility", SHADOW_REPROJECTED, Role::Scratch, false,
+            { DenoiseImage::SkyShadowVisibility, "sky-shadow-visibility", SHADOW_VISIBILITY, Role::Scratch, false,
                 Grid::Pixels, sStorage, Temporal::SkyShadow },
             { DenoiseImage::SkyShadowTiles, "sky-shadow-tiles", SHADOW_TILES, Role::Scratch, false, Grid::ShadowTiles,
                 sStorage, Temporal::SkyShadow },
@@ -116,9 +124,9 @@ namespace Rtx
                 sStorage, Temporal::LampShadow },
             { DenoiseImage::LampShadowHistory, "lamp-shadow-history", SHADOW_REPROJECTED, Role::FedBack, false,
                 Grid::Pixels, sStorage, Temporal::LampShadow },
-            { DenoiseImage::LampShadowScratch, "lamp-shadow-scratch", SHADOW_REPROJECTED, Role::Scratch, false,
+            { DenoiseImage::LampShadowScratch, "lamp-shadow-scratch", SHADOW_REPROJECTED, Role::InLoop, false,
                 Grid::Pixels, sStorage, Temporal::LampShadow },
-            { DenoiseImage::LampShadowVisibility, "lamp-shadow-visibility", SHADOW_REPROJECTED, Role::Scratch, false,
+            { DenoiseImage::LampShadowVisibility, "lamp-shadow-visibility", SHADOW_VISIBILITY, Role::Scratch, false,
                 Grid::Pixels, sStorage, Temporal::LampShadow },
             { DenoiseImage::LampShadowTiles, "lamp-shadow-tiles", SHADOW_TILES, Role::Scratch, false, Grid::ShadowTiles,
                 sStorage, Temporal::LampShadow },
@@ -128,18 +136,18 @@ namespace Rtx
                 sStorage, Temporal::LampShadow },
             { DenoiseImage::SpecularMean, "specular-mean", SPECULAR_MEAN, Role::FedBack, true, Grid::Pixels, sStorage,
                 Temporal::Specular },
-            { DenoiseImage::SpecularFast, "specular-fast", HISTORY_CLAMP_FAST, Role::FedBack, true, Grid::Pixels,
+            { DenoiseImage::SpecularFast, "specular-fast", HISTORY_CLAMP_FAST, Role::FedBack, false, Grid::Pixels,
                 sStorage, Temporal::Specular },
-            { DenoiseImage::SpecularFastBlended, "specular-fast-blended", HISTORY_CLAMP_FAST, Role::Scratch, false,
+            { DenoiseImage::SpecularFastBlended, "specular-fast-blended", HISTORY_CLAMP_FAST, Role::InLoop, false,
                 Grid::Pixels, sStorage, Temporal::Specular },
             { DenoiseImage::PaneMean, "pane-mean", PANE_MEAN, Role::FedBack, true, Grid::Pixels, sStorage,
                 Temporal::Pane },
             { DenoiseImage::PaneHeld, "pane-held", ACCUMULATE_SURFACE, Role::OneFrame, true, Grid::Pixels, sStorage,
                 Temporal::Pane },
-            { DenoiseImage::PaneFast, "pane-fast", HISTORY_CLAMP_FAST, Role::FedBack, true, Grid::Pixels, sStorage,
+            { DenoiseImage::PaneFast, "pane-fast", HISTORY_CLAMP_FAST, Role::FedBack, false, Grid::Pixels, sStorage,
                 Temporal::Pane },
-            { DenoiseImage::PaneFastBlended, "pane-fast-blended", HISTORY_CLAMP_FAST, Role::Scratch, false,
-                Grid::Pixels, sStorage, Temporal::Pane },
+            { DenoiseImage::PaneFastBlended, "pane-fast-blended", HISTORY_CLAMP_FAST, Role::InLoop, false, Grid::Pixels,
+                sStorage, Temporal::Pane },
         } };
 
         constexpr bool inOrder()
@@ -150,17 +158,18 @@ namespace Rtx
             return true;
         }
 
-        constexpr bool fedBackKeepsItsPrecision()
+        constexpr bool loopsKeepTheirPrecision()
         {
             for (const Declared& declared : sDeclared)
-                if (declared.mRole == Role::FedBack && Shaders::mayRoundTowardNought(declared.mFormat))
+                if ((declared.mRole == Role::FedBack || declared.mRole == Role::InLoop)
+                    && Shaders::mayRoundTowardNought(declared.mFormat))
                     return false;
             return true;
         }
 
         static_assert(inOrder(), "the table is indexed by DenoiseImage");
-        static_assert(fedBackKeepsItsPrecision(),
-            "a history read back into its own blend is stored where a store may round toward nought");
+        static_assert(
+            loopsKeepTheirPrecision(), "a step of a history's loop is stored where a store may round toward nought");
 
         /// The rows each of the shadow's fields takes, indexed by `ShadowField`.
         struct ShadowRows
@@ -225,17 +234,20 @@ namespace Rtx
         }
     }
 
-    DenoiseHistory::DenoiseHistory(const Device& device, const MemoryUse use)
+    DenoiseHistory::DenoiseHistory(const Device& device, const MemoryUse use, const TracePast past)
         : mDevice(device)
         , mUse(use)
+        , mPast(past)
     {
     }
 
-    VkDeviceSize DenoiseHistory::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
+    VkDeviceSize DenoiseHistory::bytesAt(
+        const Device& device, const std::uint32_t width, const std::uint32_t height, const TracePast past)
     {
         VkDeviceSize bytes = 0;
         for (const Declared& declared : sDeclared)
-            bytes += Image::bytesFor(device, descriptionOf(declared, width, height)) * (declared.mPair ? 2 : 1);
+            bytes += Image::bytesFor(device, descriptionOf(declared, width, height))
+                * (declared.mPair && past == TracePast::Kept ? 2 : 1);
         return bytes;
     }
 
@@ -251,7 +263,7 @@ namespace Rtx
         {
             const ImageDescription description = descriptionOf(declared, width, height);
             std::array<Image, 2>& images = mImages[static_cast<std::size_t>(declared.mImage)];
-            if (!declared.mPair)
+            if (!declared.mPair || mPast == TracePast::Dropped)
             {
                 images[0] = Image(mUse, mDevice, description, declared.mName);
                 continue;
@@ -268,13 +280,13 @@ namespace Rtx
     const Image& DenoiseHistory::before(const DenoiseImage image, const TemporalTurns::Step& step) const
     {
         assert(declaredOf(image).mPair && "the last frame's half of what is not a pair");
-        return mImages[static_cast<std::size_t>(image)][step.mBefore];
+        return mImages[static_cast<std::size_t>(image)][mPast == TracePast::Kept ? step.mBefore : 0];
     }
 
     const Image& DenoiseHistory::now(const DenoiseImage image, const TemporalTurns::Step& step) const
     {
         assert(declaredOf(image).mPair && "this frame's half of what is not a pair");
-        return mImages[static_cast<std::size_t>(image)][step.mNow];
+        return mImages[static_cast<std::size_t>(image)][mPast == TracePast::Kept ? step.mNow : 0];
     }
 
     const Image& DenoiseHistory::only(const DenoiseImage image) const
@@ -286,7 +298,11 @@ namespace Rtx
     TemporalTurns::Step DenoiseHistory::turn(const TemporalFlags& runs)
     {
         assert(!mImages[static_cast<std::size_t>(DenoiseImage::Surface)][0].isEmpty() && "a turn before resize");
-        return mTurns.next(runs);
+        const TemporalTurns::Step step = mTurns.next(runs);
+        for (std::size_t at = 0; at < sTemporals; ++at)
+            assert((mPast == TracePast::Kept || !step.mRuns.mFlags[at] || step.mFresh.mFlags[at])
+                && "a history read where the past is dropped and a pair is one image");
+        return step;
     }
 
     void DenoiseHistory::discard(const VkCommandBuffer commands, const TemporalTurns::Step& step) const
@@ -303,13 +319,17 @@ namespace Rtx
                 continue;
 
             const bool fresh = step.mFresh[declared.mFilter];
-            if (declared.mPair)
+            if (declared.mPair && mPast == TracePast::Kept)
             {
                 now(declared.mImage, step).addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
                 if (fresh)
                     before(declared.mImage, step).addTransition(barriers, Use::sUndefined, Use::sComputeRead);
             }
-            else if (declared.mRole == Role::Scratch)
+            // One image both halves name: the frame writes it whole, and a pass binds it as last
+            // frame's too, which a fresh history never reads, but which a binding states.
+            else if (declared.mPair)
+                now(declared.mImage, step).addTransition(barriers, Use::sUndefined, Use::sComputeReadWrite);
+            else if (declared.mRole == Role::Scratch || declared.mRole == Role::InLoop)
                 only(declared.mImage).addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
             else if (fresh)
                 only(declared.mImage).addTransition(barriers, Use::sUndefined, Use::sComputeRead);
@@ -321,22 +341,19 @@ namespace Rtx
     DenoiseHistory::AccumulateImages DenoiseHistory::accumulate(const TemporalTurns::Step& step) const
     {
         return AccumulateImages{
-            .mColourBefore = before(DenoiseImage::Colour, step),
             .mSurfaceBefore = before(DenoiseImage::Surface, step),
             .mMomentsBefore = before(DenoiseImage::Moments, step),
-            .mColour = now(DenoiseImage::Colour, step),
+            .mColour = only(DenoiseImage::Colour),
             .mSurface = now(DenoiseImage::Surface, step),
             .mMoments = now(DenoiseImage::Moments, step),
             .mBlended = only(DenoiseImage::Blended),
             .mNarrow = only(DenoiseImage::Narrow),
             .mNarrowOther = only(DenoiseImage::NarrowOther),
-            .mFillBefore = before(DenoiseImage::Fill, step),
-            .mFill = now(DenoiseImage::Fill, step),
+            .mFill = only(DenoiseImage::Fill),
             .mFillBlended = only(DenoiseImage::FillBlended),
             .mFillNarrow = only(DenoiseImage::FillNarrow),
             .mFillNarrowOther = only(DenoiseImage::FillNarrowOther),
-            .mFastBefore = before(DenoiseImage::Fast, step),
-            .mFast = now(DenoiseImage::Fast, step),
+            .mFast = only(DenoiseImage::Fast),
             .mFastBlended = only(DenoiseImage::FastBlended),
             .mFresh = step.mFresh[Temporal::Accumulate],
         };
@@ -365,8 +382,7 @@ namespace Rtx
         return SpecularImages{
             .mMeanBefore = before(DenoiseImage::SpecularMean, step),
             .mMean = now(DenoiseImage::SpecularMean, step),
-            .mFastBefore = before(DenoiseImage::SpecularFast, step),
-            .mFast = now(DenoiseImage::SpecularFast, step),
+            .mFast = only(DenoiseImage::SpecularFast),
             .mFastBlended = only(DenoiseImage::SpecularFastBlended),
             .mHeldSurface = before(DenoiseImage::Surface, step),
             .mFresh = step.mFresh[Temporal::Specular],
@@ -380,8 +396,7 @@ namespace Rtx
             .mHeldBefore = before(DenoiseImage::PaneHeld, step),
             .mMean = now(DenoiseImage::PaneMean, step),
             .mHeld = now(DenoiseImage::PaneHeld, step),
-            .mFastBefore = before(DenoiseImage::PaneFast, step),
-            .mFast = now(DenoiseImage::PaneFast, step),
+            .mFast = only(DenoiseImage::PaneFast),
             .mFastBlended = only(DenoiseImage::PaneFastBlended),
             .mFresh = step.mFresh[Temporal::Pane],
         };

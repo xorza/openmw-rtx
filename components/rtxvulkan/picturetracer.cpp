@@ -19,6 +19,7 @@
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/glare.h>
 #include <components/rtxvulkan/trace/tracemedia.hpp>
+#include <components/rtxvulkan/trace/tracepast.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
 
@@ -30,7 +31,7 @@ namespace Rtx
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes, 1, radiance, MemoryUse::Essential)
+        , mChain(device, passes, 1, radiance, MemoryUse::Essential, TracePast::Dropped)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(

@@ -62,16 +62,16 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_INDIRECT, buffer.get(Channel::Indirect).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_COLOUR, images.mColourBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_COLOUR, images.mColour.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_SURFACE, images.mSurfaceBefore.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_MOMENTS, images.mMomentsBefore.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_SURFACE_OUT, images.mSurface.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOMENTS_OUT, images.mMoments.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_BLENDED_OUT, images.mBlended.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FILL, buffer.get(Channel::Fill).describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FILL, images.mFillBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FILL, images.mFill.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FILL_BLENDED_OUT, images.mFillBlended.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST, images.mFastBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST, images.mFast.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFastBlended.describeStorage());
 
         const Shaders::AccumulateConstants constants{
@@ -91,11 +91,13 @@ namespace Rtx
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
         // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it,
-        // and the count the accumulator wrote beside it.
+        // and the count the accumulator wrote beside it; and it writes the fast means the accumulator
+        // just read as last frame's.
         Barriers blended(commands);
         for (const Image* image : { &images.mBlended, &images.mFillBlended, &images.mFastBlended })
             image->addTransition(blended, Use::sComputeWrite, Use::sComputeReadWrite);
         images.mMoments.addTransition(blended, Use::sComputeWrite, Use::sComputeRead);
+        images.mFast.addTransition(blended, Use::sComputeRead, Use::sComputeWrite);
         blended.flush();
 
         const ComputePipeline<Shaders::AccumulateClampConstants>& clamp

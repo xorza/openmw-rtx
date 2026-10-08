@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
@@ -8,6 +9,8 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+
+#include "tracepast.hpp"
 
 namespace Rtx
 {
@@ -51,12 +54,15 @@ namespace Rtx
     public:
         /// Lays every image out and empties it in one submit it waits for, because nothing times a
         /// not-a-number is still one. `width` and `height` are the camera's, in pixels, and `use`
-        /// what the images are counted as, as `GBuffer` takes it.
-        FogVolume(
-            const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height, MemoryUse use);
+        /// what the images are counted as, as `GBuffer` takes it. Where `past` drops what a trace
+        /// leaves, the point pair is one image, which every trace both writes and names as its
+        /// history, and which none reads as one: the basis of nothing every such trace carries
+        /// reprojects nowhere.
+        FogVolume(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height,
+            MemoryUse use, TracePast past);
 
         /// What a volume for a camera this size takes of the device's memory.
-        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height, TracePast past);
 
         /// The set every fog volume is addressed through, made once and outliving all of them, for
         /// the reason `GBuffer::describeLayout` gives.
@@ -103,6 +109,7 @@ namespace Rtx
 
         std::uint32_t mColumns = 0;
         std::uint32_t mRows = 0;
+        TracePast mPast;
 
         /// What the air scatters and takes out at a point: the sky, both moons and every lamp in
         /// `rgb`, the extinction per world unit in `a`. The pair a frame reprojects and averages.
@@ -112,6 +119,12 @@ namespace Rtx
         /// found in `g`, what the ambient's found in `b`: three answers of one ray each, filtered
         /// together because each is nought or one at an edge the grid cannot resolve.
         std::array<Image, sParities> mSunward;
+
+        /// One half of a point pair for a parity: the first alone where the past is dropped.
+        const Image& pointOf(const std::array<Image, sParities>& pair, std::size_t parity) const
+        {
+            return pair[mPast == TracePast::Kept ? parity : 0];
+        }
 
         /// What every lamp reaching a froxel delivers into it, per steradian, integrated over the
         /// froxel's stretch. One image, because an integral carries no draw to average away and a

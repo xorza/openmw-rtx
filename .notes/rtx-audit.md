@@ -53,7 +53,7 @@ Group 4 builds this helper once, and the histories, the fog volume and the paylo
 | # | Group | Saves (1707×960) | Picture | Kind |
 |---|---|---|---|---|
 | 0 | Measure first: counters and ceilings | — | none | measurement |
-| 1 | Denoiser lifetimes and exact packing | ~88 B/px (~145 MB), ~50 B/px of traffic | bit-exact | straightforward |
+| 1 | Denoiser lifetimes and exact packing — **done** | 80 B/px (131 MB), ~50 B/px of traffic | bit-exact | straightforward |
 | 2 | G-buffer exact packing | 4–8 B/px, 2–3 channels | bit-exact (pane albedo: experiment) | straightforward |
 | 3 | Precision and portability fixes | — | ulp-level | straightforward |
 | 4 | Stochastic-rounding halves | history 440 → ~220 B/px; fog −53 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
@@ -114,6 +114,14 @@ win. Do this group before groups 6–8.
 and `nsys`.
 
 ## Group 1: denoiser lifetimes and exact packing
+
+**Done.** The history went from 440 to 360 B/px: −80 B/px, 131 MB at 1707×960 and 295 MB at 2560×1440
+(the estimate below counted the fast-mean saving twice). A picture's chain keeps no past: −96 B/px of
+history and −32 B/froxel of air, ~67 MB at the 512×1024 doll. Proof: `shot --views=all --map
+--upscale=off --against`, vanilla and PBR, moved no picture (1 level of 255 on under 0.01 % of pixels
+at a few places, the card's denoiser noise); `repeat --pairs=10` identical; `check` 51 of 51; every
+suite with synchronisation validation; `kernels --against` moved exactly the seven kernels changed
+(composite, history clamp, pane, glossy, the three shadow filter levels) and no trace kernel.
 
 One area, one proof run, no pixel moves. About −88 B/px (−145 MB at 1707×960, −325 MB at 2560×1440).
 

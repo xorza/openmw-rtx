@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/trace/tracepast.hpp>
 
 #include "temporalturns.hpp"
 
@@ -80,11 +81,13 @@ namespace Rtx
     class DenoiseHistory
     {
     public:
-        /// `use` is what the images are counted as, as `GBuffer` takes it.
-        DenoiseHistory(const Device& device, MemoryUse use);
+        /// `use` is what the images are counted as, as `GBuffer` takes it. Where `past` drops what a
+        /// trace leaves, a pair is one image, which a frame both reads as last frame's and writes,
+        /// and every frame must be fresh, so that it reads none.
+        DenoiseHistory(const Device& device, MemoryUse use, TracePast past);
 
         /// What the history of a frame this size takes of the device's memory.
-        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height, TracePast past);
 
         /// Makes room for a frame this size, anew: `TraceChain::resize` is what asks whether the size
         /// changed. A resize is a reset.
@@ -113,12 +116,10 @@ namespace Rtx
         /// and an image nothing wrote is whatever the allocation held, in no layout at all.
         void discard(VkCommandBuffer commands, const TemporalTurns::Step& step) const;
 
-        /// The accumulator's and the wavelet's images: the three histories the accumulator reads and
+        /// The accumulator's and the wavelet's images: the histories the accumulator reads and
         /// writes, the blend it hands the cascade, and the pair its narrow levels ping-pong through.
         struct AccumulateImages
         {
-            const Image& mColourBefore;
-
             /// The surface last frame's histories belong to, as every temporal pass that asks
             /// whether a texel is still the same surface reads it (`heldSurfaceMatches`): the normal
             /// and the distance the accumulator wrote for each pixel. **One surface history for
@@ -127,8 +128,9 @@ namespace Rtx
             const Image& mSurfaceBefore;
             const Image& mMomentsBefore;
 
-            /// Written by the cascade's first level and read by the accumulator next frame — SVGF's
-            /// feedback, so what carries forward is the filtered light.
+            /// Read by the accumulator as last frame's and written by the cascade's first level — SVGF's
+            /// feedback, so what carries forward is the filtered light. One image and not a pair: the
+            /// read is behind the frame's barriers before the write.
             const Image& mColour;
             const Image& mSurface;
             const Image& mMoments;
@@ -141,19 +143,16 @@ namespace Rtx
             const Image& mNarrow;
             const Image& mNarrowOther;
 
-            /// The share of the bounce that is the fill, through the same five: last frame's mean,
-            /// the mean the first level writes, the blend and the narrow pair.
-            const Image& mFillBefore;
+            /// The share of the bounce that is the fill, through the same four: the mean, as `mColour`
+            /// is held, the blend and the narrow pair.
             const Image& mFill;
             const Image& mFillBlended;
             const Image& mFillNarrow;
             const Image& mFillNarrowOther;
 
-            /// The fast means of the bounce and the fill (`ACCUMULATE_FAST`), last frame's and this
-            /// one's, and the accumulator's blend of them, which the clamp reads at a pixel's
-            /// neighbours as it writes the pixel's mean: the accumulator's own, which the cascade
-            /// never writes.
-            const Image& mFastBefore;
+            /// The fast means of the bounce and the fill (`ACCUMULATE_FAST`), which the accumulator
+            /// reads as last frame's and the clamp writes, and the accumulator's blend of them, which
+            /// the clamp reads at a pixel's neighbours as it writes the pixel's mean.
             const Image& mFast;
             const Image& mFastBlended;
 
@@ -192,13 +191,13 @@ namespace Rtx
         };
 
         /// The glossy filter's: the mean and its frame count, the last frame's and this one's; and
-        /// the fast mean (`HISTORY_CLAMP_FAST`), last frame's, this one's and the filter's blend of
-        /// it, which the clamp reads at a pixel's neighbours as it writes the pixel's.
+        /// the fast mean (`HISTORY_CLAMP_FAST`), which the filter reads as last frame's and the clamp
+        /// writes, and the filter's blend of it, which the clamp reads at a pixel's neighbours as it
+        /// writes the pixel's.
         struct SpecularImages
         {
             const Image& mMeanBefore;
             const Image& mMean;
-            const Image& mFastBefore;
             const Image& mFast;
             const Image& mFastBlended;
 
@@ -216,7 +215,6 @@ namespace Rtx
             const Image& mHeldBefore;
             const Image& mMean;
             const Image& mHeld;
-            const Image& mFastBefore;
             const Image& mFast;
             const Image& mFastBlended;
             bool mFresh;
@@ -230,6 +228,7 @@ namespace Rtx
     private:
         const Device& mDevice;
         MemoryUse mUse;
+        TracePast mPast;
 
         /// The half of a pair the last frame wrote, the half this frame writes, and the one image of
         /// what is not a pair.
@@ -237,8 +236,8 @@ namespace Rtx
         const Image& now(DenoiseImage image, const TemporalTurns::Step& step) const;
         const Image& only(DenoiseImage image) const;
 
-        /// Indexed by `DenoiseImage`: both halves of a pair, the first alone of what is not one.
-        /// Empty until `resize`.
+        /// Indexed by `DenoiseImage`: both halves of a pair, the first alone of what is not one or
+        /// where the past is dropped. Empty until `resize`.
         std::array<std::array<Image, 2>, sDenoiseImages> mImages;
 
         /// Started again by `resize`, so the first frame after one reads no image nothing wrote.

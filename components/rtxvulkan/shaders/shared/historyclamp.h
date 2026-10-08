@@ -8,14 +8,14 @@
 // What the glossy and the pane filters' anti-lag needs: `historyclamp.comp`, which says the shape of
 // it. Included verbatim by both sides, for the reason `visibility.h` is.
 //
-// **A filter's fast mean in shared exponent, and in the second word whether the pixel holds a mean
-// at all**, which the clamp's square reads at every neighbour: the slow means are written in place
-// beside it, so a neighbour's is not read. The same width as the bounce's (`ACCUMULATE_FAST`).
+// **A filter's fast mean in one shared-exponent word, which also says whether the pixel holds a
+// mean at all** (`HISTORY_CLAMP_EMPTY`), as the clamp's square reads it at every neighbour: the slow
+// means are written in place beside it, so a neighbour's is not read.
 //
 // **The slow mean as the two filters keep it**, `SPECULAR_MEAN` and `PANE_MEAN`, which the pass
 // checks are this.
 
-#define HISTORY_CLAMP_FAST STORAGE_RG32UI
+#define HISTORY_CLAMP_FAST STORAGE_R32UI
 #define HISTORY_CLAMP_MEAN STORAGE_RGBA32F
 
 #ifdef RTX_HOST
@@ -32,6 +32,12 @@ namespace Rtx::Shaders
 
     /// Threads along each edge of the clamp's workgroup.
     const uint HISTORY_CLAMP_WORKGROUP = 8;
+
+    /// The fast mean of a pixel that holds none: an exponent field of one over three mantissas of
+    /// nought, which `unpackRgb9e5` reads as nought. **A word `packRgb9e5` never writes**: a field of
+    /// one is an exponent of -14 its floor did not raise, so the brightest channel stands in
+    /// `[2^-15, 2^-14)` and its mantissa rounds to at least 256.
+    const uint HISTORY_CLAMP_EMPTY = 1u << 27u;
 
     /// What the clamp is handed: the frame's extent, and whether it clamps at all
     /// (`FilterSwitches::mAntilag`), nought or one.

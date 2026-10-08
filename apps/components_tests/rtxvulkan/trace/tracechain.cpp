@@ -9,6 +9,7 @@
 #include <components/rtxvulkan/shaders/shared/composite.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 #include <components/rtxvulkan/trace/tracechain.hpp>
+#include <components/rtxvulkan/trace/tracepast.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx
@@ -25,7 +26,8 @@ namespace Rtx
         {
             for (const RadianceWidth radiance : { RadianceWidth::Summed, RadianceWidth::Shown })
             {
-                TraceChain chain(mRenderer.getDevice(), mRenderer.getTracePasses(), 1, radiance, MemoryUse::Essential);
+                TraceChain chain(mRenderer.getDevice(), mRenderer.getTracePasses(), 1, radiance, MemoryUse::Essential,
+                    TracePast::Dropped);
 
                 chain.resize(64, 32);
                 const GBuffer* const built = &chain.getChannels();
@@ -51,8 +53,9 @@ namespace Rtx
         /// **What a chain says it takes is what it holds once made**, the running sum aside, which
         /// no trace has averaged into: the allocator counts each range at the size the driver asks
         /// of the image, and `bytesAt` asks the driver of the same descriptions. Counted as the use
-        /// it was made with and no other, and given back whole on `release`. A wider chain takes
-        /// more, and a summed radiance more than a shown one.
+        /// it was made with and no other, and given back whole on `release`, whether it keeps its
+        /// past or drops it. A wider chain takes more, a summed radiance more than a shown one, and
+        /// a chain that keeps its past more than one that drops it, which holds one image a pair.
         TEST_F(RtxTraceChainTest, whatAChainSaysItTakesIsWhatItHolds)
         {
             const Device& device = mRenderer.getDevice();
@@ -72,29 +75,33 @@ namespace Rtx
             };
 
             for (const RadianceWidth radiance : { RadianceWidth::Summed, RadianceWidth::Shown })
-            {
-                settle();
-                const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
-                const VkDeviceSize essential = memory.getHeld(heap, MemoryUse::Essential);
+                for (const TracePast past : { TracePast::Kept, TracePast::Dropped })
+                {
+                    settle();
+                    const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
+                    const VkDeviceSize essential = memory.getHeld(heap, MemoryUse::Essential);
 
-                TraceChain chain(device, mRenderer.getTracePasses(), 1, radiance, MemoryUse::Frame);
-                const VkDeviceSize bins = memory.getHeld(heap, MemoryUse::Essential) - essential;
-                chain.resize(64, 32);
-                EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - frame,
-                    TraceChain::bytesAt(device, 64, 32, radiance) - sum);
-                EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential, bins)
-                    << "a frame target was counted as essential memory";
+                    TraceChain chain(device, mRenderer.getTracePasses(), 1, radiance, MemoryUse::Frame, past);
+                    const VkDeviceSize bins = memory.getHeld(heap, MemoryUse::Essential) - essential;
+                    chain.resize(64, 32);
+                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - frame,
+                        TraceChain::bytesAt(device, 64, 32, radiance, past) - sum);
+                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential, bins)
+                        << "a frame target was counted as essential memory";
 
-                chain.release();
-                settle();
-                EXPECT_FALSE(chain.isBuilt());
-                EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), frame) << "a released chain still held its images";
-            }
+                    chain.release();
+                    settle();
+                    EXPECT_FALSE(chain.isBuilt());
+                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), frame)
+                        << "a released chain still held its images";
+                }
 
-            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Summed),
-                TraceChain::bytesAt(device, 48, 32, RadianceWidth::Summed));
-            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Summed),
-                TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown));
+            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Summed, TracePast::Kept),
+                TraceChain::bytesAt(device, 48, 32, RadianceWidth::Summed, TracePast::Kept));
+            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Summed, TracePast::Kept),
+                TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Kept));
+            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Kept),
+                TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Dropped));
         }
     }
 }

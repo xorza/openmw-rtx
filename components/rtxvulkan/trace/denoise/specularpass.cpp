@@ -43,7 +43,7 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
-        writes.image(Shaders::SPECULAR_BIND_FAST_BEFORE, images.mFastBefore.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_FAST_BEFORE, images.mFast.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_FAST_BLENDED, images.mFastBlended.describeStorage());
 
         dispatch(commands, mPipeline, writes, frame.history(images.mFresh),
