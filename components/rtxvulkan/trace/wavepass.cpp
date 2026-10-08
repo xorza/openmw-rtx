@@ -124,7 +124,7 @@ namespace Rtx
 
     void WavePass::record(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Waves);
+        const GpuZone timed(timer, commands, FrameZone::Waves);
 
         mSynthesised = seconds;
 
@@ -186,7 +186,5 @@ namespace Rtx
         }
 
         Image::buildMips(commands, images);
-
-        closeZone(timer, commands);
     }
 }

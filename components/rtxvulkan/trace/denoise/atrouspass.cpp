@@ -74,7 +74,7 @@ namespace Rtx
     AtrousPass::Filtered AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Filter);
+        const GpuZone timed(timer, commands, FrameZone::Filter);
 
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mNarrow.getWidth() >= camera.mWidth && images.mNarrow.getHeight() >= camera.mHeight);
@@ -160,7 +160,6 @@ namespace Rtx
         handed.flush();
 
         // One swap past the last dispatch, so this is what that dispatch wrote.
-        closeZone(timer, commands);
         return Filtered{ .mIndirect = *bounce[source], .mFill = *fill[source] };
     }
 }

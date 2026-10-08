@@ -33,7 +33,7 @@ namespace Rtx
     void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Denoised& denoised,
         const Image* sum, Shaders::CompositeConstants constants, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Composite);
+        const GpuZone timed(timer, commands, FrameZone::Composite);
 
         assert(constants.mShadowed == 0 && "the shadow is the denoiser's to say, and not the caller's");
         constants.mShadowed = denoised.mShadow != nullptr ? 1u : 0u;
@@ -74,7 +74,5 @@ namespace Rtx
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(constants.mWidth, constants.mHeight, Shaders::COMPOSITE_WORKGROUP));
-
-        closeZone(timer, commands);
     }
 }

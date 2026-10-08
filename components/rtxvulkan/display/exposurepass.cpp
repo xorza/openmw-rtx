@@ -55,21 +55,19 @@ namespace Rtx
 
     void ExposurePass::recordFixed(VkCommandBuffer commands, float value, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Exposure);
+        const GpuZone timed(timer, commands, FrameZone::Exposure);
 
         // Four bytes, so an inline write into the command buffer rather than a staging copy —
         // ordered against the curve still reading the previous frame's exposure, because two
         // frames in flight share the one buffer, and against the reduction that reads it as well
         // as writes it.
         mExposure.updateInline(commands, Use::sBufferComputeReadWrite, std::as_bytes(std::span(&value, 1)));
-
-        closeZone(timer, commands);
     }
 
     void ExposurePass::record(VkCommandBuffer commands, const Image& frame, float elapsedSeconds,
         const std::optional<EyeStart> reset, float bias, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Exposure);
+        const GpuZone timed(timer, commands, FrameZone::Exposure);
 
         // Two frames in flight share one set of these buffers, and the previous frame's curve
         // reading them, its reduction writing the exposure this one moves toward, and its clear are
@@ -115,7 +113,5 @@ namespace Rtx
 
         // The curve reads what the reduction wrote.
         mExposure.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
-
-        closeZone(timer, commands);
     }
 }

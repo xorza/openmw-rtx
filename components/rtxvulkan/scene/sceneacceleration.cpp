@@ -114,15 +114,13 @@ namespace Rtx
         // The builds a crossing brings, bracketed as one zone. Without it they are device time
         // the frame's fence carries and no zone accounts for, so the frame a player feels is the one
         // frame whose report says nothing about what made it slow.
-        openZone(timer, batch.getCommands(), FrameZone::Blas);
+        const GpuZone timed(timer, batch.getCommands(), FrameZone::Blas);
 
         // Noted as built on the next posed placement, which is the one that brings them: built whole
         // here, nothing on it builds them whole again.
         mBottomLevel.build(
             batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), mIndices, mPlacements + 1, refused);
         sizeRefitScratch();
-
-        closeZone(timer, batch.getCommands());
     }
 
     void SceneAcceleration::sizeRefitScratch()
@@ -264,7 +262,7 @@ namespace Rtx
 
     void SceneAcceleration::recordRefit(VkCommandBuffer commands, GpuTimer* timer)
     {
-        openZone(timer, commands, FrameZone::Refit);
+        const GpuZone timed(timer, commands, FrameZone::Refit);
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands,
             static_cast<std::uint32_t>(mRefit.mBuilds.size()), mRefit.mBuilds.data(), mRefit.mRangePointers.data());
 
@@ -272,7 +270,6 @@ namespace Rtx
         // over structures the refit has just rewritten, which is a dependency inside a command
         // buffer rather than a reason to go round the driver twice.
         barrierAfterBuild(commands);
-        closeZone(timer, commands);
     }
 
     bool SceneAcceleration::place(const SceneDesc& scene, std::span<const InstanceRecord> records,
@@ -489,9 +486,8 @@ namespace Rtx
         };
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
 
-        openZone(timer, commands, FrameZone::Tlas);
+        const GpuZone timed(timer, commands, FrameZone::Tlas);
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);
         barrierAfterBuild(commands);
-        closeZone(timer, commands);
     }
 }

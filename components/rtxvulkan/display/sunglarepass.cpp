@@ -41,7 +41,7 @@ namespace Rtx
     void SunGlarePass::record(
         const VkCommandBuffer commands, const float elapsedSeconds, const bool reset, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Glare);
+        const GpuZone timed(timer, commands, FrameZone::Glare);
 
         // The counts the launch added to. The share this easing moves was last read by the
         // previous frame's curve and written by its easing, both behind the head barrier
@@ -63,7 +63,5 @@ namespace Rtx
 
         // The curve reads what the easing wrote.
         mShare.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
-
-        closeZone(timer, commands);
     }
 }

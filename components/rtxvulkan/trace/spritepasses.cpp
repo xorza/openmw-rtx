@@ -48,7 +48,7 @@ namespace Rtx
         assert(list.getSize() >= (VkDeviceSize{ tiles } + 1 + bin.mCapacity) * sizeof(std::uint32_t)
             && "a sprite list shorter than its starts and its capacity together");
 
-        openZone(timer, commands, FrameZone::Sprites);
+        const GpuZone timed(timer, commands, FrameZone::Sprites);
 
         // The counts start at nothing. The head is `tiles + 1` entries, and the fill is the
         // device's rather than a memset of the host's: it is the one cost that scales with the
@@ -86,8 +86,6 @@ namespace Rtx
 
         // The trace reads the list from its generation shader, and a picture's does the same.
         handOver(commands, Use::sBufferComputeWrite, Use::sBufferShaderRead);
-
-        closeZone(timer, commands);
     }
 
     SpriteShadePass::SpriteShadePass(const Device& device)
@@ -106,7 +104,7 @@ namespace Rtx
         if (shade.mEmitterCount == 0 || shade.mCount == 0)
             return;
 
-        openZone(timer, commands, FrameZone::Shade);
+        const GpuZone timed(timer, commands, FrameZone::Shade);
 
         // One workgroup per emitter per light, and the ones with nothing to do exit at once. The
         // count is tens, so a workgroup that reads its emitter and returns is cheaper than a host
@@ -117,7 +115,5 @@ namespace Rtx
 
         // The bin reads the sprites next and the trace reads them after that.
         handOver(commands, Use::sBufferComputeWrite, Use::sBufferShaderRead);
-
-        closeZone(timer, commands);
     }
 }

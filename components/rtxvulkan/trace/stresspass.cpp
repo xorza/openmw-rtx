@@ -30,12 +30,10 @@ namespace Rtx
 
     void StressPass::record(VkCommandBuffer commands, const Buffer& counts, GpuTimer* timer)
     {
-        openZone(timer, commands, FrameZone::Stress);
+        const GpuZone timed(timer, commands, FrameZone::Stress);
 
         DescriptorWrites writes(mPipeline);
         writes.buffer(Shaders::STRESS_BIND_COUNTS, counts.describe());
         dispatch(commands, mPipeline, writes, Shaders::StressConstants{ .mTicks = mTicks }, Groups{});
-
-        closeZone(timer, commands);
     }
 }

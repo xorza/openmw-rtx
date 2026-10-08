@@ -60,7 +60,7 @@ namespace Rtx
     const Image& ShadowPass::record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Shadow);
+        const GpuZone timed(timer, commands, FrameZone::Shadow);
 
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const std::uint32_t width = camera.mWidth;
@@ -128,8 +128,6 @@ namespace Rtx
             dispatch(commands, mFilters[level], writes, constants,
                 Groups::covering(width, height, Shaders::SHADOW_WORKGROUP));
         }
-
-        closeZone(timer, commands);
         return images.mVisibility;
     }
 }

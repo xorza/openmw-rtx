@@ -29,7 +29,7 @@ namespace Rtx
     const Image& PanePass::record(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame, const HistoryClampPass& clamp, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Pane);
+        const GpuZone timed(timer, commands, FrameZone::Pane);
 
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const std::uint32_t width = camera.mWidth;
@@ -56,8 +56,6 @@ namespace Rtx
                 .mFastBlended = images.mFastBlended,
                 .mFast = images.mFast },
             width, height, frame.mFilters.mAntilag);
-
-        closeZone(timer, commands);
         return images.mMean;
     }
 }

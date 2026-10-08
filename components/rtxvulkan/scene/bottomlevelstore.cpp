@@ -526,14 +526,13 @@ namespace Rtx
 
     void BottomLevelStore::recordCompaction(const VkCommandBuffer commands, GpuTimer* const timer)
     {
-        openZone(timer, commands, FrameZone::Compact);
+        const GpuZone timed(timer, commands, FrameZone::Compact);
 
         const DeviceFunctions& functions = mDevice.getFunctions();
         for (const VkCopyAccelerationStructureInfoKHR& copy : mCompactionCopies)
             functions.mCmdCopyAccelerationStructure(commands, &copy);
 
         barrierAfterBuild(commands);
-        closeZone(timer, commands);
     }
 
 }
