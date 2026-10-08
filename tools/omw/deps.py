@@ -14,7 +14,19 @@ import zipfile
 from pathlib import Path
 
 from omw import fetch, pins
-from omw.system import DEPS, EXE, ROOT, SYSTEM, WINDOWS, Refusal, environment_key, prepend_path, read_text, run
+from omw.system import (
+    DEPS,
+    EXE,
+    ROOT,
+    SYSTEM,
+    WINDOWS,
+    Refusal,
+    environment_key,
+    on_path,
+    prepend_path,
+    read_text,
+    run,
+)
 
 
 def msvc_versions() -> dict[str, str]:
@@ -272,7 +284,7 @@ def bootstrap() -> None:
     env = dict(os.environ)
     sdk_environment(env)
     for tool in SDK_TOOLS:
-        found = shutil.which(tool, path=env[environment_key("PATH")])
+        found = on_path(tool, env[environment_key("PATH")])
         if found is None:
             raise Refusal(f"{sdk} holds no {tool}")
         subprocess.run([found, "--version"], check=True, env=env, stdout=subprocess.DEVNULL)

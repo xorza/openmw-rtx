@@ -66,24 +66,47 @@ def refuse_unsupported(platform: str = sys.platform) -> None:
 
 def require(tool: str, why: str) -> str:
     """The path of a tool a step needs, asked for before the step starts anything."""
-    found = shutil.which(tool)
+    found = on_path(tool)
     if found is None:
         raise Refusal(f"{tool} is not on the PATH, and this needs it: {why}")
     return found
 
 
-def resolved(command: list, env: dict[str, str] | None) -> list[str]:
-    """The command with its program found on the PATH of the environment it runs under. POSIX
-    searches that PATH itself; Windows searches the driver's own, which lacks what VsDevCmd added."""
+def resolved(command: list, env: dict[str, str] | None, cwd: str | Path | None = None) -> list[str]:
+    """The command with its program found where it runs: a bare name on the PATH of the environment
+    it runs under, a relative path from the directory it runs in. POSIX does both itself. Windows
+    searches the driver's own PATH, which lacks what VsDevCmd added, and its own directory before
+    any PATH, and reads a relative path from that directory and not `cwd`. `Path` drops a leading
+    `./`, so the string tells a bare name from a path."""
     parts = [str(part) for part in command]
-    if env is not None and WINDOWS and not Path(parts[0]).parent.parts:
-        parts[0] = shutil.which(parts[0], path=env.get(environment_key("PATH"))) or parts[0]
+    program = parts[0]
+    if not os.path.dirname(program):
+        if env is not None and WINDOWS:
+            found = on_path(program, env.get(environment_key("PATH"), ""))
+            if found is None:
+                raise Refusal(f"{program} is not on the PATH it runs under")
+            parts[0] = found
+    elif cwd is not None:
+        # Absolute, as POSIX reads a relative program from `cwd` after it changed there.
+        parts[0] = str(Path(cwd).absolute() / program)
     return parts
+
+
+def on_path(program: str, path: str | None = None) -> str | None:
+    """`program` from the folders `path` names alone, the driver's own PATH unless told. On Windows
+    `shutil.which` searches the working directory first, where a bare name found the driver's own
+    files before the PATH's."""
+    searched = os.environ.get("PATH", "") if path is None else path
+    for folder in filter(None, searched.split(os.pathsep)):
+        found = shutil.which(os.path.join(folder, program))
+        if found is not None:
+            return found
+    return None
 
 
 def run(command: list, **options) -> subprocess.CompletedProcess:
     """A command run to its end. A failure is a `CalledProcessError`, which `main` reports."""
-    return subprocess.run(resolved(command, options.get("env")), check=True, **options)
+    return subprocess.run(resolved(command, options.get("env"), options.get("cwd")), check=True, **options)
 
 
 def status(code: int) -> int:
@@ -93,8 +116,8 @@ def status(code: int) -> int:
 
 
 def output(command: list, **options) -> str:
-    return subprocess.run(resolved(command, options.get("env")), check=True, capture_output=True, encoding="utf-8",
-                          errors="replace", **options).stdout
+    return subprocess.run(resolved(command, options.get("env"), options.get("cwd")), check=True, capture_output=True,
+                          encoding="utf-8", errors="replace", **options).stdout
 
 
 @contextlib.contextmanager
@@ -184,6 +207,6 @@ def msvc_environment(env: dict[str, str]) -> dict[str, str]:
     dumped = subprocess.run(line, check=True, capture_output=True, env=searched).stdout
     activated = parse_set_output(dumped.decode("utf-16-le", errors="replace"))
 
-    if not activated.get("VSCMD_VER") or shutil.which("cl", path=activated.get("PATH")) is None:
+    if not activated.get("VSCMD_VER") or on_path("cl", activated.get("PATH", "")) is None:
         raise Refusal("VsDevCmd.bat ran and left no compiler on the PATH")
     return activated
