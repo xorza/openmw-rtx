@@ -95,8 +95,6 @@ namespace MWRender
         SDL_Window* getWindow() const override { return mWindow; }
 
         osg::ref_ptr<osg::Group> createSceneRoot() override;
-        void attachWorld(RenderingManager& world, osg::Group& worldRoot) override;
-        void detachWorld() override;
 
         PostProcessor* getPostProcessor() override;
 
@@ -167,6 +165,8 @@ namespace MWRender
 
     protected:
         void configureResources(Resource::ResourceSystem& resources) override;
+        void onAttachWorld(RenderingManager& world, osg::Group& worldRoot) override;
+        void onDetachWorld() override;
         void adoptTraversalRoot(osg::Group& root) override;
         void applyViewMask() override;
         void applyWorldShown() override;
@@ -245,7 +245,7 @@ namespace MWRender
         std::unique_ptr<ScreenshotManager> mScreenshotManager;
 
         /// The scene root this renderer made for the game, held from `createSceneRoot` until
-        /// `attachWorld` hands it to the world that lights through it.
+        /// `onAttachWorld` hands it to the world that lights through it.
         osg::ref_ptr<SceneUtil::LightManager> mSceneRoot;
 
         /// Everything the rasterizer builds around the world, for as long as there is one.

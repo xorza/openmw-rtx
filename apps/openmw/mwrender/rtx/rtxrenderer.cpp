@@ -231,12 +231,10 @@ namespace MWRender
         visitor.setTraversalMode(was);
     }
 
-    void RtxRenderer::detachWorld() noexcept
+    void RtxRenderer::onDetachWorld() noexcept
     {
         // No frame phase expected: the world goes on the way out of an exception a frame threw,
-        // and the assert would stand between the throw and its message. The attachment is
-        // stepped, because it is `Attached` on that way out as on any other.
-        mAttachment.step(Attachment::Detached, Attachment::Attached);
+        // and the assert would stand between the throw and its message.
         mSky.detach(mMirror.getScene());
         mMirror.detach();
         mRipples.clear();
@@ -342,10 +340,9 @@ namespace MWRender
         presentIn(osg::Vec2i(width, height));
     }
 
-    void RtxRenderer::attachWorld(RenderingManager&, osg::Group& worldRoot) noexcept
+    void RtxRenderer::onAttachWorld(RenderingManager&, osg::Group& worldRoot) noexcept
     {
         mPhase.expect(Phase::Between);
-        mAttachment.step(Attachment::Attached, Attachment::Detached);
         // Straight under the root: the rasterizer hangs its shadowed scene between the two, and
         // this renderer has nothing to put there. The root is kept for what the game hangs on it
         // beside the scene: its debug nodes, which every frame reads off it.

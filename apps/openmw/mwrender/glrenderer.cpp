@@ -438,7 +438,7 @@ namespace MWRender
         return sceneRoot;
     }
 
-    void GlRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
+    void GlRenderer::onAttachWorld(RenderingManager& world, osg::Group& worldRoot)
     {
         assert(mSceneRoot != nullptr && "the world is built under a root this renderer made");
         mWorld = std::make_unique<GlWorld>(*mViewer, world, worldRoot, *mSceneRoot, getResources());
@@ -451,7 +451,7 @@ namespace MWRender
         setTraversalRoot(mWorld->getPostProcessor());
     }
 
-    void GlRenderer::detachWorld()
+    void GlRenderer::onDetachWorld()
     {
         mWorld.reset();
         wireFrame();

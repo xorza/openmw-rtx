@@ -124,16 +124,12 @@ namespace MWRender
         /// A `TracedGround`: the storage, the worldspace and the active grid, and no chunks.
         std::unique_ptr<Ground> createGround(const GroundSpec& spec) noexcept override;
 
-        void detachWorld() noexcept override;
-
         float getGroundReach() const noexcept override;
         bool groundReadsGates() const noexcept override { return true; }
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
         void windowResized(int x, int y, int width, int height) noexcept override;
-
-        void attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept override;
 
         void advance(double simulationTime) noexcept override;
         void eventTraversal() noexcept override;
@@ -218,6 +214,9 @@ namespace MWRender
         /// No GLSL is compiled here, so no model is given a program: the shader visitor is off, and
         /// a model's state is read as the loader left it.
         void configureResources(Resource::ResourceSystem& resources) noexcept override;
+
+        void onAttachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept override;
+        void onDetachWorld() noexcept override;
 
         void adoptTraversalRoot(osg::Group& root) noexcept override;
 
@@ -309,16 +308,6 @@ namespace MWRender
 
         Rtx::Stepped<Phase> mPhase{ Phase::Between };
 
-        /// Whether a world is attached: `attachWorld` and `detachWorld` are a pair, and a second
-        /// attach would hold the sky's sheets twice and give neither back.
-        enum class Attachment
-        {
-            Detached,
-            Attached,
-        };
-
-        Rtx::Stepped<Attachment> mAttachment{ Attachment::Detached };
-
         ViewQueue mViews;
 
         /// How many pictures of the world one frame draws; the rest wait for the next. Three,
@@ -391,11 +380,11 @@ namespace MWRender
         Rtx::HistoryLoss mLoss = Rtx::HistoryLoss::None;
 
         /// The scene root this renderer made for the game, held from `createSceneRoot` until
-        /// `attachWorld` hangs it under the world root.
+        /// `onAttachWorld` hangs it under the world root.
         osg::ref_ptr<osg::Group> mSceneRoot;
 
         /// The world root the game hangs its debug nodes on, and the walk that reads them off it
-        /// into the frame's lines. Borrowed: the world outlives this, and `detachWorld` lets go.
+        /// into the frame's lines. Borrowed: the world outlives this, and `onDetachWorld` lets go.
         osg::Group* mWorldRoot = nullptr;
         DebugWalk mDebugWalk;
 

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_properties.h>
@@ -34,8 +35,48 @@
 
 namespace MWRender
 {
+    WorldAttachment::WorldAttachment(WorldAttachment&& other) noexcept
+        : mRenderer(std::exchange(other.mRenderer, nullptr))
+    {
+    }
+
+    WorldAttachment& WorldAttachment::operator=(WorldAttachment&& other) noexcept
+    {
+        if (this != &other)
+        {
+            reset();
+            mRenderer = std::exchange(other.mRenderer, nullptr);
+        }
+        return *this;
+    }
+
+    void WorldAttachment::reset()
+    {
+        if (Renderer* const renderer = std::exchange(mRenderer, nullptr))
+            renderer->detachWorld();
+    }
+
     Renderer::Renderer() = default;
-    Renderer::~Renderer() = default;
+
+    Renderer::~Renderer()
+    {
+        assert(!mWorldAttached && "a renderer ended under a world still attached to it");
+    }
+
+    WorldAttachment Renderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
+    {
+        assert(!mWorldAttached && "a world attached to a renderer that has one");
+        onAttachWorld(world, worldRoot);
+        mWorldAttached = true;
+        return WorldAttachment(*this);
+    }
+
+    void Renderer::detachWorld()
+    {
+        assert(mWorldAttached && "a world detached from a renderer that has none");
+        mWorldAttached = false;
+        onDetachWorld();
+    }
 
     void Renderer::prepareResources(Resource::ResourceSystem& resources)
     {
