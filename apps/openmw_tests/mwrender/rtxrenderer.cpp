@@ -56,7 +56,6 @@ namespace MWRender
         static_assert(noexcept(std::declval<RtxRenderer&>().getGroundReach()));
         static_assert(noexcept(std::declval<RtxRenderer&>().getWindow()));
         static_assert(noexcept(std::declval<RtxRenderer&>().advance(0.0)));
-        static_assert(noexcept(std::declval<RtxRenderer&>().eventTraversal()));
         static_assert(noexcept(std::declval<RtxRenderer&>().updateTraversal()));
         static_assert(noexcept(std::declval<RtxRenderer&>().notifyCut()));
         static_assert(noexcept(std::declval<RtxRenderer&>().createWorldView(std::declval<const OffscreenViewSpec&>())));

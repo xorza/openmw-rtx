@@ -717,15 +717,11 @@ namespace MWRender
         mScreenshotManager->screenshot(&image, width, height);
     }
 
-    void GlRenderer::setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer)
-    {
-        Renderer::setScreenshotWriter(writer);
-
-        mScreenshot = new FrameCapture(writer);
-    }
-
     void GlRenderer::saveScreenshot()
     {
+        if (mScreenshot == nullptr)
+            mScreenshot = new FrameCapture(getScreenshotWriter());
+
         const Misc::Presentation& presentation = getPresentation();
         mScreenshot->arm(mFrameFbo, presentation.mFrame);
 

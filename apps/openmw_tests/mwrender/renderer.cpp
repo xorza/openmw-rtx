@@ -85,7 +85,6 @@ namespace MWRender
             float getGroundReach() const override { return 0.0f; }
             osg::ref_ptr<osg::Group> createSceneRoot() override { return new osg::Group; }
             void advance(double simulationTime) override { mAdvanced.push_back(simulationTime); }
-            void eventTraversal() override {}
             void updateTraversal() override {}
             void renderFrame(const SceneFrame&) override {}
             std::unique_ptr<OffscreenView> createWorldView(const OffscreenViewSpec&) override { return nullptr; }

@@ -378,12 +378,6 @@ namespace MWRender
         getFrameStamp().setSimulationTime(simulationTime);
     }
 
-    void RtxRenderer::eventTraversal() noexcept
-    {
-        // Nothing to traverse: this renderer adopted no queue, and everything the game acts on came
-        // through `SDLUtil::InputWrapper` and MyGUI before this.
-    }
-
     void RtxRenderer::updateTraversal() noexcept
     {
         mPhase.expect(Phase::Between);
