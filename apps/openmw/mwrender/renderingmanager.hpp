@@ -5,6 +5,7 @@
 #include "ground.hpp"
 #include "objects.hpp"
 #include "objectstorage.hpp"
+#include "renderer.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
 
@@ -99,7 +100,6 @@ namespace MWRender
     class ObjectPaging;
     class Groundcover;
     class PostProcessor;
-    class Renderer;
 
     class RenderingManager : public MWRender::RenderingInterface
     {
@@ -376,6 +376,9 @@ namespace MWRender
         osg::Vec2i mProjectedFrame;
         osg::Vec2f mProjectionOffset;
         const MWWorld::GroundcoverStore& mGroundCoverStore;
+
+        /// Last, so a constructor that throws after the attach detaches before anything above goes.
+        WorldAttachment mAttachment;
 
         void operator=(const RenderingManager&);
         RenderingManager(const RenderingManager&);

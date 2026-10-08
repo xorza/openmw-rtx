@@ -181,7 +181,7 @@ namespace MWRender
         mPrecipitation
             = std::make_unique<Precipitation>(sceneRoot, &mRenderer.getCamera(), resourceSystem->getSceneManager());
 
-        mRenderer.attachWorld(*this, *mRootNode);
+        mAttachment = mRenderer.attachWorld(*this, *mRootNode);
 
         mCamera = std::make_unique<Camera>(&mRenderer.getCamera());
 
@@ -202,7 +202,7 @@ namespace MWRender
 
     RenderingManager::~RenderingManager()
     {
-        mRenderer.detachWorld();
+        mAttachment.reset();
 
         // let background loading thread finish before we delete anything else
         mWorkQueue = nullptr;

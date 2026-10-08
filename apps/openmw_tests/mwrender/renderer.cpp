@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -23,6 +24,7 @@
 #include <apps/openmw/mwrender/mapoverlay.hpp>
 #include <apps/openmw/mwrender/offscreenview.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <apps/openmw/mwrender/rendermode.hpp>
 #include <apps/openmw/mwrender/rendersupport.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
@@ -68,6 +70,10 @@ namespace MWRender
             /// What each settings change handed over.
             std::vector<Settings::CategorySettingVector> mHonoured;
 
+            /// How many times a world was attached and detached.
+            std::size_t mAttached = 0;
+            std::size_t mDetached = 0;
+
             using Renderer::adopt;
             using Renderer::getLastHold;
             using Renderer::presentIn;
@@ -77,7 +83,6 @@ namespace MWRender
             std::unique_ptr<Ground> createGround(const GroundSpec&) override { return nullptr; }
             float getGroundReach() const override { return 0.0f; }
             osg::ref_ptr<osg::Group> createSceneRoot() override { return new osg::Group; }
-            void attachWorld(RenderingManager&, osg::Group&) override {}
             void advance(double simulationTime) override { mAdvanced.push_back(simulationTime); }
             void eventTraversal() override {}
             void updateTraversal() override {}
@@ -99,6 +104,8 @@ namespace MWRender
             }
 
         protected:
+            void onAttachWorld(RenderingManager&, osg::Group&) override { ++mAttached; }
+            void onDetachWorld() override { ++mDetached; }
             void adoptTraversalRoot(osg::Group&) override {}
             void applyViewMask() override {}
             void applyWorldShown() override { mApplied.push_back(isWorldShown() ? worldViewMask() : 0u); }
@@ -298,6 +305,62 @@ namespace MWRender
 
             Settings::video().mResolutionX.set(0);
             Settings::video().mResolutionY.set(0);
+        }
+
+        /// The storage a world would stand in, which none does: what `attachWorld` is handed where
+        /// the renderer reads nothing of the world. A reference bound to an object whose lifetime
+        /// has not begun is one of the uses the language allows.
+        union UnbuiltWorld
+        {
+            UnbuiltWorld() {}
+            ~UnbuiltWorld() {}
+
+            RenderingManager mWorld;
+        };
+
+        /// **A world is detached once for each attach, by whatever ends its attachment**: an owner
+        /// whose constructor throws after the attach, a reset, an end of scope, and an assignment
+        /// over it. A moved-from attachment detaches nothing.
+        TEST(RendererTest, aWorldIsDetachedOnceByWhateverEndsItsAttachment)
+        {
+            RecordingRenderer renderer;
+            UnbuiltWorld unbuilt;
+            const osg::ref_ptr<osg::Group> root = new osg::Group;
+
+            struct Throwing
+            {
+                WorldAttachment mAttachment;
+
+                Throwing(Renderer& renderer, RenderingManager& world, osg::Group& root)
+                {
+                    mAttachment = renderer.attachWorld(world, root);
+                    throw std::runtime_error("after the attach");
+                }
+            };
+            EXPECT_THROW({ const Throwing owner(renderer, unbuilt.mWorld, *root); }, std::runtime_error);
+            EXPECT_EQ(renderer.mAttached, 1u);
+            EXPECT_EQ(renderer.mDetached, 1u) << "a constructor that threw after the attach";
+
+            {
+                WorldAttachment first = renderer.attachWorld(unbuilt.mWorld, *root);
+                WorldAttachment moved = std::move(first);
+                first.reset();
+                EXPECT_EQ(renderer.mDetached, 1u) << "the moved-from attachment";
+                moved.reset();
+                EXPECT_EQ(renderer.mDetached, 2u) << "a reset";
+                moved.reset();
+                EXPECT_EQ(renderer.mDetached, 2u) << "a second reset";
+            }
+
+            {
+                const WorldAttachment scoped = renderer.attachWorld(unbuilt.mWorld, *root);
+            }
+            EXPECT_EQ(renderer.mDetached, 3u) << "an end of scope";
+
+            WorldAttachment replaced = renderer.attachWorld(unbuilt.mWorld, *root);
+            replaced = WorldAttachment();
+            EXPECT_EQ(renderer.mDetached, 4u) << "an assignment over it";
+            EXPECT_EQ(renderer.mAttached, 4u);
         }
 
         /// The two kinds by the words the log and a crash report have always named them by.

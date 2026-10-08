@@ -95,6 +95,10 @@ The one interface the game talks to. Read its header first.
   starts. There is no fallback.
 - The base keeps what both renderers share: the resource system, the frame clock, the
   screenshot writer, the camera, the traversal root, the view mask and the presentation.
+- The world is attached as an object. `attachWorld` returns a `WorldAttachment`, and its end
+  calls the renderer's `onDetachWorld` once. `RenderingManager` holds it as its last member, so
+  a constructor that throws after the attach detaches too. The base asserts the pairing for
+  both renderers.
 - The presentation (`Misc::Presentation`) is the one answer to the screen's size. Each renderer
   draws the world and the interface at its frame, `[Video] resolution x/y` or the window's size at
   Native, and shows the frame scaled into the window with black beside it. The GUI, the
@@ -360,8 +364,8 @@ graph TD
     VR --> Ups["Upscaler"]
 ```
 
-Solid arrows own, dashed arrows borrow. `RtxRenderer` outlives the world: `attachWorld` and
-`detachWorld` are a pair inside it. The pictures inside the interface are owned by the game's map
+Solid arrows own, dashed arrows borrow. `RtxRenderer` outlives the world, which is attached to
+it while `RenderingManager`'s `WorldAttachment` stands (§4). The pictures inside the interface are owned by the game's map
 and preview, and they leave the queue when they go.
 
 ## 10. A frame

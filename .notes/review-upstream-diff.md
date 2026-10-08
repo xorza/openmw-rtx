@@ -54,30 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.11 Attaching a world is a pair nothing enforces, and a throwing constructor breaks it.**
-  `apps/openmw/mwrender/renderingmanager.cpp:184` attaches, and only `~RenderingManager` (`:205`)
-  detaches. `updateProjectionMatrix()` at `:200` throws at `:962` when `[Camera] viewing distance`
-  is under `near clip`, which the settings accept. The destructor never runs, so `GlRenderer`'s
-  `PostProcessor` and `RtxRenderer`'s `mWorldRoot` keep references to a destroyed
-  `RenderingManager`. The pairing rule lives in `RtxRenderer` alone (`rtxrenderer.hpp:312`).
-  Target: the attachment is an object.
-  1. `Renderer::attachWorld` becomes non-virtual and returns a `[[nodiscard]] WorldAttachment`. It
-     asserts that no world is attached, then calls a protected virtual `onAttachWorld`.
-  2. `WorldAttachment` is move-only. Its destructor and its `reset()` call the protected virtual
-     `onDetachWorld` once. The base holds the attached flag, so both renderers get the pairing check
-     and `RtxRenderer` loses its own.
-  3. `RenderingManager` holds the attachment as its last-declared member. The constructor assigns it
-     at `:184`. A throw after that destroys the member, which detaches. The destructor's first line
-     becomes `mAttachment.reset();`, which keeps today's order: detach before the work queue ends.
-  4. Item 4.1 adds the unref queue to what `attachWorld` is handed, so the attachment is also how
-     the ray tracer reaches it.
-
-  This changes the seam's own lines in an upstream file, and adds one member to `RenderingManager`.
-  Update `docs/rtx/architecture.md`'s seam section.
-  Verify: `./omw test openmw-tests --gtest_filter='RendererTest.*:RtxRendererTest.*'`, a test whose
-  constructor throws after the attach and expects a detach, and the setting under
-  `./omw asan game`.
-
 - [ ] **1.12 `GlRenderer::detachWorld` leaves the post-processing chain wired in.**
   `glrenderer.cpp:451,454-458`, `postprocessor.cpp:213,215`, `postprocessor.hpp:256,258`. The chain
   stays the viewer's scene data and the camera's user data, and holds `RenderingManager&` and
