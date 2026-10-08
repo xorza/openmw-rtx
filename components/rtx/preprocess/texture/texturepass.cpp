@@ -31,16 +31,16 @@ namespace Rtx
     void FinestTexels::addTo(ContentDigest& digest) const
     {
         const bool described = mFinest.has_value();
-        digest.addValue(described);
+        digest.add(described);
         if (!described)
             return;
 
         const TextureData& finest = *mFinest;
         const MipLevel& level = finest.mLevels.front();
-        digest.addValue(finest.mFormat);
-        digest.addValue(finest.mEncoding);
-        digest.addValue(level.mWidth);
-        digest.addValue(level.mHeight);
+        digest.add(finest.mFormat);
+        digest.add(finest.mEncoding);
+        digest.add(level.mWidth);
+        digest.add(level.mHeight);
 
         // Clamped as the readers clamp it, so the key never reaches past what they could read.
         const std::size_t from = std::min<std::size_t>(level.mOffset, finest.mBytes.size());
