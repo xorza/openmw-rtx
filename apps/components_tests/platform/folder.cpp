@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/files/conversion.hpp>
 #include <components/platform/folder.hpp>
 
 namespace
@@ -27,7 +28,7 @@ namespace
         ASSERT_TRUE(listed.has_value());
         std::vector<std::string> names;
         for (const std::filesystem::directory_entry& entry : *listed)
-            names.push_back(entry.path().filename().string());
+            names.push_back(Files::pathToUnicodeString(entry.path().filename()));
         std::ranges::sort(names);
         EXPECT_EQ(names, (std::vector<std::string>{ "inner", "one", "two" }));
 
