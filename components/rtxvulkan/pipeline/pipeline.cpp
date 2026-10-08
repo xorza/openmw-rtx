@@ -1,5 +1,6 @@
 #include "pipeline.hpp"
 
+#include <cassert>
 #include <cstddef>
 #include <optional>
 
@@ -13,6 +14,7 @@ namespace Rtx
         const Device& device, const std::string_view module, const std::span<const std::uint32_t> words)
         : mWords(words.begin(), words.end())
     {
+        assert(words.size() < Shaders::SPEC_CENSUS_KERNEL && "a stage's words reach the census's own constant");
         const auto entry = [](const std::uint32_t id, const std::size_t word) {
             return VkSpecializationMapEntry{ id, static_cast<std::uint32_t>(word * sizeof(std::uint32_t)),
                 sizeof(std::uint32_t) };

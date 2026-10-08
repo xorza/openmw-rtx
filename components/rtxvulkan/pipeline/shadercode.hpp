@@ -26,6 +26,19 @@ namespace Rtx
     /// nothing binds no census.
     std::optional<std::string> bindingDisagreement(std::span<const ModuleBinding> module, const SetTables& sets);
 
+    /// The first specialization constant a module declares that `words` — the stage's, a word per
+    /// `constant_id` (`Specialization`) — do not specialize as its type asks, in words: one past
+    /// the words, which would take its GLSL default in silence, or a `bool` handed a word other
+    /// than nought or one. The census's word is the stage's own and is never handed here.
+    std::optional<std::string> specializationDisagreement(
+        std::span<const ModuleSpecConstant> module, std::span<const std::uint32_t> words);
+
+    /// How a module's push block, ending at `end` where it has one, disagrees with the range the
+    /// layout declares, `range` bytes, in words: a block past the range, or a range past the block
+    /// by more than the host's rounding of a block that ends in a 64-bit address to a multiple of
+    /// eight (`hosttypes.h`). Nothing where they agree, and nothing for a module that reads no push.
+    std::optional<std::string> pushDisagreement(std::optional<std::uint32_t> end, std::uint32_t range);
+
     /// SPIR-V from the device's shader directory, read once a file however many stages name it,
     /// and handed to each stage inline: `maintenance5` takes a stage's code in its `pNext`, so no
     /// `VkShaderModule` is made, named or destroyed. Kept by whoever makes the pipelines that share
@@ -42,13 +55,16 @@ namespace Rtx
         /// is read on the first ask, and checked for being the one the build wrote, because a
         /// truncated `.spv` is otherwise a driver crash with no explanation.
         ///
-        /// **And the module's bindings held to `sets`**, the layout's statement of every set, which
-        /// the C++ writes beside the GLSL: a set or a binding the layout does not state, or a type
-        /// or a count the two state differently, ends the process as a crash naming the module and
-        /// the binding (`bindingDisagreement`), where the device would read a resource as another.
+        /// **And the module's interface held to what the C++ states beside the GLSL**: its bindings
+        /// to the layout's `sets` (`bindingDisagreement`), its specialization constants to `words`
+        /// (`specializationDisagreement`), and its push block to the layout's range of `pushBytes`
+        /// (`pushDisagreement`). A disagreement ends the process as a crash naming the module and
+        /// what disagrees, where the device would read a resource as another, a constant would take
+        /// its default, or a push would be read past what was written.
         ///
         /// @throws InputError where the file cannot be read or is not a module.
-        const void* stage(std::string_view module, const SetTables& sets);
+        const void* stage(std::string_view module, const SetTables& sets, std::uint32_t pushBytes,
+            std::span<const std::uint32_t> words);
 
     private:
         /// Reads `module` onto the end of `mRead`.
