@@ -3,19 +3,6 @@
 Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without tests and without
 `extern/fidelityfx`. Whoever addresses an item deletes it. When a group is empty, delete its heading.
 
-## Dead code
-
-- [ ] `components/rtxvulkan/shaders/lib/traversal.glsl:886-905` — `solidBetween` has no caller. Its doc
-  speaks of the removed bounce reuse. Target shape: delete it. (low)
-- [ ] `components/rtxvulkan/shaders/lib/fog.glsl:186-190` — `fogExtinctionAt` has no caller. Target shape:
-  delete it, and point the `fogColumnOver` doc (`:560`) to `fogDensityAt`. (low)
-- [ ] `components/rtxvulkan/shaders/lib/surfacematch.glsl:124-133` — `samePlane` is split out for the
-  removed bounce reuse. Its only caller is `heldSurfaceMatches` (`:185`). Target shape: put it into the
-  caller and remove the reuse words. (low)
-- [ ] `components/rtxvulkan/trace/spritebin.hpp:115`, `spritebin.cpp:130` — `SpriteBin::getBytes` has no
-  caller, and the bins' tables are not in `SceneStats::mTableBytes` (`scene/devicescene.cpp:197`). Target
-  shape: count the bins in the report, or delete the accessor. (low)
-
 ## Stale or false comments
 
 - [ ] `components/rtx/renderer/frameimage.cpp:68` — says that the rasterizer's thumbnail is cut by

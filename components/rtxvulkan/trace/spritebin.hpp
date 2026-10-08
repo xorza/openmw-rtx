@@ -112,8 +112,6 @@ namespace Rtx
                 .mPuffs = mPuffs };
         }
 
-        VkDeviceSize getBytes() const;
-
     private:
         const Device& mDevice;
         const SpriteShadePass& mShading;
