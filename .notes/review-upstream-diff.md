@@ -54,15 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.4 `MemoryAllocator`'s constructor leaks the VMA allocator and its pools when it throws.**
-  `device/memory/memory.cpp:136-190`. `mAllocator` and `mContentPools` are raw and freed only by the
-  destructor. The `Unsupported` throw at `:167` and a failed `vmaCreatePool` at `:188` run after
-  `vmaCreateAllocator`. Target: move the video-type check before the allocator. Hold the allocator
-  and the pools in a RAII member built in the initialiser list, whose destructor frees the pools,
-  then the allocator. Test: properties with no pure device-local type throw `Unsupported`, clean
-  under LSan.
-  Verify: `./omw asan test rtx-gpu-tests --gtest_filter='RtxMemoryTest.*'`.
-
 - [ ] **1.5 `Instance` pairs its handles by hand, and one throw sits outside the `try`.**
   `device/instance.cpp:222-289`, `instance.hpp:57-66`. `mExtensions.assign` at `:223` runs after
   `vkCreateInstance` and before the `try`. Target: one owner for parentless handles in `owned.hpp`
