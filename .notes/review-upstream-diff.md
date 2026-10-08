@@ -50,14 +50,6 @@ What is left:
 - **Frame-path costs in the mirror.** Unloaded cells are deleted on the frame thread (phase 4).
 - **Simplifications and dead code** (phases 5 and 6).
 
-## Documents to update with the items
-
-- `docs/rtx/architecture.md`: the seam's attachment and the unref queue it carries (1.11, 4.1), the
-  command pool's model of lent buffers, recordings and batches (2.1 to 2.3), the pipeline cache's
-  file format (1.8), and the one module interface reader (3.1).
-- `AGENTS.md`: the fourth approved fault (5.14). Item 5.13 removes a fork change, so nothing is
-  added for it. The `kernels` claim holds again after 3.5.
-
 ## Checked and found sound
 
 The reviewers checked these and found nothing to change. The list keeps a later review from
