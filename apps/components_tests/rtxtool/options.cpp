@@ -383,6 +383,17 @@ namespace RtxTool
             EXPECT_EQ(row(Verbs::Film), (std::array{ false, false, true, true, false, false }));
             EXPECT_EQ(row(Verbs::Noise), (std::array{ true, false, false, false, false, false }))
                 << "a reference is many frames of one frame, and a route would make them many";
+
+            // Traced at the game's width where a player sees the frames — a window, a bench, a film —
+            // and at the reference's wherever a picture may be summed.
+            for (const Verbs verb : { Verbs::Info, Verbs::Scene, Verbs::Shot, Verbs::View, Verbs::Bench, Verbs::Check,
+                     Verbs::Film, Verbs::Noise })
+            {
+                const bool shown = verb == Verbs::View || verb == Verbs::Bench || verb == Verbs::Film;
+                EXPECT_EQ(
+                    policyOf(verb).radianceWidth(), shown ? Rtx::RadianceWidth::Shown : Rtx::RadianceWidth::Summed)
+                    << describeVerbs(verb);
+            }
         }
     }
 

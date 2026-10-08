@@ -384,6 +384,7 @@ namespace RtxTool
                 framed.mSetup.mRun.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
             Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
+            profile.mRadianceWidth = policyOf(command.mVerb).radianceWidth();
             profile.mUpscale = derived.mUpscale;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
@@ -803,9 +804,6 @@ namespace RtxTool
             const bpo::variables_map& variables = command.mVariables;
             Framed framed = frameFrom(command);
 
-            // A bench draws frames the way a player sees them and sums none of them, so it is
-            // measured at the width the game runs at. Every other verb keeps the reference's.
-            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
             framed.mSetup.mHeadless = !variables["window"].as<bool>();
 
             const SuiteRun run = chooseBenchViews(variables, "default");
@@ -870,9 +868,6 @@ namespace RtxTool
         {
             const bpo::variables_map& variables = command.mVariables;
             Framed framed = frameFrom(command);
-
-            // Watched and never summed, like a bench.
-            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
 
             // **On the wall, because somebody is watching.** A stepped world runs as fast as the
             // card draws it, which at two hundred frames a second is three times over; a window
@@ -1057,9 +1052,6 @@ namespace RtxTool
         {
             const bpo::variables_map& variables = command.mVariables;
             Framed framed = frameFrom(command);
-
-            // Watched and never summed, like a bench.
-            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
 
             const std::filesystem::path keys = variables["keys"].as<std::string>();
             if (keys.empty())
