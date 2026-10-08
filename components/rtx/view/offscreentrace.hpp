@@ -77,7 +77,7 @@ namespace Rtx
 
     /// One picture traced from somewhere other than the eye: an inventory doll, a map tile. The
     /// trace writes straight into a slot of the renderer's GUI texture table, so the picture is
-    /// never a framebuffer and never in main memory unless somebody asks `readGuiTexture`. Two
+    /// never a framebuffer and never in main memory unless somebody asks for a copy (`takeCopy`). Two
     /// kinds, and `ViewRequest::mSubject` says which: a picture of the world traces against the
     /// scene the renderer already holds, and a picture of a subject is of a group assembled for it,
     /// mirrored into a scene of its own and walked again whenever the picture is asked for. The

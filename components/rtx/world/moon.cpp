@@ -44,9 +44,10 @@ namespace Rtx
         /// The angle between the sun and the eye as the moon sees them, from nought at full to pi at
         /// new, out of the phase's angle round the whole month. A waxing moon and a waning one a
         /// phase apart are the same angle: which limb keeps the light is the side the sun is on,
-        /// which `litFrom` finds, and not a second law. Morrowind's phases are multiples of a
-        /// quarter pi, so the fold is a subtraction and not a trip through a cosine; wrapped first,
-        /// because `Unspecified` is the ninth and stands a whole turn round, which is full.
+        /// which `litFrom` finds, and not a second law. The fold is a subtraction and not a trip
+        /// through a cosine, which would round the continuous phase (`Sky::MoonState::mPhaseEighths`)
+        /// and leave a full moon a hair off nought; wrapped first, so a phase a whole turn round
+        /// stands where it lands, which is full.
         float foldedPhase(const float phaseAngle)
         {
             const float wrapped = std::fmod(phaseAngle, 2.0f * osg::PIf);
