@@ -281,5 +281,5 @@ class Build:
         """A command under the flavour's environment, in the build directory unless told otherwise.
         **Every run is from the build directory**, because the harness's `--resources` defaults to
         `./resources`, and the tests that read game data resolve it the way the harness does."""
-        return subprocess.run(resolved(command, self.env), cwd=cwd or self.dir, env=self.env, check=check,
-                              **options)
+        cwd = cwd or self.dir
+        return subprocess.run(resolved(command, self.env, cwd), cwd=cwd, env=self.env, check=check, **options)

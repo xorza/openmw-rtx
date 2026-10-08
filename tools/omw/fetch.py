@@ -16,7 +16,7 @@ from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 
 from omw.pins import Pin
-from omw.system import WINDOWS, Refusal, run
+from omw.system import WINDOWS, Refusal, on_path, run
 
 
 class _HttpsOnly(urllib.request.HTTPRedirectHandler):
@@ -100,7 +100,7 @@ def download_pin(pin: Pin, file: Path) -> None:
 def seven_zip() -> Path:
     """7-Zip, the one tool the SDK installers do not bring, for the .7z set and LLVM's NSIS package;
     looked for where its installer puts it."""
-    found = shutil.which("7z")
+    found = on_path("7z")
     path = Path(found) if found else Path(r"C:\Program Files\7-Zip\7z.exe")
     if not path.is_file():
         raise Refusal("the archives are .7z and NSIS, and there is no 7-Zip: `winget install 7zip.7zip`")

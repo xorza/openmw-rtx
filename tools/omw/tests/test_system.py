@@ -1,8 +1,11 @@
+import contextlib
+import os
+import tempfile
 import unittest
 from pathlib import Path
 
 from omw.game import parse_folders
-from omw.system import Refusal, refuse_unsupported
+from omw.system import EXE, Refusal, on_path, refuse_unsupported, resolved
 
 
 class SystemTest(unittest.TestCase):
@@ -13,6 +16,31 @@ class SystemTest(unittest.TestCase):
             with self.assertRaises(Refusal) as refused:
                 refuse_unsupported(platform)
             self.assertIn(platform, str(refused.exception))
+
+    def test_a_relative_program_is_read_from_the_directory_it_runs_in(self):
+        build = Path("build-release")
+        absolute = str(Path.cwd() / "openmw")
+        for program, expected in (("./openmw-rtxtool", str(build.absolute() / "openmw-rtxtool")),
+                                  ("bin/openmw", str(build.absolute() / "bin" / "openmw")),
+                                  (absolute, absolute),
+                                  ("cmake", "cmake")):
+            self.assertEqual(resolved([program, "info"], None, build), [expected, "info"], program)
+        self.assertEqual(resolved(["./openmw-rtxtool"], None), ["./openmw-rtxtool"])
+
+    def test_a_bare_name_is_found_on_the_path_alone_and_not_in_the_working_directory(self):
+        with tempfile.TemporaryDirectory() as root:
+            here, listed, empty = Path(root, "here"), Path(root, "listed"), Path(root, "empty")
+            for folder in (here, listed, empty):
+                folder.mkdir()
+            for folder in (here, listed):
+                tool = folder / f"tool{EXE}"
+                tool.write_bytes(b"")
+                tool.chmod(0o755)
+            with contextlib.chdir(here):
+                self.assertEqual(os.path.normcase(on_path("tool", os.pathsep.join([str(empty), str(listed)]))),
+                                 os.path.normcase(listed / f"tool{EXE}"))
+                self.assertIsNone(on_path("tool", str(empty)))
+                self.assertIsNone(on_path("tool", ""))
 
 
 class FoldersTest(unittest.TestCase):
