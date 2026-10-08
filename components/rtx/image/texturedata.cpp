@@ -1,6 +1,9 @@
 #include "texturedata.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <limits>
 
 namespace Rtx
 {
@@ -24,6 +27,7 @@ namespace Rtx
             if (level.mWidth == 1 && level.mHeight == 1)
                 break;
 
+            assert(bytes <= std::numeric_limits<std::uint32_t>::max() && "a level laid out past a 32-bit offset");
             level = MipLevel{
                 .mOffset = static_cast<std::uint32_t>(bytes),
                 .mWidth = std::max(level.mWidth / 2, 1u),
@@ -42,6 +46,7 @@ namespace Rtx
         std::size_t bytes = 0;
         for (const MipLevel& level : shape)
         {
+            assert(bytes <= std::numeric_limits<std::uint32_t>::max() && "a level laid out past a 32-bit offset");
             mLevels.push_back(MipLevel{
                 .mOffset = static_cast<std::uint32_t>(bytes),
                 .mWidth = level.mWidth,

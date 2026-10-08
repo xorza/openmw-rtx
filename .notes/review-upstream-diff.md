@@ -52,14 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.9 32-bit level offsets truncate for a large widened image.**
-  `image/imagedescription.cpp:307,348`, `image/texturedata.cpp:28,46`. `describeLevels` bounds the
-  source below 4 GiB, not the widened copy (2× for 16-bit packed, 4× for L8, A8 and R8). A 32768² L8
-  DDS makes a 4 GiB copy, and level 1's offset truncates to 0. Target: refuse in `describeLevels`,
-  before `texels.resize`, when the laid-out size passes `uint32_t`. Assert the bound in the two
-  internal layout functions.
-  Verify: a `RtxSceneTexturesTest` case over a `NO_DELETE` image that declares 32768² L8.
-
 - [ ] **3.10 `SceneTextures`' spans rest on a debug assert.**
   `scene/scenetextures.cpp:85-115`. Two `reserve`s and the fill agree through two separate
   computations. If they diverge, release hands the backend dangling spans. Target: both capacity
