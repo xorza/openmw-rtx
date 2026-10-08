@@ -37,6 +37,7 @@
 
 #include "compare.hpp"
 #include "film.hpp"
+#include "noise.hpp"
 #include "numbervalue.hpp"
 #include "run.hpp"
 #include "verbs.hpp"

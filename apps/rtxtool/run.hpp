@@ -106,6 +106,14 @@ namespace RtxTool
         std::log(std::pow(1.0 - 1.0 / static_cast<double>(Rtx::Shaders::ACCUMULATE_FRAMES), double(sHistoryFrames)))
         / std::log(static_cast<double>(Rtx::Shaders::FOG_VOLUME_HISTORY))));
 
+    /// Runs `stop` for `frames` once the world stood whole and its histories converged over
+    /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
+    /// the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor` applies.
+    ///
+    /// @param frames how many to measure once the world has arrived. Why a command wants more
+    ///        than one is that command's to say.
+    void measureFrames(Stop& stop, std::uint32_t frames = 1);
+
     /// How long `check` holds the queue after every frame's trace, in milliseconds, where the line
     /// names no `--hold` of its own.
     ///

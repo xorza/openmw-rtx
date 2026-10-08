@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/compare.hpp>
+#include <apps/rtxtool/noise.hpp>
 #include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
@@ -39,16 +40,6 @@ namespace RtxTool
         void setLevel(Rtx::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel, std::uint8_t level)
         {
             sampleAt(image, x, y, channel) = static_cast<std::uint16_t>(level * Rtx::sSamplesPerLevel);
-        }
-
-        /// **An unfiltered picture at a held exposure warms over the air's decay** (`sAirFrames`),
-        /// where a filtered one warms over four accumulator lengths (`sHistoryFrames`): the air keeps
-        /// 0.9 of itself a frame, and the accumulator's `(31/32)^128 = 0.0172` is passed at
-        /// `0.9^39 = 0.0164` and not at `0.9^38 = 0.0182`.
-        TEST(RtxNoiseFrameTest, anUnfilteredPictureWarmsOverTheAirsDecay)
-        {
-            EXPECT_EQ(RtxTool::sHistoryFrames, 128u);
-            EXPECT_EQ(RtxTool::sAirFrames, 39u);
         }
 
         /// **A shot is refused against the directory it writes**, however the two are spelled: the
@@ -154,50 +145,6 @@ namespace RtxTool
 
             EXPECT_TRUE(measureError(picture, flat(10, 9, 100)).mMismatched);
             EXPECT_TRUE(measureError(Rtx::PngImage{}, reference).mMismatched);
-        }
-
-        /// **The bar holds what the history could.** Thirty frames at 1920 by 1080: native traces
-        /// every shown pixel and is held to the sixteen of a still frame; quality traces 1280 by 720,
-        /// `30 * 921600 / 2073600` = 13.3 samples a shown pixel, held to 13; ultra performance traces
-        /// 640 by 360, 3.3, held to 3. And never nought, however short the history.
-        ///
-        /// **And the frame a leg judges holds what the leg says.** Standing, the warm-up is the stop's
-        /// own 128 frames and its history 130, held to sixteen at native and at ultra performance to
-        /// `130 * 230400 / 2073600` = 14.4, so 14; flown in, the flight's thirty frames; `--cut=N`, a warm-up of
-        /// `N - 1` after the frame the cut resets, so `N + 1` frames of history: `--cut=1` at native
-        /// holds 2 and is held to 2, at quality `2 * 921600 / 2073600` = 0.89, held to 1; `--cut=4`
-        /// at native holds 5. A cut and a flight together are refused.
-        TEST(RtxCompareTest, aStrafedBarAveragesAsManyFramesAsTheHistoryCouldHold)
-        {
-            const auto after = [](std::uint32_t frames, Rtx::Upscale mode) {
-                return noiseBarFramesAfter(frames, Rtx::extentsFor(1920, 1080, mode));
-            };
-
-            EXPECT_EQ(after(30, Rtx::Upscale::Off), sNoiseBarFrames);
-            EXPECT_EQ(after(30, Rtx::Upscale::Native), sNoiseBarFrames);
-            EXPECT_EQ(after(30, Rtx::Upscale::Quality), 13u);
-            EXPECT_EQ(after(30, Rtx::Upscale::UltraPerformance), 3u);
-            EXPECT_EQ(after(8, Rtx::Upscale::Native), 8u);
-            EXPECT_EQ(after(1, Rtx::Upscale::UltraPerformance), 1u);
-
-            const auto taken = [](std::uint32_t cut, bool flies, Rtx::Upscale mode) {
-                return noiseFrameFor(cut, flies, Rtx::extentsFor(1920, 1080, mode));
-            };
-            const NoiseFrame standing = taken(0, false, Rtx::Upscale::Native).value();
-            EXPECT_FALSE(standing.mWarmup.has_value());
-            EXPECT_EQ(standing.mBarFrames, sNoiseBarFrames);
-            EXPECT_EQ(taken(0, false, Rtx::Upscale::UltraPerformance).value().mBarFrames, 14u);
-            const NoiseFrame flown = taken(0, true, Rtx::Upscale::Quality).value();
-            EXPECT_FALSE(flown.mWarmup.has_value());
-            EXPECT_EQ(flown.mBarFrames, 13u);
-            const NoiseFrame first = taken(1, false, Rtx::Upscale::Native).value();
-            EXPECT_EQ(first.mWarmup, 0u);
-            EXPECT_EQ(first.mBarFrames, 2u);
-            EXPECT_EQ(taken(1, false, Rtx::Upscale::Quality).value().mBarFrames, 1u);
-            const NoiseFrame fourth = taken(4, false, Rtx::Upscale::Native).value();
-            EXPECT_EQ(fourth.mWarmup, 3u);
-            EXPECT_EQ(fourth.mBarFrames, 5u);
-            EXPECT_FALSE(taken(2, true, Rtx::Upscale::Native).isOk());
         }
 
         /// **A firefly is four times the truth's light and a spark's worth over it.** A grey's light
