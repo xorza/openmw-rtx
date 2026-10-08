@@ -792,11 +792,8 @@ namespace Rtx
         if (went.mMaterials > 0)
             mChainKeys.retire(mReleased);
 
-        // Swept whatever the two tables above did, because an image a material stopped reading, a
-        // state set whose node left the graph and a sprite's texture each go stale on a frame where
-        // no material died at all.
-        mMeshes.retireDeformers(mReleased);
-        mMaterials.retireHolds(mReleased);
+        // Swept whatever the two tables above did, because a sprite's texture goes stale on a frame
+        // where no material died at all.
         mEmitters.retire(mReleased);
 
         // After the sweep and not before it, so that the walk which fills the next epoch is the

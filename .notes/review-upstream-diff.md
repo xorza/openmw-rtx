@@ -54,10 +54,6 @@ What is left:
 
 ### Mirror
 
-- [ ] **5.2 The resolvers' sweeps are split into halves the extractor must remember.**
-  `sceneextractor.cpp:772-794`, `meshresolver.hpp:87`, `materialresolver.hpp:168`. Fold
-  `retireDeformers()` and `retireHolds()` into their resolvers' `retire()`.
-
 - [ ] **5.3 The lines-and-points refusal lives in one caller.**
   `mirror/meshresolver.cpp:144-155` refuses with a reason (the null test at `:148` is dead after
   `:81`), and `cells/templatewalk.cpp:149-156` drops the same drawables in silence. Target:
