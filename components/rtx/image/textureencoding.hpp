@@ -31,10 +31,11 @@ namespace Rtx
         /// The neutral shading map: nothing to divide out.
         Neutral,
 
-        /// The light painted into a colour file, estimated off its texels (`ShadingPass`).
+        /// The light painted into a colour file, estimated off its texels on the device.
         Shading,
 
-        /// The roughness a normal map's levels lose to the normals they average (`NormalSpreadPass`).
+        /// The roughness a normal map's levels lose to the normals they average, measured on the
+        /// device.
         Spread,
     };
 }

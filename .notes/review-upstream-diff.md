@@ -54,16 +54,6 @@ What is left:
 
 ### Core
 
-- [ ] **5.5 Vulkan vocabulary and backend names in the core.**
-  `renderer/channel.hpp:40,46,69`, `renderer/framedigest.hpp:20` (`bindingOf`, "binding order").
-  `renderer/renderer.hpp:84,89,114,524,529-530`, `scene/mesh.hpp:98`, `scene/scenetextures.cpp:41`,
-  `frame/framesampling.cpp:59`, `common/parallel.hpp:29`. Backend classes named in
-  `image/textureencoding.hpp:34,37`, `image/texturedata.hpp:442-513`, `scene/compositequeue.hpp:21`,
-  `scene/ripple.hpp:8-9`. Target: rename `bindingOf` to `indexOf(Channel)`. The backend says once
-  that channel *i* binds at binding *i*. Rephrase the comments in API-neutral terms.
-  Verify: `./omw test components-tests --gtest_filter='RtxSourceTreeTest.*'`,
-  `./omw test rtx-gpu-tests --gtest_filter='RtxDigestPassTest.*:RtxTraceChainTest.*'`.
-
 - [ ] **5.6 `HeldSlotRows` exists only inside `HeldRows`.**
   `common/slots.hpp:298-373`: two layers of forwarders (8, then 6). Target: one `HeldRows<Row>` with
   public readers and protected `take`/`free`/`hold`/`drop`/`at`, used by the four tables. Port the

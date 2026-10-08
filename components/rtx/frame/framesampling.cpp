@@ -56,7 +56,7 @@ namespace Rtx
         sampled.mLampCandidates = reconstruction.mSampling.mLampCandidates;
 
         // The sampler takes the setting as it is: the settings clamp it to sixteen, and a device
-        // with `samplerAnisotropy`, which the requirements ask for, takes at least sixteen.
+        // with anisotropic filtering, which the backends require, takes at least sixteen.
         assert(profile.mAnisotropy >= 1 && "an anisotropy of nought, which no sampler takes");
         sampled.mAnisotropy = static_cast<float>(profile.mAnisotropy);
 

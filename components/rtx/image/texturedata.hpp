@@ -439,11 +439,11 @@ namespace Rtx
         File,
 
         /// The light bake of a sprite texture — `TextureKind::SpriteLight` says what a bake is — made on
-        /// the device from that texture's alpha, `SpriteLightPass`. `TextureData::mFrom` is the
+        /// the device from that texture's alpha. `TextureData::mFrom` is the
         /// slot it is made from, and it carries no bytes: a bake is shaped like its source.
         SpriteBake,
 
-        /// A distant chunk's layer stack, flattened on the device by `GroundCompositePass` in the
+        /// A distant chunk's layer stack, flattened on the device in the
         /// placement that writes the chunk's material row. `TextureData::mFrom` is that row, and
         /// it carries no bytes: a composite is `GROUND_COMPOSITE_EXTENT` square with a chain to
         /// one texel.
@@ -496,7 +496,7 @@ namespace Rtx
         std::span<const std::byte> mBytes{};
         std::span<const MipLevel> mLevels{};
 
-        /// Whether a backend completes the chain the file did not carry, `MipChainPass`, from the
+        /// Whether a backend completes the chain the file did not carry, on the device, from the
         /// one level here down to one texel. Set by the builder where `wantsCompletedChain` says,
         /// and never for a texture a test paints to be read at its one level. Under `File` alone.
         bool mCompleteChain = false;
@@ -509,8 +509,8 @@ namespace Rtx
         /// What stands beside it: the neutral shading map for a composite, whose painted light came
         /// off per tile in the bake and would come off twice; a bake, which nothing divides; the
         /// stand-in, which is one grey; and data, which is no picture of anything lit. A colour
-        /// file's painted light, estimated on the device as it arrives (`ShadingPass`), and a normal
-        /// map's spread, measured on it the same way (`NormalSpreadPass`). Derived, because the
+        /// file's painted light, estimated on the device as it arrives, and a normal map's spread,
+        /// measured on it the same way. Derived, because the
         /// source and the encoding decide it.
         TextureCompanion getCompanion() const
         {

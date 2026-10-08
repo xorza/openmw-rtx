@@ -26,7 +26,7 @@ namespace Rtx
     /// @param stop where a stop asked of the caller's thread reaches: no hand takes another index
     ///        once it is asked, and the batch comes back with what was done.
     /// @param equip what each hand holds for as long as it runs, built on that hand's own thread
-    ///        and destroyed there — how the Vulkan backend files a validation message under the
+    ///        and destroyed there — how a backend files a validation message under the
     ///        thread that asked for the work. What it throws is kept as a body's is, and that hand
     ///        takes no index.
     template <class Equip, class Body>

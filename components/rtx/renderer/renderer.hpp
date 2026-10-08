@@ -82,13 +82,13 @@ namespace Rtx
         bool mAbortOnError = true;
 
         /// Whether somebody asked for this by name rather than a build turning it on. A run that
-        /// demanded the layers and cannot have them fails naming what is missing, because an empty
-        /// log reads as a clean pass; a build that switched them on by default only warns.
+        /// demanded the validation and cannot have it fails naming what is missing, because an empty
+        /// log reads as a clean pass; a build that switched it on by default only warns.
         bool mDemanded = false;
     };
 
-    /// Whether the validation layers load without anyone asking: on outside a Release build, off
-    /// there because they cost half the frame rate and allocate on the frame path. The build decides
+    /// Whether the graphics API's validation runs without anyone asking: on outside a Release build,
+    /// off there because it costs half the frame rate and allocates on the frame path. The build decides
     /// and no setting does, because a setting would put a developer's diagnostic in a player's
     /// configuration file.
     inline constexpr bool sValidationByDefault = OPENMW_RTX_VALIDATION_BY_DEFAULT;
@@ -112,8 +112,8 @@ namespace Rtx
         /// upscaler refuses anything but `Off` at construction.
         RenderProfile mProfile{};
 
-        /// Which validation layers watch. Carried by the run and never in a settings file, for the
-        /// reason `sValidationByDefault` gives.
+        /// What the graphics API's validation checks. Carried by the run and never in a settings
+        /// file, for the reason `sValidationByDefault` gives.
         ValidationOptions mValidation{};
 
         /// The video memory the renderer takes its budget to be, in bytes, where the device states
@@ -141,7 +141,7 @@ namespace Rtx
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
 
-        /// What the run decided once: the profile, the layers and the budget.
+        /// What the run decided once: the profile, the validation and the budget.
         RunProfile mRun{};
 
         /// Where the frame is shown, or null for a renderer that only reads pixels back. A window
@@ -522,12 +522,12 @@ namespace Rtx
         /// cannot be reached, and a caller that offers the mode catches it and stays where it was.
         virtual void setUpscale(Upscale upscale) = 0;
 
-        /// How the presented image meets the monitor's refresh. Costs a swapchain rebuild, so a
+        /// How the presented image meets the monitor's refresh. Costs the presentation's rebuild, so a
         /// settings-change call and not a frame one.
         virtual void setVerticalSync(SDLUtil::VSyncMode mode) = 0;
 
         /// `RenderProfile::mAnisotropy`, changed while the frames run: a menu change. Every
-        /// texture's descriptors are written again into each copy of a scene's set, at the
+        /// texture's binding is written again into each copy of a scene's texture set, at the
         /// placement that next writes that copy.
         virtual void setAnisotropy(std::uint32_t anisotropy) = 0;
 

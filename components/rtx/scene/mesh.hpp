@@ -95,7 +95,7 @@ namespace Rtx
     };
 
     /// One mesh placed in the world: a row of the top-level acceleration structure. Not `Instance`,
-    /// which in this namespace is the `VkInstance` a device comes from.
+    /// which in the backend's namespace is the graphics API's instance a device comes from.
     struct MeshInstance
     {
         /// Object space to world space.
