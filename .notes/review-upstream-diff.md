@@ -54,27 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.6 The crash catcher's shared page is undone by hand, then destroyed while its handlers live.**
-  `components/crashcatcher/crashpadclient.cpp:86-132` fills the global `sPage` first, then empties
-  it on three error paths (`:112`, `:122`, `:130`). A fourth return that forgets leaves a page in
-  `/dev/shm` with no monitor, and `heartbeat()`/`setHangLimit()` write into it, since they test
-  `sPage.get()`. Separately, `sPage` (`:43`) is a namespace static: static destruction unmaps it
-  while the SIGUSR2 handler (`crashpadclientposix.cpp:27-35`) and the Windows `hangEntry` thread
-  (`crashpadclientwin32.cpp:292-296`) can still read it. A normal exit closes this by setting the
-  hang limit to 0, and a `std::exit()` inside the engine does not.
-  Target: one lifetime for the page.
-  1. `install` runs the cheap checks first (`Platform::Process::executable()`, the report folder),
-     then builds a local `SharedPage`, then calls `StartHandler`. On any failure it returns, and the
-     local's destructor unmaps and unlinks.
-  2. On success the page moves into storage that is never destroyed: `*new SharedPage(...)` behind
-     an accessor, with a comment that the handlers outlive every static. The process's end unmaps
-     it, and the monitor unlinks the name when it opens it, so nothing stays in `/dev/shm`.
-  3. `heartbeat()`, `setHangLimit()` and the handlers read the accessor, which is empty until
-     `install` succeeded.
-
-  Verify: `./omw test components-tests --gtest_filter='CrashPageTest.*:CrashMonitorArgumentsTest.*'`,
-  `./omw test -R crash.matrix`.
-
 - [ ] **1.7 Directory iteration throws on increment in five places, one of them the AppImage keeper.**
   A range-for over `directory_iterator(path, ec)` covers only construction. `operator++` throws.
   - `crashcatcher/crashimagelinux.cpp:72-166`: a throw (or `std::stol` at `:88`) leaves the
