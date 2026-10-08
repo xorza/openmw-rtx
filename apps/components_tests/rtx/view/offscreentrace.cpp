@@ -54,7 +54,7 @@ namespace Rtx
         /// which is why `MWRender::LocalMap`'s inclusion mask is not the weather bug again.
         TEST(RtxOffscreenTraceTest, aPictureOfTheWorldOwnsNoSceneAndOneOfASubjectDoes)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
             osg::ref_ptr<osg::Group> subject = new osg::Group;
             subject->addChild(Testing::makeQuad());
@@ -89,7 +89,7 @@ namespace Rtx
         /// white diffuse is pi, and a black ambient nought.
         TEST(RtxOffscreenTraceTest, aPictureHandsItsLightWhatItDrawsAndItsBackdrop)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
             OffscreenTrace world(renderer,
                 ViewRequest{ .mWidth = 64,
@@ -156,7 +156,7 @@ namespace Rtx
         /// in the doll on every frame of a slider drag.
         TEST(RtxOffscreenTraceTest, aRebuiltSubjectPlacesWhatArrivedAndHandsTheRoomToWhatComesNext)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
 
             osg::ref_ptr<osg::Geometry> body = Testing::makeQuad();
@@ -257,7 +257,7 @@ namespace Rtx
         /// doll's preprocessing out of every figure and ran its glow at nought.
         TEST(RtxOffscreenTraceTest, aSubjectsWalkSharesTheThreadsContentAndRunsAtTheWorldsClock)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
 
             const osg::ref_ptr<ClockedController> glow = new ClockedController;
@@ -286,7 +286,7 @@ namespace Rtx
         /// acceleration structure in it.
         TEST(RtxOffscreenTraceTest, anEmptySubjectSaysThereIsNothingToTrace)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
 
             osg::ref_ptr<osg::Group> subject = new osg::Group;
@@ -306,7 +306,7 @@ namespace Rtx
         /// dropped wherever it appears below.
         TEST(RtxOffscreenTraceTest, theSubjectMaskKeepsTheWalkOutOfWhatItDoesNotName)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
 
             constexpr osg::Node::NodeMask wanted = 1u << 3;

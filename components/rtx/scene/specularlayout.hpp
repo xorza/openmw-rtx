@@ -12,11 +12,9 @@ namespace Rtx
     /// What a `_spec` map's channels mean. The file cannot say: OpenMW documents a classic layout
     /// (highlight colour in RGB, glossiness in A), the PBR packs this renderer is made to read use
     /// another, and one install can hold both. So the player states it, `[RTX] specular map layout`.
+    /// Content with no `_spec` map, vanilla's, draws the same under either.
     enum class SpecularLayout : std::uint8_t
     {
-        /// Read no specular map at all.
-        Ignore,
-
         /// OpenMW's own: the highlight colour in RGB, read as the reflectance at normal incidence
         /// as the specular-glossiness workflow reads it (glTF's
         /// `KHR_materials_pbrSpecularGlossiness`), and the Blinn-Phong exponent over 255 in A,
@@ -30,8 +28,12 @@ namespace Rtx
     };
 
     inline constexpr NamedEnum sSpecularLayoutNames{ std::array{
-        std::pair{ SpecularLayout::Ignore, std::string_view("ignore") },
         std::pair{ SpecularLayout::Classic, std::string_view("classic") },
         std::pair{ SpecularLayout::MetalRoughness, std::string_view("metal roughness") },
     } };
+
+    /// The layouts the launcher and the settings window offer, in `sSpecularLayoutNames`' order: a
+    /// layout added there stops the build until each menu gives it a label.
+    inline constexpr std::array<SpecularLayout, sSpecularLayoutNames.mNames.size()> sSpecularLayoutMenu
+        = sSpecularLayoutNames.values();
 }

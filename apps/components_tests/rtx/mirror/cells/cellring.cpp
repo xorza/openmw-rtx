@@ -564,27 +564,21 @@ namespace Rtx::Testing
             CellRing mRing{ mExtractor };
         };
 
-        using RtxCellRingTest = CellRingTestOn<SpecularLayout::Ignore>;
-        using RtxCellRingClassicTest = CellRingTestOn<SpecularLayout::Classic>;
+        using RtxCellRingTest = CellRingTestOn<SpecularLayout::Classic>;
         using RtxCellRingMetalTest = CellRingTestOn<SpecularLayout::MetalRoughness>;
 
         /// **A `_diffusespec` is what the layout says it is**: authored under the metal layout, as the
-        /// test below reads, classic under the classic one, and a plain diffuse under `ignore`.
-        TEST_F(RtxCellRingClassicTest, aDiffusespecIsClassicUnderTheClassicLayout)
+        /// test below reads, and classic under the classic one.
+        TEST_F(RtxCellRingTest, aDiffusespecIsClassicUnderTheClassicLayout)
         {
             EXPECT_EQ(rockLayer(), Shaders::LAYER_CLASSIC | Shaders::LAYER_PARALLAX);
-        }
-
-        TEST_F(RtxCellRingTest, aDiffusespecIsAPlainDiffuseWhereTheLayoutIgnoresIt)
-        {
-            EXPECT_EQ(rockLayer(), Shaders::LAYER_PARALLAX);
         }
 
         /// **A ring is walked by the extractor it adopts through and no other**: one made on another
         /// adopts its rows into that extractor's scene inside this one's walk.
         TEST_F(RtxCellRingTest, aRingIsWalkedOnlyByTheExtractorItAdoptsThrough)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
             SceneDesc other;
             SceneExtractor stranger(other, context);
             expectAssertDies([&] { stranger.extractWorld(*mEmpty, 0, 1, mRing); },

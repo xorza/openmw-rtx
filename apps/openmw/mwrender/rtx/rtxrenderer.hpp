@@ -42,6 +42,7 @@
 namespace Resource
 {
     class ResourceSystem;
+    class SceneManager;
 }
 
 namespace MyGUI
@@ -194,6 +195,12 @@ namespace MWRender
         /// schedule's answer, and takes a PBR shot of every view to 7.7 GiB resident at its peak
         /// against 6.8.
         static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
+
+        /// Has `scene` look for every model's `_n` and `_spec` maps, whatever `[Shaders] auto use
+        /// object normal maps` and `specular maps` say: those are the rasterizer's, and a replacer's
+        /// companion maps are what the trace is made to read. Content with none, vanilla's, finds
+        /// nothing and draws as it did. The file names stay the settings'.
+        static void setAutoMaps(Resource::SceneManager& scene);
 
         /// The pictures inside the interface this renderer holds, for the harness to find the
         /// game's own map tile in.

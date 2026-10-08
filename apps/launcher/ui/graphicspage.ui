@@ -263,6 +263,20 @@
          </widget>
         </item>
         <item row="10" column="0">
+         <widget class="QLabel" name="rayTracingSpecularMapsLabel">
+          <property name="text">
+           <string>Specular Maps</string>
+          </property>
+         </widget>
+        </item>
+        <item row="10" column="1">
+         <widget class="QComboBox" name="rayTracingSpecularMapsComboBox">
+          <property name="toolTip">
+           <string>What the content&apos;s _spec maps hold, which the files cannot say. Classic is OpenMW&apos;s own layout, a highlight colour and a glossiness. PBR is the PBR packs&apos; layout, a metalness and a roughness. Content with no _spec maps, vanilla&apos;s, looks the same under either. A change takes effect the next time OpenMW starts.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="11" column="0">
          <spacer name="verticalSpacer">
           <property name="orientation">
            <enum>Qt::Vertical</enum>

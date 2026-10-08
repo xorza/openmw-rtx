@@ -83,15 +83,16 @@ namespace MWRender
     {
         mResources = &resources;
 
-        // What the content's companion maps are called and whether to look for them, which both
-        // renderers read the same way: the files are the content's, whoever draws them.
-        const Settings::ShadersCategory& shaders = Settings::shaders();
+        // What the content's companion maps are called, which both renderers read the same way: the
+        // files are the content's, whoever draws them. Whether to look for them is the rasterizer's
+        // setting, and the ray tracer decides it for itself (`RtxRenderer::setAutoMaps`). Each read
+        // through `Settings::shaders()` itself, which is how `RtxSupportTest` finds a key read here.
         resources.getSceneManager()->setAutoMaps(Shader::AutoMapRules{
-            .mNormalMaps = shaders.mAutoUseObjectNormalMaps,
-            .mNormalMapPattern = shaders.mNormalMapPattern,
-            .mNormalHeightMapPattern = shaders.mNormalHeightMapPattern,
-            .mSpecularMaps = shaders.mAutoUseObjectSpecularMaps,
-            .mSpecularMapPattern = shaders.mSpecularMapPattern,
+            .mNormalMaps = Settings::shaders().mAutoUseObjectNormalMaps,
+            .mNormalMapPattern = Settings::shaders().mNormalMapPattern,
+            .mNormalHeightMapPattern = Settings::shaders().mNormalHeightMapPattern,
+            .mSpecularMaps = Settings::shaders().mAutoUseObjectSpecularMaps,
+            .mSpecularMapPattern = Settings::shaders().mSpecularMapPattern,
         });
 
         configureResources(resources);

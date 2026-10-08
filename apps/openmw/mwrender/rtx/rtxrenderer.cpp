@@ -59,7 +59,6 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
@@ -269,11 +268,14 @@ namespace MWRender
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setShadersEnabled(false);
+        setAutoMaps(scene);
+    }
 
-        // A `_spec` map this renderer does not read is not loaded either: under `ignore` a pack of
-        // three thousand would sit in memory for nothing.
+    void RtxRenderer::setAutoMaps(Resource::SceneManager& scene)
+    {
         Shader::AutoMapRules maps = scene.getAutoMaps();
-        maps.mSpecularMaps = maps.mSpecularMaps && mMirror.getWalkContext().mSpecular != Rtx::SpecularLayout::Ignore;
+        maps.mNormalMaps = true;
+        maps.mSpecularMaps = true;
         scene.setAutoMaps(maps);
     }
 

@@ -239,6 +239,22 @@
         <translation> celler</translation>
     </message>
     <message>
+        <source>Specular Maps</source>
+        <translation>Spekulärkartor</translation>
+    </message>
+    <message>
+        <source>What the content&apos;s _spec maps hold, which the files cannot say. Classic is OpenMW&apos;s own layout, a highlight colour and a glossiness. PBR is the PBR packs&apos; layout, a metalness and a roughness. Content with no _spec maps, vanilla&apos;s, looks the same under either. A change takes effect the next time OpenMW starts.</source>
+        <translation>Vad innehållets _spec-kartor innehåller, vilket filerna själva inte kan säga. Klassisk är OpenMW:s eget format: en glansfärg och en glans. PBR är PBR-paketens format: metallighet och grovhet. Innehåll utan _spec-kartor, som grundspelet, ser likadant ut med båda. En ändring gäller från nästa gång OpenMW startar.</translation>
+    </message>
+    <message>
+        <source>Classic (Highlight Colour and Glossiness)</source>
+        <translation>Klassisk (glansfärg och glans)</translation>
+    </message>
+    <message>
+        <source>PBR (Metalness and Roughness)</source>
+        <translation>PBR (metallighet och grovhet)</translation>
+    </message>
+    <message>
         <source>Custom:</source>
         <translation>Egen:</translation>
     </message>

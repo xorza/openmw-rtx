@@ -306,6 +306,22 @@
         <source> cells</source>
         <translation> ячеек</translation>
     </message>
+    <message>
+        <source>Specular Maps</source>
+        <translation>Карты бликов</translation>
+    </message>
+    <message>
+        <source>What the content&apos;s _spec maps hold, which the files cannot say. Classic is OpenMW&apos;s own layout, a highlight colour and a glossiness. PBR is the PBR packs&apos; layout, a metalness and a roughness. Content with no _spec maps, vanilla&apos;s, looks the same under either. A change takes effect the next time OpenMW starts.</source>
+        <translation>Что содержат карты _spec в контенте — сами файлы этого не сообщают. «Классические» — собственный формат OpenMW: цвет блика и глянцевость. PBR — формат PBR-паков: металличность и шероховатость. Контент без карт _spec, как оригинальная игра, выглядит одинаково с обоими. Изменение вступит в силу при следующем запуске OpenMW.</translation>
+    </message>
+    <message>
+        <source>Classic (Highlight Colour and Glossiness)</source>
+        <translation>Классические (цвет блика и глянцевость)</translation>
+    </message>
+    <message>
+        <source>PBR (Metalness and Roughness)</source>
+        <translation>PBR (металличность и шероховатость)</translation>
+    </message>
 </context>
 <context>
     <name>ImportPage</name>

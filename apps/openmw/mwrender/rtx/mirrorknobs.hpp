@@ -35,6 +35,6 @@ namespace MWRender
 
         /// `[RTX] specular map layout`: what the content's `_spec` maps mean, for every scene the
         /// mirror and the pictures inside the interface read materials into.
-        Rtx::SpecularLayout mSpecularLayout = Rtx::SpecularLayout::Ignore;
+        Rtx::SpecularLayout mSpecularLayout = Rtx::SpecularLayout::Classic;
     };
 }

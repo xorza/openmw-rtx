@@ -239,6 +239,22 @@
         <translation> Zellen</translation>
     </message>
     <message>
+        <source>Specular Maps</source>
+        <translation>Spekularmaps</translation>
+    </message>
+    <message>
+        <source>What the content&apos;s _spec maps hold, which the files cannot say. Classic is OpenMW&apos;s own layout, a highlight colour and a glossiness. PBR is the PBR packs&apos; layout, a metalness and a roughness. Content with no _spec maps, vanilla&apos;s, looks the same under either. A change takes effect the next time OpenMW starts.</source>
+        <translation>Was die _spec-Maps der Inhalte enthalten, was die Dateien selbst nicht sagen können. Klassisch ist OpenMWs eigenes Format: eine Glanzlichtfarbe und ein Glanz. PBR ist das Format der PBR-Pakete: Metallizität und Rauheit. Inhalte ohne _spec-Maps, wie die des Grundspiels, sehen mit beiden gleich aus. Eine Änderung wird beim nächsten Start von OpenMW wirksam.</translation>
+    </message>
+    <message>
+        <source>Classic (Highlight Colour and Glossiness)</source>
+        <translation>Klassisch (Glanzlichtfarbe und Glanz)</translation>
+    </message>
+    <message>
+        <source>PBR (Metalness and Roughness)</source>
+        <translation>PBR (Metallizität und Rauheit)</translation>
+    </message>
+    <message>
         <source>Custom:</source>
         <translation type="unfinished"></translation>
     </message>

@@ -8,19 +8,19 @@
 
 namespace RtxTool
 {
-    /// Which companion maps a model takes, as the line names them: whether it looks for a normal and
-    /// a specular map, what they are called, and what a specular map's channels mean. Named, never
-    /// read from the player's `settings.cfg`, so two machines with the same content trace one scene.
+    /// What a model's companion maps are called and what a specular map's channels mean, as the line
+    /// names them; the ray tracer looks for both maps under every rule. Named, never read from the
+    /// player's `settings.cfg`, so two machines with the same content trace one scene.
     enum class MapRules
     {
-        /// `settings-default.cfg`'s, which look for none.
+        /// `settings-default.cfg`'s layout, by the shipped name patterns.
         Shipped,
 
-        /// Both maps, by the shipped name patterns, and a `_spec` map read as OpenMW's own layout
+        /// The shipped name patterns, and a `_spec` map read as OpenMW's own layout
         /// (`Rtx::SpecularLayout::Classic`).
         Classic,
 
-        /// Both maps, by the shipped name patterns, and a `_spec` map read as the PBR packs' layout
+        /// The shipped name patterns, and a `_spec` map read as the PBR packs' layout
         /// (`Rtx::SpecularLayout::MetalRoughness`).
         MetalRoughness,
     };

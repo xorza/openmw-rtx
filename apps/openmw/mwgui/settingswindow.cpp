@@ -31,6 +31,7 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
@@ -174,9 +175,16 @@ namespace
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel<Rtx::Upscale>> labels)
+    constexpr std::array<Rtx::MenuLabel<Rtx::SpecularLayout>, Rtx::sSpecularLayoutMenu.size()> sSpecularLayoutLabels{ {
+        { Rtx::SpecularLayout::Classic, "#{OMWEngine:RayTracingSpecularMapsClassic}" },
+        { Rtx::SpecularLayout::MetalRoughness, "#{OMWEngine:RayTracingSpecularMapsMetalRoughness}" },
+    } };
+    static_assert(Rtx::followsMenu(sSpecularLayoutLabels, Rtx::sSpecularLayoutMenu));
+
+    template <class Enum>
+    void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel<Enum>> labels)
     {
-        for (const Rtx::MenuLabel<Rtx::Upscale>& label : labels)
+        for (const Rtx::MenuLabel<Enum>& label : labels)
             box->addItem(MyGUI::LanguageManager::getInstance().replaceTags(label.mLabel));
     }
 }
@@ -342,9 +350,14 @@ namespace MWGui
         getWidget(mShadowMapResolution, "ShadowMapResolution");
         getWidget(mRayTracingUpscale, "RayTracingUpscaleList");
 
-        addMenuItems(mRayTracingUpscale, sUpscaleLabels);
+        getWidget(mRayTracingSpecularMaps, "RayTracingSpecularMapsList");
+
+        addMenuItems<Rtx::Upscale>(mRayTracingUpscale, sUpscaleLabels);
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
+        addMenuItems<Rtx::SpecularLayout>(mRayTracingSpecularMaps, sSpecularLayoutLabels);
+        mRayTracingSpecularMaps->eventComboChangePosition
+            += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingSpecularMapsChanged);
 
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &SettingsWindow::onWindowResize);
@@ -627,6 +640,16 @@ namespace MWGui
             return;
 
         Settings::rtx().mUpscale.set(*chosen);
+        apply();
+    }
+
+    void SettingsWindow::onRayTracingSpecularMapsChanged(MyGUI::ComboBox* sender, size_t pos)
+    {
+        const std::optional<Rtx::SpecularLayout> chosen = Rtx::menuValue(Rtx::sSpecularLayoutMenu, pos);
+        if (!chosen.has_value())
+            return;
+
+        Settings::rtx().mSpecularMapLayout.set(*chosen);
         apply();
     }
 
@@ -960,6 +983,8 @@ namespace MWGui
     {
         // The menu offers every mode the setting can hold
         mRayTracingUpscale->setIndexSelected(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value());
+        mRayTracingSpecularMaps->setIndexSelected(
+            Rtx::menuIndex(Rtx::sSpecularLayoutMenu, Settings::rtx().mSpecularMapLayout.get()).value());
     }
 
     void SettingsWindow::layoutControlsBox()
@@ -1134,6 +1159,7 @@ namespace MWGui
             { mLightsResetButton, { "Shaders", "max lights" } },
             { mShadowMapResolution, { "Shadows", "shadow map resolution" } },
             { mRayTracingUpscale, { "RTX", "upscale" } },
+            { mRayTracingSpecularMaps, { "RTX", "specular map layout" } },
         };
         for (const auto& [control, setting] : wired)
             if (const std::string_view declined = mSupport.declinedSetting(setting.first, setting.second);

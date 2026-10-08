@@ -38,7 +38,7 @@ namespace Settings
         SettingValue<Rtx::Upscale> mUpscale{ mIndex, "RTX", "upscale" };
 
         /// What the content's `_spec` maps mean, as `Rtx::sSpecularLayoutNames` spells the layouts:
-        /// `ignore`, `classic` or `metal roughness`, read by it at load. Read where the renderer is
+        /// `classic` or `metal roughness`, read by it at load. Read where the renderer is
         /// made, because the maps are loaded with the models.
         SettingValue<Rtx::SpecularLayout> mSpecularMapLayout{ mIndex, "RTX", "specular map layout" };
     };

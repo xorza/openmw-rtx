@@ -141,7 +141,7 @@ namespace Rtx::Testing
         }
 
         /// The frame thread's, which production owns once and every extractor on it shares.
-        WalkContext mContext{ .mSpecular = SpecularLayout::Ignore };
+        WalkContext mContext{ .mSpecular = SpecularLayout::Classic };
         Rtx::SceneDesc mScene;
         SceneExtractor mExtractor{ mScene, mContext };
         double mWorldSeconds = 0.0;

@@ -31,6 +31,7 @@
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
+#include <components/shader/automaps.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -160,6 +161,27 @@ namespace MWRender
             RtxRenderer::setResourceExpiry(walled, std::nullopt);
             EXPECT_EQ(walled.getSceneManager()->getExpiryDelay(), sSetting);
             EXPECT_EQ(walled.getImageManager()->getExpiryDelay(), sSetting);
+        }
+
+        /// **The companion maps are found whatever the rasterizer's switches say**, both off here,
+        /// and by the file names the settings give.
+        TEST(RtxRendererTest, theCompanionMapsAreFoundWhateverTheRasterizersSwitchesSay)
+        {
+            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({});
+            Resource::ResourceSystem resources(vfs.get(), 5.0, nullptr);
+            Resource::SceneManager& scene = *resources.getSceneManager();
+            scene.setAutoMaps(Shader::AutoMapRules{ .mNormalMaps = false,
+                .mNormalMapPattern = "_n",
+                .mNormalHeightMapPattern = "_nh",
+                .mSpecularMaps = false,
+                .mSpecularMapPattern = "_spec" });
+            RtxRenderer::setAutoMaps(scene);
+            const Shader::AutoMapRules& maps = scene.getAutoMaps();
+            EXPECT_TRUE(maps.mNormalMaps);
+            EXPECT_TRUE(maps.mSpecularMaps);
+            EXPECT_EQ(maps.mNormalMapPattern, "_n");
+            EXPECT_EQ(maps.mNormalHeightMapPattern, "_nh");
+            EXPECT_EQ(maps.mSpecularMapPattern, "_spec");
         }
 
         /// What the infinite delay promises of a cache: an item nothing references, last used at

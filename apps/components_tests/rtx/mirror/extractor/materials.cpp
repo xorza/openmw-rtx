@@ -296,7 +296,7 @@ namespace Rtx::Testing
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, test));
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
                 SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
@@ -361,7 +361,7 @@ namespace Rtx::Testing
                 state.setAttribute(colours);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
                 SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
@@ -428,7 +428,7 @@ namespace Rtx::Testing
                     state.addUniform(new osg::Uniform("sun.ambient", osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
                 SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -502,11 +502,11 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.textures().getRows().size(), 4u);
         }
 
-        /// **The companion maps reach the material, and the specular map only in the layout that
-        /// names what its channels mean.** A normal map with height and one without are one map. A
-        /// walk told nothing reads no specular map; the metal layout reads it as data, and the
-        /// classic one as a colour, its highlight being one the artist saw. **A normal map bound with its height is
-        /// parallax**, and not on a cutout, whose hole the traversal finds with no eye to shift by.
+        /// **The companion maps reach the material, the specular map in the layout that names what
+        /// its channels mean.** A normal map with height and one without are one map. The metal
+        /// layout reads the specular map as data, and the classic one as a colour, its highlight
+        /// being one the artist saw. **A normal map bound with its height is parallax**, and not on a
+        /// cutout, whose hole the traversal finds with no eye to shift by.
         TEST_F(RtxSceneExtractorTest, theCompanionMapsReachTheMaterialAsDataAndTheSpecularMapOnlyInItsLayout)
         {
             const auto extractOne = [](SpecularLayout layout, TextureRole normalRole, bool cutout = false) {
@@ -528,14 +528,17 @@ namespace Rtx::Testing
                     std::vector<TextureRow>(scene.textures().getRows().begin(), scene.textures().getRows().end()) };
             };
 
-            const auto [ignored, ignoredRows] = extractOne(SpecularLayout::Ignore, TextureRole::NormalHeight);
-            ASSERT_NE(ignored.mNormal, sNoIndex);
-            EXPECT_EQ(ignoredRows[ignored.mNormal].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_nh.dds"));
-            EXPECT_EQ(ignoredRows[ignored.mNormal].mEncoding, TextureEncoding::Normal);
-            EXPECT_EQ(ignoredRows[ignored.mDiffuse].mEncoding, TextureEncoding::Colour);
-            EXPECT_EQ(ignored.mSpecular, sNoIndex);
-            EXPECT_EQ(ignoredRows.size(), 2u) << "a specular map read by nothing takes no slot";
-            EXPECT_TRUE(ignored.mParallax) << "a normal map with its height";
+            const auto [classic, classicRows] = extractOne(SpecularLayout::Classic, TextureRole::NormalHeight);
+            ASSERT_NE(classic.mNormal, sNoIndex);
+            EXPECT_EQ(classicRows[classic.mNormal].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_nh.dds"));
+            EXPECT_EQ(classicRows[classic.mNormal].mEncoding, TextureEncoding::Normal);
+            EXPECT_EQ(classicRows[classic.mDiffuse].mEncoding, TextureEncoding::Colour);
+            ASSERT_NE(classic.mSpecular, sNoIndex);
+            EXPECT_EQ(classicRows[classic.mSpecular].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_spec.dds"));
+            EXPECT_EQ(classicRows[classic.mSpecular].mEncoding, TextureEncoding::Colour);
+            EXPECT_EQ(classicRows.size(), 3u);
+            EXPECT_TRUE(classic.mSpecularClassic);
+            EXPECT_TRUE(classic.mParallax) << "a normal map with its height";
 
             const auto [read, readRows] = extractOne(SpecularLayout::MetalRoughness, TextureRole::Normal);
             ASSERT_NE(read.mNormal, sNoIndex);
@@ -546,12 +549,7 @@ namespace Rtx::Testing
             EXPECT_FALSE(read.mParallax) << "a normal map without one";
             EXPECT_FALSE(read.mSpecularClassic);
 
-            const auto [classic, classicRows] = extractOne(SpecularLayout::Classic, TextureRole::Normal);
-            ASSERT_NE(classic.mSpecular, sNoIndex);
-            EXPECT_EQ(classicRows[classic.mSpecular].mEncoding, TextureEncoding::Colour);
-            EXPECT_TRUE(classic.mSpecularClassic);
-
-            const auto [cut, cutRows] = extractOne(SpecularLayout::Ignore, TextureRole::NormalHeight, true);
+            const auto [cut, cutRows] = extractOne(SpecularLayout::Classic, TextureRole::NormalHeight, true);
             EXPECT_TRUE(cut.isCutout());
             EXPECT_FALSE(cut.mParallax) << "a cutout, shifted where it shades and not where it is cut";
         }
@@ -965,7 +963,7 @@ namespace Rtx::Testing
                 parent->addChild(quad);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
                 SceneExtractor extractor(scene, context);
                 extractor.extract(*parent, osg::Matrixf::identity(), 0);
 
@@ -1059,7 +1057,7 @@ namespace Rtx::Testing
                 surface.setEmissiveMultiplier(multiplier);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
                 SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
@@ -1101,7 +1099,7 @@ namespace Rtx::Testing
                     root->addChild(makeLightSource(100.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
                 SceneExtractor extractor(scene, context);
                 extractor.extract(*root, osg::Matrixf::identity(), 0);
 
@@ -1132,7 +1130,7 @@ namespace Rtx::Testing
                     quad->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
                 SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
