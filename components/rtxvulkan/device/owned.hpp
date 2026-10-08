@@ -169,4 +169,54 @@ namespace Rtx
         VkDevice mDevice = VK_NULL_HANDLE;
         Handle mHandle = VK_NULL_HANDLE;
     };
+
+    /// A handle with no parent, ended by `Destroy(handle, allocator)` the moment it is let go of:
+    /// the instance and the logical device, which outlive everything made on them and are ended
+    /// last. A member declared before everything made on its handle, so that whatever ends the
+    /// owner — its destructor or a constructor that throws half way — ends those first and this
+    /// last, in the one order.
+    template <class Handle, auto& Destroy>
+    class Root
+    {
+    public:
+        Root() = default;
+
+        /// Takes `handle`, made and checked.
+        explicit Root(Handle handle)
+            : mHandle(handle)
+        {
+        }
+
+        ~Root() { reset(); }
+
+        Root(const Root&) = delete;
+        Root& operator=(const Root&) = delete;
+
+        Root(Root&& other) noexcept
+            : mHandle(std::exchange(other.mHandle, VK_NULL_HANDLE))
+        {
+        }
+
+        Root& operator=(Root&& other) noexcept
+        {
+            if (this != &other)
+            {
+                reset();
+                mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
+            }
+            return *this;
+        }
+
+        Handle get() const { return mHandle; }
+
+    private:
+        void reset()
+        {
+            if (mHandle != VK_NULL_HANDLE)
+                Destroy(mHandle, nullptr);
+            mHandle = VK_NULL_HANDLE;
+        }
+
+        Handle mHandle = VK_NULL_HANDLE;
+    };
 }
