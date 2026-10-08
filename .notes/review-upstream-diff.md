@@ -52,13 +52,6 @@ What is left:
 
 ## Phase 6 — dead code and stale comments
 
-- [ ] **6.1 The empty sprite list in `TraceMedia` is dead.**
-  `trace/tracemedia.hpp:52-54,96-98`, `tracemedia.cpp:18-22`. Commit `b569c7484a` removed its only
-  caller, and a host-visible buffer is still allocated. Delete it, then `Buffer::zeroOnHost`
-  (`device/memory/buffer.hpp:215`), which loses its last caller. Rewrite the four comments that
-  describe it: `trace/visibilitypass.hpp:59-61`, `trace/tracemedia.hpp:28`,
-  `components/rtx/shaders/scene.h:1009-1012`, `shaders/lib/spritelist.glsl:113-114`.
-
 - [ ] **6.2 Members with no caller.**
   `Presenter::getExtent` (`present/presenter.hpp:63`, `.cpp:162-165`),
   `RtxRenderer::getBackend` (`mwrender/rtx/rtxrenderer.hpp:203-206`),
