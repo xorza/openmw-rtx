@@ -9,6 +9,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
@@ -55,8 +56,9 @@ namespace Rtx
             TextureArray textures(device, setup, layout, passes, 1);
             setup.flush();
 
-            // An arrival, owed to every set: what `sync` has to write once the set is free. Ahead
-            // of the hold, because a flush behind a held submit waits for the hold.
+            // An arrival, owed to every set and paid before either is bound: a set is handed out
+            // only once `sync` has written what it owes. Ahead of the hold, because a flush behind
+            // a held submit waits for the hold.
             const std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const TextureData arrived = Testing::describeTexel(white, 0);
             Batch arrival(pool);
@@ -64,11 +66,23 @@ namespace Rtx
             textures.write(arrival, passes, std::span(&arrived, 1), refused);
             EXPECT_TRUE(refused.empty());
             arrival.flush();
+            Testing::expectAssertDies([&] { static_cast<void>(textures.getSet(FrameSlot{ 0 })); },
+                "a texture set sampled before `sync` paid what it owes");
+            textures.sync(FrameSlot{ 0 });
+            textures.sync(FrameSlot{ 1 });
 
             Testing::HeldSubmit hold(device);
             const LentCommands binder = pool.lend(1);
             Recording binding = pool.begin(binder[0]);
             EXPECT_NE(textures.getSet(FrameSlot{ 0 }), VK_NULL_HANDLE);
+
+            // A second arrival, owed to both again once the first set is bound: what `sync` has to
+            // write once that set is free. Deferred, so it rides ahead of the held submit.
+            const TextureData second = Testing::describeTexel(white, 1);
+            Batch secondArrival(pool);
+            textures.write(secondArrival, passes, std::span(&second, 1), refused);
+            EXPECT_TRUE(refused.empty());
+            secondArrival.defer();
             hold.submit(std::move(binding));
 
             // Long enough that a wait which returned at once is told from one that waited, under three

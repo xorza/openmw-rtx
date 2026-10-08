@@ -7,6 +7,7 @@
 
 #include <volk.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -167,6 +168,18 @@ namespace Rtx
             pool.submitAndWait([](VkCommandBuffer) {});
             const LentCommands after = pool.lend(2);
             EXPECT_TRUE(after[0] == ended || after[1] == ended) << "not given back once a submit after its end ran";
+        }
+
+        /// **What the pool gives back on an idle queue is nothing a recording still holds**: the
+        /// graveyard's own idle collect leans on no recording being open beside it.
+        TEST_F(RtxBatchTest, anIdleCollectBesideAnOpenRecordingIsAContractBroken)
+        {
+            getDevice().waitIdle();
+            const LentCommands lent = getPool().lend(1);
+            Recording open = getPool().begin(lent[0]);
+            Testing::expectAssertDies(
+                [&] { getDevice().collectIdle(); }, "command buffers given back while a recording is open");
+            std::move(open).end();
         }
 
         /// A staged write names its destination for the submit the batch rides.

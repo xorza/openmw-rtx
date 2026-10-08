@@ -32,6 +32,16 @@ namespace Rtx
         /// suite these tests are reported under.
         using RtxDeviceTest = Testing::DeviceTest;
 
+        /// **A wait for a value past every submit is a call out of its turn**, and not a device that
+        /// stopped answering: nothing will signal it, and waited, it sat out its patience and then
+        /// blamed the device.
+        TEST_F(RtxDeviceTest, aWaitForAValueNoSubmitSignalsIsAContractBroken)
+        {
+            const Device& device = *mHarness.mDevice;
+            Testing::expectAssertDies([&] { device.waitFor(device.getTimeline().getNext(), "a submit not made"); },
+                "a wait for a value no submit signals");
+        }
+
         /// A wait on a device that never answers ends the process as a crash, and says which wait it
         /// was.
         ///
