@@ -18,6 +18,7 @@
 namespace Rtx
 {
     class Device;
+    class Recording;
 
     /// The one command pool, the device's own, and both ways a submit is made out of it: a load
     /// asks the queue and waits, and a frame cannot wait, because a frame that drained the queue
@@ -45,13 +46,9 @@ namespace Rtx
         void recycle(std::span<const VkCommandBuffer> commands);
 
         /// Begins one of them, one-shot like everything this pool hands out: a frame's recording, a
-        /// placement's or a trace's, open until it is ended, submitted, deferred or discarded.
-        /// **No other submit is made while it is open**, which `submitWithDeferred` asserts.
-        void begin(VkCommandBuffer commands);
-
-        /// Ends a recording nobody will submit this frame — a placement that placed nothing — so
-        /// the buffer can be begun again next frame. Not `discard`, which gives it back.
-        void end(VkCommandBuffer commands);
+        /// placement's or a trace's, open until the `Recording` is submitted or ended. **No other
+        /// submit is made while it is open**, which `submitWithDeferred` asserts.
+        Recording begin(VkCommandBuffer commands);
 
         /// Takes a recorded batch to submit ahead of the next submit this pool makes — what lets an
         /// arrival ride the placement that follows it instead of costing a round trip of its own.
@@ -61,19 +58,6 @@ namespace Rtx
         /// Submits whatever was deferred and waits for it, for the two paths that take the pool
         /// apart — a resize and shutdown — which have no next submit to give a deferred batch.
         void finishDeferred();
-
-        /// Submits `commands` behind whatever was deferred and does not wait — the frame's own
-        /// submit. Ends `commands`. The deferred batches' command buffers retire under the value
-        /// this signals, and `collect` gives them back once a wait has passed it. Returns the
-        /// value the submit signals on the device's timeline, which is what says when that is.
-        ///
-        /// @param waits,signals binary semaphores the submit waits and signals beside the
-        ///        timeline: what a present's blit needs, and what nothing else does. Through here
-        ///        and not a submit of its own, because a submit that took a timeline value without
-        ///        carrying the deferred batches would let the graveyard free what they name before
-        ///        they run.
-        std::uint64_t submit(VkCommandBuffer commands, std::span<const VkSemaphoreSubmitInfo> waits = {},
-            std::span<const VkSemaphoreSubmitInfo> signals = {});
 
         const Device& getDevice() const { return mDevice; }
 
@@ -112,6 +96,20 @@ namespace Rtx
 
     private:
         friend class Batch;
+        friend class Recording;
+
+        /// `Recording::submit`'s: submits `commands` behind whatever was deferred and does not
+        /// wait. Ends `commands`. The deferred batches' command buffers retire under the value this
+        /// signals, and `collect` gives them back once a wait has passed it.
+        std::uint64_t submit(VkCommandBuffer commands, std::span<const VkSemaphoreSubmitInfo> waits,
+            std::span<const VkSemaphoreSubmitInfo> signals);
+
+        /// `Recording::end`'s: ends a recording nobody will submit, so its owner can begin it again.
+        void end(VkCommandBuffer commands);
+
+        /// What a `Recording` an exception left goes back to: reset, so its owner can begin it
+        /// again, and no longer counted open. The buffer stays its owner's.
+        void unwind(VkCommandBuffer commands);
 
         /// Gives back the retired command buffers the timeline has passed. The device's, after
         /// every wait, as the graveyard's `collect` is.
@@ -215,6 +213,47 @@ namespace Rtx
         /// Refilled per submit: a frame is three of them, and none allocates.
         std::vector<VkCommandBufferSubmitInfo> mSubmitScratch;
         std::vector<VkSemaphoreSubmitInfo> mSignalScratch;
+    };
+
+    /// An open recording, from `CommandPool::begin` to its submit or its end, in one scope. An
+    /// exception that leaves the scope gives the buffer back reset and no longer open, where a
+    /// recording begun and closed by hand stayed open, and the next submit's assert named that in
+    /// place of the error.
+    class [[nodiscard]] Recording
+    {
+    public:
+        Recording(Recording&& other) noexcept;
+        Recording& operator=(Recording&&) = delete;
+
+        /// Asserts that the recording was submitted or ended, unless an exception is unwinding.
+        ~Recording();
+
+        VkCommandBuffer get() const { return mCommands; }
+
+        /// Submits it behind whatever was deferred and does not wait, and returns the value the
+        /// submit signals on the device's timeline, which is what says it has run.
+        ///
+        /// @param waits,signals binary semaphores the submit waits and signals beside the
+        ///        timeline: what a present's blit needs, and what nothing else does. Through the
+        ///        pool and not a submit of its own, because a submit that took a timeline value
+        ///        without carrying the deferred batches would let the graveyard free what they name
+        ///        before they run.
+        std::uint64_t submit(
+            std::span<const VkSemaphoreSubmitInfo> waits = {}, std::span<const VkSemaphoreSubmitInfo> signals = {}) &&;
+
+        /// Ends it unsubmitted — a placement that placed nothing — so its owner can begin it again.
+        void end() &&;
+
+    private:
+        friend class CommandPool;
+
+        Recording(CommandPool& pool, VkCommandBuffer commands);
+
+        CommandPool& mPool;
+        VkCommandBuffer mCommands;
+
+        /// How many exceptions were unwinding when it began: more at its end is an unwinding.
+        int mUnwinding;
     };
 
     /// How much staging a batch takes at a time, sized so a town's tens of megabytes of textures

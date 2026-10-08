@@ -472,8 +472,7 @@ namespace Rtx
 
             Testing::HeldSubmit hold(device);
             const VkCommandBuffer carrier = pool.allocate(1).front();
-            pool.begin(carrier);
-            hold.submit(carrier);
+            hold.submit(pool.begin(carrier));
 
             // Asked before the hold starts its clock, so the bound below is exact: the hold opens
             // no sooner than `held` after this, and the wait cannot return before it opens.

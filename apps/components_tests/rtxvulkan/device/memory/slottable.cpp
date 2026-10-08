@@ -329,9 +329,9 @@ namespace Rtx
 
             Testing::HeldSubmit hold(getDevice());
             const VkCommandBuffer reader = getPool().allocate(1).front();
-            getPool().begin(reader);
+            Recording reading = getPool().begin(reader);
             EXPECT_NE(mTable.addressFor(FrameSlot{ 0 }), 0u);
-            hold.submit(reader);
+            hold.submit(std::move(reading));
 
             // Long enough that a wait which returned at once is told from one that waited, under three
             // shards of this binary sharing the device.

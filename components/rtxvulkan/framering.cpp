@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <utility>
 
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
@@ -132,32 +133,39 @@ namespace Rtx
         return frame.mPlaceCommands[frame.mPlacements++];
     }
 
-    void FrameRing::submit(FrameRecord& frame)
+    Recording FrameRing::recordWorld(FrameRecord& frame)
     {
+        frame.mState.expect(FrameState::Begun);
+        return mDevice.getPool().begin(frame.mWorld.mCommands);
+    }
+
+    void FrameRing::submit(FrameRecord& frame, Recording&& world)
+    {
+        assert(world.get() == frame.mWorld.mCommands && "a frame submitted with another frame's recording");
+
         // A wait's access scope is the device's, so the counts need a dependency of their own.
         if (mReadsCounts)
-            frame.mCounts.orderForHostRead(frame.mWorld.mCommands);
+            frame.mCounts.orderForHostRead(world.get());
 
         if (const NotFiniteCensus* const census = mDevice.getCensus(); census != nullptr)
         {
-            census->record(frame.mWorld.mCommands, frame.mNotFinite);
-            frame.mNotFinite.orderForHostRead(frame.mWorld.mCommands);
+            census->record(world.get(), frame.mNotFinite);
+            frame.mNotFinite.orderForHostRead(world.get());
         }
 
-        close(frame, true);
+        close(frame, true, std::move(world));
     }
 
     void FrameRing::skip()
     {
         FrameRecord& frame = slotOf(mFrame);
-        mDevice.getPool().begin(frame.mWorld.mCommands);
-        close(frame, false);
+        close(frame, false, mDevice.getPool().begin(frame.mWorld.mCommands));
     }
 
-    void FrameRing::close(FrameRecord& frame, const bool traced)
+    void FrameRing::close(FrameRecord& frame, const bool traced, Recording&& world)
     {
         // The submit first, so one that throws leaves the slot begun and the ring where it stood.
-        const std::uint64_t submitted = mDevice.getPool().submit(frame.mWorld.mCommands);
+        const std::uint64_t submitted = std::move(world).submit();
         frame.mState.step(FrameState::Submitted, FrameState::Begun);
         frame.mTraced = traced;
         frame.mWorld.mSubmitted = submitted;

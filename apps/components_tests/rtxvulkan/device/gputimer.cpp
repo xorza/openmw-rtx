@@ -279,12 +279,11 @@ namespace Rtx
                 [&](VkCommandBuffer commands) { vkCmdResetQueryPool(commands, timer.getQueryPool(), 0, 2); });
 
             timer.beginFrame();
-            const VkCommandBuffer never = device.getPool().take();
-            device.getPool().begin(never);
+            Recording never = device.getPool().begin(device.getPool().take());
             {
-                const GpuZone timed(&timer, never, FrameZone::Trace);
+                const GpuZone timed(&timer, never.get(), FrameZone::Trace);
             }
-            device.getPool().end(never);
+            std::move(never).end();
 
             GpuZones zones;
             Testing::expectDies([&] { timer.resolve(zones); },
