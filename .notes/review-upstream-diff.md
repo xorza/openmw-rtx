@@ -54,12 +54,6 @@ What is left:
 
 ### Seam and game side
 
-- [ ] **5.14 Record `<< std::dec` in `sdlinputwrapper.cpp` as an approved fault.**
-  `components/sdlutil/sdlinputwrapper.cpp:274-276`. The user approved the fix. Its comment blames a
-  remapped controller, which the port now handles. Target: the comment says why without the stale
-  cause (an unhandled event leaves `std::cout` in hex for every later line). AGENTS.md's "Three
-  faults the user approved fixing" becomes four and names it.
-
 - [ ] **5.15 The SDL3 port reads display orientation from two displays.**
   `sdlutil/sdlinputwrapper.cpp:209` filters by the window's display, and
   `mwinput/sensormanager.cpp:47` reads `[Video] screen`'s display. Target: the window's display in

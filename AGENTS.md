@@ -137,11 +137,13 @@ the window's size there, has it moved to the window on the first start, and the 
 - The renderer's answer to what it declines (`Renderer::support`), asked where the console, Lua and
   the settings window would otherwise toggle what does nothing under it, and `ToggleBorders` under
   the ray tracer.
-- Three faults the user approved fixing: `Files::LinuxPath` took a failed `read_symlink` for the
+- Four faults the user approved fixing: `Files::LinuxPath` took a failed `read_symlink` for the
   executable's path (`ec.value() != -1` holds for every error), the SDL3 port truncated a
-  window's size over its pixel density where `SDLUtil::windowPoints` rounds, and
+  window's size over its pixel density where `SDLUtil::windowPoints` rounds,
   `cmake/FindOSGPlugins.cmake` restored `CMAKE_FIND_LIBRARY_PREFIXES` unquoted, which dropped
-  MSVC's empty prefix and left every later `find_library` blind to `bz2.lib`.
+  MSVC's empty prefix and left every later `find_library` blind to `bz2.lib`, and
+  `SDLUtil::InputWrapper` logged an unhandled event's type in hex without `std::dec` after it,
+  which left every later number the log printed in hex.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
