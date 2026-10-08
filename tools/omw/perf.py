@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import IO, NamedTuple
 
 from omw.build import Build
-from omw.system import WINDOWS, Refusal, Switches, read_text, require
+from omw.system import WINDOWS, Refusal, Switches, read_text, require, status
 
 SAMPLES_A_SECOND = "5999"
 
@@ -79,13 +79,22 @@ def profile(build: Build, args: list[str]) -> int:
                                                           *extra)]
         with open(out / "bench.txt", "w", encoding="utf-8") as log:
             if offcpu:
-                code = _record_offcpu(build, record, bench, data, log)
+                elevate = _elevation()
+                code = _record_offcpu(build.dir, build.env, [*elevate, *record], bench, log)
+                # Only what root wrote is owned by root.
+                if elevate:
+                    subprocess.run(["sudo", "chown", f"{os.getuid()}:{os.getgid()}", str(data)], check=True)
             else:
-                recorded = subprocess.Popen([*record, "--", *bench], cwd=build.dir, env=build.env,
-                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8",
-                                            errors="replace")
-                _tee(recorded, log)
-                code = recorded.wait()
+                with subprocess.Popen([*record, "--", *bench], cwd=build.dir, env=build.env,
+                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8",
+                                      errors="replace") as recorded:
+                    try:
+                        _tee(recorded, log)
+                        code = status(recorded.wait())
+                    finally:
+                        # perf takes the harness it started down with it.
+                        if recorded.poll() is None:
+                            recorded.terminate()
     finally:
         control.unlink(missing_ok=True)
     if code != 0:
@@ -221,32 +230,41 @@ def _tee(process: subprocess.Popen, log: IO[str]) -> None:
         log.write(line)
 
 
-def _record_offcpu(build: Build, record: list[str], bench: list[str], data: Path, log: IO[str]) -> int:
+def _elevation() -> list[str]:
     """**Off-CPU sampling is BPF, and BPF here is privileged.** A `perf` that carries the
     capabilities needs nothing more — `sudo setcap cap_perfmon,cap_bpf,cap_sys_ptrace+ep
     "$(command -v perf)"` — and one without runs under sudo. Asked of the binary rather than assumed
     either way: a `perf` upgrade drops what was set on the file, and a `sudo` asked for every time is
     a password prompt in front of a profile that did not need one. A box without `getcap` reads as a
-    `perf` without them. The harness runs as the user throughout, where it has a home, a Wayland
-    socket and a GPU, and perf attaches to it."""
-    elevate: list[str] = []
+    `perf` without them."""
     perf = shutil.which("perf") or "perf"
     getcap = shutil.which("getcap")
     capabilities = "" if getcap is None else subprocess.run(
         [getcap, perf], capture_output=True, encoding="utf-8", errors="replace", check=False).stdout
-    if "cap_bpf" not in capabilities:
-        print("profile: perf carries no cap_bpf — it runs under sudo, and the harness does not")
-        elevate = ["sudo"]
-        subprocess.run(["sudo", "-v"], check=True)
+    if "cap_bpf" in capabilities:
+        return []
+    print("profile: perf carries no cap_bpf — it runs under sudo, and the harness does not")
+    subprocess.run(["sudo", "-v"], check=True)
+    return ["sudo"]
 
-    harness = subprocess.Popen(bench, cwd=build.dir, env=build.env, stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT, encoding="utf-8", errors="replace")
+
+def _record_offcpu(cwd: Path, env: dict[str, str], record: list[str], bench: list[str], log: IO[str]) -> int:
+    """The harness started as the user, where it has a home, a Wayland socket and a GPU, and `record`
+    attached to it. **Both owned to the end**: a reader that stops reading — `omw profile | head` —
+    takes the harness down rather than leaving it running. A `perf` that refused shows as its own
+    status, and not as the harness's wait for a control fifo nobody opened."""
     # The harness waits at its first place until perf opens the control fifo, so perf starts now.
-    recorder = subprocess.Popen([*elevate, *record, "-p", str(harness.pid)])
-    _tee(harness, log)
-    code = harness.wait()
-    recorder.wait()
-    # Only what root wrote is owned by root.
-    if elevate:
-        subprocess.run(["sudo", "chown", f"{os.getuid()}:{os.getgid()}", str(data)], check=True)
+    with (subprocess.Popen(bench, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           encoding="utf-8", errors="replace") as harness,
+          subprocess.Popen([*record, "-p", str(harness.pid)]) as recorder):
+        try:
+            _tee(harness, log)
+            code = status(harness.wait())
+        finally:
+            if harness.poll() is None:
+                harness.kill()
+        recorded = status(recorder.wait())
+    if recorded != 0:
+        print(f"profile: perf exited with {recorded}", file=sys.stderr)
+        return recorded
     return code

@@ -54,11 +54,6 @@ What is left:
 
 ### Harness, `./omw` and CI
 
-- [ ] **5.23 `omw profile --offcpu` does not own its children and drops perf's status.**
-  `tools/omw/perf.py:84-88,242-252`. `omw profile | head` leaves the harness running, and a refused
-  perf shows only the harness's 30 s fifo timeout. Target: `with Popen(...)` for both, a `finally`
-  that kills a live harness, and perf's status reported.
-
 - [ ] **5.24 `kernels.py` error handling.**
   `:178-179`: a refusal in one worker waits for every other tuple. Use
   `shutdown(cancel_futures=True)`. `:170`: `spirv-dis` with `check=True` loses its stderr. Use the
