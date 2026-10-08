@@ -4,6 +4,7 @@
 
 #include <osg/Matrixf>
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 
 namespace Rtx
 {
@@ -13,6 +14,13 @@ namespace Rtx
     inline bool isFinite(const osg::Vec3f& value)
     {
         return std::isfinite(value.x()) && std::isfinite(value.y()) && std::isfinite(value.z());
+    }
+
+    /// Whether every component of `value` is a finite number.
+    inline bool isFinite(const osg::Vec4f& value)
+    {
+        return std::isfinite(value.x()) && std::isfinite(value.y()) && std::isfinite(value.z())
+            && std::isfinite(value.w());
     }
 
     /// Whether every element of `value` is a finite number.

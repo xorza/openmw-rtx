@@ -14,6 +14,7 @@
 #include <osg/TriangleIndexFunctor>
 #include <osg/Vec4f>
 
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
@@ -60,6 +61,27 @@ namespace Rtx
             return scratch;
         }
 
+        /// `given` where every element is a finite number, or a copy of it in `scratch` with every
+        /// element that is not read as none, the zero a mesh holds for a normal or a tangent it did
+        /// not bring. **Content wrote them, so a number that is not finite is data**, and a skin
+        /// posed one into a store that was not finite. A zero is one the rest already read: the
+        /// crease split leaves a corner with no normal out of every group, and a hit whose normal
+        /// comes to no length across the triangle takes the triangle's plane. Copied only where one
+        /// is, so a mesh written well is read in place.
+        template <class T>
+        std::span<const T> finiteOrNone(const std::vector<T>& given, std::vector<T>& scratch)
+        {
+            const auto finite = [](const T& value) { return isFinite(value); };
+            if (std::ranges::all_of(given, finite))
+                return given;
+
+            scratch.clear();
+            scratch.reserve(given.size());
+            for (const T& value : given)
+                scratch.push_back(finite(value) ? value : T());
+            return scratch;
+        }
+
         struct TriangleCollector
         {
             std::vector<std::uint32_t>* mIndices = nullptr;
@@ -86,7 +108,8 @@ namespace Rtx
 
             /// Empty only where the geometry names no normal at all. A per-vertex array is taken as
             /// it stands and a single overall one is spread across the vertices, which is the same
-            /// answer at every point of a flat surface.
+            /// answer at every point of a flat surface; a normal that is not finite is read as none
+            /// (`finiteOrNone`).
             std::span<const osg::Vec3f> mNormals;
         };
 
@@ -112,10 +135,11 @@ namespace Rtx
             return {};
         }
 
-        /// @param flat scratch for an overall normal spread across the vertices. Refilled here and
-        ///        borrowed by the returned span, so it has to outlive the read.
+        /// @param scratch for an overall normal spread across the vertices, or normals that are not
+        ///        all finite. Refilled here and borrowed by the returned span, so it has to outlive
+        ///        the read.
         Misc::Result<VertexArrays, std::string> readVertices(
-            const osg::Geometry& geometry, std::vector<osg::Vec3f>& flat)
+            const osg::Geometry& geometry, std::vector<osg::Vec3f>& scratch)
         {
             VertexArrays arrays;
 
@@ -145,8 +169,9 @@ namespace Rtx
             // `readColours` reads one.
             if (normals->getBinding() == osg::Array::BIND_OVERALL)
             {
-                flat.assign(positions->size(), normals->at(0));
-                arrays.mNormals = std::span(flat);
+                const osg::Vec3f& overall = normals->at(0);
+                scratch.assign(positions->size(), isFinite(overall) ? overall : osg::Vec3f());
+                arrays.mNormals = std::span(scratch);
                 return arrays;
             }
 
@@ -155,7 +180,7 @@ namespace Rtx
                 !matched.isOk())
                 return Misc::Err{ matched.error() };
 
-            arrays.mNormals = std::span(normals->asVector());
+            arrays.mNormals = finiteOrNone(normals->asVector(), scratch);
             return arrays;
         }
 
@@ -191,9 +216,13 @@ namespace Rtx
         }
 
         /// The tangents `Shader::MapVisitor` built at `Shader::sTangentUnit`, or none where it built
-        /// none. An error where they do not match the vertices — `checkLength`.
+        /// none, and a tangent that is not finite read as none: the generator builds one from the
+        /// content's normals. An error where they do not match the vertices — `checkLength`.
+        ///
+        /// @param scratch for tangents that are not all finite, borrowed as `readVertices` borrows
+        ///        its own.
         Misc::Result<std::span<const osg::Vec4f>, std::string> readTangents(
-            const osg::Geometry& geometry, std::size_t vertices)
+            const osg::Geometry& geometry, std::size_t vertices, std::vector<osg::Vec4f>& scratch)
         {
             const osg::Array* named = geometry.getTexCoordArray(Shader::sTangentUnit);
             if (named == nullptr || named->getNumElements() == 0)
@@ -207,7 +236,7 @@ namespace Rtx
                 !matched.isOk())
                 return Misc::Err{ matched.error() };
 
-            return std::span<const osg::Vec4f>(tangents->asVector());
+            return finiteOrNone(tangents->asVector(), scratch);
         }
 
         /// A geometry's per-vertex colours, decoded into `scratch` and spanned from it. Empty where
@@ -321,7 +350,7 @@ namespace Rtx
     {
         const osg::Geometry& geometry = *read.mGeometry;
 
-        const Misc::Result<VertexArrays, std::string> vertices = readVertices(geometry, mFlatNormalScratch);
+        const Misc::Result<VertexArrays, std::string> vertices = readVertices(geometry, mReadNormalScratch);
         if (!vertices.isOk())
             return Misc::Err{ vertices.error() };
 
@@ -383,7 +412,8 @@ namespace Rtx
         if (!colours.isOk())
             return Misc::Err{ colours.error() };
 
-        const Misc::Result<std::span<const osg::Vec4f>, std::string> tangents = readTangents(geometry, count);
+        const Misc::Result<std::span<const osg::Vec4f>, std::string> tangents
+            = readTangents(geometry, count, mReadTangentScratch);
         if (!tangents.isOk())
             return Misc::Err{ tangents.error() };
 
