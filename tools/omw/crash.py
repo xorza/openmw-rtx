@@ -64,7 +64,7 @@ def dumps_in(path: Path, folder: Path) -> list[Dump]:
     if not zipfile.is_zipfile(path):
         raise Refusal(f"{path} is neither a dump nor a crash package")
 
-    dumps = []
+    dumps: list[Dump] = []
     with zipfile.ZipFile(path) as package:
         for entry in package.infolist():
             name = PurePosixPath(entry.filename.replace("\\", "/")).name

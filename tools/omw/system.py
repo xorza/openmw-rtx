@@ -3,7 +3,6 @@
 import argparse
 import contextlib
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -93,14 +92,22 @@ def resolved(command: list, env: dict[str, str] | None, cwd: str | Path | None =
 
 
 def on_path(program: str, path: str | None = None) -> str | None:
-    """`program` from the folders `path` names alone, the driver's own PATH unless told. On Windows
-    `shutil.which` searches the working directory first, where a bare name found the driver's own
-    files before the PATH's."""
+    """`program` from the folders `path` names alone, the driver's own PATH unless told, and never
+    the working directory: on Windows `shutil.which` searches it first, where a bare name found the
+    driver's own files before the PATH's. On Windows a name with none of `PATHEXT`'s extensions is
+    tried with each, which Python 3.11's `which` does not do for a name with a folder in it."""
     searched = os.environ.get("PATH", "") if path is None else path
+    names = [program]
+    if WINDOWS:
+        extensions = [extension for extension in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";")
+                      if extension]
+        if os.path.splitext(program)[1].upper() not in (extension.upper() for extension in extensions):
+            names = [program + extension for extension in extensions]
     for folder in filter(None, searched.split(os.pathsep)):
-        found = shutil.which(os.path.join(folder, program))
-        if found is not None:
-            return found
+        for name in names:
+            candidate = os.path.join(folder, name)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return candidate
     return None
 
 
