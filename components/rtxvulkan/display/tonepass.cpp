@@ -44,7 +44,7 @@ namespace Rtx
 
     void TonePass::record(VkCommandBuffer commands, const Tone& what, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Tone);
+        const GpuZone timed(timer, commands, FrameZone::Tone);
 
         const Image& colour = what.mColour;
         const Buffer& exposure = what.mExposure;
@@ -82,7 +82,5 @@ namespace Rtx
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(constants.mCamera.mWidth, constants.mCamera.mHeight, Shaders::TONE_WORKGROUP));
-
-        closeZone(timer, commands);
     }
 }

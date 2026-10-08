@@ -53,7 +53,7 @@ namespace Rtx
     void AccumulatePass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Accumulate);
+        const GpuZone timed(timer, commands, FrameZone::Accumulate);
 
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
@@ -81,14 +81,12 @@ namespace Rtx
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
-
-        closeZone(timer, commands);
     }
 
     void AccumulatePass::recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Clamp);
+        const GpuZone timed(timer, commands, FrameZone::Clamp);
 
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
@@ -116,7 +114,5 @@ namespace Rtx
             Shaders::AccumulateClampConstants{
                 .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mFilters.mAntilag ? 1u : 0u },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
-
-        closeZone(timer, commands);
     }
 }

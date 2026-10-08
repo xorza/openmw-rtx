@@ -105,7 +105,7 @@ namespace Rtx
 
     void BloomPass::record(VkCommandBuffer commands, const Image& frame, const Buffer& exposure, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Bloom);
+        const GpuZone timed(timer, commands, FrameZone::Bloom);
 
         assert((frame.getUsage() & VK_IMAGE_USAGE_SAMPLED_BIT) != 0 && "the pyramid samples the frame");
 
@@ -157,7 +157,5 @@ namespace Rtx
         // What the curve samples: the finest level, which a pyramid of one level handed over above.
         if (written != nullptr)
             handOver(commands, *written);
-
-        closeZone(timer, commands);
     }
 }

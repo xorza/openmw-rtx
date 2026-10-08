@@ -45,7 +45,7 @@ namespace Rtx
             described[at] = images[at]->describeStorage();
         }
 
-        openZone(timer, commands, FrameZone::Digest);
+        const GpuZone timed(timer, commands, FrameZone::Digest);
 
         // Cleared on the queue; the last frame's copy out of it is behind the head barrier
         // `CommandPool::begin` recorded.
@@ -66,6 +66,5 @@ namespace Rtx
         mLanes.copyTo(commands, into, sBytes);
 
         into.orderForHostRead(commands);
-        closeZone(timer, commands);
     }
 }

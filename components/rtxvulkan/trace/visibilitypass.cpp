@@ -546,7 +546,7 @@ namespace Rtx
         if (constants.mShelterHeight <= 0.0f || count == 0)
             return;
 
-        openZone(timer, commands, FrameZone::Shelter);
+        const GpuZone timed(timer, commands, FrameZone::Shelter);
 
         const auto& shelter = *kernels().mSpriteShelter;
         bind(commands, shelter);
@@ -557,8 +557,6 @@ namespace Rtx
 
         // The shade reads and writes what this zeroed, from a dispatch.
         handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferComputeReadWrite);
-
-        closeZone(timer, commands);
     }
 
     void VisibilityPass::recordSpriteEmitters(const VkCommandBuffer commands, const VisibilityInputs& inputs,
@@ -567,7 +565,7 @@ namespace Rtx
         if (count == 0)
             return;
 
-        openZone(timer, commands, FrameZone::Emitters);
+        const GpuZone timed(timer, commands, FrameZone::Emitters);
 
         const auto& emitters = *kernels().mSpriteEmitters;
         bind(commands, emitters);
@@ -576,8 +574,6 @@ namespace Rtx
 
         // Read by the trace and by the puffs' composite, both launches.
         handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderRead);
-
-        closeZone(timer, commands);
     }
 
     void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs,
@@ -605,46 +601,47 @@ namespace Rtx
         const std::uint32_t columns = inputs.mFogVolume.getColumns();
         const std::uint32_t rows = inputs.mFogVolume.getRows();
 
-        openZone(timer, commands, FrameZone::Air);
+        // Each zone ends before the barrier after it, so a barrier's wait is no zone's time.
+        {
+            const GpuZone timed(timer, commands, FrameZone::Air);
 
-        // Where each column's ray stops, before anything is drawn along it. One ray a
-        // column, and the froxels of the column keep their draws short of the answer.
-        const auto& depth = *kernels().mDepth;
-        bind(commands, depth);
-        pushInputs(commands, depth, inputs);
+            // Where each column's ray stops, before anything is drawn along it. One ray a
+            // column, and the froxels of the column keep their draws short of the answer.
+            const auto& depth = *kernels().mDepth;
+            bind(commands, depth);
+            pushInputs(commands, depth, inputs);
 
-        depth.traceRays(commands, columns, rows);
+            depth.traceRays(commands, columns, rows);
 
-        inputs.mFogVolume.depthTaken(commands);
+            inputs.mFogVolume.depthTaken(commands);
 
-        // The set stays pushed across all three launches. Every one of them is addressed through
-        // the same layout at the same bind point, so what was pushed for the first is still bound
-        // for the others — and pushing set zero again would be six descriptor writes for a pass
-        // that reads a handful of images out of another set.
-        bind(commands, scatter);
+            // The set stays pushed across all three launches. Every one of them is addressed
+            // through the same layout at the same bind point, so what was pushed for the first is
+            // still bound for the others — and pushing set zero again would be six descriptor
+            // writes for a pass that reads a handful of images out of another set.
+            bind(commands, scatter);
 
-        scatter.traceRays(commands, columns, rows, Shaders::FOG_VOLUME_SLICES);
-
-        closeZone(timer, commands);
+            scatter.traceRays(commands, columns, rows, Shaders::FOG_VOLUME_SLICES);
+        }
 
         inputs.mFogVolume.scattered(commands);
 
-        openZone(timer, commands, FrameZone::Column);
+        {
+            const GpuZone timed(timer, commands, FrameZone::Column);
 
-        // The integrate pass is a dispatch and reads what the launches wrote, so it is handed the
-        // set again at its own bind point.
-        const auto& integrate = *kernels().mIntegrate;
-        bind(commands, integrate);
-        pushInputs(commands, integrate, inputs);
+            // The integrate pass is a dispatch and reads what the launches wrote, so it is handed
+            // the set again at its own bind point.
+            const auto& integrate = *kernels().mIntegrate;
+            bind(commands, integrate);
+            pushInputs(commands, integrate, inputs);
 
-        vkCmdDispatch(commands, groupsFor(columns, Shaders::FOG_COLUMN_WORKGROUP),
-            groupsFor(rows, Shaders::FOG_COLUMN_WORKGROUP), 1);
-
-        closeZone(timer, commands);
+            vkCmdDispatch(commands, groupsFor(columns, Shaders::FOG_COLUMN_WORKGROUP),
+                groupsFor(rows, Shaders::FOG_COLUMN_WORKGROUP), 1);
+        }
 
         inputs.mFogVolume.handOver(commands);
 
-        openZone(timer, commands, FrameZone::Trace);
+        const GpuZone timed(timer, commands, FrameZone::Trace);
 
         const TracePipeline<NoConstants>& pipeline = pipelineFor(variant);
         bind(commands, pipeline);
@@ -652,8 +649,6 @@ namespace Rtx
         // One invocation a pixel and no tail, where the dispatch it replaces covered the picture
         // in whole workgroups and had every one of them test whether it had run off the edge.
         pipeline.traceRays(commands, constants.mEyes.mWorld.mWidth, constants.mEyes.mWorld.mHeight);
-
-        closeZone(timer, commands);
 
         // The host's read of the count is ordered by whoever reads it: `renderFrame` records
         // `Buffer::orderForHostRead` after every pass that could add to it, and a picture's count
@@ -668,7 +663,7 @@ namespace Rtx
 
         // Its own zone and not the bin's `sprites`, so a report says what the march at the shown
         // extent costs apart from what binning the sprites over the traced one does.
-        openZone(timer, commands, FrameZone::Puffs);
+        const GpuZone timed(timer, commands, FrameZone::Puffs);
 
         const auto& composite = *kernels().mSpriteComposite;
         bind(commands, composite);
@@ -682,7 +677,5 @@ namespace Rtx
         // One invocation a traced pixel, which composites the shown pixels over it —
         // `spritecomposite.rgen` says why.
         composite.traceRays(commands, eyes.mWorld.mWidth, eyes.mWorld.mHeight);
-
-        closeZone(timer, commands);
     }
 }

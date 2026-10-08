@@ -140,7 +140,7 @@ namespace Rtx
                 static_cast<double>(Shaders::RIPPLE_SUBSTEPS_MOST)));
         const float step = std::min(static_cast<float>(elapsed / static_cast<double>(steps)), getLongestStep());
 
-        openZone(timer, commands, FrameZone::Ripples);
+        const GpuZone timed(timer, commands, FrameZone::Ripples);
 
         // The window follows the eye by whole texels, and the step reads the old field at the
         // offset the window moved by.
@@ -210,7 +210,5 @@ namespace Rtx
         dispatch(commands, mComposePipeline, composes, NoConstants{}, sGroups);
 
         Image::buildMips(commands, std::array<const Image*, 2>{ &mSurface, &mCurvature });
-
-        closeZone(timer, commands);
     }
 }

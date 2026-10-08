@@ -54,26 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.1 GPU timer zones are paired by hand in 21 files, and the bloom pass's pair broke.**
-  32 `openZone`/`closeZone` pairs in `trace/`, `trace/denoise/`, `scene/`, `display/`, `upscale/`
-  and `digestpass.cpp`. `display/bloompass.cpp:108` opens its zone, `:115` returns when `mLevels` is
-  empty (an output under 8 px on a side), and `closeZone` at `:161` never runs. In debug, the next
-  `openZone` asserts. In release, every later zone is misattributed and the last end query is never
-  written, which item 1.2 turns into a hang. A throw between any open and its close does the same.
-  Target: a `[[nodiscard]]`, non-copyable, non-movable `GpuZone` in `device/gputimer.hpp`, opened in
-  its constructor and closed in its destructor, empty for a null timer. The free functions go, so no
-  call can open a zone without its close.
-  - A pass whose zone ends before trailing commands puts the zone in a block scope, so each end
-    timestamp lands where `closeZone` puts it now. The visibility pass's air, column and trace
-    zones, and `FogVolume::scattered`/`handOver`, are the known cases.
-  - `SkinPass::record` opens lazily: `std::optional<GpuZone>`, emplaced at the first skin.
-  - The bloom pass's zone covers the empty frame too, which costs one pair of timestamps and keeps
-    the zone list the same for every frame size.
-
-  Test: record a 6×6 frame through a real `GpuTimer`, open another zone, `resolve`.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxBloomPassTest.*:RtxGpuTimerTest.*:RtxFramesTest.*:RtxVisibilityTest.*'`,
-  `./omw release bench` for an unchanged zone list.
-
 - [ ] **1.2 `GpuTimer::resolve` waits without limit on queries that were never written.**
   `device/gputimer.cpp:111-114` uses `VK_QUERY_RESULT_WAIT_BIT`. A query left unwritten (a zone in a
   batch that was then discarded, or the bug item 1.1 removes) makes the wait endless, outside

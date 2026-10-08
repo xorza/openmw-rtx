@@ -80,7 +80,7 @@ namespace Rtx
         if (lineCount == 0 && triangleCount == 0)
             return;
 
-        openZone(timer, commands, FrameZone::Lines);
+        const GpuZone timed(timer, commands, FrameZone::Lines);
 
         // `line.vert` writes Vulkan's own clip space, `+Y` down as the picture is indexed.
         beginDrawingOver(commands, target, ClipUp::Down, Underneath::Kept);
@@ -110,7 +110,5 @@ namespace Rtx
         draw(mTriangles, lineCount, triangleCount);
 
         vkCmdEndRendering(commands);
-
-        closeZone(timer, commands);
     }
 }

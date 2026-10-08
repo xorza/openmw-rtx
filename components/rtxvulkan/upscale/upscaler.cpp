@@ -428,7 +428,7 @@ namespace Rtx
 
     HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
     {
-        openZone(timer, commands, FrameZone::Upscale);
+        const GpuZone timed(timer, commands, FrameZone::Upscale);
 
         assert(mTargets != nullptr && "an upscale before a resize");
         Targets& targets = *mTargets;
@@ -608,8 +608,6 @@ namespace Rtx
         run(Pass::Instability, overRender);
         between();
         run(Pass::Accumulate, Groups::covering(output.width, output.height, Shaders::FSR_WORKGROUP));
-
-        closeZone(timer, commands);
         return HandedImage{ .mImage = targets.mOutputImage, .mLeftAs = Use::sComputeReadWrite };
     }
 }

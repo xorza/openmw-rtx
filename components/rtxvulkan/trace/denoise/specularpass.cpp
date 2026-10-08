@@ -29,7 +29,7 @@ namespace Rtx
     const Image& SpecularPass::record(VkCommandBuffer commands, const DenoiseHistory::SpecularImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame, const HistoryClampPass& clamp, GpuTimer* timer) const
     {
-        openZone(timer, commands, FrameZone::Specular);
+        const GpuZone timed(timer, commands, FrameZone::Specular);
 
         const Shaders::VisibilityConstants& sampled = frame.mSampled;
         const std::uint32_t width = sampled.mEyes.mWorld.mWidth;
@@ -54,8 +54,6 @@ namespace Rtx
                 .mFastBlended = images.mFastBlended,
                 .mFast = images.mFast },
             width, height, frame.mFilters.mAntilag);
-
-        closeZone(timer, commands);
         return images.mMean;
     }
 }

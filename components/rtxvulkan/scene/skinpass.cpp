@@ -1,6 +1,7 @@
 #include "skinpass.hpp"
 
 #include <cassert>
+#include <optional>
 
 #include <volk.h>
 
@@ -128,7 +129,9 @@ namespace Rtx
         // One pipeline bound at a time, and a bind only where the kind changes: a crowd is one
         // kind for most of its length.
         const Pipeline* bound = nullptr;
-        bool recorded = false;
+
+        // Opened at the first mesh posed, so a frame that poses none records no zone.
+        std::optional<GpuZone> timed;
 
         BlockedBuffer& normalsInto = what.mNormals.at(what.mSlot);
         BlockedBuffer& tangentsInto = what.mTangents.at(what.mSlot);
@@ -136,20 +139,16 @@ namespace Rtx
             if (!posable(what.mScene.meshes().getRows()[index]))
                 return;
 
-            if (!recorded)
-            {
-                openZone(what.mTimer, commands, FrameZone::Skin);
-                recorded = true;
-            }
+            if (!timed.has_value())
+                timed.emplace(what.mTimer, commands, FrameZone::Skin);
 
             pose(commands, what, index, Rows::Written, into, normalsInto, tangentsInto, bound);
         });
 
-        if (!recorded)
+        if (!timed.has_value())
             return false;
 
         posed(commands);
-        closeZone(what.mTimer, commands);
         return true;
     }
 

@@ -11,7 +11,10 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
+#include <components/rtx/renderer/framezone.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -345,6 +348,23 @@ namespace Rtx
             counting.resize(6, 6);
             EXPECT_EQ(counting.getLevelCount(), 0u) << "three across is under the narrowest level";
             EXPECT_EQ(counting.getPyramid(), nullptr);
+
+            // **And a frame with no pyramid closes its zone**, so the zone after it opens and both
+            // come back: the pass returned before its close, and the next open was an assert.
+            Bloomed small(device, 6, 6);
+            GpuTimer timer(device);
+            timer.beginFrame();
+            device.getPool().submitAndWait([&](VkCommandBuffer commands) {
+                small.mBloom.record(commands, small.mFrame, small.mExposure, &timer);
+                const GpuZone after(&timer, commands, FrameZone::Tone);
+            });
+            GpuZones zones;
+            timer.resolve(zones);
+            if (zones.spans().empty())
+                GTEST_SKIP() << "this device cannot write timestamps";
+            ASSERT_EQ(zones.spans().size(), 2u);
+            EXPECT_EQ(zones.spans()[0].mZone, FrameZone::Bloom);
+            EXPECT_EQ(zones.spans()[1].mZone, FrameZone::Tone);
         }
     }
 }
