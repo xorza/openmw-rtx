@@ -8,6 +8,7 @@
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -67,6 +68,21 @@ namespace Rtx
                 EXPECT_EQ(handed.getImageCount(), 2u);
                 EXPECT_EQ(handed.getMemory(), nullptr);
                 handed.flush();
+                EXPECT_EQ(handed.getEmitted(), 1u);
+            });
+
+            // **And the G-buffer's channels leave `UNDEFINED` as one command**, where a batch of
+            // sixteen emitted two: sixteen, and then three.
+            std::vector<Image> channels;
+            channels.reserve(Shaders::CHANNEL_COUNT);
+            for (std::uint32_t at = 0; at < Shaders::CHANNEL_COUNT; ++at)
+                channels.emplace_back(device, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, usage, "channel");
+            getPool().submitAndWait([&](VkCommandBuffer commands) {
+                Barriers begun(commands);
+                for (const Image& channel : channels)
+                    channel.addTransition(begun, Use::sUndefined, Use::sTraceWrite);
+                begun.flush();
+                EXPECT_EQ(begun.getEmitted(), 1u) << "the channels took more than one command";
             });
         }
 

@@ -42,8 +42,8 @@ namespace Rtx
         assert(width > 0 && height > 0);
 
         // **The one owner of "is this a new extent"**: an upscaling mode changed between two that
-        // trace at one size asks this again, and fourteen channels and twelve fog images made anew
-        // for it would be made for nothing.
+        // trace at one size asks this again, and the G-buffer's channels and the fog's images made
+        // anew for it would be made for nothing.
         if (isBuilt() && width == mWidth && height == mHeight)
             return;
 
