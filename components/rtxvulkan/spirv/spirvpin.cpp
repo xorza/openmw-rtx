@@ -27,7 +27,6 @@ namespace Rtx
 {
     namespace
     {
-
         struct Instruction
         {
             spv::Op mOp;

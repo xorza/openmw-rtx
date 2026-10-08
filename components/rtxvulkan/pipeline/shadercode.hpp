@@ -11,7 +11,6 @@
 #include <volk.h>
 
 #include <components/rtxvulkan/device/handles.hpp>
-
 #include <components/rtxvulkan/spirv/spirvinterface.hpp>
 
 namespace Rtx

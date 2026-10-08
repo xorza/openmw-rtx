@@ -99,9 +99,9 @@ def repeat(build: Build, args: list[str]) -> int:
                 # Decided by the status alone; the report's comparison is only shown, from where it opens.
                 status = 1
                 lines = read_text(second).splitlines()
-                against = next((i for i, line in enumerate(lines) if line.startswith("against ")), max(len(lines) - 20, 0))
+                against = next((i for i, line in enumerate(lines) if line.startswith("against ")), None)
                 print(f"pair {pair} of {pairs}: NOT repeatable", file=sys.stderr)
-                print("\n".join(lines[against:]), file=sys.stderr)
+                print(_tail(second) if against is None else "\n".join(lines[against:]), file=sys.stderr)
             else:
                 print(f"the run itself failed, see {second}:\n{_tail(second)}", file=sys.stderr)
                 return 1

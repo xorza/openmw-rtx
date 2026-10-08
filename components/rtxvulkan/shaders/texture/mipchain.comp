@@ -5,12 +5,13 @@
 
 // The levels a texture needs, built on the device where its file carried none.
 //
-// **The chain `Rtx::TextureData::wantsCompletedChain` asks for, on the device.** A hundred and eighty-seven of Morrowind's textures ship one
-// level, the rain among them, and read at their finest a drop's peak alpha is 0.400 where the
-// levels below hold 0.283, 0.129 and 0.068 — a storm as hard white marks that flicker. Made on the
-// host this decoded every texel of the finest level and box-filtered every level under it on the
-// cell ring's worker, and uploaded the lot loose; here the file's own bytes are uploaded as they
-// are, in whichever block format they came in, and one dispatch a level makes the rest.
+// **The chain `Rtx::TextureData::wantsCompletedChain` asks for, on the device.** A hundred and
+// eighty-seven of Morrowind's textures ship one level, the rain among them, and read at their finest
+// a drop's peak alpha is 0.400 where the levels below hold 0.283, 0.129 and 0.068 — a storm as hard
+// white marks that flicker. Made on the host this decoded every texel of the finest level and
+// box-filtered every level under it on the cell ring's worker, and uploaded the lot loose; here the
+// file's own bytes are uploaded as they are, in whichever block format they came in, and one
+// dispatch a level makes the rest.
 //
 // **The finest level is fetched and not filtered**, texel for texel out of the upload through a
 // view with no curve under it, so the bytes a file holds are the bytes the chain's first level
