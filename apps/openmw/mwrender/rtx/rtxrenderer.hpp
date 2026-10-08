@@ -132,7 +132,6 @@ namespace MWRender
         void windowResized(int x, int y, int width, int height) noexcept override;
 
         void advance(double simulationTime) noexcept override;
-        void eventTraversal() noexcept override;
         void updateTraversal() noexcept override;
 
         void renderFrame(const SceneFrame& frame) override;
@@ -225,10 +224,6 @@ namespace MWRender
         /// asked at the frame, which neither walks nor traces under one.
         void applyViewMask() noexcept override { mMirror.setViewMask(worldViewMask()); }
         void applyWorldShown() noexcept override { mMirror.setViewMask(worldViewMask()); }
-
-        /// Nothing here: the trace and the surface follow at the next frame's fit, which waits for a
-        /// window being dragged to settle, and the projection is `RenderingManager`'s to follow.
-        void applyPresentation() noexcept override {}
 
         void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
 

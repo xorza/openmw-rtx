@@ -120,7 +120,6 @@ namespace MWRender
         void endLoading() override;
 
         void capture(osg::Image& image, int width, int height) override;
-        void setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer) override;
         void saveScreenshot() override;
 
         void suspendDraw() override;
@@ -273,7 +272,7 @@ namespace MWRender
         /// The interface's camera. Null until the interface exists.
         osg::ref_ptr<osg::Camera> mGuiCamera;
 
-        /// The screenshot key's reader of the finished frame, made once the writer is handed over.
+        /// The screenshot key's reader of the finished frame, made at the first shot.
         osg::ref_ptr<FrameCapture> mScreenshot;
     };
 }

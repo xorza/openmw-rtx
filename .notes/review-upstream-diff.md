@@ -54,13 +54,6 @@ What is left:
 
 ### Seam and game side
 
-- [ ] **5.12 The seam breaks its own pure-versus-default rule in three places.**
-  `renderer.hpp:294` (`eventTraversal`) and `:458` (`applyPresentation`) are pure, and `RtxRenderer`
-  answers both with nothing. `renderer.hpp:390`: `setScreenshotWriter` is virtual only so
-  `GlRenderer` can build `FrameCapture`. Target: empty default bodies for the first two, and delete
-  `RtxRenderer`'s overrides. `setScreenshotWriter` becomes non-virtual, and
-  `GlRenderer::saveScreenshot` builds `mScreenshot` on first use.
-
 - [ ] **5.13 Restore `MWBase::Environment`'s frame-rate limit.**
   `mwbase/environment.hpp`, `mwgui/mainmenu.{hpp,cpp}` (`:31,58,107,265`, `mainmenu.hpp:32,64`),
   `windowmanagerimp.cpp`. The removal forces the limit through the `MainMenu` and `MenuVideo`

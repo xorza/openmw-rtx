@@ -315,7 +315,10 @@ namespace MWRender
         /// does not.
         virtual void advance(double simulationTime) = 0;
 
-        virtual void eventTraversal() = 0;
+        /// The scene graph's event queue, which a renderer that adopted none has nothing in:
+        /// everything the game acts on came through `SDLUtil::InputWrapper` and MyGUI before this.
+        virtual void eventTraversal() {}
+
         virtual void updateTraversal() = 0;
 
         /// What the world settled on this frame, once per frame from the main loop, between the
@@ -411,7 +414,7 @@ namespace MWRender
 
         /// The writer both renderers hand a captured frame to: `Engine`'s, alive for as long as the
         /// renderer is. Handed over after construction, where upstream built it.
-        virtual void setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer);
+        void setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer);
 
         /// Between these two nothing is reading the scene graph, so it can be mutated. A renderer
         /// that draws on the calling thread has nothing to hold still.
@@ -487,8 +490,9 @@ namespace MWRender
         /// size changes.
         void presentIn(const osg::Vec2i& drawable);
 
-        /// `getPresentation()` has changed; size what draws the frame and what shows it.
-        virtual void applyPresentation() = 0;
+        /// `getPresentation()` has changed; size what draws the frame and what shows it. Nothing for
+        /// a renderer whose next frame sizes itself to the presentation.
+        virtual void applyPresentation() {}
 
         /// The frame stays the window's size whatever the settings ask: for a renderer that cannot
         /// show its frame scaled, the rasterizer under stereo, whose eyes split the window.
