@@ -116,5 +116,25 @@ namespace Rtx
             EXPECT_EQ(pushDisagreement(4u, 0), "the push block ends at 4 bytes, past the 0 the layout declares")
                 << "a block a layout declares no range for";
         }
+
+        /// **A vertex module's inputs are held to the pipeline's attributes**: each input at a
+        /// location an attribute names, of a format with as many components as it reads — the
+        /// interface's colour, four bytes read as four components. An input no attribute feeds,
+        /// and a `vec3` fed two components, each disagree and say which location.
+        TEST(RtxPassBindingsTest, aVertexModulesInputsAreHeldToThePipelinesAttributes)
+        {
+            const std::array inputs{ ModuleInput{ .mLocation = 0, .mComponents = 3 },
+                ModuleInput{ .mLocation = 1, .mComponents = 4 } };
+            const std::array fed{ VkVertexInputAttributeDescription{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
+                VkVertexInputAttributeDescription{ 1, 0, VK_FORMAT_R8G8B8A8_UNORM, 12 } };
+            EXPECT_EQ(inputDisagreement(inputs, fed), std::nullopt);
+
+            const std::array missing{ fed[0] };
+            EXPECT_EQ(inputDisagreement(inputs, missing), "the input at location 1 has no attribute");
+
+            const std::array narrow{ VkVertexInputAttributeDescription{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 }, fed[1] };
+            EXPECT_EQ(
+                inputDisagreement(inputs, narrow), "the input at location 0 reads 3 components of an attribute of 2");
+        }
     }
 }

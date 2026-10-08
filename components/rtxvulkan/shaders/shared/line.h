@@ -25,6 +25,10 @@ namespace Rtx::Shaders
     /// one binding, `bindings.h`'s rule.
     const uint LINE_BIND_SURFACE = 0;
 
+    /// Where the vertex module reads each of a vertex's attributes, and the pass describes them.
+    const uint LINE_ATTRIBUTE_POSITION = 0u;
+    const uint LINE_ATTRIBUTE_COLOUR = 1u;
+
     /// What both stages are told: the frame's eye read the other way (`screenOf`) and the picture's
     /// own extent, where the eye stands, the near plane a vertex is clipped at, and the traced extent
     /// the surface channel is read over.

@@ -32,8 +32,10 @@ namespace Rtx
         };
 
         constexpr std::array<VkVertexInputAttributeDescription, 2> sVertexAttributes{
-            VkVertexInputAttributeDescription{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(DebugVertex, mPosition) },
-            VkVertexInputAttributeDescription{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(DebugVertex, mColour) },
+            VkVertexInputAttributeDescription{
+                Shaders::LINE_ATTRIBUTE_POSITION, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(DebugVertex, mPosition) },
+            VkVertexInputAttributeDescription{
+                Shaders::LINE_ATTRIBUTE_COLOUR, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(DebugVertex, mColour) },
         };
 
         GraphicsPipelineOptions describePipeline(VkFormat targetFormat, VkPrimitiveTopology topology)

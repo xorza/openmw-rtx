@@ -44,6 +44,8 @@ namespace Rtx
             },
         };
 
+        code.feed(options.mVertexModule, options.mVertexAttributes);
+
         const VkPipelineVertexInputStateCreateInfo vertexInput{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .pNext = nullptr,

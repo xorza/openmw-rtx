@@ -52,15 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.4 Vertex input locations are numbers on both sides, and nothing compares them.**
-  `shaders/gui/gui.vert`, `gui.frag`, `display/line.vert:21-25`, `line.frag:29-32` against
-  `gui/guipass.cpp:37-40` and `display/linepass.cpp:34-36`. This is the one binding-like pair still
-  kept by hand. Target: `GUI_ATTRIBUTE_*` in `shared/gui.h` and `LINE_ATTRIBUTE_*` in
-  `shared/line.h`, used in both places. The graphics pipeline also checks each attribute
-  description against the vertex stage's input `Location`s from item 3.1: every input has one
-  attribute, and the format's component count covers it. Depends on 3.1.
-  Verify: `./omw kernels --against` (nothing moved), a case with a missing attribute.
-
 - [ ] **3.5 `omw kernels` digests `shadowfilter.comp` at its first filter level only.**
   `tools/omw/kernels.py:50-80` reads only boolean spec constants (`OpSpecConstantTrue/False`) and
   freezes `SHADOW_LEVEL` (`shadowfilter.comp:68`) at its default 0. `shadowpass.cpp:33` builds

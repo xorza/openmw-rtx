@@ -35,9 +35,12 @@ namespace Rtx
         /// makes MyGUI's own packing free to consume: `ColourABGR` puts red in the low byte, which
         /// is what `R8G8B8A8_UNORM` reads first.
         constexpr std::array<VkVertexInputAttributeDescription, 3> sVertexAttributes{
-            VkVertexInputAttributeDescription{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GuiVertex, mX) },
-            VkVertexInputAttributeDescription{ 1, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(GuiVertex, mColour) },
-            VkVertexInputAttributeDescription{ 2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) },
+            VkVertexInputAttributeDescription{
+                Shaders::GUI_ATTRIBUTE_POSITION, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GuiVertex, mX) },
+            VkVertexInputAttributeDescription{
+                Shaders::GUI_ATTRIBUTE_COLOUR, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(GuiVertex, mColour) },
+            VkVertexInputAttributeDescription{
+                Shaders::GUI_ATTRIBUTE_TEXCOORD, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) },
         };
 
         /// `gui.frag`'s table, which says the texture's `AlphaForm`.

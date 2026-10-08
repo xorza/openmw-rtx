@@ -1,6 +1,7 @@
 #include "shadercode.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <format>
 #include <iterator>
 #include <utility>
@@ -104,6 +105,50 @@ namespace Rtx
         return std::nullopt;
     }
 
+    namespace
+    {
+        /// The components a vertex attribute of `format` hands its input, for the formats this
+        /// renderer describes a vertex with, and nothing for any other.
+        std::optional<std::uint32_t> componentsOf(const VkFormat format)
+        {
+            switch (format)
+            {
+                case VK_FORMAT_R32_SFLOAT:
+                case VK_FORMAT_R32_UINT:
+                    return 1;
+                case VK_FORMAT_R32G32_SFLOAT:
+                    return 2;
+                case VK_FORMAT_R32G32B32_SFLOAT:
+                    return 3;
+                case VK_FORMAT_R32G32B32A32_SFLOAT:
+                case VK_FORMAT_R8G8B8A8_UNORM:
+                    return 4;
+                default:
+                    return std::nullopt;
+            }
+        }
+    }
+
+    std::optional<std::string> inputDisagreement(
+        const std::span<const ModuleInput> inputs, const std::span<const VkVertexInputAttributeDescription> attributes)
+    {
+        for (const ModuleInput& input : inputs)
+        {
+            const auto fed
+                = std::ranges::find(attributes, input.mLocation, &VkVertexInputAttributeDescription::location);
+            if (fed == attributes.end())
+                return std::format("the input at location {} has no attribute", input.mLocation);
+            const std::optional<std::uint32_t> components = componentsOf(fed->format);
+            if (!components.has_value())
+                return std::format("the attribute at location {} is of format {}, whose components this does not count",
+                    input.mLocation, static_cast<int>(fed->format));
+            if (*components < input.mComponents)
+                return std::format("the input at location {} reads {} components of an attribute of {}",
+                    input.mLocation, input.mComponents, *components);
+        }
+        return std::nullopt;
+    }
+
     ShaderCode::ShaderCode(const Device& device)
         : mDevice(device)
     {
@@ -127,6 +172,15 @@ namespace Rtx
                 Crash::fatal(std::format("{}: {}", module, *disagreement));
 
         return known->mStage;
+    }
+
+    void ShaderCode::feed(
+        const std::string_view module, const std::span<const VkVertexInputAttributeDescription> attributes) const
+    {
+        const auto known = std::ranges::find(mRead, module, &Read::mModule);
+        assert(known != mRead.end() && "a module fed before it was staged");
+        if (const std::optional<std::string> disagreement = inputDisagreement(known->mInterface.mInputs, attributes))
+            Crash::fatal(std::format("{}: {}", module, *disagreement));
     }
 
     void ShaderCode::readModule(const std::string_view module)

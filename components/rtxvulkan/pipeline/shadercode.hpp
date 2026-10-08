@@ -39,6 +39,12 @@ namespace Rtx
     /// eight (`hosttypes.h`). Nothing where they agree, and nothing for a module that reads no push.
     std::optional<std::string> pushDisagreement(std::optional<std::uint32_t> end, std::uint32_t range);
 
+    /// The first input of a vertex module that `attributes` — the pipeline's description of a
+    /// vertex — do not feed, in words: one at a location no attribute names, or one whose
+    /// attribute's format has fewer components than it reads. Nothing where every input is fed.
+    std::optional<std::string> inputDisagreement(
+        std::span<const ModuleInput> inputs, std::span<const VkVertexInputAttributeDescription> attributes);
+
     /// SPIR-V from the device's shader directory, read once a file however many stages name it,
     /// and handed to each stage inline: `maintenance5` takes a stage's code in its `pNext`, so no
     /// `VkShaderModule` is made, named or destroyed. Kept by whoever makes the pipelines that share
@@ -65,6 +71,11 @@ namespace Rtx
         /// @throws InputError where the file cannot be read or is not a module.
         const void* stage(std::string_view module, const SetTables& sets, std::uint32_t pushBytes,
             std::span<const std::uint32_t> words);
+
+        /// Holds the inputs of `module`, a vertex stage `stage` already read, to `attributes`
+        /// (`inputDisagreement`), and ends the process as a crash naming the module where one is
+        /// not fed: a location the two number apart reads nothing a vertex holds.
+        void feed(std::string_view module, std::span<const VkVertexInputAttributeDescription> attributes) const;
 
     private:
         /// Reads `module` onto the end of `mRead`.

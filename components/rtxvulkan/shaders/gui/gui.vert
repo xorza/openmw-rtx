@@ -14,12 +14,14 @@
 // for every glyph (`mwgui/bookpage.cpp`, built against a GL projection that keeps it). That was
 // every dialogue's text, every book and every scroll clipped away whole.
 
+#include "shared/gui.h"
+
 #include "lib/census.glsl"
 
 
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec4 inColour;
-layout(location = 2) in vec2 inTexCoord;
+layout(location = GUI_ATTRIBUTE_POSITION) in vec3 inPosition;
+layout(location = GUI_ATTRIBUTE_COLOUR) in vec4 inColour;
+layout(location = GUI_ATTRIBUTE_TEXCOORD) in vec2 inTexCoord;
 
 layout(location = 0) out vec4 outColour;
 layout(location = 1) out vec2 outTexCoord;
