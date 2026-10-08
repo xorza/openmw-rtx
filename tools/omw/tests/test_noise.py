@@ -105,6 +105,9 @@ class _Harness:
         self.versus = versus
         self.lines: list[tuple[str, ...]] = []
 
+    def build_harness(self) -> None:
+        pass
+
     def harness(self, verb: str, *args: str, stdout: IO[str], **options) -> subprocess.CompletedProcess:
         self.lines.append((verb, *args))
         out = Path(next(arg for arg in args if arg.startswith("--out=")).removeprefix("--out="))
