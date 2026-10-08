@@ -36,6 +36,7 @@
 #include <osgParticle/RadialShooter>
 #include <osgParticle/range>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/index.hpp>
@@ -588,6 +589,54 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*plume.mRoot);
             EXPECT_TRUE(mScene.emitters().empty());
+        }
+
+        /// **A chain whose key nothing but the keys' table holds keeps it while the walk meets it.**
+        /// An emitter's and a refused mesh's chains are two stating links each, keyed by a pair
+        /// nothing else holds; a painted quad's material goes on frame 2, which is what sweeps the
+        /// keys. Swept by whether anything held them, the two pairs went with it, and frame 3 made
+        /// a new state set for each: frame 3 must reach the heap not at all.
+        TEST_F(RtxSceneExtractorTest, aKeyTheWalkMeetsIsKeptWhenASweepTakesAMaterial)
+        {
+            const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            plume.mParticles->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+            emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+            osg::ref_ptr<osg::Group> refusedParent = new osg::Group;
+            refusedParent->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+            osg::ref_ptr<osg::Geometry> refused = makeIndexPastItsVertices();
+            refused->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON);
+            refusedParent->addChild(refused);
+
+            osg::ref_ptr<osg::Geometry> painted = makeQuad();
+            paint(*painted->getOrCreateStateSet(), "textures/tx_painted.dds");
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(plume.mRoot);
+            root->addChild(refusedParent);
+            root->addChild(painted);
+
+            for (std::size_t frame = 1; frame <= 3; ++frame)
+            {
+                if (frame == 2)
+                    root->removeChild(painted);
+
+                mScene.clearPlacement();
+                const std::size_t before = Testing::getAllocationCount();
+                walk(*root, 0, frame);
+                const std::size_t spent = Testing::getAllocationCount() - before;
+                const Retirement went = mExtractor.retire();
+                mExtractor.getReleased().clear();
+
+                if (frame == 2)
+                {
+                    EXPECT_EQ(went.mMaterials, 1u) << "the painted quad's material did not go";
+                }
+                if (frame == 3)
+                {
+                    EXPECT_EQ(spent, 0u) << spent << " allocations on the frame after the sweep";
+                }
+            }
         }
 
         /// Gives a plume what makes it run: something emitting at a fixed rate, and the updater

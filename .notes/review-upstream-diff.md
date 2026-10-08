@@ -55,15 +55,6 @@ What is left:
 Measure each against the baseline bench (median, p99, worst frame), on a quiet desktop, in the
 background.
 
-- [ ] **4.2 `ChainKeys` erases and allocates again the keys only it holds, and rescans the table.**
-  `mirror/chainkeys.cpp:304-310,334-341`, gated at `sceneextractor.cpp:784-787`. Emitters, water and
-  refused meshes keep their keys only in `ChainKeys`. On a frame where any material dies, `retire`
-  erases them, and the next walk allocates a new `osg::StateSet` for each. Each such frame scans up
-  to about 16k pairs at least twice. Target: an epoch on `Held`, stamped in `under()`. `retire`
-  erases only pairs that are unheld and unmet this epoch.
-  Verify: a test with an emitter and a material that goes on frame 2, and zero allocations on
-  frame 3; `./omw test components-tests --gtest_filter='RtxShadingTest.*:RtxSceneExtractorTest.*'`.
-
 - [ ] **4.3 A path string is allocated each time a texture is taken.**
   `mirror/materialresolver.cpp:363` and `emitterresolver.cpp:124,146` build a
   `VFS::Path::Normalized` per material adoption, and twice per emitter arrival. Target: a scratch on

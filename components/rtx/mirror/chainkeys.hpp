@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <vector>
 
@@ -8,6 +9,7 @@
 #include <osg/StateSet>
 #include <osg/ref_ptr>
 
+#include "mirrorpass.hpp"
 #include "released.hpp"
 
 namespace Rtx
@@ -32,6 +34,12 @@ namespace Rtx
     class ChainKeys
     {
     public:
+        /// @param pass the walk in progress, borrowed: what a pair is stamped as met by.
+        explicit ChainKeys(const MirrorPass& pass)
+            : mPass(pass)
+        {
+        }
+
         /// The key of a chain keyed `above` — null where nothing on it stated anything yet — once
         /// `link` joins it: `link` itself where it is a controller's, which
         /// `MaterialResolver::animate` keeps one of per placement, or the first link to state
@@ -43,10 +51,12 @@ namespace Rtx
         /// joined in turn: what `MaterialResolver::chainOf` keeps of a reading. Null for none.
         const osg::StateSet* keyOf(std::span<const osg::StateSet* const> stating);
 
-        /// Drops every pair whose key nothing but this table and `released` holds, and keeps the
-        /// state sets it held with it in `released`. A material's entry holds its key, and a pair
-        /// holds the key above it, so a chain goes once nothing is keyed on it, the nearest pair
-        /// first.
+        /// Drops every pair this epoch's walks did not meet and whose key nothing but this table and
+        /// `released` holds, and keeps the state sets it held with it in `released`. A material's
+        /// entry holds its key, and a pair holds the key above it, so a chain goes once nothing is
+        /// keyed on it, the nearest pair first. **Met is kept**: an emitter's chain, the water's and a
+        /// refused mesh's hold their key nowhere else, and erased while their nodes stood, each was
+        /// a state set made again on the walk after.
         void retire(Released& released);
 
         /// Room for `count` pairs before the table rehashes, which no frame of a walk should pay.
@@ -79,7 +89,12 @@ namespace Rtx
             osg::ref_ptr<const osg::StateSet> mAbove;
             osg::ref_ptr<const osg::StateSet> mOwn;
             osg::ref_ptr<const osg::StateSet> mKey;
+
+            /// The epoch of the last walk that met the pair, which `under` stamps.
+            std::uint64_t mMet = 0;
         };
+
+        const MirrorPass& mPass;
 
         boost::unordered_flat_map<Pair, Held, PairHash> mKeys;
 

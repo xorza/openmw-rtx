@@ -461,7 +461,7 @@ namespace Rtx
 
         /// The keys the walk's chains of state sets fold to, which `mMaterials` holds its entries
         /// under, and the ring's readings as they are adopted.
-        ChainKeys mChainKeys;
+        ChainKeys mChainKeys{ mPass };
 
         /// What a groundcover reading's key is paired with last (`MaterialReading::mGroundcover`):
         /// an empty state set of the walk's own, standing for the override no chain states.

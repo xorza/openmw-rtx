@@ -33,7 +33,8 @@ namespace Rtx
             // **And a link built under a chain carries it**, as both walks build theirs: the first
             // link from the defaults, a controller's link animated through everything under it,
             // and the fade of the link above carried down.
-            ChainKeys keys;
+            MirrorPass pass;
+            ChainKeys keys(pass);
             const Shading first = Shading::under({}, *bare, false, &keys);
             EXPECT_EQ(first.mStateSet, bare.get());
             EXPECT_EQ(first.mFade.mPlacement, 1.0f);
@@ -66,7 +67,8 @@ namespace Rtx
             const osg::ref_ptr<osg::StateSet> shared = stating();
             const osg::ref_ptr<osg::StateSet> bare = new osg::StateSet;
 
-            ChainKeys keys;
+            MirrorPass pass;
+            ChainKeys keys(pass);
             const auto keyOf = [&](std::initializer_list<const osg::StateSet*> links) {
                 std::vector<Shading> chain;
                 for (const osg::StateSet* link : links)
@@ -88,9 +90,11 @@ namespace Rtx
             const osg::StateSet* const deeper = keyOf({ first.get(), shared.get(), second.get() });
             EXPECT_EQ(keys.size(), 3u);
 
-            // Held as a material entry holds its key: the deeper pair holds the pair above it.
+            // Held as a material entry holds its key: the deeper pair holds the pair above it. Swept
+            // at an epoch no walk met any pair in.
             Released released;
             osg::ref_ptr<const osg::StateSet> held = deeper;
+            ++pass.mEpoch;
             keys.retire(released);
             EXPECT_EQ(keys.size(), 2u) << "the pair under the second parent is held by nothing";
             EXPECT_EQ(keyOf({ first.get(), shared.get(), second.get() }), deeper) << "a held key is found again";
@@ -101,6 +105,14 @@ namespace Rtx
             // and two go at this one, beside the key the sink was handed: 3 + 1 + 2 · 3 = 10.
             released.keep(held);
             held = nullptr;
+
+            // **A pair the epoch's walk met is kept, held or not**: the deeper chain was met again
+            // above, at this epoch, and a chain whose key nothing holds — an emitter's, the
+            // water's, a refused mesh's — would otherwise be erased under a node that still stands.
+            keys.retire(released);
+            EXPECT_EQ(keys.size(), 2u) << "a pair this epoch met was erased";
+
+            ++pass.mEpoch;
             keys.retire(released);
             EXPECT_EQ(keys.size(), 0u) << "the deeper pair, and then the pair above it";
             EXPECT_EQ(released.get().size(), 10u) << "what the pairs held went elsewhere than the sink";
