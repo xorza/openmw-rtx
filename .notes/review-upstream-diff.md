@@ -55,17 +55,6 @@ What is left:
 Measure each against the baseline bench (median, p99, worst frame), on a quiet desktop, in the
 background.
 
-- [ ] **4.5 Each trace variant reads and parses the same SPIR-V files again.**
-  `pipeline/computepipeline.cpp:14`, `tracepipeline.cpp:47`, `shadercode.cpp:91-117`,
-  `trace/visibilitypass.cpp:319,332`. 32 variants re-read the 1.5 MB closest-hit module and rebuild
-  `readBindings`' map each time. Target: `ShaderCode(device, modules)` reads each module and its
-  interface (item 3.1) up front, and `stage()` is `const`. `makeTracePipeline` and `TracePipeline`
-  take a `const ShaderCode&`, as `makeGraphicsPipeline` already does. `VisibilityPass` declares its
-  `ShaderCode` before the member that owns the launch compile, so the compile joins before the code
-  goes. Depends on 3.1.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxShaderCodeTest.*:RtxTracePipelineTest.*'`,
-  `./omw kernels --against` (nothing moved).
-
 - [ ] **4.6 The G-buffer's 19 channels overflow the 16-image barrier batch.**
   `device/memory/barriers.hpp:15,71`, `trace/gbuffer.cpp:136-145`, `trace/tracechain.cpp:45`.
   `GBuffer::begin` emits two `vkCmdPipelineBarrier2` a trace, and the comments still say fourteen.

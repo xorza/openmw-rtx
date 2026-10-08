@@ -56,6 +56,11 @@ namespace Rtx
 {
     namespace
     {
+        /// Every trace module a kernel of the pass runs, which its shader code reads once.
+        constexpr std::array<std::string_view, 10> sTraceModules{ "visibility.rgen.spv", "visibility.rmiss.spv",
+            "visibilityunshaded.rmiss.spv", "visibilityhit.rchit.spv", "visibility.rahit.spv", "fogscatter.rgen.spv",
+            "fogdepth.rgen.spv", "spritecomposite.rgen.spv", "spriteshelter.rgen.spv", "spriteemitters.rgen.spv" };
+
         /// The words of the whole tuple, which the kernels made once and not per tuple run under:
         /// the sun, the moons, the sea and the maps all standing, and nothing counted.
         constexpr std::array<std::uint32_t, Shaders::SPEC_COUNT> sWholeSky = [] {
@@ -272,6 +277,7 @@ namespace Rtx
         const auto count = static_cast<std::uint32_t>(wanted.size());
         mCompiling.start("kernel compile", count,
             [this, &textureLayout, caller, wanted = std::move(wanted)](const Platform::StopToken& stop, Job& job) {
+                mCode.emplace(mDevice, sTraceModules);
                 runInParallel(
                     "compile hand", wanted.size(), stop, [caller] { return AdoptedThread(caller); },
                     [&](const std::size_t at) {
@@ -324,30 +330,31 @@ namespace Rtx
                     HitShader{ .mModule = hitModule, .mSpecialization = hitWords[2] },
                 };
 
-                mKernels.mVisibility[variant.index()]
-                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
-                        TraceShaders{
-                            .mRaygen = "visibility.rgen.spv",
-                            .mMiss = miss,
-                            .mHit = hit,
-                            .mHitRecordsPerShader = Shaders::HIT_RECORDS_PER_SHADER,
-                            .mHitRecordData = std::as_bytes(std::span(sHitRecords)),
-                            .mAnyHit = "visibility.rahit.spv",
-                        },
-                        variant.describe("visibility"), specialization);
+                mKernels.mVisibility[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), *mCode,
+                    TraceShaders{
+                        .mRaygen = "visibility.rgen.spv",
+                        .mMiss = miss,
+                        .mHit = hit,
+                        .mHitRecordsPerShader = Shaders::HIT_RECORDS_PER_SHADER,
+                        .mHitRecordData = std::as_bytes(std::span(sHitRecords)),
+                        .mAnyHit = "visibility.rahit.spv",
+                    },
+                    variant.describe("visibility"), specialization);
                 return;
             }
             case Kernel::Scatter:
                 mKernels.mScatter[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogscatter.rgen.spv" },
+                    sharedSets(textureLayout), *mCode, TraceShaders{ .mRaygen = "fogscatter.rgen.spv" },
                     variant.describe("fog scatter"), specialization);
                 return;
             // From here on no tuple: each is made once, at the whole sky and counting nothing. Handed
             // those words and not left to the GLSL's defaults, which say the same, so that no
             // constant a module reads takes a default in silence (`specializationDisagreement`).
             case Kernel::Depth:
-                mKernels.mDepth = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogdepth.rgen.spv" }, "fog depth", sWholeSky);
+                mKernels.mDepth
+                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
+                        *mCode, TraceShaders{ .mRaygen = "fogdepth.rgen.spv" }, "fog depth", sWholeSky);
                 return;
             case Kernel::Integrate:
                 mKernels.mIntegrate = std::make_unique<ComputePipeline<NoConstants>>(
@@ -355,18 +362,18 @@ namespace Rtx
                 return;
             case Kernel::SpriteComposite:
                 mKernels.mSpriteComposite = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice,
-                    sCompositeBindings, sharedSets(textureLayout),
+                    sCompositeBindings, sharedSets(textureLayout), *mCode,
                     TraceShaders{ .mRaygen = "spritecomposite.rgen.spv" }, "sprite composite", sWholeSky);
                 return;
             case Kernel::SpriteShelter:
                 mKernels.mSpriteShelter
                     = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
-                        TraceShaders{ .mRaygen = "spriteshelter.rgen.spv" }, "sprite shelter", sWholeSky);
+                        *mCode, TraceShaders{ .mRaygen = "spriteshelter.rgen.spv" }, "sprite shelter", sWholeSky);
                 return;
             case Kernel::SpriteEmitters:
                 mKernels.mSpriteEmitters
                     = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
-                        TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters", sWholeSky);
+                        *mCode, TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters", sWholeSky);
                 return;
         }
     }

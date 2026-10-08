@@ -1,9 +1,7 @@
 #include "shadercode.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <format>
-#include <iterator>
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
@@ -149,37 +147,40 @@ namespace Rtx
         return std::nullopt;
     }
 
-    ShaderCode::ShaderCode(const Device& device)
+    ShaderCode::ShaderCode(const Device& device, const std::span<const std::string_view> modules)
         : mDevice(device)
     {
+        for (const std::string_view module : modules)
+            if (std::ranges::find(mRead, module, &Read::mModule) == mRead.end())
+                readModule(module);
+    }
+
+    const ShaderCode::Read& ShaderCode::readOf(const std::string_view module) const
+    {
+        const auto known = std::ranges::find(mRead, module, &Read::mModule);
+        Crash::contract(known != mRead.end(), "a stage of a module its shader code was not made to read");
+        return *known;
     }
 
     const void* ShaderCode::stage(const std::string_view module, const SetTables& sets, const std::uint32_t pushBytes,
-        const std::span<const std::uint32_t> words)
+        const std::span<const std::uint32_t> words) const
     {
-        auto known = std::ranges::find(mRead, module, &Read::mModule);
-        if (known == mRead.end())
-        {
-            readModule(module);
-            known = std::prev(mRead.end());
-        }
-
-        const ModuleInterface& interface = known->mInterface;
+        const Read& known = readOf(module);
+        const ModuleInterface& interface = known.mInterface;
         for (const std::optional<std::string>& disagreement : { bindingDisagreement(interface.mBindings, sets),
                  specializationDisagreement(interface.mSpecConstants, words),
                  pushDisagreement(interface.mPushEnd, pushBytes) })
             if (disagreement.has_value())
                 Crash::fatal(std::format("{}: {}", module, *disagreement));
 
-        return known->mStage;
+        return known.mStage;
     }
 
     void ShaderCode::feed(
         const std::string_view module, const std::span<const VkVertexInputAttributeDescription> attributes) const
     {
-        const auto known = std::ranges::find(mRead, module, &Read::mModule);
-        assert(known != mRead.end() && "a module fed before it was staged");
-        if (const std::optional<std::string> disagreement = inputDisagreement(known->mInterface.mInputs, attributes))
+        if (const std::optional<std::string> disagreement
+            = inputDisagreement(readOf(module).mInterface.mInputs, attributes))
             Crash::fatal(std::format("{}: {}", module, *disagreement));
     }
 

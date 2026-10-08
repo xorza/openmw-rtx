@@ -1,5 +1,8 @@
 #include "computepipeline.hpp"
 
+#include <array>
+#include <string_view>
+
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
@@ -11,7 +14,8 @@ namespace Rtx
         const std::string_view module, const std::string_view name, const std::span<const std::uint32_t> specialization)
     {
         PipelineCreation creation(device, name);
-        ShaderCode code(device);
+        const std::array<std::string_view, 1> modules{ module };
+        const ShaderCode code(device, modules);
         const Specialization constants(device, module, specialization);
 
         const VkComputePipelineCreateInfo pipeline{
