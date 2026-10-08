@@ -169,5 +169,5 @@ void main()
     // A lane with no lobe stores no frames, where `startedMean` counts one, so no later frame takes
     // its texel for a history; and its fast mean says it holds none, so no clamp takes it into a box.
     RTX_STORE_COUNTED(mean, at, reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0))
-    RTX_STORE_WORDS(fastBlended, at, uvec4(packRgb9e5(reflects ? blendedFast : vec3(0.0)), reflects ? 1u : 0u, 0u, 0u))
+    RTX_STORE_WORDS(fastBlended, at, uvec4(reflects ? packRgb9e5(blendedFast) : HISTORY_CLAMP_EMPTY, 0u, 0u, 0u))
 }

@@ -117,6 +117,13 @@ namespace Rtx
 
         constexpr VkImageUsageFlags sColumnUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
+        /// The point pair's one image where the past is dropped: the scatter launch writes it, and
+        /// samples it through the history's binding too, which a trace with no past never reads but
+        /// which the binding states.
+        constexpr ImageUse sTraceWriteAndSample{ VK_IMAGE_LAYOUT_GENERAL,
+            VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
+            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT };
+
         constexpr std::array<FogImageKind, static_cast<std::size_t>(FogImage::ColumnMoons) + 1> sFogImages{ {
             { sHistoryFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog scatter 0" },
             { sHistoryFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog scatter 1" },
@@ -181,23 +188,29 @@ namespace Rtx
         return makeSetLayout(device, sLayoutBindings);
     }
 
-    VkDeviceSize FogVolume::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
+    VkDeviceSize FogVolume::bytesAt(
+        const Device& device, const std::uint32_t width, const std::uint32_t height, const TracePast past)
     {
         VkDeviceSize bytes = 0;
-        for (std::size_t image = 0; image < sFogImages.size(); ++image)
-            bytes += Image::bytesFor(
-                device, descriptionOf(static_cast<FogImage>(image), columnsFor(width), columnsFor(height)));
+        for (std::size_t at = 0; at < sFogImages.size(); ++at)
+        {
+            const auto image = static_cast<FogImage>(at);
+            if (past == TracePast::Dropped && (image == FogImage::Scatter1 || image == FogImage::Sunward1))
+                continue;
+            bytes += Image::bytesFor(device, descriptionOf(image, columnsFor(width), columnsFor(height)));
+        }
         return bytes;
     }
 
     FogVolume::FogVolume(const Device& device, const SetLayout& layout, const std::uint32_t width,
-        const std::uint32_t height, const MemoryUse use)
+        const std::uint32_t height, const MemoryUse use, const TracePast past)
         : mColumns(columnsFor(width))
         , mRows(columnsFor(height))
+        , mPast(past)
         , mScatter{ makeFogImage(device, use, FogImage::Scatter0, mColumns, mRows),
-            makeFogImage(device, use, FogImage::Scatter1, mColumns, mRows) }
+            past == TracePast::Kept ? makeFogImage(device, use, FogImage::Scatter1, mColumns, mRows) : Image() }
         , mSunward{ makeFogImage(device, use, FogImage::Sunward0, mColumns, mRows),
-            makeFogImage(device, use, FogImage::Sunward1, mColumns, mRows) }
+            past == TracePast::Kept ? makeFogImage(device, use, FogImage::Sunward1, mColumns, mRows) : Image() }
         , mLamps(makeFogImage(device, use, FogImage::Lamps, mColumns, mRows))
         , mAir(makeFogImage(device, use, FogImage::Air, mColumns, mRows))
         , mAirSunward(makeFogImage(device, use, FogImage::AirSunward, mColumns, mRows))
@@ -218,18 +231,18 @@ namespace Rtx
             const std::size_t history = 1 - parity;
 
             std::array<const Image*, sBindings> named{};
-            named[Shaders::BIND_FOG_WAS_SCATTER] = &mScatter[history];
-            named[Shaders::BIND_FOG_WAS_SUNWARD] = &mSunward[history];
-            named[Shaders::BIND_FOG_SCATTER] = &mScatter[written];
-            named[Shaders::BIND_FOG_SUNWARD] = &mSunward[written];
+            named[Shaders::BIND_FOG_WAS_SCATTER] = &pointOf(mScatter, history);
+            named[Shaders::BIND_FOG_WAS_SUNWARD] = &pointOf(mSunward, history);
+            named[Shaders::BIND_FOG_SCATTER] = &pointOf(mScatter, written);
+            named[Shaders::BIND_FOG_SUNWARD] = &pointOf(mSunward, written);
             named[Shaders::BIND_FOG_LAMPS] = &mLamps;
             named[Shaders::BIND_FOG_AIR] = &mAir;
             named[Shaders::BIND_FOG_AIR_SUNWARD] = &mAirSunward;
             named[Shaders::BIND_FOG_SLICE] = &mSlice;
             named[Shaders::BIND_FOG_SLICE_SUNWARD] = &mSliceSunward;
             named[Shaders::BIND_FOG_SEEING] = &mSeeing;
-            named[Shaders::BIND_FOG_SCATTER_TARGET] = &mScatter[written];
-            named[Shaders::BIND_FOG_SUNWARD_TARGET] = &mSunward[written];
+            named[Shaders::BIND_FOG_SCATTER_TARGET] = &pointOf(mScatter, written);
+            named[Shaders::BIND_FOG_SUNWARD_TARGET] = &pointOf(mSunward, written);
             named[Shaders::BIND_FOG_LAMPS_TARGET] = &mLamps;
             named[Shaders::BIND_FOG_AIR_TARGET] = &mAir;
             named[Shaders::BIND_FOG_AIR_SUNWARD_TARGET] = &mAirSunward;
@@ -257,7 +270,8 @@ namespace Rtx
 
             for (const Image* image : { &mScatter[0], &mScatter[1], &mSunward[0], &mSunward[1], &mLamps, &mAir,
                      &mAirSunward, &mSlice, &mSliceSunward, &mSeeing, &mColumnDepth, &mColumnMoons })
-                image->clear(commands, Use::sUndefined, nothing, Use::sAnyGeneral);
+                if (!image->isEmpty())
+                    image->clear(commands, Use::sUndefined, nothing, Use::sAnyGeneral);
         });
     }
 
@@ -273,7 +287,10 @@ namespace Rtx
         // the history takes no barrier of its own: it rests in `GENERAL`, and the head barrier made
         // the write visible to every read after it.
         Barriers barriers(commands);
-        for (const Image* image : { &mScatter[written], &mSunward[written], &mLamps, &mColumnDepth, &mColumnMoons })
+        const ImageUse point = mPast == TracePast::Kept ? Use::sTraceWrite : sTraceWriteAndSample;
+        for (const Image* image : { &pointOf(mScatter, written), &pointOf(mSunward, written) })
+            image->addTransition(barriers, Use::sUndefined, point);
+        for (const Image* image : { &mLamps, &mColumnDepth, &mColumnMoons })
             image->addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
         for (const Image* image : { &mAir, &mAirSunward, &mSlice, &mSliceSunward, &mSeeing })
             image->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
@@ -299,7 +316,7 @@ namespace Rtx
         // else. Against the trace as well as the integrate pass, because a puff of smoke reads what
         // the lamps deliver at a point (`puffLight`).
         Barriers barriers(commands);
-        for (const Image* image : { &mScatter[written], &mSunward[written], &mLamps })
+        for (const Image* image : { &pointOf(mScatter, written), &pointOf(mSunward, written), &mLamps })
             image->addTransition(barriers, Use::sTraceWrite, Use::sShaderSample);
 
         barriers.flush();

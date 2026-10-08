@@ -21,8 +21,8 @@ namespace Rtx
         explicit HistoryClampPass(const Device& device);
 
         /// What one filter hands the clamp: the frame's samples of its light, the slow mean it just
-        /// wrote, which is held in place, its blend of the fast mean, and this frame's fast mean,
-        /// which the clamp writes.
+        /// wrote, which is held in place, its blend of the fast mean, and the fast mean, which the
+        /// filter read as last frame's and the clamp writes.
         struct Images
         {
             const Image& mSampled;

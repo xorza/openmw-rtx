@@ -443,6 +443,7 @@ set(RTX_VULKAN_FILES
     trace/tracemedia.hpp
     trace/tracepasses.cpp
     trace/tracepasses.hpp
+    trace/tracepast.hpp
     trace/tracerecording.hpp
     trace/visibilitypass.cpp
     trace/visibilitypass.hpp

@@ -114,8 +114,11 @@ namespace Rtx
         // same batch as the filters' answers.
         for (const Image* image : { &accumulated.mBlended, &accumulated.mFillBlended, &accumulated.mMoments })
             image->addTransition(ready, Use::sComputeWrite, Use::sComputeReadOrSample);
-        // The history fix writes its answer over the clamp's fast means.
+        // The history fix writes its answer over the clamp's fast means, and the first level writes
+        // the means the accumulator read as last frame's.
         accumulated.mFast.addTransition(ready, Use::sComputeWrite, Use::sComputeWrite);
+        for (const Image* image : { &accumulated.mColour, &accumulated.mFill })
+            image->addTransition(ready, Use::sComputeRead, Use::sComputeWrite);
 
         ready.flush();
 

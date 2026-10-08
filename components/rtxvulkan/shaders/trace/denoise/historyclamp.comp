@@ -72,9 +72,9 @@ void main()
         const uvec2 square = uvec2(i % SPAN, i / SPAN);
         const ivec2 pixel = origin - REACH + ivec2(square);
         const ivec2 inside = clamp(pixel, ivec2(0), last);
-        const uvec2 there = imageLoad(fast, inside).xy;
-        const bool held = pixel == inside && there.y != 0u;
-        gFast[square.y][square.x] = held ? vec4(ycocgOf(unpackRgb9e5(there.x)), 1.0) : vec4(-1.0);
+        const uint there = imageLoad(fast, inside).x;
+        const bool held = pixel == inside && there != HISTORY_CLAMP_EMPTY;
+        gFast[square.y][square.x] = held ? vec4(ycocgOf(unpackRgb9e5(there)), 1.0) : vec4(-1.0);
         gSampled[square.y][square.x] = held ? imageLoad(sampled, inside).rgb : vec3(0.0);
     }
     barrier();
@@ -83,18 +83,26 @@ void main()
     if (outsideOf(uvec2(at), uvec2(frame.mWidth, frame.mHeight)))
         return;
 
+    // A pixel that holds no mean is passed on before its slow mean is read, which most of a pane's
+    // frame is.
+    const uint fastPacked = imageLoad(fast, at).x;
+    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
+    if (gFast[centre.y][centre.x].w < 0.0)
+    {
+        RTX_STORE_WORDS(fastOut, at, uvec4(fastPacked, 0u, 0u, 0u))
+        return;
+    }
+
     // **A mean of one frame is left as it is**: it is its own fast mean, which the shared exponent
     // stores only to its rounding, and a clamp to the box grown to that rounding moved the frame a
     // history had just started from — or dropped — off the frame the trace composed.
-    const uvec2 fastPacked = imageLoad(fast, at).xy;
-    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
     const vec4 slow = imageLoad(mean, at);
-    if (gFast[centre.y][centre.x].w < 0.0 || slow.a <= 1.0)
+    if (slow.a <= 1.0)
     {
-        RTX_STORE_WORDS(fastOut, at, uvec4(fastPacked, 0u, 0u))
+        RTX_STORE_WORDS(fastOut, at, uvec4(fastPacked, 0u, 0u, 0u))
         return;
     }
-    const vec3 fastHere = unpackRgb9e5(fastPacked.x);
+    const vec3 fastHere = unpackRgb9e5(fastPacked);
 
     // The square's statistics, in a fixed order, over the pixels that hold a mean; the centre is one.
     float count = 0.0;
@@ -126,5 +134,5 @@ void main()
     const vec3 toward = sampledMean - fastHere;
     const vec3 held = max(mix(slow.rgb, clamped.mHeld, antilag) + pushed * toward, vec3(0.0));
     RTX_STORE_COUNTED(mean, at, vec4(held, slow.a))
-    RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(fastHere + pushed * toward), 1u, 0u, 0u))
+    RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(fastHere + pushed * toward), 0u, 0u, 0u))
 }

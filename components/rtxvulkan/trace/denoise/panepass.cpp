@@ -44,7 +44,7 @@ namespace Rtx
         writes.image(Shaders::PANE_BIND_HELD, images.mHeld.describeStorage());
         writes.image(Shaders::PANE_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::PANE_BIND_MEAN, images.mMean.describeStorage());
-        writes.image(Shaders::PANE_BIND_FAST_BEFORE, images.mFastBefore.describeStorage());
+        writes.image(Shaders::PANE_BIND_FAST_BEFORE, images.mFast.describeStorage());
         writes.image(Shaders::PANE_BIND_FAST_BLENDED, images.mFastBlended.describeStorage());
 
         const Shaders::HistoryConstants constants = frame.history(images.mFresh);

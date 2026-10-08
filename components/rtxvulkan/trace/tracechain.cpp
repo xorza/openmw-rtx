@@ -36,12 +36,13 @@ namespace Rtx
     }
 
     TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins,
-        const RadianceWidth radiance, const MemoryUse use)
+        const RadianceWidth radiance, const MemoryUse use, const TracePast past)
         : mDevice(device)
         , mPasses(passes)
         , mRadiance(radiance)
         , mUse(use)
-        , mDenoise(device, use)
+        , mPast(past)
+        , mDenoise(device, use, past)
     {
         assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
         mBins.reserve(bins);
@@ -63,7 +64,7 @@ namespace Rtx
         mHeight = height;
 
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance, mUse);
-        mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mUse);
+        mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mUse, mPast);
         mDenoise.resize(mWidth, mHeight);
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
@@ -81,11 +82,12 @@ namespace Rtx
         dropSum();
     }
 
-    VkDeviceSize TraceChain::bytesAt(
-        const Device& device, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+    VkDeviceSize TraceChain::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
+        const RadianceWidth radiance, const TracePast past)
     {
-        return GBuffer::bytesAt(device, width, height, radiance) + FogVolume::bytesAt(device, width, height)
-            + DenoiseHistory::bytesAt(device, width, height) + Image::bytesFor(device, sumDescription(width, height));
+        return GBuffer::bytesAt(device, width, height, radiance) + FogVolume::bytesAt(device, width, height, past)
+            + DenoiseHistory::bytesAt(device, width, height, past)
+            + Image::bytesFor(device, sumDescription(width, height));
     }
 
     void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
@@ -99,6 +101,8 @@ namespace Rtx
     TraceResult TraceChain::record(const VkCommandBuffer commands, const TraceRecording& what)
     {
         assert(isBuilt() && "a trace into a chain that has no extent");
+        assert((mPast == TracePast::Kept || (what.mPastLost && what.mSampled.mPrevious.mForward == Shaders::vec3()))
+            && "a trace that reads a past, into a chain that keeps one image a pair");
 
         // Each denoiser's history is worthless until the next trace that reads it, which is only
         // where the wavelet runs: a frame that filters nothing turns every filter fresh in its
@@ -204,6 +208,7 @@ namespace Rtx
                     .mHeight = what.mSampled.mEyes.mWorld.mHeight,
                     .mAccumulate = what.mAccumulate,
                     .mComposed = composed ? 1u : 0u,
+                    .mLobed = inputs.mSubject.mMapped ? 1u : 0u,
                 },
                 what.mTimer);
 

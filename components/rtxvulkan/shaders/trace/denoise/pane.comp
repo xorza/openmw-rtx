@@ -109,6 +109,6 @@ void main()
     }
 
     RTX_STORE_COUNTED(mean, at, stands ? texelOf(blended) : vec4(sampled, 0.0))
-    RTX_STORE_WORDS(fastBlended, at, uvec4(packRgb9e5(stands ? blendedFast : vec3(0.0)), stands ? 1u : 0u, 0u, 0u))
+    RTX_STORE_WORDS(fastBlended, at, uvec4(stands ? packRgb9e5(blendedFast) : HISTORY_CLAMP_EMPTY, 0u, 0u, 0u))
     RTX_STORE_COUNTED(held, at, heldSurfaceOf(seen, frame.mDistanceScale))
 }

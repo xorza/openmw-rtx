@@ -26,7 +26,7 @@ namespace Rtx
     CompositePass::CompositePass(const Device& device)
         : mPipeline(device, sBindings, {}, "composite.comp.spv", "composite")
         , mNoSum(makeStandIn(device, toVulkanFormat(COMPOSITE_SUM_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, "no-sum"))
-        , mNoShadow(makeStandIn(device, toVulkanFormat(SHADOW_REPROJECTED), VK_IMAGE_USAGE_STORAGE_BIT, "no-shadow"))
+        , mNoShadow(makeStandIn(device, toVulkanFormat(SHADOW_VISIBILITY), VK_IMAGE_USAGE_STORAGE_BIT, "no-shadow"))
     {
     }
 

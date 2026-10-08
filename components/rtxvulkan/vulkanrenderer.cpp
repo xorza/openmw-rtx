@@ -52,6 +52,7 @@
 #include <components/rtxvulkan/scene/placing.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
+#include <components/rtxvulkan/trace/tracepast.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
 #include <components/rtxvulkan/upscale/upscaler.hpp>
@@ -83,7 +84,8 @@ namespace Rtx
             {
                 const FrameExtents extents = extentsFor(width, height, mode);
                 const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
-                VkDeviceSize bytes = shown + TraceChain::bytesAt(device, render.width, render.height, radiance);
+                VkDeviceSize bytes
+                    = shown + TraceChain::bytesAt(device, render.width, render.height, radiance, TracePast::Kept);
                 if (upscales(mode))
                     bytes += Upscaler::bytesAt(device, render, output);
                 largest = std::max(largest, bytes);
@@ -125,7 +127,7 @@ namespace Rtx
         , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, MemoryUse::Frame)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, MemoryUse::Frame, TracePast::Kept)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
         , mMedia(mDevice, FogNoise::shared())
         , mGui(mDevice)

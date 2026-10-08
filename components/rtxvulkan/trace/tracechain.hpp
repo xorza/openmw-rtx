@@ -16,6 +16,7 @@
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
 #include "spritebin.hpp"
+#include "tracepast.hpp"
 
 namespace Rtx
 {
@@ -46,13 +47,15 @@ namespace Rtx
         /// @param use what its images are counted as: the frame's targets for the world's, which a
         ///        change of mode makes again only once the old are gone, and essential memory for
         ///        the pictures', which `grow` makes while a picture may still read the old.
-        TraceChain(
-            const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance, MemoryUse use);
+        /// @param past whether a trace keeps what it leaves for the next: the world's chain does, and
+        ///        the pictures', each traced with its past lost, does not.
+        TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance,
+            MemoryUse use, TracePast past);
 
         /// What a chain at this extent takes of the device's memory, the running sum included,
         /// which a trace that averages makes.
         static VkDeviceSize bytesAt(
-            const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance);
+            const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
 
         /// Builds the chain at exactly this extent, whatever it was before, and nothing where it
         /// already stands at it.
@@ -105,6 +108,7 @@ namespace Rtx
         std::uint32_t mHeight = 0;
         const RadianceWidth mRadiance;
         const MemoryUse mUse;
+        const TracePast mPast;
 
         std::unique_ptr<GBuffer> mChannels;
         std::unique_ptr<FogVolume> mFogVolume;

@@ -73,12 +73,17 @@ namespace Rtx::Shaders
         /// of its rays' bits. Where a field did not run, the frame had no source of it to shadow,
         /// and its bits themselves stand over a light of nought.
         uint mShadowed RTX_ZERO;
+
+        /// Non-zero where the scene places a material that wears a map (`InstanceCounts::mMapped`),
+        /// which is the only way a surface has a lobe: nought, the lobe's channel holds nought light,
+        /// and the composite reads neither it nor its albedo for the nought it adds.
+        uint mLobed;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(CompositeConstants) == 20, "CompositeConstants must be scalar-packed on every side");
+    static_assert(sizeof(CompositeConstants) == 24, "CompositeConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

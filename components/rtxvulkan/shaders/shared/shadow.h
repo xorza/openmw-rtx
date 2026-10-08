@@ -22,8 +22,8 @@
 // into their own blend: the moments by the next frame's temporal pass, and the first level's answer
 // as the history it blends into. A half store rounds toward nought on this card (`RtxHalfStoreTest`),
 // so a history kept in halves fell a little at every store, and a penumbra stood 0.68% dark after
-// 256 frames (`RtxPenumbraDenoiseTest`). The levels after the first are scratch and could be
-// halves, but one pipeline writes all three, and a layout is the pipeline's.
+// 256 frames (`RtxPenumbraDenoiseTest`). The second level writes the scratch the temporal pass
+// blends into, which keeps full floats for that blend, and the third writes the mean alone.
 //
 // **The rays' bits, packed**: two words an 8×4 tile of pixels, bit `(y % 4) * 8 + x % 8` of each
 // for that pixel — the SDK's layout. The first is one where the pixel receives and its rays got
@@ -44,9 +44,14 @@
 //
 // **And a half a tile for the penumbra**: the widest the mask pass found in the tile
 // (`CHANNEL_PENUMBRA`), which the temporal pass widens to the tiles around it.
+//
+// **The last level's answer is its mean alone**, which is all the composite reads: one full float,
+// where the variance beside it has no reader. The levels write through a declaration with no
+// format, so the one pipeline stores either.
 
 #define SHADOW_MASK STORAGE_RG32UI
 #define SHADOW_REPROJECTED STORAGE_RG32F
+#define SHADOW_VISIBILITY STORAGE_R32F
 #define SHADOW_MOMENTS STORAGE_RGBA32F
 #define SHADOW_TILES STORAGE_RG16F
 #define SHADOW_PENUMBRA_TILES STORAGE_R16F

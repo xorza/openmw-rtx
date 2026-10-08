@@ -28,11 +28,13 @@ namespace Rtx
     void HistoryClampPass::record(const VkCommandBuffer commands, const Images& images, const std::uint32_t width,
         const std::uint32_t height, const bool antilag) const
     {
-        // The clamp reads a neighbour's fast blend, so every pixel's is behind it, and holds the slow
-        // mean the filter wrote in place.
+        // The clamp reads a neighbour's fast blend, so every pixel's is behind it, holds the slow
+        // mean the filter wrote in place, and writes the fast mean the filter just read as last
+        // frame's.
         Barriers written(commands);
         images.mMean.addTransition(written, Use::sComputeWrite, Use::sComputeReadWrite);
         images.mFastBlended.addTransition(written, Use::sComputeWrite, Use::sComputeRead);
+        images.mFast.addTransition(written, Use::sComputeRead, Use::sComputeWrite);
         written.flush();
 
         DescriptorWrites writes(mPipeline);
