@@ -54,16 +54,6 @@ What is left:
 
 ### Mirror
 
-- [ ] **5.1 `SceneExtractor` does several jobs, and "changes on its own" has two sources.**
-  `mirror/sceneextractor.hpp:322-391,466-485`, `.cpp:340-364,882-938,991-1097`. Whether a root
-  changes on its own is `Traversal::mChangeable` for node kinds and `mRecordedChangeable` for
-  drawable kinds, combined only in `endFrozen`. `thawUnmet` scans all of `mFrozen` every walk.
-  Target: a `FrozenRoots` part that owns the frozen state and is handed the holders at each call.
-  `addDrawable` returns whether its placement changes on its own, the traversal ORs it, and
-  `mRecordedChangeable` goes. Skip `thawUnmet` when every run was met.
-  Verify: `./omw test components-tests --gtest_filter='RtxFrozenSubtreeTest.*:RtxSceneExtractorTest.*:RtxCellRingTest.*'`,
-  `./omw shot --against`, `./omw repeat --pairs=10`.
-
 - [ ] **5.2 The resolvers' sweeps are split into halves the extractor must remember.**
   `sceneextractor.cpp:772-794`, `meshresolver.hpp:87`, `materialresolver.hpp:168`. Fold
   `retireDeformers()` and `retireHolds()` into their resolvers' `retire()`.
