@@ -52,10 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.7 Small shader header gaps.**
-  `shaders/shared/historyclamp.h:37-42` has no size `static_assert`, unlike every other shared
-  struct. `shaders/upscale/fsrcallbacks.glsl:1` is the one header without an include guard.
-
 - [ ] **3.8 The upload decision ignores material layer and mask runs.**
   `scene/scenedesc.hpp:217` sums only the mesh and texture revisions. `renderer/sceneuploader.cpp:78`
   chooses extend or place on that sum. New runs are staged only on an extend
