@@ -54,17 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.12 `GlRenderer::detachWorld` leaves the post-processing chain wired in.**
-  `glrenderer.cpp:451,454-458`, `postprocessor.cpp:213,215`, `postprocessor.hpp:256,258`. The chain
-  stays the viewer's scene data and the camera's user data, and holds `RenderingManager&` and
-  `SkyManager&`. `~GlWorld() = default` never removes what `glworld.cpp:168-179` added. Latent today:
-  nothing draws between the world's end and the renderer's. Target: `GlRenderer::onDetachWorld`
-  (item 1.11) leaves nothing of the world wired in. Keep the worldless root. The detach clears the
-  camera's user data, restores that root, then resets `mWorld`. `~GlWorld` removes its three
-  callbacks and the debug drawer. Depends on 1.11.
-  Verify: `./omw test openmw-tests --gtest_filter='RendererTest.*'`, quit under `./omw asan game`
-  with the rasterizer.
-
 - [ ] **1.13 `Engine::~Engine` moved the renderer's end before the queues'.**
   `apps/openmw/engine.cpp:357-360`. Upstream ends the unref and work queues, then the viewer. The seam
   needed `mRenderer` in `mViewer`'s place, not a new order. Neither renderer reads either queue.

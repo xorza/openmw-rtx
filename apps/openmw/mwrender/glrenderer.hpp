@@ -39,6 +39,7 @@ namespace osg
     class Camera;
     class Geometry;
     class FrameBufferObject;
+    class Group;
     class Texture2D;
 }
 
@@ -250,6 +251,9 @@ namespace MWRender
 
         /// Everything the rasterizer builds around the world, for as long as there is one.
         std::unique_ptr<GlWorld> mWorld;
+
+        /// What was traversed before the world's chain went above it, and is again once it goes.
+        osg::ref_ptr<osg::Group> mWorldlessRoot;
 
         /// Borrowed: the map window owns it, through `GlobalMap`, and says when it goes.
         GlMapOverlay* mMapOverlay = nullptr;

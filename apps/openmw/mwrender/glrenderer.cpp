@@ -25,6 +25,7 @@
 #include <osg/Geometry>
 #include <osg/GraphicsContext>
 #include <osg/GraphicsThread>
+#include <osg/Group>
 #include <osg/Image>
 #include <osg/Matrix>
 #include <osg/Node>
@@ -448,11 +449,15 @@ namespace MWRender
         mWorld->getPostProcessor().setGamma(Settings::video().mGamma);
 
         // **The chain goes above the world and becomes what is traversed.**
+        mWorldlessRoot = &getTraversalRoot();
         setTraversalRoot(mWorld->getPostProcessor());
     }
 
     void GlRenderer::onDetachWorld()
     {
+        // Nothing of the chain left where the viewer reads it: it holds the world and its sky.
+        mViewer->getCamera()->setUserData(nullptr);
+        setTraversalRoot(*std::exchange(mWorldlessRoot, nullptr));
         mWorld.reset();
         wireFrame();
     }
