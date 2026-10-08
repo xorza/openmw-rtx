@@ -11,6 +11,7 @@
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/creaturestats.hpp>
@@ -129,13 +130,17 @@ namespace RtxTool
             world.advanceTime(0.0, false);
 
         // **Seeded again here, where the stop's frames begin**: `SessionRequest::mRandomSeed`
-        // says why the seed the engine started with is not enough. Both generators, because the
+        // says why the seed the engine started with is not enough. All three generators, because the
         // world keeps one of its own beside the process's — `AiWander`, `Combat`,
-        // `CharacterController` and `WeatherManager` roll on `World::getPrng` — and a stop that
-        // seeded only the process's would stand its actors and strike its lightning wherever every
-        // stop before it left that stream.
+        // `CharacterController` and `WeatherManager` roll on `World::getPrng` — and the scripts a
+        // third, which the engine seeds from the clock: the fish `cellhandlers.lua` spawns in an
+        // exterior met for the first time are counted and placed by it, and drew another list of
+        // the world's levelled creatures in every run. A stop that seeded fewer would stand its
+        // actors and strike its lightning wherever every stop before it left that stream. After the
+        // move, whose new exteriors the scripts hear on the next update.
         Misc::Rng::init(request.mRandomSeed);
         world.getPrng().seed(request.mRandomSeed);
+        MWBase::Environment::get().getLuaManager()->seedRandom(request.mRandomSeed);
 
         // **The clock stops after the world has been moved and not before.** A frozen stop is a
         // reference: nothing animates, so a frame traced many times is the same frame and an

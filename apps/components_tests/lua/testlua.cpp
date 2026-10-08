@@ -1,3 +1,5 @@
+#include <vector>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -41,6 +43,8 @@ return {
         return t.b
     end,
     print = print,
+    draw = function() return math.random(1000000000) end,
+    reseed = function() math.randomseed(1) end,
 
     iteratePlain = function()
         local sum = 0
@@ -147,6 +151,31 @@ return {
         EXPECT_EQ(LuaUtil::call(script2["get"]).get<int>(), 43);
 
         EXPECT_EQ(LuaUtil::call(script1["get"]).get<int>(), 45);
+    }
+
+    // **The host seeds `math.random`, and a script cannot**: one seed is one sequence however often it
+    // is given, another seed is another, and a script's own `math.randomseed` moves nothing.
+    TEST_F(LuaStateTest, OnlyTheHostSeedsMathRandom)
+    {
+        sol::table script = mLua.runInNewSandbox(VFS::Path::Normalized(testsPath));
+        const auto draws = [&] {
+            std::vector<int> drawn;
+            for (int i = 0; i < 3; ++i)
+                drawn.push_back(LuaUtil::call(script["draw"]).get<int>());
+            return drawn;
+        };
+
+        mLua.seedRandom(7);
+        const std::vector<int> seven = draws();
+        mLua.seedRandom(7);
+        EXPECT_EQ(draws(), seven);
+
+        mLua.seedRandom(7);
+        LuaUtil::call(script["reseed"]);
+        EXPECT_EQ(draws(), seven) << "a script reseeded the host's sequence";
+
+        mLua.seedRandom(8);
+        EXPECT_NE(draws(), seven);
     }
 
     TEST_F(LuaStateTest, ToString)

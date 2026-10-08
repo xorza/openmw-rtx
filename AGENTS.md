@@ -131,6 +131,10 @@ the window's size there, has it moved to the window on the first start, and the 
   clock and not its time scale; and a content script's message box logged rather than shown
   (`WindowManager::scriptMessageBox`, `showsScriptMessageBoxes`), since a box pauses the world and a
   measured run does not stop for an answer.
+- The scripts' `math.random` seeded where the harness seeds the world's generators
+  (`LuaUtil::LuaState::seedRandom`, `MWBase::LuaManager::seedRandom`): the engine seeds it from
+  the clock, and the fish `cellhandlers.lua` spawns in an exterior met for the first time stood
+  elsewhere in every run, and drew another list of the world's levelled creatures after them.
 - What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
   handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
   renderer draws rain the other hides.

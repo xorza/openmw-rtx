@@ -179,6 +179,10 @@ namespace LuaUtil
 
         const LuaStateSettings& getSettings() const { return mSettings; }
 
+        // Seeds `math.random`, which no script can: the engine seeds it from the clock, and a host
+        // that replays a run seeds it where it seeds the world's generators.
+        void seedRandom(unsigned seed);
+
         // Note: Lua profiler can not be re-enabled after disabling.
         static void disableProfiler() { sProfilerEnabled = false; }
         static bool isProfilerEnabled() { return sProfilerEnabled; }
@@ -220,6 +224,7 @@ namespace LuaUtil
         sol::state_view mSol;
         const ScriptsConfiguration* mConf;
         sol::table mSandboxEnv;
+        sol::protected_function mSeedRandom;
         std::map<VFS::Path::Normalized, sol::bytecode> mCompiledScripts;
         std::map<std::string, sol::object> mCommonPackages;
         const VFS::Manager* mVFS;
