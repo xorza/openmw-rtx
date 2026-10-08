@@ -23,6 +23,7 @@ namespace Rtx
         const auto [entry, fresh] = mKeys.try_emplace(Pair{ .mAbove = &above, .mOwn = &stateSet });
         if (fresh)
             entry->second = Held{ .mAbove = &above, .mOwn = &stateSet, .mKey = new osg::StateSet };
+        entry->second.mMet = mPass.mEpoch;
         return entry->second.mKey.get();
     }
 
@@ -65,6 +66,8 @@ namespace Rtx
 
             gone = boost::unordered::erase_if(mKeys, [&](const auto& entry) {
                 const Held& held = entry.second;
+                if (held.mMet == mPass.mEpoch)
+                    return false;
                 const auto inSink
                     = std::ranges::equal_range(mReleasedScratch, static_cast<const osg::Referenced*>(held.mKey.get()));
                 if (held.mKey->referenceCount() - static_cast<int>(inSink.size()) != 1)
