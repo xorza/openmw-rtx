@@ -641,6 +641,39 @@ namespace Rtx
             return files;
         }
 
+        /// **Every file under the backend's shaders is named in its CMake file**: an entry shader left
+        /// out of `RTX_SHADERS` is never built and fails only when a pass asks for it, and an
+        /// include or a shared header left out is one the IDE lists nowhere. Named as `shaders/…`,
+        /// which is how every list there spells it.
+        TEST(RtxSourceTreeTest, everyShaderFileIsNamedInTheBackendsCMakeFile)
+        {
+            std::set<std::string, std::less<>> named;
+            for (const std::string& line : linesOf(sBackend / "CMakeLists.txt"))
+            {
+                std::size_t at = 0;
+                while ((at = line.find("shaders/", at)) != std::string::npos)
+                {
+                    const std::size_t end = line.find_first_of(" \t()\"", at);
+                    named.insert(line.substr(at, end == std::string::npos ? std::string::npos : end - at));
+                    at = end == std::string::npos ? line.size() : end;
+                }
+            }
+
+            std::vector<std::string> found;
+            for (const std::filesystem::directory_entry& entry :
+                std::filesystem::recursive_directory_iterator(sBackend / "shaders"))
+            {
+                if (!entry.is_regular_file())
+                    continue;
+                const std::string relative = genericName(entry.path().lexically_relative(sBackend));
+                if (!named.contains(relative))
+                    found.push_back(relative + " is named in no list of components/rtxvulkan/CMakeLists.txt");
+            }
+            std::ranges::sort(found);
+
+            EXPECT_TRUE(found.empty()) << joined(found);
+        }
+
         /// **A test lives in the binary its needs decide.** A file of `rtx-gpu-tests` reaches the
         /// device's support and holds only tests over its fixtures, and a file of `components-tests`
         /// reaches none of it: CI runs the one and not the other, because hosted runners have no
