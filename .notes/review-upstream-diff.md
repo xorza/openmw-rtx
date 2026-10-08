@@ -54,12 +54,6 @@ What is left:
 
 ### Core
 
-- [ ] **5.6 `HeldSlotRows` exists only inside `HeldRows`.**
-  `common/slots.hpp:298-373`: two layers of forwarders (8, then 6). Target: one `HeldRows<Row>` with
-  public readers and protected `take`/`free`/`hold`/`drop`/`at`, used by the four tables. Port the
-  test to a small derived class.
-  Verify: `./omw test components-tests --gtest_filter='RtxSlotRowsTest.*:RtxSceneDescTest.*:RtxSceneTableTest.*'`.
-
 - [ ] **5.7 Test-only members in production headers.**
   `TextureTable::getRefused`, `boneAt`/`weightAt`, `encodeShading`/`decodeShading`,
   `MeshTable::getMeshIndices`, the encoding-only `describeImage` overload, and `sAssertsOn` in

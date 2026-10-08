@@ -92,7 +92,7 @@ namespace Rtx
         /// frame, once.
         void notePosed(Index mesh, const osg::BoundingBoxf& bounds);
 
-        void hold(Index mesh) { mRows.hold(mesh); }
+        void hold(Index mesh) { holdRow(mesh); }
 
         /// Gives one hold on `mesh` back, and frees it where that was the last: its geometry goes
         /// back to the allocators and a deforming mesh's runs to `deformers`, which it stood on. The

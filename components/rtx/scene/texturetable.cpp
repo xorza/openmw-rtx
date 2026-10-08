@@ -14,7 +14,7 @@ namespace Rtx
 {
     bool TextureTable::hasRoom()
     {
-        if (mRows.getLiveCount() < sCapacity)
+        if (getLiveCount() < sCapacity)
             return true;
 
         // Counted and not reported: a table does not reach the scene's `Refusals`, and
@@ -31,8 +31,8 @@ namespace Rtx
         // One size, so any freed slot will do — the row is written over wherever it sits, which
         // is what the arrivals list is for. The change list follows the rows in the same call,
         // because it is indexed by the slot.
-        const Index index = mRows.take(std::move(row));
-        mChanges.grow(mRows.size());
+        const Index index = takeRow(std::move(row));
+        mChanges.grow(size());
         mChanges.note(index, SlotNews::Arrived);
 
         return index;
@@ -154,7 +154,7 @@ namespace Rtx
         if (texture >= sCapacity)
             return;
 
-        mRows.hold(texture);
+        holdRow(texture);
     }
 
     void TextureTable::drop(const Index texture)
@@ -162,10 +162,10 @@ namespace Rtx
         if (texture >= sCapacity)
             return;
 
-        if (!mRows.drop(texture))
+        if (!dropRow(texture))
             return;
 
-        TextureRow& row = mRows.at(texture);
+        TextureRow& row = rowAt(texture);
 
         // The name leaves the lookup with the slot, or the next reference to it resolves to a slot
         // nothing is standing in.
@@ -201,7 +201,7 @@ namespace Rtx
         }
 
         row = TextureRow{};
-        mRows.free(texture);
+        freeRow(texture);
         mChanges.note(texture, SlotNews::Freed);
     }
 
