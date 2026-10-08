@@ -54,9 +54,6 @@ What is left:
 
 ### Harness, `./omw` and CI
 
-- [ ] **5.25 `processposix.cpp` names `WIFSIGNALED`/`WEXITSTATUS` without `<sys/wait.h>`.**
-  `components/platform/processposix.cpp:216-226`.
-
 - [ ] **5.26 CI repeats the package job and the log upload.**
   `.github/workflows/daily.yml:37-60` and `rtx-release.yml:222-270` are one job. `ci.yml:195-206` and
   `sanitizers.yml:174-182` are one upload. Target: a reusable `package.yml` and a composite
