@@ -54,13 +54,6 @@ What is left:
 
 ### Core
 
-- [ ] **5.7 Test-only members in production headers.**
-  `TextureTable::getRefused`, `boneAt`/`weightAt`, `encodeShading`/`decodeShading`,
-  `MeshTable::getMeshIndices`, the encoding-only `describeImage` overload, and `sAssertsOn` in
-  `renderer/renderer.hpp:97-101`. Mark each "Read by the tests and nothing else", as
-  `RunAllocator::getHoleCount` is, or move it to `apps/components_tests/rtx/support`. Move
-  `sAssertsOn` to `common/`.
-
 - [ ] **5.8 The content cache that holds nothing: keep it, guard it.**
   `preprocess/contentcache.hpp:17-37` (`sHolds = false`), `contentkey.*`, each pass's `digest()`,
   `FinestTexels`' held image (`texture/texturepass.hpp:41-72`), `PassStats::mHits`/`mKeyMs`/

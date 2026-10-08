@@ -51,6 +51,7 @@ namespace Rtx
         std::array<float, sCells> mValues;
     };
 
+    // Read by the tests and by nothing else: the device encodes through `shadingmap.h`'s own.
     /// One factor as the device stores it: a sixteen-bit unorm over the map's own range, so that
     /// the neutral factor is exact and a step is a part in forty thousand. `SHADING_FLOOR` says why
     /// the range is the map's and not the format's.

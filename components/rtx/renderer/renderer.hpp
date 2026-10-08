@@ -93,14 +93,6 @@ namespace Rtx
     /// configuration file.
     inline constexpr bool sValidationByDefault = OPENMW_RTX_VALIDATION_BY_DEFAULT;
 
-    /// Whether this build keeps `assert`: what says a figure is a debug build's. The standard's
-    /// own switch, which is defined or not rather than nought or one, read here once.
-#ifdef NDEBUG
-    inline constexpr bool sAssertsOn = false;
-#else
-    inline constexpr bool sAssertsOn = true;
-#endif
-
     /// What a run decides once of how the renderer works: the knobs the frames are traced under,
     /// which layers watch, and how much video memory it may take. One record, held whole by the
     /// backend's options and by each host's run and assigned whole, so a knob of the run is declared

@@ -42,6 +42,7 @@ namespace Rtx
     /// Lays `weights` four to a word, the last word zero past the end, into `into`, refilled.
     void packWeights(std::span<const float> weights, std::vector<PoseWord>& into);
 
+    // `boneAt` and `weightAt` are read by the tests and by nothing else.
     /// Bone `at` of a pose laid by `packBones`.
     Shaders::GpuBone boneAt(std::span<const PoseWord> pose, Index at);
 

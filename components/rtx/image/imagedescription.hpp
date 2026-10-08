@@ -42,6 +42,8 @@ namespace Rtx
     /// refuses, whose format may have no layout to count by.
     std::size_t laidBytes(const osg::Image& image, TextureFormat format);
 
+    // Read by the tests and by nothing else: the uploader reads the format first, for the overload
+    // below.
     /// Describes one image, read as `encoding`, for a backend's uploader: the first slice of each
     /// level, spanned where the image holds them back to back in a format uploaded as it is, and
     /// laid into `texels` where it does not — widened from sixteen bits a texel, or gathered from
