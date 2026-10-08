@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "folder.hpp"
 #include "linuxtext.hpp"
 
 // The system calls that are each system's own: a thread's id, the running file, and Linux's way to
@@ -178,8 +179,10 @@ namespace Platform::Process
         for (bool found = true; found;)
         {
             found = false;
-            std::error_code error;
-            for (const auto& entry : std::filesystem::directory_iterator("/proc/self/task", error))
+            const std::optional<std::vector<std::filesystem::directory_entry>> threads = listFolder("/proc/self/task");
+            if (!threads.has_value())
+                return 0;
+            for (const std::filesystem::directory_entry& entry : *threads)
             {
                 pid_t thread = 0;
                 const std::string name = entry.path().filename().native();
@@ -191,8 +194,6 @@ namespace Platform::Process
                 if (sched_setaffinity(thread, sizeof(set), &set) != 0 && errno != ESRCH)
                     return 0;
             }
-            if (error)
-                return 0;
         }
 
         return cpus->size();

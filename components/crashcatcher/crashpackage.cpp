@@ -19,6 +19,7 @@
 #include <zlib.h>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
 
 namespace Crash
@@ -362,20 +363,22 @@ namespace Crash
 
         /// Deletes the oldest of `application`'s packages in `folder` past `sKeptPackages`. A folder
         /// that cannot be listed, or a file that cannot be deleted, is left as it is: what was written
-        /// stands either way. **Stepped by `increment` and its error code, and not a range-for**,
-        /// whose step throws: a throw here reaches the writer's catch, which reports the package it
-        /// just wrote as a failure. A listing cut short prunes nothing, since its oldest are not the
+        /// stands either way. A listing cut short prunes nothing, since its oldest are not the
         /// folder's.
         void pruneOldPackages(const std::filesystem::path& folder, std::string_view application)
         {
-            std::vector<PackageName> packages;
-            std::error_code error;
-            for (std::filesystem::directory_iterator entry(folder, error), end; !error && entry != end;
-                 entry.increment(error))
-                if (std::optional<PackageName> package = packageNameOf(entry->path(), application))
-                    packages.push_back(std::move(*package));
-            if (error || packages.size() <= sKeptPackages)
+            const std::optional<std::vector<std::filesystem::directory_entry>> listed = Platform::listFolder(folder);
+            if (!listed.has_value())
                 return;
+
+            std::vector<PackageName> packages;
+            for (const std::filesystem::directory_entry& entry : *listed)
+                if (std::optional<PackageName> package = packageNameOf(entry.path(), application))
+                    packages.push_back(std::move(*package));
+            if (packages.size() <= sKeptPackages)
+                return;
+
+            std::error_code error;
 
             std::sort(packages.begin(), packages.end(), [](const PackageName& left, const PackageName& right) {
                 return std::tie(left.mTime, left.mNumber) < std::tie(right.mTime, right.mNumber);

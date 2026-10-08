@@ -26,6 +26,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
+#include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -737,8 +738,13 @@ namespace RtxTool
 
     void sweepEndedRuns(const std::filesystem::path& runs)
     {
+        // Listed whole before anything goes, as `DriverCache::sweep` says why.
+        const std::optional<std::vector<std::filesystem::directory_entry>> listed = Platform::listFolder(runs);
+        if (!listed.has_value())
+            return;
+
         std::error_code failed;
-        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(runs, failed))
+        for (const std::filesystem::directory_entry& entry : *listed)
         {
             if (!entry.is_directory(failed))
                 continue;

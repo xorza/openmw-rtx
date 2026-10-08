@@ -17,6 +17,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/folder.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "result.hpp"
@@ -206,9 +207,13 @@ namespace Rtx
 
         std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> others;
 
-        std::error_code failed;
-        for (const std::filesystem::directory_entry& entry :
-            std::filesystem::directory_iterator(mPath.parent_path(), failed))
+        // Listed whole before anything goes, and nothing swept where it could not be listed.
+        const std::optional<std::vector<std::filesystem::directory_entry>> listed
+            = Platform::listFolder(mPath.parent_path());
+        if (!listed.has_value())
+            return;
+
+        for (const std::filesystem::directory_entry& entry : *listed)
         {
             const std::filesystem::path::string_type name = entry.path().filename().native();
             if (name == mine || !name.starts_with(prefix) || !name.ends_with(suffix))
