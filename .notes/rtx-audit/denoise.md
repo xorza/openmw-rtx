@@ -15,31 +15,14 @@ median from `measured.json` or an estimate, and an estimate says it is one.
    falling between two representable finite values are rounded… The rounding mode is not defined",
    so a value that *is* representable is stored as itself. The tree already does this deterministically for
    the pane albedo (`visibility.rgen:479-485`, `& 0xffffe000u`). For a running mean the rounding has
-   to be **stochastic** and not merely to nearest, and §2 says why. The accumulator and wavelet's
-   200 B/px drop to about 96 B/px, the glossy and pane filters' 128 drop to 56, and the shadow fields'
-   112 drop to 52 (§3–§5). The total goes from **440 to about 220 B/px**: 721 → 361 MB at 1707×960,
-   and 1622 → 811 MB at 2560×1440.
-2. **Exact, straightforward wins that move no pixel** (§6): specular/pane fast means in one word
-   instead of two (−24 B/px), the shadow visibility the composite reads in `R32F` (−8 B/px),
-   no `mean` load before the empty-pixel early-out in `historyclamp.comp` (−16 B/px read where no
-   layer stands, which is most of every frame), and no specular loads in the composite when nothing
-   is mapped (−16 B/px read).
-3. **Precision findings, not just savings** (§7):
-   - The shadow filter's history loop still passes through `packHalf2x16`
-     (`shadowfilter.comp:117`), whose rounding the spec leaves to the implementation. The full-float
-     history does not protect it on a device where packing rounds toward nought.
-   - The narrow levels store the *variance* in a half (`atrous.comp:276`, `ATROUS_NARROW`). Dim light
-     puts it in the half's subnormal range or flushes it.
-   - `Blended`, `FillBlended` and the shadow `Scratch` sit *inside* their feedback loops but are
-     declared `Role::Scratch`, so the `fedBackKeepsItsPrecision` assert would not stop someone
-     narrowing them.
-   - `pow(x, 128)` is one of the operations the pin leaves to the device. Seven squarings are exact
-     by spec, are not SFU work, and make AMD and NVIDIA agree.
-4. **Time.** The filter zone (0.59–0.74 ms) is the largest. The code says it is ALU- and TEX-bound
+   to be **stochastic** and not merely to nearest, and §2 says why. The glossy and pane means are
+   kept so already (`roundedToHalf`). The accumulator and wavelet's 200 B/px drop to about 96 B/px,
+   the shadow fields' 2 × 48 to 52, and the pane's held surface moves to the G-buffer (§3–§5). The
+   total goes from **328 to about 220 B/px** with the G-buffer's +16.
+2. **Time.** The filter zone (0.59–0.74 ms) is the largest. The code says it is ALU- and TEX-bound
    rather than DRAM-bound. The lever there is NRD's own `RELAX_AtrousSmem` shape: a first level that
    decodes each texel's normal and position **once into shared memory**, where today each is decoded
-   twenty-five times over. Add the squarings and the packed bounce+fill texel, which halves the
-   level's fetch count. The earlier "LDS did not pay" note was about the *strided* levels with
+   twenty-five times over. Add the packed bounce+fill texel, which halves the level's fetch count. The earlier "LDS did not pay" note was about the *strided* levels with
    Dolp's permutation, which is a different experiment.
 
 Measured denoiser share (zone medians, `measured.json`; filter + shadow + accumulate + clamp +
@@ -58,6 +41,10 @@ No specular zone appears. These places are vanilla, so the glossy filter never r
 measurement.
 
 ## 1. What each pass moves today
+
+As audited, before the items done since: one-image histories, one-word fast means, `R32F` shadow
+visibility, the clamp's and the composite's skipped loads, and the glossy and pane means in halves.
+The images total 328 B/px now.
 
 Model: the unique bytes per pixel a pass reads and writes. Apron and neighbour overlap is assumed to
 hit in cache, and DRAM traffic is roughly the unique bytes. Radiance channels are `RGBA16F` (8 B) in
@@ -132,26 +119,7 @@ value**, roughly 0.04 of a level of 255 at mid-grey. For comparison, the noise s
 [*Stochastic rounding: implementation, error analysis and applications*](https://doi.org/10.1098/rsos.211631)
 (R. Soc. Open Sci. 2022), both on stagnation under round-to-nearest.
 
-### 2.3 Implementation: integer-exact, pinned, deterministic
-
-The rounding uses the same bit trick as `visibility.rgen`, plus a random addend before the mask:
-
-```glsl
-// |x| clamped to 65504 first (a half store's overflow is implementation-defined).
-// drop = 13 for |x| >= 2^-14; 13 + (-14 - e) below, so a subnormal half keeps what it can.
-uint bits = floatBitsToUint(x);
-uint mask = (1u << drop) - 1u;
-float rounded = uintBitsToFloat((bits + (random & mask)) & ~mask);   // carry into the exponent is correct
-```
-
-- `random` comes from `seededKey(pixelKey(at) + SEED_…, frame)`, as the wavelet's tap jitter
-  already does (`atrous.comp:217`), so `./omw repeat` draws it again.
-- Integer arithmetic is outside what the pin has to fix, and a representable value is stored as
-  itself, so the result is the same on NVIDIA, AMD and Mesa.
-- Whether a *subnormal* half survives a store is not something the spec promises plainly. Extend
-  `RtxHalfStoreTest` with a subnormal and an overflow row before relying on either.
-
-### 2.4 Welford/EMA variance instead of `E[l²] − E[l]²`
+### 2.3 Welford/EMA variance instead of `E[l²] − E[l]²`
 
 For an EMA, `S' = (1 − α)(S + α(x − μ)²)` is **algebraically identical** to the difference of
 moments. Expanding `E2' − μ'²` gives exactly that. See West 1979, and Finch,
@@ -161,15 +129,15 @@ eq. 143.
 - **In full floats it buys nothing.** The cancellation error is `2⁻²⁴ · E[l²]/var`, about 6 × 10⁻⁶
   even at σ/μ = 0.1.
 - **It is what makes a half possible.** In a half, the difference would lose `2⁻¹¹ · (1 + μ²/σ²)`,
-  which is 5% at σ/μ = 0.1 and garbage below that. Storing `S` (better, `σ = √S`; see §7.2) keeps the
-  relative precision on the quantity itself.
+  which is 5% at σ/μ = 0.1 and garbage below that. Storing `S` (better, `σ = √S`, as the narrow levels
+  store it) keeps the relative precision on the quantity itself.
 - The bilinear gather and the clamp's 5×5 short-history mixture become
   `Σw(S + μ²) − (Σwμ)²` in fp32 ALU. That is the same mixture as today, and the cancellation stays
   in full floats.
 
 So: **adopt it together with halving the moments, and not on its own.**
 
-### 2.5 Aliasing
+### 2.4 Aliasing
 
 This is NRD's transient pool, its "Aliasable" column. It is real, but it is the last thing to do.
 §5 shows the cheap form, reusing a dead image of the right shape, which needs no Vulkan memory
@@ -213,7 +181,7 @@ Every slow value in the loop is written with stochastic rounding (§2).
 | image | format | contents | B/px |
 |---|---|---|---|
 | history (pair) | `RGBA32UI`, 8 halves | bounce rgb, fill rgb, σ for L1, frames | 32 |
-| moments (pair) | `R32UI`, 2 halves | μ_l, σ_l (EMA form, §2.4) | 8 |
+| moments (pair) | `R32UI`, 2 halves | μ_l, σ_l (EMA form, §2.3) | 8 |
 | blended | `RGBA32UI` | as the history; the clamp writes σ | 16 |
 | narrow | `RGBA32UI` | L1 and L3 write it; **L2 writes `blended`**, dead after L0 | 16 |
 | fast (pair) + fast blended | `RG32UI` RGB9E5, unchanged | | 24 |
@@ -232,7 +200,7 @@ Why this is sound:
   writes `NORMAL_ROUGHNESS_PREV` and `VIEWZ_PREV`. The same applies to `PaneHeld` and
   `CHANNEL_PANE_SURFACE`.
 - **One pipeline layout for L1..L3** (`utexture2D` sources, sampled as today). The composite then
-  reads one 16 B texel for bounce and fill (§6.5).
+  reads one 16 B texel for bounce and fill.
 
 Traffic per pixel (current → proposed):
 
@@ -254,13 +222,9 @@ It keeps the formatless composite, but it keeps two fetches a tap.
 ### 3.3 Risk and proof
 
 - **Not bit-exact.** The history gains about 0.1% of SR noise and keeps no bias.
-- **Tests:**
-  - A new `rtx-gpu-tests` case: a running mean of a constant that no half holds, and of a
-    seeded Bernoulli sequence, over 512 frames, kept by the kernel's store. The mean over 4096
-    pixels must sit within 3σ/√N of the fp32 EMA. The expected value is computed by hand.
-  - The same case under truncation (today's store) must fail by the 1.6% the header records. That
-    proves the test can see the bias.
-  - `RtxBounceTrailTest`, and `theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt`.
+- **Tests:** the helper is held by `RtxHalfStoreTest`; the tests that hold a mean to the float's
+  rounding move to `halfRoundedMeanError`; `RtxBounceTrailTest`, and
+  `theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt`.
 - **Harness runs:** `./omw release noise --ab=<switch>`, starting with `--still` and then the full
   suite (bias and fireflies, `balmora-fog-night` for dim light); `./omw repeat --pairs=10`;
   `./omw shot --against` (small differences everywhere are expected, so read them);
@@ -269,18 +233,16 @@ It keeps the formatless composite, but it keeps two fetches a tap.
 This is an experiment and a large change. Do the frames move and the narrow reuse first, because
 they are format-neutral (§5).
 
-## 4. The shadow denoiser (2 × 56 → 2 × 26 B/px)
+## 4. The shadow denoiser (2 × 48 → 2 × 26 B/px)
 
 | image | today | proposed | why it is safe |
 |---|---|---|---|
-| `Visibility` (L2's answer, read as `.r` by the composite) | `RG32F` 8 | `R32F` 4 (exact), or `R16_UNORM` 2 | Only `.r` is read (`composite.comp:99-101`), and the variance after L2 is dead. The filter's target becomes formatless, which the wavelet already relies on. |
 | `History`, `Scratch` (mean ∈ [0,1], variance or −1) | `RG32F` 8 each | `R32UI`: mean as unorm16 by `round` (pinned to `RoundEven`), variance as a half | Even toward-nought unorm16 would bias at most 1/α = 20 steps = 3 × 10⁻⁴. Round-to-nearest stalls within 10 steps. 0 and 1 stay exact, as cleared tiles need. |
 | `Moments` (pair: mean, M2, count; `.w` unused) | `RGBA32F` 16 each | `RG32UI`: μ and S as unorm16 (S ≤ ¼ for a bit), count as a half capped (say 1024) | **A behaviour change.** Welford's M2 grows with an uncapped count, so capping the count needs the EMA form, where S is stored rather than M2. The SDK's `R11G11B10` moments already stall their count near 128. |
-| two fields' `Scratch`, `Tiles`, `Penumbra`, `Mask` | one each per field | one shared set | The fields already serialize through their barriers (§8). This conflicts with §8's interleave, so pick one. |
+| two fields' `Scratch`, `Tiles`, `Penumbra`, `Mask` | one each per field | one shared set | The fields already serialize through their barriers (§7). This conflicts with §7's interleave, so pick one. |
 
 **Savings:**
 
-- `R32F` visibility: −8 B/px (13 / 29 MB). Exact, straightforward.
 - Packed history and scratch: −16 B/px (26 / 59 MB). Straightforward. Proofs:
   `RtxPenumbraDenoiseTest`,
   `theShadowDenoiserTakesTheNoiseOffAPenumbraAndLeavesItsLightWhereItWas`, `noise`, `shot`.
@@ -294,19 +256,8 @@ classification reads words and not 9× the G-buffer (0.24 ms recorded in `shadow
 trace could OR the bits itself, but the raygen's lane layout is unspecified, so that is an
 experiment outside this area.
 
-## 5. The glossy and pane filters (56 + 72 → 28 + 28 B/px)
+## 5. The glossy and pane filters (24 + 40 B/px)
 
-- **Fast means in one word** (`specular.comp:172`, `pane.comp:112`). The second word holds only
-  "holds a mean". `packRgb9e5` never produces a word whose exponent field is ≥ 1 with all three
-  mantissas < 256: a field ≥ 1 means the brightest channel is ≥ 2⁻¹⁵, and so its mantissa is ≥ 256
-  (`sharedexponent.glsl:31-38`). Reserve `1u << 27` as "empty"; it unpacks to 0.
-  - Savings: `RG32UI` → `R32UI` on the pair and the blend, −12 B/px a filter and −24 in all
-    (39 / 88 MB), and −16 B/px of traffic in each filter with its clamp.
-  - **Bit-exact.** Proof: `shot --against` shows nothing, and `kernels` names only the two filters
-    and `historyclamp`. Straightforward.
-- **Means in `RGBA16F` with stochastic rounding** (both stores in the loop: the filter's, and the
-  clamp's in place). −16 B/px a filter. The proof is as in §3.3, plus the metal-floor measurement
-  the header cites (0.13–0.2%). An experiment.
 - **`PaneHeld` → last frame's `CHANNEL_PANE_SURFACE`.** −16 B/px here and +8 in the G-buffer.
 - **Sharing one history structure between the two filters: no.** A pixel can hold a pane in front
   of a glossy surface, so their per-pixel state does not overlap. They already share
@@ -318,60 +269,14 @@ experiment outside this area.
   tiles that hold a layer now or held one last frame. The worst case (a full-screen window) costs
   what today's every frame costs. That is at most 0.047 ms, so it is low priority.
 
-## 6. Small exact wins
+## 6. Fuse the composite into the last wavelet level
 
-1. **`historyclamp.comp:91`** loads `mean` (16 B) before testing whether the pixel holds one, which
-   the shared tile already knows (`gFast[centre].w < 0`). Test first, then load. That is −16 B/px of
-   reads on every empty pane pixel, every frame. Bit-exact.
-2. **`composite.comp:104`** reads `specular` and `specularAlbedo` (16 B/px) when nothing is mapped,
-   for a nought. Guard it with a uniform flag in `CompositeConstants`; the branch is uniform, so
-   there is no divergence. That is −16 B/px on a vanilla frame. Bit-exact.
-3. **Shadow `Visibility` in `R32F`** (§4). Bit-exact.
-4. **One-word fast means** (§5). Bit-exact.
-5. **Fuse the composite into the last wavelet level** (an experiment). L3 writes the frame through
-   `composedLight` (`lib/compose.glsl`), saving the 16 B/px write and read of the last narrow image
-   plus one dispatch and its barrier. The standalone composite stays for undenoised frames, with one
-   rule in both places. The fused level binds 13 more images, so check its register count.
+An experiment. L3 writes the frame through `composedLight` (`lib/compose.glsl`), saving the 16 B/px
+write and read of the last narrow image plus one dispatch and its barrier. The standalone composite
+stays for undenoised frames, with one rule in both places. The fused level binds 13 more images, so
+check its register count.
 
-## 7. Correctness and precision findings
-
-1. **The shadow history passes through `packHalf2x16`** (`shadowfilter.comp:117`, read back at
-   :126). L0's answer is the next frame's history, and it is computed from the temporal blend
-   rounded to halves by an implementation-defined conversion. `shadow.h` says "full floats where the
-   SDK keeps halves", which is true of the images and not of the arithmetic. On a device where
-   packing truncates, the 0.68% penumbra bias returns. `RtxPenumbraDenoiseTest` passing here only
-   says this card packs to nearest. Fix by keeping the mean as unorm16 in the shared word (§4), or
-   as a float in LDS (+1 KB per group). Prove with a probe beside `RtxHalfStoreTest` for
-   `packHalf2x16`'s mode, and with the penumbra test.
-2. **The narrow levels store the variance in a half** (`atrous.comp:272-276`, `ATROUS_NARROW`).
-   - Each level shrinks the variance by about Σw²/(Σw)², so after L1 dim light (radiance ~10⁻³ in the
-     trace's unexposed units) sits under the half's least normal, 6.1 × 10⁻⁵, where only an absolute
-     step of 6 × 10⁻⁸ is left, or nothing if the store flushes.
-   - The brightness test's spread then falls toward the 10⁻⁴ guard, and L2 and L3 refuse taps in the
-     dark.
-   - Fix: store σ (`sqrt` per pixel), square it on read. Its exponent range is half the variance's.
-     Straightforward.
-   - Prove with `noise` at `balmora-fog-night` and `-storm-night`, `shot --against` (only the
-     darkest regions should move), and `kernels`.
-3. **The role table cannot see the loop.** `Blended` and `FillBlended` (`denoisehistory.cpp:83`),
-   and each field's `Scratch` (:105), are written and read *inside* the feedback loop (accumulate →
-   clamp → L0 → history; temporal → L0 → history). They are declared `Role::Scratch`, so
-   `fedBackKeepsItsPrecision` (:153) would accept them in halves. Add a role for "inside a loop", or
-   a column naming how the store rounds (`Rounding::Stochastic`). Then assert that a loop image is
-   never stored where it may round toward nought unless the store pre-rounds. The same column is
-   what lets §2 pass the assert legitimately.
-4. **`pow(x, 128)` in `facingWeight`** is not pinned (`spirvpin.hpp`: "powers… left to the device")
-   and costs `log2` + `exp2` on the SFU at every tap of every level, the shadow filter, and the
-   clamp's short-history loop.
-   - `ATROUS_NORMAL_POWER = 128` and `ACCUMULATE_FIX_NORMAL_POWER = 8` are powers of two, so seven
-     squarings give x¹²⁸ and pass through x⁸ on the way. That is one path with a select, exactly
-     rounded by spec, and the same on every vendor.
-   - Its error is about 128 × 2⁻²⁴ relative. NVIDIA's `ex2(128·lg2 x)` carries about 128× `lg2`'s
-     absolute error.
-   - Not bit-exact with today. Prove with `kernels`, `shot --against`, `noise --still`. Then measure
-     the filter zone, which the code says is spent on "the two exp and the surface tap".
-
-## 8. Dispatch shape and barriers
+## 7. Dispatch shape and barriers
 
 - **Every `vkCmdPipelineBarrier2` with a compute source stage waits for all earlier compute work**:
   the execution dependency is by stage, and only the memory dependency is by image. So the shadow
@@ -417,32 +322,22 @@ experiment outside this area.
   This changes the filter's support and the look. It is research, not a saving to bank, and only
   worth it if the per-level timing shows L2 and L3 are a large share.
 
-## 9. Ranked list
+## 8. Ranked list
 
 | # | what | where | saving | picture | kind |
 |---|---|---|---|---|---|
-| 1 | One-word fast means, reserved empty code | `specular.comp:172`, `pane.comp:112`, `historyclamp.comp:195-196`, `historyclamp.h` | −24 B/px (39 / 88 MB), −32 B/px traffic | bit-exact | straightforward |
-| 2 | No `mean` load before the early-out | `historyclamp.comp:91` | −16 B/px read on empty pixels | bit-exact | straightforward |
-| 3 | Skip the specular reads when unmapped | `composite.comp:104`, `CompositeConstants` | −16 B/px read | bit-exact | straightforward |
-| 4 | Shadow visibility `R32F` (or `R16_UNORM`) | `shadow.h:49`, the filter target formatless | −8 (−12) B/px | exact (≤1.5e-5) | straightforward |
-| 5 | σ, not variance, in the narrow levels' alpha | `atrous.comp:263,272,276` | none (precision) | dark regions | straightforward |
-| 6 | Shadow LDS mean as unorm16, not `packHalf2x16` | `shadowfilter.comp:117,126` | none (correctness on other devices) | ≤ 1.5e-5 | straightforward |
-| 7 | Loop-aware roles in the table | `denoisehistory.cpp:33-63,153` | none (guard) | none | straightforward |
-| 8 | `pow(x,128)` → squarings | `surfacematch.glsl:215-218` | SFU, filter zone | ulp-level | straightforward, then measure |
-| 9 | Narrow ping-pong through `Blended` | `atrouspass.cpp:101-149` | −16 B/px memory, +16 B/px traffic in today's formats; free under #11 | none | straightforward |
-| 10 | Shadow history and scratch packed (unorm16 + half) | `shadow.h:49`, `shadowtiles.comp`, `shadowfilter.comp` | −16 B/px | ≤ 3e-4 | experiment-light |
-| 11 | Accumulator "B2" packed halves with stochastic rounding + EMA variance + frames in the texel | `accumulate.h`, `atrous.h`, the 4 shaders | 200 → 96 B/px; accumulate, clamp and L0 traffic −40 to −55% | ~0.1% SR noise, no bias | experiment |
-| 12 | L0 in shared memory (`RELAX_AtrousSmem`) | `atrous.comp` | est. −0.1 to −0.15 ms | bit-exact reachable | experiment |
-| 13 | Held surfaces → G-buffer pairs | `GBuffer`, `surfacematch.glsl`, `accumulate.comp:216,314`, `pane.comp:113` | −16 B/px net, −16 B/px writes; removes `mDistanceScale` | fp32 distances | experiment |
-| 14 | Glossy and pane means in SR halves | `specular.h`, `pane.h` | −32 B/px | ~0.1% noise | experiment |
-| 15 | Shadow moments in the EMA form, capped | `shadowtiles.comp:265-290` | −32 B/px | behaviour change | experiment |
-| 16 | Barrier interleave across the shadow fields and filters | `shadowpass.cpp`, `denoisepasses.cpp` | est. 0.01–0.03 ms | none | experiment |
-| 17 | Composite fused into L3 | `atrous.comp`, `compositepass.cpp` | −16 B/px, one dispatch | none | experiment |
-| 18 | True aliasing of the narrow images onto the dead scratch | `denoisehistory.cpp` (a lifetime column) | −32 B/px today; less after #9 and #11 | none | last |
+| 1 | Narrow ping-pong through `Blended` | `atrouspass.cpp:101-149` | −16 B/px memory, +16 B/px traffic in today's formats; free under #3 | none | straightforward |
+| 2 | Shadow history and scratch packed (unorm16 + half) | `shadow.h:49`, `shadowtiles.comp`, `shadowfilter.comp` | −16 B/px | ≤ 3e-4 | experiment-light |
+| 3 | Accumulator "B2" packed halves with stochastic rounding + EMA variance + frames in the texel | `accumulate.h`, `atrous.h`, the 4 shaders | 200 → 96 B/px; accumulate, clamp and L0 traffic −40 to −55% | ~0.1% SR noise, no bias | experiment |
+| 4 | L0 in shared memory (`RELAX_AtrousSmem`) | `atrous.comp` | est. −0.1 to −0.15 ms | bit-exact reachable | experiment |
+| 5 | Held surfaces → G-buffer pairs | `GBuffer`, `surfacematch.glsl`, `accumulate.comp:216,314`, `pane.comp:113` | −16 B/px net, −16 B/px writes; removes `mDistanceScale` | fp32 distances | experiment |
+| 6 | Shadow moments in the EMA form, capped | `shadowtiles.comp:265-290` | −32 B/px | behaviour change | experiment |
+| 7 | Barrier interleave across the shadow fields and filters | `shadowpass.cpp`, `denoisepasses.cpp` | est. 0.01–0.03 ms | none | experiment |
+| 8 | Composite fused into L3 | `atrous.comp`, `compositepass.cpp` | −16 B/px, one dispatch | none | experiment |
+| 9 | True aliasing of the narrow images onto the dead scratch | `denoisehistory.cpp` (a lifetime column) | −32 B/px today; less after #1 and #3 | none | last |
 
-Combined memory with #1, #4, #10, #11, #13, #14 and #15: **440 → ~220 B/px** including the G-buffer's
-+16. Traffic on a vanilla frame drops from ~1036 to ~700 B/px. Every one of these needs
-`./omw test` and finally `./omw gate`. Every change that moves a picture needs the `noise` suite as
+Combined memory with #2, #3, #5 and #6: **328 → ~220 B/px** including the G-buffer's +16.
+Every one of these needs `./omw test` and finally `./omw gate`. Every change that moves a picture needs the `noise` suite as
 the verdict, after a narrowed A/B (`--views=… --strafe=0 --walk=0 --still`).
 
 ## Sources

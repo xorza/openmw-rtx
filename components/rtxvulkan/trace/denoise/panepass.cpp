@@ -55,7 +55,7 @@ namespace Rtx
                 .mMean = images.mMean,
                 .mFastBlended = images.mFastBlended,
                 .mFast = images.mFast },
-            width, height, frame.mFilters.mAntilag);
+            width, height, frame.mFilters.mAntilag, frame.mSampled.mFrame);
         return images.mMean;
     }
 }

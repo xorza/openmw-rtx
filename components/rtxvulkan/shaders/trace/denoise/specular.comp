@@ -40,6 +40,7 @@
 #include "shared/specular.h"
 
 #include "lib/census.glsl"
+#include "lib/halfround.glsl"
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
 #include "lib/sharedexponent.glsl"
@@ -168,6 +169,7 @@ void main()
 
     // A lane with no lobe stores no frames, where `startedMean` counts one, so no later frame takes
     // its texel for a history; and its fast mean says it holds none, so no clamp takes it into a box.
-    RTX_STORE_COUNTED(mean, at, reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0))
+    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_HALF_ROUNDING, frame.mFrame);
+    RTX_STORE_COUNTED(mean, at, roundedToHalf(reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0), rounding))
     RTX_STORE_WORDS(fastBlended, at, uvec4(reflects ? packRgb9e5(blendedFast) : HISTORY_CLAMP_EMPTY, 0u, 0u, 0u))
 }

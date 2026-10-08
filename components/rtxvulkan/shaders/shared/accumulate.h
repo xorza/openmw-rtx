@@ -168,6 +168,10 @@ namespace Rtx::Shaders
         /// plane. All nought where there was no previous frame.
         Basis mPrevious;
         vec2 mArmsSpread;
+
+        /// The frame's number, which a history kept in halves seeds its store's rounding with
+        /// (`roundedToHalf`).
+        uint mFrame;
     };
 
     /// What the accumulator is handed: the history's record, and whether a surface the previous
@@ -223,8 +227,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 220, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 224, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 224, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 228, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 156, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

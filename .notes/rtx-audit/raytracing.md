@@ -43,38 +43,7 @@ Not proposed, because the field's guidance or the posture rules them out:
 
 ## Findings, ranked
 
-### 1. The TLAS is built over every slot ever used, gaps included (worst in interiors)
-
-- **What.** `recordTopLevel` builds over `mRowTable.size()` rows (`sceneacceleration.cpp:482-490`).
-  That is the slot high-water mark. A gap is written as an inactive row with reference 0
-  (`:370-373`), and the builder still reads and processes every one of them.
-- **Evidence.** In the guild the TLAS costs **0.25 ms for 1,221 placed instances**, against 0.41 ms
-  for 64k outside. The exterior's slots are still in the table: the ring's `dropSlots` drops their
-  placements and keeps the slots (`cellplacer.hpp:132`). So ~63k of the rows built there are
-  inactive, and inactive rows cost about half an active one.
-- **Fix.**
-  - Build the TLAS from a *dense* copy of the active rows. Nothing reads the row position:
-    `gl_InstanceID` / `InstanceIdEXT` appear nowhere in the shaders. Every lookup goes through
-    `instanceCustomIndex = slot`, so the dense order is free.
-  - **Determinism.** Swap-remove is not acceptable: the order a sweep drops slots in is a hash of
-    node addresses (`placementtable.hpp`, "a hash of node addresses"), so the BVH input, and with it
-    which of two coincident triangles wins, would differ run to run.
-  - Keep **slot order** instead. Use one compute pass over the slot-indexed rows (`rows × 64 B`, ~4 MB
-    read, a few µs on this card): a prefix sum over `reference != 0`, writing the dense array the
-    TLAS reads. The host already knows the count exactly (`InstanceCounts::mPlaced`), so
-    `primitiveCount` stays a host value and no indirect build is needed.
-- **Saving.**
-  - *est.* ~0.2 ms in every interior entered after an exterior (≈4% of the guild's 5.49 ms).
-  - Whatever gaps the exterior carries. Unknown: add the row count beside `mPlaced` in
-    `SceneStats` (`devicescene.cpp:194`) to see it.
-  - Lets `sWorldPlacementRoom` (`vulkanrenderer.cpp:69`, 262,144) size the dense build and not the
-    slot space (finding 8).
-- **Risk.** A coincident-sheet tie may resolve differently than today, once and deterministically.
-- **Proof.** `./omw repeat --pairs=10` (determinism); `shot --views=all --against` (expect at most
-  coincident-sheet pixels); `release bench` at an interior after an exterior; `check`.
-- **Kind.** Straightforward (one small compute pass and a second buffer per frame slot).
-
-### 2. Static normals and tangents are stored once per frame slot
+### 1. Static normals and tangents are stored once per frame slot
 
 - **What.** `mNormalTable` and `mTangentTable` are `SlotBlocks`, two copies. Every static mesh's
   normals and tangents are written into both (`scenebuffers.cpp:189-195`, `scenebuffers.hpp:394-402`).
@@ -94,24 +63,20 @@ Not proposed, because the field's guidance or the posture rules them out:
   hit kernels.
 - **Kind.** Straightforward.
 
-### 3. Memory the reports do not count, and held at high-water marks
+### 2. Memory the reports do not count, and held at high-water marks
 
-`readStats` (`devicescene.cpp:194-214`) reports `mBuffers + mSkinTables` and BLAS + TLAS storage.
+`readStats` (`devicescene.cpp:194-214`) reports `mBuffers + mSkinTables`, the index blocks, and BLAS +
+TLAS storage.
 Not counted anywhere:
 
 | buffer | where | sized to |
 |---|---|---|
-| index blocks (`mIndices`, u32) | `sceneacceleration.hpp:296` | every index of the scene; *est.* 50–60 MB at ~4–5 M triangles |
 | poses, 2 copies | `sceneacceleration.hpp:287` | deforming vertices × 12 B × 2 |
 | TLAS rows, 2 device copies + host vector | `sceneacceleration.cpp:48-49`, room 2^18 | **16 MiB each**, reserved up front (48 MB) |
 | TLAS scratch | `sceneacceleration.cpp:469` | build scratch for 262,144 instances |
 | BLAS build scratch `mScratch` | `bottomlevelstore.cpp:252` | the largest single build ever recorded; grows, never shrinks |
 | staged arrival positions `mArrived` | `bottomlevelstore.cpp:127` | the largest arrival ever; never shrinks |
 | refit scratch | `sceneacceleration.cpp:143` | every refittable body at once |
-
-The comment at `scenebuffers.cpp:459` says the indices "belong to the acceleration structure, which
-reports its own size". It does not: `getStructureBytes` counts structures only
-(`sceneacceleration.hpp:216-220`). This is a reporting bug.
 
 - **Fix, step 1 (straightforward).** Report each line above in `SceneStats`.
 - **Fix, step 2.**
@@ -125,14 +90,14 @@ reports its own size". It does not: `getStructureBytes` counts structures only
 - **Proof.** `scene` prints the new lines. Chunking must leave `shot --against` bit-exact, since
   build input and flags are unchanged.
 
-### 4. Groundcover: ~40k cutout instances in every ray's path. Measure before choosing
+### 3. Groundcover: ~40k cutout instances in every ray's path. Measure before choosing
 
 - **What.**
   - The ring stands one placement per plant part (`cellplacer.hpp:99`).
   - Groundcover is `InstanceClass::Static` (`classmasks.hpp:26`), so every ray type meets it: eye,
     sun and lamp shadow, bounce, the ambient ray to `mReach`, water legs, fog columns.
   - Each meeting is an any-hit or candidate-loop invocation with a 7-deep dependent load chain
-    (finding 6).
+    (finding 5).
   - Upstream's rasterizer draws groundcover only for the eye: it is not in the shadow-casting mask
     (`glworld.cpp:94-112`), not in CPU raycasts, and in reflections only at detail 5.
   - It is also most of the 64k-row TLAS rebuilt every frame (0.41 ms).
@@ -158,7 +123,7 @@ reports its own size". It does not: `getStructureBytes` counts structures only
   for example by folding `MASK_PARTICLE` into `MASK_EFFECT`. It also changes the look (no grass
   contact shadows from lamps).
 
-### 5. Sky and lamp shadow rays at the eye's hit run in closest-hit mode
+### 4. Sky and lamp shadow rays at the eye's hit run in closest-hit mode
 
 - **What.**
   - `gather(..., split = true)` passes `nearest = split` (`shading.glsl:200-…`, `lights.glsl:61`,
@@ -180,7 +145,7 @@ reports its own size". It does not: `getStructureBytes` counts structures only
 - **Saving.** Unknown. Only shadowed pixels gain, and lit pixels traverse to the end either way.
 - **Proof.** `noise` (`--still`, then the suite), `shot --against`, `kernels`.
 
-### 6. The cutout candidate's load chain is seven dependent loads deep
+### 5. The cutout candidate's load chain is seven dependent loads deep
 
 `candidateStops` (`traversal.glsl:417-493`) per candidate:
 
@@ -196,7 +161,7 @@ The `GpuMaterial` row is 108 B (`scene.h:1122-1206`). The any-hit reads `mDiffus
 `mAlphaReference`(4), `mOpacity`(8), `mTextureTransform`(60-76, crossing a 64 B boundary) and
 `mFlags`(104). At a 108 B stride that is up to four 32 B sectors per material, unaligned to rows.
 
-- **6a (straightforward).**
+- **5a (straightforward).**
   - Reorder `GpuMaterial` so the any-hit's 32 B (`mDiffuse, mAlphaReference, mOpacity, mFlags,
     mTextureTransform`) come first, and pad the row to 128 B (`static_assert` it).
   - The table is a few thousand rows, so the padding is nothing.
@@ -204,7 +169,7 @@ The `GpuMaterial` row is 108 B (`scene.h:1122-1206`). The any-hit reads `mDiffus
   - **Proof:** `shot --against` bit-exact; `kernels` moves every kernel that reads a material, as
     expected.
   - Gain unknown, small: the OMM result says any-hit is not dominant.
-- **6b (experiment).**
+- **5b (experiment).**
   - A per-primitive UV run for meshes whose materials are cutouts (`3 × vec2` = 24 B a triangle,
     float, so exact). Reached from the instance row (move `mVertexOffset`/`mIndexOffset`/the run's
     offset there).
@@ -213,10 +178,10 @@ The `GpuMaterial` row is 108 B (`scene.h:1122-1206`). The any-hit reads `mDiffus
   - Field precedent: "minimize indirections for alpha test" (NVIDIA: "root descriptors for index and
     vertex buffers", i.e. fewer hops).
   - **Proof:** `shot --against` bit-exact; `bench` on canopy and grass places; `kernels`.
-- The declined OMM measurement ("no faster") argues the any-hit is not the bottleneck. Do 6a, and
-  6b only if a profile of the trace (`nsys` shows the hit-group share) says so.
+- The declined OMM measurement ("no faster") argues the any-hit is not the bottleneck. Do 5a, and
+  5b only if a profile of the trace (`nsys` shows the hit-group share) says so.
 
-### 7. Vertex and index formats
+### 6. Vertex and index formats
 
 - **Indices: u32 → u16, mesh-local.**
   - NIF caps a shape at 65,535 vertices and a terrain chunk is 65×65. `MeshResolver` only refuses
@@ -226,13 +191,13 @@ The `GpuMaterial` row is 108 B (`scene.h:1122-1206`). The any-hit reads `mDiffus
   - Build: `VK_INDEX_TYPE_UINT16` (`structurebuild.cpp:68-72`).
   - Shader: either enable `storageBuffer16BitAccess`, which is not requested today, or read two u32
     words and shift. Rows start 3-index aligned, so no mixed path is needed.
-  - **Saving** *est.* 25–30 MB (half of finding 3's indices) and half the index bytes per candidate.
+  - **Saving** *est.* 25–30 MB (half the index blocks, est. 50–60 MB at ~4–5 M triangles) and half the index bytes per candidate.
   - **Proof:** `shot --against` bit-exact; `repeat`; `check`.
   - **Kind:** straightforward once the census holds.
 - **Normals: float3 → octahedral 2×16 bit.**
   - Error ≤ 0.005° (Cigolle et al., JCGT 3(2) 2014). The tangents already take this route
     (`TANGENT_COORDINATE_BITS`, `scene.h`), so the representation has precedent here.
-  - **Saving** 8 B a vertex in one copy after finding 2, *est.* ~20 MB.
+  - **Saving** 8 B a vertex in one copy after finding 1, *est.* ~20 MB.
   - It changes pictures at the 1e-5 level: `shot --against` names every view, `noise` must not move.
   - **Kind:** experiment, and a precision call that is yours.
 - **Vertex colours: float3 → RGBA8, only where lossless.**
@@ -245,17 +210,18 @@ The `GpuMaterial` row is 108 B (`scene.h:1122-1206`). The any-hit reads `mDiffus
     path is not worth 20 MB.
 - **UVs stay float2.** Tiled terrain coordinates exceed what a half keeps.
 
-### 8. `sWorldPlacementRoom = 2^18` reserves for three times the largest place
+### 7. `sWorldPlacementRoom = 2^18` reserves for three times the largest place
 
 `vulkanrenderer.cpp:69`. TLAS storage and scratch are made for 262,144 instances, plus 2 × 16 MiB of
 device rows and a 16 MiB host vector (`mRowTable.reserve`), from the first frame, in an interior too.
 
-- **Fix.** After finding 1, size the room for the dense count with modest headroom (e.g. 2^17).
-- **Saving.** *est.* half of row and TLAS reservations (≥24 MB), once counted (finding 3).
+- **Fix.** The TLAS builds over the placed rows alone, so size the room for that count with modest
+  headroom (e.g. 2^17).
+- **Saving.** *est.* half of row and TLAS reservations (≥24 MB), once counted (finding 2).
 - **Proof.** `check`; `scene` bytes; a crossing in `bench` must still not grow the TLAS mid-run.
 - **Kind.** Straightforward, a number.
 
-### 9. The exterior's structures and tables stay resident inside interiors
+### 8. The exterior's structures and tables stay resident inside interiors
 
 - **What.** `dropSlots` keeps the held cells (`cellplacer.hpp:132`). The guild keeps 145.6 MB of live
   BLAS and 150 MB of tables for an interior placing 1,221 instances. It is deliberate (a fast return
@@ -264,7 +230,7 @@ device rows and a 16 MiB host vector (`mRowTable.reserve`), from the first frame
   release all and re-adopt. Re-adopting costs the ring's incremental arrival frames on exit.
 - This is a memory-against-exit-stall trade for you to make.
 
-### 10. Every geometry carries `NO_DUPLICATE_ANY_HIT_INVOCATION`
+### 9. Every geometry carries `NO_DUPLICATE_ANY_HIT_INVOCATION`
 
 - **What.** `structurebuild.cpp:79` sets it on every mesh. The DXR spec says why the default allows
   duplicates: *"By default, the system is free to trigger an any hit shader more than once for a given
@@ -279,7 +245,7 @@ device rows and a 16 MiB host vector (`mRowTable.reserve`), from the first frame
   meshes (fades), and materials with blend or alpha controllers.
 - **Kind.** Experiment, low prior.
 
-### 11. Measure what `ALLOW_DATA_ACCESS` costs the BLAS
+### 10. Measure what `ALLOW_DATA_ACCESS` costs the BLAS
 
 - **What.** Position fetch replaced a 12 B/vertex position buffer (`bottomlevelstore.cpp:111-114`).
   Khronos says the flag makes implementations "retain vertex position data at sufficient precision",
@@ -289,7 +255,7 @@ device rows and a 16 MiB host vector (`mRowTable.reserve`), from the first frame
 - **Why.** If the BLAS grows more than 12 B a vertex, the trade has turned. Expected outcome: it
   holds, but it is unverified.
 
-### 12. Smaller items
+### 11. Smaller items
 
 - **`GpuInstance::mMotion` (48 of 64 B, `scene.h:629`) is the identity for nearly every row.**
   - Read by the primary hit's `motionOf` only.
@@ -300,7 +266,7 @@ device rows and a 16 MiB host vector (`mRowTable.reserve`), from the first frame
 - **Actors' parts are separate BLASes and instances.**
   - A crowd is hundreds of tiny refits a frame (refit 0.17 ms in the guild and at the ship alike).
   - Merging one actor's parts into one BLAS with one geometry per part means one build per actor and
-    one TLAS row. It needs the per-geometry identity of finding 4A.
+    one TLAS row. It needs the per-geometry identity of finding 3A.
   - Experiment; measure the refit zone under `nsys` first, since tiny builds are latency-bound.
 - **Ray queries carry no `gl_RayFlagsSkipAABBEXT`.** The pipeline promises it, but queries cannot
   take the pipeline flag. There are no AABB geometries, so expect nothing on NVIDIA. Skip unless
@@ -313,7 +279,7 @@ device rows and a 16 MiB host vector (`mRowTable.reserve`), from the first frame
 | ray | where | mode |
 |---|---|---|
 | primary (+ ≤4 peel layers) | `visibility.rgen:185-215` | pipeline `traceRayEXT`, back-face cull |
-| sky shadow (sun or a moon) | `gather` split | **nearest** (finding 5) |
+| sky shadow (sun or a moon) | `gather` split | **nearest** (finding 4) |
 | lamp shadow (RIS-held lamp) | `gather` split | **nearest** |
 | bounce | `bounceArriving` (`shading.glsl:1012`) | query, closest, full `resolve` |
 | bounce hit: ambient | `surfaceAmbient` | to `mReach` outside at rate ½; 140 units inside |
@@ -324,16 +290,15 @@ device rows and a 16 MiB host vector (`mRowTable.reserve`), from the first frame
 
 That is about 7 traversals a pixel before water and air. The rates are already measured and
 documented (`look.h:440-590`). Nothing here re-proposes them. The cheap levers left are the mode of
-the two eye shadow rays (5), what grass is met by (4B), and fewer indirections per candidate (6).
+the two eye shadow rays (4), what grass is met by (3B), and fewer indirections per candidate (5).
 
 ## Suggested order
 
-1. Finding 3 step 1 (count), plus the row count beside `mPlaced`. Also the groundcover-off `bench`
-   leg (4) and the ceilings for 5 and 10. All measurement, no picture change.
-2. Findings 1 and 2. Structural, bit-exact (1: up to coincident ties), real savings (~0.2 ms in
-   interiors; ~40 MB).
-3. Finding 7 indices (after census), finding 6a, finding 8.
-4. Whichever of 4A, 5, 6b and 10 the step-1 numbers justify. Finding 9 and 4B are your decisions.
+1. Finding 2 step 1 (count), plus the row count beside `mPlaced`. Also the groundcover-off `bench`
+   leg (3) and the ceilings for 4 and 9. All measurement, no picture change.
+2. Finding 1. Structural, bit-exact, ~40 MB.
+3. Finding 6 indices (after census), finding 5a, finding 7.
+4. Whichever of 3A, 4, 5b and 9 the step-1 numbers justify. Finding 8 and 3B are your decisions.
 
 ## Sources
 

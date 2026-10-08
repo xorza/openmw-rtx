@@ -77,6 +77,17 @@ namespace Rtx::Testing
             return PaneUnderLamps{ .mScene = std::move(scene), .mPane = pane };
         }
 
+        /// How far one rounding of a pane's light to a half moves the frame composed from it, at most.
+        /// The pane filter keeps the light over the albedo, `x`, and rounds it at random by under one
+        /// step: ten bits of fraction put a step at `2^-10 x` or under, and a subnormal's at `2^-24`.
+        /// The composite multiplies by an albedo of one at most, which scales the step with the light,
+        /// so the room is `2^-10` of the composed value or `2^-24`. Its two float roundings are
+        /// `2^-24` of the value each, `2^-14` of the room, so `2^-12` more leaves them twice theirs.
+        float roundingRoomOf(float composed)
+        {
+            return std::max(std::abs(composed) * 0x1p-10f, 0x1p-24f) * (1.0f + 0x1p-12f);
+        }
+
         /// An eye at `eye` looking along +Y, under a black sky with no sun and no ambient.
         Shaders::VisibilityConstants darkEyeAt(const osg::Vec3f& eye)
         {
@@ -92,9 +103,11 @@ namespace Rtx::Testing
         /// **Over a still eye the pane filter is the mean of its frames.** Sixteen frames filtered from
         /// an empty history, against the same sixteen averaged unfiltered. Under sixteen frames the
         /// blend's weight is one over the count, so the history is the running mean exactly, to the
-        /// rounding of its floats: measured at 8e-6 of the raw frame's error, and 2e-6 of the light.
-        /// Nothing behind the pane has any light, so the whole of the difference from the last raw
-        /// frame is the pane filter's.
+        /// rounding of its halves (`halfRoundedMeanError`); and since a half is rounded at random with
+        /// no bias, the frame's light stands within four deviations of that error's mean over the
+        /// frame's 4096 pixels, which are drawn apart. Measured, 0.53 to 0.57 of the first bound and
+        /// 0.02 to 0.14 of the second. Nothing behind the pane has any light, so the whole of the difference from
+        /// the last raw frame is the pane filter's.
         TEST_F(RtxVisibilityTest, overAStillEyeThePaneFilterIsTheMeanOfItsFrames)
         {
             const SceneDesc scene = paneUnderLamps().mScene;
@@ -112,18 +125,20 @@ namespace Rtx::Testing
                 const float filteredError = filtered.errorFrom(averaged, channel);
                 ASSERT_GT(rawError, averaged.mean(channel) * 0.05f)
                     << "channel " << channel << ": four lamps drawn one a pixel are noisy";
-                EXPECT_LT(filteredError, rawError * 1e-4f)
+                const float rounding = halfRoundedMeanError(averaged.rootMeanSquare(channel), rawError, 16, 1);
+                EXPECT_LT(filteredError, rounding)
                     << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
-                EXPECT_NEAR(filtered.mean(channel), averaged.mean(channel), averaged.mean(channel) * 1e-5f)
+                EXPECT_NEAR(filtered.mean(channel), averaged.mean(channel), 4.0f * rounding / static_cast<float>(sSize))
                     << "channel " << channel << " keeps its light";
             }
         }
 
-        /// **A pane's first filtered frame is the frame the trace composes, to the bit**: the pane
-        /// filter starts its mean at the frame's own light, and the composite multiplies it back by
-        /// the albedo the trace divided it by. A pane whose albedo no half holds — `(0.3, 0.37, 0.41)`
-        /// at 0.43, a red of 0.129 that a half holds as 0.12890625 at the least — under the four
-        /// lamps, against the black sky, so the pane is the whole of every pixel.
+        /// **A pane's first filtered frame is the frame the trace composes, to one rounding of a
+        /// half** (`roundingRoomOf`): the pane filter starts its mean at the frame's own light,
+        /// rounded at random to the half it keeps, and the composite multiplies it back by the albedo
+        /// the trace divided it by. A pane whose albedo no half holds —
+        /// `(0.3, 0.37, 0.41)` at 0.43, a red of 0.129 that a half holds as 0.12890625 at the least —
+        /// under the four lamps, against the black sky, so the pane is the whole of every pixel.
         TEST_F(RtxVisibilityTest, aPanesFirstFilteredFrameIsTheComposedFrame)
         {
             SceneDesc scene;
@@ -136,7 +151,8 @@ namespace Rtx::Testing
             const Frame filtered = shoot(scene, {}, camera, sSize, filteredRun(1, 2000));
             ASSERT_GT(composed.mean(0), 0.0f) << "a pane that is lit by nothing proves nothing";
             for (std::size_t value = 0; value < composed.mRadiance.size(); ++value)
-                ASSERT_EQ(filtered.at(value), composed.at(value)) << "value " << value;
+                ASSERT_LT(std::abs(filtered.at(value) - composed.at(value)), roundingRoomOf(composed.at(value)))
+                    << "value " << value << ": composed " << composed.at(value) << ", filtered " << filtered.at(value);
         }
 
         /// **A pane follows an ambient whose light halves** (`historyclamp.comp`). The grey pane at
@@ -177,8 +193,11 @@ namespace Rtx::Testing
         /// mean of many jittered samples stands for the pixel, and is fetched at `at + 0.5 + motion`,
         /// never at this frame's jitter against the last. Over a still eye that jitters, sixteen
         /// filtered frames are then the mean of the same sixteen frames, as an unjittered still's
-        /// are; fetched at the jitter's offset, every frame would resample the history between
-        /// neighbours, and an edge would blur.
+        /// are, to the rounding of their halves: twice a frame, the filter's and the clamp's
+        /// (`halfRoundedMeanError`). Fetched at the jitter's offset, every frame would resample the
+        /// history between neighbours, and an edge would blur by a share of the raw frame's error,
+        /// which stands over ten times what the halves allow. Measured, the raw frame at 59 times
+        /// that room, the filtered frame at 0.40 of it, and its light at 0.03 of four deviations.
         ///
         /// The edge is in the light and not in the pane, which fills the frame, so every pixel's
         /// history is its own surface's whatever the jitter: one lamp a hundred units behind the eye,
@@ -215,17 +234,20 @@ namespace Rtx::Testing
 
             const float rawError = raw.errorFrom(averaged, 0);
             const float filteredError = filtered.errorFrom(averaged, 0);
-            ASSERT_GT(rawError, averaged.mean(0) * 1e-3f) << "the jitter moves the edge's column between frames";
-            EXPECT_LT(filteredError, rawError * 1e-3f) << "raw " << rawError << ", filtered " << filteredError;
-            EXPECT_NEAR(filtered.mean(0), averaged.mean(0), averaged.mean(0) * 1e-5f) << "the history keeps its light";
+            const float rounding = halfRoundedMeanError(averaged.rootMeanSquare(0), rawError, 16, 2);
+            ASSERT_GT(rawError, rounding * 10.0f) << "the jitter moves the edge's column between frames";
+            EXPECT_LT(filteredError, rounding) << "raw " << rawError << ", filtered " << filteredError;
+            EXPECT_NEAR(filtered.mean(0), averaged.mean(0), 4.0f * rounding / static_cast<float>(sSize))
+                << "the history keeps its light";
         }
 
         /// **A pane's history is its own, and goes where the pane goes.** Sixteen filtered frames of
         /// the pane, and then the next frame with the pane moved behind the eye and the history kept:
         ///
         /// - with a second pane a hundred units behind it, which stood still, so `heldSurfaceMatches`
-        ///   says the history is another surface's, and the frame is that frame's raw one: none of
-        ///   the first pane's light carries over, and none is lost;
+        ///   says the history is another surface's, and the frame is that frame's raw one to one
+        ///   rounding of a half (`roundingRoomOf`): none of the first pane's light carries over, and
+        ///   none is lost;
         /// - alone, and the frame is black: nothing of the pane is left standing.
         TEST_F(RtxVisibilityTest, aPanesHistoryIsItsOwnAndGoesWhereThePaneGoes)
         {
@@ -244,9 +266,10 @@ namespace Rtx::Testing
             const Frame raw = goneAfterSixteen(true, false);
             const Frame filtered = goneAfterSixteen(true, true);
             ASSERT_GT(raw.mean(0), 0.0f) << "a pane that shows nothing proves nothing";
-            for (std::size_t channel = 0; channel < 3; ++channel)
-                EXPECT_LT(filtered.errorFrom(raw, channel), raw.mean(channel) * 1e-3f)
-                    << "channel " << channel << " carried the old pane's light";
+            for (std::size_t value = 0; value < raw.mRadiance.size(); ++value)
+                EXPECT_LT(std::abs(filtered.at(value) - raw.at(value)), roundingRoomOf(raw.at(value)))
+                    << "value " << value << " carried the old pane's light: raw " << raw.at(value) << ", filtered "
+                    << filtered.at(value);
 
             const Frame gone = goneAfterSixteen(false, true);
             for (std::size_t channel = 0; channel < 3; ++channel)

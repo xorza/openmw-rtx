@@ -139,6 +139,13 @@ const uint SEED_WAVELET_TAPS = SEED_SEE_THROUGH + 1u;
 /// so no other draw moves.
 const uint SEED_SHADOW_THROUGH = SEED_WAVELET_TAPS + 1u;
 
+/// And one for which way a history kept in halves is rounded at its store (`roundedToHalf`): a hash
+/// of the texel and the frame, so `repeat` draws it again, and of nothing a picture draws. A second
+/// for a pass that stores over the same texel later in the frame — the history clamp, in place —
+/// so its draws are not the filter's.
+const uint SEED_HALF_ROUNDING = SEED_SHADOW_THROUGH + 1u;
+const uint SEED_HALF_ROUNDING_AGAIN = SEED_HALF_ROUNDING + 1u;
+
 /// A key for one pixel, which a caller offsets by a `SEED_` constant to say which sequence it wants.
 ///
 /// Two odd multipliers rather than two shifts: a shift leaves the low bits of one axis where the

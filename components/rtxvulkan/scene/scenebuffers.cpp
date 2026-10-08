@@ -458,8 +458,8 @@ namespace Rtx
 
     VkDeviceSize SceneBuffers::getBytes() const
     {
-        // The indices are not counted here: they belong to the acceleration structure, which reports
-        // its own size.
+        // The indices are not counted here: they are the acceleration's, which counts them
+        // (`SceneAcceleration::getIndexBytes`).
         VkDeviceSize total = mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes()
             + mMeshTable.getBytes() + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes()
             + mMaterialTable.getBytes() + mNormalTable.getBytes() + mTangentTable.getBytes();

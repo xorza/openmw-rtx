@@ -29,6 +29,7 @@
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
+#include "lib/halfround.glsl"
 #include "lib/historyclamp.glsl"
 #include "lib/pixels.glsl"
 #include "lib/sharedexponent.glsl"
@@ -133,6 +134,7 @@ void main()
     // Held at nought, for the reason `accumulateclamp.comp` gives.
     const vec3 toward = sampledMean - fastHere;
     const vec3 held = max(mix(slow.rgb, clamped.mHeld, antilag) + pushed * toward, vec3(0.0));
-    RTX_STORE_COUNTED(mean, at, vec4(held, slow.a))
+    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_HALF_ROUNDING_AGAIN, frame.mFrame);
+    RTX_STORE_COUNTED(mean, at, roundedToHalf(vec4(held, slow.a), rounding))
     RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(fastHere + pushed * toward), 0u, 0u, 0u))
 }

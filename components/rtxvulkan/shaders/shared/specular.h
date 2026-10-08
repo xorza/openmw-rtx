@@ -9,12 +9,14 @@
 // `specular.comp` says the shape of. Included verbatim by both sides, for the reason `visibility.h`
 // is.
 //
-// **The mean in full floats, and its frame count in the fourth channel.** Halves round toward
-// nought where this device stores them, so a running mean kept in halves falls a little at every
-// store: measured on a metal floor, sixteen frames stood 0.13 to 0.2% under the average of the same
-// frames, where full floats keep the average to its rounding. One texel, so a tap is one fetch.
+// **The mean in halves, rounded at random at every store, and its frame count in the fourth
+// channel.** A half store rounds toward nought on this device, so a running mean stored as it is
+// falls a little at every store: measured on a metal floor, sixteen frames stood 0.13 to 0.2% under
+// the average of the same frames. Rounded at random first (`roundedToHalf`), every store is exact and
+// the mean's expected value is the average, at the noise of half a step. One texel, so a tap is one
+// fetch.
 
-#define SPECULAR_MEAN STORAGE_RGBA32F
+#define SPECULAR_MEAN STORAGE_RGBA16F
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

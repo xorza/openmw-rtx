@@ -31,6 +31,7 @@
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
+#include "lib/halfround.glsl"
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
 #include "lib/sharedexponent.glsl"
@@ -108,7 +109,8 @@ void main()
         }
     }
 
-    RTX_STORE_COUNTED(mean, at, stands ? texelOf(blended) : vec4(sampled, 0.0))
+    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_HALF_ROUNDING, frame.mFrame);
+    RTX_STORE_COUNTED(mean, at, roundedToHalf(stands ? texelOf(blended) : vec4(sampled, 0.0), rounding))
     RTX_STORE_WORDS(fastBlended, at, uvec4(stands ? packRgb9e5(blendedFast) : HISTORY_CLAMP_EMPTY, 0u, 0u, 0u))
     RTX_STORE_COUNTED(held, at, heldSurfaceOf(seen, frame.mDistanceScale))
 }

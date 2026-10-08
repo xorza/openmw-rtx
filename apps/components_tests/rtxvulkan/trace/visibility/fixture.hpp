@@ -312,6 +312,16 @@ namespace Rtx::Testing
             return std::sqrt(squares / static_cast<float>(mRadiance.size() / 4));
         }
 
+        /// The root mean square of one channel over the frame.
+        float rootMeanSquare(std::size_t channel = 0) const
+        {
+            float squares = 0.0f;
+            for (std::size_t value = channel; value < mRadiance.size(); value += 4)
+                squares += mRadiance[value] * mRadiance[value];
+
+            return std::sqrt(squares / static_cast<float>(mRadiance.size() / 4));
+        }
+
         /// The byte a test names for one value: the display curve over a colour, and coverage,
         /// which the curve does not touch, over the fourth.
         std::uint8_t byte(std::size_t value) const
@@ -332,6 +342,29 @@ namespace Rtx::Testing
             return all;
         }
     };
+
+    /// The root mean square by which a running mean of `frames` frames, kept in halves rounded at
+    /// random `roundings` times a frame, stands from the mean of its frames in float: the root of
+    /// its expected square, at most, which a frame of thousands of pixels drawn apart stands close to.
+    ///
+    /// A rounding moves a value `x` by a variance `f (1 - f) step²` for the fraction `f` it rounds,
+    /// so by `(x 2^-11)²` at most. Frame `k` blends by `1 / k`, which carries the error it made to
+    /// frame `n` times `(1 - 1/(k+1)) ... (1 - 1/n)` = `k / n`, and frame `k`'s history is a mean of
+    /// `k` frames, whose square stands at `level² + noise² / k` over the frame: `level` the converged
+    /// frame's root mean square and `noise` one raw frame's error from it. The variances add:
+    ///
+    ///     error² <= roundings 2^-22 sum over k of (k / n)² (level² + noise² / k)
+    inline float halfRoundedMeanError(float level, float noise, std::uint32_t frames, std::uint32_t roundings)
+    {
+        float variance = 0.0f;
+        for (std::uint32_t k = 1; k <= frames; ++k)
+        {
+            const float carried = static_cast<float>(k) / static_cast<float>(frames);
+            variance += carried * carried * (level * level + noise * noise / static_cast<float>(k));
+        }
+
+        return std::sqrt(static_cast<float>(roundings) * variance) * 0x1p-11f;
+    }
 
     /// Everything a render over this fixture decides beyond the scene, the camera and the extent.
     ///

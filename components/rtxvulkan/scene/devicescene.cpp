@@ -195,7 +195,7 @@ namespace Rtx
     {
         stats.mInstances = mCounts;
         stats.mInstanceSlots = mAcceleration.getInstanceSlots();
-        stats.mTableBytes = mBuffers.getBytes() + mSkinTables.getBytes();
+        stats.mTableBytes = mBuffers.getBytes() + mSkinTables.getBytes() + mAcceleration.getIndexBytes();
 
         // Read every placement and not with the rest of the report, because a placement is
         // where the answer lands: the queries a build wrote are read some placements later, so a

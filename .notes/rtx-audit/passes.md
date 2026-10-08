@@ -48,11 +48,10 @@ Nothing here re-proposes the declined items: async compute, opacity micromaps an
 | 5 | SPD (one dispatch) for the wave and ripple mip chains instead of blit-per-level | ~19 queue drains a frame; ~0.03–0.06 ms of `waves`+`ripples` (estimate; confirm with `nsys`) | straightforward-to-medium | Box mean as now. Proof: `shot --against` (the store rounding may differ from the blit's), `kernels` |
 | 6 | Ripple field RG32F ping-pong → three R32F images | 16 → 12 MB; step traffic 16 → 12 B/texel, compose reads halved | straightforward | Bit-identical. Proof: `shot --against` exact, `repeat` |
 | 7 | One world sprite bin instead of one per frame slot (report buffer stays per slot) | One full set of sprite tables, including the tile list at its high-water mark (up to 64 MB in a storm) | straightforward, verify | None if the head-barrier argument holds. Proof: `repeat`, `check` in the storm suite |
-| 8 | Picture chain's fog volume: one parity, no history pair | 16.8 MB at a 512x1024 doll (32 B/froxel) | straightforward | None: a picture never reprojects. Proof: picture tests |
-| 9 | Transient aliasing: bloom over FSR's dead transients or the fog transients; FSR transients over the denoiser's | Bloom 9.8 MB now; ~37 MB more once the denoiser side joins | experiment (infrastructure) | Barriers. Proof: `repeat`, validation |
-| 10 | Bloom pyramid alpha: RGBA16F (alpha written 1.0) → B10G11R11 with a nearest-rounded store | 9.8 → 4.9 MB; half the bloom traffic; ≤0.02 ms | experiment | Needs pre-rounding, or the RTZ bias darkens the veil. Proof: `shot --against` |
-| 11 | Histogram fused into the bloom's frame halving | 29.5 MB read; ~0.01–0.02 ms | straightforward | Same pixels counted. Proof: exposure tests, `shot --against` exact |
-| 12 | Fog `seeing` written only in frames with puffs; `airSunward`+`sliceSunward` merged into one RG16F image | 13 MB of writes on puff-free frames; one image fewer | straightforward | Worst case unchanged, so low value |
+| 8 | Transient aliasing: bloom over FSR's dead transients or the fog transients; FSR transients over the denoiser's | Bloom 9.8 MB now; ~37 MB more once the denoiser side joins | experiment (infrastructure) | Barriers. Proof: `repeat`, validation |
+| 9 | Bloom pyramid alpha: RGBA16F (alpha written 1.0) → B10G11R11 with a nearest-rounded store | 9.8 → 4.9 MB; half the bloom traffic; ≤0.02 ms | experiment | Needs pre-rounding, or the RTZ bias darkens the veil. Proof: `shot --against` |
+| 10 | Histogram fused into the bloom's frame halving | 29.5 MB read; ~0.01–0.02 ms | straightforward | Same pixels counted. Proof: exposure tests, `shot --against` exact |
+| 11 | Fog `seeing` written only in frames with puffs; `airSunward`+`sliceSunward` merged into one RG16F image | 13 MB of writes on puff-free frames; one image fewer | straightforward | Worst case unchanged, so low value |
 
 Details follow, pass by pass.
 
@@ -409,7 +408,7 @@ Checked against the SDK's `ffx_fsr3upscaler.cpp` at v1.1.4 (`internalSurfaceDesc
 | dilated masks, intermediate, new locks, SPD mips, farthest mip1, shading change | — | 16.9 | **ALIASABLE** in the SDK |
 | dilated depth, dilated motion, prev nearest depth | R32F, RG16F, R32UI | 19.7 | "shared"; transient here (written each frame by `Inputs`, read by later passes, `PreviousDepth` cleared every frame) |
 
-### Finding 9: aliasing the transients (experiment, infrastructure)
+### Finding 8: aliasing the transients (experiment, infrastructure)
 
 The SDK's own flags say 16.9 MB is dead outside FSR's dispatch, and here the shared three are too:
 36.6 MB in all. In this frame's order:
@@ -446,7 +445,7 @@ The pyramid follows published practice:
   disjoint 2x2 blocks. With 11 dispatches in about 70 µs, there is little left to fuse except the
   tail: levels 3–5 are 160x90 and smaller and fit one workgroup's LDS.
 
-**Finding 10, the alpha channel is dead (experiment).**
+**Finding 9, the alpha channel is dead (experiment).**
 - `bloomdown.comp:49` stores `vec4(…, 1.0)` into `BLOOM_LEVEL STORAGE_RGBA16F` (`shared/bloom.h:93`),
   so a quarter of every bloom byte is a constant.
 - `B10G11R11_UFLOAT` is a storage format under Vulkan's `shaderStorageImageExtendedFormats` (supported
@@ -458,7 +457,7 @@ The pyramid follows published practice:
   this format.
 - Saving ≤ 0.02 ms. **Proof:** `shot --against`, which also checks the veil's level.
 
-**Finding 11, fuse the histogram into the frame's halving (straightforward).**
+**Finding 10, fuse the histogram into the frame's halving (straightforward).**
 - `histogram.comp:47` reads every shown pixel (29.5 MB at 2560x1440) right after `bloomdown.comp`'s
   `KARIS` dispatch has sampled the same image.
 - A halving thread owns source texels `2p … 2p+1`. Loading those four (L1-hot from its own taps) and
@@ -484,29 +483,6 @@ The pyramid follows published practice:
     over itself, and the renderer never draws into the swapchain (`architecture.md` §8).
   - No change.
 - **Digest** runs only on a harness read-back (`vulkanrenderer.cpp:685`). Not on a played frame.
-
----
-
-## 7. The picture chain (GUI pictures)
-
-### Finding 8: the picture chain's fog keeps a history it never reads (straightforward)
-
-**Where:**
-- `picturetracer.hpp` (its own `TraceChain`)
-- `tracechain.cpp:66` (`FogVolume` with both parities)
-- `reproject.glsl:76-79` (no previous screen, so no reprojection)
-
-**Why:**
-- A picture is traced with `mPastLost` and a basis of nothing, so `fogscatter.rgen` never reads the
-  history.
-- The chain is grown to the largest picture asked for and never shrunk.
-- One parity is enough for a picture. The same may apply to the picture chain's `DenoiseHistory`
-  pairs; that is the denoiser auditor's call.
-
-**Saving:** at upstream's doll size (512x1024): 64x128x64 = 524 K froxels, so 32 B x 524 K = 16.8 MB of
-the picture's 52.8 MB of fog.
-
-**Proof:** the picture tests, and a `view` of the inventory doll and race preview.
 
 ---
 

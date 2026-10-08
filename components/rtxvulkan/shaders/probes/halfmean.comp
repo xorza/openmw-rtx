@@ -1,0 +1,36 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// One blend of each running mean toward its target, kept in a half-float image, for
+// `RtxHalfStoreTest` to read back where a history kept in halves settles: stored as it is, where the
+// store's rounding is the device's, or rounded at random first (`roundedToHalf`).
+
+#include "shared/halfmean.h"
+#include "shared/sets.h"
+#include "storageformat.h"
+
+#include "lib/halfround.glsl"
+#include "lib/hash.glsl"
+
+layout(local_size_x = HALF_MEAN_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = HALF_MEAN_BIND_HISTORY, STORAGE_RGBA16F) uniform image2D history;
+
+layout(push_constant, scalar) uniform Push
+{
+    HalfMeanConstants mean;
+};
+
+void main()
+{
+    const uint at = gl_GlobalInvocationID.x;
+    if (at >= mean.mCount)
+        return;
+
+    const ivec2 texel = ivec2(int(at), 0);
+    const float blended = mix(mean.mTarget, imageLoad(history, texel).r, mean.mKept);
+    uint draws = seededKey(pixelKey(uvec2(at, 0u)) + SEED_HALF_ROUNDING, mean.mFrame);
+    const float stored = mean.mRounded != 0u ? roundedToHalf(blended, randomNext(draws)) : blended;
+    imageStore(history, texel, vec4(stored));
+}

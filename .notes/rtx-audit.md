@@ -17,11 +17,11 @@ Sizes: B/px is bytes per traced pixel. 1 B/px is 1.64 MB at 1707×960 (`quality`
 
 | Owner | Today | Published practice |
 |---|---|---|
-| `DenoiseHistory`: 33 images, 13 of them pairs | **440 B/px** (721 MB at 1707×960) | NRD RELAX diffuse+specular 81 B/px, SIGMA shadow 15 B/px |
+| `DenoiseHistory` | **328 B/px** (538 MB at 1707×960) | NRD RELAX diffuse+specular 81 B/px, SIGMA shadow 15 B/px |
 | G-buffer: 21 channels | 142 B/px (233 MB); 19 B/px of it written and never read | an NRD game's G-buffer ~40–60 B/px |
 | Fog volume: one froxel per traced pixel | ~100 B/froxel (165 MB) | Frostbite and UE ~40 B/froxel; RTX Remix a grid 5× coarser |
 | FSR at render size | ~40 B/px | matches the SDK exactly; AMD lists 106 MB at 1440p Quality |
-| **Total per traced pixel** | **~720 B/px** | |
+| **Total per traced pixel** | **~610 B/px** | |
 
 - The frame reserve plans for the native mode whatever mode runs (`vulkanrenderer.cpp:73-91`). At a
   4K output that is ~6 GB, which leaves an 8 GB RTX 20/30 card almost no room for textures.
@@ -41,25 +41,23 @@ true. Full floats are not the only remedy:
 - Rounding to nearest in the shader is **not** enough: an α = 1/32 mean stops anywhere within 16 ulps of
   its target (~0.78 %).
 - **Stochastic rounding** is unbiased: round up with a probability equal to the dropped fraction. It
-  adds noise of about 0.1 % of the value (~0.04 of a display level). Done in integer arithmetic (a
-  seeded random addend, then a mask), it is outside what the float pin must fix, so every vendor
-  agrees, and it is seeded by pixel and frame, so `repeat` draws it again. Croci et al. 2022;
-  Connolly, Higham and Mary 2021.
+  adds noise of about 0.1 % of the value (~0.04 of a display level). Done in exact float operations
+  (`frexp`, `ldexp`, `floor`, `fract`), every vendor agrees, and it is seeded by pixel and frame, so
+  `repeat` draws it again. Croci et al. 2022; Connolly, Higham and Mary 2021.
 
-Group 4 builds this helper once, and the histories, the fog volume and the payload use it.
+The helper is `lib/halfround.glsl` (`roundedToHalf`), proven by `RtxHalfStoreTest`; the glossy and pane
+means use it. The other histories, the fog volume and the payload are group 4.
 
 ## Summary of the groups
 
 | # | Group | Saves (1707×960) | Picture | Kind |
 |---|---|---|---|---|
 | 0 | Measure first: counters and ceilings | — | none | measurement |
-| 1 | Denoiser lifetimes and exact packing — **done** | 80 B/px (131 MB), ~50 B/px of traffic | bit-exact | straightforward |
 | 2 | G-buffer exact packing | 4–8 B/px, 2–3 channels | bit-exact (pane albedo: experiment) | straightforward |
-| 3 | Precision and portability fixes — **done** | — | ulp-level | straightforward |
-| 4 | Stochastic-rounding halves | history 440 → ~220 B/px; fog −53 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
+| 4 | Stochastic-rounding halves | history 328 → ~200 B/px; fog −53 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
 | 5 | Transient memory (aliasing) | 50–130 MB | none | infrastructure |
 | 6 | Scene tables and structures | ~40–80 MB; one frame-path spike removed | bit-exact | straightforward |
-| 7 | TLAS and traversal | item 1 done: 0.048 ms in interiors; the rest after measurement | none moved | mixed |
+| 7 | TLAS and traversal | after measurement | none moved | mixed |
 | 8 | Air volume | 165 → ~50 MB with group 4; air+column ~0.5 → ~0.25 ms (est.) | softer shafts at scale 12 | experiment |
 | 9 | Water | 4 MB; ~19 queue drains a frame | bit-exact / ulp | straightforward |
 | 10 | Display and sprites | one sprite table set (up to 64 MB in a storm); one full-frame read | bit-exact | straightforward |
@@ -78,8 +76,6 @@ No picture changes. Each item turns an estimate below into a number, or bounds w
 win. Do this group before groups 6–8.
 
 **Counters the reports do not have** (`devicescene.cpp:194-214`, `readStats`):
-- the u32 index blocks (est. 50–60 MB). The comment at `scenebuffers.cpp:459` says the structures count
-  them, and they do not — a reporting bug;
 - the poses, the TLAS rows (2 × 16 MiB device + host vector) and TLAS scratch for 2^18 instances, the
   refit scratch;
 - the BLAS build scratch (`bottomlevelstore.cpp:252`) and the staged arrival positions (`:127`), both
@@ -105,52 +101,12 @@ win. Do this group before groups 6–8.
   exactly k/255 (group 6).
 
 **Probes and tests:**
-- extend `RtxHalfStoreTest`: a subnormal and an overflow row, the UNORM stores (backdrop, lift and the
-  masks assume round-to-nearest, which Vulkan only says "should"), and `packHalf2x16`'s mode;
+- extend `RtxHalfStoreTest`: a subnormal and an overflow row;
 - an allocation test for a mesh arrival, beside `aTextureArrivingCostsWhatATextureIs`.
 
 **Outside the renderer:** 44 % of the bench's CPU samples are in an NVIDIA driver thread named
 `[vkrt] Analysis`, in `clock_gettime` and rwlock calls. It looks like a spin: `./omw profile --offcpu`
 and `nsys`.
-
-## Group 1: denoiser lifetimes and exact packing
-
-**Done.** The history went from 440 to 360 B/px: −80 B/px, 131 MB at 1707×960 and 295 MB at 2560×1440
-(the estimate below counted the fast-mean saving twice). A picture's chain keeps no past: −96 B/px of
-history and −32 B/froxel of air, ~67 MB at the 512×1024 doll. Proof: `shot --views=all --map
---upscale=off --against`, vanilla and PBR, moved no picture (1 level of 255 on under 0.01 % of pixels
-at a few places, the card's denoiser noise); `repeat --pairs=10` identical; `check` 51 of 51; every
-suite with synchronisation validation; `kernels --against` moved exactly the seven kernels changed
-(composite, history clamp, pane, glossy, the three shadow filter levels) and no trace kernel.
-
-One area, one proof run, no pixel moves. About −88 B/px (−145 MB at 1707×960, −325 MB at 2560×1440).
-
-1. **Five history pairs need one image each** (−56 B/px). `Colour`, `Fill`, `Fast`, `SpecularFast` and
-   `PaneFast` (`denoisehistory.cpp:79,89,97,131,139`): one dispatch reads last frame's image and a later
-   dispatch writes this frame's — the rule the table already applies to the shadow history (verified:
-   accumulate reads colour/fill/fast, the wavelet's first level and the clamps write them).
-   - Each barrier batch between the read and the write gains the image as write-after-read.
-   - `DenoiseHistory::discard` must stop discarding a single fed-back image of a filter that is not
-     fresh.
-2. **Glossy and pane fast means in one word** (−24 B/px). The second word only says "holds a mean";
-   `packRgb9e5` never produces an exponent field ≥ 1 with every mantissa < 256, so `1u << 27` is free
-   as an "empty" code (`specular.comp:172`, `pane.comp:112`, `historyclamp.comp:195-196`).
-3. **Shadow visibility in `R32F`** (−8 B/px): the composite reads `.r` alone (`shadow.h:49`).
-4. **`historyclamp.comp:91`** loads the mean before its early exit: test first. −16 B/px of reads on
-   every pixel with no pane, which is most of every frame.
-5. **`composite.comp:104`** reads the two specular channels on vanilla frames for a nought: a uniform
-   flag. −16 B/px of reads.
-6. **The picture chain keeps a temporal history it never reads.** Every picture is traced with the past
-   lost (`picturetracer.cpp:84-91`), yet its chain is essential memory sized to the largest picture: the
-   512×1024 inventory doll holds ~305 MB for the session. A single-frame mode (one image per pair, and
-   one parity of the fog volume) saves 80 + 17 MB.
-7. **A loop-aware role column** (`denoisehistory.cpp:33-63,153`). `Blended`, `FillBlended` and the
-   shadow `Scratch` are inside their feedback loops but declared `Role::Scratch`, so the precision
-   assert would accept them in halves. A guard, and what lets group 4 pass the assert legitimately.
-
-Proof: `shot --views=all --upscale=off --against` (nothing moves, up to the documented denoiser ulp),
-`check` with synchronisation validation, `repeat --pairs=10`, `noise --strafe=150 --walk=150`,
-`./omw test`.
 
 ## Group 2: G-buffer exact packing
 
@@ -175,50 +131,13 @@ Proof: `shot --views=all --upscale=off --against` (nothing moves, up to the docu
 Proof: `shot --against` (nothing moves), `check`, `repeat`; the tests reading `Channel::Penumbra`
 (`shadow.cpp`, `light.cpp`) move to the decoder.
 
-## Group 3: precision and portability fixes
-
-**Done, at no cost in frame time.** The shadow filter's shared memory holds full floats; the
-cascade's alpha holds the deviation (dim light at a sixteenth and a sixty-fourth of the light now
-filters within 0.79 and 2.0 ten-thousandths of the same scene 1024 times brighter, where the variance
-left 11 and 22); the normal test is seven squarings written out. The probes found this card rounds
-`packHalf2x16` and byte stores to nearest, so item 4 needed no fix. **Two corrections to what follows**:
-the squarings bring exactness, not speed — they measure as `pow` does — and a loop of them stayed a
-loop in the built modules and cost the filter, shadow and clamp zones 13–15 % until it was written
-out.
-
-Findings, not savings. Each changes pictures at the ulp level on this card and makes them hold on other
-devices. One `shot --against` and one `noise` run cover the group.
-
-1. **The shadow history passes through `packHalf2x16`** (`shadowfilter.comp:117,126`). The temporal
-   blend is rounded to halves in shared memory by a conversion the spec leaves to the device, and the
-   first level's answer is the next frame's history. On a device that truncates there, the 0.68 %
-   penumbra bias comes back; the passing test only says this card packs to nearest. Keep the mean as
-   unorm16 or as a float in shared memory (+1 KB per group).
-2. **The narrow wavelet levels store the variance in a half** (`atrous.comp:272-276`). Each level shrinks
-   it, and in dim light it falls under a half's least normal (6.1e-5) or flushes, so the brightness
-   test refuses taps in the dark. Store σ and square it on read.
-3. **`pow(x, 128)` in `facingWeight`** (`surfacematch.glsl:217`) is one of the operations the pin leaves
-   to the device, and it costs `log2`+`exp2` on the SFU at every tap of every level. The powers are 128
-   and 8: seven exact squarings give both on one path, the same on every vendor.
-4. The UNORM store probe from group 0, and a fix if this card truncates there too.
-
-Proof: `kernels --against`, `shot --against` (the darkest regions move for item 2), `noise` at
-`balmora-fog-night` and `balmora-storm-night`, the penumbra tests.
-
 ## Group 4: stochastic-rounding halves
 
-The largest lever, and an experiment: one helper, one test method, then each history moves to it.
-Pictures move by ~0.1 % of noise and keep no bias; `noise` is the verdict.
+The largest lever, and an experiment: each history moves to the helper (`roundedToHalf`) in turn, its
+tests held to bounds derived from a half's step (`halfRoundedMeanError`). Pictures move by ~0.1 % of
+noise and keep no bias; `noise` is the verdict.
 
-**First, the helper and its proof:**
-- `lib/` helper: integer stochastic rounding to an exactly representable half (and unorm16), a
-  dedicated `SEED_*`, the half's subnormal range handled, |x| clamped to 65504.
-- a GPU test: a running mean of a constant no half holds, and of a seeded Bernoulli sequence, over 512
-  frames through the kernel's own store; the mean over 4096 pixels within 3σ/√N of the fp32 mean. The
-  same test with today's truncating store must fail by the header's 1.6 %, which proves it sees the
-  bias.
-
-**Then, in order of saving:**
+**In order of saving:**
 1. **Accumulator and wavelet packed** (200 → ~96 B/px). Bounce rgb, fill rgb, σ and the frame count in
    one `RGBA32UI` texel of halves; the moments as an EMA variance (μ, σ) in one `R32UI` word (the
    Welford/EMA form is algebraically identical to `E[l²] − E[l]²`, buys nothing in full floats, and is
@@ -228,26 +147,25 @@ Pictures move by ~0.1 % of noise and keep no bias; `noise` is the verdict.
      `CHANNEL_PANE_SURFACE` (+16 B/px there, −32 here), as RELAX keeps its previous guides;
      `mDistanceScale` goes away.
    - A smaller "B1" (separate RGBA16F bounce and fill) reaches ~104 B/px with two fetches a tap.
-2. **Glossy and pane means** in halves (−32 B/px).
-3. **Shadow history and scratch**: unorm16 mean + half variance in one word (−16 B/px).
-4. **Shadow moments** in the capped EMA form (−32 B/px). A behaviour change: Welford's M2 grows with an
+2. **Shadow history and scratch**: unorm16 mean + half variance in one word (−16 B/px).
+3. **Shadow moments** in the capped EMA form (−32 B/px). A behaviour change: Welford's M2 grows with an
    uncapped count. The SDK's `R11G11B10` moments already stall their count near 128.
-5. **Fog history pairs** (`fogvolume.h:30`, RGBA32F → RGBA16F): −52.6 MB, ~79 MB a frame of traffic.
-6. **Payload radiances** (F4 in the G-buffer report): the six full-float radiances (18 of 30 words)
+4. **Fog history pairs** (`fogvolume.h:30`, RGBA32F → RGBA16F): −52.6 MB, ~79 MB a frame of traffic.
+5. **Payload radiances** (F4 in the G-buffer report): the six full-float radiances (18 of 30 words)
    exist only for summed references, and stochastic rounding is unbiased in a sum. 30 → 21 words on one
    path for both widths. The tree measured up to 0.02 ms per payload word (`a72bc240f4`); the gain may
    be nothing if the hit shader's own registers dominate. Drop it if `bench` shows nothing.
-7. **Bloom pyramid in `B10G11R11`** (alpha is a constant 1.0, `bloomdown.comp:49`): 9.8 → 4.9 MB, only
+6. **Bloom pyramid in `B10G11R11`** (alpha is a constant 1.0, `bloomdown.comp:49`): 9.8 → 4.9 MB, only
    with the pre-rounded store; ≤ 0.02 ms.
 
-End state of groups 1 and 4 together: history ~440 → ~200 B/px. Proof per item:
+End state: history 328 → ~200 B/px. Proof per item:
 `./omw release noise --ab=<switch>` narrowed first (`--views= --strafe=0 --walk=0 --still`), then the
 suite; `repeat`; `shot --against` (small differences everywhere, read them); `kernels --against`; then
 `bench`.
 
 ## Group 5: transient memory
 
-Memory only, no time. Do it after groups 1 and 4, which shrink what there is to alias.
+Memory only, no time. Do it after group 4, which shrinks what there is to alias.
 
 - **Cheap form, no aliasing:** reuse a dead image of the same shape. The wavelet's later levels can write
   into `Blended`, dead after the first level (free once group 4 gives them one format).
@@ -268,10 +186,9 @@ Proof: synchronisation validation, `repeat --pairs=10`, `shot --against` exact.
 
 Bit-exact; one area (`scenebuffers`, `sceneacceleration`, `bottomlevelstore`, `meshtable`).
 
-1. **Defect: the instance table grows on the frame path.** `mRowTable` is reserved for the placement
-   room (`sceneacceleration.cpp:49`), but `SceneBuffers::mInstanceTable` and `mMaterialTable` are not: a
-   crossing past a power of two rewrites the whole table on two frames, the spike the posture forbids.
-   Reserve them.
+1. **Defect: the material table grows on the frame path** (`.notes/ISSUES.md`). `mMaterialTable` is not
+   reserved: an arrival past a power of two rewrites the whole table on two frames, the spike the posture
+   forbids. It needs a material room, which group 12 decides.
 2. **Static normals and tangents are stored once per frame slot** (`scenebuffers.cpp:189-195`); only
    skinned bodies change them. One static copy, and posed normals and tangents in per-slot blocks
    indexed by `mBindOffset`, as the poses already are; the shader selects without a branch. Est.
@@ -279,8 +196,8 @@ Bit-exact; one area (`scenebuffers`, `sceneacceleration`, `bottomlevelstore`, `m
 3. **Tangent words for every vertex** although vanilla has none (`meshtable.hpp:131`): runs of their
    own, as the second texture coordinates have. −14 MiB with today's two copies.
 4. **`sWorldPlacementRoom = 2^18`** (`vulkanrenderer.cpp:69`) is 3.3× the suites' largest place:
-   `2^17` halves the TLAS storage, scratch and row reservations (≥ 24 MB). Best after group 7's dense
-   TLAS.
+   `2^17` halves the TLAS storage, scratch and row reservations (≥ 24 MB); the TLAS builds over the
+   placed rows alone, so the room bounds only what one place stands.
 5. **BLAS build scratch and staged positions**: record a whole-scene build in fixed-size chunks (e.g.
    32 MB of scratch per call, a barrier between), so neither buffer holds the first load's peak for the
    session. Loading then allocates no more than a frame does.
@@ -297,33 +214,23 @@ worst and p99), the new mesh-arrival allocation test.
 
 ## Group 7: TLAS and traversal
 
-1. **Done — measured −0.048 ms, not −0.2.** The guild after two exteriors: TLAS 0.253 → 0.205 ms;
-   the exteriors pay ~0.01 ms for the pack. The guild alone, with nothing to pack, is 0.186 ms: the
-   rest is the build's own floor on this driver, which the estimate below took for the gaps.
-   **The TLAS is built over every slot ever used** (verified: `sceneacceleration.cpp:482`,
-   `primitiveCount = mRowTable.size()`). Inactive rows still cost build time: the guild interior's TLAS
-   is 0.25 ms for 1,221 placed instances, against 0.41 ms for 64k outside. Build from a dense copy in
-   slot order, made by a small prefix-sum pass; nothing reads `gl_InstanceID`, and slot order (not
-   swap-remove, since drop order is a hash of node addresses) keeps `repeat`. Est. −0.2 ms in every
-   interior entered after an exterior.
-2. **Groundcover: ~40k cutout instances that every ray type meets.** Upstream's rasterizer never shadows
+1. **Groundcover: ~40k cutout instances that every ray type meets.** Upstream's rasterizer never shadows
    grass. Only if group 0's groundcover-off leg says the share is large:
    - merge plants into one BLAS per cell and material (NVIDIA's advice for heavily overlapping
      instances; RTX Remix's `mergeInstancesIntoBlas`), est. +50–150 MB of structures against ~15 MB of
      rows, with a per-geometry identity in the hit;
    - or let some rays skip grass (group 12).
-3. **Both of the eye's shadow rays trace to the nearest occluder** for the penumbra. Past the distance
+2. **Both of the eye's shadow rays trace to the nearest occluder** for the penumbra. Past the distance
    where the denoiser's reach caps the penumbra, the exact occluder no longer matters: trace nearest up
    to it and first-hit beyond. The bit is identical. Only if group 0's ceiling is worth it.
-4. **The cutout candidate is seven dependent loads deep.** After group 6's material reorder, an
+3. **The cutout candidate is seven dependent loads deep.** After group 6's material reorder, an
    experiment: a per-triangle UV run for cutout meshes (24 B a triangle), three loads instead of seven.
    The opacity-micromap result says any-hit is not dominant, so expect little.
-5. `NO_DUPLICATE_ANY_HIT_INVOCATION` only on meshes that can be walked through as see-through, if group
+4. `NO_DUPLICATE_ANY_HIT_INVOCATION` only on meshes that can be walked through as see-through, if group
    0's ceiling shows a gain.
-6. Merging each actor's parts into one BLAS (one refit per actor); profile the refit zone first.
+5. Merging each actor's parts into one BLAS (one refit per actor); profile the refit zone first.
 
-Proof: `repeat`, `shot --against` (item 1: coincident-sheet pixels at most), `bench` at an interior after
-an exterior, `noise` for item 3.
+Proof: `repeat`, `shot --against`, `bench` at the grass places, `noise` for item 2.
 
 ## Group 8: the air volume
 
@@ -374,7 +281,7 @@ Proof: `repeat` and `check` over the storm suite, `shot --against` exact, the ex
 
 ## Group 11: denoiser dispatch shape
 
-Experiments for time, after groups 1 and 4 settle the formats.
+Experiments for time, after group 4 settles the formats.
 
 1. **The wavelet's first level in shared memory**, as NRD's `RELAX_AtrousSmem`: decode each texel's
    normal and position once, where today each is decoded ~25 times. Est. 0.1–0.15 ms of the 0.6 ms
@@ -400,7 +307,7 @@ Each changes a policy or the vanilla picture, so none is a fix to make without y
 - **The frame reserve** plans for native whatever mode runs. Reserve for the current mode and evict at
   the mode switch, which already drains. On an 8 GB card at a 1440p or 4K output this is the difference
   between full textures and stand-ins.
-- **The glossy filter's images exist on content that can never have a lobe** (56 B/px). Make them only
+- **The glossy filter's images exist on content that can never have a lobe** (24 B/px). Make them only
   where the content can name a companion map, decided at construction.
 - **Ground composites are most of texture memory** (at least ~245 MB at `seyda-neen-ship`, 512² RGBA8
   each): BC1-encode them on the device after the bake (−7/8), or size them by distance. Both move the
@@ -408,17 +315,18 @@ Each changes a policy or the vanilla picture, so none is a fix to make without y
 - **Groundcover met by fewer ray types** (lamp shadow, bounce far hit, fog lamp rays), as upstream never
   shadows grass. Needs an instance-mask bit freed; changes the look.
 - **Octahedral vertex normals** (~20 MB): pictures move at the 1e-5 level.
+- **A material room**, as the placement room is for instances: what `mMaterialTable` reserves so an
+  arrival never rewrites it on the frame path (group 6 item 1).
 - **The exterior's 145 MB of structures and 150 MB of tables stay resident inside interiors**, for a fast
   return. Keep, keep a band, or release.
 
 ## Suggested order
 
-1. Group 0 (numbers), then groups 1, 2, 3 and 6: bit-exact or ulp-level, about 100 B/px and 40–80 MB,
-   one frame-path spike, and the portability fixes.
-2. Group 7 item 1 (dense TLAS), group 9 and group 10: exact, small, independent.
+1. Group 0 (numbers), then groups 2 and 6: bit-exact, 4–8 B/px and 40–80 MB, and one frame-path spike.
+2. Groups 9 and 10: exact, small, independent.
 3. Group 4, item by item behind its helper and test, `noise` as the verdict.
-4. Groups 8 and 11, measured.
-5. Group 5 once groups 1 and 4 have shrunk what there is to alias.
+4. Groups 7, 8 and 11, measured.
+5. Group 5 once group 4 has shrunk what there is to alias.
 6. Group 12 as you decide.
 
 ## Sources

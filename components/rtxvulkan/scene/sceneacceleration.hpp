@@ -129,6 +129,10 @@ namespace Rtx
         VkDeviceSize getStructureBytes() const { return mBottomLevel.getBytes() + mTopLevelBytes; }
         VkDeviceSize getStructureLiveBytes() const { return mBottomLevel.getLiveBytes() + mTopLevelBytes; }
 
+        /// What the index blocks the structures were built from take, which a hit reads its
+        /// triangle's corners through: a table of the scene's as the vertex attributes are.
+        VkDeviceSize getIndexBytes() const { return mIndices.getBytes(); }
+
         VkDeviceSize getCompactableBytes() const { return mBottomLevel.getCompactableBytes(); }
         VkDeviceSize getCompactableNowBytes() const { return mBottomLevel.getCompactableNowBytes(); }
 
