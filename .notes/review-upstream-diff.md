@@ -52,15 +52,6 @@ What is left:
 
 ## Phase 5 — design and simplification
 
-### Harness, `./omw` and CI
-
-- [ ] **5.26 CI repeats the package job and the log upload.**
-  `.github/workflows/daily.yml:37-60` and `rtx-release.yml:222-270` are one job. `ci.yml:195-206` and
-  `sanitizers.yml:174-182` are one upload. Target: a reusable `package.yml` and a composite
-  `build-logs` action. Make the Linux and Windows deps cache keys agree on `deps.py`
-  (`actions/openmw-deps/action.yml:294,306`). Keep the required check names.
-  Verify: zizmor in the checks job, a manual `rtx-release.yml` and `daily.yml` run.
-
 ### Device layer
 
 - [ ] **5.27 Small device items.**

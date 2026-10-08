@@ -74,10 +74,7 @@ jobs:
 
       - name: Logs
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: $/.github/actions/build-logs
         with:
           name: logs-sanitizers-${{ matrix.flavour }}-${{ github.sha }}
-          path: |
-            build-${{ matrix.flavour }}/CMakeCache.txt
-            build-${{ matrix.flavour }}/**/*.log
-            build-${{ matrix.flavour }}/test-output/crash-matrix/
+          build: build-${{ matrix.flavour }}

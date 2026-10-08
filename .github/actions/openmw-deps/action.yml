@@ -40,16 +40,16 @@ runs:
         key: vulkan-sdk-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py', 'tools/omw/deps.py') }}
 
     - name: Windows dependencies cache
-      # Everything `omw` fetches into deps/ on Windows — upstream's prebuilt set, Qt
-      # and the Vulkan SDK. The key names the
-      # tags upstream pins and the file `omw` pins the rest in, so a bump of either saves afresh; an
-      # older cache is restored all the same, because `omw` judges each thing by the directory it
-      # leaves and fetches only what a bump changed, and `omw bootstrap` removes what no pin names.
+      # Everything `omw` fetches into deps/ on Windows — upstream's prebuilt set, Qt and the Vulkan
+      # SDK. The key names the tags upstream pins, the file `omw` pins the rest in and the code that
+      # fetches them, as the Linux key does, so a change of any saves afresh; an older cache is
+      # restored all the same, because `omw` judges each thing by the directory it leaves and fetches
+      # only what a bump changed, and `omw bootstrap` removes what no pin names.
       if: runner.os == 'Windows' && inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: deps
-        key: deps-${{ runner.os }}-${{ hashFiles('CI/deps_versions.msvc.sh', 'tools/omw/pins.py') }}
+        key: deps-${{ runner.os }}-${{ hashFiles('CI/deps_versions.msvc.sh', 'tools/omw/pins.py', 'tools/omw/deps.py') }}
         restore-keys: deps-${{ runner.os }}-
 
     - name: The Vulkan SDK
