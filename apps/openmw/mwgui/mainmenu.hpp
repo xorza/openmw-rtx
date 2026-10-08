@@ -29,12 +29,11 @@ namespace MWGui
         VideoWidget* mVideo;
         std::thread mThread;
         bool mRunning;
-        float mFrameRateLimit;
 
         void run();
 
     public:
-        MenuVideo(const VFS::Manager* vfs, float frameRateLimit);
+        MenuVideo(const VFS::Manager* vfs);
         void resize(int w, int h);
         void commitFrame();
         ~MenuVideo();
@@ -48,7 +47,7 @@ namespace MWGui
         bool mHasAnimatedMenu;
 
     public:
-        MainMenu(int w, int h, const VFS::Manager* vfs, const std::string& versionDescription, float frameRateLimit);
+        MainMenu(int w, int h, const VFS::Manager* vfs, const std::string& versionDescription);
 
         void onResChange(int w, int h) override;
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
@@ -61,7 +60,6 @@ namespace MWGui
 
     private:
         const VFS::Manager* mVFS;
-        float mFrameRateLimit;
 
         MyGUI::Widget* mButtonBox;
         MyGUI::TextBox* mVersionText;

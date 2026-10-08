@@ -54,15 +54,6 @@ What is left:
 
 ### Seam and game side
 
-- [ ] **5.13 Restore `MWBase::Environment`'s frame-rate limit.**
-  `mwbase/environment.hpp`, `mwgui/mainmenu.{hpp,cpp}` (`:31,58,107,265`, `mainmenu.hpp:32,64`),
-  `windowmanagerimp.cpp`. The removal forces the limit through the `MainMenu` and `MenuVideo`
-  constructors, and `MenuVideo` paces its own thread without the renderer. Target: upstream's
-  `Environment::get/setFrameRateLimit`, set by `Engine::go` beside `mRenderer->setFrameRateLimit`.
-  `MenuVideo` reads it as upstream does. The three upstream hunks go. The loading screen and the
-  nested loops stay on the renderer.
-  Verify: `./omw test openmw-tests`, the main menu's video under `./omw game`.
-
 - [ ] **5.14 Record `<< std::dec` in `sdlinputwrapper.cpp` as an approved fault.**
   `components/sdlutil/sdlinputwrapper.cpp:274-276`. The user approved the fix. Its comment blames a
   remapped controller, which the port now handles. Target: the comment says why without the stale
