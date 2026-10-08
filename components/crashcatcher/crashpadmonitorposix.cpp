@@ -52,24 +52,23 @@ namespace Crash::Monitor
         : mId(id)
     {
 #if defined(__linux__) && defined(SYS_pidfd_open)
-        mHold = syscall(SYS_pidfd_open, static_cast<pid_t>(id), 0);
+        mHold = Platform::UniqueHold<Closing>(syscall(SYS_pidfd_open, static_cast<pid_t>(id), 0));
 #endif
     }
 
-    GameProcess::~GameProcess()
+    void GameProcess::Closing::close(const Handle hold) noexcept
     {
-        if (mHold >= 0)
-            close(static_cast<int>(mHold));
+        ::close(static_cast<int>(hold));
     }
 
     void GameProcess::requestHangReport(Heartbeat&) const
     {
-        send(mId, mHold, SIGUSR2);
+        send(mId, mHold.get(), SIGUSR2);
     }
 
     Ending GameProcess::end() const
     {
-        if (send(mId, mHold, SIGKILL))
+        if (send(mId, mHold.get(), SIGKILL))
             return Ending::Ended;
         return errno == ESRCH ? Ending::Gone : Ending::Failed;
     }

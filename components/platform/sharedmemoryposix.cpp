@@ -63,13 +63,14 @@ namespace Platform
         return memory;
     }
 
-    SharedMemory::~SharedMemory()
+    void SharedMemory::unmap() noexcept
     {
         if (mData == nullptr)
             return;
 
-        munmap(mData, mSize);
+        munmap(std::exchange(mData, nullptr), std::exchange(mSize, 0));
         if (!mMadeName.empty())
             shm_unlink(mMadeName.c_str());
+        mMadeName.clear();
     }
 }

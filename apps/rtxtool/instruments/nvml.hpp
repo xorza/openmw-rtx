@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <components/platform/library.hpp>
+#include <components/platform/uniquehold.hpp>
 
 #include "gpuclock.hpp"
 
@@ -34,7 +35,6 @@ namespace RtxTool
     {
     public:
         Nvml();
-        ~Nvml();
         Nvml(const Nvml&) = delete;
         Nvml& operator=(const Nvml&) = delete;
 
@@ -87,11 +87,24 @@ namespace RtxTool
         using Device = void*;
         using Return = int;
 
+        /// A started library, ended as it goes: held by the shutdown it is ended with, and built
+        /// only once `nvmlInit_v2` answered success.
+        struct Shutting
+        {
+            using Handle = Return (*)();
+            static constexpr Handle sNone = nullptr;
+            static void close(Handle shutdown) noexcept { shutdown(); }
+        };
+        using Session = Platform::UniqueHold<Shutting>;
+
         /// Fills `mScratch` with the samples newer than `mCursor`, answering the driver's own
         /// word for how it went.
         Return fetch(unsigned& count);
 
         Platform::Library::ScopedHandle mLibrary;
+
+        /// After the library, so the library is shut down before it is closed.
+        Session mSession;
         Device mDevice = nullptr;
         std::string mAbsence;
         std::string_view mUnsampled;
