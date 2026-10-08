@@ -24,12 +24,24 @@
 
 namespace Rtx
 {
-    TraceChain::TraceChain(
-        const Device& device, const TracePasses& passes, const std::uint32_t bins, const RadianceWidth radiance)
+    namespace
+    {
+        ImageDescription sumDescription(const std::uint32_t width, const std::uint32_t height)
+        {
+            return ImageDescription{ .mWidth = width,
+                .mHeight = height,
+                .mFormat = toVulkanFormat(COMPOSITE_SUM_FORMAT),
+                .mUsage = VK_IMAGE_USAGE_STORAGE_BIT };
+        }
+    }
+
+    TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins,
+        const RadianceWidth radiance, const MemoryUse use)
         : mDevice(device)
         , mPasses(passes)
         , mRadiance(radiance)
-        , mDenoise(device)
+        , mUse(use)
+        , mDenoise(device, use)
     {
         assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
         mBins.reserve(bins);
@@ -50,13 +62,30 @@ namespace Rtx
         mWidth = width;
         mHeight = height;
 
-        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance);
-        mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
+        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance, mUse);
+        mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mUse);
         mDenoise.resize(mWidth, mHeight);
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
         // worth it to the reference mode and nothing to a window. The first averaging trace asks.
         dropSum();
+    }
+
+    void TraceChain::release()
+    {
+        mWidth = 0;
+        mHeight = 0;
+        mChannels.reset();
+        mFogVolume.reset();
+        mDenoise.release();
+        dropSum();
+    }
+
+    VkDeviceSize TraceChain::bytesAt(
+        const Device& device, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+    {
+        return GBuffer::bytesAt(device, width, height, radiance) + FogVolume::bytesAt(device, width, height)
+            + DenoiseHistory::bytesAt(device, width, height) + Image::bytesFor(device, sumDescription(width, height));
     }
 
     void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
@@ -86,8 +115,7 @@ namespace Rtx
         // left, which the head barrier `CommandPool::begin` recorded orders and makes visible.
         if (what.mAccumulate > 0 && mSum.isEmpty())
         {
-            mSum = Image(
-                mDevice, mWidth, mHeight, toVulkanFormat(COMPOSITE_SUM_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, "sum");
+            mSum = Image(mUse, mDevice, sumDescription(mWidth, mHeight), "sum");
             mSum.transition(commands, Use::sUndefined, Use::sComputeReadWrite);
         }
 

@@ -1,9 +1,11 @@
 #include "fogvolume.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
@@ -86,6 +88,74 @@ namespace Rtx
             return groupsFor(pixels, Shaders::FOG_VOLUME_SCALE);
         }
 
+        /// The volume's images, in the order `FogVolume` declares them.
+        enum class FogImage : std::uint8_t
+        {
+            Scatter0,
+            Scatter1,
+            Sunward0,
+            Sunward1,
+            Lamps,
+            Air,
+            AirSunward,
+            Slice,
+            SliceSunward,
+            Seeing,
+            ColumnDepth,
+            ColumnMoons,
+        };
+
+        /// What each image is but its grid, which is the volume's: one table for what the
+        /// constructor makes and what `FogVolume::bytesAt` measures.
+        struct FogImageKind
+        {
+            VkFormat mFormat;
+            VkImageUsageFlags mUsage;
+            std::uint32_t mSlices;
+            std::string_view mName;
+        };
+
+        constexpr VkImageUsageFlags sColumnUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+        constexpr std::array<FogImageKind, static_cast<std::size_t>(FogImage::ColumnMoons) + 1> sFogImages{ {
+            { sHistoryFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog scatter 0" },
+            { sHistoryFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog scatter 1" },
+            { sHistoryFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog sunward 0" },
+            { sHistoryFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog sunward 1" },
+            { sFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog lamps" },
+            { sFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog air" },
+            { toVulkanFormat(FOG_SUNWARD_FORMAT), sUsage, Shaders::FOG_VOLUME_SLICES, "fog air sunward" },
+            { sFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog slice" },
+            { toVulkanFormat(FOG_SUNWARD_FORMAT), sUsage, Shaders::FOG_VOLUME_SLICES, "fog slice sunward" },
+            { sFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog seeing" },
+            { toVulkanFormat(FOG_DEPTH_FORMAT), sColumnUsage, 1, "fog column depth" },
+            { toVulkanFormat(FOG_MOONS_FORMAT), sColumnUsage, Shaders::MOON_COUNT, "fog column moons" },
+        } };
+
+        static_assert(std::ranges::none_of(sFogImages, [](const FogImageKind& kind) { return kind.mName.empty(); }),
+            "a fog image the table did not fill");
+
+        const FogImageKind& kindOf(const FogImage image)
+        {
+            return sFogImages[static_cast<std::size_t>(image)];
+        }
+
+        ImageDescription descriptionOf(const FogImage image, const std::uint32_t columns, const std::uint32_t rows)
+        {
+            const FogImageKind& kind = kindOf(image);
+            return ImageDescription{ .mWidth = columns,
+                .mHeight = rows,
+                .mFormat = kind.mFormat,
+                .mUsage = kind.mUsage,
+                .mDepth = kind.mSlices };
+        }
+
+        Image makeFogImage(const Device& device, const MemoryUse use, const FogImage image, const std::uint32_t columns,
+            const std::uint32_t rows)
+        {
+            return Image(use, device, descriptionOf(image, columns, rows), kindOf(image).mName);
+        }
+
         /// Sampled where a pass reads and storage where it writes. One image is named twice wherever
         /// both happen, because Vulkan has no one descriptor that is both. One table serves the
         /// layout and the pool that holds two sets of it.
@@ -111,27 +181,31 @@ namespace Rtx
         return makeSetLayout(device, sLayoutBindings);
     }
 
-    FogVolume::FogVolume(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height)
+    VkDeviceSize FogVolume::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
+    {
+        VkDeviceSize bytes = 0;
+        for (std::size_t image = 0; image < sFogImages.size(); ++image)
+            bytes += Image::bytesFor(
+                device, descriptionOf(static_cast<FogImage>(image), columnsFor(width), columnsFor(height)));
+        return bytes;
+    }
+
+    FogVolume::FogVolume(const Device& device, const SetLayout& layout, const std::uint32_t width,
+        const std::uint32_t height, const MemoryUse use)
         : mColumns(columnsFor(width))
         , mRows(columnsFor(height))
-        , mScatter{ Image(device, mColumns, mRows, sHistoryFormat, sUsage, "fog scatter 0", 1,
-                        Shaders::FOG_VOLUME_SLICES),
-            Image(device, mColumns, mRows, sHistoryFormat, sUsage, "fog scatter 1", 1, Shaders::FOG_VOLUME_SLICES) }
-        , mSunward{ Image(device, mColumns, mRows, sHistoryFormat, sUsage, "fog sunward 0", 1,
-                        Shaders::FOG_VOLUME_SLICES),
-            Image(device, mColumns, mRows, sHistoryFormat, sUsage, "fog sunward 1", 1, Shaders::FOG_VOLUME_SLICES) }
-        , mLamps(device, mColumns, mRows, sFormat, sUsage, "fog lamps", 1, Shaders::FOG_VOLUME_SLICES)
-        , mAir(device, mColumns, mRows, sFormat, sUsage, "fog air", 1, Shaders::FOG_VOLUME_SLICES)
-        , mAirSunward(device, mColumns, mRows, toVulkanFormat(FOG_SUNWARD_FORMAT), sUsage, "fog air sunward", 1,
-              Shaders::FOG_VOLUME_SLICES)
-        , mSlice(device, mColumns, mRows, sFormat, sUsage, "fog slice", 1, Shaders::FOG_VOLUME_SLICES)
-        , mSliceSunward(device, mColumns, mRows, toVulkanFormat(FOG_SUNWARD_FORMAT), sUsage, "fog slice sunward", 1,
-              Shaders::FOG_VOLUME_SLICES)
-        , mSeeing(device, mColumns, mRows, sFormat, sUsage, "fog seeing", 1, Shaders::FOG_VOLUME_SLICES)
-        , mColumnDepth(device, mColumns, mRows, toVulkanFormat(FOG_DEPTH_FORMAT),
-              VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, "fog column depth")
-        , mColumnMoons(device, mColumns, mRows, toVulkanFormat(FOG_MOONS_FORMAT),
-              VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, "fog column moons", 1, Shaders::MOON_COUNT)
+        , mScatter{ makeFogImage(device, use, FogImage::Scatter0, mColumns, mRows),
+            makeFogImage(device, use, FogImage::Scatter1, mColumns, mRows) }
+        , mSunward{ makeFogImage(device, use, FogImage::Sunward0, mColumns, mRows),
+            makeFogImage(device, use, FogImage::Sunward1, mColumns, mRows) }
+        , mLamps(makeFogImage(device, use, FogImage::Lamps, mColumns, mRows))
+        , mAir(makeFogImage(device, use, FogImage::Air, mColumns, mRows))
+        , mAirSunward(makeFogImage(device, use, FogImage::AirSunward, mColumns, mRows))
+        , mSlice(makeFogImage(device, use, FogImage::Slice, mColumns, mRows))
+        , mSliceSunward(makeFogImage(device, use, FogImage::SliceSunward, mColumns, mRows))
+        , mSeeing(makeFogImage(device, use, FogImage::Seeing, mColumns, mRows))
+        , mColumnDepth(makeFogImage(device, use, FogImage::ColumnDepth, mColumns, mRows))
+        , mColumnMoons(makeFogImage(device, use, FogImage::ColumnMoons, mColumns, mRows))
         , mSampler(makeTargetSampler(device, "fog volume"))
         , mSets(device, sLayoutBindings, layout.get(), sParities)
     {

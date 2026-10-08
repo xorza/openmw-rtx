@@ -259,20 +259,23 @@ namespace Rtx
             MemoryUse::Essential);
     }
 
-    DeviceMemory MemoryAllocator::take(const VkImage image, const VkMemoryPropertyFlags properties)
+    DeviceMemory MemoryAllocator::take(const VkImage image, const VkMemoryPropertyFlags properties, const MemoryUse use)
     {
-        const VmaAllocationCreateInfo create = askingFor(mMemory, properties, MemoryUse::Essential);
+        assert(isNeverRefused(use) && "content taken as though nothing could stand in for it");
+
+        const VmaAllocationCreateInfo create = askingFor(mMemory, properties, use);
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
         checkAllocated(vmaAllocateMemoryForImage(mLibrary.get(), image, &create, &allocation, &placed), properties);
 
-        return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
-            MemoryUse::Essential);
+        return hold(
+            allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
     }
 
     Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(const VkBuffer buffer,
         const VkMemoryPropertyFlags properties, const VkDeviceSize alignment, const MemoryUse use)
     {
+        assert(use != MemoryUse::Frame && "a frame target in a buffer");
         if (use == MemoryUse::Essential)
             return take(buffer, properties, alignment);
 
@@ -289,8 +292,8 @@ namespace Rtx
     Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(
         const VkImage image, const VkMemoryPropertyFlags properties, const MemoryUse use)
     {
-        if (use == MemoryUse::Essential)
-            return take(image, properties);
+        if (isNeverRefused(use))
+            return take(image, properties, use);
 
         // Whether the driver binds the image to nothing but an allocation of its own, which the
         // library would otherwise find out only inside a pool that makes none.
@@ -390,7 +393,11 @@ namespace Rtx
         const VkDeviceSize usage, const VkDeviceSize blockBytes) const
     {
         VkDeviceSize owed = usage > blockBytes ? usage - blockBytes : 0;
-        for (std::size_t before = 0; before < static_cast<std::size_t>(use); ++before)
+        const VkDeviceSize frame = mHeld[heap][static_cast<std::size_t>(MemoryUse::Frame)];
+        if (heap == mVideoHeap && mFrameReserve > frame)
+            owed += mFrameReserve - frame;
+        for (std::size_t before = static_cast<std::size_t>(MemoryUse::Essential);
+             before < static_cast<std::size_t>(use); ++before)
             owed += mHeld[heap][before];
 
         const VkDeviceSize heldTo = std::min(budget, mBudgetLimit.value_or(budget));
@@ -418,6 +425,11 @@ namespace Rtx
     {
         assert(heap < VK_MAX_MEMORY_HEAPS);
         return mHeld[heap][static_cast<std::size_t>(use)];
+    }
+
+    void MemoryAllocator::reserveFrame(const VkDeviceSize bytes)
+    {
+        mFrameReserve = bytes;
     }
 
     void MemoryAllocator::limitBudget(const std::optional<VkDeviceSize> bytes)
@@ -497,6 +509,14 @@ namespace Rtx
             out.mHostWrittenReserved += statistics.memoryType[type].statistics.blockBytes;
             out.mHostWrittenLive += statistics.memoryType[type].statistics.allocationBytes;
         }
+
+        out.mUses = MemoryUses{ .mFrame = getHeld(mVideoHeap, MemoryUse::Frame),
+            .mFrameReserve = mFrameReserve,
+            .mEssential = getHeld(mVideoHeap, MemoryUse::Essential),
+            .mStructures = getHeld(mVideoHeap, MemoryUse::Structure),
+            .mStructureRoom = getRoom(MemoryUse::Structure),
+            .mTextures = getHeld(mVideoHeap, MemoryUse::Texture),
+            .mTextureRoom = getRoom(MemoryUse::Texture) };
 
         return out;
     }

@@ -18,6 +18,7 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -365,12 +366,16 @@ namespace Rtx
         /// and the ceiling of each stands below the one before it by what the one before it holds.
         ///
         /// **Hand-computed from the heap's own figures.** The budget is set to what the heap holds,
-        /// plus what the frame holds and what the process holds outside the allocator — owed once
-        /// more — plus three blocks and a megabyte: the structures' ceiling is then three blocks and
-        /// a megabyte above the heap, which is three whole blocks. The textures' stands lower by the
-        /// forty-eight megabytes of structure held here and whatever other structures the binary's
-        /// device holds, which the heap's own count says; the megabyte is there so the division by
-        /// a block does not land on its edge.
+        /// plus what the process holds outside the allocator and what essential memory holds —
+        /// owed once more — plus three blocks and a megabyte: the structures' ceiling is then three
+        /// blocks and a megabyte above the heap, which is three whole blocks. The textures' stands
+        /// lower by the forty-eight megabytes of structure held here and whatever other structures
+        /// the binary's device holds, which the heap's own count says; the megabyte is there so the
+        /// division by a block does not land on its edge.
+        ///
+        /// **The frame's targets are owed their reserve and not themselves once more**: a frame
+        /// target of sixteen megabytes held, and a reserve of exactly what the targets hold, leave
+        /// the three blocks; a reserve two blocks beyond it leaves one.
         TEST_F(RtxMemoryTest, eachUseStopsWhereTheUsesBeforeItCouldBeMadeOnceMore)
         {
             MemoryAllocator& memory = getDevice().getMemory();
@@ -380,6 +385,16 @@ namespace Rtx
             const std::optional<Bound> structure = tryBind(
                 getDevice(), VkDeviceSize{ 48 } << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Structure);
             ASSERT_TRUE(structure.has_value());
+            const Image target(MemoryUse::Frame, getDevice(),
+                ImageDescription{ .mWidth = 2048,
+                    .mHeight = 2048,
+                    .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                    .mUsage = VK_IMAGE_USAGE_STORAGE_BIT },
+                "frame target");
+            const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
+            ASSERT_GE(frame, VkDeviceSize{ 16 } << 20);
+            const VkDeviceSize reserve = memory.getFrameReserve();
+            memory.reserveFrame(frame);
 
             // What content's blocks have free, which is the whole of the room where no ceiling is.
             VkDeviceSize free = 0;
@@ -398,6 +413,10 @@ namespace Rtx
             EXPECT_EQ(memory.getRoom(MemoryUse::Structure), free + 3 * block);
             EXPECT_EQ(memory.getRoom(MemoryUse::Texture),
                 free + (structures < above ? (above - structures) / block * block : 0));
+
+            memory.reserveFrame(frame + 2 * block);
+            EXPECT_EQ(memory.getRoom(MemoryUse::Structure), free + block) << "the reserve beyond the targets";
+            memory.reserveFrame(reserve);
         }
     }
 }

@@ -47,12 +47,19 @@ namespace Rtx
 
     /// What a range of memory is for, which says what becomes of the content where the device has
     /// no room for it — and so the order the room is given in. Each use stops where every use
-    /// before it could be made once more: what the frame holds is what a change of mode makes
-    /// again, and a table grows by making itself again while the frame behind reads the old one.
+    /// before it could be made again: the frame's targets at the largest extents its output can be
+    /// traced at, and everything else essential once more, since a table grows by making itself
+    /// again while the frame behind reads the old one.
     enum class MemoryUse : std::uint8_t
     {
-        /// What the frame cannot go without: its targets, its tables, and the geometry every hit
-        /// reads. Nothing stands in for one, so it is never refused here, and a device that
+        /// The frame's targets, which a change of mode makes again at its new extents. Made again
+        /// only once the old are gone (`VulkanRenderer::createTargets`), so what they hold is
+        /// counted once, and room is kept for the largest of them the output allows
+        /// (`MemoryAllocator::reserveFrame`). Never refused here, as essential memory is not.
+        Frame,
+
+        /// What the frame cannot go without besides its targets: its tables, and the geometry every
+        /// hit reads. Nothing stands in for one, so it is never refused here, and a device that
         /// refuses it is the end of the renderer.
         Essential,
 
@@ -66,17 +73,25 @@ namespace Rtx
 
     inline constexpr std::size_t sMemoryUses = static_cast<std::size_t>(MemoryUse::Texture) + 1;
 
+    /// Whether `use` is memory nothing stands in for, which `MemoryAllocator::take` makes and never
+    /// refuses.
+    constexpr bool isNeverRefused(const MemoryUse use)
+    {
+        return use == MemoryUse::Frame || use == MemoryUse::Essential;
+    }
+
     /// What `VK_EXT_memory_priority` is told of the memory a use takes: the order a driver that runs
     /// short evicts it in, lowest first. **The one statement of the priorities**, which every request
     /// reads.
     ///
-    /// **Essential memory stands at a half**, the priority the library gives every block outside a
-    /// pool, so a target big enough for an allocation of its own stands where a table in a shared
-    /// block stands. **Content stands at a quarter**, one figure for structures and textures alike,
-    /// because the two share the content pools' blocks and a priority belongs to a block.
+    /// **Memory nothing stands in for stands at a half**, the priority the library gives every
+    /// block outside a pool, so a target big enough for an allocation of its own stands where a
+    /// table in a shared block stands. **Content stands at a quarter**, one figure for structures
+    /// and textures alike, because the two share the content pools' blocks and a priority belongs
+    /// to a block.
     constexpr float memoryPriorityOf(const MemoryUse use)
     {
-        return use == MemoryUse::Essential ? 0.5f : 0.25f;
+        return isNeverRefused(use) ? 0.5f : 0.25f;
     }
 
     /// A range of one device allocation, and the allocator that hands it back. Not an allocation
@@ -158,15 +173,16 @@ namespace Rtx
         DeviceMemory take(VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment);
 
         /// The same for an image, at the driver's alignment, which the allocator keeps its
-        /// granularity away from a buffer's.
-        DeviceMemory take(VkImage image, VkMemoryPropertyFlags properties);
+        /// granularity away from a buffer's, as `use`: the frame's targets or other essential
+        /// memory.
+        DeviceMemory take(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
 
         /// Room for `buffer` as `use`, or why there is none. Out of the blocks content already
         /// holds wherever it fits there, because that costs the heap nothing; otherwise out of new
         /// memory — a block, or an allocation of its own for a resource larger than half of one —
-        /// only where the heap stays below `use`'s ceiling with it. Essential memory is `take`,
-        /// which is never refused and throws instead, and so does every failure but the device
-        /// having no room.
+        /// only where the heap stays below `use`'s ceiling with it. Memory nothing stands in for is
+        /// `take`, which is never refused and throws instead, and so does every failure but the
+        /// device having no room.
         ///
         /// **Content never shares a block with what the frame holds.** A range of content in a
         /// block the frame's own memory opened would take room the frame had already been given,
@@ -187,6 +203,14 @@ namespace Rtx
 
         /// What `use` holds on `heap`, the ranges and not the blocks around them.
         VkDeviceSize getHeld(std::uint32_t heap, MemoryUse use) const;
+
+        /// Keeps room on the video heap for the frame's targets to be made at `bytes`, the most
+        /// they take at any extents the output can be traced at: content stops where that, and not
+        /// only what the targets hold now, still fits. Asked by each change of mode.
+        void reserveFrame(VkDeviceSize bytes);
+
+        /// What `reserveFrame` was last told.
+        VkDeviceSize getFrameReserve() const { return mFrameReserve; }
 
         /// The heap video memory is taken out of, whose room `getRoom` measures.
         std::uint32_t getVideoHeap() const { return mVideoHeap; }
@@ -230,11 +254,12 @@ namespace Rtx
         /// Frees what `memory` holds and takes it off what its use holds.
         void give(DeviceMemory& memory);
 
-        /// How far up `heap` a use after the first may go, from the library's figures for it: the
-        /// budget, less what every use before `use` holds and less what the process holds outside
-        /// the library — the swapchain, the upscaler's own memory and the driver's, which the frame
-        /// cannot do without either. What is held is owed once more, for the reason `MemoryUse`
-        /// gives.
+        /// How far up `heap` a use content takes may go, from the library's figures for it: the
+        /// budget, less what the process holds outside the library — the swapchain and the
+        /// driver's own, which the frame cannot do without either — and less what every use before
+        /// `use` would take to be made again, for the reason `MemoryUse` gives: on the video heap,
+        /// what the frame's reserve has beyond what its targets hold, and everything else held
+        /// once more.
         VkDeviceSize ceilingOf(
             std::uint32_t heap, MemoryUse use, VkDeviceSize budget, VkDeviceSize usage, VkDeviceSize blockBytes) const;
 
@@ -283,5 +308,6 @@ namespace Rtx
         std::array<std::array<std::atomic<VkDeviceSize>, sMemoryUses>, VK_MAX_MEMORY_HEAPS> mHeld{};
 
         std::optional<VkDeviceSize> mBudgetLimit;
+        VkDeviceSize mFrameReserve = 0;
     };
 }

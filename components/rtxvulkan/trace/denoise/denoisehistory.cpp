@@ -152,22 +152,10 @@ namespace Rtx
         {
             return sDeclared[static_cast<std::size_t>(image)];
         }
-    }
 
-    DenoiseHistory::DenoiseHistory(const Device& device)
-        : mDevice(device)
-    {
-    }
-
-    float DenoiseHistory::distanceScaleFor(const float far)
-    {
-        assert(far > 0.0f && "a frame with no far plane to scale a stored distance by");
-        return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
-    }
-
-    void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height)
-    {
-        for (const Declared& declared : sDeclared)
+        /// What `declared` is made of for a frame `width` by `height`: its grid's extent and its
+        /// format, which `resize` makes and `bytesAt` measures.
+        ImageDescription descriptionOf(const Declared& declared, const std::uint32_t width, const std::uint32_t height)
         {
             std::uint32_t columns = width;
             std::uint32_t rows = height;
@@ -182,17 +170,48 @@ namespace Rtx
                 rows = groupsFor(height, Shaders::SHADOW_MASK_HEIGHT);
             }
 
-            const VkFormat format = toVulkanFormat(declared.mFormat);
+            return ImageDescription{ .mWidth = columns,
+                .mHeight = rows,
+                .mFormat = toVulkanFormat(declared.mFormat),
+                .mUsage = declared.mUsage };
+        }
+    }
+
+    DenoiseHistory::DenoiseHistory(const Device& device, const MemoryUse use)
+        : mDevice(device)
+        , mUse(use)
+    {
+    }
+
+    VkDeviceSize DenoiseHistory::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
+    {
+        VkDeviceSize bytes = 0;
+        for (const Declared& declared : sDeclared)
+            bytes += Image::bytesFor(device, descriptionOf(declared, width, height)) * (declared.mPair ? 2 : 1);
+        return bytes;
+    }
+
+    float DenoiseHistory::distanceScaleFor(const float far)
+    {
+        assert(far > 0.0f && "a frame with no far plane to scale a stored distance by");
+        return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
+    }
+
+    void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height)
+    {
+        for (const Declared& declared : sDeclared)
+        {
+            const ImageDescription description = descriptionOf(declared, width, height);
             std::array<Image, 2>& images = mImages[static_cast<std::size_t>(declared.mImage)];
             if (!declared.mPair)
             {
-                images[0] = Image(mDevice, columns, rows, format, declared.mUsage, declared.mName);
+                images[0] = Image(mUse, mDevice, description, declared.mName);
                 continue;
             }
 
             for (std::size_t half = 0; half < images.size(); ++half)
-                images[half] = Image(mDevice, columns, rows, format, declared.mUsage,
-                    std::string(declared.mName) + "-" + std::to_string(half));
+                images[half]
+                    = Image(mUse, mDevice, description, std::string(declared.mName) + "-" + std::to_string(half));
         }
 
         mTurns = TemporalTurns{};

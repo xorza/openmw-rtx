@@ -133,8 +133,8 @@ namespace RtxTool
             // clock, the hour or the weather under a measurement that recorded none of it. A played
             // run answers the brackets, the comma, the full stop, the slash and the page keys with
             // the weather and the clock, through the Lua scripts under the harness's own data
-            // directory, and Home with where it stands, through the session; the played game names
-            // neither the directory nor the file.
+            // directory, Home with where it stands and End with what the renderer holds, through
+            // the session; the played game names neither the directory nor the file.
             if (played)
                 dataDirs.push_back(keysDirectory());
 

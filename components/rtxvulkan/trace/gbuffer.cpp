@@ -99,6 +99,15 @@ namespace Rtx
             return described;
         }
 
+        ImageDescription descriptionOf(
+            const Channel channel, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+        {
+            const ChannelFormat described = formatOf(channel, radiance);
+            return ImageDescription{
+                .mWidth = width, .mHeight = height, .mFormat = described.mFormat, .mUsage = described.mUsage
+            };
+        }
+
         /// Every channel is a storage image the trace writes, and channel `c` binds at binding
         /// `indexOf(c)`, which is what `gbuffer.h`'s `CHANNEL_*` are. Both stages, because the trace
         /// is a launch and everything that reads what it left is a dispatch. One table serves the
@@ -114,21 +123,27 @@ namespace Rtx
     }
 
     GBuffer::GBuffer(const Device& device, const SetLayout& layout, const std::uint32_t width,
-        const std::uint32_t height, const RadianceWidth radiance)
+        const std::uint32_t height, const RadianceWidth radiance, const MemoryUse use)
         : mSet(device, sBindings, layout.get(), 1)
     {
         mChannels.reserve(sChannelCount);
         for (const Channel channel : sEveryChannel)
-        {
-            const ChannelFormat described = formatOf(channel, radiance);
-            mChannels.emplace_back(device, width, height, described.mFormat, described.mUsage, channelName(channel));
-        }
+            mChannels.emplace_back(use, device, descriptionOf(channel, width, height, radiance), channelName(channel));
 
         DescriptorWrites writes(layout, mSet.get(0));
         for (std::uint32_t channel = 0; channel < sChannelCount; ++channel)
             writes.image(channel, mChannels[channel].describeStorage());
 
         updateSets(device, writes.get());
+    }
+
+    VkDeviceSize GBuffer::bytesAt(
+        const Device& device, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+    {
+        VkDeviceSize bytes = 0;
+        for (const Channel channel : sEveryChannel)
+            bytes += Image::bytesFor(device, descriptionOf(channel, width, height, radiance));
+        return bytes;
     }
 
     // One command a hand-over and not two: a run past the batch's room emits what it holds.

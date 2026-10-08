@@ -280,6 +280,14 @@ namespace RtxTool
     /// that draws its frames to look at them, whose table says so above it.
     std::string describePlace(const BenchPlace& place, bool measured = true);
 
+    /// What the scene holds as a place's line says it, after the cell, the hour and the weather:
+    /// its instances, its structures and its textures.
+    std::string describeSceneHeld(const Rtx::SceneStats& scene);
+
+    /// What the host holds of the content as the line under a place's heaps says it, the line
+    /// whole; nothing where the mirror holds nothing.
+    std::string describeHostHeld(const Rtx::ContentMemory& content);
+
     /// The header as the lines the report opens with.
     std::string describeHeader(const BenchHeader& header);
 

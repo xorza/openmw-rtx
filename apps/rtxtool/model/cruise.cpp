@@ -23,6 +23,34 @@ namespace RtxTool
         {
             return 2.0 * leg.mLength / (static_cast<double>(leg.getRests()) * ease);
         }
+
+        /// One end of a leg as it is flown: the speed the key is passed at and how long the ease
+        /// beside it takes.
+        struct LegEnd
+        {
+            double mSpeed = 0.0;
+            double mEase = 0.0;
+        };
+
+        /// How far along a leg of `length` the eye is `at` into it, where it takes `time`, eased
+        /// from `from`'s speed to the one cruise that fills the time and from that to `to`'s.
+        double coveredBetween(
+            const double length, const double time, const double at, const LegEnd& from, const LegEnd& to)
+        {
+            Crash::contract(length > 0.0 && time > 0.0, "a leg flown in no time or no length");
+            const double cruise = (length - from.mSpeed * from.mEase / 2.0 - to.mSpeed * to.mEase / 2.0)
+                / (time - from.mEase / 2.0 - to.mEase / 2.0);
+            const double within = std::clamp(at, 0.0, time);
+
+            if (within < from.mEase)
+                return from.mSpeed * within + (cruise - from.mSpeed) * from.mEase * eased(within / from.mEase);
+            if (within > time - to.mEase)
+            {
+                const double left = time - within;
+                return length - (to.mSpeed * left + (cruise - to.mSpeed) * to.mEase * eased(left / to.mEase));
+            }
+            return from.mSpeed * from.mEase / 2.0 + cruise * (within - from.mEase / 2.0);
+        }
     }
 
     double Cruise::timeFor(const CruiseLeg& leg, const double speed) const
@@ -87,15 +115,18 @@ namespace RtxTool
 
     double Cruise::coveredAt(const CruiseLeg& leg, const double time, const double at) const
     {
-        const double speed = speedFor(leg, time);
         const double rests = static_cast<double>(leg.getRests());
         const double ease = rests == 0.0 || mEase <= 0.0 ? 0.0 : time >= rests * mEase ? mEase : time / rests;
-        const double within = std::clamp(at, 0.0, time);
+        return coveredBetween(leg.mLength, time, at, LegEnd{ .mEase = leg.mFromRest ? ease : 0.0 },
+            LegEnd{ .mEase = leg.mToRest ? ease : 0.0 });
+    }
 
-        if (leg.mFromRest && ease > 0.0 && within < ease)
-            return speed * ease * eased(within / ease);
-        if (leg.mToRest && ease > 0.0 && within > time - ease)
-            return leg.mLength - speed * ease * eased((time - within) / ease);
-        return speed * (leg.mFromRest ? within - ease / 2.0 : within);
+    double Cruise::coveredAt(const CruiseLeg& leg, const double time, const double at, const CruiseJoins& joins) const
+    {
+        Crash::contract(!(leg.mFromRest && joins.mFrom != 0.0) && !(leg.mToRest && joins.mTo != 0.0),
+            "a leg joined at speed where it rests");
+        const double ease = mEase <= 0.0 ? 0.0 : std::min(mEase, time / 2.0);
+        return coveredBetween(leg.mLength, time, at, LegEnd{ .mSpeed = joins.mFrom, .mEase = ease },
+            LegEnd{ .mSpeed = joins.mTo, .mEase = ease });
     }
 }

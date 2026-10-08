@@ -50,8 +50,13 @@ namespace Rtx
     {
     public:
         /// Lays every image out and empties it in one submit it waits for, because nothing times a
-        /// not-a-number is still one. `width` and `height` are the camera's, in pixels.
-        FogVolume(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height);
+        /// not-a-number is still one. `width` and `height` are the camera's, in pixels, and `use`
+        /// what the images are counted as, as `GBuffer` takes it.
+        FogVolume(
+            const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height, MemoryUse use);
+
+        /// What a volume for a camera this size takes of the device's memory.
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
 
         /// The set every fog volume is addressed through, made once and outliving all of them, for
         /// the reason `GBuffer::describeLayout` gives.

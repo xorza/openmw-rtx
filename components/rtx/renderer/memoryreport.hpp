@@ -44,6 +44,26 @@ namespace Rtx
         bool mHostVisible = false;
     };
 
+    /// What the renderer holds of its video memory by what each part is for, in the order the room
+    /// is given in, and about what each kind of content may still take before it is refused. All
+    /// nought from a renderer that does not say.
+    struct MemoryUses
+    {
+        /// The frame's targets, and the most they take at any mode the output allows, which
+        /// content leaves room for.
+        std::uint64_t mFrame = 0;
+        std::uint64_t mFrameReserve = 0;
+
+        /// Everything else the frame cannot go without: its tables, the geometry every hit reads,
+        /// and the staging behind uploads.
+        std::uint64_t mEssential = 0;
+
+        std::uint64_t mStructures = 0;
+        std::uint64_t mStructureRoom = 0;
+        std::uint64_t mTextures = 0;
+        std::uint64_t mTextureRoom = 0;
+    };
+
     /// Every heap of the device the renderer is running on.
     struct MemoryReport
     {
@@ -60,9 +80,12 @@ namespace Rtx
         /// whole 16 GiB is host-visible. A property of the memory type asked for, not of the heap.
         std::uint64_t mHostWrittenReserved = 0;
         std::uint64_t mHostWrittenLive = 0;
+
+        /// The video heap's memory by use.
+        MemoryUses mUses{};
     };
 
-    /// The report as the harness prints it, one line a heap, indented to sit under the place it
-    /// belongs to.
+    /// The report as the harness prints it, one line a heap and the uses' line under them where
+    /// the renderer says, indented to sit under the place it belongs to.
     std::string describeMemory(const MemoryReport& report);
 }

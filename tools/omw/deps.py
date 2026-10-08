@@ -205,8 +205,9 @@ def _run_installer(program: Path, arguments: list[str], log: Path, what: str) ->
     and an exit other than nought is refused with the errors it logged."""
     listed = ", ".join(_quoted(argument) for argument in ["--verbose", *arguments])
     started = subprocess.run(["powershell", "-NoProfile", "-Command",
-                              f"$p = Start-Process -Wait -PassThru -NoNewWindow -FilePath {_quoted(program)} "
-                              f"-RedirectStandardOutput {_quoted(log)} -ArgumentList @({listed}); exit $p.ExitCode"])
+                              (f"$p = Start-Process -Wait -PassThru -NoNewWindow -FilePath {_quoted(program)} "
+                               f"-RedirectStandardOutput {_quoted(log)} -ArgumentList @({listed}); exit $p.ExitCode")],
+                             check=False)
     if started.returncode != 0:
         logged = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
         errors = [line.split("] ", 1)[-1] for line in logged.splitlines() if "Error" in line]

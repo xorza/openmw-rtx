@@ -37,6 +37,13 @@ namespace Rtx
         /// extent"**: one this already has keeps its images, its deep picture and what they hold.
         void resize(const Device& device, std::uint32_t width, std::uint32_t height);
 
+        /// Lets every image go, until the next `resize`.
+        void release();
+
+        /// What the target at this extent takes of the device's memory, the deep picture included,
+        /// which a frame that asks for one makes.
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
+
         bool isOpen() const { return !mShown.isEmpty(); }
 
         /// What every frame is presented at — the one statement of the output extent, because

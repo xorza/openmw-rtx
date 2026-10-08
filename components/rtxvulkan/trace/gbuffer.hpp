@@ -42,8 +42,14 @@ namespace Rtx
     public:
         /// @param radiance how wide the radiance channels are stored, which is the run's choice
         ///        and `Rtx::RadianceWidth`'s argument.
+        /// @param use what its channels are counted as: the frame's targets, or essential memory
+        ///        where the chain grows while a frame reads the old one.
         GBuffer(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height,
-            RadianceWidth radiance);
+            RadianceWidth radiance, MemoryUse use);
+
+        /// What a G-buffer of this extent and radiance width takes of the device's memory.
+        static VkDeviceSize bytesAt(
+            const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance);
 
         /// The set every `GBuffer` is addressed through, made once and outliving all of them,
         /// because a pipeline layout names every set it will ever be handed, and the trace's

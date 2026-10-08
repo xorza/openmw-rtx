@@ -6,7 +6,7 @@ import textwrap
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from omw import crash, deps, formatting, game, gate, kernels, listing, noise, package, perf, repeat, testing
+from omw import crash, deps, formatting, game, gate, kernels, lint, listing, noise, package, perf, repeat, testing
 from omw.build import FLAVOURS, Build
 from omw.system import CI, Refusal, refuse_unsupported, status
 
@@ -47,6 +47,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                build folder, or the newest in dist/ that holds them; no flavour
   format [--check]             clang-format 14 over the working tree: rewrites it, or with --check
                                changes nothing and says what it would; no flavour
+  lint [check...]              the checks CI's checks job runs besides the formatting, every one or
+                               those named: cmake, names, translations, driver, workflows; no flavour
   bootstrap                    the pinned Vulkan SDK into deps/; no flavour
   help                         this page; no flavour
 
@@ -56,7 +58,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   asan      build-asan      debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
   tsan      build-tsan      debug under ThreadSanitizer; Linux only
   package   build-package   release with the launcher, the wizard and the importers, portable
-  full      build-full      debug with every program the tree has, the CS, the launcher and the wizard among them
+  full      build-full      debug with every program the tree has, the CS, the launcher and the wizard among them:
+                            what CI's Linux leg builds, and the gate's
 """
 # The gate's steps, from the one place they are stated, wrapped to the column the verbs' words stand in.
 USAGE = USAGE.replace("{gate}", textwrap.fill(gate.STEPS + " — stops at the first failure", width=100,
@@ -105,7 +108,7 @@ BUILD_VERBS = {
     "setup": Verb(game.setup),
     "repeat": Verb(repeat.repeat),
     "kernels": Verb(kernels.kernels),
-    "gate": Verb(gate.gate),
+    "gate": Verb(gate.gate, flavour="full"),
     "exec": Verb(_exec),
     "archive": Verb(package.archive, flavour="package"),
     "profile": Verb(perf.profile, flavour="release"),
@@ -130,6 +133,7 @@ BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "help": _help,
     "crash": crash.read_crash,
     "format": formatting.format_tree,
+    "lint": lint.lint,
     "bootstrap": _bootstrap,
 }
 

@@ -43,11 +43,23 @@ namespace Rtx
         ///        (`SpriteBin`).
         /// @param radiance how wide the radiance channels and the frame composed from them are
         ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.
-        TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance);
+        /// @param use what its images are counted as: the frame's targets for the world's, which a
+        ///        change of mode makes again only once the old are gone, and essential memory for
+        ///        the pictures', which `grow` makes while a picture may still read the old.
+        TraceChain(
+            const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance, MemoryUse use);
+
+        /// What a chain at this extent takes of the device's memory, the running sum included,
+        /// which a trace that averages makes.
+        static VkDeviceSize bytesAt(
+            const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance);
 
         /// Builds the chain at exactly this extent, whatever it was before, and nothing where it
         /// already stands at it.
         void resize(std::uint32_t width, std::uint32_t height);
+
+        /// Lets every image go, until the next `resize` or `grow`.
+        void release();
 
         /// Makes the chain at least this big, keeping whatever extent it already reached on either
         /// axis. Nothing where it already `holds` the size. Grown and never shrunk, because a
@@ -92,6 +104,7 @@ namespace Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
         const RadianceWidth mRadiance;
+        const MemoryUse mUse;
 
         std::unique_ptr<GBuffer> mChannels;
         std::unique_ptr<FogVolume> mFogVolume;

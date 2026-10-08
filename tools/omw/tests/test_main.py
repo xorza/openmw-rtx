@@ -4,7 +4,6 @@ import re
 import unittest
 
 from omw import gate
-from omw.build import Build
 from omw.main import BUILD_VERBS, BUILDLESS_VERBS, HARNESS_VERBS, USAGE, Line, main, parse
 from omw.system import FORK, ROOT, Refusal, read_text, status
 from omw.testing import ctest_arguments
@@ -72,14 +71,12 @@ class ParseTest(unittest.TestCase):
             with self.subTest(verb=verb):
                 self.assertRegex(USAGE, rf"(?m)^  (\w+, )*{verb}\b")
 
-    def test_the_gate_is_refused_where_the_build_has_no_tests_and_says_its_steps_once(self):
-        # Before anything builds: the flavours whose presets build no test.
-        for flavour in ("release", "package"):
-            with self.subTest(flavour=flavour):
-                with self.assertRaises(Refusal) as refused:
-                    gate.gate(Build(flavour), [])
-                self.assertEqual(str(refused.exception),
-                                 f"the {flavour} build has no tests, and a gate is its tests: `omw debug gate` runs them")
+    def test_the_gate_is_the_full_flavour_s_and_says_its_steps_once(self):
+        # Every program CI builds, and so no other flavour, before anything builds.
+        self.assertEqual(parse(["gate"]), Line("full", "gate", []))
+        for flavour in ("debug", "release", "package"):
+            with self.subTest(flavour=flavour), self.assertRaisesRegex(Refusal, r"gate is made of the full flavour"):
+                parse([flavour, "gate"])
 
         # The help's line is `gate.STEPS`, wrapped, and AGENTS.md names none of the steps itself.
         said = " ".join(re.search(r"(?ms)^  gate +(.*?)\s+—\s+stops", USAGE).group(1).split())

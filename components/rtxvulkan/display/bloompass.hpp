@@ -32,6 +32,12 @@ namespace Rtx
         /// first frame.
         void resize(std::uint32_t width, std::uint32_t height);
 
+        /// Lets the pyramid go, until the next `resize`.
+        void release() { mLevels.clear(); }
+
+        /// What the pyramid for a frame this size takes of the device's memory.
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
+
         /// Builds the pyramid out of `frame`, leaving `frame` as it found it.
         ///
         /// @param frame the finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`, at the

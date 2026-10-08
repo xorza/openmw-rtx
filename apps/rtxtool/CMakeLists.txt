@@ -77,6 +77,8 @@ set(RTXTOOL_HOSTED_FILES
     hosted.cpp
     measurer.cpp
     measurer.hpp
+    memorykey.cpp
+    memorykey.hpp
     session.cpp
     session.hpp
     stager.cpp

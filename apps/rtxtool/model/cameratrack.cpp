@@ -91,6 +91,17 @@ namespace RtxTool
         }
 
         const std::size_t last = mKnots.size() - 1;
+        const auto joinAt = [&](const std::size_t at) {
+            return mPath.restsAt(at) ? 0.0 : std::min(keys[at].mSpeed, keys[at + 1].mSpeed);
+        };
+        for (std::size_t at = 0; at < last; ++at)
+        {
+            const double own = keys[at + 1].mSpeed;
+            const CruiseJoins joins{ .mFrom = joinAt(at), .mTo = joinAt(at + 1) };
+            if ((!mPath.restsAt(at) && joins.mFrom != own) || (!mPath.restsAt(at + 1) && joins.mTo != own))
+                mKnots[at].mJoins = joins;
+        }
+
         const auto secant = [&](const std::size_t from, const std::size_t channel) {
             const Knot& a = mKnots[from];
             const Knot& b = mKnots[from + 1];
@@ -170,7 +181,10 @@ namespace RtxTool
             const CruiseLeg leg{ .mLength = mPath.getLength(segment),
                 .mFromRest = mPath.restsAt(segment),
                 .mToRest = mPath.restsAt(segment + 1) };
-            eye = mPath.at(segment, leg.mLength > 0.0 ? mCruise.coveredAt(leg, span, into) : 0.0);
+            const double along = leg.mLength <= 0.0 ? 0.0
+                : a.mJoins.has_value()              ? mCruise.coveredAt(leg, span, into, *a.mJoins)
+                                                    : mCruise.coveredAt(leg, span, into);
+            eye = mPath.at(segment, along);
             const double u2 = u * u;
             const double u3 = u2 * u;
 

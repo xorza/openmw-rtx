@@ -54,6 +54,32 @@ namespace Rtx
             EXPECT_EQ(out.substr(0, 2), "  ") << "the lines were not indented as asked";
         }
 
+        /// **The video heap by use, under the heaps, where the renderer says**: what the frame's
+        /// targets hold beside what is kept for their largest mode, and what each kind of content
+        /// holds beside what it may still take. A report with no uses prints no such line, as the
+        /// one above shows by its count.
+        TEST(RtxMemoryReportTest, theUsesLineSaysWhatTheVideoHeapHoldsByUse)
+        {
+            MemoryReport report;
+            report.mHeapCount = 1;
+            report.mHeaps[0] = HeapUse{ .mSize = 16ull << 30, .mDeviceLocal = true, .mHostVisible = true };
+            report.mUses = MemoryUses{ .mFrame = 6000ull << 20,
+                .mFrameReserve = 6500ull << 20,
+                .mEssential = 820ull << 20,
+                .mStructures = 174ull << 20,
+                .mStructureRoom = 4096ull << 20,
+                .mTextures = 1290ull << 20,
+                .mTextureRoom = 3840ull << 20 };
+
+            const std::string out = describeMemory(report);
+            EXPECT_NE(
+                out.find("  uses  frame 6000.0 of 6500.0 kept   essential 820.0   structures 174.0, room 4096.0   "
+                         "textures 1290.0, room 3840.0\n"),
+                std::string::npos)
+                << out;
+            EXPECT_EQ(std::count(out.begin(), out.end(), '\n'), 3) << "the heap, the host-written line and the uses";
+        }
+
         /// **A card with resizable BAR has one heap of video memory, which the host writes into
         /// throughout**, and its line names it as both: read by the host's flag alone, 16 GiB of
         /// video memory read as the small window of a card without it, and no line said "device".

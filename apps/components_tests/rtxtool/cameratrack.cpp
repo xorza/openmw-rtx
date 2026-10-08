@@ -87,6 +87,42 @@ namespace RtxTool
             EXPECT_NEAR(held.pose(11).mEye.x(), 100.0f + 0.911458f, 1e-4f);
         }
 
+        /// **A key between a slow leg and a fast one is passed at the slow one's speed.** With an
+        /// ease of four, a hundred units from rest in 22 frames are five a frame,
+        /// `100 / (22 − 2)`, and a thousand more to a rest in 22 are fifty. The slow leg reaches
+        /// the key at its own five, 95 a frame before it; the fast one leaves it at five and
+        /// cruises at `(1000 − 5 · 4 / 2) / (22 − 2 − 2) = 55`, so a frame on the eye has covered
+        /// `5 + 50 · 4 · (0.25³ − 0.25⁴ / 2) = 7.734375`, at the end of the ease
+        /// `5 · 4 + 50 · 4 / 2 = 120`, and at frame 33 `10 + 55 · 9 = 505`. Two frames from the
+        /// end it is short of the last key by `55 · 4 · 0.09375 = 20.625`. With no speeds the fast
+        /// leg flies at its own fifty from the key, 150 a frame on. Flown back, every frame mirrors.
+        TEST(RtxCameraTrackTest, aKeyBetweenASlowLegAndAFastOneIsPassedAtTheSlowSpeed)
+        {
+            const Cruise cruise{ .mEase = 4.0 };
+            std::vector<TrackKey> keys{ keyAt(0, 0.0f), keyAt(22, 100.0f), keyAt(44, 1100.0f) };
+            const CameraTrack unpaced = trackOf(keys, cruise);
+            keys[1].mSpeed = 5.0;
+            keys[2].mSpeed = 50.0;
+            const CameraTrack track = trackOf(keys, cruise);
+
+            EXPECT_NEAR(track.pose(21).mEye.x(), 95.0f, 1e-4f);
+            EXPECT_FLOAT_EQ(track.pose(22).mEye.x(), 100.0f);
+            EXPECT_NEAR(track.pose(23).mEye.x(), 107.734375f, 1e-4f);
+            EXPECT_NEAR(track.pose(26).mEye.x(), 220.0f, 1e-3f);
+            EXPECT_NEAR(track.pose(33).mEye.x(), 605.0f, 1e-3f);
+            EXPECT_NEAR(track.pose(42).mEye.x(), 1079.375f, 1e-3f);
+            EXPECT_FLOAT_EQ(track.pose(44).mEye.x(), 1100.0f);
+            EXPECT_NEAR(unpaced.pose(23).mEye.x(), 150.0f, 1e-3f);
+
+            std::vector<TrackKey> back{ keyAt(0, 1100.0f), keyAt(22, 100.0f), keyAt(44, 0.0f) };
+            back[1].mSpeed = 50.0;
+            back[2].mSpeed = 5.0;
+            const CameraTrack returning = trackOf(back, cruise);
+            for (std::uint32_t frame = 0; frame <= 44; ++frame)
+                EXPECT_NEAR(returning.pose(44 - frame).mEye.x(), track.pose(frame).mEye.x(), 1e-3f)
+                    << "frame " << frame;
+        }
+
         /// **A key passed between two frames is passed at the flight's speed.** A hundred units in
         /// 7.5 frames and `12.5 · 40 / 3` more in 12.5, with no ease: `40 / 3` a frame on both legs,
         /// so frame 7 is `280 / 3` and frame 8 is a hundred and half a frame on, `320 / 3`.

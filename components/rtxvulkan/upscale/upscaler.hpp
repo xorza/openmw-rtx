@@ -84,6 +84,15 @@ namespace Rtx
         /// Lets what `resize` built go and keeps the pipelines, for a mode turned off that may come back.
         void release();
 
+        /// Whether `resize` built anything that stands.
+        bool isBuilt() const { return mTargets != nullptr; }
+
+        /// Whether what `resize` built is for these extents, which a resize to them keeps.
+        bool isAt(VkExtent2D render, VkExtent2D output) const;
+
+        /// What `resize` to these extents builds, in the device's memory.
+        static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output);
+
         /// Says the history is worthless, until the next `record`: after a jump no motion vector can
         /// describe, a new cell or a teleport. A `resize` says it too.
         void reset() { mFrame.reset(); }

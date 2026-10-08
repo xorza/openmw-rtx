@@ -7,7 +7,9 @@
 #include <format>
 #include <fstream>
 #include <optional>
+#include <span>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
@@ -46,6 +48,8 @@ namespace RtxTool
                     key.mStop.mSky.mDay = file.day(field);
                 else if (field.mName == "seconds")
                     key.mSeconds = file.positive(field, "a length of time");
+                else if (field.mName == "at")
+                    key.mAt = file.notNegative(field, "a second of the film");
                 else if (field.mName == "hold")
                     key.mHold = file.notNegative(field, "a length of time");
                 else if (field.mName == "cut")
@@ -194,6 +198,38 @@ namespace RtxTool
             float mJump = 0.0f;
         };
 
+        /// A stretch of the film from a key whose time is named to the next, or from the last of
+        /// them on: its flights share one speed, which fills it where its end is named.
+        struct FilmSpan
+        {
+            /// The film's frame its first key arrives at, and the one its last arrives at where that
+            /// is named: by a key's `at`, or by a length, as the film's last frame.
+            std::uint32_t mFrom = 0;
+            std::optional<std::uint32_t> mTo{};
+
+            /// The keys that open and close it, the close none where a length does.
+            std::size_t mFromKey = 0;
+            std::optional<std::size_t> mToKey{};
+
+            /// Its frames the speed has no say in, as `TakeDraft::mFixed` counts them, and a frame
+            /// for each take that begins in it: the frame the take before ends on.
+            std::uint64_t mFixed = 0;
+
+            /// Its flights, and how many takes have one in it, which take a frame at least each.
+            std::vector<CruiseLeg> mLegs{};
+            std::uint32_t mFlying = 0;
+        };
+
+        /// One take's flights inside one span, `TakeDraft::mLegs` from `mFirst` to `mEnd`: they share
+        /// a speed, and the last of them ends on a whole frame of the take.
+        struct FlightRun
+        {
+            std::size_t mFirst = 0;
+            std::size_t mEnd = 0;
+            std::size_t mSpan = 0;
+            std::uint32_t mFrames = 0;
+        };
+
         /// A take as far as it goes before a speed is chosen: its keys laid out and the path through
         /// them, every segment the speed has no say in timed, and the flights that are left.
         struct TakeDraft
@@ -211,18 +247,12 @@ namespace RtxTool
             std::vector<CruiseLeg> mLegs;
             std::vector<std::size_t> mFlown;
 
+            /// Its flights cut into the spans they lie in, each with the frames it takes.
+            std::vector<FlightRun> mRuns{};
+
             /// The frames of the take the speed has no say in: its holds, its stills, what stands on
             /// the spot, and the keys' own seconds.
             std::uint32_t mFixed = 0;
-
-            /// The frames its flights take at `speed`, in units per frame.
-            double flightFramesAt(const Cruise& cruise, double speed) const
-            {
-                double frames = 0.0;
-                for (const CruiseLeg& leg : mLegs)
-                    frames += cruise.timeFor(leg, speed);
-                return frames;
-            }
         };
 
         /// `range`'s keys at no frames yet, the path through them, and what of the take is timed
@@ -252,6 +282,7 @@ namespace RtxTool
             }
 
             CameraPath path(track);
+            const Cruise cruise = pacing.getCruise();
 
             std::vector<FilmSegment> segments;
             std::vector<CruiseLeg> legs;
@@ -263,18 +294,21 @@ namespace RtxTool
 
                 const std::size_t leaves = leavesFrom[at - range.mFirst - 1];
                 segment.mDistance = path.getLength(leaves);
+                const CruiseLeg leg{
+                    .mLength = segment.mDistance, .mFromRest = path.restsAt(leaves), .mToRest = path.restsAt(leaves + 1)
+                };
 
                 if (to.mSeconds.has_value())
                 {
                     segment.mPace = FilmPace::Given;
                     segment.mFrames = pacing.framesOf(*to.mSeconds);
+                    if (segment.mDistance > 0.0)
+                        segment.mSpeed = cruise.speedFor(leg, segment.mFrames);
                 }
                 else if (segment.mDistance > 0.0)
                 {
                     segment.mPace = FilmPace::Distance;
-                    legs.push_back(CruiseLeg{ .mLength = segment.mDistance,
-                        .mFromRest = path.restsAt(leaves),
-                        .mToRest = path.restsAt(leaves + 1) });
+                    legs.push_back(leg);
                     flown.push_back(segments.size() - 1);
                     continue;
                 }
@@ -343,47 +377,63 @@ namespace RtxTool
             return whole;
         }
 
-        /// Times `draft` with its flights sharing `flightFrames` at one speed, into its take: each
-        /// key's frame, each segment's frames and arrival, and the speed. The take then ends on the
-        /// whole frame its fixed frames and its flights' add to.
-        FilmTake finishTake(TakeDraft draft, const std::uint32_t flightFrames, const FilmPacing& pacing)
+        /// Times `draft` with each run of its flights at the one speed that fills the run's frames,
+        /// into its take: each key's frame and speed, and each segment's frames, arrival and speed.
+        /// The take then ends on the whole frame its fixed frames and its runs' add to.
+        FilmTake finishTake(TakeDraft draft, const FilmPacing& pacing)
         {
             FilmTake& take = draft.mTake;
             const Cruise cruise = pacing.getCruise();
 
-            double speed = 0.0;
-            if (!draft.mLegs.empty())
+            // Per segment, the frames of the run it is the last flight of.
+            std::vector<std::optional<std::uint32_t>> closes(take.mSegments.size());
+            std::uint64_t flights = 0;
+            for (const FlightRun& run : draft.mRuns)
             {
-                speed = cruise.speedFor(draft.mLegs, static_cast<double>(flightFrames));
-                take.mSpeed = speed / double{ pacing.mStep };
-                for (std::size_t at = 0; at < draft.mLegs.size(); ++at)
-                    take.mSegments[draft.mFlown[at]].mFrames = cruise.timeFor(draft.mLegs[at], speed);
+                const std::span<const CruiseLeg> legs(draft.mLegs.data() + run.mFirst, run.mEnd - run.mFirst);
+                const double speed = cruise.speedFor(legs, static_cast<double>(run.mFrames));
+                for (std::size_t at = run.mFirst; at < run.mEnd; ++at)
+                {
+                    FilmSegment& segment = take.mSegments[draft.mFlown[at]];
+                    segment.mFrames = cruise.timeFor(draft.mLegs[at], speed);
+                    segment.mSpeed = speed;
+                }
+                closes[draft.mFlown[run.mEnd - 1]] = run.mFrames;
+                flights += run.mFrames;
             }
 
-            double frame = 0.0;
+            // **Whole frames apart from the part of a run flown so far**, so the key a run ends on
+            // is on its whole frame exactly, where a key its span's time names must be.
+            std::uint64_t whole = 0;
+            double flown = 0.0;
+            const auto frame = [&] { return static_cast<double>(whole) + flown; };
             for (std::size_t at = 0; at < draft.mLeaves.size(); ++at)
             {
+                const std::size_t leaves = draft.mLeaves[at];
+                const std::size_t arrives = draft.mHolds[at] > 0 ? leaves - 1 : leaves;
                 if (at > 0)
                 {
                     FilmSegment& segment = take.mSegments[at - 1];
-                    frame += segment.mFrames;
-                    segment.mArrival = frame;
+                    if (segment.mPace != FilmPace::Distance)
+                        whole += static_cast<std::uint64_t>(segment.mFrames);
+                    else if (const std::optional<std::uint32_t> run = closes[at - 1]; run.has_value())
+                    {
+                        whole += *run;
+                        flown = 0.0;
+                    }
+                    else
+                        flown += segment.mFrames;
+
+                    segment.mArrival = frame();
+                    take.mTrack[arrives].mSpeed = segment.mSpeed;
                 }
 
-                const std::size_t leaves = draft.mLeaves[at];
-                const std::size_t arrives = draft.mHolds[at] > 0 ? leaves - 1 : leaves;
-                take.mTrack[arrives].mFrame = frame;
-                frame += static_cast<double>(draft.mHolds[at]);
-                take.mTrack[leaves].mFrame = frame;
+                take.mTrack[arrives].mFrame = frame();
+                whole += draft.mHolds[at];
+                take.mTrack[leaves].mFrame = frame();
             }
 
-            // The flights were timed to fill their frames exactly, so what is left is rounding.
-            const auto last = static_cast<double>(draft.mFixed + flightFrames);
-            Crash::contract(std::abs(frame - last) < 1e-6 * std::max(1.0, last), "a take timed off its own frames");
-            take.mTrack.back().mFrame = last;
-            if (!take.mSegments.empty() && draft.mHolds.back() == 0)
-                take.mSegments.back().mArrival = last;
-
+            Crash::contract(flown == 0.0 && whole == draft.mFixed + flights, "a take timed off its own frames");
             return std::move(take);
         }
 
@@ -452,14 +502,19 @@ namespace RtxTool
 
         /// What `pace` stands for over `segment`, in the words and numbers that say it.
         std::string describeChange(
-            const FilmPace pace, const FilmSegment& segment, const FilmKey& to, const FilmTake& take)
+            const FilmPace pace, const FilmSegment& segment, const FilmKey& to, const FilmPacing& pacing)
         {
+            const auto flight = [&] {
+                return std::format(
+                    "{:.0f} units at {:.0f} a second", segment.mDistance, segment.mSpeed / double{ pacing.mStep });
+            };
+
             switch (pace)
             {
                 case FilmPace::Given:
-                    return "as the key says";
+                    return segment.mDistance > 0.0 ? "as the key says, " + flight() : "as the key says";
                 case FilmPace::Distance:
-                    return std::format("{:.0f} units at {:.0f} a second", segment.mDistance, take.mSpeed);
+                    return flight();
                 case FilmPace::Turn:
                     return std::format("a turn of {:.0f}°", segment.mTurnDegrees);
                 case FilmPace::Clock:
@@ -474,14 +529,13 @@ namespace RtxTool
 
         /// What set a segment's length, and on a flight what else asks for longer than the flight
         /// gives it: a turn, the clock or a crossing that a speed held from key to key hurries.
-        std::string describePace(
-            const FilmSegment& segment, const FilmKey& to, const FilmTake& take, const FilmPacing& pacing)
+        std::string describePace(const FilmSegment& segment, const FilmKey& to, const FilmPacing& pacing)
         {
-            std::string text = describeChange(segment.mPace, segment, to, take);
+            std::string text = describeChange(segment.mPace, segment, to, pacing);
             const double given = segment.mFrames * double{ pacing.mStep };
             if (segment.mDistance > 0.0 && double{ segment.mAsked } > given)
                 text += std::format(
-                    "; {} asks {:.1f} s", describeChange(segment.mAsker, segment, to, take), segment.mAsked);
+                    "; {} asks {:.1f} s", describeChange(segment.mAsker, segment, to, pacing), segment.mAsked);
             return text;
         }
     }
@@ -509,79 +563,190 @@ namespace RtxTool
         for (const TakeRange& range : ranges)
             drafts.push_back(draftTake(plan, range));
 
-        // **One speed for every flight of the film**, `mSpeed` or the one that fills `mLength`, in
-        // world units a frame; then each take's flights rounded to the whole frames it ends on,
-        // and flown at what fills those exactly — a speed off the film's by at most half a frame
-        // of its own flights, where carrying the part of a frame over into the next take would
-        // start it between two frames.
-        const Cruise cruise = pacing.getCruise();
-        std::vector<CruiseLeg> legs;
-        std::uint64_t fixed = 0;
-        std::uint32_t flying = 0;
-        for (const TakeDraft& draft : drafts)
+        // **The spans the keys' times close.** The segment into a key lies in the span its key
+        // before leaves in, and a key's hold in the one it leaves in, which a key with a time opens.
+        // In `framesOf`'s single precision, so a key's time and a length of as many seconds land
+        // on one frame.
+        const auto frameAt
+            = [&](const float seconds) { return static_cast<std::uint32_t>(std::lround(seconds / pacing.mStep)); };
+        const auto secondsOf
+            = [&](const std::uint64_t frames) { return static_cast<double>(frames) * double{ pacing.mStep }; };
+        std::vector<FilmSpan> spans(1);
+        std::vector<std::size_t> leavesIn(plan.mKeys.size());
+        for (std::size_t at = 0; at < plan.mKeys.size(); ++at)
         {
-            legs.insert(legs.end(), draft.mLegs.begin(), draft.mLegs.end());
-            // And the take's first frame, which it has before anything has moved.
-            fixed += std::uint64_t{ draft.mFixed } + 1;
-            flying += draft.mLegs.empty() ? 0u : 1u;
+            const FilmKey& key = plan.mKeys[at];
+            if (key.mAt.has_value())
+            {
+                const std::uint32_t frame = frameAt(*key.mAt);
+                const FilmKey& opens = plan.mKeys[spans.back().mFromKey];
+                if (at == 0 && frame != 0)
+                    throw std::runtime_error(std::format(
+                        "key \"{}\" on line {} is at {:g} s, and the first key is where the film starts, at 0 s",
+                        key.mStop.mName, key.mLine, *key.mAt));
+                if (at > 0 && frame <= spans.back().mFrom)
+                    throw std::runtime_error(
+                        std::format("key \"{}\" on line {} is at {:g} s, no later than key \"{}\" on line {} at {:g} s",
+                            key.mStop.mName, key.mLine, *key.mAt, opens.mStop.mName, opens.mLine,
+                            opens.mAt.value_or(0.0f)));
+                if (at > 0)
+                {
+                    spans.back().mTo = frame;
+                    spans.back().mToKey = at;
+                    spans.push_back(FilmSpan{ .mFrom = frame, .mFromKey = at });
+                }
+            }
+            leavesIn[at] = spans.size() - 1;
         }
 
-        // **The frames the flights fill, where a length sets them.** A length nobody named stands
-        // aside where it cannot be filled; a named one refuses the film.
-        std::optional<std::uint32_t> flights;
+        for (TakeDraft& draft : drafts)
+        {
+            const FilmTake& take = draft.mTake;
+            if (take.mFirst > 0)
+                ++spans[leavesIn[take.mFirst - 1]].mFixed;
+            for (std::size_t at = take.mFirst; at < take.mEnd; ++at)
+                spans[leavesIn[at]].mFixed += draft.mHolds[at - take.mFirst];
+
+            std::size_t leg = 0;
+            for (std::size_t segment = 0; segment < take.mSegments.size(); ++segment)
+            {
+                FilmSpan& span = spans[leavesIn[take.mFirst + segment]];
+                if (leg == draft.mFlown.size() || draft.mFlown[leg] != segment)
+                {
+                    span.mFixed += static_cast<std::uint64_t>(take.mSegments[segment].mFrames);
+                    continue;
+                }
+
+                const std::size_t in = leavesIn[take.mFirst + segment];
+                if (draft.mRuns.empty() || draft.mRuns.back().mSpan != in)
+                {
+                    draft.mRuns.push_back(FlightRun{ .mFirst = leg, .mEnd = leg, .mSpan = in });
+                    ++span.mFlying;
+                }
+                span.mLegs.push_back(draft.mLegs[leg]);
+                draft.mRuns.back().mEnd = ++leg;
+            }
+        }
+
+        // **A length closes the last span, at the film's last frame.** One nobody named stands
+        // aside where a key names its time, and where it cannot be filled; a named one that
+        // cannot be filled refuses the film.
+        const bool timed = spans.size() > 1 || plan.mKeys.front().mAt.has_value();
         if (pacing.mLength.has_value())
         {
             const FilmLength asked = *pacing.mLength;
             const bool named = asked.mSource == FilmLengthSource::Named;
-            const std::uint32_t length = pacing.framesOf(asked.mSeconds);
-            if (legs.empty())
-            {
-                if (named)
-                    throw std::runtime_error(std::format(
-                        "--length has nothing to set: no key of the film is flown to, where {} s are", asked.mSeconds));
-            }
-            else if (length < fixed + flying)
-            {
-                if (named)
-                    throw std::runtime_error(std::format(
-                        "--length is {} s, and {} take {:.1f} s of it, leaving less than a frame for each of the {} "
-                        "takes that fly",
-                        asked.mSeconds, sFixedFrames, static_cast<double>(fixed) * double{ pacing.mStep }, flying));
-                plan.mDefaultTooShort = asked.mSeconds;
-            }
-            else
-                flights = static_cast<std::uint32_t>(length - fixed);
+            FilmSpan& last = spans.back();
+            // The film's frames, less its last, against the span's fixed frames and its last one.
+            const std::int64_t room = std::int64_t{ pacing.framesOf(asked.mSeconds) } - 1 - std::int64_t{ last.mFrom };
+            const std::int64_t needs = static_cast<std::int64_t>(last.mFixed + last.mFlying);
+            const FilmKey& opens = plan.mKeys[last.mFromKey];
+            const std::string after = timed ? std::format(", {:.1f} s after key \"{}\" at {:g} s,", secondsOf(room + 1),
+                                          opens.mStop.mName, opens.mAt.value_or(0.0f))
+                                            : std::string(",");
+            if (named && room < 0)
+                throw std::runtime_error(std::format("--length is {} s, no later than key \"{}\" at {:g} s",
+                    asked.mSeconds, opens.mStop.mName, opens.mAt.value_or(0.0f)));
+            if (named && last.mLegs.empty())
+                throw std::runtime_error(
+                    std::format("--length has nothing to set: no key {} is flown to, where {} s are",
+                        timed ? std::format("after key \"{}\"", opens.mStop.mName) : "of the film", asked.mSeconds));
+            if (named && room < needs)
+                throw std::runtime_error(std::format(
+                    "--length is {} s{} and {} {}take {:.1f} s of {}, leaving less than a frame for each of the {} "
+                    "takes that fly",
+                    asked.mSeconds, after, sFixedFrames, timed ? "after it " : "", secondsOf(last.mFixed + 1),
+                    timed ? "them" : "it", last.mFlying));
 
-            if (!flights.has_value())
+            if (!named && !timed && !last.mLegs.empty() && room < needs)
+                plan.mDefaultTooShort = asked.mSeconds;
+            if (named || (!timed && !last.mLegs.empty() && room >= needs))
+                last.mTo = static_cast<std::uint32_t>(std::int64_t{ last.mFrom } + room);
+            else
                 plan.mPacing.mLength.reset();
         }
 
-        std::vector<std::uint32_t> frames;
-        frames.reserve(drafts.size());
-        if (flights.has_value())
+        // Each closed span's flights at the one speed that fills it, shared out between its takes
+        // in whole frames; the rest at `mSpeed`, each take's rounded to the whole frame.
+        const Cruise cruise = pacing.getCruise();
+        struct RunAt
         {
-            const double speed = cruise.speedFor(legs, static_cast<double>(*flights));
+            TakeDraft* mDraft = nullptr;
+            FlightRun* mRun = nullptr;
+
+            double framesAt(const Cruise& cruise, const double speed) const
+            {
+                double frames = 0.0;
+                for (std::size_t leg = mRun->mFirst; leg < mRun->mEnd; ++leg)
+                    frames += cruise.timeFor(mDraft->mLegs[leg], speed);
+                return frames;
+            }
+        };
+        std::vector<RunAt> runs;
+        for (std::size_t index = 0; index < spans.size(); ++index)
+        {
+            const FilmSpan& span = spans[index];
+            runs.clear();
+            for (TakeDraft& draft : drafts)
+                for (FlightRun& run : draft.mRuns)
+                    if (run.mSpan == index)
+                        runs.push_back(RunAt{ .mDraft = &draft, .mRun = &run });
+
+            if (!span.mTo.has_value())
+            {
+                const double speed = double{ pacing.mSpeed } * double{ pacing.mStep };
+                for (const RunAt& run : runs)
+                    run.mRun->mFrames
+                        = std::max(1u, static_cast<std::uint32_t>(std::lround(run.framesAt(cruise, speed))));
+                continue;
+            }
+
+            if (span.mToKey.has_value())
+            {
+                const FilmKey& from = plan.mKeys[span.mFromKey];
+                const FilmKey& to = plan.mKeys[*span.mToKey];
+                const std::uint64_t between = *span.mTo - span.mFrom;
+                const std::string named = std::format("key \"{}\" on line {} is at {:g} s, {:.1f} s after key \"{}\"",
+                    to.mStop.mName, to.mLine, *to.mAt, secondsOf(between), from.mStop.mName);
+                if (span.mLegs.empty() && span.mFixed != between)
+                    throw std::runtime_error(std::format(
+                        "{}, and {} between them take {:.1f} s, with no flight between them to take up the difference",
+                        named, sFixedFrames, secondsOf(span.mFixed)));
+                if (span.mFixed + span.mFlying > between)
+                    throw std::runtime_error(std::format(
+                        "{}, and {} between them take {:.1f} s of it, leaving less than a frame for each of the {} "
+                        "takes that fly",
+                        named, sFixedFrames, secondsOf(span.mFixed), span.mFlying));
+            }
+
+            if (runs.empty())
+                continue;
+
+            const auto flights = static_cast<std::uint32_t>(*span.mTo - span.mFrom - span.mFixed);
+            const double speed = cruise.speedFor(span.mLegs, static_cast<double>(flights));
             std::vector<double> shares;
-            shares.reserve(drafts.size());
-            for (const TakeDraft& draft : drafts)
-                shares.push_back(draft.mLegs.empty() ? 0.0 : draft.flightFramesAt(cruise, speed));
-            frames = apportion(shares, *flights);
-        }
-        else
-        {
-            const double speed = double{ pacing.mSpeed } * double{ pacing.mStep };
-            for (const TakeDraft& draft : drafts)
-                frames.push_back(draft.mLegs.empty()
-                        ? 0u
-                        : std::max(1u, static_cast<std::uint32_t>(std::lround(draft.flightFramesAt(cruise, speed)))));
+            shares.reserve(runs.size());
+            for (const RunAt& run : runs)
+                shares.push_back(run.framesAt(cruise, speed));
+            const std::vector<std::uint32_t> frames = apportion(shares, flights);
+            for (std::size_t at = 0; at < runs.size(); ++at)
+                runs[at].mRun->mFrames = frames[at];
         }
 
         std::uint32_t first = 0;
         for (std::size_t at = 0; at < drafts.size(); ++at)
         {
-            FilmTake& take = plan.mTakes.emplace_back(finishTake(std::move(drafts[at]), frames[at], pacing));
+            FilmTake& take = plan.mTakes.emplace_back(finishTake(std::move(drafts[at]), pacing));
             take.mFirstFrame = first;
             take.mSky = skyRunOf(pacing, first);
+
+            for (std::size_t key = take.mFirst; key < take.mEnd; ++key)
+                if (const std::optional<float> time = plan.mKeys[key].mAt; time.has_value())
+                    Crash::contract(static_cast<double>(first)
+                                + (key == take.mFirst ? 0.0 : take.mSegments[key - take.mFirst - 1].mArrival)
+                            == static_cast<double>(frameAt(*time)),
+                        "a key off the frame its time names");
+
             first += take.getFrames();
         }
 
@@ -634,8 +799,9 @@ namespace RtxTool
             text += '\n';
 
             const std::uint32_t start = drawnAt(take.mFirstFrame, 0.0);
-            text += std::format("  {:<28} {} {}, {}{}\n", first.mStop.mName, first.getCell(),
+            text += std::format("  {:<28} {} {}, {}{}{}\n", first.mStop.mName, first.getCell(),
                 describeHourAt(plan, start, first), weatherAt(plan, start, first),
+                first.mAt.has_value() ? std::format(", at {:g} s", *first.mAt) : std::string(),
                 first.mHold > 0.0f ? std::format(", holds {:.1f} s", first.mHold) : std::string());
 
             for (const FilmSegment& segment : take.mSegments)
@@ -643,10 +809,11 @@ namespace RtxTool
                 const FilmKey& key = plan.mKeys[segment.mTo];
                 const std::uint32_t arrival = drawnAt(take.mFirstFrame, segment.mArrival);
 
-                text += std::format("  -> {:<25} {:6.1f} s  {} {}, {}{}  ({})\n", key.mStop.mName,
+                text += std::format("  -> {:<25} {:6.1f} s  {} {}, {}{}{}  ({})\n", key.mStop.mName,
                     seconds(segment.mFrames), describeHourAt(plan, arrival, key), weatherAt(plan, arrival, key),
+                    key.mAt.has_value() ? std::format("at {:g} s, ", *key.mAt) : std::string(),
                     key.mHold > 0.0f ? std::format("holds {:.1f} s, ", key.mHold) : std::string(), key.getCell(),
-                    describePace(segment, key, take, pacing));
+                    describePace(segment, key, pacing));
             }
         }
 

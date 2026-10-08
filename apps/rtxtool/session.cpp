@@ -234,6 +234,7 @@ namespace RtxTool
         if (mRequest.mPlayed)
         {
             mHome.listen();
+            mMemoryKey.listen();
             if (const SkyPress press = mSkyKeys.listen(); press.mSteps != 0)
                 mCamera.turnSkyBy(currentStop(), press.mSteps, press.mAtOnce);
         }
@@ -266,6 +267,7 @@ namespace RtxTool
         {
             mNote.take(report.mAir);
             mHome.answer(mNote.getLeft(), report, context.mBackend.getExtents());
+            mMemoryKey.answer(context);
         }
 
         if (mProbe.has_value())

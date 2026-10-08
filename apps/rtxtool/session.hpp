@@ -18,6 +18,7 @@
 #include "cameradriver.hpp"
 #include "homekey.hpp"
 #include "measurer.hpp"
+#include "memorykey.hpp"
 #include "skykeys.hpp"
 #include "stager.hpp"
 #include "standingnote.hpp"
@@ -141,6 +142,7 @@ namespace RtxTool
         StandingNote mNote;
         HomeKey mHome;
         SkyKeys mSkyKeys;
+        MemoryKey mMemoryKey;
         Measurer mMeasurer;
         StopWriter mWriter;
     };

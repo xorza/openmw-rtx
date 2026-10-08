@@ -126,6 +126,15 @@ namespace Rtx
         /// does. A pyramid built at the other extent is a bloom at the wrong scale.
         void resize(std::uint32_t width, std::uint32_t height);
 
+        /// Lets what `resize` built go, until the next one.
+        void release() { mBloom.release(); }
+
+        /// What `resize` to this extent builds, in the device's memory.
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height)
+        {
+            return BloomPass::bytesAt(device, width, height);
+        }
+
         /// The glare fader's query starts the frame at nothing, ahead of the trace that counts.
         void beginGlare(VkCommandBuffer commands) const;
 

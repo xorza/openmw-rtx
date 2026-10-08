@@ -1,5 +1,6 @@
 #include "vulkanrenderer.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <chrono>
@@ -67,6 +68,29 @@ namespace Rtx
         /// since a doll grows by a piece of armour and not by a town.
         constexpr std::uint32_t sWorldPlacementRoom = 1u << 18;
 
+        /// The most the frame's targets take at an output `width` by `height`, over every mode the
+        /// renderer can be switched to there: what `createTargets` makes for the mode that takes
+        /// the most, a deep picture and a running sum included, which a frame may ask for.
+        VkDeviceSize largestFrameAt(
+            const Device& device, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+        {
+            const VkExtent2D output{ width, height };
+            const VkDeviceSize shown
+                = PresentTarget::bytesAt(device, width, height) + DisplayChain::bytesAt(device, width, height);
+
+            VkDeviceSize largest = 0;
+            for (const Upscale mode : sUpscaleNames.values())
+            {
+                const FrameExtents extents = extentsFor(width, height, mode);
+                const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
+                VkDeviceSize bytes = shown + TraceChain::bytesAt(device, render.width, render.height, radiance);
+                if (upscales(mode))
+                    bytes += Upscaler::bytesAt(device, render, output);
+                largest = std::max(largest, bytes);
+            }
+            return largest;
+        }
+
         /// The instance a window needs, which is the headless one plus whatever SDL asks for — the
         /// surface among it, which is what tells the device to take a swapchain.
         std::vector<const char*> surfaceExtensionsFor(const RendererOptions& options)
@@ -101,7 +125,7 @@ namespace Rtx
         , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, MemoryUse::Frame)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
         , mMedia(mDevice, FogNoise::shared())
         , mGui(mDevice)
@@ -175,19 +199,42 @@ namespace Rtx
 
         // A frame of a different size is not one this one can be reprojected against; a mode that
         // traces and shows at the sizes the last did keeps every history.
-        if (render.width != mFrame.getWidth() || render.height != mFrame.getHeight() || !mTarget.isOpen()
-            || output.width != mTarget.getExtent().width || output.height != mTarget.getExtent().height)
+        const bool traceMoves = render.width != mFrame.getWidth() || render.height != mFrame.getHeight();
+        const bool outputMoves = !mTarget.isOpen() || output.width != mTarget.getExtent().width
+            || output.height != mTarget.getExtent().height;
+        if (traceMoves || outputMoves)
             mPast |= FramePast::resized();
+
+        // **The targets a mode does not keep go before the new are made**, so a change of mode
+        // holds one set of them and never two: content stops where the largest set the output
+        // allows still fits (`MemoryUse::Frame`), which leaves no room for a second beside the
+        // first. A change of mode may wait, as a new world does.
+        const bool upscalerMoves = mUpscaler.isBuilt() && !(upscaling() && mUpscaler.isAt(render, output));
+        const bool shownMoves = mTarget.isOpen() && outputMoves;
+        if ((mFrame.isBuilt() && traceMoves) || shownMoves || upscalerMoves)
+        {
+            drain();
+            if (traceMoves)
+                mFrame.release();
+            if (shownMoves)
+            {
+                mTarget.release();
+                mDisplay.release();
+            }
+            if (upscalerMoves)
+                mUpscaler.release();
+            mDevice.collectIdle();
+        }
+        mDevice.getMemory().reserveFrame(largestFrameAt(mDevice, width, height, mProfile.mRadianceWidth));
 
         mFrame.resize(render.width, render.height);
 
         mTarget.resize(mDevice, width, height);
 
-        // An upscaler a mode turned off keeps nothing but its pipelines: its images go with the mode.
+        // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
+        // mode, above.
         if (upscaling())
             mUpscaler.resize(render, output);
-        else
-            mUpscaler.release();
 
         // Over the output extent, which is what the frame is by the time the curve maps it: the
         // upscaler's output where one runs, and the trace itself, at the same size, where none does.
