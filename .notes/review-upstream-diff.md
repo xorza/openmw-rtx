@@ -54,11 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.14 `omw setup` leaves a half-written `openmw.cfg` when the importer fails.**
-  `tools/omw/game.py:283-291`. The next `omw setup` then refuses ("is already there"). Target: write
-  and import into `openmw.cfg.partial`, and rename only on success, as `fetch.build_beside` does.
-  Verify: a unit test with a failing `run_here`; `cd tools && python -m unittest discover -s omw/tests -t .`.
-
 - [ ] **1.15 `omw repeat` and `omw noise --ab` leave empty temporary folders when the build fails.**
   `tools/omw/repeat.py:223`, `tools/omw/noise.py:162`: `mkdtemp` runs before the harness compiles.
   Target: remove the folder when it is empty and an exception leaves. Keep it in every other case,
