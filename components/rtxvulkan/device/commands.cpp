@@ -163,14 +163,60 @@ namespace Rtx
         return commands;
     }
 
-    std::vector<VkCommandBuffer> CommandPool::allocate(std::uint32_t count)
+    LentCommands CommandPool::lend(const std::uint32_t count)
     {
         std::vector<VkCommandBuffer> buffers;
         buffers.reserve(count);
         for (std::uint32_t at = 0; at < count; ++at)
             buffers.push_back(take());
 
-        return buffers;
+        return LentCommands(*this, std::move(buffers));
+    }
+
+    void CommandPool::retire(std::span<const VkCommandBuffer> commands)
+    {
+        const std::uint64_t until = mDevice.getTimeline().getNext();
+        for (VkCommandBuffer buffer : commands)
+            mRetiring.hold(until, std::move(buffer));
+    }
+
+    LentCommands::LentCommands(LentCommands&& other) noexcept
+        : mPool(other.mPool)
+        , mBuffers(std::move(other.mBuffers))
+    {
+        other.mBuffers.clear();
+    }
+
+    LentCommands& LentCommands::operator=(LentCommands&& other) noexcept
+    {
+        if (this != &other)
+        {
+            giveBack();
+            mPool = other.mPool;
+            mBuffers = std::move(other.mBuffers);
+            other.mBuffers.clear();
+        }
+        return *this;
+    }
+
+    LentCommands::~LentCommands()
+    {
+        giveBack();
+    }
+
+    VkCommandBuffer LentCommands::add()
+    {
+        assert(mPool != nullptr && "a buffer added to commands no pool lent");
+        mBuffers.push_back(mPool->take());
+        return mBuffers.back();
+    }
+
+    void LentCommands::giveBack()
+    {
+        if (mBuffers.empty())
+            return;
+        mPool->retire(mBuffers);
+        mBuffers.clear();
     }
 
     std::size_t CommandPool::takeStaging(const VkDeviceSize bytes)

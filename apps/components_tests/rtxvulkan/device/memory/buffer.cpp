@@ -130,7 +130,8 @@ namespace Rtx
             EXPECT_TRUE(target.isIdle());
 
             Testing::HeldSubmit hold(device);
-            Recording recording = pool.begin(pool.allocate(1).front());
+            const LentCommands lent = pool.lend(1);
+            Recording recording = pool.begin(lent[0]);
             const VkCommandBuffer commands = recording.get();
             source.copyTo(commands, target, 64);
 
@@ -178,7 +179,8 @@ namespace Rtx
             const Buffer ordered = Buffer::staging(device, 64, writable, "test");
 
             Testing::HeldSubmit hold(device);
-            Recording recording = pool.begin(pool.allocate(1).front());
+            const LentCommands lent = pool.lend(1);
+            Recording recording = pool.begin(lent[0]);
             const VkCommandBuffer commands = recording.get();
             filled.clear(commands);
             constexpr std::array<std::byte, 4> word{};

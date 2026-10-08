@@ -21,7 +21,8 @@ namespace Rtx
             /// An empty submit behind `hold`, and what it signals.
             std::uint64_t submitHeld(Testing::HeldSubmit& hold)
             {
-                return hold.submit(getPool().begin(getPool().allocate(1).front()));
+                const LentCommands commands = getPool().lend(1);
+                return hold.submit(getPool().begin(commands[0]));
             }
         };
 

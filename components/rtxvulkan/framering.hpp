@@ -13,6 +13,7 @@
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/digest.h>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -24,16 +25,6 @@ namespace Rtx
 {
     class Device;
     class Image;
-    class Recording;
-
-    /// One command buffer and the timeline value it was submitted under.
-    struct Submission
-    {
-        VkCommandBuffer mCommands = VK_NULL_HANDLE;
-
-        /// What the submit signalled on the device's timeline, which is what says it has run.
-        std::uint64_t mSubmitted = 0;
-    };
 
     /// Where a frame's slot stands between one use and the next: nothing recorded, begun by a
     /// placement or a trace and not yet submitted, or submitted and not yet waited for. One
@@ -54,13 +45,15 @@ namespace Rtx
         /// the interface is traced between the two. Only the trace's value is waited on: it is
         /// later on the queue, so its signal covers every placement before it. One buffer per
         /// placement, because a cell crossing places twice and two placements sharing a buffer
-        /// is a recording over a submit in flight. Grown to the busiest frame so far and never
-        /// freed.
-        std::vector<VkCommandBuffer> mPlaceCommands;
+        /// is a recording over a submit in flight. Grown to the busiest frame so far and given
+        /// back with the ring.
+        LentCommands mPlaceCommands;
         std::size_t mPlacements = 0;
+        LentCommands mTraceCommands;
 
-        /// The world's: every placement of this frame, then the trace.
-        Submission mWorld;
+        /// What the trace's submit signalled on the device's timeline, which is what says every
+        /// placement of this frame and the trace have run.
+        std::uint64_t mSubmitted = 0;
 
         Stepped<FrameState> mState{ FrameState::Idle };
 

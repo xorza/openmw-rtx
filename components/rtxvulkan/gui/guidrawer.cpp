@@ -21,12 +21,11 @@ namespace Rtx
         , mPass(device)
         , mTextures(device)
     {
-        // Allocated once and recorded into again.
-        const std::vector<VkCommandBuffer> commands = mDevice.getPool().allocate(sFrameSlots);
+        // Lent once and recorded into again.
         for (std::uint32_t slot = 0; slot < sFrameSlots; ++slot)
         {
             Slot& held = mSlots.at(FrameSlot{ slot });
-            held.mCommands = commands[slot];
+            held.mCommands = mDevice.getPool().lend(1);
             held.mVertices
                 = GrowableBuffer(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "gui vertices");
         }
@@ -78,7 +77,7 @@ namespace Rtx
                     mTextures.alphaOf(batch.mTexture) });
         }
 
-        Recording recording = mDevice.getPool().begin(slot.mCommands);
+        Recording recording = mDevice.getPool().begin(slot.mCommands[0]);
         const VkCommandBuffer commands = recording.get();
         picture.transition(commands, PresentTarget::sResting, Use::sFragmentGeneralSample);
         shown.transition(commands, Use::sUndefined, Use::sColourAttachment);

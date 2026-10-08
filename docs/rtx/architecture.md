@@ -249,6 +249,12 @@ at the top, over all of them.
   that replaces a buffer and a destructor that lets a scene go are safe with frames in flight. A
   missing required feature refuses the device, and each optional extension is taken whole or not
   at all.
+- **The command pool** (`device/commands.hpp`) has one model, and each object owns one thing. A
+  `LentCommands` is the buffers a ring, a drawer or the presenter records into again and again;
+  its end gives them back once a submit after it has run. A `Recording` is one scope's span from
+  `begin` to its submit or its end, and an exception that leaves the scope resets the buffer. A
+  `Batch` is setup work with its staging and holds, and a one-off submit is a batch too. No other
+  submit is made while a recording is open.
 - **The pipeline cache** (`device/pipelinecache.hpp`) is a file in the user's cache folder, named
   for the driver and the shaders. Its own header ahead of the driver's blob names the device, the
   driver's version, and the blob's length and digest, so a short or damaged file is refused before

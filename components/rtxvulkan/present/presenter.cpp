@@ -78,11 +78,7 @@ namespace Rtx
 
         // Given back to the pool, which is what lets the rebuild take a fresh set: one kept here
         // per resize or vsync change would be a few dozen sets over a window's life.
-        std::vector<VkCommandBuffer> commands;
-        commands.reserve(mImages.size());
-        for (const SwapImage& image : mImages)
-            commands.push_back(image.mCommands);
-        mDevice.getPool().recycle(commands);
+        mCommands = LentCommands();
 
         mAcquiring.clear();
         mImages.clear();
@@ -103,7 +99,7 @@ namespace Rtx
 
         // A blit stamp of nought, which the timeline has passed: no image has been blitted onto
         // yet.
-        const std::vector<VkCommandBuffer> commands = mDevice.getPool().allocate(images);
+        mCommands = mDevice.getPool().lend(images);
         mImages.resize(images);
         for (std::uint32_t index = 0; index < images; ++index)
         {
@@ -112,7 +108,6 @@ namespace Rtx
             image.mBlitOn = 0;
             if (mDevice.hasPresentFences())
                 image.mPresented.emplace(mDevice);
-            image.mCommands = commands[index];
         }
     }
 
@@ -195,7 +190,7 @@ namespace Rtx
         if (image.mPresented.has_value())
             image.mPresented->settle(mDevice, "the presentation engine letting go of this image");
 
-        Recording recording = mDevice.getPool().begin(image.mCommands);
+        Recording recording = mDevice.getPool().begin(mCommands[index]);
         const VkCommandBuffer commands = recording.get();
 
         frame.transition(commands, PresentTarget::sResting, Use::sBlitRead);

@@ -279,7 +279,8 @@ namespace Rtx
                 [&](VkCommandBuffer commands) { vkCmdResetQueryPool(commands, timer.getQueryPool(), 0, 2); });
 
             timer.beginFrame();
-            Recording never = device.getPool().begin(device.getPool().take());
+            const LentCommands lent = device.getPool().lend(1);
+            Recording never = device.getPool().begin(lent[0]);
             {
                 const GpuZone timed(&timer, never.get(), FrameZone::Trace);
             }
