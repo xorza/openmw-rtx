@@ -78,7 +78,8 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_FAST) un
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED) uniform readonly image2D sampled;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform readonly image2D sampledFill;
 
-/// The slow means as the accumulator blended them, and in the bounce's `a` the variance this writes.
+/// The slow means as the accumulator blended them, and in the bounce's `a` the deviation this writes:
+/// the square root of the variance, which the wavelet squares back (`atrous.comp` says why).
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_BLENDED, ATROUS_CHANNEL) uniform image2D blended;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHANNEL) uniform image2D fillBlended;
 
@@ -243,7 +244,7 @@ void main()
     const vec3 followedFill = fastFillHere + pushed * towardFill;
 
     // **A short history's variance is the square's moments, by how nearly each tap is this surface**
-    // (`facingWeight`, `coplanarWeight`), as ReLAX weighs its spatial estimate's taps and SVGF its
+    // (`facingWeights`, `coplanarWeight`), as ReLAX weighs its spatial estimate's taps and SVGF its
     // bilateral one: a short history stands where something was uncovered, and a flat square mixed
     // the occluder's moments into the uncovered surface's variance, which loosened the wavelet's
     // brightness test where it matters. A branch, which only those pixels take: computed for every
@@ -264,14 +265,14 @@ void main()
             for (int x = -REACH; x <= REACH; ++x)
             {
                 const ivec2 tap = own + ivec2(x, y);
-                const float alike = facingWeight(normal, gNormals[tap.y][tap.x], ATROUS_NORMAL_POWER)
+                const float alike = facingWeights(normal, gNormals[tap.y][tap.x]).mFilter
                     * coplanarWeight(normal, position, gPositions[tap.y][tap.x], footprint);
                 momentSum += alike * gMoments[tap.y][tap.x];
                 momentWeight += alike;
             }
         variance = shortHistoryVariance(momentSum.x / momentWeight, momentSum.y / momentWeight, frames);
     }
-    RTX_STORE_COUNTED(blended, at, vec4(held, variance))
+    RTX_STORE_COUNTED(blended, at, vec4(held, sqrt(variance)))
     RTX_STORE_COUNTED(fillBlended, at, vec4(heldFill, 0.0))
     RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u))
 }

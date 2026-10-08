@@ -12,10 +12,3 @@ again in `SlotTable::sync` (`outgrow`) and rewrites the whole table, on each fra
 acceleration structure, which reports its own size". `SceneAcceleration::getStructureBytes`
 (`sceneacceleration.hpp:127`) counts the bottom and top levels alone, so no report counts the index
 blocks.
-
-## The shadow filter's history passes through `packHalf2x16`
-
-`shadowfilter.comp:117` packs each tap's temporal value into shared memory with `packHalf2x16`, and the
-first level's answer is the next frame's history. The spec leaves that conversion's rounding to the
-device, so on a device that rounds toward nought the history is biased at every frame, whatever the
-images' full-float formats.

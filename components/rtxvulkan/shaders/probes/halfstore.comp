@@ -3,7 +3,9 @@
 #extension GL_GOOGLE_include_directive : require
 
 // Each float stored into a half-float image as it is, for `RtxHalfStoreTest` to read back how the
-// store rounded it. The format is the one every history kept in halves is declared with.
+// store rounded it. The format is the one every history kept in halves is declared with. Beside it,
+// the float packed by `packHalf2x16` into a word the host reads as bits, so no compiler folds the
+// pack against an unpack, and stored into an eight-bit normalized image.
 
 #include "shared/halfstore.h"
 #include "shared/sets.h"
@@ -18,6 +20,13 @@ layout(set = SET_PASS, binding = HALF_STORE_BIND_VALUES, scalar) readonly buffer
 
 layout(set = SET_PASS, binding = HALF_STORE_BIND_STORED, STORAGE_RGBA16F) uniform writeonly image2D stored;
 
+layout(set = SET_PASS, binding = HALF_STORE_BIND_PACKED, scalar) writeonly buffer Packed
+{
+    uint packed[];
+};
+
+layout(set = SET_PASS, binding = HALF_STORE_BIND_BYTES, STORAGE_RGBA8) uniform writeonly image2D bytes;
+
 layout(push_constant, scalar) uniform Push
 {
     HalfStoreConstants store;
@@ -30,4 +39,6 @@ void main()
         return;
 
     imageStore(stored, ivec2(int(at), 0), vec4(values[at]));
+    packed[at] = packHalf2x16(vec2(values[at], 0.0));
+    imageStore(bytes, ivec2(int(at), 0), vec4(values[at]));
 }

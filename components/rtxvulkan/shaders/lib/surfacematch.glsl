@@ -206,15 +206,46 @@ float historyCovered(vec4 shares)
 }
 
 /// How nearly a tap faces the way the centre's surface does, as a weight: SVGF's normal test, the
-/// cosine to the `power` — `ATROUS_NORMAL_POWER` for the wavelet's levels and the shadow's,
-/// `ACCUMULATE_FIX_NORMAL_POWER` for the history fix.
+/// cosine to a power — the hundred and twenty-eighth for the wavelet's levels, the shadow's and the
+/// clamp's, the eighth for the history fix.
 ///
 /// **Clamped above as well as below.** A unit vector normalised in floats has a length just off one,
 /// so a dot with a normal that matches — the centre tap's with its own, above all — can pass one, and
 /// a hundred and twenty-eight powers of that is a weight too heavy.
-float facingWeight(vec3 normal, vec3 there, float power)
+///
+/// **By squaring, and not by `pow`**, which is one of the operations the pin leaves to the device
+/// (`spirvpin.hpp`), where a product is rounded exactly by the specification. Both powers are powers
+/// of two, so one chain of seven products makes both, and each caller takes the one it weighs by. A
+/// power is changed here, by the chain. **A chain written out**: a loop
+/// over the squarings stayed a loop in every module that called it, and the wavelet, the shadow
+/// filter and the clamp each lost a seventh of their time to its counting.
+struct FacingWeights
 {
-    return pow(clamp(dot(normal, there), 0.0, 1.0), power);
+    /// The history fix's, the eighth: NRD's `historyFixEdgeStoppingNormalPower`. **Not the
+    /// wavelet's**, whose taps stand a pixel or two away: the fix's stand up to fourteen, where a
+    /// shading normal on a curved or normal-mapped surface has turned ten or fifteen degrees, which the
+    /// hundred and twenty-eighth weighs at 0.14 and 0.012 and the eighth at 0.89 and 0.76. On a floor
+    /// of stripes twenty degrees apart, the strip the eye turned to kept 0.51 of its noise without the
+    /// fix under the eighth, and 0.72 under the hundred and twenty-eighth
+    /// (`theHistoryFixFindsItsNeighboursOnABumpySurface`).
+    float mFix;
+
+    /// The wavelet's, the shadow filter's and the clamp's, the hundred and twenty-eighth: it keeps a
+    /// tap at more than about six degrees of tilt from contributing anything, which is what stops a
+    /// wall bleeding into the floor it meets. SVGF's own.
+    float mFilter;
+};
+
+FacingWeights facingWeights(vec3 normal, vec3 there)
+{
+    const float cosine = clamp(dot(normal, there), 0.0, 1.0);
+    const float second = cosine * cosine;
+    const float fourth = second * second;
+    const float eighth = fourth * fourth;
+    const float sixteenth = eighth * eighth;
+    const float thirtySecond = sixteenth * sixteenth;
+    const float sixtyFourth = thirtySecond * thirtySecond;
+    return FacingWeights(eighth, sixtyFourth * sixtyFourth);
 }
 
 /// How far a tap lies off the plane of the centre's surface, as a weight: one in the plane, and

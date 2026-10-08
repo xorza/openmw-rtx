@@ -1363,15 +1363,6 @@ namespace Rtx::Shaders
     /// seven pixels for a new pixel, so its taps reach fourteen, and four once three frames hold.
     const float ACCUMULATE_FIX_STRIDE = 14.0f;
 
-    /// How sharply a history fix's tap has to face the way the pixel does, as the exponent on their
-    /// cosine: NRD's `historyFixEdgeStoppingNormalPower`. **Not the wavelet's 128**, whose taps stand
-    /// a pixel or two away: the fix's stand up to fourteen, where a shading normal on a curved or
-    /// normal-mapped surface has turned ten or fifteen degrees, which 128 weighs at 0.14 and 0.012 and
-    /// eight at 0.89 and 0.76. On a floor of stripes twenty degrees apart, the strip the eye turned to
-    /// kept 0.51 of its noise without the fix under eight, and 0.72 under 128
-    /// (`theHistoryFixFindsItsNeighboursOnABumpySurface`).
-    const float ACCUMULATE_FIX_NORMAL_POWER = 8.0f;
-
     /// Where the far plane lands once a distance has been scaled for `ACCUMULATE_SURFACE`.
     ///
     /// **A half float is precise in proportion rather than in steps, so what a distance wants from
@@ -1413,13 +1404,6 @@ namespace Rtx::Shaders
     /// results … we recommend clamping the maximum reactive value to around 0.9". At one the
     /// upscaler keeps nothing of its history and shows the jittered sample alone.
     const float UPSCALE_MASK_CEILING = 0.9f;
-
-    /// How sharply a tap's normal has to agree with the centre's, as the exponent on their cosine.
-    ///
-    /// A hundred and twenty-eight keeps a tap at more than about six degrees of tilt from
-    /// contributing anything, which is what stops a wall bleeding into the floor it meets. SVGF's
-    /// own.
-    const float ATROUS_NORMAL_POWER = 128.0f;
 
     /// How far off the centre pixel's tangent plane a tap may sit, in pixel footprints.
     ///

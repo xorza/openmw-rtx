@@ -37,11 +37,14 @@
 //
 // **What it changes, and why:**
 //
-// - **Full floats.** The SDK's filter works only with half-float arithmetic, `FFX_HALF`: without it
-//   the functions are stubs. Here the arithmetic is full floats, and halves are only what shared
-//   memory holds, as they are there.
+// - **Full floats, in shared memory too.** The SDK's filter works only with half-float arithmetic,
+//   `FFX_HALF`: without it the functions are stubs, and shared memory holds halves. Here both are
+//   full floats. The first level's answer is the next frame's history, so a half in its shared
+//   memory was a rounding inside the history's loop, and one `packHalf2x16` makes as the device
+//   pleases: this card rounds it to nearest (`aPackedHalfRoundsToNearestOnThisCard`), and one that
+//   truncated would have darkened every penumbra a little at each frame.
 // - **The tree's two surface tests** in place of the SDK's depth and normal ones: `coplanarWeight`,
-//   over positions rebuilt through the eye that cast each ray, and `facingWeight`. The wavelet stops
+//   over positions rebuilt through the eye that cast each ray, and `facingWeights`. The wavelet stops
 //   at the same edges, so a shadow does not bleed across an edge the bounce under it stops at.
 // - **No contrast step.** The SDK's last level raises its mean to `max(1.2 - variance, 1)`, which
 //   darkens a penumbra on purpose: 3.4% of a penumbra's light, against a 256-frame reference, in
@@ -90,9 +93,9 @@ layout(push_constant, scalar) uniform Push
 const int APRON = 1 << SHADOW_LEVEL;
 const uint SPAN = SHADOW_WORKGROUP + 2u * uint(APRON);
 
-/// The level's input as two halves in a word, the surface's normal code — `SURFACE_NO_NORMAL` where
-/// the pixel receives nothing, so no test passes it — and where the surface stands.
-shared uint gInput[SPAN][SPAN];
+/// The level's input, the surface's normal code — `SURFACE_NO_NORMAL` where the pixel receives
+/// nothing, so no test passes it — and where the surface stands. Six kilobytes at the widest level.
+shared vec2 gInput[SPAN][SPAN];
 shared float gNormal[SPAN][SPAN];
 shared vec3 gPosition[SPAN][SPAN];
 
@@ -114,7 +117,7 @@ void readSquare(ivec2 corner)
         const vec2 value = imageLoad(source, pixel).rg;
         const bool lit = value.y != SHADOW_NO_RECEIVER;
 
-        gInput[square.y][square.x] = packHalf2x16(value);
+        gInput[square.y][square.x] = value;
         gNormal[square.y][square.x] = lit ? seen.x : SURFACE_NO_NORMAL;
         gPosition[square.y][square.x]
             = lit ? positionAlong(eyeOfPixel(seen.y, level.mEyes), pixel, surfaceDistance(seen.y)) : vec3(0.0);
@@ -123,7 +126,7 @@ void readSquare(ivec2 corner)
 
 vec2 inputAt(ivec2 square)
 {
-    return unpackHalf2x16(gInput[square.y][square.x]);
+    return gInput[square.y][square.x];
 }
 
 /// The SDK's 3×3 Gaussian over the variance, which is the tent (`tentWeight`). A pixel that
@@ -204,7 +207,7 @@ void main()
                 const vec2 there = inputAt(tap);
                 const float tested = kernelAt(x) * kernelAt(y) * exp(-abs(here.x - there.x) / deviation)
                     * coplanarWeight(normal, position, gPosition[tap.y][tap.x], footprint)
-                    * facingWeight(normal, unpackSurfaceNormal(tapNormal), ATROUS_NORMAL_POWER);
+                    * facingWeights(normal, unpackSurfaceNormal(tapNormal)).mFilter;
                 // Selected and not skipped, as the temporal pass selects what it stores
                 // (`shadowtiles.comp` names the measurement).
                 const float weight = tapNormal != SURFACE_NO_NORMAL ? tested : 0.0;

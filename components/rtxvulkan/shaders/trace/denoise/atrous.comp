@@ -35,6 +35,13 @@
 // and the tap's variance together, and not the centre's alone** (`ATROUS_LUMINANCE_SIGMA` says
 // why).
 //
+// **The alpha holds the deviation, its square root, and not the variance itself.** Each level
+// shrinks the variance by its weights' squares, and the narrow levels store it in a half
+// (`ATROUS_NARROW`): in dim light the variance fell under the least normal half, 6.1e-5, or was
+// flushed to nought, and the brightness test refused every tap in the dark. The deviation spans half
+// the exponents, so a half holds it where it held none of the variance. Every level squares what
+// it reads and stores the root of what it leaves.
+//
 // **The first level is also NRD's history fix** (`ACCUMULATE_FIX_FRAMES`): at a pixel whose mean
 // holds that few frames, its taps stand `ACCUMULATE_FIX_STRIDE / (1 + n)` apart under ReLAX's flat
 // kernel, with no brightness test, so the pixel takes the light of the surface around it.
@@ -72,7 +79,7 @@ layout(constant_id = ATROUS_SPEC_WIDE) const bool ATROUS_WIDE = true;
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 
 /// The one bounce, albedo divided out, as the last level left it, and in `a` the
-/// variance of its luminance: the accumulator's clamp's for the first level, and what the last
+/// deviation of its luminance: the accumulator's clamp's for the first level, and what the last
 /// level's average left of it for every level after. Where a pixel's mean holds too few frames to
 /// have measured its own, the square's around it (`shortHistoryVariance`).
 ///
@@ -161,7 +168,8 @@ float varianceAround(ivec2 at)
                 continue;
 
             const float w = tentWeight(ivec2(x, y));
-            sum += texelFetch(source, tap, 0).a * w;
+            const float deviation = texelFetch(source, tap, 0).a;
+            sum += deviation * deviation * w;
             weight += w;
         }
 
@@ -226,7 +234,7 @@ void main()
     // pixel moved the filter zone by nothing on the default suite, three alternated rounds. A narrow
     // level reads the centre's, which the levels before it averaged. Each tap adds its own beside it.
     const vec4 centre = texelFetch(source, at, 0);
-    const float noise = ATROUS_WIDE ? varianceAround(at) : centre.a;
+    const float noise = ATROUS_WIDE ? varianceAround(at) : centre.a * centre.a;
     const float here = dot(centre.rgb, LUMINANCE_WEIGHTS);
 
     // What the average leaves of the variance, for the next level: each tap's own, by the square of
@@ -253,14 +261,15 @@ void main()
             // Two surfaces are the same surface where they face the same way and lie in the same
             // plane. Both tests are needed: a facing test alone joins two parallel walls a room
             // apart, and a plane test alone joins a floor to the wall standing on it.
-            const float facing
-                = facingWeight(normal, facingThere, fixing ? ACCUMULATE_FIX_NORMAL_POWER : ATROUS_NORMAL_POWER);
+            const FacingWeights faced = facingWeights(normal, facingThere);
+            const float facing = fixing ? faced.mFix : faced.mFilter;
             const float coplanar = coplanarWeight(normal, position, positionAt(tap, there.y), footprint);
 
             // The third of SVGF's three, and the only one about the light rather than the surface.
             // **None in the history fix**, whose centre holds too few frames to have a spread.
             const vec4 light = texelFetch(source, tap, 0);
-            const float spread = ATROUS_LUMINANCE_SIGMA * sqrt(0.5 * (noise + light.a)) + 1e-4;
+            const float tapVariance = light.a * light.a;
+            const float spread = ATROUS_LUMINANCE_SIGMA * sqrt(0.5 * (noise + tapVariance)) + 1e-4;
             const float lit = fixing ? 1.0 : exp(-abs(here - dot(light.rgb, LUMINANCE_WEIGHTS)) / spread);
             const float kernel
                 = fixing ? 1.0 : (ATROUS_WIDE ? kernelAt(x) * kernelAt(y) : gaussianAt(x) * gaussianAt(y));
@@ -269,11 +278,11 @@ void main()
             sum += light.rgb * w;
             sumFill += texelFetch(fillSource, tap, 0).rgb * w;
             weight += w;
-            variance += light.a * w * w;
+            variance += tapVariance * w * w;
         }
 
     // The centre always passes its own tests, so the weight can only be zero if it underflowed.
-    const vec4 answer = weight > 0.0 ? vec4(sum / weight, variance / (weight * weight)) : centre;
+    const vec4 answer = weight > 0.0 ? vec4(sum / weight, sqrt(variance) / weight) : centre;
     const vec4 answerFill = weight > 0.0 ? vec4(sumFill / weight, 0.0) : texelFetch(fillSource, at, 0);
     RTX_STORE_COUNTED(filtered, at, answer)
     RTX_STORE_COUNTED(fillFiltered, at, answerFill)

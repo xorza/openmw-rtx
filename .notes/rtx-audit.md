@@ -55,7 +55,7 @@ Group 4 builds this helper once, and the histories, the fog volume and the paylo
 | 0 | Measure first: counters and ceilings | — | none | measurement |
 | 1 | Denoiser lifetimes and exact packing — **done** | 80 B/px (131 MB), ~50 B/px of traffic | bit-exact | straightforward |
 | 2 | G-buffer exact packing | 4–8 B/px, 2–3 channels | bit-exact (pane albedo: experiment) | straightforward |
-| 3 | Precision and portability fixes | — | ulp-level | straightforward |
+| 3 | Precision and portability fixes — **done** | — | ulp-level | straightforward |
 | 4 | Stochastic-rounding halves | history 440 → ~220 B/px; fog −53 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
 | 5 | Transient memory (aliasing) | 50–130 MB | none | infrastructure |
 | 6 | Scene tables and structures | ~40–80 MB; one frame-path spike removed | bit-exact | straightforward |
@@ -176,6 +176,15 @@ Proof: `shot --against` (nothing moves), `check`, `repeat`; the tests reading `C
 (`shadow.cpp`, `light.cpp`) move to the decoder.
 
 ## Group 3: precision and portability fixes
+
+**Done, at no cost in frame time.** The shadow filter's shared memory holds full floats; the
+cascade's alpha holds the deviation (dim light at a sixteenth and a sixty-fourth of the light now
+filters within 0.79 and 2.0 ten-thousandths of the same scene 1024 times brighter, where the variance
+left 11 and 22); the normal test is seven squarings written out. The probes found this card rounds
+`packHalf2x16` and byte stores to nearest, so item 4 needed no fix. **Two corrections to what follows**:
+the squarings bring exactness, not speed — they measure as `pow` does — and a loop of them stayed a
+loop in the built modules and cost the filter, shadow and clamp zones 13–15 % until it was written
+out.
 
 Findings, not savings. Each changes pictures at the ulp level on this card and makes them hold on other
 devices. One `shot --against` and one `noise` run cover the group.
