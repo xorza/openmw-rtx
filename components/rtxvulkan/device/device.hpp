@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -137,8 +138,12 @@ namespace Rtx
 
         VkDevice get() const { return mHandle; }
 
-        /// Where `vkCreateDevice` puts one.
-        VkDevice* put() { return &mHandle; }
+        /// Takes `device`, made and checked, into an owner that holds none.
+        void adopt(VkDevice device)
+        {
+            assert(mHandle == VK_NULL_HANDLE && "a device adopted over another");
+            mHandle = device;
+        }
 
     private:
         VkDevice mHandle = VK_NULL_HANDLE;

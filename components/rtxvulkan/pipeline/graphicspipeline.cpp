@@ -172,10 +172,10 @@ namespace Rtx
             .basePipelineHandle = VK_NULL_HANDLE,
             .basePipelineIndex = 0,
         };
-        Owned<VkPipeline, vkDestroyPipeline> handle;
-        checkVk(vkCreateGraphicsPipelines(
-                    device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, handle.put(device)),
+        VkPipeline made = VK_NULL_HANDLE;
+        checkVk(vkCreateGraphicsPipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &made),
             "vkCreateGraphicsPipelines");
+        Owned<VkPipeline, vkDestroyPipeline> handle(device, made);
 
         creation.finish(handle.get());
         return handle;
