@@ -10,6 +10,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -85,10 +86,11 @@ namespace Rtx
         mLevels.reserve(levels);
         mTexels.reserve(texels);
 
-        // What the assertions below are taken against: the reserve and the fill agree by argument
-        // through branches that push a different number of levels each, and a growth is the failure.
-        [[maybe_unused]] const std::size_t reserved = mLevels.capacity();
-        [[maybe_unused]] const std::size_t reservedTexels = mTexels.capacity();
+        // What the contracts below are taken against: the reserve and the fill agree by argument
+        // through branches that push a different number of levels each, and a growth is the failure
+        // — in a release build too, where it would hand the backend spans into freed storage.
+        const std::size_t reserved = mLevels.capacity();
+        const std::size_t reservedTexels = mTexels.capacity();
 
         mDescriptions.reserve(mKept.size());
         for (const Kept& kept : mKept)
@@ -111,8 +113,8 @@ namespace Rtx
             mDescriptions.push_back(data);
         }
 
-        assert(mLevels.capacity() == reserved && "the level table grew while descriptions spanned it");
-        assert(mTexels.capacity() == reservedTexels && "the laid texels grew while descriptions spanned them");
+        Crash::contract(mLevels.capacity() == reserved, "the level table grew while descriptions spanned it");
+        Crash::contract(mTexels.capacity() == reservedTexels, "the laid texels grew while descriptions spanned them");
     }
 
     Misc::Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)
