@@ -37,8 +37,10 @@ namespace Rtx
         ///
         /// @param passes what the chain traces with, which outlives it.
         /// @param bins how many sprite bins the chain keeps, `VisibilityInputs::mTraceSlot` picking
-        ///        one: one per frame in flight for the world's, and one for the pictures', which are
-        ///        traced and waited for one at a time.
+        ///        one: one per frame in flight for the world's, and one for the pictures'. One is
+        ///        enough there though nothing waits for a picture, because the pictures' batches
+        ///        stand in queue order and a bin's tables are written on the device alone
+        ///        (`SpriteBin`).
         /// @param radiance how wide the radiance channels and the frame composed from them are
         ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.
         TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance);

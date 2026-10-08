@@ -56,7 +56,7 @@ namespace Rtx
         /// What the sea's amplitudes were last drawn for.
         const SeaState& getSea() const { return mWaves.getSea(); }
 
-        /// Draws another sea's amplitudes. Nothing may be in flight: `WavePass::describe` says why.
+        /// Draws another sea's amplitudes, which a frame in flight does not feel: `WavePass::describe`.
         void describeSea(const SeaState& sea) { mWaves.describe(sea); }
 
         /// Draws another fog field. Nothing may be in flight.

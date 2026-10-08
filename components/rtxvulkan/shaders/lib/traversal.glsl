@@ -363,7 +363,7 @@ struct Candidate
 const uint MEET_WALK_PAST = 0u;
 
 /// **Met as often as it is there**, and passed otherwise: every ray that commits a hit and shades it —
-/// a bounce, a reflection, a refraction, the reuse's rays. Met every time, a pane the eye sees
+/// a bounce, a reflection, a refraction. Met every time, a pane the eye sees
 /// through stood solid in each of them; met by chance, their mean is the blend the eye draws.
 const uint MEET_BY_CHANCE = 1u;
 
