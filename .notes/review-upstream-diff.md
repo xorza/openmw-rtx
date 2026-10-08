@@ -55,13 +55,6 @@ What is left:
 Measure each against the baseline bench (median, p99, worst frame), on a quiet desktop, in the
 background.
 
-- [ ] **4.4 `CellHolds::mModels` shifts owning rows on every insert.**
-  `mirror/held.hpp:272`, `held.cpp:291-344`. A sorted `flat_set` of rows that each own a vector moves
-  every later row, on the frame thread, for each new model. Target: a
-  `boost::unordered_flat_map<const PreparedModel*, HeldModel>` reserved at a budget. Only `forget()`
-  iterates, and order does not matter there.
-  Verify: `RtxCellRingTest.*`, the bench on a moving route.
-
 - [ ] **4.5 Each trace variant reads and parses the same SPIR-V files again.**
   `pipeline/computepipeline.cpp:14`, `tracepipeline.cpp:47`, `shadercode.cpp:91-117`,
   `trace/visibilitypass.cpp:319,332`. 32 variants re-read the 1.5 MB closest-hit module and rebuild
