@@ -6,15 +6,22 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
 #include <osg/BoundingBox>
 #include <osg/Vec3d>
 
 namespace
 {
-    /// How many cells the grid may hold, and how many lamp entries across all of them. Two
-    /// budgets, because a wide exterior overruns the first and one lamp with an enormous reach
-    /// overruns the second, and doubling the cell until both fit recovers either.
+    /// How many cells what the lamps reach may span, and how many lamp entries the grid may hold
+    /// across all of its cells. Two budgets, because a wide exterior overruns the first and one
+    /// lamp with an enormous reach overruns the second, and doubling the cell until both fit
+    /// recovers either.
+    ///
+    /// **The spare cells around that extent come on top of the first budget.** Counted in it, they
+    /// doubled the cell of one build in six over the shot suite's places, because an exterior is a
+    /// few cells high and two more is half as many again. On top, the largest grid there is 88,168
+    /// cells, a third over the budget, where the coarser cell had every lookup walk more lamps.
     constexpr std::size_t sMaxCells = 65536;
     constexpr std::size_t sMaxEntries = 262144;
 
@@ -185,25 +192,40 @@ namespace Rtx
             bounds.expandBy(osg::BoundingBoxd(centre - reach, centre + reach));
         }
 
-        mOrigin = bounds.valid() ? osg::Vec3f(bounds._min) : osg::Vec3f();
+        const osg::Vec3d low = bounds.valid() ? bounds._min : osg::Vec3d();
         const osg::Vec3d extent = bounds.valid() ? bounds._max - bounds._min : osg::Vec3d();
 
-        // The cell doubles until the grid fits both budgets, or until it is a single cell: past
-        // that, doubling drops no entry, and more lamps than the entry budget still have to be
-        // listed. An axis is capped one past the cell budget before it is cast, because a far lamp
-        // gives it more cells than a `uint32_t` holds, and one past fails the test whatever the
-        // others hold.
+        // **A cell to spare on every side of what the lamps reach**, so a lamp carried outward is
+        // binned into the grid as it stands: at the exact extent, a lamp walking out past the others
+        // made the grid again on every frame it moved, and with a cell to spare it does once a cell.
+        // None where there are no lamps, which have no side to move out of.
+        const double spare = bounds.valid() ? 1.0 : 0.0;
+
+        // The cell doubles until the grid fits both budgets, or until what the lamps reach fits in a
+        // single cell: past that, a lamp is in two cells an axis at most, and more lamps than the
+        // entry budget still have to be listed. An axis is capped one past the cell budget before it
+        // is cast, because a far lamp gives it more cells than a `uint32_t` holds, and one past
+        // fails the test whatever the others hold.
         mBoxes.reserve(lights.size());
         mMoved.reserve(lights.size());
         for (double cell = sFirstCell;; cell *= 2.0)
         {
             mInverseCell = static_cast<float>(1.0 / cell);
+            std::size_t reachedCells = 1;
             for (int axis = 0; axis < 3; ++axis)
-                mSize[axis] = static_cast<std::uint32_t>(
-                    std::clamp(std::ceil(extent[axis] / cell), 1.0, static_cast<double>(sMaxCells + 1)));
+            {
+                const double reached
+                    = std::clamp(std::ceil(extent[axis] / cell), 1.0, static_cast<double>(sMaxCells + 1));
+                reachedCells *= static_cast<std::size_t>(reached);
+                mSize[axis] = static_cast<std::uint32_t>(reached + 2.0 * spare);
+                // Held inside the float range, because a lamp near its end reaches past it and a cast
+                // from past it is undefined. Such a lamp reaches out of the grid on that side, and is
+                // binned into the cells it reaches inside it.
+                mOrigin[axis] = static_cast<float>(
+                    std::max(low[axis] - spare * cell, double{ std::numeric_limits<float>::lowest() }));
+            }
 
-            const std::size_t cells = std::size_t{ mSize.x() } * mSize.y() * mSize.z();
-            if (cells > sMaxCells)
+            if (reachedCells > sMaxCells)
                 continue;
 
             // Each lamp's box once, for the budget, the count and the fill alike, and kept for the
@@ -214,7 +236,7 @@ namespace Rtx
                 entries += mBoxes.emplace_back(boxAround(light.mPosition, light.mReach, mOrigin, mInverseCell, mSize))
                                .getCount();
 
-            if (entries <= sMaxEntries || cells == 1)
+            if (entries <= sMaxEntries || reachedCells == 1)
                 break;
         }
 
