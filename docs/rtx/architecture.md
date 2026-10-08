@@ -78,6 +78,13 @@ C++ and as GLSL, beside the C++ that reads them: `components/rtx/shaders/*.h` fo
 reads, and `components/rtxvulkan/shaders/shared/*.h` for what only the backend and its shaders read
 (the bindings, the passes' constants, the shader binding table's records).
 
+Each module's interface is read once, in one pass over its words (`readInterface`,
+`components/rtxvulkan/spirv/spirvinterface.hpp`): its bindings, its specialization constants, the
+end of its push block and its vertex inputs. A stage holds them to what the C++ states beside the
+GLSL (`ShaderCode::stage` and `feed`): every set its layout names, the words it is handed, the
+layout's push range and the pipeline's attributes. A disagreement ends the process and names the
+module. The pinning walks a module's words through the same walk (`forEachInstruction`).
+
 `./omw [flavour] <verb>` is the one command line over the CMake presets, on the desk and in CI.
 `./omw help` lists both.
 
