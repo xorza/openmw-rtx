@@ -63,12 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.9 A moved-from `SceneDesc` keeps its identity.**
-  `scene/scenedesc.hpp:55-56`, `scenedesc.cpp:31`. The copy is deleted because two descriptions must
-  not share one identity, but the defaulted move leaves the source with it. Production never moves
-  one, the tests do. Target: a hand-written move that gives the source a fresh identity.
-  Verify: `./omw test components-tests --gtest_filter='RtxSceneDescTest.*:RtxSceneUploaderTest.*'`.
-
 - [ ] **2.10 `VulkanRenderer` wires its members by reference without deleting copy and move.**
   `vulkanrenderer.hpp:57-271`. AGENTS.md pins such an owner. Today it is non-movable only because
   `Device` declares a destructor. Target: delete the four special members.

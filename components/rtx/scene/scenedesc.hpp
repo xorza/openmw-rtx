@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <osg/BoundingBox>
@@ -61,9 +62,10 @@ namespace Rtx
         SceneDesc& operator=(const SceneDesc&) = delete;
 
         /// Which description this is, for a backend that holds a slot built from one: never
-        /// nought, never handed out twice in a process, and kept across a move — so a slot can say
-        /// what it was built from without naming an address a later description may take over.
-        std::uint64_t getIdentity() const { return mIdentity; }
+        /// nought, never handed out twice in a process, and carried by a move, which leaves the
+        /// source a fresh one — so a slot can say what it was built from without naming an address
+        /// a later description may take over, and no two descriptions share one.
+        std::uint64_t getIdentity() const { return mIdentity.mValue; }
 
         /// Copies the vertex data into the shared buffers and returns the new mesh's index. Every
         /// attribute but `MeshArrays::mPositions` may be empty; when one is not it must match the
@@ -268,7 +270,34 @@ namespace Rtx
         template <class Visit>
         void forEachPlacement(Visit&& visit) const;
 
-        std::uint64_t mIdentity;
+        /// What `getIdentity` answers. A type of its own, so the defaulted moves carry it and
+        /// leave the source a fresh one.
+        struct Identity
+        {
+            Identity()
+                : mValue(next())
+            {
+            }
+
+            Identity(Identity&& other) noexcept
+                : mValue(std::exchange(other.mValue, next()))
+            {
+            }
+
+            Identity& operator=(Identity&& other) noexcept
+            {
+                if (this != &other)
+                    mValue = std::exchange(other.mValue, next());
+                return *this;
+            }
+
+            /// The next value no description has held.
+            static std::uint64_t next() noexcept;
+
+            std::uint64_t mValue;
+        };
+
+        Identity mIdentity;
 
         Stepped<Turn> mTurn{ Turn::Open };
 

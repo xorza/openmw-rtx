@@ -27,9 +27,11 @@ namespace Rtx
         std::atomic<std::uint64_t> sIdentities{ 0 };
     }
 
-    SceneDesc::SceneDesc()
-        : mIdentity(++sIdentities)
+    SceneDesc::SceneDesc() = default;
+
+    std::uint64_t SceneDesc::Identity::next() noexcept
     {
+        return ++sIdentities;
     }
 
     Index SceneDesc::addMesh(const MeshArrays& arrays, FoldedShape shape, Index deformer)
