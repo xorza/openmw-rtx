@@ -2,6 +2,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string>
@@ -1788,6 +1789,34 @@ namespace Rtx
         }
 
         static_assert(sizeof(MeshHold) == sizeof(Index), "a hold is the index it holds and nothing beside it");
+
+        /// **A mesh handed a normal or a tangent that is not finite dies where it is added.** The
+        /// mirror's reader reads one as none, so one here is a producer that skipped it, and a skin
+        /// would pose it into a store that is not finite.
+        TEST(RtxSceneDescTest, aMeshWithANormalOrATangentThatIsNotFiniteDies)
+        {
+            const float nan = std::numeric_limits<float>::quiet_NaN();
+            const std::array<osg::Vec3f, 4> normals{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(nan, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 0.0f, 1.0f) };
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene;
+                    scene.addMesh(MeshArrays{
+                        .mPositions = Testing::sUnitQuad, .mNormals = normals, .mIndices = Testing::sQuadIndices });
+                },
+                "a normal that is not finite");
+
+            const std::array<osg::Vec4f, 4> tangents{ osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f),
+                osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f), osg::Vec4f(1.0f, 0.0f, 0.0f, nan),
+                osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f) };
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene;
+                    scene.addMesh(MeshArrays{
+                        .mPositions = Testing::sUnitQuad, .mTangents = tangents, .mIndices = Testing::sQuadIndices });
+                },
+                "a tangent that is not finite");
+        }
 
         /// **A hold its holder forgot is named where the holder lets it go**, and not found as a row
         /// that never leaves; and a hold written over while it holds is a hold lost, named where it

@@ -103,8 +103,10 @@ namespace Rtx
         std::vector<osg::Vec3f> mCopiedColourScratch;
         std::vector<osg::Vec4f> mTangentScratch;
 
-        /// Where an overall normal is spread across a drawable's vertices.
-        std::vector<osg::Vec3f> mFlatNormalScratch;
+        /// Where an overall normal is spread across a drawable's vertices, and where normals or
+        /// tangents with one that is not finite are copied (`finiteOrNone`).
+        std::vector<osg::Vec3f> mReadNormalScratch;
+        std::vector<osg::Vec4f> mReadTangentScratch;
 
         /// Where a drawable's colours are decoded to. Always scratch, where the other
         /// attributes are usually the geometry's own arrays: what the file holds is display-encoded

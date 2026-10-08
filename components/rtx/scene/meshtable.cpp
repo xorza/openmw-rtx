@@ -8,6 +8,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/shaders/tangent.h>
 
 namespace Rtx
@@ -74,6 +75,10 @@ namespace Rtx
             && "a unit reads a second set the mesh did not bring");
         assert(arrays.mColours.empty() || arrays.mColours.size() == positions.size());
         assert(arrays.mTangents.empty() || arrays.mTangents.size() == positions.size());
+        assert(std::ranges::all_of(arrays.mNormals, [](const osg::Vec3f& normal) { return isFinite(normal); })
+            && "a normal that is not finite, which the reader reads as none");
+        assert(std::ranges::all_of(arrays.mTangents, [](const osg::Vec4f& tangent) { return isFinite(tangent); })
+            && "a tangent that is not finite, which the reader reads as none");
         assert(indices.size() % 3 == 0);
         assert(std::all_of(indices.begin(), indices.end(), [&](std::uint32_t i) { return i < positions.size(); }));
         assert(deformer == sNoIndex

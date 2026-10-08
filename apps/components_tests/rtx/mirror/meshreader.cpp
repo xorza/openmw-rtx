@@ -1,6 +1,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
@@ -141,6 +142,31 @@ namespace Rtx::Testing
             ASSERT_EQ(asLong.mArrays.mNormals.size(), 4u);
             for (const osg::Vec3f& normal : asLong.mArrays.mNormals)
                 EXPECT_EQ(normal, osg::Vec3f(0.0f, 0.0f, 1.0f)) << "an overall array was read per vertex";
+
+            // **A normal that is not a finite number is read as none**, per vertex and overall, and a
+            // per-vertex array with none of them is read in place rather than copied.
+            const float nan = std::numeric_limits<float>::quiet_NaN();
+            const float inf = std::numeric_limits<float>::infinity();
+            osg::ref_ptr<osg::Vec3Array> perVertex = makePositions({ osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(nan, 0.0f, 1.0f), osg::Vec3f(0.0f, -inf, 0.0f), osg::Vec3f(0.0f, 0.0f, 1.0f) });
+            quad->setNormalArray(perVertex, osg::Array::BIND_PER_VERTEX);
+            MeshReading unwritten;
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), unwritten).value());
+            EXPECT_EQ(unwritten.mArrays.mNormals.size(), 4u);
+            EXPECT_EQ(std::vector<osg::Vec3f>(unwritten.mArrays.mNormals.begin(), unwritten.mArrays.mNormals.end()),
+                (std::vector<osg::Vec3f>{
+                    osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(), osg::Vec3f(), osg::Vec3f(0.0f, 0.0f, 1.0f) }));
+
+            (*perVertex)[1] = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            (*perVertex)[2] = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), unwritten).value());
+            EXPECT_EQ(unwritten.mArrays.mNormals.data(), perVertex->asVector().data()) << "a finite array was copied";
+
+            quad->setNormalArray(makePositions({ osg::Vec3f(nan, nan, nan) }), osg::Array::BIND_OVERALL);
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), unwritten).value());
+            ASSERT_EQ(unwritten.mArrays.mNormals.size(), 4u);
+            for (const osg::Vec3f& normal : unwritten.mArrays.mNormals)
+                EXPECT_EQ(normal, osg::Vec3f()) << "an overall normal that is not finite";
 
             // A drawable with no triangles mirrors nothing, and says so rather than reading zero.
             osg::ref_ptr<osg::Geometry> empty = new osg::Geometry;
@@ -331,6 +357,16 @@ namespace Rtx::Testing
             ASSERT_EQ(reading.mArrays.mTangents.size(), 4u);
             for (std::size_t vertex = 0; vertex < 4; ++vertex)
                 EXPECT_EQ(reading.mArrays.mTangents[vertex], (*tangents)[vertex]) << vertex;
+            EXPECT_EQ(reading.mArrays.mTangents.data(), tangents->asVector().data()) << "a finite array was copied";
+
+            // **A tangent that is not a finite number is read as none**, as a normal is: the
+            // generator builds one from the normals the content wrote.
+            const std::vector<osg::Vec4f> written = tangents->asVector();
+            (*tangents)[1].x() = std::numeric_limits<float>::quiet_NaN();
+            (*tangents)[2].w() = std::numeric_limits<float>::infinity();
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
+            EXPECT_EQ(std::vector<osg::Vec4f>(reading.mArrays.mTangents.begin(), reading.mArrays.mTangents.end()),
+                (std::vector<osg::Vec4f>{ written[0], osg::Vec4f(), osg::Vec4f(), written[3] }));
 
             EXPECT_EQ(reading.mArrays.mSecondTexCoords.data(), second->asVector().data());
             EXPECT_EQ(reading.mArrays.mUnitStreams, (1u << 2) | (1u << 3));
