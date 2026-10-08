@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/Vec2f>
@@ -95,6 +97,17 @@ namespace MWRender
         MyGUI::ITexture& getTexture() const override;
 
     private:
+        /// The ground a picture taken straight down covers, between its two corners.
+        struct Footprint
+        {
+            osg::Vec2f mLow;
+            osg::Vec2f mHigh;
+        };
+
+        /// The footprint of an orthographic world view, centred under the eye, or nothing for any
+        /// other view.
+        std::optional<Footprint> footprintFromAbove() const;
+
         /// Where the copy in main memory stands, for `getCopy`.
         ///
         /// **`OffscreenView::getCopy` promises null until the copy holds the picture the most
