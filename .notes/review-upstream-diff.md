@@ -52,23 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.5 `omw kernels` digests `shadowfilter.comp` at its first filter level only.**
-  `tools/omw/kernels.py:50-80` reads only boolean spec constants (`OpSpecConstantTrue/False`) and
-  freezes `SHADOW_LEVEL` (`shadowfilter.comp:68`) at its default 0. `shadowpass.cpp:33` builds
-  `SHADOW_FILTER_LEVELS` = 3 pipelines, and the level-1 and level-2 paths (`:159,166,192`) are never
-  digested. So AGENTS.md's "a tuple it did not name draws what it drew" is false for two of the
-  three. Target: unsigned spec constants are enumerated over a domain, and no constant can stay at
-  its default unnoticed.
-  1. A table of domains keyed by the constant's `OpName`, each read from the shared header that
-     sizes it (`SHADOW_LEVEL` from `shared/shadow.h`'s `SHADOW_FILTER_LEVELS`), as `listing.py`
-     reads CMake text.
-  2. An unsigned constant with no domain is a `Refusal`, so a new one cannot stay frozen in silence.
-  3. `settings()` takes the cartesian product, and the labels read `SHADOW_LEVEL=2`.
-
-  Take a fresh `kernels.txt` after this item.
-  Verify: `./omw kernels` lists three `SHADOW_LEVEL` tuples, a throwaway edit inside the
-  `SHADOW_LEVEL == 1u` path is named by `--against`, and `tools/omw/tests/test_kernels.py`.
-
 - [ ] **3.6 Nothing keeps the CMake shader lists complete.**
   `components/rtxvulkan/CMakeLists.txt`: `RTX_SHADER_LIB` lacks `lib/census.glsl`, `lib/hash.glsl`,
   `lib/historyclamp.glsl`, and the header list lacks `shared/medium.h`. An entry shader left out of
