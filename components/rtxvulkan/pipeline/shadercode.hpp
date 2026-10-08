@@ -10,7 +10,7 @@
 
 #include <volk.h>
 
-#include <components/rtxvulkan/spirv/spirvbindings.hpp>
+#include <components/rtxvulkan/spirv/spirvinterface.hpp>
 
 namespace Rtx
 {
@@ -59,7 +59,7 @@ namespace Rtx
         {
             std::string mModule;
             std::vector<std::uint32_t> mWords;
-            std::vector<ModuleBinding> mBindings;
+            ModuleInterface mInterface;
             VkDebugUtilsObjectNameInfoEXT mNamed{};
             VkShaderModuleCreateInfo mCreate{};
 

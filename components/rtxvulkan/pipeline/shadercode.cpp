@@ -82,7 +82,8 @@ namespace Rtx
             known = std::prev(mRead.end());
         }
 
-        if (const std::optional<std::string> disagreement = passBindingDisagreement(known->mBindings, pass.get()))
+        if (const std::optional<std::string> disagreement
+            = passBindingDisagreement(known->mInterface.mBindings, pass.get()))
             Crash::fatal(std::format("{}: {}", module, *disagreement));
 
         return known->mStage;
@@ -92,10 +93,9 @@ namespace Rtx
     {
         // Both read before the entry is made, so a module either refuses leaves none behind.
         std::vector<std::uint32_t> words = readSpirv(mDevice.getShaderDirectory() / module);
-        std::vector<ModuleBinding> bindings;
-        readBindings(words, bindings);
+        ModuleInterface interface = readInterface(words);
         Read& read = mRead.emplace_back(
-            Read{ .mModule = std::string(module), .mWords = std::move(words), .mBindings = std::move(bindings) });
+            Read{ .mModule = std::string(module), .mWords = std::move(words), .mInterface = std::move(interface) });
 
         read.mCreate = VkShaderModuleCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,

@@ -52,21 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.1 Two copies of the SPIR-V instruction walker, and no one reader of a module's interface.**
-  `spirv/spirvbindings.cpp:114-130` and `spirv/spirvpin.cpp:502-529` decode the header, the word
-  count and the opcode twice. They throw different types and spell the masks two ways. Items 3.2 to
-  3.4 each need more of a module's interface. Target:
-  1. One `forEachInstruction(span, visitor)` in `spirvfile.hpp` that throws `InputError`. The pin
-     tool already catches it.
-  2. `readBindings` grows into `readInterface`, one pass that returns a `ModuleInterface`: the
-     bindings by set, each `SpecId` with its type (bool or 32-bit), the push block's byte end (last
-     member's `Offset` plus its size, through structs and `ArrayStride`), and the stage's input
-     `Location`s with their component counts.
-  3. `ShaderCode` reads the interface once per module, beside the code (see item 4.5).
-
-  Verify: `./omw test components-tests --gtest_filter='*Spirv*:*Pin*'`, a full `./omw build`
-  (every shader is pinned).
-
 - [ ] **3.2 Descriptor sets 1–3 are never checked against the modules.**
   `pipeline/shadercode.cpp:54` checks only `SET_PASS`. `device/handles.hpp:84-110` keeps only the
   layout handles of the shared sets. `sets.h` says a disagreement was caught "only in a validated

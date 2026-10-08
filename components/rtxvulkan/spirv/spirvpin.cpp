@@ -21,11 +21,12 @@
 #include <spirv/unified1/GLSL.std.450.h>
 #include <spirv/unified1/spirv.hpp>
 
+#include "spirvfile.hpp"
+
 namespace Rtx
 {
     namespace
     {
-        constexpr std::size_t sHeaderWords = 5;
 
         struct Instruction
         {
@@ -420,7 +421,7 @@ namespace Rtx
             std::vector<std::uint32_t> assemble();
 
         private:
-            std::array<std::uint32_t, sHeaderWords> mHeader{};
+            std::array<std::uint32_t, sSpirvHeaderWords> mHeader{};
 
             /// Everything before the first function, and the functions.
             std::vector<Instruction> mGlobal;
@@ -501,33 +502,22 @@ namespace Rtx
 
         void Pinner::read(std::span<const std::uint32_t> words)
         {
-            if (words.size() < sHeaderWords || words[0] != spv::MagicNumber)
-                throw std::runtime_error("not a SPIR-V module in this machine's byte order");
-
-            std::copy_n(words.begin(), sHeaderWords, mHeader.begin());
-
             bool inFunctions = false;
-            for (std::size_t at = sHeaderWords; at < words.size();)
-            {
-                const std::uint32_t count = words[at] >> spv::WordCountShift;
-                if (count == 0 || at + count > words.size())
-                    throw std::runtime_error(std::format("the instruction at word {} runs past the module", at));
+            forEachInstruction(
+                words, [&](const spv::Op op, const std::span<const std::uint32_t> operands, std::size_t) {
+                    // **An instruction newer than these headers is one nothing here can classify**, and
+                    // the float arithmetic it might hold is exactly what a newer header would name.
+                    if (nameOf(op) == "Unknown")
+                        throw std::runtime_error(std::format(
+                            "opcode {} is newer than the SPIR-V headers this build has, so what it computes cannot "
+                            "be pinned; build against the headers that name it",
+                            static_cast<std::uint32_t>(op)));
 
-                Instruction instruction{ static_cast<spv::Op>(words[at] & spv::OpCodeMask),
-                    std::vector<std::uint32_t>(words.begin() + at + 1, words.begin() + at + count) };
-
-                // **An instruction newer than these headers is one nothing here can classify**, and
-                // the float arithmetic it might hold is exactly what a newer header would name.
-                if (nameOf(instruction.mOp) == "Unknown")
-                    throw std::runtime_error(std::format(
-                        "opcode {} is newer than the SPIR-V headers this build has, so what it computes cannot "
-                        "be pinned; build against the headers that name it",
-                        static_cast<std::uint32_t>(instruction.mOp)));
-
-                inFunctions = inFunctions || instruction.mOp == spv::OpFunction;
-                (inFunctions ? mFunctions : mGlobal).push_back(std::move(instruction));
-                at += count;
-            }
+                    inFunctions = inFunctions || op == spv::OpFunction;
+                    (inFunctions ? mFunctions : mGlobal)
+                        .push_back(Instruction{ op, std::vector<std::uint32_t>(operands.begin(), operands.end()) });
+                });
+            std::copy_n(words.begin(), sSpirvHeaderWords, mHeader.begin());
         }
 
         void Pinner::survey()

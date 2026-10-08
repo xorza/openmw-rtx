@@ -16,8 +16,8 @@
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/sets.h>
-#include <components/rtxvulkan/spirv/spirvbindings.hpp>
 #include <components/rtxvulkan/spirv/spirvfile.hpp>
+#include <components/rtxvulkan/spirv/spirvinterface.hpp>
 
 namespace Rtx
 {
@@ -67,8 +67,8 @@ namespace Rtx
         /// module through a table that agrees with it.
         BindingTable tableOf(const Device& device, const char* module)
         {
-            std::vector<ModuleBinding> bindings;
-            readBindings(readSpirv(device.getShaderDirectory() / module), bindings);
+            const std::vector<ModuleBinding> bindings
+                = readInterface(readSpirv(device.getShaderDirectory() / module)).mBindings;
 
             std::vector<VkDescriptorSetLayoutBinding> pass;
             for (const ModuleBinding& bound : bindings)
