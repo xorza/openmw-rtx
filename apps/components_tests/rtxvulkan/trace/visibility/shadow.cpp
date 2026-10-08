@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -633,7 +634,7 @@ namespace Rtx::Testing
                             .mSetScene = at == 0 });
                 }
                 if (unshadowed != nullptr)
-                    mRenderer.readChannel(Channel::Shadowed, *unshadowed);
+                    mRenderer.readChannel(Channel::Lamped, *unshadowed);
                 return last;
             };
 
@@ -762,12 +763,12 @@ namespace Rtx::Testing
             double mDrawn;
         };
 
-        /// **Two shadowed sources one pixel shows, and one bit between them.** Each alone first,
-        /// read off `CHANNEL_SHADOWED`: the first's ray stopped at every pixel, and the second's
-        /// through at every one. Then both, where the channel holds the sum of the two lights, over
-        /// `sFrames` frames of every pixel: the bit is one — the second's — in the share the
-        /// second's luminance is of the two, and a pixel that kept the brighter source's bit would
-        /// hold the same one every frame. Two tests on one body.
+        /// **Two of one field's shadowed lights one pixel shows, and one bit between them.** Each alone
+        /// first, read off `CHANNEL_SHADOWED`: the first's ray stopped at every pixel, and the
+        /// second's through at every one. Then both, where the channel holds the sum of the two
+        /// lights, over `sFrames` frames of every pixel: the bit is one — the second's — in the share
+        /// the second's luminance is of the two, and a pixel that kept the brighter one's bit would
+        /// hold the same one every frame.
         class RtxBitShareTest : public RtxVisibilityTest
         {
         protected:
@@ -827,32 +828,110 @@ namespace Rtx::Testing
             }
         };
 
-        /// **A surface lit by the sun and by a lamp keeps the bit of either by the light it adds.** A
-        /// floor under `overheadSun`, roofed two thousand units up, so the sun's ray is stopped at
-        /// every pixel, and a lamp sixty units over the floor under the roof, which every pixel sees.
-        ///
-        /// A bit drawn independently at every pixel of every frame: a deviation of
-        /// `sqrt(p (1 - p) / 65536)`, 0.002 at most. Measured: a share of 0.323, and 0.321 drawn.
-        TEST_F(RtxBitShareTest, aSurfaceLitByTheSunAndALampKeepsTheBitOfEitherByTheLightItAdds)
+        /// **The sun's bit and a lamp's are kept apart, and neither is filtered into the other's
+        /// light.** A floor under `overheadSun`, roofed two thousand units up, so the sun's ray is
+        /// stopped at every pixel, and a lamp sixty units over its near half, whose material the lamps
+        /// light; the far half's they do not. At every pixel of every frame, each source's channel
+        /// holds its own light and bit, as it does with the other source out: the sun's bit nought
+        /// and the lamp's one. And the far half, where the sun's light stands under a bit of nought,
+        /// filters to the frame without the lamp. One bit a pixel for both, drawn by the light each
+        /// adds, carried the near half's open lamp bits across the seam into the sun's light: the
+        /// bright line a replacer's strong sun lobe showed at `-2,-9`. Measured: no difference at all,
+        /// where one bit for both put 0.051 of the sun's 0.318 into the far half.
+        TEST_F(RtxVisibilityTest, theSunsBitAndALampsAreKeptApartAndNeitherIsFilteredIntoTheOthersLight)
         {
-            const BitShares shares = sharesOf([&](bool sun, bool lamp, const Shot& shot) {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t frames = 16;
+            constexpr std::size_t pixels = std::size_t{ size } * size;
+
+            const auto sceneWith = [](bool lamp) {
                 SceneDesc scene;
-                addQuad(scene, sheetAt(4000.0f, 0.0f));
+                const osg::Vec3f grey(0.5f, 0.5f, 0.5f);
+                addQuad(scene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, -4000.0f, 0.0f),
+                        osg::Vec3f(4000.0f, -4000.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                        osg::Vec3f(-4000.0f, 0.0f, 0.0f) },
+                    scene.addMaterial(Material{ .mDiffuseColour = grey }));
+                addQuad(scene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                        osg::Vec3f(4000.0f, 4000.0f, 0.0f), osg::Vec3f(-4000.0f, 4000.0f, 0.0f) },
+                    scene.addMaterial(Material{ .mDiffuseColour = grey, .mLampLit = false }));
                 addQuad(scene, roofOver(-4000.0f, 4000.0f, 2000.0f));
                 if (lamp)
                     scene.addLight(Light{
-                        .mPosition = osg::Vec3f(0.0f, 0.0f, 60.0f),
+                        .mPosition = osg::Vec3f(0.0f, -100.0f, 60.0f),
                         .mIntensity = osg::Vec3f(40000.0f, 40000.0f, 40000.0f),
                         .mReach = 500.0f,
                     });
+                return scene;
+            };
+            const SceneDesc lit = sceneWith(true);
+            const SceneDesc unlit = sceneWith(false);
 
-                Shaders::VisibilityConstants camera = overheadSun(sSize);
-                if (!sun)
-                    camera.mSun.mIrradiance = osg::Vec3f();
-                shoot(scene, {}, camera, sSize, shot);
-            });
+            Shaders::VisibilityConstants camera = overheadSun(size);
+            Shaders::VisibilityConstants sunless = camera;
+            sunless.mSun.mIrradiance = osg::Vec3f();
 
-            EXPECT_NEAR(shares.mDrawn, shares.mShare, 0.01) << "the bit kept is not the lamp's in the lamp's share";
+            std::vector<float> sunAlone;
+            std::vector<float> lampAlone;
+            shoot(unlit, {}, camera, size);
+            mRenderer.readChannel(Channel::Shadowed, sunAlone);
+            shoot(lit, {}, sunless, size);
+            mRenderer.readChannel(Channel::Lamped, lampAlone);
+            ASSERT_EQ(sunAlone.size(), pixels * 4);
+            ASSERT_EQ(lampAlone.size(), pixels * 4);
+
+            std::vector<float> sky;
+            std::vector<float> lamps;
+            std::size_t frame = 0;
+            shoot(lit, {}, camera, size,
+                { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                     mRenderer.readChannel(Channel::Shadowed, sky);
+                     mRenderer.readChannel(Channel::Lamped, lamps);
+                     for (std::size_t value = 0; value < pixels * 4; ++value)
+                     {
+                         if (value % 4 == 3)
+                         {
+                             ASSERT_EQ(sky[value], 0.0f) << "the sun's ray got through at " << value / 4;
+                             ASSERT_EQ(lamps[value], 1.0f) << "the lamp's ray was stopped at " << value / 4;
+                             continue;
+                         }
+                         ASSERT_NEAR(sky[value], sunAlone[value], 1e-5f * sunAlone[value])
+                             << "the sun's channel took other light at value " << value << ", frame " << frame;
+                         ASSERT_NEAR(lamps[value], lampAlone[value], 1e-5f * lampAlone[value])
+                             << "the lamp's channel took other light at value " << value << ", frame " << frame;
+                     }
+                     ++frame;
+                 } });
+            ASSERT_EQ(frame, frames);
+
+            const Shot filtered{
+                .mFrames = frames, .mAverage = false, .mFirstFrame = 1000, .mFilter = true, .mLoss = HistoryLoss::Cut
+            };
+            const Frame withLamp = shoot(lit, {}, camera, size, filtered);
+            mRenderer.readChannel(Channel::Shadowed, sky);
+            mRenderer.readChannel(Channel::Lamped, lamps);
+            const Frame withoutLamp = shoot(unlit, {}, camera, size, filtered);
+
+            // The far half: the sun's light under its stopped ray, and nothing of the lamp's.
+            float sunLight = 0.0f;
+            float worst = 0.0f;
+            std::size_t counted = 0;
+            for (std::size_t pixel = 0; pixel < pixels; ++pixel)
+            {
+                const float lampLight = lamps[pixel * 4] + lamps[pixel * 4 + 1] + lamps[pixel * 4 + 2];
+                if (sky[pixel * 4 + 1] <= 0.0f || lampLight > 0.0f)
+                    continue;
+                sunLight = std::max(sunLight, sky[pixel * 4 + 1]);
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                    worst = std::max(worst,
+                        std::abs(withLamp.mRadiance[pixel * 4 + channel] - withoutLamp.mRadiance[pixel * 4 + channel]));
+                ++counted;
+            }
+
+            ASSERT_GE(counted, pixels / 4) << "the far half is in the frame";
+            ASSERT_GT(sunLight, 0.0f) << "a sun that lights nothing proves nothing";
+            EXPECT_LE(worst, sunLight * 1e-3f) << "the lamp's bit was filtered into the sun's light";
         }
 
         /// **A pixel of water keeps the bit of what it reflects or of what it shows, drawn by the light

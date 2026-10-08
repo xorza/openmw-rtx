@@ -709,7 +709,7 @@ Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float
 /// crossed let through.
 ///
 /// **Two numbers, because two filters want them apart.** Whether the ray was stopped is the one bit
-/// a shadow denoiser filters (`CHANNEL_SHADOWED`), and what a leaf or a pane let through is a
+/// a shadow denoiser filters (`CHANNEL_SHADOWED`, `CHANNEL_LAMPED`), and what a leaf or a pane let through is a
 /// fraction the same ray measures exactly — so it stays in the light the bit multiplies, and
 /// nothing blurs it.
 struct Passage

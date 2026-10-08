@@ -115,11 +115,12 @@ layout(set = SET_CHANNELS, binding = CHANNEL_BACKDROP, GBUFFER_BACKDROP) uniform
 /// Read back by `spritecomposite.rgen`, which is why it is not `writeonly`.
 layout(set = SET_CHANNELS, binding = CHANNEL_PUFFS, GBUFFER_LAYER) uniform image2D puffs;
 
-/// What the sky's source and the lamps add to the solid the eye found, as though their rays got
-/// through, times what the path took off it, and in `a` whether the kept ray got through —
-/// `CHANNEL_SHADOWED`. No format, for the
-/// reason `direct` has none: it is radiance, as wide as the run keeps radiance.
+/// What the sky's source adds to what the eye found, as though its ray got through, times what the
+/// path took off it, and in `a` whether the ray got through — `CHANNEL_SHADOWED` — and the same for
+/// the lamps, `CHANNEL_LAMPED`. No format, for the reason `direct` has none: it is radiance, as wide
+/// as the run keeps radiance.
 layout(set = SET_CHANNELS, binding = CHANNEL_SHADOWED) uniform writeonly image2D shadowed;
+layout(set = SET_CHANNELS, binding = CHANNEL_LAMPED) uniform writeonly image2D lamped;
 
 /// What the lobe reflects of the lamps and the bounce, times what the path took off it —
 /// `CHANNEL_SPECULAR`. No format, as radiance has none here.
@@ -147,8 +148,11 @@ layout(set = SET_CHANNELS, binding = CHANNEL_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uni
 /// What Night-Eye's lift is multiplied by — `CHANNEL_LIFT`.
 layout(set = SET_CHANNELS, binding = CHANNEL_LIFT, GBUFFER_LIFT) uniform writeonly image2D lift;
 
-/// How wide the penumbra is where the shadowed bit was kept, in pixels — `CHANNEL_PENUMBRA`.
+/// How wide the penumbra of the sky's bit and of the lamps' is, in the pixel's footprints —
+/// `CHANNEL_PENUMBRA` and `CHANNEL_LAMP_PENUMBRA`.
 layout(set = SET_CHANNELS, binding = CHANNEL_PENUMBRA, GBUFFER_PENUMBRA) uniform writeonly image2D penumbra;
+layout(set = SET_CHANNELS, binding = CHANNEL_LAMP_PENUMBRA, GBUFFER_PENUMBRA)
+    uniform writeonly image2D lampPenumbraChannel;
 
 /// What the lobe's light is multiplied back by — `CHANNEL_SPECULAR_ALBEDO`.
 layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D specularAlbedo;

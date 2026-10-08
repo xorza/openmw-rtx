@@ -114,10 +114,10 @@ const uint SEED_WATER_SHAFT = SEED_BOUNCE_LOBE + 1u;
 const uint SEED_AMBIENT_MIRROR = SEED_WATER_SHAFT + 1u;
 const uint SEED_AMBIENT_THROUGH = SEED_AMBIENT_MIRROR + 1u;
 
-/// And which ray's shadowed sources a pixel of water keeps the bit of, `mixSplit`'s draw: once
-/// between the water's two rays, and once between the water and the bed under a waterline.
-/// **Two**, since a waterline pixel draws both, and one number deciding both would tie which ray
-/// the water keeps to whether the bed was kept.
+/// And which ray's shadowed sources a pixel of water keeps the bits of, `mixSplit`'s two draws, the
+/// sky's and the lamps': once between the water's two rays, and once between the water and the bed
+/// under a waterline. **Two sequences**, since a waterline pixel draws both, and one deciding both
+/// would tie which ray the water keeps to whether the bed was kept.
 const uint SEED_SHADOWED_LEGS = SEED_AMBIENT_THROUGH + 1u;
 const uint SEED_SHADOWED_SHORE = SEED_SHADOWED_LEGS + 1u;
 
@@ -134,8 +134,9 @@ const uint SEED_SEE_THROUGH = SEED_SOFT_EDGE + 1u;
 /// about the draws that lit the pixel.
 const uint SEED_WAVELET_TAPS = SEED_SEE_THROUGH + 1u;
 
-/// And one for whether the eye's split hit keeps its bit open through the translucent surfaces its
-/// kept ray crossed (`gather`): a hash and not a channel of the tile, so no other draw moves.
+/// And one for whether the eye's split hit keeps its bits open through the translucent surfaces each
+/// ray crossed, the sky's draw and then the lamps' (`gather`): a hash and not a channel of the tile,
+/// so no other draw moves.
 const uint SEED_SHADOW_THROUGH = SEED_WAVELET_TAPS + 1u;
 
 /// A key for one pixel, which a caller offsets by a `SEED_` constant to say which sequence it wants.

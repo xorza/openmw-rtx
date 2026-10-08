@@ -10,9 +10,9 @@
 #include "accumulate.h"
 
 // What the shadow denoiser needs: a port of AMD's FidelityFX Shadow Denoiser (SDK v1.1.4), over the
-// one bit `CHANNEL_SHADOWED` holds per pixel. Included verbatim by both sides, for the reason
-// `visibility.h` is. `shadowtiles.comp` and `shadowfilter.comp` each say what their half of the port
-// keeps and what it changes.
+// one bit a field's channel holds per pixel, `CHANNEL_SHADOWED`'s or `CHANNEL_LAMPED`'s. Included verbatim by both
+// sides, for the reason `visibility.h` is. `shadowtiles.comp` and `shadowfilter.comp` each say what their half of the
+// port keeps and what it changes.
 
 // What the passes keep, said once for both sides that have to agree.
 //
@@ -126,8 +126,8 @@ namespace Rtx::Shaders
         Eyes mEyes;
     };
 
-    /// Whether the shadowed sources light a pixel at all: a surface stands there, `normalCode` its
-    /// `CHANNEL_SURFACE` code, and the light they would add unshadowed, `CHANNEL_SHADOWED`'s, has a
+    /// Whether a field's source lights a pixel at all: a surface stands there, `normalCode` its
+    /// `CHANNEL_SURFACE` code, and the light it would add unshadowed, the field channel's, has a
     /// luminance `unshadowed` over nought. **The one rule for who receives**, which the mask pass
     /// packs and every later pass reads from it.
     RTX_SHADER bool receivesShadowed(float normalCode, float unshadowed)

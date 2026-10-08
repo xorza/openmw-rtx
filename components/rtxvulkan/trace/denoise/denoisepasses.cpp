@@ -31,11 +31,12 @@ namespace Rtx
         const Shaders::VisibilityConstants& sampled, const bool mapped, const bool lamps,
         const Reconstruction& reconstruction, GpuTimer* const timer) const
     {
-        // **The shadow denoiser only where a source in the sky or a lamp can light anything.** A
-        // room with no lamp has neither, and every tile of it would be classified, found to receive
-        // nothing and copied through: 0.34 ms of a guild's frame, measured, for a factor of one on
-        // a light of nought. With its lamps, the guild pays 0.28 ms in the pass and 0.38 ms of the
-        // median frame, release, two alternated rounds: 4.24 to 4.62 ms.
+        // **Each field of the shadow denoiser only where its source can light anything**: the sky's
+        // where the sun or a moon lights, the lamps' where a lamp does. A room with no lamp has
+        // neither, and every tile of it would be classified, found to receive nothing and copied
+        // through: 0.34 ms of a guild's frame, measured, for a factor of one on a light of nought.
+        // With its lamps, the guild pays 0.28 ms in the pass and 0.38 ms of the median frame,
+        // release, two alternated rounds: 4.24 to 4.62 ms.
         //
         // **The glossy filter only where a surface can have a lobe**, which a vanilla scene has
         // nowhere: its channel is nought, and the composite reads the channel itself for the nought
@@ -54,13 +55,15 @@ namespace Rtx
         // need no freshness but their own.
         TemporalFlags runs;
         runs[Temporal::Accumulate] = true;
-        runs[Temporal::Shadow] = Shaders::skySourceLights(sampled) || (lamps && sampled.mNoLamps == 0u);
+        runs[Temporal::SkyShadow] = Shaders::skySourceLights(sampled);
+        runs[Temporal::LampShadow] = lamps && sampled.mNoLamps == 0u;
         runs[Temporal::Specular] = mapped;
         runs[Temporal::Pane] = true;
 
         const TemporalTurns::Step step = history.turn(runs);
         assert((!step.mFresh[Temporal::Accumulate]
-                   || (step.mFresh[Temporal::Shadow] && step.mFresh[Temporal::Specular] && step.mFresh[Temporal::Pane]))
+                   || (step.mFresh[Temporal::SkyShadow] && step.mFresh[Temporal::LampShadow]
+                       && step.mFresh[Temporal::Specular] && step.mFresh[Temporal::Pane]))
             && "a fresh accumulator beside a history that is not");
         history.discard(commands, step);
 
@@ -76,9 +79,16 @@ namespace Rtx
         mAccumulate.record(commands, accumulated, buffer, frame, timer);
         mAccumulate.recordClamp(commands, accumulated, buffer, frame, timer);
 
-        const Image* shadow = nullptr;
-        if (runs[Temporal::Shadow])
-            shadow = &mShadow.record(commands, history.shadow(step), buffer, frame, timer);
+        const Image* skyShadow = nullptr;
+        const Image* lampShadow = nullptr;
+        if (runs[Temporal::SkyShadow] || runs[Temporal::LampShadow])
+        {
+            const GpuZone timed(timer, commands, FrameZone::Shadow);
+            if (runs[Temporal::SkyShadow])
+                skyShadow = &mShadow.record(commands, history.shadow(ShadowField::Sky, step), buffer, frame);
+            if (runs[Temporal::LampShadow])
+                lampShadow = &mShadow.record(commands, history.shadow(ShadowField::Lamps, step), buffer, frame);
+        }
 
         const Image* specular = &buffer.get(Channel::Specular);
         if (runs[Temporal::Specular])
@@ -90,8 +100,9 @@ namespace Rtx
         // and pane passes read nothing another of them writes, so a barrier each held every one
         // back for the tail of the one before. Their answers are ordered for the composite's read.
         Barriers ready(commands);
-        if (shadow != nullptr)
-            shadow->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
+        for (const Image* shadow : { skyShadow, lampShadow })
+            if (shadow != nullptr)
+                shadow->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
         if (runs[Temporal::Specular])
             specular->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
         pane.addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
@@ -114,6 +125,7 @@ namespace Rtx
             .mFill = filtered.mFill,
             .mSpecular = *specular,
             .mPane = pane,
-            .mShadow = shadow };
+            .mSkyShadow = skyShadow,
+            .mLampShadow = lampShadow };
     }
 }

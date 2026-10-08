@@ -1,2 +1,1 @@
-mouse teleporting
-ambient lighting
+disk writes

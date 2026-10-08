@@ -85,6 +85,8 @@ namespace Rtx
                 every[indexOf(Channel::Lift)] = { sLift, sReadable };
                 every[indexOf(Channel::Penumbra)] = { sPenumbra, sReadable };
                 every[indexOf(Channel::SpecularAlbedo)] = { sAlbedo, sReadable };
+                every[indexOf(Channel::Lamped)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[indexOf(Channel::LampPenumbra)] = { sPenumbra, sReadable };
 
                 return every;
             }();

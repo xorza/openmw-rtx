@@ -22,7 +22,7 @@ the one not chosen never starts.
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan with ray
 tracing pipelines and ray queries. The denoiser is the renderer's own, in three parts: a temporal
 accumulator and a wavelet over the diffuse light, a port of AMD's FidelityFX Shadow Denoiser over
-the sun's and the moons' shadow, and a temporal filter over the glossy light. The upscaler is a
+the shadows of the sun, the moons and the lamps, and a temporal filter over the glossy light. The upscaler is a
 port of AMD's FSR 3.1.4 in compute shaders. At `native` it is the anti-aliasing, and every other
 mode traces fewer pixels than the window shows.
 Vanilla content is read as it is: its textures are pre-lit, so the renderer estimates the painted
@@ -316,12 +316,14 @@ at the top, over all of them.
   just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix).
   The wavelet is SVGF's B3 first level, 5×5, then ReLAX's 3×3 levels (`RELAX_Atrous`) that weigh by
   the centre's variance, a reach of sixteen pixels (`ATROUS_LEVELS`). The
-  shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
-  the light both would add unshadowed, where the sky has a source that lights or the scene a lamp,
-  and counts in its local mean only the pixels those sources light.
-  Its reach is the penumbra's (`CHANNEL_PENUMBRA`, NVIDIA SIGMA's rule): a bit whose penumbra is
-  under a pixel and whose source was not drawn is handed on as it is, and a filter level runs only
-  where its step fits the penumbra.
+  shadow denoiser filters two fields, each a bit a pixel and the light its source would add
+  unshadowed: the ray to the sky's source where the sky has one that lights (`CHANNEL_SHADOWED`), and
+  the ray to a lamp where the scene has one (`CHANNEL_LAMPED`). One bit a pixel for both carried a
+  lamp's open ray across an edge into the sun's light beside it. Each field counts in its local mean
+  only the pixels its source lights.
+  Its reach is the penumbra's (`CHANNEL_PENUMBRA`, `CHANNEL_LAMP_PENUMBRA`, NVIDIA SIGMA's rule): a
+  bit whose penumbra is under a pixel and whose source was not drawn is handed on as it is, and a
+  filter level runs only where its step fits the penumbra.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
   filter averages what was drawn for the see-through layers over time, against a history of the
   nearest layer's own surface and motion. Each holds its slow mean to a fast one as the accumulator

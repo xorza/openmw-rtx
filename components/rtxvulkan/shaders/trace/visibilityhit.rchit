@@ -117,9 +117,8 @@ void answerPane(inout Answer answer, Surface surface)
 void answerLight(inout Answer answer, SplitLight light)
 {
     answer.mRadiance = light.mRest;
-    answer.mShadowed = light.mShadowed;
-    answer.mOpen = light.mOpen > 0.0;
-    answer.mPenumbra = light.mPenumbra;
+    answer.mSky = light.mSky;
+    answer.mLamps = light.mLamps;
 }
 
 /// Fills the payload in for an ordinary lit surface.
@@ -232,7 +231,9 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     const vec3 normal = normalize(mix(unpackSurfaceNormal(seen.mResponse.mNormal),
         unpackSurfaceNormal(answer.mResponse.mNormal), shore));
     uint kept = randomSeed(pixelKey(pixel) + SEED_SHADOWED_SHORE);
-    answerLight(answer, mixSplit(seen.mLight, water.mLight, shore, randomNext(kept)));
+    const float skyDraw = randomNext(kept);
+    const float lampDraw = randomNext(kept);
+    answerLight(answer, mixSplit(seen.mLight, water.mLight, shore, skyDraw, lampDraw));
     answer.mBounced = seen.mBounce;
     answer.mFilled = seen.mFill;
     // The lobe's share is taken off its light and not off its modulation, which the payload carries

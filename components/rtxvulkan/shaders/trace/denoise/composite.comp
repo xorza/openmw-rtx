@@ -54,12 +54,15 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_ALBEDO, GBUFFER_ALBEDO) uniform 
 layout(set = SET_PASS, binding = COMPOSITE_BIND_FILL) uniform readonly image2D fill;
 layout(set = SET_PASS, binding = COMPOSITE_BIND_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D ambientAlbedo;
 
-/// What the shadowed sources add as though their rays got through, and whether the kept one did —
-/// `CHANNEL_SHADOWED`. No format, as `direct` has none.
+/// What the sun or a moon adds as though its ray got through, and whether it did —
+/// `CHANNEL_SHADOWED` — and the same of the lamps, `CHANNEL_LAMPED`. No format, as `direct` has
+/// none.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOWED) uniform readonly image2D shadowed;
+layout(set = SET_PASS, binding = COMPOSITE_BIND_LAMPED) uniform readonly image2D lamped;
 
-/// How much of it got through, as the shadow denoiser filtered the rays' bits: its mean in `r`.
+/// How much of each got through, as the shadow denoiser filtered its field's bits: the mean in `r`.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOW, SHADOW_REPROJECTED) uniform readonly image2D shadow;
+layout(set = SET_PASS, binding = COMPOSITE_BIND_LAMP_SHADOW, SHADOW_REPROJECTED) uniform readonly image2D lampShadow;
 
 /// The lobe's light, demodulated: the glossy filter's mean where it ran, and `CHANNEL_SPECULAR`
 /// itself where it did not. No format, for the reason `indirect` has none. And what puts it back,
@@ -91,11 +94,15 @@ void main()
     vec3 resolved = imageLoad(direct, at).rgb;
     if (frame.mComposed == 0u)
     {
-        const vec4 unshadowed = imageLoad(shadowed, at);
-        const float seen = frame.mShadowed != 0u ? imageLoad(shadow, at).r : unshadowed.a;
+        const vec4 sky = imageLoad(shadowed, at);
+        const vec4 lamps = imageLoad(lamped, at);
+        const float skySeen = (frame.mShadowed & COMPOSITE_SHADOWED_SKY) != 0u ? imageLoad(shadow, at).r : sky.a;
+        const float lampSeen
+            = (frame.mShadowed & COMPOSITE_SHADOWED_LAMPS) != 0u ? imageLoad(lampShadow, at).r : lamps.a;
         resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb,
-            imageLoad(ambientAlbedo, at).rgb, imageLoad(fill, at).rgb, unshadowed.rgb, seen, imageLoad(specular, at).rgb * imageLoad(specularAlbedo, at).rgb,
-            imageLoad(paneAlbedo, at).rgb, imageLoad(pane, at).rgb);
+            imageLoad(ambientAlbedo, at).rgb, imageLoad(fill, at).rgb, sky.rgb, skySeen, lamps.rgb, lampSeen,
+            imageLoad(specular, at).rgb * imageLoad(specularAlbedo, at).rgb, imageLoad(paneAlbedo, at).rgb,
+            imageLoad(pane, at).rgb);
     }
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame

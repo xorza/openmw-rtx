@@ -17,8 +17,8 @@ namespace Rtx
 {
     namespace
     {
-        /// Nine channels in, the direct one written back as the frame, the shadow denoiser's answer
-        /// and the running sum — all storage images, all pushed.
+        /// Ten channels in, the direct one written back as the frame, the shadow denoiser's two
+        /// answers and the running sum — all storage images, all pushed.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::COMPOSITE_BINDINGS> sBindings
             = computeBindings<Shaders::COMPOSITE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
@@ -36,7 +36,8 @@ namespace Rtx
         const GpuZone timed(timer, commands, FrameZone::Composite);
 
         assert(constants.mShadowed == 0 && "the shadow is the denoiser's to say, and not the caller's");
-        constants.mShadowed = denoised.mShadow != nullptr ? 1u : 0u;
+        constants.mShadowed = (denoised.mSkyShadow != nullptr ? Shaders::COMPOSITE_SHADOWED_SKY : 0u)
+            | (denoised.mLampShadow != nullptr ? Shaders::COMPOSITE_SHADOWED_LAMPS : 0u);
 
         const Image& indirect = denoised.mIndirect;
         const Image& fill = denoised.mFill;
@@ -56,7 +57,8 @@ namespace Rtx
         // command buffer, and the head barrier `CommandPool::begin` recorded orders that after the
         // last one.
         const Image& bound = sum != nullptr ? *sum : mNoSum;
-        const Image& shadowBound = denoised.mShadow != nullptr ? *denoised.mShadow : mNoShadow;
+        const Image& skyShadow = denoised.mSkyShadow != nullptr ? *denoised.mSkyShadow : mNoShadow;
+        const Image& lampShadow = denoised.mLampShadow != nullptr ? *denoised.mLampShadow : mNoShadow;
 
         DescriptorWrites writes(mPipeline);
         writes.image(Shaders::COMPOSITE_BIND_DIRECT, buffer.get(Channel::Direct).describeStorage());
@@ -64,13 +66,15 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_ALBEDO, buffer.get(Channel::Albedo).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SUM, bound.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
-        writes.image(Shaders::COMPOSITE_BIND_SHADOW, shadowBound.describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_SHADOW, skyShadow.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SPECULAR, specular.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_PANE, pane.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_PANE_ALBEDO, buffer.get(Channel::PaneAlbedo).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_FILL, fill.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_AMBIENT_ALBEDO, buffer.get(Channel::AmbientAlbedo).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SPECULAR_ALBEDO, buffer.get(Channel::SpecularAlbedo).describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_LAMPED, buffer.get(Channel::Lamped).describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_LAMP_SHADOW, lampShadow.describeStorage());
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(constants.mWidth, constants.mHeight, Shaders::COMPOSITE_WORKGROUP));

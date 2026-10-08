@@ -30,13 +30,20 @@ namespace Rtx
         FillNarrowOther,
         Fast,
         FastBlended,
-        ShadowMoments,
-        ShadowHistory,
-        ShadowScratch,
-        ShadowVisibility,
-        ShadowTiles,
-        ShadowPenumbra,
-        ShadowMask,
+        SkyShadowMoments,
+        SkyShadowHistory,
+        SkyShadowScratch,
+        SkyShadowVisibility,
+        SkyShadowTiles,
+        SkyShadowPenumbra,
+        SkyShadowMask,
+        LampShadowMoments,
+        LampShadowHistory,
+        LampShadowScratch,
+        LampShadowVisibility,
+        LampShadowTiles,
+        LampShadowPenumbra,
+        LampShadowMask,
         SpecularMean,
         SpecularFast,
         SpecularFastBlended,
@@ -48,7 +55,18 @@ namespace Rtx
 
     inline constexpr std::size_t sDenoiseImages = static_cast<std::size_t>(DenoiseImage::PaneFastBlended) + 1;
 
-    /// Everything one camera's denoisers keep, at one extent: the four temporal filters' histories,
+    /// The shadow denoiser's two fields: the sun's or a moon's rays, `CHANNEL_SHADOWED`, and the
+    /// lamps', `CHANNEL_LAMPED`. Each has a history of its own, and the composite scales each light
+    /// by its own field.
+    enum class ShadowField : std::uint8_t
+    {
+        Sky,
+        Lamps,
+    };
+
+    inline constexpr std::size_t sShadowFields = static_cast<std::size_t>(ShadowField::Lamps) + 1;
+
+    /// Everything one camera's denoisers keep, at one extent: the five temporal filters' histories,
     /// what each writes of a frame's own, and the wavelet's scratch. A chain's and not the passes',
     /// because the passes are pipelines every chain shares and a history is as big as the camera it
     /// follows.
@@ -142,12 +160,12 @@ namespace Rtx
             bool mFresh;
         };
 
-        /// The shadow denoiser's: **six images of a frame's own and two that carry over**, the
-        /// SDK's arrangement and the penumbra beside it. The mask pass packs the rays' bits and the
-        /// tiles' penumbra, the temporal pass writes its blend
-        /// into the scratch, the first filter level writes the history the next frame's temporal pass
-        /// reads, the second writes the scratch again — where a cleared tile keeps the temporal pass's
-        /// exact value — and the third writes what the composite reads.
+        /// One field of the shadow denoiser's: **six images of a frame's own and two that carry
+        /// over**, the SDK's arrangement and the penumbra beside it. The mask pass packs the rays'
+        /// bits and the tiles' penumbra, the temporal pass writes its blend into the scratch, the
+        /// first filter level writes the history the next frame's temporal pass reads, the second
+        /// writes the scratch again — where a cleared tile keeps the temporal pass's exact value —
+        /// and the third writes what the composite reads.
         struct ShadowImages
         {
             const Image& mMomentsBefore;
@@ -166,6 +184,9 @@ namespace Rtx
 
             /// `AccumulateImages::mSurfaceBefore`.
             const Image& mHeldSurface;
+
+            /// Which rays' bits these filter.
+            ShadowField mField;
 
             bool mFresh;
         };
@@ -202,7 +223,7 @@ namespace Rtx
         };
 
         AccumulateImages accumulate(const TemporalTurns::Step& step) const;
-        ShadowImages shadow(const TemporalTurns::Step& step) const;
+        ShadowImages shadow(ShadowField field, const TemporalTurns::Step& step) const;
         SpecularImages specular(const TemporalTurns::Step& step) const;
         PaneImages pane(const TemporalTurns::Step& step) const;
 

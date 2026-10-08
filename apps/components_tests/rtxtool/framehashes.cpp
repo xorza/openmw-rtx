@@ -400,7 +400,7 @@ namespace RtxTool
             EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
             EXPECT_NE(header.find(",g-puffs,g-shadowed,g-specular,g-pane,g-pane-albedo,g-pane-surface,g-pane-motion,"
                                   "g-upscale-masks,g-fill,g-ambient-albedo,g-lift,g-penumbra,g-specular-albedo,"
-                                  "reconstruction,positions,"),
+                                  "g-lamped,g-lamp-penumbra,reconstruction,positions,"),
                 std::string::npos)
                 << header;
             EXPECT_NE(header.find(",textures,"), std::string::npos) << header;
