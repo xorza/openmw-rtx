@@ -54,17 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.3 A failed `vkCreate*` writes into the owner, and the owner destroys what it wrote.**
-  `device/owned.hpp:76-93` (`Owned::put`, `make`), `:157-172` (`Immediate`),
-  `device/device.hpp:140` (`LogicalDevice::put`), `device/pipelinecache.cpp:179-183`. The spec
-  leaves output parameters undefined on failure (only `vkCreate*Pipelines` nulls them).
-  `PipelineCache` calls `mHandle.reset()` after a failed create, which destroys an undefined handle.
-  Target: create into a local `VK_NULL_HANDLE`, adopt only on `VK_SUCCESS`, and delete the three
-  `put()`s. Convert the three pipeline makers (`computepipeline.cpp:36`, `graphicspipeline.cpp:177`,
-  `tracepipeline.cpp:158`) to the same shape. Test: a fake create that writes a sentinel and fails
-  throws `DeviceError` and buries nothing.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxComputePipelineTest.*:RtxPipelineCacheTest.*:RtxDeviceTest.*'`.
-
 - [ ] **1.4 `MemoryAllocator`'s constructor leaks the VMA allocator and its pools when it throws.**
   `device/memory/memory.cpp:136-190`. `mAllocator` and `mContentPools` are raw and freed only by the
   destructor. The `Unsupported` throw at `:167` and a failed `vmaCreatePool` at `:188` run after

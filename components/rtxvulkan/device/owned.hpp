@@ -72,24 +72,19 @@ namespace Rtx
 
         Handle get() const { return mHandle; }
 
-        /// Where to put one, for a call that fills a handle in rather than returning it.
-        Handle* put(const Device& device)
-        {
-            reset();
-            mDevice = &device;
-            return &mHandle;
-        }
-
         /// One made by `create(device, &info, allocator, out)`, which is the shape every
         /// `vkCreateX` this backend calls has but the pipelines' — checked, and named by `call`
         /// in the message a failure carries. The string stays: nothing in C++ names a function
         /// pointer's function.
+        ///
+        /// **Made into a local and adopted only once it succeeded**: a failed create leaves its
+        /// output undefined, and an owner it wrote into would end whatever the driver left there.
         template <class Create, class Info>
         static Owned make(const Device& device, Create create, const Info& info, const char* call)
         {
-            Owned made;
-            checkVk(create(vulkanHandleOf(device), &info, nullptr, made.put(device)), call);
-            return made;
+            Handle made = VK_NULL_HANDLE;
+            checkVk(create(vulkanHandleOf(device), &info, nullptr, &made), call);
+            return Owned(device, made);
         }
 
         /// Buries the handle, where there is one.
@@ -154,21 +149,13 @@ namespace Rtx
 
         Handle get() const { return mHandle; }
 
-        /// Where to put one, for a call that fills a handle in rather than returning it.
-        Handle* put(VkDevice device)
-        {
-            reset();
-            mDevice = device;
-            return &mHandle;
-        }
-
         /// `Owned::make`, for a device given as its handle.
         template <class Create, class Info>
         static Immediate make(VkDevice device, Create create, const Info& info, const char* call)
         {
-            Immediate made;
-            checkVk(create(device, &info, nullptr, made.put(device)), call);
-            return made;
+            Handle made = VK_NULL_HANDLE;
+            checkVk(create(device, &info, nullptr, &made), call);
+            return Immediate(device, made);
         }
 
         void reset()

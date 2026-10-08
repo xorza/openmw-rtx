@@ -176,11 +176,12 @@ namespace Rtx
             .pInitialData = mLoaded.empty() ? nullptr : mLoaded.data(),
         };
 
-        if (vkCreatePipelineCache(device, &describe, nullptr, mHandle.put(device)) != VK_SUCCESS)
-        {
+        // Into a local, for the reason `Owned::make` gives.
+        VkPipelineCache created = VK_NULL_HANDLE;
+        if (vkCreatePipelineCache(device, &describe, nullptr, &created) == VK_SUCCESS)
+            mHandle = Immediate<VkPipelineCache, vkDestroyPipelineCache>(device, created);
+        else
             Log(Debug::Warning) << "Rtx: no pipeline cache; every shader will be compiled from source";
-            mHandle.reset();
-        }
     }
 
     PipelineCache::~PipelineCache()

@@ -239,7 +239,7 @@ namespace Rtx
         TEST(RtxSourceTreeTest, onlyWhatOutlivesTheGraveyardIsEndedAtOnce)
         {
             const std::set<std::string> allowed{ "owned.hpp", "handles.hpp", "handles.cpp", "timeline.hpp",
-                "pipelinecache.hpp", "swapchain.hpp", "swapchain.cpp" };
+                "pipelinecache.hpp", "pipelinecache.cpp", "swapchain.hpp", "swapchain.cpp" };
 
             const std::vector<std::string> found = linesMatching({ sBackend }, allowed,
                 [](const std::string_view code) { return code.find("Immediate<") != std::string_view::npos; });

@@ -201,7 +201,9 @@ namespace Rtx
             .pEnabledFeatures = nullptr,
         };
 
-        checkVk(vkCreateDevice(mPhysicalDevice.getHandle(), &createInfo, nullptr, mHandle.put()), "vkCreateDevice");
+        VkDevice created = VK_NULL_HANDLE;
+        checkVk(vkCreateDevice(mPhysicalDevice.getHandle(), &createInfo, nullptr, &created), "vkCreateDevice");
+        mHandle.adopt(created);
 
         // From here on a throw — a driver that advertises an extension it cannot dispatch, which
         // a load below reports — destroys the members already made, in reverse, and the device's
