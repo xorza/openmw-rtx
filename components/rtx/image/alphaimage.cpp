@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <optional>
 #include <span>
@@ -102,28 +103,25 @@ namespace Rtx
 
         /// Hands `visit` every texel of one level with its alpha, in row order — a block at a time
         /// for a block format, so a palette is built once a block — until `visit` answers true.
-        /// A level whose bytes run short hands nothing for the texels past them, which leaves a
-        /// caller with whatever it started from: the fully opaque values `build` fills with, or the
-        /// "reaches nothing" a scan started from — the answer a texture that could not be read
-        /// gets, for the same reason. Answers whether `visit` stopped it.
+        /// `bytes` begins at the level and holds it whole (`TextureData::levelsFit`). Answers
+        /// whether `visit` stopped it.
         template <class Visit>
         bool forEachAlpha(TextureFormat format, std::span<const std::byte> bytes, std::uint32_t width,
             std::uint32_t height, Visit visit)
         {
             const TexelLayout layout = layoutOf(format);
-            const std::uint32_t bytesPerBlock = layout.mBytes;
             const MipLevel level{ .mOffset = 0, .mWidth = width, .mHeight = height };
 
             if (!layout.isBlocked())
             {
                 // Alpha is the last byte of a loose texel whichever order the three colours are
                 // stated in, and every loose format a description carries is four bytes a texel.
-                assert(bytesPerBlock == 4 && "a loose texel read as four bytes that is not");
+                assert(layout.mBytes == 4 && "a loose texel read as four bytes that is not");
                 for (std::uint32_t y = 0; y < height; ++y)
                     for (std::uint32_t x = 0; x < width; ++x)
                     {
                         const std::size_t at = level.texelOffset(x, y, layout.mBytes) + 3;
-                        if (at < bytes.size() && visit(x, y, static_cast<std::uint8_t>(bytes[at])))
+                        if (visit(x, y, static_cast<std::uint8_t>(bytes[at])))
                             return true;
                     }
 
@@ -138,9 +136,6 @@ namespace Rtx
                 for (std::uint32_t column = 0; column < blocksAcross; ++column)
                 {
                     const std::size_t block = level.blockOffset(column, row, layout.mBytes);
-                    if (block + bytesPerBlock > bytes.size())
-                        continue;
-
                     // BC2 and BC3 put their eight bytes of alpha first; BC1's block is its colour.
                     decodeBlock(format, bytes.subspan(block).first<8>(), alphas);
 
@@ -170,6 +165,7 @@ namespace Rtx
 
     void AlphaImage::build(const TextureData& texture)
     {
+        assert(texture.levelsFit() && "an alpha read of a description short of its bytes");
         mValues.clear();
 
         const std::size_t texels = mShape.layOutLike(texture.mLevels, TexelLayout{ .mBytes = 1 });
@@ -185,11 +181,7 @@ namespace Rtx
             if (count == 0)
                 continue;
 
-            // Clamped rather than trusted: a level whose offset runs past the bytes decodes nothing
-            // and keeps the fully opaque values it was filled with, which is the answer a texture
-            // that could not be read gets already.
-            const std::size_t from = std::min<std::size_t>(texture.mLevels[at].mOffset, texture.mBytes.size());
-            decodeLevel(texture.mFormat, texture.mBytes.subspan(from), into.mWidth, into.mHeight,
+            decodeLevel(texture.mFormat, texture.mBytes.subspan(texture.mLevels[at].mOffset), into.mWidth, into.mHeight,
                 std::span(mValues).subspan(into.mOffset, count));
         }
     }
@@ -212,10 +204,9 @@ namespace Rtx
         // Only as far as the first solid texel: nearly every map that reaches solid does so in its
         // first block, so the walk that decodes the level whole is paid by the clouds alone, which
         // never do.
+        assert(finest.levelsFit() && "an alpha read of a description short of its bytes");
         const MipLevel& level = finest.mLevels.front();
-        const std::size_t from = std::min<std::size_t>(level.mOffset, finest.mBytes.size());
-
-        return forEachAlpha(finest.mFormat, finest.mBytes.subspan(from), level.mWidth, level.mHeight,
+        return forEachAlpha(finest.mFormat, finest.mBytes.subspan(level.mOffset), level.mWidth, level.mHeight,
             [](std::uint32_t, std::uint32_t, std::uint8_t alpha) { return alpha == 255; });
     }
 }

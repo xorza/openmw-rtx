@@ -59,6 +59,7 @@ namespace Rtx
     osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y)
     {
         assert(readsColour(texture) && "a texel read of a texture with no colour to read");
+        assert(texture.levelsFit() && "a texel read of a description short of its bytes");
         assert(x < level.mWidth && y < level.mHeight);
 
         const TexelLayout layout = layoutOf(texture.mFormat);
@@ -73,6 +74,7 @@ namespace Rtx
         const TextureData& texture, const MipLevel& level, const std::uint32_t band, std::vector<osg::Vec3f>& into)
     {
         assert(readsColour(texture) && "a band read of a texture with no colour to read");
+        assert(texture.levelsFit() && "a band read of a description short of its bytes");
         const std::uint32_t first = band * 4;
         assert(first < level.mHeight && "a band below the level");
         const std::uint32_t rows = std::min(level.mHeight - first, 4u);
