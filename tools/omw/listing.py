@@ -4,8 +4,8 @@ A `CMakeLists.txt` lists files by base name, and a source no list names is never
 nothing else reports. So the compile database is read against `git ls-files`. Excused by rule: a
 program this flavour does not build, a file for another system (named `win32` or `posix` for the
 other one, `linux` on Windows and `none` on Linux — the build of a facility only Linux has, and of
-its absence — `stdio`, or `android…`, and `NOT_ON_WINDOWS` on Windows), `components_qt` in a build
-without Qt, and `ELSEWHERE`."""
+its absence — `stdio`, or `android…`, and `NOT_ON_WINDOWS` on Windows), what only Qt builds in a
+build without it, and `ELSEWHERE`."""
 
 import json
 import os
@@ -64,14 +64,28 @@ def qt_sources(cmake_text: str) -> set[str]:
     return found
 
 
+def qt_guarded_sources(cmake_text: str, folder: str) -> set[str]:
+    """The sources a list in `folder` adds to a target only `if (USE_QT)`, through `target_sources`:
+    what a build without Qt leaves out of a program it builds, as `components-tests` leaves out the
+    launcher's settings test."""
+    found: set[str] = set()
+    for block in re.findall(r"^\s*if\s*\(\s*USE_QT\s*\)(.*?)^\s*endif", cmake_text, re.MULTILINE | re.DOTALL):
+        for names in re.findall(r"target_sources\s*\(\s*\S+\s+(?:PRIVATE|PUBLIC|INTERFACE)\s+([^)]*)\)", block):
+            found |= {f"{folder}/{name}" for name in names.split() if name.endswith(".cpp")}
+    return found
+
+
 def check(build: Build) -> int:
     tracked = working_tree_files("apps/*.cpp", "components/*.cpp")
     database = json.loads(read_text(build.dir / "compile_commands.json"))
     compiled = {os.path.relpath(entry["file"], ROOT).replace(os.sep, "/") for entry in database}
-    # A build without Qt — asan, tsan, release, and debug on Windows — leaves `components_qt` out.
+    # A build without Qt — asan, tsan, release, and debug on Windows — leaves `components_qt` out,
+    # and what a program's list adds only with Qt.
     if not any("components_qt.dir" in entry.get("output", "") for entry in database):
-        tracked = [name for name in tracked
-                   if name not in qt_sources(read_text(ROOT / "components" / "CMakeLists.txt"))]
+        qt_only = qt_sources(read_text(ROOT / "components" / "CMakeLists.txt"))
+        for listed in sorted((ROOT / "apps").glob("*/CMakeLists.txt")):
+            qt_only |= qt_guarded_sources(read_text(listed), listed.parent.relative_to(ROOT).as_posix())
+        tracked = [name for name in tracked if name not in qt_only]
     missing = unlisted(tracked, compiled, WINDOWS)
     for name in missing:
         print(f"{name}: tracked, and no list names it")
