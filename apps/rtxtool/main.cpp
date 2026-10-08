@@ -399,35 +399,6 @@ namespace RtxTool
             return framed;
         }
 
-        int runInfo(const Command& command, const Rtx::ValidationOptions& validation)
-        {
-            // A one-pixel target: this reports on a device rather than drawing with it, and the
-            // default would spend fifty megabytes of images to print a page of text.
-            //
-            // **The shaders are still named, because standing a renderer up compiles one.**
-            // Reporting on a device is not a reason to build half a renderer, and a build whose
-            // shaders are missing should say so here rather than at the first frame asked for.
-            //
-            // **And no pipeline cache, as no verb of this tool keeps one**: `RtxRenderer` says why a
-            // measured run compiles from source, and this verb's few seconds are that compile.
-            try
-            {
-                const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createVulkanRenderer(Rtx::RendererOptions{
-                    .mShaders = command.mShaders,
-                    .mWidth = 1,
-                    .mHeight = 1,
-                    .mRun = { .mValidation = validation },
-                });
-                out() << renderer->describeDevice();
-                return 0;
-            }
-            catch (const Rtx::Unsupported& obstacle)
-            {
-                out() << obstacle.what() << '\n';
-                return 1;
-            }
-        }
-
         /// Where someone starts when they have said nothing about where: the ship at Seyda Neen,
         /// where the game starts and the one place every player of it has stood.
         constexpr std::string_view sDefaultView = "seyda-neen-ship";
@@ -458,6 +429,16 @@ namespace RtxTool
         /// What a `shot` and a `bench --out` write their frames' hashes to, beside the pictures, and
         /// read a reference's from, in the directory `--against` names.
         constexpr std::string_view sRunHashes = "hashes.csv";
+
+        /// Has `request` write its frames' hashes into `out` and read a reference's from `against`,
+        /// each where it is named.
+        void hashInto(SessionRequest& request, const std::filesystem::path& out, const std::filesystem::path& against)
+        {
+            if (!out.empty())
+                request.mHashes = out / sRunHashes;
+            if (!against.empty())
+                request.mAgainst = against / sRunHashes;
+        }
 
         /// What `policy` does to one place: the route and the track a command does not follow go,
         /// the clock stops where the row freezes and nothing is flown, and every frame is hashed
@@ -508,13 +489,6 @@ namespace RtxTool
             request.mRandomSeed = variables["random-seed"].as<unsigned int>();
 
             return request;
-        }
-
-        /// Runs a list of stops against a real game, which is what every command that writes
-        /// pictures or reports does.
-        int runStops(const Command& command, const Framed& framed, std::vector<Stop> stops)
-        {
-            return runHosted(command, framed, sessionFor(command, framed, std::move(stops)));
         }
 
         /// How long every stop of a run lasts, from what the command line asked for.
@@ -689,7 +663,31 @@ namespace RtxTool
 
             const Rtx::ValidationOptions validation = validationFrom(command.mVariables);
 
-            return runInfo(command, validation);
+            // A one-pixel target: this reports on a device rather than drawing with it, and the
+            // default would spend fifty megabytes of images to print a page of text.
+            //
+            // **The shaders are still named, because standing a renderer up compiles one.**
+            // Reporting on a device is not a reason to build half a renderer, and a build whose
+            // shaders are missing should say so here rather than at the first frame asked for.
+            //
+            // **And no pipeline cache, as no verb of this tool keeps one**: `RtxRenderer` says why a
+            // measured run compiles from source, and this verb's few seconds are that compile.
+            try
+            {
+                const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createVulkanRenderer(Rtx::RendererOptions{
+                    .mShaders = command.mShaders,
+                    .mWidth = 1,
+                    .mHeight = 1,
+                    .mRun = { .mValidation = validation },
+                });
+                out() << renderer->describeDevice();
+                return 0;
+            }
+            catch (const Rtx::Unsupported& obstacle)
+            {
+                out() << obstacle.what() << '\n';
+                return 1;
+            }
         }
 
         /// What the renderer was handed at each place, without looking at what it drew.
@@ -709,7 +707,7 @@ namespace RtxTool
                 stop.mActions.mWalkTwice = true;
             }
 
-            return runStops(command, framed, std::move(stops));
+            return runHosted(command, framed, sessionFor(command, framed, std::move(stops)));
         }
 
         /// The pictures of each place, taken headless: the frame, and the doll, the tile and the
@@ -788,9 +786,7 @@ namespace RtxTool
             clearPictures(out, written);
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
-            request.mHashes = out / sRunHashes;
-            if (!against.empty())
-                request.mAgainst = against / sRunHashes;
+            hashInto(request, out, against);
 
             // Compared whatever the session answered, because a moved frame is what fails it, and
             // the run where something moved is the run whose tiles, dolls and sheets are wanted.
@@ -842,10 +838,7 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
             request.mJson = variables["json"].as<std::string>();
-            if (!out.empty())
-                request.mHashes = out / sRunHashes;
-            if (!against.empty())
-                request.mAgainst = against / sRunHashes;
+            hashInto(request, out, against);
             if (pictures)
                 request.mPictures = out;
             request.mPerfControl = variables["perf-control"].as<std::string>();
