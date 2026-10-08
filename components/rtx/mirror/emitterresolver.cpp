@@ -121,8 +121,7 @@ namespace Rtx
         // Held, because nothing else can name them. An emitter is a placement and is thrown
         // away every frame, so this entry is the only lasting thing that says the sprite is in
         // use; the scene frees the slots when the sweep lets go of them.
-        const VFS::Path::Normalized path(held.mSprite->getFileName());
-        held.mSlot = mScene.takeTexture(path, *held.mSprite, held.mWrap);
+        held.mSlot = mScene.takeTexture(mThread.pathOf(*held.mSprite), *held.mSprite, held.mWrap);
         if (held.mSlot.empty())
         {
             held.mRefused.refuse(sSpriteTake, freed);
@@ -143,7 +142,7 @@ namespace Rtx
         // The bake is keyed on the file, so two emitters drawing with one texture share one
         // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
         // where the sprite stands, because the bake is of its alpha.
-        const Index bake = mScene.textures().addSpriteLight(VFS::Path::Normalized(held.mSprite->getFileName()));
+        const Index bake = mScene.textures().addSpriteLight(mThread.pathOf(*held.mSprite));
         if (bake == sNoIndex)
         {
             held.mRefused.refuse(sLightingTake, freed);
