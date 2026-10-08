@@ -54,23 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.9 The present fence is reset long before the present that signals it.**
-  `present/presenter.cpp:196-198` resets the image's fence, `:202-275` records and submits the blit,
-  and `:281` presents. A throw in between leaves the fence unsignalled. The same happens when
-  `vkQueuePresentKHR` fails with an error that does not enqueue the present (out of memory).
-  `~Presenter` (`:72-76`) then waits 10 s on that fence and calls `deviceFailed`, so a clean
-  exception becomes a hang and a crash report that blames the presentation engine.
-  Target: the image knows whether a present with its fence is in flight.
-  1. Reset the fence in `Swapchain::present`, right before `vkQueuePresentKHR`, after the blit's
-     submit succeeded.
-  2. A per-image `mPresentOwed` is set when the present was enqueued. The spec counts a present as
-     enqueued for `VK_SUCCESS`, `VK_SUBOPTIMAL_KHR`, `VK_ERROR_OUT_OF_DATE_KHR` and
-     `VK_ERROR_SURFACE_LOST_KHR`. Any other result leaves it clear.
-  3. The next use of the image and the teardown wait only on an owed fence, and clear the flag after
-     the wait.
-
-  Verify: `./omw view` with a resize and a minimise, `./omw test`.
-
 - [ ] **1.10 `FrameRing::close` marks the slot submitted before the submit.**
   `framering.cpp:157-164`. A `DeviceError` from the submit leaves the slot `Submitted` with a stale
   value and `mFrame` unchanged. Target: submit first, then step the state and advance.

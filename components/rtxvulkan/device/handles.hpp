@@ -53,9 +53,6 @@ namespace Rtx
         BindingTable mBindings;
     };
 
-    /// A fence that starts signalled, so the first wait on it returns at once.
-    Fence makeSignalledFence(const Device& device);
-
     /// A descriptor set layout, for `GBuffer::describeLayout` and its siblings to build theirs
     /// through. `flags` is what a push descriptor set needs; `next` is binding flags for a bindless
     /// set, read here and never kept.
