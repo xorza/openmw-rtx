@@ -307,8 +307,9 @@ namespace MWRender
         /// stepped the interface by the outer frame's time.
         float openNestedFrame();
 
-        /// What `setFrameRateLimit` handed over, nought before it has: the one copy, which a loop
-        /// that paces a thread of its own reads.
+        /// What `setFrameRateLimit` handed over, nought before it has: what the loading screen holds
+        /// its own rate under. The main menu's video paces a thread of its own by the environment's
+        /// copy, as upstream's does.
         float getFrameRateLimit() const { return mFrameRateLimit; }
 
         /// Stamps the next frame. Simulation time stops when the game is paused; reference time
