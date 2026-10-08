@@ -75,7 +75,9 @@ the window's size there, has it moved to the window on the first start, and the 
   `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes` and `.gitignore`. The CI the fork
   runs, and the driver every verification step goes through.
 - The build the fork's presets and its Crashpad need: CMake 3.31, which reads the `$comment`s in
-  `CMakePresets.json`; Boost 1.83, whose flat maps the scene identities are; no scan for modules
+  `CMakePresets.json`, and with it the directory `GNUInstallDirs_get_absolute_install_dir` takes
+  as its third argument since 3.20, where CMake warned of each one read from the caller; Boost
+  1.83, whose flat maps the scene identities are; no scan for modules
   (`CMAKE_CXX_SCAN_FOR_MODULES OFF`), which preprocessed every file twice for modules the tree has
   none of; the ccache fallback, so a runner without it builds; the embedded debug information
   (`CMAKE_MSVC_DEBUG_INFORMATION_FORMAT`), since ccache caches no compile that writes a shared PDB;
