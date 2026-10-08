@@ -637,7 +637,7 @@ namespace Rtx
         {
             std::array<const Image*, Shaders::DIGEST_IMAGES> digested{};
             for (const Channel channel : sEveryChannel)
-                digested[bindingOf(channel)] = &channels.get(channel);
+                digested[indexOf(channel)] = &channels.get(channel);
 
             mRing.readDigest(frame, commands, digested,
                 FrameDigest{

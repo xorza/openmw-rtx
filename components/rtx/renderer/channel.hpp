@@ -37,13 +37,14 @@ namespace Rtx
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
 
-    inline constexpr std::uint32_t bindingOf(Channel channel)
+    /// Where `channel` stands among them: the order every list of them keeps.
+    inline constexpr std::uint32_t indexOf(Channel channel)
     {
         return static_cast<std::uint32_t>(channel);
     }
 
     /// What a capture and a dump call each channel, and the one place they are written, in
-    /// binding order, which is what `values()` then hands a walk that wants them all.
+    /// index order, which is what `values()` then hands a walk that wants them all.
     inline constexpr NamedEnum<Channel, sChannelCount> sChannels{ { {
         { Channel::Direct, "g-direct" },
         { Channel::Indirect, "g-indirect" },
@@ -66,7 +67,7 @@ namespace Rtx
         { Channel::SpecularAlbedo, "g-specular-albedo" },
     } } };
 
-    /// Every channel in binding order, for a walk that wants them all.
+    /// Every channel in index order, for a walk that wants them all.
     inline constexpr std::array<Channel, sChannelCount> sEveryChannel = sChannels.values();
     static_assert(coversFromNought(sEveryChannel), "a channel the table leaves out, or names twice");
 

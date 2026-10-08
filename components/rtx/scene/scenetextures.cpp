@@ -39,7 +39,7 @@ namespace Rtx
         {
             // A free slot is not a texture. `SceneDesc` empties one the last thing naming it
             // gave back and leaves it in the table until something takes it over; describing it
-            // would build an image, a shading map and a descriptor write for a slot no material can
+            // would build an image, a shading map and a binding for a slot no material can
             // reach — and count it as a texture that arrived.
             if (!scene.textures().isLive(slot))
                 continue;
