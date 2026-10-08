@@ -35,6 +35,10 @@ namespace Rtx
         /// for every submit the zones were recorded into.
         void resolve(GpuZones& into);
 
+        // Read by the tests and by nothing else.
+        /// The queries the zones write, two a zone in the order they were opened.
+        VkQueryPool getQueryPool() const { return mHandle.get(); }
+
     private:
         /// A zone is opened and closed by a `GpuZone` alone, which cannot leave one open.
         friend class GpuZone;

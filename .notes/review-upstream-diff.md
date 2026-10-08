@@ -54,17 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.2 `GpuTimer::resolve` waits without limit on queries that were never written.**
-  `device/gputimer.cpp:111-114` uses `VK_QUERY_RESULT_WAIT_BIT`. A query left unwritten (a zone in a
-  batch that was then discarded, or the bug item 1.1 removes) makes the wait endless, outside
-  `sPatience`. The `mOpen == mZones.size()` assert at `:100` is debug-only. Target: drop `WAIT_BIT`.
-  After the timeline wait every written query is available, so a valid frame reads the same ticks.
-  `VK_NOT_READY` then means a zone's query was never written, which is a broken contract of this
-  code, not a device fault. Report it through the tree's contract (`Crash::contract`, naming the
-  zone), not `checkVk`'s `DeviceError`, which would blame the driver. Depends on 1.1.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxGpuTimerTest.*:RtxFrameRingTest.*'`, and a
-  death test that resolves a timer with a zone whose queries were reset and never written.
-
 - [ ] **1.3 A failed `vkCreate*` writes into the owner, and the owner destroys what it wrote.**
   `device/owned.hpp:76-93` (`Owned::put`, `make`), `:157-172` (`Immediate`),
   `device/device.hpp:140` (`LogicalDevice::put`), `device/pipelinecache.cpp:179-183`. The spec

@@ -2,10 +2,12 @@
 
 #include <array>
 #include <cassert>
+#include <format>
 #include <string_view>
 
 #include <volk.h>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "result.hpp"
@@ -103,20 +105,31 @@ namespace Rtx
         if (mZones.empty() || !mSupported)
             return;
 
-        std::array<std::uint64_t, sMaxGpuZones * 2> ticks{};
+        // A tick and its availability for each query.
+        std::array<std::uint64_t, sMaxGpuZones * 2 * 2> results{};
         const auto count = static_cast<std::uint32_t>(mZones.size()) * 2;
 
-        // Waiting rather than polling for availability: every submit these were written into has
-        // already been fenced, so the results are there and the flag costs nothing.
-        checkVk(mDevice,
-            vkGetQueryPoolResults(mDevice.getHandle(), mHandle.get(), 0, count, count * sizeof(std::uint64_t),
-                ticks.data(), sizeof(std::uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT),
-            "vkGetQueryPoolResults");
+        // **No wait for availability.** Every submit these were written into has already been
+        // waited for, so every query a zone wrote is there; a wait could only be for a query no
+        // submit will ever write — a zone in a batch that was discarded — and would last for ever,
+        // outside every patience the device keeps. So an unwritten query is read as one, and it is
+        // this code's broken contract and not a fault of the device's.
+        const VkResult read = vkGetQueryPoolResults(mDevice.getHandle(), mHandle.get(), 0, count,
+            count * 2 * sizeof(std::uint64_t), results.data(), 2 * sizeof(std::uint64_t),
+            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+        if (read != VK_NOT_READY)
+            checkVk(mDevice, read, "vkGetQueryPoolResults");
 
         for (const Zone& zone : mZones)
         {
-            const std::uint64_t began = ticks[zone.mFirstQuery] & mMask;
-            const std::uint64_t ended = ticks[zone.mFirstQuery + 1] & mMask;
+            const std::uint32_t opened = zone.mFirstQuery * 2;
+            const std::uint32_t closed = opened + 2;
+            if (results[opened + 1] == 0 || results[closed + 1] == 0)
+                Crash::fatal(std::format("the GPU timer's {} zone was resolved before a submit wrote its timestamps",
+                    sFrameZoneNames.name(zone.mZone)));
+
+            const std::uint64_t began = results[opened] & mMask;
+            const std::uint64_t ended = results[closed] & mMask;
 
             // The masked counter wraps, and a frame is nanoseconds against a counter that is at
             // least thirty-six bits: the difference is the elapsed time whichever side of a wrap the

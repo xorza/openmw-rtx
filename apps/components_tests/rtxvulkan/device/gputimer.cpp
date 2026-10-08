@@ -7,9 +7,12 @@
 
 #include <gtest/gtest.h>
 
+#include <volk.h>
+
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
@@ -23,6 +26,9 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx
@@ -253,6 +259,32 @@ namespace Rtx
                 << "a water surface with no level synthesised no sea";
             EXPECT_TRUE(reports(surfaced.mGpu.spans(), FrameZone::Ripples))
                 << "a water surface with no level stepped no field";
+        }
+
+        /// **A zone no submit wrote ends the process and names the zone**, where the read waited
+        /// for it without end. Its queries reset on the device and the zone recorded into a buffer
+        /// that is ended and never submitted: what a zone in a discarded batch leaves.
+        TEST_F(RtxGpuTimerTest, aZoneNoSubmitWroteEndsTheProcessNamingIt)
+        {
+            const Device& device = mRenderer.getDevice();
+            if (device.getPhysicalDevice().getTimestampBits() == 0)
+                GTEST_SKIP() << "this device cannot write timestamps";
+
+            GpuTimer timer(device);
+            device.getPool().submitAndWait(
+                [&](VkCommandBuffer commands) { vkCmdResetQueryPool(commands, timer.getQueryPool(), 0, 2); });
+
+            timer.beginFrame();
+            const VkCommandBuffer never = device.getPool().take();
+            device.getPool().begin(never);
+            {
+                const GpuZone timed(&timer, never, FrameZone::Trace);
+            }
+            device.getPool().end(never);
+
+            GpuZones zones;
+            Testing::expectDies([&] { timer.resolve(zones); },
+                "the GPU timer's trace zone was resolved before a submit wrote its timestamps");
         }
     }
 }
