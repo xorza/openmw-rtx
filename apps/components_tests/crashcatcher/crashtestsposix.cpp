@@ -113,6 +113,7 @@ namespace CrashTests
             .mHeadline = "Hang: no frame for",
             .mRaised = {},
             .mFollows = "crash-tests stood still",
+            .mMarked = ", which draws",
             .mEndsBy = SIGKILL });
     }
 

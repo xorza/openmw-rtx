@@ -21,6 +21,10 @@ namespace Crash
         /// Frames the game has drawn. The monitor calls a hang what leaves it unchanged too long.
         alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mFrames;
 
+        /// The thread that counted the last frame, as `Platform::Process::currentThreadId` gives it:
+        /// the one a hang stopped, which a hang's report is about. Nought before the first frame.
+        alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mDrawing;
+
         /// How long unchanged is a hang, in seconds; nought turns the check off.
         alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mHangSeconds;
 

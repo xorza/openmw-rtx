@@ -53,6 +53,7 @@ namespace CrashTests
         {
             const Raised raised = raisedOnThisSystem();
             constexpr std::string_view crashed = ", which crashed";
+            constexpr std::string_view draws = ", which draws";
             std::vector<Mode> modes{
                 { "null-read", "Crash: ", raised.mFault, {}, true, crashed, raised.mStackScanned },
                 { "stack-overflow", "Crash: ", raised.mOverflow, {}, true, crashed },
@@ -67,14 +68,15 @@ namespace CrashTests
                     .mFollows = "which crashed: faulting under a report",
                     .mAlso = "Report: crash-tests asked under a fault" },
                 { "report", "Report: crash-tests asked", {}, "crash-tests lived on", true, ", which asked" },
-                { "hang", "Hang: no frame for", {}, "Hang: frames again after" },
+                { "hang", "Hang: no frame for", {}, "Hang: frames again after", true, draws },
                 { "short-stall", "", {}, "crash-tests lived on", false },
                 { "slow-end", "", {}, "crash-tests lived on", false },
                 { "no-frames", "", {}, "crash-tests lived on", false },
                 { "hang-off", "", {}, "crash-tests lived on", false },
-                { "recovers-before-end", "Hang: no frame for", {},
-                    "Hang: the game drew again before End was answered" },
-                { "ends-before-end", "Hang: no frame for", {}, "Hang: the game ended before End was answered" },
+                { "recovers-before-end", "Hang: no frame for", {}, "Hang: the game drew again before End was answered",
+                    true, draws },
+                { "ends-before-end", "Hang: no frame for", {}, "Hang: the game ended before End was answered", true,
+                    draws },
             };
             addModesOfThisSystem(modes, crashed);
             return modes;

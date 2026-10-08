@@ -222,11 +222,13 @@ namespace Crash
         return std::as_bytes(std::span(&sTable, 1));
     }
 
-    void readNotes(std::span<const std::byte> table, std::uint64_t first, const bool faulted, NotesRead& into)
+    void readNotes(std::span<const std::byte> table, const std::uint64_t asked, const std::uint64_t drawing,
+        const bool faulted, NotesRead& into)
     {
         // Bytes out of another process, which a crash may have left any shape: a table of another
         // size is no table, and a kind past the known ones is a crash's.
         into = NotesRead{};
+        into.mThread = asked;
         if (table.size() != sizeof(Table))
             return;
 
@@ -241,6 +243,8 @@ namespace Crash
             std::memcpy(into.mReason, copy.mReason, sNoteCapacity);
             into.mReason[sNoteCapacity - 1] = '\0';
         }
+        if (into.mKind == ReportKind::Hang && drawing != 0)
+            into.mThread = drawing;
 
         // The process stands still while its table is copied, so a note whose count is odd is one
         // its thread stopped in the middle of.
@@ -257,13 +261,13 @@ namespace Crash
             note.mWhole = whole;
         };
 
-        if (first != 0)
+        if (into.mThread != 0)
             for (const Slot& slot : copy.mSlots)
-                if (slot.mThread == first)
+                if (slot.mThread == into.mThread)
                     take(slot);
 
         for (const Slot& slot : copy.mSlots)
-            if (slot.mThread != 0 && slot.mThread != first)
+            if (slot.mThread != 0 && slot.mThread != into.mThread)
                 take(slot);
     }
 }

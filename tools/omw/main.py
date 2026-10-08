@@ -42,8 +42,9 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                for each `--cut=N`, a distance of 0 leaving its leg out, and the
                                figures side by side
 
-  crash <dump> [symbols]       a player's crash dump, every thread named and lined, against a
-                               release's -symbols.zip or the newest in dist/; no flavour
+  crash <dump> [symbols]       a player's crash dump or package, every thread named and lined,
+                               against the symbols of the build that wrote it: a -symbols.zip, the
+                               build folder, or the newest in dist/ that holds them; no flavour
   format [--check]             clang-format 14 over the working tree: rewrites it, or with --check
                                changes nothing and says what it would; no flavour
   bootstrap                    the pinned Vulkan SDK into deps/; no flavour

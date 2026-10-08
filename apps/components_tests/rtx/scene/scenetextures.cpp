@@ -7,6 +7,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -252,6 +253,27 @@ namespace Rtx
                 = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(odd.isOk());
             EXPECT_EQ(odd.error(), "its format is an unnamed pixel format (6407), which this renderer does not upload");
+
+            // One and two channels of data in a colour slot are a known format in the wrong slot,
+            // and say which, as MVR PBR's BC5 neck does; read as data, they are described.
+            for (const auto& [spelling, name] : { std::pair{ GL_COMPRESSED_RED_GREEN_RGTC2_EXT, "BC5 (ATI2, linear)" },
+                     std::pair{ GL_COMPRESSED_RED_RGTC1_EXT, "BC4 (ATI1, linear)" } })
+            {
+                osg::ref_ptr<osg::Image> channels = new osg::Image;
+                channels->setFileName("textures/tx_b_n_argonian_m_n.dds");
+                channels->allocateImage(4, 4, 1, spelling, GL_UNSIGNED_BYTE);
+                const Misc::Result<Rtx::TextureData, std::string> asColour
+                    = describeImage(*channels, Rtx::TextureEncoding::Colour, levels, texels);
+                ASSERT_FALSE(asColour.isOk()) << name;
+                EXPECT_EQ(asColour.error(),
+                    "its format is " + std::string(name) + ", which holds no colour, where a colour is read");
+                EXPECT_TRUE(levels.empty()) << "a refusal adds no level";
+
+                std::vector<Rtx::MipLevel> dataLevels;
+                std::vector<std::byte> dataTexels;
+                EXPECT_TRUE(describeImage(*channels, Rtx::TextureEncoding::Data, dataLevels, dataTexels).isOk())
+                    << name;
+            }
 
             // A format that uploads, so what is refused is the size alone.
             osg::ref_ptr<osg::Image> empty = new osg::Image;

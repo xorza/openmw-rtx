@@ -22,7 +22,7 @@ namespace
     Crash::NotesRead readAll()
     {
         Crash::NotesRead read;
-        Crash::readNotes(Crash::noteTable(), Platform::Process::currentThreadId(), false, read);
+        Crash::readNotes(Crash::noteTable(), Platform::Process::currentThreadId(), 0, false, read);
         return read;
     }
 
@@ -183,7 +183,7 @@ namespace
     {
         const auto kindAndReason = [] {
             Crash::NotesRead read;
-            Crash::readNotes(Crash::noteTable(), 0, false, read);
+            Crash::readNotes(Crash::noteTable(), 0, 0, false, read);
             return std::pair{ read.mKind, std::string(read.mReason) };
         };
 
@@ -207,9 +207,10 @@ namespace
     }
 
     /// **The table as the monitor reads it**: a copy of its bytes, taken from outside, put in the
-    /// order a report wants, with the thread it names first and what the next report is and why.
-    /// A note whose thread stopped in the middle of writing it reads as half written, and a copy
-    /// of another size is no table, and reads as nothing noted.
+    /// order a report wants, with the thread it is about first and what the next report is and why.
+    /// A hang is about the thread that draws, not the one that took the request. A note whose thread
+    /// stopped in the middle of writing it reads as half written, and a copy of another size is no
+    /// table, and reads as nothing noted.
     TEST(CrashNoteTest, aCopyOfTheTableReadsAsTheLiveOneWithTheNamedThreadFirst)
     {
         const Crash::NoteScope drawing("drawing");
@@ -228,11 +229,14 @@ namespace
         const std::span<const std::byte> live = Crash::noteTable();
         const std::vector<std::byte> copy(live.begin(), live.end());
         Crash::endReport();
+        ASSERT_TRUE(Crash::beginReport(Crash::ReportKind::Hang, {}));
+        const std::vector<std::byte> hanging(live.begin(), live.end());
+        Crash::endReport();
         copied.count_down();
         worker.join();
 
         Crash::NotesRead read;
-        Crash::readNotes(copy, other, false, read);
+        Crash::readNotes(copy, other, 0, false, read);
         EXPECT_EQ(read.mKind, Crash::ReportKind::Report);
         EXPECT_EQ(std::string_view(read.mReason), "a contract broken");
         ASSERT_EQ(read.mCount, 2u);
@@ -240,11 +244,32 @@ namespace
         EXPECT_EQ(std::string_view(read.mNotes[0].mText), "walking the cell \"Seyda Neen\"");
         EXPECT_EQ(std::string_view(read.mNotes[1].mText), "drawing");
         EXPECT_TRUE(read.mNotes[0].mWhole && read.mNotes[1].mWhole);
+        EXPECT_EQ(read.mThread, other);
+
+        // The worker took the hang request here, and this thread draws: the hang is this thread's,
+        // and with no thread known to draw, the one that asked stands for it. A fault that lands
+        // under the hang is the faulting thread's.
+        const std::uint64_t self = Platform::Process::currentThreadId();
+        Crash::readNotes(hanging, other, self, false, read);
+        EXPECT_EQ(read.mKind, Crash::ReportKind::Hang);
+        EXPECT_EQ(read.mThread, self) << "a hang named the thread that took the request";
+        ASSERT_EQ(read.mCount, 2u);
+        EXPECT_EQ(std::string_view(read.mNotes[0].mText), "drawing");
+        EXPECT_EQ(std::string_view(read.mNotes[1].mText), "walking the cell \"Seyda Neen\"");
+        Crash::readNotes(hanging, other, 0, false, read);
+        EXPECT_EQ(read.mThread, other);
+        EXPECT_EQ(std::string_view(read.mNotes[0].mText), "walking the cell \"Seyda Neen\"");
+        Crash::readNotes(hanging, other, self, true, read);
+        EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
+        EXPECT_EQ(read.mThread, other) << "a fault under a hang named the thread that draws";
+        // A report the game asked for is the asking thread's whoever draws.
+        Crash::readNotes(copy, other, self, false, read);
+        EXPECT_EQ(read.mThread, other);
 
         // **A fault taken while the report was written is a crash**, with no reason: the table's
         // kind and reason are the report's, which the faulting thread never passed the gate for.
         // Its notes are its own all the same.
-        Crash::readNotes(copy, other, true, read);
+        Crash::readNotes(copy, other, 0, true, read);
         EXPECT_EQ(read.mKind, Crash::ReportKind::Crash) << "a fault read as the report it landed in";
         EXPECT_EQ(std::string_view(read.mReason), "") << "a fault was given the report's reason";
         EXPECT_EQ(read.mCount, 2u);
@@ -254,7 +279,7 @@ namespace
         ASSERT_TRUE(Crash::beginReport(Crash::ReportKind::Crash, "std::terminate"));
         const std::vector<std::byte> ending(Crash::noteTable().begin(), Crash::noteTable().end());
         Crash::endReport();
-        Crash::readNotes(ending, other, true, read);
+        Crash::readNotes(ending, other, 0, true, read);
         EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
         EXPECT_EQ(std::string_view(read.mReason), "std::terminate");
 
@@ -271,13 +296,13 @@ namespace
         ++sequence;
         std::memcpy(halfway.data() + slots[0] + sizeof(other), &sequence, sizeof(sequence));
 
-        Crash::readNotes(halfway, other, false, read);
+        Crash::readNotes(halfway, other, 0, false, read);
         ASSERT_EQ(read.mCount, 2u);
         EXPECT_FALSE(read.mNotes[0].mWhole) << "a note stopped halfway read as whole";
         EXPECT_EQ(std::string_view(read.mNotes[0].mText), "walking the cell \"Seyda Neen\"");
         EXPECT_TRUE(read.mNotes[1].mWhole);
 
-        Crash::readNotes(std::span(copy).first(copy.size() - 1), other, false, read);
+        Crash::readNotes(std::span(copy).first(copy.size() - 1), other, 0, false, read);
         EXPECT_EQ(read.mCount, 0u) << "a table of another size was read";
         EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
 

@@ -180,6 +180,8 @@ namespace Crash
         // One writer, the thread that draws, so a load and a store rather than a locked add.
         if (Heartbeat* const page = sharedPage())
         {
+            thread_local const std::uint64_t self = Platform::Process::currentThreadId();
+            std::atomic_ref(page->mDrawing).store(self, std::memory_order_relaxed);
             std::atomic_ref frames(page->mFrames);
             frames.store(frames.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
         }

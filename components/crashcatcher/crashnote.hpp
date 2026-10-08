@@ -46,9 +46,13 @@ namespace Crash
         /// reason given to `Crash::report`. Terminated, and empty for a fault.
         char mReason[sNoteCapacity] = {};
 
+        /// The thread the report is about, as `Platform::Process::currentThreadId` gives it: the one
+        /// that faulted or asked, or for a hang the one that draws. Nought where none is known.
+        std::uint64_t mThread = 0;
+
         std::size_t mCount = 0;
 
-        /// The first thread's first, then the rest in the table's order.
+        /// `mThread`'s first, then the rest in the table's order.
         NoteCopy mNotes[sNoteThreads];
     };
 
@@ -137,14 +141,19 @@ namespace Crash
     std::span<const std::byte> noteTable();
 
     /// Reads a copy of `noteTable()`'s bytes, taken while no thread of the process that wrote them
-    /// runs, with `first`'s note first. A thread whose note is empty is doing nothing it noted, and
-    /// is left out. The copy must be the whole table: the monitor is this same
+    /// runs, with the report's thread's note first. A thread whose note is empty is doing nothing it
+    /// noted, and is left out. The copy must be the whole table: the monitor is this same
     /// executable and knows its layout.
+    ///
+    /// **The report's thread is `asked`, the one that faulted or asked for the dump, or for a hang
+    /// `drawing`, the one that draws, where it is known**: a hang's dump is asked for by whichever
+    /// thread took the monitor's request, and that thread is not the one that stopped.
     ///
     /// **`faulted` says the dump is of a fault the system raised, not one the process asked for**,
     /// and such a dump is a crash whatever the table says. A thread that faults while another's hang
     /// or report is being written finds the table saying `Hang` or `Report`, because the gate holds
     /// the catcher's own reports and no fault; the kind and the reason are then the other report's,
     /// and are not read.
-    void readNotes(std::span<const std::byte> table, std::uint64_t first, bool faulted, NotesRead& into);
+    void readNotes(
+        std::span<const std::byte> table, std::uint64_t asked, std::uint64_t drawing, bool faulted, NotesRead& into);
 }

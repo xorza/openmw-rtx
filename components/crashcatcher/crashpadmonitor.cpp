@@ -261,6 +261,16 @@ namespace Crash
             }
         }
 
+        /// The registers `thread` stood at as the snapshot was taken, or null where it holds no such
+        /// thread.
+        const crashpad::CPUContext* contextOf(const crashpad::ProcessSnapshot& snapshot, std::uint64_t thread)
+        {
+            for (const crashpad::ThreadSnapshot* one : snapshot.Threads())
+                if (one->ThreadID() == thread)
+                    return one->Context();
+            return nullptr;
+        }
+
         class TextStream final : public crashpad::MinidumpUserExtensionStreamDataSource
         {
         public:
@@ -296,18 +306,10 @@ namespace Crash
             {
                 CrashFacts facts;
                 const crashpad::ExceptionSnapshot* const exception = snapshot->Exception();
-                facts.mThread = exception != nullptr ? exception->ThreadID() : 0;
+                const std::uint64_t asked = exception != nullptr ? exception->ThreadID() : 0;
                 facts.mStalledFor = mMonitor.mStalledFor.load();
-
                 if (exception != nullptr)
-                {
                     facts.mException = Monitor::describeException(*exception, mMonitor.mClient);
-                    if (const crashpad::CPUContext* const context = exception->Context())
-                    {
-                        facts.mWhere = locate(snapshot->Modules(), context->InstructionPointer());
-                        scanStack(*snapshot, facts.mThread, *context, facts.mStack);
-                    }
-                }
 
                 // The exception says what the dump is, and the table only what a dump asked for is:
                 // `describeException` names every fault and nothing the game asked for.
@@ -315,8 +317,21 @@ namespace Crash
                 const crashpad::ProcessMemory* const memory = snapshot->Memory();
                 const bool read = memory != nullptr && mMonitor.mNotes != 0
                     && memory->Read(mMonitor.mNotes, table.size(), table.data());
-                readNotes(read ? std::span<const std::byte>(table) : std::span<const std::byte>(), facts.mThread,
+                Heartbeat* const page = mMonitor.mPage.get();
+                const std::uint64_t drawing = page != nullptr ? std::atomic_ref(page->mDrawing).load() : 0;
+                readNotes(read ? std::span<const std::byte>(table) : std::span<const std::byte>(), asked, drawing,
                     !facts.mException.empty(), facts.mNotes);
+
+                // A hang's report is about the thread that draws, whose context is its own: the
+                // exception's is the thread's that took the monitor's request.
+                const std::uint64_t thread = facts.mNotes.mThread;
+                const crashpad::CPUContext* const context
+                    = exception != nullptr && thread == asked ? exception->Context() : contextOf(*snapshot, thread);
+                if (context != nullptr)
+                {
+                    facts.mWhere = locate(snapshot->Modules(), context->InstructionPointer());
+                    scanStack(*snapshot, thread, *context, facts.mStack);
+                }
 
                 for (const auto& [key, value] : snapshot->AnnotationsSimpleMap())
                     facts.mAnnotations.emplace_back(key, value);

@@ -150,6 +150,13 @@ namespace Rtx
         /// `checkUploadable` of a format already read.
         Misc::Result<void, std::string> checkFormat(const osg::Image& image, const TextureFormat format)
         {
+            // A format of data alone that a colour slot read: named, since the file is a known
+            // format in the wrong slot, and not one this renderer cannot upload.
+            if (format == TextureFormat::Unnamed)
+                if (const TextureFormat data = readFormat(image, TextureEncoding::Data); data != TextureFormat::Unnamed)
+                    return Misc::Err{ "its format is " + std::string(nameOf(data))
+                        + ", which holds no colour, where a colour is read" };
+
             if (!isUploadable(format) && !isWidened(format))
                 return Misc::Err{ "its format is " + std::string(nameOf(format)) + " ("
                     + std::to_string(image.getPixelFormat()) + "), which this renderer does not upload" };

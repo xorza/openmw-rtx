@@ -24,8 +24,8 @@ namespace CrashTests
         std::string_view mFollows = {};
         bool mReports = true;
 
-        /// How the note of the thread that raised the report is marked, where that thread noted
-        /// what it was doing: the main thread does, before any mode.
+        /// How the note of the thread the report is about is marked, where that thread noted what it
+        /// was doing: the main thread does, before any mode.
         std::string_view mMarked = {};
 
         /// Whether the dump must carry `sHeapMarker`, which lies on the heap and which only the
