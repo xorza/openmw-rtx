@@ -136,7 +136,10 @@ namespace Rtx
             EXPECT_THROW(getPool().submitAndWait([&](VkCommandBuffer commands) {
                 thrown = commands;
                 vkCmdCopyBuffer(commands, source.getHandle(), target.getHandle(), 1, &whole);
-                throw Abandoned{};
+                // On a condition the compiler cannot decide, or MSVC calls the flush after the
+                // record unreachable, and its warning is an error.
+                if (commands != VK_NULL_HANDLE)
+                    throw Abandoned{};
             }),
                 Abandoned);
             VkCommandBuffer next = VK_NULL_HANDLE;
