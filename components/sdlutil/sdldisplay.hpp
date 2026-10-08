@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SDLUTIL_SDLDISPLAY_H
-#define OPENMW_COMPONENTS_SDLUTIL_SDLDISPLAY_H
+#pragma once
 
 #include <vector>
 
@@ -22,5 +21,3 @@ namespace SDLUtil
     /// mode per refresh rate and per pixel density.
     std::vector<DisplayResolution> displayResolutions(SDL_DisplayID display);
 }
-
-#endif
