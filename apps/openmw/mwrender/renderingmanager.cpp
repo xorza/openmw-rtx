@@ -181,7 +181,7 @@ namespace MWRender
         mPrecipitation
             = std::make_unique<Precipitation>(sceneRoot, &mRenderer.getCamera(), resourceSystem->getSceneManager());
 
-        mAttachment = mRenderer.attachWorld(*this, *mRootNode);
+        mAttachment = mRenderer.attachWorld(*this, *mRootNode, unrefQueue);
 
         mCamera = std::make_unique<Camera>(&mRenderer.getCamera());
 

@@ -63,10 +63,11 @@ namespace MWRender
         assert(!mWorldAttached && "a renderer ended under a world still attached to it");
     }
 
-    WorldAttachment Renderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
+    WorldAttachment Renderer::attachWorld(
+        RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released)
     {
         assert(!mWorldAttached && "a world attached to a renderer that has one");
-        onAttachWorld(world, worldRoot);
+        onAttachWorld(world, worldRoot, released);
         mWorldAttached = true;
         return WorldAttachment(*this);
     }

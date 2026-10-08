@@ -364,7 +364,7 @@ namespace Rtx
         }
     }
 
-    void EmitterResolver::retire()
+    void EmitterResolver::retire(Released& released)
     {
         // After the flush, because a pending emitter points into the map this erases from.
         assert(mPending.empty() && "a sweep with emitters noted and not yet placed");
@@ -372,7 +372,11 @@ namespace Rtx
         // The sprite's own references go back with the emitter that took them, which is what makes
         // an emitter leaving enough to free its textures — a frame where no mesh and no material
         // died is exactly the frame the mirror's sweep returns from without looking.
-        mHeld.retire([this](HeldSprite& held) { releaseSprite(held); });
+        mHeld.retire(released, [&](HeldSprite& gone) {
+            releaseSprite(gone);
+            released.keep(gone.mSprite);
+            released.keep(gone.mKey);
+        });
     }
 
     EmitterResolver::~EmitterResolver()

@@ -18,6 +18,9 @@ namespace Rtx
             MirrorPass mPass;
             Kept<Map> mKept{ mPass };
 
+            /// Where a sweep keeps what its keys hold: nothing, for a map keyed by numbers.
+            Released mReleased;
+
             /// What the extractor does between two walks: the sweep, then the epoch.
             void nextEpoch() { ++mPass.mEpoch; }
         };
@@ -46,7 +49,7 @@ namespace Rtx
 
             nextEpoch();
             mKept.stamp(mKept.find(1));
-            EXPECT_EQ(mKept.retire(), 0u) << "nothing to drop: one stamped, one held";
+            EXPECT_EQ(mKept.retire(mReleased), 0u) << "nothing to drop: one stamped, one held";
             EXPECT_NE(mKept.find(2), mKept.end()) << "the held entry is a survivor";
         }
 
@@ -70,7 +73,7 @@ namespace Rtx
             EXPECT_FALSE(mKept.whole()) << "the last hold went and the entry carries an old stamp";
 
             std::uint32_t dropped = 0;
-            mKept.retire([&](const Known& gone) {
+            mKept.retire(mReleased, [&](const Known& gone) {
                 EXPECT_EQ(gone.mIndex, 10u);
                 ++dropped;
             });
@@ -86,7 +89,7 @@ namespace Rtx
             EXPECT_FALSE(mKept.whole()) << "dropped and not yet reached";
             mKept.stamp(mKept.find(3));
             EXPECT_TRUE(mKept.whole()) << "a dropped entry the walk reached owed a sweep";
-            EXPECT_EQ(mKept.retire(), 0u);
+            EXPECT_EQ(mKept.retire(mReleased), 0u);
             EXPECT_NE(mKept.find(3), mKept.end());
 
             // The other way round: a hold dropped on an entry the epoch stamped is a reached entry
@@ -95,7 +98,7 @@ namespace Rtx
             mKept.hold(mKept.find(2));
             mKept.drop(mKept.find(2));
             EXPECT_TRUE(mKept.whole());
-            EXPECT_EQ(mKept.retire(), 0u);
+            EXPECT_EQ(mKept.retire(mReleased), 0u);
             EXPECT_NE(mKept.find(2), mKept.end());
         }
 
@@ -111,7 +114,7 @@ namespace Rtx
             mKept.abandon(mKept.find(1));
             EXPECT_FALSE(mKept.whole()) << "an abandon owes a sweep";
 
-            EXPECT_EQ(mKept.retire(), 0u) << "the abandoned entry is already gone";
+            EXPECT_EQ(mKept.retire(mReleased), 0u) << "the abandoned entry is already gone";
             EXPECT_EQ(mKept.find(1), mKept.end());
             EXPECT_NE(mKept.find(2), mKept.end());
             EXPECT_TRUE(mKept.whole());
@@ -137,8 +140,8 @@ namespace Rtx
             mKept.find(1)->second.mReach.mEpoch = added;
             ASSERT_TRUE(mKept.whole()) << "the drift this test is made of";
 
-            Testing::expectAssertDies(
-                [&] { mKept.retire(); }, "a map counted whole with an entry neither the epoch nor a hold keeps");
+            Testing::expectAssertDies([&] { mKept.retire(mReleased); },
+                "a map counted whole with an entry neither the epoch nor a hold keeps");
         }
     }
 }

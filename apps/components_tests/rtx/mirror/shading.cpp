@@ -9,6 +9,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/mirror/chainkeys.hpp>
+#include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/shading.hpp>
 
 namespace Rtx
@@ -88,14 +89,21 @@ namespace Rtx
             EXPECT_EQ(keys.size(), 3u);
 
             // Held as a material entry holds its key: the deeper pair holds the pair above it.
+            Released released;
             osg::ref_ptr<const osg::StateSet> held = deeper;
-            keys.retire();
+            keys.retire(released);
             EXPECT_EQ(keys.size(), 2u) << "the pair under the second parent is held by nothing";
             EXPECT_EQ(keyOf({ first.get(), shared.get(), second.get() }), deeper) << "a held key is found again";
 
+            // **Let go of into the sink, as a material's sweep lets go of its key**: what the sink
+            // holds is no hold on a key. Each pair that goes puts what it held in the sink: its key,
+            // the key above it and its own link, three references. One pair went at the first sweep
+            // and two go at this one, beside the key the sink was handed: 3 + 1 + 2 · 3 = 10.
+            released.keep(held);
             held = nullptr;
-            keys.retire();
+            keys.retire(released);
             EXPECT_EQ(keys.size(), 0u) << "the deeper pair, and then the pair above it";
+            EXPECT_EQ(released.get().size(), 10u) << "what the pairs held went elsewhere than the sink";
         }
 
         /// A state set carrying a uniform that is not the fade inherits too.

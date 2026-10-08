@@ -543,9 +543,9 @@ namespace Rtx
         return material;
     }
 
-    void MaterialResolver::retire()
+    void MaterialResolver::retire(Released& released)
     {
-        mMaterials.retire([this](HeldMaterial& held) { release(held); });
+        mMaterials.retire(released, [this](HeldMaterial& held) { release(held); });
     }
 
     MaterialResolver::~MaterialResolver()
@@ -569,15 +569,21 @@ namespace Rtx
                 mScene.drop(std::move(slot));
     }
 
-    void MaterialResolver::retireHolds()
+    void MaterialResolver::retireHolds(Released& released)
     {
         // The walk's own hold on every image a material is read from, given back the same way.
         // Most are met once and go stale on the frame after they arrived; what settles here is the
         // animated materials.
-        mTextureOf.retire([this](HeldTexture& held) { release(held); });
+        mTextureOf.retire(released, [this](HeldTexture& held) { release(held); });
 
         // What `animate` keeps. Swept beside everything else because it is keyed on a node the graph
         // can drop, and because a state set held past its node holds the textures in it alive too.
-        mAnimated.retire();
+        mAnimated.retire(released, [&](const Animated& gone) {
+            released.keep(gone.mStateSet);
+            for (const osg::ref_ptr<SceneUtil::StateSetUpdater>& updater : gone.mUpdaters)
+                released.keep(updater);
+            for (const osg::ref_ptr<const osg::Callback>& callback : gone.mChains.mCallbacks)
+                released.keep(callback);
+        });
     }
 }

@@ -2,10 +2,13 @@
 
 #include <cstddef>
 #include <span>
+#include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/StateSet>
 #include <osg/ref_ptr>
+
+#include "released.hpp"
 
 namespace Rtx
 {
@@ -40,10 +43,11 @@ namespace Rtx
         /// joined in turn: what `MaterialResolver::chainOf` keeps of a reading. Null for none.
         const osg::StateSet* keyOf(std::span<const osg::StateSet* const> stating);
 
-        /// Drops every pair whose key nothing but this table holds, and the state sets it held with
-        /// it. A material's entry holds its key, and a pair holds the key above it, so a chain goes
-        /// once nothing is keyed on it, the nearest pair first.
-        void retire();
+        /// Drops every pair whose key nothing but this table and `released` holds, and keeps the
+        /// state sets it held with it in `released`. A material's entry holds its key, and a pair
+        /// holds the key above it, so a chain goes once nothing is keyed on it, the nearest pair
+        /// first.
+        void retire(Released& released);
 
         /// Room for `count` pairs before the table rehashes, which no frame of a walk should pay.
         void reserve(std::size_t count) { mKeys.reserve(count); }
@@ -78,5 +82,8 @@ namespace Rtx
         };
 
         boost::unordered_flat_map<Pair, Held, PairHash> mKeys;
+
+        /// What `retire` counts the sink's holds by, sorted: kept and refilled.
+        std::vector<const osg::Referenced*> mReleasedScratch;
     };
 }

@@ -215,7 +215,8 @@ namespace MWRender
         /// a model's state is read as the loader left it.
         void configureResources(Resource::ResourceSystem& resources) noexcept override;
 
-        void onAttachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept override;
+        void onAttachWorld(
+            RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) noexcept override;
         void onDetachWorld() noexcept override;
 
         void adoptTraversalRoot(osg::Group& root) noexcept override;

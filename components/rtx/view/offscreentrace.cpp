@@ -156,6 +156,9 @@ namespace Rtx
         // sound for the world: this walk is the whole of what this picture is of.
         subject.mExtractor->retire();
 
+        // A picture has no queue to hand what it let go of to, and what goes is a picture's few.
+        subject.mExtractor->getReleased().clear();
+
         // It consumes the arrivals and ends the placement, so nothing here clears either.
         subject.mUploader.hand(
             mRenderer, SceneUploader::Handing{ .mSlot = subject.mSlot.get(), .mScene = *subject.mScene });

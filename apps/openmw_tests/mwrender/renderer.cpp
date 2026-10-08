@@ -31,6 +31,7 @@
 #include <components/misc/frameclock.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/sceneutil/unrefqueue.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/values.hpp>
@@ -104,7 +105,7 @@ namespace MWRender
             }
 
         protected:
-            void onAttachWorld(RenderingManager&, osg::Group&) override { ++mAttached; }
+            void onAttachWorld(RenderingManager&, osg::Group&, SceneUtil::UnrefQueue&) override { ++mAttached; }
             void onDetachWorld() override { ++mDetached; }
             void adoptTraversalRoot(osg::Group&) override {}
             void applyViewMask() override {}
@@ -326,23 +327,24 @@ namespace MWRender
             RecordingRenderer renderer;
             UnbuiltWorld unbuilt;
             const osg::ref_ptr<osg::Group> root = new osg::Group;
+            SceneUtil::UnrefQueue queue;
 
             struct Throwing
             {
                 WorldAttachment mAttachment;
 
-                Throwing(Renderer& renderer, RenderingManager& world, osg::Group& root)
+                Throwing(Renderer& renderer, RenderingManager& world, osg::Group& root, SceneUtil::UnrefQueue& queue)
                 {
-                    mAttachment = renderer.attachWorld(world, root);
+                    mAttachment = renderer.attachWorld(world, root, queue);
                     throw std::runtime_error("after the attach");
                 }
             };
-            EXPECT_THROW({ const Throwing owner(renderer, unbuilt.mWorld, *root); }, std::runtime_error);
+            EXPECT_THROW({ const Throwing owner(renderer, unbuilt.mWorld, *root, queue); }, std::runtime_error);
             EXPECT_EQ(renderer.mAttached, 1u);
             EXPECT_EQ(renderer.mDetached, 1u) << "a constructor that threw after the attach";
 
             {
-                WorldAttachment first = renderer.attachWorld(unbuilt.mWorld, *root);
+                WorldAttachment first = renderer.attachWorld(unbuilt.mWorld, *root, queue);
                 WorldAttachment moved = std::move(first);
                 first.reset();
                 EXPECT_EQ(renderer.mDetached, 1u) << "the moved-from attachment";
@@ -353,11 +355,11 @@ namespace MWRender
             }
 
             {
-                const WorldAttachment scoped = renderer.attachWorld(unbuilt.mWorld, *root);
+                const WorldAttachment scoped = renderer.attachWorld(unbuilt.mWorld, *root, queue);
             }
             EXPECT_EQ(renderer.mDetached, 3u) << "an end of scope";
 
-            WorldAttachment replaced = renderer.attachWorld(unbuilt.mWorld, *root);
+            WorldAttachment replaced = renderer.attachWorld(unbuilt.mWorld, *root, queue);
             replaced = WorldAttachment();
             EXPECT_EQ(renderer.mDetached, 4u) << "an assignment over it";
             EXPECT_EQ(renderer.mAttached, 4u);

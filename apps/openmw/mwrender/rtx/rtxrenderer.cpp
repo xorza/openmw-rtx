@@ -340,7 +340,7 @@ namespace MWRender
         presentIn(osg::Vec2i(width, height));
     }
 
-    void RtxRenderer::onAttachWorld(RenderingManager&, osg::Group& worldRoot) noexcept
+    void RtxRenderer::onAttachWorld(RenderingManager&, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) noexcept
     {
         mPhase.expect(Phase::Between);
         // Straight under the root: the rasterizer hangs its shadowed scene between the two, and
@@ -350,7 +350,7 @@ namespace MWRender
         worldRoot.addChild(std::exchange(mSceneRoot, nullptr));
         mWorldRoot = &worldRoot;
 
-        mMirror.attach(getResources());
+        mMirror.attach(getResources(), released);
 
         // The sky's sheets into the mirror's scene, once: they are drawn by rays that reach
         // nothing, so nothing the walk finds would keep their slots.
