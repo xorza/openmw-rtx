@@ -54,11 +54,6 @@ What is left:
 
 ### Seam and game side
 
-- [ ] **5.15 The SDL3 port reads display orientation from two displays.**
-  `sdlutil/sdlinputwrapper.cpp:209` filters by the window's display, and
-  `mwinput/sensormanager.cpp:47` reads `[Video] screen`'s display. Target: the window's display in
-  both places. `InputManager` hands `SensorManager` the window, as it does for `KeyboardManager`.
-
 - [ ] **5.16 `TracedView` works out its footprint twice.**
   `mwrender/rtx/tracedview.cpp:94-117`. One private `footprintFromAbove()` that returns the two
   corners (a named struct, not a pair) serves both `coversFromAbove` and `waitsForGround`.
