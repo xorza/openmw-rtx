@@ -79,7 +79,7 @@ namespace Rtx
 
         /// @param textureLayout the scene's bindless textures, which this samples the star sheet
         ///        out of — `ToneConstants::mStars` says why the field is drawn here.
-        TonePass(const Device& device, VkDescriptorSetLayout textureLayout);
+        TonePass(const Device& device, const SetLayout& textureLayout);
 
         void record(VkCommandBuffer commands, const Tone& what, GpuTimer* timer) const;
 

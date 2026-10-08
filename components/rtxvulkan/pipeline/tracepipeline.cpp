@@ -63,7 +63,7 @@ namespace Rtx
             const auto at = static_cast<std::uint32_t>(stages.size());
             stages.push_back(VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(module, layout.getBindings()),
+                .pNext = code.stage(module, layout.getSetTables()),
                 .flags = 0,
                 .stage = stage,
                 .module = VK_NULL_HANDLE,

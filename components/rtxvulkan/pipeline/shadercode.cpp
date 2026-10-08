@@ -46,24 +46,27 @@ namespace Rtx
         }
     }
 
-    std::optional<std::string> passBindingDisagreement(
-        const std::span<const ModuleBinding> module, const std::span<const VkDescriptorSetLayoutBinding> declared)
+    std::optional<std::string> bindingDisagreement(const std::span<const ModuleBinding> module, const SetTables& sets)
     {
         for (const ModuleBinding& bound : module)
         {
-            if (bound.mSet != Shaders::SET_PASS || bound.mBinding == Shaders::BIND_CENSUS)
+            if (bound.mSet == Shaders::SET_PASS && bound.mBinding == Shaders::BIND_CENSUS)
                 continue;
+            if (bound.mSet >= sets.size() || sets[bound.mSet] == nullptr)
+                return std::format("the module reads set {}, which the layout does not name", bound.mSet);
 
+            const std::span<const VkDescriptorSetLayoutBinding> declared = sets[bound.mSet]->get();
             const auto stated = std::ranges::find(declared, bound.mBinding, &VkDescriptorSetLayoutBinding::binding);
             if (stated == declared.end())
-                return std::format("binding {} is in the module and not in the layout", bound.mBinding);
+                return std::format(
+                    "binding {} of set {} is in the module and not in the layout", bound.mBinding, bound.mSet);
             if (!bindsAs(bound.mKind, stated->descriptorType))
-                return std::format("binding {} is descriptor type {} in the layout and another in the module",
-                    bound.mBinding, static_cast<int>(stated->descriptorType));
+                return std::format("binding {} of set {} is descriptor type {} in the layout and another in the module",
+                    bound.mBinding, bound.mSet, static_cast<int>(stated->descriptorType));
             // An array of no stated length takes whatever the layout gives it.
             if (bound.mCount != 0 && bound.mCount != stated->descriptorCount)
-                return std::format("binding {} is {} in the layout and {} in the module", bound.mBinding,
-                    stated->descriptorCount, bound.mCount);
+                return std::format("binding {} of set {} is {} in the layout and {} in the module", bound.mBinding,
+                    bound.mSet, stated->descriptorCount, bound.mCount);
         }
         return std::nullopt;
     }
@@ -73,7 +76,7 @@ namespace Rtx
     {
     }
 
-    const void* ShaderCode::stage(const std::string_view module, const BindingTable& pass)
+    const void* ShaderCode::stage(const std::string_view module, const SetTables& sets)
     {
         auto known = std::ranges::find(mRead, module, &Read::mModule);
         if (known == mRead.end())
@@ -82,8 +85,7 @@ namespace Rtx
             known = std::prev(mRead.end());
         }
 
-        if (const std::optional<std::string> disagreement
-            = passBindingDisagreement(known->mInterface.mBindings, pass.get()))
+        if (const std::optional<std::string> disagreement = bindingDisagreement(known->mInterface.mBindings, sets))
             Crash::fatal(std::format("{}: {}", module, *disagreement));
 
         return known->mStage;

@@ -102,7 +102,7 @@ namespace Rtx
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
         , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth)
-        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
+        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
         , mMedia(mDevice, FogNoise::shared())
         , mGui(mDevice)
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth)

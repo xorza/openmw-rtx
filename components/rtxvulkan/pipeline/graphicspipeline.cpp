@@ -24,7 +24,7 @@ namespace Rtx
         const std::array<VkPipelineShaderStageCreateInfo, 2> stages{
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(options.mVertexModule, layout.getBindings()),
+                .pNext = code.stage(options.mVertexModule, layout.getSetTables()),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
                 .module = VK_NULL_HANDLE,
@@ -33,7 +33,7 @@ namespace Rtx
             },
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(options.mFragmentModule, layout.getBindings()),
+                .pNext = code.stage(options.mFragmentModule, layout.getSetTables()),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
                 .module = VK_NULL_HANDLE,

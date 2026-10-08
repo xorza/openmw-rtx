@@ -64,7 +64,7 @@ namespace Rtx
                 Device& device = getDevice();
                 const TexturePasses passes(device);
                 const SetLayout layout = TextureArray::describeLayout(device);
-                const GroundCompositePass pass(device, layout.get());
+                const GroundCompositePass pass(device, layout);
 
                 constexpr std::array<std::uint8_t, 4> red{ 255, 0, 0, 255 };
                 Testing::TestTexture ladder;

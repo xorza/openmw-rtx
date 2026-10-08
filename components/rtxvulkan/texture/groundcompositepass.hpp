@@ -19,7 +19,7 @@ namespace Rtx
     public:
         /// @param textures the layout of the scene's texture set, bound at `SET_TEXTURES` — the
         ///        layers' textures and their shading maps.
-        GroundCompositePass(const Device& device, VkDescriptorSetLayout textures);
+        GroundCompositePass(const Device& device, const SetLayout& textures);
 
         /// Records `chunk`'s bake into its albedo and its gloss, every level of each: one sum into
         /// both first levels, the chains blitted below them in step. Each is met undefined and left

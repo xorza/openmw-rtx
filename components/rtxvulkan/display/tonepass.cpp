@@ -35,8 +35,8 @@ namespace Rtx
         };
     }
 
-    TonePass::TonePass(const Device& device, VkDescriptorSetLayout textureLayout)
-        : mPipeline(device, sBindings, SharedSetLayouts{ .mTextures = textureLayout }, "tone.comp.spv", "tone")
+    TonePass::TonePass(const Device& device, const SetLayout& textureLayout)
+        : mPipeline(device, sBindings, SharedSetLayouts{ .mTextures = &textureLayout }, "tone.comp.spv", "tone")
         , mSampler(makeTargetSampler(device, "tone"))
         , mNoBloom(makeStandIn(device, toVulkanFormat(BLOOM_LEVEL), VK_IMAGE_USAGE_SAMPLED_BIT, "no-bloom"))
     {
