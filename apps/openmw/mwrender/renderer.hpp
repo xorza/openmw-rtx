@@ -159,9 +159,6 @@ namespace MWRender
         /// shown in.
         const Misc::Presentation& getPresentation() const { return mPresentation; }
 
-        /// `[Video] resolution x/y` changed: the frame is the size they name from now on.
-        void resolutionChanged();
-
         /// The ground of one worldspace and the distance over it, as this renderer draws them. The
         /// rasterizer builds upstream's chunked world with its paging and groundcover; a renderer
         /// that stands the ground itself hands back a `Terrain::World` that holds the storage, the

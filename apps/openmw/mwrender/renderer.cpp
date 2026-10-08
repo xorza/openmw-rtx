@@ -231,11 +231,6 @@ namespace MWRender
         return static_cast<float>(mClock->getStep());
     }
 
-    void Renderer::resolutionChanged()
-    {
-        presentIn(mPresentation.mDrawable);
-    }
-
     void Renderer::presentIn(const osg::Vec2i& drawable)
     {
         const osg::Vec2i asked
@@ -274,9 +269,19 @@ namespace MWRender
         // A set and not a span, because the renderers ask it by key. Rebuilt per change, which is
         // a player choosing from a menu and not a frame.
         Settings::CategorySettingVector honoured;
+        bool resized = false;
         for (const Settings::CategorySetting& setting : changed)
+        {
+            resized
+                |= setting.first == "Video" && (setting.second == "resolution x" || setting.second == "resolution y");
             if (support().declinedSetting(setting.first, setting.second).empty())
                 honoured.insert(setting);
+        }
+
+        // The frame is the size `[Video] resolution x/y` name from here on, whichever renderer
+        // draws it, so it is presented again before either is handed what it honours.
+        if (resized)
+            presentIn(mPresentation.mDrawable);
 
         if (!honoured.empty())
             applyChangedSettings(honoured);
