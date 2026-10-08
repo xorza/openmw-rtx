@@ -156,9 +156,11 @@ namespace Rtx
 
     void FrameRing::close(FrameRecord& frame, const bool traced)
     {
+        // The submit first, so one that throws leaves the slot begun and the ring where it stood.
+        const std::uint64_t submitted = mDevice.getPool().submit(frame.mWorld.mCommands);
         frame.mState.step(FrameState::Submitted, FrameState::Begun);
         frame.mTraced = traced;
-        frame.mWorld.mSubmitted = mDevice.getPool().submit(frame.mWorld.mCommands);
+        frame.mWorld.mSubmitted = submitted;
         ++mFrame;
         frame.mInFlight = static_cast<std::uint32_t>(mFrame - mFinished);
     }
