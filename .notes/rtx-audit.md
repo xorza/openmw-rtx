@@ -59,7 +59,7 @@ Group 4 builds this helper once, and the histories, the fog volume and the paylo
 | 4 | Stochastic-rounding halves | history 440 → ~220 B/px; fog −53 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
 | 5 | Transient memory (aliasing) | 50–130 MB | none | infrastructure |
 | 6 | Scene tables and structures | ~40–80 MB; one frame-path spike removed | bit-exact | straightforward |
-| 7 | TLAS and traversal | ~0.2 ms in interiors; more after measurement | coincident ties at most | mixed |
+| 7 | TLAS and traversal | item 1 done: 0.048 ms in interiors; the rest after measurement | none moved | mixed |
 | 8 | Air volume | 165 → ~50 MB with group 4; air+column ~0.5 → ~0.25 ms (est.) | softer shafts at scale 12 | experiment |
 | 9 | Water | 4 MB; ~19 queue drains a frame | bit-exact / ulp | straightforward |
 | 10 | Display and sprites | one sprite table set (up to 64 MB in a storm); one full-frame read | bit-exact | straightforward |
@@ -288,7 +288,10 @@ worst and p99), the new mesh-arrival allocation test.
 
 ## Group 7: TLAS and traversal
 
-1. **The TLAS is built over every slot ever used** (verified: `sceneacceleration.cpp:482`,
+1. **Done — measured −0.048 ms, not −0.2.** The guild after two exteriors: TLAS 0.253 → 0.205 ms;
+   the exteriors pay ~0.01 ms for the pack. The guild alone, with nothing to pack, is 0.186 ms: the
+   rest is the build's own floor on this driver, which the estimate below took for the gaps.
+   **The TLAS is built over every slot ever used** (verified: `sceneacceleration.cpp:482`,
    `primitiveCount = mRowTable.size()`). Inactive rows still cost build time: the guild interior's TLAS
    is 0.25 ms for 1,221 placed instances, against 0.41 ms for 64k outside. Build from a dense copy in
    slot order, made by a small prefix-sum pass; nothing reads `gl_InstanceID`, and slot order (not
