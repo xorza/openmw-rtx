@@ -54,14 +54,6 @@ What is left:
 
 ### Harness, `./omw` and CI
 
-- [ ] **5.19 The noise planning lives in `main.cpp`, and its model in `compare.hpp`.**
-  `apps/rtxtool/main.cpp:993-1229` (about 240 lines of stop planning), `compare.hpp:121-268`.
-  Target: `apps/rtxtool/noise.{hpp,cpp}` with the noise types and a pure `planNoise` that returns a
-  named plan struct and throws for the option refusals. `commandNoise` keeps the I/O. Test it with
-  no world, as `RtxFilmTest` tests `planFilm`.
-  Verify: the new suite, then `./omw release noise --views=<one> --strafe=0 --walk=0 --still` before
-  and after (same names, same `noise.json`).
-
 - [ ] **5.20 Three verbs set the radiance width by hand.**
   `main.cpp:818,885,1237`. The set {bench, film, view} is `mMeasures || mPlayed` in `VerbPolicy`.
   Target: `frameFrom` sets `RadianceWidth::Shown` from the policy.

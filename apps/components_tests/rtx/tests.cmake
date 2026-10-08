@@ -100,6 +100,7 @@ set(RTX_TEST_FILES
     rtxtool/frametimes.cpp
     rtxtool/gpuclock.cpp
     rtxtool/homekey.cpp
+    rtxtool/noise.cpp
     rtxtool/numbervalue.cpp
     rtxtool/measurewindow.cpp
     rtxtool/options.cpp

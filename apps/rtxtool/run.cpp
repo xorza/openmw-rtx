@@ -55,6 +55,11 @@ namespace RtxTool
 
     }
 
+    void measureFrames(Stop& stop, const std::uint32_t frames)
+    {
+        stop.mSchedule.mSpec = BenchSpec{ .mRun = { .mFrames = frames }, .mWarm = { .mFrames = sHistoryFrames } };
+    }
+
     template <class T>
     T shippedDefault(
         const Files::ConfigurationManager& config, const std::string_view category, const std::string_view setting)

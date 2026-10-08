@@ -55,6 +55,8 @@ set(RTXTOOL_FILES
     model/runrecord.hpp
     model/skycrossing.cpp
     model/skycrossing.hpp
+    noise.cpp
+    noise.hpp
     numbervalue.hpp
     options.cpp
     options.hpp

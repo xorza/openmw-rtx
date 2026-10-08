@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <format>
-#include <fstream>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -16,14 +15,11 @@
 
 #include <osg/Vec3f>
 
-#include <apps/rtxtool/instruments/jsontext.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/colour.h>
-
-#include "run.hpp"
 
 namespace RtxTool
 {
@@ -157,29 +153,6 @@ namespace RtxTool
         };
     }
 
-    std::uint32_t noiseBarFramesAfter(const std::uint32_t frames, const Rtx::FrameExtents& extents)
-    {
-        const std::uint64_t traced = std::uint64_t{ extents.mRenderWidth } * extents.mRenderHeight;
-        const std::uint64_t shown = std::uint64_t{ extents.mOutputWidth } * extents.mOutputHeight;
-        const std::uint64_t held = frames * traced / shown;
-        return static_cast<std::uint32_t>(std::clamp<std::uint64_t>(held, 1, sNoiseBarFrames));
-    }
-
-    Misc::Result<NoiseFrame, std::string> noiseFrameFor(
-        const std::uint32_t cut, const bool flies, const Rtx::FrameExtents& extents)
-    {
-        if (cut > 0 && flies)
-            return Misc::Err{ std::string(
-                "--cut takes the frame standing after a cut, and --strafe and --walk fly it in: name one") };
-
-        if (flies)
-            return NoiseFrame{ .mWarmup = std::nullopt,
-                .mBarFrames = noiseBarFramesAfter(sNoiseFlightFrames, extents) };
-        if (cut > 0)
-            return NoiseFrame{ .mWarmup = cut - 1, .mBarFrames = noiseBarFramesAfter(cut + 1, extents) };
-        return NoiseFrame{ .mWarmup = std::nullopt, .mBarFrames = noiseBarFramesAfter(sHistoryFrames + 2, extents) };
-    }
-
     std::optional<double> fireflyShare(const Rtx::PngImage& picture, const Rtx::PngImage& reference)
     {
         if (!comparable(picture, reference))
@@ -258,110 +231,6 @@ namespace RtxTool
             }
 
         return worst / static_cast<double>(std::size_t{ picture.mWidth } * picture.mHeight);
-    }
-
-    int judgeNoise(const std::filesystem::path& wrote, const std::span<const NoiseSide> places,
-        const std::uint32_t barFrames, std::vector<NoiseFigures>& measured)
-    {
-        // A run that measured nothing has not shown that anything is as clean as its bar.
-        if (places.empty())
-        {
-            out() << "  no place was measured\n";
-            return 1;
-        }
-
-        const auto read = [&](const std::string& name, const std::string_view suffix) {
-            return Rtx::readPng(wrote / (name + std::string(suffix) + ".png"));
-        };
-
-        std::uint32_t noisier = 0;
-        std::uint32_t missing = 0;
-        for (const NoiseSide& side : places)
-        {
-            const std::string& place = side.mPlace;
-            const std::array<Misc::Result<Rtx::PngImage, std::string>, 5> pictures{ read(side.mFrame, ""),
-                read(side.mFrame, sNoiseMeanSuffix), read(side.mBar, sNoiseBarSuffix),
-                read(side.mBar, sNoiseBarLimitSuffix), read(side.mReference, sNoiseReferenceSuffix) };
-            const auto unread = std::ranges::find_if(pictures, [](const auto& one) { return !one.isOk(); });
-            if (unread != pictures.end())
-            {
-                out() << std::format("  {:<28} {}\n", place, unread->error());
-                ++missing;
-                continue;
-            }
-
-            const Rtx::PngImage& single = pictures[0].value();
-            const Rtx::PngImage& frameMean = pictures[1].value();
-            const Rtx::PngImage& barMean = pictures[2].value();
-            const Rtx::PngImage& barLimit = pictures[3].value();
-            const Rtx::PngImage& reference = pictures[4].value();
-            const PictureError frame = measureError(single, frameMean);
-            const PictureError bar = measureError(barMean, barLimit);
-            const std::optional<double> frameBias = blurredDifference(frameMean, reference, sNoiseBiasBlur);
-            const std::optional<double> barBias = blurredDifference(barLimit, reference, sNoiseBiasBlur);
-            const std::optional<double> fireflies = fireflyShare(single, reference);
-            if (frame.mMismatched || bar.mMismatched || !frameBias.has_value() || !barBias.has_value()
-                || !fireflies.has_value())
-            {
-                out() << std::format("  {:<28} a picture is of another size than the others\n", place);
-                ++missing;
-                continue;
-            }
-
-            const NoiseFigures& figures = measured.emplace_back(NoiseFigures{ .mPlace = place,
-                .mNoise = frame,
-                .mBarNoise = bar,
-                .mBias = *frameBias,
-                .mBarBias = *barBias,
-                .mFireflies = *fireflies });
-            if (!figures.clean())
-                ++noisier;
-
-            out() << std::format(
-                "  {:<28} noise: frame mean {:.2f} p99 {:.2f}, {} averaged mean {:.2f} p99 {:.2f} — {}; "
-                "bias: frame {:.2f}, {} averaged {:.2f}; fireflies {:.2f} in a thousand\n",
-                place, frame.mMean, frame.mP99, barFrames, bar.mMean, bar.mP99,
-                figures.clean() ? "as clean" : "noisier", figures.mBias, barFrames, figures.mBarBias,
-                figures.mFireflies);
-        }
-
-        if (noisier == 0 && missing == 0)
-        {
-            out() << std::format("  every frame is as clean as {} frames averaged\n", barFrames);
-            return 0;
-        }
-
-        out() << std::format("  {} of {} frames noisier than {} frames averaged, {} could not be measured\n", noisier,
-            places.size(), barFrames, missing);
-        return 1;
-    }
-
-    Misc::Result<void, std::string> writeNoiseRecord(
-        const std::filesystem::path& path, const std::span<const std::vector<NoiseFigures>> sides)
-    {
-        std::ofstream file(path);
-        file << "{\"sides\": [";
-        for (std::size_t side = 0; side < sides.size(); ++side)
-        {
-            file << (side == 0 ? "\n  [" : ",\n  [");
-            for (std::size_t at = 0; at < sides[side].size(); ++at)
-            {
-                const NoiseFigures& place = sides[side][at];
-                file << (at == 0 ? "\n    " : ",\n    ")
-                     << std::format(R"({{"place": {}, "mean": {:.4f}, "p99": {:.4f}, "barMean": {:.4f}, )"
-                                    R"("barP99": {:.4f}, "bias": {:.4f}, "barBias": {:.4f}, "fireflies": {:.4f}, )"
-                                    R"("clean": {}}})",
-                            jsonString(place.mPlace), place.mNoise.mMean, place.mNoise.mP99, place.mBarNoise.mMean,
-                            place.mBarNoise.mP99, place.mBias, place.mBarBias, place.mFireflies, place.clean());
-            }
-            file << "\n  ]";
-        }
-        file << "\n]}\n";
-
-        file.flush();
-        if (!file)
-            return Misc::Err{ "could not write " + Files::pathToUnicodeString(path) };
-        return {};
     }
 
     Misc::Result<void, std::string> checkAgainst(const std::filesystem::path& out, const std::filesystem::path& against)

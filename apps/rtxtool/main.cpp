@@ -60,6 +60,7 @@
 #include "compare.hpp"
 #include "film.hpp"
 #include "harnessfolder.hpp"
+#include "noise.hpp"
 #include "options.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
@@ -456,17 +457,6 @@ namespace RtxTool
         /// What a `shot` and a `bench --out` write their frames' hashes to, beside the pictures, and
         /// read a reference's from, in the directory `--against` names.
         constexpr std::string_view sRunHashes = "hashes.csv";
-
-        /// Runs `stop` for `frames` once the world stood whole and its histories converged over
-        /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
-        /// the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor` applies.
-        ///
-        /// @param frames how many to measure once the world has arrived. Why a command wants more
-        ///        than one is that command's to say.
-        void measureFrames(Stop& stop, const std::uint32_t frames = 1)
-        {
-            stop.mSchedule.mSpec = BenchSpec{ .mRun = { .mFrames = frames }, .mWarm = { .mFrames = sHistoryFrames } };
-        }
 
         /// What `policy` does to one place: the route and the track a command does not follow go,
         /// the clock stops where the row freezes and nothing is flown, and every frame is hashed
@@ -1009,185 +999,20 @@ namespace RtxTool
             const std::optional<Rtx::ReconstructionRequest> versus
                 = asked.empty() ? std::nullopt : std::optional(command.mOptions.versus(variables, played, asked));
 
-            // **The reference and the bar trace unfiltered, every frame a draw of its own**
-            // (`ReconstructionRequest::unfiltered`): a frame that reused the ones before it is not
-            // one more sample of the truth, and neither is a frame of the bar. Their indirect light
-            // stays the run's, since a traced bounce and none are two integrands. So the other side
-            // traces its own only where its unfiltered frames trace otherwise.
-            const bool ownBar = versus.has_value() && versus->unfiltered() != played.unfiltered();
-            const auto referenceOf = [](const Rtx::ReconstructionRequest& side) {
-                Rtx::ReconstructionRequest truth = side.unfiltered();
-                truth.mJitter = true;
-                truth.mSampling.mNoise = Rtx::NoiseSource::WhiteHash;
-                // **The truth reads every texture at the level its footprint asks**, whatever the
-                // run's epsilon: an epsilon is a knob on the frame, and a reference that moved with
-                // it would take the frame's softness for its own and report no bias at all.
-                truth.mLevelEpsilon = 0.0f;
-                // **And draws every source for its bit**: a floor rides a minor source's light on
-                // another's shadow, which is the bias the A/B of the floor measures.
-                truth.mSampling.mShadowFloor = 0.0f;
-                // And weighs every lamp, which a fixed count of candidates estimates.
-                truth.mSampling.mLampCandidates = 0u;
-                return truth;
-            };
-            // **And its own reference only where the truth it traces is another**: a switch the truth
-            // sets for itself — the jitter, the noise, the level epsilon, the floor, the lamps it
-            // weighs — leaves the first side's, which is 256 frames a place not traced twice. Every
-            // field the truth keeps is one the unfiltered request keeps, so an own reference comes
-            // with an own bar.
-            const bool ownReference = versus.has_value() && referenceOf(*versus) != referenceOf(played);
-            assert(!ownReference || ownBar);
-            const Rtx::ExposureRule held = Rtx::HeldExposure{};
+            NoisePlan plan = planNoise(NoiseAsk{
+                .mPlaces = places,
+                .mFolder = folder,
+                .mPlayed = played,
+                .mVersus = versus,
+                .mStrafe = variables["strafe"].as<float>(),
+                .mWalk = variables["walk"].as<float>(),
+                .mCut = variables["cut"].as<std::uint32_t>(),
+                .mExtents
+                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale),
+                .mStep = worldStep(framed.mStep),
+            });
 
-            // One picture of `place` after `frames` frames: their sum where `summed`, and the last of
-            // them where not.
-            const auto picture
-                = [&](const Stop& place, const std::string_view suffix, const std::uint32_t frames, const bool summed,
-                      const std::optional<Rtx::ReconstructionRequest>& reconstruction,
-                      const std::optional<Rtx::ExposureRule>& exposure, const std::optional<Rtx::Upscale> upscale) {
-                      Stop stop = place;
-                      stop.mName += suffix;
-                      measureFrames(stop, frames);
-                      stop.mSchedule.mAccumulate = summed ? frames : 0;
-                      stop.mSchedule.mReconstruction = reconstruction;
-                      stop.mSchedule.mExposure = exposure;
-                      stop.mSchedule.mUpscale = upscale;
-                      stop.mActions.mCapture = folder / (stop.mName + ".png");
-                      return stop;
-                  };
-
-            const float strafe = variables["strafe"].as<float>();
-            const float walk = variables["walk"].as<float>();
-            const bool flies = strafe > 0.0f || walk != 0.0f;
-
-            // Each leg's frame is held to the samples a shown pixel its history could hold
-            // (`noiseFrameFor`), standing as well.
-            const Rtx::FrameExtents extents
-                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale);
-            const Misc::Result<NoiseFrame, std::string> taken
-                = noiseFrameFor(variables["cut"].as<std::uint32_t>(), flies, extents);
-            if (!taken.isOk())
-                throw std::runtime_error(taken.error());
-            const NoiseFrame& leg = taken.value();
-            const std::uint32_t barFrames = leg.mBarFrames;
-
-            // The frame's own stop, flying in where the line asks: a route that holds the world, so
-            // the frame flies through the world the reference stands in (`applyPolicy`).
-            const auto frame = [&](const Stop& place, const Rtx::ReconstructionRequest& side) {
-                Stop stop = picture(place, "", flies ? sNoiseFlightFrames : 1, false, side, held, std::nullopt);
-                if (leg.mWarmup.has_value())
-                    stop.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = *leg.mWarmup };
-                if (!flies)
-                    return stop;
-
-                if (!place.mStand.mEye.has_value())
-                    throw std::runtime_error(std::format(
-                        "--strafe and --walk need a place that names an eye, and {} names none", place.mName));
-
-                // An eye that started past the point it faces would fly in facing backwards.
-                if (walk < 0.0f
-                    && -walk >= (place.mStand.getLook() - *place.mStand.mEye) * place.mStand.getLevelAhead())
-                    throw std::runtime_error(
-                        std::format("--walk={} starts past the point {} faces", walk, place.mName));
-
-                Approach approach = stop.mStand.approachFrom(strafe, walk, worldStep(framed.mStep), sNoiseFlightFrames);
-                stop.mStand = std::move(approach.mFrom);
-                stop.mSchedule.mRoute = approach.mRoute;
-                return stop;
-            };
-
-            // `sNoiseMeanDraws` draws of `drawn`, each adding its last frame to the mean `suffix`
-            // names, as shown.
-            // **The sample offsets are each stop's place in a whole side**, so the other side draws
-            // what the first drew, and an A/B compares two reconstructions of one set of draws. A side
-            // that asks what the first asked took the frame to the byte at the glow-lit chamber, and
-            // the frame's mean to within 50 bytes of 8.3 million, each by one level, which no figure
-            // of the report showed: the card's arithmetic under the wavelet
-            // (`docs/rtx/architecture.md`, the denoiser), which two runs differ by too. The places:
-            // the reference, the bar, the bar's limit's draws, the frame, the frame's mean's draws.
-            constexpr std::size_t stopsASide = 3 + 2 * sNoiseMeanDraws;
-            static_assert(stopsASide * std::uint64_t{ sNoiseSampleStride } <= ~std::uint32_t{ 0 },
-                "the sample offsets of one place past what a frame number holds");
-            const auto offsetAt = [](const std::size_t at, const std::uint32_t later) {
-                return static_cast<std::uint32_t>(at * sNoiseSampleStride) + later;
-            };
-
-            // `sNoiseMeanDraws` draws of `drawn`, at the places from `at` on, each adding its last
-            // frame to the mean `suffix` names, as shown.
-            const auto drawMean = [&](const Stop& place, const Stop& drawn, const std::string_view suffix,
-                                      const std::size_t at, const std::uint32_t later, std::vector<Stop>& into) {
-                for (std::uint32_t draw = 0; draw < sNoiseMeanDraws; ++draw)
-                {
-                    Stop again = drawn;
-                    again.mName = place.mName + std::string(suffix);
-                    again.mActions.mCapture.clear();
-                    again.mActions.mMean = Actions::Mean{
-                        .mFile = folder / (place.mName + std::string(suffix) + ".png"),
-                        .mOf = sNoiseMeanDraws,
-                    };
-                    again.mSchedule.mSampleOffset = offsetAt(at + draw, later);
-                    into.push_back(std::move(again));
-                }
-            };
-
-            // One side of a place: its reference where `reference` asks, its bar and the bar's limit
-            // where `bar` asks, then its frame and the frame's mean.
-            //
-            // **The bar and its limit start their samples as much later as their warm-up is shorter**
-            // than a filtered picture's, so each measured frame draws what it drew when they warmed
-            // over `sHistoryFrames`: what moved is the air's tail alone.
-            const auto drawSide = [&](const Stop& place, const Rtx::ReconstructionRequest& side, const bool reference,
-                                      const bool bar, std::vector<Stop>& into) {
-                if (reference)
-                {
-                    Stop truth = picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, referenceOf(side),
-                        std::nullopt, Rtx::Upscale::Off);
-                    truth.mActions.mDeepCapture = true;
-                    truth.mSchedule.mSampleOffset = offsetAt(0, 0);
-                    into.push_back(std::move(truth));
-                }
-                if (bar)
-                {
-                    // Unfiltered at a held exposure, so the air's is its one history (`sAirFrames`).
-                    const std::uint32_t shortened = sHistoryFrames - sAirFrames;
-                    Stop averaged
-                        = picture(place, sNoiseBarSuffix, barFrames, true, side.unfiltered(), held, Rtx::Upscale::Off);
-                    averaged.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = sAirFrames };
-                    averaged.mSchedule.mSampleOffset = offsetAt(1, shortened);
-                    into.push_back(averaged);
-                    drawMean(place, averaged, sNoiseBarLimitSuffix, 2, shortened, into);
-                }
-                Stop judged = frame(place, side);
-                judged.mSchedule.mSampleOffset = offsetAt(2 + sNoiseMeanDraws, 0);
-                into.push_back(judged);
-                drawMean(place, judged, sNoiseMeanSuffix, 3 + sNoiseMeanDraws, 0, into);
-            };
-
-            std::vector<Stop> stops;
-            stops.reserve(places.size() * stopsASide * (versus.has_value() ? 2 : 1));
-            std::vector<NoiseSide> sides;
-            sides.reserve(places.size());
-            std::vector<NoiseSide> versusSides;
-            versusSides.reserve(versus.has_value() ? places.size() : 0);
-            for (const Stop& place : places)
-            {
-                sides.push_back(NoiseSide{
-                    .mPlace = place.mName, .mFrame = place.mName, .mBar = place.mName, .mReference = place.mName });
-                drawSide(place, played, true, true, stops);
-                if (!versus.has_value())
-                    continue;
-
-                // After the first side's reference, whose exposure every picture after it holds.
-                Stop other = place;
-                other.mName += sNoiseVersusSuffix;
-                versusSides.push_back(NoiseSide{ .mPlace = place.mName,
-                    .mFrame = other.mName,
-                    .mBar = ownBar ? other.mName : place.mName,
-                    .mReference = ownReference ? other.mName : place.mName });
-                drawSide(other, *versus, ownReference, ownBar, stops);
-            }
-
-            SessionRequest request = sessionFor(command, framed, std::move(stops));
+            SessionRequest request = sessionFor(command, framed, std::move(plan.mStops));
             request.mSuite = run.mSuite;
 
             // An earlier run's record goes before this one draws, so a run that ends before it judges
@@ -1199,12 +1024,12 @@ namespace RtxTool
                 return status;
 
             std::array<std::vector<NoiseFigures>, 2> measured;
-            int judged = judgeNoise(folder, sides, barFrames, measured[0]);
+            int judged = judgeNoise(folder, plan.mSides, plan.mBarFrames, measured[0]);
             if (versus.has_value())
             {
-                out() << std::format("versus --{}{}{}\n", asked, ownBar ? ", against a bar of its own" : "",
-                    ownReference ? " and a reference of its own" : "");
-                judged = std::max(judged, judgeNoise(folder, versusSides, barFrames, measured[1]));
+                out() << std::format("versus --{}{}{}\n", asked, plan.mOwnBar ? ", against a bar of its own" : "",
+                    plan.mOwnReference ? " and a reference of its own" : "");
+                judged = std::max(judged, judgeNoise(folder, plan.mVersusSides, plan.mBarFrames, measured[1]));
             }
 
             const std::span<const std::vector<NoiseFigures>> written(measured.data(), versus.has_value() ? 2 : 1);
