@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 #include <base/files/file_path.h>
 #include <client/crashpad_client.h>
@@ -40,7 +41,20 @@ namespace Crash
         /// heap's, so a key set before install is there when the monitor starts.
         crashpad::SimpleStringDictionary sAnnotations;
 
-        SharedPage sPage;
+        /// The page this process shares with its monitor, from the moment the monitor started on
+        /// it, and null before. **Never destroyed**: the hang signal's handler and Windows' hang
+        /// thread read it and outlive every static, and a page unmapped by static destruction under
+        /// an `std::exit` was a fault inside the handler. The process's end unmaps it, and the
+        /// monitor unlinks its name when it opens it, so nothing of it stays in the system.
+        std::atomic<SharedPage*> sPage{ nullptr };
+
+        /// The page's heartbeat, or null before `install` succeeded.
+        Heartbeat* sharedPage()
+        {
+            SharedPage* const page = sPage.load(std::memory_order_acquire);
+            return page != nullptr ? page->get() : nullptr;
+        }
+
         std::atomic<bool> sInstalled{ false };
 
         /// A dump of every thread and a summary, after which the game goes on. Nothing where a
@@ -62,7 +76,7 @@ namespace Crash
 
         // Counted after the report and also where one being written already stood in for it: the
         // monitor's End waits on this, and a count that never came would hold it to its limit.
-        if (Heartbeat* const page = sPage.get())
+        if (Heartbeat* const page = sharedPage())
             std::atomic_ref(page->mHangReports).fetch_add(1, std::memory_order_release);
     }
 
@@ -83,9 +97,24 @@ namespace Crash
         if (tried.exchange(true))
             return Misc::Err{ "install was called before, and a process installs once" };
 
+        // **The checks that need no page first**, so a refusal has nothing to undo.
+        // The monitor is this executable, started again in its own mode.
+        const std::optional<std::filesystem::path> self = Platform::Process::executable();
+        if (!self.has_value())
+            return Misc::Err{ "the system would not say which file this process runs" };
+
+        // **The whole path, made here**: the monitor makes the last folder of it and no parent, and
+        // on a fresh box the game starts before anything made the user data folder above it.
+        std::error_code unmade;
+        std::filesystem::create_directories(settings.mReportFolder, unmade);
+        if (unmade)
+            return Misc::Err{ "its report folder could not be made" };
+
+        // A local until the monitor runs on it: a refusal from here on unmaps and unlinks it with
+        // the local, and nothing reads a page with no monitor behind it.
         const std::uint32_t process = Platform::Process::currentId();
-        sPage = SharedPage::create(process);
-        if (sPage.get() == nullptr)
+        SharedPage page = SharedPage::create(process);
+        if (page.get() == nullptr)
             return Misc::Err{ "the page it shares with its monitor could not be made" };
 
         // Everything the monitor needs to know of this process, on its command line: it reads the
@@ -105,36 +134,18 @@ namespace Crash
         // 4 MiB; on Linux and macOS it keeps what the registers point at.
         info->set_gather_indirectly_referenced_memory(crashpad::TriState::kEnabled, 4 << 20);
 
-        // The monitor is this executable, started again in its own mode.
-        const std::optional<std::filesystem::path> self = Platform::Process::executable();
-        if (!self.has_value())
-        {
-            sPage = SharedPage();
-            return Misc::Err{ "the system would not say which file this process runs" };
-        }
-
-        // **The whole path, made here**: the monitor makes the last folder of it and no parent, and
-        // on a fresh box the game starts before anything made the user data folder above it.
-        std::error_code unmade;
-        std::filesystem::create_directories(settings.mReportFolder, unmade);
-        if (unmade)
-        {
-            sPage = SharedPage();
-            return Misc::Err{ "its report folder could not be made" };
-        }
-
         if (!sClient.StartHandler(base::FilePath(self->native()), base::FilePath(settings.mReportFolder.native()),
                 base::FilePath(), std::string(), std::string(), { { "product", settings.mApplication } },
                 monitor.write(), false, false))
-        {
-            sPage = SharedPage();
             return Misc::Err{ "its monitor did not start" };
-        }
+
+        SharedPage* const kept = new SharedPage(std::move(page));
+        sPage.store(kept, std::memory_order_release);
 
         Client::keepConnectionToThisProcess();
         Client::prepareInstallingThread();
         std::set_terminate(Client::onTerminate);
-        Client::hookEveryEnd(*sPage.get());
+        Client::hookEveryEnd(*kept->get());
         const Installed installed{ .mWithout = Client::catchPastTheProcess(sClient, *self) };
         sInstalled = true;
         return installed;
@@ -145,7 +156,7 @@ namespace Crash
         if (!sInstalled)
             return;
 
-        sPage.setLogPath(Files::pathToUnicodeString(log));
+        sPage.load(std::memory_order_acquire)->setLogPath(Files::pathToUnicodeString(log));
     }
 
     void setReportFolder(const std::filesystem::path& folder)
@@ -153,12 +164,12 @@ namespace Crash
         if (!sInstalled)
             return;
 
-        sPage.setReportPath(Files::pathToUnicodeString(folder));
+        sPage.load(std::memory_order_acquire)->setReportPath(Files::pathToUnicodeString(folder));
     }
 
     void setHangLimit(std::chrono::seconds limit)
     {
-        if (Heartbeat* const page = sPage.get())
+        if (Heartbeat* const page = sharedPage())
             std::atomic_ref(page->mHangSeconds)
                 .store(static_cast<std::uint32_t>(std::clamp<std::chrono::seconds::rep>(limit.count(), 0, 0xFFFFFFFF)),
                     std::memory_order_relaxed);
@@ -167,7 +178,7 @@ namespace Crash
     void heartbeat()
     {
         // One writer, the thread that draws, so a load and a store rather than a locked add.
-        if (Heartbeat* const page = sPage.get())
+        if (Heartbeat* const page = sharedPage())
         {
             std::atomic_ref frames(page->mFrames);
             frames.store(frames.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
