@@ -880,7 +880,7 @@ namespace Rtx::Testing
             EXPECT_GT(strip.mKept, 0.985) << "the brightness test took light from a settled history: " << strip.mKept;
         }
 
-        /// **The history fix finds its neighbours on a bumpy surface** (`ACCUMULATE_FIX_NORMAL_POWER`).
+        /// **The history fix finds its neighbours on a bumpy surface** (`FacingWeights::mFix`).
         /// The floor and the wall above wear stripes of shading normals two pixels wide, ten degrees
         /// one way and the other: most of a fixed pixel's taps stand on a stripe twenty degrees off
         /// it. NRD's power of eight weighs such a tap at 0.6, and the wavelet's 128 at 0.0003. Measured:
@@ -1124,6 +1124,12 @@ namespace Rtx::Testing
         /// Measured: the brighter picture stands 0.39 hundred-thousandths from the dimmer one scaled two
         /// frames on, and 0.053 four frames on, which the brightness test's divide guard accounts for.
         /// With the constant variance this replaced, 3.2% and 6.9%.
+        ///
+        /// **And at a sixteenth and a sixty-fourth of the light**, where the variance the narrow levels
+        /// carry falls under what a half holds: the deviation they carry instead (`atrous.comp`) keeps
+        /// the dimmer picture within 0.79 and 2.0 ten-thousandths of the brighter one scaled; the
+        /// variance kept them 11 and 22 ten-thousandths apart. Dimmer still, the divide guard decides
+        /// either way.
         TEST_F(RtxVisibilityTest, aFreshPixelIsFilteredTheSameUnderAnyLight)
         {
             constexpr std::uint32_t size = 64;
@@ -1170,23 +1176,25 @@ namespace Rtx::Testing
                 return std::sqrt(std::max(squares / static_cast<double>(size * size) - mean * mean, 0.0)) / mean;
             };
 
-            for (const std::uint32_t frames : { 2u, 4u })
-            {
-                const std::vector<float> dim = run(1.0f, frames, true);
-                const std::vector<float> bright = run(brighter, frames, true);
-                ASSERT_LT(spreadOf(dim), 0.5 * spreadOf(run(1.0f, frames, false)))
-                    << "the filter took little noise off " << frames << " frames, so this proves nothing";
-
-                double off = 0.0;
-                double sum = 0.0;
-                for (std::size_t at = 1; at < dim.size(); at += 4)
+            for (const float level : { 1.0f, 1.0f / 16.0f, 1.0f / 64.0f })
+                for (const std::uint32_t frames : { 2u, 4u })
                 {
-                    off += std::abs(
-                        static_cast<double>(bright[at]) / static_cast<double>(brighter) - static_cast<double>(dim[at]));
-                    sum += static_cast<double>(dim[at]);
+                    const std::vector<float> dim = run(level, frames, true);
+                    const std::vector<float> bright = run(level * brighter, frames, true);
+                    ASSERT_LT(spreadOf(dim), 0.5 * spreadOf(run(level, frames, false)))
+                        << "the filter took little noise off " << frames << " frames, so this proves nothing";
+
+                    double off = 0.0;
+                    double sum = 0.0;
+                    for (std::size_t at = 1; at < dim.size(); at += 4)
+                    {
+                        off += std::abs(static_cast<double>(bright[at]) / static_cast<double>(brighter)
+                            - static_cast<double>(dim[at]));
+                        sum += static_cast<double>(dim[at]);
+                    }
+                    EXPECT_LT(off / sum, 5e-4) << frames << " frames from a cut at " << level
+                                               << " of the light are filtered by the light's own level";
                 }
-                EXPECT_LT(off / sum, 1e-3) << frames << " frames from a cut are filtered by the light's own level";
-            }
         }
 
         /// What the history is worth where the cascade has nothing to borrow from.
@@ -1201,7 +1209,7 @@ namespace Rtx::Testing
         /// So this is the other case, and it is the one Morrowind's geometry actually is: a surface
         /// whose neighbours disagree. The sheet is cut into a grid of coplanar cells whose
         /// *shading* normals alternate by forty degrees, which is far outside what
-        /// `ATROUS_NORMAL_POWER` lets a tap carry — so the plane test passes everywhere, the normal
+        /// `FacingWeights::mFilter` lets a tap carry — so the plane test passes everywhere, the normal
         /// test rejects nearly every neighbour, and the cascade is left with little more than the
         /// centre pixel. Nothing about the accumulator changes: a still camera reprojects every
         /// pixel onto itself.
