@@ -54,6 +54,7 @@ namespace Rtx
         const RunAllocator& getIndexRuns() const { return mIndexRuns; }
 
         std::span<const osg::Vec3f> getMeshPositions(Index mesh) const;
+        // Read by the tests and by nothing else.
         std::span<const std::uint32_t> getMeshIndices(Index mesh) const;
 
         /// Which meshes changed shape since the last `clearDeformed`, each named once.

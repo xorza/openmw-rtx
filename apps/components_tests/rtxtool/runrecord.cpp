@@ -10,6 +10,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/files/conversion.hpp>
+#include <components/rtx/common/asserts.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>

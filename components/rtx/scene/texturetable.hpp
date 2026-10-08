@@ -155,6 +155,7 @@ namespace Rtx
             mRefusedArrivals = 0;
         }
 
+        // `getRefused` is read by the tests and by nothing else.
         /// How many new textures were refused because `sCapacity` slots stood, ever, and since the
         /// last `clearArrivals`: drawn neutral, and reported by `SceneUploader` on the hand-over
         /// that met the limit.

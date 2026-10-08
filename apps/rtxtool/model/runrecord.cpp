@@ -6,7 +6,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/common/asserts.hpp>
 
 namespace RtxTool
 {
