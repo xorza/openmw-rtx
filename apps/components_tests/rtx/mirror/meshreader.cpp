@@ -179,6 +179,15 @@ namespace Rtx::Testing
                 = reader.read(content, readDrawable(*past, NodeKinds{}.of(*past)), reading);
             ASSERT_FALSE(refused.isOk()) << "a triangle past its vertices was read";
             EXPECT_EQ(refused.error(), "its triangles name vertex 4 of 4");
+
+            // And one with a vertex that is not a finite number, as a place that is not one stands
+            // nothing: nothing stands in for where a vertex is.
+            osg::ref_ptr<osg::Geometry> unplaced = makeQuad();
+            (*static_cast<osg::Vec3Array*>(unplaced->getVertexArray()))[2].y() = std::numeric_limits<float>::infinity();
+            const Misc::Result<bool, std::string> notFinite
+                = reader.read(content, readDrawable(*unplaced, NodeKinds{}.of(*unplaced)), reading);
+            ASSERT_FALSE(notFinite.isOk()) << "a vertex that is not finite was read";
+            EXPECT_EQ(notFinite.error(), "its vertices are not finite numbers");
         }
 
         /// The colours are decoded on the way in, whichever of the two arrays the loader built.
@@ -243,6 +252,24 @@ namespace Rtx::Testing
                 EXPECT_FLOAT_EQ(colour.y(), sAt128);
                 EXPECT_FLOAT_EQ(colour.z(), 0.0f);
             }
+
+            // **A colour that is not a finite number is read as white**, the table's "no tint", per
+            // vertex and overall. Only the colour: an alpha that is not one is not read at all.
+            const osg::Vec3f white(1.0f, 1.0f, 1.0f);
+            (*asFloats)[1] = osg::Vec4f(std::numeric_limits<float>::quiet_NaN(), 0.5f, 0.5f, 1.0f);
+            (*asFloats)[2] = osg::Vec4f(64.0f / 255.0f, std::numeric_limits<float>::infinity(), 1.0f, 1.0f);
+            (*asFloats)[3].w() = std::numeric_limits<float>::quiet_NaN();
+            ASSERT_TRUE(reader.read(content, readDrawable(*floats, NodeKinds{}.of(*floats)), reading).value());
+            ASSERT_EQ(reading.mArrays.mColours.size(), 4u);
+            EXPECT_FLOAT_EQ(reading.mArrays.mColours[0].x(), sAt64);
+            EXPECT_EQ(reading.mArrays.mColours[1], white);
+            EXPECT_EQ(reading.mArrays.mColours[2], white);
+            EXPECT_FLOAT_EQ(reading.mArrays.mColours[3].y(), sAt128) << "a colour whose alpha alone is not finite";
+
+            (*one)[0] = osg::Vec4f(0.0f, std::numeric_limits<float>::quiet_NaN(), 0.0f, 1.0f);
+            ASSERT_TRUE(reader.read(content, readDrawable(*overall, NodeKinds{}.of(*overall)), reading).value());
+            for (const osg::Vec3f& colour : reading.mArrays.mColours)
+                EXPECT_EQ(colour, white) << "an overall colour that is not finite";
         }
 
         /// An array this cannot match to the vertices refuses the whole face, and says which: one of
@@ -370,6 +397,21 @@ namespace Rtx::Testing
 
             EXPECT_EQ(reading.mArrays.mSecondTexCoords.data(), second->asVector().data());
             EXPECT_EQ(reading.mArrays.mUnitStreams, (1u << 2) | (1u << 3));
+
+            // **A coordinate that is not a finite number is read as none**, nought, in either set;
+            // and a unit holding a copy of a set with one is still that set, as its bits are.
+            (*first)[2] = osg::Vec2f(std::numeric_limits<float>::quiet_NaN(), 0.0f);
+            (*second)[3] = osg::Vec2f(0.0f, std::numeric_limits<float>::infinity());
+            quad->setTexCoordArray(1, new osg::Vec2Array(*first));
+            quad->setTexCoordArray(3, new osg::Vec2Array(*second));
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
+            EXPECT_EQ(std::vector<osg::Vec2f>(reading.mArrays.mTexCoords.begin(), reading.mArrays.mTexCoords.end()),
+                (std::vector<osg::Vec2f>{ osg::Vec2f(), osg::Vec2f(1.0f, 0.0f), osg::Vec2f(), osg::Vec2f() }));
+            EXPECT_EQ(std::vector<osg::Vec2f>(
+                          reading.mArrays.mSecondTexCoords.begin(), reading.mArrays.mSecondTexCoords.end()),
+                (std::vector<osg::Vec2f>{ osg::Vec2f(), osg::Vec2f(0.5f, 0.0f), osg::Vec2f(), osg::Vec2f() }));
+            EXPECT_EQ(reading.mArrays.mUnitStreams, (1u << 2) | (1u << 3))
+                << "a copy holding a NaN was a set of its own";
         }
 
         /// The two halves land on one row: a mesh adopted from a reading is the mesh `resolve`

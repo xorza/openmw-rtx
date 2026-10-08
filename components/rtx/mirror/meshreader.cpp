@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <span>
 #include <string>
 #include <string_view>
@@ -62,12 +63,13 @@ namespace Rtx
         }
 
         /// `given` where every element is a finite number, or a copy of it in `scratch` with every
-        /// element that is not read as none, the zero a mesh holds for a normal or a tangent it did
-        /// not bring. **Content wrote them, so a number that is not finite is data**, and a skin
-        /// posed one into a store that was not finite. A zero is one the rest already read: the
-        /// crease split leaves a corner with no normal out of every group, and a hit whose normal
-        /// comes to no length across the triangle takes the triangle's plane. Copied only where one
-        /// is, so a mesh written well is read in place.
+        /// element that is not read as none: the zero the mesh table holds for a normal, a tangent
+        /// or a coordinate the mesh did not bring. **Content wrote them, so a number that is not
+        /// finite is data.** A skin posed a NaN normal into a store that was not finite, where one of
+        /// none is one the rest already reads: the crease split leaves it out of every group, and a
+        /// hit whose normal comes to no length takes the triangle's plane. A coordinate that is not
+        /// finite samples whichever texel the driver picks, and nought is the one every driver
+        /// picks. Copied only where one is, so a mesh written well is read in place.
         template <class T>
         std::span<const T> finiteOrNone(const std::vector<T>& given, std::vector<T>& scratch)
         {
@@ -242,9 +244,10 @@ namespace Rtx
         /// A geometry's per-vertex colours, decoded into `scratch` and spanned from it. Empty where
         /// the geometry names none. Two array types, because `NifOsg` builds a `Vec4Array` from a
         /// `NiGeometryData` and a `Vec4ubArray` from a `BSTriShape`. An overall colour is spread
-        /// across the vertices, as `readVertices` spreads an overall normal. The alpha is not
-        /// read: three shapes in the whole of vanilla carry one below opaque, and reading it would
-        /// put a fetch on every candidate of every shadow ray.
+        /// across the vertices, as `readVertices` spreads an overall normal. A colour that is not a
+        /// finite number is read as white, the table's "no tint", because it is multiplied into the
+        /// light. The alpha is not read: three shapes in the whole of vanilla carry one below
+        /// opaque, and reading it would put a fetch on every candidate of every shadow ray.
         ///
         /// @param vertices how many the geometry holds, which an array that is not overall has to
         ///        match — `checkLength`.
@@ -264,17 +267,21 @@ namespace Rtx
                     return Misc::Err{ matched.error() };
             }
 
+            const auto decoded = [](const auto& encoded) {
+                const osg::Vec3f colour = decodeColour(encoded);
+                return isFinite(colour) ? colour : osg::Vec3f(1.0f, 1.0f, 1.0f);
+            };
             const auto decodeAll = [&](const auto& array) {
                 if (overall)
                 {
-                    scratch.assign(vertices, decodeColour(array[0]));
+                    scratch.assign(vertices, decoded(array[0]));
                     return;
                 }
 
                 scratch.clear();
                 scratch.reserve(vertices);
                 for (std::size_t at = 0; at < vertices; ++at)
-                    scratch.push_back(decodeColour(array[at]));
+                    scratch.push_back(decoded(array[at]));
             };
 
             switch (colours->getType())
@@ -371,6 +378,14 @@ namespace Rtx
         if (arrays.mPositions.empty())
             return noTriangle(geometry);
 
+        // **A vertex that is not a finite number refuses the face**, as a place that is not one
+        // stands nothing: nothing stands in for where a vertex is. On the device a NaN in a
+        // vertex's first component makes its triangle inactive, in any other component it is
+        // undefined, and a skin or a morph would pose it into a store that is not finite and a
+        // refit that changes what is active.
+        if (!std::ranges::all_of(arrays.mPositions, [](const osg::Vec3f& position) { return isFinite(position); }))
+            return Misc::Err{ std::string("its vertices are not finite numbers") };
+
         const std::size_t count = arrays.mPositions.size();
 
         // Every array asked before the fold, so a face this refuses costs no fold.
@@ -383,9 +398,12 @@ namespace Rtx
         // streams by. Told apart by what the arrays hold and not by which array they are:
         // `NifOsg` gives every unit a fresh array, so the durzog's dark map, bound on the first
         // set at unit one, is a second array holding the first set. No vanilla shape carries a
-        // third, and the unit the tangents are at carries no coordinates.
+        // third, and the unit the tangents are at carries no coordinates. Compared by their bits,
+        // because a copy is the same bits and a coordinate that is not a number equals nothing.
         const auto holdsSame = [](const osg::Vec2Array* left, const osg::Vec2Array* right) {
-            return left == right || (left != nullptr && right != nullptr && left->asVector() == right->asVector());
+            return left == right
+                || (left != nullptr && right != nullptr && left->size() == right->size()
+                    && std::memcmp(left->getDataPointer(), right->getDataPointer(), left->getTotalDataSize()) == 0);
         };
         const osg::Vec2Array* second = nullptr;
         std::uint32_t unitStreams = 0;
@@ -440,12 +458,14 @@ namespace Rtx
         into.mArrays = MeshArrays{
             .mPositions = withCopies(arrays.mPositions, sources, mPositionScratch),
             .mNormals = mNormalScratch.empty() ? arrays.mNormals : std::span<const osg::Vec3f>(mNormalScratch),
-            .mTexCoords = withCopies(
-                texCoords.value() != nullptr ? std::span(texCoords.value()->asVector()) : std::span<const osg::Vec2f>(),
+            .mTexCoords = withCopies(texCoords.value() != nullptr
+                    ? finiteOrNone(texCoords.value()->asVector(), mReadTexCoordScratch)
+                    : std::span<const osg::Vec2f>(),
                 sources, mTexCoordScratch),
             .mSecondTexCoords
-            = withCopies(second != nullptr ? std::span(second->asVector()) : std::span<const osg::Vec2f>(), sources,
-                mSecondTexCoordScratch),
+            = withCopies(second != nullptr ? finiteOrNone(second->asVector(), mReadSecondTexCoordScratch)
+                                           : std::span<const osg::Vec2f>(),
+                sources, mSecondTexCoordScratch),
             .mUnitStreams = unitStreams,
             .mColours = withCopies(colours.value(), sources, mCopiedColourScratch),
             .mTangents = withCopies(tangents.value(), sources, mTangentScratch),

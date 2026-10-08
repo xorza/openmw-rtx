@@ -75,10 +75,17 @@ namespace Rtx
             && "a unit reads a second set the mesh did not bring");
         assert(arrays.mColours.empty() || arrays.mColours.size() == positions.size());
         assert(arrays.mTangents.empty() || arrays.mTangents.size() == positions.size());
+        assert(std::ranges::all_of(positions, [](const osg::Vec3f& position) { return isFinite(position); })
+            && "a vertex that is not finite, which the reader refuses");
+        assert(std::ranges::all_of(arrays.mColours, [](const osg::Vec3f& colour) { return isFinite(colour); })
+            && "a colour that is not finite, which the reader reads as white");
         assert(std::ranges::all_of(arrays.mNormals, [](const osg::Vec3f& normal) { return isFinite(normal); })
             && "a normal that is not finite, which the reader reads as none");
         assert(std::ranges::all_of(arrays.mTangents, [](const osg::Vec4f& tangent) { return isFinite(tangent); })
             && "a tangent that is not finite, which the reader reads as none");
+        assert(std::ranges::all_of(arrays.mTexCoords, [](const osg::Vec2f& coord) { return isFinite(coord); })
+            && std::ranges::all_of(arrays.mSecondTexCoords, [](const osg::Vec2f& coord) { return isFinite(coord); })
+            && "a texture coordinate that is not finite, which the reader reads as none");
         assert(indices.size() % 3 == 0);
         assert(std::all_of(indices.begin(), indices.end(), [&](std::uint32_t i) { return i < positions.size(); }));
         assert(deformer == sNoIndex

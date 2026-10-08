@@ -2,10 +2,14 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstring>
 
+#include <osg/Vec3f>
 #include <osg/Vec4f>
+
+#include <components/rtx/common/finite.hpp>
 
 namespace Rtx
 {
@@ -88,6 +92,8 @@ namespace Rtx
     Index DeformerTable::addMorph(const MorphSpec& morph)
     {
         assert(morph.mTargets > 0 && morph.mOffsets.size() % morph.mTargets == 0 && !morph.mOffsets.empty());
+        assert(std::ranges::all_of(morph.mOffsets, [](const osg::Vec3f& offset) { return isFinite(offset); })
+            && "a morph offset that is not finite, which the resolver refuses");
 
         return take(Deformer{
             .mKind = Deform::Morph,
@@ -105,6 +111,9 @@ namespace Rtx
         const std::span<PoseWord> held
             = mPoses.in(Run{ .mOffset = range.mPoseOffset, .mCount = deformer.getPoseWords() });
         assert(words.size() == held.size() && "a pose written over a run of another length");
+        assert(std::ranges::all_of(words, [](const PoseWord& word) {
+            return std::ranges::all_of(word.mValues, [](float value) { return std::isfinite(value); });
+        }) && "a pose that is not finite, which the resolver holds");
 
         // Compared rather than trusted, because the walk poses every rig it meets and cannot know
         // which of them the engine animated.

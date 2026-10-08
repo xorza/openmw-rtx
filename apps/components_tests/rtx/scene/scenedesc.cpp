@@ -1790,12 +1790,57 @@ namespace Rtx
 
         static_assert(sizeof(MeshHold) == sizeof(Index), "a hold is the index it holds and nothing beside it");
 
-        /// **A mesh handed a normal or a tangent that is not finite dies where it is added.** The
-        /// mirror's reader reads one as none, so one here is a producer that skipped it, and a skin
-        /// would pose it into a store that is not finite.
-        TEST(RtxSceneDescTest, aMeshWithANormalOrATangentThatIsNotFiniteDies)
+        /// **A mesh or a pose handed a number that is not finite dies where it is handed over.** The
+        /// mirror refuses a vertex or a morph offset that is not one, reads a normal, a tangent or a
+        /// coordinate as none and a colour as white, and holds a pose; so one here is a producer that
+        /// skipped it, and the device would pose it or trace it into a store that is not finite.
+        TEST(RtxSceneDescTest, aMeshOrAPoseWithANumberThatIsNotFiniteDies)
         {
             const float nan = std::numeric_limits<float>::quiet_NaN();
+            const std::array<osg::Vec3f, 4> placed{ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, nan, 0.0f),
+                osg::Vec3f(1.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) };
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene;
+                    scene.addMesh(MeshArrays{ .mPositions = placed, .mIndices = Testing::sQuadIndices });
+                },
+                "a vertex that is not finite");
+
+            const std::array<osg::Vec3f, 4> tints{ osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(1.0f, 1.0f, 1.0f),
+                osg::Vec3f(1.0f, 1.0f, std::numeric_limits<float>::infinity()), osg::Vec3f(1.0f, 1.0f, 1.0f) };
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene;
+                    scene.addMesh(MeshArrays{
+                        .mPositions = Testing::sUnitQuad, .mColours = tints, .mIndices = Testing::sQuadIndices });
+                },
+                "a colour that is not finite");
+
+            std::array<osg::Vec3f, 8> offsets{};
+            offsets[5] = osg::Vec3f(0.0f, nan, 0.0f);
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene;
+                    scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {},
+                        MorphSpec{ .mOffsets = offsets, .mTargets = 2 });
+                },
+                "a morph offset that is not finite");
+
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene;
+                    const std::array<osg::Vec3f, 8> still{};
+                    const Index face = scene
+                                           .addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
+                                                        .mIndices = Testing::sQuadIndices },
+                                               {}, MorphSpec{ .mOffsets = still, .mTargets = 2 })
+                                           .mMesh;
+                    const std::array weights{ 1.0f, nan };
+                    Testing::poseMorph(
+                        scene, face, weights, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f(1.0f, 1.0f, 1.0f)));
+                },
+                "a pose that is not finite");
+
             const std::array<osg::Vec3f, 4> normals{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(nan, 0.0f, 1.0f),
                 osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 0.0f, 1.0f) };
             Testing::expectAssertDies(
@@ -1816,6 +1861,24 @@ namespace Rtx
                         .mPositions = Testing::sUnitQuad, .mTangents = tangents, .mIndices = Testing::sQuadIndices });
                 },
                 "a tangent that is not finite");
+
+            const std::array<osg::Vec2f, 4> coords{ osg::Vec2f(), osg::Vec2f(1.0f, 0.0f),
+                osg::Vec2f(1.0f, std::numeric_limits<float>::infinity()), osg::Vec2f(0.0f, 1.0f) };
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene;
+                    scene.addMesh(MeshArrays{
+                        .mPositions = Testing::sUnitQuad, .mTexCoords = coords, .mIndices = Testing::sQuadIndices });
+                },
+                "a texture coordinate that is not finite");
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene;
+                    scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
+                        .mSecondTexCoords = coords,
+                        .mIndices = Testing::sQuadIndices });
+                },
+                "a texture coordinate that is not finite");
         }
 
         /// **A hold its holder forgot is named where the holder lets it go**, and not found as a row

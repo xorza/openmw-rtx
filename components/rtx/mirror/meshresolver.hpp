@@ -150,14 +150,20 @@ namespace Rtx
         /// more bones than a run holds. The spec spans the scratch, good until the next read.
         Misc::Result<RigSpec, std::string> readRig(const SceneUtil::RigGeometry& rig);
 
-        /// The same for a morph's targets, laid end to end.
-        MorphSpec readMorph(const SceneUtil::MorphGeometry& morph);
+        /// The same for a morph's targets, laid end to end. An error where a target's offset is not
+        /// a finite number, for the reason the reader refuses such a vertex.
+        Misc::Result<MorphSpec, std::string> readMorph(const SceneUtil::MorphGeometry& morph);
 
         /// Poses `mesh` where the drawable deforms, and counts it. Nothing where it stands. A rig's
         /// rows are `RigGeometry::cull`'s own composition of each bone's inverse bind, its
         /// skeleton-space matrix and the skin transform, from the matrices the update traversal
         /// left; a morph's weights are what its controller wrote under the update traversal.
         void pose(Index mesh, const DrawableRead& read, ExtractionStats& stats);
+
+        /// What `pose` writes where the drawable's pose is not a finite number: the pose `mesh`
+        /// holds, or for one never posed the zeroed words it stood on, reaching `first`. Refused
+        /// under the drawable's name, once.
+        void holdPose(Index mesh, const osg::Drawable& drawable, const osg::BoundingBoxf& first);
 
         SceneDesc& mScene;
         const MirrorPass& mPass;

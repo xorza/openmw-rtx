@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <span>
 #include <string>
@@ -20,6 +21,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -275,13 +277,16 @@ namespace Rtx
         }
         else
         {
-            const MorphSpec morph = readMorph(*read.mMorph);
+            const Misc::Result<MorphSpec, std::string> morph = readMorph(*read.mMorph);
+            if (!morph.isOk())
+                return Misc::Err{ morph.error() };
+
             const Misc::Result<void, std::string> posed
-                = SceneDesc::checkPoses(morph.getVertexCount(), reading.mArrays);
+                = SceneDesc::checkPoses(morph.value().getVertexCount(), reading.mArrays);
             if (!posed.isOk())
                 return Misc::Err{ posed.error() };
 
-            added = mScene.addMesh(reading.mArrays, reading.mShape, morph);
+            added = mScene.addMesh(reading.mArrays, reading.mShape, morph.value());
         }
 
         if (held.mEntry != mDeformers.end())
@@ -342,6 +347,7 @@ namespace Rtx
 
             mBoneScratch.clear();
             mBoneScratch.reserve(bones.size());
+            bool finite = true;
             for (std::size_t at = 0; at < bones.size(); ++at)
             {
                 if (bones[at] == nullptr)
@@ -350,12 +356,21 @@ namespace Rtx
                     continue;
                 }
 
-                mBoneScratch.push_back(
-                    toGpuBone(skin.mBones[at].mInvBindMatrix * bones[at]->mMatrixInSkeletonSpace * transform));
+                const osg::Matrixf bone
+                    = skin.mBones[at].mInvBindMatrix * bones[at]->mMatrixInSkeletonSpace * transform;
+                finite = finite && isFinite(bone);
+                mBoneScratch.push_back(toGpuBone(bone));
             }
 
-            packBones(mBoneScratch, mPoseScratch);
-            mScene.pose(mesh, mPoseScratch, reachOf(rig));
+            // A body never posed is held at zeroed rows, which stand every vertex at the skin's
+            // origin: where the rasterizer puts one no bone moves.
+            if (!finite)
+                holdPose(mesh, rig, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f()));
+            else
+            {
+                packBones(mBoneScratch, mPoseScratch);
+                mScene.pose(mesh, mPoseScratch, reachOf(rig));
+            }
         }
         else
         {
@@ -367,11 +382,33 @@ namespace Rtx
             for (const SceneUtil::MorphGeometry::MorphTarget& target : targets)
                 mWeightScratch.push_back(target.getWeight());
 
-            packWeights(mWeightScratch, mPoseScratch);
-            mScene.pose(mesh, mPoseScratch, reachOf(morph));
+            // A face never posed is held at zeroed weights, which are its base, whose box the mesh
+            // took as it arrived.
+            if (!std::ranges::all_of(mWeightScratch, [](float weight) { return std::isfinite(weight); }))
+                holdPose(mesh, morph, mScene.meshes().getRows()[mesh].mBounds);
+            else
+            {
+                packWeights(mWeightScratch, mPoseScratch);
+                mScene.pose(mesh, mPoseScratch, reachOf(morph));
+            }
         }
 
         ++stats.mDeformed;
+    }
+
+    void MeshResolver::holdPose(const Index mesh, const osg::Drawable& drawable, const osg::BoundingBoxf& first)
+    {
+        // **A pose that is not a finite number keeps the last one**, because the engine animated
+        // it from content: a key, a skin or a weight a file wrote. Carried, it is a store that is
+        // not finite in the deforming kernel and a refit that changes which triangles are active,
+        // which an update may not. The rasterizer draws nothing of the vertices it reaches; a body
+        // held a frame is the nearest the trace can come without building its structure again.
+        mScene.refusals().refuse(Refused::Mesh, drawable.getName(), "its pose is not a finite number");
+        if (mScene.meshes().getRows()[mesh].mPosed)
+            return;
+
+        mPoseScratch.assign(mScene.getMeshPose(mesh).size(), PoseWord{});
+        mScene.pose(mesh, mPoseScratch, first);
     }
 
     Misc::Result<RigSpec, std::string> MeshResolver::readRig(const SceneUtil::RigGeometry& rig)
@@ -419,7 +456,7 @@ namespace Rtx
         };
     }
 
-    MorphSpec MeshResolver::readMorph(const SceneUtil::MorphGeometry& morph)
+    Misc::Result<MorphSpec, std::string> MeshResolver::readMorph(const SceneUtil::MorphGeometry& morph)
     {
         const SceneUtil::MorphGeometry::MorphTargetList& targets = morph.getMorphTargetList();
         assert(targets.size() > 1);
@@ -437,7 +474,12 @@ namespace Rtx
                 continue;
 
             const std::size_t count = std::min<std::size_t>(offsets->size(), vertices);
-            std::copy_n(offsets->begin(), count, mOffsetScratch.begin() + target * vertices);
+            const auto read = offsets->begin();
+            if (!std::all_of(read, read + static_cast<std::ptrdiff_t>(count),
+                    [](const osg::Vec3f& offset) { return isFinite(offset); }))
+                return Misc::Err{ std::string("a target's offsets are not finite numbers") };
+
+            std::copy_n(read, count, mOffsetScratch.begin() + target * vertices);
         }
 
         return MorphSpec{ .mOffsets = mOffsetScratch, .mTargets = static_cast<Index>(targets.size()) };
