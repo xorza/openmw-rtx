@@ -60,6 +60,14 @@ class QtSourcesTest(unittest.TestCase):
                          {"apps/components_tests/config/testlaunchersettings.cpp"})
         self.assertEqual(qt_guarded_sources("if(USE_QT)\n    set_property(TARGET a PROPERTY AUTOMOC ON)\nendif(USE_QT)\n",
                                             "apps/launcher"), set())
+        # A block nested inside does not end the guarded one at its own `endif`.
+        nested = ("if (USE_QT)\n    if (WIN32)\n        target_sources(t PRIVATE win.cpp)\n    endif()\n"
+                  "    target_sources(t PRIVATE after.cpp)\nendif()\ntarget_sources(t PRIVATE always.cpp)\n")
+        self.assertEqual(qt_guarded_sources(nested, "apps/x"), {"apps/x/win.cpp", "apps/x/after.cpp"})
+        # And the block's `else` is the build without Qt, whose sources are no Qt build's.
+        branched = ("if (USE_QT)\n    target_sources(t PRIVATE qt.cpp)\nelse()\n"
+                    "    target_sources(t PRIVATE plain.cpp)\nendif()\n")
+        self.assertEqual(qt_guarded_sources(branched, "apps/x"), {"apps/x/qt.cpp"})
 
 if __name__ == "__main__":
     unittest.main()
