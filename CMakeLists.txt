@@ -291,8 +291,7 @@ endif()
 
 # absorb our changes into CMAKE_INSTALL_FULL_whatever variables
 foreach(dir BINDIR SYSCONFDIR LIBDIR DATADIR)
-    # when we cmake_minimum_required 3.20, dir becomes an argument
-    GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_${dir} CMAKE_INSTALL_${dir})
+    GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_${dir} CMAKE_INSTALL_${dir} ${dir})
 endforeach()
 
 if (APPLE)
