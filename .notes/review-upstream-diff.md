@@ -50,23 +50,6 @@ What is left:
 - **Frame-path costs in the mirror.** Unloaded cells are deleted on the frame thread (phase 4).
 - **Simplifications and dead code** (phases 5 and 6).
 
-## Phase 2 — structural ownership of manual pairings
-
-Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
-
-- **A lent buffer** (`LentCommands`, item 2.3) is a command buffer a caller keeps across frames. Its
-  owner gives it back to the pool, retired under the timeline.
-- **An open recording** (`Recording`, item 2.2) is the span from `begin` to `submit` or `end`, a
-  local scope. It discards the recording when an exception leaves the scope.
-- **A batch** (`Batch`, item 2.1) is an open recording with staging and holds, for setup work.
-
-The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
-is open.
-
-- [ ] **2.10 `VulkanRenderer` wires its members by reference without deleting copy and move.**
-  `vulkanrenderer.hpp:57-271`. AGENTS.md pins such an owner. Today it is non-movable only because
-  `Device` declares a destructor. Target: delete the four special members.
-
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
 - [ ] **3.1 Two copies of the SPIR-V instruction walker, and no one reader of a module's interface.**
