@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <osg/Callback>
 #include <osg/Node>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
@@ -24,6 +25,7 @@
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/texturetable.hpp>
+#include <components/sceneutil/statesetupdater.hpp>
 
 #include "mirroridentity.hpp"
 #include "mirrorpass.hpp"
@@ -33,11 +35,6 @@ namespace osg
     class Image;
     class NodeVisitor;
     class StateSet;
-}
-
-namespace SceneUtil
-{
-    class StateSetUpdater;
 }
 
 namespace Rtx
@@ -252,12 +249,37 @@ namespace Rtx
 
             /// The shape of `node`'s chains now.
             static ChainShape of(const osg::Node& node);
+        };
+
+        /// A `ChainShape` an entry keeps: the callbacks held, so no address in it is handed to
+        /// another callback while the entry stands (`ByAddress`), where a callback the game freed
+        /// and a new one made at its address passed for the chains as they were. The shape each
+        /// frame probes stays raw, and is held only where it changed.
+        struct HeldChains
+        {
+            std::array<osg::ref_ptr<const osg::Callback>, ChainShape::sMostCallbacks> mCallbacks{};
+            std::uint8_t mCount = 0;
+            std::uint8_t mUpdates = 0;
+            bool mWhole = true;
 
             /// Whether the chains are as they were: never where either shape was cut short.
-            bool operator==(const ChainShape& other) const
+            bool matches(const ChainShape& shape) const
             {
-                return mWhole && other.mWhole && mCount == other.mCount && mUpdates == other.mUpdates
-                    && std::equal(mCallbacks.begin(), mCallbacks.begin() + mCount, other.mCallbacks.begin());
+                return mWhole && shape.mWhole && mCount == shape.mCount && mUpdates == shape.mUpdates
+                    && std::equal(mCallbacks.begin(), mCallbacks.begin() + mCount, shape.mCallbacks.begin(),
+                        [](const osg::ref_ptr<const osg::Callback>& held, const osg::Callback* probed) {
+                            return held.get() == probed;
+                        });
+            }
+
+            /// Holds `shape`'s callbacks, and none past them.
+            void hold(const ChainShape& shape)
+            {
+                for (std::size_t at = 0; at < mCallbacks.size(); ++at)
+                    mCallbacks[at] = at < shape.mCount ? shape.mCallbacks[at] : nullptr;
+                mCount = shape.mCount;
+                mUpdates = shape.mUpdates;
+                mWhole = shape.mWhole;
             }
         };
 
@@ -317,7 +339,7 @@ namespace Rtx
             /// The controllers found on the node's callback chains, in the order the rasterizer runs
             /// them, and what the chains looked like when they were found. None where the node is
             /// animated by an ancestor alone.
-            std::array<SceneUtil::StateSetUpdater*, sMostUpdaters> mUpdaters{};
+            std::array<osg::ref_ptr<SceneUtil::StateSetUpdater>, sMostUpdaters> mUpdaters{};
             std::size_t mUpdaterCount = 0;
             bool mSetUp = false;
 
@@ -326,7 +348,7 @@ namespace Rtx
             /// update consumes that before the walk applies it here, so the state set held here
             /// hears it by the number alone.
             std::array<unsigned int, sMostUpdaters> mGenerations{};
-            ChainShape mChains;
+            HeldChains mChains;
         };
 
         /// Reads a whole material off the chain, which is what an arrival and a rewrite both want.

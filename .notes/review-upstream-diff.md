@@ -63,16 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.7 The mirror compares and dereferences raw pointers across frames without a hold.**
-  `mirror/materialresolver.hpp:246` (`ChainShape::mCallbacks`), `:320` (`Animated::mUpdaters`),
-  `mirror/emitterresolver.hpp:120` (`HeldSprite::mSprite`). The game frees updaters it removes
-  (`animation.cpp:1559,1684,1892`). A new callback at the same address passes the shape test, and
-  `getGeneration()`/`apply()` run through a stale pointer. A state set swapped above a sprite without
-  a controller leaves `mSprite` stale. Target: the held shape keeps `osg::ref_ptr`, and the per-frame
-  probe stays raw and assigns only on change. Re-describe a sprite when its material key changes.
-  Verify: `./omw test components-tests --gtest_filter='RtxSceneExtractorTest.*'`, plus a test that
-  replaces an updater at one node between walks.
-
 - [ ] **2.8 `CellRing`'s teardown depends on `detach`.**
   `mirror/cellring.cpp:56` (`~CellRing() = default`), `held.hpp:124-125`. `~SceneExtractor`
   (`sceneextractor.cpp:625-633`) gives everything back. Target: when no exception unwinds,

@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/BlendFunc>
+#include <osg/CopyOp>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -528,6 +529,16 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.emitters().front().mTexture, first) << "a chain nothing animates was read again";
             EXPECT_EQ(mScene.textures().getRows().size(), 2u);
 
+            // **A state set swapped above the system is another chain**, read again though nothing
+            // animates: it is keyed apart, and the sprite read off the old chain was kept for it.
+            plume.mRoot->setStateSet(new osg::StateSet(*plume.mRoot->getStateSet(), osg::CopyOp::SHALLOW_COPY));
+            mScene.clearPlacement();
+            walk(*plume.mRoot);
+            ASSERT_EQ(mScene.emitters().size(), 1u);
+            const Index reread = mScene.emitters().front().mTexture;
+            EXPECT_EQ(mScene.textures().getRows()[reread].mPath, VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
+                << "a chain whose state set was swapped kept the sprite of the one it replaced";
+
             /// A controller on the root, which is what makes the chain one the walk reads again.
             class Rebind : public SceneUtil::StateSetUpdater
             {
@@ -556,7 +567,7 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.textures().getRows()[swapped].mPath, VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
                 << "an animated chain kept the sprite it no longer wears";
 
-            // The old sheet and its bake went back with the swap and the new pair took their
+            // The old sheet and its bake went back with the first swap and the new pair took their
             // slots: nothing else named them, and the table is no longer than it was.
             EXPECT_EQ(mScene.textures().getRows().size(), 2u);
             for (const TextureRow& row : mScene.textures().getRows())
