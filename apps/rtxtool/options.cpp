@@ -563,8 +563,9 @@ namespace RtxTool
             "a film's keys file: `view` appends the key it stands at to it on every Home press, and "
             "`film` flies through its keys. A key is the block Home prints, so Home output pasted "
             "into a file is keys too; a key may add `seconds` (how long the flight to it takes), "
-            "`hold` (how long the camera rests on it) and `cut` (true to cut before it, false to "
-            "fly to it however far)");
+            "`at` (the second of the film it is reached at, which the flights since the key before "
+            "with a time fill at one speed), `hold` (how long the camera rests on it) and `cut` (true "
+            "to cut before it, false to fly to it however far)");
         option(Verbs::Film, "plan", bpo::bool_switch(),
             "print the takes and the length of every segment, and why, then stop without drawing");
         option(Verbs::Film, "fps", number(atLeast(0.0f, true))->default_value(sStepRate),
@@ -576,17 +577,19 @@ namespace RtxTool
                         "time, and --plan says where one asks for longer",
                 pacing.mSpeed / Constants::UnitsPerMeter));
         option(Verbs::Film, "length", number(atLeast(0.0f, true)),
-            std::format("the film's length in seconds: every flight at the one speed that fills it, which "
-                        "is the path's whole length over what is left once the holds, the stills, what "
-                        "stands on the spot and the keys' own seconds are taken out. {:g} where neither this "
-                        "nor --speed is named, unless every flight has its own seconds or the rest leave no "
-                        "frame to fly, where the film is what the keys and --speed make it",
+            std::format("the film's length in seconds: every flight after the last key with an `at` at "
+                        "the one speed that fills it, which is the path's whole length over what is left once "
+                        "the holds, the stills, what stands on the spot and the keys' own seconds are taken "
+                        "out. {:g} where neither this nor --speed is named, unless a key names its `at`, "
+                        "every flight has its own seconds or the rest leave no frame to fly, where the film "
+                        "is what the keys and --speed make it",
                 FilmPacing::sLengthByDefault)
                 .c_str());
         option(Verbs::Film, "ease", number(atLeast(0.0f))->default_value(pacing.mEase),
             "seconds the camera takes to reach its speed from a rest and to come back to one: at a "
-            "take's ends, at a hold, and beside a turn on the spot. Nought flies at full speed from "
-            "the first frame to the last");
+            "take's ends, at a hold, and beside a turn on the spot; and to change speed at a key it "
+            "flies through, between a slower flight and a faster one, inside the faster. Nought "
+            "flies at full speed from the first frame to the last");
         option(Verbs::Film, "pan-seconds", number(atLeast(0.0f, true))->default_value(pacing.mPanSeconds),
             "how long a pan takes to sweep one image width, or a tilt one image height: the "
             "established limit before judder, which a frame with no motion blur shows sooner");

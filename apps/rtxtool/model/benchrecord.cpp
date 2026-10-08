@@ -312,6 +312,32 @@ namespace RtxTool
         return text;
     }
 
+    std::string describeSceneHeld(const Rtx::SceneStats& scene)
+    {
+        return std::format(
+            "{} instances ({} cutouts)   {:.1f} MiB structures in {:.1f} reserved{}   {} textures, "
+            "{:.1f} MiB{}",
+            scene.mInstances.mPlaced, scene.mInstances.mCutout, Rtx::megabytes(scene.mStructureLiveBytes),
+            Rtx::megabytes(scene.mStructureBytes), describeCompaction(scene), scene.mTextureCount,
+            Rtx::megabytes(scene.mTextureBytes), describeReduced(scene));
+    }
+
+    std::string describeHostHeld(const Rtx::ContentMemory& content)
+    {
+        // **The host's side of the device's question**: runs a freed mesh left as holes, which
+        // nothing moves to close, and what the cell reader keeps of models it no longer lends.
+        const Rtx::ReaderMemory& reader = content.mReader;
+        if (content.mVertexEnd == 0 && reader.mLentModels + reader.mSpareModels + reader.mFiledModels == 0)
+            return {};
+
+        return std::format(
+            "  host  vertices {:.2f} M used of {:.2f} M reached   indices {:.2f} M of {:.2f} M   "
+            "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n",
+            content.mVerticesUsed / 1e6, content.mVertexEnd / 1e6, content.mIndicesUsed / 1e6, content.mIndexEnd / 1e6,
+            Rtx::megabytes(reader.mLentBytes), reader.mLentModels, Rtx::megabytes(reader.mSpareBytes),
+            reader.mSpareModels, Rtx::megabytes(reader.mFiledBytes), reader.mFiledModels);
+    }
+
     std::string describeHeader(const BenchHeader& header)
     {
         // **The build and the layers first, because either makes every figure below one not to
@@ -365,13 +391,8 @@ namespace RtxTool
         }
 
         if (!place.mCell.empty())
-            out += std::format(
-                "  cell {} at {} in {}   {} instances ({} cutouts)   {:.1f} MiB structures in "
-                "{:.1f} reserved{}   {} textures, {:.1f} MiB{}\n",
-                place.mCell, describeHour(place.mHour), place.mWeather, place.mScene.mInstances.mPlaced,
-                place.mScene.mInstances.mCutout, Rtx::megabytes(place.mScene.mStructureLiveBytes),
-                Rtx::megabytes(place.mScene.mStructureBytes), describeCompaction(place.mScene),
-                place.mScene.mTextureCount, Rtx::megabytes(place.mScene.mTextureBytes), describeReduced(place.mScene));
+            out += std::format("  cell {} at {} in {}   {}\n", place.mCell, describeHour(place.mHour), place.mWeather,
+                describeSceneHeld(place.mScene));
 
         // **Two facts and not one line.** A staged place pays one build before its frames and can
         // name what it cost; a run of a real game builds a little at every crossing and has no such
@@ -382,18 +403,7 @@ namespace RtxTool
         // second is the one a card with a small host-visible heap runs out of first.
         out += Rtx::describeMemory(place.mMemory);
 
-        // **The host's side of the same question**: runs a freed mesh left as holes, which nothing
-        // moves to close, and what the cell reader keeps of models it no longer lends.
-        const Rtx::ContentMemory& content = place.mContent;
-        const Rtx::ReaderMemory& reader = content.mReader;
-        if (content.mVertexEnd > 0 || reader.mLentModels + reader.mSpareModels + reader.mFiledModels > 0)
-            out += std::format(
-                "  host  vertices {:.2f} M used of {:.2f} M reached   indices {:.2f} M of {:.2f} M   "
-                "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n",
-                content.mVerticesUsed / 1e6, content.mVertexEnd / 1e6, content.mIndicesUsed / 1e6,
-                content.mIndexEnd / 1e6, Rtx::megabytes(reader.mLentBytes), reader.mLentModels,
-                Rtx::megabytes(reader.mSpareBytes), reader.mSpareModels, Rtx::megabytes(reader.mFiledBytes),
-                reader.mFiledModels);
+        out += describeHostHeld(place.mContent);
 
         if (place.mHitPercent > 0.0)
             out += std::format("  {:.1f}% of primary rays hit\n", place.mHitPercent);

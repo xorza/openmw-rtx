@@ -187,11 +187,14 @@ the core is a bug whether or not a second backend ever arrives.
   unless named: every assert and the tests. `release` is the build a number is quoted from, and
   `profile` runs in it and refuses another flavour. `asan` adds the address and undefined-behaviour
   sanitizers and `tsan` the thread sanitizer, which the daily run builds apart; `full` builds every
-  program the tree has, the CS among them; `package` is the one `archive` puts into `dist/`.
+  program the tree has, the CS among them, and is the gate's own, as it is CI's Linux leg's;
+  `package` is the one `archive` puts into `dist/`.
 - Compiling is not verifying. Build the targets you touched and run the covering binary with a
   filter: `./omw test <binary> --gtest_filter=...`. `./omw build` formats the tree first, except on
   CI, whose checks job checks it once; `./omw format` rewrites the tree alone, and
-  `./omw format --check` changes nothing and is what the gate and CI run.
+  `./omw format --check` changes nothing and is what the gate and CI run. `./omw lint` is the rest
+  of CI's checks job, the same code in both: `./omw lint driver` before a push that touches
+  `tools/omw`.
 - `./omw test` once before saying it works: every suite CTest has, `rtx-gpu-tests` and the crash
   matrix among them. The GPU binary fails without a device rather than skipping, so a green run
   means a device ran it; `--without-device` leaves it out on a box with no driver.

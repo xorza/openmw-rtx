@@ -62,11 +62,18 @@ namespace Rtx
     class DenoiseHistory
     {
     public:
-        explicit DenoiseHistory(const Device& device);
+        /// `use` is what the images are counted as, as `GBuffer` takes it.
+        DenoiseHistory(const Device& device, MemoryUse use);
+
+        /// What the history of a frame this size takes of the device's memory.
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
 
         /// Makes room for a frame this size, anew: `TraceChain::resize` is what asks whether the size
         /// changed. A resize is a reset.
         void resize(std::uint32_t width, std::uint32_t height);
+
+        /// Lets every image go, until the next `resize`.
+        void release() { mImages = {}; }
 
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
@@ -201,6 +208,7 @@ namespace Rtx
 
     private:
         const Device& mDevice;
+        MemoryUse mUse;
 
         /// The half of a pair the last frame wrote, the half this frame writes, and the one image of
         /// what is not a pair.

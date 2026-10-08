@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <span>
 
 #include <osg/Vec2f>
@@ -50,27 +51,51 @@ namespace Rtx
     {
     }
 
+    namespace
+    {
+        /// Level `level` of the pyramid over a frame `width` by `height`, each half the one before
+        /// it, or nothing past the narrowest. `TRANSFER_SRC` because the levels are the whole of
+        /// what this pass produces and so the only thing a reader can check it by —
+        /// `GBuffer::sReadable` carries the bit for the same reason, and it costs no memory either.
+        std::optional<ImageDescription> levelDescription(
+            const std::uint32_t level, const std::uint32_t width, const std::uint32_t height)
+        {
+            const std::uint32_t columns = width >> (level + 1);
+            const std::uint32_t rows = height >> (level + 1);
+            if (level >= Shaders::BLOOM_LEVELS || columns < Shaders::BLOOM_NARROWEST || rows < Shaders::BLOOM_NARROWEST)
+                return std::nullopt;
+
+            return ImageDescription{ .mWidth = columns,
+                .mHeight = rows,
+                .mFormat = toVulkanFormat(BLOOM_LEVEL),
+                .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
+        }
+    }
+
     void BloomPass::resize(std::uint32_t width, std::uint32_t height)
     {
         if (!mLevels.empty() && mLevels.front().getWidth() == width / 2 && mLevels.front().getHeight() == height / 2)
             return;
 
         mLevels.clear();
-
-        for (std::uint32_t level = 0; level < Shaders::BLOOM_LEVELS; ++level)
+        for (std::uint32_t level = 0;; ++level)
         {
-            width /= 2;
-            height /= 2;
-
-            if (width < Shaders::BLOOM_NARROWEST || height < Shaders::BLOOM_NARROWEST)
+            const std::optional<ImageDescription> description = levelDescription(level, width, height);
+            if (!description.has_value())
                 break;
+            mLevels.emplace_back(MemoryUse::Frame, mDevice, *description, std::format("bloom level {}", level));
+        }
+    }
 
-            // `TRANSFER_SRC` because the levels are the whole of what this pass produces and so the
-            // only thing a reader can check it by — `GBuffer::sReadable` carries the bit for the
-            // same reason, and it costs no memory either.
-            mLevels.emplace_back(mDevice, width, height, toVulkanFormat(BLOOM_LEVEL),
-                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                std::format("bloom level {}", level));
+    VkDeviceSize BloomPass::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
+    {
+        VkDeviceSize bytes = 0;
+        for (std::uint32_t level = 0;; ++level)
+        {
+            const std::optional<ImageDescription> description = levelDescription(level, width, height);
+            if (!description.has_value())
+                return bytes;
+            bytes += Image::bytesFor(device, *description);
         }
     }
 

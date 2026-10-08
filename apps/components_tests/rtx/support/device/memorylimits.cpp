@@ -33,7 +33,11 @@ namespace Rtx::Testing
             throw std::runtime_error("a device with no budget extension cannot say what the heap holds");
 
         VkDeviceSize owed = held.mHeld - held.mReserved;
-        for (std::size_t before = 0; before < static_cast<std::size_t>(use); ++before)
+        const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
+        if (memory.getFrameReserve() > frame)
+            owed += memory.getFrameReserve() - frame;
+        for (std::size_t before = static_cast<std::size_t>(MemoryUse::Essential);
+             before < static_cast<std::size_t>(use); ++before)
             owed += memory.getHeld(heap, static_cast<MemoryUse>(before));
 
         return held.mHeld + owed + above;

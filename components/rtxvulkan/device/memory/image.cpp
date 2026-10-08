@@ -21,19 +21,118 @@
 
 namespace Rtx
 {
+    namespace
+    {
+        /// The create info of an image of a description, and the list of formats it may point to:
+        /// pinned, since the one points into the other.
+        ///
+        /// **A second format is a second view of the same bits**, which the image has to be created
+        /// able to give: the list is what lets the driver keep the image's own layout for both.
+        /// **Extended usage, because the storage usage is the other format's.** An `SRGB` format
+        /// has no storage feature, so an image of it asking for storage is refused outright — the
+        /// extended-usage flag has the usage checked against every format of the list instead,
+        /// and the view in the image's own format then has to say it carries no storage.
+        class ImageCreate
+        {
+        public:
+            explicit ImageCreate(const ImageDescription& description)
+                : mFormats{ description.mFormat, description.mStorageFormat }
+                , mList{
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO,
+                    .pNext = nullptr,
+                    .viewFormatCount = 2,
+                    .pViewFormats = mFormats.data(),
+                }
+            {
+                assert(description.mMipLevels >= 1 && "an image holds its own full level at least");
+                assert(description.mDepth >= 1 && "an image holds one slice at least");
+
+                const bool twoFormats = description.mStorageFormat != VK_FORMAT_UNDEFINED
+                    && description.mStorageFormat != description.mFormat;
+                mCreate = VkImageCreateInfo{
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                    .pNext = twoFormats ? &mList : nullptr,
+                    .flags = twoFormats
+                        ? VkImageCreateFlags{ VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT | VK_IMAGE_CREATE_EXTENDED_USAGE_BIT }
+                        : VkImageCreateFlags{},
+                    .imageType = description.mDepth > 1 ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D,
+                    .format = description.mFormat,
+                    .extent = { description.mWidth, description.mHeight, description.mDepth },
+                    .mipLevels = description.mMipLevels,
+                    .arrayLayers = 1,
+                    .samples = VK_SAMPLE_COUNT_1_BIT,
+                    .tiling = VK_IMAGE_TILING_OPTIMAL,
+                    .usage = description.mUsage,
+                    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                    .queueFamilyIndexCount = 0,
+                    .pQueueFamilyIndices = nullptr,
+                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                };
+            }
+
+            ImageCreate(const ImageCreate&) = delete;
+            ImageCreate& operator=(const ImageCreate&) = delete;
+
+            const VkImageCreateInfo& get() const { return mCreate; }
+
+        private:
+            std::array<VkFormat, 2> mFormats;
+            VkImageFormatListCreateInfo mList;
+            VkImageCreateInfo mCreate{};
+        };
+    }
+
     Image::Image(const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format,
         VkImageUsageFlags usage, std::string_view name, std::uint32_t mipLevels, std::uint32_t depth,
         VkFormat storageFormat)
-        : Image(Unbound{}, device, width, height, format, usage, name, mipLevels, depth, storageFormat)
+        : Image(MemoryUse::Essential, device,
+            ImageDescription{ .mWidth = width,
+                .mHeight = height,
+                .mFormat = format,
+                .mUsage = usage,
+                .mMipLevels = mipLevels,
+                .mDepth = depth,
+                .mStorageFormat = storageFormat },
+            name)
     {
-        bind(device.getMemory().take(mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), name);
+    }
+
+    Image::Image(
+        const MemoryUse use, const Device& device, const ImageDescription& description, const std::string_view name)
+        : Image(Unbound{}, device, description, name)
+    {
+        bind(device.getMemory().take(mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use), name);
+    }
+
+    VkDeviceSize Image::bytesFor(const Device& device, const ImageDescription& description)
+    {
+        const ImageCreate create(description);
+        const VkDeviceImageMemoryRequirements asked{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
+            .pNext = nullptr,
+            .pCreateInfo = &create.get(),
+            .planeAspect = VkImageAspectFlagBits{},
+        };
+        VkMemoryRequirements2 requirements{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = nullptr, .memoryRequirements = {}
+        };
+        vkGetDeviceImageMemoryRequirements(device.getHandle(), &asked, &requirements);
+        return requirements.memoryRequirements.size;
     }
 
     Misc::Result<Image, std::string_view> Image::tryMake(const MemoryUse use, const Device& device, std::uint32_t width,
         std::uint32_t height, VkFormat format, VkImageUsageFlags usage, std::string_view name, std::uint32_t mipLevels,
         std::uint32_t depth, VkFormat storageFormat)
     {
-        Image made(Unbound{}, device, width, height, format, usage, name, mipLevels, depth, storageFormat);
+        Image made(Unbound{}, device,
+            ImageDescription{ .mWidth = width,
+                .mHeight = height,
+                .mFormat = format,
+                .mUsage = usage,
+                .mMipLevels = mipLevels,
+                .mDepth = depth,
+                .mStorageFormat = storageFormat },
+            name);
         Misc::Result<DeviceMemory, std::string_view> memory
             = device.getMemory().tryTake(made.mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
         if (!memory.isOk())
@@ -43,58 +142,18 @@ namespace Rtx
         return made;
     }
 
-    Image::Image(Unbound, const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format,
-        VkImageUsageFlags usage, std::string_view name, std::uint32_t mipLevels, std::uint32_t depth,
-        VkFormat storageFormat)
+    Image::Image(Unbound, const Device& device, const ImageDescription& description, std::string_view name)
         : mDevice(&device)
-        , mWidth(width)
-        , mHeight(height)
-        , mDepth(depth)
-        , mFormat(format)
-        , mUsage(usage)
-        , mMipLevels(mipLevels)
-        , mStorageFormat(storageFormat)
+        , mWidth(description.mWidth)
+        , mHeight(description.mHeight)
+        , mDepth(description.mDepth)
+        , mFormat(description.mFormat)
+        , mUsage(description.mUsage)
+        , mMipLevels(description.mMipLevels)
+        , mStorageFormat(description.mStorageFormat)
     {
-        assert(mipLevels >= 1 && "an image holds its own full level at least");
-        assert(depth >= 1 && "an image holds one slice at least");
-
-        const bool volume = depth > 1;
-
-        // A second format is a second view of the same bits, which the image has to be created
-        // able to give: the list is what lets the driver keep the image's own layout for both.
-        // **Extended usage, because the storage usage is the other format's.** An `SRGB` format
-        // has no storage feature, so an image of it asking for storage is refused outright — the
-        // extended-usage flag has the usage checked against every format of the list instead,
-        // and the view in the image's own format below then has to say it carries no storage.
-        const bool twoFormats = storageFormat != VK_FORMAT_UNDEFINED && storageFormat != format;
-        const std::array<VkFormat, 2> formats{ format, storageFormat };
-        const VkImageFormatListCreateInfo list{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO,
-            .pNext = nullptr,
-            .viewFormatCount = 2,
-            .pViewFormats = formats.data(),
-        };
-
-        const VkImageCreateInfo create{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .pNext = twoFormats ? &list : nullptr,
-            .flags = twoFormats
-                ? VkImageCreateFlags{ VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT | VK_IMAGE_CREATE_EXTENDED_USAGE_BIT }
-                : VkImageCreateFlags{},
-            .imageType = volume ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D,
-            .format = format,
-            .extent = { width, height, depth },
-            .mipLevels = mipLevels,
-            .arrayLayers = 1,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = usage,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .queueFamilyIndexCount = 0,
-            .pQueueFamilyIndices = nullptr,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        };
-        mHandle = Owned<VkImage, vkDestroyImage>::make(device, vkCreateImage, create, "vkCreateImage");
+        const ImageCreate create(description);
+        mHandle = Owned<VkImage, vkDestroyImage>::make(device, vkCreateImage, create.get(), "vkCreateImage");
         device.setName(mHandle.get(), name);
     }
 

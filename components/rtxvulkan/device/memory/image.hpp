@@ -23,6 +23,20 @@ namespace Rtx
     class Buffer;
     class Device;
 
+    /// What an image is, apart from its memory and its name, as the constructors take it: what
+    /// making one and asking what one takes (`Image::bytesFor`) both read, so an owner that
+    /// measures its images from the descriptions it makes them of measures what it makes.
+    struct ImageDescription
+    {
+        std::uint32_t mWidth = 0;
+        std::uint32_t mHeight = 0;
+        VkFormat mFormat = VK_FORMAT_UNDEFINED;
+        VkImageUsageFlags mUsage = 0;
+        std::uint32_t mMipLevels = 1;
+        std::uint32_t mDepth = 1;
+        VkFormat mStorageFormat = VK_FORMAT_UNDEFINED;
+    };
+
     /// An image, its allocation and its view.
     class Image
     {
@@ -47,6 +61,14 @@ namespace Rtx
         Image(const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usage,
             std::string_view name, std::uint32_t mipLevels = 1, std::uint32_t depth = 1,
             VkFormat storageFormat = VK_FORMAT_UNDEFINED);
+
+        /// The same, as `description` says, as `use`: the frame's targets or other essential
+        /// memory, which is never refused.
+        Image(MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
+
+        /// What an image `description` describes takes of the device's memory, without making one:
+        /// the size the allocator holds for it once it is made.
+        static VkDeviceSize bytesFor(const Device& device, const ImageDescription& description);
 
         /// The same, for an image something stands in for: why there is none where the device has
         /// no room for it as `use` — `MemoryAllocator::tryTake`. The use first, so the parameters
@@ -183,9 +205,7 @@ namespace Rtx
         struct Unbound
         {
         };
-        Image(Unbound, const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format,
-            VkImageUsageFlags usage, std::string_view name, std::uint32_t mipLevels, std::uint32_t depth,
-            VkFormat storageFormat);
+        Image(Unbound, const Device& device, const ImageDescription& description, std::string_view name);
 
         /// Binds `memory` and makes the views, which is the rest of what the constructor does.
         void bind(DeviceMemory&& memory, std::string_view name);

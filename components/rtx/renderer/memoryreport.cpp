@@ -45,6 +45,17 @@ namespace Rtx
         out += std::format("{:<{}}reserved {:7.1f}   live {:7.1f}\n", "  host-written", column,
             megabytes(report.mHostWrittenReserved), megabytes(report.mHostWrittenLive));
 
+        // What the video heap's `live` is made of, and why content stops where it does: the room
+        // kept for the frame's largest targets, and what each kind of content may still take.
+        const MemoryUses& uses = report.mUses;
+        if (uses.mFrame + uses.mFrameReserve + uses.mEssential + uses.mStructures + uses.mTextures > 0)
+            out += std::format(
+                "  uses  frame {:.1f} of {:.1f} kept   essential {:.1f}   structures {:.1f}, room {:.1f}   "
+                "textures {:.1f}, room {:.1f}\n",
+                megabytes(uses.mFrame), megabytes(uses.mFrameReserve), megabytes(uses.mEssential),
+                megabytes(uses.mStructures), megabytes(uses.mStructureRoom), megabytes(uses.mTextures),
+                megabytes(uses.mTextureRoom));
+
         return out;
     }
 }

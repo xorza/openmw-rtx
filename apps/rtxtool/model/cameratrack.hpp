@@ -33,6 +33,11 @@ namespace RtxTool
 
         Rtx::Weather mWeather = Rtx::Weather::Clear;
 
+        /// World units a frame the flight into this key cruises at, as the planner timed it: what a
+        /// key the eye flies through is passed at, the slower of its two legs'. Nought into a take's
+        /// first key and over a segment that goes nowhere.
+        double mSpeed = 0.0;
+
         /// Whether the camera stands still here, as on either side of a hold. A take's first and
         /// last keys always do.
         bool mRests = false;
@@ -119,6 +124,12 @@ namespace RtxTool
     /// line, eased from and to a rest, and taking the frames its two keys stand apart. Where the
     /// planner gave every segment of a flight one speed, the eye crosses the take at it.
     ///
+    /// **A key between a slow leg and a fast one is passed at the slow one's speed**, and the fast
+    /// leg changes speed within an ease of it, as it would from a rest: the slow leg is flown at
+    /// its own speed to the key, and the speed is continuous through it. Passed at the fast leg's,
+    /// the slow leg would have to dip below its own speed to make up the distance, and stop where
+    /// it is short.
+    ///
     /// **The facing and the hour a cubic Hermite spline in time, per channel.** The tangents are
     /// Catmull-Rom's, `(v₊ − v₋) / (f₊ − f₋)`, which is what a value that must pass through every
     /// key at a given time takes, and its rate is continuous through each key. **Limited by the
@@ -157,6 +168,10 @@ namespace RtxTool
 
             /// Each channel's rate, per frame.
             std::array<double, sChannels> mSlope{};
+
+            /// The speeds the segment leaving this knot passes its keys at, where one of them is
+            /// not its own.
+            std::optional<CruiseJoins> mJoins{};
         };
 
         std::vector<Knot> mKnots;

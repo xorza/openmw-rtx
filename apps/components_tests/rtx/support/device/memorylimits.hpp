@@ -26,9 +26,9 @@ namespace Rtx::Testing
     };
 
     /// The budget at which `use`'s ceiling stands `above` over what the video heap holds now:
-    /// what the heap holds, and once more what the process holds outside the allocator and what
-    /// every use before `use` holds. Throws on a device with no budget extension, which cannot
-    /// say what the heap holds.
+    /// what the heap holds, what the process holds outside the allocator, what the frame's reserve
+    /// has beyond what its targets hold, and once more what every other use before `use` holds.
+    /// Throws on a device with no budget extension, which cannot say what the heap holds.
     VkDeviceSize budgetAbove(const MemoryAllocator& memory, MemoryUse use, VkDeviceSize above);
 
     /// Video memory with no room left for content, for as long as one stands: every ceiling at

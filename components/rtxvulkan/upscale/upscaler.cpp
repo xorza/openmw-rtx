@@ -311,14 +311,23 @@ namespace Rtx
     /// and the three `ffxFsr3UpscalerGetSharedResourceDescriptions` has an application make.
     struct Upscaler::Targets
     {
-        Targets(const Device& device, const VkExtent2D render, const VkExtent2D output)
+        /// Each image as `image` makes it from its description and name: the frame's own memory,
+        /// or nothing where `Upscaler::bytesAt` only adds up what each would take, which so
+        /// measures the one list this makes.
+        template <class MakeImage>
+        Targets(const VkExtent2D render, const VkExtent2D output, MakeImage&& image)
             : mRender(render)
             , mOutput(output)
             , mPyramid(FsrFrame::pyramidFor(render))
         {
             const VkExtent2D half{ std::max(render.width / 2, 1u), std::max(render.height / 2, 1u) };
             const auto make = [&](VkExtent2D extent, VkFormat format, std::string_view name, std::uint32_t levels = 1) {
-                return Image(device, extent.width, extent.height, format, sUsage, name, levels);
+                return image(ImageDescription{ .mWidth = extent.width,
+                                 .mHeight = extent.height,
+                                 .mFormat = format,
+                                 .mUsage = sUsage,
+                                 .mMipLevels = levels },
+                    name);
             };
 
             add(mAccumulation[0], make(render, toVulkanFormat(FSR_ACCUMULATION_FORMAT), "fsr-accumulation-0"));
@@ -404,11 +413,13 @@ namespace Rtx
 
         // **The one owner of "is this a new extent"**, as `TraceChain::resize` is: a mode changed
         // between two that trace and show at one size keeps the targets and the history in them.
-        const auto same = [](VkExtent2D a, VkExtent2D b) { return a.width == b.width && a.height == b.height; };
-        if (mTargets != nullptr && same(mTargets->mRender, render) && same(mTargets->mOutput, output))
+        if (isAt(render, output))
             return;
 
-        mTargets = std::make_unique<Targets>(mDevice, render, output);
+        mTargets = std::make_unique<Targets>(
+            render, output, [&](const ImageDescription& description, std::string_view name) {
+                return Image(MemoryUse::Frame, mDevice, description, name);
+            });
         mFrame.restart();
 
         // Every image defined from the first frame, where the SDK clears the four it reads before
@@ -424,6 +435,22 @@ namespace Rtx
     void Upscaler::release()
     {
         mTargets.reset();
+    }
+
+    bool Upscaler::isAt(const VkExtent2D render, const VkExtent2D output) const
+    {
+        const auto same = [](VkExtent2D a, VkExtent2D b) { return a.width == b.width && a.height == b.height; };
+        return mTargets != nullptr && same(mTargets->mRender, render) && same(mTargets->mOutput, output);
+    }
+
+    VkDeviceSize Upscaler::bytesAt(const Device& device, const VkExtent2D render, const VkExtent2D output)
+    {
+        VkDeviceSize bytes = 0;
+        const Targets measured(render, output, [&](const ImageDescription& description, std::string_view) {
+            bytes += Image::bytesFor(device, description);
+            return Image();
+        });
+        return bytes;
     }
 
     HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)

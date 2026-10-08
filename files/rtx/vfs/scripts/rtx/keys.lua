@@ -7,8 +7,9 @@ local ui = require('openmw.ui')
 
 -- Every key a script turns the world by, named once, and all unbound in the game's defaults. The
 -- keys a window answers that are not here are read off SDL by the harness: Home, which prints
--- where the window stands, the session's own note, and the brackets, which step the sky the
--- harness crosses (`RtxTool::SkyKeys`). No script can reach either.
+-- where the window stands, the session's own note; End, which prints what the renderer holds of
+-- memory (`RtxTool::MemoryKey`); and the brackets, which step the sky the harness crosses
+-- (`RtxTool::SkyKeys`). No script can reach any of them.
 local keys = {
     [input.KEY.Slash] = { event = 'RtxPauseClock' },
     [input.KEY.Comma] = { event = 'RtxSpeedClock', steps = -1 },

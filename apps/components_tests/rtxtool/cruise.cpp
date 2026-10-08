@@ -79,5 +79,42 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, 12.0), 100.0) << "an open end arrives at speed";
             EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, 11.0), 90.0);
         }
+
+        /// **A key passed at another speed is reached within an ease of it.** A hundred units from
+        /// a rest in twelve frames with an ease of four, the end joined at five a frame: both ends
+        /// ease, and the cruise is `(100 − 5 · 4 / 2) / (12 − 2 − 2) = 11.25`. The first ease has
+        /// covered `11.25 · 4 · 0.09375 = 4.21875` at its middle and 22.5 at its end, the cruise
+        /// `22.5 + 11.25 · 4 = 67.5` where the last ease begins, and two frames out of the key the
+        /// eye is short of it by five a frame and `6.25 · 4 · 0.09375`: `100 − 10 − 2.34375`. The
+        /// speed at the key is the join's. Joined at its own ten a frame, the leg is the one-speed
+        /// leg at every frame. Four frames are too short for two eases of four, which take two
+        /// each: `(20 − 2 · 2 / 2) / (4 − 1 − 1) = 9`, nine at the middle.
+        TEST(RtxCruiseTest, aKeyPassedAtAnotherSpeedIsReachedWithinAnEaseOfIt)
+        {
+            const Cruise cruise{ .mEase = 4.0 };
+            const CruiseJoins slower{ .mTo = 5.0 };
+
+            EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, 0.0, slower), 0.0);
+            EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, 2.0, slower), 4.21875);
+            EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, 4.0, slower), 22.5);
+            EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, 8.0, slower), 67.5);
+            EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, 10.0, slower), 87.65625);
+            EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, 12.0, slower), 100.0);
+
+            // The ease's speed is flat at both its ends, so a one-sided difference errs by the
+            // square of its step.
+            constexpr double step = 1e-6;
+            const double arriving = (100.0 - cruise.coveredAt(sFromRest, 12.0, 12.0 - step, slower)) / step;
+            EXPECT_NEAR(arriving, 5.0, 1e-6) << "the speed the key is passed at";
+
+            const CruiseJoins own{ .mTo = 10.0 };
+            for (double at = 0.0; at <= 12.0; at += 0.5)
+                EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, at, own), cruise.coveredAt(sFromRest, 12.0, at))
+                    << "frame " << at;
+            EXPECT_NE(cruise.coveredAt(sFromRest, 12.0, 10.0, slower), cruise.coveredAt(sFromRest, 12.0, 10.0, own));
+
+            const CruiseLeg brief{ .mLength = 20.0, .mFromRest = true };
+            EXPECT_DOUBLE_EQ(cruise.coveredAt(brief, 4.0, 2.0, CruiseJoins{ .mTo = 2.0 }), 9.0);
+        }
     }
 }

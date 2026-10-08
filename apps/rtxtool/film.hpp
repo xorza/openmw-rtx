@@ -37,6 +37,10 @@ namespace RtxTool
         /// How long the flight to this key takes, in place of the length its changes derive.
         std::optional<float> mSeconds{};
 
+        /// The second of the film the camera arrives here at: the flights since the key before
+        /// that names one share the speed that fills the time between.
+        std::optional<float> mAt{};
+
         /// How long the camera rests here.
         float mHold = 0.0f;
 
@@ -96,7 +100,8 @@ namespace RtxTool
         std::optional<FilmLength> mLength;
 
         /// Seconds the eye takes to reach its speed from a rest and to come back to one: at a
-        /// take's ends, at a hold, and beside a turn on the spot (`Cruise`).
+        /// take's ends, at a hold, and beside a turn on the spot; and to change from a slower
+        /// leg's speed to a faster's, inside the faster (`Cruise`).
         float mEase = 1.0f;
 
         /// Seconds a pan takes to turn one image width, the established limit for judder.
@@ -180,6 +185,12 @@ namespace RtxTool
         float mTurnDegrees = 0.0f;
         float mHours = 0.0f;
 
+        /// World units a frame the eye cruises at over it, or nought where it goes nowhere: a
+        /// flight's what fills its span where a key's time or a length closes the span, and the
+        /// plan's speed where none does, give or take the part of a frame its take was rounded by
+        /// to end on a frame; a key's own seconds what fills them.
+        double mSpeed = 0.0;
+
         /// The longest its turn, its clock and its weather ask, in seconds, and which of them asks
         /// it: what times a segment that goes nowhere, and what the plan holds a flight's own time
         /// against, since a flight at one speed takes what its length gives whatever else it changes.
@@ -218,10 +229,6 @@ namespace RtxTool
         std::vector<TrackKey> mTrack;
         CameraPath mPath;
 
-        /// World units a second its flights are flown at, or nought where nothing flies. The plan's
-        /// speed, give or take the part of a frame the take was rounded by to end on a frame.
-        double mSpeed = 0.0;
-
         /// The number of the take's first frame in the film.
         std::uint32_t mFirstFrame = 0;
 
@@ -253,9 +260,14 @@ namespace RtxTool
 
     /// Splits `keys` into takes, lays each take's path through its eyes, and times it: a flight at
     /// one speed along the path, `mSpeed` or what fills `mLength`; a segment that goes nowhere by
-    /// the longest of what else it changes; a key's own seconds over either. Each take ends on a
-    /// whole frame, and its speed is what fills that exactly. Throws where there is no key, and
-    /// where a named length cannot be filled.
+    /// the longest of what else it changes; a key's own seconds over either.
+    ///
+    /// **A key's `at` closes a span of the film**, as `mLength` closes the last: the flights in a
+    /// span share the one speed that fills its time, and the flights after the last closed span
+    /// fly at `mSpeed`. The default length stands aside where a key names its time. Each take's
+    /// flights in one span end on a whole frame, and fly at what fills that exactly. Throws where
+    /// there is no key, where the keys' times do not run forward from the first key's nought, and
+    /// where a span closed by a key or a named length cannot be filled.
     FilmPlan planFilm(std::vector<FilmKey> keys, const FilmPacing& pacing);
 
     /// The plan as a person reads it before committing an hour of rendering to it: every take, why
