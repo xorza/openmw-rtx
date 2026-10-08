@@ -29,12 +29,7 @@ namespace Rtx
         /// the one-off; anything that happens once per resource wants a `Batch`, or the queue is
         /// asked to do one thing three hundred times.
         template <class F>
-        void submitAndWait(F&& record)
-        {
-            const VkCommandBuffer commands = beginBatch();
-            record(commands);
-            endAndWait(commands);
-        }
+        void submitAndWait(F&& record);
 
         /// A command buffer to record into. Off the spare list where one has been given back, and
         /// allocated where none has: the pool allows individual reset, so a buffer given back is
@@ -327,6 +322,17 @@ namespace Rtx
         std::size_t mHold;
         VkDeviceSize mFilled = 0;
     };
+
+    /// Through a batch, so a `record` that throws gives its recording back as an abandoned batch
+    /// does. The buffer is begun whatever `record` does, so a submit that carries only what was
+    /// deferred is still one.
+    template <class F>
+    void CommandPool::submitAndWait(F&& record)
+    {
+        Batch batch(*this);
+        record(batch.getCommands());
+        batch.flush();
+    }
 
     /// Stages `bytes` through the batch's own staging and copies them into `into` at `offset`.
     /// Nothing is ordered here: a run of these is made readable together by `orderStagedWrites`.

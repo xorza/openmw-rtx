@@ -288,16 +288,17 @@ namespace Rtx
 
     Batch::~Batch()
     {
-        if (mCommands != VK_NULL_HANDLE)
-        {
-            assert(
-                std::uncaught_exceptions() > 0 && "a batch that recorded something was neither flushed nor deferred");
+        assert((mCommands == VK_NULL_HANDLE || std::uncaught_exceptions() > 0)
+            && "a batch that recorded something was neither flushed nor deferred");
 
-            mPool.discard(std::exchange(mCommands, VK_NULL_HANDLE));
-        }
-
-        release();
-        mPool.giveHold(mHold);
+        // Through `tearDown`, because this runs while an exception unwinds, and a reset the driver
+        // refuses would end the process there. A hold whose release failed is kept from the pool.
+        tearDown("a batch would not give back what it held", [&] {
+            if (mCommands != VK_NULL_HANDLE)
+                mPool.discard(std::exchange(mCommands, VK_NULL_HANDLE));
+            release();
+            mPool.giveHold(mHold);
+        });
     }
 
     VkCommandBuffer Batch::getCommands()
