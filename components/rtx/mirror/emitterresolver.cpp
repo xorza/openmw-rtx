@@ -97,7 +97,7 @@ namespace Rtx
         held.mVertexColour = described.mVertexColour;
         held.mDiffuseColour = decodeColour(described.mDiffuseColour);
         held.mOpacity = described.mOpacity;
-        if (sprite == held.mSprite)
+        if (sprite == held.mSprite.get())
             return;
 
         // The image changed under a controller, which no shipped system does but a chain that
@@ -171,8 +171,12 @@ namespace Rtx
         // Read where the entry arrives, and again where a link of the chain animates; every other
         // frame the reading is the one held. `Shading::mAnimatedThrough` is that scan resolved as
         // the chain is built, so no reader walks the links for it.
-        if (arrived || animatedThrough(shading))
+        const osg::StateSet* const key = shading.empty() ? nullptr : shading.back().mMaterialKey;
+        if (arrived || animatedThrough(shading) || key != held.mKey.get())
+        {
             describeSprite(particles, held, shading);
+            held.mKey = key;
+        }
         else if (held.mSprite != nullptr && held.mSlot.empty())
             takeSprite(particles, held);
         else if (held.mSprite != nullptr && held.mLighting.empty())

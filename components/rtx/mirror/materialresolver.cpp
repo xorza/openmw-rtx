@@ -112,23 +112,28 @@ namespace Rtx
         const auto [entry, arrived] = mAnimated.reach(Placement{ .mNode = &node, .mPath = placement });
         Animated& held = entry->second;
         const ChainShape chains = ChainShape::of(node);
-        if (arrived || chains != held.mChains)
+        if (arrived || !held.mChains.matches(chains))
         {
-            held.mChains = chains;
+            held.mChains.hold(chains);
 
             std::array<SceneUtil::StateSetUpdater*, sMostUpdaters> found{};
             const std::size_t count = chained ? findUpdaters(node, found) : 0;
 
             if (count != held.mUpdaterCount
-                || !std::equal(found.begin(), found.begin() + count, held.mUpdaters.begin()))
+                || !std::equal(found.begin(), found.begin() + count, held.mUpdaters.begin(),
+                    [](const SceneUtil::StateSetUpdater* probed, const osg::ref_ptr<SceneUtil::StateSetUpdater>& kept) {
+                        return probed == kept.get();
+                    }))
             {
-                held.mUpdaters = found;
+                for (std::size_t at = 0; at < held.mUpdaters.size(); ++at)
+                    held.mUpdaters[at] = at < count ? found[at] : nullptr;
                 held.mUpdaterCount = count;
                 held.mSetUp = false;
             }
         }
 
-        const std::span<SceneUtil::StateSetUpdater* const> updaters(held.mUpdaters.data(), held.mUpdaterCount);
+        const std::span<const osg::ref_ptr<SceneUtil::StateSetUpdater>> updaters(
+            held.mUpdaters.data(), held.mUpdaterCount);
         if (updaters.empty() && !inherits)
             return nullptr;
 
@@ -163,7 +168,7 @@ namespace Rtx
                 held.mStateSet->setRenderBinDetails(base->getBinNumber(), base->getBinName(), base->getRenderBinMode());
                 held.mStateSet->setNestRenderBins(base->getNestRenderBins());
             }
-            for (SceneUtil::StateSetUpdater* updater : updaters)
+            for (const osg::ref_ptr<SceneUtil::StateSetUpdater>& updater : updaters)
                 updater->setDefaults(held.mStateSet);
         }
 

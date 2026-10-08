@@ -7,8 +7,11 @@
 #include <vector>
 
 #include <osg/Drawable>
+#include <osg/Image>
 #include <osg/Matrixf>
+#include <osg/StateSet>
 #include <osg/Vec3f>
+#include <osg/ref_ptr>
 
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/rowhold.hpp>
@@ -117,7 +120,12 @@ namespace Rtx
             /// sprite for, which draws nothing and is refused, and for one whose surface names no
             /// image (`mUntextured`). What a rewrite is told apart by, and what the census names
             /// once per emitter.
-            const osg::Image* mSprite = nullptr;
+            osg::ref_ptr<const osg::Image> mSprite;
+
+            /// The material key of the chain the sprite was last described off, held so its
+            /// address stays this chain's: a state set swapped above the system with no controller
+            /// to say so is a new key, and described again.
+            osg::ref_ptr<const osg::StateSet> mKey;
 
             /// Whether the system's surface names no image: drawn with the white texel, coloured
             /// by its particles, as the rasterizer draws an untextured particle system.

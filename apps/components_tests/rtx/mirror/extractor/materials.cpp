@@ -29,6 +29,7 @@
 #include <osg/Uniform>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+#include <osg/observer_ptr>
 #include <osg/ref_ptr>
 #include <osgUtil/UpdateVisitor>
 
@@ -1643,6 +1644,23 @@ namespace Rtx::Testing
             walk(*node, 0, 5);
             ASSERT_EQ(mScene.materials().getRows().size(), 1u);
             expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.0508761f);
+
+            // **A controller the game frees, and the next one made where it stood.** The entry
+            // holds what it found, so the freed one's address is not the next one's while the entry
+            // could take the new for the old, and lets it go once a walk finds the chains changed.
+            const osg::observer_ptr<ColourController> freed = first.get();
+            node->removeCullCallback(first);
+            first = nullptr;
+            EXPECT_TRUE(freed.valid()) << "a controller the walk found was freed under its entry";
+
+            osg::ref_ptr<ColourController> third = new ColourController;
+            third->mRed = 0.5f;
+            node->addCullCallback(third);
+            mScene.clearPlacement();
+            walk(*node, 0, 6);
+            ASSERT_EQ(mScene.materials().getRows().size(), 1u);
+            expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.2140411f);
+            EXPECT_FALSE(freed.valid()) << "the entry kept a controller the chains no longer hold";
         }
     }
 }
