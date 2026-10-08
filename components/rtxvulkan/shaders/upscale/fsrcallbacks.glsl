@@ -1,3 +1,6 @@
+#ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_UPSCALE_FSRCALLBACKS_GLSL
+#define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_UPSCALE_FSRCALLBACKS_GLSL
+
 // Derived from the FidelityFX SDK (v1.1.4), `ffx_fsr3upscaler_callbacks_glsl.h`, whose notice
 // follows.
 //
@@ -654,3 +657,5 @@ void SPD_ResetAtomicCounter()
 #endif
 
 #endif // #if defined(FFX_GPU)
+
+#endif

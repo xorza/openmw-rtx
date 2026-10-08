@@ -43,6 +43,7 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
+    static_assert(sizeof(HistoryClampConstants) == 12, "HistoryClampConstants must be scalar-packed on every side");
 }
 #endif
 
