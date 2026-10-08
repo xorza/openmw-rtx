@@ -54,11 +54,6 @@ What is left:
 
 ### Harness, `./omw` and CI
 
-- [ ] **5.20 Three verbs set the radiance width by hand.**
-  `main.cpp:818,885,1237`. The set {bench, film, view} is `mMeasures || mPlayed` in `VerbPolicy`.
-  Target: `frameFrom` sets `RadianceWidth::Shown` from the policy.
-  Verify: `./omw test components-tests --gtest_filter='RtxVerbsTest.*'`.
-
 - [ ] **5.21 Small harness consolidations.**
   `runStops` (`main.cpp:524`) and `runInfo` (`:400`) have one caller each. `commandShot` and
   `commandBench` (`:742-860`) repeat the hash-output setup, so one `hashInto` serves both.

@@ -6,6 +6,8 @@
 #include <string>
 #include <string_view>
 
+#include <components/rtx/frame/reconstruction.hpp>
+
 namespace RtxTool
 {
     /// Which of the harness's commands something is about, as a set of them.
@@ -95,6 +97,14 @@ namespace RtxTool
         /// and `--hud` decides whether anything of the interface is drawn over it
         /// (`MWRender::RunSetup::mInterface`).
         bool mPlayed = false;
+
+        /// The width the light is traced at: the game's where frames are measured or played, since
+        /// those are the frames a player sees and none is summed, and the reference's where they
+        /// are not.
+        Rtx::RadianceWidth radianceWidth() const
+        {
+            return mMeasures || mPlayed ? Rtx::RadianceWidth::Shown : Rtx::RadianceWidth::Summed;
+        }
     };
 
     /// The row of `one`, which is one command.
