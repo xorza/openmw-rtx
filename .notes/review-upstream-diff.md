@@ -50,19 +50,6 @@ What is left:
 - **Frame-path costs in the mirror.** Unloaded cells are deleted on the frame thread (phase 4).
 - **Simplifications and dead code** (phases 5 and 6).
 
-## Phase 4 — frame-path and load-path costs
-
-Measure each against the baseline bench (median, p99, worst frame), on a quiet desktop, in the
-background.
-
-- [ ] **4.6 The G-buffer's 19 channels overflow the 16-image barrier batch.**
-  `device/memory/barriers.hpp:15,71`, `trace/gbuffer.cpp:136-145`, `trace/tracechain.cpp:45`.
-  `GBuffer::begin` emits two `vkCmdPipelineBarrier2` a trace, and the comments still say fourteen.
-  Target: a `static_assert(CHANNEL_COUNT <= Barriers::sMostImages)` with the room raised, or a
-  caller room as `TextureArrival` has. Fix both comments.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxBarriersTest.*:RtxTraceChainTest.*'`,
-  `./omw shot --views=all --map --upscale=off --against=<dir>` (nothing moved).
-
 ## Phase 5 — design and simplification
 
 ### Mirror

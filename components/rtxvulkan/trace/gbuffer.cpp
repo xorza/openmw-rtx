@@ -131,6 +131,10 @@ namespace Rtx
         updateSets(device, writes.get());
     }
 
+    // One command a hand-over and not two: a run past the batch's room emits what it holds.
+    static_assert(
+        Shaders::CHANNEL_COUNT <= Barriers::sMostImages, "the G-buffer's channels overflow one barrier batch");
+
     void GBuffer::begin(VkCommandBuffer commands) const
     {
         // From undefined, because every pixel is written before any is read. One set of channels
