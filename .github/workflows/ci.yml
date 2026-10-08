@@ -194,7 +194,7 @@ jobs:
 
       - name: Logs
         if: failure()
-        uses: $/.github/actions/build-logs
+        uses: $/.github/actions/logs
         with:
           name: logs-${{ matrix.name }}-${{ github.sha }}
           build: build-full
