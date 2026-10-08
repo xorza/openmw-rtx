@@ -54,11 +54,6 @@ What is left:
 
 ### Harness, `./omw` and CI
 
-- [ ] **5.24 `kernels.py` error handling.**
-  `:178-179`: a refusal in one worker waits for every other tuple. Use
-  `shutdown(cancel_futures=True)`. `:170`: `spirv-dis` with `check=True` loses its stderr. Use the
-  same `Refusal` shape as `spirv-opt`.
-
 - [ ] **5.25 `processposix.cpp` names `WIFSIGNALED`/`WEXITSTATUS` without `<sys/wait.h>`.**
   `components/platform/processposix.cpp:216-226`.
 

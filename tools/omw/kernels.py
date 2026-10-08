@@ -26,9 +26,11 @@ import struct
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypeVar
 
 from omw.build import Build
 from omw.system import EXE, ROOT, Refusal, Switches, jobs, read_text
@@ -173,6 +175,21 @@ def keyed(lines: list[str], source: str) -> dict[str, str]:
     return found
 
 
+T = TypeVar("T")
+R = TypeVar("R")
+
+
+def map_cancelling(function: Callable[[T], R], items: list[T], workers: int) -> list[R]:
+    """`function` of every item, in order, on `workers` threads. **The first failure cancels what has not
+    started**: a refusal says what is wrong with the tree, and the hundred tuples queued behind it
+    would only say it again after minutes."""
+    pool = ThreadPoolExecutor(max_workers=workers)
+    try:
+        return list(pool.map(function, items))
+    finally:
+        pool.shutdown(cancel_futures=True)
+
+
 def kernels(build: Build, args: list[str]) -> int:
     switches = Switches("kernels", "one digest per shader and tuple of its constants")
     switches.add_argument("--against", type=Path, help="a listing this wrote before: name the tuples that moved")
@@ -215,16 +232,19 @@ def kernels(build: Build, args: list[str]) -> int:
             if optimized.returncode != 0:
                 said = optimized.stderr.decode(errors="replace")
                 raise Refusal(f"spirv-opt refused {module.name} at {label}: {said}")
-            disassembly = subprocess.run([disassembler, "--raw-id", "--no-header", specialized],
-                                         capture_output=True, check=True).stdout
+            disassembled = subprocess.run([disassembler, "--raw-id", "--no-header", specialized],
+                                          capture_output=True, check=False)
+            if disassembled.returncode != 0:
+                said = disassembled.stderr.decode(errors="replace")
+                raise Refusal(f"spirv-dis refused {module.name} at {label}: {said}")
+            disassembly = disassembled.stdout
         hashed = subprocess.run([program_digest], input=disassembly, capture_output=True, check=False)
         if hashed.returncode != 0:
             said = hashed.stderr.decode(errors="replace")
             raise Refusal(f"{module.name} at {label} could not be digested: {said}")
         return f"{module.name.removesuffix('.spv')} {label} {hashed.stdout.decode().strip()}"
 
-    with ThreadPoolExecutor(max_workers=jobs()) as pool:
-        listed = sorted(pool.map(digest, work))
+    listed = sorted(map_cancelling(digest, work, jobs()))
 
     if against is None:
         print("\n".join(listed))
