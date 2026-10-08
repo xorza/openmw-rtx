@@ -41,7 +41,6 @@ class UnlistedTest(unittest.TestCase):
                                  sorted([*forgotten, *unshield, counts]))
 
 
-
 class QtSourcesTest(unittest.TestCase):
     def test_every_name_of_every_qt_list_is_a_source_of_its_folder(self):
         text = ("add_component_dir (misc\n    strings\n    )\n"
@@ -68,6 +67,7 @@ class QtSourcesTest(unittest.TestCase):
         branched = ("if (USE_QT)\n    target_sources(t PRIVATE qt.cpp)\nelse()\n"
                     "    target_sources(t PRIVATE plain.cpp)\nendif()\n")
         self.assertEqual(qt_guarded_sources(branched, "apps/x"), {"apps/x/qt.cpp"})
+
 
 if __name__ == "__main__":
     unittest.main()

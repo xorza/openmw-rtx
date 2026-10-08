@@ -39,7 +39,6 @@ class DurationsTest(unittest.TestCase):
         self.assertEqual(durations({"tests": 0}, ROOT), {})
 
 
-
 def suite(target: str, *labels: str) -> dict:
     return {"name": target, "properties": [{"name": "LABELS", "value": list(labels)},
                                            {"name": "OPENMW_TARGET", "value": target}]}
@@ -51,6 +50,7 @@ class DeviceFreeTest(unittest.TestCase):
                  suite("crash-tests", "device"), suite("crash-tests"), {"name": "no target", "properties": []}]
         self.assertEqual(device_free(tests), ["components-tests", "crash-tests"])
         self.assertEqual(device_free([]), [])
+
 
 if __name__ == "__main__":
     unittest.main()

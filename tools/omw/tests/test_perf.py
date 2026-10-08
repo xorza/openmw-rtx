@@ -27,7 +27,6 @@ class MeasuredWindowTest(unittest.TestCase):
         self.assertIn("--json", str(refused.exception))
 
 
-
 @unittest.skipIf(WINDOWS, "profile is Linux's")
 class RecordOffcpuTest(unittest.TestCase):
     """A harness and a recorder that are each a line of Python: the recorder is handed `-p <pid>` as
@@ -70,6 +69,7 @@ class RecordOffcpuTest(unittest.TestCase):
             _record_offcpu(self.folder, self.env, recorder, harness, Closed())
         with self.assertRaises(ProcessLookupError, msg="the harness outlived its reader"):
             os.kill(int(attached.read_text()), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

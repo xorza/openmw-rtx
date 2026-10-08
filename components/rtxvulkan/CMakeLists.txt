@@ -284,6 +284,8 @@ set(RTX_VULKAN_FILES
     device/timeline.hpp
     device/validation.cpp
     device/validation.hpp
+    digestpass.cpp
+    digestpass.hpp
     display/bloompass.cpp
     display/bloompass.hpp
     display/displaychain.cpp
@@ -296,8 +298,6 @@ set(RTX_VULKAN_FILES
     display/sunglarepass.hpp
     display/tonepass.cpp
     display/tonepass.hpp
-    digestpass.cpp
-    digestpass.hpp
     framering.cpp
     framering.hpp
     gui/guidrawer.cpp

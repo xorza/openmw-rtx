@@ -382,8 +382,8 @@ graph TD
 ```
 
 Solid arrows own, dashed arrows borrow. `RtxRenderer` outlives the world, which is attached to
-it while `RenderingManager`'s `WorldAttachment` stands (§4). The pictures inside the interface are owned by the game's map
-and preview, and they leave the queue when they go.
+it while `RenderingManager`'s `WorldAttachment` stands (§4). The pictures inside the interface are
+owned by the game's map and preview, and they leave the queue when they go.
 
 ## 10. A frame
 
@@ -470,7 +470,7 @@ Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 | what the scene is                         | `components/rtx/scene/scenedesc.hpp`                                                   |
 | the cells past the active grid            | `components/rtx/mirror/cells/cellring.hpp`                                             |
 | what is computed from content, and cached | `components/rtx/preprocess/contentpreprocessor.hpp`, `contentpass.hpp`                 |
-| the sky, the air and the sea              | `components/rtx/world/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`              |
+| the sky, the air and the sea              | `components/rtx/world/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`                    |
 | the surface model                         | `components/rtx/shaders/brdf.h`                                                        |
 | what a frame is on the device             | `components/rtx/shaders/visibility.h`, `scene.h`                                       |
 | the backend's frame                       | `components/rtxvulkan/vulkanrenderer.hpp`, `trace/tracechain.hpp`, `display/displaychain.hpp` |

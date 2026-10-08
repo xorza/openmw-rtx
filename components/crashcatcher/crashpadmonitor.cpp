@@ -177,11 +177,15 @@ namespace Crash
             if (path.empty())
                 return;
 
-            const std::lock_guard lock(monitor.mLogMutex);
-            const Platform::AppendFile log = Platform::AppendFile::open(path, false);
+            // **One write for the whole summary**, so a line the game logs meanwhile lands before it
+            // or after it and never between two of its lines.
             const std::string at = stamp();
+            std::string block;
             for (const std::string& line : lines)
-                log.write(at + line + '\n');
+                block += at + line + '\n';
+
+            const std::lock_guard lock(monitor.mLogMutex);
+            Platform::AppendFile::open(path, false).write(block);
         }
 
         /// The module an address lies in, and the offset in it: "openmw.exe+0x112a9a7".

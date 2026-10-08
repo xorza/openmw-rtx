@@ -107,7 +107,6 @@ class MovedTest(unittest.TestCase):
                                                  "listing: '-- Configuring done (4.1s)'")
 
 
-
 class MapCancellingTest(unittest.TestCase):
     def test_every_item_in_order_and_the_first_failure_cancels_what_has_not_started(self):
         self.assertEqual(map_cancelling(lambda item: item * 2, [3, 1, 2], 2), [6, 2, 4])
@@ -132,6 +131,7 @@ class MapCancellingTest(unittest.TestCase):
             map_cancelling(refusing, list(range(102)), 1)
         self.assertEqual(started[:2], [0, 1])
         self.assertLessEqual(len(started), 3)
+
 
 if __name__ == "__main__":
     unittest.main()
