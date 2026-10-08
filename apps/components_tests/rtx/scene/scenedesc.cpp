@@ -61,6 +61,30 @@ namespace Rtx
             return copy;
         }
 
+        /// **A move carries the identity and leaves the source a fresh one**, where the defaulted
+        /// move left the source with the one it handed over, and two descriptions under one
+        /// identity — what the deleted copy exists to prevent. An assignment gives the target the
+        /// source's, and the source another that no description held.
+        TEST(RtxSceneDescTest, aMoveCarriesTheIdentityAndLeavesTheSourceAFreshOne)
+        {
+            SceneDesc first;
+            const std::uint64_t carried = first.getIdentity();
+            EXPECT_NE(carried, 0u);
+
+            SceneDesc moved(std::move(first));
+            EXPECT_EQ(moved.getIdentity(), carried);
+            EXPECT_NE(first.getIdentity(), carried) << "the source kept the identity it handed over";
+            EXPECT_GT(first.getIdentity(), carried) << "the source took an identity held before";
+
+            SceneDesc target;
+            const std::uint64_t replaced = target.getIdentity();
+            const std::uint64_t source = first.getIdentity();
+            target = std::move(first);
+            EXPECT_EQ(target.getIdentity(), source);
+            EXPECT_NE(first.getIdentity(), source);
+            EXPECT_GT(first.getIdentity(), replaced) << "the source took an identity held before";
+        }
+
         /// The order the lights come out in is the lights' own, and every field takes its turn.
         ///
         /// **What a repeated run rests on.** `orderLights` says why: a walk meets lights in graph
