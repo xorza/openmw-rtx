@@ -46,8 +46,8 @@ namespace Rtx
     {
     public:
         /// @param specular `[RTX] specular map layout`: whether a ground layer's `_diffusespec` is an
-        ///        authored albedo with its roughness in alpha, the classic map, or the plain diffuse
-        ///        OpenMW swaps in — the walk's own (`WalkContext::mSpecular`).
+        ///        authored albedo with its roughness in alpha or the classic map — the walk's own
+        ///        (`WalkContext::mSpecular`).
         CellPlacer(SceneDesc& scene, SpecularLayout specular)
             : mScene(scene)
             , mSpecularLayout(specular)

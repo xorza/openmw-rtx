@@ -56,23 +56,25 @@ follow the settings window while the game runs.
 .. omw-setting::
    :title: specular map layout
    :type: string
-   :range: ignore, classic, metal roughness
-   :default: ignore
+   :range: classic, metal roughness
+   :default: classic
 
    What the content's :code:`_spec` maps mean. The file cannot say, and two layouts are in use:
    OpenMW's own, with a highlight colour in RGB and glossiness in alpha, and the one of the PBR
    packs, with metalness in red, roughness in green, ambient occlusion in blue and one less
-   subsurface scattering in alpha. :code:`ignore` reads no specular map, which is right for content
-   with none. :code:`classic` reads the first as a reflectance and a roughness: the highlight colour
-   is the reflectance at normal incidence, and the glossiness — a Blinn-Phong exponent over 255 — is
-   matched to a roughness by :math:`\alpha = \sqrt{2 / (n + 2)}`, which is an approximation and not
-   the rasterizer's highlight; a terrain :code:`_diffusespec` is read the same way, its alpha the
-   grey reflectance at the exponent of 128 the rasterizer's terrain uses. :code:`metal roughness`
-   reads the second.
+   subsurface scattering in alpha. :code:`classic` reads the first as a reflectance and a roughness:
+   the highlight colour is the reflectance at normal incidence, and the glossiness — a Blinn-Phong
+   exponent over 255 — is matched to a roughness by :math:`\alpha = \sqrt{2 / (n + 2)}`, which is an
+   approximation and not the rasterizer's highlight; a terrain :code:`_diffusespec` is read the same
+   way, its alpha the grey reflectance at the exponent of 128 the rasterizer's terrain uses.
+   :code:`metal roughness` reads the second.
 
-   The maps are found by name as :ref:`auto use object specular maps` finds them, and loaded with
-   the models, so a change requires a restart. A name this does not know is refused rather than
-   quietly defaulted.
+   Vanilla content has no :code:`_spec` maps, so its picture is the same under either layout. The
+   maps are found by :ref:`specular map pattern`, and the :code:`_n` maps by :ref:`normal map
+   pattern`, whatever :ref:`auto use object specular maps` and :ref:`auto use object normal maps`
+   say: those switches are the rasterizer's. The maps are loaded with the models, so a change
+   requires a restart. The launcher and the settings window offer the layouts as Specular Maps. A
+   name this does not know is refused rather than quietly defaulted.
 
 What the ray tracer declines
 ****************************
@@ -98,6 +100,8 @@ Settings
 * ``[Post Processing]`` every key: Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone curve.
 * ``[Shaders] adjust coverage for alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
 * ``[Shaders] antialias alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
+* ``[Shaders] auto use object normal maps``: The ray tracer reads every model's normal maps, and its specular maps in the layout [RTX] specular map layout names.
+* ``[Shaders] auto use object specular maps``: The ray tracer reads every model's normal maps, and its specular maps in the layout [RTX] specular map layout names.
 * ``[Shaders] clamp lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
 * ``[Shaders] classic falloff``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
 * ``[Shaders] clustered lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.

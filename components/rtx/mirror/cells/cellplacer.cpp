@@ -295,7 +295,7 @@ namespace Rtx
             }
 
             // What a `_diffusespec` is, the layout says: an authored albedo and its roughness, or a
-            // classic diffuse and its highlight's strength. Under `ignore` it is a diffuse like any.
+            // classic diffuse and its highlight's strength.
             if (layer.mDiffuseSpec && mSpecularLayout == SpecularLayout::MetalRoughness)
                 row.mFlags |= Shaders::LAYER_AUTHORED;
             if (layer.mDiffuseSpec && mSpecularLayout == SpecularLayout::Classic)

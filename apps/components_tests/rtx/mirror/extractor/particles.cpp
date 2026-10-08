@@ -253,7 +253,7 @@ namespace Rtx::Testing
                       emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 0.25f));
 
                       Rtx::SceneDesc scene;
-                      WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                      WalkContext context{ .mSpecular = SpecularLayout::Classic };
                       SceneExtractor extractor(scene, context);
                       extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
@@ -306,7 +306,7 @@ namespace Rtx::Testing
             const osg::Vec3f eye(1000.0f, -2000.0f, 300.0f);
 
             SceneDesc scene;
-            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
             SceneExtractor extractor(scene, context);
             extractor.extractPrecipitation(falling, eye, 0);
 
@@ -715,7 +715,7 @@ namespace Rtx::Testing
                 drive(plume, 100.0, updaterAbove);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
                 SceneExtractor extractor(scene, context);
 
                 // The first turn only starts the clock; the second emits and integrates.

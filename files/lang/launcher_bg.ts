@@ -306,6 +306,22 @@
         <source> cells</source>
         <translation> клетки</translation>
     </message>
+    <message>
+        <source>Specular Maps</source>
+        <translation>Спекуларни карти</translation>
+    </message>
+    <message>
+        <source>What the content&apos;s _spec maps hold, which the files cannot say. Classic is OpenMW&apos;s own layout, a highlight colour and a glossiness. PBR is the PBR packs&apos; layout, a metalness and a roughness. Content with no _spec maps, vanilla&apos;s, looks the same under either. A change takes effect the next time OpenMW starts.</source>
+        <translation>Какво съдържат картите _spec на съдържанието — самите файлове не могат да кажат. „Класически“ е собственият формат на OpenMW: цвят на отблясъка и гланц. PBR е форматът на PBR пакетите: металност и грапавост. Съдържание без карти _spec, като основната игра, изглежда еднакво и с двата. Промяната влиза в сила при следващото стартиране на OpenMW.</translation>
+    </message>
+    <message>
+        <source>Classic (Highlight Colour and Glossiness)</source>
+        <translation>Класически (цвят на отблясъка и гланц)</translation>
+    </message>
+    <message>
+        <source>PBR (Metalness and Roughness)</source>
+        <translation>PBR (металност и грапавост)</translation>
+    </message>
 </context>
 <context>
     <name>ImportPage</name>

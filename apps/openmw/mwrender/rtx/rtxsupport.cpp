@@ -36,6 +36,9 @@ namespace MWRender
         constexpr std::string_view sMergedObjects
             = "This sets how the rasterizer merges distant objects. The ray tracer places each distant object whole.";
         constexpr std::string_view sAntialiasing = "The ray tracer's reconstruction resolves the edges.";
+        constexpr std::string_view sCompanionMaps
+            = "The ray tracer reads every model's normal maps, and its specular maps in the layout [RTX] specular map "
+              "layout names.";
         constexpr std::string_view sWater = "The ray tracer reflects and refracts each water surface by its own rays.";
 
         /// Every key the game's renderers read, the rasterizer's own and the shared files', and
@@ -105,6 +108,8 @@ namespace MWRender
             { "Shaders", "adjust coverage for alpha test", sAlphaTest },
             { "Shaders", "antialias alpha test", sAlphaTest },
             { "Shaders", "apply lighting to environment maps", {} },
+            { "Shaders", "auto use object normal maps", sCompanionMaps },
+            { "Shaders", "auto use object specular maps", sCompanionMaps },
             { "Shaders", "auto use terrain normal maps", {} },
             { "Shaders", "auto use terrain specular maps", {} },
             { "Shaders", "clamp lighting", sLamps },
@@ -121,6 +126,7 @@ namespace MWRender
             { "Shaders", "normal map pattern", {} },
             { "Shaders", "particle point lighting", sLamps },
             { "Shaders", "soft particles", sSoftParticles },
+            { "Shaders", "specular map pattern", {} },
             { "Shaders", "terrain specular map pattern", {} },
             { "Shaders", "weather particle occlusion", {} },
             { "Shaders", "weather particle occlusion small feature culling pixel size", sNoCulling },

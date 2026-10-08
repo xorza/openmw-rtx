@@ -11,7 +11,6 @@
 
 #include <apps/openmw/engine.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
-#include <apps/rtxtool/model/maprules.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>
@@ -61,18 +60,13 @@ namespace RtxTool
             Settings::physics().mAsyncNumThreads.set(0);
         }
 
-        /// **What a run reads of the content's companion maps, as `rules` name them**: whether to
-        /// look for a model's normal and specular maps, and by the shipped file's names for them,
-        /// which `MWRender::Renderer::prepareResources` reads from the registry for both renderers.
-        /// Two machines that differ only in their `settings.cfg` then bench one scene.
-        void applyContentRules(const Files::ConfigurationManager& config, const MapRules rules)
+        /// **The shipped file's names for the content's companion maps**, which
+        /// `MWRender::Renderer::prepareResources` reads from the registry: two machines that differ
+        /// only in their `settings.cfg` then bench one scene. Whether to look for the maps is not
+        /// the registry's under the ray tracer (`RtxRenderer::setAutoMaps`).
+        void applyShippedMapNames(const Files::ConfigurationManager& config)
         {
-            const bool shipped = rules == MapRules::Shipped;
             Settings::ShadersCategory& shaders = Settings::shaders();
-            shaders.mAutoUseObjectNormalMaps.set(
-                !shipped || shippedDefault<bool>(config, "Shaders", "auto use object normal maps"));
-            shaders.mAutoUseObjectSpecularMaps.set(
-                !shipped || shippedDefault<bool>(config, "Shaders", "auto use object specular maps"));
             shaders.mNormalMapPattern.set(shippedDefault<std::string>(config, "Shaders", "normal map pattern"));
             shaders.mNormalHeightMapPattern.set(
                 shippedDefault<std::string>(config, "Shaders", "normal height map pattern"));
@@ -99,7 +93,7 @@ namespace RtxTool
 
         applyHostedSettings(window);
         if (request.mMaps.has_value())
-            applyContentRules(config, *request.mMaps);
+            applyShippedMapNames(config);
 
         // **Whether the run was meant to end on its own**, which is what says an empty report is a
         // failure. A window somebody closes has finished no stop and owes no numbers.

@@ -495,11 +495,10 @@ namespace RtxTool
             "the player's own under `view`");
 
         option(sFramed, "maps", bpo::value<std::string>(),
-            std::format("which companion maps a model takes: {}. `shipped` is `settings-default.cfg`'s "
-                        "rules, which take none; `classic` and `metal-roughness` turn on `[Shaders] auto use "
-                        "object normal maps` and `auto use object specular maps` by the shipped name "
-                        "patterns, and set `[RTX] specular map layout` to that layout, which is how a "
-                        "replacer's maps reach the trace. Not given, `shipped`, or the player's own under "
+            std::format("what a model's companion maps are called and what its `_spec` map means: {}. "
+                        "Each takes the shipped name patterns; `shipped` reads a `_spec` map in "
+                        "`settings-default.cfg`'s `[RTX] specular map layout`, and `classic` and "
+                        "`metal-roughness` in that layout. Not given, `shipped`, or the player's own under "
                         "`view`",
                 sMapRulesNames.list())
                 .c_str());
