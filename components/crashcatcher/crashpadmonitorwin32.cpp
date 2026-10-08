@@ -48,18 +48,17 @@ namespace Crash::Monitor
                 | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_TERMINATE | SYNCHRONIZE,
             FALSE, static_cast<DWORD>(id));
         if (handle != nullptr)
-            mHold = reinterpret_cast<std::intptr_t>(handle);
+            mHold = Platform::UniqueHold<Closing>(reinterpret_cast<std::intptr_t>(handle));
     }
 
-    GameProcess::~GameProcess()
+    void GameProcess::Closing::close(const Handle hold) noexcept
     {
-        if (const HANDLE handle = handleOf(mHold))
-            CloseHandle(handle);
+        CloseHandle(reinterpret_cast<HANDLE>(hold));
     }
 
     void GameProcess::requestHangReport(Heartbeat& page) const
     {
-        const HANDLE handle = handleOf(mHold);
+        const HANDLE handle = handleOf(mHold.get());
         const auto entry = std::atomic_ref(page.mHangEntry).load();
         if (handle == nullptr || entry == 0)
             return;
@@ -71,7 +70,7 @@ namespace Crash::Monitor
 
     Ending GameProcess::end() const
     {
-        const HANDLE handle = handleOf(mHold);
+        const HANDLE handle = handleOf(mHold.get());
         if (handle == nullptr)
             return Ending::Failed;
         if (WaitForSingleObject(handle, 0) == WAIT_OBJECT_0)
@@ -82,14 +81,14 @@ namespace Crash::Monitor
     bool GameProcess::isHeld() const
     {
         BOOL debugged = FALSE;
-        const HANDLE handle = handleOf(mHold);
+        const HANDLE handle = handleOf(mHold.get());
         return handle != nullptr && CheckRemoteDebuggerPresent(handle, &debugged) != FALSE && debugged != FALSE;
     }
 
     std::optional<std::uint32_t> GameProcess::exitCode() const
     {
         DWORD code = 0;
-        const HANDLE handle = handleOf(mHold);
+        const HANDLE handle = handleOf(mHold.get());
         if (handle == nullptr || GetExitCodeProcess(handle, &code) == FALSE || code == STILL_ACTIVE)
             return std::nullopt;
         return static_cast<std::uint32_t>(code);

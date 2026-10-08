@@ -25,14 +25,13 @@ namespace Platform
             return open(path, false);
         }
 
-        file.mHold = reinterpret_cast<std::intptr_t>(handle);
+        file.mHold = UniqueHold<Closing>(reinterpret_cast<std::intptr_t>(handle));
         return file;
     }
 
-    AppendFile::~AppendFile()
+    void AppendFile::Closing::close(const Handle hold) noexcept
     {
-        if (isOpen())
-            CloseHandle(reinterpret_cast<HANDLE>(mHold));
+        CloseHandle(reinterpret_cast<HANDLE>(hold));
     }
 
     void AppendFile::write(std::string_view bytes) const
@@ -41,7 +40,8 @@ namespace Platform
         {
             const DWORD asked = static_cast<DWORD>(std::min<std::size_t>(bytes.size(), 1u << 30));
             DWORD written = 0;
-            if (!WriteFile(reinterpret_cast<HANDLE>(mHold), bytes.data(), asked, &written, nullptr) || written == 0)
+            if (!WriteFile(reinterpret_cast<HANDLE>(mHold.get()), bytes.data(), asked, &written, nullptr)
+                || written == 0)
                 return;
             bytes.remove_prefix(written);
         }

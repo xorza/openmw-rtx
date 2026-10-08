@@ -60,23 +60,20 @@ namespace RtxTool
                 && !load(mLibrary, mEventReasons, "nvmlDeviceGetCurrentClocksThrottleReasons")))
         {
             mAbsence = "the driver's management library lacks a name this asks for";
-            mLibrary = Platform::Library::ScopedHandle();
             return;
         }
 
         if (const Return began = mInit(); began != sSuccess)
         {
             mAbsence = std::format("the driver's management library would not start, its error {}", began);
-            mLibrary = Platform::Library::ScopedHandle();
             return;
         }
+        mSession = Session(mShutdown);
 
         Device device = nullptr;
         if (const Return found = mHandleByIndex(0, &device); found != sSuccess)
         {
             mAbsence = std::format("the driver's management library names no device, its error {}", found);
-            mShutdown();
-            mLibrary = Platform::Library::ScopedHandle();
             return;
         }
         mDevice = device;
@@ -102,12 +99,6 @@ namespace RtxTool
 
         for (std::size_t at = 0; at < count; ++at)
             mCursor = std::max(mCursor, mScratch[at].mStamp);
-    }
-
-    Nvml::~Nvml()
-    {
-        if (isOpen())
-            mShutdown();
     }
 
     GpuClock Nvml::readClock() const

@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 
+#include <components/platform/uniquehold.hpp>
+
 #include "crashpage.hpp"
 
 namespace crashpad
@@ -35,9 +37,6 @@ namespace Crash::Monitor
     {
     public:
         explicit GameProcess(std::uint32_t id);
-        GameProcess(const GameProcess&) = delete;
-        GameProcess& operator=(const GameProcess&) = delete;
-        ~GameProcess();
 
         /// Has the game write a hang report: a signal on POSIX, and on Windows, which has no signal
         /// to take it on, a thread of the game's own started at the function `page` names, as a
@@ -59,7 +58,14 @@ namespace Crash::Monitor
         std::uint32_t mId = 0;
 
         /// What the system holds the process by, a handle or a descriptor, and -1 for nothing.
-        std::intptr_t mHold = -1;
+        struct Closing
+        {
+            using Handle = std::intptr_t;
+            static constexpr Handle sNone = -1;
+            static void close(Handle hold) noexcept;
+        };
+
+        Platform::UniqueHold<Closing> mHold;
     };
 
     /// The exception as the system names it, or nothing where the dump was asked for rather than

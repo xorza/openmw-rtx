@@ -23,28 +23,38 @@ namespace Platform
 
         SharedMemory() = default;
 
-        SharedMemory(SharedMemory&& other) noexcept { swap(other); }
+        SharedMemory(SharedMemory&& other) noexcept { take(other); }
 
+        /// Unmaps what this held before it takes the other's.
         SharedMemory& operator=(SharedMemory&& other) noexcept
         {
-            swap(other);
+            if (this != &other)
+            {
+                unmap();
+                take(other);
+            }
             return *this;
         }
 
         SharedMemory(const SharedMemory&) = delete;
         SharedMemory& operator=(const SharedMemory&) = delete;
-        ~SharedMemory();
+        ~SharedMemory() { unmap(); }
 
         void* data() const { return mData; }
 
     private:
-        void swap(SharedMemory& other) noexcept
+        /// What `other` held, leaving it holding nothing. This holds nothing first.
+        void take(SharedMemory& other) noexcept
         {
-            std::swap(mData, other.mData);
-            std::swap(mSize, other.mSize);
-            std::swap(mHandle, other.mHandle);
-            std::swap(mMadeName, other.mMadeName);
+            mData = std::exchange(other.mData, nullptr);
+            mSize = std::exchange(other.mSize, 0);
+            mHandle = std::exchange(other.mHandle, nullptr);
+            mMadeName = std::move(other.mMadeName);
+            other.mMadeName.clear();
         }
+
+        /// Unmaps the memory, where any is held, and holds nothing.
+        void unmap() noexcept;
 
         void* mData = nullptr;
         std::size_t mSize = 0;

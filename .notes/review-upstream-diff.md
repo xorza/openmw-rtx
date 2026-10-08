@@ -63,17 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.5 Five hand-written owners of a system handle, with three move semantics.**
-  `platform/appendfile.hpp:24-31` and `sharedmemory.hpp:27-34` move by swap, so `b` still owns `a`'s
-  old file after `a = std::move(b)`. `platform/library.hpp:27-58` copies upstream's
-  `File::ScopedHandle`. `crashpadmonitorsystem.hpp:59-62` uses an `intptr_t` sentinel.
-  `apps/rtxtool/instruments/nvml.cpp:177-193` calls `mShutdown()` by hand and resets the library on
-  three early returns. Target: one `UniqueHold<Traits>` in `components/platform` (move-assign closes,
-  then takes) for `AppendFile`, `Library` and `GameProcess`. `SharedMemory` gets close-then-take
-  assignment. `Nvml` gets a `Session` member built after `mInit` succeeds.
-  Verify: `./omw test components-tests --gtest_filter='PlatformAppendFileTest.*:CrashPageTest.*:RtxCardWatch*'`,
-  `./omw test -R crash.matrix`, the Windows CI leg.
-
 - [ ] **2.6 `GlRenderer` owns its SDL window and GL context by hand.**
   `glrenderer.hpp:220,225`, `glrenderer.cpp:196-210` (order by hand), `:252-270` (`createWindow`
   throws after `mWindow` is set, and only `SDL_Quit` reclaims it). `RtxWindow` already holds its

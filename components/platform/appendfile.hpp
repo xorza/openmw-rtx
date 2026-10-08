@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <filesystem>
 #include <string_view>
-#include <utility>
+
+#include "uniquehold.hpp"
 
 namespace Platform
 {
@@ -19,27 +20,20 @@ namespace Platform
         /// refused.
         static AppendFile open(const std::filesystem::path& path, bool emptied);
 
-        AppendFile() = default;
-
-        AppendFile(AppendFile&& other) noexcept { std::swap(mHold, other.mHold); }
-
-        AppendFile& operator=(AppendFile&& other) noexcept
-        {
-            std::swap(mHold, other.mHold);
-            return *this;
-        }
-
-        AppendFile(const AppendFile&) = delete;
-        AppendFile& operator=(const AppendFile&) = delete;
-        ~AppendFile();
-
-        bool isOpen() const { return mHold != -1; }
+        bool isOpen() const { return mHold.isOpen(); }
 
         /// Writes `bytes` at the end, in one write where the system takes it whole.
         void write(std::string_view bytes) const;
 
     private:
         /// A descriptor or a handle, and -1 for none.
-        std::intptr_t mHold = -1;
+        struct Closing
+        {
+            using Handle = std::intptr_t;
+            static constexpr Handle sNone = -1;
+            static void close(Handle hold) noexcept;
+        };
+
+        UniqueHold<Closing> mHold;
     };
 }
