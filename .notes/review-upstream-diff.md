@@ -52,14 +52,6 @@ What is left:
 
 ## Phase 5 — design and simplification
 
-### Core
-
-- [ ] **5.10 Two bounds policies for a validated `TextureData`.**
-  The alpha readers clamp (`alphaimage.cpp:125,140,187`, `texturepass.cpp:45-48`), and the colour
-  readers trust the bytes. `describeImage` already guarantees the bytes. Target: one debug-only
-  `levelsFit` assert at entry, and no scattered clamps. Check first whether a test builds a short
-  `TextureData` on purpose (`alphaimage.cpp:104-109`).
-
 ### Seam and game side
 
 - [ ] **5.11 `Renderer::resolutionChanged` has one caller and costs an upstream hunk.**

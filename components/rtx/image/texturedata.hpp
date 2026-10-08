@@ -210,6 +210,11 @@ namespace Rtx
         /// texels** and not compressed again, because a block format cannot be filtered without an
         /// encoder, and the largest of these files is five hundred and twelve square.
         bool wantsCompletedChain() const;
+
+        /// Whether every level lies inside `mBytes` at its format's layout: what `describeImage`
+        /// guarantees and a reader of the bytes asserts rather than clamps, so a description short
+        /// of its bytes fails where it is read and is not read as opaque or as nothing.
+        bool levelsFit() const;
     };
 
 }

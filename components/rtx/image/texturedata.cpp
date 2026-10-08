@@ -60,6 +60,18 @@ namespace Rtx
         return bytes;
     }
 
+    bool TextureData::levelsFit() const
+    {
+        if (mLevels.empty())
+            return true;
+
+        const TexelLayout layout = layoutOf(mFormat);
+        return std::ranges::all_of(mLevels, [&](const MipLevel& level) {
+            return level.mOffset <= mBytes.size()
+                && layout.levelBytes(level.mWidth, level.mHeight) <= mBytes.size() - level.mOffset;
+        });
+    }
+
     bool TextureData::wantsCompletedChain() const
     {
         return mLevels.size() == 1 && std::size_t{ mWidth } * mHeight > 1;
