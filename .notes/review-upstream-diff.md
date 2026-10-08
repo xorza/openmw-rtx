@@ -847,3 +847,63 @@ repeating the work.
   measures.
 - **A surface-lost path in the presenter.** It surfaces as `DeviceError` today, which fits the target
   desktops.
+
+## Phase 7 — after every other item: investigate until clear
+
+Start this phase only when every item above is done. Find the cause first, then fix it at the
+owner. Do not fix by guess.
+
+- [ ] **7.1 Two runs of one binary do not agree at `seyda-neen-ship-armed`.**
+  Reproducer, about one minute:
+  `./omw shot --views=probe-guild-planter,seyda-neen-ship-armed --upscale=off --filter=false --out=<a>`,
+  then the same with `--against=<a>`. Nearly every pair differs in the armed stop's scene digest:
+  `meshes`, `instances`, `previous` and `poses`, and on some pairs also `positions`, `normals`,
+  `texcoords`, `colours` and `indices`. With `--views=all`, only some pairs differ. A 0.5 ms busy
+  wait per placement makes it more frequent. The issue log said that the place is a function of the
+  frame time and that two runs agree. Both claims are wrong: it is a race.
+
+  What differs, found by temporary dumps (all reverted):
+  - The actors after the teleport into Seyda Neen. Other mudcrabs stand, at other positions and in
+    another count (`MechanicsManager::getActorsInRange`, `RefData::getPosition`).
+  - Standing actors' body parts are one ulp apart in z. The player's own body parts differ too.
+  - The world generator (`World::getPrng`, hashed after each walk) is equal through the first frame
+    after the teleport and differs from the second frame. In some runs the poses and the
+    placements differ already on the first frame.
+  - The engine's frame number at the first traced frame differs between runs (167 against 189, 213
+    against 140): the start-up's loading frames are counted by the wall.
+
+  Ruled out, each tested with the reproducer or with the full suite:
+  - the measure window's wait: the same "stood whole" frame in both runs;
+  - the physics: `dt` is nought on every frame, the accumulator is the same in both runs, and
+    ignoring the step budget (`PhysicsTaskScheduler::calculateStepConfig`) changes nothing;
+  - the Lua worker: `lua num threads = 0` still differs;
+  - the cell preloader: `preload enabled = false` still differs;
+  - the top-level room, and the light grid's history (built from nothing on every frame);
+  - the seed's place alone: `Stager::stage` seeds both generators after `world.changeToCell`
+    (`apps/rtxtool/stager.cpp:100` against `:137-138`), so the cell load's levelled spawns
+    (`CreatureLevList::insertObjectRendering`) draw from the stream the frames before left. Seeding
+    ahead of the move did not settle it. Keep it in mind for the fix all the same.
+
+  Next steps:
+  - Find every draw from `World::getPrng` between the first and the second frame after the
+    teleport, with its call site, in two runs, and diff the lists: a counting wrapper on the
+    generator, or a breakpoint with a backtrace. The draws seen in the code are `AiWander`
+    (`aiwander.cpp:68,402`), `CharacterController` (`character.cpp:323,806`), `NpcAnimation`'s blink
+    (`npcanimation.cpp:159`), `WeatherManager` (`weather.cpp:169,784`), the levelled spawns
+    (`creaturelevlist.cpp:112`) and Lua's nearby bindings (`mwlua/nearbybindings.cpp`).
+  - Find the threads that can touch the world's state in that window: the Lua worker runs beside
+    `renderFrame` (`engine.cpp:294-298`), the navmesh updater, and the ray tracer's cell ring reader.
+  - `Misc::Rng`'s default generator is one static that every thread shares (`misc/rng.cpp:9`); the
+    lamp flicker (`lightcontroller.cpp:16,64`), the NIF particles (`nifosg/particle.cpp`) and the
+    loading screen's splash draw from it.
+
+  Verify: five pairs of the reproducer and five pairs of `--views=all --filter=false` agree in every
+  column, and `./omw repeat --pairs=10`.
+
+- [ ] **7.2 With the denoiser on, the trace's direct light moves between two runs of one binary.**
+  `./omw shot --views=all --upscale=off` twice: `g-direct`, a trace channel, differs at up to 30
+  places, from some stop on through the rest of the run, and nothing else differs. With
+  `--filter=false`, no place differs (apart from 7.1). So the trace reads something the denoiser
+  wrote, and the card's known one-ulp difference in the wavelet (AGENTS.md, "The denoised frame is
+  not bit-exact on this card") reaches the trace and the shot's verdict, which then names the trace.
+  Find what the trace reads of the denoiser's output, and whether it should.
