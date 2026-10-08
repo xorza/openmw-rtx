@@ -120,8 +120,12 @@ namespace Rtx
     {
         // What the interface handed over, before the pool holding it is taken apart, and every
         // frame in flight and the presenter's last blit, before the swapchain goes, which is the
-        // one handle here not buried.
-        tearDown("the device would not finish before the renderer was taken apart", [&] { drain(); });
+        // one handle here not buried. **A step apiece**, as `drain` takes them: a submit that
+        // refused would otherwise skip the wait, and the swapchain would go under a frame still
+        // on the queue.
+        tearDown("the interface's last writes were not submitted", [&] { mGui.getTextures().finish(); });
+        tearDown("the frames in flight were not finished", [&] { mRing.finishAll(); });
+        tearDown("the device would not finish before the renderer was taken apart", [&] { mDevice.waitIdle(); });
     }
 
     void VulkanRenderer::drain()

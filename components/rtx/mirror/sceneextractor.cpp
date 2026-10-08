@@ -893,11 +893,11 @@ namespace Rtx
         }
 
         // **A place that is not finite stands nothing**, as a sprite's and a lamp's do not: a NaN
-        // in the top level is a structure the trace walks to no answer, every frame it stands.
+        // in the top level is a structure the trace walks to no answer, every frame it stands. No
+        // frozen key, because no resolver met the drawable and a freeze has nothing of it to hold.
         if (!isFinite(place))
         {
             mScene.refusals().refuse(Refused::Mesh, drawable.getName(), "its place is not a finite number");
-            mFrozen.note(FrozenRoots::Key{ .mDrawable = &drawable });
             return false;
         }
 

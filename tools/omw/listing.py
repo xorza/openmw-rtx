@@ -68,10 +68,29 @@ def qt_guarded_sources(cmake_text: str, folder: str) -> set[str]:
     """The sources a list in `folder` adds to a target only `if (USE_QT)`, through `target_sources`:
     what a build without Qt leaves out of a program it builds, as `components-tests` leaves out the
     launcher's settings test."""
+    # By depth, so an `if` nested inside the block does not end it at its own `endif`, and up to the
+    # block's own `else`, whose branch is the build without Qt.
+    guarded: list[str] = []
+    depth = 0
+    otherwise = False
+    for line in cmake_text.splitlines():
+        if depth == 0:
+            depth = 1 if re.match(r"\s*if\s*\(\s*USE_QT\s*\)", line) else 0
+            otherwise = False
+            continue
+        if re.match(r"\s*if\s*\(", line):
+            depth += 1
+        elif re.match(r"\s*endif\s*\(", line):
+            depth -= 1
+        elif depth == 1 and re.match(r"\s*else(if)?\s*\(", line):
+            otherwise = True
+        if depth > 0 and not otherwise:
+            guarded.append(line)
+
     found: set[str] = set()
-    for block in re.findall(r"^\s*if\s*\(\s*USE_QT\s*\)(.*?)^\s*endif", cmake_text, re.MULTILINE | re.DOTALL):
-        for names in re.findall(r"target_sources\s*\(\s*\S+\s+(?:PRIVATE|PUBLIC|INTERFACE)\s+([^)]*)\)", block):
-            found |= {f"{folder}/{name}" for name in names.split() if name.endswith(".cpp")}
+    for names in re.findall(r"target_sources\s*\(\s*\S+\s+(?:PRIVATE|PUBLIC|INTERFACE)\s+([^)]*)\)",
+                            "\n".join(guarded)):
+        found |= {f"{folder}/{name}" for name in names.split() if name.endswith(".cpp")}
     return found
 
 
