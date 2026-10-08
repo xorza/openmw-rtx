@@ -54,10 +54,6 @@ What is left:
 
 ### Seam and game side
 
-- [ ] **5.16 `TracedView` works out its footprint twice.**
-  `mwrender/rtx/tracedview.cpp:94-117`. One private `footprintFromAbove()` that returns the two
-  corners (a named struct, not a pair) serves both `coversFromAbove` and `waitsForGround`.
-
 - [ ] **5.17 `SceneFrame::mJumped` is a span into a vector anyone may grow.**
   `framedescriber.cpp:131`, `framedescriber.hpp` (`noteJumped`). A `notifyJumped` between
   `describeFrame` and `renderFrame` would leave the span dangling. Nothing does that today. Target:
