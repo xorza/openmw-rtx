@@ -6,6 +6,7 @@
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
 #include "skinpass.hpp"
+#include "toplevelpackpass.hpp"
 
 namespace Rtx
 {
@@ -21,6 +22,7 @@ namespace Rtx
         explicit ScenePasses(const Device& device)
             : mTextureLayout(TextureArray::describeLayout(device))
             , mSkin(device)
+            , mTopLevelPack(device)
             , mTextures(device)
             , mGround(device, mTextureLayout)
         {
@@ -28,6 +30,7 @@ namespace Rtx
 
         SetLayout mTextureLayout;
         SkinPass mSkin;
+        TopLevelPackPass mTopLevelPack;
         TexturePasses mTextures;
         GroundCompositePass mGround;
     };

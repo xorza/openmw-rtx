@@ -19,10 +19,13 @@ namespace Rtx::Shaders
     /// the truth costs the compiler a wider load where one was possible. A buffer's start is at
     /// least sixteen-aligned on this device and the host asserts it, so the stride decides:
     /// `GpuLayer` is 64 bytes with two `vec4` at sixteen and thirty-two, the block tables hold
-    /// eight-byte addresses, and every other row or list is four-aligned only.
+    /// eight-byte addresses, a top level's instance row is 64 bytes moved as four sixteen-byte words
+    /// (and sixteen-aligned by Vulkan's own rule for instance data), and every other row or list is
+    /// four-aligned only.
     const uint TABLE_ALIGN_ROWS = 4u;
     const uint TABLE_ALIGN_BLOCKS = 8u;
     const uint TABLE_ALIGN_LAYERS = 16u;
+    const uint TABLE_ALIGN_INSTANCES = 16u;
 
 #ifdef RTX_HOST
 }
