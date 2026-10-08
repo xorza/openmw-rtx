@@ -24,7 +24,8 @@ unset(_openmw_spirv_fma)
 set(RTX_SPIRV_PIN_FILES spirv/spirvinterface.cpp spirv/spirvinterface.hpp spirv/spirvfile.cpp spirv/spirvfile.hpp
     spirv/spirvpin.cpp spirv/spirvpin.hpp spirv/spirvdigest.cpp spirv/spirvdigest.hpp)
 add_library(openmw-rtx-spirv STATIC ${RTX_SPIRV_PIN_FILES})
-target_include_directories(openmw-rtx-spirv SYSTEM PRIVATE "${OPENMW_SPIRV_HEADERS}")
+# Public, because `spirvfile.hpp`'s one walk of a module's words names the opcodes in its interface.
+target_include_directories(openmw-rtx-spirv SYSTEM PUBLIC "${OPENMW_SPIRV_HEADERS}")
 target_link_libraries(openmw-rtx-spirv PRIVATE smhasher)
 add_executable(openmw-rtx-spirv-pin spirv/spirvpintool.cpp)
 target_link_libraries(openmw-rtx-spirv-pin PRIVATE openmw-rtx-spirv)
