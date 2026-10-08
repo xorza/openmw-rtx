@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_PRESENTATION_H
-#define OPENMW_COMPONENTS_MISC_PRESENTATION_H
+#pragma once
 
 #include <string_view>
 
@@ -88,5 +87,3 @@ namespace Misc
     /// `listed` says the display lists one with these sides, and typed in otherwise.
     ResolutionPick resolutionPickOf(osg::Vec2i stored, bool listed);
 }
-
-#endif

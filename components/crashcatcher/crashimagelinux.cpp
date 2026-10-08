@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <csignal>
+#include <cstddef>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <format>
 #include <iterator>
+#include <utility>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtxvulkan/device/bindingtable.hpp>
