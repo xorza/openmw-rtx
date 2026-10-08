@@ -97,18 +97,11 @@ namespace Rtx
         /// @param code where the stages' files are read, shared by the pipelines a pass makes of
         ///        one pair of modules.
         GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options, ShaderCode& code)
-            : GraphicsPipeline(device,
+            : TypedPipeline<Constants>(
                 PipelineLayout(device, options.mBindings,
                     pushRangeOf<Constants>(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT), {}),
-                options, code)
-        {
-        }
-
-    private:
-        GraphicsPipeline(
-            const Device& device, PipelineLayout&& layout, const GraphicsPipelineOptions& options, ShaderCode& code)
-            : TypedPipeline<Constants>(
-                std::move(layout), makeGraphicsPipeline(device, layout, options, code), VK_PIPELINE_BIND_POINT_GRAPHICS)
+                [&](const PipelineLayout& layout) { return makeGraphicsPipeline(device, layout, options, code); },
+                VK_PIPELINE_BIND_POINT_GRAPHICS)
         {
         }
     };

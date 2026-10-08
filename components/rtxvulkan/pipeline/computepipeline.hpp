@@ -40,17 +40,12 @@ namespace Rtx
         ComputePipeline(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
             const SharedSetLayouts& shared, std::string_view module, std::string_view name,
             std::span<const std::uint32_t> specialization = {})
-            : ComputePipeline(device,
-                PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_COMPUTE_BIT), shared), module,
-                name, specialization)
-        {
-        }
-
-    private:
-        ComputePipeline(const Device& device, PipelineLayout&& layout, std::string_view module, std::string_view name,
-            std::span<const std::uint32_t> specialization)
-            : TypedPipeline<Constants>(std::move(layout),
-                makeComputePipeline(device, layout, module, name, specialization), VK_PIPELINE_BIND_POINT_COMPUTE)
+            : TypedPipeline<Constants>(
+                PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_COMPUTE_BIT), shared),
+                [&](const PipelineLayout& layout) {
+                    return makeComputePipeline(device, layout, module, name, specialization);
+                },
+                VK_PIPELINE_BIND_POINT_COMPUTE)
         {
         }
     };

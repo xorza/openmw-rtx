@@ -63,15 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.4 Pipeline construction depends on the argument order of three private constructors.**
-  `pipeline/computepipeline.hpp:49-55`, `graphicspipeline.hpp:107-113`, `tracepipeline.hpp:127-135`,
-  `pipeline.hpp:122-127`. Each passes `std::move(layout)` and `makeX(device, layout, …)` as
-  arguments. It is correct only while every link takes `PipelineLayout&&`. Target: `Pipeline`'s
-  constructor takes the layout and a maker, and calls the maker on the member after the move. The
-  three private constructors go.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxComputePipelineTest.*:RtxTracePipelineTest.*:RtxShaderCodeTest.*'`,
-  `./omw shot --views=all --map --upscale=off --against=<dir>`.
-
 - [ ] **2.5 Five hand-written owners of a system handle, with three move semantics.**
   `platform/appendfile.hpp:24-31` and `sharedmemory.hpp:27-34` move by swap, so `b` still owns `a`'s
   old file after `a = std::move(b)`. `platform/library.hpp:27-58` copies upstream's
