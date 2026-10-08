@@ -34,8 +34,11 @@ namespace Rtx
     public:
         /// @param everyMesh every mesh slot the scene holds, `DeviceScene::mEveryMesh`.
         /// @param slots how many frames may be tracing this scene at once.
+        /// @param placementRoom the instance rows every copy is made with room for, as the top
+        ///        level's rows are (`SceneAcceleration`), so the frame a crossing pushes the
+        ///        placements past what a copy holds does not make the copy again and rewrite it whole.
         SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-            std::span<const InstanceRecord> records, std::uint32_t slots);
+            std::span<const InstanceRecord> records, std::uint32_t slots, std::uint32_t placementRoom);
 
         /// Takes in the attributes of the meshes the scene says arrived, and the layer and mask
         /// runs that arrived with them. The blocks are appended to rather than replaced, and a

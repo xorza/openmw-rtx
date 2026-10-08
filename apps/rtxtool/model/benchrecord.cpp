@@ -124,15 +124,15 @@ namespace RtxTool
         /// run on another commit, and a figure it never wrote is one nobody can go back for.
         std::string asJson(const Rtx::SceneStats& scene)
         {
-            return std::format(R"({{"instances": {}, "cutoutInstances": {}, )"
+            return std::format(R"({{"instances": {}, "instanceSlots": {}, "cutoutInstances": {}, )"
                                R"("waterInstances": {}, "mediumInstances": {}, )"
                                R"("structureBytes": {}, "structureLiveBytes": {}, )"
                                R"("compactableBytes": {}, "compactableNowBytes": {}, "rebuilt": {}, )"
                                R"("tableBytes": {}, "textureCount": {}, "textureBytes": {}, )"
                                R"("reducedTextureCount": {}}})",
-                scene.mInstances.mPlaced, scene.mInstances.mCutout, scene.mInstances.mWater, scene.mInstances.mMedium,
-                scene.mStructureBytes, scene.mStructureLiveBytes, scene.mCompactableBytes, scene.mCompactableNowBytes,
-                scene.mRebuilt, scene.mTableBytes, scene.mTextureCount, scene.mTextureBytes,
+                scene.mInstances.mPlaced, scene.mInstanceSlots, scene.mInstances.mCutout, scene.mInstances.mWater,
+                scene.mInstances.mMedium, scene.mStructureBytes, scene.mStructureLiveBytes, scene.mCompactableBytes,
+                scene.mCompactableNowBytes, scene.mRebuilt, scene.mTableBytes, scene.mTextureCount, scene.mTextureBytes,
                 scene.mReducedTextureCount);
         }
 
@@ -315,11 +315,11 @@ namespace RtxTool
     std::string describeSceneHeld(const Rtx::SceneStats& scene)
     {
         return std::format(
-            "{} instances ({} cutouts)   {:.1f} MiB structures in {:.1f} reserved{}   {} textures, "
+            "{} instances ({} cutouts) in {} slots   {:.1f} MiB structures in {:.1f} reserved{}   {} textures, "
             "{:.1f} MiB{}",
-            scene.mInstances.mPlaced, scene.mInstances.mCutout, Rtx::megabytes(scene.mStructureLiveBytes),
-            Rtx::megabytes(scene.mStructureBytes), describeCompaction(scene), scene.mTextureCount,
-            Rtx::megabytes(scene.mTextureBytes), describeReduced(scene));
+            scene.mInstances.mPlaced, scene.mInstances.mCutout, scene.mInstanceSlots,
+            Rtx::megabytes(scene.mStructureLiveBytes), Rtx::megabytes(scene.mStructureBytes), describeCompaction(scene),
+            scene.mTextureCount, Rtx::megabytes(scene.mTextureBytes), describeReduced(scene));
     }
 
     std::string describeHostHeld(const Rtx::ContentMemory& content)

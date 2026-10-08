@@ -39,7 +39,7 @@ namespace Rtx
         , mRecords(recordsOf(scene))
         , mEveryMesh(everyMeshOf(scene))
         , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots, placementRoom)
-        , mBuffers(device, batch, scene, mEveryMesh, mRecords, sFrameSlots)
+        , mBuffers(device, batch, scene, mEveryMesh, mRecords, sFrameSlots, placementRoom)
         , mSkinTables(device, batch, scene, sFrameSlots)
         , mTextures(device, batch, passes.mTextureLayout, passes.mTextures,
               static_cast<std::uint32_t>(scene.textures().getRows().size()), anisotropy)
@@ -49,7 +49,7 @@ namespace Rtx
         // pose into that copy and the build then reads it. The other copy is owed the same pose and
         // takes it on the first placement that writes it.
         mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{}));
-        mAcceleration.build(batch, scene, mEveryMesh, mRecords, mRefusals);
+        mAcceleration.build(batch, scene, mEveryMesh, mRecords, mPasses.mTopLevelPack, mRefusals);
         mTextures.write(batch, mPasses.mTextures, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedFreed = scene.meshes().getFreedCount();
@@ -152,7 +152,7 @@ namespace Rtx
         // and the trace wait on.
         const bool posed = mPasses.mSkin.record(placing.mCommands, skinning(scene, placing.mSlot, placing.mTimer));
 
-        const bool built = mAcceleration.place(scene, mRecords, mChangedRecords, placing);
+        const bool built = mAcceleration.place(scene, mRecords, mChangedRecords, mPasses.mTopLevelPack, placing);
 
         // Nothing to report, because nothing here is recorded: the tables are host-visible and the
         // submit that follows makes them visible. Only what a moving world changed — rebuilding all
@@ -194,6 +194,7 @@ namespace Rtx
     void DeviceScene::readStats(SceneStats& stats) const
     {
         stats.mInstances = mCounts;
+        stats.mInstanceSlots = mAcceleration.getInstanceSlots();
         stats.mTableBytes = mBuffers.getBytes() + mSkinTables.getBytes();
 
         // Read every placement and not with the rest of the report, because a placement is

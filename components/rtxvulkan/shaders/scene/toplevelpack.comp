@@ -1,0 +1,86 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// The top level's rows packed for its build: the rows that place an instance, in slot order, and
+// none of the rows between them.
+//
+// **The rows are indexed by slot, and a slot is kept after its placement goes**: a cell the ring
+// drops keeps its slots for its return, and a hit reads its slot back as the custom index, so the
+// rows cannot close up around a gap. A build over every row reads and sorts out each gap: after the
+// exterior's tens of thousands of placements, an interior of a thousand cost most of what the
+// exterior did. The build reads this packing instead, and a row's place in it is read by nothing.
+//
+// **In slot order, and that is load-bearing.** Which of two coincident triangles a build's tree puts
+// first is its input's order, and a packing in the order the lanes reached an atomic would move that
+// from run to run. Each block's first place is the host's (`mStarts`), and a row's place inside its
+// block is the rows before it that place: one bit each in shared memory, and the bits below a lane's
+// counted, as `spriteruns.comp` counts its matches, asking nothing of the hardware a subgroup ballot
+// would.
+
+#include "shared/tables.h"
+#include "shared/toplevelpack.h"
+
+layout(local_size_x = TOP_LEVEL_PACK_WORKGROUP) in;
+
+layout(buffer_reference, buffer_reference_align = TABLE_ALIGN_INSTANCES, scalar) readonly buffer InstanceRows
+{
+    uvec4 at[];
+};
+
+layout(buffer_reference, buffer_reference_align = TABLE_ALIGN_INSTANCES, scalar) writeonly buffer InstancesPacked
+{
+    uvec4 at[];
+};
+
+layout(buffer_reference, buffer_reference_align = TABLE_ALIGN_ROWS, scalar) readonly buffer PackStarts
+{
+    uint at[];
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    TopLevelPackConstants pack;
+};
+
+/// One bit a row of the block: whether it places an instance.
+shared uint gPlaces[TOP_LEVEL_PACK_WORKGROUP / 32u];
+
+void main()
+{
+    const uint lane = gl_LocalInvocationID.x;
+    const uint row = gl_GlobalInvocationID.x;
+
+    if (lane < TOP_LEVEL_PACK_WORKGROUP / 32u)
+        gPlaces[lane] = 0u;
+    barrier();
+
+    // **A lane past the last row stays for the barrier**, which every lane of the workgroup has to
+    // reach; it places nothing and writes nothing.
+    InstanceRows rows = InstanceRows(pack.mRows);
+    uvec4 words[TOP_LEVEL_ROW_WORDS];
+    bool places = false;
+    if (row < pack.mCount)
+    {
+        for (uint word = 0u; word < TOP_LEVEL_ROW_WORDS; ++word)
+            words[word] = rows.at[row * TOP_LEVEL_ROW_WORDS + word];
+        const uvec2 reference = words[TOP_LEVEL_REFERENCE_WORD].zw;
+        places = (reference.x | reference.y) != 0u;
+    }
+
+    if (places)
+        atomicOr(gPlaces[lane / 32u], 1u << (lane % 32u));
+    barrier();
+
+    if (!places)
+        return;
+
+    uint before = PackStarts(pack.mStarts).at[gl_WorkGroupID.x];
+    for (uint word = 0u; word < lane / 32u; ++word)
+        before += bitCount(gPlaces[word]);
+    before += bitCount(gPlaces[lane / 32u] & ((1u << (lane % 32u)) - 1u));
+
+    InstancesPacked packed = InstancesPacked(pack.mPacked);
+    for (uint word = 0u; word < TOP_LEVEL_ROW_WORDS; ++word)
+        packed.at[before * TOP_LEVEL_ROW_WORDS + word] = words[word];
+}

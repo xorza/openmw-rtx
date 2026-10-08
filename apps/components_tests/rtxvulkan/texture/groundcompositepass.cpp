@@ -116,7 +116,7 @@ namespace Rtx
                 array.sync(FrameSlot{});
                 std::vector<Index> everyMesh;
                 const SceneBuffers buffers(
-                    device, setup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), {}, 1);
+                    device, setup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), {}, 1, 1);
 
                 Shaders::GpuTables tables{};
                 buffers.describeTables(FrameSlot{}, tables);

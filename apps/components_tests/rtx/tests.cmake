@@ -205,6 +205,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/pipeline/tracepipeline.cpp
     rtxvulkan/scene/bottomlevelstore.cpp
     rtxvulkan/scene/skinpass.cpp
+    rtxvulkan/scene/toplevelpackpass.cpp
     rtxvulkan/spirv/pinnedarithmetic.cpp
     rtxvulkan/texture/groundcompositepass.cpp
     rtxvulkan/texture/mipchainpass.cpp

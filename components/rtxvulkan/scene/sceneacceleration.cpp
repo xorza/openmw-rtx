@@ -19,12 +19,40 @@
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
+#include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/toplevelpack.h>
 #include <components/rtxvulkan/shaders/shared/tracerecords.h>
 
 #include "placing.hpp"
+#include "toplevelpackpass.hpp"
 
 namespace Rtx
 {
+    namespace
+    {
+        /// Whether `placed` counts, block by block, exactly the rows that place an instance:
+        /// the counts are kept as each row is written, and this recounts them from the rows. Every
+        /// row read, so for the assert alone.
+        [[maybe_unused]] bool blocksCountTheirRows(
+            std::span<const VkAccelerationStructureInstanceKHR> rows, std::span<const std::uint32_t> placed)
+        {
+            if (placed.size() != groupsFor(static_cast<std::uint32_t>(rows.size()), Shaders::TOP_LEVEL_PACK_WORKGROUP))
+                return false;
+            for (std::size_t block = 0; block < placed.size(); ++block)
+            {
+                const std::size_t first = block * Shaders::TOP_LEVEL_PACK_WORKGROUP;
+                const std::size_t end = std::min<std::size_t>(first + Shaders::TOP_LEVEL_PACK_WORKGROUP, rows.size());
+                const auto counted = std::count_if(
+                    rows.begin() + first, rows.begin() + end, [](const VkAccelerationStructureInstanceKHR& row) {
+                        return row.accelerationStructureReference != 0;
+                    });
+                if (static_cast<std::uint32_t>(counted) != placed[block])
+                    return false;
+            }
+            return true;
+        }
+    }
+
     VkTransformMatrixKHR toVulkanTransform(const Transform3x4& transform)
     {
         VkTransformMatrixKHR result{};
@@ -47,6 +75,24 @@ namespace Rtx
         mPoses.open(device, slots, sBuildInputUsage, "poses");
         mRowTable.open(device, slots, sBuildInputUsage, "instances");
         mRowTable.reserve(placementRoom);
+
+        // Reserved as the rows are, so the frame a crossing pushes the rows past the room it was
+        // opened with is the one that grows anything.
+        const std::uint32_t blocks = groupsFor(placementRoom, Shaders::TOP_LEVEL_PACK_WORKGROUP);
+        mBlockPlaced.reserve(blocks);
+        mBlockStarts.reserve(blocks);
+        mStarts.open(slots);
+        mPacked.open(slots);
+        for (std::uint32_t slot = 0; slot < slots; ++slot)
+        {
+            mStarts.at(FrameSlot{ slot })
+                = GrowableBuffer(device, BufferKind::HostWritten, sTableUsage, "instance block starts");
+            mStarts.at(FrameSlot{ slot }).growTo(blocks * sizeof(std::uint32_t));
+            mPacked.at(FrameSlot{ slot })
+                = GrowableBuffer(device, BufferKind::DeviceLocal, sBuildInputUsage, "instances packed");
+            mPacked.at(FrameSlot{ slot })
+                .growTo(std::size_t{ placementRoom } * sizeof(VkAccelerationStructureInstanceKHR));
+        }
         mIndices.open(device, sBuildInputUsage, "indices");
 
         writeGeometry(batch, scene, everyMesh);
@@ -58,7 +104,7 @@ namespace Rtx
     }
 
     void SceneAcceleration::build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-        std::span<const InstanceRecord> records, std::vector<Refusal>& refused)
+        std::span<const InstanceRecord> records, const TopLevelPackPass& pack, std::vector<Refusal>& refused)
     {
         assert(mBottomLevel.size() == 0 && mTopLevel.isEmpty() && "a scene built twice");
 
@@ -67,7 +113,7 @@ namespace Rtx
         sizeRefitScratch();
         writeRows(records, {});
         prepareTopLevel(scene, FrameSlot{});
-        recordTopLevel(batch.getCommands(), nullptr);
+        recordTopLevel(batch.getCommands(), pack, nullptr);
     }
 
     void SceneAcceleration::writeGeometry(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes)
@@ -273,7 +319,7 @@ namespace Rtx
     }
 
     bool SceneAcceleration::place(const SceneDesc& scene, std::span<const InstanceRecord> records,
-        std::span<const Index> changed, const Placing& placing)
+        std::span<const Index> changed, const TopLevelPackPass& pack, const Placing& placing)
     {
         prepareRefit(scene, placing.mSlot);
 
@@ -303,7 +349,7 @@ namespace Rtx
         if (!mRefit.mBuilds.empty())
             recordRefit(placing.mCommands, placing.mTimer);
 
-        recordTopLevel(placing.mCommands, placing.mTimer);
+        recordTopLevel(placing.mCommands, pack, placing.mTimer);
         return true;
     }
 
@@ -328,6 +374,7 @@ namespace Rtx
     {
         const std::size_t had = mRowTable.size();
         mRowTable.grow(records.size());
+        mBlockPlaced.resize(groupsFor(static_cast<std::uint32_t>(mRowTable.size()), Shaders::TOP_LEVEL_PACK_WORKGROUP));
 
         // What the table grew by, written from its record rather than left inactive. `grow`
         // owes every appended row to every copy, so a row nothing writes reaches the device as a
@@ -358,15 +405,37 @@ namespace Rtx
         if (mTopLevel.isEmpty() || count > mTopLevelSlots)
             sizeTopLevel(std::max({ count, 2 * mTopLevelSlots, mPlacementRoom }));
 
-        // The top level is built from this frame's copy, so the address moves with the slot.
-        mTopLevelGeometry.geometry.instances.data.deviceAddress = mRowTable.addressFor(slot);
+        // Each block's first place: how many rows the blocks before it place. All of them, a
+        // thousand words at the room, every build: what a row's change moves is every start after it.
+        assert(blocksCountTheirRows(mRowTable.getRows(), mBlockPlaced) && "a block's count of its placed rows drifted");
+        mBlockStarts.resize(mBlockPlaced.size());
+        mPlacedRows = 0;
+        for (std::size_t block = 0; block < mBlockPlaced.size(); ++block)
+        {
+            mBlockStarts[block] = mPlacedRows;
+            mPlacedRows += mBlockPlaced[block];
+        }
+
+        GrowableBuffer& starts = mStarts.at(slot);
+        starts.outgrow(std::max<VkDeviceSize>(mBlockStarts.size() * sizeof(std::uint32_t), sizeof(std::uint32_t)));
+        starts.get().writeAt(0, std::span<const std::uint32_t>(mBlockStarts));
+        mPacked.at(slot).outgrow(VkDeviceSize{ count } * sizeof(VkAccelerationStructureInstanceKHR));
+
+        // The top level is built from this frame's packing, so the address moves with the slot.
+        mPrepared = slot;
+        mTopLevelGeometry.geometry.instances.data.deviceAddress = mPacked.at(slot).get().addressFor();
     }
 
     void SceneAcceleration::placeRow(const Index slot, const InstanceRecord& record)
     {
+        // Counted in its block as the row it replaces is taken out, whatever the record says now.
+        std::uint32_t& placed = mBlockPlaced[slot / Shaders::TOP_LEVEL_PACK_WORKGROUP];
+        if (mRowTable.getRows()[slot].accelerationStructureReference != 0)
+            --placed;
+
         // A gap is an inactive row and not a row left out. Its slot is the custom index a hit
         // reads back, so the rows cannot close up around it; a reference of nought is what the
-        // build reads as an instance to skip, and it costs the build nothing it would ever trace.
+        // packing leaves out of what the build reads.
         if (!record.mPlaced)
         {
             mRowTable.write(slot) = VkAccelerationStructureInstanceKHR{};
@@ -412,6 +481,8 @@ namespace Rtx
             .flags = flags,
             .accelerationStructureReference = mBottomLevel.getAddress(record.mMesh),
         };
+        if (mRowTable.getRows()[slot].accelerationStructureReference != 0)
+            ++placed;
     }
 
     void SceneAcceleration::sizeTopLevel(const std::uint32_t slots)
@@ -475,18 +546,24 @@ namespace Rtx
         mTopLevelBuild.scratchData.deviceAddress = mTopLevelScratch.get().addressFor();
     }
 
-    void SceneAcceleration::recordTopLevel(VkCommandBuffer commands, GpuTimer* timer)
+    void SceneAcceleration::recordTopLevel(VkCommandBuffer commands, const TopLevelPackPass& pack, GpuTimer* timer)
     {
-        // The rows and not the room: the structure is sized past them, and the copy the build reads
-        // holds the rows alone, so a count of the room reads instances past its end.
+        // The rows that place an instance and no more: the packing writes exactly those, and the
+        // structure is sized past every row there is.
         const auto rows = static_cast<std::uint32_t>(mRowTable.size());
-        assert(rows <= mTopLevelSlots && "a top level built over more rows than it was sized for");
+        assert(
+            mPlacedRows <= rows && rows <= mTopLevelSlots && "a top level built over more rows than it was sized for");
         const VkAccelerationStructureBuildRangeInfoKHR range{
-            .primitiveCount = rows, .primitiveOffset = 0, .firstVertex = 0, .transformOffset = 0
+            .primitiveCount = mPlacedRows, .primitiveOffset = 0, .firstVertex = 0, .transformOffset = 0
         };
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
 
         const GpuZone timed(timer, commands, FrameZone::Tlas);
+        pack.record(commands,
+            TopLevelPackPass::Packing{ .mRows = mRowTable.addressFor(mPrepared),
+                .mPacked = mPacked.at(mPrepared).get().addressFor(),
+                .mStarts = mStarts.at(mPrepared).get().addressFor(),
+                .mCount = rows });
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);
         barrierAfterBuild(commands);
     }

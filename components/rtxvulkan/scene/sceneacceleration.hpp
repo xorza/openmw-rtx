@@ -27,6 +27,7 @@ namespace Rtx
     class GpuTimer;
     class Device;
     class SceneDesc;
+    class TopLevelPackPass;
     struct Placing;
 
     /// The neutral transform in Vulkan's storage: three rows of four, which is exactly what
@@ -56,9 +57,10 @@ namespace Rtx
         /// with each stage ending in the barrier the next one needs. Once, after the constructor.
         /// `scene` must place at least one instance: a top-level structure over nothing has no
         /// instance buffer to be built from. A mesh the device has no room for is left out and
-        /// appended to `refused` — `BottomLevelStore::build`.
+        /// appended to `refused` — `BottomLevelStore::build`. `pack` packs the rows the top level
+        /// is built over, as on every placement.
         void build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-            std::span<const InstanceRecord> records, std::vector<Refusal>& refused);
+            std::span<const InstanceRecord> records, const TopLevelPackPass& pack, std::vector<Refusal>& refused);
 
         /// Rebuilds what a moved world changed: every deformed mesh's structure, then the top level,
         /// in one command buffer with a barrier between — two `submitAndWait`s were a round trip
@@ -73,7 +75,7 @@ namespace Rtx
         ///        this is driven by. `records` is handed in rather than made here because
         ///        `SceneBuffers` needs the same rows.
         bool place(const SceneDesc& scene, std::span<const InstanceRecord> records, std::span<const Index> changed,
-            const Placing& placing);
+            const TopLevelPackPass& pack, const Placing& placing);
 
         /// Waits until no build on the queue reads `slot`'s copy of the rows, ahead of the
         /// placement that writes it.
@@ -134,6 +136,10 @@ namespace Rtx
         /// scene's report.
         std::uint64_t getRebuildCount() const { return mRebuildCount; }
 
+        /// How many instance slots the rows hold, placed or not: every slot the scene ever handed
+        /// out, which the top level's packing reads and its build does not.
+        std::uint32_t getInstanceSlots() const { return static_cast<std::uint32_t>(mRowTable.size()); }
+
     private:
         /// Reserves room for the scene's geometry and copies in the runs `meshes` names. Per mesh
         /// and not per scene, because that is what an arrival is: the blocks already hold
@@ -164,18 +170,21 @@ namespace Rtx
         void writeRows(std::span<const InstanceRecord> records, std::span<const Index> changed);
 
         /// Everything the top-level build needs before a command buffer exists: `slot`'s copy of the
-        /// rows paid, the structure and its scratch made again where the count grew, and the build
-        /// pointed at that copy. `writeRows` first, which is what leaves the copy owing anything.
+        /// rows paid, each block's first place written for its packing, the structure and its
+        /// scratch made again where the count grew, and the build pointed at `slot`'s packed rows.
+        /// `writeRows` first, which is what leaves the copy owing anything.
         void prepareTopLevel(const SceneDesc& scene, FrameSlot slot);
 
-        /// Writes one row from its record.
+        /// Writes one row from its record, and counts it in its block where it places an instance.
         void placeRow(Index slot, const InstanceRecord& record);
 
         /// Makes the top level for `slots` rows, over storage grown to hold it.
         void sizeTopLevel(std::uint32_t slots);
 
         void recordRefit(VkCommandBuffer commands, GpuTimer* timer);
-        void recordTopLevel(VkCommandBuffer commands, GpuTimer* timer);
+
+        /// Packs the rows `prepareTopLevel` paid and builds the top level over them.
+        void recordTopLevel(VkCommandBuffer commands, const TopLevelPackPass& pack, GpuTimer* timer);
 
         /// Writes again every row placing a mesh whose structure the compaction moved. True where
         /// anything moved, which is also when there is a copy to record.
@@ -205,9 +214,9 @@ namespace Rtx
 
         GrowableBuffer mTopLevelStorage;
 
-        /// The rows the top level is built from, one copy per frame in flight. A gap is an inactive
-        /// row — a reference of nought — and not a row left out, because a row's index is the slot a
-        /// hit reads back.
+        /// The rows by slot, one copy per frame in flight, which the packing reads the top level's
+        /// rows out of. A gap is an inactive row — a reference of nought — and not a row left out,
+        /// because a row's index is the slot a hit reads back.
         SlotTable<VkAccelerationStructureInstanceKHR> mRowTable;
 
         /// Kept across frames and built into again, made anew only when the slot table grows
@@ -215,8 +224,26 @@ namespace Rtx
         /// for a size and a handle to build the same structure it had just thrown away.
         AccelerationStructure mTopLevel;
 
-        /// How many rows the top level was made for, which is what its build ranges over.
+        /// How many rows the top level was made for.
         std::uint32_t mTopLevelSlots = 0;
+
+        /// How many rows of each block of `TOP_LEVEL_PACK_WORKGROUP` place an instance, kept as
+        /// each row is written; and, refilled for each build from those, how many the blocks before
+        /// each one place, which is where the packing puts its first. Reserved for the placement
+        /// room, as the rows are.
+        std::vector<std::uint32_t> mBlockPlaced;
+        std::vector<std::uint32_t> mBlockStarts;
+
+        /// What the build ranges over: the rows that place an instance, which `prepareTopLevel` sums.
+        std::uint32_t mPlacedRows = 0;
+
+        /// The copy the next `recordTopLevel` packs and builds from, which `prepareTopLevel` paid.
+        FrameSlot mPrepared;
+
+        /// One copy per frame in flight, as the rows are: the blocks' first places the host writes
+        /// for a packing, and the packed rows a build reads.
+        PerSlot<GrowableBuffer> mStarts;
+        PerSlot<GrowableBuffer> mPacked;
 
         BottomLevelStore mBottomLevel;
 

@@ -178,6 +178,11 @@ namespace Rtx
     {
         InstanceCounts mInstances;
 
+        /// How many instance slots the scene holds, placed or not: every one it ever handed out,
+        /// since a dropped placement keeps its slot for its return. What the placed ones are
+        /// packed out of before the top level is built.
+        std::uint32_t mInstanceSlots = 0;
+
         /// What the renderer holds in acceleration structures and in scene tables: what a video
         /// memory budget is spent against, at the high-water mark, because an allocator gives a
         /// block back only when it empties whole.

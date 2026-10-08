@@ -87,7 +87,7 @@ namespace Rtx::Testing
 
             // No sprites, so no tiles, and the table is still a buffer rather than `VK_NULL_HANDLE`.
             Batch setup(pool);
-            const SceneBuffers buffers(device, setup, empty, {}, {}, 1);
+            const SceneBuffers buffers(device, setup, empty, {}, {}, 1, 1);
             setup.flush();
 
             // **Every table this hands out**, because the rule is the same for all of them; which
