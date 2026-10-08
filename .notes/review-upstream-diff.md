@@ -52,16 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.12 A mapped normal of zero length becomes a NaN.** Approved, though it can move
-  `HAS_MAPS=1` pictures by a rounding.
-  `shaders/lib/traversal.glsl:1176,1268-1269`, `shaders/texture/normalspread.comp:76`. `decodeNormal`
-  returns `2·rgb − 1` without a unit length, so (0.5, 0.5, 0.5) decodes to zero. The NaN reaches the
-  denoiser's histories, or the companion's mip chain for the texture's life. `traversal.glsl:1083`
-  and `:1089` already guard with a select. Target: the same select, falling back to the geometric
-  normal, and to (0, 0, 1) in `normalspread`.
-  Verify: `./omw kernels --against` (only `HAS_MAPS=1` and `normalspread` move),
-  `./omw shot --views=all --map --upscale=off --against=<dir>`, `./omw check`.
-
 - [ ] **3.13 Contracts stated in comments and not asserted.**
   - `device/commands.cpp:116-122`: `CommandPool::collectIdle` does not assert `mOpen.empty()`, which
     `Graveyard::collectIdle`'s comment relies on.

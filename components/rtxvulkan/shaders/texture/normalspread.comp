@@ -73,7 +73,12 @@ void main()
         const ivec2 from = ivec2(min(uvec2(across.mFirst, down.mFirst) + tap, extentAbove - 1u));
         weight[at] = across.mWeights[tap.x] * down.mWeights[tap.y];
         if (first)
-            child[at] = vec4(normalize(decodeNormal(texelFetch(source, from, 0).rgb)), 0.0);
+        {
+            // A texel of (0.5, 0.5, 0.5) points nowhere, and stands in as the flat normal: normalised,
+            // it was a NaN in the chain for as long as the texture stood.
+            const vec3 decoded = decodeNormal(texelFetch(source, from, 0).rgb);
+            child[at] = vec4(dot(decoded, decoded) > 0.0 ? normalize(decoded) : vec3(0.0, 0.0, 1.0), 0.0);
+        }
         else
             child[at] = imageLoad(above, from);
     }

@@ -1173,7 +1173,11 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
         const vec3 painted = sampleNormalMap(material.mNormal, point);
         lostSlopes += normalMapSlopes(material.mNormal, point);
-        const vec3 mapped = normalize(tangent * painted.x + bitangent * painted.y + normal * painted.z);
+        // A texel of (0.5, 0.5, 0.5) decodes to no direction at all, as the plane and the shading
+        // normal above may be: the plane stands in, where a normalised zero was a NaN in every
+        // history that read it.
+        const vec3 carried = tangent * painted.x + bitangent * painted.y + normal * painted.z;
+        const vec3 mapped = dot(carried, carried) > 0.0 ? normalize(carried) : surface.mGeometric;
 
         surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction);
     }
@@ -1265,8 +1269,9 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         // is what a path tracer can afford, and it parts from that only where the masks blend.
         if (HAS_MAPS && relief)
         {
-            const vec3 mapped
-                = normalize(layerTangent * painted.x + layerBitangent * painted.y + normal * painted.z);
+            // The plane where the sum points nowhere, as for a single map above.
+            const vec3 carried = layerTangent * painted.x + layerBitangent * painted.y + normal * painted.z;
+            const vec3 mapped = dot(carried, carried) > 0.0 ? normalize(carried) : surface.mGeometric;
 
             surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction);
         }
