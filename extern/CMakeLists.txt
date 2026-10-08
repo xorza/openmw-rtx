@@ -76,10 +76,6 @@ endif()
 
 if(NOT OPENMW_USE_SYSTEM_SDL3)
 
-    if(NOT DEFINED SDL_SHARED AND NOT DEFINED SDL_STATIC)
-        set(SDL_SHARED OFF)
-        set(SDL_STATIC ON)
-    endif()
     set(SDL_TEST_LIBRARY OFF)
 
     include(FetchContent)

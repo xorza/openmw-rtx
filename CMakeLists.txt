@@ -162,6 +162,15 @@ endif()
 option(MYGUI_STATIC "Link static build of Mygui into the binaries" ${_mygui_static_default})
 
 option(OPENMW_USE_SYSTEM_SDL3 "Use system provided SDL3 library" ON)
+if(NOT OPENMW_USE_SYSTEM_SDL3)
+    option(SDL_STATIC "Build a static version of the library" ON)
+    if(SDL_STATIC)
+        set(_sdl_shared_default OFF)
+    else()
+        set(_sdl_shared_default ON)
+    endif()
+    option(SDL_SHARED "Build a shared version of the library" ${_sdl_shared_default})
+endif()
 
 option(OPENMW_USE_SYSTEM_RECASTNAVIGATION "Use system provided recastnavigation library" OFF)
 if(OPENMW_USE_SYSTEM_RECASTNAVIGATION)
@@ -508,7 +517,7 @@ if(OPENMW_USE_SYSTEM_OSG)
                 endif()
             endif()
         endforeach()
-        
+
         if(NOT OSG_STATIC AND NOT APPLE)
             if(WIN32)
                 set(osg_plugin_destination "${CMAKE_INSTALL_BINDIR}")
@@ -1110,7 +1119,7 @@ elseif(NOT APPLE)
         ENDIF(BUILD_OPENCS)
 
     endif(WIN32)
-    
+
     install(FILES "${OpenMW_SOURCE_DIR}/CHANGELOG.md" TYPE DOC)
     install(FILES "${OpenMW_SOURCE_DIR}/README.md" TYPE DOC)
     install(FILES "${OpenMW_SOURCE_DIR}/LICENSE" TYPE DOC RENAME "LICENSE.txt")
@@ -1121,7 +1130,7 @@ elseif(NOT APPLE)
     install(FILES "${RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
                   "${RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
                   TYPE SYSCONF)
-    
+
     if (OPENMW_LOCAL_INSTALL)
         install(FILES "${OpenMW_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
     else ()
