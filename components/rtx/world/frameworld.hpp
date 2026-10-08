@@ -20,16 +20,6 @@
 
 namespace Rtx
 {
-    /// The deck and the star field a world with no sky has: nothing to draw, which the shader reads
-    /// off the texture slot before it samples anything. Built whole and then named rather than by
-    /// designated initializer, which GCC cannot tell from an aggregate left short.
-    Shaders::CloudDeck noDeck();
-    Shaders::StarField noStars();
-
-    /// A patch the sky skips: straight up, no size and no texture. Written out rather than left to
-    /// `{}`, because a value-initialised `Shaders::SkyPatch` names texture slot zero.
-    Shaders::SkyPatch noPatch();
-
     /// What a frame's sky, air and water are, as far as neither host can work it out for the other:
     /// a `Daylight` and the handful of things a `Daylight` does not carry.
     struct WorldReading

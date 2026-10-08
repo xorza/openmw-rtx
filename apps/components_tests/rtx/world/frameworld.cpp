@@ -224,10 +224,8 @@ namespace Rtx
             EXPECT_NEAR(drift.get().y(), 504.0, 1e-3);
             expectOffsets(blown, drift.get(), later.mSkySeconds);
 
-            // **And the sea does not**: it runs the rasterizer's fixed wind, `(0.5, -0.8)` over its
-            // length 0.943398, which is `(0.529999, -0.847998)`, whatever the storm.
-            EXPECT_FLOAT_EQ(constants.mSeaHeading.x(), 0.5f / std::sqrt(0.89f));
-            EXPECT_FLOAT_EQ(constants.mSeaHeading.y(), -0.8f / std::sqrt(0.89f));
+            // **And the sea does not**: it runs the heading the camera set, whatever the storm.
+            EXPECT_EQ(constants.mSeaHeading, osg::Vec2f()) << "a world that turned the sea";
 
             // A world with no deck over it — a room — has no wind, and its water runs the same fixed
             // way. The fog keeps the distance it was blown, because a door is not a wind: what would

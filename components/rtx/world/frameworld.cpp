@@ -1,4 +1,5 @@
 #include "frameworld.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -16,33 +17,6 @@
 
 namespace Rtx
 {
-    Shaders::CloudDeck noDeck()
-    {
-        Shaders::CloudDeck deck{};
-        deck.mTexture = Shaders::NO_TEXTURE;
-        deck.mNext = Shaders::NO_TEXTURE;
-        return deck;
-    }
-
-    Shaders::StarField noStars()
-    {
-        Shaders::StarField stars{};
-        stars.mTexture = Shaders::NO_TEXTURE;
-        return stars;
-    }
-
-    Shaders::SkyPatch noPatch()
-    {
-        Shaders::SkyPatch none{};
-        none.mDirection = osg::Vec3f(0.0f, 0.0f, 1.0f);
-        none.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
-        none.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
-        none.mLimb = 0.0f;
-        none.mTexture = Shaders::NO_TEXTURE;
-
-        return none;
-    }
-
     void FogDrift::advance(const osg::Vec2f& heading, const float wind, const double seconds)
     {
         if (mLastSeconds.has_value())
@@ -191,8 +165,6 @@ namespace Rtx
         drift.advance(heading, air.mWind, reading.mSkySeconds);
         const std::array<osg::Vec3f, Shaders::FOG_SCALES> offsets = fogOffsets(drift.get(), reading.mSkySeconds);
         std::copy(offsets.begin(), offsets.end(), constants.mFogOffsets);
-
-        constants.mSeaHeading = Shaders::seaHeading();
 
         constants.mFogEdge = air.mEdge;
 

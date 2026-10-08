@@ -1,4 +1,5 @@
 #include "skylight.hpp"
+
 #include <algorithm>
 #include <cmath>
 

@@ -324,29 +324,19 @@ namespace Rtx
         return mDeformers.getMeshPose(mMeshes.getRows()[mesh]);
     }
 
-    template <class Visit>
-    void SceneDesc::forEachPlacement(Visit&& visit) const
-    {
-        mPlacements.forEachPlaced([&](Index, const PlacementRow& row) {
-            const MeshInstance& instance = row.mInstance;
-
-            const osg::BoundingBoxf placed = instance.placedBox(mMeshes.getRows()[instance.mMesh].mBounds);
-            if (placed.valid())
-                visit(row, placed);
-        });
-    }
-
     osg::BoundingBoxf SceneDesc::getContentBoundsWithin(const osg::BoundingBoxf& region) const
     {
         osg::BoundingBoxf bounds;
-        forEachPlacement([&](const PlacementRow& row, const osg::BoundingBoxf& box) {
+        mPlacements.forEachPlaced([&](Index, const PlacementRow& row) {
             // What the row keeps of its material, which an instance with none holds as a surface:
             // not a backdrop — the untextured test scenes place those, and a caller framing one
             // means to see it.
             if (row.mWorn.mKind == MaterialKind::Water)
                 return;
 
-            if (!box.intersects(region))
+            const MeshInstance& instance = row.mInstance;
+            const osg::BoundingBoxf box = instance.placedBox(mMeshes.getRows()[instance.mMesh].mBounds);
+            if (!box.valid() || !box.intersects(region))
                 return;
 
             // The part inside, so a chunk straddling the edge contributes where it overlaps rather

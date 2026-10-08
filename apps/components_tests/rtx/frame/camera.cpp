@@ -217,7 +217,10 @@ namespace Rtx
                 EXPECT_EQ(camera.mEyes.mWorld.mBasis.mRight, viewpoint.mEyes.mWorld.mBasis.mRight);
                 EXPECT_EQ(camera.mEyes.mArms.mWidth, viewpoint.mEyes.mArms.mWidth);
                 EXPECT_EQ(camera.mWaterLevel, -std::numeric_limits<float>::infinity());
-                EXPECT_EQ(camera.mSeaHeading, Shaders::seaHeading());
+                // The rasterizer's fixed wind, `(0.5, -0.8)` over its length 0.943398, which is
+                // `(0.529999, -0.847998)`: no world turns it.
+                EXPECT_FLOAT_EQ(camera.mSeaHeading.x(), 0.5f / std::sqrt(0.89f));
+                EXPECT_FLOAT_EQ(camera.mSeaHeading.y(), -0.8f / std::sqrt(0.89f));
                 EXPECT_EQ(camera.mFogLift, 1.0f);
                 EXPECT_EQ(camera.mStars.mTexture, Shaders::NO_TEXTURE) << "a star sheet named before a world";
                 EXPECT_EQ(camera.mFar, 400.0f);

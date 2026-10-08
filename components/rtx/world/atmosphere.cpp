@@ -1,4 +1,5 @@
 #include "atmosphere.hpp"
+
 #include <algorithm>
 #include <cmath>
 

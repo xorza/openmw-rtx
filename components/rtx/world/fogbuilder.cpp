@@ -1,4 +1,5 @@
 #include "fogbuilder.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
