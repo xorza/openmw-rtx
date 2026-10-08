@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <mutex>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -45,13 +46,16 @@ namespace Rtx
                 [&](const VkLayerProperties& layer) { return std::strcmp(layer.layerName, name) == 0; });
         }
 
-        bool loaderOffers(const char* name)
+        std::vector<VkExtensionProperties> loaderExtensions()
         {
-            const std::vector<VkExtensionProperties> extensions = enumerateVk<VkExtensionProperties>(
+            return enumerateVk<VkExtensionProperties>(
                 "vkEnumerateInstanceExtensionProperties", [](std::uint32_t* count, VkExtensionProperties* into) {
                     return vkEnumerateInstanceExtensionProperties(nullptr, count, into);
                 });
+        }
 
+        bool offers(std::span<const VkExtensionProperties> extensions, const char* name)
+        {
             return std::any_of(extensions.begin(), extensions.end(), [&](const VkExtensionProperties& extension) {
                 return std::strcmp(extension.extensionName, name) == 0;
             });
@@ -70,13 +74,14 @@ namespace Rtx
 
         std::vector<const char*> extensions(surfaceExtensions.begin(), surfaceExtensions.end());
         std::vector<const char*> layers;
+        const std::vector<VkExtensionProperties> offered = loaderExtensions();
 
         // What the device half of swapchain maintenance rests on: a present fence is the only
         // thing that says the presentation engine has finished with an image. Surface maintenance
         // rests in turn on the extended surface query, and both are taken where the loader has
         // both, so a driver without them presents as before.
-        if (!surfaceExtensions.empty() && loaderOffers(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME)
-            && loaderOffers(VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME))
+        if (!surfaceExtensions.empty() && offers(offered, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME)
+            && offers(offered, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME))
         {
             extensions.push_back(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
             extensions.push_back(VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
@@ -85,7 +90,7 @@ namespace Rtx
         // Asked for wherever the loader offers it, which is every build: command-buffer labels are
         // what make a profile readable, and the release build is the one a profiler reads. Object
         // names stay this build's own (`Device::setName`).
-        const bool debugUtils = loaderOffers(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        const bool debugUtils = offers(offered, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
         // Validation reaches us only through the messenger, so without the extension it would run
         // and report nothing — worse than not running at all, because the clean output would read

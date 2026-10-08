@@ -50,18 +50,6 @@ What is left:
 - **Frame-path costs in the mirror.** Unloaded cells are deleted on the frame thread (phase 4).
 - **Simplifications and dead code** (phases 5 and 6).
 
-## Phase 5 — design and simplification
-
-### Device layer
-
-- [ ] **5.27 Small device items.**
-  - `device/instance.cpp:48,78-88`: `loaderOffers` enumerates the instance extensions on each of
-    three calls. Enumerate once.
-  - `device/handles.hpp:34`: `makeTimelineSemaphore` has one caller and belongs in `timeline.cpp`.
-  - `device/memory/growablebuffer.hpp:23-31,49`: the name is a `std::string_view` that is "a
-    literal" only by comment. Take a `const char*`.
-  - `device/retiring.hpp:11-15`: the comment omits `StructureStorage::mCooling`.
-
 ## Phase 6 — dead code and stale comments
 
 - [ ] **6.1 The empty sprite list in `TraceMedia` is dead.**

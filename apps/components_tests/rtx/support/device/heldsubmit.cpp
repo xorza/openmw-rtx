@@ -10,6 +10,7 @@
 
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/result.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx::Testing
 {

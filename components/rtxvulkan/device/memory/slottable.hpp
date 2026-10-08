@@ -33,7 +33,8 @@ namespace Rtx
     public:
         /// @param slots how many frames may be in flight, and so how many copies there are.
         /// @param usage what the device does with the copies.
-        void open(const Device& device, std::uint32_t slots, VkBufferUsageFlags usage, std::string_view name)
+        /// @param name a literal, which every copy keeps (`GrowableBuffer`).
+        void open(const Device& device, std::uint32_t slots, VkBufferUsageFlags usage, const char* name)
         {
             mCopies.open(slots);
             mOwed.open(slots);

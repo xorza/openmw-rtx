@@ -238,8 +238,8 @@ namespace Rtx
         /// the swapchain, whose surface goes first.
         TEST(RtxSourceTreeTest, onlyWhatOutlivesTheGraveyardIsEndedAtOnce)
         {
-            const std::set<std::string> allowed{ "owned.hpp", "handles.hpp", "handles.cpp", "timeline.hpp",
-                "pipelinecache.hpp", "pipelinecache.cpp", "swapchain.hpp", "swapchain.cpp" };
+            const std::set<std::string> allowed{ "owned.hpp", "timeline.hpp", "timeline.cpp", "pipelinecache.hpp",
+                "pipelinecache.cpp", "swapchain.hpp", "swapchain.cpp" };
 
             const std::vector<std::string> found = linesMatching({ sBackend }, allowed,
                 [](const std::string_view code) { return code.find("Immediate<") != std::string_view::npos; });

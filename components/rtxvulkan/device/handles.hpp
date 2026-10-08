@@ -31,9 +31,6 @@ namespace Rtx
     /// one clock and a swapchain cannot read it.
     Semaphore makeSemaphore(const Device& device);
 
-    /// The timeline semaphore the queue's clock is, starting at nought.
-    Immediate<VkSemaphore, vkDestroySemaphore> makeTimelineSemaphore(const Device& device, std::string_view name);
-
     /// A descriptor set layout and the bindings it was made from, so whatever writes a set of it
     /// reads each binding's type and count from the one statement of them.
     class SetLayout
