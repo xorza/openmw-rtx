@@ -102,6 +102,7 @@ namespace MWRender
             .mJumped = mJumped,
         });
 
+        mDescribed = true;
         return *mFrame;
     }
 
