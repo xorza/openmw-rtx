@@ -89,8 +89,11 @@ namespace Rtx::Testing
         /// **Over a still eye the glossy filter is the mean of its frames.** The floor at half
         /// roughness: sixteen frames filtered from an empty history, against the same sixteen
         /// averaged unfiltered. Under sixteen frames the blend's weight is one over the count, so the
-        /// history is the running mean exactly, to the rounding of its floats: measured at 2e-5 to
-        /// 6e-5 of the raw frame's error, and 8e-7 of the light. The metal has no diffuse half, so the
+        /// history is the running mean exactly, to the rounding of its halves (`halfRoundedMeanError`);
+        /// and since a half is rounded at random with no bias, the frame's light stands within four
+        /// deviations of that error's mean over the frame's 4096 pixels, which are drawn apart.
+        /// Measured, 0.28 to 0.45 of the first bound and 0.08 to 0.11 of the second, where the raw
+        /// frame stands at 53 to 460 times the first. The metal has no diffuse half, so the
         /// wavelet filters nought and the whole of the difference from the last raw frame is the
         /// glossy filter's.
         TEST_F(RtxVisibilityTest, overAStillEyeTheGlossyFilterIsTheMeanOfItsFrames)
@@ -111,9 +114,10 @@ namespace Rtx::Testing
                 const float filteredError = filtered.errorFrom(averaged, channel);
                 ASSERT_GT(rawError, averaged.mean(channel) * 0.05f)
                     << "channel " << channel << ": four lamps drawn one a pixel are noisy";
-                EXPECT_LT(filteredError, rawError * 1e-4f)
+                const float rounding = halfRoundedMeanError(averaged.rootMeanSquare(channel), rawError, 16, 1);
+                EXPECT_LT(filteredError, rounding)
                     << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
-                EXPECT_NEAR(filtered.mean(channel), averaged.mean(channel), averaged.mean(channel) * 1e-5f)
+                EXPECT_NEAR(filtered.mean(channel), averaged.mean(channel), 4.0f * rounding / static_cast<float>(sSize))
                     << "channel " << channel << " keeps its light";
             }
         }

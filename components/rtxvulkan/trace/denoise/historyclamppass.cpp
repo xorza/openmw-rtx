@@ -26,7 +26,7 @@ namespace Rtx
     }
 
     void HistoryClampPass::record(const VkCommandBuffer commands, const Images& images, const std::uint32_t width,
-        const std::uint32_t height, const bool antilag) const
+        const std::uint32_t height, const bool antilag, const std::uint32_t frame) const
     {
         // The clamp reads a neighbour's fast blend, so every pixel's is behind it, holds the slow
         // mean the filter wrote in place, and writes the fast mean the filter just read as last
@@ -44,7 +44,8 @@ namespace Rtx
         writes.image(Shaders::HISTORY_CLAMP_BIND_FAST_OUT, images.mFast.describeStorage());
 
         dispatch(commands, mPipeline, writes,
-            Shaders::HistoryClampConstants{ .mWidth = width, .mHeight = height, .mAntilag = antilag ? 1u : 0u },
+            Shaders::HistoryClampConstants{
+                .mWidth = width, .mHeight = height, .mAntilag = antilag ? 1u : 0u, .mFrame = frame },
             Groups::covering(width, height, Shaders::HISTORY_CLAMP_WORKGROUP));
     }
 }

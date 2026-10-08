@@ -277,17 +277,6 @@ and validation. It also only pays where memory is the constraint, not on this 16
 1707x960, about 0.01 ms. This is not worth a launch variant on its own. If F3's variant bit lands,
 a "no lift" bit next to it is close to free.
 
-### F7. Unverified assumption: the UNORM channels' store rounding. Test gap; not a confirmed bug.
-
-Backdrop (RGBA8), Lift (RGBA8) and UpscaleMasks (RG8) rely on a float-to-UNORM store. The comments
-read it as "1/255 steps" (`gbuffer.h:19-25`). The Vulkan specification's float-to-normalized
-conversion only says implementations *should* round to nearest; an exact integer must be returned
-exactly ([Vulkan spec, fixed-point conversion](https://docs.vulkan.org/spec/latest/chapters/fundamentals.html#fundamentals-fpfixedconv)).
-
-This card was shown to truncate half stores (RtxHalfStoreTest, `halfstore.cpp`). No test establishes
-what it does for UNORM. If it truncates too, Lift and the transparency mask are biased low by up to
-one step. RtxHalfStoreTest could gain a UNORM leg.
-
 ## 3. Payload, word by word
 
 | Words | Field | Verdict |
@@ -338,7 +327,7 @@ moves, so this is not worth a second payload type.
   `./omw release noise --ab` across the suite.
 - **RGBA8, RGB10A2 or RGB9E5 for the diffuse and ambient albedos.** Unlike the specular and pane
   albedos, nothing is divided by them: their rounding is an error in the picture, not a
-  demodulation choice. A UNORM store's rounding is the driver's (F7). `composedLight` must also meet
+  demodulation choice. A UNORM store's rounding is the driver's (this one rounds to nearest, `RtxHalfStoreTest`). `composedLight` must also meet
   the trace "to the bit" (`compose.glsl:16-19`), which works today only because the payload rounds
   to half and the half store keeps a half exactly.
 - **Merging Surface and Motion into one RGBA32 texel.** The atrous cascade reads Surface 25 times

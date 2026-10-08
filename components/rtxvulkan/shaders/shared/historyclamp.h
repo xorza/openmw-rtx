@@ -13,10 +13,10 @@
 // means are written in place beside it, so a neighbour's is not read.
 //
 // **The slow mean as the two filters keep it**, `SPECULAR_MEAN` and `PANE_MEAN`, which the pass
-// checks are this.
+// checks are this: halves, which the clamp's store in place rounds at random as the filters' do.
 
 #define HISTORY_CLAMP_FAST STORAGE_R32UI
-#define HISTORY_CLAMP_MEAN STORAGE_RGBA32F
+#define HISTORY_CLAMP_MEAN STORAGE_RGBA16F
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -39,17 +39,19 @@ namespace Rtx::Shaders
     /// `[2^-15, 2^-14)` and its mantissa rounds to at least 256.
     const uint HISTORY_CLAMP_EMPTY = 1u << 27u;
 
-    /// What the clamp is handed: the frame's extent, and whether it clamps at all
-    /// (`FilterSwitches::mAntilag`), nought or one.
+    /// What the clamp is handed: the frame's extent, whether it clamps at all
+    /// (`FilterSwitches::mAntilag`), nought or one, and the frame's number, which its store's rounding
+    /// draws are seeded with.
     struct HistoryClampConstants
     {
         uint mWidth;
         uint mHeight;
         uint mAntilag;
+        uint mFrame;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryClampConstants) == 12, "HistoryClampConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryClampConstants) == 16, "HistoryClampConstants must be scalar-packed on every side");
 }
 #endif
 

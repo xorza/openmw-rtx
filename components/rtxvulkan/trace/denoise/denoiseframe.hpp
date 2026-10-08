@@ -30,6 +30,7 @@ namespace Rtx
                 .mPreviousJitter = mSampled.mPreviousJitter,
                 .mPrevious = mSampled.mPrevious,
                 .mArmsSpread = mSampled.mArmsSpread,
+                .mFrame = mSampled.mFrame,
             };
         }
     };

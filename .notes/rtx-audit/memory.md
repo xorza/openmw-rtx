@@ -19,29 +19,30 @@ structures 148 MiB reserved and tables 142 MiB (`tableBytes` 149.2 MB). That lea
 | owner (render-pixel grid) | B/px | 1280×720 (bench) | 1920×1080 native | 2560×1440 | 3840×2160 native |
 |---|---|---|---|---|---|
 | `GBuffer`: 21 channels (`gbuffer.cpp:62-90`, `gbuffer.h:62-71`) | 142 | 131 MB | 294 MB | 523 MB | 1178 MB |
-| `DenoiseHistory`: 33 images, 12 of them pairs (`denoisehistory.cpp:76-141`) | **440** | **405 MB** | **912 MB** | 1622 MB | 3650 MB |
+| `DenoiseHistory` (`denoisehistory.cpp`) | **328** | **302 MB** | **680 MB** | 1209 MB | 2721 MB |
 | `FogVolume`: 64 slices on an 8× column grid, so one froxel per pixel, ~100 B each | ~100 | ~92 MB | ~207 MB | ~369 MB | ~829 MB |
 | FSR targets at render size (`upscaler.cpp:331-352`) | ~40 | ~37 MB | ~83 MB | ~147 MB | ~332 MB |
-| **sum** | **~720** | **~665 MB** | **~1.5 GB** | **~2.7 GB** | **~6.0 GB** |
+| **sum** | **~610** | **~562 MB** | **~1.3 GB** | **~2.2 GB** | **~5.1 GB** |
 
 The FSR targets at output size (history ×2, output and locks, about 25 B per output pixel) and the
 bloom and present targets come on top of the sum.
 
-How the denoiser's 440 B/px adds up:
-- Pairs, two copies each, 304 B/px: Surface 16, Colour 32, Moments 32, Fill 32, Fast 16, sky and lamp
-  shadow moments 32 + 32, SpecularMean 32, SpecularFast 16, PaneMean 32, PaneHeld 16, PaneFast 16.
-- Singles, 136 B/px: Blended 16, Narrow 8 + 8, FillBlended 16, FillNarrow 8 + 8, FastBlended 8,
-  two shadow fields at 24 each, and two fast blends at 8 each.
+How the denoiser's 328 B/px adds up:
+- Pairs, two copies each, 160 B/px: Surface 16, Moments 32, sky and lamp shadow moments 32 + 32,
+  SpecularMean 16, PaneMean 16, PaneHeld 16.
+- Singles, 168 B/px: Colour 16, Fill 16, Fast 8, Blended 16, Narrow 8 + 8, FillBlended 16,
+  FillNarrow 8 + 8, FastBlended 8, SpecularFast 4, PaneFast 4, two shadow fields at 20 each, and two
+  fast blends at 4 each.
 
 For comparison, NVIDIA's NRD README lists RELAX_DIFFUSE_SPECULAR at 169 MB for its whole working set
 at 1080p, of which 97 MB persists and 72 MB is aliasable, and SIGMA_SHADOW at 32 MB
-(https://github.com/NVIDIA-RTX/NRD). This denoiser keeps 912 MB at 1080p native, about 4.5× those
+(https://github.com/NVIDIA-RTX/NRD). This denoiser keeps 680 MB at 1080p native, about 3.4× those
 two together.
 
 **This decides content room on the target hardware.** `MemoryAllocator::reserveFrame` reserves
 `largestFrameAt` over **every** upscale mode, native included (`vulkanrenderer.cpp:82`). Content
 (textures and structures) is refused once it would cut into that reserve:
-- At a 3840×2160 output, the reserve plans for about 6 GB of frame targets, even when the player
+- At a 3840×2160 output, the reserve plans for about 5 GB of frame targets, even when the player
   runs `performance`.
 - An 8 GB RTX 2070/2080/3070 is then left with almost nothing for textures, which come down a level
   at a time and then draw the stand-in.
@@ -50,49 +51,13 @@ two together.
 
 ## 1. Findings, ranked
 
-### 1.1 Five history pairs that need only one image (−56 B/px). Straightforward.
-
-- **What.** `Colour`, `Fill`, `Fast`, `SpecularFast` and `PaneFast` are declared `mPair = true`
-  (`denoisehistory.cpp:79, 89, 97, 131, 139`). For each of them, the "before" half is read by exactly
-  one dispatch, and the "now" half is written by a *later* dispatch, with a barrier between the two:
-  - `Colour` and `Fill` are read by `accumulate` (`accumulatepass.cpp:65, 72`). The wavelet's first
-    level writes them (`atrouspass.cpp:103-105`), after the `ready` batch at `denoisepasses.cpp:100-118`.
-  - `Fast` is read by `accumulate` (`accumulatepass.cpp:74`) and written by `accumulate-clamp`
-    (`:107`) after the `blended` batch.
-  - `SpecularFast` and `PaneFast` are read by the filter (`specularpass.cpp:46`, `panepass.cpp:47`)
-    and written by `HistoryClampPass` (`historyclamppass.cpp:43`) after the `written` batch.
-- **Why one image is enough.** A pair is only needed where one dispatch reads one half at
-  reprojected texels while it writes the other. The table already applies this rule to the shadow
-  history ("one image where … the frame reads it before a later pass writes it again",
-  `denoisehistory.cpp:66-70`). These five meet the same condition.
-- **What the change needs.**
-  - Each of the three barrier batches gains the image as a write-after-read
-    (`sComputeRead` → `sComputeWrite`).
-  - `DenoiseHistory::discard` must not discard a single fed-back image of a filter that is not
-    fresh: today it discards what a filter "writes whole", which would destroy the history before
-    it is read.
-  - `TemporalTurns` freshness is unchanged.
-- **Saving.**
-  - 56 B/px: 52 MB at the bench extent, 116 MB at 1080p native, 464 MB at 4K native.
-  - The frame reserve shrinks by the same amount.
-  - Two fewer full-screen RGBA32F images also means less to discard, but no bandwidth change per
-    frame: the same texels are read and written.
-- **Risk.** Low. The values are bit-identical, so this is a pure lifetime change.
-- **Proof.**
-  - `./omw check` under `--validation` and synchronisation validation, to catch the WAR hazard if a
-    barrier is missed.
-  - `./omw repeat --pairs=10`.
-  - `./omw shot --views=all --upscale=off --against=<baseline>`: identical up to the documented
-    denoiser ulp.
-  - `./omw noise --strafe=150 --walk=150`: unchanged.
-
-### 1.2 The glossy filter's images on content that can have no lobe (−56 B/px on vanilla). Your decision.
+### 1.2 The glossy filter's images on content that can have no lobe (−24 B/px on vanilla). Your decision.
 
 - **What.**
   - `runs[Temporal::Specular] = mapped` (`denoisepasses.cpp:60`). On vanilla content `mapped` is
     never true: the code itself says "a vanilla scene has nowhere" a lobe.
-  - The images are still made at every resize: `SpecularMean` pair 32, `SpecularFast` pair 16,
-    `SpecularFastBlended` 8. That is 56 B/px, or 40 B/px after §1.1.
+  - The images are still made at every resize: `SpecularMean` pair 16, `SpecularFast` 4,
+    `SpecularFastBlended` 4. That is 24 B/px.
 - **Options.**
   1. Make the images where the run can have a lobe at all, decided at construction from whether the
      content can name a companion map (the VFS and the `[Shaders] auto use object normal/specular
@@ -101,7 +66,7 @@ two together.
      a full-screen allocation and discard lands on an arrival frame.
   3. Keep as is.
 - **My pick.** Option 1.
-- **Saving.** 52 / 116 / 464 MB at the three extents, on vanilla.
+- **Saving.** 22 / 50 / 199 MB at the three extents, on vanilla.
 - **Proof.** `check`, plus `shot --against` with maps on and off.
 
 ### 1.3 Transient aliasing inside the wavelet (−32 B/px, no picture change). Experiment.
@@ -128,23 +93,6 @@ two together.
 - **Risk.** Medium, because aliasing bugs are hazards. The synchronisation validation layer and
   `repeat` are the proof. `shot --against` should be identical.
 
-### 1.4 The picture chain keeps a full temporal history it never reads (−152 B/px, or −96 after §1.1, of the picture extent). Straightforward.
-
-- **What.**
-  - `PictureTracer` owns a `TraceChain` as `MemoryUse::Essential` (`picturetracer.cpp:33`). It grows
-    to the largest picture asked and keeps it for the session.
-  - Every picture is traced with `mPastLost = true` (`picturetracer.cpp:84-91`), so every filter is
-    fresh and no "before" half is ever read.
-  - `TraceChain::resize` still makes the whole `DenoiseHistory` (`tracechain.cpp:67`).
-- **Size.** The inventory doll is up to 512×1024 (`characterpreview.cpp:122`, 524,288 px). That is
-  142 + 440 B/px = 305 MB of essential memory once the inventory has been opened. A 512² map tile is
-  152 MB.
-- **Fix.** Give `DenoiseHistory` a single-frame mode in which `before()` aliases `now()` and pairs
-  make one image.
-- **Saving.** 80 MB (doll) or 40 MB (512² tile); 50 / 25 MB after §1.1.
-- **Risk.** Low. `before` is never read when fresh, and an assert can hold that.
-- **Proof.** `shot` of the map and doll views (`files/rtx/views.cfg`), and `check`.
-
 ### 1.5 The frame reserve plans for native whatever mode runs. Your decision.
 
 - **What.** `largestFrameAt` takes the maximum over `sUpscaleNames.values()`
@@ -155,7 +103,7 @@ two together.
      the same drain it already does (`createTargets` drains), so the cost is paid at the switch, as
      a world change pays.
   2. Reserve for the modes the settings page can select at this output.
-  3. Keep, and rely on §1.1–1.3 to shrink it.
+  3. Keep, and rely on §1.2–1.3 to shrink it.
 - **My pick.** Option 1. On an 8 GB card at 1440p or 4K output it is the difference between full
   textures and stand-ins.
 - **Proof.** A run with `--memory-budget=8G` at a 2560×1440 and a 3840×2160 output, reading
@@ -231,22 +179,19 @@ two together.
   - Less staging at load.
 - **Risk and proof.** Low risk. `shot --against` with maps on (tangents read) and off.
 
-### 1.9 The instance table grows on the frame path; the TLAS rows beside it are reserved. Straightforward.
+### 1.9 The material table grows on the frame path; the instance rows beside it are reserved. Straightforward.
 
 - **What.**
-  - `mRowTable.reserve(placementRoom)` (`sceneacceleration.cpp:49`) reserves room for the TLAS rows,
-    precisely so "the frame a crossing pushes the rows past" pays nothing.
-  - `SceneBuffers::mInstanceTable` (64 B per row, 2 copies) and `mMaterialTable` are never reserved.
-    `SlotTable::sync` then `outgrow`s: a new buffer, and a whole-table rewrite into write-combined
-    memory.
-  - At 80 K rows that is 5 MB per copy, on two consecutive frames, at each doubling. That is a spike
-    the posture forbids.
-- **Fix.** `mInstanceTable.reserve(placementRoom)` in the `SceneBuffers` constructor, with the room
-  the scene is opened with.
+  - `mRowTable` and `SceneBuffers::mInstanceTable` are reserved for the placement room, so "the frame
+    a crossing pushes the rows past" pays nothing.
+  - `mMaterialTable` is never reserved. `SlotTable::sync` then `outgrow`s: a new buffer, and a
+    whole-table rewrite into write-combined memory, on two consecutive frames, at each doubling. That
+    is a spike the posture forbids (`.notes/ISSUES.md`).
+- **Fix.** A material room, as the placement room is for instances; its size is your decision.
 - **Second look at the room.** `sWorldPlacementRoom = 1 << 18` (`vulkanrenderer.cpp:69`) is 3.3× the
   suites' largest place (80,324). It sizes:
   - the TLAS storage and scratch for 262 K instances (`sizeTopLevel`);
-  - 2 × 16 MiB of host-written rows, and now 2 × 16 MiB more for the instance table.
+  - 2 × 16 MiB of host-written rows, and 2 × 16 MiB more for the instance table.
   
   `1 << 17` (1.6×) halves all of these, and a growth past it still doubles.
 - **Saving.** One spike removed. Room: about −16 MiB rows, plus about half the TLAS storage and
@@ -274,7 +219,7 @@ two together.
 ### 1.11 Precision-preserving history formats: the larger lever, against the posture. Your decision.
 
 - **What.**
-  - Colour, Fill, Moments, SpecularMean and PaneMean, and both shadow fields' moments, are RGBA32F,
+  - Colour, Fill, Moments and both shadow fields' moments are RGBA32F,
     because a fed-back history must not be stored where a store may round toward nought
     (`fedBackKeepsItsPrecision`).
   - The rounding concern is real: format conversion on an image store may truncate.
@@ -283,10 +228,9 @@ two together.
     already `RG32UI`.
 - **What remains.** fp16 *stagnation*. An update of α·(x − m) below half an ulp is lost: with
   α = 1/32 the mean can stall within about 2^-11·32/2 ≈ 1.6% of its target. NRD runs its whole
-  pipeline in FP16 (README) and accepts this; this fork chose not to.
-- **Saving.** About 120 B/px all told (111 / 249 / 995 MB).
-- **Verdict.** Only `./omw noise` bias against the converged reference can say whether this is
-  acceptable. It is listed for completeness, as an experiment, not a recommendation.
+  pipeline in FP16 (README) and accepts this; this fork chose not to. Stochastic rounding removes it
+  (`roundedToHalf`), as the glossy and pane means already show; the rest is the main audit's group 4.
+- **Saving.** About 90 B/px all told.
 
 ### 1.12 Vertex colours as linear float RGB (12 B per vertex). Experiment, census first.
 

@@ -341,6 +341,34 @@ namespace Rtx::Testing
             EXPECT_TRUE(wearsBlue(centre)) << "the description landed at its position rather than its slot";
         }
 
+        /// **The report counts the index blocks with the scene's tables**, which the hits read a
+        /// triangle's corners through. A quad of six indices beside a mesh of the same four corners
+        /// drawing one triangle: nine indices, one block. And the same, with the triangle drawn again
+        /// and again to the most whole triangles a block holds, `INDEX_BLOCK - 1` indices: five past
+        /// a block, so a second. Nothing else the scene holds grows with its indices, so the two
+        /// reports stand one block apart: `INDEX_BLOCK × 4` bytes, 4 MiB.
+        TEST_F(RtxVisibilityTest, theReportCountsTheIndexBlocksWithTheTables)
+        {
+            std::vector<std::uint32_t> blockFull(Shaders::INDEX_BLOCK - 1);
+            static_assert((Shaders::INDEX_BLOCK - 1) % 3 == 0, "the most whole triangles a block holds");
+            for (std::size_t at = 0; at < blockFull.size(); ++at)
+                blockFull[at] = static_cast<std::uint32_t>(at % 3);
+
+            const auto tableBytesOf = [&](std::span<const std::uint32_t> indices) {
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene) });
+                scene.addInstance(
+                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{ .mPositions = sUnitQuad, .mIndices = indices }) });
+                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                return mRenderer.getSceneStats().mTableBytes;
+            };
+
+            const std::uint64_t oneBlock = tableBytesOf(std::span(blockFull).first(3));
+            const std::uint64_t twoBlocks = tableBytesOf(blockFull);
+            EXPECT_EQ(twoBlocks - oneBlock, std::uint64_t{ Shaders::INDEX_BLOCK } * sizeof(std::uint32_t))
+                << "one block, " << oneBlock << " bytes; two, " << twoBlocks;
+        }
+
         /// **A placement with no material keeps wearing none when a material arrives.** An
         /// untextured row past the materials is the row an arrival takes over, and every placement
         /// still naming it would wear the arrival — a plausible picture of the wrong surface. It

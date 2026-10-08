@@ -33,7 +33,8 @@ namespace Rtx
         enum class Role : std::uint8_t
         {
             /// Read back into its own blend on the next frame: a running mean, its moments, a
-            /// filtered history. Never stored where a store may round toward nought.
+            /// filtered history. Never stored where a store may round toward nought, unless the shader
+            /// rounds every value it stores there first (`Store::RoundedAtRandom`).
             FedBack,
 
             /// One frame's geometry, which the next frame reads and no frame blends: a held surface.
@@ -46,6 +47,15 @@ namespace Rtx
 
             /// Read by nothing after the frame that wrote it, and by no history.
             Scratch,
+        };
+
+        /// What a shader hands an image's store: its value as it computed it, or that value rounded
+        /// at random to one the format holds exactly (`roundedToHalf`), so what the store does with
+        /// what it is handed decides nothing.
+        enum class Store : std::uint8_t
+        {
+            AsComputed,
+            RoundedAtRandom,
         };
 
         /// Which grid an image is made on: one texel a pixel, a tile of the shadow's classification,
@@ -79,6 +89,8 @@ namespace Rtx
 
             /// The filter whose history it is: what its freshness follows.
             Temporal mFilter;
+
+            Store mStore = Store::AsComputed;
         };
 
         constexpr std::array<Declared, sDenoiseImages> sDeclared{ {
@@ -135,13 +147,13 @@ namespace Rtx
             { DenoiseImage::LampShadowMask, "lamp-shadow-mask", SHADOW_MASK, Role::Scratch, false, Grid::ShadowMask,
                 sStorage, Temporal::LampShadow },
             { DenoiseImage::SpecularMean, "specular-mean", SPECULAR_MEAN, Role::FedBack, true, Grid::Pixels, sStorage,
-                Temporal::Specular },
+                Temporal::Specular, Store::RoundedAtRandom },
             { DenoiseImage::SpecularFast, "specular-fast", HISTORY_CLAMP_FAST, Role::FedBack, false, Grid::Pixels,
                 sStorage, Temporal::Specular },
             { DenoiseImage::SpecularFastBlended, "specular-fast-blended", HISTORY_CLAMP_FAST, Role::InLoop, false,
                 Grid::Pixels, sStorage, Temporal::Specular },
             { DenoiseImage::PaneMean, "pane-mean", PANE_MEAN, Role::FedBack, true, Grid::Pixels, sStorage,
-                Temporal::Pane },
+                Temporal::Pane, Store::RoundedAtRandom },
             { DenoiseImage::PaneHeld, "pane-held", ACCUMULATE_SURFACE, Role::OneFrame, true, Grid::Pixels, sStorage,
                 Temporal::Pane },
             { DenoiseImage::PaneFast, "pane-fast", HISTORY_CLAMP_FAST, Role::FedBack, false, Grid::Pixels, sStorage,
@@ -162,7 +174,7 @@ namespace Rtx
         {
             for (const Declared& declared : sDeclared)
                 if ((declared.mRole == Role::FedBack || declared.mRole == Role::InLoop)
-                    && Shaders::mayRoundTowardNought(declared.mFormat))
+                    && Shaders::mayRoundTowardNought(declared.mFormat) && declared.mStore == Store::AsComputed)
                     return false;
             return true;
         }

@@ -22,6 +22,7 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/halfmean.h>
 #include <components/rtxvulkan/shaders/shared/halfstore.h>
 
 namespace Rtx
@@ -185,6 +186,77 @@ namespace Rtx
             for (std::size_t at = 0; at < values.size(); ++at)
                 EXPECT_EQ(converted.mBytes[at], nearest[at])
                     << values[at] * 255.0f << " of 255 was stored as " << static_cast<int>(converted.mBytes[at]);
+        }
+
+        /// **A running mean kept in halves keeps its target where the shader rounds it at random,
+        /// and settles under it where the store rounds it.** 4096 means, each blended toward
+        /// `1 + 0.4 × 2^-10` at a history's weight of nine tenths, 256 times, from nought: a target
+        /// between two halves, a fifth of the way to the one above.
+        ///
+        /// - **Stored as it is**, each store rounds toward nought on this card. Under one, where a
+        ///   half's step is 2^-11, a blend moves the mean by a tenth of what it lacks, and the store
+        ///   drops that once it is under a step: every mean stops where it lacks ten steps, about
+        ///   4.9 thousandths under the target.
+        /// - **Rounded at random** (`roundedToHalf`), the stored value's mean is the value, so the
+        ///   mean of the means is the target. Each store adds noise of half a step at most, 2^-11, so
+        ///   a mean's deviation stands under `2^-11 / sqrt(1 - 0.81)`, 1.12 thousandths, and the mean
+        ///   of 4096 under 1.75 hundred-thousandths: within a ten-thousandth by more than five
+        ///   deviations.
+        ///
+        /// Measured: stored, 0.995605, 4.79 thousandths under the target of 1.000391; rounded at
+        /// random, 1.000394, three millionths over it.
+        TEST_F(RtxHalfStoreTest, aRunningMeanRoundedAtRandomKeepsItsTargetWhereAStoreRoundsItUnder)
+        {
+            const Device& device = getDevice();
+            constexpr std::uint32_t count = 4096;
+            constexpr std::uint32_t frames = 256;
+            const float target = 1.0f + 0.4f * Testing::halfStepAt(1.0f);
+
+            constexpr std::array<VkDescriptorSetLayoutBinding, 1> bindings{ VkDescriptorSetLayoutBinding{
+                Shaders::HALF_MEAN_BIND_HISTORY, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT,
+                nullptr } };
+            const ComputePipeline<Shaders::HalfMeanConstants> pipeline(
+                device, bindings, {}, "halfmean.comp.spv", "half mean");
+
+            const auto meanOf = [&](bool rounded) {
+                const Image history(device, count, 1, toVulkanFormat(STORAGE_RGBA16F),
+                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                    "half mean");
+                DescriptorWrites writes(pipeline);
+                writes.image(Shaders::HALF_MEAN_BIND_HISTORY, history.describeStorage());
+
+                getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    constexpr VkClearColorValue nothing{ .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } };
+                    history.clear(commands, Use::sUndefined, nothing, Use::sComputeReadWrite);
+                    for (std::uint32_t frame = 0; frame < frames; ++frame)
+                    {
+                        dispatch(commands, pipeline, writes,
+                            Shaders::HalfMeanConstants{ .mTarget = target,
+                                .mKept = 0.9f,
+                                .mRounded = rounded ? 1u : 0u,
+                                .mFrame = frame,
+                                .mCount = count },
+                            Groups::along(count, Shaders::HALF_MEAN_WORKGROUP));
+                        history.transition(commands, Use::sComputeReadWrite, Use::sComputeReadWrite);
+                    }
+                    history.transition(commands, Use::sComputeReadWrite, Use::sAnyGeneralRead);
+                });
+
+                std::vector<float> texels;
+                history.readFloats(VK_IMAGE_LAYOUT_GENERAL, texels);
+                double sum = 0.0;
+                for (std::uint32_t at = 0; at < count; ++at)
+                    sum += static_cast<double>(texels[at * 4]);
+                return sum / count;
+            };
+
+            const double stored = meanOf(false);
+            const double rounded = meanOf(true);
+            EXPECT_LT(stored, static_cast<double>(target) - 4e-3)
+                << "a mean the store rounded settled at " << stored << ", under " << target
+                << " by less than this card's toward-nought store leaves";
+            EXPECT_NEAR(rounded, static_cast<double>(target), 1e-4)
+                << "a mean rounded at random settled at " << rounded;
         }
     }
 }
