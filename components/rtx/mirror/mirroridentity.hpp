@@ -13,6 +13,7 @@
 #include <components/rtx/common/index.hpp>
 
 #include "mirrorpass.hpp"
+#include "released.hpp"
 
 namespace Rtx
 {
@@ -52,6 +53,16 @@ namespace Rtx
         Index mIndex = sNoIndex;
         Reach mReach{};
     };
+
+    /// What a sweep keeps of a key it erases: the object an identity key holds, for the owner to
+    /// release where the game releases its own, and nothing of a number.
+    template <class T>
+    void keepKey(Released& released, const osg::ref_ptr<T>& key)
+    {
+        released.keep(key);
+    }
+
+    inline void keepKey(Released&, std::size_t) {}
 
     /// A map of what the mirror knows, and how much of it the walk in progress has reached. The
     /// count is what lets a sweep be skipped rather than run over tens of thousands of entries to
@@ -204,10 +215,10 @@ namespace Rtx
         }
 
         /// Drops every entry neither the epoch nor a hold keeps, handing `drop` what each held on
-        /// its way out, and says how many went. Skipped where the map is whole, which is the point
-        /// of the count.
+        /// its way out and `released` what its key holds, and says how many went. Skipped where the
+        /// map is whole, which is the point of the count.
         template <class Drop>
-        std::uint32_t retire(Drop drop)
+        std::uint32_t retire(Released& released, Drop drop)
         {
             if (whole())
             {
@@ -228,6 +239,7 @@ namespace Rtx
                 }
 
                 drop(entry->second);
+                keepKey(released, entry->first);
                 entry = mKnown.erase(entry);
                 ++dropped;
             }
@@ -237,9 +249,9 @@ namespace Rtx
         }
 
         /// The same where the entry holds nothing to give back.
-        std::uint32_t retire()
+        std::uint32_t retire(Released& released)
         {
-            return retire([](const auto&) {});
+            return retire(released, [](const auto&) {});
         }
 
         /// Hands `drop` every entry, whatever keeps it, and forgets them all: what an owner that

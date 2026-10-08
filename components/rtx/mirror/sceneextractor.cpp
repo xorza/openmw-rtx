@@ -770,9 +770,9 @@ namespace Rtx
         // structure in the world on every crossing. The order does not matter, because a
         // placement holds what it stands on. Each map skips its walk where every entry was
         // reached (`Kept::whole`), which is a world that stands still.
-        mPlacements.retire([this](const Known& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
-        mMeshes.retire();
-        mMaterials.retire();
+        mPlacements.retire(mReleased, [this](const Known& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
+        mMeshes.retire(mReleased);
+        mMaterials.retire(mReleased);
 
         // Counted off the tables rather than off the maps, because a row a ground cell or an
         // abandoned identity let go of since the last retire was in no map to be counted here.
@@ -786,14 +786,14 @@ namespace Rtx
         // A key goes once no material is held under it, so only a sweep that let a material go
         // can have left one held by nothing else.
         if (went.mMaterials > 0)
-            mChainKeys.retire();
+            mChainKeys.retire(mReleased);
 
         // Swept whatever the two tables above did, because an image a material stopped reading, a
         // state set whose node left the graph and a sprite's texture each go stale on a frame where
         // no material died at all.
-        mMeshes.retireDeformers();
-        mMaterials.retireHolds();
-        mEmitters.retire();
+        mMeshes.retireDeformers(mReleased);
+        mMaterials.retireHolds(mReleased);
+        mEmitters.retire(mReleased);
 
         // After the sweep and not before it, so that the walk which fills the next epoch is the
         // one this is measured against. Every entry that survived is still carrying the old stamp
@@ -1097,6 +1097,7 @@ namespace Rtx
                 return false;
 
             thaw(frozen.second);
+            mReleased.keep(frozen.first);
             return true;
         });
     }
@@ -1104,7 +1105,10 @@ namespace Rtx
     void SceneExtractor::thawAll()
     {
         for (auto& frozen : mFrozen)
+        {
             thaw(frozen.second);
+            mReleased.keep(frozen.first);
+        }
         mFrozen.clear();
     }
 

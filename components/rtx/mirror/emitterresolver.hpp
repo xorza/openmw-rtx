@@ -82,8 +82,9 @@ namespace Rtx
         /// what each one under an effect radiates to that effect's glow in `glows`.
         void flush(std::span<Glow> glows);
 
-        /// Lets go of the textures of every system this epoch did not meet.
-        void retire();
+        /// Lets go of the textures of every system this epoch did not meet; the system, its image
+        /// and its key go to `released`.
+        void retire(Released& released);
 
         /// Reserves the identity map once, so no frame rehashes it. `SceneExtractor` states the
         /// budget.

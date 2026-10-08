@@ -1414,6 +1414,7 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*empty, 0, 3);
             EXPECT_EQ(mExtractor.retire().mMaterials, 2u);
+            mExtractor.getReleased().clear();
             for (const osg::ref_ptr<const osg::StateSet>& parent : painted)
                 EXPECT_EQ(parent->referenceCount(), 1) << "a key outlived its material";
         }

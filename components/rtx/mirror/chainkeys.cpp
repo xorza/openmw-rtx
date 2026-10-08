@@ -1,5 +1,6 @@
 #include "chainkeys.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <functional>
 #include <span>
@@ -47,12 +48,33 @@ namespace Rtx
         return key;
     }
 
-    void ChainKeys::retire()
+    void ChainKeys::retire(Released& released)
     {
         // Until nothing goes, because a pair that went let go of the key above it, which may then
         // be held by this table alone. A chain is a handful of pairs deep.
+        //
+        // **What the sink holds of a key is no hold on it**: the sink is what the frame let go of,
+        // a material's key among it, waiting for its owner to hand it over. Counted again each
+        // pass, because a pair that goes puts its own into it.
         for (std::size_t gone = 1; gone != 0;)
-            gone = boost::unordered::erase_if(
-                mKeys, [](const auto& entry) { return entry.second.mKey->referenceCount() == 1; });
+        {
+            mReleasedScratch.clear();
+            for (const osg::ref_ptr<const osg::Referenced>& object : released.get())
+                mReleasedScratch.push_back(object.get());
+            std::ranges::sort(mReleasedScratch);
+
+            gone = boost::unordered::erase_if(mKeys, [&](const auto& entry) {
+                const Held& held = entry.second;
+                const auto inSink
+                    = std::ranges::equal_range(mReleasedScratch, static_cast<const osg::Referenced*>(held.mKey.get()));
+                if (held.mKey->referenceCount() - static_cast<int>(inSink.size()) != 1)
+                    return false;
+
+                released.keep(held.mAbove);
+                released.keep(held.mOwn);
+                released.keep(held.mKey);
+                return true;
+            });
+        }
     }
 }

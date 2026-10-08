@@ -162,7 +162,7 @@ namespace MWRender
 
     protected:
         void configureResources(Resource::ResourceSystem& resources) override;
-        void onAttachWorld(RenderingManager& world, osg::Group& worldRoot) override;
+        void onAttachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) override;
         void onDetachWorld() override;
         void adoptTraversalRoot(osg::Group& root) override;
         void applyViewMask() override;

@@ -66,6 +66,7 @@ namespace Resource
 namespace SceneUtil
 {
     class AsyncScreenCaptureOperation;
+    class UnrefQueue;
 }
 
 namespace MWWorld
@@ -215,7 +216,7 @@ namespace MWRender
         /// tracer's pictures resolve through. What changes per frame comes through `describeFrame`
         /// and never through this reference. The world stays attached while what this hands back
         /// stands.
-        WorldAttachment attachWorld(RenderingManager& world, osg::Group& worldRoot);
+        WorldAttachment attachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released);
 
         /// Whatever the renderer wants culled and drawn, from the top — the rasterizer's
         /// post-processing group rather than the world's own root. Not the game's "Scene Root",
@@ -450,8 +451,10 @@ namespace MWRender
         /// Out of line with the destructor, so a subclass needs none of what the handles point at.
         Renderer();
 
-        /// `attachWorld`'s hook. A throw attaches nothing.
-        virtual void onAttachWorld(RenderingManager& world, osg::Group& worldRoot) = 0;
+        /// `attachWorld`'s hook. A throw attaches nothing. `released` is the queue the game releases
+        /// its own objects through, off the frame thread, which a renderer that lets go of what the
+        /// world made hands it to as well.
+        virtual void onAttachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) = 0;
 
         /// The world is going, so anything of it a renderer reads from a thread of its own is let go
         /// of first. Once for each `onAttachWorld` that returned.

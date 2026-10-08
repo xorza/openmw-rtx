@@ -49,6 +49,11 @@ namespace Rtx
     class Renderer;
 }
 
+namespace SceneUtil
+{
+    class UnrefQueue;
+}
+
 namespace MWRender
 {
     struct SceneFrame;
@@ -75,9 +80,10 @@ namespace MWRender
         ~WorldMirror();
 
         /// The resource system the cell ring's models and the hand-over's pictures are loaded
-        /// through. Told once, where the world is attached; what is kept of it is the image
-        /// manager, which is all a frame reaches for.
-        void attach(Resource::ResourceSystem& resources);
+        /// through, and the queue the game releases its own objects through, which what the mirror
+        /// lets go of joins. Told once, where the world is attached; what is kept of the resource
+        /// system is the image manager, which is all a frame reaches for.
+        void attach(Resource::ResourceSystem& resources, SceneUtil::UnrefQueue& released);
 
         /// The world is going: every thread that reads it stops, what was read of it goes, and
         /// every row the world stood is swept — so a detached world is an empty scene, which the
@@ -160,6 +166,14 @@ namespace MWRender
         osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
 
     private:
+        /// Moves what the extractor let go of into `mReleasing`, so the last reference to what the
+        /// world unloaded is dropped on the queue's worker and not on the frame thread.
+        void handReleased();
+
+        /// The engine's, which outlives every world (`Engine::~Engine` ends it after the world).
+        /// Null while no world is attached.
+        SceneUtil::UnrefQueue* mReleasing = nullptr;
+
         /// Shared by every walk on the frame thread: the world's and every traced view's.
         Rtx::WalkContext mWalk;
 

@@ -455,9 +455,9 @@ namespace Rtx
         return MorphSpec{ .mOffsets = mOffsetScratch, .mTargets = static_cast<Index>(targets.size()) };
     }
 
-    void MeshResolver::retire()
+    void MeshResolver::retire(Released& released)
     {
-        mMeshes.retire([this](KnownMesh& gone) { mScene.drop(std::move(gone.mRow)); });
+        mMeshes.retire(released, [this](KnownMesh& gone) { mScene.drop(std::move(gone.mRow)); });
     }
 
     MeshResolver::~MeshResolver()
@@ -470,11 +470,11 @@ namespace Rtx
         return mMeshes.add(&drawable, KnownMesh{ .mRow = mScene.holdMesh(mesh) });
     }
 
-    void MeshResolver::retireDeformers()
+    void MeshResolver::retireDeformers(Released& released)
     {
         // A deformer is swept on the meshes' stamp and not on a use count of its own; the scene
         // counts uses for itself, and the two agree because a deformer is stamped exactly where a
         // mesh on it is met.
-        mDeformers.retire();
+        mDeformers.retire(released);
     }
 }

@@ -33,6 +33,7 @@
 #include "mirroridentity.hpp"
 #include "mirrorpass.hpp"
 #include "nodekind.hpp"
+#include "released.hpp"
 #include "sceneadopter.hpp"
 #include "shading.hpp"
 #include "walkcontext.hpp"
@@ -211,6 +212,12 @@ namespace Rtx
         /// left it: `SceneDesc::noteWalked` marks the scene at every walk and this is what clears
         /// the mark, and a hand-over of a marked scene is a call out of its turn.
         Retirement retire();
+
+        /// What the sweeps and the thaws let go of since the owner last handed it over: the roots
+        /// a walk stopped meeting, and the game's objects the maps held. **The owner owes the
+        /// hand-over**, to whatever releases the game's own, and clears it after; until then it
+        /// keeps a cell the world unloaded alive.
+        Released& getReleased() { return mReleased; }
 
     private:
         /// Where the extractor stands: between walks, or inside one. A walk inside a walk would
@@ -470,6 +477,9 @@ namespace Rtx
             ByAddress<const osg::Node>>
             mFrozen;
         RunBuffer<FrozenKey> mFrozenKeys;
+
+        /// Kept and refilled: grown to the busiest crossing so far, and never shrunk.
+        Released mReleased;
         std::vector<FrozenKey> mRecorded;
 
         /// Whether a root is being recorded, whether what it resolved can change on its own — the

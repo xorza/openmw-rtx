@@ -106,6 +106,10 @@ The one interface the game talks to. Read its header first.
   calls the renderer's `onDetachWorld` once. `RenderingManager` holds it as its last member, so
   a constructor that throws after the attach detaches too. The base asserts the pairing for
   both renderers.
+- The attach carries the engine's `SceneUtil::UnrefQueue`, which the game releases what it
+  unloads through, off the frame thread. The mirror's sweeps keep what they let go of in a sink
+  (`Rtx::Released`) and the world mirror hands it to that queue after each frame, so a crossing's
+  last references are dropped on the queue's worker too.
 - The presentation (`Misc::Presentation`) is the one answer to the screen's size. Each renderer
   draws the world and the interface at its frame, `[Video] resolution x/y` or the window's size at
   Native, and shows the frame scaled into the window with black beside it. The GUI, the

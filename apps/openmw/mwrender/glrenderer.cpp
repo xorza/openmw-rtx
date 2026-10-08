@@ -350,7 +350,7 @@ namespace MWRender
         return sceneRoot;
     }
 
-    void GlRenderer::onAttachWorld(RenderingManager& world, osg::Group& worldRoot)
+    void GlRenderer::onAttachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue&)
     {
         assert(mSceneRoot != nullptr && "the world is built under a root this renderer made");
         mWorld = std::make_unique<GlWorld>(*mViewer, world, worldRoot, *mSceneRoot, getResources());

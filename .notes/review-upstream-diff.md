@@ -55,34 +55,6 @@ What is left:
 Measure each against the baseline bench (median, p99, worst frame), on a quiet desktop, in the
 background.
 
-- [ ] **4.1 The mirror moves the deletion of unloaded cells onto the frame thread.**
-  `objects.cpp:154,188` push a removed `Animation` to `SceneUtil::UnrefQueue`, and `engine.cpp:265`
-  flushes it to a worker before `renderFrame`. The mirror still holds the root (`mFrozen`,
-  `sceneextractor.hpp:469-471`), the actors' rig copies, the particle systems and the animated
-  placements (`materialresolver.hpp:281`, `emitterresolver.hpp:186`). `thawUnmet` and `retire`
-  (`sceneextractor.cpp:761-794,1081-1090`) then drop the last reference inside
-  `WorldMirror::mirror`, on the frame of a cell crossing.
-  Target: what the mirror lets go of is released where the game releases its own.
-  1. The core gets a `Released` sink, a persistent
-     `std::vector<osg::ref_ptr<const osg::Referenced>>` cleared after each hand-over, so a steady
-     frame allocates nothing. `Kept::retire`/`clear` hand `drop` the key as well as the value, and
-     `thaw`/`thawUnmet` append the root.
-  2. `SceneExtractor::retire(Released&)` and `detach(Released&)` take it at the call. A caller with
-     no queue (the tests, an offscreen view) clears it in place.
-  3. `attachWorld` (item 1.11) is also handed the engine's `SceneUtil::UnrefQueue&`. `WorldMirror`
-     moves the sink into it after each mirror. The queue takes `ref_ptr<osg::Referenced>`, so the
-     one hand-over casts away `const`, with a comment: dropping a reference does not modify the
-     object.
-  4. `onDetachWorld` hands the last sink over too. The world is destroyed before the engine's queues
-     (`engine.cpp:347` against `:359`), so the queue is alive at every detach.
-
-  Depends on 1.11. Measure first: `./omw profile` on a crossing route, looking for `~Node` and
-  `Referenced::unref` under `retire`/`thawUnmet`. Then the bench's p99 and worst frame against the
-  baseline.
-  Verify: a test whose sink holds the only reference after a retire;
-  `./omw test components-tests --gtest_filter='RtxSceneExtractorTest.*:RtxFrozenSubtreeTest.*:RtxKeptTest.*'`,
-  `./omw test openmw-tests --gtest_filter='RtxWorldMirrorTest.*'`.
-
 - [ ] **4.2 `ChainKeys` erases and allocates again the keys only it holds, and rescans the table.**
   `mirror/chainkeys.cpp:304-310,334-341`, gated at `sceneextractor.cpp:784-787`. Emitters, water and
   refused meshes keep their keys only in `ChainKeys`. On a frame where any material dies, `retire`
