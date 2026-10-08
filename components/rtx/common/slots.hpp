@@ -59,10 +59,6 @@ namespace Rtx
         /// How many slots stand empty, which a table subtracts from its length to count what lives.
         std::size_t size() const { return mFree.size(); }
 
-        /// Every empty slot, in the heap's own order. For a mark, which walks all of them rather
-        /// than searching per row.
-        std::span<const Index> getSlots() const { return mFree; }
-
     private:
         /// A min-heap of the slots nothing stands in.
         std::vector<Index> mFree;

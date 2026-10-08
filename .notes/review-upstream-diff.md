@@ -52,11 +52,6 @@ What is left:
 
 ## Phase 6 — dead code and stale comments
 
-- [ ] **6.2 Members with no caller.**
-  `Presenter::getExtent` (`present/presenter.hpp:63`, `.cpp:162-165`),
-  `RtxRenderer::getBackend` (`mwrender/rtx/rtxrenderer.hpp:203-206`),
-  `SlotPool::getSlots` (`common/slots.hpp:62-64`).
-
 - [ ] **6.3 Core nits.**
   - `SceneDesc::forEachPlacement` (`scenedesc.hpp:269`) has one caller. Inline it.
   - `mSeaHeading` is written in `frame/camera.cpp:63` and `world/frameworld.cpp:195`. Keep one.
