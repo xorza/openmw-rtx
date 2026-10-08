@@ -7,7 +7,7 @@ namespace Rtx
     ContentDigest::ContentDigest(const std::string_view pass, const std::uint32_t version)
     {
         add(std::span<const char>(pass));
-        addValue(version);
+        add(version);
 
         // The pass is the key's and not the input's, so a report's bytes are the input's alone.
         mBytes = 0;

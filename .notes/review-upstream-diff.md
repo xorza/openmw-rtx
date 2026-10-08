@@ -54,17 +54,6 @@ What is left:
 
 ### Core
 
-- [ ] **5.8 The content cache that holds nothing: keep it, guard it.**
-  `preprocess/contentcache.hpp:17-37` (`sHolds = false`), `contentkey.*`, each pass's `digest()`,
-  `FinestTexels`' held image (`texture/texturepass.hpp:41-72`), `PassStats::mHits`/`mKeyMs`/
-  `mKeyBytes` (always zero, printed by `apps/rtxtool/stopwriter.cpp:365-366`).
-  `ContentDigest::addValue` (`contentkey.hpp:44-46`) lacks `HashState::add`'s `!sIsSpan<T>` guard,
-  so it hashes a span's address. The scaffold stays, as `architecture.md` §7 documents. Target:
-  `ContentDigest::add`/`addValue` forward to `HashState`'s guarded overloads, and the report stops
-  printing the zero columns.
-  Verify: `./omw test components-tests --gtest_filter='RtxContentPreprocessorTest.*:RtxContentKeyTest.*:RtxContentStatsTest.*'`,
-  `./omw scene`.
-
 - [ ] **5.9 `image/` files do several jobs.**
   `image/texturedata.hpp` holds the mip types, the format enum with its traits, and the texture
   data. `image/texels.hpp` mixes format identification with decoding. Target: a
