@@ -56,12 +56,20 @@ namespace Rtx
         void rebuild(VkExtent2D extent);
 
         /// Says how the presented image should meet the refresh, rebuilding only where that changes
-        /// the mode the surface will actually run in.
-        void setVerticalSync(SDLUtil::VSyncMode mode);
+        /// the mode the surface will actually run in, and answers whether it rebuilt. A rebuild frees
+        /// what `wantsResize` says one frees, so `beforeRebuild` runs first there and nowhere else:
+        /// a caller's drain of a handed-over batch. Not `rebuild`, because that clears a staleness a
+        /// window that changed size meanwhile still owes.
+        template <class BeforeRebuild>
+        bool setVerticalSync(SDLUtil::VSyncMode mode, BeforeRebuild&& beforeRebuild)
+        {
+            if (!mSwapchain.setVerticalSync(mode))
+                return false;
 
-        /// Whether `setVerticalSync(mode)` rebuilds, which frees what `wantsResize` says a rebuild
-        /// frees: asked first by a caller with a batch to drain.
-        bool rebuildsFor(SDLUtil::VSyncMode mode) const { return mSwapchain.changesPresentMode(mode); }
+            beforeRebuild();
+            remake(mAsked);
+            return true;
+        }
 
         VkExtent2D getExtent() const;
 

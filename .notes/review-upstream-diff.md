@@ -52,13 +52,6 @@ What is left:
 
 ## Phase 5 — design and simplification
 
-### Seam and game side
-
-- [ ] **5.18 A changed vsync queries the surface twice.**
-  `vulkanrenderer.cpp:404-406`, `present/swapchain.cpp:185-208`. `rebuildsFor` and `setVerticalSync`
-  each enumerate the present modes. `Presenter::setVerticalSync` returns whether it rebuilt. Keep the
-  `waitIdle` in `remake`. Settings path only, low priority.
-
 ### Harness, `./omw` and CI
 
 - [ ] **5.19 The noise planning lives in `main.cpp`, and its model in `compare.hpp`.**
