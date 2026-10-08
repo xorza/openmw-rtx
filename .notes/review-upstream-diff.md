@@ -98,11 +98,3 @@ repeating the work.
 
 Start this phase only when every item above is done. Find the cause first, then fix it at the
 owner. Do not fix by guess.
-
-- [ ] **7.2 With the denoiser on, the trace's direct light moves between two runs of one binary.**
-  `./omw shot --views=all --upscale=off` twice: `g-direct`, a trace channel, differs at up to 30
-  places, from some stop on through the rest of the run, and nothing else differs. With
-  `--filter=false`, no place differs (apart from 7.1). So the trace reads something the denoiser
-  wrote, and the card's known one-ulp difference in the wavelet (AGENTS.md, "The denoised frame is
-  not bit-exact on this card") reaches the trace and the shot's verdict, which then names the trace.
-  Find what the trace reads of the denoiser's output, and whether it should.
