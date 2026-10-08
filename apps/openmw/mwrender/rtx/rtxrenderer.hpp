@@ -195,11 +195,6 @@ namespace MWRender
         /// against 6.8.
         static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
 
-        /// The backend the frames and the pictures are traced into, for the host that made this
-        /// renderer and asks of the device before the first frame; a frame's reads go through
-        /// `FrameContext::mBackend`.
-        Rtx::Renderer& getBackend() { return *mRenderer; }
-
         /// The pictures inside the interface this renderer holds, for the harness to find the
         /// game's own map tile in.
         ViewQueue& getViews() { return mViews; }

@@ -147,11 +147,6 @@ namespace Rtx
         makeImageSync();
     }
 
-    VkExtent2D Presenter::getExtent() const
-    {
-        return mSwapchain.getExtent();
-    }
-
     void Presenter::present(const Image& frame)
     {
         Acquisition& acquisition = mAcquiring[mAcquisition];

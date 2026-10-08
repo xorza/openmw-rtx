@@ -71,8 +71,6 @@ namespace Rtx
             return true;
         }
 
-        VkExtent2D getExtent() const;
-
     private:
         /// Two semaphores and one command buffer per swapchain image, and a present fence where the
         /// device offers one, for the swapchain as it now stands. `releaseImageSync` comes first.
