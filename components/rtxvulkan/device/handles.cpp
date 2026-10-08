@@ -20,25 +20,6 @@ namespace Rtx
         return Semaphore::make(device, vkCreateSemaphore, create, "vkCreateSemaphore");
     }
 
-    Immediate<VkSemaphore, vkDestroySemaphore> makeTimelineSemaphore(const Device& device, const std::string_view name)
-    {
-        const VkSemaphoreTypeCreateInfo type{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-            .pNext = nullptr,
-            .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-            .initialValue = 0,
-        };
-        const VkSemaphoreCreateInfo create{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = &type,
-            .flags = 0,
-        };
-        Immediate<VkSemaphore, vkDestroySemaphore> handle = Immediate<VkSemaphore, vkDestroySemaphore>::make(
-            device.getHandle(), vkCreateSemaphore, create, "vkCreateSemaphore");
-        device.setName(handle.get(), name);
-        return handle;
-    }
-
     namespace
     {
         /// `bindings`, and the census after them where `counted`: past every binding a pass numbers.

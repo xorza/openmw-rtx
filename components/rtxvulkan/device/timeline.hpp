@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <string_view>
 
 #include <volk.h>
 
@@ -11,6 +12,9 @@
 namespace Rtx
 {
     class Device;
+
+    /// The timeline semaphore the queue's clock is, starting at nought.
+    Immediate<VkSemaphore, vkDestroySemaphore> makeTimelineSemaphore(const Device& device, std::string_view name);
 
     /// The queue's one clock: a timeline semaphore that every submit the pool makes signals with
     /// the next value, so "has that finished" is a comparison against a counter the queue advances
