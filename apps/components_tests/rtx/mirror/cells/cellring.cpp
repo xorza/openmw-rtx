@@ -591,6 +591,32 @@ namespace Rtx::Testing
                 "a ring made on another extractor adopts into its scene");
         }
 
+        /// **A ring that ends gives its holds back, detached or not**: the adopter outlives it, and a
+        /// ring that went with no `detach` left the rows it held standing in the scene after the
+        /// sweep. One ring of its own, walked until its band stands whole, then ended.
+        TEST_F(RtxCellRingTest, aRingThatEndsGivesItsHoldsBackWithoutADetach)
+        {
+            start();
+            std::optional<CellRing> ring(std::in_place, mExtractor);
+            ring->setMinSize(0.0f);
+            ring->setSettled(true);
+            std::size_t frame = 0;
+            ExtractionStats walked;
+            do
+            {
+                mScene.clearPlacement();
+                ring->follow(mAround);
+                walked = mExtractor.extractWorld(*mEmpty, 0, frame++, *ring);
+                mScene.placements().advance();
+            } while (walked.mMeshesAdded > 0);
+            ASSERT_EQ(ring->getHeldCellCount(), sPreparedCells);
+
+            ring.reset();
+            mScene.clearPlacement();
+            mExtractor.retire();
+            EXPECT_TRUE(mScene.isEmpty()) << "an ended ring's rows outlived it";
+        }
+
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;
         /// what the active grid holds is left to the game; every cell of the reach stands its
         /// ground on a row of the ring's own; and a second walk adds nothing.
