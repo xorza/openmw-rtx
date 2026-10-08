@@ -21,8 +21,8 @@ namespace Rtx
     /// pixel is looking, and a fog march asking every lamp twenty-four times a pixel was several
     /// times the trace. A lamp is binned into every cell its reach touches, so the shader's own
     /// distance test is a refinement and never a correction. The grid covers what the lamps reach
-    /// and takes no bounds from the scene, so a fog step in the air above a cell is not handed an
-    /// empty list.
+    /// and a cell more on every side, and takes no bounds from the scene, so a fog step in the air
+    /// above a cell is not handed an empty list.
     class LightGrid
     {
     public:
