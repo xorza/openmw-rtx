@@ -1,12 +1,14 @@
 #include "crashinstall.hpp"
 
 #include <cerrno>
+#include <charconv>
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -17,6 +19,7 @@
 #include <unistd.h>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
 
 // **An AppImage's mount outlives every process the image starts.** The type2 runtime serves the
@@ -68,15 +71,20 @@ namespace Crash
         /// the application, a monitor, the game. One that runs another, a browser a dialog opened,
         /// needs no mount, and goes to the next subreaper when the keeper ends. A process whose
         /// program cannot be read counts as the image's, so the mount stays where the keeper
-        /// cannot tell.
+        /// cannot tell — and so does any listing or reading that fails, which nothing here may throw
+        /// out of.
         bool imageRuns(pid_t keeper, const std::string& appDir)
         {
+            const std::optional<std::vector<std::filesystem::directory_entry>> listed = Platform::listFolder("/proc");
+            if (!listed.has_value())
+                return true;
+
             std::vector<Parented> processes;
-            std::error_code unread;
-            for (const auto& entry : std::filesystem::directory_iterator("/proc", unread))
+            for (const std::filesystem::directory_entry& entry : *listed)
             {
                 const std::string name = Files::pathToUnicodeString(entry.path().filename());
-                if (name.find_first_not_of("0123456789") != std::string::npos)
+                pid_t id = 0;
+                if (std::from_chars(name.data(), name.data() + name.size(), id).ptr != name.data() + name.size())
                     continue;
                 std::ifstream file(entry.path() / "stat");
                 const std::string stat((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -85,8 +93,10 @@ namespace Crash
                 const std::size_t named = stat.rfind(')');
                 if (named == std::string::npos || named + 4 >= stat.size())
                     continue;
-                processes.push_back(Parented{ .mId = static_cast<pid_t>(std::stol(name)),
-                    .mParent = static_cast<pid_t>(std::stol(stat.substr(named + 4))) });
+                pid_t parent = 0;
+                if (std::from_chars(stat.data() + named + 4, stat.data() + stat.size(), parent).ec != std::errc{})
+                    return true;
+                processes.push_back(Parented{ .mId = id, .mParent = parent });
             }
 
             std::vector<pid_t> descendants{ keeper };
@@ -113,7 +123,7 @@ namespace Crash
         /// while the application is not yet reaped, and never to a process that took its id after.
         /// Without an `APPDIR` it can resolve, as `/proc/<id>/exe` names programs, it waits for every
         /// orphan, which cannot end the mount early.
-        [[noreturn]] void keep(pid_t application, const sigset_t& waited)
+        [[noreturn]] void keep(pid_t application, const sigset_t& waited) noexcept
         {
             std::string appDir;
             if (const char* const variable = std::getenv("APPDIR"))

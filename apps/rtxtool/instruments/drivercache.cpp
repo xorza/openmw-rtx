@@ -5,6 +5,7 @@
 #include <system_error>
 #include <vector>
 
+#include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
@@ -53,15 +54,15 @@ namespace RtxTool
 
     void DriverCache::sweep() const
     {
-        // Gathered before anything is removed, because an iterator over a directory being emptied
-        // may or may not visit what follows the removal.
-        std::error_code failed;
-        std::vector<std::filesystem::path> outdated;
-        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(mRoot, failed))
-            if (entry.path() != mDirectory)
-                outdated.push_back(entry.path());
+        // Listed whole before anything is removed, because an iterator over a directory being
+        // emptied may or may not visit what follows the removal.
+        const std::optional<std::vector<std::filesystem::directory_entry>> listed = Platform::listFolder(mRoot);
+        if (!listed.has_value())
+            return;
 
-        for (const std::filesystem::path& gone : outdated)
-            std::filesystem::remove_all(gone, failed);
+        std::error_code failed;
+        for (const std::filesystem::directory_entry& entry : *listed)
+            if (entry.path() != mDirectory)
+                std::filesystem::remove_all(entry.path(), failed);
     }
 }

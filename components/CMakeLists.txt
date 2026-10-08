@@ -570,6 +570,7 @@ add_component_dir(platform
     platform
     appendfile
     file
+    folder
     linuxtext
     process
     sharedmemory

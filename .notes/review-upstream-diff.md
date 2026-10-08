@@ -54,24 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.7 Directory iteration throws on increment in five places, one of them the AppImage keeper.**
-  A range-for over `directory_iterator(path, ec)` covers only construction. `operator++` throws.
-  - `crashcatcher/crashimagelinux.cpp:72-166`: a throw (or `std::stol` at `:88`) leaves the
-    `[[noreturn]]` `keep()`, reaches `std::terminate`, and the image mount is lost. The monitor then
-    dies of SIGBUS when the game ends.
-  - `device/pipelinecache.cpp:197-236` (`sweep`), `platform/processposix.cpp:182`,
-    `apps/rtxtool/instruments/amdgpu.cpp:59,74`.
-  - `apps/rtxtool/options.cpp:741` removes during iteration, against the comment at
-    `instruments/drivercache.cpp:60`.
-
-  Target: one helper in `components/platform` that steps with `increment(ec)` and returns the
-  entries (`crashpackage.cpp:373` shows the stepping). Every sweep lists first and removes after.
-  In the keeper, `imageRuns` answers `true` on any failure (its comment already says so), parses with
-  `std::from_chars`, and `keep()` is `noexcept`. The helper allocates, which the keeper may do:
-  it forks at the top of `wrapApplication`, before any thread starts.
-  Verify: `./omw test -R crash.matrix` (the `kept-*` modes),
-  `./omw test components-tests --gtest_filter='RtxDriverCacheTest.*:RtxToolOptionsTest.*:RtxFilmTest.*:CrashPackageTest.*'`.
-
 - [ ] **1.8 The pipeline cache trusts any body behind a valid header, and its constructor can throw.**
   `device/pipelinecache.cpp:282-297` writes the driver's blob as it is. `written` is read before the
   stream closes, so a failed final flush renames a short file over the cache. A power loss after the
