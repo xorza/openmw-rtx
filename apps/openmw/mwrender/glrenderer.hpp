@@ -43,11 +43,6 @@ namespace osg
     class Texture2D;
 }
 
-namespace SDLUtil
-{
-    class GraphicsWindowSDL;
-}
-
 namespace VFS
 {
     class Manager;
@@ -73,6 +68,7 @@ namespace Stereo
 namespace MWRender
 {
     class CopyFramebufferToTextureCallback;
+    class GlWindow;
     class FrameCapture;
     class GlWorld;
     class PostProcessor;
@@ -93,7 +89,7 @@ namespace MWRender
         ~GlRenderer() override;
 
         float getGroundReach() const override;
-        SDL_Window* getWindow() const override { return mWindow; }
+        SDL_Window* getWindow() const override;
 
         osg::ref_ptr<osg::Group> createSceneRoot() override;
 
@@ -218,12 +214,9 @@ namespace MWRender
         /// main thread has moved on, and three frames is where they have all landed.
         static constexpr unsigned sStatsReportDelay = 3;
 
-        SDL_Window* mWindow = nullptr;
-
-        /// Held so the destructor can let the GL context go while the window it is bound to still
-        /// exists. The base holds the camera and is destroyed last, so releasing the viewer does
-        /// not on its own release what the camera points at.
-        osg::ref_ptr<SDLUtil::GraphicsWindowSDL> mGraphicsWindow;
+        /// Before the viewer, so it goes after it. The base holds the camera and is destroyed last,
+        /// so releasing the viewer does not on its own release the context the camera points at.
+        std::unique_ptr<GlWindow> mWindow;
 
         osg::ref_ptr<osgViewer::Viewer> mViewer;
 

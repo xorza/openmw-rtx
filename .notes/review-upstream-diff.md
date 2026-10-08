@@ -63,13 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.6 `GlRenderer` owns its SDL window and GL context by hand.**
-  `glrenderer.hpp:220,225`, `glrenderer.cpp:196-210` (order by hand), `:252-270` (`createWindow`
-  throws after `mWindow` is set, and only `SDL_Quit` reclaims it). `RtxWindow` already holds its
-  window in a `unique_ptr`. Target: a `GlWindow` beside `RtxWindow` that closes the graphics window,
-  then destroys the SDL window, declared before the viewer.
-  Verify: `./omw full build`, then start and quit the rasterizer (needs a window).
-
 - [ ] **2.7 The mirror compares and dereferences raw pointers across frames without a hold.**
   `mirror/materialresolver.hpp:246` (`ChainShape::mCallbacks`), `:320` (`Animated::mUpdaters`),
   `mirror/emitterresolver.hpp:120` (`HeldSprite::mSprite`). The game frees updaters it removes
