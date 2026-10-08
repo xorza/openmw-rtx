@@ -119,7 +119,7 @@ namespace Rtx
         /// What poses `mesh`: its deformer's kind, or `Deform::None` for a mesh that stands.
         Deform kindOf(const MeshRange& mesh) const
         {
-            return mesh.deforms() ? mRows.at(mesh.mDeformer).mKind : Deform::None;
+            return mesh.deforms() ? rowAt(mesh.mDeformer).mKind : Deform::None;
         }
 
         std::span<const std::uint32_t> getRuns() const { return mRuns.getAll(); }

@@ -71,7 +71,7 @@ namespace Rtx
         /// what it stops naming given back.
         bool set(TextureTable& textures, Index material, const Material& what);
 
-        void hold(Index material) { mRows.hold(material); }
+        void hold(Index material) { holdRow(material); }
 
         /// Gives one hold on `material` back, and frees it where that was the last: what it named
         /// goes back to `textures`, and its layer and mask runs to their allocators.

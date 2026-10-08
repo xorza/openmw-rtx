@@ -52,7 +52,7 @@ namespace Rtx
 
     Index DeformerTable::take(const Deformer& deformer)
     {
-        const Index index = mRows.take(deformer);
+        const Index index = takeRow(deformer);
         mArrived.addMakingRoom(index);
         return index;
     }
@@ -100,7 +100,7 @@ namespace Rtx
     {
         assert(range.deforms() && "a pose for a mesh nothing deforms");
 
-        const Deformer& deformer = mRows.at(range.mDeformer);
+        const Deformer& deformer = rowAt(range.mDeformer);
 
         const std::span<PoseWord> held
             = mPoses.in(Run{ .mOffset = range.mPoseOffset, .mCount = deformer.getPoseWords() });
@@ -118,7 +118,7 @@ namespace Rtx
     std::span<const PoseWord> DeformerTable::getMeshPose(const MeshRange& range) const
     {
         assert(range.deforms());
-        return getPoses().subspan(range.mPoseOffset, mRows.at(range.mDeformer).getPoseWords());
+        return getPoses().subspan(range.mPoseOffset, rowAt(range.mDeformer).getPoseWords());
     }
 
     void DeformerTable::release(MeshRange& range)
@@ -128,20 +128,20 @@ namespace Rtx
 
         mBindRuns.release(Run{ .mOffset = range.mBindOffset, .mCount = range.mVertices.mCount });
 
-        Deformer& deformer = mRows.at(range.mDeformer);
+        Deformer& deformer = rowAt(range.mDeformer);
         mPoses.release(Run{ .mOffset = range.mPoseOffset, .mCount = deformer.getPoseWords() });
 
         // The deformer goes with its last mesh, and its runs with it — every run it holds, and
         // an empty one is nothing to release. Nothing downstream is told: what a backend holds of
         // a deformer is data at an offset, read by no frame once no mesh names it, and the next
         // one to land in the run is what names it again.
-        if (mRows.drop(range.mDeformer))
+        if (dropRow(range.mDeformer))
         {
             mRuns.release(deformer.mRuns);
             mInfluences.release(deformer.mInfluences);
             mOffsets.release(deformer.mOffsets);
             deformer = Deformer{};
-            mRows.free(range.mDeformer);
+            freeRow(range.mDeformer);
             mArrived.remove(range.mDeformer);
         }
 
@@ -160,8 +160,8 @@ namespace Rtx
 
         // And a run of words, zeroed. A first pose may equal them, and `MeshRange::mPosed` is what
         // says it names the mesh regardless.
-        mRows.hold(range.mDeformer);
-        range.mPoseOffset = mPoses.allocateZeroed(mRows.at(range.mDeformer).getPoseWords()).mOffset;
+        holdRow(range.mDeformer);
+        range.mPoseOffset = mPoses.allocateZeroed(rowAt(range.mDeformer).getPoseWords()).mOffset;
     }
 
     void DeformerTable::compact()
