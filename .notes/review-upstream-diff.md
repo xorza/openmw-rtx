@@ -54,12 +54,6 @@ What is left:
 
 ### Harness, `./omw` and CI
 
-- [ ] **5.21 Small harness consolidations.**
-  `runStops` (`main.cpp:524`) and `runInfo` (`:400`) have one caller each. `commandShot` and
-  `commandBench` (`:742-860`) repeat the hash-output setup, so one `hashInto` serves both.
-  `crashpadmonitor.cpp:511-519` creates the package folder for a session with no dumps.
-  `stopwriter.cpp:366` divides by hand where `Rtx::megabytes` exists.
-
 - [ ] **5.22 `./omw` exit statuses.**
   `tools/omw/main.py:72,78`, `testing.py:45`, `game.py:268` return a negative `returncode`, so
   SIGSEGV exits 245, not 139. `main.py:145-146`: `omw help` exits 2. Target: one `status(code)`

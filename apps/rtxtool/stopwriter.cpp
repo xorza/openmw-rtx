@@ -58,6 +58,7 @@
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/framezone.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -363,7 +364,7 @@ namespace RtxTool
                         std::format("  {:<6}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
                                     "{:>8.1f} MiB, {:>9.1f} ms running\n",
                             thread, name, counted.mAsked, counted.mHits, counted.mKeyMs,
-                            double(counted.mKeyBytes) / (1024.0 * 1024.0), counted.mRunMs));
+                            Rtx::megabytes(counted.mKeyBytes), counted.mRunMs));
                 else
                     into.mRecord.note(std::format("  {:<6}{:<12} {:>7} asked, {:>9.1f} ms running\n", thread, name,
                         counted.mAsked, counted.mRunMs));

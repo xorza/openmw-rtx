@@ -510,6 +510,10 @@ namespace Crash
         /// shell shares. Where it is, and empty where none was written.
         std::filesystem::path packageSession(MonitorState& monitor, std::span<const std::filesystem::path> dumps)
         {
+            // A session that left no dump has nothing to package, and leaves no folder behind.
+            if (dumps.empty())
+                return {};
+
             // A folder the configuration names may not exist yet; one that cannot be made fails the
             // package, which says so below.
             const std::filesystem::path folder = monitor.getReportFolder();
