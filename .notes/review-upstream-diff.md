@@ -55,14 +55,6 @@ What is left:
 Measure each against the baseline bench (median, p99, worst frame), on a quiet desktop, in the
 background.
 
-- [ ] **4.3 A path string is allocated each time a texture is taken.**
-  `mirror/materialresolver.cpp:363` and `emitterresolver.cpp:124,146` build a
-  `VFS::Path::Normalized` per material adoption, and twice per emitter arrival. Target: a scratch on
-  `ThreadContent` that normalizes in place into a persistent string and returns a `NormalizedView`,
-  as `ImageFactCache::of` does.
-  Verify: an allocation test for a second material over a standing image;
-  `./omw test components-tests --gtest_filter='RtxSceneExtractorTest.*'`.
-
 - [ ] **4.4 `CellHolds::mModels` shifts owning rows on every insert.**
   `mirror/held.hpp:272`, `held.cpp:291-344`. A sorted `flat_set` of rows that each own a vector moves
   every later row, on the frame thread, for each new model. Target: a

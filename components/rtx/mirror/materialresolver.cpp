@@ -365,7 +365,7 @@ namespace Rtx
         {
             // Held, because this entry is the reference. `mTextureOf` says why a slot the map names
             // has to be one nothing else can hand out.
-            slot = mScene.takeTexture(VFS::Path::Normalized(image->getFileName()), *image, use.mWrap, encoding);
+            slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding);
             if (slot.empty())
                 held.mRefused.refuse(bit, freed);
         }
