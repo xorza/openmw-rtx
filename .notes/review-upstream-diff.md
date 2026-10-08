@@ -54,11 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.10 `FrameRing::close` marks the slot submitted before the submit.**
-  `framering.cpp:157-164`. A `DeviceError` from the submit leaves the slot `Submitted` with a stale
-  value and `mFrame` unchanged. Target: submit first, then step the state and advance.
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxFrameRingTest.*'`.
-
 - [ ] **1.11 Attaching a world is a pair nothing enforces, and a throwing constructor breaks it.**
   `apps/openmw/mwrender/renderingmanager.cpp:184` attaches, and only `~RenderingManager` (`:205`)
   detaches. `updateProjectionMatrix()` at `:200` throws at `:962` when `[Camera] viewing distance`
