@@ -125,7 +125,7 @@ set(RTX_TEST_FILES
     rtxvulkan/shaders/sharedconstants.cpp
     rtxvulkan/shaders/shadow.cpp
     rtxvulkan/pipeline/passbindings.cpp
-    rtxvulkan/spirv/spirvbindings.cpp
+    rtxvulkan/spirv/spirvinterface.cpp
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
