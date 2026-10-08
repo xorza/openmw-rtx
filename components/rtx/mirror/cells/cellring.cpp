@@ -143,16 +143,25 @@ namespace Rtx
         return false;
     }
 
-    bool CellRing::handed(const osg::Vec2i& cell) const
+    void CellRing::know(const std::span<PreparedModel* const> models)
     {
-        return std::any_of(
-            mHanded.begin(), mHanded.end(), [&](const PreparedCell* held) { return held->mCell == cell; });
+        for (PreparedModel* model : models)
+            ++mHolds.know(*model).mNamed;
     }
 
-    bool CellRing::handedGrass(const osg::Vec2i& cell) const
+    template <class Prepared>
+    void CellRing::adoptModels(Prepared& prepared)
     {
-        return std::any_of(
-            mHandedGrass.begin(), mHandedGrass.end(), [&](const PreparedGrass* held) { return held->mCell == cell; });
+        ExtractionStats& stats = mAdopter.getStats();
+        mAdopter.getScene().refusals().refuse(prepared.mRefusals);
+        stats.mPreprocessed.mOffFrame += prepared.mPreprocessed;
+
+        for (PreparedModel* model : prepared.mModels)
+        {
+            CellHolds::HeldModel& known = mHolds.knownOf(*model);
+            if (known.mParts.empty())
+                mHolds.adoptParts(known, mAdopter);
+        }
     }
 
     float CellRing::grassBand() const
@@ -172,14 +181,14 @@ namespace Rtx
         for (PreparedCell* cell : mDoneScratch)
         {
             // Counted as it arrives, so the frame knows of every model a cell it may adopt names.
-            for (PreparedModel* model : cell->mModels)
-                ++mHolds.know(*model).mNamed;
+            know(cell->mModels);
 
             // The switch is a setting the game can move while it runs, and a cell read under the
             // other answer is read again. **Never a second copy under the same answer**: the supply
             // reads a cell once while it is on its way (`CellSupply`), and a copy adopted twice
             // would stand every reference twice.
-            Crash::contract(cell->mStatics != mStatics || (!handed(cell->mCell) && !mPlacer.holds(cell->mCell)),
+            Crash::contract(
+                cell->mStatics != mStatics || (!handed(mHanded, cell->mCell) && !mPlacer.holds(cell->mCell)),
                 "the supply handed over a cell the ring already had");
             if (cell->mStatics != mStatics)
                 discard(*cell);
@@ -190,10 +199,9 @@ namespace Rtx
 
         for (PreparedGrass* grass : mDoneGrassScratch)
         {
-            for (PreparedModel* model : grass->mModels)
-                ++mHolds.know(*model).mNamed;
+            know(grass->mModels);
 
-            Crash::contract(!handedGrass(grass->mCell) && !mPlacer.holdsGrass(grass->mCell),
+            Crash::contract(!handed(mHandedGrass, grass->mCell) && !mPlacer.holdsGrass(grass->mCell),
                 "the supply handed over a cell's grass the ring already had");
             mHandedGrass.push_back(grass);
             ++mTaken;
@@ -232,7 +240,7 @@ namespace Rtx
         mBandCells = 0;
         grid.forEachCellWithin(eye, band, [&](const osg::Vec2i& cell) {
             ++mBandCells;
-            if (!mPlacer.holds(cell) && !handed(cell))
+            if (!mPlacer.holds(cell) && !handed(mHanded, cell))
                 mAsking.mCells.push_back(cell);
         });
 
@@ -242,7 +250,7 @@ namespace Rtx
         if (grassBand > 0.0f)
             grid.forEachCellWithin(eye, grassBand, [&](const osg::Vec2i& cell) {
                 ++mGrassBandCells;
-                if (!mPlacer.holdsGrass(cell) && !handedGrass(cell))
+                if (!mPlacer.holdsGrass(cell) && !handed(mHandedGrass, cell))
                     mAsking.mGrass.push_back(cell);
             });
 
@@ -315,22 +323,12 @@ namespace Rtx
     void CellRing::adopt(PreparedCell& cell)
     {
         const Crash::NoteScope noted("adopting the cell {}, {}", cell.mCell.x(), cell.mCell.y());
-
-        ExtractionStats& stats = mAdopter.getStats();
-        mAdopter.getScene().refusals().refuse(cell.mRefusals);
-        stats.mPreprocessed.mOffFrame += cell.mPreprocessed;
-
-        for (PreparedModel* model : cell.mModels)
-        {
-            CellHolds::HeldModel& known = mHolds.knownOf(*model);
-            if (known.mParts.empty())
-                mHolds.adoptParts(known, mAdopter);
-        }
+        adoptModels(cell);
 
         // The ground after the models, as the groundcover's: where the texture table has no room
         // left, the ground's layers take the neutral texel and the models keep theirs, as the
         // ground gives way where the device's room runs out (`TextureArray::write`).
-        mPlacer.holdCell(cell, mAround, stats, mHolds);
+        mPlacer.holdCell(cell, mAround, mAdopter.getStats(), mHolds);
 
         mSupply.giveBack().mCells.push_back(&cell);
     }
@@ -338,17 +336,7 @@ namespace Rtx
     void CellRing::adopt(PreparedGrass& grass)
     {
         const Crash::NoteScope noted("adopting the groundcover of the cell {}, {}", grass.mCell.x(), grass.mCell.y());
-
-        ExtractionStats& stats = mAdopter.getStats();
-        mAdopter.getScene().refusals().refuse(grass.mRefusals);
-        stats.mPreprocessed.mOffFrame += grass.mPreprocessed;
-
-        for (PreparedModel* model : grass.mModels)
-        {
-            CellHolds::HeldModel& known = mHolds.knownOf(*model);
-            if (known.mParts.empty())
-                mHolds.adoptParts(known, mAdopter);
-        }
+        adoptModels(grass);
 
         mPlacer.holdGrass(grass, mHolds);
 

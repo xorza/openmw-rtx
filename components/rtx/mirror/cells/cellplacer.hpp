@@ -186,6 +186,11 @@ namespace Rtx
         template <class Held, class Keep, class LetGo>
         std::size_t dropHeldUnless(HeldSet<Held>& held, Recycled<Held>& spares, Keep keep, LetGo letGo);
 
+        /// Appends to `into` one placement for each part of `model` as `adopted` stands it, where
+        /// `ref` stands the model, in `state`: what a cell's references and a cell's grass share.
+        static void appendPlacements(const PreparedModel& model, const CellHolds::HeldModel& adopted,
+            const PreparedRef& ref, const ReferenceState& state, std::vector<Placement>& into);
+
         /// Fills `held.mPlacements` from the cell's references, one per part of each model as
         /// `holds` adopted it, disabled where a script said so, and sorted for `place`; and
         /// `held.mLights` from the cell's lamps, with what the game said of each.

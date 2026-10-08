@@ -52,14 +52,6 @@ What is left:
 
 ## Phase 5 — design and simplification
 
-### Mirror
-
-- [ ] **5.4 Cell and grass adoption repeat each other.**
-  `cellring.cpp:135-145,161-189,304-345`, `cellplacer.cpp:356-375` against `:463-478`. Target:
-  `CellRing::adoptModels`, a template for the "handed" test, and `CellPlacer::appendPlacements` used
-  by both callers.
-  Verify: `./omw test components-tests --gtest_filter='RtxCellRing*'`.
-
 ### Core
 
 - [ ] **5.5 Vulkan vocabulary and backend names in the core.**
