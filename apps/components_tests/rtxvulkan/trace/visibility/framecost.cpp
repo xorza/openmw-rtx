@@ -18,6 +18,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>

@@ -13,6 +13,7 @@
 
 #include "texturedata.hpp"
 #include "textureencoding.hpp"
+#include "textureformat.hpp"
 
 namespace Resource
 {

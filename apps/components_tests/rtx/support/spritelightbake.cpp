@@ -6,6 +6,7 @@
 #include <cstddef>
 
 #include <components/rtx/image/alphaimage.hpp>
+#include <components/rtx/image/textureformat.hpp>
 
 namespace Rtx::Testing
 {

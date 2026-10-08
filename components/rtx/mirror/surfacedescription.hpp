@@ -15,6 +15,7 @@
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/surface.hpp>
 

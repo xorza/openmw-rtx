@@ -15,6 +15,7 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/formatcensus.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>

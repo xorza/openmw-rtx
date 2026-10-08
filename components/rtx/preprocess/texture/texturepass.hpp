@@ -60,13 +60,13 @@ namespace Rtx
         /// image no reader here decodes.
         const std::optional<TextureData>& get() const { return mFinest; }
 
-        AlphaScratch& getScratch() { return mScratch; }
+        TexelScratch& getScratch() { return mScratch; }
 
         /// Lets go of the image and its description.
         void clear();
 
     private:
-        AlphaScratch mScratch;
+        TexelScratch mScratch;
         osg::ref_ptr<const osg::Image> mImage;
         std::optional<TextureData> mFinest;
     };
@@ -75,7 +75,7 @@ namespace Rtx
     /// the key described, so an image is read once for both. `Answer` is handed nothing for an image
     /// no reader here decodes.
     template <ContentPassId Id, std::uint32_t Version, class Result,
-        Result (*Answer)(const std::optional<TextureData>& finest, AlphaScratch& scratch)>
+        Result (*Answer)(const std::optional<TextureData>& finest, TexelScratch& scratch)>
     class TexturePass
     {
     public:
@@ -111,11 +111,11 @@ namespace Rtx
 
     /// Whether a texture's alpha ever reaches solid — `reachesSolid`. True for an image no reader
     /// here decodes, which is the answer that changes nothing about how the surface is traced.
-    bool solidReachOf(const std::optional<TextureData>& finest, AlphaScratch& scratch);
+    bool solidReachOf(const std::optional<TextureData>& finest, TexelScratch& scratch);
 
     /// What a texel of a texture is worth on average — `meanTexel`. Nothing for an image no reader
     /// here decodes.
-    MeanTexel texelMeanOf(const std::optional<TextureData>& finest, AlphaScratch& scratch);
+    MeanTexel texelMeanOf(const std::optional<TextureData>& finest, TexelScratch& scratch);
 
     /// Asked of a translucent material's own diffuse map, whose texels it walks up to the first
     /// solid one.

@@ -8,8 +8,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/shaders/storageformat.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 

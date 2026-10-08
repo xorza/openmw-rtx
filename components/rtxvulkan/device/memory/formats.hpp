@@ -8,6 +8,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/shaders/storageformat.h>
 
 namespace Rtx

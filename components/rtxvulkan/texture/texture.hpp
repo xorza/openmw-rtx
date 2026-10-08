@@ -14,6 +14,7 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/hosttypes.h>

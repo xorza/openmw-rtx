@@ -15,6 +15,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>

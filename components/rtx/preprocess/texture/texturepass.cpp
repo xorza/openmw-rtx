@@ -8,6 +8,7 @@
 #include <osg/Image>
 
 #include <components/rtx/image/alphaimage.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 
 namespace Rtx
@@ -49,12 +50,12 @@ namespace Rtx
         digest.add(finest.mBytes.subspan(from, bytes));
     }
 
-    bool solidReachOf(const std::optional<TextureData>& finest, AlphaScratch&)
+    bool solidReachOf(const std::optional<TextureData>& finest, TexelScratch&)
     {
         return !finest.has_value() || reachesSolid(*finest);
     }
 
-    MeanTexel texelMeanOf(const std::optional<TextureData>& finest, AlphaScratch& scratch)
+    MeanTexel texelMeanOf(const std::optional<TextureData>& finest, TexelScratch& scratch)
     {
         return finest.has_value() ? meanTexel(*finest, scratch) : MeanTexel();
     }

@@ -22,7 +22,7 @@
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/image/texels.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/refusal.hpp>

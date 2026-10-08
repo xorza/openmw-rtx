@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 
 namespace Rtx::Testing
 {

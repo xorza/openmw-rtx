@@ -22,7 +22,7 @@
 #include <components/rtx/common/halffloat.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "texels.hpp"
+#include "textureformat.hpp"
 
 namespace Rtx
 {
