@@ -1,6 +1,7 @@
 #include "presenter.hpp"
 
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <SDL3/SDL_video.h>
@@ -194,8 +195,8 @@ namespace Rtx
         if (image.mPresented.has_value())
             image.mPresented->settle(mDevice, "the presentation engine letting go of this image");
 
-        const VkCommandBuffer commands = image.mCommands;
-        mDevice.getPool().begin(commands);
+        Recording recording = mDevice.getPool().begin(image.mCommands);
+        const VkCommandBuffer commands = recording.get();
 
         frame.transition(commands, PresentTarget::sResting, Use::sBlitRead);
 
@@ -268,7 +269,7 @@ namespace Rtx
             .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             .deviceIndex = 0,
         };
-        const std::uint64_t blitted = mDevice.getPool().submit(commands,
+        const std::uint64_t blitted = std::move(recording).submit(
             std::span<const VkSemaphoreSubmitInfo>(&wait, 1), std::span<const VkSemaphoreSubmitInfo>(&signal, 1));
 
         acquisition.mBlit = blitted;

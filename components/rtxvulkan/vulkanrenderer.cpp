@@ -367,18 +367,17 @@ namespace Rtx
         // The placement's own submit, without a wait. The frame's trace, later on the queue,
         // covers this submit too. Nothing recorded is nothing submitted, which is every frame of a
         // standing camera in an empty place.
-        const VkCommandBuffer placement = mRing.takePlaceCommands(frame);
-        mDevice.getPool().begin(placement);
+        Recording placement = mDevice.getPool().begin(mRing.takePlaceCommands(frame));
 
         if (held.place(scene,
                 Placing{
-                    .mCommands = placement,
+                    .mCommands = placement.get(),
                     .mSlot = into,
                     .mTimer = &frame.mTimer,
                 }))
-            mDevice.getPool().submit(placement);
+            std::move(placement).submit();
         else
-            mDevice.getPool().end(placement);
+            std::move(placement).end();
 
         held.placed(into);
 
@@ -601,8 +600,8 @@ namespace Rtx
             mMedia.resetRipples();
 
         GpuTimer& timer = frame.mTimer;
-        const VkCommandBuffer commands = frame.mWorld.mCommands;
-        mDevice.getPool().begin(commands);
+        Recording trace = mRing.recordWorld(frame);
+        const VkCommandBuffer commands = trace.get();
 
         // The glare fader's query starts the frame at nothing, ahead of the trace that counts.
         mDisplay.beginGlare(commands);
@@ -707,7 +706,7 @@ namespace Rtx
 
         // Submitted and not waited for: `finishFrame` or `collectFrame` brings the counts and the
         // report back a frame or two late.
-        mRing.submit(frame);
+        mRing.submit(frame, std::move(trace));
 
         // What the next frame reprojects against, and the camera as the caller gave it: a jitter is
         // where inside a pixel this frame sampled, not where the eye was.

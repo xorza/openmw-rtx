@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <utility>
 #include <vector>
 
 #include <components/rtxvulkan/device/commands.hpp>
@@ -77,8 +78,8 @@ namespace Rtx
                     mTextures.alphaOf(batch.mTexture) });
         }
 
-        const VkCommandBuffer commands = slot.mCommands;
-        mDevice.getPool().begin(commands);
+        Recording recording = mDevice.getPool().begin(slot.mCommands);
+        const VkCommandBuffer commands = recording.get();
         picture.transition(commands, PresentTarget::sResting, Use::sFragmentGeneralSample);
         shown.transition(commands, Use::sUndefined, Use::sColourAttachment);
         mPass.record(commands, shown, slot.mVertices.get(), mDraws);
@@ -87,7 +88,7 @@ namespace Rtx
         picture.addTransition(rested, Use::sFragmentGeneralSample, PresentTarget::sResting);
         shown.addTransition(rested, Use::sColourAttachment, PresentTarget::sResting);
         rested.flush();
-        mDevice.getPool().submit(commands);
+        std::move(recording).submit();
 
         ++mDrawn;
     }

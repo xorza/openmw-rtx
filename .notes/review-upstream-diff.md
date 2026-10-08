@@ -63,31 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.2 Frame, placement, GUI and present recordings are begun and closed by hand.**
-  `vulkanrenderer.cpp:605→710` (the trace), `:371→379/381` (a placement), `framering.cpp:153→161`
-  (`skip`), `gui/guidrawer.cpp:81→90`, `present/presenter.cpp:202→275`. Each span is local to one
-  function. `renderFrame` runs outside `Engine::frame`'s `try` (`engine.cpp:124-258`), so a throw in
-  an open frame ends the game: a pipeline compile rethrown by `VisibilityPass::kernels()`, or a
-  `GrowableBuffer::outgrow`. The buffer stays in `CommandPool::mOpen`, and `~VulkanRenderer`'s
-  `drain()` reaches `submitWithDeferred`'s `mOpen.empty()` assert. The crash report then names the
-  assert, not the error.
-  Target: `CommandPool::begin(VkCommandBuffer)` returns a `[[nodiscard]]`, move-only `Recording`.
-  - `std::move(recording).submit(waits, signals)` returns the timeline value, and
-    `std::move(recording).end()` ends it unsubmitted. Both consume it. The pool's raw `begin`,
-    `end` and `submit` go private.
-  - Its destructor, for a recording still open, discards it when an exception is unwinding
-    (`std::uncaught_exceptions()` above its count at construction), and asserts otherwise, as
-    `~Batch` does.
-  - `FrameRing::begin` hands out the frame's `Recording` beside its `FrameRecord`, and
-    `FrameRing::submit` consumes it, so the slot's state steps with the recording.
-  - `FrameRing`'s teardown accepts a slot left `Begun` by an unwound frame (`framering.cpp:90`
-    already reads that state; check that `finishAll` does not assert on it).
-
-  Depends on 2.1.
-  Verify: a test that throws inside a recorded frame and then destroys the renderer, with the
-  original exception reaching the test;
-  `./omw test rtx-gpu-tests --gtest_filter='RtxBatchTest.*:RtxFrameRingTest.*:RtxFramesTest.*'`.
-
 - [ ] **2.3 Command buffers handed out by the pool have no owner.**
   `commands.cpp:145-175` (`take`, `allocate`), `framering.cpp:63`, `gui/guidrawer.cpp:24`,
   `present/presenter.cpp:84,105`. `FrameRing` and `GuiDrawer` never give theirs back, `Presenter`

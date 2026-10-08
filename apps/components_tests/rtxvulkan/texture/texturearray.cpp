@@ -67,9 +67,9 @@ namespace Rtx
 
             Testing::HeldSubmit hold(device);
             const VkCommandBuffer binder = pool.allocate(1).front();
-            pool.begin(binder);
+            Recording binding = pool.begin(binder);
             EXPECT_NE(textures.getSet(FrameSlot{ 0 }), VK_NULL_HANDLE);
-            hold.submit(binder);
+            hold.submit(std::move(binding));
 
             // Long enough that a wait which returned at once is told from one that waited, under three
             // shards of this binary sharing the device.

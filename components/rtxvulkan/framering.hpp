@@ -24,6 +24,7 @@ namespace Rtx
 {
     class Device;
     class Image;
+    class Recording;
 
     /// One command buffer and the timeline value it was submitted under.
     struct Submission
@@ -150,9 +151,13 @@ namespace Rtx
         void readDigest(FrameRecord& frame, VkCommandBuffer commands,
             const std::array<const Image*, Shaders::DIGEST_IMAGES>& images, const FrameDigest& facts, GpuTimer* timer);
 
-        /// Submits what a frame recorded and counts it as in flight, with its counts ordered for
-        /// the host after every pass that could have written them.
-        void submit(FrameRecord& frame);
+        /// The recording of `frame`'s trace, begun on the frame's own buffer. An exception that
+        /// leaves it unsubmitted leaves the frame begun, and the next trace begins it again.
+        Recording recordWorld(FrameRecord& frame);
+
+        /// Submits what a frame recorded into `world`, `recordWorld`'s, and counts it as in flight,
+        /// with its counts ordered for the host after every pass that could have written them.
+        void submit(FrameRecord& frame, Recording&& world);
 
         /// Whether the frame being recorded was begun and not yet submitted.
         bool isOpen() const { return mSlots.at(getRecordingSlot()).mState.get() == FrameState::Begun; }
@@ -205,7 +210,7 @@ namespace Rtx
         /// Waits until the ring has a slot for the next frame.
         void makeRoom();
 
-        void close(FrameRecord& frame, bool traced);
+        void close(FrameRecord& frame, bool traced, Recording&& world);
 
         std::optional<FrameResult> takeReport();
 

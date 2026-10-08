@@ -132,8 +132,7 @@ namespace Rtx
         // Neither ended nor submitted: a buffer still being recorded is not pending, so this is
         // where a recording nobody wants goes back. Reset first, because a begin resets a buffer
         // that was ended and not one still recording.
-        close(commands);
-        checkVk(vkResetCommandBuffer(commands, 0), "vkResetCommandBuffer");
+        unwind(commands);
         recycle(std::span<const VkCommandBuffer>(&commands, 1));
     }
 
@@ -225,11 +224,63 @@ namespace Rtx
         mRetiringStaging.hold(readUntil, std::size_t{ block });
     }
 
-    void CommandPool::begin(VkCommandBuffer commands)
+    Recording CommandPool::begin(VkCommandBuffer commands)
     {
         assert(std::ranges::find(mOpen, commands) == mOpen.end() && "a recording begun twice");
         mOpen.push_back(commands);
-        open(commands);
+        try
+        {
+            open(commands);
+        }
+        catch (...)
+        {
+            close(commands);
+            throw;
+        }
+        return Recording(*this, commands);
+    }
+
+    void CommandPool::unwind(VkCommandBuffer commands)
+    {
+        close(commands);
+        checkVk(vkResetCommandBuffer(commands, 0), "vkResetCommandBuffer");
+    }
+
+    Recording::Recording(CommandPool& pool, VkCommandBuffer commands)
+        : mPool(pool)
+        , mCommands(commands)
+        , mUnwinding(std::uncaught_exceptions())
+    {
+    }
+
+    Recording::Recording(Recording&& other) noexcept
+        : mPool(other.mPool)
+        , mCommands(std::exchange(other.mCommands, VK_NULL_HANDLE))
+        , mUnwinding(other.mUnwinding)
+    {
+    }
+
+    Recording::~Recording()
+    {
+        if (mCommands == VK_NULL_HANDLE)
+            return;
+
+        assert(std::uncaught_exceptions() > mUnwinding && "a recording neither submitted nor ended");
+        tearDown("a recording an exception left would not be reset", [&] { mPool.unwind(mCommands); });
+    }
+
+    std::uint64_t Recording::submit(
+        std::span<const VkSemaphoreSubmitInfo> waits, std::span<const VkSemaphoreSubmitInfo> signals) &&
+    {
+        const std::uint64_t submitted = mPool.submit(mCommands, waits, signals);
+        mCommands = VK_NULL_HANDLE;
+        return submitted;
+    }
+
+    void Recording::end() &&
+    {
+        mPool.end(mCommands);
+        mCommands = VK_NULL_HANDLE;
     }
 
     void CommandPool::open(VkCommandBuffer commands)
