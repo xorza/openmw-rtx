@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -147,7 +148,22 @@ namespace Rtx
         std::span<const Placement> placementsIn(const osg::Vec2i& cell) const { return mPlacer.placementsIn(cell); }
 
     private:
-        bool handed(const osg::Vec2i& cell) const;
+        /// Whether the supply handed over and the frame has not adopted `cell`'s, a cell or a
+        /// cell's grass, as `list` holds them.
+        template <class Prepared>
+        static bool handed(const std::vector<Prepared*>& list, const osg::Vec2i& cell)
+        {
+            return std::any_of(list.begin(), list.end(), [&](const Prepared* held) { return held->mCell == cell; });
+        }
+
+        /// Counts one more cell naming each of `models`, so the frame knows of every model a cell
+        /// it may adopt names.
+        void know(std::span<PreparedModel* const> models);
+
+        /// What adopting a cell and a cell's grass share: the reader's refusals and its figures
+        /// taken, and the parts of each of the prepared's models the frame has not adopted yet.
+        template <class Prepared>
+        void adoptModels(Prepared& prepared);
 
         /// Moves the supply's finished cells into the frame's own list, counting their models. A
         /// cell read with the statics the other way is let go of here.
@@ -178,9 +194,6 @@ namespace Rtx
         /// Lets go of a handed cell, or a handed cell's grass, the frame will not adopt.
         void discard(PreparedCell& cell);
         void discard(PreparedGrass& grass);
-
-        /// Whether a cell's grass the supply handed over and the frame has not adopted is `cell`'s.
-        bool handedGrass(const osg::Vec2i& cell) const;
 
         /// The grass disc's radius: the groundcover's reach and the prepared band past it, nought
         /// where the world has no groundcover.
