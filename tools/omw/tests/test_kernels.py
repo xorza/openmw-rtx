@@ -1,7 +1,8 @@
 import struct
+import threading
 import unittest
 
-from omw.kernels import Setting, SpecConstant, header_count, keyed, moved, settings, spec_constants
+from omw.kernels import Setting, SpecConstant, header_count, keyed, map_cancelling, moved, settings, spec_constants
 from omw.system import Refusal
 
 MAGIC = 0x07230203
@@ -105,6 +106,32 @@ class MovedTest(unittest.TestCase):
         self.assertEqual(str(refused.exception), "before.txt:2 is no `<module> <tuple> <digest>` line of a "
                                                  "listing: '-- Configuring done (4.1s)'")
 
+
+
+class MapCancellingTest(unittest.TestCase):
+    def test_every_item_in_order_and_the_first_failure_cancels_what_has_not_started(self):
+        self.assertEqual(map_cancelling(lambda item: item * 2, [3, 1, 2], 2), [6, 2, 4])
+        self.assertEqual(map_cancelling(lambda item: item, [], 2), [])
+
+        # One worker, so the items run one after another: the second refuses, and of the hundred
+        # behind it none starts but the one the worker may have taken before the refusal was seen,
+        # which stands a tenth of a second as a tuple stands far longer.
+        started: list[int] = []
+        lock = threading.Lock()
+
+        def refusing(item: int) -> int:
+            with lock:
+                started.append(item)
+            if item == 1:
+                raise Refusal("item 1")
+            if item > 1:
+                threading.Event().wait(0.1)
+            return item
+
+        with self.assertRaises(Refusal):
+            map_cancelling(refusing, list(range(102)), 1)
+        self.assertEqual(started[:2], [0, 1])
+        self.assertLessEqual(len(started), 3)
 
 if __name__ == "__main__":
     unittest.main()
