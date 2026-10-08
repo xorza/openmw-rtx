@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <optional>
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
@@ -46,6 +47,30 @@ namespace Rtx
                 return left < right;
             }
         };
+
+        /// The entry of `list` whose cell comes first by `nearer`, or its end where it is empty.
+        template <class Prepared>
+        auto nearestOf(std::vector<Prepared*>& list, const Nearer& nearer)
+        {
+            return std::min_element(list.begin(), list.end(),
+                [&](const Prepared* left, const Prepared* right) { return nearer(left->mCell, right->mCell); });
+        }
+
+        /// The first of `asked` where it comes before every cell of `handed`, which a settled walk
+        /// waits for: the nearest cell it wants and does not have yet. Nothing where a handed cell
+        /// comes first, or nothing is asked.
+        template <class Prepared>
+        std::optional<osg::Vec2i> owedOf(
+            const std::vector<osg::Vec2i>& asked, std::vector<Prepared*>& handed, const Nearer& nearer)
+        {
+            if (asked.empty())
+                return std::nullopt;
+
+            const auto nearest = nearestOf(handed, nearer);
+            if (nearest != handed.end() && nearer((*nearest)->mCell, asked.front()))
+                return std::nullopt;
+            return asked.front();
+        }
     }
 
     CellRing::CellRing(SceneAdopter& adopter)
@@ -280,13 +305,16 @@ namespace Rtx
 
     void CellRing::waitForNext(const osg::Vec3f& eye, const float band, const float grassBand)
     {
-        // A cell read under the other answer to the statics switch, or one of a band that left, is
-        // not what the wait waited for: the first thing the reader hands over after a move is
-        // usually a cell nothing wants any more. The grass the same: a settled walk adopts its one
-        // cell's grass on the frame two runs agree on, or their pictures part.
-        const bool cells = !mAsking.mCells.empty();
-        const bool grass = !mAsking.mGrass.empty();
-        while ((cells && mHanded.empty()) || (grass && mHandedGrass.empty()))
+        // **The nearest cell wanted, and not the first handed.** Everything in the band is asked
+        // or handed, so nothing that arrives during the wait comes before it. A cell read under the
+        // other answer to the statics switch, or one of a band that left, is not what the wait
+        // waited for: the first thing the reader hands over after a move is usually a cell nothing
+        // wants any more. The grass the same: a settled walk adopts its one cell's grass on the
+        // frame two runs agree on, or their pictures part.
+        const Nearer nearer{ .mGrid = mAround.mWorld.mGrid, .mEye = eye };
+        const std::optional<osg::Vec2i> cell = owedOf(mAsking.mCells, mHanded, nearer);
+        const std::optional<osg::Vec2i> grass = owedOf(mAsking.mGrass, mHandedGrass, nearer);
+        while ((cell.has_value() && !handed(mHanded, *cell)) || (grass.has_value() && !handed(mHandedGrass, *grass)))
         {
             const bool read = mSupply.waitForOne();
             takeDone();
@@ -299,24 +327,27 @@ namespace Rtx
         }
     }
 
-    void CellRing::adoptHanded(const std::size_t frame)
+    void CellRing::adoptHanded(const std::size_t frame, const osg::Vec3f& eye)
     {
         // One cell a frame, and one frame walked twice adopts once. A cell's meshes are copied
         // into the scene and its structures built by the hand-over that follows; two on one frame
         // would be the batch behind a threshold this renderer never takes. A settled walk keeps the
         // rule and waits for its one cell, which is what `setSettled` says.
+        const Nearer nearer{ .mGrid = mAround.mWorld.mGrid, .mEye = eye };
         if (!mHanded.empty() && mAdoptedFrame != frame)
         {
             mAdoptedFrame = frame;
-            adopt(*mHanded.front());
-            mHanded.erase(mHanded.begin());
+            const auto nearest = nearestOf(mHanded, nearer);
+            adopt(**nearest);
+            mHanded.erase(nearest);
         }
 
         if (!mHandedGrass.empty() && mGrassAdoptedFrame != frame)
         {
             mGrassAdoptedFrame = frame;
-            adopt(*mHandedGrass.front());
-            mHandedGrass.erase(mHandedGrass.begin());
+            const auto nearest = nearestOf(mHandedGrass, nearer);
+            adopt(**nearest);
+            mHandedGrass.erase(nearest);
         }
     }
 
@@ -484,11 +515,10 @@ namespace Rtx
         // Waited for after the ask that names it and never before, because what the reader is
         // about to hand back is what that ask asked for. Nothing was asked for where the band is
         // whole, and then there is nothing to wait for.
-        if (mSettled
-            && ((mHanded.empty() && !mAsking.mCells.empty()) || (mHandedGrass.empty() && !mAsking.mGrass.empty())))
+        if (mSettled)
             waitForNext(eye, band, grass);
 
-        adoptHanded(frame);
+        adoptHanded(frame, eye);
 
         stats.mLights += mPlacer.place(mAround);
 
