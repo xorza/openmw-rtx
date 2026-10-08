@@ -147,25 +147,3 @@ Video Settings
    (often 60 frames per second).
    Choosing to limit the frame rate using this setting instead of vsync may reduce input lag
    due to the game not having to wait for the vertical blanking interval.
-
-
-.. omw-setting::
-   :title: contrast
-   :type: float32
-   :range: > 0.0
-   :default: 1.0
-
-   This setting controls the contrast correction of the rendered scene.
-   It does not apply to the GUI or to videos.
-
-
-.. omw-setting::
-   :title: gamma
-   :type: float32
-   :range: > 0.0
-   :default: 1.0
-   :location: :bdg-success:`Launcher > Display` :bdg-info:`In Game > Options > Video > Detail Level`
-
-   This setting controls the gamma correction of the rendered scene.
-   Gamma is an exponent that makes colors brighter if greater than 1.0 and darker if less than 1.0.
-   It does not apply to the GUI or to videos.

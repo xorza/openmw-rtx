@@ -16,8 +16,6 @@ namespace MWRender
         Shader::ShaderManager& shaderManager, const std::shared_ptr<LuminanceCalculator>& luminanceCalculator)
         : mFallbackStateSet(new osg::StateSet)
         , mMultiviewResolveStateSet(new osg::StateSet)
-        , mInverseGammaUniform(new osg::Uniform("inverseGamma", 1.f))
-        , mContrastUniform(new osg::Uniform("contrast", 1.f))
         , mLuminanceCalculator(luminanceCalculator)
     {
         setUseDisplayList(false);
@@ -37,32 +35,15 @@ namespace MWRender
         Shader::ShaderManager::DefineMap defines;
         Stereo::shaderStereoDefines(defines);
 
-        mFallbackProgram = shaderManager.getProgram("fullscreen_tri", { { "gammaContrast", "0" } });
-        mFallbackGammaContrastProgram = shaderManager.getProgram("fullscreen_tri", { { "gammaContrast", "1" } });
+        mFallbackProgram = shaderManager.getProgram("fullscreen_tri");
 
         mFallbackStateSet->setAttributeAndModes(mFallbackProgram);
         mFallbackStateSet->addUniform(new osg::Uniform("lastShader", 0));
         mFallbackStateSet->addUniform(new osg::Uniform("scaling", osg::Vec2f(1, 1)));
-        mFallbackStateSet->addUniform(mInverseGammaUniform);
-        mFallbackStateSet->addUniform(mContrastUniform);
 
-        mMultiviewResolveProgram = shaderManager.getProgram("multiview_resolve", { { "gammaContrast", "0" } });
-        mMultiviewResolveGammaContrastProgram
-            = shaderManager.getProgram("multiview_resolve", { { "gammaContrast", "1" } });
+        mMultiviewResolveProgram = shaderManager.getProgram("multiview_resolve");
         mMultiviewResolveStateSet->setAttributeAndModes(mMultiviewResolveProgram);
         mMultiviewResolveStateSet->addUniform(new osg::Uniform("lastShader", 0));
-        mMultiviewResolveStateSet->addUniform(mInverseGammaUniform);
-        mMultiviewResolveStateSet->addUniform(mContrastUniform);
-    }
-
-    void PingPongCanvas::setGammaContrast(float gamma, float contrast)
-    {
-        mGammaContrast = gamma != 1.f || contrast != 1.f;
-        mFallbackStateSet->setAttributeAndModes(mGammaContrast ? mFallbackGammaContrastProgram : mFallbackProgram);
-        mMultiviewResolveStateSet->setAttributeAndModes(
-            mGammaContrast ? mMultiviewResolveGammaContrastProgram : mMultiviewResolveProgram);
-        mInverseGammaUniform->set(1.f / gamma);
-        mContrastUniform->set(contrast);
     }
 
     void PingPongCanvas::setPasses(Fx::DispatchArray&& passes)
@@ -213,11 +194,6 @@ namespace MWRender
 
         auto buffer = buffers[0];
 
-        // A technique's resolve shader has no gamma or contrast, so it goes into a ping-pong buffer and an extra
-        // draw applies them. Under multiview, the multiview resolve applies them.
-        const bool deferResolve = mGammaContrast && !Stereo::getMultiview();
-        bool resolveDeferred = false;
-
         int lastDraw = 0;
         int lastShader = 0;
 
@@ -307,7 +283,6 @@ namespace MWRender
                 const auto& pass = node.mPasses[passIndex];
 
                 bool lastPass = passIndex == node.mPasses.size() - 1;
-                const bool resolve = pass.mResolve && index == filtered.back();
 
                 // VR-TODO: This won't actually work for tex2darrays
                 if (lastShader == 0)
@@ -332,7 +307,7 @@ namespace MWRender
 
                     lastApplied = pass.mRenderTarget->getHandle(state.getContextID());
                 }
-                else if (resolve && !deferResolve)
+                else if (pass.mResolve && index == filtered.back())
                 {
                     bindDestinationFbo();
                     if (!destinationFbo && !Stereo::getMultiview())
@@ -342,7 +317,6 @@ namespace MWRender
                 }
                 else if (lastPass)
                 {
-                    resolveDeferred = resolveDeferred || resolve;
                     lastDraw = buffer[0];
                     lastShader = buffer[0];
                     mFbos[buffer[0] - GL_COLOR_ATTACHMENT0_EXT]->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
@@ -352,7 +326,6 @@ namespace MWRender
                 }
                 else
                 {
-                    resolveDeferred = resolveDeferred || resolve;
                     mFbos[buffer[0] - GL_COLOR_ATTACHMENT0_EXT]->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
                     lastDraw = buffer[0];
                     std::swap(buffer[0], buffer[1]);
@@ -382,22 +355,6 @@ namespace MWRender
             }
 
             state.popStateSet();
-        }
-
-        if (resolveDeferred)
-        {
-            bindDestinationFbo();
-            if (!destinationFbo)
-                resolveViewport->apply(state);
-            state.pushStateSet(mFallbackStateSet);
-            state.apply();
-            state.applyTextureAttribute(
-                0, mFbos[lastDraw - GL_COLOR_ATTACHMENT0_EXT]->getAttachment(osg::Camera::COLOR_BUFFER0).getTexture());
-
-            drawGeometry(renderInfo);
-
-            state.popStateSet();
-            state.apply();
         }
 
         if (Stereo::getMultiview())

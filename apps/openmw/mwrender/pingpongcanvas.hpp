@@ -58,14 +58,11 @@ namespace MWRender
 
         void setPostProcessing(bool enabled) { mPostprocessing = enabled; }
 
-        void setGammaContrast(float gamma, float contrast);
-
         const osg::ref_ptr<osg::Texture>& getSceneTexture(size_t frameId) const { return mTextureScene; }
 
     private:
         bool mAvgLum = false;
         bool mPostprocessing = false;
-        bool mGammaContrast = false;
 
         Fx::DispatchArray mPasses;
         Fx::FlagsType mMask = 0;
@@ -74,12 +71,6 @@ namespace MWRender
         osg::ref_ptr<osg::Program> mMultiviewResolveProgram;
         osg::ref_ptr<osg::StateSet> mFallbackStateSet;
         osg::ref_ptr<osg::StateSet> mMultiviewResolveStateSet;
-
-        // Separate programs, as a GPU does not evaluate a gamma and contrast of one exactly.
-        osg::ref_ptr<osg::Program> mFallbackGammaContrastProgram;
-        osg::ref_ptr<osg::Program> mMultiviewResolveGammaContrastProgram;
-        osg::ref_ptr<osg::Uniform> mInverseGammaUniform;
-        osg::ref_ptr<osg::Uniform> mContrastUniform;
 
         osg::ref_ptr<osg::Texture> mTextureScene;
         osg::ref_ptr<osg::Texture> mTextureDepth;
