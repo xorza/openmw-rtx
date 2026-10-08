@@ -25,6 +25,7 @@
 
 #include <components/misc/result.hpp>
 #include <components/nifosg/autotransform.hpp>
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
@@ -539,11 +540,12 @@ namespace Rtx
         // turns only under a cull visitor and this walk is none: handed itself, `computeMatrix`
         // keeps whatever rotation a cull last left, which in this renderer is the one the file was
         // authored with. The three vectors go in the node's own frame, which is what a cull stack
-        // hands it too. A walk told no eye leaves the billboard where it stands.
-        if (auto* billboard = as<NifOsg::AutoTransform>(kind, NodeKind::Billboard, node);
-            billboard != nullptr && mEye.has_value())
+        // hands it too. A walk told no eye leaves the billboard where it stands, and so does a frame
+        // with no inverse — a scale of nought above it — which has no way into the node's own.
+        osg::Matrixd toLocal;
+        if (auto* billboard = as<NifOsg::AutoTransform>(kind, NodeKind::Billboard, node); billboard != nullptr
+            && mEye.has_value() && toLocal.invert(osg::Matrixd(above) * osg::Matrixd(mRoot)) && toLocal.valid())
         {
-            const osg::Matrixd toLocal = osg::Matrixd::inverse(osg::Matrixd(above) * osg::Matrixd(mRoot));
             const osg::Vec3d eyeLocal = osg::Vec3d(mEye->mOrigin) * toLocal;
             const osg::Vec3d lookLocal = osg::Matrixd::transform3x3(osg::Vec3d(mEye->mForward), toLocal);
             const osg::Vec3d upLocal = osg::Matrixd::transform3x3(osg::Vec3d(mEye->mUp), toLocal);
@@ -887,6 +889,16 @@ namespace Rtx
         if (read.mGeometry == nullptr)
         {
             ++stats.mSkippedUnknown;
+            return;
+        }
+
+        // **A place that is not finite stands nothing**, as a sprite's and a lamp's do not: a NaN
+        // in the top level is a structure the trace walks to no answer, every frame it stands.
+        if (!isFinite(place))
+        {
+            mScene.refusals().refuse(Refused::Mesh, drawable.getName(), "its place is not a finite number");
+            if (mRecording)
+                mRecorded.push_back(FrozenKey{ .mDrawable = &drawable });
             return;
         }
 

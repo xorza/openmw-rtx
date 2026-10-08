@@ -52,15 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.11 A non-finite placement transform reaches the top level.**
-  `mirror/sceneextractor.cpp:546` inverts a world matrix that a zero-scale ancestor makes singular.
-  `:167` and `:924-976` place the transform unchecked. Sprites and lamps already refuse non-finite
-  data (`emitterresolver.cpp:281`, `lightbuilder.cpp:180-187`). Target: in `enterTransform`, fall
-  back to `computeLocalToWorldMatrix` when the inverse fails or is not valid. In `addDrawable`,
-  refuse a placement with a non-finite element once (`Refused::Mesh`).
-  Verify: tests for a billboard under a zero scale and a NaN `MatrixTransform`;
-  `./omw test components-tests --gtest_filter='RtxSceneExtractorTest.*'`, `./omw check`.
-
 - [ ] **3.12 A mapped normal of zero length becomes a NaN.** Approved, though it can move
   `HAS_MAPS=1` pictures by a rounding.
   `shaders/lib/traversal.glsl:1176,1268-1269`, `shaders/texture/normalspread.comp:76`. `decodeNormal`

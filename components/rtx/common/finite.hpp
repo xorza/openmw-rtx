@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include <osg/Matrixf>
 #include <osg/Vec3f>
 
 namespace Rtx
@@ -12,5 +13,15 @@ namespace Rtx
     inline bool isFinite(const osg::Vec3f& value)
     {
         return std::isfinite(value.x()) && std::isfinite(value.y()) && std::isfinite(value.z());
+    }
+
+    /// Whether every element of `value` is a finite number.
+    inline bool isFinite(const osg::Matrixf& value)
+    {
+        for (int row = 0; row < 4; ++row)
+            for (int column = 0; column < 4; ++column)
+                if (!std::isfinite(value(row, column)))
+                    return false;
+        return true;
     }
 }
