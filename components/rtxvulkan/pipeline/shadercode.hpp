@@ -49,17 +49,24 @@ namespace Rtx
     /// and handed to each stage inline: `maintenance5` takes a stage's code in its `pNext`, so no
     /// `VkShaderModule` is made, named or destroyed. Kept by whoever makes the pipelines that share
     /// a file, and only until they are made: the driver reads the words during the create call.
+    ///
+    /// **Every file read where this is made, with its interface**, so nothing after reads again:
+    /// the trace's variants made one of these each and read its 1.5 MB closest-hit module once
+    /// apiece. Read-only once made, so the hands of a parallel compile share one.
     class ShaderCode
     {
     public:
-        explicit ShaderCode(const Device& device);
+        /// Reads every one of `modules`, each checked for being the one the build wrote, because a
+        /// truncated `.spv` is otherwise a driver crash with no explanation.
+        ///
+        /// @throws InputError where a file cannot be read or is not a module.
+        ShaderCode(const Device& device, std::span<const std::string_view> modules);
 
         ShaderCode(const ShaderCode&) = delete;
         ShaderCode& operator=(const ShaderCode&) = delete;
 
-        /// What the `pNext` of a stage that runs `module` points at, valid while this lives. The file
-        /// is read on the first ask, and checked for being the one the build wrote, because a
-        /// truncated `.spv` is otherwise a driver crash with no explanation.
+        /// What the `pNext` of a stage that runs `module`, one this read, points at, valid while
+        /// this lives.
         ///
         /// **And the module's interface held to what the C++ states beside the GLSL**: its bindings
         /// to the layout's `sets` (`bindingDisagreement`), its specialization constants to `words`
@@ -67,10 +74,8 @@ namespace Rtx
         /// (`pushDisagreement`). A disagreement ends the process as a crash naming the module and
         /// what disagrees, where the device would read a resource as another, a constant would take
         /// its default, or a push would be read past what was written.
-        ///
-        /// @throws InputError where the file cannot be read or is not a module.
         const void* stage(std::string_view module, const SetTables& sets, std::uint32_t pushBytes,
-            std::span<const std::uint32_t> words);
+            std::span<const std::uint32_t> words) const;
 
         /// Holds the inputs of `module`, a vertex stage `stage` already read, to `attributes`
         /// (`inputDisagreement`), and ends the process as a crash naming the module where one is
@@ -80,6 +85,11 @@ namespace Rtx
     private:
         /// Reads `module` onto the end of `mRead`.
         void readModule(std::string_view module);
+
+        struct Read;
+
+        /// What this read of `module`, which it must have.
+        const Read& readOf(std::string_view module) const;
 
         /// One file's words and the structures a stage chains, which point into the words and at
         /// one another: a deque, so a later read moves none of them.

@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <string_view>
 
 #include <volk.h>
 
@@ -21,6 +22,9 @@ namespace Rtx
 {
     namespace
     {
+        /// The two stages both pipelines of the pass run.
+        constexpr std::array<std::string_view, 2> sModules{ "line.vert.spv", "line.frag.spv" };
+
         /// The trace's surface channel, whose distance every fragment reads.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::LINE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
@@ -47,15 +51,15 @@ namespace Rtx
             options.mColourFormat = targetFormat;
             options.mBlend = Blend::Over;
             options.mTopology = topology;
-            options.mVertexModule = "line.vert.spv";
-            options.mFragmentModule = "line.frag.spv";
+            options.mVertexModule = sModules[0];
+            options.mFragmentModule = sModules[1];
             options.mName = topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ? "debug lines" : "debug triangles";
             return options;
         }
     }
 
     LinePass::LinePass(const Device& device)
-        : LinePass(device, ShaderCode(device))
+        : LinePass(device, ShaderCode(device, sModules))
     {
     }
 

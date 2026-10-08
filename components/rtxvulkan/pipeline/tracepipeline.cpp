@@ -35,7 +35,8 @@ namespace Rtx
     }
 
     Owned<VkPipeline, vkDestroyPipeline> makeTracePipeline(const Device& device, const PipelineLayout& layout,
-        const TraceShaders& shaders, const std::string_view name, const std::span<const std::uint32_t> specialization)
+        const ShaderCode& code, const TraceShaders& shaders, const std::string_view name,
+        const std::span<const std::uint32_t> specialization)
     {
         PipelineCreation creation(device, name);
         const bool anyHitWanted = !shaders.mAnyHit.empty();
@@ -44,7 +45,6 @@ namespace Rtx
         // closest-hit stage stands behind a run of groups. The handles come back in group order,
         // which is the order `ShaderBindingTable` fills its records in. Nor is a stage a file: the
         // closest-hit stages may all run one module under their own constants.
-        ShaderCode code(device);
 
         // Each stage's own table, kept until the pipeline is made because the info the stage names
         // points into it: its module names its word of the census, and a closest-hit stage may

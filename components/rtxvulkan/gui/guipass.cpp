@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 #include <volk.h>
 
@@ -20,6 +21,9 @@ namespace Rtx
 {
     namespace
     {
+        /// The two stages every pipeline of the pass runs.
+        constexpr std::array<std::string_view, 2> sModules{ "gui.vert.spv", "gui.frag.spv" };
+
         /// One texture, pushed per batch. Nothing else: a GUI vertex carries its own colour and
         /// its own position, and there is no transform to hand down.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
@@ -66,8 +70,8 @@ namespace Rtx
             options.mBlend = blend;
             options.mSource = source;
             options.mSpecialization = premultiplied ? sPremultiplied : sStraight;
-            options.mVertexModule = "gui.vert.spv";
-            options.mFragmentModule = "gui.frag.spv";
+            options.mVertexModule = sModules[0];
+            options.mFragmentModule = sModules[1];
             if (blend == Blend::None)
                 options.mName = "gui picture";
             else if (blend == Blend::Additive)
@@ -79,7 +83,7 @@ namespace Rtx
     }
 
     GuiPass::GuiPass(const Device& device)
-        : GuiPass(device, ShaderCode(device))
+        : GuiPass(device, ShaderCode(device, sModules))
     {
     }
 

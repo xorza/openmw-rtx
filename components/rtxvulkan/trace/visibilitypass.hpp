@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -18,6 +19,7 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
 
 namespace Rtx
@@ -331,6 +333,12 @@ namespace Rtx
         /// it is asked — the one way to them, so no launch can be recorded from a table still being
         /// filled. A shared future's read once it is ready.
         const Kernels& kernels() const;
+
+        /// Every trace module the kernels run, read once with its interface by the compile before its
+        /// hands start, and shared by them: on the compile's thread, so a file that cannot be read
+        /// is thrown to every ask of the kernels as a kernel that cannot be made is. Before the
+        /// compile, so its hands are joined before the code goes.
+        std::optional<ShaderCode> mCode;
 
         Kernels mKernels;
 

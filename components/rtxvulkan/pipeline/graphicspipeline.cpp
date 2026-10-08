@@ -14,8 +14,8 @@
 
 namespace Rtx
 {
-    Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(
-        const Device& device, const PipelineLayout& layout, const GraphicsPipelineOptions& options, ShaderCode& code)
+    Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(const Device& device, const PipelineLayout& layout,
+        const GraphicsPipelineOptions& options, const ShaderCode& code)
     {
         PipelineCreation creation(device, options.mName);
         const Specialization vertexConstants(device, options.mVertexModule, options.mSpecialization);

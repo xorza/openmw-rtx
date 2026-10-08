@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <span>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -27,6 +28,8 @@ namespace Rtx
     namespace
     {
         using RtxShaderCodeTest = Testing::DeviceTest;
+
+        constexpr std::array<std::string_view, 1> sRaygen{ "visibility.rgen.spv" };
 
         /// The code at the end of a stage's chain, past the name where the device names objects.
         const VkShaderModuleCreateInfo& codeOf(const Device& device, const void* stage)
@@ -111,13 +114,16 @@ namespace Rtx
             return sets;
         }
 
-        /// **A file is read once however many stages name it**: a second ask hands back the chain
-        /// the first made, which holds the whole file — its size in bytes and the magic number
-        /// first — and **another file is a chain of its own**, which a later read moves none of.
+        /// **A file is read once however many stages name it**, where the code is made: a module
+        /// named twice is one read, every ask hands back the chain that read made, which holds the
+        /// whole file — its size in bytes and the magic number first — and **another file is a
+        /// chain of its own**.
         TEST_F(RtxShaderCodeTest, aFileIsReadOnceAndEveryStageNamingItSharesTheRead)
         {
             const Device& device = *mHarness.mDevice;
-            ShaderCode code(device);
+            constexpr std::array<std::string_view, 3> modules{ "visibilityhit.rchit.spv", "visibility.rgen.spv",
+                "visibilityhit.rchit.spv" };
+            const ShaderCode code(device, modules);
             const ModuleTables hitTables = tablesOf(device, "visibilityhit.rchit.spv");
             const ModuleTables raygenTables = tablesOf(device, "visibility.rgen.spv");
 
@@ -144,10 +150,16 @@ namespace Rtx
             }
         }
 
+        /// A file that is not a module is refused where the code is made, and a stage of a module the
+        /// code was not made to read is a contract broken.
         TEST_F(RtxShaderCodeTest, aFileThatIsNotSpirvIsRejectedRatherThanHandedToTheDriver)
         {
-            ShaderCode code(*mHarness.mDevice);
-            EXPECT_THROW(code.stage("there-is-no-such-shader.spv", SetTables{}, 0, {}), InputError);
+            constexpr std::array<std::string_view, 1> missing{ "there-is-no-such-shader.spv" };
+            EXPECT_THROW(ShaderCode(*mHarness.mDevice, missing), InputError);
+
+            const ShaderCode none(*mHarness.mDevice, {});
+            Testing::expectDies([&] { static_cast<void>(none.stage("visibility.rgen.spv", SetTables{}, 0, {})); },
+                "a stage of a module its shader code was not made to read");
         }
 
         /// **A stage whose module states its bindings otherwise than the layout ends the process,
@@ -162,8 +174,8 @@ namespace Rtx
             sets[Shaders::SET_PASS] = &nothing;
             Testing::expectDies(
                 [&] {
-                    ShaderCode code(device);
-                    code.stage("visibility.rgen.spv", sets, tables.mPushBytes, tables.mWords);
+                    const ShaderCode code(device, sRaygen);
+                    static_cast<void>(code.stage("visibility.rgen.spv", sets, tables.mPushBytes, tables.mWords));
                 },
                 // `.+` for the number: gtest reads its own syntax on Windows, which has no bracket
                 // class, and POSIX's elsewhere, which has no `\d`.
@@ -173,8 +185,8 @@ namespace Rtx
             const std::span<const std::uint32_t> cut(tables.mWords.data(), tables.mWords.size() - 1);
             Testing::expectDies(
                 [&] {
-                    ShaderCode code(device);
-                    code.stage("visibility.rgen.spv", named(tables), tables.mPushBytes, cut);
+                    const ShaderCode code(device, sRaygen);
+                    static_cast<void>(code.stage("visibility.rgen.spv", named(tables), tables.mPushBytes, cut));
                 },
                 "visibility.rgen.spv: specialization constant .+ is past the .+ words the stage is handed");
         }
