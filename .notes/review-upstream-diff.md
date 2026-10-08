@@ -63,14 +63,6 @@ Items 2.1 to 2.3 give the command pool one model, so each owns one thing:
 The pool's `mOpen` list stays the pool's own check that no other submit is made while a recording
 is open.
 
-- [ ] **2.8 `CellRing`'s teardown depends on `detach`.**
-  `mirror/cellring.cpp:56` (`~CellRing() = default`), `held.hpp:124-125`. `~SceneExtractor`
-  (`sceneextractor.cpp:625-633`) gives everything back. Target: when no exception unwinds,
-  `~CellRing` runs `forget()`, then `releaseHolds()`. `WorldMirror` declares the extractor first, so
-  the adopter outlives the ring.
-  Verify: `./omw test openmw-tests --gtest_filter='RtxWorldMirrorTest.*'`,
-  `./omw test components-tests --gtest_filter='RtxCellRingTest.*'`.
-
 - [ ] **2.9 A moved-from `SceneDesc` keeps its identity.**
   `scene/scenedesc.hpp:55-56`, `scenedesc.cpp:31`. The copy is deleted because two descriptions must
   not share one identity, but the defaulted move leaves the source with it. Production never moves

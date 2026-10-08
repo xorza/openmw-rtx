@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
@@ -53,7 +54,17 @@ namespace Rtx
     {
     }
 
-    CellRing::~CellRing() = default;
+    CellRing::~CellRing()
+    {
+        // What the frame holds goes back to the adopter, which outlives the ring, whether or not a
+        // detach came first. Not while an exception unwinds, where the scene is whatever the throw
+        // left, and each hold's own assert stands aside for it.
+        if (std::uncaught_exceptions() == 0)
+        {
+            forget();
+            releaseHolds();
+        }
+    }
 
     void CellRing::follow(const WorldAround& around)
     {
