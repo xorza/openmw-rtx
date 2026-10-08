@@ -54,12 +54,6 @@ What is left:
 
 Where a pairing caused the bug, the item replaces the pairing and not only the one site.
 
-- [ ] **1.13 `Engine::~Engine` moved the renderer's end before the queues'.**
-  `apps/openmw/engine.cpp:357-360`. Upstream ends the unref and work queues, then the viewer. The seam
-  needed `mRenderer` in `mViewer`'s place, not a new order. Neither renderer reads either queue.
-  Target: `mRenderer = nullptr;` after `mWorkQueue = nullptr;`, as upstream has it.
-  Verify: `./omw test`, quit both renderers under `./omw asan game`.
-
 - [ ] **1.14 `omw setup` leaves a half-written `openmw.cfg` when the importer fails.**
   `tools/omw/game.py:283-291`. The next `omw setup` then refuses ("is already there"). Target: write
   and import into `openmw.cfg.partial`, and rename only on success, as `fetch.build_beside` does.
