@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from omw.game import parse_folders
 from omw.system import EXE, Refusal, on_path, refuse_unsupported, resolved
@@ -41,6 +42,17 @@ class SystemTest(unittest.TestCase):
                                  os.path.normcase(listed / f"tool{EXE}"))
                 self.assertIsNone(on_path("tool", str(empty)))
                 self.assertIsNone(on_path("tool", ""))
+
+            # Each of `PATHEXT`'s extensions is tried on Windows, where Python 3.11's `which` tries
+            # none for a name with a folder, and a name that carries one is taken as it is.
+            sdk = listed / "glslc.EXE"
+            sdk.write_bytes(b"")
+            sdk.chmod(0o755)
+            with mock.patch("omw.system.WINDOWS", True), mock.patch.dict(os.environ, {"PATHEXT": ".COM;.EXE"}):
+                for program, expected in (("glslc", sdk), ("glslc.EXE", sdk), ("glslc.COM", None)):
+                    found = on_path(program, str(listed))
+                    self.assertEqual(found and os.path.normcase(found), expected and os.path.normcase(expected),
+                                     program)
 
 
 class FoldersTest(unittest.TestCase):
