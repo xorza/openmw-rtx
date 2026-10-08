@@ -25,6 +25,7 @@
 #include <osg/Geometry>
 #include <osg/GraphicsContext>
 #include <osg/GraphicsThread>
+#include <osg/Group>
 #include <osg/Image>
 #include <osg/Matrix>
 #include <osg/Node>
@@ -81,6 +82,7 @@
 #include "glmapoverlay.hpp"
 #include "gloffscreenview.hpp"
 #include "glsupport.hpp"
+#include "glwindow.hpp"
 #include "glworld.hpp"
 #include "groundcover.hpp"
 #include "mapoverlay.hpp"
@@ -97,12 +99,6 @@ namespace
 {
     /// What the cull and the update masks are left at while a screen covers the world.
     constexpr unsigned int sCoveredCullMask = MWRender::Mask_GUI | MWRender::Mask_PreCompile;
-
-    void checkSDLError(bool succeeded)
-    {
-        if (!succeeded)
-            Log(Debug::Error) << "SDL error: " << SDL_GetError();
-    }
 
     void initStatsHandler(Resource::Profiler& profiler)
     {
@@ -198,104 +194,20 @@ namespace MWRender
         mScreenshotManager.reset();
         mStereoManager.reset();
         mViewer = nullptr;
+    }
 
-        // `SDL_GL_DestroyContext` on a window that has already gone is undefined, and the graphics
-        // window would otherwise be torn down whenever the base lets the camera go.
-        if (mGraphicsWindow != nullptr)
-            mGraphicsWindow->close();
-        mGraphicsWindow = nullptr;
-
-        if (mWindow != nullptr)
-            SDL_DestroyWindow(mWindow);
+    SDL_Window* GlRenderer::getWindow() const
+    {
+        return mWindow->get();
     }
 
     void GlRenderer::createWindow()
     {
-        const SDLUtil::VSyncMode vsync = Settings::video().mVsyncMode;
-        unsigned antialiasing = static_cast<unsigned>(Settings::video().mAntialiasing);
-
-        // Read when `openWindow` makes the window, so set before it.
-        checkSDLError(SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8));
-        checkSDLError(SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8));
-        checkSDLError(SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8));
-        checkSDLError(SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0));
-        checkSDLError(SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24));
-        if (Debug::shouldDebugOpenGL())
-            checkSDLError(SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG));
-
-        if (antialiasing > 0)
-        {
-            checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1));
-            checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, antialiasing));
-        }
-
-        osg::ref_ptr<SDLUtil::GraphicsWindowSDL>& graphicsWindow = mGraphicsWindow;
-        while (!graphicsWindow || !graphicsWindow->valid())
-        {
-            while (!mWindow)
-            {
-                mWindow = openWindow(SDL_WINDOW_OPENGL);
-                if (!mWindow)
-                {
-                    // Try with a lower AA
-                    if (antialiasing > 0)
-                    {
-                        Log(Debug::Warning) << "Warning: " << antialiasing << "x antialiasing not supported, trying "
-                                            << antialiasing / 2;
-                        antialiasing /= 2;
-                        Settings::video().mAntialiasing.set(antialiasing);
-                        checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, antialiasing));
-                        continue;
-                    }
-                    else
-                    {
-                        std::stringstream error;
-                        error << "Failed to create SDL window: " << SDL_GetError();
-                        throw std::runtime_error(error.str());
-                    }
-                }
-            }
-
-            osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
-            SDL_GetWindowPosition(mWindow, &traits->x, &traits->y);
-            SDL_GetWindowSizeInPixels(mWindow, &traits->width, &traits->height);
-            traits->windowName = SDL_GetWindowTitle(mWindow);
-            traits->windowDecoration = !(SDL_GetWindowFlags(mWindow) & SDL_WINDOW_BORDERLESS);
-            traits->screenNum = SDL_GetDisplayForWindow(mWindow);
-            traits->vsync = 0;
-            traits->inheritedWindowData = new SDLUtil::GraphicsWindowSDL::WindowData(mWindow);
-
-            graphicsWindow = new SDLUtil::GraphicsWindowSDL(traits, vsync);
-            if (!graphicsWindow->valid())
-                throw std::runtime_error("Failed to create GraphicsContext");
-
-            if (traits->samples < antialiasing)
-            {
-                Log(Debug::Warning) << "Warning: Framebuffer MSAA level is only " << traits->samples << "x instead of "
-                                    << antialiasing << "x. Trying " << antialiasing / 2 << "x instead.";
-                graphicsWindow->closeImplementation();
-                SDL_DestroyWindow(mWindow);
-                mWindow = nullptr;
-                antialiasing /= 2;
-                Settings::video().mAntialiasing.set(antialiasing);
-                checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, antialiasing));
-                continue;
-            }
-
-            if (traits->red < 8)
-                Log(Debug::Warning) << "Warning: Framebuffer only has a " << traits->red << " bit red channel.";
-            if (traits->green < 8)
-                Log(Debug::Warning) << "Warning: Framebuffer only has a " << traits->green << " bit green channel.";
-            if (traits->blue < 8)
-                Log(Debug::Warning) << "Warning: Framebuffer only has a " << traits->blue << " bit blue channel.";
-            if (traits->depth < 24)
-                Log(Debug::Warning) << "Warning: Framebuffer only has " << traits->depth << " bits of depth precision.";
-
-            traits->alpha = 0; // set to 0 to stop ScreenCaptureHandler reading the alpha channel
-        }
+        mWindow = std::make_unique<GlWindow>(Settings::video().mVsyncMode);
+        SDLUtil::GraphicsWindowSDL& graphicsWindow = mWindow->getGraphics();
 
         osg::Camera& camera = getCamera();
-        camera.setGraphicsContext(graphicsWindow);
+        camera.setGraphicsContext(&graphicsWindow);
 
         // The projection is `RenderingManager`'s, set from the frame's aspect, and the window being
         // resized is no reason for OSG to stretch it.
@@ -303,7 +215,7 @@ namespace MWRender
 
         if (Stereo::getStereo())
             presentAtNative();
-        presentIn(osg::Vec2i(graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height));
+        presentIn(osg::Vec2i(graphicsWindow.getTraits()->width, graphicsWindow.getTraits()->height));
 
         osg::ref_ptr<SceneUtil::OperationSequence> realizeOperations = new SceneUtil::OperationSequence(false);
         mViewer->setRealizeOperation(realizeOperations);
@@ -387,7 +299,7 @@ namespace MWRender
 #endif
 
         mViewer->getEventQueue()->getCurrentEventState()->setWindowRectangle(
-            0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
+            0, 0, graphicsWindow.getTraits()->width, graphicsWindow.getTraits()->height);
     }
 
     float GlRenderer::getGroundReach() const
@@ -438,7 +350,7 @@ namespace MWRender
         return sceneRoot;
     }
 
-    void GlRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
+    void GlRenderer::onAttachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue&)
     {
         assert(mSceneRoot != nullptr && "the world is built under a root this renderer made");
         mWorld = std::make_unique<GlWorld>(*mViewer, world, worldRoot, *mSceneRoot, getResources());
@@ -448,11 +360,15 @@ namespace MWRender
         mWorld->getPostProcessor().setGamma(Settings::video().mGamma);
 
         // **The chain goes above the world and becomes what is traversed.**
+        mWorldlessRoot = &getTraversalRoot();
         setTraversalRoot(mWorld->getPostProcessor());
     }
 
-    void GlRenderer::detachWorld()
+    void GlRenderer::onDetachWorld()
     {
+        // Nothing of the chain left where the viewer reads it: it holds the world and its sky.
+        mViewer->getCamera()->setUserData(nullptr);
+        setTraversalRoot(*std::exchange(mWorldlessRoot, nullptr));
         mWorld.reset();
         wireFrame();
     }
@@ -801,15 +717,11 @@ namespace MWRender
         mScreenshotManager->screenshot(&image, width, height);
     }
 
-    void GlRenderer::setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer)
-    {
-        Renderer::setScreenshotWriter(writer);
-
-        mScreenshot = new FrameCapture(writer);
-    }
-
     void GlRenderer::saveScreenshot()
     {
+        if (mScreenshot == nullptr)
+            mScreenshot = new FrameCapture(getScreenshotWriter());
+
         const Misc::Presentation& presentation = getPresentation();
         mScreenshot->arm(mFrameFbo, presentation.mFrame);
 
@@ -1011,7 +923,7 @@ namespace MWRender
 
     void GlRenderer::windowResized(const int x, const int y, const int width, const int height)
     {
-        mGraphicsWindow->resized(x, y, width, height);
+        mWindow->getGraphics().resized(x, y, width, height);
         mViewer->getEventQueue()->windowResize(x, y, width, height);
         presentIn(osg::Vec2i(width, height));
     }

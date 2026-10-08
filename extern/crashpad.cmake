@@ -33,13 +33,9 @@ if (OPENMW_CRASHPAD)
     set(CRASHPAD_ZLIB_SYSTEM ON CACHE BOOL "" FORCE)
     set(CRASHPAD_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
     set(CRASHPAD_ENABLE_INSTALL_DEV OFF CACHE BOOL "" FORCE)
-    # As a system's headers where CMake can say so, because Chromium's are written against
-    # Chromium's warnings and not this tree's.
-    if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.25)
-        add_subdirectory(${crashpad_SOURCE_DIR} ${crashpad_BINARY_DIR} SYSTEM)
-    else()
-        add_subdirectory(${crashpad_SOURCE_DIR} ${crashpad_BINARY_DIR})
-    endif()
+    # As a system's headers, because Chromium's are written against Chromium's warnings and not this
+    # tree's.
+    add_subdirectory(${crashpad_SOURCE_DIR} ${crashpad_BINARY_DIR} SYSTEM)
 
     # `capture_context_linux.S` states nothing of the stack, and a linker that meets an object
     # without the note makes the whole executable's stack executable, as Ubuntu 24.04's does.

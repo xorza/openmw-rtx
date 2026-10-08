@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <limits>
 #include <optional>
 
@@ -19,11 +20,13 @@
 #include <components/fallback/fallback.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/moonfaces.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/settings/values.hpp>
 #include <components/sky/moonstate.hpp>
 #include <components/sky/skyclock.hpp>
@@ -53,20 +56,25 @@ namespace MWRender
     {
     }
 
-    Rtx::SkyMeshes SkyReader::meshes()
+    Rtx::SkySources SkyReader::sources()
     {
-        return Rtx::SkyMeshes{
+        Rtx::SkySources sources{
             .mClouds = Settings::models().mSkyclouds,
             .mAtmosphere = Settings::models().mSkyatmosphere,
             .mStars = Settings::models().mSkynight02,
             .mStarsFallback = Settings::models().mSkynight01,
+            .mCloudSheets = {},
         };
+        for (std::size_t weather = 0; weather < Rtx::sWeatherCount; ++weather)
+            sources.mCloudSheets[weather] = Fallback::Map::getString(
+                std::format("Weather_{}_Cloud_Texture", Rtx::nameOf(static_cast<Rtx::Weather>(weather))));
+        return sources;
     }
 
     void SkyReader::listAssets(const VFS::Manager& vfs, std::vector<VFS::Path::Normalized>& models,
         std::vector<VFS::Path::Normalized>& textures)
     {
-        const Rtx::SkyMeshes sky = meshes();
+        const Rtx::SkySources sky = sources();
         models.push_back(sky.mClouds);
         models.push_back(sky.mAtmosphere);
         if (vfs.exists(sky.mStars))
@@ -79,8 +87,8 @@ namespace MWRender
 
     void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ThreadContent& thread)
     {
-        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds, thread);
-        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), thread, mHolds);
+        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, thread, mHolds);
+        mSkyContent = Rtx::addSkyContent(scene, scenes, sources(), thread, mHolds);
         mTimescaleClouds = Fallback::Map::getBool("Weather_Timescale_Clouds");
     }
 
@@ -97,19 +105,6 @@ namespace MWRender
         scene.drop(mHolds);
         mSkyContent = Rtx::SkyContent{};
         mMoonFaces = Rtx::MoonFaces{};
-    }
-
-    void SkyReader::holdAir(const Rtx::AirClock& air)
-    {
-        mClock = air.mSky;
-        mDrift.hold(air.mCarried, air.mSky.mSeconds);
-    }
-
-    Rtx::AirClock SkyReader::describe(
-        const Rtx::WorldReading& reading, Rtx::Shaders::VisibilityConstants& constants, Rtx::FrameOptions& options)
-    {
-        Rtx::describeWorld(reading, mDrift, constants, options);
-        return Rtx::AirClock{ .mSky = mClock, .mCarried = mDrift.get() };
     }
 
     Rtx::WorldReading SkyReader::read(const SkyState& sky, const WorldState& world, const Precipitation& falling,
@@ -186,7 +181,7 @@ namespace MWRender
         if (world.mMoonRed)
             moons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint = mMoonPaint;
 
-        // **Nothing recorded is not a rate.** `Weather::transitionDelta` divides by
+        // **Nothing recorded is not a rate.** `MWWorld::Weather::transitionDelta` divides by
         // `Clouds_Maximum_Percent`, which the shipped fallbacks leave at nought for ash and blight,
         // so a transition into either hands over an infinity or a NaN. The rasterizer survives one —
         // a NaN opacity draws nothing and the old sky stays — and a tracer mixes its whole sky by
@@ -209,7 +204,6 @@ namespace MWRender
             .mSkyDrawn = skyShown,
             .mGlare = weather.mGlareView,
             .mStarRoll = Sky::starRoll(world.mGameTime),
-            .mSky = mSkyContent,
             .mMoons = moons,
             .mClouds = Rtx::CloudCrossing{
                 // The sheets the weather names, as the rasterizer is handed them. The one ahead

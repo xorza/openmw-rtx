@@ -339,6 +339,13 @@ namespace Rtx
         mMeshTable.sync(slot);
 
         mLightGrid.rebuild(scene.lights());
+        for (Tables& copy : mTables.live())
+        {
+            if (mLightGrid.wasMadeAgain())
+                copy.mLightCellsOwed.oweEverything();
+            else
+                copy.mLightCellsOwed.owe(mLightGrid.getRewritten());
+        }
 
         // The tables go over as they lie: the scene's rows are the device's, so a placement is a
         // copy and never a conversion. Empty ones included: something has to stand at every
@@ -347,20 +354,38 @@ namespace Rtx
         // device. What stops the shader reading an empty table is its count. Grown past each high
         // by twice, because a crowd walking in raises the high a few rows a frame.
         const std::span<const Light> lights = scene.lights();
-        const std::span<const std::uint32_t> lightList = mLightGrid.getList().getWhole();
+        const std::span<const Shaders::GpuLightCell> lightCells = mLightGrid.getCells();
+        const std::span<const std::uint32_t> lightList = mLightGrid.getList();
         const std::span<const SpriteEmitter> emitters = scene.emitters();
         const std::span<const Sprite> sprites = scene.sprites();
         scene.placements().describePresences(scene.meshes().getRows(), mPresenceScratch);
         const std::span<const Shaders::GpuPresence> presences = mPresenceScratch;
 
         tables.mLights.outgrow(lights.size_bytes());
-        tables.mLightList.outgrow(lightList.size_bytes());
+        if (tables.mLightCells.outgrow(lightCells.size_bytes()))
+            tables.mLightCellsOwed.oweEverything();
+        if (tables.mLightList.outgrow(lightList.size_bytes()))
+            tables.mLightCellsOwed.oweEverything();
         tables.mEmitters.outgrow(emitters.size_bytes());
         tables.mSprites.outgrow(sprites.size_bytes());
         tables.mPresences.outgrow(presences.size_bytes());
 
         tables.mLights.get().write(lights);
-        tables.mLightList.get().write(lightList);
+        if (tables.mLightCellsOwed.owesEverything())
+        {
+            tables.mLightCells.get().write(lightCells);
+            tables.mLightList.get().write(lightList);
+        }
+        else
+            for (const Index cell : tables.mLightCellsOwed.getRows())
+            {
+                const Shaders::GpuLightCell& held = lightCells[cell];
+                tables.mLightCells.get().writeAt(cell * sizeof(Shaders::GpuLightCell), lightCells.subspan(cell, 1));
+                for (std::uint32_t key = 0; key < 2; ++key)
+                    tables.mLightList.get().writeAt(held.mFirst[key] * sizeof(std::uint32_t),
+                        lightList.subspan(held.mFirst[key], held.mCount[key]));
+            }
+        tables.mLightCellsOwed.settle();
         tables.mEmitters.get().write(emitters);
 
         // Unshaded, which is what a trace's bin copies and shades for its own sun.
@@ -382,6 +407,7 @@ namespace Rtx
 
         const Tables& tables = mTables.at(slot);
         tables.mLights.get().waitIdle("a trace still reading a copy's lights");
+        tables.mLightCells.get().waitIdle("a trace still reading a copy's light cells");
         tables.mLightList.get().waitIdle("a trace still reading a copy's light list");
         tables.mEmitters.get().waitIdle("a trace still reading a copy's emitters");
         tables.mSprites.get().waitIdle("a trace's bin still copying a copy's sprites");
@@ -407,12 +433,14 @@ namespace Rtx
         into.mLayers = mLayers.get().addressFor();
         into.mMasks = mMasks.get().addressFor();
         into.mLights = tables.mLights.get().addressFor();
+        into.mLightCells = tables.mLightCells.get().addressFor();
         into.mLightList = tables.mLightList.get().addressFor();
         into.mEmitters = tables.mEmitters.get().addressFor();
     }
 
     SceneBuffers::Tables::Tables(const Device& device)
         : mLights(device, BufferKind::HostWritten, sTableUsage, "lights")
+        , mLightCells(device, BufferKind::HostWritten, sTableUsage, "light cells")
         , mLightList(device, BufferKind::HostWritten, sTableUsage, "light list")
         , mSprites(device, BufferKind::HostWritten, sTableCopiedFromUsage, "sprites")
         , mEmitters(device, BufferKind::HostWritten, sTableUsage, "emitters")
@@ -422,8 +450,8 @@ namespace Rtx
 
     VkDeviceSize SceneBuffers::Tables::getBytes() const
     {
-        return mLights.get().getSize() + mLightList.get().getSize() + mSprites.get().getSize()
-            + mEmitters.get().getSize() + mPresences.get().getSize();
+        return mLights.get().getSize() + mLightCells.get().getSize() + mLightList.get().getSize()
+            + mSprites.get().getSize() + mEmitters.get().getSize() + mPresences.get().getSize();
     }
 
     VkDeviceSize SceneBuffers::getBytes() const

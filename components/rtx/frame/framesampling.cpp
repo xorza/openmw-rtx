@@ -24,26 +24,12 @@ namespace Rtx
             return osg::Vec2f(frame.mEyes.mArms.mBasis.mRight.length() / frame.mEyes.mWorld.mBasis.mRight.length(),
                 frame.mEyes.mArms.mBasis.mUp.length() / frame.mEyes.mWorld.mBasis.mUp.length());
         }
-
-        /// Whether every field `sampleFrame` writes is still what a builder leaves it: nought.
-        [[maybe_unused]] bool leavesSamplingAlone(const Shaders::VisibilityConstants& stated)
-        {
-            return stated.mEyes.mWorld.mJitter == osg::Vec2f() && stated.mEyes.mArms.mJitter == osg::Vec2f()
-                && stated.mNoise == 0u && stated.mLevelBias == 0.0f && stated.mArmsSpread == osg::Vec2f()
-                && stated.mUnitRight == osg::Vec3f() && stated.mUnitUp == osg::Vec3f() && stated.mArmsInFrame == 0u
-                && stated.mCameraMotion == osg::Vec3f() && stated.mAnisotropy == 0.0f
-                && stated.mPrevious.mForward == osg::Vec3f() && stated.mPrevious.mRight == osg::Vec3f()
-                && stated.mPrevious.mUp == osg::Vec3f() && stated.mDelight == 0.0f && stated.mShow == 0u
-                && stated.mLitEnvironmentMaps == 0u && stated.mSoftEdgeDither == 0u && stated.mShadowFloor == 0.0f
-                && stated.mLampCandidates == 0u && stated.mPreviousJitter == osg::Vec2f();
-        }
     }
 
     Shaders::VisibilityConstants sampleFrame(const Shaders::VisibilityConstants& stated, const FrameOptions& options,
         const RenderProfile& profile, const Reconstruction& reconstruction, const InstanceCounts& counts,
         const Shaders::VisibilityConstants* previous)
     {
-        assert(leavesSamplingAlone(stated) && "a frame stated a field its sampling writes; ask through FrameOptions");
         assert(!(reconstruction.mJitter && options.mJitter.has_value())
             && "a frame asked for a fixed offset where the reconstruction walks its own sequence");
 
@@ -62,15 +48,15 @@ namespace Rtx
         // soft edge's texels by their alpha, under which share a source is never drawn for the
         // shadow bit, and how many lamps a composing point draws. A picture's `Reconstruction{}`
         // says the tile, nought, no and the two defaults.
-        sampled.mNoise
-            = reconstruction.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH : Shaders::NOISE_BLUE_TILE;
+        sampled.mNoise = reconstruction.mSampling.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH
+                                                                                   : Shaders::NOISE_BLUE_TILE;
         sampled.mLevelBias = reconstruction.mLevelBias;
         sampled.mSoftEdgeDither = reconstruction.mAveraged ? 1u : 0u;
-        sampled.mShadowFloor = reconstruction.mShadowFloor;
-        sampled.mLampCandidates = reconstruction.mLampCandidates;
+        sampled.mShadowFloor = reconstruction.mSampling.mShadowFloor;
+        sampled.mLampCandidates = reconstruction.mSampling.mLampCandidates;
 
         // The sampler takes the setting as it is: the settings clamp it to sixteen, and a device
-        // with `samplerAnisotropy`, which the requirements ask for, takes at least sixteen.
+        // with anisotropic filtering, which the backends require, takes at least sixteen.
         assert(profile.mAnisotropy >= 1 && "an anisotropy of nought, which no sampler takes");
         sampled.mAnisotropy = static_cast<float>(profile.mAnisotropy);
 

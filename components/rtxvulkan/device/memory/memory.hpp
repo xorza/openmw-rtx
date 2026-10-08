@@ -245,17 +245,39 @@ namespace Rtx
         /// what it asked for itself.
         bool mBudget = false;
 
-        VmaAllocator_T* mAllocator = nullptr;
-
         /// The type video memory is taken out of, and its heap, which is the one a use's room is
-        /// measured on.
+        /// measured on. Ahead of the library's allocator, because a device with none is refused
+        /// before anything is made on it.
         std::uint32_t mVideoType = 0;
         std::uint32_t mVideoHeap = 0;
 
-        /// Content's blocks, one pool for each type of video memory, every block `sBlockBytes`: a
-        /// size of the pool's own, so new memory is exactly a block. Null for the other types,
-        /// which content never asks for.
-        std::array<VmaPool_T*, VK_MAX_MEMORY_TYPES> mContentPools{};
+        /// The library's allocator and content's pools over it, which its destructor ends pools
+        /// first and the allocator last: a member, so whatever throws after the allocator was made
+        /// — a pool the library refuses — leaves nothing of either behind.
+        class Library
+        {
+        public:
+            Library(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device, bool budget, bool priority);
+            ~Library();
+
+            Library(const Library&) = delete;
+            Library& operator=(const Library&) = delete;
+
+            VmaAllocator_T* get() const { return mAllocator; }
+
+            /// Content's blocks over memory type `type`, every block `sBlockBytes`: a size of the
+            /// pool's own, so new memory is exactly a block. Null for a type content never asks for.
+            VmaPool_T* poolOf(std::uint32_t type) const { return mPools[type]; }
+
+            /// Makes the pool over `type`.
+            void makePool(std::uint32_t type);
+
+        private:
+            VmaAllocator_T* mAllocator = nullptr;
+            std::array<VmaPool_T*, VK_MAX_MEMORY_TYPES> mPools{};
+        };
+
+        Library mLibrary;
 
         /// What each use holds on each heap. Atomic, for the threads `take` is reached from.
         std::array<std::array<std::atomic<VkDeviceSize>, sMemoryUses>, VK_MAX_MEMORY_HEAPS> mHeld{};

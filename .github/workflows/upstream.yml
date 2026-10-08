@@ -93,6 +93,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # `master` whatever ref dispatched the run: what is behind upstream is master's count, and
+          # a feature branch's own commits would ride into a pull request that merges itself.
+          ref: master
           # The whole history of commits and none of their trees: the count of commits behind
           # upstream walks the graph and reads no file.
           fetch-depth: 0
@@ -170,6 +173,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The branch is made off master, as the agent is told and the pull request merges into,
+          # whatever ref dispatched the run.
+          ref: master
           # The whole history. A merge needs its merge base, which a shallow clone has not got.
           fetch-depth: 0
           # Nothing to keep: this job pushes nothing.

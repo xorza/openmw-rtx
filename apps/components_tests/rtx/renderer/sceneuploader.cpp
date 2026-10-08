@@ -1,3 +1,4 @@
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -8,8 +9,10 @@
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/layers.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -126,6 +129,37 @@ namespace Rtx
             EXPECT_EQ(crossed.mDropped, std::size_t{ 1 });
             EXPECT_EQ(renderer.mDropped.back(), fourth.mTexture);
             EXPECT_FALSE(renderer.mAppendedToWrongEnd);
+        }
+
+        /// **A material that gains layer and mask runs, and no mesh or texture, is an extension.**
+        /// Runs are staged on an extend alone, and the sum of the mesh and texture revisions that
+        /// decided it did not move: the device was told to place, and read layers it was never
+        /// handed. Over a texture already uploaded, so nothing is described, and placed again after.
+        TEST(RtxSceneUploaderTest, aMaterialThatGainsRunsAndNothingElseIsAnExtension)
+        {
+            Rtx::SceneDesc scene;
+            SceneUploader uploader;
+            Testing::CountingRenderer renderer;
+            const Testing::Model model = Testing::addModel(scene, VFS::Path::NormalizedView("textures/one.dds"));
+            const auto hand = [&] {
+                return uploader.hand(
+                    renderer, Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = scene });
+            };
+            ASSERT_EQ(hand().mKind, SceneUpload::Kind::Rebuilt);
+
+            constexpr std::array<float, 4> weights{ 1.0f, 0.0f, 0.0f, 1.0f };
+            const std::array layers{ Testing::layerOf(model.mTexture),
+                Testing::layerOf(model.mTexture, scene.materials().addMask(weights), 2, 2) };
+            Material layered;
+            layered.mLayers = scene.materials().addLayers(layers);
+            scene.addMaterial(layered);
+
+            const SceneUpload staged = hand();
+            EXPECT_EQ(staged.mKind, SceneUpload::Kind::Extended) << "runs arrived and the device was told to place";
+            EXPECT_EQ(staged.mDescribed, std::size_t{ 0 }) << "no texture arrived";
+            EXPECT_EQ(renderer.mExtended, 1u);
+            EXPECT_EQ(renderer.mRebuilt, 1u);
+            EXPECT_EQ(hand().mKind, SceneUpload::Kind::Placed) << "runs staged once were staged again";
         }
 
         /// What the device could not stand is reported with what the describe could not, once a

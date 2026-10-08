@@ -17,12 +17,11 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -33,6 +32,8 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/moon.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"

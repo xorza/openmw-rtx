@@ -4,25 +4,31 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-#include <string_view>
 
 #include <gtest/gtest.h>
+
+#include <volk.h>
 
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx
@@ -60,9 +66,9 @@ namespace Rtx
             return scene;
         }
 
-        bool reports(std::span<const GpuSpan> spans, std::string_view name)
+        bool reports(std::span<const GpuSpan> spans, FrameZone zone)
         {
-            return std::any_of(spans.begin(), spans.end(), [&](const GpuSpan& span) { return span.mName == name; });
+            return std::any_of(spans.begin(), spans.end(), [&](const GpuSpan& span) { return span.mZone == zone; });
         }
 
         double totalOf(std::span<const GpuSpan> spans)
@@ -85,13 +91,13 @@ namespace Rtx
         };
 
         /// Draws one frame and waits for it, so what comes back is that frame's own report.
-        Drawn draw(Renderer& renderer, Shaders::VisibilityConstants camera, double waterSeconds = 0.0,
+        Drawn draw(VulkanRenderer& renderer, Shaders::VisibilityConstants camera, double waterSeconds = 0.0,
             std::optional<ReconstructionRequest> reconstruction = std::nullopt)
         {
             camera.mWaterTime = splitSeconds(waterSeconds);
             const auto start = std::chrono::steady_clock::now();
-            renderer.renderFrame(
-                camera, FrameOptions{ .mWaterSeconds = waterSeconds, .mReconstruction = reconstruction });
+            renderer.renderFrame(camera, FrameOptions{ .mReconstruction = reconstruction },
+                WorldOptions{ .mWaterSeconds = waterSeconds });
             const std::optional<FrameResult> result = renderer.finishFrame();
             const double wallMs = since(start, std::chrono::steady_clock::now());
 
@@ -130,30 +136,32 @@ namespace Rtx
             // The passes every frame records, whatever it is drawing. `filter` is here too — the
             // shared renderer does not upscale, so the wavelet runs — and is left out of the list
             // because a build without it is not a failure of this.
-            for (const char* const pass : { "trace", "composite", "exposure", "glare", "tone" })
-                EXPECT_TRUE(reports(drawn.mGpu.spans(), pass)) << "no zone called " << pass;
+            for (const FrameZone pass :
+                { FrameZone::Trace, FrameZone::Composite, FrameZone::Exposure, FrameZone::Glare, FrameZone::Tone })
+                EXPECT_TRUE(reports(drawn.mGpu.spans(), pass)) << "no zone called " << sFrameZoneNames.name(pass);
 
             // **And the sea is not among them where the frame has none.** `makeCamera` names no
             // water, so nothing can sample the wave tiles and nothing should synthesise them; a
             // frame that does name a level pays for them once, before the trace — at a moment of
             // the water's clock no test of the shared renderer stood at, since tiles that already
             // hold a frame's moment are read as they stand (`WavePass::holds`).
-            EXPECT_FALSE(reports(drawn.mGpu.spans(), "waves")) << "a dry frame synthesised the sea";
+            EXPECT_FALSE(reports(drawn.mGpu.spans(), FrameZone::Waves)) << "a dry frame synthesised the sea";
 
             Shaders::VisibilityConstants flooded = camera;
             flooded.mWaterLevel = 0.0f;
             constexpr double moment = 7919.25;
             const Drawn wet = draw(mRenderer, flooded, moment);
-            EXPECT_TRUE(reports(wet.mGpu.spans(), "waves")) << "a frame with water in it synthesised no sea";
-            EXPECT_EQ(wet.mGpu.spans().front().mName, "waves")
+            EXPECT_TRUE(reports(wet.mGpu.spans(), FrameZone::Waves)) << "a frame with water in it synthesised no sea";
+            EXPECT_EQ(wet.mGpu.spans().front().mZone, FrameZone::Waves)
                 << "the sea was synthesised somewhere other than before the trace";
-            EXPECT_FALSE(reports(draw(mRenderer, flooded, moment).mGpu.spans(), "waves"))
+            EXPECT_FALSE(reports(draw(mRenderer, flooded, moment).mGpu.spans(), FrameZone::Waves))
                 << "a second frame at the same moment synthesised the same sea again";
 
             for (const GpuSpan& span : drawn.mGpu.spans())
             {
-                EXPECT_GT(span.mMs, 0.0) << span.mName << " took no time at all";
-                EXPECT_LT(span.mMs, 1000.0) << span.mName << " took a second, which is a clock read wrong";
+                EXPECT_GT(span.mMs, 0.0) << sFrameZoneNames.name(span.mZone) << " took no time at all";
+                EXPECT_LT(span.mMs, 1000.0)
+                    << sFrameZoneNames.name(span.mZone) << " took a second, which is a clock read wrong";
             }
 
             // **The containment check, which is what makes these numbers rather than noise.** Every
@@ -166,12 +174,13 @@ namespace Rtx
             // **A frame that placed the world says so, and one that did not, does not.** The
             // structure builds happen in submits of their own before the frame's, and the whole
             // point of carrying them in the same report is that they are the same frame's cost.
-            EXPECT_FALSE(reports(drawn.mGpu.spans(), "tlas")) << "nothing was placed, so nothing was built";
+            EXPECT_FALSE(reports(drawn.mGpu.spans(), FrameZone::Tlas)) << "nothing was placed, so nothing was built";
 
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             const Drawn placed = draw(mRenderer, camera);
 
-            EXPECT_TRUE(reports(placed.mGpu.spans(), "tlas")) << "the top level was rebuilt and went unmeasured";
+            EXPECT_TRUE(reports(placed.mGpu.spans(), FrameZone::Tlas))
+                << "the top level was rebuilt and went unmeasured";
             EXPECT_GT(placed.mGpu.spans().size(), drawn.mGpu.spans().size()) << "placing the world added no zone";
 
             // In the order the work was recorded, which is what lets a reader see the frame rather
@@ -179,17 +188,17 @@ namespace Rtx
             // timeline says is readable by now, and then the top level over it. Nothing before
             // the copy, because a placement is what a frame opens with.
             const std::span<const GpuSpan> zones = placed.mGpu.spans();
-            const auto compact = std::ranges::find(zones, std::string_view("compact"), &GpuSpan::mName);
-            const auto tlas = std::ranges::find(zones, std::string_view("tlas"), &GpuSpan::mName);
+            const auto compact = std::ranges::find(zones, FrameZone::Compact, &GpuSpan::mZone);
+            const auto tlas = std::ranges::find(zones, FrameZone::Tlas, &GpuSpan::mZone);
             ASSERT_NE(tlas, zones.end());
             EXPECT_TRUE(compact == zones.end() || compact < tlas) << "the top level was built before the copy it names";
-            EXPECT_EQ(zones.front().mName, compact == zones.end() ? "tlas" : "compact");
+            EXPECT_EQ(zones.front().mZone, compact == zones.end() ? FrameZone::Tlas : FrameZone::Compact);
 
             // And the report does not accumulate: the frame after is its own again.
             const Drawn after = draw(mRenderer, camera);
             EXPECT_EQ(after.mGpu.spans().size(), drawn.mGpu.spans().size())
                 << "last frame's zones were carried into this one";
-            EXPECT_FALSE(reports(after.mGpu.spans(), "tlas"));
+            EXPECT_FALSE(reports(after.mGpu.spans(), FrameZone::Tlas));
 
             // **A cell arriving says so too, and that is the frame worth having a figure for.** The
             // structures its meshes bring are recorded ahead of the placement and ride its submit,
@@ -201,25 +210,25 @@ namespace Rtx
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             const Drawn arrived = draw(mRenderer, camera);
 
-            EXPECT_TRUE(reports(arrived.mGpu.spans(), "blas"))
+            EXPECT_TRUE(reports(arrived.mGpu.spans(), FrameZone::Blas))
                 << "a mesh arrived and its structure was built unmeasured";
 
             // First, because the builds run before the top level that names what they built, and a
             // duration rather than a bracket that closed on itself.
-            EXPECT_EQ(arrived.mGpu.spans().front().mName, "blas");
+            EXPECT_EQ(arrived.mGpu.spans().front().mZone, FrameZone::Blas);
             EXPECT_GT(arrived.mGpu.spans().front().mMs, 0.0) << "the arrival's builds took no time at all";
 
             // And only on the frame the arrival landed in.
             const Drawn settled = draw(mRenderer, camera);
-            EXPECT_FALSE(reports(settled.mGpu.spans(), "blas")) << "nothing arrived, so nothing was built";
+            EXPECT_FALSE(reports(settled.mGpu.spans(), FrameZone::Blas)) << "nothing arrived, so nothing was built";
 
             // **A denoised frame runs every pass of the bounce**: the accumulator, its clamp and the
             // wavelet each open a zone.
             ReconstructionRequest filtered = mRenderer.getProfile().mReconstruction;
             filtered.mDenoise = true;
             const Drawn traced = draw(mRenderer, camera, 0.0, filtered);
-            for (const char* const pass : { "accumulate", "clamp", "filter" })
-                EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << pass;
+            for (const FrameZone pass : { FrameZone::Accumulate, FrameZone::Clamp, FrameZone::Filter })
+                EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << sFrameZoneNames.name(pass);
 
             // **The ripple field is stood for a scene that holds water and stepped only where the
             // sky's clock has moved a sixtieth**, before the sea reads it. The frame the field is
@@ -231,11 +240,13 @@ namespace Rtx
             Shaders::VisibilityConstants standing = flooded;
             standing.mWaterLevel = -100.0f;
             const Drawn stood = draw(mRenderer, standing);
-            EXPECT_FALSE(reports(stood.mGpu.spans(), "ripples")) << "a frame with no step due stepped the field";
+            EXPECT_FALSE(reports(stood.mGpu.spans(), FrameZone::Ripples))
+                << "a frame with no step due stepped the field";
 
             const Drawn stepped = draw(mRenderer, standing, 1.0 / 60.0);
-            EXPECT_TRUE(reports(stepped.mGpu.spans(), "ripples")) << "a sixtieth on, the field was not stepped";
-            EXPECT_EQ(stepped.mGpu.spans().front().mName, "ripples")
+            EXPECT_TRUE(reports(stepped.mGpu.spans(), FrameZone::Ripples))
+                << "a sixtieth on, the field was not stepped";
+            EXPECT_EQ(stepped.mGpu.spans().front().mZone, FrameZone::Ripples)
                 << "the field was stepped somewhere other than before the sea";
 
             // **A surface with no level is a sea as much as a level with no surface**, and the
@@ -244,8 +255,40 @@ namespace Rtx
             Shaders::VisibilityConstants dry = standing;
             dry.mWaterLevel = camera.mWaterLevel;
             const Drawn surfaced = draw(mRenderer, dry, 2.0 / 60.0);
-            EXPECT_TRUE(reports(surfaced.mGpu.spans(), "waves")) << "a water surface with no level synthesised no sea";
-            EXPECT_TRUE(reports(surfaced.mGpu.spans(), "ripples")) << "a water surface with no level stepped no field";
+            EXPECT_TRUE(reports(surfaced.mGpu.spans(), FrameZone::Waves))
+                << "a water surface with no level synthesised no sea";
+            EXPECT_TRUE(reports(surfaced.mGpu.spans(), FrameZone::Ripples))
+                << "a water surface with no level stepped no field";
+        }
+
+        /// A device alone, because a death test's child stands its fixture again, and a renderer's
+        /// is seconds of it.
+        using RtxGpuTimerReadTest = Testing::DeviceTest;
+
+        /// **A zone no submit wrote ends the process and names the zone**, where the read waited
+        /// for it without end. Its queries reset on the device and the zone recorded into a buffer
+        /// that is ended and never submitted: what a zone in a discarded batch leaves.
+        TEST_F(RtxGpuTimerReadTest, aZoneNoSubmitWroteEndsTheProcessNamingIt)
+        {
+            const Device& device = *mHarness.mDevice;
+            if (device.getPhysicalDevice().getTimestampBits() == 0)
+                GTEST_SKIP() << "this device cannot write timestamps";
+
+            GpuTimer timer(device);
+            device.getPool().submitAndWait(
+                [&](VkCommandBuffer commands) { vkCmdResetQueryPool(commands, timer.getQueryPool(), 0, 2); });
+
+            timer.beginFrame();
+            const LentCommands lent = device.getPool().lend(1);
+            Recording never = device.getPool().begin(lent[0]);
+            {
+                const GpuZone timed(&timer, never.get(), FrameZone::Trace);
+            }
+            std::move(never).end();
+
+            GpuZones zones;
+            Testing::expectDies([&] { timer.resolve(zones); },
+                "the GPU timer's trace zone was resolved before a submit wrote its timestamps");
         }
     }
 }

@@ -1,13 +1,13 @@
 #pragma once
 
 #include <array>
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
 #include <osg/Vec2f>
 
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/shaders/wave.h>
 
 namespace Rtx
@@ -22,6 +22,14 @@ namespace Rtx
 
         /// Samples along each axis. It reaches from `mExtent` down to two of its own texels.
         std::size_t mGrid;
+
+        /// How many levels the tile's chain has, down to the single texel that makes the last level
+        /// the tile's own mean.
+        std::uint32_t levels() const
+        {
+            const auto grid = static_cast<std::uint32_t>(mGrid);
+            return levelsTo1x1(grid, grid);
+        }
     };
 
     /// The tiles the sea is summed from. The widths stand in the ratio 2.696, because periods that
@@ -39,14 +47,11 @@ namespace Rtx
     /// the amplitudes is a spectrum evaluation and a Gaussian draw per wavevector.
     struct WaveCascade
     {
-        /// How wide the tile is, in world units. Its wavevectors are multiples of `TAU / mExtent`.
-        float mExtent = 0.0f;
-
-        /// How many samples across this tile is transformed on, from `sWaveTiles`.
-        std::size_t mGrid = 0;
+        /// The tile of `sWaveTiles` this is drawn on: how wide it is and how many samples across.
+        WaveTile mTile{};
 
         /// `mGrid` squared complex amplitudes, row major: entry `row * mGrid + column` carries the
-        /// wavevector `TAU / mExtent * (column - mGrid / 2, row - mGrid / 2)`. Not
+        /// wavevector `TAU / mExtent * (column - mGrid / 2, row - mGrid / 2)`, of `mTile`. Not
         /// conjugate-symmetric, because the field is `h0(k) e^{iwt} + conj(h0(-k)) e^{-iwt}`, and
         /// storing half of it and mirroring would give a real surface that could not move.
         std::vector<osg::Vec2f> mAmplitudes;
@@ -61,13 +66,6 @@ namespace Rtx
     /// The tiles a sea state comes to, scaled together rather than each to itself, because the
     /// tiles are independent draws whose variances add.
     std::array<WaveCascade, Shaders::WAVE_CASCADES> makeWaveCascades(const SeaState& sea);
-
-    /// How many levels a tile transformed on this grid has, counting down to the single texel that
-    /// makes the last level the tile's own mean.
-    inline std::uint32_t levelsFor(std::size_t grid)
-    {
-        return static_cast<std::uint32_t>(std::bit_width(grid));
-    }
 
     /// How much curvature these tiles carry, and how much of it survives each level of their chains
     /// — the caustic's own normaliser, a property of the sea rather than of a place, because

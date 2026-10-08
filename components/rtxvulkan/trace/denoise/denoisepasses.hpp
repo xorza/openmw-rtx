@@ -7,6 +7,7 @@
 #include "accumulatepass.hpp"
 #include "atrouspass.hpp"
 #include "denoised.hpp"
+#include "historyclamppass.hpp"
 #include "panepass.hpp"
 #include "shadowpass.hpp"
 #include "specularpass.hpp"
@@ -52,6 +53,7 @@ namespace Rtx
     private:
         AccumulatePass mAccumulate;
         ShadowPass mShadow;
+        HistoryClampPass mHistoryClamp;
         SpecularPass mSpecular;
         PanePass mPane;
         AtrousPass mFilter;

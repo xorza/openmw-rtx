@@ -249,13 +249,6 @@ namespace Rtx::Shaders
     /// per pixel; this spends 64 per sixty-four pixels.
     const uint FOG_VOLUME_SLICES = 64u;
 
-    /// How many columns one workgroup of the integrate pass covers, on each axis.
-    ///
-    /// **A thread to a column there, and that is not a shape to be improved.** Front to back is the
-    /// only order transmittance can be carried in, so the sixty-four slices of a column are a scan
-    /// and not a fan-out — and the scan is reads and multiply-adds, with no ray and no walk in it.
-    const uint FOG_COLUMN_WORKGROUP = 8u;
-
     /// How far under its nominal level the sea's own surface is placed, in world units.
     ///
     /// **Coplanar surfaces have no intersection order, so one has to be imposed.** Morrowind's
@@ -755,6 +748,15 @@ namespace Rtx::Shaders
         uvec3 mSize;
     };
 
+    /// One cell of the light grid: its two runs in the light list, the lamps that light it and then
+    /// those that take light away — `Rtx::LightGrid::getCells` says why apart from the list. One
+    /// 16-byte row, so a shaded point reads both runs in one fetch.
+    struct GpuLightCell
+    {
+        uvec2 mCount;
+        uvec2 mFirst;
+    };
+
     /// The flat index of the grid's cell `x`, `y`, `z` in a grid `width` by `height` across: the
     /// one arithmetic the host's binning and the shader's lookup have to agree on. Scalars, because
     /// a vector's members are spelled apart in the two languages.
@@ -803,8 +805,8 @@ namespace Rtx::Shaders
         uint64 mMasks;
         uint64 mLights;
 
-        /// The light grid's list: where each cell's run starts, then the runs. `Rtx::LightGrid`
-        /// says why the starts and the runs are one list.
+        /// The light grid: a `GpuLightCell` a cell, and the list their runs stand in.
+        uint64 mLightCells;
         uint64 mLightList;
 
         uint64 mBlueNoise;
@@ -820,7 +822,7 @@ namespace Rtx::Shaders
         /// One `GpuEmitterFrame` a row of `mEmitters`, the trace's own like the sprites.
         uint64 mEmitterFrames;
 
-        /// The sprite tiles' list, in the same shape over the screen's tiles.
+        /// The sprite tiles' list, the shape `spritelist.glsl` reads.
         uint64 mSpriteTileList;
 
         /// One word a screen tile of the same grid: the `PRESENCE_` kinds of instance a ray through
@@ -945,7 +947,7 @@ namespace Rtx::Shaders
         float mRadius;
 
         /// The streak's own axis in the world, per unit of `mRadius`, or zero for a sprite that
-        /// faces the eye. Per particle, because `Weather::RainShooter` leans each drop into the wind
+        /// faces the eye. Per particle, because `MWRender::RainShooter` leans each drop into the wind
         /// it was fired under. Not normalised, because its length is the shape.
         vec3 mAxis RTX_ZERO;
 
@@ -1004,12 +1006,6 @@ namespace Rtx::Shaders
         return spriteTilesOver(width) * spriteTilesOver(height);
     }
 
-    /// What a sprite tiles' list holds in its first entry where it holds no runs at all: the
-    /// stand-in a trace that draws no sprites is handed (`TraceMedia`), two words long, whose
-    /// entry one is the count to walk, nought. Where the runs are binned, entry nought is where
-    /// they begin — `tiles + 1`, never nought.
-    const uint SPRITE_LIST_UNBINNED = 0u;
-
     /// The bit a tile's end entry carries where its run did not fit, beside the frame's sprite
     /// count in the bits under it.
     ///
@@ -1062,7 +1058,7 @@ namespace Rtx::Shaders
         float mWidth;
 
         /// The bake of the sprite texture's alpha, or `NO_TEXTURE` for one lit as a flat card.
-        /// `Rtx::SpriteLightMap` says what it holds and `spritesAlong` how it is read.
+        /// `Rtx::TextureKind::SpriteLight` says what it holds and `spritesAlong` how it is read.
         uint mLighting;
 
 #ifdef RTX_HOST
@@ -1222,13 +1218,14 @@ namespace Rtx::Shaders
         "the lamp body's bit stands above every ray mask's");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
+    static_assert(sizeof(GpuLightCell) == 16, "GpuLightCell must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 64, "GpuLayer must be scalar-packed on every side");
     static_assert(sizeof(GpuMaterial) == 108, "GpuMaterial must be scalar-packed on every side");
     static_assert(sizeof(GpuSprite) == 56, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");
     static_assert(sizeof(GpuPresence) == 24, "GpuPresence must be scalar-packed on every side");
-    static_assert(sizeof(GpuTables) == 184, "GpuTables must be scalar-packed on every side");
+    static_assert(sizeof(GpuTables) == 192, "GpuTables must be scalar-packed on every side");
 
 #endif
 

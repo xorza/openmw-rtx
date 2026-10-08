@@ -15,6 +15,7 @@
 namespace Rtx
 {
     class Device;
+    class GpuTimer;
 
     /// What a lens does with the light that reached it: the frame's own brightness, spread through
     /// Jorge Jimenez's pyramid (*Next Generation Post Processing in Call of Duty: Advanced
@@ -38,7 +39,7 @@ namespace Rtx
         /// @param exposure one float, what the curve scales a frame by, which the frame's own
         ///        halving weighs its squares with (`bloomHalved`); nought weighs them alike. Read
         ///        before anything recorded after this call writes it.
-        void record(VkCommandBuffer commands, const Image& frame, const Buffer& exposure) const;
+        void record(VkCommandBuffer commands, const Image& frame, const Buffer& exposure, GpuTimer* timer) const;
 
         /// The finest level, which after `record` holds the blur of every level under it — or null
         /// where the frame was too small to halve. Left in `VK_IMAGE_LAYOUT_GENERAL` and already

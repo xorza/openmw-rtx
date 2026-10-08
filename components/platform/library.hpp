@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "uniquehold.hpp"
+
 /// A shared library opened by name at run time and asked for its symbols — the driver's
 /// management library is the one the ray tracer opens, because a build must not link what only
 /// one vendor's driver ships. One header over `libraryposix.cpp` and `librarywin32.cpp`, the way
@@ -22,38 +24,12 @@ namespace Platform::Library
 
     void close(Handle handle);
 
-    class ScopedHandle
+    struct Closing
     {
-        Handle mHandle{ Handle::Invalid };
-
-    public:
-        ScopedHandle() noexcept = default;
-        ScopedHandle(const ScopedHandle& other) = delete;
-        explicit ScopedHandle(Handle handle) noexcept
-            : mHandle(handle)
-        {
-        }
-        ScopedHandle(ScopedHandle&& other) noexcept
-            : mHandle(other.mHandle)
-        {
-            other.mHandle = Handle::Invalid;
-        }
-        ScopedHandle& operator=(const ScopedHandle& other) = delete;
-        ScopedHandle& operator=(ScopedHandle&& other) noexcept
-        {
-            if (mHandle != Handle::Invalid)
-                close(mHandle);
-            mHandle = other.mHandle;
-            other.mHandle = Handle::Invalid;
-            return *this;
-        }
-        ~ScopedHandle()
-        {
-            if (mHandle != Handle::Invalid)
-                close(mHandle);
-        }
-
-        Handle get() const noexcept { return mHandle; }
-        bool isOpen() const noexcept { return mHandle != Handle::Invalid; }
+        using Handle = Library::Handle;
+        static constexpr Handle sNone = Handle::Invalid;
+        static void close(Handle handle) noexcept { Library::close(handle); }
     };
+
+    using ScopedHandle = UniqueHold<Closing>;
 }

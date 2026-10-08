@@ -28,6 +28,11 @@ namespace Crash
         /// where a POSIX monitor sends a signal instead.
         alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mHangEntry;
 
+        /// Hang reports the game has finished writing: counted once a report the monitor asked for
+        /// is on disk, which is what the monitor's End waits for before it ends the game, or the
+        /// dump it asked for is lost with it.
+        alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mHangReports;
+
         /// The game's log, which the monitor appends each summary to: nought until the game knows
         /// where it logs, which is after the catcher has started, and then how many bytes of
         /// `mLogPath` name it. Stored after the bytes, so a length the monitor reads covers a path

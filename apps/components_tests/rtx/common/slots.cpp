@@ -14,6 +14,16 @@ namespace Rtx
 {
     namespace
     {
+        /// A table that hands its rows' protected half to the test, as a table's own `add` and drop
+        /// call it.
+        struct HeldInts : HeldRows<int>
+        {
+            using HeldRows::dropRow;
+            using HeldRows::freeRow;
+            using HeldRows::holdRow;
+            using HeldRows::takeRow;
+        };
+
         /// **A row lives by its holds: the last drop is where it goes, and a freed slot is taken
         /// over with none.** What every table counts its holders by, so it is proved once here: a
         /// texture held by materials, a rig stood on by meshes, a mesh by its identity and its
@@ -21,34 +31,34 @@ namespace Rtx
         /// retire reports what went by.
         TEST(RtxSlotRowsTest, aRowIsFreedByTheDropAfterWhichNothingHoldsIt)
         {
-            HeldSlotRows<int> rows;
-            const Index first = rows.take(1);
-            const Index second = rows.take(2);
+            HeldInts rows;
+            const Index first = rows.takeRow(1);
+            const Index second = rows.takeRow(2);
             ASSERT_EQ(rows.getLiveCount(), 2u);
             EXPECT_EQ(rows.getHolds(second), 0u) << "a row arrives with no holds";
 
-            rows.hold(second);
-            rows.hold(second);
+            rows.holdRow(second);
+            rows.holdRow(second);
             EXPECT_EQ(rows.getHolds(second), 2u);
 
             // One hold back is still held; the last is where the table frees the row.
-            EXPECT_FALSE(rows.drop(second));
-            EXPECT_TRUE(rows.drop(second));
+            EXPECT_FALSE(rows.dropRow(second));
+            EXPECT_TRUE(rows.dropRow(second));
             EXPECT_EQ(rows.getFreedCount(), 0u) << "the table frees, not the drop";
-            rows.free(second);
+            rows.freeRow(second);
             EXPECT_EQ(rows.getFreedCount(), 1u);
             EXPECT_EQ(rows.getLiveCount(), 1u);
             EXPECT_FALSE(rows.isLive(second));
             EXPECT_TRUE(rows.isLive(first));
 
             // A freed slot is taken over with no holds, whatever its last tenant carried.
-            const Index again = rows.take(4);
+            const Index again = rows.takeRow(4);
             EXPECT_EQ(again, second) << "the lowest free slot";
             EXPECT_EQ(rows.getHolds(again), 0u);
 
-            Testing::expectAssertDies([&] { rows.drop(first); }, "a slot given back more often than it was held");
-            rows.hold(first);
-            Testing::expectAssertDies([&] { rows.free(first); }, "a slot freed while something holds it");
+            Testing::expectAssertDies([&] { rows.dropRow(first); }, "a slot given back more often than it was held");
+            rows.holdRow(first);
+            Testing::expectAssertDies([&] { rows.freeRow(first); }, "a slot freed while something holds it");
         }
 
         struct Keyed

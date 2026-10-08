@@ -13,7 +13,8 @@
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
-#include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 
 #include "run.hpp"
 #include "stager.hpp"
@@ -74,11 +75,11 @@ namespace RtxTool
         // Counted from the new game's day, as `--day` and a key's `day` are, so the line read back
         // stands on the day it was noted on.
         stood.mSky.mDay = now.getDay() - Stager::newGameDaysPassed();
-        stood.mSky.mWeather = static_cast<std::uint32_t>(world.getCurrentWeatherScriptId());
+        stood.mSky.mWeather = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId());
 
         // The factor the weather system counts down from one, so what is noted counts up.
-        const int arriving = world.getNextWeatherScriptId();
-        mArriving = arriving < 0 ? std::string_view() : Rtx::weatherName(static_cast<std::uint32_t>(arriving));
+        const std::optional<Rtx::Weather> arriving = Rtx::weatherOfScriptId(world.getNextWeatherScriptId());
+        mArriving = arriving.has_value() ? Rtx::nameOf(*arriving) : std::string_view();
         mCrossed = 1.0f - world.getWeatherTransition();
 
         stood.mSky.mAir = air;
@@ -93,7 +94,7 @@ namespace RtxTool
             return {};
 
         return writeSkyNote(mTitleNote,
-            SkyNote{ .mWeather = Rtx::weatherName(left->mSky.mWeather.value()),
+            SkyNote{ .mWeather = Rtx::nameOf(left->mSky.mWeather.value()),
                 .mArriving = mArriving,
                 .mCrossed = mCrossed,
                 .mHour = left->mSky.mHour.value() });

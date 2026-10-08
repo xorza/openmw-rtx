@@ -6,7 +6,9 @@
 #include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -49,8 +51,10 @@ namespace Rtx
     }
 
     void AccumulatePass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
+        const GpuZone timed(timer, commands, FrameZone::Accumulate);
+
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
@@ -72,7 +76,7 @@ namespace Rtx
 
         const Shaders::AccumulateConstants constants{
             .mHistory = frame.history(images.mFresh),
-            .mDualMotion = frame.mDualMotion ? 1u : 0u,
+            .mDualMotion = frame.mFilters.mDualMotion ? 1u : 0u,
         };
 
         dispatch(commands, mPipeline, writes, constants,
@@ -80,8 +84,10 @@ namespace Rtx
     }
 
     void AccumulatePass::recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
+        const GpuZone timed(timer, commands, FrameZone::Clamp);
+
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
         // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it,
@@ -92,7 +98,8 @@ namespace Rtx
         images.mMoments.addTransition(blended, Use::sComputeWrite, Use::sComputeRead);
         blended.flush();
 
-        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp = frame.mAntiFirefly ? mClampRing : mClamp;
+        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp
+            = frame.mFilters.mAntiFirefly ? mClampRing : mClamp;
         DescriptorWrites clampWrites(clamp);
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFastBlended.describeStorage());
@@ -104,7 +111,8 @@ namespace Rtx
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
 
         dispatch(commands, clamp, clampWrites,
-            Shaders::AccumulateClampConstants{ .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mAntilag ? 1u : 0u },
+            Shaders::AccumulateClampConstants{
+                .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mFilters.mAntilag ? 1u : 0u },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 }

@@ -76,10 +76,10 @@ namespace Rtx
         /// In double, because the sums over it run to tens of thousands of terms.
         osg::Vec2d wavevectorAt(const WaveCascade& cascade, const std::size_t at)
         {
-            const double step = double{ Shaders::TAU } / double{ cascade.mExtent };
-            const int half = static_cast<int>(cascade.mGrid) / 2;
-            const int row = static_cast<int>(at / cascade.mGrid) - half;
-            const int column = static_cast<int>(at % cascade.mGrid) - half;
+            const double step = double{ Shaders::TAU } / double{ cascade.mTile.mExtent };
+            const int half = static_cast<int>(cascade.mTile.mGrid) / 2;
+            const int row = static_cast<int>(at / cascade.mTile.mGrid) - half;
+            const int column = static_cast<int>(at % cascade.mTile.mGrid) - half;
 
             return osg::Vec2d(step * column, step * row);
         }
@@ -96,10 +96,9 @@ namespace Rtx
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
             WaveCascade& cascade = cascades[index];
-            cascade.mExtent = sWaveTiles[index].mExtent;
-            cascade.mGrid = sWaveTiles[index].mGrid;
+            cascade.mTile = sWaveTiles[index];
 
-            const std::size_t count = cascade.mGrid * cascade.mGrid;
+            const std::size_t count = cascade.mTile.mGrid * cascade.mTile.mGrid;
 
             cascade.mAmplitudes.assign(count, osg::Vec2f());
             cascade.mTurnRates.assign(count, 0.0f);
@@ -108,10 +107,11 @@ namespace Rtx
             // shorter than two of its texels is not there at all. Both tiles are wide enough and
             // fine enough for the whole spectrum, so what actually bounds the band is the spectrum's
             // own cutoff rather than either of these.
-            const float longest = cascade.mExtent;
-            const float shortest = std::max(sShortestWave, 2.0f * cascade.mExtent / static_cast<float>(cascade.mGrid));
+            const float longest = cascade.mTile.mExtent;
+            const float shortest
+                = std::max(sShortestWave, 2.0f * cascade.mTile.mExtent / static_cast<float>(cascade.mTile.mGrid));
 
-            const float step = Shaders::TAU / cascade.mExtent;
+            const float step = Shaders::TAU / cascade.mTile.mExtent;
 
             for (std::size_t at = 0; at < count; ++at)
             {
@@ -178,34 +178,34 @@ namespace Rtx
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
             const WaveCascade& cascade = cascades[index];
-            const float texel = cascade.mExtent / static_cast<float>(cascade.mGrid);
-            const float step = Shaders::TAU / cascade.mExtent;
-            const int half = static_cast<int>(cascade.mGrid) / 2;
+            const float texel = cascade.mTile.mExtent / static_cast<float>(cascade.mTile.mGrid);
+            const float step = Shaders::TAU / cascade.mTile.mExtent;
+            const int half = static_cast<int>(cascade.mTile.mGrid) / 2;
 
             // One power response per axis index per level, because the chain is separable; written
             // out rather than evaluated inside the sum, which would be five million sines a tile.
             // Two filters: Dirichlet's kernel for the level, and `(2 + cos(k w)) / 3` for the
             // bilinear tap that reads it — left out, this table would stand at nearly three times
             // what the shader reads in deep water.
-            std::vector<float> power(Shaders::WAVE_LEVELS * cascade.mGrid);
+            std::vector<float> power(Shaders::WAVE_LEVELS * cascade.mTile.mGrid);
             for (std::size_t level = 0; level < Shaders::WAVE_LEVELS; ++level)
             {
                 const float count = static_cast<float>(std::size_t{ 1 } << level);
-                for (std::size_t along = 0; along < cascade.mGrid; ++along)
+                for (std::size_t along = 0; along < cascade.mTile.mGrid; ++along)
                 {
                     const float phase = 0.5f * step * static_cast<float>(static_cast<int>(along) - half) * texel;
                     const float turn = std::sin(phase);
                     const float kernel = std::abs(turn) < 1e-6f ? 1.0f : std::sin(count * phase) / (count * turn);
 
-                    power[level * cascade.mGrid + along]
+                    power[level * cascade.mTile.mGrid + along]
                         = kernel * kernel * (2.0f + std::cos(2.0f * count * phase)) / 3.0f;
                 }
             }
 
             for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)
             {
-                const std::size_t row = at / cascade.mGrid;
-                const std::size_t column = at % cascade.mGrid;
+                const std::size_t row = at / cascade.mTile.mGrid;
+                const std::size_t column = at % cascade.mTile.mGrid;
 
                 const double squared = wavevectorAt(cascade, at).length2();
                 const double weight = 2.0 * double{ cascade.mAmplitudes[at].length2() } * squared * squared;
@@ -219,10 +219,11 @@ namespace Rtx
                     // Past this tile's own last level the chain has nothing further to average, and a
                     // sampler clamps — so the kernel does too, by reading the widest count the grid
                     // holds.
-                    const std::size_t held = std::min(level, std::size_t{ levelsFor(cascade.mGrid) } - 1);
+                    const std::size_t held = std::min(level, std::size_t{ cascade.mTile.levels() } - 1);
 
                     resolved[index * Shaders::WAVE_LEVELS + level] += weight
-                        * double{ power[held * cascade.mGrid + column] } * double{ power[held * cascade.mGrid + row] };
+                        * double{ power[held * cascade.mTile.mGrid + column] }
+                        * double{ power[held * cascade.mTile.mGrid + row] };
                 }
             }
         }

@@ -8,14 +8,16 @@ from dataclasses import dataclass
 
 from omw import crash, deps, formatting, game, gate, kernels, listing, noise, package, perf, repeat, testing
 from omw.build import FLAVOURS, Build
-from omw.system import CI, Refusal, refuse_unsupported
+from omw.system import CI, Refusal, refuse_unsupported, status
 
 USAGE = """\
 omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI, on Linux and Windows.
 
-  build [targets]              format the tree, except on CI, whose checks job checks it once;
+  build [--without-device] [targets]
+                               format the tree, except on CI, whose checks job checks it once;
                                configure where the presets changed, then build the harness, the game
-                               and the tests the build has, or the targets named; then check that
+                               and the tests the build has, those a box with no driver runs where
+                               `--without-device` says so, or the targets named; then check that
                                every source the tree tracks is one the build compiles
   test [--without-device] [ctest args]
                                every suite through CTest, the crash matrix and the GPU binary among
@@ -45,6 +47,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   format [--check]             clang-format 14 over the working tree: rewrites it, or with --check
                                changes nothing and says what it would; no flavour
   bootstrap                    the pinned Vulkan SDK into deps/; no flavour
+  help                         this page; no flavour
 
   flavour   directory       what it is
   debug     build-debug     -O2 -g with every assert and the tests: the everyday build, and the default
@@ -67,13 +70,13 @@ HARNESS_VERBS = ("info", "scene", "shot", "view", "bench", "check", "film", "noi
 def _harness(build: Build, verb: str, args: list[str]) -> int:
     """**No `--validation` of the driver's own.** Each build's binary already defaults to its
     flavour's layers, and a level on the line reads as asked for."""
-    return build.harness(verb, *args).returncode
+    return status(build.harness(verb, *args).returncode)
 
 
 def _exec(build: Build, args: list[str]) -> int:
     if not args:
         raise Refusal("exec runs a command: `omw [flavour] exec <command> [args]`")
-    return build.run_here(args).returncode
+    return status(build.run_here(args).returncode)
 
 
 def _build(build: Build, args: list[str]) -> int:
@@ -81,7 +84,9 @@ def _build(build: Build, args: list[str]) -> int:
     every build job; after the build, `listing.check`."""
     if not CI and formatting.format_tree([]) != 0:
         return 1
-    build.build(args or build.default_targets + build.test_targets())
+    without_device = "--without-device" in args
+    targets = [arg for arg in args if arg != "--without-device"]
+    build.build(targets or build.default_targets + build.test_targets(without_device))
     return listing.check(build)
 
 
@@ -114,7 +119,14 @@ def _bootstrap(args: list[str]) -> int:
 
 # Verbs no build is configured for: reading a dump or formatting the tree needs none, and a verb
 # that configured one first fetched a dependency set and started MSVC to read a file.
+def _help(args: list[str]) -> int:
+    """Asked for, so printed where output goes and answered with success."""
+    print(USAGE)
+    return 0
+
+
 BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
+    "help": _help,
     "crash": crash.read_crash,
     "format": formatting.format_tree,
     "bootstrap": _bootstrap,
@@ -138,8 +150,10 @@ def parse(argv: list[str]) -> Line:
     `omw build release` once built a target called `release` in the debug tree."""
     flavour = argv[0] if argv and argv[0] in FLAVOURS else None
     rest = argv[1:] if flavour else argv
-    if not rest or rest[0] in ("help", "-h", "--help"):
+    if not rest:
         raise Refusal(USAGE)
+    if rest[0] in ("help", "-h", "--help"):
+        return Line(None, "help", [])
     verb, args = rest[0], rest[1:]
     if verb.startswith("-"):
         raise Refusal(f"name a verb before the switches: `omw {flavour or 'debug'} view {' '.join(rest)}`")

@@ -183,12 +183,6 @@ float fogDensityAt(vec3 position, float spacing)
     return fogHeightAt(position) * fogCoverageAt(position, spacing);
 }
 
-/// The fog's extinction at a point, per world unit.
-float fogExtinctionAt(vec3 position, float spacing)
-{
-    return frame.mFogExtinction * fogDensityAt(position, spacing);
-}
-
 /// What the fog sends toward the eye per steradian, `cosine` off the sun's line.
 ///
 /// **Mie, not Henyey-Greenstein.** A single lobe is the usual choice and it cannot do this shape:
@@ -557,9 +551,9 @@ FogRay fogRayFrom(vec3 origin, vec3 direction)
 /// twenty-four samples of two `exp`. A reader multiplies this by `fogCoverageAt` at the path's
 /// mean-value point, which is the one term nothing integrates.
 ///
-/// The profile is `fogExtinctionAt`'s own rather than a second statement of it: below the base the
+/// The profile is `fogHeightAt`'s own rather than a second statement of it: below the base the
 /// density is the layer's full strength where the cell is dry and nothing at all where the base is
-/// the water's own surface, which is what that function says twice over.
+/// the water's own surface, which is what that function says through `fogBase`.
 float fogColumnOver(FogRay ray, float span)
 {
     const float under = ray.mUnder;

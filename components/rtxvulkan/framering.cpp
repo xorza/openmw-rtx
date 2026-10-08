@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <utility>
 
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
@@ -36,7 +37,9 @@ namespace Rtx
     }
 
     FrameRecord::FrameRecord(const Device& device)
-        : mTimer(device)
+        : mPlaceCommands(device.getPool().lend(1))
+        , mTraceCommands(device.getPool().lend(1))
+        , mTimer(device)
         , mCounts(Buffer::readBack(device, sizeof(Shaders::FrameCounts),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame counts"))
         , mDebugVertices(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "debug vertices")
@@ -56,17 +59,6 @@ namespace Rtx
     {
         for (GrowableBuffer& picture : mPictures)
             picture = GrowableBuffer(device, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame readback");
-
-        // Two command buffers a frame to begin with — the first placement's and the trace's —
-        // allocated once and recorded into again. A frame placed more than once takes another from
-        // the same pool and keeps it, which `FrameRecord::mPlaceCommands` explains.
-        const std::vector<VkCommandBuffer> commands = mDevice.getPool().allocate(2 * sFrameSlots);
-        for (std::uint32_t slot = 0; slot < sFrameSlots; ++slot)
-        {
-            FrameRecord& frame = mSlots.at(FrameSlot{ slot });
-            frame.mPlaceCommands.push_back(commands[2 * slot]);
-            frame.mWorld.mCommands = commands[2 * slot + 1];
-        }
     }
 
     FrameRecord& FrameRing::recording()
@@ -127,38 +119,47 @@ namespace Rtx
     VkCommandBuffer FrameRing::takePlaceCommands(FrameRecord& frame)
     {
         if (frame.mPlacements == frame.mPlaceCommands.size())
-            frame.mPlaceCommands.push_back(mDevice.getPool().take());
+            frame.mPlaceCommands.add();
 
         return frame.mPlaceCommands[frame.mPlacements++];
     }
 
-    void FrameRing::submit(FrameRecord& frame)
+    Recording FrameRing::recordWorld(FrameRecord& frame)
     {
+        frame.mState.expect(FrameState::Begun);
+        return mDevice.getPool().begin(frame.mTraceCommands[0]);
+    }
+
+    void FrameRing::submit(FrameRecord& frame, Recording&& world)
+    {
+        assert(world.get() == frame.mTraceCommands[0] && "a frame submitted with another frame's recording");
+
         // A wait's access scope is the device's, so the counts need a dependency of their own.
         if (mReadsCounts)
-            frame.mCounts.orderForHostRead(frame.mWorld.mCommands);
+            frame.mCounts.orderForHostRead(world.get());
 
         if (const NotFiniteCensus* const census = mDevice.getCensus(); census != nullptr)
         {
-            census->record(frame.mWorld.mCommands, frame.mNotFinite);
-            frame.mNotFinite.orderForHostRead(frame.mWorld.mCommands);
+            census->record(world.get(), frame.mNotFinite);
+            frame.mNotFinite.orderForHostRead(world.get());
         }
 
-        close(frame, true);
+        close(frame, true, std::move(world));
     }
 
     void FrameRing::skip()
     {
         FrameRecord& frame = slotOf(mFrame);
-        mDevice.getPool().begin(frame.mWorld.mCommands);
-        close(frame, false);
+        close(frame, false, mDevice.getPool().begin(frame.mTraceCommands[0]));
     }
 
-    void FrameRing::close(FrameRecord& frame, const bool traced)
+    void FrameRing::close(FrameRecord& frame, const bool traced, Recording&& world)
     {
+        // The submit first, so one that throws leaves the slot begun and the ring where it stood.
+        const std::uint64_t submitted = std::move(world).submit();
         frame.mState.step(FrameState::Submitted, FrameState::Begun);
         frame.mTraced = traced;
-        frame.mWorld.mSubmitted = mDevice.getPool().submit(frame.mWorld.mCommands);
+        frame.mSubmitted = submitted;
         ++mFrame;
         frame.mInFlight = static_cast<std::uint32_t>(mFrame - mFinished);
     }
@@ -171,7 +172,7 @@ namespace Rtx
         frame.mState.expect(FrameState::Submitted);
 
         const auto start = std::chrono::steady_clock::now();
-        mDevice.waitFor(frame.mWorld.mSubmitted, "a frame");
+        mDevice.waitFor(frame.mSubmitted, "a frame");
         const double waited = since(start, std::chrono::steady_clock::now());
 
         frame.mState.step(FrameState::Idle, FrameState::Submitted);
@@ -220,7 +221,7 @@ namespace Rtx
         frame.mTimer.resolve(report.mGpu);
     }
 
-    std::optional<FrameResult> FrameRing::collect()
+    std::optional<FrameResult> FrameRing::finishFrame()
     {
         // What is already in hand before anything is waited for. A frame the ring drained to
         // make room has been finished and its report is here; waiting again would wait the frame
@@ -234,7 +235,7 @@ namespace Rtx
         return takeReport();
     }
 
-    std::optional<FrameResult> FrameRing::collectFinished()
+    std::optional<FrameResult> FrameRing::collectFrame()
     {
         makeRoom();
         return takeReport();

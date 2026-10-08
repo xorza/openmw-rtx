@@ -97,12 +97,17 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
             EXPECT_EQ(mScene.meshes().getMeshPositions(1)[0].z(), 5.0f);
 
-            // **And the sweep is what lets go.** Holding the key is what costs: geometry the graph
-            // dropped outlives its owner until here, and a caller that never sweeps holds every
-            // drawable it has ever walked.
+            // **And the sweep is what lets go**, into the extractor's sink and not on the frame
+            // thread: the drawable outlives its entry by the sink's one reference, until the owner
+            // hands the sink to whatever releases the game's own — here, a clear. Holding the key
+            // is what costs: geometry the graph dropped outlives its owner until here, and a caller
+            // that never sweeps holds every drawable it has ever walked.
             const Retirement went = mExtractor.retire();
             EXPECT_EQ(went.mMeshes, 1u);
-            EXPECT_FALSE(watch.valid()) << "the sweep dropped the entry and kept the drawable alive";
+            ASSERT_TRUE(watch.valid()) << "the sweep dropped the drawable on the frame thread";
+            EXPECT_EQ(was->referenceCount(), 1) << "something other than the sink is holding it";
+            mExtractor.getReleased().clear();
+            EXPECT_FALSE(watch.valid()) << "the sink was cleared and kept the drawable alive";
         }
 
         /// **The same figure, torn one level up, and the walk holds nothing for it.** A placement is

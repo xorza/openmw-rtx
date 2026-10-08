@@ -7,11 +7,13 @@
 
 #include "denoiseframe.hpp"
 #include "denoisehistory.hpp"
+#include "historyclamppass.hpp"
 
 namespace Rtx
 {
     class Device;
     class GBuffer;
+    class GpuTimer;
     class Image;
 
     /// The glossy filter: `CHANNEL_SPECULAR` averaged over the frames its reflection holds still, by
@@ -26,8 +28,9 @@ namespace Rtx
         /// Records the one dispatch and hands back the filtered light as it wrote it: the caller
         /// orders it for a read (`DenoisePasses::record`). `buffer` must have been handed over, and
         /// `DenoiseHistory::discard` has readied the images.
+        /// The filter's mean is held to its fast means by `clamp` before it is handed back.
         const Image& record(VkCommandBuffer commands, const DenoiseHistory::SpecularImages& images,
-            const GBuffer& buffer, const DenoiseFrame& frame) const;
+            const GBuffer& buffer, const DenoiseFrame& frame, const HistoryClampPass& clamp, GpuTimer* timer) const;
 
     private:
         ComputePipeline<Shaders::HistoryConstants> mPipeline;

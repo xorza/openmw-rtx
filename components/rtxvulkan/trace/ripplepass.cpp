@@ -9,6 +9,7 @@
 #include <osg/Vec2i>
 
 #include <components/rtx/environment/wavecascade.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/wave.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -56,7 +57,7 @@ namespace Rtx
         constexpr VkImageUsageFlags tileUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
             | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        const std::uint32_t levels = levelsFor(sGrid);
+        const std::uint32_t levels = levelsTo1x1(sGrid, sGrid);
 
         mFields[0] = Image(device, sGrid, sGrid, sFieldFormat, fieldUsage, "ripple field 0");
         mFields[1] = Image(device, sGrid, sGrid, sFieldFormat, fieldUsage, "ripple field 1");
@@ -139,7 +140,7 @@ namespace Rtx
                 static_cast<double>(Shaders::RIPPLE_SUBSTEPS_MOST)));
         const float step = std::min(static_cast<float>(elapsed / static_cast<double>(steps)), getLongestStep());
 
-        openZone(timer, commands, "ripples");
+        const GpuZone timed(timer, commands, FrameZone::Ripples);
 
         // The window follows the eye by whole texels, and the step reads the old field at the
         // offset the window moved by.
@@ -209,7 +210,5 @@ namespace Rtx
         dispatch(commands, mComposePipeline, composes, NoConstants{}, sGroups);
 
         Image::buildMips(commands, std::array<const Image*, 2>{ &mSurface, &mCurvature });
-
-        closeZone(timer, commands);
     }
 }

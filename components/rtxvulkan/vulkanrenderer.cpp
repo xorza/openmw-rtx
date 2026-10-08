@@ -18,8 +18,6 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framepast.hpp>
@@ -29,11 +27,14 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -59,6 +60,13 @@ namespace Rtx
 {
     namespace
     {
+        /// The placement slots a world's top level is made with room for. A world grows as cells
+        /// arrive, and a growth past the room is the structure and both copies of its rows made
+        /// again on the frame a cell arrives on; the suites' largest place reaches 80,324, so this is
+        /// three times that, at 16 MiB of rows a copy. A picture's scene is opened at what it holds,
+        /// since a doll grows by a piece of armour and not by a town.
+        constexpr std::uint32_t sWorldPlacementRoom = 1u << 18;
+
         /// The instance a window needs, which is the headless one plus whatever SDL asks for — the
         /// surface among it, which is what tells the device to take a swapchain.
         std::vector<const char*> surfaceExtensionsFor(const RendererOptions& options)
@@ -68,12 +76,23 @@ namespace Rtx
 
             return Surface::getInstanceExtensions();
         }
+
+        /// Whether a queue family presents to `surface`, or nothing to ask for no window.
+        PhysicalDevice::PresentQuery presentsTo(const Surface* surface)
+        {
+            if (surface == nullptr)
+                return {};
+
+            return
+                [surface](VkPhysicalDevice device, std::uint32_t family) { return surface->supports(device, family); };
+        }
     }
 
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
         : mInstance(options.mRun.mValidation, surfaceExtensionsFor(options))
-        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), options.mShaders,
-              PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
+        , mSurface(options.mWindow != nullptr ? std::make_unique<Surface>(mInstance, options.mWindow) : nullptr)
+        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle(), presentsTo(mSurface.get())),
+              options.mShaders, PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
         , mCounting(options.mCounting)
         , mProfile(options.mRun.mProfile)
         , mInverseGamma(1.0f / mProfile.mGamma)
@@ -83,8 +102,8 @@ namespace Rtx
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
         , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth)
-        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
-        , mMedia(mDevice, bakeFogNoise())
+        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
+        , mMedia(mDevice, FogNoise::shared())
         , mGui(mDevice)
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth)
         , mUpscaler(mDevice)
@@ -92,26 +111,26 @@ namespace Rtx
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
 
         if (options.mWindow != nullptr)
-            mPresenter = std::make_unique<Presenter>(mDevice, mInstance, options.mWindow, options.mVerticalSync);
+            mPresenter = std::make_unique<Presenter>(mDevice, *mSurface, options.mWindow, options.mVerticalSync);
 
         createTargets(options.mWidth, options.mHeight);
     }
 
     VulkanRenderer::~VulkanRenderer()
     {
-        // What the interface handed over, before the pool holding it is taken apart. A GUI
-        // texture write waits for nothing and rides the next submit this pool makes, and there is
-        // no next submit here.
+        // What the interface handed over, before the pool holding it is taken apart, and every
+        // frame in flight and the presenter's last blit, before the swapchain goes, which is the
+        // one handle here not buried. **A step apiece**, as `drain` takes them: a submit that
+        // refused would otherwise skip the wait, and the swapchain would go under a frame still
+        // on the queue.
         tearDown("the interface's last writes were not submitted", [&] { mGui.getTextures().finish(); });
-
-        // Every frame in flight, and the presenter's last blit, before the swapchain goes, which
-        // is the one handle here not buried.
+        tearDown("the frames in flight were not finished", [&] { mRing.finishAll(); });
         tearDown("the device would not finish before the renderer was taken apart", [&] { mDevice.waitIdle(); });
     }
 
     void VulkanRenderer::drain()
     {
-        mDevice.getPool().finishDeferred();
+        mGui.getTextures().finish();
         mRing.finishAll();
         mDevice.waitIdle();
 
@@ -153,6 +172,13 @@ namespace Rtx
         const VkExtent2D output{ width, height };
         const FrameExtents extents = extentsFor(width, height, mProfile.mUpscale);
         const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
+
+        // A frame of a different size is not one this one can be reprojected against; a mode that
+        // traces and shows at the sizes the last did keeps every history.
+        if (render.width != mFrame.getWidth() || render.height != mFrame.getHeight() || !mTarget.isOpen()
+            || output.width != mTarget.getExtent().width || output.height != mTarget.getExtent().height)
+            mPast |= FramePast::resized();
+
         mFrame.resize(render.width, render.height);
 
         mTarget.resize(mDevice, width, height);
@@ -166,9 +192,6 @@ namespace Rtx
         // Over the output extent, which is what the frame is by the time the curve maps it: the
         // upscaler's output where one runs, and the trace itself, at the same size, where none does.
         mDisplay.resize(width, height);
-
-        // A frame of a different size is not one this one can be reprojected against.
-        mPast |= FramePast::resized();
     }
 
     std::string VulkanRenderer::describeDevice() const
@@ -230,8 +253,9 @@ namespace Rtx
         mDevice.getMemory().refreshBudget(mDevice.getTimeline().getNext());
 
         Batch setup(mDevice.getPool());
-        DeviceScene& held = mScenes.hold(
-            slot, std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, scene, textures, mProfile.mAnisotropy));
+        DeviceScene& held = mScenes.hold(slot,
+            std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, scene, textures, mProfile.mAnisotropy,
+                slot.isWorld() ? sWorldPlacementRoom : 0u));
 
         // A picture's scene rides the next submit, as an arrival does: its placement and its trace
         // are deferred behind it, and the barrier every upload and build ends in orders them. The
@@ -347,18 +371,17 @@ namespace Rtx
         // The placement's own submit, without a wait. The frame's trace, later on the queue,
         // covers this submit too. Nothing recorded is nothing submitted, which is every frame of a
         // standing camera in an empty place.
-        const VkCommandBuffer placement = mRing.takePlaceCommands(frame);
-        mDevice.getPool().begin(placement);
+        Recording placement = mDevice.getPool().begin(mRing.takePlaceCommands(frame));
 
         if (held.place(scene,
                 Placing{
-                    .mCommands = placement,
+                    .mCommands = placement.get(),
                     .mSlot = into,
                     .mTimer = &frame.mTimer,
                 }))
-            mDevice.getPool().submit(placement);
+            std::move(placement).submit();
         else
-            mDevice.getPool().end(placement);
+            std::move(placement).end();
 
         held.placed(into);
 
@@ -380,10 +403,8 @@ namespace Rtx
 
         // A handed-over batch is submitted first where a rebuild follows, exactly as a resize does,
         // and only there: most settings change no present mode, and the drain is a submit and a
-        // wait.
-        if (mPresenter->rebuildsFor(mode))
-            mGui.getTextures().finish();
-        mPresenter->setVerticalSync(mode);
+        // wait. A present mode is a property of the swapchain object.
+        mPresenter->setVerticalSync(mode, [this] { drain(); });
     }
 
     void VulkanRenderer::setAnisotropy(const std::uint32_t anisotropy)
@@ -416,12 +437,12 @@ namespace Rtx
 
     std::optional<FrameResult> VulkanRenderer::finishFrame()
     {
-        return mRing.collect();
+        return mRing.finishFrame();
     }
 
     std::optional<FrameResult> VulkanRenderer::collectFrame()
     {
-        return mRing.collectFinished();
+        return mRing.collectFrame();
     }
 
     void VulkanRenderer::resize(std::uint32_t width, std::uint32_t height)
@@ -443,7 +464,7 @@ namespace Rtx
         // submit. What that costs where no rebuild follows is `Presenter::wantsResize`.
         if (mPresenter->wantsResize(VkExtent2D{ width, height }))
         {
-            mGui.getTextures().finish();
+            drain();
             mPresenter->rebuild(VkExtent2D{ width, height });
         }
     }
@@ -477,7 +498,7 @@ namespace Rtx
         // it after the frame, and the present blits after both. Drawn with no batches as well,
         // because what is shown is the picture under them either way.
         mGui.draw(vertices, batches, mTarget.getPicture(), mTarget.getShown());
-        mShownCurrent = true;
+        mTarget.showInterface();
     }
 
     void VulkanRenderer::presentFrame()
@@ -485,11 +506,11 @@ namespace Rtx
         assert(mPresenter != nullptr && "presentFrame on a renderer that was given no window");
         assert(mTarget.isOpen());
 
-        if (!mShownCurrent)
+        if (!mTarget.isShownCurrent())
             mGui.draw({}, {}, mTarget.getPicture(), mTarget.getShown());
 
         mPresenter->present(mTarget.getShown());
-        mShownCurrent = false;
+        mTarget.spendShown();
     }
 
     FrameExtents VulkanRenderer::getExtents() const
@@ -507,7 +528,31 @@ namespace Rtx
         return mTracePasses.mVisibility.awaitKernels(patience);
     }
 
-    void VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
+    FrameTraced VulkanRenderer::renderFrame(const FrameRequest& request)
+    {
+        assert(request.mSky != nullptr && "a frame described with no sky to read its sheets from");
+
+        FrameTraced traced{ .mConstants = constantsFor(request.mView), .mCarried = {} };
+        Shaders::VisibilityConstants& constants = traced.mConstants;
+        constants.mRayMask = request.mRayMask;
+        constants.mNoLamps = request.mLamps ? 0u : 1u;
+        constants.mFrame = request.mSampleFrame;
+
+        WorldOptions described;
+        describeWorld(request.mWorld, *request.mSky, mDrift, constants, described);
+        traced.mCarried = mDrift.get();
+
+        renderFrame(constants, request.mOptions, described);
+        return traced;
+    }
+
+    void VulkanRenderer::holdAir(const AirClock& air)
+    {
+        mDrift.hold(air.mCarried, air.mSky.mSeconds);
+    }
+
+    void VulkanRenderer::renderFrame(
+        const Shaders::VisibilityConstants& camera, const FrameOptions& options, const WorldOptions& described)
     {
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
@@ -557,8 +602,8 @@ namespace Rtx
             mMedia.resetRipples();
 
         GpuTimer& timer = frame.mTimer;
-        const VkCommandBuffer commands = frame.mWorld.mCommands;
-        mDevice.getPool().begin(commands);
+        Recording trace = mRing.recordWorld(frame);
+        const VkCommandBuffer commands = trace.get();
 
         // The glare fader's query starts the frame at nothing, ahead of the trace that counts.
         mDisplay.beginGlare(commands);
@@ -569,13 +614,12 @@ namespace Rtx
         if (subject.mSea)
         {
             mMedia.stepRipples(commands, mRing.getRecordingSlot(), osg::Vec2f(camera.mOrigin.x(), camera.mOrigin.y()),
-                options.mWaterSeconds, &timer);
+                described.mWaterSeconds, &timer);
             mMedia.placeRipples(sampled);
         }
 
+        Image* const deep = mTarget.beginPicture(mDevice, options.mAccumulate > 0);
         Image& target = mTarget.getPicture();
-        mShownCurrent = false;
-        mDeepCurrent = options.mAccumulate > 0;
 
         const TraceResult traced = mFrame.record(commands,
             TraceRecording{
@@ -595,7 +639,7 @@ namespace Rtx
         {
             std::array<const Image*, Shaders::DIGEST_IMAGES> digested{};
             for (const Channel channel : sEveryChannel)
-                digested[bindingOf(channel)] = &channels.get(channel);
+                digested[indexOf(channel)] = &channels.get(channel);
 
             mRing.readDigest(frame, commands, digested,
                 FrameDigest{
@@ -614,8 +658,7 @@ namespace Rtx
             if (!reconstruction.upscaled())
                 return traced.mColour;
 
-            timer.open(commands, "upscale");
-            const HandedImage upscaled = mUpscaler.record(commands,
+            return mUpscaler.record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour.mImage,
                     .mSurface = channels.get(Channel::Surface),
@@ -626,19 +669,9 @@ namespace Rtx
                     .mJitterPhases = reconstruction.mJitterPhases,
                     .mSeconds = options.mSinceLast,
                     .mSlot = mRing.getRecordingSlot(),
-                });
-            timer.close(commands);
-            return upscaled;
+                },
+                &timer);
         }();
-
-        const ExposureRule rule = options.mExposure.value_or(mProfile.mExposure);
-        FrameLook::Exposure exposure = FrameLook::Held{};
-        if (const FixedExposure* fixed = std::get_if<FixedExposure>(&rule))
-            exposure = FrameLook::Fixed{ fixed->mScale };
-        else if (const MeasuredExposure* measured = std::get_if<MeasuredExposure>(&rule))
-            exposure = FrameLook::Measured{
-                .mSeconds = options.mSinceLast, .mBias = options.mExposureBias, .mStart = measured->mStart
-            };
 
         mDisplay.record(commands,
             Display{
@@ -650,12 +683,14 @@ namespace Rtx
                 .mTarget = target,
                 .mLeftAs = PresentTarget::sResting,
                 .mFrame = FrameLook{
-                    .mExposure = exposure,
-                    .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast },
+                    .mExposure = options.mExposure.value_or(mProfile.mExposure),
+                    .mExposureBias = described.mExposureBias,
+                    .mSeconds = options.mSinceLast,
+                    .mGlare = described.mGlare,
                     .mInverseGamma = mInverseGamma,
-                    .mNightEye = options.mNightEye,
+                    .mNightEye = described.mNightEye,
                     .mDither = options.mDither.value_or(mProfile.mDither),
-                    .mDeep = mDeepCurrent ? &mTarget.requireDeep(mDevice) : nullptr,
+                    .mDeep = deep,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
                     .mTimer = timer,
@@ -669,11 +704,11 @@ namespace Rtx
         // After the picture and inside the frame's trace, so the frame is finished when its value
         // has passed and the hold is the last thing it did.
         if (mStress != nullptr)
-            mStress->record(commands, timer, frame.mCounts);
+            mStress->record(commands, frame.mCounts, &timer);
 
         // Submitted and not waited for: `finishFrame` or `collectFrame` brings the counts and the
         // report back a frame or two late.
-        mRing.submit(frame);
+        mRing.submit(frame, std::move(trace));
 
         // What the next frame reprojects against, and the camera as the caller gave it: a jitter is
         // where inside a pixel this frame sampled, not where the eye was.
@@ -690,6 +725,19 @@ namespace Rtx
         // Not drained, because the scene's objects bury themselves: a drain here idled the whole
         // device every time the inventory closed.
         mScenes.drop(scene);
+    }
+
+    void VulkanRenderer::traceGuiTexture(const GuiSlot texture, const Viewpoint& view, const GuiTraceOptions& options)
+    {
+        Shaders::VisibilityConstants camera = constantsFor(view);
+        camera.mSun = Shaders::sunSource(options.mLight.mDirection, options.mLight.mIrradiance);
+        camera.mAmbient = options.mLight.mAmbient;
+        camera.mNoSkyShadows = 1;
+        camera.mTransparentBackground = options.mClear[3] < 1.0f ? 1u : 0u;
+        camera.mRayMask = options.mRayMask;
+        camera.mNoLamps = options.mLamps ? 0u : 1u;
+
+        traceGuiTexture(texture, camera, options);
     }
 
     void VulkanRenderer::traceGuiTexture(
@@ -714,10 +762,7 @@ namespace Rtx
 
     void VulkanRenderer::finishGuiTraces()
     {
-        // The pictures recorded and not yet carried, and then the frames carrying the rest; the
-        // frame's own chain is left standing.
-        mDevice.getPool().finishDeferred();
-        mRing.finishAll();
+        drain();
     }
 
     void VulkanRenderer::readGuiTexture(const GuiSlot texture, std::vector<std::uint8_t>& pixels)
@@ -734,8 +779,6 @@ namespace Rtx
 
     void VulkanRenderer::readDeepPixels(std::vector<std::uint16_t>& samples)
     {
-        assert(mDeepCurrent && "a sixteen-bit picture asked of a frame that did not sum");
-
         std::vector<std::uint8_t> bytes;
         mTarget.getDeep().read(VK_IMAGE_LAYOUT_GENERAL, bytes);
         samples.resize(bytes.size() / sizeof(std::uint16_t));

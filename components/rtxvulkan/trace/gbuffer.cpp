@@ -59,32 +59,32 @@ namespace Rtx
             VkImageUsageFlags mUsage;
         };
 
-        /// What each channel is made of, at its own binding, placed by name so a channel added to
+        /// What each channel is made of, at its own index, placed by name so a channel added to
         /// `Rtx::Channel` and forgotten here is a compile error rather than an image bound at the
         /// wrong number. The radiance channels take the run's width and the rest are fixed.
         ChannelFormat formatOf(const Channel channel, const RadianceWidth width)
         {
             static constexpr auto sFormats = [] {
                 std::array<ChannelFormat, sChannelCount> every{};
-                every[bindingOf(Channel::Direct)] = { VK_FORMAT_UNDEFINED, sReadable };
-                every[bindingOf(Channel::Indirect)] = { VK_FORMAT_UNDEFINED, sReadable };
-                every[bindingOf(Channel::Albedo)] = { sAlbedo, sReadable };
-                every[bindingOf(Channel::Surface)] = { sSurface, sReadable };
-                every[bindingOf(Channel::Motion)] = { sMotion, sReadable };
-                every[bindingOf(Channel::Backdrop)] = { sBackdrop, sUsage };
-                every[bindingOf(Channel::Puffs)] = { sLayer, sUsage };
-                every[bindingOf(Channel::Shadowed)] = { VK_FORMAT_UNDEFINED, sReadable };
-                every[bindingOf(Channel::Specular)] = { VK_FORMAT_UNDEFINED, sReadable };
-                every[bindingOf(Channel::Pane)] = { VK_FORMAT_UNDEFINED, sReadable };
-                every[bindingOf(Channel::PaneAlbedo)] = { sAlbedo, sReadable };
-                every[bindingOf(Channel::PaneSurface)] = { sSurface, sReadable };
-                every[bindingOf(Channel::PaneMotion)] = { sMotion, sReadable };
-                every[bindingOf(Channel::UpscaleMasks)] = { sUpscaleMasks, sReadable };
-                every[bindingOf(Channel::Fill)] = { VK_FORMAT_UNDEFINED, sReadable };
-                every[bindingOf(Channel::AmbientAlbedo)] = { sAlbedo, sReadable };
-                every[bindingOf(Channel::Lift)] = { sLift, sReadable };
-                every[bindingOf(Channel::Penumbra)] = { sPenumbra, sReadable };
-                every[bindingOf(Channel::SpecularAlbedo)] = { sAlbedo, sReadable };
+                every[indexOf(Channel::Direct)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[indexOf(Channel::Indirect)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[indexOf(Channel::Albedo)] = { sAlbedo, sReadable };
+                every[indexOf(Channel::Surface)] = { sSurface, sReadable };
+                every[indexOf(Channel::Motion)] = { sMotion, sReadable };
+                every[indexOf(Channel::Backdrop)] = { sBackdrop, sUsage };
+                every[indexOf(Channel::Puffs)] = { sLayer, sUsage };
+                every[indexOf(Channel::Shadowed)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[indexOf(Channel::Specular)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[indexOf(Channel::Pane)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[indexOf(Channel::PaneAlbedo)] = { sAlbedo, sReadable };
+                every[indexOf(Channel::PaneSurface)] = { sSurface, sReadable };
+                every[indexOf(Channel::PaneMotion)] = { sMotion, sReadable };
+                every[indexOf(Channel::UpscaleMasks)] = { sUpscaleMasks, sReadable };
+                every[indexOf(Channel::Fill)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[indexOf(Channel::AmbientAlbedo)] = { sAlbedo, sReadable };
+                every[indexOf(Channel::Lift)] = { sLift, sReadable };
+                every[indexOf(Channel::Penumbra)] = { sPenumbra, sReadable };
+                every[indexOf(Channel::SpecularAlbedo)] = { sAlbedo, sReadable };
 
                 return every;
             }();
@@ -92,17 +92,17 @@ namespace Rtx
             static_assert(std::ranges::none_of(sFormats, [](const ChannelFormat& one) { return one.mUsage == 0; }),
                 "a channel the format table did not fill");
 
-            ChannelFormat described = sFormats[bindingOf(channel)];
+            ChannelFormat described = sFormats[indexOf(channel)];
             if (described.mFormat == VK_FORMAT_UNDEFINED)
                 described.mFormat = radianceFormat(width);
 
             return described;
         }
 
-        /// Every channel is a storage image the trace writes, bound one per number from nought,
-        /// which is what `gbuffer.h`'s `CHANNEL_*` are. Both stages, because the trace is a launch
-        /// and everything that reads what it left is a dispatch. One table serves the layout and the
-        /// pool that holds a set of it.
+        /// Every channel is a storage image the trace writes, and channel `c` binds at binding
+        /// `indexOf(c)`, which is what `gbuffer.h`'s `CHANNEL_*` are. Both stages, because the trace
+        /// is a launch and everything that reads what it left is a dispatch. One table serves the
+        /// layout and the pool that holds a set of it.
         constexpr std::array<VkDescriptorSetLayoutBinding, sChannelCount> sBindings = [] {
             std::array<VkDescriptorSetLayoutBinding, sChannelCount> bindings{};
             for (std::uint32_t channel = 0; channel < bindings.size(); ++channel)
@@ -130,6 +130,10 @@ namespace Rtx
 
         updateSets(device, writes.get());
     }
+
+    // One command a hand-over and not two: a run past the batch's room emits what it holds.
+    static_assert(
+        Shaders::CHANNEL_COUNT <= Barriers::sMostImages, "the G-buffer's channels overflow one barrier batch");
 
     void GBuffer::begin(VkCommandBuffer commands) const
     {

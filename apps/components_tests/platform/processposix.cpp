@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/linuxtext.hpp>
 #include <components/platform/process.hpp>
 #include <components/testing/util.hpp>
 
@@ -91,7 +92,7 @@ namespace
     TEST(RtxPlatformProcessTest, everyThreadKeepsToThePerformanceCoresWhereTheSystemListsThem)
     {
         std::ifstream listed("/sys/devices/cpu_core/cpus");
-        const std::optional<std::vector<std::uint32_t>> performance = Platform::Process::parseCpuList(
+        const std::optional<std::vector<std::uint32_t>> performance = Platform::LinuxText::parseCpuList(
             std::string{ std::istreambuf_iterator<char>(listed), std::istreambuf_iterator<char>() });
 
         EXPECT_EXIT(
@@ -121,7 +122,7 @@ namespace
                             continue;
                         ++threads;
                         if (performance.has_value()
-                            && Platform::Process::parseCpuList(std::string_view(line).substr(key.size() + 1))
+                            && Platform::LinuxText::parseCpuList(std::string_view(line).substr(key.size() + 1))
                                 != performance)
                         {
                             std::fprintf(stderr, "%s\n", line.c_str());

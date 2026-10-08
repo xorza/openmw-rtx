@@ -322,8 +322,7 @@ namespace MWGui
         mGuiModeStates[GM_Recharge] = GuiModeState(recharge.get());
         mWindows.push_back(std::move(recharge));
 
-        auto menu = std::make_unique<MainMenu>(
-            w, h, mResourceSystem->getVFS(), mVersionDescription, mRenderer.getFrameRateLimit());
+        auto menu = std::make_unique<MainMenu>(w, h, mResourceSystem->getVFS(), mVersionDescription);
         mGuiModeStates[GM_MainMenu] = GuiModeState(menu.get());
         mWindows.push_back(std::move(menu));
 

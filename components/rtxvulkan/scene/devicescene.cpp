@@ -34,11 +34,11 @@ namespace Rtx
     }
 
     DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
-        std::span<const TextureData> textures, const std::uint32_t anisotropy)
+        std::span<const TextureData> textures, const std::uint32_t anisotropy, const std::uint32_t placementRoom)
         : mPasses(passes)
         , mRecords(recordsOf(scene))
         , mEveryMesh(everyMeshOf(scene))
-        , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots)
+        , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots, placementRoom)
         , mBuffers(device, batch, scene, mEveryMesh, mRecords, sFrameSlots)
         , mSkinTables(device, batch, scene, sFrameSlots)
         , mTextures(device, batch, passes.mTextureLayout, passes.mTextures,
@@ -50,7 +50,7 @@ namespace Rtx
         // takes it on the first placement that writes it.
         mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{}));
         mAcceleration.build(batch, scene, mEveryMesh, mRecords, mRefusals);
-        mTextures.write(batch, textures, mRefusals);
+        mTextures.write(batch, mPasses.mTextures, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedFreed = scene.meshes().getFreedCount();
         mBuiltStructure = scene.getStructureRevision();
@@ -126,7 +126,7 @@ namespace Rtx
             mBuiltMeshes = scene.meshes().getRevision();
         }
 
-        mTextures.write(batch, arrived, mRefusals);
+        mTextures.write(batch, mPasses.mTextures, arrived, mRefusals);
 
         mBuiltStructure = scene.getStructureRevision();
     }

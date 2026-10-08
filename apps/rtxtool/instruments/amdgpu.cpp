@@ -11,6 +11,7 @@
 #include <utility>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/folder.hpp>
 
 namespace RtxTool
 {
@@ -53,10 +54,13 @@ namespace RtxTool
 
     std::optional<AmdGpu> AmdGpu::find()
     {
-        std::error_code error;
+        const std::optional<std::vector<std::filesystem::directory_entry>> cards
+            = Platform::listFolder("/sys/class/drm");
+        if (!cards.has_value())
+            return std::nullopt;
+
         std::array<char, 512> text;
-        for (const std::filesystem::directory_entry& card :
-            std::filesystem::directory_iterator("/sys/class/drm", error))
+        for (const std::filesystem::directory_entry& card : *cards)
         {
             // `card0` and not a connector of it, `card0-HDMI-A-1`, which holds no `device/vendor`
             // of its own but a link back to the card's.
@@ -70,9 +74,12 @@ namespace RtxTool
                 continue;
 
             std::filesystem::path temperature;
+            const std::optional<std::vector<std::filesystem::directory_entry>> monitors
+                = Platform::listFolder(device / "hwmon");
             for (const std::filesystem::directory_entry& hwmon :
-                std::filesystem::directory_iterator(device / "hwmon", error))
+                monitors.value_or(std::vector<std::filesystem::directory_entry>{}))
             {
+                std::error_code error;
                 if (std::filesystem::exists(hwmon.path() / "temp1_input", error))
                 {
                     temperature = hwmon.path() / "temp1_input";

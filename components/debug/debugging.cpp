@@ -3,7 +3,6 @@
 #include <chrono>
 #include <deque>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -19,13 +18,16 @@
 #pragma warning(pop)
 #endif
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/fixedpath.hpp>
 #include <components/misc/result.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
+#include <components/platform/appendfile.hpp>
 #include <components/platform/process.hpp>
+#include <components/version/version.hpp>
 
 #ifdef _WIN32
 #include <components/misc/windows.hpp>
@@ -102,6 +104,10 @@ namespace Debug
         /// Whether `OPENMW_CRASH_REPORTS` named the reports' folder, which then stands over the
         /// configured one: `setCrashReports`.
         bool sReportsNamed = false;
+
+        /// The folder under the user data folder that the reports go to, both before the configuration
+        /// names that folder and after.
+        constexpr std::string_view sReportFolder = "crashes";
 
         class DebugOutputBase : public boost::iostreams::sink
         {
@@ -242,22 +248,24 @@ namespace Debug
 #endif
         }
 
+        /// The log's own file, written as it was said, at its end whoever else wrote there since: the
+        /// crash catcher's monitor appends its summaries from a process of its own
+        /// (`Platform::AppendFile`).
         class Identity
         {
         public:
-            explicit Identity(std::ostream& stream)
-                : mStream(stream)
+            explicit Identity(const Platform::AppendFile& file)
+                : mFile(file)
             {
             }
 
             void write(const char* str, std::streamsize size, Level /*level*/)
             {
-                mStream.write(str, size);
-                mStream.flush();
+                mFile.write(std::string_view(str, static_cast<std::size_t>(size)));
             }
 
         private:
-            std::ostream& mStream;
+            const Platform::AppendFile& mFile;
         };
 
         class Coloured
@@ -348,7 +356,7 @@ namespace Debug
         static std::unique_ptr<std::ostream> rawStdout = nullptr;
         static std::unique_ptr<std::ostream> rawStderr = nullptr;
         static std::unique_ptr<std::mutex> rawStderrMutex = nullptr;
-        static std::ofstream logfile;
+        static Platform::AppendFile logfile;
 
 #if defined(_WIN32) && defined(_DEBUG)
         static boost::iostreams::stream_buffer<DebugOutput> sb;
@@ -394,7 +402,7 @@ namespace Debug
     void setCrashReports(const std::filesystem::path& userData)
     {
         if (!sReportsNamed)
-            Crash::setReportFolder(userData / "crashes");
+            Crash::setReportFolder(userData / sReportFolder);
     }
 
     void setupLogging(const std::filesystem::path& logDir, std::string_view appName)
@@ -406,10 +414,8 @@ namespace Debug
 #if !(defined(_WIN32) && defined(_DEBUG))
         // Emptied once and then opened to append, so every write lands at the end of the file: the
         // crash catcher's monitor appends its summaries from a process of its own, and a write at
-        // this stream's own offset would land over them.
-        logfile.open(logFile, std::ios::out);
-        logfile.close();
-        logfile.open(logFile, std::ios::app);
+        // this process's own offset would land over them.
+        logfile = Platform::AppendFile::open(logFile, true);
 
         Identity log(logfile);
 
@@ -435,7 +441,11 @@ namespace Debug
     {
         // Before anything else, because a monitor is this executable doing nothing but that.
         Crash::runMonitorIfAsked(argc, argv);
-        const std::string_view unkept = Crash::keepImageMounted();
+
+        // The image is kept for a monitor, so only where one will start.
+        const char* const disable = std::getenv("OPENMW_DISABLE_CRASH_CATCHER");
+        const bool catches = disable == nullptr || Misc::StringUtils::toNumeric<int>(disable, 0) == 0;
+        const std::string_view unkept = catches ? Crash::keepImageMounted() : std::string_view();
 
 #if defined _WIN32
         (void)attachParentConsole();
@@ -464,8 +474,7 @@ namespace Debug
         // reports go under the user data folder, which is known before any configuration is, and the
         // log is handed over once `setupLogging` knows it. What this says lands in the log then,
         // since the lines before it are held until it opens.
-        const char* const disable = std::getenv("OPENMW_DISABLE_CRASH_CATCHER");
-        if (disable == nullptr || Misc::StringUtils::toNumeric<int>(disable, 0) == 0)
+        if (catches)
         {
             Crash::Settings settings;
             settings.mApplication = std::string(appName);
@@ -473,14 +482,20 @@ namespace Debug
             const std::optional<std::filesystem::path> reports
                 = Platform::Process::environmentPath("OPENMW_CRASH_REPORTS");
             sReportsNamed = reports.has_value();
-            settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / "crashes");
-            // As the fatal error box below: none for whoever started the game from a shell.
-            settings.mDialog = !Platform::Process::startedFromTerminal();
-            // And none where a harness asks, which a box waiting for a click would stop.
+            settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / sReportFolder);
+            // As the fatal error box below: none for whoever started the game from a shell; none
+            // where a harness asks, which a box waiting for a click would stop; and a harness's End
+            // in place of the player's where it names one.
+            bool asks = !Platform::Process::startedFromTerminal();
             if (const char* const dialog = std::getenv("OPENMW_CRASH_DIALOG"))
-                settings.mDialog = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
+                asks = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
+            settings.mAnswering = asks ? Crash::Answering(Crash::AskThePlayer{}) : Crash::Answering(Crash::AskNobody{});
             if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
-                settings.mEndAfter = std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0));
+                settings.mAnswering
+                    = Crash::EndAfter{ std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0)) };
+            // Every application's reports carry the build they came from, the launcher's and the
+            // editor's as well as the game's.
+            Crash::annotate("version", Version::getOpenmwVersionDescription());
             if (const Misc::Result<Crash::Installed, std::string_view> installed = Crash::install(settings);
                 !installed.isOk())
                 Log(Debug::Warning) << "No crash catcher: " << installed.error();

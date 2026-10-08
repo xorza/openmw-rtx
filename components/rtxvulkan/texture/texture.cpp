@@ -19,7 +19,6 @@
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/imagedescription.hpp>
-#include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -91,44 +90,6 @@ namespace Rtx
             };
         }
 
-        /// A format with a transfer curve and its twin without one: the same bytes in the same
-        /// compatibility class, read through the curve or as the bytes they are.
-        struct CurveTwins
-        {
-            VkFormat mEncoded;
-            VkFormat mLinear;
-        };
-
-        /// Every format this uploads or writes that has a curve, beside its twin — one table, so
-        /// the two directions below cannot disagree.
-        constexpr std::array sCurveTwins{
-            CurveTwins{ VK_FORMAT_BC1_RGBA_SRGB_BLOCK, VK_FORMAT_BC1_RGBA_UNORM_BLOCK },
-            CurveTwins{ VK_FORMAT_BC2_SRGB_BLOCK, VK_FORMAT_BC2_UNORM_BLOCK },
-            CurveTwins{ VK_FORMAT_BC3_SRGB_BLOCK, VK_FORMAT_BC3_UNORM_BLOCK },
-            CurveTwins{ VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_R8G8B8A8_UNORM },
-            CurveTwins{ VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM },
-        };
-
-        /// `format` with its transfer curve taken off: the same bytes, read as the bytes they are.
-        /// A format with no curve is its own.
-        constexpr VkFormat withoutCurve(const VkFormat format)
-        {
-            for (const CurveTwins& twins : sCurveTwins)
-                if (twins.mEncoded == format)
-                    return twins.mLinear;
-            return format;
-        }
-
-        /// `format` read through a transfer curve, which is how the trace samples a written texture
-        /// whose file was display-encoded.
-        constexpr VkFormat withCurve(const VkFormat format)
-        {
-            for (const CurveTwins& twins : sCurveTwins)
-                if (twins.mLinear == format)
-                    return twins.mEncoded;
-            Crash::fatal("a format with no twin under a curve");
-        }
-
         /// What a written texture is stored as, which is what the shaders that write it declare,
         /// and the same bytes through the curve.
         constexpr VkFormat sWrittenFormat = toVulkanFormat(TEXTURE_WRITTEN_FORMAT);
@@ -175,43 +136,6 @@ namespace Rtx
                 makeFootprintSampler(device, "textures along clamped along s", TextureWrap::ClampS, anisotropy),
                 makeFootprintSampler(device, "textures along clamped along t", TextureWrap::ClampT, anisotropy),
                 makeFootprintSampler(device, "textures along clamped", TextureWrap::Clamp, anisotropy) };
-        }
-
-        constexpr VkImageUsageFlags sUploaded = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        constexpr VkImageUsageFlags sWritten = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-
-        /// `TextureArray::getSideLimit`, asked of the device once, over every image a file or a
-        /// bake is made as: each format uploaded, its twin without the curve a chain is completed
-        /// from, and the four-byte chain and bake. A composite is left out, because its side is the
-        /// renderer's own.
-        std::uint32_t sideLimitOf(const Device& device)
-        {
-            const PhysicalDevice& physical = device.getPhysicalDevice();
-            std::uint32_t side = physical.getProperties().mProperties2.properties.limits.maxImageDimension2D;
-
-            const auto takes
-                = [&](const VkFormat format, const VkImageUsageFlags usage, const VkImageCreateFlags flags) {
-                      VkImageFormatProperties properties{};
-                      checkVk(vkGetPhysicalDeviceImageFormatProperties(physical.getHandle(), format, VK_IMAGE_TYPE_2D,
-                                  VK_IMAGE_TILING_OPTIMAL, usage, flags, &properties),
-                          "vkGetPhysicalDeviceImageFormatProperties");
-                      side = std::min({ side, properties.maxExtent.width, properties.maxExtent.height });
-                  };
-
-            for (std::size_t at = 0; at < sTextureFormatCount; ++at)
-            {
-                const auto format = static_cast<TextureFormat>(at);
-                if (!isUploadable(format))
-                    continue;
-
-                takes(toVulkanFormat(format), sUploaded, 0);
-                takes(withoutCurve(toVulkanFormat(format)), sUploaded, 0);
-            }
-
-            takes(sWrittenEncoded, sWritten, VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT | VK_IMAGE_CREATE_EXTENDED_USAGE_BIT);
-            takes(sWrittenFormat, sWritten, 0);
-
-            return side;
         }
 
         /// Where `texture` begins held to `side`: its first level within it, or its last where the
@@ -286,30 +210,31 @@ namespace Rtx
         Image image;
         if (!data.mCompleteChain)
         {
-            Misc::Result<Image, std::string_view> made = Image::tryMake(
-                use, device, top.mWidth, top.mHeight, toVulkanFormat(data.mFormat), sUploaded, name, levels);
+            Misc::Result<Image, std::string_view> made = Image::tryMake(use, device, top.mWidth, top.mHeight,
+                toVulkanFormat(data.mFormat), sUploadedTextureUsage, name, levels);
             if (!made.isOk())
                 return Misc::Err{ made.error() };
             image = std::move(made.value());
         }
         else
         {
-            assert(MipChain::wantedFor(data) && "a chain completed for a file that has one");
+            assert(data.wantsCompletedChain() && "a chain completed for a file that has one");
 
             // The file's one level, uploaded as the bytes it holds, in a format with no curve under
             // it so that the chain's first dispatch fetches those bytes and not the light behind
             // them; gone with the batch, because the chain is what the trace samples.
-            Misc::Result<Image, std::string_view> uploaded = Image::tryMake(
-                use, device, data.mWidth, data.mHeight, withoutCurve(toVulkanFormat(data.mFormat)), sUploaded, name, 1);
+            Misc::Result<Image, std::string_view> uploaded = Image::tryMake(use, device, data.mWidth, data.mHeight,
+                withoutCurve(toVulkanFormat(data.mFormat)), sUploadedTextureUsage, name, 1);
             if (!uploaded.isOk())
                 return Misc::Err{ uploaded.error() };
 
             // Four bytes a texel down to one texel, with the file's own curve over the sampler's
-            // read and none over the dispatch's store — `MipChain` says why the chain is loose.
+            // read and none over the dispatch's store — `TextureData::wantsCompletedChain` says why the
+            // chain is loose.
             const bool encoded = isSrgb(data.mFormat);
             Misc::Result<Image, std::string_view> chain = Image::tryMake(use, device, data.mWidth, data.mHeight,
-                encoded ? sWrittenEncoded : sWrittenFormat, sWritten, name, levelsTo1x1(data.mWidth, data.mHeight), 1,
-                encoded ? sWrittenFormat : VK_FORMAT_UNDEFINED);
+                encoded ? sWrittenEncoded : sWrittenFormat, sWrittenTextureUsage, name,
+                levelsTo1x1(data.mWidth, data.mHeight), 1, encoded ? sWrittenFormat : VK_FORMAT_UNDEFINED);
             if (!chain.isOk())
                 return Misc::Err{ chain.error() };
 
@@ -357,7 +282,7 @@ namespace Rtx
 
         const Image& from = source.mImage;
         Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, from.getWidth(),
-            from.getHeight(), writtenAs(format), sWritten, name, from.getMipLevels(), 1, sWrittenFormat);
+            from.getHeight(), writtenAs(format), sWrittenTextureUsage, name, from.getMipLevels(), 1, sWrittenFormat);
         if (!image.isOk())
             return Misc::Err{ image.error() };
 
@@ -369,7 +294,7 @@ namespace Rtx
         mImage = std::move(image.value());
 
         // Clamped, because a bake is one image whose coordinates run edge to edge — what
-        // `TextureTable::addBaked` says of its row.
+        // `TextureTable::addSpriteLight` says of its row.
         mWrap = TextureWrap::Clamp;
 
         mCompanion = std::move(shading.value());
@@ -385,7 +310,7 @@ namespace Rtx
     {
         assert(isEmpty() && "a texture stood over one that stands");
 
-        mImage = Image(device, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, sUploaded, name, 1);
+        mImage = Image(device, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, sUploadedTextureUsage, name, 1);
 
         const std::array<float, 4> texel{ colour.x(), colour.y(), colour.z(), colour.w() };
         const std::array<VkBufferImageCopy, 1> regions{ wholeLevel(0, 0, VkExtent3D{ 1, 1, 1 }) };
@@ -405,8 +330,8 @@ namespace Rtx
         // usages for that blit, and the view without the curve for the store.
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
         Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, extent, extent,
-            writtenAs(format), sWritten | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, name,
-            levelsTo1x1(extent, extent), 1, sWrittenFormat);
+            writtenAs(format), sWrittenTextureUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            name, levelsTo1x1(extent, extent), 1, sWrittenFormat);
         if (!image.isOk())
             return Misc::Err{ image.error() };
 
@@ -420,7 +345,7 @@ namespace Rtx
         mImage = std::move(image.value());
 
         // Clamped, because a composite is one image whose coordinates run edge to edge — what
-        // `TextureTable::addBaked` says of its row.
+        // `TextureTable::addGround` says of its row.
         mWrap = TextureWrap::Clamp;
 
         mCompanion = std::move(shading.value());
@@ -453,14 +378,13 @@ namespace Rtx
     TextureArray::TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
         const std::uint32_t slots, const std::uint32_t anisotropy)
         : mDevice(device)
-        , mPasses(passes)
         , mArrival(device)
         , mSamplers{ makeContentSampler(device, "textures repeating", TextureWrap::Repeat),
             makeContentSampler(device, "textures clamped along s", TextureWrap::ClampS),
             makeContentSampler(device, "textures clamped along t", TextureWrap::ClampT),
             makeContentSampler(device, "textures clamped", TextureWrap::Clamp) }
         , mFootprintSamplers(makeFootprintSamplers(device, anisotropy))
-        , mSideLimit(sideLimitOf(device))
+        , mSideLimit(device.getPhysicalDevice().getTextureSide())
         , mSide(mSideLimit)
         , mSaidSide(mSideLimit)
         // Allocated at the maximum the layout declares, not at what this scene brought. Sizing the
@@ -511,7 +435,8 @@ namespace Rtx
             mSlots.resize(slot + 1);
     }
 
-    void TextureArray::write(Batch& batch, std::span<const TextureData> arrived, std::vector<Refusal>& refused)
+    void TextureArray::write(
+        Batch& batch, const TexturePasses& passes, std::span<const TextureData> arrived, std::vector<Refusal>& refused)
     {
         if (arrived.empty())
             return;
@@ -550,7 +475,7 @@ namespace Rtx
             if (texture.mSource == TextureSource::GroundComposite || texture.mSource == TextureSource::GroundGloss)
                 stand(batch, texture, side, refused);
 
-        mArrival.record(batch, mPasses);
+        mArrival.record(batch, passes);
     }
 
     std::uint32_t TextureArray::chooseSide(std::span<const TextureData> arrived, const VkDeviceSize room) const
@@ -747,6 +672,9 @@ namespace Rtx
     VkDescriptorSet TextureArray::getSet(const FrameSlot slot) const
     {
         assert(slot.get() < sFrameSlots);
+        // A set with descriptors owed names what it no longer holds: after `setAnisotropy`, a
+        // sampler destroyed with the ones it replaced.
+        assert(mOwed.at(slot).empty() && "a texture set sampled before `sync` paid what it owes");
         mBound.at(slot).nameFor(mDevice.getTimeline().getNext());
         return mSets.get(slot.get());
     }

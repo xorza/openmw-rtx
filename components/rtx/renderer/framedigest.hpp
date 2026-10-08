@@ -17,7 +17,7 @@ namespace Rtx
     /// a verdict, and this is the verdict.
     struct FrameDigest
     {
-        /// The channels at their binding, the direct one holding the composed frame.
+        /// The channels at their index (`indexOf`), the direct one holding the composed frame.
         std::array<DigestWords, Shaders::DIGEST_IMAGES> mImages{};
 
         /// Where inside the pixel this frame sampled, as the trace applied it — what the

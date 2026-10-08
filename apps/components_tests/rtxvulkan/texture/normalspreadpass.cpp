@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <span>
 #include <vector>
 
@@ -27,12 +28,15 @@ namespace Rtx
     {
         struct RtxNormalSpreadPassTest : Testing::DeviceTest
         {
-            /// Uploads a map of `texels`, four bytes a texel, measures its spread on the device into
-            /// an image of the test's own, and hands every level of it back as bytes, a byte a texel.
+            /// Uploads a map of `texels`, four bytes a texel unless `format` says otherwise, measures
+            /// its spread on the device into an image of the test's own, and hands every level of it
+            /// back as bytes, a byte a texel, and the first level's means into `firstMeans` where
+            /// one is given, four floats a texel.
             /// The test's own image and not `Texture`'s, because a spread the trace samples is never
             /// copied back and carries no usage for it.
-            std::vector<std::vector<std::uint8_t>> spreadOf(
-                std::span<const std::uint8_t> texels, std::uint32_t width, std::uint32_t height)
+            std::vector<std::vector<std::uint8_t>> spreadOf(std::span<const std::uint8_t> texels, std::uint32_t width,
+                std::uint32_t height, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
+                std::vector<float>* firstMeans = nullptr)
             {
                 Device& device = getDevice();
                 const TexturePasses passes(device);
@@ -43,13 +47,13 @@ namespace Rtx
                 const Image spread(device, across, down, VK_FORMAT_R8_UNORM,
                     VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                     "normal spread test spread", levels);
-                const Image means(device, across, down, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT,
-                    "normal spread test means", levels);
+                const Image means(device, across, down, VK_FORMAT_R32G32B32A32_SFLOAT,
+                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "normal spread test means", levels);
 
                 Batch upload(getPool());
                 TextureArrival arrival(device);
                 arrival.open(1);
-                const Image map(device, width, height, VK_FORMAT_R8G8B8A8_UNORM,
+                const Image map(device, width, height, format,
                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "normal spread test map", 1);
                 const std::array regions{ wholeLevel(0, 0, VkExtent3D{ width, height, 1 }) };
                 arrival.upload(upload, map, std::as_bytes(texels), regions);
@@ -60,6 +64,13 @@ namespace Rtx
                 std::vector<std::vector<std::uint8_t>> read(levels);
                 for (std::uint32_t level = 0; level < levels; ++level)
                     spread.read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read[level], level);
+                if (firstMeans != nullptr)
+                {
+                    std::vector<std::uint8_t> bytes;
+                    means.read(VK_IMAGE_LAYOUT_GENERAL, bytes, 0);
+                    firstMeans->resize(bytes.size() / sizeof(float));
+                    std::memcpy(firstMeans->data(), bytes.data(), firstMeans->size() * sizeof(float));
+                }
                 return read;
             }
         };
@@ -165,6 +176,32 @@ namespace Rtx
             const std::vector<std::vector<std::uint8_t>> spreadLine = spreadOf(line, 3, 1);
             ASSERT_EQ(spreadLine.size(), 1u);
             EXPECT_NEAR(int{ spreadLine[0][0] }, byteOf(third), 1) << "the odd line's last texel was dropped";
+        }
+
+        /// **A texel that points nowhere stands in as the flat normal**, where it was normalised to a
+        /// NaN that the chain's means carried for the texture's life. Half floats, because no byte
+        /// is a half: (0.5, 0.5, 0.5) decodes to no direction at all, beside three that point
+        /// straight out. With it read as straight out, the four agree, so their mean is (0, 0, 1) to
+        /// the bit — a quarter of one, four times — and they lose nothing.
+        TEST_F(RtxNormalSpreadPassTest, aTexelThatPointsNowhereStandsInAsTheFlatNormal)
+        {
+            constexpr std::uint16_t half = 0x3800;
+            constexpr std::uint16_t one = 0x3C00;
+            const std::array<std::uint16_t, 16> words{ half, half, half, one, half, half, one, one, half, half, one,
+                one, half, half, one, one };
+
+            std::vector<float> means;
+            const std::span<const std::uint8_t> texels(
+                reinterpret_cast<const std::uint8_t*>(words.data()), sizeof(words));
+            const std::vector<std::vector<std::uint8_t>> spread
+                = spreadOf(texels, 2, 2, VK_FORMAT_R16G16B16A16_SFLOAT, &means);
+            ASSERT_EQ(spread.size(), 1u);
+            ASSERT_EQ(means.size(), 4u);
+            EXPECT_EQ(means[0], 0.0f);
+            EXPECT_EQ(means[1], 0.0f);
+            EXPECT_EQ(means[2], 1.0f) << "the mean of a normal that points nowhere";
+            EXPECT_TRUE(std::isfinite(means[3]));
+            EXPECT_EQ(int{ spread[0][0] }, 0) << "four that agree lost something";
         }
     }
 }

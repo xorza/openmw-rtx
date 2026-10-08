@@ -7,8 +7,8 @@
 # issue for one breakage however many days it lasts, and never an issue for a run that was only
 # cancelled.
 #
-# The sanitizers are `sanitizers.yml`, which a release runs as well, here with the caches. The
-# packaging is `omw archive`, which a release runs, on both systems.
+# The sanitizers are `sanitizers.yml` and the packaging `package.yml`, which a release runs as well,
+# here with the caches and keeping nothing.
 name: Daily
 
 on:
@@ -35,29 +35,12 @@ jobs:
       cache: true
 
   package:
-    name: package (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    uses: $/.github/workflows/package.yml
     permissions:
       contents: read
-    timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-2025]
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: $/.github/actions/openmw-deps
-
-      # **No compiler cache**, as a release keeps none: nobody waits on a nightly, and the
-      # repository's ten gigabytes are CI's and the sanitizers'.
-      - name: Package, as a release does
-        run: python omw archive daily
+    with:
+      cache: true
+      name: daily
 
   report:
     # After both, whatever they came to, and never for a run that was cancelled: a cancelled run

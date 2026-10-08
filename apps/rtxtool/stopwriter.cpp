@@ -49,18 +49,19 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/image/formatcensus.hpp>
-#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/renderer/framezone.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
@@ -363,7 +364,7 @@ namespace RtxTool
                         std::format("  {:<6}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
                                     "{:>8.1f} MiB, {:>9.1f} ms running\n",
                             thread, name, counted.mAsked, counted.mHits, counted.mKeyMs,
-                            double(counted.mKeyBytes) / (1024.0 * 1024.0), counted.mRunMs));
+                            Rtx::megabytes(counted.mKeyBytes), counted.mRunMs));
                 else
                     into.mRecord.note(std::format("  {:<6}{:<12} {:>7} asked, {:>9.1f} ms running\n", thread, name,
                         counted.mAsked, counted.mRunMs));
@@ -409,7 +410,7 @@ namespace RtxTool
         }
 
         // Left to right, top to bottom, the way it was drawn.
-        std::vector<std::string_view> names;
+        std::vector<std::string> names;
         listSheetNames(described.getDescriptions(), scene.textures().getRows(), names);
         for (std::size_t at = 0; at < names.size(); ++at)
             into.mRecord.note(std::format("  {}  {}\n", at, names[at]));
@@ -758,7 +759,7 @@ namespace RtxTool
             case Check::QueueHeld:
             {
                 const auto zone = std::find_if(facts.mZones.begin(), facts.mZones.end(),
-                    [](const GpuZone& held) { return held.mName == Rtx::RenderProfile::sHoldZone; });
+                    [](const GpuZone& held) { return held.mZone == Rtx::FrameZone::Stress; });
                 if (zone == facts.mZones.end() || zone->mFrames == 0)
                 {
                     found = "no frame timed the hold";

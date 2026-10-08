@@ -1,10 +1,13 @@
 """What the driver asks of the system it runs on, answered in one place."""
 
 import argparse
+import contextlib
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import NoReturn
 
@@ -83,9 +86,30 @@ def run(command: list, **options) -> subprocess.CompletedProcess:
     return subprocess.run(resolved(command, options.get("env")), check=True, **options)
 
 
+def status(code: int) -> int:
+    """A child's `returncode` as the shell spells an exit status: a death by signal N is `128 + N`.
+    Python says `-N`, and an exit of `-N` wraps to `256 - N`, which put a SIGSEGV at 245 and not 139."""
+    return 128 - code if code < 0 else code
+
+
 def output(command: list, **options) -> str:
     return subprocess.run(resolved(command, options.get("env")), check=True, capture_output=True, encoding="utf-8",
                           errors="replace", **options).stdout
+
+
+@contextlib.contextmanager
+def temporary_folder(prefix: str) -> Iterator[Path]:
+    """A folder for a run's logs and pictures, removed where an exception leaves it empty — a build
+    that failed before the first run wrote nothing a message could name — and kept in every other
+    case, because the message names what is in it."""
+    folder = Path(tempfile.mkdtemp(prefix=prefix))
+    try:
+        yield folder
+    except BaseException:
+        # `rmdir` removes only an empty folder, which is the whole of the rule.
+        with contextlib.suppress(OSError):
+            folder.rmdir()
+        raise
 
 
 def read_text(path: Path) -> str:

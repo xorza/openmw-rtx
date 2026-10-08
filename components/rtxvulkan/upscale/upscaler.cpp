@@ -30,8 +30,10 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -400,6 +402,12 @@ namespace Rtx
     {
         assert(render.width > 0 && render.height > 0 && output.width >= render.width && output.height >= render.height);
 
+        // **The one owner of "is this a new extent"**, as `TraceChain::resize` is: a mode changed
+        // between two that trace and show at one size keeps the targets and the history in them.
+        const auto same = [](VkExtent2D a, VkExtent2D b) { return a.width == b.width && a.height == b.height; };
+        if (mTargets != nullptr && same(mTargets->mRender, render) && same(mTargets->mOutput, output))
+            return;
+
         mTargets = std::make_unique<Targets>(mDevice, render, output);
         mFrame.restart();
 
@@ -418,8 +426,10 @@ namespace Rtx
         mTargets.reset();
     }
 
-    HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs)
+    HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
     {
+        const GpuZone timed(timer, commands, FrameZone::Upscale);
+
         assert(mTargets != nullptr && "an upscale before a resize");
         Targets& targets = *mTargets;
 
@@ -598,7 +608,6 @@ namespace Rtx
         run(Pass::Instability, overRender);
         between();
         run(Pass::Accumulate, Groups::covering(output.width, output.height, Shaders::FSR_WORKGROUP));
-
         return HandedImage{ .mImage = targets.mOutputImage, .mLeftAs = Use::sComputeReadWrite };
     }
 }

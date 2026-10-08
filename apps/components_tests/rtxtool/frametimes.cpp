@@ -14,6 +14,7 @@
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 
@@ -184,10 +185,10 @@ namespace RtxTool
 
             // Ten frames. `trace` runs in all of them at 4 ms, and `blas` in the first two at
             // 20 ms and 10 ms — a pass that costs the run 30 ms and three of them per frame.
-            const Rtx::GpuSpan trace{ .mName = "trace", .mMs = 4.0 };
+            const Rtx::GpuSpan trace{ .mZone = Rtx::FrameZone::Trace, .mMs = 4.0 };
             for (int frame = 0; frame < 10; ++frame)
             {
-                const Rtx::GpuSpan blas{ .mName = "blas", .mMs = frame == 0 ? 20.0 : 10.0 };
+                const Rtx::GpuSpan blas{ .mZone = Rtx::FrameZone::Blas, .mMs = frame == 0 ? 20.0 : 10.0 };
                 const std::vector<Rtx::GpuSpan> spans
                     = frame < 2 ? std::vector<Rtx::GpuSpan>{ blas, trace } : std::vector<Rtx::GpuSpan>{ trace };
 
@@ -197,13 +198,13 @@ namespace RtxTool
             const std::span<const GpuZone> zones = breakdown.summariseZones();
             ASSERT_EQ(zones.size(), 2u);
 
-            EXPECT_EQ(zones[0].mName, "trace") << "4 ms of every frame beats 3 ms of the average one";
+            EXPECT_EQ(zones[0].mZone, Rtx::FrameZone::Trace) << "4 ms of every frame beats 3 ms of the average one";
             EXPECT_DOUBLE_EQ(zones[0].mShareMs, 4.0) << "40 ms over ten frames";
             EXPECT_EQ(zones[0].mFrames, 10u);
             EXPECT_EQ(zones[0].mOfFrames, 10u);
             EXPECT_TRUE(zones[0].isEveryFrame());
 
-            EXPECT_EQ(zones[1].mName, "blas");
+            EXPECT_EQ(zones[1].mZone, Rtx::FrameZone::Blas);
             EXPECT_DOUBLE_EQ(zones[1].mShareMs, 3.0) << "30 ms over ten frames, not the 10 ms it cost when it ran";
             EXPECT_EQ(zones[1].mFrames, 2u);
             EXPECT_EQ(zones[1].mOfFrames, 10u);
@@ -233,7 +234,7 @@ namespace RtxTool
             EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u) << "a second stop grew a row or the summary";
 
             ASSERT_EQ(again.size(), 1u) << "a zone the first stop met and this one did not is not quoted";
-            EXPECT_EQ(again[0].mName, "trace");
+            EXPECT_EQ(again[0].mZone, Rtx::FrameZone::Trace);
             EXPECT_DOUBLE_EQ(again[0].mShareMs, 4.0);
             EXPECT_EQ(again[0].mOfFrames, 10u);
         }
@@ -251,13 +252,13 @@ namespace RtxTool
             // Two frames. The first builds in two batches of 3 ms and 5 ms, the second in one of
             // 4 ms, and `trace` runs once in each.
             const std::vector<Rtx::GpuSpan> batched{
-                Rtx::GpuSpan{ .mName = "tlas", .mMs = 3.0 },
-                Rtx::GpuSpan{ .mName = "trace", .mMs = 2.0 },
-                Rtx::GpuSpan{ .mName = "tlas", .mMs = 5.0 },
+                Rtx::GpuSpan{ .mZone = Rtx::FrameZone::Tlas, .mMs = 3.0 },
+                Rtx::GpuSpan{ .mZone = Rtx::FrameZone::Trace, .mMs = 2.0 },
+                Rtx::GpuSpan{ .mZone = Rtx::FrameZone::Tlas, .mMs = 5.0 },
             };
             const std::vector<Rtx::GpuSpan> once{
-                Rtx::GpuSpan{ .mName = "tlas", .mMs = 4.0 },
-                Rtx::GpuSpan{ .mName = "trace", .mMs = 2.0 },
+                Rtx::GpuSpan{ .mZone = Rtx::FrameZone::Tlas, .mMs = 4.0 },
+                Rtx::GpuSpan{ .mZone = Rtx::FrameZone::Trace, .mMs = 2.0 },
             };
 
             breakdown.add(batched);
@@ -266,14 +267,14 @@ namespace RtxTool
             const std::span<const GpuZone> zones = breakdown.summariseZones();
             ASSERT_EQ(zones.size(), 2u);
 
-            EXPECT_EQ(zones[0].mName, "tlas");
+            EXPECT_EQ(zones[0].mZone, Rtx::FrameZone::Tlas);
             EXPECT_EQ(zones[0].mFrames, 2u) << "two frames ran it, whatever the batches";
             EXPECT_EQ(zones[0].mOfFrames, 2u);
             EXPECT_DOUBLE_EQ(zones[0].mShareMs, 6.0) << "12 ms over two frames";
             EXPECT_DOUBLE_EQ(zones[0].mTimes.mWorst, 8.0) << "the frame that built twice cost the pair";
             EXPECT_DOUBLE_EQ(zones[0].mTimes.mBest, 4.0);
 
-            EXPECT_EQ(zones[1].mName, "trace");
+            EXPECT_EQ(zones[1].mZone, Rtx::FrameZone::Trace);
             EXPECT_DOUBLE_EQ(zones[1].mShareMs, 2.0);
         }
 
@@ -282,7 +283,7 @@ namespace RtxTool
         {
             GpuBreakdown breakdown;
 
-            const Rtx::GpuSpan trace{ .mName = "trace", .mMs = 6.0 };
+            const Rtx::GpuSpan trace{ .mZone = Rtx::FrameZone::Trace, .mMs = 6.0 };
             const std::vector<Rtx::GpuSpan> one{ trace };
             breakdown.add(one);
 

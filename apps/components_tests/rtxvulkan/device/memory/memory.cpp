@@ -14,8 +14,10 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -77,6 +79,21 @@ namespace Rtx
         Bound bind(const Device& device, const VkDeviceSize size, const VkMemoryPropertyFlags properties)
         {
             return std::move(*tryBind(device, size, properties, MemoryUse::Essential));
+        }
+
+        /// **A device with no video memory is refused before anything is made on it**, so the
+        /// refusal leaves nothing of the library behind: the properties of this device with every
+        /// type's video-memory flag taken off.
+        TEST_F(RtxMemoryTest, aDeviceWithNoVideoMemoryIsRefusedBeforeTheLibraryIsMade)
+        {
+            const Device& device = getDevice();
+            VkPhysicalDeviceMemoryProperties none = device.getPhysicalDevice().getProperties().mMemory;
+            for (std::uint32_t type = 0; type < none.memoryTypeCount; ++type)
+                none.memoryTypes[type].propertyFlags &= ~VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+            EXPECT_THROW(MemoryAllocator(mHarness.mInstance->getHandle(), device.getPhysicalDevice().getHandle(),
+                             device.getHandle(), none, false, false),
+                Unsupported);
         }
 
         /// A thousand small resources come out of one allocation rather than a thousand.

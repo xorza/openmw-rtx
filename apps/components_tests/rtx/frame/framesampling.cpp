@@ -70,11 +70,9 @@ namespace Rtx
         {
             const Reconstruction jittering{
                 .mJitter = true,
-                .mNoise = NoiseSource::WhiteHash,
                 .mLevelBias = -0.5f,
+                .mSampling = { .mNoise = NoiseSource::WhiteHash, .mShadowFloor = 0.125f, .mLampCandidates = 3u },
                 .mAveraged = true,
-                .mShadowFloor = 0.125f,
-                .mLampCandidates = 3u,
             };
             const InstanceCounts counts{ .mFirstPerson = 1 };
             Shaders::VisibilityConstants previous = stated();

@@ -126,10 +126,4 @@ namespace Rtx
         // without this the figure is whatever the caches held.
         mReport.orderForHostRead(commands);
     }
-
-    VkDeviceSize SpriteBin::getBytes() const
-    {
-        return mSprites.get().getSize() + mEmitterFrames.get().getSize() + mOrder.get().getSize()
-            + mRects.get().getSize() + mTileList.get().getSize() + mPresence.get().getSize() + mReport.getSize();
-    }
 }

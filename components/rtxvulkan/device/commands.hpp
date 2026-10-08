@@ -18,6 +18,8 @@
 namespace Rtx
 {
     class Device;
+    class LentCommands;
+    class Recording;
 
     /// The one command pool, the device's own, and both ways a submit is made out of it: a load
     /// asks the queue and waits, and a frame cannot wait, because a frame that drained the queue
@@ -29,34 +31,16 @@ namespace Rtx
         /// the one-off; anything that happens once per resource wants a `Batch`, or the queue is
         /// asked to do one thing three hundred times.
         template <class F>
-        void submitAndWait(F&& record)
-        {
-            const VkCommandBuffer commands = begin();
-            record(commands);
-            endAndWait(commands);
-        }
+        void submitAndWait(F&& record);
 
-        /// A command buffer to record into. Off the spare list where one has been given back, and
-        /// allocated where none has: the pool allows individual reset, so a buffer given back is
-        /// begun again with `vkBeginCommandBuffer` and nothing else, and an arrival costs no
-        /// allocation once the busiest frame so far has been seen. Nothing is freed until the pool
-        /// goes.
-        VkCommandBuffer take();
-
-        /// `take`, `count` times, for the buffers a ring keeps.
-        std::vector<VkCommandBuffer> allocate(std::uint32_t count);
-
-        /// Gives command buffers back for the next `take`, once the queue has finished with them.
-        void recycle(std::span<const VkCommandBuffer> commands);
+        /// `count` command buffers for a caller that records into them again and again — a ring's,
+        /// a drawer's, a presenter's — given back when what this returns ends.
+        LentCommands lend(std::uint32_t count);
 
         /// Begins one of them, one-shot like everything this pool hands out: a frame's recording, a
-        /// placement's or a trace's, open until it is ended, submitted, deferred or discarded.
-        /// **No other submit is made while it is open**, which `submitWithDeferred` asserts.
-        void begin(VkCommandBuffer commands);
-
-        /// Ends a recording nobody will submit this frame — a placement that placed nothing — so
-        /// the buffer can be begun again next frame. Not `discard`, which gives it back.
-        void end(VkCommandBuffer commands);
+        /// placement's or a trace's, open until the `Recording` is submitted or ended. **No other
+        /// submit is made while it is open**, which `submitWithDeferred` asserts.
+        Recording begin(VkCommandBuffer commands);
 
         /// Takes a recorded batch to submit ahead of the next submit this pool makes — what lets an
         /// arrival ride the placement that follows it instead of costing a round trip of its own.
@@ -66,19 +50,6 @@ namespace Rtx
         /// Submits whatever was deferred and waits for it, for the two paths that take the pool
         /// apart — a resize and shutdown — which have no next submit to give a deferred batch.
         void finishDeferred();
-
-        /// Submits `commands` behind whatever was deferred and does not wait — the frame's own
-        /// submit. Ends `commands`. The deferred batches' command buffers retire under the value
-        /// this signals, and `collect` gives them back once a wait has passed it. Returns the
-        /// value the submit signals on the device's timeline, which is what says when that is.
-        ///
-        /// @param waits,signals binary semaphores the submit waits and signals beside the
-        ///        timeline: what a present's blit needs, and what nothing else does. Through here
-        ///        and not a submit of its own, because a submit that took a timeline value without
-        ///        carrying the deferred batches would let the graveyard free what they name before
-        ///        they run.
-        std::uint64_t submit(VkCommandBuffer commands, std::span<const VkSemaphoreSubmitInfo> waits = {},
-            std::span<const VkSemaphoreSubmitInfo> signals = {});
 
         const Device& getDevice() const { return mDevice; }
 
@@ -117,6 +88,35 @@ namespace Rtx
 
     private:
         friend class Batch;
+        friend class LentCommands;
+        friend class Recording;
+
+        /// A command buffer to record into. Off the spare list where one has been given back, and
+        /// allocated where none has: the pool allows individual reset, so a buffer given back is
+        /// begun again with `vkBeginCommandBuffer` and nothing else, and an arrival costs no
+        /// allocation once the busiest frame so far has been seen. Nothing is freed until the pool
+        /// goes.
+        VkCommandBuffer take();
+
+        /// Gives command buffers the queue has finished with back for the next `take`.
+        void recycle(std::span<const VkCommandBuffer> commands);
+
+        /// Gives command buffers back once the next submit has run: a submit before it may still
+        /// carry them, and every one after it was recorded with them out of reach.
+        void retire(std::span<const VkCommandBuffer> commands);
+
+        /// `Recording::submit`'s: submits `commands` behind whatever was deferred and does not
+        /// wait. Ends `commands`. The deferred batches' command buffers retire under the value this
+        /// signals, and `collect` gives them back once a wait has passed it.
+        std::uint64_t submit(VkCommandBuffer commands, std::span<const VkSemaphoreSubmitInfo> waits,
+            std::span<const VkSemaphoreSubmitInfo> signals);
+
+        /// `Recording::end`'s: ends a recording nobody will submit, so its owner can begin it again.
+        void end(VkCommandBuffer commands);
+
+        /// What a `Recording` an exception left goes back to: reset, so its owner can begin it
+        /// again, and no longer counted open. The buffer stays its owner's.
+        void unwind(VkCommandBuffer commands);
 
         /// Gives back the retired command buffers the timeline has passed. The device's, after
         /// every wait, as the graveyard's `collect` is.
@@ -136,7 +136,7 @@ namespace Rtx
         /// retired buffers would wait for a collect that never came.
         explicit CommandPool(const Device& device);
 
-        VkCommandBuffer begin();
+        VkCommandBuffer beginBatch();
         void endAndWait(VkCommandBuffer commands);
 
         /// Begins `commands` and records the head barrier: what `begin` does for a frame and a
@@ -220,6 +220,79 @@ namespace Rtx
         /// Refilled per submit: a frame is three of them, and none allocates.
         std::vector<VkCommandBufferSubmitInfo> mSubmitScratch;
         std::vector<VkSemaphoreSubmitInfo> mSignalScratch;
+    };
+
+    /// Command buffers the pool lent out, owned: given back when this ends, under the next
+    /// submit's value, so none is taken again while a submit that carries it may still run.
+    class LentCommands
+    {
+    public:
+        LentCommands() = default;
+        LentCommands(LentCommands&& other) noexcept;
+        LentCommands& operator=(LentCommands&& other) noexcept;
+        ~LentCommands();
+
+        VkCommandBuffer operator[](std::size_t at) const { return mBuffers[at]; }
+        std::size_t size() const { return mBuffers.size(); }
+
+        /// One more, kept with the rest: a ring grown to its busiest frame so far.
+        VkCommandBuffer add();
+
+    private:
+        friend class CommandPool;
+
+        LentCommands(CommandPool& pool, std::vector<VkCommandBuffer>&& buffers)
+            : mPool(&pool)
+            , mBuffers(std::move(buffers))
+        {
+        }
+
+        /// Gives every buffer back, and holds none.
+        void giveBack();
+
+        CommandPool* mPool = nullptr;
+        std::vector<VkCommandBuffer> mBuffers;
+    };
+
+    /// An open recording, from `CommandPool::begin` to its submit or its end, in one scope. An
+    /// exception that leaves the scope gives the buffer back reset and no longer open, where a
+    /// recording begun and closed by hand stayed open, and the next submit's assert named that in
+    /// place of the error.
+    class [[nodiscard]] Recording
+    {
+    public:
+        Recording(Recording&& other) noexcept;
+        Recording& operator=(Recording&&) = delete;
+
+        /// Asserts that the recording was submitted or ended, unless an exception is unwinding.
+        ~Recording();
+
+        VkCommandBuffer get() const { return mCommands; }
+
+        /// Submits it behind whatever was deferred and does not wait, and returns the value the
+        /// submit signals on the device's timeline, which is what says it has run.
+        ///
+        /// @param waits,signals binary semaphores the submit waits and signals beside the
+        ///        timeline: what a present's blit needs, and what nothing else does. Through the
+        ///        pool and not a submit of its own, because a submit that took a timeline value
+        ///        without carrying the deferred batches would let the graveyard free what they name
+        ///        before they run.
+        std::uint64_t submit(
+            std::span<const VkSemaphoreSubmitInfo> waits = {}, std::span<const VkSemaphoreSubmitInfo> signals = {}) &&;
+
+        /// Ends it unsubmitted — a placement that placed nothing — so its owner can begin it again.
+        void end() &&;
+
+    private:
+        friend class CommandPool;
+
+        Recording(CommandPool& pool, VkCommandBuffer commands);
+
+        CommandPool& mPool;
+        VkCommandBuffer mCommands;
+
+        /// How many exceptions were unwinding when it began: more at its end is an unwinding.
+        int mUnwinding;
     };
 
     /// How much staging a batch takes at a time, sized so a town's tens of megabytes of textures
@@ -327,6 +400,17 @@ namespace Rtx
         std::size_t mHold;
         VkDeviceSize mFilled = 0;
     };
+
+    /// Through a batch, so a `record` that throws gives its recording back as an abandoned batch
+    /// does. The buffer is begun whatever `record` does, so a submit that carries only what was
+    /// deferred is still one.
+    template <class F>
+    void CommandPool::submitAndWait(F&& record)
+    {
+        Batch batch(*this);
+        record(batch.getCommands());
+        batch.flush();
+    }
 
     /// Stages `bytes` through the batch's own staging and copies them into `into` at `offset`.
     /// Nothing is ordered here: a run of these is made readable together by `orderStagedWrites`.

@@ -39,11 +39,14 @@ namespace Rtx
         requires std::is_trivially_copyable_v<T>
         void add(std::span<const T> values) { addBytes(std::as_bytes(values)); }
 
-        /// Adds one value, as a run of one. Apart from `add` by name, because a span is trivially
-        /// copyable too, and one taken as a value would key its address and not what it spans.
+        /// Adds one value, as a run of one. Never a span, by `HashState::add`'s guard: a span is
+        /// trivially copyable too, and taken as a value it would key its address and not what it
+        /// spans.
         template <class T>
-        requires std::is_trivially_copyable_v<T>
-        void addValue(const T& value) { add(std::span<const T>(&value, 1)); }
+        requires(std::is_trivially_copyable_v<T> && !sIsSpan<T>) void add(const T& value)
+        {
+            add(std::span<const T>(&value, 1));
+        }
 
         ContentKey getKey() const { return ContentKey{ mState.getWords() }; }
 

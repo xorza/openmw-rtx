@@ -9,6 +9,7 @@
 // nought is the base and its weight is never read, which is how the drawable numbers them.
 
 #include "skinning.h"
+#include "shared/skin.h"
 
 #include "lib/census.glsl"
 #include "lib/runs.glsl"

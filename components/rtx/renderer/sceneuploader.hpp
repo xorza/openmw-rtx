@@ -13,7 +13,6 @@ namespace Rtx
 {
     class CompositeQueue;
     class SceneDesc;
-    class Renderer;
 
     /// What handing a mirrored scene to a renderer came to.
     struct SceneUpload

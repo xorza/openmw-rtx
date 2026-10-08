@@ -109,7 +109,7 @@ namespace MWRender
         /// What is at this point of the picture, in normalised device coordinates, as the path
         /// through the subtree to whatever was hit — against the drawn picture, because skinned
         /// geometry is double-buffered by frame number.
-        virtual bool pick(float x, float y, osg::NodePath& hit) const = 0;
+        virtual bool pick(float x, float y, osg::NodePath& hit) = 0;
 
     protected:
         SubjectView() = default;

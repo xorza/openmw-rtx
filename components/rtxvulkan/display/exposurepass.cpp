@@ -4,9 +4,11 @@
 #include <cstdint>
 #include <span>
 
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -51,8 +53,10 @@ namespace Rtx
         });
     }
 
-    void ExposurePass::recordFixed(VkCommandBuffer commands, float value) const
+    void ExposurePass::recordFixed(VkCommandBuffer commands, float value, GpuTimer* timer) const
     {
+        const GpuZone timed(timer, commands, FrameZone::Exposure);
+
         // Four bytes, so an inline write into the command buffer rather than a staging copy —
         // ordered against the curve still reading the previous frame's exposure, because two
         // frames in flight share the one buffer, and against the reduction that reads it as well
@@ -61,8 +65,10 @@ namespace Rtx
     }
 
     void ExposurePass::record(VkCommandBuffer commands, const Image& frame, float elapsedSeconds,
-        const std::optional<EyeStart> reset, float bias) const
+        const std::optional<EyeStart> reset, float bias, GpuTimer* timer) const
     {
+        const GpuZone timed(timer, commands, FrameZone::Exposure);
+
         // Two frames in flight share one set of these buffers, and the previous frame's curve
         // reading them, its reduction writing the exposure this one moves toward, and its clear are
         // all behind the head barrier `CommandPool::begin` recorded — which is why the clear waits

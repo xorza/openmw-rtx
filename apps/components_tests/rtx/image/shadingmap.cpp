@@ -12,6 +12,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 
 namespace Rtx

@@ -3,10 +3,14 @@ import os
 import shutil
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
+from unittest import mock
 
-from omw.build import CONFIGURED_FROM, configured_from, manifest_inputs, redate_ahead
-from omw.fetch import build_beside, download, partial_of, settle
+from omw import deps
+from omw.build import CONFIGURED_FROM, Build, configured_from, manifest_inputs, redate_ahead
+from omw.deps import pinned_folder
+from omw.fetch import build_beside, download, extract_member, partial_of, settle
 from omw.package import (
     CONTAINER_DIR,
     RELEASE_IMAGE,
@@ -18,7 +22,8 @@ from omw.package import (
     used_osg_plugins,
     wayland_platform_plugins,
 )
-from omw.system import ROOT, Refusal, environment_key, parse_set_output
+from omw.pins import Pin
+from omw.system import DEPS, ROOT, Refusal, environment_key, parse_set_output
 
 
 class ParseSetOutputTest(unittest.TestCase):
@@ -48,6 +53,26 @@ class ConfiguredFromTest(unittest.TestCase):
                 (folder / missing).unlink()
                 self.assertFalse(configured_from(folder, "abc"))
                 (folder / missing).write_text(content)
+
+
+class CachedFolderTest(unittest.TestCase):
+    def test_a_folder_is_the_value_its_name_has_in_the_cache_and_a_missing_one_is_refused(self):
+        build = Build("debug")
+        build.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, build.dir)
+        with self.assertRaises(Refusal):
+            build.cached_folder("RTX_HARNESS_DIR")
+
+        (build.dir / "CMakeCache.txt").write_text("".join(line + "\n" for line in (
+            "// The harness's folder",
+            "RTX_HARNESS_DIR:INTERNAL=/checkout/build/rtxtool",
+            "RTX_HARNESS_DIR_EXTRA:INTERNAL=/elsewhere",
+            "RTX_TEST_OUTPUT_DIR:INTERNAL=",
+        )))
+        self.assertEqual(build.cached_folder("RTX_HARNESS_DIR"), Path("/checkout/build/rtxtool"))
+        for refused in ("RTX_TEST_OUTPUT_DIR", "RTX_SPIRV_DIR"):
+            with self.subTest(name=refused), self.assertRaises(Refusal):
+                build.cached_folder(refused)
 
 
 class ManifestInputsTest(unittest.TestCase):
@@ -151,6 +176,54 @@ class SettleTest(unittest.TestCase):
         self.assertEqual(list(folder.iterdir()), [])
 
 
+class ExtractMemberTest(unittest.TestCase):
+    def test_the_member_is_found_wherever_it_is_and_stands_whole_with_no_partial_beside_it(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        archive = folder / "tools.zip"
+        with zipfile.ZipFile(archive, "w") as made:
+            made.writestr("bin/other", b"no")
+            made.writestr("release/bin/dump_syms", b"the tool")
+
+        into = folder / "out"
+        self.assertEqual(extract_member(archive, "dump_syms", into), into / "dump_syms")
+        self.assertEqual((into / "dump_syms").read_bytes(), b"the tool")
+        self.assertEqual(sorted(path.name for path in into.iterdir()), ["dump_syms"])
+        with self.assertRaises(Refusal):
+            extract_member(archive, "minidump-stackwalk", into)
+
+
+class PinnedFolderTest(unittest.TestCase):
+    def test_a_folder_is_named_after_its_pins_so_a_changed_pin_is_a_folder_not_there_yet(self):
+        old = Pin("https://example.com/a", "a" * 64)
+        new = Pin("https://example.com/a", "b" * 64)
+        other = Pin("https://example.com/b", "c" * 64)
+        self.assertEqual(pinned_folder("crash", old), pinned_folder("crash", old))
+        self.assertEqual(pinned_folder("crash", old).parent, DEPS)
+        self.assertTrue(pinned_folder("crash", old).name.startswith("crash-"))
+        self.assertNotEqual(pinned_folder("crash", old), pinned_folder("crash", new))
+        self.assertNotEqual(pinned_folder("tools", old, other), pinned_folder("tools", new, other),
+                            "one pin of several changed and the folder did not")
+
+
+class PruneTest(unittest.TestCase):
+    def test_what_no_pin_names_goes_and_what_one_names_stays(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        with mock.patch.object(deps, "DEPS", folder):
+            kept = sorted(deps.pinned_names())
+            for name in kept:
+                (folder / name).mkdir()
+            (folder / "vulkan-sdk-0.0.1-00000000").mkdir()
+            (folder / "appimage").mkdir()
+            (folder / f"{kept[0]}.partial").mkdir()
+            (folder / "LLVM-14.0.6-win64.exe").write_bytes(b"left over")
+            deps.prune()
+            self.assertEqual(sorted(path.name for path in folder.iterdir()), kept)
+            deps.prune()
+            self.assertEqual(sorted(path.name for path in folder.iterdir()), kept, "a second prune took more")
+
+
 class UsedOsgPluginsTest(unittest.TestCase):
     def test_the_names_between_the_set_and_its_parenthesis(self):
         cases = [
@@ -220,13 +293,17 @@ class InstallTest(unittest.TestCase):
         (self.root / name).write_text("")
 
     def test_the_harness_files_are_named_wherever_they_land_and_the_games_are_not(self):
-        for name in ("openmw.exe", "openmw-rtxtool", "resources/rtx/shaders/a.spv", "resources/vfs/scripts/a.lua",
-                     "rtxtool/views.cfg", "rtxtool/vfs/rtxtool.omwscripts", "resources/rtx/views.cfg",
-                     "resources/rtx/shaders-driver-cache/abc/entry", "test-output/crash-matrix/abort/log.txt"):
+        for name in ("openmw.exe", "openmw-rtxtool", "rtx-gpu-tests.exe", "resources/rtx/shaders/a.spv",
+                     "resources/vfs/scripts/a.lua", "rtxtool/views.cfg", "rtxtool/vfs/rtxtool.omwscripts",
+                     "resources/rtx/views.cfg", "resources/rtx/shaders-driver-cache/abc/entry",
+                     "resources/rtx/shaders-census/a.spv", "test-output/crash-matrix/abort/log.txt"):
             self.touch(name)
         self.assertEqual(harness_files(self.root), [
+            "openmw-rtxtool",
+            "resources/rtx/shaders-census/a.spv",
             "resources/rtx/shaders-driver-cache/abc/entry",
             "resources/rtx/views.cfg",
+            "rtx-gpu-tests.exe",
             "rtxtool/vfs/rtxtool.omwscripts",
             "rtxtool/views.cfg",
             "test-output/crash-matrix/abort/log.txt",

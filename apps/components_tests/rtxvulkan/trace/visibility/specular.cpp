@@ -100,7 +100,7 @@ namespace Rtx::Testing
 
             const Frame averaged
                 = shoot(floor.mScene, floor.mTextures, camera, sSize, { .mFrames = 16, .mFirstFrame = 2000 });
-            const Frame filtered = shoot(floor.mScene, floor.mTextures, camera, sSize, filteredRun(16, 2000));
+            const Frame filtered = shoot(floor.mScene, floor.mTextures, camera, sSize, filteredRun(16, 2000, false));
 
             camera.mFrame = 2015;
             const Frame raw = shoot(floor.mScene, floor.mTextures, camera, sSize);
@@ -175,9 +175,9 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants after = darkCameraAt(osg::Vec3f(150.0f, -200.0f, 300.0f));
                 after.mFrame = 5000;
 
-                shoot(floor.mScene, floor.mTextures, before, sSize, filteredRun(16, 3000));
-                Frame turned
-                    = shoot(floor.mScene, floor.mTextures, after, sSize, { .mFilter = true, .mSetScene = false });
+                shoot(floor.mScene, floor.mTextures, before, sSize, filteredRun(16, 3000, false));
+                Frame turned = shoot(floor.mScene, floor.mTextures, after, sSize,
+                    { .mFilter = true, .mAntilag = false, .mSetScene = false });
                 Frame raw = shoot(floor.mScene, floor.mTextures, after, sSize, { .mSetScene = false });
                 return std::pair{ std::move(turned), std::move(raw) };
             };
@@ -225,17 +225,58 @@ namespace Rtx::Testing
             const auto left = [&](std::uint8_t roughness) {
                 GlossyFloor floor(roughness);
                 const Shaders::VisibilityConstants camera = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
-                const Frame lit = shoot(floor.mScene, floor.mTextures, camera, sSize, filteredRun(40, 6000));
+                const Frame lit = shoot(floor.mScene, floor.mTextures, camera, sSize, filteredRun(40, 6000, false));
 
                 floor.mScene.clearPlacement();
                 const Frame dark = shoot(floor.mScene, floor.mTextures, camera, sSize,
-                    Shot{ .mFrames = 4, .mAverage = false, .mFirstFrame = 6040, .mFilter = true, .mSetScene = false });
+                    Shot{ .mFrames = 4,
+                        .mAverage = false,
+                        .mFirstFrame = 6040,
+                        .mFilter = true,
+                        .mAntilag = false,
+                        .mSetScene = false });
                 EXPECT_GT(lit.mean(1), 0.0f) << "a floor that reflects nothing proves nothing";
                 return dark.mean(1) / lit.mean(1);
             };
 
             EXPECT_NEAR(left(5), 16.0f / 81.0f, 1e-3f) << "the sharp floor dragged its lamps";
             EXPECT_NEAR(left(255), std::pow(31.0f / 32.0f, 4.0f), 1e-3f) << "the rough floor lost its history";
+        }
+
+        /// **A glossy floor follows a sky whose light halves** (`historyclamp.comp`). The metal floor
+        /// at half roughness under a grey sky and no lamp, filtered for 64 still frames, then 30 more
+        /// under the sky at half its light: the lobe reflects the sky alone, so the new level is half
+        /// the old one exactly. Measured, the clamp's 30th frame stood at 1.046 of it, and without
+        /// the clamp at 1.386, where the history fades by `1 / 32` a frame.
+        TEST_F(RtxVisibilityTest, aGlossyFloorFollowsASkyWhoseLightHalves)
+        {
+            for (const bool antilag : { true, false })
+            {
+                GlossyFloor floor(128);
+                floor.mScene.clearPlacement();
+                Shaders::VisibilityConstants camera = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
+                camera.mSkyHorizon = osg::Vec3f(0.6f, 0.6f, 0.6f);
+                camera.mSkyZenith = camera.mSkyHorizon;
+                camera.mAmbientFromSky = 1.0f;
+                const Frame before
+                    = shoot(floor.mScene, floor.mTextures, camera, sSize, filteredRun(64, 7000, antilag));
+                ASSERT_GT(before.mean(1), 0.0f) << "a floor that reflects nothing proves nothing";
+
+                camera.mSkyHorizon *= 0.5f;
+                camera.mSkyZenith *= 0.5f;
+                const Frame after = shoot(floor.mScene, floor.mTextures, camera, sSize,
+                    Shot{ .mFrames = 30,
+                        .mAverage = false,
+                        .mFirstFrame = 7064,
+                        .mFilter = true,
+                        .mAntilag = antilag,
+                        .mSetScene = false });
+                const float share = after.mean(1) / (0.5f * before.mean(1));
+                if (antilag)
+                    EXPECT_LT(share, 1.1f) << "the clamp did not follow the sky down";
+                else
+                    EXPECT_GT(share, 1.1f) << "the history followed the sky without the clamp, so this proves nothing";
+            }
         }
 
         /// **A replacer's speckled reflectance stays sharp under the glossy filter's history**, which

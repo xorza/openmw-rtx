@@ -20,6 +20,7 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 
 #include "../rtx/support/pngtext.hpp"
@@ -35,7 +36,7 @@ namespace RtxTool
         {
             return Stop{ .mName = "pier",
                 .mStand = { .mCell = "-2,-10", .mEye = osg::Vec3f(1, 2, 3), .mLook = osg::Vec3f(1, 1002, 3) },
-                .mSky = { .mHour = static_cast<float>(frame), .mDay = 1, .mWeather = Rtx::sWeatherClear } };
+                .mSky = { .mHour = static_cast<float>(frame), .mDay = 1, .mWeather = Rtx::Weather::Clear } };
         }
 
         /// Frame `frame`, carrying the device's answer for `answered` where it has one, with the

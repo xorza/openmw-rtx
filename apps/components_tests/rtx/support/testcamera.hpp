@@ -31,12 +31,12 @@ namespace Rtx::Testing
         float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far)
     {
         const osg::Matrixf view = osg::Matrixf::lookAt(origin, origin + along, osg::Vec3f(0.0f, 0.0f, 1.0f));
-        const std::optional<Shaders::VisibilityConstants> camera
+        const std::optional<Viewpoint> camera
             = makeCameraFromView(view, verticalFovDegrees, width, height, sNearPlane, far);
         if (!camera.has_value())
             throw std::invalid_argument("a test camera with no basis to look along");
 
-        Shaders::VisibilityConstants built = *camera;
+        Shaders::VisibilityConstants built = constantsFor(*camera);
         built.mSkyRamp = sHemisphereRamp;
         return built;
     }

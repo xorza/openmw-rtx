@@ -5,7 +5,9 @@
 #include <cstdint>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/specular.h>
@@ -25,8 +27,10 @@ namespace Rtx
     }
 
     const Image& SpecularPass::record(VkCommandBuffer commands, const DenoiseHistory::SpecularImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, const HistoryClampPass& clamp, GpuTimer* timer) const
     {
+        const GpuZone timed(timer, commands, FrameZone::Specular);
+
         const Shaders::VisibilityConstants& sampled = frame.mSampled;
         const std::uint32_t width = sampled.mEyes.mWorld.mWidth;
         const std::uint32_t height = sampled.mEyes.mWorld.mHeight;
@@ -39,10 +43,17 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_FAST_BEFORE, images.mFastBefore.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_FAST_BLENDED, images.mFastBlended.describeStorage());
 
         dispatch(commands, mPipeline, writes, frame.history(images.mFresh),
             Groups::covering(width, height, Shaders::SPECULAR_WORKGROUP));
-
+        clamp.record(commands,
+            HistoryClampPass::Images{ .mSampled = buffer.get(Channel::Specular),
+                .mMean = images.mMean,
+                .mFastBlended = images.mFastBlended,
+                .mFast = images.mFast },
+            width, height, frame.mFilters.mAntilag);
         return images.mMean;
     }
 }

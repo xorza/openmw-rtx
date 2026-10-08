@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <initializer_list>
 #include <limits>
@@ -29,11 +30,9 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/environment/cloudshell.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
-#include <components/rtx/environment/nightsky.hpp>
+#include <components/rtx/environment/moonfaces.hpp>
 #include <components/rtx/environment/skybuilder.hpp>
-#include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/starmesh.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -41,6 +40,12 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
+#include <components/rtx/world/cloudshell.hpp>
+#include <components/rtx/world/moon.hpp>
+#include <components/rtx/world/nightsky.hpp>
+#include <components/rtx/world/skycontent.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -54,6 +59,21 @@ namespace Rtx
         const Rtx::CloudShell sShell{
             .mTiles = osg::Vec2f(0.75f, -0.75f), .mCurvature = 0.06f, .mRings = osg::Vec3f(1.0f, 1.5f, 2.0f)
         };
+
+        /// The shipped meshes, and two weathers' sheets with a third naming the first's again: Clear's
+        /// and Cloudy's are one file, which the sky holds once, and Overcast's is the other.
+        SkySources sources()
+        {
+            SkySources sources{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
+                .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
+                .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
+                .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif"),
+                .mCloudSheets = {} };
+            sources.mCloudSheets[static_cast<std::size_t>(Weather::Clear)] = "Tx_Sky_Clear.dds";
+            sources.mCloudSheets[static_cast<std::size_t>(Weather::Cloudy)] = "Tx_Sky_Clear.dds";
+            sources.mCloudSheets[static_cast<std::size_t>(Weather::Overcast)] = "Tx_Sky_Overcast.dds";
+            return sources;
+        }
 
         /// Where `textures.mSheets` holds clear's sheet and rain's, in the tests that push them.
         constexpr std::uint32_t sClear = 0;
@@ -415,7 +435,7 @@ namespace Rtx
             std::vector<TextureHold> moonHolds;
             ThreadContent thread;
             const Rtx::MoonFaces moons
-                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, moonHolds, thread);
+                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, thread, moonHolds);
             EXPECT_EQ(scene.textures().getHolds(moons.of(Rtx::Moon::Masser).mSlot), 1u);
             EXPECT_EQ(scene.textures().getHolds(moons.of(Rtx::Moon::Secunda).mSlot), 1u);
 
@@ -454,7 +474,7 @@ namespace Rtx
         }
 
         /// **A deck's sheet this cannot upload is left out, and not drawn as the stand-in**, which
-        /// is an opaque grey and over a deck the whole sky. The seed names Clear's and Overcast's;
+        /// is an opaque grey and over a deck the whole sky. The sources name Clear's and Overcast's;
         /// the archive holds Clear's in RGB 3-3-2, which no upload takes, and not Overcast's.
         ///
         /// **An alpha-only sheet is taken**, as GL samples it: black at its alpha, widened on the way
@@ -476,12 +496,7 @@ namespace Rtx
             SceneDesc scene;
             ThreadContent thread;
             std::vector<TextureHold> holds;
-            const SkyContent content = addSkyContent(scene, scenes,
-                SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
-                    .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
-                    .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
-                    .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
-                thread, holds);
+            const SkyContent content = addSkyContent(scene, scenes, sources(), thread, holds);
 
             ASSERT_EQ(content.mSheets.size(), 2u) << "both names held, so neither is asked again";
             EXPECT_EQ(content.drawable(0), nullptr) << "a grey sky";
@@ -501,12 +516,7 @@ namespace Rtx
 
             SceneDesc taken;
             std::vector<TextureHold> takenHolds;
-            const SkyContent takenContent = addSkyContent(taken, scenes,
-                SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
-                    .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
-                    .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
-                    .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
-                thread, takenHolds);
+            const SkyContent takenContent = addSkyContent(taken, scenes, sources(), thread, takenHolds);
             EXPECT_NE(taken.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
                 << "an alpha-only deck left out";
             EXPECT_EQ(taken.refusals().count(Refused::SkyLayer), 4u)
@@ -652,15 +662,10 @@ namespace Rtx
             ASSERT_FALSE(night.isOk()) << "a missing star dome was read as no stars";
             EXPECT_EQ(night.error(), "the archives hold neither it nor \"meshes/sky_night_01.nif\"");
 
-            const SkyContent content = addSkyContent(scene, scenes,
-                SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
-                    .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
-                    .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
-                    .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
-                thread, holds);
+            const SkyContent content = addSkyContent(scene, scenes, sources(), thread, holds);
 
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 5u)
-                << "the cloud cap, the atmosphere, the star dome, and the Clear and Overcast decks the seed names";
+                << "the cloud cap, the atmosphere, the star dome, and the Clear and Overcast decks the sources name";
             EXPECT_EQ(content.mAtmosphere.mZenithShare, 0.0f) << "no atmosphere: the fog colour everywhere";
             EXPECT_EQ(content.mShell.mTiles, osg::Vec2f()) << "no layer to hang a deck on";
             EXPECT_EQ(content.mNight.mField, sNoIndex) << "and no stars";

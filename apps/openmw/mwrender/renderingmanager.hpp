@@ -5,6 +5,7 @@
 #include "ground.hpp"
 #include "objects.hpp"
 #include "objectstorage.hpp"
+#include "renderer.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
 
@@ -99,7 +100,6 @@ namespace MWRender
     class ObjectPaging;
     class Groundcover;
     class PostProcessor;
-    class Renderer;
 
     class RenderingManager : public MWRender::RenderingInterface
     {
@@ -210,11 +210,13 @@ namespace MWRender
         /// Clear all worldspace-specific data
         void notifyWorldSpaceChanged();
 
-        /// The player was put somewhere rather than walked there, inside a worldspace the
-        /// renderer is still drawing: `ActionTeleport` — a door, `coc`, Recall, a boat. The
-        /// world's effects and the water's ripples stay, which is what tells it from
-        /// `notifyWorldSpaceChanged`; the renderer is told of the cut either way.
-        void notifyTeleport();
+        /// The picture cut, inside a worldspace the renderer is still drawing: the player was put
+        /// somewhere rather than walked there (`ActionTeleport` — a door, `coc`, Recall, a boat), or
+        /// a write of `GameHour` moved the clock past the frame's own step
+        /// (`MWWorld::World::noteHourWritten`). The world's effects and the water's ripples stay,
+        /// which is what tells it from `notifyWorldSpaceChanged`; the renderer is told of the cut
+        /// either way.
+        void notifyCut();
 
         /// `ptr` was put somewhere else in one step rather than walked there — a door, a teleport,
         /// a script's `Position` — and its history from where it stood is no history of where it
@@ -374,6 +376,9 @@ namespace MWRender
         osg::Vec2i mProjectedFrame;
         osg::Vec2f mProjectionOffset;
         const MWWorld::GroundcoverStore& mGroundCoverStore;
+
+        /// Last, so a constructor that throws after the attach detaches before anything above goes.
+        WorldAttachment mAttachment;
 
         void operator=(const RenderingManager&);
         RenderingManager(const RenderingManager&);

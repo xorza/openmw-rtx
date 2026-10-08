@@ -64,7 +64,9 @@ jobs:
           ccache-size: 2000M
 
       - name: Build
-        run: python omw "$FLAVOUR" build
+        # What the run below runs and nothing it leaves out: the GPU binary, built under a
+        # sanitizer, would never start here.
+        run: python omw "$FLAVOUR" build --without-device
 
       - name: Test
         # Shuffled, as every suite is: the test preset sets `GTEST_SHUFFLE`.
@@ -72,10 +74,7 @@ jobs:
 
       - name: Logs
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: $/.github/actions/logs
         with:
           name: logs-sanitizers-${{ matrix.flavour }}-${{ github.sha }}
-          path: |
-            build-${{ matrix.flavour }}/CMakeCache.txt
-            build-${{ matrix.flavour }}/**/*.log
-            build-${{ matrix.flavour }}/test-output/crash-matrix/
+          build: build-${{ matrix.flavour }}

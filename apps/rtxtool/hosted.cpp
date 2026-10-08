@@ -80,10 +80,13 @@ namespace RtxTool
         }
     }
 
-    int runHosted(const bpo::variables_map& variables, Files::ConfigurationManager& config,
-        const std::filesystem::path& resources, const WindowRequest& window, SessionRequest request,
-        const bool printLeft)
+    int runHosted(const Command& command, const Framed& framed, SessionRequest request)
     {
+        const bpo::variables_map& variables = command.mVariables;
+        Files::ConfigurationManager& config = command.mConfig;
+        const std::filesystem::path& resources = command.mResources;
+        const WindowRequest& window = framed.mWindow;
+
         std::ostream& out = Debug::getRawStdout();
 
         const StringsVector content = variables["content"].as<StringsVector>();
@@ -139,7 +142,7 @@ namespace RtxTool
             // directory, and Home with where it stands, through the session; the played game names
             // neither the directory nor the file.
             if (played)
-                dataDirs.push_back(harnessDirectory() / "vfs");
+                dataDirs.push_back(keysDirectory());
 
             engine.setDataDirs(dataDirs);
 
@@ -197,7 +200,7 @@ namespace RtxTool
         out << result.mReport;
 
         // **Where it was left, so a session that ended somewhere worth keeping did not lose it.**
-        if (printLeft && result.mLeft.has_value())
+        if (played && result.mLeft.has_value())
             out << describeStanding(*result.mLeft);
 
         // **A run that reached no stop is a failure and not an empty report.** A cell that could

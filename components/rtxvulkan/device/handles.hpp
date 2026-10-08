@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -30,9 +31,6 @@ namespace Rtx
     /// one clock and a swapchain cannot read it.
     Semaphore makeSemaphore(const Device& device);
 
-    /// The timeline semaphore the queue's clock is, starting at nought.
-    Immediate<VkSemaphore, vkDestroySemaphore> makeTimelineSemaphore(const Device& device, std::string_view name);
-
     /// A descriptor set layout and the bindings it was made from, so whatever writes a set of it
     /// reads each binding's type and count from the one statement of them.
     class SetLayout
@@ -52,9 +50,6 @@ namespace Rtx
         Owned<VkDescriptorSetLayout, vkDestroyDescriptorSetLayout> mHandle;
         BindingTable mBindings;
     };
-
-    /// A fence that starts signalled, so the first wait on it returns at once.
-    Fence makeSignalledFence(const Device& device);
 
     /// A descriptor set layout, for `GBuffer::describeLayout` and its siblings to build theirs
     /// through. `flags` is what a push descriptor set needs; `next` is binding flags for a bindless
@@ -91,9 +86,9 @@ namespace Rtx
     template <class Handle>
     struct SharedSets
     {
-        Handle mTextures = VK_NULL_HANDLE;
-        Handle mChannels = VK_NULL_HANDLE;
-        Handle mVolume = VK_NULL_HANDLE;
+        Handle mTextures{};
+        Handle mChannels{};
+        Handle mVolume{};
 
         /// Every set at its number, with null at `SET_PASS`, which is the pipeline's own.
         std::array<Handle, Shaders::SET_COUNT> byNumber() const
@@ -106,7 +101,14 @@ namespace Rtx
         }
     };
 
-    using SharedSetLayouts = SharedSets<VkDescriptorSetLayout>;
+    /// The bindings a pipeline's layout states, by set: each set's table, the census left out of
+    /// `SET_PASS`'s, and null for a set the layout does not name.
+    using SetTables = std::array<const BindingTable*, Shaders::SET_COUNT>;
+
+    /// The layouts themselves and not their handles, so a pipeline layout keeps each set's bindings
+    /// beside it and holds every module to them (`ShaderCode::stage`). Each outlives what is made
+    /// with it.
+    using SharedSetLayouts = SharedSets<const SetLayout*>;
     using SharedSetBinds = SharedSets<VkDescriptorSet>;
 
     /// A pass's own descriptor set layout and the pipeline layout that names it and the shared sets
@@ -140,11 +142,20 @@ namespace Rtx
         /// `SET_PASS`'s bindings as the pass declared them, the census's left out.
         const BindingTable& getBindings() const { return mOwn; }
 
+        /// Every set's bindings as its layout was made from them, `getBindings` at `SET_PASS`, and
+        /// null for a set the layout does not name. Valid while this lives.
+        SetTables getSetTables() const;
+
         /// The census the set binds at `BIND_CENSUS`, or null where the device does not count.
         const NotFiniteCensus* getCensus() const { return mCensus; }
 
     private:
         BindingTable mOwn;
+
+        /// The shared sets' bindings, copied, by number: nothing at `SET_PASS` and at a set the
+        /// layout does not name.
+        std::array<std::optional<BindingTable>, Shaders::SET_COUNT> mShared;
+
         const NotFiniteCensus* mCensus;
         SetLayout mSetLayout;
         Owned<VkPipelineLayout, vkDestroyPipelineLayout> mHandle;

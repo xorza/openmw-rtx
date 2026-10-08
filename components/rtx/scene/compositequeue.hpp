@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <string>
 #include <vector>
 
 #include <components/rtx/common/runs.hpp>
@@ -19,7 +18,7 @@ namespace Rtx
 
     /// Every distant chunk whose ground is to be flattened, in the order the walks asked. A chunk
     /// that asks is given a slot and its material's `mDiffuse`, and the slot arrives at the
-    /// device empty: `GroundCompositePass` sums the chunk's own stack into it in the placement
+    /// device empty: the backend sums the chunk's own stack into it in the placement
     /// after, reading the layers' textures and masks the device already holds. Nothing is wrong
     /// while a chunk waits: it keeps `mDiffuse` unset and the shader sums its layer stack at the
     /// hit, so the bake buys the cost of that hit and not the sight of the ground.
@@ -90,7 +89,5 @@ namespace Rtx
         /// The texture table's refusal of a composite, which holds the schedule until the table
         /// frees a slot: every chunk wants one, so the next would be refused the same way.
         RefusedTakes mRefused;
-
-        std::string mKey;
     };
 }

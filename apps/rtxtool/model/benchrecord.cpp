@@ -12,48 +12,22 @@
 #include <string_view>
 #include <variant>
 
+#include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
+#include <apps/rtxtool/instruments/jsontext.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
 namespace RtxTool
 {
     namespace
     {
-        /// `text` as a JSON string, quotes included: a name comes from a file somebody wrote or from
-        /// the process table, and one with a quote or a backslash in it would end the record there.
         std::string asJson(std::string_view text)
         {
-            std::string quoted = "\"";
-            for (const char c : text)
-            {
-                switch (c)
-                {
-                    case '"':
-                        quoted += "\\\"";
-                        break;
-                    case '\\':
-                        quoted += "\\\\";
-                        break;
-                    case '\n':
-                        quoted += "\\n";
-                        break;
-                    case '\t':
-                        quoted += "\\t";
-                        break;
-                    case '\r':
-                        quoted += "\\r";
-                        break;
-                    default:
-                        if (static_cast<unsigned char>(c) < 0x20)
-                            quoted += std::format("\\u{:04x}", static_cast<unsigned>(c));
-                        else
-                            quoted += c;
-                }
-            }
-            return quoted + '"';
+            return jsonString(text);
         }
 
         /// Null where no reading read it.
@@ -98,7 +72,7 @@ namespace RtxTool
         std::string asJson(const MWRender::RunSetup& setup, const std::optional<float>& step)
         {
             const Rtx::RenderProfile& profile = setup.mRun.mProfile;
-            const Rtx::MirrorKnobs& mirror = setup.mMirror;
+            const MWRender::MirrorKnobs& mirror = setup.mMirror;
             return std::format(R"(  "filter": {}, "jitter": {}, "delight": {:.3f}, "gamma": {:.3f}, "show": "{}", )"
                                R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {:.3f},)"
                                "\n"
@@ -343,7 +317,7 @@ namespace RtxTool
         // **The build and the layers first, because either makes every figure below one not to
         // quote**, and the command's own word on whether it measures beside them.
         const Rtx::RenderProfile& profile = header.mSetup.mRun.mProfile;
-        const Rtx::MirrorKnobs& mirror = header.mSetup.mMirror;
+        const MWRender::MirrorKnobs& mirror = header.mSetup.mMirror;
         std::string out = std::format("\nrun  {}, layers {}, {}{}{}\n",
             header.mAsserts ? "a build with asserts, not one to quote" : "a release build",
             header.mValidating ? "on, not a figure to quote" : "off", header.mMeasures ? "measured" : "not measured",
@@ -356,9 +330,10 @@ namespace RtxTool
             header.mExtents.mOutputWidth, header.mExtents.mOutputHeight, header.mExtents.mRenderWidth,
             header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(resolved.mUpscale),
             resolved.mDenoised ? "on" : "off", resolved.mJitter ? "on" : "off",
-            Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias, resolved.mAntilag ? "on" : "off",
-            resolved.mHistoryFix ? "on" : "off", resolved.mDualMotion ? "on" : "off",
-            resolved.mAntiFirefly ? "on" : "off", resolved.mShadowFloor, resolved.mLampCandidates);
+            Rtx::sNoiseSourceNames.name(resolved.mSampling.mNoise), resolved.mLevelBias,
+            resolved.mFilters.mAntilag ? "on" : "off", resolved.mFilters.mHistoryFix ? "on" : "off",
+            resolved.mFilters.mDualMotion ? "on" : "off", resolved.mFilters.mAntiFirefly ? "on" : "off",
+            resolved.mSampling.mShadowFloor, resolved.mSampling.mLampCandidates);
         out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
             profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
             describeExposure(profile.mExposure), profile.mSpecializeLaunches ? "on" : "off",
@@ -513,10 +488,11 @@ namespace RtxTool
             << std::format(
                    R"(  "noise": "{}", "levelBias": {:.3f}, "antilag": {}, )"
                    R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {:.4f}, "lampCandidates": {},)",
-                   Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
-                   header.mReconstruction.mAntilag, header.mReconstruction.mHistoryFix,
-                   header.mReconstruction.mDualMotion, header.mReconstruction.mAntiFirefly,
-                   header.mReconstruction.mShadowFloor, header.mReconstruction.mLampCandidates)
+                   Rtx::sNoiseSourceNames.name(header.mReconstruction.mSampling.mNoise),
+                   header.mReconstruction.mLevelBias, header.mReconstruction.mFilters.mAntilag,
+                   header.mReconstruction.mFilters.mHistoryFix, header.mReconstruction.mFilters.mDualMotion,
+                   header.mReconstruction.mFilters.mAntiFirefly, header.mReconstruction.mSampling.mShadowFloor,
+                   header.mReconstruction.mSampling.mLampCandidates)
             << '\n'
             << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                    header.mValidating)
@@ -548,8 +524,8 @@ namespace RtxTool
             file << R"("gpuMs": {)";
 
             for (std::size_t zone = 0; zone < place.mGpu.size(); ++zone)
-                file << std::format(
-                    R"({}{}: {})", zone == 0 ? "" : ", ", asJson(place.mGpu[zone].mName), asJson(place.mGpu[zone]));
+                file << std::format(R"({}{}: {})", zone == 0 ? "" : ", ",
+                    asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)), asJson(place.mGpu[zone]));
 
             file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard)
                  << ", \"thread\": " << asJson(place.mThread) << "}" << (at + 1 < places.size() ? "," : "") << '\n';

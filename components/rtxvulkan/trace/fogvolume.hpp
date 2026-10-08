@@ -15,7 +15,7 @@ namespace Rtx
     struct FogNoise;
 
     /// The fog's fractal field, on the device, drawn once for the run: what the weather, the hour
-    /// and the cell decide are numbers the shader already has. `Rtx::bakeFogNoise` says what is in it.
+    /// and the cell decide are numbers the shader already has. `Rtx::FogNoise::shared` says what is in it.
     class FogTile
     {
     public:

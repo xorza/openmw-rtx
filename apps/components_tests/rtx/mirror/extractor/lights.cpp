@@ -14,21 +14,22 @@
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
 #include <osg/Node>
+#include <osg/Referenced>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Uniform>
+#include <osg/UserDataContainer>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
-#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -422,17 +423,28 @@ namespace Rtx::Testing
             EXPECT_GT(mScene.lights()[0].mIntensity.x(), 0.0f);
             EXPECT_LT(mScene.lights()[1].mIntensity.x(), 0.0f);
 
-            // **The user data slot holds one marker, which `StableIdentity` shares**: a light hung
-            // again in the same group marks it again, and neither kind takes the slot from the other.
+            // **A light hung again in the same group marks it again**, in place of the first marker.
             const osg::ref_ptr<SceneUtil::LightSource> again = makeLightSource(100.0f, osg::Vec4f(1, 1, 1, 1));
             SceneUtil::LampBody::mark(*orphan, *again);
             EXPECT_EQ(SceneUtil::LampBody::find(*orphan)->getLight(), again.get());
+            EXPECT_EQ(orphan->getUserDataContainer()->getNumUserObjects(), 1u);
+
+            // **The marker leaves the user data slot to its owner**: a stamped root, or the editor's tag
+            // on the group it hands `addLight`, keeps what it put there, and the marker is found beside it.
             const osg::ref_ptr<osg::Group> stamped = new osg::Group;
             SceneUtil::StableIdentity::stamp(*stamped, 1);
-            Testing::expectAssertDies(
-                [&] { SceneUtil::LampBody::mark(*stamped, *again); }, "a lamp body's marker over another user data");
-            Testing::expectAssertDies([&] { SceneUtil::StableIdentity::stamp(*orphan, 2); },
-                "a node stamped twice, or over another user data");
+            SceneUtil::LampBody::mark(*stamped, *again);
+            ASSERT_NE(SceneUtil::StableIdentity::find(*stamped), nullptr);
+            EXPECT_EQ(SceneUtil::StableIdentity::find(*stamped)->getId(), 1u);
+            EXPECT_EQ(SceneUtil::LampBody::find(*stamped)->getLight(), again.get());
+
+            const osg::ref_ptr<osg::Group> tagged = new osg::Group;
+            const osg::ref_ptr<osg::Referenced> tag = new osg::Referenced;
+            tagged->setUserData(tag);
+            SceneUtil::LampBody::mark(*tagged, *again);
+            EXPECT_EQ(tagged->getUserData(), tag.get());
+            EXPECT_EQ(SceneUtil::LampBody::find(*tagged)->getLight(), again.get());
+            EXPECT_EQ(SceneUtil::LampBody::find(*world), nullptr);
         }
 
         /// A lamp the record says animates is mirrored at the instant the walk was told, not at rest.

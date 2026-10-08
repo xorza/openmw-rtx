@@ -6,7 +6,7 @@ namespace Rtx
 {
     /// One thing that disturbed the water this frame, in world units on the water's plane: where,
     /// and how wide a ring it presses. What `apps/openmw/mwrender/rtx/rippleemitters.cpp` decides
-    /// for a wading actor or a strike, and what `RipplePass` presses into its field.
+    /// for a wading actor or a strike, and what the backend presses into its ripple field.
     struct RippleImpulse
     {
         osg::Vec2f mAt;

@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
+#include <string>
+#include <variant>
 
 #include <components/files/conversion.hpp>
 
@@ -12,11 +14,35 @@ namespace Crash
     {
         constexpr std::string_view sClient = "--openmw-client";
         constexpr std::string_view sNotes = "--openmw-notes";
-        constexpr std::string_view sApplication = "--openmw-application";
-        constexpr std::string_view sDialog = "--openmw-dialog";
         constexpr std::string_view sIssues = "--openmw-issues";
-        constexpr std::string_view sEndAfter = "--openmw-end-after-ms";
+
+        /// Who answers: `player`, `nobody`, or `end-after-<milliseconds>`.
+        constexpr std::string_view sAnswering = "--openmw-answering";
+        constexpr std::string_view sEndAfter = "end-after-";
+
+        std::string spell(const Answering& answering)
+        {
+            if (const EndAfter* const after = std::get_if<EndAfter>(&answering))
+                return std::string(sEndAfter) + std::to_string(after->mDelay.count());
+            return std::holds_alternative<AskNobody>(answering) ? "nobody" : "player";
+        }
+
+        /// What `spell` wrote, read back; the player for what it never writes, so a monitor of
+        /// another build asks rather than ends.
+        Answering answeringOf(std::string_view spelled)
+        {
+            if (spelled == "nobody")
+                return AskNobody{};
+            if (spelled.starts_with(sEndAfter))
+                return EndAfter{ std::chrono::milliseconds(
+                    std::strtoll(std::string(spelled.substr(sEndAfter.size())).c_str(), nullptr, 10)) };
+            return AskThePlayer{};
+        }
         constexpr std::string_view sDatabase = "--database";
+
+        /// Crashpad's own annotation of the application's name, which the monitor reads its name off.
+        constexpr std::string_view sAnnotation = "--annotation";
+        constexpr std::string_view sProduct = "product=";
 
         std::string option(std::string_view name, std::string_view value)
         {
@@ -41,12 +67,9 @@ namespace Crash
             std::string(sMonitorSwitch),
             option(sClient, std::to_string(mClient)),
             option(sNotes, notes),
-            option(sApplication, mApplication),
-            option(sDialog, mDialog ? "1" : "0"),
             option(sIssues, mIssues),
+            option(sAnswering, spell(mAnswering)),
         };
-        if (mEndAfter.has_value())
-            written.push_back(option(sEndAfter, std::to_string(mEndAfter->count())));
 
         return written;
     }
@@ -71,18 +94,17 @@ namespace Crash
                 if (end == text.c_str() || *end != '\0')
                     read.mNotes = 0;
             }
-            else if (const auto application = valueOf(argument, sApplication))
-                read.mApplication = *application;
-            else if (const auto dialog = valueOf(argument, sDialog))
-                read.mDialog = *dialog != "0";
             else if (const auto issues = valueOf(argument, sIssues))
                 read.mIssues = *issues;
-            else if (const auto after = valueOf(argument, sEndAfter))
-                read.mEndAfter = std::chrono::milliseconds(std::strtoll(std::string(*after).c_str(), nullptr, 10));
+            else if (const auto answering = valueOf(argument, sAnswering))
+                read.mAnswering = answeringOf(*answering);
             else
             {
                 if (const auto database = valueOf(argument, sDatabase))
                     read.mDatabase = Files::pathFromUnicodeString(*database);
+                else if (const auto annotation = valueOf(argument, sAnnotation);
+                         annotation && annotation->starts_with(sProduct))
+                    read.mApplication = annotation->substr(sProduct.size());
                 handler.push_back(argument);
             }
         }

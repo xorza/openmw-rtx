@@ -27,8 +27,6 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
@@ -46,6 +44,8 @@
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/moon.hpp>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/skinpass.hpp>
@@ -135,7 +135,7 @@ namespace Rtx::Testing
         // 400 units of water along the view, which the frame sees `sin 10°` of.
         const float across = 400.0f * std::sin(grazing);
         Shaders::VisibilityConstants camera
-            = makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 5000.0f).value();
+            = constantsFor(makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 5000.0f).value());
         camera.mWaterLevel = 0.0f;
         return camera;
     }
@@ -370,6 +370,11 @@ namespace Rtx::Testing
         /// the thing it was written to measure. The tests that are about the filter ask for it.
         bool mFilter = false;
 
+        /// Whether the filters hold their histories to their fast means (`FilterSwitches::mAntilag`):
+        /// on, as a frame has it, unless a test holds a filter to the law of its own running mean,
+        /// which a clamp to a box of a few frames' noise moves it off.
+        bool mAntilag = true;
+
         /// Whether the sample point moves inside its pixel, which buys nothing on a single frame
         /// and is what several of them cover between them.
         bool mJitter = false;
@@ -445,7 +450,7 @@ namespace Rtx::Testing
         /// The sun glare fader over the picture. None, for every test not about it.
         SunGlare mGlare{};
 
-        /// What Night-Eye adds to the ambient (`FrameOptions::mNightEye`). None, for every test not
+        /// What Night-Eye adds to the ambient (`WorldOptions::mNightEye`). None, for every test not
         /// about it.
         osg::Vec3f mNightEye{};
 
@@ -464,11 +469,16 @@ namespace Rtx::Testing
     ///
     /// @param first the sampler's frame the run starts at, so a run can be handed a stream of its
     ///        own rather than the one every other run in the test consumed.
-    inline Shot filteredRun(std::uint32_t frames, std::uint32_t first = 0)
+    /// @param antilag off for a test of a filter's own law, which the clamp moves off it
+    ///        (`Shot::mAntilag`).
+    inline Shot filteredRun(std::uint32_t frames, std::uint32_t first = 0, bool antilag = true)
     {
-        return Shot{
-            .mFrames = frames, .mAverage = false, .mFirstFrame = first, .mFilter = true, .mLoss = HistoryLoss::Cut
-        };
+        return Shot{ .mFrames = frames,
+            .mAverage = false,
+            .mFirstFrame = first,
+            .mFilter = true,
+            .mAntilag = antilag,
+            .mLoss = HistoryLoss::Cut };
     }
 
     class RtxVisibilityTest : public Testing::RendererTest
@@ -512,16 +522,14 @@ namespace Rtx::Testing
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
                         .mSinceLast = shot.mSinceLast,
-                        .mGlare = shot.mGlare,
-                        .mNightEye = shot.mNightEye,
-                        .mWaterSeconds = waterSeconds,
                         .mLoss = at == shot.mLossAt ? shot.mLoss : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
-                            .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon,
-                            .mShadowFloor = shot.mShadowFloor,
-                            .mLampCandidates = shot.mLampCandidates },
+                            .mSampling = { .mNoise = shot.mNoise,
+                                .mShadowFloor = shot.mShadowFloor,
+                                .mLampCandidates = shot.mLampCandidates },
+                            .mFilters = { .mAntilag = shot.mAntilag } },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,
@@ -529,7 +537,8 @@ namespace Rtx::Testing
                         .mLitEnvironmentMaps = shot.mLitEnvironmentMaps,
                         .mDither = shot.mDither,
                         .mJitter = shot.mOffset,
-                        .mDebug = shot.mDebug });
+                        .mDebug = shot.mDebug },
+                    WorldOptions{ .mGlare = shot.mGlare, .mNightEye = shot.mNightEye, .mWaterSeconds = waterSeconds });
 
                 // Every frame hits the same primary geometry, so the last one's count is the answer
                 // rather than a sum to be divided back down.

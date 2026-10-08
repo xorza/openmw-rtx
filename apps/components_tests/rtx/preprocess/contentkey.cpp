@@ -56,12 +56,18 @@ namespace Rtx
             EXPECT_NE(keyOf(all, {}), keyOf({}, all)) << "an empty run is a run";
         }
 
+        template <class T>
+        constexpr bool sAddable = requires(ContentDigest& digest, const T& value)
+        {
+            digest.add(value);
+        };
+
         /// A value is a run of one, and the bytes a key counts are the input's alone: the three
         /// values above are twelve bytes, and the pass's name and version and the lengths add none.
         TEST(RtxContentKeyTest, aValueIsARunOfOneAndOnlyTheInputIsCounted)
         {
             ContentDigest asValue("fold", 1);
-            asValue.addValue(std::uint32_t{ 7 });
+            asValue.add(std::uint32_t{ 7 });
 
             const std::array<std::uint32_t, 1> seven{ 7 };
             ContentDigest asRun("fold", 1);
@@ -69,6 +75,11 @@ namespace Rtx
 
             EXPECT_EQ(asValue.getKey(), asRun.getKey());
             EXPECT_EQ(asValue.getBytes(), 4u);
+
+            // A span that is not a run of constants is neither: taken as a value, it would key its
+            // address.
+            static_assert(!sAddable<std::span<std::uint32_t>>);
+            static_assert(sAddable<std::span<const std::uint32_t>> && sAddable<std::uint32_t>);
 
             ContentDigest three("a pass with a long name", 1);
             three.add(std::span<const std::uint32_t>(sRun));

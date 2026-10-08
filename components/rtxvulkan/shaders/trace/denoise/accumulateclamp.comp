@@ -17,7 +17,7 @@
 // slow mean to noise. The same samples over `ACCUMULATE_FAST_FRAMES`, taken over a 5×5 square, are
 // quiet enough to bound it and short enough to follow the light: where the slow mean stands outside
 // the fast one's mean ± two deviations over the square, on any axis of YCoCg, it is moved to that
-// edge (`heldToFast`, which the glossy and pane filters hold their means by too).
+// edge (`heldToFast`).
 //
 // **Then ReLAX's push**, on both means: where the clamp moved the slow mean, both go on toward the
 // square's mean of samples in proportion (`antilagAcceleration`). The fast mean follows the light
@@ -126,13 +126,18 @@ void main()
 {
     const uint threads = ACCUMULATE_WORKGROUP * ACCUMULATE_WORKGROUP;
     const ivec2 origin = ivec2(gl_WorkGroupID.xy * ACCUMULATE_WORKGROUP);
+    const ivec2 last = ivec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight) - 1;
+
+    // **Every load at a pixel clamped into the frame**, and what one outside it read discarded by
+    // the select after it: the device runs without robust image access, so an apron pixel past the
+    // edge read where it stands is a read out of bounds, and a select is free to load both sides.
     for (uint i = gl_LocalInvocationIndex; i < RING_SPAN * RING_SPAN; i += threads)
     {
         const uvec2 square = uvec2(i % RING_SPAN, i / RING_SPAN);
         const ivec2 pixel = origin - OUTER + ivec2(square);
-        const bool held = !outsideOf(uvec2(pixel), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight))
-            && imageLoad(surfaceChannel, pixel).r != SURFACE_NO_NORMAL;
-        const vec3 there = unpackRgb9e5(imageLoad(fast, pixel).x);
+        const ivec2 inside = clamp(pixel, ivec2(0), last);
+        const bool held = pixel == inside && imageLoad(surfaceChannel, inside).r != SURFACE_NO_NORMAL;
+        const vec3 there = unpackRgb9e5(imageLoad(fast, inside).x);
         gFast[square.y][square.x] = held ? vec4(ycocgOf(there), dot(there, LUMINANCE_WEIGHTS)) : vec4(-1.0);
     }
     barrier();
@@ -140,12 +145,13 @@ void main()
     {
         const uvec2 square = uvec2(i % SPAN, i / SPAN);
         const ivec2 pixel = origin - REACH + ivec2(square);
+        const ivec2 inside = clamp(pixel, ivec2(0), last);
         const bool held = gFast[square.y + INSET][square.x + INSET].w >= 0.0;
-        gSampled[square.y][square.x] = held ? imageLoad(sampled, pixel).rgb : vec3(0.0);
-        gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, pixel).rgb : vec3(0.0);
-        gMoments[square.y][square.x] = held ? imageLoad(moments, pixel).rg : vec2(0.0);
+        gSampled[square.y][square.x] = held ? imageLoad(sampled, inside).rgb : vec3(0.0);
+        gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, inside).rgb : vec3(0.0);
+        gMoments[square.y][square.x] = held ? imageLoad(moments, inside).rg : vec2(0.0);
         // No surface is `SURFACE_NO_NORMAL`, whose normal of nought weighs nought in the variance.
-        const vec2 seen = held ? imageLoad(surfaceChannel, pixel).rg : vec2(SURFACE_NO_NORMAL, 0.0);
+        const vec2 seen = held ? imageLoad(surfaceChannel, inside).rg : vec2(SURFACE_NO_NORMAL, 0.0);
         gNormals[square.y][square.x] = unpackSurfaceNormal(seen.x);
         gPositions[square.y][square.x]
             = positionAlong(eyeOfPixel(seen.y, frame.mEyes), pixel, surfaceDistance(seen.y));

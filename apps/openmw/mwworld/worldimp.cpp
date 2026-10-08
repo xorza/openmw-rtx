@@ -551,7 +551,7 @@ namespace MWWorld
         // A clock that jumped carries the old hour's light through every history the ray tracer
         // keeps, as a teleport carries the old place's.
         if (DateTimeManager::jumps(before, mTimeManager->getTimeStamp().getHour(), mHourStep))
-            mRendering->notifyTeleport();
+            mRendering->notifyCut();
     }
 
     int World::getGlobalInt(GlobalVariableName name) const
@@ -3371,7 +3371,7 @@ namespace MWWorld
 
             const ESM::RefId& playerRegion = getPlayerPtr().getCell()->getCell()->getRegion();
             mWeatherManager->playerTeleported(playerRegion, isExterior);
-            mRendering->notifyTeleport();
+            mRendering->notifyCut();
         }
 
         const TimeStamp time = getTimeStamp();

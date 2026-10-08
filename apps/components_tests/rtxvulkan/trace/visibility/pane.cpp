@@ -101,7 +101,7 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
 
             const Frame averaged = shoot(scene, {}, camera, sSize, { .mFrames = 16, .mFirstFrame = 2000 });
-            const Frame filtered = shoot(scene, {}, camera, sSize, filteredRun(16, 2000));
+            const Frame filtered = shoot(scene, {}, camera, sSize, filteredRun(16, 2000, false));
 
             camera.mFrame = 2015;
             const Frame raw = shoot(scene, {}, camera, sSize);
@@ -116,6 +116,60 @@ namespace Rtx::Testing
                     << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
                 EXPECT_NEAR(filtered.mean(channel), averaged.mean(channel), averaged.mean(channel) * 1e-5f)
                     << "channel " << channel << " keeps its light";
+            }
+        }
+
+        /// **A pane's first filtered frame is the frame the trace composes, to the bit**: the pane
+        /// filter starts its mean at the frame's own light, and the composite multiplies it back by
+        /// the albedo the trace divided it by. A pane whose albedo no half holds — `(0.3, 0.37, 0.41)`
+        /// at 0.43, a red of 0.129 that a half holds as 0.12890625 at the least — under the four
+        /// lamps, against the black sky, so the pane is the whole of every pixel.
+        TEST_F(RtxVisibilityTest, aPanesFirstFilteredFrameIsTheComposedFrame)
+        {
+            SceneDesc scene;
+            addPane(scene, uprightQuadAt(4000.0f, 200.0f), osg::Vec4f(0.3f, 0.37f, 0.41f, 0.43f));
+            addLampsBefore(scene, 200.0f);
+            Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
+            camera.mFrame = 2000;
+
+            const Frame composed = shoot(scene, {}, camera, sSize);
+            const Frame filtered = shoot(scene, {}, camera, sSize, filteredRun(1, 2000));
+            ASSERT_GT(composed.mean(0), 0.0f) << "a pane that is lit by nothing proves nothing";
+            for (std::size_t value = 0; value < composed.mRadiance.size(); ++value)
+                ASSERT_EQ(filtered.at(value), composed.at(value)) << "value " << value;
+        }
+
+        /// **A pane follows an ambient whose light halves** (`historyclamp.comp`). The grey pane at
+        /// half its opacity before the black sky, lit by a grey ambient and no lamp — what a layer is
+        /// lit by at the end of its path (`pathEnd`) — filtered for 64 still frames, then 30 more under
+        /// half the ambient: the pane is the whole of every pixel and linear in the ambient, so the
+        /// new level is half the old one exactly. Measured, the clamp's 30th frame stood at 1.000
+        /// of it, and without the clamp at 1.386.
+        TEST_F(RtxVisibilityTest, aPaneFollowsAnAmbientWhoseLightHalves)
+        {
+            for (const bool antilag : { true, false })
+            {
+                SceneDesc scene;
+                addPane(scene, uprightQuadAt(4000.0f, 200.0f), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
+                Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
+                camera.mAmbient = osg::Vec3f(0.6f, 0.6f, 0.6f);
+                const Frame before = shoot(scene, {}, camera, sSize, filteredRun(64, 7000, antilag));
+                ASSERT_GT(before.mean(1), 0.0f) << "a pane that is lit by nothing proves nothing";
+
+                camera.mAmbient *= 0.5f;
+                const Frame after = shoot(scene, {}, camera, sSize,
+                    Shot{ .mFrames = 30,
+                        .mAverage = false,
+                        .mFirstFrame = 7064,
+                        .mFilter = true,
+                        .mAntilag = antilag,
+                        .mSetScene = false });
+                const float share = after.mean(1) / (0.5f * before.mean(1));
+                if (antilag)
+                    EXPECT_LT(share, 1.05f) << "the clamp did not follow the ambient down";
+                else
+                    EXPECT_GT(share, 1.05f)
+                        << "the history followed the ambient without the clamp, so this proves nothing";
             }
         }
 

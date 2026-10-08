@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <mutex>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -45,13 +46,16 @@ namespace Rtx
                 [&](const VkLayerProperties& layer) { return std::strcmp(layer.layerName, name) == 0; });
         }
 
-        bool loaderOffers(const char* name)
+        std::vector<VkExtensionProperties> loaderExtensions()
         {
-            const std::vector<VkExtensionProperties> extensions = enumerateVk<VkExtensionProperties>(
+            return enumerateVk<VkExtensionProperties>(
                 "vkEnumerateInstanceExtensionProperties", [](std::uint32_t* count, VkExtensionProperties* into) {
                     return vkEnumerateInstanceExtensionProperties(nullptr, count, into);
                 });
+        }
 
+        bool offers(std::span<const VkExtensionProperties> extensions, const char* name)
+        {
             return std::any_of(extensions.begin(), extensions.end(), [&](const VkExtensionProperties& extension) {
                 return std::strcmp(extension.extensionName, name) == 0;
             });
@@ -70,13 +74,14 @@ namespace Rtx
 
         std::vector<const char*> extensions(surfaceExtensions.begin(), surfaceExtensions.end());
         std::vector<const char*> layers;
+        const std::vector<VkExtensionProperties> offered = loaderExtensions();
 
         // What the device half of swapchain maintenance rests on: a present fence is the only
         // thing that says the presentation engine has finished with an image. Surface maintenance
         // rests in turn on the extended surface query, and both are taken where the loader has
         // both, so a driver without them presents as before.
-        if (!surfaceExtensions.empty() && loaderOffers(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME)
-            && loaderOffers(VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME))
+        if (!surfaceExtensions.empty() && offers(offered, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME)
+            && offers(offered, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME))
         {
             extensions.push_back(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
             extensions.push_back(VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
@@ -85,7 +90,7 @@ namespace Rtx
         // Asked for wherever the loader offers it, which is every build: command-buffer labels are
         // what make a profile readable, and the release build is the one a profiler reads. Object
         // names stay this build's own (`Device::setName`).
-        const bool debugUtils = loaderOffers(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        const bool debugUtils = offers(offered, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
         // Validation reaches us only through the messenger, so without the extension it would run
         // and report nothing — worse than not running at all, because the clean output would read
@@ -219,7 +224,11 @@ namespace Rtx
             .ppEnabledExtensionNames = extensions.data(),
         };
 
-        checkVkSupport(vkCreateInstance(&createInfo, nullptr, &mHandle), "vkCreateInstance");
+        // Into a local and adopted on success, as `Owned::make` does. From the adoption on, a throw
+        // ends the instance with the member that holds it.
+        VkInstance created = VK_NULL_HANDLE;
+        checkVkSupport(vkCreateInstance(&createInfo, nullptr, &created), "vkCreateInstance");
+        mHandle = Root<VkInstance, vkDestroyInstance>(created);
         mExtensions.assign(extensions.begin(), extensions.end());
 
         // **One load serves every instance**, so a second one made beside the first, as the tests
@@ -229,43 +238,32 @@ namespace Rtx
         // function an import library would have bound. The surface's are not, and `Surface` asks
         // this instance for its own.
         static std::once_flag loaded;
-        std::call_once(loaded, [&] { volkLoadInstance(mHandle); });
+        std::call_once(loaded, [&] { volkLoadInstance(mHandle.get()); });
 
-        // A constructor that throws runs no destructor, and this throw is caught and reported
-        // rather than ending the process, so anything after a successful create cleans up before it
-        // rethrows.
-        try
+        // What the one load stands on, held of every instance rather than trusted: a loader
+        // that answered this one differently would be calling another's functions through it.
+        const std::pair<const char*, PFN_vkVoidFunction> sameForEvery[] = {
+            { "vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(vkEnumeratePhysicalDevices) },
+            { "vkQueueSubmit2", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit2) },
+            { "vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR) },
+        };
+        for (const auto& [name, held] : sameForEvery)
+            if (vkGetInstanceProcAddr(mHandle.get(), name) != held)
+                throw Unsupported(std::string("the Vulkan loader answers ") + name
+                    + " differently for each instance, which this renderer does not support");
+
+        if (validation)
         {
-            // What the one load stands on, held of every instance rather than trusted: a loader
-            // that answered this one differently would be calling another's functions through it.
-            const std::pair<const char*, PFN_vkVoidFunction> sameForEvery[] = {
-                { "vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(vkEnumeratePhysicalDevices) },
-                { "vkQueueSubmit2", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit2) },
-                { "vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR) },
-            };
-            for (const auto& [name, held] : sameForEvery)
-                if (vkGetInstanceProcAddr(mHandle, name) != held)
-                    throw Unsupported(std::string("the Vulkan loader answers ") + name
-                        + " differently for each instance, which this renderer does not support");
+            const auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+                vkGetInstanceProcAddr(mHandle.get(), "vkCreateDebugUtilsMessengerEXT"));
+            const auto destroy = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+                vkGetInstanceProcAddr(mHandle.get(), "vkDestroyDebugUtilsMessengerEXT"));
+            if (create == nullptr || destroy == nullptr)
+                throw Unsupported("the validation layer is loaded but the debug messenger's entry points are missing");
 
-            if (validation)
-            {
-                const auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-                    vkGetInstanceProcAddr(mHandle, "vkCreateDebugUtilsMessengerEXT"));
-                mDestroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-                    vkGetInstanceProcAddr(mHandle, "vkDestroyDebugUtilsMessengerEXT"));
-                if (create == nullptr || mDestroyMessenger == nullptr)
-                    throw Unsupported(
-                        "the validation layer is loaded but the debug messenger's entry points are missing");
-
-                checkVk(create(mHandle, &messengerInfo, nullptr, &mMessenger), "vkCreateDebugUtilsMessengerEXT");
-            }
-        }
-        catch (...)
-        {
-            vkDestroyInstance(mHandle, nullptr);
-            mHandle = VK_NULL_HANDLE;
-            throw;
+            VkDebugUtilsMessengerEXT messenger = VK_NULL_HANDLE;
+            checkVk(create(mHandle.get(), &messengerInfo, nullptr, &messenger), "vkCreateDebugUtilsMessengerEXT");
+            mMessenger = Messenger(mHandle.get(), destroy, messenger);
         }
     }
 
@@ -277,14 +275,5 @@ namespace Rtx
     bool Instance::hasExtension(const std::string_view name) const
     {
         return std::find(mExtensions.begin(), mExtensions.end(), name) != mExtensions.end();
-    }
-
-    Instance::~Instance()
-    {
-        if (mMessenger != VK_NULL_HANDLE)
-            mDestroyMessenger(mHandle, mMessenger, nullptr);
-
-        if (mHandle != VK_NULL_HANDLE)
-            vkDestroyInstance(mHandle, nullptr);
     }
 }

@@ -117,6 +117,7 @@ namespace Rtx
     {
         assert(mDevice.getTimeline().isIdle() && "command buffers given back under a submit still on the queue");
         assert(mDeferred.empty() && "command buffers given back under a batch not yet submitted");
+        assert(mOpen.empty() && "command buffers given back while a recording is open");
 
         releaseRetired(std::numeric_limits<std::uint64_t>::max());
     }
@@ -132,8 +133,7 @@ namespace Rtx
         // Neither ended nor submitted: a buffer still being recorded is not pending, so this is
         // where a recording nobody wants goes back. Reset first, because a begin resets a buffer
         // that was ended and not one still recording.
-        close(commands);
-        checkVk(vkResetCommandBuffer(commands, 0), "vkResetCommandBuffer");
+        unwind(commands);
         recycle(std::span<const VkCommandBuffer>(&commands, 1));
     }
 
@@ -164,14 +164,60 @@ namespace Rtx
         return commands;
     }
 
-    std::vector<VkCommandBuffer> CommandPool::allocate(std::uint32_t count)
+    LentCommands CommandPool::lend(const std::uint32_t count)
     {
         std::vector<VkCommandBuffer> buffers;
         buffers.reserve(count);
         for (std::uint32_t at = 0; at < count; ++at)
             buffers.push_back(take());
 
-        return buffers;
+        return LentCommands(*this, std::move(buffers));
+    }
+
+    void CommandPool::retire(std::span<const VkCommandBuffer> commands)
+    {
+        const std::uint64_t until = mDevice.getTimeline().getNext();
+        for (VkCommandBuffer buffer : commands)
+            mRetiring.hold(until, std::move(buffer));
+    }
+
+    LentCommands::LentCommands(LentCommands&& other) noexcept
+        : mPool(other.mPool)
+        , mBuffers(std::move(other.mBuffers))
+    {
+        other.mBuffers.clear();
+    }
+
+    LentCommands& LentCommands::operator=(LentCommands&& other) noexcept
+    {
+        if (this != &other)
+        {
+            giveBack();
+            mPool = other.mPool;
+            mBuffers = std::move(other.mBuffers);
+            other.mBuffers.clear();
+        }
+        return *this;
+    }
+
+    LentCommands::~LentCommands()
+    {
+        giveBack();
+    }
+
+    VkCommandBuffer LentCommands::add()
+    {
+        assert(mPool != nullptr && "a buffer added to commands no pool lent");
+        mBuffers.push_back(mPool->take());
+        return mBuffers.back();
+    }
+
+    void LentCommands::giveBack()
+    {
+        if (mBuffers.empty())
+            return;
+        mPool->retire(mBuffers);
+        mBuffers.clear();
     }
 
     std::size_t CommandPool::takeStaging(const VkDeviceSize bytes)
@@ -225,11 +271,63 @@ namespace Rtx
         mRetiringStaging.hold(readUntil, std::size_t{ block });
     }
 
-    void CommandPool::begin(VkCommandBuffer commands)
+    Recording CommandPool::begin(VkCommandBuffer commands)
     {
         assert(std::ranges::find(mOpen, commands) == mOpen.end() && "a recording begun twice");
         mOpen.push_back(commands);
-        open(commands);
+        try
+        {
+            open(commands);
+        }
+        catch (...)
+        {
+            close(commands);
+            throw;
+        }
+        return Recording(*this, commands);
+    }
+
+    void CommandPool::unwind(VkCommandBuffer commands)
+    {
+        close(commands);
+        checkVk(vkResetCommandBuffer(commands, 0), "vkResetCommandBuffer");
+    }
+
+    Recording::Recording(CommandPool& pool, VkCommandBuffer commands)
+        : mPool(pool)
+        , mCommands(commands)
+        , mUnwinding(std::uncaught_exceptions())
+    {
+    }
+
+    Recording::Recording(Recording&& other) noexcept
+        : mPool(other.mPool)
+        , mCommands(std::exchange(other.mCommands, VK_NULL_HANDLE))
+        , mUnwinding(other.mUnwinding)
+    {
+    }
+
+    Recording::~Recording()
+    {
+        if (mCommands == VK_NULL_HANDLE)
+            return;
+
+        assert(std::uncaught_exceptions() > mUnwinding && "a recording neither submitted nor ended");
+        tearDown("a recording an exception left would not be reset", [&] { mPool.unwind(mCommands); });
+    }
+
+    std::uint64_t Recording::submit(
+        std::span<const VkSemaphoreSubmitInfo> waits, std::span<const VkSemaphoreSubmitInfo> signals) &&
+    {
+        const std::uint64_t submitted = mPool.submit(mCommands, waits, signals);
+        mCommands = VK_NULL_HANDLE;
+        return submitted;
+    }
+
+    void Recording::end() &&
+    {
+        mPool.end(mCommands);
+        mCommands = VK_NULL_HANDLE;
     }
 
     void CommandPool::open(VkCommandBuffer commands)
@@ -260,7 +358,7 @@ namespace Rtx
         checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
     }
 
-    VkCommandBuffer CommandPool::begin()
+    VkCommandBuffer CommandPool::beginBatch()
     {
         const VkCommandBuffer commands = take();
         open(commands);
@@ -288,22 +386,23 @@ namespace Rtx
 
     Batch::~Batch()
     {
-        if (mCommands != VK_NULL_HANDLE)
-        {
-            assert(
-                std::uncaught_exceptions() > 0 && "a batch that recorded something was neither flushed nor deferred");
+        assert((mCommands == VK_NULL_HANDLE || std::uncaught_exceptions() > 0)
+            && "a batch that recorded something was neither flushed nor deferred");
 
-            mPool.discard(std::exchange(mCommands, VK_NULL_HANDLE));
-        }
-
-        release();
-        mPool.giveHold(mHold);
+        // Through `tearDown`, because this runs while an exception unwinds, and a reset the driver
+        // refuses would end the process there. A hold whose release failed is kept from the pool.
+        tearDown("a batch would not give back what it held", [&] {
+            if (mCommands != VK_NULL_HANDLE)
+                mPool.discard(std::exchange(mCommands, VK_NULL_HANDLE));
+            release();
+            mPool.giveHold(mHold);
+        });
     }
 
     VkCommandBuffer Batch::getCommands()
     {
         if (mCommands == VK_NULL_HANDLE)
-            mCommands = mPool.begin();
+            mCommands = mPool.beginBatch();
 
         return mCommands;
     }

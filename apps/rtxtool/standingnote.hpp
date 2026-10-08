@@ -6,7 +6,7 @@
 
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <components/esm/refid.hpp>
-#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/world/frameworld.hpp>
 
 namespace RtxTool
 {

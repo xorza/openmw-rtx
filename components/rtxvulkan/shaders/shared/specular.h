@@ -28,7 +28,9 @@ namespace Rtx::Shaders
     const uint SPECULAR_BIND_HELD_SURFACE = 3;
     const uint SPECULAR_BIND_MEAN_BEFORE = 4;
     const uint SPECULAR_BIND_MEAN = 5;
-    const uint SPECULAR_BINDINGS = 6;
+    const uint SPECULAR_BIND_FAST_BEFORE = 6;
+    const uint SPECULAR_BIND_FAST_BLENDED = 7;
+    const uint SPECULAR_BINDINGS = 8;
 
     /// Threads along each edge of the glossy filter's workgroup.
     const uint SPECULAR_WORKGROUP = 8;

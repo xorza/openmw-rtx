@@ -8,6 +8,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -35,8 +36,9 @@ namespace Rtx
     }
 
     SceneAcceleration::SceneAcceleration(const Device& device, Batch& batch, const SceneDesc& scene,
-        std::span<const Index> everyMesh, const std::uint32_t slots)
+        std::span<const Index> everyMesh, const std::uint32_t slots, const std::uint32_t placementRoom)
         : mDevice(device)
+        , mPlacementRoom(placementRoom)
         , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage")
         , mBottomLevel(device)
         , mRefitScratch(device, BufferKind::DeviceLocal, sScratchUsage, "refit scratch")
@@ -44,6 +46,7 @@ namespace Rtx
     {
         mPoses.open(device, slots, sBuildInputUsage, "poses");
         mRowTable.open(device, slots, sBuildInputUsage, "instances");
+        mRowTable.reserve(placementRoom);
         mIndices.open(device, sBuildInputUsage, "indices");
 
         writeGeometry(batch, scene, everyMesh);
@@ -111,15 +114,13 @@ namespace Rtx
         // The builds a crossing brings, bracketed as one zone. Without it they are device time
         // the frame's fence carries and no zone accounts for, so the frame a player feels is the one
         // frame whose report says nothing about what made it slow.
-        openZone(timer, batch.getCommands(), "blas");
+        const GpuZone timed(timer, batch.getCommands(), FrameZone::Blas);
 
         // Noted as built on the next posed placement, which is the one that brings them: built whole
         // here, nothing on it builds them whole again.
         mBottomLevel.build(
             batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), mIndices, mPlacements + 1, refused);
         sizeRefitScratch();
-
-        closeZone(timer, batch.getCommands());
     }
 
     void SceneAcceleration::sizeRefitScratch()
@@ -261,7 +262,7 @@ namespace Rtx
 
     void SceneAcceleration::recordRefit(VkCommandBuffer commands, GpuTimer* timer)
     {
-        openZone(timer, commands, "refit");
+        const GpuZone timed(timer, commands, FrameZone::Refit);
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands,
             static_cast<std::uint32_t>(mRefit.mBuilds.size()), mRefit.mBuilds.data(), mRefit.mRangePointers.data());
 
@@ -269,7 +270,6 @@ namespace Rtx
         // over structures the refit has just rewritten, which is a dependency inside a command
         // buffer rather than a reason to go round the driver twice.
         barrierAfterBuild(commands);
-        closeZone(timer, commands);
     }
 
     bool SceneAcceleration::place(const SceneDesc& scene, std::span<const InstanceRecord> records,
@@ -350,11 +350,13 @@ namespace Rtx
 
         mRowTable.sync(slot);
 
-        // At twice the rows it held past them, as the row table itself grows: a crossing adds rows a
-        // few at a time, and each growth is a structure and its storage made again.
+        // **Made at the room the scene was opened with**, as the rows' copies are, so the frame a
+        // crossing pushes the rows past what the top level holds does not pay for a structure, its
+        // storage and a size query on top of its cells. Past the room, at twice the rows it held, as
+        // the row table itself grows: a logarithmic number of times rather than once a crossing.
         const auto count = static_cast<std::uint32_t>(mRowTable.size());
         if (mTopLevel.isEmpty() || count > mTopLevelSlots)
-            sizeTopLevel(std::max(count, 2 * mTopLevelSlots));
+            sizeTopLevel(std::max({ count, 2 * mTopLevelSlots, mPlacementRoom }));
 
         // The top level is built from this frame's copy, so the address moves with the slot.
         mTopLevelGeometry.geometry.instances.data.deviceAddress = mRowTable.addressFor(slot);
@@ -484,9 +486,8 @@ namespace Rtx
         };
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
 
-        openZone(timer, commands, "tlas");
+        const GpuZone timed(timer, commands, FrameZone::Tlas);
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);
         barrierAfterBuild(commands);
-        closeZone(timer, commands);
     }
 }

@@ -93,8 +93,9 @@ namespace MyGUIRtx
 
     bool RenderManager::checkTexture(MyGUI::ITexture* /*texture*/)
     {
-        // We support external textures that aren't registered via this manager, so can't implement
-        // this method sensibly. The other backend answers the same way, and for the same reason.
+        // Every texture this backend draws is one it made (`createTexture`, `shareTexture`), a
+        // `SlotTexture` each, which `doRender` reads it as and asserts; it keeps no list of them to
+        // look one up in, so this answers yes as the other backend does.
         return true;
     }
 
@@ -196,6 +197,8 @@ namespace MyGUIRtx
 
     void RenderManager::doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count)
     {
+        assert((texture == nullptr || dynamic_cast<SlotTexture*>(texture) != nullptr)
+            && "a GUI texture this backend did not make");
         auto* texel = static_cast<SlotTexture*>(texture);
         if (texel == nullptr || count == 0)
             return;
@@ -265,8 +268,8 @@ namespace MyGUIRtx
     void RenderManager::registerShader(const std::string& shaderName, const std::string& /*vertexProgramFile*/,
         const std::string& /*fragmentProgramFile*/)
     {
-        // The other backend compiles one and draws widgets with it; this one has two pipelines
-        // built at startup and no way to take a third.
+        // The other backend compiles one and draws widgets with it; this one has a pipeline for each
+        // of its five blends, built at startup, and no way to take another.
         Log(Debug::Warning) << "A GUI shader was asked for and this backend has none: " << shaderName;
     }
 }

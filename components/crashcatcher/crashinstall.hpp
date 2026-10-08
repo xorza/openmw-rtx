@@ -2,11 +2,12 @@
 
 #include <chrono>
 #include <filesystem>
-#include <optional>
 #include <string>
 #include <string_view>
 
 #include <components/misc/result.hpp>
+
+#include "crashanswering.hpp"
 
 /// **Starting the crash catcher**, which `main` and the log's setup do once: apart from `crash.hpp`,
 /// so that the hundreds of files that only report or die through it compile none of this.
@@ -21,13 +22,8 @@ namespace Crash
         /// `OPENMW_CRASH_REPORTS` does not name one.
         std::filesystem::path mReportFolder;
 
-        /// Whether a crash and a hang put up a dialog. A harness run from a shell does not want one.
-        bool mDialog = true;
-
-        /// **A harness's answer to the hang dialog, where nobody is at the box**: End, after this
-        /// long, which is what lets a test end a game that recovered, or ended, while it was asked.
-        /// Nothing asks the player.
-        std::optional<std::chrono::milliseconds> mEndAfter;
+        /// Who answers a hang's box and a crash's: a harness run from a shell wants neither.
+        Answering mAnswering = AskThePlayer{};
 
         /// Where a player reports a crash, which the dialog names and opens. Empty for nowhere.
         std::string mIssues;

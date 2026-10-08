@@ -209,6 +209,26 @@ namespace Rtx
             // on how many rows were added between them.
             EXPECT_LE(remade, 10u) << "the buffer followed the row count instead of doubling";
             EXPECT_GE(mTable.getCopyBytes(FrameSlot{ 0 }), 512 * sizeof(TestRow));
+
+            // **And a table reserved is made once at its room**, every copy of it, and grows past
+            // it by doubling from there: 1024 rows of four bytes, then 2048.
+            SlotTable<TestRow> reserved;
+            reserved.open(getDevice(), 2, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "reserved");
+            reserved.reserve(1024);
+            for (std::uint32_t slot = 0; slot < 2; ++slot)
+            {
+                EXPECT_EQ(reserved.getCopyBytes(FrameSlot{ slot }), 1024 * sizeof(TestRow));
+                EXPECT_TRUE(reserved.owesEverything(FrameSlot{ slot }));
+            }
+            for (std::size_t rows = 1; rows <= 1024; rows *= 2)
+            {
+                reserved.grow(rows);
+                reserved.sync(FrameSlot{ 0 });
+                EXPECT_EQ(reserved.getCopyBytes(FrameSlot{ 0 }), 1024 * sizeof(TestRow)) << "at " << rows << " rows";
+            }
+            reserved.grow(1025);
+            reserved.sync(FrameSlot{ 0 });
+            EXPECT_EQ(reserved.getCopyBytes(FrameSlot{ 0 }), 2048 * sizeof(TestRow));
         }
 
         /// Blocks keep the same account as rows: named by `write`, cleared only by `sync`.
@@ -308,10 +328,10 @@ namespace Rtx
             sync(0);
 
             Testing::HeldSubmit hold(getDevice());
-            const VkCommandBuffer reader = getPool().allocate(1).front();
-            getPool().begin(reader);
+            const LentCommands reader = getPool().lend(1);
+            Recording reading = getPool().begin(reader[0]);
             EXPECT_NE(mTable.addressFor(FrameSlot{ 0 }), 0u);
-            hold.submit(reader);
+            hold.submit(std::move(reading));
 
             // Long enough that a wait which returned at once is told from one that waited, under three
             // shards of this binary sharing the device.

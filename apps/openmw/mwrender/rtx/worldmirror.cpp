@@ -33,18 +33,19 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
-#include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
+#include <components/sceneutil/unrefqueue.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "classmasks.hpp"
+#include "mirrorknobs.hpp"
 #include "tracedgroundcover.hpp"
 
 namespace MWRender
@@ -135,7 +136,7 @@ namespace MWRender
         }
     }
 
-    WorldMirror::WorldMirror(const Rtx::MirrorKnobs& knobs)
+    WorldMirror::WorldMirror(const MirrorKnobs& knobs)
         : mWalk{ .mSpecular = knobs.mSpecularLayout }
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
@@ -176,9 +177,27 @@ namespace MWRender
                 mExtractor.setClassMask(held.mClass, held.mNodes);
     }
 
-    void WorldMirror::attach(Resource::ResourceSystem& resources)
+    void WorldMirror::attach(Resource::ResourceSystem& resources, SceneUtil::UnrefQueue& released)
     {
         mContent = std::make_unique<SceneContent>(*resources.getSceneManager());
+        mReleasing = &released;
+    }
+
+    void WorldMirror::handReleased()
+    {
+        Rtx::Released& released = mExtractor.getReleased();
+
+        // A mirror no world was attached to — a test's — has no queue, and lets go where it stands.
+        if (mReleasing == nullptr)
+        {
+            released.clear();
+            return;
+        }
+
+        // The queue holds what it releases as mutable, and dropping a reference modifies nothing.
+        for (const osg::ref_ptr<const osg::Referenced>& object : released.get())
+            mReleasing->push(osg::ref_ptr<osg::Referenced>(const_cast<osg::Referenced*>(object.get())));
+        released.clear();
     }
 
     WorldMirror::~WorldMirror()
@@ -197,7 +216,11 @@ namespace MWRender
         // out of an exception a frame threw, where the scene is whatever the throw left and the
         // assert in the retire would stand between the throw and its message.
         if (std::uncaught_exceptions() == 0)
+        {
             mExtractor.detach(mRing);
+            handReleased();
+        }
+        mReleasing = nullptr;
 
         mGroundcover.reset();
         mContent.reset();
@@ -316,8 +339,7 @@ namespace MWRender
         // One walk over the whole graph, where every path is already distinct, and the one that
         // stands the references the game said jumped: the other walks stand nothing of theirs.
         mExtractor.setJumped(frame.mJumped);
-        Rtx::ExtractionStats found
-            = mExtractor.extractWorld(frame.mScene, osg::Matrixf::identity(), Anchor::World, frameNumber, mRing);
+        Rtx::ExtractionStats found = mExtractor.extractWorld(frame.mScene, Anchor::World, frameNumber, mRing);
         mExtractor.setJumped({});
 
         // What the walks did not find has gone. The graph is the whole world every frame, which is
@@ -325,6 +347,7 @@ namespace MWRender
         // After every walk of the frame and never before one, because the sweep bumps the epoch
         // the next walk is measured against.
         mExtractor.retire();
+        handReleased();
 
         // **Taken once, after every walk of the frame**, and not by a walk: the precipitation and
         // the sea are walks whose counts go nowhere, and the sky's sheets are read between walks,

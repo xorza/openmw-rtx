@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <limits>
 #include <span>
 #include <string>
 #include <vector>
@@ -21,7 +22,7 @@
 #include <components/rtx/common/halffloat.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "texels.hpp"
+#include "textureformat.hpp"
 
 namespace Rtx
 {
@@ -242,8 +243,8 @@ namespace Rtx
         return laidBytesOf(image, format, keptLevels(image));
     }
 
-    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, std::vector<MipLevel>& levels,
-        std::vector<std::byte>& texels, const TextureEncoding encoding)
+    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureEncoding encoding,
+        std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
     {
         return describeImage(image, readFormat(image, encoding), encoding, levels, texels);
     }
@@ -328,6 +329,17 @@ namespace Rtx
             // image, widened to RGBA8 where the format is one this widens. Every level begins where
             // the texels before it end, and the total is the one a caller reserved by.
             const std::size_t total = laidBytesOf(image, format, count);
+
+            // **A level's offset is 32 bits**, which the bound on the source does not hold for the
+            // copy: widening multiplies it, by four for an eight-bit channel, and an eight-bit image
+            // of 32768 on a side is a gigabyte read and four laid, its next level's offset past what
+            // the offset can name.
+            if (total > std::numeric_limits<std::uint32_t>::max())
+            {
+                levels.resize(first);
+                return Misc::Err{ "its levels laid out are " + std::to_string(total)
+                    + " bytes, past what a level's 32-bit offset reaches" };
+            }
 
             const std::size_t from = texels.size();
             texels.resize(from + total);

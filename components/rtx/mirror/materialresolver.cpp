@@ -20,6 +20,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -111,23 +112,28 @@ namespace Rtx
         const auto [entry, arrived] = mAnimated.reach(Placement{ .mNode = &node, .mPath = placement });
         Animated& held = entry->second;
         const ChainShape chains = ChainShape::of(node);
-        if (arrived || chains != held.mChains)
+        if (arrived || !held.mChains.matches(chains))
         {
-            held.mChains = chains;
+            held.mChains.hold(chains);
 
             std::array<SceneUtil::StateSetUpdater*, sMostUpdaters> found{};
             const std::size_t count = chained ? findUpdaters(node, found) : 0;
 
             if (count != held.mUpdaterCount
-                || !std::equal(found.begin(), found.begin() + count, held.mUpdaters.begin()))
+                || !std::equal(found.begin(), found.begin() + count, held.mUpdaters.begin(),
+                    [](const SceneUtil::StateSetUpdater* probed, const osg::ref_ptr<SceneUtil::StateSetUpdater>& kept) {
+                        return probed == kept.get();
+                    }))
             {
-                held.mUpdaters = found;
+                for (std::size_t at = 0; at < held.mUpdaters.size(); ++at)
+                    held.mUpdaters[at] = at < count ? found[at] : nullptr;
                 held.mUpdaterCount = count;
                 held.mSetUp = false;
             }
         }
 
-        const std::span<SceneUtil::StateSetUpdater* const> updaters(held.mUpdaters.data(), held.mUpdaterCount);
+        const std::span<const osg::ref_ptr<SceneUtil::StateSetUpdater>> updaters(
+            held.mUpdaters.data(), held.mUpdaterCount);
         if (updaters.empty() && !inherits)
             return nullptr;
 
@@ -162,7 +168,7 @@ namespace Rtx
                 held.mStateSet->setRenderBinDetails(base->getBinNumber(), base->getBinName(), base->getRenderBinMode());
                 held.mStateSet->setNestRenderBins(base->getNestRenderBins());
             }
-            for (SceneUtil::StateSetUpdater* updater : updaters)
+            for (const osg::ref_ptr<SceneUtil::StateSetUpdater>& updater : updaters)
                 updater->setDefaults(held.mStateSet);
         }
 
@@ -359,7 +365,7 @@ namespace Rtx
         {
             // Held, because this entry is the reference. `mTextureOf` says why a slot the map names
             // has to be one nothing else can hand out.
-            slot = mScene.takeTexture(VFS::Path::Normalized(image->getFileName()), *image, use.mWrap, encoding);
+            slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding);
             if (slot.empty())
                 held.mRefused.refuse(bit, freed);
         }
@@ -537,9 +543,24 @@ namespace Rtx
         return material;
     }
 
-    void MaterialResolver::retire()
+    void MaterialResolver::retire(Released& released)
     {
-        mMaterials.retire([this](HeldMaterial& held) { release(held); });
+        mMaterials.retire(released, [this](HeldMaterial& held) { release(held); });
+
+        // The walk's own hold on every image a material is read from, given back the same way.
+        // Swept whatever the materials did, because a cached material's images go stale on the
+        // frame after they arrived; what settles here is the animated materials.
+        mTextureOf.retire(released, [this](HeldTexture& held) { release(held); });
+
+        // What `animate` keeps. Swept beside everything else because it is keyed on a node the graph
+        // can drop, and because a state set held past its node holds the textures in it alive too.
+        mAnimated.retire(released, [&](const Animated& gone) {
+            released.keep(gone.mStateSet);
+            for (const osg::ref_ptr<SceneUtil::StateSetUpdater>& updater : gone.mUpdaters)
+                released.keep(updater);
+            for (const osg::ref_ptr<const osg::Callback>& callback : gone.mChains.mCallbacks)
+                released.keep(callback);
+        });
     }
 
     MaterialResolver::~MaterialResolver()
@@ -563,15 +584,4 @@ namespace Rtx
                 mScene.drop(std::move(slot));
     }
 
-    void MaterialResolver::retireHolds()
-    {
-        // The walk's own hold on every image a material is read from, given back the same way.
-        // Most are met once and go stale on the frame after they arrived; what settles here is the
-        // animated materials.
-        mTextureOf.retire([this](HeldTexture& held) { release(held); });
-
-        // What `animate` keeps. Swept beside everything else because it is keyed on a node the graph
-        // can drop, and because a state set held past its node holds the textures in it alive too.
-        mAnimated.retire();
-    }
 }

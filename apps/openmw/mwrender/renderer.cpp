@@ -5,6 +5,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_properties.h>
@@ -34,8 +35,49 @@
 
 namespace MWRender
 {
+    WorldAttachment::WorldAttachment(WorldAttachment&& other) noexcept
+        : mRenderer(std::exchange(other.mRenderer, nullptr))
+    {
+    }
+
+    WorldAttachment& WorldAttachment::operator=(WorldAttachment&& other) noexcept
+    {
+        if (this != &other)
+        {
+            reset();
+            mRenderer = std::exchange(other.mRenderer, nullptr);
+        }
+        return *this;
+    }
+
+    void WorldAttachment::reset()
+    {
+        if (Renderer* const renderer = std::exchange(mRenderer, nullptr))
+            renderer->detachWorld();
+    }
+
     Renderer::Renderer() = default;
-    Renderer::~Renderer() = default;
+
+    Renderer::~Renderer()
+    {
+        assert(!mWorldAttached && "a renderer ended under a world still attached to it");
+    }
+
+    WorldAttachment Renderer::attachWorld(
+        RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released)
+    {
+        assert(!mWorldAttached && "a world attached to a renderer that has one");
+        onAttachWorld(world, worldRoot, released);
+        mWorldAttached = true;
+        return WorldAttachment(*this);
+    }
+
+    void Renderer::detachWorld()
+    {
+        assert(mWorldAttached && "a world detached from a renderer that has none");
+        mWorldAttached = false;
+        onDetachWorld();
+    }
 
     void Renderer::prepareResources(Resource::ResourceSystem& resources)
     {
@@ -189,11 +231,6 @@ namespace MWRender
         return static_cast<float>(mClock->getStep());
     }
 
-    void Renderer::resolutionChanged()
-    {
-        presentIn(mPresentation.mDrawable);
-    }
-
     void Renderer::presentIn(const osg::Vec2i& drawable)
     {
         const osg::Vec2i asked
@@ -232,9 +269,19 @@ namespace MWRender
         // A set and not a span, because the renderers ask it by key. Rebuilt per change, which is
         // a player choosing from a menu and not a frame.
         Settings::CategorySettingVector honoured;
+        bool resized = false;
         for (const Settings::CategorySetting& setting : changed)
+        {
+            resized
+                |= setting.first == "Video" && (setting.second == "resolution x" || setting.second == "resolution y");
             if (support().declinedSetting(setting.first, setting.second).empty())
                 honoured.insert(setting);
+        }
+
+        // The frame is the size `[Video] resolution x/y` name from here on, whichever renderer
+        // draws it, so it is presented again before either is handed what it honours.
+        if (resized)
+            presentIn(mPresentation.mDrawable);
 
         if (!honoured.empty())
             applyChangedSettings(honoured);

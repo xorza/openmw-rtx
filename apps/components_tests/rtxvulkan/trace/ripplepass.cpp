@@ -12,9 +12,9 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/shaders/shared/ripple.h>
@@ -305,7 +305,7 @@ namespace Rtx
             scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
 
             const auto field = [&](const int traces) {
-                TraceMedia media(getDevice(), bakeFogNoise());
+                TraceMedia media(getDevice(), FogNoise::shared());
                 media.keepRipples(scene);
                 getPool().submitAndWait([&](VkCommandBuffer commands) {
                     for (int trace = 0; trace < traces; ++trace)

@@ -15,6 +15,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -114,7 +115,7 @@ namespace Rtx
             ContentPreprocessor content;
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
 
-            AlphaScratch scratch;
+            TexelScratch scratch;
             const std::optional<TextureData> finest = describeFinest(*painted, scratch);
             ASSERT_TRUE(finest.has_value());
             EXPECT_EQ(content.reachesSolid(*painted), reachesSolid(*finest));

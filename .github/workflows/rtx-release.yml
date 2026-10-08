@@ -38,54 +38,14 @@ jobs:
       cache: false
 
   package:
-    name: package (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    # **No cache of any kind**: what a release ships is built from what this run fetched and
+    # checked, and not from objects another run left where this one reads them.
+    uses: $/.github/workflows/package.yml
     permissions:
       contents: read
-    timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            # An AppImage is compressed already; the Windows folder is not.
-            compression: 0
-          - os: windows-2025
-            compression: 6
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      # **No cache of any kind**: what a release ships is built from what this run fetched and
-      # checked, and not from objects another run left where this one reads them.
-      - uses: $/.github/actions/openmw-deps
-        with:
-          cache: "false"
-
-      - name: Name
-        # After the ref, so a tag names its archives and a run by hand names the branch: once, for
-        # the archives and the artifact both, with what a branch may hold and a file may not — a
-        # `/` above all, which `upload-artifact` refuses at the end of the build — as a `-`.
-        run: |
-          name="${GITHUB_REF_NAME//[\/\"<>|]/-}"
-          echo "ARCHIVE_NAME=$name" >> "$GITHUB_ENV"
-
-      - name: Package
-        run: python omw archive "$ARCHIVE_NAME"
-
-      - name: Archive
-        # `dist` whole, so the folder keeps its name inside the zip GitHub wraps around the artifact,
-        # which is the only zip a run's page offers.
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: openmw-${{ env.ARCHIVE_NAME }}-${{ matrix.os }}
-          path: dist
-          if-no-files-found: error
-          compression-level: ${{ matrix.compression }}
+    with:
+      cache: false
+      keep: true
 
   release:
     # A draft, with both archives and their symbols, on the tag that was pushed. Only this job can

@@ -29,12 +29,14 @@
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -527,11 +529,11 @@ namespace Rtx::Testing
             // **One filler that fills both blocks**, because the vertex and index tables are blocked
             // at different sizes and a mesh pushed past one is not thereby past the other.
             SceneDesc crossed;
-            const std::vector<osg::Vec3f> fillerVertices(SceneDesc::sVertexBlock, osg::Vec3f(0.0f, 0.0f, 0.0f));
+            const std::vector<osg::Vec3f> fillerVertices(MeshTable::sVertexBlock, osg::Vec3f(0.0f, 0.0f, 0.0f));
 
             // The largest whole number of triangles a block holds, so what is left of it is one
             // index and the wall's six cannot fit.
-            std::vector<std::uint32_t> fillerIndices(SceneDesc::sIndexBlock / 3 * 3);
+            std::vector<std::uint32_t> fillerIndices(MeshTable::sIndexBlock / 3 * 3);
             for (std::size_t at = 0; at < fillerIndices.size(); ++at)
                 fillerIndices[at] = static_cast<std::uint32_t>(at % 3);
 
@@ -542,8 +544,8 @@ namespace Rtx::Testing
             // and 1,048,575 of 1,048,576 indices leaves a tail of one, which six will not fit into.
             // Asserted, because a test whose subject quietly moved back into block zero would pass
             // while testing nothing.
-            ASSERT_EQ(crossed.meshes().getRows()[beyond].mVertices.mOffset, SceneDesc::sVertexBlock);
-            ASSERT_EQ(crossed.meshes().getRows()[beyond].mIndices.mOffset, SceneDesc::sIndexBlock);
+            ASSERT_EQ(crossed.meshes().getRows()[beyond].mVertices.mOffset, MeshTable::sVertexBlock);
+            ASSERT_EQ(crossed.meshes().getRows()[beyond].mIndices.mOffset, MeshTable::sIndexBlock);
 
             Frame alonePixels;
             Frame crossedPixels;
@@ -2117,8 +2119,7 @@ namespace Rtx::Testing
             // composite — which chunk it is the ground of, and no bytes.
             Material flattened = material;
             flattened.mFlatten = true;
-            flattened.mDiffuse
-                = scene.textures().addBaked("chunk/0", TextureKind::GroundAlbedo, TextureEncoding::Colour, chunk);
+            flattened.mDiffuse = scene.textures().addGround(chunk, TextureKind::GroundAlbedo);
             scene.setMaterial(chunk, flattened);
             const TextureData composite{
                 .mSlot = flattened.mDiffuse,

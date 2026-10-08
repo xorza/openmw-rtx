@@ -28,7 +28,7 @@ namespace Rtx
             {
                 timer.beginFrame(frame);
                 getDevice().getPool().submitAndWait([&](VkCommandBuffer commands) {
-                    hold.record(commands, timer, counts);
+                    hold.record(commands, counts, &timer);
                     counts.orderForHostRead(commands);
                 });
 

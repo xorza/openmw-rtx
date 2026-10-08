@@ -13,6 +13,7 @@
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/structurerevision.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -57,8 +58,11 @@ namespace Rtx
         ///        in the placement after it arrives.
         /// @param anisotropy `RenderProfile::mAnisotropy`, which the textures are read along a
         ///        footprint by.
+        /// @param placementRoom how many placement slots the top level and its rows are made with
+        ///        room for before either grows: past it, each grows to twice what it holds, on the
+        ///        frame that needs it, so a scene that grows as it is played says where it will reach.
         DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
-            std::span<const TextureData> textures, std::uint32_t anisotropy);
+            std::span<const TextureData> textures, std::uint32_t anisotropy, std::uint32_t placementRoom);
 
         /// `TextureArray::setAnisotropy`.
         void setAnisotropy(std::uint32_t anisotropy) { mTextures.setAnisotropy(anisotropy); }
@@ -185,7 +189,7 @@ namespace Rtx
 
         /// The revision of the whole structure this was built from: what `describe` answers and
         /// an uploader appends against.
-        std::uint64_t mBuiltStructure = 0;
+        StructureRevision mBuiltStructure;
 
         /// Which description that was — `SceneDesc::getIdentity` — as `SceneHeld::mIdentity`
         /// reports it, and what every placement and extension is asserted against.

@@ -17,10 +17,10 @@ namespace Rtx::Testing
     /// here is for: a half-grid shift dropped there has to fail these tests rather than pass them.
     inline osg::Vec2f waveVectorAt(const WaveCascade& cascade, std::size_t at)
     {
-        const float step = Shaders::TAU / cascade.mExtent;
-        const int half = static_cast<int>(cascade.mGrid) / 2;
-        const int row = static_cast<int>(at / cascade.mGrid) - half;
-        const int column = static_cast<int>(at % cascade.mGrid) - half;
+        const float step = Shaders::TAU / cascade.mTile.mExtent;
+        const int half = static_cast<int>(cascade.mTile.mGrid) / 2;
+        const int row = static_cast<int>(at / cascade.mTile.mGrid) - half;
+        const int column = static_cast<int>(at % cascade.mTile.mGrid) - half;
 
         return osg::Vec2f(step * static_cast<float>(column), step * static_cast<float>(row));
     }
@@ -62,7 +62,7 @@ namespace Rtx::Testing
     /// texel has nothing further to be shown, and the chain has nothing finer to show it.
     inline float lostSlopeOf(const WaveCascade& cascade, float footprint)
     {
-        const float texel = cascade.mExtent / static_cast<float>(cascade.mGrid);
+        const float texel = cascade.mTile.mExtent / static_cast<float>(cascade.mTile.mGrid);
         const float level = std::max(std::log2(footprint / texel), 0.0f);
         const float share = level - std::floor(level);
 

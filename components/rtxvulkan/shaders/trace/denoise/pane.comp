@@ -20,17 +20,20 @@
 //
 // **The glossy filter's rules otherwise**: bilinear over the four texels the motion lands between,
 // each only if it is this layer by `heldSurfaceMatches`, and `blendedMean` into the history, with the
-// whole of it kept — a layer's light does not turn with the view.
+// whole of it kept — a layer's light does not turn with the view — beside a fast mean, which
+// `historyclamp.comp` holds the slow one to.
 
 #include "shared/accumulate.h"
 #include "gbuffer.h"
 #include "look.h"
+#include "shared/historyclamp.h"
 #include "shared/pane.h"
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
+#include "lib/sharedexponent.glsl"
 #include "lib/surfacematch.glsl"
 
 layout(local_size_x = PANE_WORKGROUP, local_size_y = PANE_WORKGROUP) in;
@@ -50,6 +53,11 @@ layout(set = SET_PASS, binding = PANE_BIND_HELD, ACCUMULATE_SURFACE) uniform wri
 /// this frame's, whose `rgb` the composite multiplies back by `CHANNEL_PANE_ALBEDO`.
 layout(set = SET_PASS, binding = PANE_BIND_MEAN_BEFORE, PANE_MEAN) uniform readonly image2D meanBefore;
 layout(set = SET_PASS, binding = PANE_BIND_MEAN, PANE_MEAN) uniform writeonly image2D mean;
+
+/// The fast mean (`HISTORY_CLAMP_FAST`): last frame's as the clamp left it, and this frame's blend,
+/// which the clamp reads at every pixel's neighbours.
+layout(set = SET_PASS, binding = PANE_BIND_FAST_BEFORE, HISTORY_CLAMP_FAST) uniform readonly uimage2D fastBefore;
+layout(set = SET_PASS, binding = PANE_BIND_FAST_BLENDED, HISTORY_CLAMP_FAST) uniform writeonly uimage2D fastBlended;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -71,6 +79,7 @@ void main()
     const bool stands = dot(normal, normal) > 0.0;
 
     RunningMean blended = startedMean(sampled);
+    vec3 blendedFast = sampled;
     // A branch, where the tree selects: a layer stands in few pixels and in runs of them, and the
     // rest skip the motion and the history's taps. Measured on the default suite, three alternated
     // rounds: the pass's median 0.030 ms became 0.023 on the ship, and 0.035 became 0.028 in the guild.
@@ -83,14 +92,23 @@ void main()
         // A texel no layer stood in holds no history, and would pull the mean toward nought.
         RTX_HISTORY_SHARES(shares, footprint, extent, heldBefore, imageLoad(meanBefore, historyAt).a > 0.0, plane)
         vec4 heldMean = vec4(0.0);
+        vec3 heldFast = vec3(0.0);
         for (int i = 0; i < 4; ++i)
             if (shares[i] > 0.0)
+            {
                 heldMean += imageLoad(meanBefore, historyTap(footprint, i)) * shares[i];
+                heldFast += unpackRgb9e5(imageLoad(fastBefore, historyTap(footprint, i)).x) * shares[i];
+            }
         const float weight = historyCovered(shares);
         if (weight > 0.0)
-            blended = blendedMean(sampled, runningMeanOf(heldMean, weight), 1.0);
+        {
+            const RunningMean history = runningMeanOf(heldMean, weight);
+            blended = blendedMean(sampled, history, 1.0);
+            blendedFast = mix(heldFast / weight, sampled, 1.0 / min(history.mFrames + 1.0, ACCUMULATE_FAST_FRAMES));
+        }
     }
 
     RTX_STORE_COUNTED(mean, at, stands ? texelOf(blended) : vec4(sampled, 0.0))
+    RTX_STORE_WORDS(fastBlended, at, uvec4(packRgb9e5(stands ? blendedFast : vec3(0.0)), stands ? 1u : 0u, 0u, 0u))
     RTX_STORE_COUNTED(held, at, heldSurfaceOf(seen, frame.mDistanceScale))
 }

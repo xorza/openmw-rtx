@@ -4,11 +4,13 @@
 #include <cstdint>
 #include <span>
 #include <thread>
+#include <utility>
 
 #include <volk.h>
 
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/result.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx::Testing
 {
@@ -27,7 +29,7 @@ namespace Rtx::Testing
             release();
     }
 
-    std::uint64_t HeldSubmit::submit(VkCommandBuffer commands)
+    std::uint64_t HeldSubmit::submit(Recording&& recording)
     {
         const VkSemaphoreSubmitInfo wait{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -37,7 +39,7 @@ namespace Rtx::Testing
             .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             .deviceIndex = 0,
         };
-        return mDevice.getPool().submit(commands, std::span(&wait, 1));
+        return std::move(recording).submit(std::span(&wait, 1));
     }
 
     void HeldSubmit::releaseAfter(const std::chrono::milliseconds delay)

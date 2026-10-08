@@ -71,7 +71,7 @@ namespace Rtx::Testing
             throw std::runtime_error("no Vulkan device is installed");
 
         harness->mDevice = std::make_unique<Device>(*harness->mInstance,
-            PhysicalDevice::select(harness->mInstance->getHandle()), getCensusShaders(), getPipelineCacheSpec());
+            PhysicalDevice::select(harness->mInstance->getHandle(), {}), getCensusShaders(), getPipelineCacheSpec());
         if (ValidationLog* log = harness->mInstance->getValidationLog(); log != nullptr)
             log->takeErrorsOnThisThread(harness->mMadeWith);
 

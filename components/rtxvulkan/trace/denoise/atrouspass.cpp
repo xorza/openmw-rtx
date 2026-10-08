@@ -7,8 +7,10 @@
 #include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/look.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -70,8 +72,10 @@ namespace Rtx
     }
 
     AtrousPass::Filtered AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
+        const GpuZone timed(timer, commands, FrameZone::Filter);
+
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mNarrow.getWidth() >= camera.mWidth && images.mNarrow.getHeight() >= camera.mHeight);
         assert(buffer.getWidth() >= camera.mWidth && buffer.getHeight() >= camera.mHeight);
@@ -134,7 +138,7 @@ namespace Rtx
             writes.image(Shaders::ATROUS_BIND_FAST, images.mFast.describeStorage());
 
             level.mStep = 1u << pass;
-            level.mFixFrames = pass == 0 && frame.mHistoryFix ? Shaders::ACCUMULATE_FIX_FRAMES : 0.0f;
+            level.mFixFrames = pass == 0 && frame.mFilters.mHistoryFix ? Shaders::ACCUMULATE_FIX_FRAMES : 0.0f;
 
             dispatch(commands, pipeline, writes, level,
                 Groups::covering(camera.mWidth, camera.mHeight, Shaders::ATROUS_WORKGROUP));

@@ -41,6 +41,27 @@ namespace Rtx
     /// than unwinds.
     std::optional<ViewBasis> viewBasisOf(const osg::Matrixd& world);
 
+    /// Where a frame or a picture is seen from: the eye's place, how far it sees and how near it
+    /// starts, and the two eyes — the world's and the arms' — it looks through. What the camera
+    /// builders below make, and the camera's half of a frame's block: `constantsFor` lays it over
+    /// a block nothing else has described yet.
+    struct Viewpoint
+    {
+        osg::Vec3f mOrigin;
+        float mNear = sNearPlane;
+        float mFar = sFarPlane;
+
+        /// `VisibilityConstants::mReach`.
+        float mReach = sFarPlane;
+
+        Shaders::Eyes mEyes{};
+    };
+
+    /// The block a frame starts from: `view`, and every field a world describes at what a frame
+    /// with no world over it reads — no sky, no water and no fog. A host hands the viewpoint and the
+    /// world, and the renderer lays one over the other (`describeWorld`).
+    Shaders::VisibilityConstants constantsFor(const Viewpoint& view);
+
     /// The same eye at another field of view: the basis kept and the image plane's half extents
     /// taken from `verticalFovDegrees`, at the camera's own aspect. What the player's own arms are
     /// seen through — `Shaders::Eyes::mArms` — since `first person field of view`
@@ -61,15 +82,15 @@ namespace Rtx
     /// looking down its own -Z. The basis comes out of the matrix rather than from the world's up,
     /// which is what lets a map look straight down. Nothing for a matrix that cannot be inverted
     /// or whose basis collapsed, as `viewBasisOf` says.
-    std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees,
-        std::uint32_t width, std::uint32_t height, float near, float far);
+    std::optional<Viewpoint> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees, std::uint32_t width,
+        std::uint32_t height, float near, float far);
 
     /// The same viewpoint with no perspective in it: every ray travels the view direction, and
     /// which one a pixel sends comes from where it sits on a box `worldWidth` by `worldHeight`
     /// centred on the eye. A box with no extent is a caller's contract and not a matrix's, and
     /// `Crash::contract` holds it.
-    std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixd& view,
-        float worldWidth, float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far);
+    std::optional<Viewpoint> makeOrthographicCameraFromView(const osg::Matrixd& view, float worldWidth,
+        float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far);
 
     /// Where inside its pixel frame `index` should sample, in pixels and centred on zero, in the
     /// image's axes. Halton in bases two and three — 1/2, 1/4, 3/4, 1/8 and 1/3, 2/3, 1/9 —

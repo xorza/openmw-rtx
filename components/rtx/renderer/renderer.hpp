@@ -12,16 +12,24 @@
 #include <utility>
 #include <vector>
 
+#include <osg/Vec2d>
+#include <osg/Vec3f>
+
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/frame/camera.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/structurerevision.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "framedigest.hpp"
@@ -34,8 +42,8 @@ struct SDL_Window;
 
 namespace Rtx
 {
-    struct FrameOptions;
     class SceneDesc;
+    struct SkyContent;
 
     /// How much of the graphics API's own checking a run loads. One level and not three switches,
     /// because each finer check needs the one under it and the two finer ones are never loaded
@@ -74,24 +82,16 @@ namespace Rtx
         bool mAbortOnError = true;
 
         /// Whether somebody asked for this by name rather than a build turning it on. A run that
-        /// demanded the layers and cannot have them fails naming what is missing, because an empty
-        /// log reads as a clean pass; a build that switched them on by default only warns.
+        /// demanded the validation and cannot have it fails naming what is missing, because an empty
+        /// log reads as a clean pass; a build that switched it on by default only warns.
         bool mDemanded = false;
     };
 
-    /// Whether the validation layers load without anyone asking: on outside a Release build, off
-    /// there because they cost half the frame rate and allocate on the frame path. The build decides
+    /// Whether the graphics API's validation runs without anyone asking: on outside a Release build,
+    /// off there because it costs half the frame rate and allocates on the frame path. The build decides
     /// and no setting does, because a setting would put a developer's diagnostic in a player's
     /// configuration file.
     inline constexpr bool sValidationByDefault = OPENMW_RTX_VALIDATION_BY_DEFAULT;
-
-    /// Whether this build keeps `assert`: what says a figure is a debug build's. The standard's
-    /// own switch, which is defined or not rather than nought or one, read here once.
-#ifdef NDEBUG
-    inline constexpr bool sAssertsOn = false;
-#else
-    inline constexpr bool sAssertsOn = true;
-#endif
 
     /// What a run decides once of how the renderer works: the knobs the frames are traced under,
     /// which layers watch, and how much video memory it may take. One record, held whole by the
@@ -104,8 +104,8 @@ namespace Rtx
         /// upscaler refuses anything but `Off` at construction.
         RenderProfile mProfile{};
 
-        /// Which validation layers watch. Carried by the run and never in a settings file, for the
-        /// reason `sValidationByDefault` gives.
+        /// What the graphics API's validation checks. Carried by the run and never in a settings
+        /// file, for the reason `sValidationByDefault` gives.
         ValidationOptions mValidation{};
 
         /// The video memory the renderer takes its budget to be, in bytes, where the device states
@@ -133,7 +133,7 @@ namespace Rtx
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
 
-        /// What the run decided once: the profile, the layers and the budget.
+        /// What the run decided once: the profile, the validation and the budget.
         RunProfile mRun{};
 
         /// Where the frame is shown, or null for a renderer that only reads pixels back. A window
@@ -164,7 +164,7 @@ namespace Rtx
         std::uint64_t mIdentity = 0;
 
         /// `SceneDesc::getStructureRevision` as it stood at the last `setScene` or `extendScene`.
-        std::uint64_t mStructureRevision = 0;
+        StructureRevision mStructureRevision;
 
         /// How long the slot's texture array is: the table's length, holes included, and not the
         /// tally, which `SceneStats::mTextureCount` is. Every arrival names its own slot, so nothing
@@ -212,14 +212,14 @@ namespace Rtx
     /// structure build cost, which a wall clock around a submit cannot tell.
     struct GpuSpan
     {
-        /// A literal, so the view outlives the span and `GpuBreakdown` may keep it over a run.
-        std::string_view mName;
+        FrameZone mZone = FrameZone::Count;
         double mMs = 0.0;
     };
 
-    /// The most zones one frame may open: every zone the backend names (`RtxSourceTreeTest` counts
-    /// them), and room past them to bisect one.
+    /// The most zones one frame may open: every zone there is, and room past them for a pass
+    /// recorded in batches, which opens its zone once a batch.
     inline constexpr std::uint32_t sMaxGpuZones = 40;
+    static_assert(sFrameZoneCount <= sMaxGpuZones, "a zone a frame opens that the timer cannot hold");
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
     /// cannot write timestamps. Owned by the report rather than borrowed from the timer that
@@ -357,10 +357,21 @@ namespace Rtx
         std::optional<FrameDigest> mDigest;
     };
 
+    /// The light a picture inside the interface stands in, which no world describes: a flat sun
+    /// and an ambient, as the rasterizer lights its previews, in the renderer's irradiance. Drawn
+    /// with no sky source's shadow, the doll's and the map's alike, as the rasterizer draws them.
+    struct PictureLight
+    {
+        /// Toward the sun, unit, or nought for none.
+        osg::Vec3f mDirection;
+        osg::Vec3f mIrradiance;
+        osg::Vec3f mAmbient;
+    };
+
     /// What a picture inside the interface is asked for, beyond where its camera stands. How much
     /// of the texture the picture fills, from its top-left corner, is the camera's own extent; the
-    /// rest is left at `mClear`. The inventory doll's window resizes and the texture behind it
-    /// does not.
+    /// rest is left at `mClear`, whose alpha below one is a picture over the interface's own. The
+    /// inventory doll's window resizes and the texture behind it does not.
     struct GuiTraceOptions
     {
         /// What the rest of the texture holds, red first: transparent black for a picture the GUI
@@ -374,6 +385,48 @@ namespace Rtx
         /// Whether to leave a copy of the whole texture where `takeGuiCopy` can hand it to the host,
         /// which is the one time a picture inside the interface comes back to main memory.
         bool mReadBack = false;
+
+        /// Which classes the picture draws, `Shaders::MASK_*`, and whether the lamps light it: a map
+        /// tile leaves the actors out, and the rasterizer lights its previews by no lamp.
+        std::uint32_t mRayMask = Shaders::MASK_EVERY_CLASS;
+        bool mLamps = true;
+
+        PictureLight mLight{};
+    };
+
+    /// One frame as a host asks for it: where it is seen from and what the eye draws, the world it
+    /// stands in, and what it asks over the profile. **The host states and the renderer
+    /// describes**: the renderer lays the world over the viewpoint (`describeWorld`) and samples
+    /// what that comes to (`sampleFrame`), so no field of the block it traces has two writers, and
+    /// what a host could set and lose is not offered to it.
+    struct FrameRequest
+    {
+        Viewpoint mView;
+
+        /// Which classes the eye draws, `Shaders::MASK_*`, and whether the lamps light anything:
+        /// what the game's view mask and its lighting toggle say.
+        std::uint32_t mRayMask = Shaders::MASK_EVERY_CLASS;
+        bool mLamps = true;
+
+        /// The sampler's frame, which the draws and the jitter walk — `VisibilityConstants::mFrame`.
+        std::uint32_t mSampleFrame = 0;
+
+        WorldReading mWorld;
+
+        /// Where the sky's own sheets stand in the world's texture table, as the content was read
+        /// (`addSkyContent`): borrowed for the call.
+        const SkyContent* mSky = nullptr;
+
+        FrameOptions mOptions;
+    };
+
+    /// What a frame was traced with, as the renderer described it: the block before the frame's
+    /// sampling, which a harness digests beside the scene, and how far the air stood carried
+    /// downwind after it (`FogDrift`), which a harness records to stand the air there again.
+    struct FrameTraced
+    {
+        Shaders::VisibilityConstants mConstants{};
+        osg::Vec2d mCarried;
     };
 
     /// One traced image, whichever API produced it: what a scene is handed to, what the interface
@@ -435,9 +488,7 @@ namespace Rtx
         /// exposure is one, because a still has no previous frame. Recorded and not run: the picture
         /// rides the next submit, reads the copy of the scene its last placement wrote, and the next
         /// placement of that scene waits for the frame it rode.
-        virtual void traceGuiTexture(
-            GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
-            = 0;
+        virtual void traceGuiTexture(GuiSlot texture, const Viewpoint& view, const GuiTraceOptions& options) = 0;
 
         /// The copy the last `traceGuiTexture` with `mReadBack` left of `texture`, four bytes a
         /// pixel, tightly packed, row zero first, into `into` as far as it reaches. False until the
@@ -463,12 +514,12 @@ namespace Rtx
         /// cannot be reached, and a caller that offers the mode catches it and stays where it was.
         virtual void setUpscale(Upscale upscale) = 0;
 
-        /// How the presented image meets the monitor's refresh. Costs a swapchain rebuild, so a
+        /// How the presented image meets the monitor's refresh. Costs the presentation's rebuild, so a
         /// settings-change call and not a frame one.
         virtual void setVerticalSync(SDLUtil::VSyncMode mode) = 0;
 
         /// `RenderProfile::mAnisotropy`, changed while the frames run: a menu change. Every
-        /// texture's descriptors are written again into each copy of a scene's set, at the
+        /// texture's binding is written again into each copy of a scene's texture set, at the
         /// placement that next writes that copy.
         virtual void setAnisotropy(std::uint32_t anisotropy) = 0;
 
@@ -489,7 +540,15 @@ namespace Rtx
         /// drawn it, so the caller can place the next one meanwhile, and `finishFrame` reads back
         /// what it came to, the reconstruction it resolved among it (`FrameResult::mReconstruction`):
         /// one road for that, the frame's own result. At most `sFramesInFlight` frames are in flight.
-        virtual void renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
+        /// What comes back at once is what the frame was described as, which the host holds no copy
+        /// of. The air is carried on by the reading's clock, from where the last frame or `holdAir`
+        /// left it.
+        virtual FrameTraced renderFrame(const FrameRequest& request) = 0;
+
+        /// Stands the air where `air` says it was carried, as of its sky clock, so the next frame at
+        /// that clock is drawn in the air a harness recorded rather than wherever this session's
+        /// frames carried it.
+        virtual void holdAir(const AirClock& air) = 0;
 
         /// Closes the frame this frame's placements of the world opened, with no trace: where a
         /// placement is not followed by `renderFrame`, because the host refused the camera. Without

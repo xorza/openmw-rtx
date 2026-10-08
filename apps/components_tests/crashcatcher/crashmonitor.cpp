@@ -21,12 +21,11 @@ namespace
         Crash::MonitorArguments written;
         written.mClient = 4242;
         written.mNotes = 0x7ffd12345678;
-        written.mApplication = "crash-tests";
-        written.mDialog = false;
         written.mIssues = "https://github.com/xorza/openmw-rtx/issues";
-        written.mEndAfter = std::chrono::milliseconds(1500);
+        written.mAnswering = Crash::EndAfter{ std::chrono::milliseconds(1500) };
 
-        std::vector<std::string> line{ "openmw", "--database=/home/x/crashes" };
+        // The name is Crashpad's annotation, which it hands its handler and the monitor reads.
+        std::vector<std::string> line{ "openmw", "--database=/home/x/crashes", "--annotation=product=crash-tests" };
         for (const std::string& argument : written.write())
             line.push_back(argument);
         line.push_back("--initial-client-fd=3");
@@ -36,13 +35,23 @@ namespace
         EXPECT_EQ(read.mClient, 4242u);
         EXPECT_EQ(read.mNotes, 0x7ffd12345678u);
         EXPECT_EQ(read.mApplication, "crash-tests");
-        EXPECT_FALSE(read.mDialog);
         EXPECT_EQ(read.mIssues, "https://github.com/xorza/openmw-rtx/issues");
-        EXPECT_EQ(read.mEndAfter, std::chrono::milliseconds(1500));
+        EXPECT_EQ(read.mAnswering, Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(1500) }));
         EXPECT_EQ(read.mDatabase, std::filesystem::path("/home/x/crashes"));
 
-        const std::vector<std::string> crashpads{ "openmw", "--database=/home/x/crashes", "--initial-client-fd=3" };
+        const std::vector<std::string> crashpads{ "openmw", "--database=/home/x/crashes",
+            "--annotation=product=crash-tests", "--initial-client-fd=3" };
         EXPECT_EQ(handler, crashpads);
+
+        // **Each of the three answerings goes and comes back as itself.**
+        for (const Crash::Answering& answering :
+            { Crash::Answering(Crash::AskThePlayer{}), Crash::Answering(Crash::AskNobody{}),
+                Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(7) }) })
+        {
+            written.mAnswering = answering;
+            std::vector<std::string> again;
+            EXPECT_EQ(Crash::MonitorArguments::read(written.write(), again).mAnswering, answering);
+        }
         EXPECT_EQ(written.write().front(), Crash::sMonitorSwitch);
     }
 
@@ -51,11 +60,11 @@ namespace
     TEST(CrashMonitorArgumentsTest, aNoteTableAtAnAddressThatDoesNotReadIsNoTable)
     {
         std::vector<std::string> handler;
-        const std::vector<std::string> line{ "openmw", "--openmw-notes=0x1000:9352", "--openmw-dialog=1" };
+        const std::vector<std::string> line{ "openmw", "--openmw-notes=0x1000:9352" };
         const Crash::MonitorArguments read = Crash::MonitorArguments::read(line, handler);
         EXPECT_EQ(read.mNotes, 0u);
-        EXPECT_TRUE(read.mDialog);
-        EXPECT_FALSE(read.mEndAfter.has_value()) << "a game that names no answer leaves the player to give one";
+        EXPECT_EQ(read.mAnswering, Crash::Answering(Crash::AskThePlayer{}))
+            << "a game that names no answer leaves the player to give one";
         EXPECT_EQ(handler, std::vector<std::string>{ "openmw" });
     }
 

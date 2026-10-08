@@ -10,6 +10,7 @@
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtxvulkan/createrenderer.hpp>
 
 namespace MWRender
 {
@@ -33,9 +34,9 @@ namespace MWRender
 
     RtxWindow::RtxWindow(const bool hidden)
     {
-        // **The backend's own flag, and no `SDL_GL_SetAttribute` anywhere near it.** No GL context is
-        // ever made, which is the point of the whole path.
-        mWindow.reset(openWindow(SDL_WINDOW_VULKAN));
+        // **The backend's own flags, and no `SDL_GL_SetAttribute` anywhere near them.** No GL context
+        // is ever made, which is the point of the whole path.
+        mWindow.reset(openWindow(Rtx::vulkanWindowFlags()));
         if (mWindow == nullptr)
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
 

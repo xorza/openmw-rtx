@@ -53,13 +53,9 @@ namespace MWRender
             noexcept(std::declval<RtxRenderer&>().removeWaterRippleEmitter(std::declval<const MWWorld::Ptr&>())));
         static_assert(noexcept(std::declval<RtxRenderer&>().emitWaterRipple(std::declval<const osg::Vec3f&>())));
         static_assert(noexcept(std::declval<RtxRenderer&>().createGround(std::declval<const GroundSpec&>())));
-        static_assert(noexcept(std::declval<RtxRenderer&>().detachWorld()));
         static_assert(noexcept(std::declval<RtxRenderer&>().getGroundReach()));
         static_assert(noexcept(std::declval<RtxRenderer&>().getWindow()));
-        static_assert(noexcept(
-            std::declval<RtxRenderer&>().attachWorld(std::declval<RenderingManager&>(), std::declval<osg::Group&>())));
         static_assert(noexcept(std::declval<RtxRenderer&>().advance(0.0)));
-        static_assert(noexcept(std::declval<RtxRenderer&>().eventTraversal()));
         static_assert(noexcept(std::declval<RtxRenderer&>().updateTraversal()));
         static_assert(noexcept(std::declval<RtxRenderer&>().notifyCut()));
         static_assert(noexcept(std::declval<RtxRenderer&>().createWorldView(std::declval<const OffscreenViewSpec&>())));

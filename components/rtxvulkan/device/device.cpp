@@ -201,7 +201,9 @@ namespace Rtx
             .pEnabledFeatures = nullptr,
         };
 
-        checkVk(vkCreateDevice(mPhysicalDevice.getHandle(), &createInfo, nullptr, mHandle.put()), "vkCreateDevice");
+        VkDevice created = VK_NULL_HANDLE;
+        checkVk(vkCreateDevice(mPhysicalDevice.getHandle(), &createInfo, nullptr, &created), "vkCreateDevice");
+        mHandle = Root<VkDevice, vkDestroyDevice>(created);
 
         // From here on a throw — a driver that advertises an extension it cannot dispatch, which
         // a load below reports — destroys the members already made, in reverse, and the device's
@@ -377,9 +379,13 @@ namespace Rtx
 
     void Device::waitIdle() const
     {
-        checkVk(*this, vkDeviceWaitIdle(mHandle.get()), "vkDeviceWaitIdle");
+        const VkResult result = vkDeviceWaitIdle(mHandle.get());
 
+        // Marked whatever the wait answered. A lost device ends the process below; any other
+        // refusal throws, and left unmarked, the graveyard's own assert that the queue is idle
+        // would fire in its destructor on the way out of that throw and name itself in its place.
         mTimeline->markIdle();
+        checkVk(*this, result, "vkDeviceWaitIdle");
         collect();
     }
 

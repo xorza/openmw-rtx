@@ -120,6 +120,7 @@ namespace MWRender
 
         osgViewer::Viewer& mViewer;
         Resource::ResourceSystem& mResources;
+        osg::ref_ptr<osg::Group> mWorldRoot;
         osg::ref_ptr<SceneUtil::LightManager> mSceneRoot;
 
         std::unique_ptr<SceneUtil::ShadowManager> mShadowManager;

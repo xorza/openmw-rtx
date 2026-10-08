@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <span>
@@ -82,7 +83,7 @@ namespace Rtx
         {
             nameForNext();
             assert(level < mMipLevels);
-            return mLevelViews.empty() ? mView.get() : mLevelViews[level].get();
+            return mLevelViewCount == 0 ? mView.get() : mLevelViews[level].get();
         }
 
         /// Blocks until every submit naming this image has run — `ReadStamp::waitIdle`. `what`
@@ -202,10 +203,15 @@ namespace Rtx
         Owned<VkImage, vkDestroyImage> mHandle;
         Owned<VkImageView, vkDestroyImageView> mView;
 
+        /// The longest chain an image has: to 1×1 from the largest side a target device takes,
+        /// 32768, is sixteen levels.
+        static constexpr std::uint32_t sMaxLevels = 16;
+
         /// One view a level, for a chain something writes through as storage, or for a storage
-        /// format that is not the image's; empty for an image that is neither, which is nearly
-        /// every one.
-        std::vector<Owned<VkImageView, vkDestroyImageView>> mLevelViews;
+        /// format that is not the image's; none for an image that is neither, which is nearly every
+        /// one. Held in place rather than on the heap, because images arrive while the game runs.
+        std::array<Owned<VkImageView, vkDestroyImageView>, sMaxLevels> mLevelViews;
+        std::uint32_t mLevelViewCount = 0;
         DeviceMemory mMemory;
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;

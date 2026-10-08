@@ -40,17 +40,13 @@ namespace Rtx
             };
         }
 
-        /// A viewpoint before anything has described the world over it, one statement for the
-        /// three builders, with every member it does not name zero. Assigned over a zeroed record
-        /// rather than written as one initialiser, which would have to name every other member: its
-        /// arrays of `vec3` cannot take `RTX_ZERO`, for the reason `portable.h` gives.
-        Shaders::VisibilityConstants beforeWorld(const osg::Vec3f& origin, float near, float far)
+        /// A frame before anything has described the world over it, with every member it does
+        /// not name zero. Assigned over a zeroed record rather than written as one initialiser,
+        /// which would have to name every other member: its arrays of `vec3` cannot take
+        /// `RTX_ZERO`, for the reason `portable.h` gives.
+        Shaders::VisibilityConstants beforeWorld()
         {
             Shaders::VisibilityConstants constants{};
-            constants.mOrigin = origin;
-            constants.mNear = near;
-            constants.mFar = far;
-            constants.mReach = sFarPlane;
 
             // Every bounce, until a world says the reconstruction follows the frame —
             // `VisibilityConstants::mBounceRate` says why a frame built by hand keeps them all.
@@ -100,8 +96,8 @@ namespace Rtx
 
         /// The one recipe both projections share: the eye and its axes out of `view`, the image
         /// plane's half extents and the angle a pixel covers out of `spread`.
-        std::optional<Shaders::VisibilityConstants> cameraAt(const osg::Matrixd& view, const Spread& spread,
-            const bool orthographic, std::uint32_t width, std::uint32_t height, float near, float far)
+        std::optional<Viewpoint> cameraAt(const osg::Matrixd& view, const Spread& spread, const bool orthographic,
+            std::uint32_t width, std::uint32_t height, float near, float far)
         {
             assert(width > 0 && height > 0);
 
@@ -109,7 +105,7 @@ namespace Rtx
             if (!basis.has_value())
                 return std::nullopt;
 
-            Shaders::VisibilityConstants camera = beforeWorld(basis->mOrigin, near, far);
+            Viewpoint camera{ .mOrigin = basis->mOrigin, .mNear = near, .mFar = far };
             camera.mEyes.mWorld = Shaders::Camera{
                 .mBasis = Shaders::Basis{
                     .mForward = basis->mForward,
@@ -126,6 +122,17 @@ namespace Rtx
 
             return camera;
         }
+    }
+
+    Shaders::VisibilityConstants constantsFor(const Viewpoint& view)
+    {
+        Shaders::VisibilityConstants constants = beforeWorld();
+        constants.mOrigin = view.mOrigin;
+        constants.mNear = view.mNear;
+        constants.mFar = view.mFar;
+        constants.mReach = view.mReach;
+        constants.mEyes = view.mEyes;
+        return constants;
     }
 
     std::optional<ViewBasis> viewBasisOf(const osg::Matrixd& world)
@@ -184,14 +191,14 @@ namespace Rtx
         };
     }
 
-    std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees,
-        std::uint32_t width, std::uint32_t height, float near, float far)
+    std::optional<Viewpoint> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees, std::uint32_t width,
+        std::uint32_t height, float near, float far)
     {
         return cameraAt(view, spreadOf(verticalFovDegrees, width, height), false, width, height, near, far);
     }
 
-    std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixd& view,
-        float worldWidth, float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far)
+    std::optional<Viewpoint> makeOrthographicCameraFromView(const osg::Matrixd& view, float worldWidth,
+        float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far)
     {
         Crash::contract(worldWidth > 0.f && worldHeight > 0.f, "an orthographic camera with no extent sees nothing");
 

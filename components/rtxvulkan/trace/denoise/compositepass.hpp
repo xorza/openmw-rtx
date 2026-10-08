@@ -12,6 +12,7 @@ namespace Rtx
 {
     class Device;
     class GBuffer;
+    class GpuTimer;
 
     /// Puts the trace's channels back together into the direct channel, one frame of linear
     /// radiance: one multiply and one add, because the trace folded everything harder into the
@@ -36,7 +37,7 @@ namespace Rtx
         ///        is every frame that is not building a reference.
         /// @param constants the frame's, less `mShadowed`, which is `denoised`'s to say.
         void record(VkCommandBuffer commands, const GBuffer& buffer, const Denoised& denoised, const Image* sum,
-            Shaders::CompositeConstants constants) const;
+            Shaders::CompositeConstants constants, GpuTimer* timer) const;
 
     private:
         ComputePipeline<Shaders::CompositeConstants> mPipeline;

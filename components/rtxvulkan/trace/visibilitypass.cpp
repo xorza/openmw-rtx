@@ -20,6 +20,7 @@
 #include <components/rtx/frame/bluenoise.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/shaders/camera.h>
@@ -40,6 +41,7 @@
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/shaders/shared/bindings.h>
+#include <components/rtxvulkan/shaders/shared/fogvolume.h>
 #include <components/rtxvulkan/shaders/shared/tables.h>
 #include <components/rtxvulkan/shaders/shared/tracerecords.h>
 
@@ -54,6 +56,22 @@ namespace Rtx
 {
     namespace
     {
+        /// Every trace module a kernel of the pass runs, which its shader code reads once.
+        constexpr std::array<std::string_view, 10> sTraceModules{ "visibility.rgen.spv", "visibility.rmiss.spv",
+            "visibilityunshaded.rmiss.spv", "visibilityhit.rchit.spv", "visibility.rahit.spv", "fogscatter.rgen.spv",
+            "fogdepth.rgen.spv", "spritecomposite.rgen.spv", "spriteshelter.rgen.spv", "spriteemitters.rgen.spv" };
+
+        /// The words of the whole tuple, which the kernels made once and not per tuple run under:
+        /// the sun, the moons, the sea and the maps all standing, and nothing counted.
+        constexpr std::array<std::uint32_t, Shaders::SPEC_COUNT> sWholeSky = [] {
+            std::array<std::uint32_t, Shaders::SPEC_COUNT> words{};
+            words[Shaders::SPEC_HAS_SUN] = 1u;
+            words[Shaders::SPEC_HAS_MOONS] = 1u;
+            words[Shaders::SPEC_HAS_SEA] = 1u;
+            words[Shaders::SPEC_HAS_MAPS] = 1u;
+            return words;
+        }();
+
         /// Whether every table has an address, and each is aligned as the reference that reads it
         /// declares. Debug-only, through the assert that calls it.
         [[maybe_unused]] bool everyTableAddressed(const Shaders::GpuTables& tables)
@@ -68,8 +86,8 @@ namespace Rtx
                 && at(tables.mIndexBlocks, Shaders::TABLE_ALIGN_BLOCKS) && at(tables.mMeshes, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mInstances, Shaders::TABLE_ALIGN_ROWS) && at(tables.mMaterials, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mLayers, Shaders::TABLE_ALIGN_LAYERS) && at(tables.mMasks, Shaders::TABLE_ALIGN_ROWS)
-                && at(tables.mLights, Shaders::TABLE_ALIGN_ROWS) && at(tables.mLightList, Shaders::TABLE_ALIGN_ROWS)
-                && at(tables.mBlueNoise, Shaders::TABLE_ALIGN_ROWS)
+                && at(tables.mLights, Shaders::TABLE_ALIGN_ROWS) && at(tables.mLightCells, Shaders::TABLE_ALIGN_ROWS)
+                && at(tables.mLightList, Shaders::TABLE_ALIGN_ROWS) && at(tables.mBlueNoise, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mSpecularAlbedo, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mSprites, Shaders::TABLE_ALIGN_ROWS) && at(tables.mEmitters, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mTextureTexels, Shaders::TABLE_ALIGN_ROWS)
@@ -213,13 +231,13 @@ namespace Rtx
               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame constants"))
         , mCounting(counting ? 1u : 0u)
         , mSpecialize(specialize)
-        , mChannelLayout(channelLayout.get())
-        , mVolumeLayout(volumeLayout.get())
+        , mChannelLayout(&channelLayout)
+        , mVolumeLayout(&volumeLayout)
     {
-        compileEvery(textureLayout.get());
+        compileEvery(textureLayout);
     }
 
-    void VisibilityPass::compileEvery(VkDescriptorSetLayout textureLayout)
+    void VisibilityPass::compileEvery(const SetLayout& textureLayout)
     {
         // Queued after the tuples, which take seconds apiece where these take tens of milliseconds:
         // a hand takes up whatever is next, and a tuple taken last is the whole batch waiting on
@@ -258,7 +276,8 @@ namespace Rtx
 
         const auto count = static_cast<std::uint32_t>(wanted.size());
         mCompiling.start("kernel compile", count,
-            [this, textureLayout, caller, wanted = std::move(wanted)](const Platform::StopToken& stop, Job& job) {
+            [this, &textureLayout, caller, wanted = std::move(wanted)](const Platform::StopToken& stop, Job& job) {
+                mCode.emplace(mDevice, sTraceModules);
                 runInParallel(
                     "compile hand", wanted.size(), stop, [caller] { return AdoptedThread(caller); },
                     [&](const std::size_t at) {
@@ -272,7 +291,7 @@ namespace Rtx
             });
     }
 
-    void VisibilityPass::compile(const Wanted& wanted, const VkDescriptorSetLayout textureLayout)
+    void VisibilityPass::compile(const Wanted& wanted, const SetLayout& textureLayout)
     {
         const VisibilityVariant variant = wanted.mVariant;
 
@@ -311,46 +330,54 @@ namespace Rtx
                     HitShader{ .mModule = hitModule, .mSpecialization = hitWords[2] },
                 };
 
-                mKernels.mVisibility[variant.index()]
-                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
-                        TraceShaders{
-                            .mRaygen = "visibility.rgen.spv",
-                            .mMiss = miss,
-                            .mHit = hit,
-                            .mHitRecordsPerShader = Shaders::HIT_RECORDS_PER_SHADER,
-                            .mHitRecordData = std::as_bytes(std::span(sHitRecords)),
-                            .mAnyHit = "visibility.rahit.spv",
-                        },
-                        variant.describe("visibility"), specialization);
+                mKernels.mVisibility[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), *mCode,
+                    TraceShaders{
+                        .mRaygen = "visibility.rgen.spv",
+                        .mMiss = miss,
+                        .mHit = hit,
+                        .mHitRecordsPerShader = Shaders::HIT_RECORDS_PER_SHADER,
+                        .mHitRecordData = std::as_bytes(std::span(sHitRecords)),
+                        .mAnyHit = "visibility.rahit.spv",
+                    },
+                    variant.describe("visibility"), specialization);
                 return;
             }
             case Kernel::Scatter:
                 mKernels.mScatter[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogscatter.rgen.spv" },
+                    sharedSets(textureLayout), *mCode, TraceShaders{ .mRaygen = "fogscatter.rgen.spv" },
                     variant.describe("fog scatter"), specialization);
                 return;
-            // From here on no tuple and no specialization: each reads what a launch before it
-            // wrote, or traces nothing, and has no opinion about the sky.
+            // From here on no tuple: each is made once, at the whole sky and counting nothing. **The
+            // whole sky computes what each tuple would**, since a constant a tuple sets false stands in
+            // front of a runtime test that already answers no (`variants.glsl`), and what a tuple
+            // would take out is a few hundredths of a millisecond of puffs and emitters, against a
+            // pipeline more each to compile cold. Handed those words and not left to the GLSL's
+            // defaults, which say the same, so that no constant a module reads takes a default in
+            // silence (`specializationDisagreement`).
             case Kernel::Depth:
-                mKernels.mDepth = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogdepth.rgen.spv" }, "fog depth");
+                mKernels.mDepth
+                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
+                        *mCode, TraceShaders{ .mRaygen = "fogdepth.rgen.spv" }, "fog depth", sWholeSky);
                 return;
             case Kernel::Integrate:
                 mKernels.mIntegrate = std::make_unique<ComputePipeline<NoConstants>>(
-                    mDevice, sBindings, sharedSets(textureLayout), "fogintegrate.comp.spv", "fog integrate");
+                    mDevice, sBindings, sharedSets(textureLayout), "fogintegrate.comp.spv", "fog integrate", sWholeSky);
                 return;
             case Kernel::SpriteComposite:
                 mKernels.mSpriteComposite = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice,
-                    sCompositeBindings, sharedSets(textureLayout),
-                    TraceShaders{ .mRaygen = "spritecomposite.rgen.spv" }, "sprite composite");
+                    sCompositeBindings, sharedSets(textureLayout), *mCode,
+                    TraceShaders{ .mRaygen = "spritecomposite.rgen.spv" }, "sprite composite", sWholeSky);
                 return;
             case Kernel::SpriteShelter:
-                mKernels.mSpriteShelter = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteshelter.rgen.spv" }, "sprite shelter");
+                mKernels.mSpriteShelter
+                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
+                        *mCode, TraceShaders{ .mRaygen = "spriteshelter.rgen.spv" }, "sprite shelter", sWholeSky);
                 return;
             case Kernel::SpriteEmitters:
-                mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters");
+                mKernels.mSpriteEmitters
+                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
+                        *mCode, TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters", sWholeSky);
                 return;
         }
     }
@@ -388,9 +415,9 @@ namespace Rtx
         return *held;
     }
 
-    SharedSetLayouts VisibilityPass::sharedSets(VkDescriptorSetLayout textureLayout) const
+    SharedSetLayouts VisibilityPass::sharedSets(const SetLayout& textureLayout) const
     {
-        return SharedSetLayouts{ .mTextures = textureLayout, .mChannels = mChannelLayout, .mVolume = mVolumeLayout };
+        return SharedSetLayouts{ .mTextures = &textureLayout, .mChannels = mChannelLayout, .mVolume = mVolumeLayout };
     }
 
     void VisibilityPass::writeConstants(VkCommandBuffer commands, const Shaders::VisibilityConstants& described) const
@@ -544,7 +571,7 @@ namespace Rtx
         if (constants.mShelterHeight <= 0.0f || count == 0)
             return;
 
-        openZone(timer, commands, "shelter");
+        const GpuZone timed(timer, commands, FrameZone::Shelter);
 
         const auto& shelter = *kernels().mSpriteShelter;
         bind(commands, shelter);
@@ -555,8 +582,6 @@ namespace Rtx
 
         // The shade reads and writes what this zeroed, from a dispatch.
         handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferComputeReadWrite);
-
-        closeZone(timer, commands);
     }
 
     void VisibilityPass::recordSpriteEmitters(const VkCommandBuffer commands, const VisibilityInputs& inputs,
@@ -565,7 +590,7 @@ namespace Rtx
         if (count == 0)
             return;
 
-        openZone(timer, commands, "emitters");
+        const GpuZone timed(timer, commands, FrameZone::Emitters);
 
         const auto& emitters = *kernels().mSpriteEmitters;
         bind(commands, emitters);
@@ -574,8 +599,6 @@ namespace Rtx
 
         // Read by the trace and by the puffs' composite, both launches.
         handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderRead);
-
-        closeZone(timer, commands);
     }
 
     void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs,
@@ -603,46 +626,47 @@ namespace Rtx
         const std::uint32_t columns = inputs.mFogVolume.getColumns();
         const std::uint32_t rows = inputs.mFogVolume.getRows();
 
-        openZone(timer, commands, "air");
+        // Each zone ends before the barrier after it, so a barrier's wait is no zone's time.
+        {
+            const GpuZone timed(timer, commands, FrameZone::Air);
 
-        // Where each column's ray stops, before anything is drawn along it. One ray a
-        // column, and the froxels of the column keep their draws short of the answer.
-        const auto& depth = *kernels().mDepth;
-        bind(commands, depth);
-        pushInputs(commands, depth, inputs);
+            // Where each column's ray stops, before anything is drawn along it. One ray a
+            // column, and the froxels of the column keep their draws short of the answer.
+            const auto& depth = *kernels().mDepth;
+            bind(commands, depth);
+            pushInputs(commands, depth, inputs);
 
-        depth.traceRays(commands, columns, rows);
+            depth.traceRays(commands, columns, rows);
 
-        inputs.mFogVolume.depthTaken(commands);
+            inputs.mFogVolume.depthTaken(commands);
 
-        // The set stays pushed across all three launches. Every one of them is addressed through
-        // the same layout at the same bind point, so what was pushed for the first is still bound
-        // for the others — and pushing set zero again would be six descriptor writes for a pass
-        // that reads a handful of images out of another set.
-        bind(commands, scatter);
+            // The set stays pushed across all three launches. Every one of them is addressed
+            // through the same layout at the same bind point, so what was pushed for the first is
+            // still bound for the others — and pushing set zero again would be six descriptor
+            // writes for a pass that reads a handful of images out of another set.
+            bind(commands, scatter);
 
-        scatter.traceRays(commands, columns, rows, Shaders::FOG_VOLUME_SLICES);
-
-        closeZone(timer, commands);
+            scatter.traceRays(commands, columns, rows, Shaders::FOG_VOLUME_SLICES);
+        }
 
         inputs.mFogVolume.scattered(commands);
 
-        openZone(timer, commands, "column");
+        {
+            const GpuZone timed(timer, commands, FrameZone::Column);
 
-        // The integrate pass is a dispatch and reads what the launches wrote, so it is handed the
-        // set again at its own bind point.
-        const auto& integrate = *kernels().mIntegrate;
-        bind(commands, integrate);
-        pushInputs(commands, integrate, inputs);
+            // The integrate pass is a dispatch and reads what the launches wrote, so it is handed
+            // the set again at its own bind point.
+            const auto& integrate = *kernels().mIntegrate;
+            bind(commands, integrate);
+            pushInputs(commands, integrate, inputs);
 
-        vkCmdDispatch(commands, groupsFor(columns, Shaders::FOG_COLUMN_WORKGROUP),
-            groupsFor(rows, Shaders::FOG_COLUMN_WORKGROUP), 1);
-
-        closeZone(timer, commands);
+            vkCmdDispatch(commands, groupsFor(columns, Shaders::FOG_COLUMN_WORKGROUP),
+                groupsFor(rows, Shaders::FOG_COLUMN_WORKGROUP), 1);
+        }
 
         inputs.mFogVolume.handOver(commands);
 
-        openZone(timer, commands, "trace");
+        const GpuZone timed(timer, commands, FrameZone::Trace);
 
         const TracePipeline<NoConstants>& pipeline = pipelineFor(variant);
         bind(commands, pipeline);
@@ -650,8 +674,6 @@ namespace Rtx
         // One invocation a pixel and no tail, where the dispatch it replaces covered the picture
         // in whole workgroups and had every one of them test whether it had run off the edge.
         pipeline.traceRays(commands, constants.mEyes.mWorld.mWidth, constants.mEyes.mWorld.mHeight);
-
-        closeZone(timer, commands);
 
         // The host's read of the count is ordered by whoever reads it: `renderFrame` records
         // `Buffer::orderForHostRead` after every pass that could add to it, and a picture's count
@@ -666,7 +688,7 @@ namespace Rtx
 
         // Its own zone and not the bin's `sprites`, so a report says what the march at the shown
         // extent costs apart from what binning the sprites over the traced one does.
-        openZone(timer, commands, "puffs");
+        const GpuZone timed(timer, commands, FrameZone::Puffs);
 
         const auto& composite = *kernels().mSpriteComposite;
         bind(commands, composite);
@@ -680,7 +702,5 @@ namespace Rtx
         // One invocation a traced pixel, which composites the shown pixels over it —
         // `spritecomposite.rgen` says why.
         composite.traceRays(commands, eyes.mWorld.mWidth, eyes.mWorld.mHeight);
-
-        closeZone(timer, commands);
     }
 }

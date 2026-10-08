@@ -78,6 +78,13 @@ C++ and as GLSL, beside the C++ that reads them: `components/rtx/shaders/*.h` fo
 reads, and `components/rtxvulkan/shaders/shared/*.h` for what only the backend and its shaders read
 (the bindings, the passes' constants, the shader binding table's records).
 
+Each module's interface is read once, in one pass over its words (`readInterface`,
+`components/rtxvulkan/spirv/spirvinterface.hpp`): its bindings, its specialization constants, the
+end of its push block and its vertex inputs. A stage holds them to what the C++ states beside the
+GLSL (`ShaderCode::stage` and `feed`): every set its layout names, the words it is handed, the
+layout's push range and the pipeline's attributes. A disagreement ends the process and names the
+module. The pinning walks a module's words through the same walk (`forEachInstruction`).
+
 `./omw [flavour] <verb>` is the one command line over the CMake presets, on the desk and in CI.
 `./omw help` lists both.
 
@@ -95,6 +102,14 @@ The one interface the game talks to. Read its header first.
   starts. There is no fallback.
 - The base keeps what both renderers share: the resource system, the frame clock, the
   screenshot writer, the camera, the traversal root, the view mask and the presentation.
+- The world is attached as an object. `attachWorld` returns a `WorldAttachment`, and its end
+  calls the renderer's `onDetachWorld` once. `RenderingManager` holds it as its last member, so
+  a constructor that throws after the attach detaches too. The base asserts the pairing for
+  both renderers.
+- The attach carries the engine's `SceneUtil::UnrefQueue`, which the game releases what it
+  unloads through, off the frame thread. The mirror's sweeps keep what they let go of in a sink
+  (`Rtx::Released`) and the world mirror hands it to that queue after each frame, so a crossing's
+  last references are dropped on the queue's worker too.
 - The presentation (`Misc::Presentation`) is the one answer to the screen's size. Each renderer
   draws the world and the interface at its frame, `[Video] resolution x/y` or the window's size at
   Native, and shows the frame scaled into the window with black beside it. The GUI, the
@@ -115,7 +130,8 @@ through a phase state machine that every entry point asserts.
 
 - `WorldMirror` mirrors the scene graph into the core's scene description each frame (the walk),
   places the sea, runs the cell ring, and hands the result to the backend.
-- `SkyReader` turns the game's sky and weather into the core's `WorldReading`.
+- `SkyReader` turns the game's sky and weather into the core's `WorldReading`, and keeps the sky's
+  clock. What a reading comes to, and the air carried across frames, are the backend's.
 - `RippleEmitters` says what disturbs the water, by the rasterizer's own rule.
 - `ViewQueue`, `TracedView` and `TracedOverlay` make the pictures inside the interface.
 - `TracedGround` is the seam's ground with no chunks: the ray tracer draws terrain itself.
@@ -161,11 +177,12 @@ source-tree test holds the order.
 | `common/`           | what knows no scene: contracts, results, slots, runs, threads, the clock |
 | `image/`            | a texture file read: its formats, texels, alpha, levels and painted light |
 | `preprocess/`       | `ContentPreprocessor`, its keys, cache and costs; the passes in `shape/` and `texture/` |
-| `scene/`            | `SceneDesc`, its rows and tables, and what makes lights and textures of it |
+| `scene/`            | `SceneDesc`, its rows and tables, and what makes textures of it          |
 | `frame/`            | what a frame is asked for and sampled with: the camera, the reconstruction |
+| `world/`            | the sky, the air and the water a frame is told                           |
 | `renderer/`         | `Rtx::Renderer` and what it hands, reports and writes                    |
-| `mirror/`           | the walk from the scene graph; the cell ring in `cells/`, which runs inside it |
-| `environment/`      | the sky, the air and the sea a frame is told                             |
+| `mirror/`           | the walk from the scene graph, what it reads a surface and a lamp as; the cell ring in `cells/`, which runs inside it |
+| `environment/`      | the sky read out of the content files, and the sea's waves               |
 | `view/`             | the pictures traced away from the eye                                    |
 
 - **`Rtx::Renderer`** (`renderer/renderer.hpp`) is one traced image, whichever API makes it. Each
@@ -198,8 +215,9 @@ source-tree test holds the order.
   is counted into the walk's stats and the `preprocess` row of a frame.
 - **`Rtx::SceneUploader`** hands a scene to the backend once a frame, in the cheapest of three
   ways: place what moved, extend with what arrived, or rebuild.
-- **The world a frame is told** (`environment/`) turns a `WorldReading` into the frame's
-  constants: sun, moons, sky, clouds, fog, water.
+- **The world a frame is told** (`world/`) turns a `WorldReading` into the frame's
+  constants: sun, moons, sky, clouds, fog, water. What it draws with, the sky's sheets and the
+  meshes they are laid on, is read out of the content once (`environment/`).
 - **Materials.** `ShadingMap` estimates the light painted into a vanilla texture, to divide it
   out. Companion maps (`_n`, `_nh`, `_spec`) and tangents reach the material as data slots. The
   surface model is glTF 2.0's metal-roughness (`shaders/brdf.h`), shared with the host, which
@@ -242,6 +260,16 @@ at the top, over all of them.
   that replaces a buffer and a destructor that lets a scene go are safe with frames in flight. A
   missing required feature refuses the device, and each optional extension is taken whole or not
   at all.
+- **The command pool** (`device/commands.hpp`) has one model, and each object owns one thing. A
+  `LentCommands` is the buffers a ring, a drawer or the presenter records into again and again;
+  its end gives them back once a submit after it has run. A `Recording` is one scope's span from
+  `begin` to its submit or its end, and an exception that leaves the scope resets the buffer. A
+  `Batch` is setup work with its staging and holds, and a one-off submit is a batch too. No other
+  submit is made while a recording is open.
+- **The pipeline cache** (`device/pipelinecache.hpp`) is a file in the user's cache folder, named
+  for the driver and the shaders. Its own header ahead of the driver's blob names the device, the
+  driver's version, and the blob's length and digest, so a short or damaged file is refused before
+  the driver sees it. A write goes to a partial file, synced to the disk, and is then renamed.
 - **Memory.** What a frame cannot go without is essential and never refused. Content (acceleration
   structures, textures) is taken against the driver's budget and can be refused, and a refusal
   leaves the mesh out or draws the texture's stand-in.
@@ -296,7 +324,9 @@ at the top, over all of them.
   where its step fits the penumbra.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
   filter averages what was drawn for the see-through layers over time, against a history of the
-  nearest layer's own surface and motion. The accumulator, the shadow denoiser and the glossy filter
+  nearest layer's own surface and motion. Each holds its slow mean to a fast one as the accumulator
+  does (`historyclamp.comp`), so a lamp that changes on a still surface is followed in a reflection
+  and a window as in the bounce. The accumulator, the shadow denoiser and the glossy filter
   read one surface history, the accumulator's. Every history is matched from the eye it was measured
   from: the motion vector carries how much farther the surface stood from the previous eye.
 
@@ -351,9 +381,9 @@ graph TD
     VR --> Ups["Upscaler"]
 ```
 
-Solid arrows own, dashed arrows borrow. `RtxRenderer` outlives the world: `attachWorld` and
-`detachWorld` are a pair inside it. The pictures inside the interface are owned by the game's map
-and preview, and they leave the queue when they go.
+Solid arrows own, dashed arrows borrow. `RtxRenderer` outlives the world, which is attached to
+it while `RenderingManager`'s `WorldAttachment` stands (§4). The pictures inside the interface are
+owned by the game's map and preview, and they leave the queue when they go.
 
 ## 10. A frame
 
@@ -368,8 +398,9 @@ On the host, in order:
 3. **Hand over.** The frame before last is collected where the ring is full. `SceneUploader`
    places, extends or rebuilds the backend's scene.
 4. **Views.** Queued pictures inside the interface are traced.
-5. **Trace.** The camera and the world are turned into the frame's constants, and the backend
-   records the frame.
+5. **Trace.** The host asks for the frame (`Rtx::FrameRequest`): the eyes, what they draw, the
+   world as `SkyReader` read it, and the options. The backend lays the world over the viewpoint
+   (`describeWorld`), carries the air on, samples the result, and records the frame.
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
@@ -417,7 +448,8 @@ was found, so the crash report shows it.
 where a stop stands, moves the camera a frame at a time, holds the clock and the weather, and
 measures each frame. What a verb does with a place is one row of `VerbPolicy` (`verbs.hpp`). The
 instruments (`apps/rtxtool/instruments/`) measure frames and know nothing of a world. The model
-(`apps/rtxtool/model/`) is what a run visits and what it recorded.
+(`apps/rtxtool/model/`) is what a run visits and what it recorded, and includes the instruments,
+never the reverse.
 
 | binary             | holds                                                          |
 |--------------------|----------------------------------------------------------------|
@@ -438,7 +470,7 @@ Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 | what the scene is                         | `components/rtx/scene/scenedesc.hpp`                                                   |
 | the cells past the active grid            | `components/rtx/mirror/cells/cellring.hpp`                                             |
 | what is computed from content, and cached | `components/rtx/preprocess/contentpreprocessor.hpp`, `contentpass.hpp`                 |
-| the sky, the air and the sea              | `components/rtx/environment/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`              |
+| the sky, the air and the sea              | `components/rtx/world/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`                    |
 | the surface model                         | `components/rtx/shaders/brdf.h`                                                        |
 | what a frame is on the device             | `components/rtx/shaders/visibility.h`, `scene.h`                                       |
 | the backend's frame                       | `components/rtxvulkan/vulkanrenderer.hpp`, `trace/tracechain.hpp`, `display/displaychain.hpp` |

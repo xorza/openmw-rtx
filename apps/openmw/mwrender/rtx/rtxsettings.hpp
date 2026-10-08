@@ -3,8 +3,9 @@
 #include <cstdint>
 
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+
+#include "mirrorknobs.hpp"
 
 namespace MWRender
 {
@@ -41,7 +42,7 @@ namespace MWRender
     struct RtxSettings
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
-        Rtx::MirrorKnobs mMirror;
+        MirrorKnobs mMirror;
 
         /// `RenderProfile::mAnisotropy`: the setting, where nought means what one does.
         std::uint32_t mAnisotropy = 1;

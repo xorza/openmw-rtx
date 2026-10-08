@@ -11,6 +11,9 @@ namespace Rtx
 {
     void PresentTarget::resize(const Device& device, const std::uint32_t width, const std::uint32_t height)
     {
+        if (isOpen() && width == mShown.getWidth() && height == mShown.getHeight())
+            return;
+
         // The curve writes the picture as a storage image, the debug lines are drawn over it, the
         // interface samples it, and a read back copies it.
         mPicture = Image(device, width, height, TonePass::sTargetFormat,
@@ -30,11 +33,18 @@ namespace Rtx
         });
 
         mDeep = Image();
+        mShownCurrent = false;
+        mDeepCurrent = false;
     }
 
-    Image& PresentTarget::requireDeep(const Device& device)
+    Image* PresentTarget::beginPicture(const Device& device, const bool deep)
     {
         assert(isOpen());
+
+        mShownCurrent = false;
+        mDeepCurrent = deep;
+        if (!deep)
+            return nullptr;
 
         // The curve writes it as a storage image, and a read back copies it. Left undefined: the
         // curve writes it whole before anything reads it.
@@ -42,6 +52,6 @@ namespace Rtx
             mDeep = Image(device, mPicture.getWidth(), mPicture.getHeight(), TonePass::sDeepFormat,
                 VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "deep picture");
 
-        return mDeep;
+        return &mDeep;
     }
 }

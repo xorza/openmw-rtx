@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -26,6 +27,8 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/placementtable.hpp>
+#include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/refusals.hpp>
 
 namespace Rtx::Testing
 {
@@ -64,8 +67,7 @@ namespace Rtx::Testing
             {
                 mScene.clearPlacement();
                 mRing.follow(WorldAround{});
-                const ExtractionStats stats
-                    = mExtractor.extractWorld(*mRoot, osg::Matrixf::identity(), 0, mFrame++, mRing);
+                const ExtractionStats stats = mExtractor.extractWorld(*mRoot, 0, mFrame++, mRing);
                 mExtractor.retire();
                 return stats;
             }
@@ -125,6 +127,34 @@ namespace Rtx::Testing
             mCell->removeChild(reference);
             frame();
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 0u) << "a frozen reference outlived its node";
+        }
+
+        /// **A reference that stands something at a place that is not finite freezes all the same**,
+        /// with nothing of that drawable held: it stood nothing and no resolver met it. The quad
+        /// beside it stands, the reference is passed from the second frame on, and the one refusal
+        /// stays.
+        TEST_F(RtxFrozenSubtreeTest, aReferenceWithAPlaceThatIsNotFiniteFreezesHoldingNothingOfIt)
+        {
+            const osg::ref_ptr<osg::MatrixTransform> reference = addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
+            osg::Matrix broken;
+            broken(3, 0) = std::numeric_limits<double>::quiet_NaN();
+            osg::ref_ptr<osg::MatrixTransform> nowhere = new osg::MatrixTransform(broken);
+            nowhere->addChild(makeQuad());
+            reference->addChild(nowhere);
+
+            EXPECT_EQ(frame().mInstances, 1u);
+            for (int again = 0; again < 3; ++again)
+            {
+                const ExtractionStats passed = frame();
+                EXPECT_EQ(passed.mPassedFrozen, 1u) << "the reference did not freeze";
+                EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
+                EXPECT_EQ(standing(), osg::Vec3f(10.0f, 0.0f, 0.0f));
+                EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u);
+            }
+
+            mCell->removeChild(reference);
+            frame();
+            EXPECT_EQ(mScene.placements().getCounts().mPlaced, 0u);
         }
 
         /// **A reference that changes on its own is walked on every frame**: a controller on its

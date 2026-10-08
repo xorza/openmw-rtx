@@ -39,12 +39,8 @@ namespace osg
     class Camera;
     class Geometry;
     class FrameBufferObject;
+    class Group;
     class Texture2D;
-}
-
-namespace SDLUtil
-{
-    class GraphicsWindowSDL;
 }
 
 namespace VFS
@@ -72,6 +68,7 @@ namespace Stereo
 namespace MWRender
 {
     class CopyFramebufferToTextureCallback;
+    class GlWindow;
     class FrameCapture;
     class GlWorld;
     class PostProcessor;
@@ -92,11 +89,9 @@ namespace MWRender
         ~GlRenderer() override;
 
         float getGroundReach() const override;
-        SDL_Window* getWindow() const override { return mWindow; }
+        SDL_Window* getWindow() const override;
 
         osg::ref_ptr<osg::Group> createSceneRoot() override;
-        void attachWorld(RenderingManager& world, osg::Group& worldRoot) override;
-        void detachWorld() override;
 
         PostProcessor* getPostProcessor() override;
 
@@ -125,7 +120,6 @@ namespace MWRender
         void endLoading() override;
 
         void capture(osg::Image& image, int width, int height) override;
-        void setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer) override;
         void saveScreenshot() override;
 
         void suspendDraw() override;
@@ -167,6 +161,8 @@ namespace MWRender
 
     protected:
         void configureResources(Resource::ResourceSystem& resources) override;
+        void onAttachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) override;
+        void onDetachWorld() override;
         void adoptTraversalRoot(osg::Group& root) override;
         void applyViewMask() override;
         void applyWorldShown() override;
@@ -217,12 +213,9 @@ namespace MWRender
         /// main thread has moved on, and three frames is where they have all landed.
         static constexpr unsigned sStatsReportDelay = 3;
 
-        SDL_Window* mWindow = nullptr;
-
-        /// Held so the destructor can let the GL context go while the window it is bound to still
-        /// exists. The base holds the camera and is destroyed last, so releasing the viewer does
-        /// not on its own release what the camera points at.
-        osg::ref_ptr<SDLUtil::GraphicsWindowSDL> mGraphicsWindow;
+        /// Before the viewer, so it goes after it. The base holds the camera and is destroyed last,
+        /// so releasing the viewer does not on its own release the context the camera points at.
+        std::unique_ptr<GlWindow> mWindow;
 
         osg::ref_ptr<osgViewer::Viewer> mViewer;
 
@@ -245,11 +238,14 @@ namespace MWRender
         std::unique_ptr<ScreenshotManager> mScreenshotManager;
 
         /// The scene root this renderer made for the game, held from `createSceneRoot` until
-        /// `attachWorld` hands it to the world that lights through it.
+        /// `onAttachWorld` hands it to the world that lights through it.
         osg::ref_ptr<SceneUtil::LightManager> mSceneRoot;
 
         /// Everything the rasterizer builds around the world, for as long as there is one.
         std::unique_ptr<GlWorld> mWorld;
+
+        /// What was traversed before the world's chain went above it, and is again once it goes.
+        osg::ref_ptr<osg::Group> mWorldlessRoot;
 
         /// Borrowed: the map window owns it, through `GlobalMap`, and says when it goes.
         GlMapOverlay* mMapOverlay = nullptr;
@@ -276,7 +272,7 @@ namespace MWRender
         /// The interface's camera. Null until the interface exists.
         osg::ref_ptr<osg::Camera> mGuiCamera;
 
-        /// The screenshot key's reader of the finished frame, made once the writer is handed over.
+        /// The screenshot key's reader of the finished frame, made at the first shot.
         osg::ref_ptr<FrameCapture> mScreenshot;
     };
 }

@@ -21,7 +21,6 @@
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
@@ -505,13 +504,9 @@ namespace RtxTool
         take(ScenePart::Masks, wordsOf(scene.materials().getMasks()));
 
         // By their names and by their slots both, which is the difference from `digestScene`: which
-        // slot a texture landed in is what a material's index means.
-        //
-        // **The baked names beside the paths, because a slot is one or the other.** A texture this
-        // renderer made has no path, so a column of paths alone reads every baked slot as the same
-        // empty string — and a run whose bakes landed in another order comes out identical here
-        // while the materials naming them move. Each name ends with its length, so two names laid
-        // end to end cannot be read as one.
+        // slot a texture landed in is what a material's index means. A file and a sprite's bake name
+        // their file, and a ground its material; the kind tells the three apart. Each path ends with
+        // its length, so two laid end to end cannot be read as one.
         //
         // **And every other field of the row, bound whole**, as `forEachMaterialField` binds a
         // material: the wrap reaches the sampler and the encoding and format how the texels decode,
@@ -521,13 +516,10 @@ namespace RtxTool
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const auto& [kind, path, baked, groundOf, wrap, encoding, image, format] = row;
+            const auto& [kind, path, groundOf, wrap, encoding, image, format] = row;
             const std::string_view name = path.value();
             textures.add(std::span<const char>(name.data(), name.size()));
             textures.add(static_cast<std::uint32_t>(name.size()));
-
-            textures.add(std::span<const char>(baked.data(), baked.size()));
-            textures.add(static_cast<std::uint32_t>(baked.size()));
 
             textures.add(static_cast<std::uint32_t>(kind));
             textures.add(static_cast<std::uint32_t>(groundOf));

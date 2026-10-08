@@ -35,8 +35,7 @@ namespace Rtx
             FrameRecord& submitEmpty(FrameRing& ring)
             {
                 FrameRecord& frame = ring.begin();
-                getPool().begin(frame.mWorld.mCommands);
-                ring.submit(frame);
+                ring.submit(frame, ring.recordWorld(frame));
                 return frame;
             }
         };
@@ -71,8 +70,7 @@ namespace Rtx
 
             // And the same answer to the same question, which is what a caller placing twice asks.
             EXPECT_EQ(&ring.begin(), &next) << "beginning the frame again moved to another slot";
-            getPool().begin(next.mWorld.mCommands);
-            ring.submit(next);
+            ring.submit(next, ring.recordWorld(next));
 
             // Before the ring goes, because its command buffers go with it and the last frame is
             // still on the queue.
@@ -168,18 +166,17 @@ namespace Rtx
                 const VkClearColorValue colour{ .float32
                     = { bytes[0] / 255.0f, bytes[1] / 255.0f, bytes[2] / 255.0f, bytes[3] / 255.0f } };
 
-                const VkCommandBuffer commands = frame.mWorld.mCommands;
-                getPool().begin(commands);
-                target.clear(commands, Use::sUndefined, colour, Use::sComputeWrite);
-                ring.readPicture(frame, commands, target);
-                ring.submit(frame);
+                Recording world = ring.recordWorld(frame);
+                target.clear(world.get(), Use::sUndefined, colour, Use::sComputeWrite);
+                ring.readPicture(frame, world.get(), target);
+                ring.submit(frame, std::move(world));
             };
 
             leave(ring.begin(), picture);
             submitEmpty(ring);
 
             // Collected before the frame that takes its slot, as the renderer does.
-            const std::optional<FrameResult> came = ring.collectFinished();
+            const std::optional<FrameResult> came = ring.collectFrame();
             ASSERT_TRUE(came.has_value());
             EXPECT_EQ(came->mFrame, 0u);
             ASSERT_EQ(came->mPixels.size(), picture.size());
@@ -193,16 +190,52 @@ namespace Rtx
             EXPECT_TRUE(std::equal(came->mPixels.begin(), came->mPixels.end(), picture.begin()))
                 << "the frame that took the slot wrote over the picture";
 
-            const std::optional<FrameResult> next = ring.collect();
+            const std::optional<FrameResult> next = ring.finishFrame();
             ASSERT_TRUE(next.has_value());
             EXPECT_EQ(next->mFrame, 1u);
             EXPECT_TRUE(next->mPixels.empty()) << "a frame that asked for no picture came back with one";
 
-            const std::optional<FrameResult> after = ring.collect();
+            const std::optional<FrameResult> after = ring.finishFrame();
             ASSERT_TRUE(after.has_value());
             EXPECT_EQ(after->mFrame, 2u);
             ASSERT_EQ(after->mPixels.size(), other.size());
             EXPECT_TRUE(std::equal(after->mPixels.begin(), after->mPixels.end(), other.begin()));
+        }
+
+        /// **An exception inside a frame's recordings reaches the caller, and leaves the pool no
+        /// recording open.** Begun and closed by hand, the recordings stayed open, and the next
+        /// submit — a one-off, or the drain of the renderer the exception was taking down —
+        /// stopped at the assert that no recording is open, which a crash report then named in
+        /// place of the exception. The frame stays begun, and its trace begins again on the buffer
+        /// the exception gave back; a ring that ends with a frame begun ends cleanly.
+        TEST_F(RtxFrameRingTest, anExceptionInsideARecordedFrameReachesTheCallerAndLeavesNothingOpen)
+        {
+            struct Thrown
+            {
+            };
+
+            for (const bool traced : { true, false })
+            {
+                FrameRing ring(getDevice(), false, 0.0);
+                FrameRecord& frame = ring.begin();
+                EXPECT_THROW(
+                    {
+                        const Recording placement = getPool().begin(ring.takePlaceCommands(frame));
+                        const Recording world = ring.recordWorld(frame);
+                        throw Thrown{};
+                    },
+                    Thrown);
+                EXPECT_TRUE(ring.isOpen());
+
+                getPool().submitAndWait([](VkCommandBuffer) {});
+
+                if (traced)
+                {
+                    ring.submit(frame, ring.recordWorld(frame));
+                    EXPECT_FALSE(ring.isOpen());
+                    ring.finishAll();
+                }
+            }
         }
 
         /// **A frame the host refused to trace closes, and the next placement takes the next
@@ -218,9 +251,7 @@ namespace Rtx
             for (std::uint64_t at = 0; at < skipped; ++at)
             {
                 FrameRecord& frame = ring.begin();
-                const VkCommandBuffer placement = ring.takePlaceCommands(frame);
-                getPool().begin(placement);
-                getPool().submit(placement);
+                getPool().begin(ring.takePlaceCommands(frame)).submit();
 
                 EXPECT_TRUE(ring.isOpen());
                 ring.skip();
@@ -231,10 +262,10 @@ namespace Rtx
             EXPECT_EQ(ring.getRecording(), skipped) << "a skipped frame went unnumbered";
 
             submitEmpty(ring);
-            const std::optional<FrameResult> traced = ring.collect();
+            const std::optional<FrameResult> traced = ring.finishFrame();
             ASSERT_TRUE(traced.has_value()) << "the skipped frames stood in front of the traced one";
             EXPECT_EQ(traced->mFrame, skipped);
-            EXPECT_FALSE(ring.collect().has_value()) << "a skipped frame came back with a report";
+            EXPECT_FALSE(ring.finishFrame().has_value()) << "a skipped frame came back with a report";
         }
     }
 }

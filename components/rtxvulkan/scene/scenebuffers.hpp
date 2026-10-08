@@ -91,14 +91,21 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
-        /// What a frame writes whole, once per frame in flight. What is written by the row keeps
-        /// its own account: `mInstanceTable`, `mMaterialTable`, `mNormalTable` and `mTangentTable`.
+        /// What a frame writes, once per frame in flight: whole, but for the light list. What is
+        /// written by the row keeps its own account: `mInstanceTable`, `mMaterialTable`,
+        /// `mNormalTable` and `mTangentTable`.
         struct Tables
         {
             explicit Tables(const Device& device);
 
             GrowableBuffer mLights;
+
+            /// The light grid, written by the cell: the cells the grid rewrote since this copy last
+            /// took them, each row and its two runs — `Rtx::LightGrid::getCells` says why. Whole
+            /// where the grid was made again or either buffer was.
+            GrowableBuffer mLightCells;
             GrowableBuffer mLightList;
+            RowDebt mLightCellsOwed;
 
             /// The sprites as the scene placed them, unshaded: what a trace's `SpriteBin` copies
             /// and shades for its own sun. Never read by a shader directly.

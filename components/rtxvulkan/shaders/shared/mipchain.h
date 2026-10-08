@@ -5,7 +5,7 @@
 #include <components/rtx/shaders/portable.h>
 
 // The chain a file did not carry, made on the device: what `mipchain.comp` is told about the level
-// it writes. `Rtx::MipChain` says what the chain is and why.
+// it writes. `Rtx::TextureData::wantsCompletedChain` says what the chain is and why.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

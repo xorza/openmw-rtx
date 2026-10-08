@@ -2,10 +2,12 @@
 names. Each thing is judged by the directory it leaves, named after its version, so a bump fetches
 anew and an unchanged pin fetches nothing."""
 
+import hashlib
 import os
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import zipfile
@@ -91,43 +93,67 @@ def windows_clang_format() -> Path:
     return found
 
 
+def pinned_folder(name: str, *pinned: pins.Pin) -> Path:
+    """**Where tools fetched by `pinned` stand, named after their digests**, as the SDK's folder is
+    after its version: a pin changed is a folder not there yet, so a desk that has the old tool, and
+    a CI cache that restores it, fetch the new one rather than keep the old under the same name."""
+    digest = hashlib.sha256("".join(pin.sha256 for pin in pinned).encode()).hexdigest()[:16]
+    return DEPS / f"{name}-{digest}"
+
+
 def appimage_tools() -> Path:
-    tools = DEPS / "appimage"
-    for name, pin in pins.APPIMAGE_TOOLS.items():
-        tool = tools / name
-        if not tool.is_file():
-            fetch.download_pin(pin, tool)
-            tool.chmod(0o755)
-    return tools
+    """linuxdeploy, its two plugins and the AppImage runtime, together in one folder, where
+    linuxdeploy looks for its plugins: fetched beside it and given its name once all four are in."""
+    tools = pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values())
+    if tools.is_dir():
+        return tools
+
+    def fill(partial: Path) -> None:
+        for name, pin in pins.APPIMAGE_TOOLS.items():
+            fetch.download_pin(pin, partial / name)
+            (partial / name).chmod(0o755)
+
+    return fetch.build_beside(tools, fill)
 
 
 def crash_tool(name: str) -> Path:
-    """One of Breakpad's two tools, fetched once into deps/crash: the player never has them, and the
-    desk and CI take the versions `pins.py` names."""
-    tools = DEPS / "crash"
+    """One of Breakpad's two tools, fetched once into a folder of its pin's own: the player never has
+    them, and the desk and CI take the versions `pins.py` names."""
+    pin = pins.CRASH_TOOLS[(name, SYSTEM)]
+    tools = pinned_folder(name, pin)
     tool = tools / f"{name}{EXE}"
     if tool.is_file():
         return tool
 
-    pin = pins.CRASH_TOOLS[(name, SYSTEM)]
-    archive = tools / Path(pin.url).name
-    fetch.download_pin(pin, archive)
-    fetch.extract_member(archive, tool.name, tools)
-    archive.unlink()
+    def fill(partial: Path) -> None:
+        archive = partial / Path(pin.url).name
+        fetch.download_pin(pin, archive)
+        fetch.extract_member(archive, tool.name, partial)
+        archive.unlink()
+
+    fetch.build_beside(tools, fill)
     return tool
 
 
+# The SDK's tools a build and the driver run, kept out of it beside its headers and its loader:
+# `spirv-dis` is `omw kernels`', which names a module's constants by it.
+SDK_TOOLS = ("glslc", "spirv-val", "spirv-opt", "spirv-dis")
+
+
 def vulkan_sdk_dir() -> Path:
+    """**Named after the version and what is kept of it**, so a desk that has the SDK without a tool
+    the list gained fetches it again, and `prune` takes the old folder."""
     version = pins.VULKAN_SDK_WINDOWS_VERSION if WINDOWS else pins.VULKAN_SDK_LINUX_VERSION
-    return DEPS / f"vulkan-sdk-{version}"
+    kept = hashlib.sha256(",".join(SDK_TOOLS).encode()).hexdigest()[:8]
+    return DEPS / f"vulkan-sdk-{version}-{kept}"
 
 
 def vulkan_sdk() -> Path:
     """**The Vulkan SDK from LunarG, only what the build needs out of it.** The backend needs
     VK_KHR_shader_fma, which entered the SDK at 1.4.329, and a pinned SDK is the same headers and
     tools on every desk and runner, whatever the distribution packages. What is kept: the headers,
-    SPIR-V's among them, the loader the tests start against, and glslc, spirv-val and spirv-opt, which
-    link nothing of the SDK's. No layers: a runner has no device to validate on, and a desk that
+    SPIR-V's among them, the loader the tests start against, and `SDK_TOOLS`, which link nothing of the
+    SDK's. No layers: a runner has no device to validate on, and a desk that
     validates has an SDK installed for it."""
     sdk = vulkan_sdk_dir()
     if sdk.is_dir():
@@ -141,7 +167,7 @@ def _vulkan_sdk_linux(into: Path) -> None:
     tarball = DEPS / Path(pins.VULKAN_SDK_LINUX.url).name
     fetch.download_pin(pins.VULKAN_SDK_LINUX, tarball)
     wanted = re.compile(r"[^/]+/x86_64/(include/.*|lib/VulkanLoader/lib/libvulkan\.so.*"
-                        r"|bin/(glslc|spirv-val|spirv-opt))")
+                        rf"|bin/({'|'.join(re.escape(tool) for tool in SDK_TOOLS)}))")
     with tarfile.open(tarball) as opened:
         members: list[tarfile.TarInfo] = []
         for member in opened:
@@ -159,7 +185,7 @@ def _vulkan_sdk_linux(into: Path) -> None:
 def _vulkan_sdk_windows(into: Path) -> None:
     """**Out of a 288 MB installer that has no tarball beside it**: run unattended into a directory of
     its own, through PowerShell's wait, since the installer is a windowed program; then the headers
-    and the three tools are taken out of it and the rest left behind. No import library: no program
+    and `SDK_TOOLS` are taken out of it and the rest left behind. No import library: no program
     links the loader, which volk loads at run time. The loader the tests load comes from the runtime
     components, because the installer leaves it to the driver and a runner has no driver."""
     installer = DEPS / Path(pins.VULKAN_SDK_WINDOWS.url).name
@@ -171,7 +197,7 @@ def _vulkan_sdk_windows(into: Path) -> None:
                                                  "--confirm-command", "install"))
         run(["powershell", "-NoProfile", "-Command",
              f"Start-Process -Wait -FilePath '{installer}' -ArgumentList @({arguments})"])
-        tools = ("glslc.exe", "spirv-val.exe", "spirv-opt.exe")
+        tools = tuple(f"{tool}.exe" for tool in SDK_TOOLS)
         for needed in ["Include/vulkan/vulkan.h", "Include/spirv/unified1/spirv.hpp",
                        *(f"Bin/{tool}" for tool in tools)]:
             if not (full / needed).is_file():
@@ -209,15 +235,46 @@ def sdk_environment(env: dict[str, str]) -> None:
             prepend_path(env, "PATH", base / "bin")
 
 
+def pinned_names() -> set[str]:
+    """Every name in deps/ that the pins give this system: what each getter above leaves there."""
+    names = {vulkan_sdk_dir().name, pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values()).name}
+    names |= {pinned_folder(name, pin).name for (name, system), pin in pins.CRASH_TOOLS.items() if system == SYSTEM}
+    if WINDOWS:
+        dependency_set = f"vcpkg-x64-windows-2022-{msvc_versions()['VCPKG_TAG']}"
+        names |= {dependency_set, f"{dependency_set}-manifest.txt", "Qt", f"clang-format-{pins.LLVM_RELEASE}"}
+    return names
+
+
+def prune() -> None:
+    """**What deps/ holds that the pins no longer name, removed**: a version replaced, and a partial a
+    stopped fetch left. Every name there is a getter's, so whatever none of them names is stale, and a
+    cache restored from an older run sheds it rather than carrying it into every run after."""
+    if not DEPS.is_dir():
+        return
+    keep = pinned_names()
+    stale = [entry for entry in DEPS.iterdir() if entry.name not in keep]
+    qt = DEPS / "Qt"
+    if WINDOWS and qt.is_dir():
+        stale += [entry for entry in qt.iterdir() if entry.name != msvc_versions()["QT_VER"]]
+    for entry in stale:
+        print(f"removing {entry.relative_to(DEPS)}, which no pin names", file=sys.stderr)
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry)
+        else:
+            entry.unlink()
+
+
 def bootstrap() -> None:
     """The Vulkan SDK, run once to prove it: a tool left out, or one that needs a library it did not
-    bring, stops here by name and not in the middle of a configure."""
+    bring, stops here by name and not in the middle of a configure. Then deps/ shed of what no pin
+    names."""
     sdk = vulkan_sdk()
     env = dict(os.environ)
     sdk_environment(env)
-    for tool in ("glslc", "spirv-val", "spirv-opt"):
+    for tool in SDK_TOOLS:
         found = shutil.which(tool, path=env[environment_key("PATH")])
         if found is None:
             raise Refusal(f"{sdk} holds no {tool}")
         subprocess.run([found, "--version"], check=True, env=env, stdout=subprocess.DEVNULL)
     print(f"Vulkan SDK: {sdk}")
+    prune()

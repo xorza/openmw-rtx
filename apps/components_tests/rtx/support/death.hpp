@@ -12,7 +12,7 @@
 
 #include <components/crashcatcher/crashsummary.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/common/asserts.hpp>
 
 #include "testplatform.hpp"
 

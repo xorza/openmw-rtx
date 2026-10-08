@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <osg/Callback>
 #include <osg/Node>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
@@ -18,12 +19,13 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
-#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
+#include <components/sceneutil/statesetupdater.hpp>
 
 #include "mirroridentity.hpp"
 #include "mirrorpass.hpp"
@@ -33,11 +35,6 @@ namespace osg
     class Image;
     class NodeVisitor;
     class StateSet;
-}
-
-namespace SceneUtil
-{
-    class StateSetUpdater;
 }
 
 namespace Rtx
@@ -159,13 +156,9 @@ namespace Rtx
             osg::Node& node, std::size_t placement, osg::NodeVisitor* visitor, bool underAnimated);
 
         /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
-        /// its material and on every image it wore.
-        void retire();
-
-        /// Lets go of the images and the animated state sets this epoch did not meet. Asked
-        /// whatever the materials did, because a cached material's images go stale on the frame
-        /// after they arrived.
-        void retireHolds();
+        /// its material and on every image it wore, and then the images and the animated state
+        /// sets this epoch did not meet; what each held goes to `released`.
+        void retire(Released& released);
 
         /// Reserves the identity maps once, so no frame rehashes them. `SceneExtractor` states the
         /// budgets.
@@ -252,12 +245,37 @@ namespace Rtx
 
             /// The shape of `node`'s chains now.
             static ChainShape of(const osg::Node& node);
+        };
+
+        /// A `ChainShape` an entry keeps: the callbacks held, so no address in it is handed to
+        /// another callback while the entry stands (`ByAddress`), where a callback the game freed
+        /// and a new one made at its address passed for the chains as they were. The shape each
+        /// frame probes stays raw, and is held only where it changed.
+        struct HeldChains
+        {
+            std::array<osg::ref_ptr<const osg::Callback>, ChainShape::sMostCallbacks> mCallbacks{};
+            std::uint8_t mCount = 0;
+            std::uint8_t mUpdates = 0;
+            bool mWhole = true;
 
             /// Whether the chains are as they were: never where either shape was cut short.
-            bool operator==(const ChainShape& other) const
+            bool matches(const ChainShape& shape) const
             {
-                return mWhole && other.mWhole && mCount == other.mCount && mUpdates == other.mUpdates
-                    && std::equal(mCallbacks.begin(), mCallbacks.begin() + mCount, other.mCallbacks.begin());
+                return mWhole && shape.mWhole && mCount == shape.mCount && mUpdates == shape.mUpdates
+                    && std::equal(mCallbacks.begin(), mCallbacks.begin() + mCount, shape.mCallbacks.begin(),
+                        [](const osg::ref_ptr<const osg::Callback>& held, const osg::Callback* probed) {
+                            return held.get() == probed;
+                        });
+            }
+
+            /// Holds `shape`'s callbacks, and none past them.
+            void hold(const ChainShape& shape)
+            {
+                for (std::size_t at = 0; at < mCallbacks.size(); ++at)
+                    mCallbacks[at] = at < shape.mCount ? shape.mCallbacks[at] : nullptr;
+                mCount = shape.mCount;
+                mUpdates = shape.mUpdates;
+                mWhole = shape.mWhole;
             }
         };
 
@@ -280,6 +298,9 @@ namespace Rtx
 
             osg::ref_ptr<const osg::Node> mNode;
             std::size_t mPath;
+
+            /// What a sweep keeps of an entry it erases: the node.
+            friend void keepKey(Released& released, const Placed& placed) { released.keep(placed.mNode); }
         };
 
         struct ByPlacement
@@ -317,7 +338,7 @@ namespace Rtx
             /// The controllers found on the node's callback chains, in the order the rasterizer runs
             /// them, and what the chains looked like when they were found. None where the node is
             /// animated by an ancestor alone.
-            std::array<SceneUtil::StateSetUpdater*, sMostUpdaters> mUpdaters{};
+            std::array<osg::ref_ptr<SceneUtil::StateSetUpdater>, sMostUpdaters> mUpdaters{};
             std::size_t mUpdaterCount = 0;
             bool mSetUp = false;
 
@@ -326,7 +347,7 @@ namespace Rtx
             /// update consumes that before the walk applies it here, so the state set held here
             /// hears it by the number alone.
             std::array<unsigned int, sMostUpdaters> mGenerations{};
-            ChainShape mChains;
+            HeldChains mChains;
         };
 
         /// Reads a whole material off the chain, which is what an arrival and a rewrite both want.

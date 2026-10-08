@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -48,6 +50,11 @@ namespace Rtx
             /// How many bits of the device's clock the chosen queue writes into a timestamp, or nought
             /// where it writes none, so that queue reports nothing rather than something wrong.
             std::uint32_t mTimestampBits = 0;
+
+            /// The largest side a texture may have: the least `maxExtent` over every image a texture
+            /// is made as (`getRequiredTextureImages`), which is what `vkCreateImage` is valid
+            /// against, and never more than `maxImageDimension2D`.
+            std::uint32_t mTextureSide = 0;
         };
 
         /// Reads a device's own answers into the decisions this renderer makes from them. Nothing here
@@ -55,26 +62,37 @@ namespace Rtx
         /// for the reason `findMissingFeatures` is; nothing writes to it.
         ///
         /// @param formats what the device offers for each of `getRequiredFormats`, in that order.
+        /// @param images what the device takes of each of `getRequiredTextureImages`, in that order:
+        ///        nothing for an image it does not take at all.
+        /// @param presents for each of `queues`, whether it presents to the window; empty for a
+        ///        renderer with no window, which needs neither a queue that presents nor a swapchain.
         static Profile profileOf(const DeviceProperties& properties, DeviceFeatures& supported,
             std::span<const std::string> extensions, std::span<const VkQueueFamilyProperties> queues,
-            std::span<const VkFormatProperties> formats);
+            std::span<const VkFormatProperties> formats, std::span<const std::optional<VkImageFormatProperties>> images,
+            std::span<const VkBool32> presents);
+
+        /// Whether a queue family of a device presents to the window; empty for no window.
+        using PresentQuery = std::function<bool(VkPhysicalDevice device, std::uint32_t family)>;
 
         /// Picks a device, preferring discrete over anything else. Throws `Unsupported` listing
         /// every candidate and what each was missing when none qualifies — the one moment where a
         /// wall of text is the useful answer.
-        static PhysicalDevice select(VkInstance instance);
+        static PhysicalDevice select(VkInstance instance, const PresentQuery& presents);
 
         VkPhysicalDevice getHandle() const { return mHandle; }
 
         const DeviceProperties& getProperties() const { return *mProperties; }
 
-        /// Queue family with graphics and compute, which on the target hardware is also the one
-        /// that can present.
+        /// The queue family with graphics and compute, and that presents to the window where there
+        /// is one.
         std::uint32_t getQueueFamily() const { return mProfile.mQueueFamily; }
 
         /// How many bits of the device's clock the chosen queue writes into a timestamp, or nought
         /// where it writes none — `Profile::mTimestampBits`, for the timer that reads the clock.
         std::uint32_t getTimestampBits() const { return mProfile.mTimestampBits; }
+
+        /// The largest side a texture may have — `Profile::mTextureSide`.
+        std::uint32_t getTextureSide() const { return mProfile.mTextureSide; }
 
         /// What a build's scratch has to be aligned to, read once here for the two builders that
         /// lay scratch out.

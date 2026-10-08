@@ -11,10 +11,11 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/weather.hpp>
 
 #include "benchrecord.hpp"
 #include "benchspec.hpp"
@@ -201,10 +202,9 @@ namespace RtxTool
         /// moons read it: a phase runs on a three-day cycle and no hour can stand for a date.
         std::optional<int> mDay{};
 
-        /// A weather, as `Rtx::weatherIndex` numbers them: read once off a name by the parsers, and
-        /// named again only where text is printed. Set immediately, so a stop stands under it from
-        /// its first frame.
-        std::optional<std::uint32_t> mWeather{};
+        /// A weather, read once off a name by the parsers and named again only where text is
+        /// printed. Set immediately, so a stop stands under it from its first frame.
+        std::optional<Rtx::Weather> mWeather{};
 
         /// Where the air's clocks stand at the stop's first counted frame, or nothing to leave them
         /// wherever the session's frames carried them. The fog drifts and churns on these and the
@@ -216,8 +216,8 @@ namespace RtxTool
 
         /// Weathers to turn the sky through while the stop runs, in order and round again, as
         /// transitions: what the renderer has to survive is an emitter freed on an ordinary frame.
-        /// Asking for it stops the run being a benchmark. Numbered as `mWeather` is.
-        std::vector<std::uint32_t> mTurnThrough{};
+        /// Asking for it stops the run being a benchmark.
+        std::vector<Rtx::Weather> mTurnThrough{};
     };
 
     /// Where a stop flies to, and how fast. A route is what puts a cell arriving into a

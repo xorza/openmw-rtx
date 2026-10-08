@@ -8,8 +8,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/shaders/storageformat.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 
@@ -100,7 +100,7 @@ namespace Rtx
                 std::uint32_t mBytes;
                 TexelDecode mDecode;
             };
-            constexpr std::array<Row, 15> sTable{ {
+            constexpr std::array<Row, 16> sTable{ {
                 { VK_FORMAT_R8_UNORM, 1, TexelDecode::Unorm8 },
                 { VK_FORMAT_R8G8_UNORM, 2, TexelDecode::Unorm8 },
                 { VK_FORMAT_R16_UNORM, 2, TexelDecode::Bytes },
@@ -115,6 +115,7 @@ namespace Rtx
                 { VK_FORMAT_R16G16B16A16_UNORM, 8, TexelDecode::Bytes },
                 { VK_FORMAT_R16G16B16A16_SFLOAT, 8, TexelDecode::Half },
                 { VK_FORMAT_R32G32_SFLOAT, 8, TexelDecode::Float },
+                { VK_FORMAT_R32G32_UINT, 8, TexelDecode::Bytes },
                 { VK_FORMAT_R32G32B32A32_SFLOAT, 16, TexelDecode::Float },
             } };
 
@@ -125,11 +126,14 @@ namespace Rtx
                 EXPECT_EQ(info.mDecode, row.mDecode) << "format " << row.mFormat;
             }
 
-            // Every storage layout a pass declares can be read back, since a channel is one.
-            for (const StorageFormat format : { StorageFormat::Rgba8, StorageFormat::R16, StorageFormat::R16f,
-                     StorageFormat::R32f, StorageFormat::R32ui, StorageFormat::Rg16f, StorageFormat::Rg32f,
-                     StorageFormat::Rgba16, StorageFormat::Rgba16f, StorageFormat::Rgba32f })
-                EXPECT_GT(formatInfoOf(toVulkanFormat(format)).mTexelBytes, 0u) << static_cast<int>(format);
+            // **Every storage layout a pass declares can be read back**, since a channel is one, at
+            // the size an image of it is priced at: both read one row.
+            for (const StorageFormat format :
+                { StorageFormat::Rgba8, StorageFormat::R8, StorageFormat::Rg8, StorageFormat::R16, StorageFormat::R16f,
+                    StorageFormat::R32f, StorageFormat::R32ui, StorageFormat::Rg16f, StorageFormat::Rg32f,
+                    StorageFormat::Rg32ui, StorageFormat::Rgba16, StorageFormat::Rgba16f, StorageFormat::Rgba32f })
+                EXPECT_EQ(formatInfoOf(toVulkanFormat(format)).mTexelBytes, texelBytes(format))
+                    << static_cast<int>(format);
 
             Testing::expectDies(
                 [] { formatInfoOf(VK_FORMAT_BC1_RGBA_SRGB_BLOCK); }, "no read-back is recorded for this image format");

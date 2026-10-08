@@ -7,7 +7,7 @@
 // the launch's own, so its origin and direction stay there; whether it hit and how far it went are
 // the shader's to say, and travel here.
 //
-// **What crosses the trace is what it costs**, and this is it: twenty-five words. Every field the
+// **What crosses the trace is what it costs**, and this is it: twenty-six words. Every field the
 // tail reads travels, and travels as small as the frame keeps it — the albedos, the scalars and
 // the motion vector as halves, which is the width of the channels they are stored in, and the
 // normal as the surface channel's own code. What stays whole is the five radiances, because a

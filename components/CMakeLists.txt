@@ -394,13 +394,12 @@ add_component_dir (sky
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    clock digestwords error finite hashstate index job jobprogress menu monitor namedenum parallel pointhash
+    asserts clock digestwords error finite hashstate index job jobprogress menu monitor namedenum parallel pointhash
     radicalinverse runs scratch slots stepped worker
     )
 
 add_component_dir (rtx/environment
-    atmosphere cloudshell fogbuilder frameworld moonbuilder nightsky skybuilder skylight skymesh skysheet
-    wavecascade wavespectrum
+    atmospheremesh cloudmesh moonfaces skybuilder skymesh skysheet starmesh wavecascade wavespectrum
     )
 
 add_component_dir (rtx/frame
@@ -409,18 +408,18 @@ add_component_dir (rtx/frame
     )
 
 add_component_dir (rtx/image
-    alphaimage colour colourblock formatcensus imagedescription mipchain ownedtexture shadingmap spritelight
-    texels texturedata textureencoding texturewrap
+    alphaimage colour colourblock formatcensus imagedescription shadingmap
+    texels texturedata textureencoding textureformat texturewrap
     )
 
 add_component_dir (rtx/mirror
-    chainkeys contentmemory drawableposer emitterresolver extractionstats materialresolver meshreader meshresolver
-    mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading statereading
-    walkcontext worlddescent
+    chainkeys contentmemory drawableposer emitterresolver extractionstats frozenroots lightbuilder materialresolver meshreader
+    meshresolver mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading statereading
+    surfacedescription walkcontext worlddescent
     )
 
 add_component_dir (rtx/mirror/cells
-    cellgrid cellplacer cellreader cellring cellsupply cellworld groundcoversource groundreader held mirrorknobs nightday
+    cellgrid cellplacer cellreader cellring cellsupply cellworld groundcoversource groundreader held nightday
     prepared readermemory templatewalk
     )
 
@@ -437,23 +436,27 @@ add_component_dir (rtx/preprocess/texture
     )
 
 add_component_dir (rtx/renderer
-    channel framedigest frameimage framesinflight framespend guirenderer memoryreport png
+    channel framedigest frameimage framesinflight framespend framezone guirenderer memoryreport png
     renderer sceneuploader shaderdirectory slot
     )
 
 add_component_dir (rtx/scene
-    compositequeue deformertable instancerecord light lightbuilder lightgrid material materialtable mesh
+    compositequeue deformertable instancerecord light lightgrid material materialtable mesh
     meshtable placementtable refusal refusals ripple rowhold scenedesc scenetextures specularlayout sprite
     surface texturetable
     )
 
 add_component_dir (rtx/shaders
-    brdf camera colour digest gbuffer halving hosttypes look octahedral portable scene shadingmap skinning sky
+    brdf camera colour digest gbuffer hosttypes look octahedral portable scene shadingmap skinning sky
     storageformat tangent visibility wave
     )
 
 add_component_dir (rtx/view
     offscreentrace viewscene
+    )
+
+add_component_dir (rtx/world
+    atmosphere fogbuilder frameworld moon skycontent skylight weather
     )
 
 add_component_dir (myguirtx
@@ -565,7 +568,10 @@ add_component_dir(navmeshtool
 
 add_component_dir(platform
     platform
+    appendfile
     file
+    folder
+    linuxtext
     process
     sharedmemory
     fifo
@@ -575,6 +581,8 @@ add_component_dir(platform
 
 if (WIN32)
     add_component_dir(platform
+        appendfilewin32
+        filesyncwin32
         filewin32
         localtimewin32
         processwin32
@@ -585,6 +593,8 @@ if (WIN32)
         )
 elseif (UNIX)
     add_component_dir(platform
+        appendfileposix
+        filesyncposix
         fileposix
         localtimeposix
         processposix

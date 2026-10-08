@@ -11,6 +11,7 @@
 #include <components/rtxvulkan/device/memory/slottable.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/skin.h>
 
 #include "skintables.hpp"
 

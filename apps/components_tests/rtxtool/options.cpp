@@ -72,15 +72,15 @@ namespace RtxTool
             const bpo::variables_map variables = read({ "--antilag=false", "--lamp-candidates=4" });
             Rtx::ReconstructionRequest played;
             readReconstruction(variables, played);
-            ASSERT_FALSE(played.mAntilag);
-            ASSERT_EQ(played.mLampCandidates, 4u);
+            ASSERT_FALSE(played.mFilters.mAntilag);
+            ASSERT_EQ(played.mSampling.mLampCandidates, 4u);
 
             Rtx::ReconstructionRequest ringed = played;
-            ringed.mAntiFirefly = true;
+            ringed.mFilters.mAntiFirefly = true;
             EXPECT_EQ(options.versus(variables, played, "antifirefly=true"), ringed);
             EXPECT_EQ(options.versus(variables, played, "antifirefly"), ringed) << "the implicit value";
             Rtx::ReconstructionRequest every = played;
-            every.mLampCandidates = 0;
+            every.mSampling.mLampCandidates = 0;
             EXPECT_EQ(options.versus(variables, played, "lamp-candidates=0"), every);
             EXPECT_EQ(options.versus(variables, played, "antilag=false"), played) << "the same side again";
 
@@ -239,8 +239,8 @@ namespace RtxTool
 
             // An option written twice is worth one complaint.
             const bpo::parsed_options twice = parse(options, { "--out=a", "--out=b" });
-            EXPECT_EQ(options.complainAbout(twice, Verbs::Bench),
-                "`bench` does not read --out, which belongs to every command but `info`, `scene` and `bench`.\n");
+            EXPECT_EQ(options.complainAbout(twice, Verbs::Scene),
+                "`scene` does not read --out, which belongs to every command but `info` and `scene`.\n");
         }
 
         /// Every option says which commands read it, and the ones that say "all of them" say it.
@@ -383,6 +383,17 @@ namespace RtxTool
             EXPECT_EQ(row(Verbs::Film), (std::array{ false, false, true, true, false, false }));
             EXPECT_EQ(row(Verbs::Noise), (std::array{ true, false, false, false, false, false }))
                 << "a reference is many frames of one frame, and a route would make them many";
+
+            // Traced at the game's width where a player sees the frames — a window, a bench, a film —
+            // and at the reference's wherever a picture may be summed.
+            for (const Verbs verb : { Verbs::Info, Verbs::Scene, Verbs::Shot, Verbs::View, Verbs::Bench, Verbs::Check,
+                     Verbs::Film, Verbs::Noise })
+            {
+                const bool shown = verb == Verbs::View || verb == Verbs::Bench || verb == Verbs::Film;
+                EXPECT_EQ(
+                    policyOf(verb).radianceWidth(), shown ? Rtx::RadianceWidth::Shown : Rtx::RadianceWidth::Summed)
+                    << describeVerbs(verb);
+            }
         }
     }
 

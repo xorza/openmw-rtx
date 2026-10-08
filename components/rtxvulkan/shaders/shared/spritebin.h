@@ -16,8 +16,7 @@
 // dispatches make the list where it is read: one per sprite for its tiles and their counts, one
 // over the tiles for where each run starts, and one per tile that fills its run in order.
 //
-// **The list comes out in the shape `Rtx::RunList` makes**, because the trace reads that shape
-// and the light grid still arrives in it from the host: the first `tiles + 1` entries say where
+// **The list comes out in the shape the host's bin made**: the first `tiles + 1` entries say where
 // each tile's run starts, counted from the front, and the runs follow them. What the host promised
 // of it is kept — ascending sprite index within a run, which is the composite order — and it is
 // kept by construction rather than by a sort: a tile fills its own run by walking the sprites in
@@ -85,7 +84,7 @@ namespace Rtx::Shaders
         /// once for its tiles to be counted and once more never.
         uint64 mRects;
 
-        /// The list: `tiles + 1` starts, then the runs. `RunList::getWhole`'s shape.
+        /// The list: `tiles + 1` starts, then the runs, as `spritelist.glsl` reads it.
         uint64 mList;
 
         /// One `uint` the scan writes: how many entries this frame's runs came to, whether or not

@@ -17,6 +17,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -64,7 +65,7 @@ namespace Rtx
                 Device& device = getDevice();
                 const TexturePasses passes(device);
                 const SetLayout layout = TextureArray::describeLayout(device);
-                const GroundCompositePass pass(device, layout.get());
+                const GroundCompositePass pass(device, layout);
 
                 constexpr std::array<std::uint8_t, 4> red{ 255, 0, 0, 255 };
                 Testing::TestTexture ladder;
@@ -111,7 +112,7 @@ namespace Rtx
                 arrival.record(setup, passes);
                 TextureArray array(device, setup, layout, passes, 2);
                 std::vector<Refusal> refused;
-                array.write(setup, textures, refused);
+                array.write(setup, passes, textures, refused);
                 array.sync(FrameSlot{});
                 std::vector<Index> everyMesh;
                 const SceneBuffers buffers(

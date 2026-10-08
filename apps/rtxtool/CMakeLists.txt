@@ -25,12 +25,15 @@ set(RTXTOOL_FILES
     instruments/frametimes.hpp
     instruments/gpuclock.cpp
     instruments/gpuclock.hpp
+    instruments/jsontext.cpp
+    instruments/jsontext.hpp
     instruments/nvml.cpp
     instruments/nvml.hpp
     instruments/scenedigest.cpp
     instruments/scenedigest.hpp
     instruments/threadcounters.cpp
     instruments/threadcounters.hpp
+    instruments/wholenumber.hpp
     model/benchrecord.cpp
     model/benchrecord.hpp
     model/benchrun.cpp
@@ -52,7 +55,8 @@ set(RTXTOOL_FILES
     model/runrecord.hpp
     model/skycrossing.cpp
     model/skycrossing.hpp
-    model/wholenumber.hpp
+    noise.cpp
+    noise.hpp
     numbervalue.hpp
     options.cpp
     options.hpp
@@ -105,15 +109,25 @@ target_link_libraries(openmw-rtxtool-lib PUBLIC
     components
 )
 
-target_compile_definitions(openmw-rtxtool-lib PRIVATE OPENMW_RTX_HARNESS_DIR="${RTX_HARNESS_DIR}")
-
 # Named viewpoints and the suites that visit them, in the harness's folder (`RTX_HARNESS_DIR`).
-copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx" "${RTX_HARNESS_DIR}" "." "views.cfg;benches.cfg")
+set(RTX_VIEWS_FILE views.cfg)
+set(RTX_SUITES_FILE benches.cfg)
+copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx" "${RTX_HARNESS_DIR}" "." "${RTX_VIEWS_FILE};${RTX_SUITES_FILE}")
 
 # The keys a watched run answers to, as the harness's own data directory: `hosted.cpp` adds it
 # wherever there is a window, and the played game never does.
-copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx/vfs" "${RTX_HARNESS_DIR}" "vfs"
+set(RTX_KEYS_FOLDER vfs)
+copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx/vfs" "${RTX_HARNESS_DIR}" "${RTX_KEYS_FOLDER}"
                         "rtxtool.omwscripts;scripts/rtx/hour.lua;scripts/rtx/keys.lua;scripts/rtx/sky.lua")
+
+target_compile_definitions(openmw-rtxtool-lib PRIVATE
+    OPENMW_RTX_HARNESS_DIR="${RTX_HARNESS_DIR}"
+    OPENMW_RTX_VIEWS_FILE="${RTX_HARNESS_DIR}/${RTX_VIEWS_FILE}"
+    OPENMW_RTX_SUITES_FILE="${RTX_HARNESS_DIR}/${RTX_SUITES_FILE}"
+    OPENMW_RTX_KEYS_DIR="${RTX_HARNESS_DIR}/${RTX_KEYS_FOLDER}"
+    OPENMW_RTX_SPIRV_SOURCE_DIR="${RTX_SPIRV_SOURCE_DIR}"
+    OPENMW_RTX_SPIRV_CENSUS_DIR="${RTX_SPIRV_CENSUS_DIR}"
+    OPENMW_RTX_SPIRV_CENSUS_SOURCE_DIR="${RTX_SPIRV_CENSUS_SOURCE_DIR}")
 
 # The harness links the game, so a picture taken here is the picture played. Only the executable
 # links it: `openmw-rtxtool-lib` stays engine-free for `components-tests`, so the hosted files are

@@ -1,7 +1,6 @@
 #include "tracedview.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <span>
@@ -91,28 +90,30 @@ namespace MWRender
         mViews.forget(*this);
     }
 
-    bool TracedView::coversFromAbove(const osg::Vec2f& over) const
+    std::optional<TracedView::Footprint> TracedView::footprintFromAbove() const
     {
         const auto* box = std::get_if<SceneUtil::Orthographic>(&mTrace.getFraming().mProjection);
         if (!isOfWorld() || box == nullptr)
-            return false;
+            return std::nullopt;
 
         // Where the eye stands is the inverse view's translation; the box is centred on it.
         const osg::Vec3f eye = osg::Matrixd::inverse(mTrace.getView()).getTrans();
-        return std::abs(eye.x() - over.x()) <= box->mWidth * 0.5f
-            && std::abs(eye.y() - over.y()) <= box->mHeight * 0.5f;
+        const osg::Vec2f half(box->mWidth * 0.5f, box->mHeight * 0.5f);
+        const osg::Vec2f centre(eye.x(), eye.y());
+        return Footprint{ .mLow = centre - half, .mHigh = centre + half };
+    }
+
+    bool TracedView::coversFromAbove(const osg::Vec2f& over) const
+    {
+        const std::optional<Footprint> footprint = footprintFromAbove();
+        return footprint.has_value() && footprint->mLow.x() <= over.x() && over.x() <= footprint->mHigh.x()
+            && footprint->mLow.y() <= over.y() && over.y() <= footprint->mHigh.y();
     }
 
     bool TracedView::waitsForGround(const Rtx::CellRing& ring) const
     {
-        const auto* box = std::get_if<SceneUtil::Orthographic>(&mTrace.getFraming().mProjection);
-        if (!isOfWorld() || box == nullptr)
-            return false;
-
-        const osg::Vec3f eye = osg::Matrixd::inverse(mTrace.getView()).getTrans();
-        const osg::Vec2f half(box->mWidth * 0.5f, box->mHeight * 0.5f);
-        const osg::Vec2f centre(eye.x(), eye.y());
-        return ring.waitsUnder(centre - half, centre + half);
+        const std::optional<Footprint> footprint = footprintFromAbove();
+        return footprint.has_value() && ring.waitsUnder(footprint->mLow, footprint->mHigh);
     }
 
     MyGUI::ITexture& TracedView::getTexture() const

@@ -28,18 +28,21 @@
 //
 // **The accumulator's rules otherwise**: bilinear over the four texels the motion lands between,
 // each only if it is this surface by `heldSurfaceMatches`, against the accumulator's own surface
-// history; and `blendedMean` into a history of this pass's own.
+// history; `blendedMean` into a history of this pass's own; and beside it a fast mean of the same
+// samples over at most `ACCUMULATE_FAST_FRAMES`, which `historyclamp.comp` holds the slow one to.
 
 #include "shared/accumulate.h"
 #include "colour.h"
 #include "gbuffer.h"
 #include "look.h"
+#include "shared/historyclamp.h"
 #include "shared/sets.h"
 #include "shared/specular.h"
 
 #include "lib/census.glsl"
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
+#include "lib/sharedexponent.glsl"
 #include "lib/surfacematch.glsl"
 
 layout(local_size_x = SPECULAR_WORKGROUP, local_size_y = SPECULAR_WORKGROUP) in;
@@ -59,6 +62,11 @@ layout(set = SET_PASS, binding = SPECULAR_BIND_HELD_SURFACE, ACCUMULATE_SURFACE)
 /// and this frame's, whose `rgb` the composite adds.
 layout(set = SET_PASS, binding = SPECULAR_BIND_MEAN_BEFORE, SPECULAR_MEAN) uniform readonly image2D meanBefore;
 layout(set = SET_PASS, binding = SPECULAR_BIND_MEAN, SPECULAR_MEAN) uniform writeonly image2D mean;
+
+/// The fast mean (`HISTORY_CLAMP_FAST`): last frame's as the clamp left it, and this frame's blend,
+/// which the clamp reads at every pixel's neighbours.
+layout(set = SET_PASS, binding = SPECULAR_BIND_FAST_BEFORE, HISTORY_CLAMP_FAST) uniform readonly uimage2D fastBefore;
+layout(set = SET_PASS, binding = SPECULAR_BIND_FAST_BLENDED, HISTORY_CLAMP_FAST) uniform writeonly uimage2D fastBlended;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -119,6 +127,7 @@ void main()
     const bool previous = frame.mReset == 0u && frame.mEyes.mWorld.mOrthographic == 0u;
 
     RunningMean blended = startedMean(sampled.rgb);
+    vec3 blendedFast = sampled.rgb;
     // A branch, where the tree selects, as the pane filter's over the same gather: the sky and the
     // surfaces with no lobe skip the motion and the history's taps. Not measured here, where no
     // scene the suites hold wears a map and the pass does not run; the pane filter's measurement
@@ -133,9 +142,13 @@ void main()
         RTX_HISTORY_SHARES(shares, footprint, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight),
             heldSurface, imageLoad(meanBefore, historyAt).a > 0.0, plane)
         vec4 held = vec4(0.0);
+        vec3 heldFast = vec3(0.0);
         for (int i = 0; i < 4; ++i)
             if (shares[i] > 0.0)
+            {
                 held += imageLoad(meanBefore, historyTap(footprint, i)) * shares[i];
+                heldFast += unpackRgb9e5(imageLoad(fastBefore, historyTap(footprint, i)).x) * shares[i];
+            }
         const float weight = historyCovered(shares);
         if (weight > 0.0)
         {
@@ -148,10 +161,13 @@ void main()
             RunningMean history = runningMeanOf(held, weight);
             history.mFrames = min(history.mFrames, framesKept(sampled.a) - 1.0);
             blended = blendedMean(sampled.rgb, history, kept);
+            const float fastAlpha = max(1.0 - kept, 1.0 / min(history.mFrames + 1.0, ACCUMULATE_FAST_FRAMES));
+            blendedFast = mix(heldFast / weight, sampled.rgb, fastAlpha);
         }
     }
 
     // A lane with no lobe stores no frames, where `startedMean` counts one, so no later frame takes
-    // its texel for a history.
+    // its texel for a history; and its fast mean says it holds none, so no clamp takes it into a box.
     RTX_STORE_COUNTED(mean, at, reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0))
+    RTX_STORE_WORDS(fastBlended, at, uvec4(packRgb9e5(reflects ? blendedFast : vec3(0.0)), reflects ? 1u : 0u, 0u, 0u))
 }

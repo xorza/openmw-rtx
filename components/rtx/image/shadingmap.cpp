@@ -18,6 +18,7 @@
 #include "colourblock.hpp"
 #include "texels.hpp"
 #include "texturedata.hpp"
+#include "textureformat.hpp"
 #include "texturewrap.hpp"
 
 namespace Rtx

@@ -16,9 +16,9 @@ namespace crashpad
 namespace Crash::Client
 {
     /// What the installing thread needs that every thread started after the catcher gets by itself:
-    /// room to handle its own stack overflow. On Linux an alternate signal stack, which Crashpad's
-    /// `pthread_create` gives the later ones; on Windows a stack guarantee, which the thread-start
-    /// callback gives them.
+    /// room to handle its own stack overflow. A stack guarantee on Windows, which the thread-start
+    /// callback gives the later ones; nothing on POSIX, where Crashpad's install gives the installing
+    /// thread its alternate signal stack itself.
     void prepareInstallingThread();
 
     /// **Keeps the connection to the monitor to this process**, so the monitor ends with it and not

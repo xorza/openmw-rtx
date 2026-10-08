@@ -40,15 +40,6 @@ namespace Rtx
         /// asserts it.
         static Misc::Result<void, std::string> checkFits(const MeshArrays& arrays);
 
-        /// Copies the vertex data into the shared buffers and returns the new mesh's index. The
-        /// mesh fits a block — `checkFits`. A deforming mesh is stood on `deformer` in
-        /// `deformers`, which must hold it.
-        Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, Index deformer);
-
-        /// What a pose that changed does beside its rows: the reach, and the mesh named for the
-        /// frame, once.
-        void notePosed(Index mesh, const osg::BoundingBoxf& bounds);
-
         const BlockedValues<osg::Vec3f>& getPositions() const { return mPositions; }
         const BlockedValues<osg::Vec3f>& getNormals() const { return mNormals; }
         const BlockedValues<osg::Vec2f>& getTexCoords() const { return mTexCoords; }
@@ -63,6 +54,7 @@ namespace Rtx
         const RunAllocator& getIndexRuns() const { return mIndexRuns; }
 
         std::span<const osg::Vec3f> getMeshPositions(Index mesh) const;
+        // Read by the tests and by nothing else.
         std::span<const std::uint32_t> getMeshIndices(Index mesh) const;
 
         /// Which meshes changed shape since the last `clearDeformed`, each named once.
@@ -88,10 +80,20 @@ namespace Rtx
 
     private:
         /// What `SceneDesc::holdMesh` and `SceneDesc::drop` stand on, so every hold on a mesh is
-        /// taken and given back in one place.
+        /// taken and given back in one place, and every write that crosses into the deformers is
+        /// made through the scene.
         friend class SceneDesc;
 
-        void hold(Index mesh) { mRows.hold(mesh); }
+        /// Copies the vertex data into the shared buffers and returns the new mesh's index. The
+        /// mesh fits a block — `checkFits`. A deforming mesh is stood on `deformer` in
+        /// `deformers`, which must hold it.
+        Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, Index deformer);
+
+        /// What a pose that changed does beside its rows: the reach, and the mesh named for the
+        /// frame, once.
+        void notePosed(Index mesh, const osg::BoundingBoxf& bounds);
+
+        void hold(Index mesh) { holdRow(mesh); }
 
         /// Gives one hold on `mesh` back, and frees it where that was the last: its geometry goes
         /// back to the allocators and a deforming mesh's runs to `deformers`, which it stood on. The
@@ -139,8 +141,8 @@ namespace Rtx
         /// Which slots arrived and which were freed, since a backend last read them.
         SlotChanges mChanges;
 
-        /// How many times a mesh has appeared. `SceneDesc::getStructureRevision` says what it is
-        /// read for and why a texture arriving is counted apart from it.
+        /// How many times a mesh has appeared: what `StructureRevision::mMeshes` reads, a structure
+        /// to build for each, which a texture or a material's runs arriving are counted apart from.
         std::uint64_t mRevision = 0;
         std::uint32_t mTriangles = 0;
     };
