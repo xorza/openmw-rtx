@@ -215,13 +215,13 @@ namespace Rtx
               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame constants"))
         , mCounting(counting ? 1u : 0u)
         , mSpecialize(specialize)
-        , mChannelLayout(channelLayout.get())
-        , mVolumeLayout(volumeLayout.get())
+        , mChannelLayout(&channelLayout)
+        , mVolumeLayout(&volumeLayout)
     {
-        compileEvery(textureLayout.get());
+        compileEvery(textureLayout);
     }
 
-    void VisibilityPass::compileEvery(VkDescriptorSetLayout textureLayout)
+    void VisibilityPass::compileEvery(const SetLayout& textureLayout)
     {
         // Queued after the tuples, which take seconds apiece where these take tens of milliseconds:
         // a hand takes up whatever is next, and a tuple taken last is the whole batch waiting on
@@ -260,7 +260,7 @@ namespace Rtx
 
         const auto count = static_cast<std::uint32_t>(wanted.size());
         mCompiling.start("kernel compile", count,
-            [this, textureLayout, caller, wanted = std::move(wanted)](const Platform::StopToken& stop, Job& job) {
+            [this, &textureLayout, caller, wanted = std::move(wanted)](const Platform::StopToken& stop, Job& job) {
                 runInParallel(
                     "compile hand", wanted.size(), stop, [caller] { return AdoptedThread(caller); },
                     [&](const std::size_t at) {
@@ -274,7 +274,7 @@ namespace Rtx
             });
     }
 
-    void VisibilityPass::compile(const Wanted& wanted, const VkDescriptorSetLayout textureLayout)
+    void VisibilityPass::compile(const Wanted& wanted, const SetLayout& textureLayout)
     {
         const VisibilityVariant variant = wanted.mVariant;
 
@@ -390,9 +390,9 @@ namespace Rtx
         return *held;
     }
 
-    SharedSetLayouts VisibilityPass::sharedSets(VkDescriptorSetLayout textureLayout) const
+    SharedSetLayouts VisibilityPass::sharedSets(const SetLayout& textureLayout) const
     {
-        return SharedSetLayouts{ .mTextures = textureLayout, .mChannels = mChannelLayout, .mVolume = mVolumeLayout };
+        return SharedSetLayouts{ .mTextures = &textureLayout, .mChannels = mChannelLayout, .mVolume = mVolumeLayout };
     }
 
     void VisibilityPass::writeConstants(VkCommandBuffer commands, const Shaders::VisibilityConstants& described) const

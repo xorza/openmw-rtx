@@ -231,15 +231,15 @@ namespace Rtx
         /// the caller's thread, because the whole set takes ten seconds cold and the window has to
         /// go on answering meanwhile. In parallel, because the driver's cache is internally
         /// synchronised, and `PipelineCache` outlives the process.
-        void compileEvery(VkDescriptorSetLayout textureLayout);
+        void compileEvery(const SetLayout& textureLayout);
 
         /// Makes the one kernel `wanted` names, into its slot. On a hand of `compileEvery`'s, each
         /// writing a slot no other hand does.
-        void compile(const Wanted& wanted, VkDescriptorSetLayout textureLayout);
+        void compile(const Wanted& wanted, const SetLayout& textureLayout);
 
         /// The shared sets every kernel of the pass reads. A pipeline layout names every set it will
         /// ever be handed, and the kernels are handed the same.
-        SharedSetLayouts sharedSets(VkDescriptorSetLayout textureLayout) const;
+        SharedSetLayouts sharedSets(const SetLayout& textureLayout) const;
 
         /// Writes the frame's own block into `mConstants`, barriered against both the dispatch
         /// before it and the one after.
@@ -286,11 +286,11 @@ namespace Rtx
 
         /// The second of the two sets bound after the pushed one, which the renderer owns for its
         /// whole life. The first is the scene's and arrives with the frame — `mTextureLayout`.
-        VkDescriptorSetLayout mChannelLayout = VK_NULL_HANDLE;
+        const SetLayout* mChannelLayout = nullptr;
 
         /// The third of the sets nothing pushes, which the fog volume owns. Held for the reason
         /// `mChannelLayout` is.
-        VkDescriptorSetLayout mVolumeLayout = VK_NULL_HANDLE;
+        const SetLayout* mVolumeLayout = nullptr;
 
         /// Every kernel the pass launches, filled by `compileEvery`'s hands, each writing slots no
         /// other hand does.

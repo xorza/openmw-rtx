@@ -22,7 +22,7 @@ namespace Rtx
             : mTextureLayout(TextureArray::describeLayout(device))
             , mSkin(device)
             , mTextures(device)
-            , mGround(device, mTextureLayout.get())
+            , mGround(device, mTextureLayout)
         {
         }
 

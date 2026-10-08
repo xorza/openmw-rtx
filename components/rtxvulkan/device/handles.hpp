@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -88,9 +89,9 @@ namespace Rtx
     template <class Handle>
     struct SharedSets
     {
-        Handle mTextures = VK_NULL_HANDLE;
-        Handle mChannels = VK_NULL_HANDLE;
-        Handle mVolume = VK_NULL_HANDLE;
+        Handle mTextures{};
+        Handle mChannels{};
+        Handle mVolume{};
 
         /// Every set at its number, with null at `SET_PASS`, which is the pipeline's own.
         std::array<Handle, Shaders::SET_COUNT> byNumber() const
@@ -103,7 +104,14 @@ namespace Rtx
         }
     };
 
-    using SharedSetLayouts = SharedSets<VkDescriptorSetLayout>;
+    /// The bindings a pipeline's layout states, by set: each set's table, the census left out of
+    /// `SET_PASS`'s, and null for a set the layout does not name.
+    using SetTables = std::array<const BindingTable*, Shaders::SET_COUNT>;
+
+    /// The layouts themselves and not their handles, so a pipeline layout keeps each set's bindings
+    /// beside it and holds every module to them (`ShaderCode::stage`). Each outlives what is made
+    /// with it.
+    using SharedSetLayouts = SharedSets<const SetLayout*>;
     using SharedSetBinds = SharedSets<VkDescriptorSet>;
 
     /// A pass's own descriptor set layout and the pipeline layout that names it and the shared sets
@@ -137,11 +145,20 @@ namespace Rtx
         /// `SET_PASS`'s bindings as the pass declared them, the census's left out.
         const BindingTable& getBindings() const { return mOwn; }
 
+        /// Every set's bindings as its layout was made from them, `getBindings` at `SET_PASS`, and
+        /// null for a set the layout does not name. Valid while this lives.
+        SetTables getSetTables() const;
+
         /// The census the set binds at `BIND_CENSUS`, or null where the device does not count.
         const NotFiniteCensus* getCensus() const { return mCensus; }
 
     private:
         BindingTable mOwn;
+
+        /// The shared sets' bindings, copied, by number: nothing at `SET_PASS` and at a set the
+        /// layout does not name.
+        std::array<std::optional<BindingTable>, Shaders::SET_COUNT> mShared;
+
         const NotFiniteCensus* mCensus;
         SetLayout mSetLayout;
         Owned<VkPipelineLayout, vkDestroyPipelineLayout> mHandle;

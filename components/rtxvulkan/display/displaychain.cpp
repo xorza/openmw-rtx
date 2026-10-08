@@ -70,8 +70,7 @@ namespace Rtx
         }
     }
 
-    DisplayChain::DisplayChain(
-        const Device& device, const VisibilityPass& puffs, const VkDescriptorSetLayout textureLayout)
+    DisplayChain::DisplayChain(const Device& device, const VisibilityPass& puffs, const SetLayout& textureLayout)
         : mPuffs(puffs)
         , mBloom(device)
         , mExposure(device)

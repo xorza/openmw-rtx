@@ -52,18 +52,6 @@ What is left:
 
 ## Phase 3 — checks that keep C++, shaders and data in agreement
 
-- [ ] **3.2 Descriptor sets 1–3 are never checked against the modules.**
-  `pipeline/shadercode.cpp:54` checks only `SET_PASS`. `device/handles.hpp:84-110` keeps only the
-  layout handles of the shared sets. `sets.h` says a disagreement was caught "only in a validated
-  run". Set 3 mixes `sampler3D` and storage `image3D`. Target: `SharedSetLayouts` holds
-  `const SetLayout*` (all three are `SetLayout` objects with `getBindings()`). `PipelineLayout` keeps
-  one table per set, and `stage` checks every module binding against the table of its set. A null
-  table means "module reads set N, which the layout does not name". Reads item 3.1's interface,
-  and depends on it.
-  Verify: `./omw test components-tests --gtest_filter='*PassBinding*'`,
-  `./omw test rtx-gpu-tests --gtest_filter='RtxShaderCode*'`, `./omw kernels --against=before.txt`
-  (nothing moved).
-
 - [ ] **3.3 Specialization IDs and push block sizes are never checked against the modules.**
   `pipeline/pipeline.cpp:12-37,205`, `pipeline.hpp:33-42`. `Specialization` maps ID `i` to word `i`.
   A `constant_id` at or past `words.size()` takes its GLSL default in silence. A host push struct
