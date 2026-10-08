@@ -117,6 +117,7 @@ namespace Rtx
     {
         assert(mDevice.getTimeline().isIdle() && "command buffers given back under a submit still on the queue");
         assert(mDeferred.empty() && "command buffers given back under a batch not yet submitted");
+        assert(mOpen.empty() && "command buffers given back while a recording is open");
 
         releaseRetired(std::numeric_limits<std::uint64_t>::max());
     }

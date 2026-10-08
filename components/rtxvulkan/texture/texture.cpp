@@ -672,6 +672,9 @@ namespace Rtx
     VkDescriptorSet TextureArray::getSet(const FrameSlot slot) const
     {
         assert(slot.get() < sFrameSlots);
+        // A set with descriptors owed names what it no longer holds: after `setAnisotropy`, a
+        // sampler destroyed with the ones it replaced.
+        assert(mOwed.at(slot).empty() && "a texture set sampled before `sync` paid what it owes");
         mBound.at(slot).nameFor(mDevice.getTimeline().getNext());
         return mSets.get(slot.get());
     }

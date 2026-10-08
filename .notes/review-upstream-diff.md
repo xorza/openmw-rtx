@@ -50,23 +50,6 @@ What is left:
 - **Frame-path costs in the mirror.** Unloaded cells are deleted on the frame thread (phase 4).
 - **Simplifications and dead code** (phases 5 and 6).
 
-## Phase 3 — checks that keep C++, shaders and data in agreement
-
-- [ ] **3.13 Contracts stated in comments and not asserted.**
-  - `device/commands.cpp:116-122`: `CommandPool::collectIdle` does not assert `mOpen.empty()`, which
-    `Graveyard::collectIdle`'s comment relies on.
-  - `device/timeline.cpp:16`: `waitFor(value)` does not assert `value <= mSubmitted`, so a wrong call
-    waits 10 s and blames the device.
-  - `device/device.cpp:271-277`: a `vkDeviceWaitIdle` failure other than device loss skips
-    `markIdle()`, and `~Graveyard`'s assert then fires in a destructor. Call `markIdle` regardless,
-    with a comment.
-  - `texture/texture.cpp:672-677`: `TextureArray::getSet` does not assert that no descriptor is owed
-    for its slot. After `setAnisotropy`, a trace without a placement would sample a destroyed
-    sampler.
-
-  Verify: `./omw test rtx-gpu-tests --gtest_filter='RtxFrameRingTest.*:RtxBatchTest.*:RtxTextureArrayTest.*'`,
-  `./omw repeat --pairs=10`.
-
 ## Phase 4 — frame-path and load-path costs
 
 Measure each against the baseline bench (median, p99, worst frame), on a quiet desktop, in the
