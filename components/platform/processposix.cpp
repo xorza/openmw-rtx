@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "folder.hpp"
