@@ -85,6 +85,16 @@ namespace Rtx
         osg::Vec3f mShadowed;
     };
 
+    /// The deck and the star field a world with no sky has: nothing to draw, which the shader reads
+    /// off the texture slot before it samples anything. Built whole and then named rather than by
+    /// designated initializer, which GCC cannot tell from an aggregate left short.
+    Shaders::CloudDeck noDeck();
+    Shaders::StarField noStars();
+
+    /// A patch the sky skips: straight up, no size and no texture. Written out rather than left to
+    /// `{}`, because a value-initialised `Shaders::SkyPatch` names texture slot zero.
+    Shaders::SkyPatch noPatch();
+
     /// Lights a deck by what stands over it, however a sun, a sky and two moons were reached.
     ///
     /// @param skyMean what the sky over the deck delivers, as a radiance — `SkyBudget::mMean`.

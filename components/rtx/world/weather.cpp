@@ -1,4 +1,5 @@
 #include "weather.hpp"
+
 #include <components/crashcatcher/crash.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm/stringrefid.hpp>

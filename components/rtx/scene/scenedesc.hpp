@@ -273,9 +273,6 @@ namespace Rtx
             Handed,
         };
 
-        template <class Visit>
-        void forEachPlacement(Visit&& visit) const;
-
         /// What `getIdentity` answers. A type of its own, so the defaulted moves carry it and
         /// leave the source a fresh one.
         struct Identity

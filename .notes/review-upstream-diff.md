@@ -50,19 +50,6 @@ What is left:
 - **Frame-path costs in the mirror.** Unloaded cells are deleted on the frame thread (phase 4).
 - **Simplifications and dead code** (phases 5 and 6).
 
-## Phase 6 — dead code and stale comments
-
-- [ ] **6.3 Core nits.**
-  - `SceneDesc::forEachPlacement` (`scenedesc.hpp:269`) has one caller. Inline it.
-  - `mSeaHeading` is written in `frame/camera.cpp:63` and `world/frameworld.cpp:195`. Keep one.
-  - `noDeck`/`noStars`/`noPatch` belong in `skycontent.hpp`, not `frameworld.hpp`.
-  - The include blocks of `world/{atmosphere,fogbuilder,frameworld,skylight,weather}.cpp` lack the
-    blank line after the own header.
-  - `renderer/sceneuploader.hpp:16` forward-declares `Renderer` after it includes `renderer.hpp`.
-  - `environment/cloudmesh.cpp` has two adjacent anonymous namespaces.
-  - `platform/fifowin32.cpp` `write` throws where its comment says "Never reached". Make it a
-    `Crash::fatal`.
-
 ## Documents to update with the items
 
 - `docs/rtx/architecture.md`: the seam's attachment and the unref queue it carries (1.11, 4.1), the

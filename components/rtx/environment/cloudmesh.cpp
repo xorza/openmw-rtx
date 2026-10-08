@@ -189,10 +189,7 @@ namespace Rtx
 
             return area < 0.0 ? -rate : rate;
         }
-    }
 
-    namespace
-    {
         /// The three radii the engine's fade turns on, in the units the vertices were modelled in,
         /// reduced from the alpha it paints rather than from the ring count.
         osg::Vec3f fadeRadii(const std::vector<osg::Vec3f>& placed, const std::vector<float>& alphas)

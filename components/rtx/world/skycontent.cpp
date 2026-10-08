@@ -13,10 +13,35 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 
-#include "frameworld.hpp"
-
 namespace Rtx
 {
+    Shaders::CloudDeck noDeck()
+    {
+        Shaders::CloudDeck deck{};
+        deck.mTexture = Shaders::NO_TEXTURE;
+        deck.mNext = Shaders::NO_TEXTURE;
+        return deck;
+    }
+
+    Shaders::StarField noStars()
+    {
+        Shaders::StarField stars{};
+        stars.mTexture = Shaders::NO_TEXTURE;
+        return stars;
+    }
+
+    Shaders::SkyPatch noPatch()
+    {
+        Shaders::SkyPatch none{};
+        none.mDirection = osg::Vec3f(0.0f, 0.0f, 1.0f);
+        none.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
+        none.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
+        none.mLimb = 0.0f;
+        none.mTexture = Shaders::NO_TEXTURE;
+
+        return none;
+    }
+
     namespace
     {
         /// Where a storm drives, as the pair a rotation about the zenith is written with: for a unit
