@@ -1,26 +1,29 @@
-#include "crashinstall.hpp"
+#include "crashimagelinux.hpp"
 
+#include <array>
 #include <cerrno>
 #include <charconv>
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/prctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <components/files/conversion.hpp>
 #include <components/platform/folder.hpp>
+#include <components/platform/kernelfile.hpp>
 #include <components/platform/process.hpp>
+
+#include "crashinstall.hpp"
 
 // **An AppImage's mount outlives every process the image starts.** The type2 runtime serves the
 // image from a FUSE daemon that unmounts once no process holds the read end of its keepalive pipe,
@@ -72,7 +75,7 @@ namespace Crash
         /// needs no mount, and goes to the next subreaper when the keeper ends. A process whose
         /// program cannot be read counts as the image's, so the mount stays where the keeper
         /// cannot tell — and so does any listing or reading that fails, which nothing here may throw
-        /// out of.
+        /// out of. A process that ended since the listing is no longer the image's.
         bool imageRuns(pid_t keeper, const std::string& appDir)
         {
             const std::optional<std::vector<std::filesystem::directory_entry>> listed = Platform::listFolder("/proc");
@@ -86,17 +89,21 @@ namespace Crash
                 pid_t id = 0;
                 if (std::from_chars(name.data(), name.data() + name.size(), id).ptr != name.data() + name.size())
                     continue;
-                std::ifstream file(entry.path() / "stat");
-                const std::string stat((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-                // After the name, which may hold any character but ends at the last parenthesis: the
-                // state, then the parent.
-                const std::size_t named = stat.rfind(')');
-                if (named == std::string::npos || named + 4 >= stat.size())
-                    continue;
-                pid_t parent = 0;
-                if (std::from_chars(stat.data() + named + 4, stat.data() + stat.size(), parent).ec != std::errc{})
+
+                const int descriptor = open((entry.path() / "stat").c_str(), O_RDONLY | O_CLOEXEC);
+                if (descriptor == -1)
+                {
+                    if (errno == ENOENT || errno == ESRCH)
+                        continue;
                     return true;
-                processes.push_back(Parented{ .mId = id, .mParent = parent });
+                }
+                const ProcessStat stat = readProcessStat(descriptor);
+                close(descriptor);
+                if (stat.mOutcome == ProcessStat::Outcome::Gone)
+                    continue;
+                if (stat.mOutcome == ProcessStat::Outcome::Unknown)
+                    return true;
+                processes.push_back(Parented{ .mId = id, .mParent = stat.mParent });
             }
 
             std::vector<pid_t> descendants{ keeper };
@@ -174,6 +181,27 @@ namespace Crash
                 }
             }
         }
+    }
+
+    ProcessStat readProcessStat(const int descriptor) noexcept
+    {
+        // The kernel writes a few hundred bytes, so a text that fills the buffer is not one it wrote.
+        std::array<char, 4096> buffer;
+        const Platform::KernelFile::Read read = Platform::KernelFile::readOpened(descriptor, buffer);
+        if (read.mError != 0)
+            return ProcessStat{ .mOutcome
+                = read.mError == ESRCH ? ProcessStat::Outcome::Gone : ProcessStat::Outcome::Unknown };
+
+        // After the name, which may hold any character but ends at the last parenthesis: the state,
+        // then the parent.
+        const std::string_view stat = read.mText;
+        const std::size_t named = stat.rfind(')');
+        if (named == std::string_view::npos || named + 4 >= stat.size())
+            return ProcessStat{};
+        pid_t parent = 0;
+        if (std::from_chars(stat.data() + named + 4, stat.data() + stat.size(), parent).ec != std::errc{})
+            return ProcessStat{};
+        return ProcessStat{ .mOutcome = ProcessStat::Outcome::Parented, .mParent = parent };
     }
 
     std::string_view keepImageMounted()

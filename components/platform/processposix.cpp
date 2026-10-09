@@ -23,12 +23,13 @@
 // The system calls that are each system's own: a thread's id, the running file, and Linux's way to
 // keep the threads to the performance cores.
 #if defined(__linux__)
-#include <fstream>
-#include <iterator>
+#include <array>
 #include <set>
 
 #include <sched.h>
 #include <sys/syscall.h>
+
+#include "kernelfile.hpp"
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
 #include <pthread.h>
@@ -146,9 +147,12 @@ namespace Platform::Process
     std::optional<float> hugePageShare()
     {
 #if defined(__linux__)
-        std::ifstream file("/proc/self/smaps_rollup");
-        const std::string rollup{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
-        return LinuxText::hugePageShare(rollup);
+        // The rollup is some twenty short lines.
+        std::array<char, 4096> buffer;
+        const std::optional<std::string_view> rollup = KernelFile::read("/proc/self/smaps_rollup", buffer);
+        if (!rollup.has_value())
+            return std::nullopt;
+        return LinuxText::hugePageShare(*rollup);
 #else
         return std::nullopt;
 #endif
@@ -158,10 +162,13 @@ namespace Platform::Process
     {
 #if defined(__linux__)
         // The kernel lists each core type apart only on a hybrid part, which is the one case there is
-        // a choice to make.
-        std::ifstream file("/sys/devices/cpu_core/cpus");
-        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
-        const std::optional<std::vector<std::uint32_t>> cpus = LinuxText::parseCpuList(text);
+        // a choice to make. Sysfs writes less than a page, and 64 KiB is the largest page x86-64 and
+        // arm64 have.
+        std::array<char, 65536> buffer;
+        const std::optional<std::string_view> text = KernelFile::read("/sys/devices/cpu_core/cpus", buffer);
+        if (!text.has_value())
+            return 0;
+        const std::optional<std::vector<std::uint32_t>> cpus = LinuxText::parseCpuList(*text);
         if (!cpus.has_value())
             return 0;
 

@@ -110,6 +110,7 @@ namespace Platform::Process
     /// randomization they spread as far, and with one `malloc` arena further.
     void restartOnHugePages(char** argv);
 
-    /// `Platform::LinuxText::hugePageShare` of this process, now. Nothing on a system that is not Linux.
+    /// `Platform::LinuxText::hugePageShare` of this process, now. Nothing on a system that is not Linux,
+    /// or where the rollup cannot be read.
     std::optional<float> hugePageShare();
 }

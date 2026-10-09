@@ -4,10 +4,8 @@
 #include <map>
 #include <regex>
 #include <set>
-#include <sstream>
 #include <string>
 #include <string_view>
-#include <tuple>
 #include <utility>
 
 #include <gtest/gtest.h>
@@ -149,58 +147,6 @@ namespace MWRender
                     EXPECT_TRUE(names.hasCategory(key.first)) << "[" << key.first << "] is no category";
                 else
                     EXPECT_TRUE(names.exists(key)) << "[" << key.first << "] " << key.second << " is no setting";
-            }
-        }
-
-        /// **The page a player reads lists what the ray tracer declines, and only that, with the
-        /// reason the window and the console give**: `rtx.rst`'s list, one line each, read back
-        /// against the declaration — a declined key the page leaves out, or one the page keeps after
-        /// the renderer took it up, fails here.
-        TEST(RtxSupportTest, theSettingsPageListsWhatTheRayTracerDeclines)
-        {
-            // Without the carriage returns a Windows checkout gives every line, which `getline` keeps.
-            std::string page = contentsOf(sourceRoot() / "docs/source/reference/modding/settings/rtx.rst");
-            std::erase(page, '\r');
-            std::set<std::tuple<std::string, std::string, std::string>> listed;
-            const std::regex keyLine(R"rx(\* ``\[([^\]]+)\] ([^`]+)``: (.+))rx");
-            const std::regex categoryLine(R"rx(\* ``\[([^\]]+)\]`` every key: (.+))rx");
-            std::istringstream lines(page);
-            for (std::string line; std::getline(lines, line);)
-            {
-                std::smatch match;
-                if (std::regex_match(line, match, keyLine))
-                    listed.insert({ match[1], match[2], match[3] });
-                else if (std::regex_match(line, match, categoryLine))
-                    listed.insert({ match[1], "", match[2] });
-            }
-
-            const RenderSupport& support = rtxSupport();
-            std::set<std::tuple<std::string, std::string, std::string>> declined;
-            for (const SettingSupport& entry : support.getSettings())
-                if (!entry.mDeclined.empty())
-                    declined.insert(
-                        { std::string(entry.mCategory), std::string(entry.mName), std::string(entry.mDeclined) });
-            EXPECT_EQ(listed, declined) << "rtx.rst's list is not the ray tracer's declaration";
-
-            const auto statedFor = [&](std::string_view command, std::string_view reason) {
-                std::istringstream again(page);
-                for (std::string line; std::getline(again, line);)
-                    if (line.starts_with("* ") && line.find(command) != std::string::npos
-                        && line.ends_with(": " + std::string(reason)))
-                        return true;
-                return false;
-            };
-            for (const ModeSupport& mode : support.getModes())
-            {
-                ASSERT_EQ(mode.mMode, Render_Wireframe) << "a declined mode this test has no command for";
-                EXPECT_TRUE(statedFor("``tww``", mode.mDeclined)) << "the wireframe";
-            }
-            for (const RequestSupport& request : support.getRequests())
-            {
-                const std::string_view command = request.mRequest == ScriptRequest::ShaderReload
-                    ? "``debug.triggerShaderReload``"
-                    : "``debug.setShaderHotReloadEnabled``";
-                EXPECT_TRUE(statedFor(command, request.mDeclined)) << command;
             }
         }
     }

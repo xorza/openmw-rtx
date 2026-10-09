@@ -10,3 +10,8 @@ if (OPENMW_CRASHPAD)
     openmw_add_executable(crash-tests crashcatcher/crashtests.cpp crashcatcher/crashtestssystem.hpp ${CRASH_TESTS_SYSTEM})
     target_link_libraries(crash-tests components)
 endif()
+
+# The AppImage keeper's reads, where the components build one.
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND OPENMW_CRASHPAD)
+    target_sources(components-tests PRIVATE crashcatcher/crashimagelinux.cpp)
+endif()

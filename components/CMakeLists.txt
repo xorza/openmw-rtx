@@ -609,6 +609,12 @@ else ()
         )
 endif()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_component_dir(platform
+        kernelfile
+        )
+endif()
+
 add_component_dir(testing
     expecterror
     util
