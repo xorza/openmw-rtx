@@ -1,0 +1,55 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// Each lane's shadow moments through a run of frames, `updatedShadowMoments` and then the count's
+// damping each frame, kept as they are or packed and read back as the temporal pass keeps them, for
+// `RtxShadowWordTest` to hold against what it computes.
+
+#include "shared/sets.h"
+#include "shared/shadowmoments.h"
+
+#include "lib/hash.glsl"
+#include "lib/shadowword.glsl"
+
+layout(local_size_x = SHADOW_MOMENTS_PROBE_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = SHADOW_MOMENTS_PROBE_BIND_BITS, scalar) readonly buffer Bits
+{
+    uint bits[];
+};
+
+layout(set = SET_PASS, binding = SHADOW_MOMENTS_PROBE_BIND_DAMPING, scalar) readonly buffer Damping
+{
+    float damping[];
+};
+
+layout(set = SET_PASS, binding = SHADOW_MOMENTS_PROBE_BIND_MOMENTS, scalar) writeonly buffer Moments
+{
+    vec4 moments[];
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    ShadowMomentsProbeConstants probe;
+};
+
+void main()
+{
+    const uint lane = gl_GlobalInvocationID.x;
+    if (lane >= probe.mLanes)
+        return;
+
+    uint draws = seededKey(pixelKey(uvec2(lane, 0u)) + SEED_SKY_SHADOW_ROUNDING, 0u);
+    vec3 kept = vec3(0.0);
+    float variance = 0.0;
+    for (uint frame = 0u; frame < probe.mFrames; ++frame)
+    {
+        const ShadowMoments updated = updatedShadowMoments(kept, float(bits[frame * probe.mLanes + lane]));
+        variance = updated.mVariance;
+        kept = updated.mMoments * vec3(1.0, 1.0, damping[frame]);
+        if (probe.mPacked != 0u)
+            kept = unpackShadowMoments(packShadowMoments(kept, draws));
+    }
+    moments[lane] = vec4(kept, variance);
+}

@@ -26,7 +26,10 @@
 // penumbra 0.68% dark after 256 frames (`RtxPenumbraDenoiseTest`). The second level writes the
 // scratch again once the first has read it, and only the third reads that, so it rounds to the
 // nearest. The SDK keeps its moments — a mean, a running sum of squared deviations and a count — in
-// `R11G11B10_FLOAT`; they stay full floats here, since the count is uncapped.
+// `R11G11B10_FLOAT`, whose count stops climbing near 128 where its six bits of mantissa no longer
+// take a step of one; here the mean is a unorm, the sum and the count halves, all rounded at random
+// since the next frame's update reads them back, and the count stops at `SHADOW_MOMENT_FRAMES` by
+// rule (`updatedShadowMoments`).
 //
 // **The rays' bits, packed**: two words an 8×4 tile of pixels, bit `(y % 4) * 8 + x % 8` of each
 // for that pixel — the SDK's layout. The first is one where the pixel receives and its rays got
@@ -55,7 +58,7 @@
 #define SHADOW_MASK STORAGE_RG32UI
 #define SHADOW_REPROJECTED STORAGE_R32UI
 #define SHADOW_VISIBILITY STORAGE_R32UI
-#define SHADOW_MOMENTS STORAGE_RGBA32F
+#define SHADOW_MOMENTS STORAGE_RG32UI
 #define SHADOW_TILES STORAGE_RG16F
 #define SHADOW_PENUMBRA_TILES STORAGE_R16F
 
@@ -118,6 +121,11 @@ namespace Rtx::Shaders
     /// level after it: below every variance there is, so the levels know such a pixel from its own
     /// value and read nothing else to ask.
     const float SHADOW_NO_RECEIVER = -1.0f;
+
+    /// The frames a field's moments count to at the most, the mean and the sum over them running
+    /// means past it (`updatedShadowMoments`): the SDK's, whose count stops near there in its
+    /// format's precision.
+    const float SHADOW_MOMENT_FRAMES = 128.0f;
 
     /// What the mask pass reads that is not an image: the frame's extent, past which a bit is nought.
     struct ShadowMaskConstants

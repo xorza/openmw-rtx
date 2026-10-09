@@ -119,7 +119,7 @@ namespace Rtx
             { DenoiseImage::FastBlended, "accumulate-fast-blended", ACCUMULATE_FAST, Role::InLoop, false, Grid::Pixels,
                 sStorage, Temporal::Accumulate },
             { DenoiseImage::SkyShadowMoments, "sky-shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
-                sStorage, Temporal::SkyShadow },
+                sStorage, Temporal::SkyShadow, Store::RoundedAtRandom },
             { DenoiseImage::SkyShadowHistory, "sky-shadow-history", SHADOW_REPROJECTED, Role::FedBack, false,
                 Grid::Pixels, sStorage, Temporal::SkyShadow, Store::RoundedAtRandom },
             // And the second filter level's target, rounded to the nearest, after the first level has
@@ -135,7 +135,7 @@ namespace Rtx
             { DenoiseImage::SkyShadowMask, "sky-shadow-mask", SHADOW_MASK, Role::Scratch, false, Grid::ShadowMask,
                 sStorage, Temporal::SkyShadow },
             { DenoiseImage::LampShadowMoments, "lamp-shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
-                sStorage, Temporal::LampShadow },
+                sStorage, Temporal::LampShadow, Store::RoundedAtRandom },
             { DenoiseImage::LampShadowHistory, "lamp-shadow-history", SHADOW_REPROJECTED, Role::FedBack, false,
                 Grid::Pixels, sStorage, Temporal::LampShadow, Store::RoundedAtRandom },
             // And the second filter level's target, rounded to the nearest, after the first level has
