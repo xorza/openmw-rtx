@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <format>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -152,6 +153,30 @@ namespace DetourNavigator
             if (const int ec = sqlite3_exec(&db, query.c_str(), nullptr, nullptr, nullptr); ec != SQLITE_OK)
                 throw std::runtime_error("Failed set max page count: " + std::string(sqlite3_errmsg(&db)));
         }
+
+        // A cache's durability and not a record's: a tile a crash loses is generated again. Each tile the game
+        // writes is a commit of its own, and the default rollback journal at full synchronisation made each one a
+        // journal created and deleted and several fsyncs: a fast flight wrote 3.3 MB of tiles as 945 MB on a btrfs
+        // drive. In WAL at normal synchronisation a commit appends to the log and syncs nothing; a checkpoint syncs.
+        //
+        // The journal mode is said and not required: switching a file to WAL takes a moment's exclusive lock, which
+        // another process holding the cache refuses, and a file system without shared memory keeps the mode it had.
+        // Either leaves a cache that works as it did, so the switch warns rather than costing the cache.
+        void setCacheDurability(sqlite3& db)
+        {
+            std::string mode;
+            const auto readMode = [](void* into, int, char** values, char**) {
+                *static_cast<std::string*>(into) = values[0] != nullptr ? values[0] : "";
+                return 0;
+            };
+            if (const int ec = sqlite3_exec(&db, "pragma journal_mode = WAL;", readMode, &mode, nullptr);
+                ec != SQLITE_OK || (mode != "wal" && mode != "memory"))
+                Log(Debug::Warning) << "Navigation mesh disk cache keeps its journal mode \"" << mode
+                                    << "\" and writes every tile with several syncs: " << sqlite3_errmsg(&db);
+            if (const int ec = sqlite3_exec(&db, "pragma synchronous = NORMAL;", nullptr, nullptr, nullptr);
+                ec != SQLITE_OK)
+                throw std::runtime_error("Failed set synchronous: " + std::string(sqlite3_errmsg(&db)));
+        }
     }
 
     std::ostream& operator<<(std::ostream& stream, ShapeType value)
@@ -185,6 +210,7 @@ namespace DetourNavigator
         if (dbPageSize == 0)
             throw std::runtime_error("NavMeshDb page size is zero");
         setMaxPageCount(*mDb, maxFileSize / dbPageSize + static_cast<std::uint64_t>((maxFileSize % dbPageSize) != 0));
+        setCacheDurability(*mDb);
     }
 
     Sqlite3::Transaction NavMeshDb::startTransaction(Sqlite3::TransactionMode mode)
