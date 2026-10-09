@@ -4,6 +4,7 @@
 
 #include <components/sky/moonstate.hpp>
 #include <components/sky/timeofday.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "skyutil.hpp"
 
@@ -17,8 +18,32 @@ namespace MWRender
     /// What the game itself decides — the toggles, the water, the sun light — is `WorldState`'s.
     struct SkyState
     {
-        /// The weather the world settled on, whole: `WeatherManager::mResult` is this record.
+        /// The weather the world settled on, whole, as `WeatherManager::calculateWeatherResult`
+        /// returned it, its names standing on `mNames` (`keepNames`).
         WeatherResult mWeather;
+
+        /// The four names `mWeather`'s views stand on: copies of the weather records' own, made
+        /// where a name changed. **Owned and not the records'**, because the renderers read this
+        /// while the Lua worker runs, and a global script that sets a record's path frees the string
+        /// a view of it stood on.
+        struct Names
+        {
+            VFS::Path::Normalized mCloudTexture;
+            VFS::Path::Normalized mNextCloudTexture;
+            VFS::Path::Normalized mParticleEffect;
+            VFS::Path::Normalized mRainEffect;
+        };
+        Names mNames;
+
+        /// Stands each of `mWeather`'s names on its copy in `mNames`, copied only where the name
+        /// changed: a weather's names change when the weather does, and not on a frame.
+        void keepNames()
+        {
+            keepName(mWeather.mCloudTexture, mNames.mCloudTexture);
+            keepName(mWeather.mNextCloudTexture, mNames.mNextCloudTexture);
+            keepName(mWeather.mParticleEffect, mNames.mParticleEffect);
+            keepName(mWeather.mRainEffect, mNames.mRainEffect);
+        }
 
         /// The hours the day is divided into, which the sun's disc and the stars ramp by.
         Sky::TimeOfDaySettings mTimes;
@@ -48,5 +73,13 @@ namespace MWRender
         /// storm, and due north otherwise. Not the deck's direction, which is the weather's own.
         /// Read only under a storm, which the same update that writes this declares.
         osg::Vec3f mStormParticleDirection;
+
+    private:
+        static void keepName(VFS::Path::NormalizedView& view, VFS::Path::Normalized& owned)
+        {
+            if (owned != view)
+                owned = VFS::Path::Normalized(view);
+            view = owned;
+        }
     };
 }

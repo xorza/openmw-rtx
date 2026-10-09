@@ -41,6 +41,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/rtxsettings.cpp
     mwrender/rtxsupport.cpp
     mwrender/searules.cpp
+    mwrender/skystate.cpp
     mwrender/pendingpaints.cpp
     mwrender/tracedgroundcover.cpp
     mwrender/tracedterrain.cpp

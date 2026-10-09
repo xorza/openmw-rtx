@@ -31,6 +31,7 @@
 #include <components/sky/moonstate.hpp>
 #include <components/sky/skyclock.hpp>
 #include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace MWRender
 {
@@ -95,9 +96,9 @@ namespace MWRender
     void SkyReader::follow(
         const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ThreadContent& thread)
     {
-        for (const std::string* name : { &sky.mWeather.mCloudTexture, &sky.mWeather.mNextCloudTexture })
-            if (!name->empty() && mSkyContent.sheetNamed(*name) == Rtx::sNoSheet)
-                Rtx::addCloudSheet(scene, scenes, thread, mHolds, *name, mSkyContent);
+        for (const VFS::Path::NormalizedView name : { sky.mWeather.mCloudTexture, sky.mWeather.mNextCloudTexture })
+            if (!name.empty() && mSkyContent.sheetNamed(name.value()) == Rtx::sNoSheet)
+                Rtx::addCloudSheet(scene, scenes, thread, mHolds, name.value(), mSkyContent);
     }
 
     void SkyReader::detach(Rtx::SceneDesc& scene)
@@ -209,8 +210,8 @@ namespace MWRender
                 // The sheets the weather names, as the rasterizer is handed them. The one ahead
                 // only while a weather is arriving: outside a transition the engine leaves the last
                 // one's name standing at a blend of nothing.
-                .mSheet = mSkyContent.sheetNamed(weather.mCloudTexture),
-                .mNext = world.mNextWeatherId.has_value() ? mSkyContent.sheetNamed(weather.mNextCloudTexture)
+                .mSheet = mSkyContent.sheetNamed(weather.mCloudTexture.value()),
+                .mNext = world.mNextWeatherId.has_value() ? mSkyContent.sheetNamed(weather.mNextCloudTexture.value())
                                                           : Rtx::sNoSheet,
                 .mBlend = cloudBlend,
                 // Reported rather than derived, because an ash or blight storm blows off Red

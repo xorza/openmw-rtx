@@ -114,8 +114,8 @@ namespace MWRender
         osg::Vec3f mNextStormDirection;
 
         // remember some settings so we don't have to apply them again if they didn't change
-        std::string mClouds;
-        std::string mNextClouds;
+        VFS::Path::Normalized mClouds;
+        VFS::Path::Normalized mNextClouds;
         float mCloudBlendFactor;
         float mCloudSpeed;
         float mStarsOpacity;
@@ -222,7 +222,7 @@ namespace MWRender
 
         VFS::Path::Normalized mCurrentParticleEffect;
 
-        std::string mRainEffect;
+        VFS::Path::Normalized mRainEffect;
         float mRainSpeed;
         float mRainDiameter;
         float mRainMinHeight;
