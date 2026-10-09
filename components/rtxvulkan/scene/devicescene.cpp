@@ -48,6 +48,11 @@ namespace Rtx
         // positions, and a skinned body's bind pose is not where the body is; the pass writes the
         // pose into that copy and the build then reads it. The other copy is owed the same pose and
         // takes it on the first placement that writes it.
+        //
+        // **Every body owed, and not the walk's deformed ones alone**: the walk names a pose only
+        // where it changed, so a scene built again while its bodies stand still — the world a change
+        // of mode let go — named none, and every body stood in its bind pose in both copies.
+        mAcceleration.getPoses().write(mEveryMesh);
         mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{}));
         mAcceleration.build(batch, scene, mEveryMesh, mRecords, mPasses.mTopLevelPack, mRefusals);
         mTextures.write(batch, mPasses.mTextures, textures, mRefusals);
