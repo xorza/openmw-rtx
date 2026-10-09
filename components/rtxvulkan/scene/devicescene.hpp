@@ -21,6 +21,7 @@
 
 #include "sceneacceleration.hpp"
 #include "scenebuffers.hpp"
+#include "sceneroom.hpp"
 #include "skinpass.hpp"
 #include "skintables.hpp"
 
@@ -58,11 +59,8 @@ namespace Rtx
         ///        in the placement after it arrives.
         /// @param anisotropy `RenderProfile::mAnisotropy`, which the textures are read along a
         ///        footprint by.
-        /// @param placementRoom how many placement slots the top level and its rows are made with
-        ///        room for before either grows: past it, each grows to twice what it holds, on the
-        ///        frame that needs it, so a scene that grows as it is played says where it will reach.
         DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
-            std::span<const TextureData> textures, std::uint32_t anisotropy, std::uint32_t placementRoom);
+            std::span<const TextureData> textures, std::uint32_t anisotropy, const SceneRoom& room);
 
         /// `TextureArray::setAnisotropy`.
         void setAnisotropy(std::uint32_t anisotropy) { mTextures.setAnisotropy(anisotropy); }

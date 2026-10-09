@@ -18,6 +18,7 @@
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
 
+#include "sceneroom.hpp"
 #include "spritesource.hpp"
 
 namespace Rtx
@@ -34,11 +35,10 @@ namespace Rtx
     public:
         /// @param everyMesh every mesh slot the scene holds, `DeviceScene::mEveryMesh`.
         /// @param slots how many frames may be tracing this scene at once.
-        /// @param placementRoom the instance rows every copy is made with room for, as the top
-        ///        level's rows are (`SceneAcceleration`), so the frame a crossing pushes the
-        ///        placements past what a copy holds does not make the copy again and rewrite it whole.
+        /// @param room the instance, mesh and material rows every copy is made with room for, the
+        ///        instance rows as the top level's are (`SceneAcceleration`).
         SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-            std::span<const InstanceRecord> records, std::uint32_t slots, std::uint32_t placementRoom);
+            std::span<const InstanceRecord> records, std::uint32_t slots, const SceneRoom& room);
 
         /// Takes in the attributes of the meshes the scene says arrived, and the layer and mask
         /// runs that arrived with them. The blocks are appended to rather than replaced, and a

@@ -126,7 +126,7 @@ namespace Rtx
 
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
         std::span<const Index> everyMesh, std::span<const InstanceRecord> records, const std::uint32_t slots,
-        const std::uint32_t placementRoom)
+        const SceneRoom& room)
         : mLayers(device, BufferKind::DeviceLocal, sTableFilledUsage, "layers")
         , mMasks(device, BufferKind::DeviceLocal, sTableFilledUsage, "masks")
         , mTables([&](FrameSlot) { return Tables(device); })
@@ -136,9 +136,11 @@ namespace Rtx
         mSecondTexCoords.open(device, sTableUsage, "second uvs");
         mColours.open(device, sTableUsage, "vertex colours");
         mInstanceTable.open(device, slots, sTableUsage, "instance rows");
-        mInstanceTable.reserve(placementRoom);
+        mInstanceTable.reserve(room.mPlacements);
         mMeshTable.open(device, slots, sTableUsage, "meshes");
+        mMeshTable.reserve(room.mMeshes);
         mMaterialTable.open(device, slots, sTableUsage, "materials");
+        mMaterialTable.reserve(room.mMaterials);
         mNormalTable.open(device, slots, sTableUsage, "normals");
         mTangentTable.open(device, slots, sTableUsage, "tangents");
 
