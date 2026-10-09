@@ -67,8 +67,9 @@ namespace Rtx::Shaders
         /// place, so positions rebuilt through either still differ by a vector that drops it.
         Eyes mEyes;
 
-        /// The spacing of this level's taps, in pixels. The three sigmas the taps are weighed by
-        /// are `look.h`'s, because nothing varies them per level or per frame.
+        /// The spacing of a narrow level's taps, in pixels; the first level steps one, which its tile
+        /// in shared memory holds, whatever this says. The three sigmas the taps are weighed by are
+        /// `look.h`'s, because nothing varies them per level or per frame.
         uint mStep;
 
         /// The longest history this level rebuilds from the surface around it rather than filters

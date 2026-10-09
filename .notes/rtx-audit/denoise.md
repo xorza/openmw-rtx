@@ -19,12 +19,9 @@ median from `measured.json` or an estimate, and an estimate says it is one.
    the glossy and pane means are kept so already (`roundedToHalf`). The shadow fields' 2 × 48 drop to
    52, and the held surfaces move to the G-buffer (§3–§5). The total goes from **256 to about 190
    B/px** with the G-buffer's +16.
-2. **Time.** The filter zone (0.59–0.74 ms) is the largest. The code says it is ALU- and TEX-bound
-   rather than DRAM-bound. The lever there is NRD's own `RELAX_AtrousSmem` shape: a first level that
-   decodes each texel's normal and position **once into shared memory**, where today each is decoded
-   twenty-five times over. Add the packed bounce+fill texel, which halves the level's fetch count.
-   The earlier "LDS did not pay" note was about the *strided* levels with Dolp's permutation, which
-   is a different experiment.
+2. **Time.** The filter zone is the largest. Its first level reads its taps from a tile in shared
+   memory (NRD's `RELAX_AtrousSmem` shape); what is left there is the packed bounce+fill texel, which
+   halves a tap's fetches.
 
 Measured denoiser share (zone medians, `measured.json`; filter + shadow + accumulate + clamp +
 composite + pane):
@@ -161,7 +158,7 @@ blend. What is left:
   tap fetches one texel where it fetches two today, and on TEX the first level goes from 93 to 68
   fetches a pixel and the narrow levels from 27 to 18, at the same memory. It costs an unpack at
   every tap and a second read path in the composite beside the unfiltered channels. Only if a
-  profile says the fetches limit the levels; measured, the first level is 0.22–0.36 ms and each
+  profile says the fetches limit the levels; measured, the first level is 0.22–0.30 ms and each
   narrow one 0.08–0.13.
 
 ## 4. The shadow denoiser (2 × 48 → 2 × 26 B/px)
@@ -222,21 +219,6 @@ check its register count.
     [RDNA performance guide](https://gpuopen.com/learn/rdna-performance-guide/).
   - Mind `docs/rtx/architecture.md`'s note that the card's ulp nondeterminism follows a pipeline
     drain. More overlap changes when drains happen.
-- **The first wavelet level in shared memory** (NRD `RELAX_AtrousSmem.cs.hlsl`, which keeps
-  `s_Normal_Roughness`, `s_WorldPos_MaterialID` and the signal in `groupshared` for the first
-  à-trous pass).
-  - Load a 12×12 tile once: the decoded normal, the position (fp32, relative to the tile), and the
-    packed bounce+fill.
-  - That turns 25 `rayAt` + octahedral decodes and 93 fetches per pixel into about 2.25 decodes and
-    about 7 fetches, at roughly 40 B of LDS per tap.
-  - Rough order: L0 from ~0.3 ms toward ~0.15–0.2 ms. That is an estimate from TEX rate
-    (76 SMs × 4 texels/clk) and LDS rate (128 B/clk/SM).
-  - `atrouspass.cpp`'s note records that a tile with Dolp's permutation did not pay. That was the
-    strided levels, where nothing is reused: at step 8, a group's 576 taps land on 576 distinct
-    texels. L0 at step 1 reuses each texel about 25 times.
-  - An experiment. Prove with `kernels` (bit-exact is reachable if positions are rebuilt by the
-    same `rayAt`), `shot --against`, `bench`, and `nsys` on the filter zone. Time each level
-    separately first; the zone does not split them today.
 - **The strided levels**: there is no reuse to tile. At 1707×960 the narrow working set (13 + 13 +
   13 MB) sits in L2. At 2560×1440 native it is about 88 MB and no longer fits, and NVIDIA's
   [thread-group ID swizzling](https://developer.nvidia.com/blog/optimizing-compute-shaders-for-l2-locality-using-thread-group-id-swizzling/)
@@ -259,14 +241,13 @@ check its register count.
 |---|---|---|---|---|---|
 | 1 | Shadow history and scratch packed (unorm16 + half) | `shadow.h:49`, `shadowtiles.comp`, `shadowfilter.comp` | −16 B/px | ≤ 3e-4 | experiment-light |
 | 2 | Bounce and fill in one texel ("B2") | `accumulate.h`, `atrous.h`, the 4 shaders, `composite.comp` | first level 93 → 68 fetches a pixel; no memory | ~0.1% SR noise, no bias | experiment, measure first |
-| 3 | L0 in shared memory (`RELAX_AtrousSmem`) | `atrous.comp` | est. −0.1 to −0.15 ms | bit-exact reachable | experiment |
-| 4 | Held surfaces → G-buffer pairs | `GBuffer`, `surfacematch.glsl`, `accumulate.comp:216,314`, `pane.comp:113` | −16 B/px net, −16 B/px writes; removes `mDistanceScale` | fp32 distances | experiment |
-| 5 | Shadow moments in the EMA form, capped | `shadowtiles.comp:265-290` | −32 B/px | behaviour change | experiment |
-| 6 | Barrier interleave across the shadow fields and filters | `shadowpass.cpp`, `denoisepasses.cpp` | est. 0.01–0.03 ms | none | experiment |
-| 7 | Composite fused into L3 | `atrous.comp`, `compositepass.cpp` | −16 B/px, one dispatch | none | experiment |
-| 8 | True aliasing of the narrow images onto the dead scratch | `denoisehistory.cpp` (a lifetime column) | −16 B/px | none | last |
+| 3 | Held surfaces → G-buffer pairs | `GBuffer`, `surfacematch.glsl`, `accumulate.comp:216,314`, `pane.comp:113` | −16 B/px net, −16 B/px writes; removes `mDistanceScale` | fp32 distances | experiment |
+| 4 | Shadow moments in the EMA form, capped | `shadowtiles.comp:265-290` | −32 B/px | behaviour change | experiment |
+| 5 | Barrier interleave across the shadow fields and filters | `shadowpass.cpp`, `denoisepasses.cpp` | est. 0.01–0.03 ms | none | experiment |
+| 6 | Composite fused into L3 | `atrous.comp`, `compositepass.cpp` | −16 B/px, one dispatch | none | experiment |
+| 7 | True aliasing of the narrow images onto the dead scratch | `denoisehistory.cpp` (a lifetime column) | −16 B/px | none | last |
 
-Combined memory with #1, #4 and #5: **256 → ~190 B/px** including the G-buffer's +16.
+Combined memory with #1, #3 and #4: **256 → ~190 B/px** including the G-buffer's +16.
 Every one of these needs `./omw test` and finally `./omw gate`. Every change that moves a picture needs the `noise` suite as
 the verdict, after a narrowed A/B (`--views=… --strafe=0 --walk=0 --still`).
 

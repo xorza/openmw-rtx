@@ -62,10 +62,11 @@ namespace Rtx
         /// than the bytes it saves. An earlier try at eight bytes was recorded here as worse, with
         /// no record of how it read the normal; this measurement replaces it.
         ///
-        /// A shared-memory tile with Dolp's permutation was measured and did not pay, because the
-        /// pass costs the same per level whatever the stride and there is no locality to recover.
-        /// What the pass spends is the two `exp` and the surface tap. A profiler is what the next
-        /// attempt should start from.
+        /// **The first level reads a tile in shared memory** (`atrous.comp`), where each texel is
+        /// reached by twenty-five pixels' taps: measured on the default suite, the level went from
+        /// 0.359 to 0.295 ms in the guild and from 0.283 to 0.244 at dawn, to the bit the same. A
+        /// tile with Dolp's permutation for the narrow levels was measured and did not pay: at their
+        /// strides no texel is reached twice.
     }
 
     AtrousPass::AtrousPass(const Device& device)
