@@ -485,7 +485,7 @@ namespace Rtx
                 return Shaders::unpackSurfaceNormal(surface[centre]);
             };
 
-            const osg::Matrixf turn = osg::Matrixf::rotate(osg::PI_2, osg::Vec3f(0.0f, 1.0f, 0.0f));
+            const osg::Matrixf turn = osg::Matrixf::rotate(osg::PI_2f, osg::Vec3f(0.0f, 1.0f, 0.0f));
             const osg::Vec3f turned = osg::Vec3f(0.0f, -1.0f, -1.0f) / std::sqrt(2.0f);
             for (int frame = 0; frame < 2; ++frame)
             {
