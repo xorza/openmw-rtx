@@ -247,6 +247,9 @@ if (WIN32)
 else()
     list(APPEND RTX_TEST_FILES platform/processposix.cpp rtxtool/perffifoposix.cpp)
 endif()
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND RTX_TEST_FILES platform/kernelfile.cpp)
+endif()
 
 target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})
 

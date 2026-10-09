@@ -81,7 +81,7 @@ What the ray tracer declines
 
 The settings window greys these out under the ray tracer and shows the reason as the tooltip, and
 the console and Lua answer the requests below with "not available under this renderer" and the
-reason. The list is the renderer's own declaration, and a test holds this page to it.
+reason.
 
 Settings
 ========

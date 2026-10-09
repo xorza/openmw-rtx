@@ -14,8 +14,7 @@ from omw.build import Build
 from omw.repeat import repeat
 from omw.system import ROOT, Refusal
 
-# **The steps, in the order `gate` runs them**: the one statement of it, which `omw help` prints and
-# AGENTS.md points at.
+# **The steps, in the order `gate` runs them**: the one statement of it, which `omw help` prints.
 STEPS = ("format check, spellings, lint (CI's other source checks), the driver's tests, build, the listing check, "
          "the release compile, tests and their timing, check, repeat")
 
