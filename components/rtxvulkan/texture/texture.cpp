@@ -20,11 +20,13 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -98,9 +100,9 @@ namespace Rtx
         /// What a texture made on the device is created as: the format its description states.
         ///
         /// **The description's, because whether the trace reads it through the curve is a fact
-        /// about the content** — a bake is lighting and a composite is albedo — and the core is
-        /// what states it. A dispatch stores through `sWrittenFormat`, the same bytes with the curve
-        /// off, so a description may name that or its twin under the curve and nothing else.
+        /// about the content** — a bake is lighting — and the core is what states it. A dispatch
+        /// stores through `sWrittenFormat`, the same bytes with the curve off, so a description may
+        /// name that or its twin under the curve and nothing else.
         VkFormat writtenAs(const TextureFormat format)
         {
             const VkFormat image = toVulkanFormat(format);
@@ -326,12 +328,12 @@ namespace Rtx
     {
         assert(isEmpty() && "a texture stood over one that stands");
 
-        // A chain to one texel, which the bake blits down from the level it writes; both transfer
-        // usages for that blit, and the view without the curve for the store.
+        // A chain to one texel, which the bake's encoder copies in whole.
+        Crash::contract(format == TextureFormat::Bc7Srgb || format == TextureFormat::Bc7Unorm,
+            "a composite described in a format its encoder does not write");
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
         Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, extent, extent,
-            writtenAs(format), sWrittenTextureUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-            name, levelsTo1x1(extent, extent), 1, sWrittenFormat);
+            toVulkanFormat(format), sUploadedTextureUsage, name, levelsTo1x1(extent, extent));
         if (!image.isOk())
             return Misc::Err{ image.error() };
 
@@ -538,6 +540,9 @@ namespace Rtx
         };
 
         VkDeviceSize cost = 0;
+        bool blocks = mCanvas.mBlocks.has_value();
+        bool albedoCanvas = mCanvas.mAlbedo.has_value();
+        bool glossCanvas = mCanvas.mGloss.has_value();
         for (const TextureData& texture : arrived)
         {
             switch (texture.mSource)
@@ -553,9 +558,18 @@ namespace Rtx
 
                 case TextureSource::GroundComposite:
                 case TextureSource::GroundGloss:
-                    if (ground)
+                    if (!ground)
+                        break;
+                    {
                         cost += priceComposite().total();
-                    break;
+
+                        // What the scene's first composite of each kind is made with, once.
+                        bool& canvas = texture.mSource == TextureSource::GroundGloss ? glossCanvas : albedoCanvas;
+                        cost += (canvas ? 0 : priceCanvas().total()) + (blocks ? 0 : priceBlocks().total());
+                        canvas = true;
+                        blocks = true;
+                        break;
+                    }
 
                 case TextureSource::StandIn:
                     break;
@@ -572,7 +586,12 @@ namespace Rtx
         {
             case TextureSource::GroundComposite:
             case TextureSource::GroundGloss:
+            {
+                const Misc::Result<void, std::string_view> canvas = makeCanvas(texture.mSource);
+                if (!canvas.isOk())
+                    return canvas;
                 return into.standComposite(mDevice, mArrival, texture.mFormat, name);
+            }
 
             case TextureSource::SpriteBake:
             {
@@ -643,6 +662,8 @@ namespace Rtx
 
         const Texture& made = slot.mTexture;
         slot.mStandIn = made.isEmpty();
+        slot.mSource = texture.mSource;
+        slot.mCompletedChain = texture.mSource == TextureSource::File && texture.mCompleteChain;
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
         count(slot);
@@ -728,11 +749,39 @@ namespace Rtx
         owed.clear();
     }
 
+    Misc::Result<void, std::string_view> TextureArray::makeCanvas(const TextureSource source)
+    {
+        if (!mCanvas.mBlocks.has_value())
+        {
+            Misc::Result<Buffer, std::string_view> blocks
+                = GroundCompositePass::makeBlocks(mDevice, "composite blocks");
+            if (!blocks.isOk())
+                return Misc::Err{ blocks.error() };
+            mCanvas.mBlocks.emplace(std::move(blocks.value()));
+            mHeld.mCanvasBytes += priceBlocks().standing();
+        }
+
+        const bool gloss = source == TextureSource::GroundGloss;
+        std::optional<Image>& canvas = gloss ? mCanvas.mGloss : mCanvas.mAlbedo;
+        if (!canvas.has_value())
+        {
+            Misc::Result<Image, std::string_view> made
+                = GroundCompositePass::makeCanvas(mDevice, gloss, gloss ? "gloss canvas" : "composite canvas");
+            if (!made.isOk())
+                return Misc::Err{ made.error() };
+            canvas.emplace(std::move(made.value()));
+            mHeld.mCanvasBytes += priceCanvas().standing();
+        }
+        return {};
+    }
+
     bool TextureArray::bakeComposites(const VkCommandBuffer commands, const GroundCompositePass& pass,
-        const FrameSlot slot, const Shaders::GpuTables& tables)
+        const FrameSlot slot, const Shaders::GpuTables& tables, GpuTimer* const timer)
     {
         if (mPendingComposites.empty())
             return false;
+
+        const GpuZone timed(timer, commands, FrameZone::Ground);
 
         // A chunk's two images next to each other, so the one sum writes both: they arrive as two
         // textures, in one hand-over or in two.
@@ -767,7 +816,11 @@ namespace Rtx
             if (outputs == 0)
                 continue;
 
-            pass.record(commands, set, albedo, gloss,
+            assert((albedo == nullptr || mCanvas.mAlbedo.has_value())
+                && (gloss == nullptr || mCanvas.mGloss.has_value()) && mCanvas.mBlocks.has_value()
+                && "a composite pending with no canvas to bake it on");
+            pass.record(commands, set, albedo != nullptr ? &*mCanvas.mAlbedo : nullptr,
+                gloss != nullptr ? &*mCanvas.mGloss : nullptr,
                 Shaders::GroundCompositeConstants{
                     .mMaterials = tables.mMaterials,
                     .mLayers = tables.mLayers,
@@ -776,6 +829,10 @@ namespace Rtx
                     .mOutputs = outputs,
                     .mTexels = tables.mTextureTexels,
                 });
+            if (albedo != nullptr)
+                pass.encode(commands, *mCanvas.mAlbedo, *mCanvas.mBlocks, *albedo);
+            if (gloss != nullptr)
+                pass.encode(commands, *mCanvas.mGloss, *mCanvas.mBlocks, *gloss);
             baked = true;
         }
 
@@ -853,8 +910,27 @@ namespace Rtx
             && "a slot taken off the totals that were never counted");
         --mHeld.mCount;
         mHeld.mBytes -= slot.mTexture.getBytes();
+        bytesBySource(mHeld, slot) -= slot.mTexture.getBytes();
         if (slot.mReduced)
             --mHeld.mReduced;
+    }
+
+    std::uint64_t& TextureArray::bytesBySource(TexturesHeld& held, const Slot& slot)
+    {
+        switch (slot.mSource)
+        {
+            case TextureSource::File:
+                return slot.mCompletedChain ? held.mBySource.mCompletedFiles : held.mBySource.mFiles;
+            case TextureSource::SpriteBake:
+                return held.mBySource.mSpriteBakes;
+            case TextureSource::GroundComposite:
+                return held.mBySource.mGroundComposites;
+            case TextureSource::GroundGloss:
+                return held.mBySource.mGroundGloss;
+            case TextureSource::StandIn:
+                break;
+        }
+        Crash::fatal("a stand-in's slot counted as a texture of its own");
     }
 
     void TextureArray::count(const Slot& slot)
@@ -864,6 +940,7 @@ namespace Rtx
 
         ++mHeld.mCount;
         mHeld.mBytes += slot.mTexture.getBytes();
+        bytesBySource(mHeld, slot) += slot.mTexture.getBytes();
         if (slot.mReduced)
             ++mHeld.mReduced;
     }

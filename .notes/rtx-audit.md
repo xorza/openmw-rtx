@@ -82,9 +82,6 @@ win. Do this group before groups 6–8.
 - the poses, the TLAS rows (2 × 16 MiB device + host vector) and TLAS scratch for 2^18 instances, the
   refit scratch;
 - the TLAS row count beside `InstanceCounts::mPlaced`;
-- the texture total split by source: file, completed chain, bake, ground composite, gloss. The vanilla
-  BSAs hold 142.8 MB of textures in all, so at least ~245 MB of `seyda-neen-ship`'s 418 MB is likely
-  ground composites (group 12);
 
 **Ceilings, one bench leg each, none shippable:**
 - groundcover off (`[Groundcover] enabled = false`): bounds what group 7's grass items can win in
@@ -280,9 +277,9 @@ Each changes a policy or the vanilla picture, so none is a fix to make without y
   between full textures and stand-ins.
 - **The glossy filter's images exist on content that can never have a lobe** (24 B/px). Make them only
   where the content can name a companion map, decided at construction.
-- **Ground composites are most of texture memory** (at least ~245 MB at `seyda-neen-ship`, 512² RGBA8
-  each): BC1-encode them on the device after the bake (−7/8), or size them by distance. Both move the
-  distant ground.
+- **Ground composites by the footprint the trace reads** (now BC7, 148 MB on `island-crossing`): a
+  composite level no ray reads changes no pixel when it is not made. Count the finest level the
+  trace reads first; at 256² every composite is a quarter of its size.
 - **Groundcover met by fewer ray types** (lamp shadow, bounce far hit, fog lamp rays), as upstream never
   shadows grass. Needs an instance-mask bit freed; changes the look.
 - **Octahedral vertex normals** (~20 MB): pictures move at the 1e-5 level.

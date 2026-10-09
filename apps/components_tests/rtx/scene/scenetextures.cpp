@@ -831,7 +831,7 @@ namespace Rtx
                 ASSERT_NE(ground, described.getDescriptions().end()) << when;
                 EXPECT_EQ(ground->mSource, Rtx::TextureSource::GroundComposite) << when;
                 EXPECT_EQ(ground->mFrom, material) << when;
-                EXPECT_EQ(ground->mFormat, Rtx::TextureFormat::Rgba8Srgb) << when;
+                EXPECT_EQ(ground->mFormat, Rtx::TextureFormat::Bc7Srgb) << when;
                 EXPECT_TRUE(ground->mBytes.empty()) << when << ": a composite carries no bytes";
                 EXPECT_TRUE(ground->mLevels.empty()) << when << ": a composite is shaped by the pass";
                 EXPECT_EQ(ground->getCompanion(), Rtx::TextureCompanion::Neutral) << when;
@@ -840,7 +840,7 @@ namespace Rtx
                 ASSERT_NE(glossy, described.getDescriptions().end()) << when;
                 EXPECT_EQ(glossy->mSource, Rtx::TextureSource::GroundGloss) << when;
                 EXPECT_EQ(glossy->mFrom, material) << when;
-                EXPECT_EQ(glossy->mFormat, Rtx::TextureFormat::Rgba8Unorm) << when;
+                EXPECT_EQ(glossy->mFormat, Rtx::TextureFormat::Bc7Unorm) << when;
                 // The rebuild describes the layers' files too, which this test never read.
                 for (const Rtx::Refusal& refused : described.getRefusals())
                     EXPECT_TRUE(refused.mName == "textures/under.dds" || refused.mName == "textures/over.dds")

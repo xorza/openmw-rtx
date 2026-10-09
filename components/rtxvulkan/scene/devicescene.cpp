@@ -62,7 +62,7 @@ namespace Rtx
 
         // And the ground that arrived flattened, off that copy: a scene built from nothing is
         // traced before any placement, and a composite stood empty is undefined until baked.
-        bakeGround(batch.getCommands(), FrameSlot{});
+        bakeGround(batch.getCommands(), FrameSlot{}, nullptr);
     }
 
     void DeviceScene::releaseFreed(const SceneDesc& scene)
@@ -97,11 +97,11 @@ namespace Rtx
         tables.mTextureTexels = mTextures.getTexelsAddress(slot);
     }
 
-    bool DeviceScene::bakeGround(const VkCommandBuffer commands, const FrameSlot slot)
+    bool DeviceScene::bakeGround(const VkCommandBuffer commands, const FrameSlot slot, GpuTimer* const timer)
     {
         Shaders::GpuTables tables{};
         describeTables(slot, tables);
-        return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables);
+        return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables, timer);
     }
 
     void DeviceScene::extend(
@@ -161,7 +161,7 @@ namespace Rtx
 
         // The ground that arrived flattened here, after the tables its stack is in are written
         // and the set its layers are in is synced: the trace behind this samples it as a file.
-        const bool baked = bakeGround(placing.mCommands, placing.mSlot);
+        const bool baked = bakeGround(placing.mCommands, placing.mSlot, placing.mTimer);
 
         mCounts = scene.placements().getCounts();
 
@@ -210,7 +210,9 @@ namespace Rtx
 
         const TexturesHeld& textures = mTextures.getHeld();
         stats.mTextureCount = textures.mCount;
-        stats.mTextureBytes = textures.mBytes;
+        stats.mTextureBytes = textures.mBytes + textures.mCanvasBytes;
+        stats.mTextureBytesBySource = textures.mBySource;
+        stats.mTextureBytesBySource.mGroundComposites += textures.mCanvasBytes;
         stats.mReducedTextureCount = textures.mReduced;
     }
 }

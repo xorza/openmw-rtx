@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,6 +16,7 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -32,7 +35,6 @@
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/texture/groundcompositepass.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
-#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -98,19 +100,16 @@ namespace Rtx
                 const Index material = scene.addMaterial(chunk);
 
                 Batch setup(getPool());
-                TextureArrival arrival(device);
-                arrival.open(2);
-                const auto stand = [&](Texture& into, std::uint32_t output, TextureFormat format) {
-                    if ((outputs & output) != 0)
-                    {
-                        EXPECT_TRUE(into.standComposite(device, arrival, format, "ground composite test").isOk());
-                    }
+                const auto canvasFor = [&](std::uint32_t output, bool isGloss) -> std::optional<Image> {
+                    if ((outputs & output) == 0)
+                        return std::nullopt;
+                    Misc::Result<Image, std::string_view> made
+                        = GroundCompositePass::makeCanvas(device, isGloss, "ground composite test");
+                    EXPECT_TRUE(made.isOk());
+                    return std::move(made.value());
                 };
-                Texture albedo;
-                Texture gloss;
-                stand(albedo, Shaders::GROUND_COMPOSITE_ALBEDO, TextureFormat::Rgba8Srgb);
-                stand(gloss, Shaders::GROUND_COMPOSITE_GLOSS, TextureFormat::Rgba8Unorm);
-                arrival.record(setup, passes);
+                const std::optional<Image> albedo = canvasFor(Shaders::GROUND_COMPOSITE_ALBEDO, false);
+                const std::optional<Image> gloss = canvasFor(Shaders::GROUND_COMPOSITE_GLOSS, true);
                 TextureArray array(device, setup, layout, passes, 2);
                 std::vector<Refusal> refused;
                 array.write(setup, passes, textures, refused);
@@ -121,8 +120,8 @@ namespace Rtx
 
                 Shaders::GpuTables tables{};
                 buffers.describeTables(FrameSlot{}, tables);
-                pass.record(setup.getCommands(), array.getSet(FrameSlot{}),
-                    albedo.isEmpty() ? nullptr : &albedo.getImage(), gloss.isEmpty() ? nullptr : &gloss.getImage(),
+                pass.record(setup.getCommands(), array.getSet(FrameSlot{}), albedo.has_value() ? &*albedo : nullptr,
+                    gloss.has_value() ? &*gloss : nullptr,
                     Shaders::GroundCompositeConstants{
                         .mMaterials = tables.mMaterials,
                         .mLayers = tables.mLayers,
@@ -134,10 +133,10 @@ namespace Rtx
                 setup.flush();
 
                 Baked baked;
-                if (!albedo.isEmpty())
-                    albedo.getImage().read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, baked.mAlbedo);
-                if (!gloss.isEmpty())
-                    gloss.getImage().read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, baked.mGloss);
+                if (albedo.has_value())
+                    albedo->read(VK_IMAGE_LAYOUT_GENERAL, baked.mAlbedo);
+                if (gloss.has_value())
+                    gloss->read(VK_IMAGE_LAYOUT_GENERAL, baked.mGloss);
                 return baked;
             }
 

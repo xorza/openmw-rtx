@@ -2239,7 +2239,7 @@ namespace Rtx::Testing
                 .mSlot = flattened.mDiffuse,
                 .mSource = TextureSource::GroundComposite,
                 .mFrom = chunk,
-                .mFormat = TextureFormat::Rgba8Srgb,
+                .mFormat = TextureFormat::Bc7Srgb,
             };
 
             // Into the standing world: the arrival stands the composite empty, and the placement
@@ -2250,6 +2250,13 @@ namespace Rtx::Testing
             ASSERT_TRUE(mRenderer.finishFrame().has_value());
             frame = readFrame(size);
             everyPixelIs(frame, "arrived into a standing world");
+
+            // **And the ground's bytes are the composite and what made it, once**: the composite in
+            // BC7 with its map, 349552 + 2048 = 351600; the albedo's canvas, a chain of 349525 texels
+            // at four bytes, 1398100; and the blocks, 349552 — 2099252 in all. No gloss arrived, so
+            // no gloss canvas was made.
+            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytesBySource.mGroundComposites, 2099252u);
+            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytesBySource.mGroundGloss, 0u);
 
             // And from nothing, where there is no placement before the first trace.
             const std::array<TextureData, 3> flattenedTextures{ describeTexel(redTexel), describeTexel(greenTexel),

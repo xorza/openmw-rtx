@@ -20,6 +20,10 @@ namespace Rtx
         Refit,
         Tlas,
         Skin,
+
+        /// The ground composites that arrived, baked and encoded in the placement after
+        /// (`TextureArray::bakeComposites`).
+        Ground,
         Ripples,
         Waves,
         Shelter,
@@ -69,6 +73,7 @@ namespace Rtx
         std::pair{ FrameZone::Refit, std::string_view("refit") },
         std::pair{ FrameZone::Tlas, std::string_view("tlas") },
         std::pair{ FrameZone::Skin, std::string_view("skin") },
+        std::pair{ FrameZone::Ground, std::string_view("ground") },
         std::pair{ FrameZone::Ripples, std::string_view("ripples") },
         std::pair{ FrameZone::Waves, std::string_view("waves") },
         std::pair{ FrameZone::Shelter, std::string_view("shelter") },

@@ -57,6 +57,11 @@ namespace Rtx
         Bc5Unorm,
         Bc4Unorm,
 
+        /// What a backend encodes a texture it makes into, display-encoded and as data: the ground's
+        /// composites. Never a file's, since no reader names one.
+        Bc7Srgb,
+        Bc7Unorm,
+
         /// Sixteen bits a texel, as the old mods' `.dds` files hold them, in the channel order the
         /// file states from the high bit down: `describeImage` widens each to RGBA8 in the encoding
         /// the slot asks for, because a device's sixteen-bit formats have no sRGB spelling. The `X`
@@ -271,6 +276,8 @@ namespace Rtx
         FormatRows::rgba8(TextureFormat::Bgra8Unorm, "BGRA8 (linear)", false, true),
         FormatRows::block(TextureFormat::Bc5Unorm, "BC5 (ATI2, linear)", 16, false, false),
         FormatRows::block(TextureFormat::Bc4Unorm, "BC4 (ATI1, linear)", 8, false, false),
+        FormatRows::block(TextureFormat::Bc7Srgb, "BC7", 16, true, true),
+        FormatRows::block(TextureFormat::Bc7Unorm, "BC7 (linear)", 16, false, true),
         FormatRows::packed(TextureFormat::Rgb565, "R5G6B5", ChannelBits{ .mRed = 5, .mGreen = 6, .mBlue = 5 }),
         FormatRows::packed(
             TextureFormat::Argb1555, "A1R5G5B5", ChannelBits{ .mAlpha = 1, .mRed = 5, .mGreen = 5, .mBlue = 5 }),

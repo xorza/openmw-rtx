@@ -5,8 +5,10 @@
 #include <cstddef>
 #include <span>
 
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -28,6 +30,7 @@ namespace Rtx
     GroundCompositePass::GroundCompositePass(const Device& device, const SetLayout& textures)
         : mPipeline(device, sBindings, SharedSetLayouts{ .mTextures = &textures }, "groundcomposite.comp.spv",
             "ground composite")
+        , mEncode(device)
         , mNoTarget(makeStandIn(
               device, toVulkanFormat(TEXTURE_WRITTEN_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, "no ground target"))
     {
@@ -73,10 +76,34 @@ namespace Rtx
                 Shaders::GROUND_COMPOSITE_WORKGROUP));
 
         // The chains, box filtered in light through each image's own format, which is the filter
-        // the sum was made for; left where the array's sampler expects a texture.
-        const std::span<const Image* const> baked(written.data(), count);
-        Image::buildMips(commands, baked);
-        for (const Image* image : baked)
-            image->transition(commands, Use::sShaderSample, Use::sTextureSample);
+        // the sum was made for.
+        Image::buildMips(commands, std::span<const Image* const>(written.data(), count));
+    }
+
+    Misc::Result<Image, std::string_view> GroundCompositePass::makeCanvas(
+        const Device& device, const bool gloss, std::string_view name)
+    {
+        constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
+        constexpr VkFormat stored = toVulkanFormat(TEXTURE_WRITTEN_FORMAT);
+        return Image::tryMake(MemoryUse::Texture, device, extent, extent, gloss ? stored : withCurve(stored),
+            sWrittenTextureUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, name,
+            levelsTo1x1(extent, extent), 1, stored);
+    }
+
+    Misc::Result<Buffer, std::string_view> GroundCompositePass::makeBlocks(const Device& device, std::string_view name)
+    {
+        constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
+        return Buffer::tryMake(MemoryUse::Texture, device, BufferKind::DeviceLocal,
+            Bc7Chain::of(extent, extent, levelsTo1x1(extent, extent)).mBytes,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, name);
+    }
+
+    void GroundCompositePass::encode(
+        const VkCommandBuffer commands, const Image& canvas, const Buffer& blocks, const Image& target) const
+    {
+        canvas.transition(commands, Use::sShaderSample, Use::sComputeRead);
+        handOver(commands, Use::sBufferCopyRead, Use::sBufferComputeWrite);
+        // Opaque: the bake stores an alpha of one in both images, and the ground is read as a solid.
+        mEncode.record(commands, canvas, blocks, target, false);
     }
 }

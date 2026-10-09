@@ -207,6 +207,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/scene/skinpass.cpp
     rtxvulkan/scene/toplevelpackpass.cpp
     rtxvulkan/spirv/pinnedarithmetic.cpp
+    rtxvulkan/texture/bc7encodepass.cpp
     rtxvulkan/texture/groundcompositepass.cpp
     rtxvulkan/texture/mipchainpass.cpp
     rtxvulkan/texture/normalspreadpass.cpp

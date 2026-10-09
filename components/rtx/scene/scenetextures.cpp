@@ -159,14 +159,14 @@ namespace Rtx
             return TextureData{
                 .mSource = TextureSource::GroundGloss,
                 .mFrom = chunk.mMaterial,
-                .mFormat = TextureFormat::Rgba8Unorm,
+                .mFormat = TextureFormat::Bc7Unorm,
                 .mEncoding = kept.mEncoding,
             };
 
         return TextureData{
             .mSource = TextureSource::GroundComposite,
             .mFrom = chunk.mMaterial,
-            .mFormat = TextureFormat::Rgba8Srgb,
+            .mFormat = TextureFormat::Bc7Srgb,
             .mEncoding = kept.mEncoding,
         };
     }

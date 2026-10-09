@@ -117,9 +117,13 @@ namespace Rtx
         /// ladder alone is 23552 bytes whole, 7168 held to 32 and 3072 held to 16, and no smaller
         /// for anything below 16, where it has no level. A bake of it is four bytes a texel over the
         /// levels the ladder stands with — 5376 texels from 64 and 1280 from 32, which with its map
-        /// is what the ladder itself comes to. A composite is 512 square with its chain, 349525 texels, 1400148 bytes
-        /// with its map whatever the side — so a byte short of it and the ladder's least, the
-        /// arrival fits nowhere and the ladder is held as though the composite were not there.
+        /// is what the ladder itself comes to. A composite is 512 square in BC7 with its chain, a block
+        /// of sixteen bytes a 4 by 4 and one each for the two levels under a block: 16384 + 4096 +
+        /// 1024 + 256 + 64 + 16 + 4 + 1 + 1 + 1 = 21847 blocks, 349552 bytes, 351600 with its map,
+        /// whatever the side. The scene's first composite brings the canvas it is baked on, a chain of
+        /// 349525 texels at four bytes, and the blocks it is encoded through, 1398100 + 349552 =
+        /// 1747652, and 2099252 with the composite — so a byte short of it and the ladder's least,
+        /// the arrival fits nowhere and the ladder is held as though the composite were not there.
         ///
         /// **The companions and what a texture is made through count too.** The ladder as a normal
         /// map brings a spread of half its side to one texel, a byte a texel, and the sixteen-byte
@@ -179,10 +183,10 @@ namespace Rtx
                 Case{ alone, 3072, 16 },
                 Case{ alone, 3071, 1 },
                 Case{ alone, 0, 1 },
-                Case{ ground, 1400148 + 23552, limit },
-                Case{ ground, 1400148 + 23551, 32 },
-                Case{ ground, 1400148 + 3072, 16 },
-                Case{ ground, 1400147 + 3072, limit },
+                Case{ ground, 2099252 + 23552, limit },
+                Case{ ground, 2099252 + 23551, 32 },
+                Case{ ground, 2099252 + 3072, 16 },
+                Case{ ground, 2099251 + 3072, limit },
                 Case{ ground, 23551, 32 },
                 Case{ baked, 23552 + 23552, limit },
                 Case{ baked, 23552 + 23551, 32 },
@@ -251,6 +255,10 @@ namespace Rtx
             EXPECT_EQ(held.mCount, 1u) << "a texture the device takes at no level stood";
             EXPECT_EQ(held.mBytes, VkDeviceSize{ 4 } * ((limit + 1) >> 1) + 2048);
             EXPECT_EQ(held.mReduced, 1u) << "a texture standing from its second level was not counted as smaller";
+            EXPECT_EQ(held.mBySource.mFiles, held.mBytes) << "a file counted under another source";
+            EXPECT_EQ(held.mBySource.mCompletedFiles + held.mBySource.mSpriteBakes + held.mBySource.mGroundComposites
+                    + held.mBySource.mGroundGloss,
+                0u);
             EXPECT_EQ(textures.getSide(), limit) << "the device's side is not the room's";
 
             EXPECT_EQ(textures.getTexels(0), (limit + 1) >> 1) << "the level that stands";
@@ -270,6 +278,27 @@ namespace Rtx
             EXPECT_EQ(dropped.mCount, 0u);
             EXPECT_EQ(dropped.mBytes, 0u);
             EXPECT_EQ(dropped.mReduced, 0u);
+            EXPECT_EQ(dropped.mBySource.mFiles, 0u);
+
+            // **And each source under its own name**: a one-level 64 square the device completes and
+            // a bake of it, each standing at its whole chain and a map, 23892 bytes
+            // (`anArrivalIsHeldToTheLargestSideItFitsTheRoomAt` derives it).
+            Testing::TestTexture completed;
+            Testing::paintLevels(completed, 64, 64, 1, "completed");
+            completed.mData.mCompleteChain = true;
+            const TextureData bake{
+                .mSlot = 1, .mSource = TextureSource::SpriteBake, .mFrom = 0, .mFormat = TextureFormat::Rgba8Unorm
+            };
+            {
+                Batch again(getPool());
+                textures.write(again, passes, std::array{ completed.mData, bake }, refused);
+                again.flush();
+            }
+            const TexturesHeld bySource = textures.getHeld();
+            EXPECT_EQ(bySource.mBySource.mCompletedFiles, 23892u);
+            EXPECT_EQ(bySource.mBySource.mSpriteBakes, 23892u);
+            EXPECT_EQ(bySource.mBySource.mFiles, 0u) << "a completed chain counted as a file as it came";
+            EXPECT_EQ(bySource.mBytes, 2u * 23892u);
         }
 
         /// A texture the device has no room for comes down a level at a time, and one it has room
