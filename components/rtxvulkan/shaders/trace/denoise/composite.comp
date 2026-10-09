@@ -60,9 +60,10 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_AMBIENT_ALBEDO, GBUFFER_ALBEDO) 
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOWED) uniform readonly image2D shadowed;
 layout(set = SET_PASS, binding = COMPOSITE_BIND_LAMPED) uniform readonly image2D lamped;
 
-/// How much of each got through, as the shadow denoiser filtered its field's bits: the mean in `r`.
-layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOW, SHADOW_VISIBILITY) uniform readonly image2D shadow;
-layout(set = SET_PASS, binding = COMPOSITE_BIND_LAMP_SHADOW, SHADOW_VISIBILITY) uniform readonly image2D lampShadow;
+/// How much of each got through, as the shadow denoiser filtered its field's bits: the mean's float
+/// in `r`, as its bits.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOW, SHADOW_VISIBILITY) uniform readonly uimage2D shadow;
+layout(set = SET_PASS, binding = COMPOSITE_BIND_LAMP_SHADOW, SHADOW_VISIBILITY) uniform readonly uimage2D lampShadow;
 
 /// The lobe's light, demodulated: the glossy filter's mean where it ran, and `CHANNEL_SPECULAR`
 /// itself where it did not. No format, for the reason `indirect` has none. And what puts it back,
@@ -96,9 +97,9 @@ void main()
     {
         const vec4 sky = imageLoad(shadowed, at);
         const vec4 lamps = imageLoad(lamped, at);
-        const float skySeen = (frame.mShadowed & COMPOSITE_SHADOWED_SKY) != 0u ? imageLoad(shadow, at).r
+        const float skySeen = (frame.mShadowed & COMPOSITE_SHADOWED_SKY) != 0u ? uintBitsToFloat(imageLoad(shadow, at).r)
                                                                                : float(shadowOpen(sky.a));
-        const float lampSeen = (frame.mShadowed & COMPOSITE_SHADOWED_LAMPS) != 0u ? imageLoad(lampShadow, at).r
+        const float lampSeen = (frame.mShadowed & COMPOSITE_SHADOWED_LAMPS) != 0u ? uintBitsToFloat(imageLoad(lampShadow, at).r)
                                                                                  : float(shadowOpen(lamps.a));
         const vec3 lobe
             = frame.mLobed != 0u ? imageLoad(specular, at).rgb * imageLoad(specularAlbedo, at).rgb : vec3(0.0);

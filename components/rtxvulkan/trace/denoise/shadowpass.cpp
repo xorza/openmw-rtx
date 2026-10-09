@@ -10,7 +10,6 @@
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
-#include <components/rtxvulkan/shaders/shared/accumulate.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx
@@ -99,7 +98,10 @@ namespace Rtx
             writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
 
-            const Shaders::HistoryConstants constants = frame.history(images.mFresh);
+            const Shaders::ShadowTilesConstants constants{
+                .mHistory = frame.history(images.mFresh),
+                .mField = static_cast<std::uint32_t>(images.mField),
+            };
 
             dispatch(commands, mTiles, writes, constants, Groups::covering(width, height, Shaders::SHADOW_WORKGROUP));
         }
@@ -112,7 +114,11 @@ namespace Rtx
         const std::array<const Image*, Shaders::SHADOW_FILTER_LEVELS> targets{ &images.mHistory, &images.mScratch,
             &images.mVisibility };
 
-        const Shaders::ShadowFilterConstants constants{ .mEyes = frame.mSampled.mEyes };
+        const Shaders::ShadowFilterConstants constants{
+            .mEyes = frame.mSampled.mEyes,
+            .mFrame = frame.mSampled.mFrame,
+            .mField = static_cast<std::uint32_t>(images.mField),
+        };
         for (std::uint32_t level = 0; level < Shaders::SHADOW_FILTER_LEVELS; ++level)
         {
             orderDispatches(commands, taken);

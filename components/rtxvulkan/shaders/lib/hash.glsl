@@ -139,12 +139,13 @@ const uint SEED_WAVELET_TAPS = SEED_SEE_THROUGH + 1u;
 /// so no other draw moves.
 const uint SEED_SHADOW_THROUGH = SEED_WAVELET_TAPS + 1u;
 
-/// And one for each store that rounds a history kept in halves (`roundedToHalf`): a hash of the
-/// texel and the frame, so `repeat` draws it again, and of nothing a picture draws. **One a store**,
-/// since one pixel holds the bounce, a glossy surface and a pane at once, and one draw shared rounds
-/// the three the same way: their errors would add where they are to stand apart. The glossy and the
-/// pane filters' and their clamp's for each (`HistoryClampConstants::mLayer`), and the bounce's: the
-/// accumulator's, its clamp's and the first wavelet level's.
+/// And one for each store that rounds a history at random (`roundedToHalf`, `roundedToUnorm16`): a
+/// hash of the texel and the frame, so `repeat` draws it again, and of nothing a picture draws. **One
+/// a store**, since one pixel holds the bounce, a glossy surface, a pane and two shadows at once, and
+/// one draw shared rounds them the same way: their errors would add where they are to stand apart.
+/// The glossy and the pane filters' and their clamp's for each (`HistoryClampConstants::mLayer`), the
+/// bounce's: the accumulator's, its clamp's and the first wavelet level's; and each shadow field's
+/// temporal pass's and first filter level's.
 const uint SEED_GLOSSY_ROUNDING = SEED_SHADOW_THROUGH + 1u;
 const uint SEED_GLOSSY_CLAMP_ROUNDING = SEED_GLOSSY_ROUNDING + 1u;
 const uint SEED_PANE_ROUNDING = SEED_GLOSSY_CLAMP_ROUNDING + 1u;
@@ -152,6 +153,10 @@ const uint SEED_PANE_CLAMP_ROUNDING = SEED_PANE_ROUNDING + 1u;
 const uint SEED_BOUNCE_ROUNDING = SEED_PANE_CLAMP_ROUNDING + 1u;
 const uint SEED_BOUNCE_CLAMP_ROUNDING = SEED_BOUNCE_ROUNDING + 1u;
 const uint SEED_BOUNCE_HISTORY_ROUNDING = SEED_BOUNCE_CLAMP_ROUNDING + 1u;
+const uint SEED_SKY_SHADOW_ROUNDING = SEED_BOUNCE_HISTORY_ROUNDING + 1u;
+const uint SEED_SKY_SHADOW_HISTORY_ROUNDING = SEED_SKY_SHADOW_ROUNDING + 1u;
+const uint SEED_LAMP_SHADOW_ROUNDING = SEED_SKY_SHADOW_HISTORY_ROUNDING + 1u;
+const uint SEED_LAMP_SHADOW_HISTORY_ROUNDING = SEED_LAMP_SHADOW_ROUNDING + 1u;
 
 /// A key for one pixel, which a caller offsets by a `SEED_` constant to say which sequence it wants.
 ///

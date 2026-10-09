@@ -1,0 +1,62 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// Each float rounded to a sixteen-bit unorm by its word, each index read as a shadow word's mean,
+// and each float packed as a shadow word's variance and read back, for `RtxHalfStoreTest` to hold
+// against what it computes exactly.
+
+#include "shared/sets.h"
+#include "shared/unormround.h"
+
+#include "lib/halfround.glsl"
+#include "lib/shadowword.glsl"
+
+layout(local_size_x = UNORM_ROUND_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = UNORM_ROUND_BIND_VALUES, scalar) readonly buffer Values
+{
+    float values[];
+};
+
+layout(set = SET_PASS, binding = UNORM_ROUND_BIND_WORDS, scalar) readonly buffer Words
+{
+    uint words[];
+};
+
+layout(set = SET_PASS, binding = UNORM_ROUND_BIND_ROUNDED, scalar) writeonly buffer Rounded
+{
+    uint rounded[];
+};
+
+layout(set = SET_PASS, binding = UNORM_ROUND_BIND_MEANS, scalar) writeonly buffer Means
+{
+    float means[];
+};
+
+layout(set = SET_PASS, binding = UNORM_ROUND_BIND_VARIANCES, scalar) writeonly buffer Variances
+{
+    float variances[];
+};
+
+layout(set = SET_PASS, binding = UNORM_ROUND_BIND_NEAREST, scalar) writeonly buffer Nearest
+{
+    float nearest[];
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    UnormRoundConstants probe;
+};
+
+void main()
+{
+    const uint at = gl_GlobalInvocationID.x;
+    if (at >= probe.mCount)
+        return;
+
+    rounded[at] = roundedToUnorm16(values[at], words[at]);
+    means[at] = unpackShadowWord(at & 0xffffu).x;
+    variances[at] = unpackShadowWord(packShadowWord(vec2(0.0, values[at]), words[at])).y;
+    nearest[at] = nearestHalf(values[at]);
+}

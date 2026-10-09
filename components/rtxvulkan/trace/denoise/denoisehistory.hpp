@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/shaders/shared/shadow.h>
 #include <components/rtxvulkan/trace/tracepast.hpp>
 
 #include "temporalturns.hpp"
@@ -56,11 +57,12 @@ namespace Rtx
 
     /// The shadow denoiser's two fields: the sun's or a moon's rays, `CHANNEL_SHADOWED`, and the
     /// lamps', `CHANNEL_LAMPED`. Each has a history of its own, and the composite scales each light
-    /// by its own field.
+    /// by its own field. Numbered as the passes are told (`SHADOW_FIELD_SKY`), which seeds each
+    /// field's rounding apart.
     enum class ShadowField : std::uint8_t
     {
-        Sky,
-        Lamps,
+        Sky = Shaders::SHADOW_FIELD_SKY,
+        Lamps = Shaders::SHADOW_FIELD_LAMPS,
     };
 
     inline constexpr std::size_t sShadowFields = static_cast<std::size_t>(ShadowField::Lamps) + 1;

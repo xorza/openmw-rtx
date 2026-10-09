@@ -37,12 +37,13 @@
 //
 // **What it changes, and why:**
 //
-// - **Full floats, in shared memory too.** The SDK's filter works only with half-float arithmetic,
-//   `FFX_HALF`: without it the functions are stubs, and shared memory holds halves. Here both are
-//   full floats. The first level's answer is the next frame's history, so a half in its shared
-//   memory was a rounding inside the history's loop, and one `packHalf2x16` makes as the device
-//   pleases: this card rounds it to nearest (`aPackedHalfRoundsToNearestOnThisCard`), and one that
-//   truncated would have darkened every penumbra a little at each frame.
+// - **Full floats in the arithmetic and in shared memory, and the stores rounded by the shader.**
+//   The SDK's filter works only with half-float arithmetic, `FFX_HALF`: without it the functions
+//   are stubs, and shared memory holds halves. Here both are full floats. The first level's answer
+//   is the next frame's history, so a half in its shared memory was a rounding inside the history's
+//   loop, and one `packHalf2x16` makes as the device pleases: this card rounds it to nearest
+//   (`aPackedHalfRoundsToNearestOnThisCard`), and one that truncated would have darkened every
+//   penumbra a little at each frame. What a level stores is rounded once, as `storedWord` says.
 // - **The tree's two surface tests** in place of the SDK's depth and normal ones: `coplanarWeight`,
 //   over positions rebuilt through the eye that cast each ray, and `facingWeights`. The wavelet stops
 //   at the same edges, so a shadow does not bleed across an edge the bounce under it stops at.
@@ -64,7 +65,9 @@
 #include "shared/shadow.h"
 
 #include "lib/census.glsl"
+#include "lib/hash.glsl"
 #include "lib/pixels.glsl"
+#include "lib/shadowword.glsl"
 #include "lib/surfacematch.glsl"
 
 /// Which of the `SHADOW_FILTER_LEVELS` this module is: its taps are `1 << SHADOW_LEVEL` apart.
@@ -78,8 +81,8 @@ layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_TILES, SHADOW_TILES) uniform
 
 /// The level before's mean and variance, or the temporal pass's: `SHADOW_NO_RECEIVER` for the
 /// variance of a pixel the shadowed sources do not light.
-layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SOURCE, SHADOW_REPROJECTED) uniform readonly image2D source;
-layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_FILTERED) uniform writeonly image2D filtered;
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SOURCE, SHADOW_REPROJECTED) uniform readonly uimage2D source;
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_FILTERED) uniform writeonly uimage2D filtered;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -114,7 +117,7 @@ void readSquare(ivec2 corner)
         const ivec2 pixel = clamp(corner + ivec2(square), ivec2(0), last);
 
         const vec2 seen = imageLoad(surfaceChannel, pixel).rg;
-        const vec2 value = imageLoad(source, pixel).rg;
+        const vec2 value = unpackShadowWord(imageLoad(source, pixel).r);
         const bool lit = value.y != SHADOW_NO_RECEIVER;
 
         gInput[square.y][square.x] = value;
@@ -142,6 +145,29 @@ float filteredVariance(ivec2 square)
     return variance;
 }
 
+/// What this level stores of `value`, a mean and its variance: the first level's mean rounded at
+/// random by `word`, since the next frame's temporal pass blends it; the second's to the nearest,
+/// since only the third reads it; and the third's mean alone, as its float's bits, which is what the
+/// composite reads.
+uint storedWord(vec2 value, uint word)
+{
+    if (SHADOW_LEVEL == SHADOW_FILTER_LEVELS - 1u)
+    {
+        countNotFinite(value.x);
+        return floatBitsToUint(value.x);
+    }
+    return packShadowWord(value, SHADOW_LEVEL == 0u ? word : UNORM16_NEAREST);
+}
+
+/// What this level stores of the word `source` it copies: the word itself where the target is one
+/// as well, and the third level's mean as its float's bits. **Not unpacked and rounded again**: a
+/// step read back stands within an ulp of its value, and a hair under it a rounding at random takes
+/// a step down as often as the hair is a share of a step.
+uint copiedWord(uint source)
+{
+    return SHADOW_LEVEL == SHADOW_FILTER_LEVELS - 1u ? floatBitsToUint(unpackShadowWord(source).x) : source;
+}
+
 /// The SDK's separable kernel: 1 at the centre, 2/3 one step out.
 float kernelAt(int offset)
 {
@@ -160,7 +186,7 @@ void main()
     if (tile.r > 0.5)
     {
         if (SHADOW_LEVEL != 1u && inFrame)
-            RTX_STORE_COUNTED(filtered, at, imageLoad(source, at))
+            RTX_STORE_WORDS(filtered, at, uvec4(copiedWord(imageLoad(source, at).r), 0u, 0u, 0u))
         return;
     }
 
@@ -169,7 +195,7 @@ void main()
     if (float(1u << SHADOW_LEVEL) > tile.g)
     {
         if (inFrame)
-            RTX_STORE_COUNTED(filtered, at, imageLoad(source, at))
+            RTX_STORE_WORDS(filtered, at, uvec4(copiedWord(imageLoad(source, at).r), 0u, 0u, 0u))
         return;
     }
 
@@ -219,5 +245,8 @@ void main()
         result = normalCode != SURFACE_NO_NORMAL ? vec2(sum.x / weightSum, sum.y / (weightSum * weightSum)) : result;
     }
 
-    RTX_STORE_COUNTED(filtered, at, vec4(result, 0.0, 0.0))
+    uint rounding = seededKey(pixelKey(uvec2(at))
+            + (level.mField == SHADOW_FIELD_SKY ? SEED_SKY_SHADOW_HISTORY_ROUNDING : SEED_LAMP_SHADOW_HISTORY_ROUNDING),
+        level.mFrame);
+    RTX_STORE_WORDS(filtered, at, uvec4(storedWord(result, randomWord(rounding)), 0u, 0u, 0u))
 }

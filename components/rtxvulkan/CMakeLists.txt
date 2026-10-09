@@ -97,7 +97,7 @@ set(RTX_SHADERS
 
 # The device-behaviour probes, only where tests run them: an assumption about the hardware fails as
 # a test rather than as a rendering mystery.
-set(RTX_SHADER_PROBES shaders/probes/halfmean.comp shaders/probes/halfstore.comp shaders/probes/pinning.comp shaders/probes/probe.comp shaders/probes/traceprobe.rgen)
+set(RTX_SHADER_PROBES shaders/probes/halfmean.comp shaders/probes/halfstore.comp shaders/probes/pinning.comp shaders/probes/probe.comp shaders/probes/traceprobe.rgen shaders/probes/unormmean.comp shaders/probes/unormround.comp)
 if (BUILD_COMPONENTS_TESTS)
     list(APPEND RTX_SHADERS ${RTX_SHADER_PROBES})
 endif()
@@ -208,6 +208,7 @@ set(RTX_SHADER_LIB
     shaders/lib/sea.glsl
     shaders/lib/shading.glsl
     shaders/lib/shadowed.glsl
+    shaders/lib/shadowword.glsl
     shaders/lib/sky.glsl
     shaders/lib/spritelist.glsl
     shaders/lib/sprites.glsl
@@ -397,6 +398,8 @@ set(RTX_VULKAN_FILES
     shaders/shared/tone.h
     shaders/shared/toplevelpack.h
     shaders/shared/tracerecords.h
+    shaders/shared/unormmean.h
+    shaders/shared/unormround.h
     shaders/shared/wavetransform.h
     texture/bc7encodepass.cpp
     texture/bc7encodepass.hpp
