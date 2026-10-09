@@ -154,14 +154,8 @@ namespace DetourNavigator
                 throw std::runtime_error("Failed set max page count: " + std::string(sqlite3_errmsg(&db)));
         }
 
-        // A cache's durability and not a record's: a tile a crash loses is generated again. Each tile the game
-        // writes is a commit of its own, and the default rollback journal at full synchronisation made each one a
-        // journal created and deleted and several fsyncs: a fast flight wrote 3.3 MB of tiles as 945 MB on a btrfs
-        // drive. In WAL at normal synchronisation a commit appends to the log and syncs nothing; a checkpoint syncs.
-        //
-        // The journal mode is said and not required: switching a file to WAL takes a moment's exclusive lock, which
-        // another process holding the cache refuses, and a file system without shared memory keeps the mode it had.
-        // Either leaves a cache that works as it did, so the switch warns rather than costing the cache.
+        // Each tile is its own commit, and the rollback journal fsyncs a new journal file per commit: 3.3 MB of tiles
+        // cost 945 MB of writes. WAL appends to one log. Lost tiles are regenerated, so NORMAL sync is enough.
         void setCacheDurability(sqlite3& db)
         {
             std::string mode;
@@ -170,9 +164,10 @@ namespace DetourNavigator
                 return 0;
             };
             if (const int ec = sqlite3_exec(&db, "pragma journal_mode = WAL;", readMode, &mode, nullptr);
-                ec != SQLITE_OK || (mode != "wal" && mode != "memory"))
-                Log(Debug::Warning) << "Navigation mesh disk cache keeps its journal mode \"" << mode
-                                    << "\" and writes every tile with several syncs: " << sqlite3_errmsg(&db);
+                ec != SQLITE_OK)
+                Log(Debug::Warning) << "Failed to set navmeshdb journal mode to WAL: " << sqlite3_errmsg(&db);
+            else if (mode != "wal" && mode != "memory")
+                Log(Debug::Warning) << "Navmeshdb journal mode remains \"" << mode << "\"";
             if (const int ec = sqlite3_exec(&db, "pragma synchronous = NORMAL;", nullptr, nullptr, nullptr);
                 ec != SQLITE_OK)
                 throw std::runtime_error("Failed set synchronous: " + std::string(sqlite3_errmsg(&db)));
