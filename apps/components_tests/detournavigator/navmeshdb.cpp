@@ -7,8 +7,12 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <sqlite3.h>
+
+#include <filesystem>
 #include <limits>
 #include <random>
+#include <string>
 
 namespace
 {
@@ -175,5 +179,66 @@ namespace
                 insertTile(TileId{ i }, TileVersion{ 1 });
         };
         EXPECT_THROW(f(), std::runtime_error);
+    }
+
+    // A file's journal mode is the file's own, so a second connection reads what the cache set: a commit appends to
+    // the write-ahead log rather than creating, syncing and deleting a rollback journal.
+    TEST(DetourNavigatorNavMeshDbFileTest, a_file_database_should_journal_into_a_write_ahead_log)
+    {
+        const std::filesystem::path path = std::filesystem::temp_directory_path()
+            / ("openmw-navmeshdb-test-" + std::to_string(std::random_device{}()) + ".db");
+        {
+            NavMeshDb db(path.string(), std::numeric_limits<std::uint64_t>::max());
+            EXPECT_EQ(db.getMaxTileId(), TileId{ 0 });
+        }
+
+        sqlite3* handle = nullptr;
+        ASSERT_EQ(sqlite3_open_v2(path.string().c_str(), &handle, SQLITE_OPEN_READONLY, nullptr), SQLITE_OK);
+        std::string mode;
+        const auto read = [](void* into, int, char** values, char**) {
+            *static_cast<std::string*>(into) = values[0];
+            return 0;
+        };
+        EXPECT_EQ(sqlite3_exec(handle, "pragma journal_mode;", read, &mode, nullptr), SQLITE_OK);
+        sqlite3_close(handle);
+        EXPECT_EQ(mode, "wal");
+
+        for (const char* suffix : { "", "-wal", "-shm" })
+            std::filesystem::remove(path.string() + suffix);
+    }
+
+    // A cache another process holds open keeps the journal it has and stays a cache: switching to WAL takes a moment's
+    // exclusive lock, which a reader inside a transaction refuses. The file is made a cache, put back in a rollback
+    // journal, and opened again while a second connection reads it.
+    TEST(DetourNavigatorNavMeshDbFileTest, a_cache_another_process_holds_should_open_in_the_journal_it_has)
+    {
+        const std::filesystem::path path = std::filesystem::temp_directory_path()
+            / ("openmw-navmeshdb-test-" + std::to_string(std::random_device{}()) + ".db");
+        {
+            NavMeshDb db(path.string(), std::numeric_limits<std::uint64_t>::max());
+        }
+
+        sqlite3* reader = nullptr;
+        ASSERT_EQ(sqlite3_open_v2(path.string().c_str(), &reader, SQLITE_OPEN_READWRITE, nullptr), SQLITE_OK);
+        ASSERT_EQ(sqlite3_exec(reader, "pragma journal_mode = DELETE;", nullptr, nullptr, nullptr), SQLITE_OK);
+        ASSERT_EQ(sqlite3_exec(reader, "begin; select count(*) from tiles;", nullptr, nullptr, nullptr), SQLITE_OK);
+
+        EXPECT_NO_THROW({
+            NavMeshDb db(path.string(), std::numeric_limits<std::uint64_t>::max());
+            EXPECT_EQ(db.getMaxTileId(), TileId{ 0 });
+        });
+
+        std::string mode;
+        const auto read = [](void* into, int, char** values, char**) {
+            *static_cast<std::string*>(into) = values[0];
+            return 0;
+        };
+        EXPECT_EQ(sqlite3_exec(reader, "pragma journal_mode;", read, &mode, nullptr), SQLITE_OK);
+        sqlite3_exec(reader, "rollback;", nullptr, nullptr, nullptr);
+        sqlite3_close(reader);
+        EXPECT_EQ(mode, "delete");
+
+        for (const char* suffix : { "", "-wal", "-shm", "-journal" })
+            std::filesystem::remove(path.string() + suffix);
     }
 }
