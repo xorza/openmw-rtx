@@ -49,6 +49,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
+#include <components/rtxvulkan/scene/sceneroom.hpp>
 #include <components/rtxvulkan/shaders/shared/tables.h>
 #include <components/rtxvulkan/trace/spritebin.hpp>
 #include <components/rtxvulkan/trace/spritepasses.hpp>
@@ -60,8 +61,8 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// The one test in this file that asks the tables rather than the picture, so it wants a
-        /// device where the others want a renderer.
+        /// The tests in this file that ask the tables rather than the picture, so they want a device
+        /// where the others want a renderer.
         struct RtxSceneTableTest : DeviceTest
         {
         };
@@ -87,7 +88,7 @@ namespace Rtx::Testing
 
             // No sprites, so no tiles, and the table is still a buffer rather than `VK_NULL_HANDLE`.
             Batch setup(pool);
-            const SceneBuffers buffers(device, setup, empty, {}, {}, 1, 1);
+            const SceneBuffers buffers(device, setup, empty, {}, {}, 1, SceneRoom{ .mPlacements = 1 });
             setup.flush();
 
             // **Every table this hands out**, because the rule is the same for all of them; which
@@ -131,6 +132,47 @@ namespace Rtx::Testing
                 EXPECT_NE(table.mAddress, 0u) << table.mWhat;
                 EXPECT_EQ(table.mAddress % table.mAlign, 0u) << table.mWhat << " at " << table.mAddress;
             }
+        }
+
+        /// **The mesh and material tables are made at their room, and grow only past it.** A room of
+        /// four rows each, one frame slot: one mesh at the start, then three meshes and three
+        /// materials, which fill both rooms with the untextured row, leave the bytes where the
+        /// tables were made. One more of each makes each table again at twice its four rows
+        /// (`GrowableBuffer::outgrow`): 4 · 24 + 4 · 108 = 528 bytes more.
+        TEST_F(RtxSceneTableTest, theMeshAndMaterialTablesHoldTheirRoomAndGrowPastIt)
+        {
+            constexpr SceneRoom room{ .mMeshes = 4, .mMaterials = 4 };
+
+            SceneDesc scene;
+            SceneHolds holds(scene);
+            holds.mesh(addQuadMesh(scene));
+
+            std::vector<Index> everyMesh;
+            Batch setup(getPool());
+            SceneBuffers buffers(
+                getDevice(), setup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), {}, 1, room);
+            setup.flush();
+            const VkDeviceSize made = buffers.getBytes();
+
+            const auto arriveAndPlace = [&](std::uint32_t count) {
+                for (std::uint32_t at = 0; at < count; ++at)
+                {
+                    holds.mesh(addQuadMesh(scene));
+                    holds.material(scene.addMaterial(Material{}));
+                }
+                Batch arrival(getPool());
+                buffers.extend(arrival, scene);
+                arrival.flush();
+                buffers.place(scene, {}, {}, FrameSlot{});
+                return buffers.getBytes();
+            };
+
+            EXPECT_EQ(arriveAndPlace(3), made) << "a table was made again inside its room";
+            ASSERT_EQ(scene.meshes().getRows().size(), room.mMeshes);
+            ASSERT_EQ(scene.materials().getRows().size() + Shaders::MATERIAL_ROW_FIRST, room.mMaterials);
+
+            EXPECT_EQ(arriveAndPlace(1) - made,
+                room.mMeshes * sizeof(Shaders::GpuMesh) + room.mMaterials * sizeof(Shaders::GpuMaterial));
         }
 
         /// An arrival the device has no room for is drawn without what it could not stand, and
@@ -417,6 +459,49 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_EQ(after[centre + channel], untextured[centre + channel])
                     << "channel " << channel << " of the untextured wall moved when a material arrived";
+        }
+
+        /// **A world's material table is made at its room, so arrivals up to it never make it again
+        /// on the frame path.** The room holds the untextured row and `sWorldRoom.mMaterials - 1`
+        /// materials: arrived and placed twice, so both copies take them, the tables' bytes stand
+        /// where the empty world's stood. One material past the room makes each copy again at
+        /// twice its size (`GrowableBuffer::outgrow`), so the two copies add
+        /// `2 · sWorldRoom.mMaterials · sizeof(GpuMaterial)`: 2 · 8192 · 108 = 1,769,472 bytes.
+        TEST_F(RtxVisibilityTest, aWorldsMaterialTableHoldsItsRoomAndGrowsPastIt)
+        {
+            constexpr std::uint32_t size = 8;
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            SceneDesc scene;
+            Testing::SceneHolds holds(scene);
+            const Index mesh = addQuadMesh(scene);
+            holds.mesh(mesh);
+            scene.addInstance(MeshInstance{ .mMesh = mesh });
+
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            scene.placements().advance();
+
+            const auto arriveAndPlace = [&](std::uint32_t materials) {
+                for (std::uint32_t at = 0; at < materials; ++at)
+                    holds.material(scene.addMaterial(Material{}));
+                mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
+                for (int frame = 0; frame < 2; ++frame)
+                {
+                    mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                    mRenderer.renderFrame(camera, FrameOptions{});
+                }
+                return mRenderer.getSceneStats().mTableBytes;
+            };
+
+            const std::uint64_t empty = arriveAndPlace(0);
+            EXPECT_EQ(arriveAndPlace(sWorldRoom.mMaterials - Shaders::MATERIAL_ROW_FIRST), empty)
+                << "a copy was made again inside the room";
+            ASSERT_EQ(scene.materials().getRows().size() + Shaders::MATERIAL_ROW_FIRST, sWorldRoom.mMaterials);
+
+            EXPECT_EQ(
+                arriveAndPlace(1) - empty, std::uint64_t{ 2 } * sWorldRoom.mMaterials * sizeof(Shaders::GpuMaterial));
         }
 
         /// **The pass is built once and kept, because building one compiles a shader** — so the set

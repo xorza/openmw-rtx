@@ -50,6 +50,7 @@
 #include <components/rtxvulkan/present/surface.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/placing.hpp>
+#include <components/rtxvulkan/scene/sceneroom.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 #include <components/rtxvulkan/trace/tracepast.hpp>
@@ -62,13 +63,6 @@ namespace Rtx
 {
     namespace
     {
-        /// The placement slots a world's top level is made with room for. A world grows as cells
-        /// arrive, and a growth past the room is the structure and both copies of its rows made
-        /// again on the frame a cell arrives on; the suites' largest place reaches 80,324, so this is
-        /// three times that, at 16 MiB of rows a copy. A picture's scene is opened at what it holds,
-        /// since a doll grows by a piece of armour and not by a town.
-        constexpr std::uint32_t sWorldPlacementRoom = 1u << 18;
-
         /// The most the frame's targets take at an output `width` by `height`, over every mode the
         /// renderer can be switched to there: what `createTargets` makes for the mode that takes
         /// the most, a deep picture and a running sum included, which a frame may ask for.
@@ -304,7 +298,7 @@ namespace Rtx
         Batch setup(mDevice.getPool());
         DeviceScene& held = mScenes.hold(slot,
             std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, scene, textures, mProfile.mAnisotropy,
-                slot.isWorld() ? sWorldPlacementRoom : 0u));
+                slot.isWorld() ? sWorldRoom : SceneRoom{}));
 
         // A picture's scene rides the next submit, as an arrival does: its placement and its trace
         // are deferred behind it, and the barrier every upload and build ends in orders them. The

@@ -28,6 +28,7 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
+#include <components/rtxvulkan/scene/sceneroom.hpp>
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/texture/groundcompositepass.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
@@ -115,8 +116,8 @@ namespace Rtx
                 array.write(setup, passes, textures, refused);
                 array.sync(FrameSlot{});
                 std::vector<Index> everyMesh;
-                const SceneBuffers buffers(
-                    device, setup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), {}, 1, 1);
+                const SceneBuffers buffers(device, setup, scene,
+                    everyIndexBelow(scene.meshes().getRows().size(), everyMesh), {}, 1, SceneRoom{ .mPlacements = 1 });
 
                 Shaders::GpuTables tables{};
                 buffers.describeTables(FrameSlot{}, tables);
