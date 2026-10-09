@@ -56,7 +56,7 @@ means use it. The other histories, the fog volume and the payload are group 4.
 | 2 | G-buffer exact packing | 4–8 B/px, 2–3 channels | bit-exact (pane albedo: experiment) | straightforward |
 | 4 | Stochastic-rounding halves | history 256 → ~190 B/px; fog −23 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
 | 5 | Transient memory (aliasing) | 50–130 MB | none | infrastructure |
-| 6 | Scene tables and structures | ~40–80 MB | bit-exact | straightforward |
+| 6 | Scene tables and structures | ~20–50 MB | bit-exact | straightforward |
 | 7 | TLAS and traversal | after measurement | none moved | mixed |
 | 8 | Air volume | `column` 0.07 ms, est. −0.02 to −0.04 | ulp-level | experiment |
 | 9 | Water | 4 MB; ~19 queue drains a frame | bit-exact / ulp | straightforward |
@@ -184,19 +184,15 @@ Proof: synchronisation validation, `repeat --pairs=10`, `shot --against` exact.
 
 Bit-exact; one area (`scenebuffers`, `sceneacceleration`, `bottomlevelstore`, `meshtable`).
 
-1. **Static normals and tangents are stored once per frame slot** (`scenebuffers.cpp:189-195`); only
-   skinned bodies change them. One static copy, and posed normals and tangents in per-slot blocks
-   indexed by `mBindOffset`, as the poses already are; the shader selects without a branch. Est.
-   −24 to −40 MB at `seyda-neen-ship` (group 0 counts the vertices), and less load staging.
-2. **Tangent words for every vertex** although vanilla has none (`meshtable.hpp:131`): runs of their
-   own, as the second texture coordinates have. −14 MiB with today's two copies.
-3. **`sWorldRoom.mPlacements = 2^18`** (`sceneroom.hpp`) is 3.3× the suites' largest place:
+1. **Tangent words for every vertex** although vanilla has none (`meshtable.hpp:131`): runs of their
+   own, as the second texture coordinates have. −8 MiB at `seyda-neen-ship`, one copy.
+2. **`sWorldRoom.mPlacements = 2^18`** (`sceneroom.hpp`) is 3.3× the suites' largest place:
    `2^17` halves the TLAS storage, scratch and row reservations (≥ 24 MB); the TLAS builds over the
    placed rows alone, so the room bounds only what one place stands.
-4. **BLAS build scratch and staged positions**: record a whole-scene build in fixed-size chunks (e.g.
+3. **BLAS build scratch and staged positions**: record a whole-scene build in fixed-size chunks (e.g.
    32 MB of scratch per call, a barrier between), so neither buffer holds the first load's peak for the
    session. Loading then allocates no more than a frame does.
-5. **`GpuMaterial` is 108 B** and the any-hit reads fields across up to four 32 B sectors: reorder its
+4. **`GpuMaterial` is 108 B** and the any-hit reads fields across up to four 32 B sectors: reorder its
    fields into the first 32 B and pad the row to 128 B.
 7. After group 0's census: **u16 indices** (about half the index memory and index bytes per
    candidate); **RGBA8 vertex colours** decoded through a 256-entry table, only if every colour is
@@ -306,7 +302,7 @@ Each changes a policy or the vanilla picture, so none is a fix to make without y
 
 ## Suggested order
 
-1. Group 0 (numbers), then groups 2 and 6: bit-exact, 4–8 B/px and 40–80 MB.
+1. Group 0 (numbers), then groups 2 and 6: bit-exact, 4–8 B/px and 20–50 MB.
 2. Groups 9 and 10: exact, small, independent.
 3. Group 4, item by item behind its helper and test, `noise` as the verdict.
 4. Groups 7, 8 and 11, measured.

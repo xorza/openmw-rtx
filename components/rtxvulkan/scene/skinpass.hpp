@@ -34,13 +34,9 @@ namespace Rtx
         /// What this scene's bodies are posed from.
         SkinTables& mTables;
 
-        /// Where the posed vertices go, indexed by `MeshRange::mBindOffset`, and where the posed
-        /// normals go, indexed by the scene's own vertex offset — because a hit reads a normal
-        /// and never a position.
+        /// Where the posed vertices, normals and tangents go, each indexed by `MeshRange::mBindOffset`.
         SlotBlocks& mPoses;
         SlotBlocks& mNormals;
-
-        /// Where the posed tangents go, indexed as the normals are.
         SlotBlocks& mTangents;
 
         /// Null where the run is not being timed, and never read by `recordArrived`.

@@ -1,3 +1,5 @@
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -6,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Math>
 #include <osg/Matrixf>
 #include <osg/Vec2d>
 #include <osg/Vec3f>
@@ -23,6 +26,7 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/skycontent.hpp>
@@ -431,6 +435,69 @@ namespace Rtx
             EXPECT_EQ(still.x(), 0.0f) << "nothing moved and the vector says something did";
             EXPECT_EQ(still.y(), 0.0f);
             EXPECT_EQ(still.z(), 0.0f);
+
+            while (mRenderer.finishFrame().has_value())
+            {
+            }
+        }
+
+        /// **A pose turns a body's shading normal, read off the copy its frame posed, and a standing
+        /// mesh beside it keeps its own.** A wall on one bone whose vertex normals lean off its
+        /// plane, `(1, -1, 0)`, turned a quarter about the view axis by its bone: in
+        /// OpenSceneGraph's row-vector convention a quarter turn about +y takes x to -z, so the
+        /// normal reads `(0, -1, -1) / √2`. Its id unmoved would read the shared blocks' run nothing
+        /// wrote, and the plane, `(0, -1, 0)`; unposed, `(1, -1, 0) / √2`. Two frames, one on each
+        /// copy. Then the bone carries it a thousand units back, behind the eye, and the standing
+        /// wall behind it shows its own lean, `(-1, -1, 0) / √2`, out of the shared blocks. Within
+        /// 1e-3 a component: the channel's code (`packSurfaceNormal`) holds a diagonal to its own
+        /// precision and not exactly.
+        TEST_F(RtxFramesTest, aPoseTurnsABodysShadingNormalOnEveryCopy)
+        {
+            const osg::Vec3f leaning(1.0f, -1.0f, 0.0f);
+            const std::array normals{ leaning, leaning, leaning, leaning };
+
+            SceneDesc scene;
+            const Index body = Testing::addOneBoneBody(scene,
+                MeshArrays{
+                    .mPositions = Testing::wallAt(200.0f), .mNormals = normals, .mIndices = Testing::sQuadIndices })
+                                   .mMesh;
+            scene.addInstance(MeshInstance{ .mMesh = body });
+
+            const osg::Vec3f back(-1.0f, -1.0f, 0.0f);
+            const std::array backward{ back, back, back, back };
+            scene.addInstance(MeshInstance{ .mMesh = scene.addMesh(MeshArrays{ .mPositions = Testing::wallAt(400.0f),
+                                                .mNormals = backward,
+                                                .mIndices = Testing::sQuadIndices }) });
+
+            Testing::poseByOneBone(scene, body, osg::Matrixf::identity());
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+
+            // Two floats a pixel: the normal's code, then the distance.
+            constexpr std::size_t centre = (std::size_t{ sSize / 2 } * sSize + sSize / 2) * 2;
+            const auto centreNormalPosedBy = [&](const osg::Matrixf& bone) {
+                scene.clearPlacement();
+                Testing::poseByOneBone(scene, body, bone);
+                mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+
+                std::vector<float> surface;
+                mRenderer.readChannel(Channel::Surface, surface);
+                return Shaders::unpackSurfaceNormal(surface[centre]);
+            };
+
+            const osg::Matrixf turn = osg::Matrixf::rotate(osg::PI_2, osg::Vec3f(0.0f, 1.0f, 0.0f));
+            const osg::Vec3f turned = osg::Vec3f(0.0f, -1.0f, -1.0f) / std::sqrt(2.0f);
+            for (int frame = 0; frame < 2; ++frame)
+            {
+                const osg::Vec3f read = centreNormalPosedBy(turn);
+                for (int axis = 0; axis < 3; ++axis)
+                    EXPECT_NEAR(read[axis], turned[axis], 1e-3f) << "frame " << frame << ", axis " << axis;
+            }
+
+            const osg::Vec3f standing = centreNormalPosedBy(turn * osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
+            const osg::Vec3f leaningBack = back / std::sqrt(2.0f);
+            for (int axis = 0; axis < 3; ++axis)
+                EXPECT_NEAR(standing[axis], leaningBack[axis], 1e-3f) << "the standing wall, axis " << axis;
 
             while (mRenderer.finishFrame().has_value())
             {

@@ -267,6 +267,8 @@ set(RTX_VULKAN_FILES
     device/memory/image.cpp
     device/memory/image.hpp
     device/memory/imageuse.hpp
+    device/memory/joinedblocks.cpp
+    device/memory/joinedblocks.hpp
     device/memory/memory.cpp
     device/memory/memory.hpp
     device/memory/slottable.hpp

@@ -16,6 +16,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
+#include <components/rtxvulkan/device/memory/joinedblocks.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
 
 #include "sceneroom.hpp"
@@ -75,13 +76,13 @@ namespace Rtx
         /// there, beside the sea's, and only the lists it made are tables.
         const LightGrid& getLightGrid() const { return mLightGrid; }
 
-        /// The normals, for the pass that writes a deforming mesh's pose into a slot's copy of them.
+        /// A deforming mesh's normals, for the pass that writes its pose into a slot's copy of them.
         /// Their account is not what drives that pass — the positions' is, and one dispatch writes
         /// both — so nothing here is owed by a pose.
-        SlotBlocks& getNormals() { return mNormalTable; }
+        SlotBlocks& getPosedNormals() { return mNormals.getOwn(); }
 
-        /// The tangents, which the same dispatch poses beside the normals.
-        SlotBlocks& getTangents() { return mTangentTable; }
+        /// Its tangents, which the same dispatch poses beside the normals.
+        SlotBlocks& getPosedTangents() { return mTangents.getOwn(); }
 
         /// Where every table this owns is, for the frame's block: those of `GpuTables` that are
         /// the scene's, with `slot`'s copy wherever a table has one per frame in flight. Addresses
@@ -96,7 +97,7 @@ namespace Rtx
     private:
         /// What a frame writes, once per frame in flight: whole, but for the light list. What is
         /// written by the row keeps its own account: `mInstanceTable`, `mMaterialTable`,
-        /// `mNormalTable` and `mTangentTable`.
+        /// and a body's normals and tangents.
         struct Tables
         {
             explicit Tables(const Device& device);
@@ -130,8 +131,9 @@ namespace Rtx
             VkDeviceSize getBytes() const;
         };
 
-        /// Reserves room for the scene's attributes, copies in the runs `meshes` names — into every
-        /// copy of the normals — and writes their rows of the mesh table, which every copy then owes.
+        /// Reserves room for the scene's attributes, copies in the runs `meshes` names — a deforming
+        /// mesh's normals into every posed copy — and writes their rows of the mesh table, which
+        /// every copy then owes.
         /// Per mesh and not per scene, because that is what an arrival is. Nothing is ordered here.
         void writeMeshes(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes);
 
@@ -143,9 +145,7 @@ namespace Rtx
         void shade(const SceneDesc& scene, FrameSlot slot);
 
         // What the scene is made of, written on arrival and read by every frame: one copy, because
-        // an arrival writes it on the queue, behind every frame in flight. The colours too, where
-        // the normals are one per frame in flight: a skin recomputes a body's normals and never
-        // repaints it.
+        // an arrival writes it on the queue, behind every frame in flight.
         BlockedBuffer mTexCoords{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec2f) };
 
         /// The second set, in runs of their own: `Rtx::MeshRange::mSecondTexCoords`.
@@ -184,15 +184,15 @@ namespace Rtx
         /// a row after it — `Shaders::MATERIAL_ROW_FIRST`.
         SlotTable<Shaders::GpuMaterial> mMaterialTable;
 
-        /// Blocked like the geometry they belong to, so a scene that grows keeps the blocks it
-        /// already has and adds one. One copy per frame in flight because a skinned body's normals
-        /// are recomputed every frame — by `SkinPass`, into the copy the frame traces; the rest of a
-        /// cell's are written once into every copy.
-        SlotBlocks mNormalTable{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+        /// A standing mesh's normals in the blocks every slot shares, by its vertex offset, and a
+        /// deforming mesh's in each slot's own, by its bind offset as its pose is
+        /// (`MeshRange::mBindOffset`): `SkinPass` poses them every frame into the copy the frame
+        /// traces, and an arrival writes its bind normals into every copy, so a copy the pass has
+        /// not reached holds what a hit can read.
+        JoinedBlocks mNormals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f), Shaders::POSED_FIRST_BLOCK };
 
-        /// The tangents, `Rtx::packTangent`'s words, blocked and copied as the normals are and for
-        /// the same reason: a skinned body's are posed with its normals.
-        SlotBlocks mTangentTable{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
+        /// `Rtx::packTangent`'s words, kept as the normals are.
+        JoinedBlocks mTangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t), Shaders::POSED_FIRST_BLOCK };
 
         /// Kept because the pass writes its geometry into the frame's block, which no table carries.
         LightGrid mLightGrid;

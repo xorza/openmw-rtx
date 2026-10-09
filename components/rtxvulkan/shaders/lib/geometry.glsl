@@ -127,10 +127,14 @@ bool readsSecondUvs(GpuMesh mesh, uint unit)
 
 /// The vertex normals of the triangle a hit landed on, in the mesh's own space and not yet unit:
 /// a mesh with no normals holds zeros, which the caller reads as "use the plane".
-void triangleNormals(uvec3 corner, out vec3 normal[3])
+///
+/// **A body's out of this slot's own blocks, and every other mesh's out of the ones every slot
+/// shares**, by one id in one table: `GpuMesh::mNormalShift` moves a body's.
+void triangleNormals(GpuMesh mesh, uvec3 corner, out vec3 normal[3])
 {
-    NormalBlock block = normalBlockOf(corner.x);
-    const uvec3 at = corner % VERTEX_BLOCK;
+    const uvec3 id = corner + mesh.mNormalShift;
+    NormalBlock block = normalBlockOf(id.x);
+    const uvec3 at = id % VERTEX_BLOCK;
 
     normal[0] = block.at[at.x];
     normal[1] = block.at[at.y];
@@ -141,10 +145,11 @@ void triangleNormals(uvec3 corner, out vec3 normal[3])
 /// bitangent's handedness in `w` interpolated with them — which is what the rasterizer's
 /// `passTangent` is, and what `normals.glsl` builds its frame from. Nought where the mesh carries
 /// none, and the caller has asked whether it carries any — `MESH_TANGENTS`.
-vec4 triangleTangent(uvec3 corner, vec2 bary)
+vec4 triangleTangent(GpuMesh mesh, uvec3 corner, vec2 bary)
 {
-    TangentBlock block = tangentBlockOf(corner.x);
-    const uvec3 at = corner % VERTEX_BLOCK;
+    const uvec3 id = corner + mesh.mNormalShift;
+    TangentBlock block = tangentBlockOf(id.x);
+    const uvec3 at = id % VERTEX_BLOCK;
 
     return acrossTriangle(
         unpackTangent(block.at[at.x]), unpackTangent(block.at[at.y]), unpackTangent(block.at[at.z]), bary);

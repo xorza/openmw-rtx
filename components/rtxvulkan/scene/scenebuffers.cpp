@@ -141,19 +141,19 @@ namespace Rtx
         mMeshTable.reserve(room.mMeshes);
         mMaterialTable.open(device, slots, sTableUsage, "materials");
         mMaterialTable.reserve(room.mMaterials);
-        mNormalTable.open(device, slots, sTableUsage, "normals");
-        mTangentTable.open(device, slots, sTableUsage, "tangents");
+        mNormals.open(device, slots, sTableUsage, "normals");
+        mTangents.open(device, slots, sTableUsage, "tangents");
 
         writeMeshes(batch, scene, everyMesh);
         writeMaterialRuns(batch, scene);
         orderStagedWrites(batch);
 
-        // Every copy of the normals and the tangents holds every mesh from here, so what a copy owes
-        // from now on is the poses it missed.
-        for (std::uint32_t slot = 0; slot < mNormalTable.count(); ++slot)
+        // Every posed copy holds every body's bind normals from here, so what a copy owes from now
+        // on is the poses it missed.
+        for (std::uint32_t slot = 0; slot < mNormals.getOwn().count(); ++slot)
         {
-            mNormalTable.settle(FrameSlot{ slot });
-            mTangentTable.settle(FrameSlot{ slot });
+            mNormals.getOwn().settle(FrameSlot{ slot });
+            mTangents.getOwn().settle(FrameSlot{ slot });
         }
 
         // The frame tables come from `place`, which is also where they are written when a material
@@ -181,8 +181,9 @@ namespace Rtx
         mTexCoords.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTexCoords().size()));
         mSecondTexCoords.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getSecondTexCoords().size()));
         mColours.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getColours().size()));
-        mNormalTable.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getNormals().size()));
-        mTangentTable.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTangents().size()));
+        const std::uint32_t posed = scene.deformers().getBindVertexCount();
+        mNormals.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getNormals().size()), posed);
+        mTangents.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTangents().size()), posed);
 
         for (const Index mesh : meshes)
         {
@@ -192,10 +193,16 @@ namespace Rtx
 
             const std::span<const osg::Vec3f> normals = range.mVertices.in(scene.meshes().getNormals());
             const std::span<const std::uint32_t> tangents = range.mVertices.in(scene.meshes().getTangents());
-            for (std::uint32_t slot = 0; slot < mNormalTable.count(); ++slot)
+            if (range.deforms())
+                for (std::uint32_t slot = 0; slot < mNormals.getOwn().count(); ++slot)
+                {
+                    mNormals.getOwn().at(FrameSlot{ slot }).writeAt(batch, range.mBindOffset, normals);
+                    mTangents.getOwn().at(FrameSlot{ slot }).writeAt(batch, range.mBindOffset, tangents);
+                }
+            else
             {
-                mNormalTable.at(FrameSlot{ slot }).writeAt(batch, range.mVertices.mOffset, normals);
-                mTangentTable.at(FrameSlot{ slot }).writeAt(batch, range.mVertices.mOffset, tangents);
+                mNormals.getShared().writeAt(batch, range.mVertices.mOffset, normals);
+                mTangents.getShared().writeAt(batch, range.mVertices.mOffset, tangents);
             }
 
             mTexCoords.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getTexCoords()));
@@ -219,6 +226,9 @@ namespace Rtx
                 = mesh.mSecondTexCoords.empty() ? Shaders::NO_RUN : mesh.mSecondTexCoords.mOffset,
                 .mUnitStreams = mesh.mUnitStreams,
                 .mBindOffset = mesh.deforms() ? mesh.mBindOffset : Shaders::NO_RUN,
+                .mNormalShift = mesh.deforms()
+                    ? Shaders::POSED_FIRST_BLOCK * Shaders::VERTEX_BLOCK + mesh.mBindOffset - mesh.mVertices.mOffset
+                    : 0u,
             };
         }
     }
@@ -426,8 +436,8 @@ namespace Rtx
         // whether it is a frame's trace or a picture's deferred batch — and `addressFor` is what
         // says so of each. Every host write of any of these then checks the stamp, so a table
         // rewritten under a trace is an assert and not a fault.
-        into.mNormalBlocks = mNormalTable.at(slot).getTableAddress();
-        into.mTangentBlocks = mTangentTable.at(slot).getTableAddress();
+        into.mNormalBlocks = mNormals.getTableAddress(slot);
+        into.mTangentBlocks = mTangents.getTableAddress(slot);
         into.mTexCoordBlocks = mTexCoords.getTableAddress();
         into.mColourBlocks = mColours.getTableAddress();
         into.mSecondTexCoordBlocks = mSecondTexCoords.getTableAddress();
@@ -463,8 +473,8 @@ namespace Rtx
         // The indices are not counted here: they are the acceleration's, which counts them
         // (`SceneAcceleration::getIndexBytes`).
         VkDeviceSize total = mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes()
-            + mMeshTable.getBytes() + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes()
-            + mMaterialTable.getBytes() + mNormalTable.getBytes() + mTangentTable.getBytes();
+            + mNormals.getBytes() + mTangents.getBytes() + mMeshTable.getBytes() + mLayers.get().getSize()
+            + mMasks.get().getSize() + mInstanceTable.getBytes() + mMaterialTable.getBytes();
         for (const Tables& tables : mTables.live())
             total += tables.getBytes();
 

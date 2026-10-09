@@ -88,6 +88,10 @@ namespace Rtx
         /// the next submit, as `Buffer::addressFor` does.
         VkDeviceAddress getTableAddress() const { return mTable.addressFor(); }
 
+        /// Where each block starts, as the table holds them, for a table that joins these blocks to
+        /// others (`JoinedBlocks`).
+        std::span<const VkDeviceAddress> getAddresses() const { return mAddresses; }
+
         /// One block by number, for a test that copies what a kernel wrote into it back out.
         const Buffer& getBlock(std::uint32_t block) const
         {

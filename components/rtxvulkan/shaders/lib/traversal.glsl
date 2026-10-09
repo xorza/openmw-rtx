@@ -312,7 +312,8 @@ vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, Texture
 /// bounce that lands on glass armour sees the sheet the way the reflection camera would.
 ///
 /// @param shading the normal the surface shows the ray, in world space and unit.
-vec3 sheetAt(GpuMaterial material, uvec3 corner, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
+vec3 sheetAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec3 shading, vec3 direction, SurfaceCone cone,
+    float coneWidth)
 {
     if (!holdsTexture(material.mEnvironment))
         return vec3(0.0);
@@ -328,7 +329,7 @@ vec3 sheetAt(GpuMaterial material, uvec3 corner, vec3 shading, vec3 direction, S
     // indexed by the reflection is not read at the level the mesh's coordinates ask for. A second
     // fetch of the triangle's normals, paid by the materials that wear a sheet, which are few.
     vec3 normal[3];
-    triangleNormals(corner, normal);
+    triangleNormals(mesh, corner, normal);
 
     const TexturePoint sheet = spherePoint(normal, normalEye, viewEye, cone, coneWidth);
     return SUNLIT_WHITE * sampleDiffuse(material.mEnvironment, sheet).rgb * material.mEnvironmentColour;
@@ -691,7 +692,7 @@ Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float
     hit.mCorner = triangleCorners(mesh, primitive);
 
     vec3 normals[3];
-    triangleNormals(hit.mCorner, normals);
+    triangleNormals(mesh, hit.mCorner, normals);
     const vec3 shading = acrossTriangle(normals[0], normals[1], normals[2], bary);
     const bool carried = dot(shading, shading) > 1e-8;
     hit.mShading = carried ? mat3(toWorld) * shading : vec3(0.0);
@@ -704,7 +705,7 @@ Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float
     hit.mTangent = vec4(0.0);
     if (HAS_MAPS && (mesh.mShape & MESH_TANGENTS) != 0u)
     {
-        const vec4 tangent = triangleTangent(hit.mCorner, bary);
+        const vec4 tangent = triangleTangent(mesh, hit.mCorner, bary);
         hit.mTangent = vec4(mat3(toWorld) * tangent.xyz, tangent.w);
     }
 
@@ -1391,7 +1392,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // `preLightEnv`: there it joins the diffuse colour past the dark map and before the lighting
     // multiplies, so here it joins the albedo at the sheet's own colour, held at one so a bounce
     // returns no more than it met.
-    const vec3 sheet = sheetAt(material, corner, surface.mNormal, direction, cone, surface.mFootprint);
+    const vec3 sheet = sheetAt(material, mesh, corner, surface.mNormal, direction, cone, surface.mFootprint);
     const bool lit = frame.mLitEnvironmentMaps != 0u;
     surface.mEmitted += lit ? vec3(0.0) : sheet;
     surface.mAlbedo = lit ? min(surface.mAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAlbedo;
