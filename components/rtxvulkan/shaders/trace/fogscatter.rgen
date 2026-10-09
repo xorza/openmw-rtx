@@ -27,7 +27,7 @@
 //
 // **Every sample is jittered inside its froxel and averaged with where it stood last frame.** That
 // pairing is the whole of what makes a grid this coarse invisible, and it is what every shipping
-// froxel volumetric does: without it the grid draws its own eight-pixel staircase across every
+// froxel volumetric does: without it the grid draws its own column-wide staircase across every
 // shadow edge in the air. `fogWasScatter` and `fogWasSunward` are the half of it this reads.
 //
 // **What the lamps deliver is not averaged with anything.** It is an integral over the froxel and
@@ -168,7 +168,7 @@ void main()
     // to.** The sum is the mean irradiance over the stretch and carries no draw at all; what carries
     // one is which lamp the single ray goes to, and `lampsInAir` says why that is unbiased. The ray
     // leaves from the jittered point rather than from where the walk weighed the lamp, so a shadow's
-    // edge crossing this froxel is a gradient across frames rather than a step across eight pixels.
+    // edge crossing this froxel is a gradient across frames rather than a step across a column.
     //
     // **Every froxel asks every question, and a clear one asks them too.** A third of them are
     // clear — the coverage band lets nothing through below `FOG_CLEARING` — and skipping their rays
@@ -200,7 +200,7 @@ void main()
     // that carries most of it is the closest approach — and then asks whether *the froxel* is
     // shadowed, which is best put from a point drawn anywhere inside. Over frames that point walks
     // the froxel, so a shadow's edge crossing one lands between two froxels as something the filter
-    // averages rather than as a step eight pixels wide. The selection is untouched, so the
+    // averages rather than as a step a column wide. The selection is untouched, so the
     // estimator stays what the walk says it is; the lamp is named, so the ray aims itself from
     // wherever it now leaves.
     lamps.mFrom = position;

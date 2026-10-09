@@ -236,10 +236,17 @@ namespace Rtx::Shaders
     ///
     /// **What the volume carries is coarser than a pixel, and both halves of it are.** The field's
     /// finest scale is `FOG_GRAIN` units across, which at any distance worth marching covers far
-    /// more than eight pixels; a shaft's edge is a penumbra and not a line. What a smaller number
-    /// would buy is a sharper copy of an answer that has no detail at that size, and the volume
-    /// costs memory and bandwidth on all three axes at once.
-    const uint FOG_VOLUME_SCALE = 8u;
+    /// more than a column; a shaft's edge is a penumbra and not a line. What a smaller number would
+    /// buy is a sharper copy of an answer that has no detail at that size, and the volume costs
+    /// memory and bandwidth on all three axes at once.
+    ///
+    /// **Twelve and not eight**, as RTX Remix runs sixteen: measured on the default suite, the
+    /// `air` zone fell by 40 to 44% and `column` by 27 to 36%, the frame by 0.13 to 0.35 ms at the
+    /// median and 0.57 to 0.95 at the p99, and the volume by 91 MB at 1707×960. What moved is a
+    /// lamp's halo in fog and a hill's edge against the sky, by up to 30 levels on 0.15% of a
+    /// frame's pixels; the noise at the fog places stood as it was, and the bias of a moving night
+    /// rose by 0.03.
+    const uint FOG_VOLUME_SCALE = 12u;
 
     /// How many slices a column is integrated in.
     ///

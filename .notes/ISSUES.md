@@ -13,3 +13,9 @@ pixels of a 1920×1080 picture by 2 to 21 of 255 against the same tree with the 
 (`seyda-neen-ship-west`, 21; `ald-ruhn`, 10); every other moved pixel moves by 1. With
 `--antilag=0` on both sides, no pixel moves by more than 1. Under the measured exposure, the same
 change moves `ahemmusa-yurt` by up to 53.
+
+## A moving dawn frame is noisier than its frames averaged
+
+`./omw release noise --views=seyda-neen-ship-dawn --strafe=150 --walk=150` on `a91c67008d` reports
+the frame noisier than 13 frames averaged: frame mean 1.53 p99 19.12, against 2.73 p99 16.50, with
+0.67 fireflies in a thousand. The still leg at the same place is as clean.

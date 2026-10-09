@@ -58,10 +58,10 @@ ivec2 fogTentAt(ivec2 column, int i, ivec2 grid)
 /// applied.
 ///
 /// **What a grid this coarse cannot carry on its own, which is every draw.** A shadow's edge in the
-/// air is nought on one side and one on the other with nothing in between, so a froxel eight pixels
-/// wide paints a step eight pixels wide; and the coverage band is the same shape — a bank is there
+/// air is nought on one side and one on the other with nothing in between, so a froxel a column
+/// wide paints a step a column wide; and the coverage band is the same shape — a bank is there
 /// or it is not — so a froxel on a bank's edge holds one draw of a coin averaged over ten frames,
-/// and the ten frames leave a third of the coin. Painted at eight pixels that is a blotch on every
+/// and the ten frames leave a third of the coin. Painted at a column that is a blotch on every
 /// bank's edge, which the tent takes to a third of itself. This is the spatial half of what every
 /// shipping froxel volumetric does about a draw, and the temporal half is `fogscatter.rgen`'s
 /// history. What the lamps deliver is an integral, carries no draw and is read plain.
@@ -73,8 +73,12 @@ ivec2 fogTentAt(ivec2 column, int i, ivec2 grid)
 /// lamp-lit floor dimmed by the floor's own shadow of a point inside the floor. The weights are
 /// renormalised over what is left, and a froxel with nothing around it in the air keeps its own.
 ///
+/// **Fetched by each column and not shared through a tile in shared memory**: a slice of the
+/// workgroup's ring loaded behind two barriers a slice cost the pass 16 to 29% more at scale 12,
+/// where the texture cache already served what the nine columns share.
+///
 /// **Across the screen and never along the ray.** A froxel is already a hundred units deep where it
-/// is four wide, so what stands in front of it is a different question.
+/// is six wide, so what stands in front of it is a different question.
 ///
 /// **What the lamps deliver times what a ray found, and the two came from different images.** The
 /// first is an integral over the froxel and carries no draw; the second is one ray filtered over
@@ -167,7 +171,7 @@ void main()
         // `fogscatter.rgen` draws them every frame like any other — because a pixel at the
         // surface's edge that sees past it reads them. Carrying the last slice in the air over all
         // of them instead drew that slice around every silhouette: the lit air beside a lantern,
-        // laid over the whole of the fog behind the wall it hangs on, in blocks eight pixels wide.
+        // laid over the whole of the fog behind the wall it hangs on, in blocks a column wide.
         const FogSlice after = froxelNear(slice + 1u) < surface ? next : here;
 
         // **Two straight pieces, cut at the sample.** A quarter of the way through a slice the line
