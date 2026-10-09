@@ -68,7 +68,8 @@ Not proposed again: opacity micromaps, async compute, SER (AGENTS.md's declined 
 split TLAS (against NVIDIA's guidance and the worst-frame rule), R11G11B10F radiance, RGB10A2 normals
 (same size, coarser), a visibility buffer, fusing the accumulator with its clamp, a shared-memory tile
 in the air's integrate pass (measured 16–29% slower at scale 12: two barriers a slice, against fetches
-the texture cache already served).
+the texture cache already served), and BLAS builds in fixed-size chunks (a whole load's build scratch
+measured 4.3 MiB at `seyda-neen-ship`, its staged positions 1.2 MiB).
 
 ---
 
@@ -80,8 +81,6 @@ win. Do this group before groups 6–8.
 **Counters the reports do not have** (`devicescene.cpp:194-214`, `readStats`):
 - the poses, the TLAS rows (2 × 16 MiB device + host vector) and TLAS scratch for 2^18 instances, the
   refit scratch;
-- the BLAS build scratch (`bottomlevelstore.cpp:252`) and the staged arrival positions (`:127`), both
-  held at the first load's size for the session;
 - the TLAS row count beside `InstanceCounts::mPlaced`;
 - the texture total split by source: file, completed chain, bake, ground composite, gloss. The vanilla
   BSAs hold 142.8 MB of textures in all, so at least ~245 MB of `seyda-neen-ship`'s 418 MB is likely
@@ -189,10 +188,7 @@ Bit-exact; one area (`scenebuffers`, `sceneacceleration`, `bottomlevelstore`, `m
 2. **`sWorldRoom.mPlacements = 2^18`** (`sceneroom.hpp`) is 3.3× the suites' largest place:
    `2^17` halves the TLAS storage, scratch and row reservations (≥ 24 MB); the TLAS builds over the
    placed rows alone, so the room bounds only what one place stands.
-3. **BLAS build scratch and staged positions**: record a whole-scene build in fixed-size chunks (e.g.
-   32 MB of scratch per call, a barrier between), so neither buffer holds the first load's peak for the
-   session. Loading then allocates no more than a frame does.
-4. **`GpuMaterial` is 108 B** and the any-hit reads fields across up to four 32 B sectors: reorder its
+3. **`GpuMaterial` is 108 B** and the any-hit reads fields across up to four 32 B sectors: reorder its
    fields into the first 32 B and pad the row to 128 B.
 7. After group 0's census: **u16 indices** (about half the index memory and index bytes per
    candidate); **RGBA8 vertex colours** decoded through a 256-entry table, only if every colour is
