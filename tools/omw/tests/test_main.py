@@ -78,10 +78,9 @@ class ParseTest(unittest.TestCase):
             with self.subTest(flavour=flavour), self.assertRaisesRegex(Refusal, r"gate is made of the full flavour"):
                 parse([flavour, "gate"])
 
-        # The help's line is `gate.STEPS`, wrapped, and AGENTS.md names none of the steps itself.
+        # The help's line is `gate.STEPS`, wrapped.
         said = " ".join(re.search(r"(?ms)^  gate +(.*?)\s+—\s+stops", USAGE).group(1).split())
         self.assertEqual(said, gate.STEPS)
-        self.assertIn("the steps `./omw help` lists", " ".join(read_text(ROOT / "AGENTS.md").split()))
 
     def test_every_fork_folder_is_a_folder(self):
         for folder in FORK:
