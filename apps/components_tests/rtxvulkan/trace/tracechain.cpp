@@ -3,10 +3,7 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/memory/formats.hpp>
-#include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
-#include <components/rtxvulkan/shaders/shared/composite.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 #include <components/rtxvulkan/trace/tracechain.hpp>
 #include <components/rtxvulkan/trace/tracepast.hpp>
@@ -61,12 +58,6 @@ namespace Rtx
             const Device& device = mRenderer.getDevice();
             MemoryAllocator& memory = device.getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
-            const VkDeviceSize sum = Image::bytesFor(device,
-                ImageDescription{ .mWidth = 64,
-                    .mHeight = 32,
-                    .mFormat = toVulkanFormat(COMPOSITE_SUM_FORMAT),
-                    .mUsage = VK_IMAGE_USAGE_STORAGE_BIT });
-
             // What the tests before buried is freed at the next wait, which a chain's own submits
             // are; freed first, so what moves below is this chain's.
             const auto settle = [&] {
@@ -85,7 +76,7 @@ namespace Rtx
                     const VkDeviceSize bins = memory.getHeld(heap, MemoryUse::Essential) - essential;
                     chain.resize(64, 32);
                     EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - frame,
-                        TraceChain::bytesAt(device, 64, 32, radiance, past) - sum);
+                        TraceChain::bytesAt(device, 64, 32, radiance, past));
                     EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential, bins)
                         << "a frame target was counted as essential memory";
 

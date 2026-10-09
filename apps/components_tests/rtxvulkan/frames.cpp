@@ -20,6 +20,7 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -502,6 +503,62 @@ namespace Rtx
             while (mRenderer.finishFrame().has_value())
             {
             }
+        }
+
+        /// **The frame's reserve is the running mode's, and the world is built again where it moves.**
+        /// Native upscaling keeps the upscaler's images beside a trace of the same extent, so its
+        /// reserve stands over the mode with none; under each, what the targets hold stays within
+        /// what is kept for them. A move of the reserve releases the world, so the next hand-over
+        /// stands every texture against the new room (`SceneUploader` builds a slot that holds
+        /// nothing); a change that leaves the reserve where it was keeps it. A world let go gives
+        /// back every byte of every use it took, so a second release leaves what the first did. And
+        /// a run that sums, as this one may (`RadianceWidth::Summed`), fills its reserve to the byte
+        /// once a frame sums: the running sum and the deep picture are the last of what it keeps
+        /// room for, and nothing is kept that no frame makes.
+        TEST_F(RtxFramesTest, theReserveIsTheRunningModesAndAMoveBuildsTheWorldAgain)
+        {
+            const MemoryAllocator& memory = mRenderer.getDevice().getMemory();
+            const std::uint32_t heap = memory.getVideoHeap();
+            const auto worldHeld = [&] { return mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity != 0; };
+            const auto contentHeld = [&] {
+                std::array<VkDeviceSize, sMemoryUses> held{};
+                for (std::size_t use = static_cast<std::size_t>(MemoryUse::Essential); use < sMemoryUses; ++use)
+                    held[use] = memory.getHeld(heap, static_cast<MemoryUse>(use));
+                return held;
+            };
+            const auto runAt = [&](Upscale mode) {
+                mRenderer.setUpscale(mode);
+                EXPECT_LE(memory.getHeld(heap, MemoryUse::Frame), memory.getFrameReserve())
+                    << "targets past their reserve under " << sUpscaleNames.name(mode);
+                return memory.getFrameReserve();
+            };
+
+            ASSERT_TRUE(worldHeld());
+            const VkDeviceSize alone = runAt(Upscale::Off);
+            ASSERT_TRUE(worldHeld()) << "a mode the renderer ran already moved nothing";
+
+            const VkDeviceSize upscaled = runAt(Upscale::Native);
+            EXPECT_GT(upscaled, alone) << "the upscaler's images were not kept room for";
+            EXPECT_FALSE(worldHeld()) << "a reserve that grew kept content chosen against less room";
+            const std::array<VkDeviceSize, sMemoryUses> released = contentHeld();
+
+            mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
+            ASSERT_GT(contentHeld()[static_cast<std::size_t>(MemoryUse::Structure)],
+                released[static_cast<std::size_t>(MemoryUse::Structure)])
+                << "the world built again holds no structure, so the release below proves nothing";
+            EXPECT_EQ(runAt(Upscale::Native), upscaled);
+            EXPECT_TRUE(worldHeld()) << "a reserve that stayed where it was built the world again";
+
+            EXPECT_EQ(runAt(Upscale::Off), alone) << "the reserve did not follow the mode back";
+            EXPECT_FALSE(worldHeld()) << "a reserve that shrank kept content held to less room than it has";
+            EXPECT_EQ(contentHeld(), released) << "a world let go kept memory past its release";
+
+            ASSERT_EQ(mRenderer.getProfile().mRadianceWidth, RadianceWidth::Summed);
+            mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
+            mRenderer.renderFrame(ahead(), FrameOptions{ .mAccumulate = 1 });
+            ASSERT_TRUE(mRenderer.finishFrame().has_value());
+            EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), memory.getFrameReserve())
+                << "the reserve and what a summing frame holds differ";
         }
 
         /// A refitted structure is built whole again on a rota: the posed body built longest ago,

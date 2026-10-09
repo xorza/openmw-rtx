@@ -487,8 +487,9 @@ namespace Rtx::Testing
 
             // Nothing to hit, so every pixel is the sky and the mean of the frame is the sky. The
             // scene is set once: setting it again would clear the previous camera and reset the eye.
+            const SceneDesc sky;
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), sky, {});
 
             // The dim sky at a day's exposure, which every frame with no past draws.
             const double dayDim = shot(dim);
@@ -529,10 +530,14 @@ namespace Rtx::Testing
 
             // **A new extent keeps the eye**: an eye adapted to the bright sky meets the dim one past
             // two upscale modes as it met it before them, barely moved, where an eye that lost its
-            // past would start again at a day.
+            // past would start again at a day — the world the modes' reserves released built again
+            // in between, as the uploader builds it, which is the same world and no new one.
             EXPECT_EQ(settle(bright), lit);
             mRenderer.setUpscale(Upscale::Quality);
             mRenderer.setUpscale(Upscale::Off);
+            ASSERT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, 0u)
+                << "the modes moved no reserve, so nothing here was built again";
+            mRenderer.setScene(Rtx::SceneSlot::world(), sky, {});
             EXPECT_LT(shot(dim), 0.5 * adapted) << "a new extent snapped the eye";
 
             // **And a new world loses it, whatever frame comes first**: a held frame after the world

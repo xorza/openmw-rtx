@@ -23,8 +23,6 @@ Sizes: B/px is bytes per traced pixel. 1 B/px is 1.64 MB at 1707×960 (`quality`
 | FSR at render size | ~40 B/px | matches the SDK exactly; AMD lists 106 MB at 1440p Quality |
 | **Total per traced pixel** | **~485 B/px** | |
 
-- The frame reserve plans for the native mode whatever mode runs (`vulkanrenderer.cpp:73-91`). At a
-  4K output that is ~6 GB, which leaves an 8 GB RTX 20/30 card almost no room for textures.
 - On the GPU, the frame at `seyda-neen-ship` is 6.8 ms: trace 2.78, the denoisers 1.5 (21–31 % of the
   frame across the places), air 0.41, TLAS 0.41, upscale 0.37.
 - Descriptor limits are not a risk: the most a stage binds is 22 storage images, and the widest pushed
@@ -272,9 +270,6 @@ Proof: `kernels`, `shot --against`, `check` with both `--variants`, `bench`, `ns
 
 Each changes a policy or the vanilla picture, so none is a fix to make without your call.
 
-- **The frame reserve** plans for native whatever mode runs. Reserve for the current mode and evict at
-  the mode switch, which already drains. On an 8 GB card at a 1440p or 4K output this is the difference
-  between full textures and stand-ins.
 - **The glossy filter's images exist on content that can never have a lobe** (24 B/px). Make them only
   where the content can name a companion map, decided at construction.
 - **Ground composites by the footprint the trace reads** (now BC7, 148 MB on `island-crossing`): a

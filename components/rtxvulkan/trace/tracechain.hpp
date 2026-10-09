@@ -52,10 +52,12 @@ namespace Rtx
         TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance,
             MemoryUse use, TracePast past);
 
-        /// What a chain at this extent takes of the device's memory, the running sum included,
-        /// which a trace that averages makes.
+        /// What a chain at this extent takes of the device's memory, the running sum apart.
         static VkDeviceSize bytesAt(
             const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
+
+        /// What the running sum at this extent takes, which only a trace that averages makes.
+        static VkDeviceSize sumBytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
 
         /// Builds the chain at exactly this extent, whatever it was before, and nothing where it
         /// already stands at it.

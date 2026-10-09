@@ -130,10 +130,13 @@ namespace MWGui
 {
     namespace
     {
-        /// The desktop mode of the display `window` is on, or null where SDL has none.
-        const SDL_DisplayMode* desktopMode(SDL_Window* window)
+        /// The window pixels the desktop gives a point of its own interface in `window`: its
+        /// display's density and content scale together. One where SDL cannot say, which answers
+        /// nought.
+        float displayScale(SDL_Window* window)
         {
-            return SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(window));
+            const float asked = SDL_GetWindowDisplayScale(window);
+            return asked > 0.f ? asked : 1.f;
         }
 
         Settings::SettingValue<bool>* findHiddenSetting(GuiWindow window)
@@ -211,7 +214,7 @@ namespace MWGui
         , mCfgMgr(cfgMgr)
     {
         mLaidOutFrame = mRenderer.getPresentation().mFrame;
-        mScalingFactor = scaleAt(mLaidOutFrame);
+        mScalingFactor = scaleNow();
         constexpr VFS::Path::NormalizedView resourcePath("mygui");
         mGuiPlatform = mRenderer.createGuiPlatform(mScalingFactor, resourcePath, logpath / "MyGUI.log");
 
@@ -222,11 +225,9 @@ namespace MWGui
 
         MyGUI::LanguageManager::getInstance().eventRequestTag = MyGUI::newDelegate(this, &WindowManager::onRetrieveTag);
 
-        // The display's own resolution, at its density, and this frame: any frame up to the larger of
-        // the two shows the fonts no softer than they were made.
-        const SDL_DisplayMode* const desktop = desktopMode(mRenderer.getWindow());
-        mRasterScale = std::max(mScalingFactor,
-            Settings::gui().mScalingFactor * std::max(1.f, desktop != nullptr ? desktop->pixel_density : 1.f));
+        // The window's pixels a unit covers, and this frame's: any frame up to the window's own
+        // resolution, or this one where it is finer, shows the fonts no softer than they were made.
+        mRasterScale = std::max(mScalingFactor, Settings::gui().mScalingFactor * displayScale(mRenderer.getWindow()));
         mFontLoader = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), mRasterScale, exportFonts);
 
         // Register own widgets with MyGUI
@@ -1322,11 +1323,10 @@ namespace MWGui
         layOut();
     }
 
-    float WindowManager::scaleAt(const osg::Vec2i frame) const
+    float WindowManager::scaleNow() const
     {
-        const SDL_DisplayMode* const desktop = desktopMode(mRenderer.getWindow());
-        const osg::Vec2i points = desktop != nullptr ? osg::Vec2i(desktop->w, desktop->h) : osg::Vec2i();
-        return Misc::interfaceScale(Settings::gui().mScalingFactor, frame, points);
+        return mRenderer.getPresentation().interfaceScale(
+            Settings::gui().mScalingFactor, displayScale(mRenderer.getWindow()));
     }
 
     void WindowManager::layOut()
@@ -1339,14 +1339,12 @@ namespace MWGui
     {
         const float shown = mRenderer.getPresentation().shownScale();
         const float scale = mScalingFactor * shown;
-        // Nought where SDL cannot say, which is one: a cursor drawn at its own pixels.
-        const float asked = SDL_GetWindowDisplayScale(mRenderer.getWindow());
-        const float displayScale = asked > 0.f ? asked : 1.f;
-        if (scale == mCursorScale && displayScale == mCursorDisplayScale)
+        const float display = displayScale(mRenderer.getWindow());
+        if (scale == mCursorScale && display == mCursorDisplayScale)
             return;
 
         mCursorScale = scale;
-        mCursorDisplayScale = displayScale;
+        mCursorDisplayScale = display;
         mLuaCursorScale = shown;
         mCursorManager->dropCursors();
         createCursors();
@@ -1355,7 +1353,7 @@ namespace MWGui
     void WindowManager::layOutInterface()
     {
         const osg::Vec2i frame = mRenderer.getPresentation().mFrame;
-        const float scale = scaleAt(frame);
+        const float scale = scaleNow();
         if (frame == mLaidOutFrame && scale == mScalingFactor)
             return;
         mLaidOutFrame = frame;
