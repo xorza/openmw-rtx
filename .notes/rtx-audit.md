@@ -61,7 +61,7 @@ means use it. The other histories, the fog volume and the payload are group 4.
 | 8 | Air volume | 165 → ~50 MB with group 4; air+column ~0.5 → ~0.25 ms (est.) | softer shafts at scale 12 | experiment |
 | 9 | Water | 4 MB; ~19 queue drains a frame | bit-exact / ulp | straightforward |
 | 10 | Display and sprites | one sprite table set (up to 64 MB in a storm); one full-frame read | bit-exact | straightforward |
-| 11 | Denoiser dispatch shape | est. 0.1–0.2 ms | bit-exact reachable | experiment |
+| 11 | Denoiser dispatch shape | est. 0.01–0.15 ms each | bit-exact reachable | experiment |
 | 12 | Decisions that are yours | up to GBs of content room | some move the vanilla picture | policy |
 
 Not proposed again: opacity micromaps, async compute, SER (AGENTS.md's declined list), TLAS update or a
@@ -144,7 +144,7 @@ noise and keep no bias; `noise` is the verdict.
    and the frame count as eight halves in one `RGBA32UI` texel, where a tap fetches two RGBA16F
    texels today; the first level goes from 93 to 68 fetches a pixel, at the same memory. It costs an
    unpack at every tap and a second read path in the composite beside the unfiltered channels. Only
-   if a profile says the fetches limit the levels: measured, the first level is 0.22–0.36 ms and each
+   if a profile says the fetches limit the levels: measured, the first level is 0.22–0.30 ms and each
    narrow one 0.08–0.13.
 3. **Shadow history and scratch**: unorm16 mean + half variance in one word (−16 B/px).
 4. **Shadow moments** in the capped EMA form (−32 B/px). A behaviour change: Welford's M2 grows with an
@@ -279,19 +279,15 @@ Proof: `repeat` and `check` over the storm suite, `shot --against` exact, the ex
 
 Experiments for time, after group 4 settles the formats.
 
-1. **The wavelet's first level in shared memory**, as NRD's `RELAX_AtrousSmem`: decode each texel's
-   normal and position once, where today each is decoded ~25 times. Est. 0.1–0.15 ms of the 0.6 ms
-   `filter` zone. (The tree's note that shared memory "did not pay" concerned the strided levels, where
-   no texel is reused.)
-2. **Record the two shadow fields and the filters stage by stage**: every compute barrier drains all
+1. **Record the two shadow fields and the filters stage by stage**: every compute barrier drains all
    earlier compute, so interleaving halves the drains. Est. 0.01–0.03 ms. Conflicts with sharing one
    shadow scratch set between the fields; pick one.
-3. **The composite fused into the last wavelet level**: −16 B/px of traffic and one dispatch.
-4. **A pane-free launch variant**: the four pane channels are 32 B/px (22.5 % of the G-buffer), written
+2. **The composite fused into the last wavelet level**: −16 B/px of traffic and one dispatch.
+3. **A pane-free launch variant**: the four pane channels are 32 B/px (22.5 % of the G-buffer), written
    and filtered every frame even where no surface can be peeled. A conservative "no peelable material"
    fact skips the stores and the pane pass; the channels are cleared once on entry. Up to ~0.15 ms
    (est.).
-5. Strided levels at 2560×1440 native no longer fit the 64 MB L2: thread-group ID swizzling, if
+4. Strided levels at 2560×1440 native no longer fit the 64 MB L2: thread-group ID swizzling, if
    measured.
 
 Proof: `kernels`, `shot --against`, `check` with both `--variants`, `bench`, `nsys` on the filter zone.
