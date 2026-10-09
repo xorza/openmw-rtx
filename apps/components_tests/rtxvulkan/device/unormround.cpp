@@ -261,7 +261,8 @@ namespace Rtx
         ///   step under it where the share of a step it stands above it, in 2^-24ths, passes the word.
         ///   Each at the words either side of its own share, nought, the nearest's and the largest:
         ///   nought and one, a half, the least step, 2^-40 and the float under it, where the share
-        ///   leaves the word's reach, values past either end, and 4096 drawn in `[0, 1]`.
+        ///   leaves the word's reach, values past either end, every float whose product with 65535
+        ///   rounds up onto 1, 2, 255, 32768 or 60001, and 4096 drawn in `[0, 1]`.
         /// - **Read back**, each of the 65536 steps is the float of its index times
         ///   `2^-16 + 2^-32`, within an ulp of the step's exact value, and the ends are nought and
         ///   one: `65535 × (2^-16 + 2^-32) = 1 - 2^-32`, which rounds to one.
@@ -282,6 +283,22 @@ namespace Rtx
             for (const float value : { 0.0f, 1.0f, 0.5f, 0.25f + 0x1p-20f, sStep, 0x1p-40f,
                      std::nextafter(0x1p-40f, 0.0f), 0x1p-24f, 1.5f, -0.5f, Shaders::SHADOW_NO_RECEIVER })
                 add(value);
+            // **And the floats whose product rounds up onto a whole step**, the largest under each of a
+            // few steps: the step under them is theirs, with a share of all but a hair of a step.
+            std::size_t hairs = 0;
+            for (const float step : { 1.0f, 2.0f, 255.0f, 32768.0f, 60001.0f })
+            {
+                float under = step / 65535.0f;
+                while (static_cast<double>(under) * 65535.0 >= static_cast<double>(step))
+                    under = std::nextafter(under, 0.0f);
+                while (under * 65535.0f == step)
+                {
+                    add(under);
+                    ++hairs;
+                    under = std::nextafter(under, 0.0f);
+                }
+            }
+            ASSERT_EQ(hairs, 5u) << "a step lost the float whose product rounds up onto it";
             std::mt19937 draws(20261009u);
             std::uniform_real_distribution<float> inUnit(0.0f, 1.0f);
             for (int i = 0; i < 4096; ++i)
