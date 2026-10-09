@@ -109,7 +109,7 @@ void main()
         }
     }
 
-    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_HALF_ROUNDING, frame.mFrame);
+    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_PANE_ROUNDING, frame.mFrame);
     RTX_STORE_COUNTED(mean, at, roundedToHalf(stands ? texelOf(blended) : vec4(sampled, 0.0), rounding))
     RTX_STORE_WORDS(fastBlended, at, uvec4(stands ? packRgb9e5(blendedFast) : HISTORY_CLAMP_EMPTY, 0u, 0u, 0u))
     RTX_STORE_COUNTED(held, at, heldSurfaceOf(seen, frame.mDistanceScale))

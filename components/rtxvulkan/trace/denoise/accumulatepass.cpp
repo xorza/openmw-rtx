@@ -91,8 +91,8 @@ namespace Rtx
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
         // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it,
-        // and the count the accumulator wrote beside it; and it writes the fast means the accumulator
-        // just read as last frame's.
+        // and the moments the accumulator wrote beside it; and it writes the fast means the
+        // accumulator just read as last frame's.
         Barriers blended(commands);
         for (const Image* image : { &images.mBlended, &images.mFillBlended, &images.mFastBlended })
             image->addTransition(blended, Use::sComputeWrite, Use::sComputeReadWrite);
@@ -113,8 +113,9 @@ namespace Rtx
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
 
         dispatch(commands, clamp, clampWrites,
-            Shaders::AccumulateClampConstants{
-                .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mFilters.mAntilag ? 1u : 0u },
+            Shaders::AccumulateClampConstants{ .mEyes = frame.mSampled.mEyes,
+                .mAntilag = frame.mFilters.mAntilag ? 1u : 0u,
+                .mFrame = frame.mSampled.mFrame },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 }

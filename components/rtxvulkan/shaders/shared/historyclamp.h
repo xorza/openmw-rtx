@@ -39,19 +39,24 @@ namespace Rtx::Shaders
     /// `[2^-15, 2^-14)` and its mantissa rounds to at least 256.
     const uint HISTORY_CLAMP_EMPTY = 1u << 27u;
 
+    /// Which filter's means a clamp holds: `HistoryClampConstants::mLayer`.
+    const uint HISTORY_CLAMP_GLOSSY = 0u;
+    const uint HISTORY_CLAMP_PANE = 1u;
+
     /// What the clamp is handed: the frame's extent, whether it clamps at all
-    /// (`FilterSwitches::mAntilag`), nought or one, and the frame's number, which its store's rounding
-    /// draws are seeded with.
+    /// (`FilterSwitches::mAntilag`), nought or one, and the frame's number and the filter's layer,
+    /// which its store's rounding draws are seeded with.
     struct HistoryClampConstants
     {
         uint mWidth;
         uint mHeight;
         uint mAntilag;
         uint mFrame;
+        uint mLayer;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryClampConstants) == 16, "HistoryClampConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryClampConstants) == 20, "HistoryClampConstants must be scalar-packed on every side");
 }
 #endif
 

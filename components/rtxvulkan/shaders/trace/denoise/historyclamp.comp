@@ -134,7 +134,8 @@ void main()
     // Held at nought, for the reason `accumulateclamp.comp` gives.
     const vec3 toward = sampledMean - fastHere;
     const vec3 held = max(mix(slow.rgb, clamped.mHeld, antilag) + pushed * toward, vec3(0.0));
-    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_HALF_ROUNDING_AGAIN, frame.mFrame);
+    const uint seed = frame.mLayer == HISTORY_CLAMP_PANE ? SEED_PANE_CLAMP_ROUNDING : SEED_GLOSSY_CLAMP_ROUNDING;
+    uint rounding = seededKey(pixelKey(uvec2(at)) + seed, frame.mFrame);
     RTX_STORE_COUNTED(mean, at, roundedToHalf(vec4(held, slow.a), rounding))
     RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(fastHere + pushed * toward), 0u, 0u, 0u))
 }

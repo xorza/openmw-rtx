@@ -15,15 +15,16 @@ median from `measured.json` or an estimate, and an estimate says it is one.
    falling between two representable finite values are rounded… The rounding mode is not defined",
    so a value that *is* representable is stored as itself. The tree already does this deterministically for
    the pane albedo (`visibility.rgen:479-485`, `& 0xffffe000u`). For a running mean the rounding has
-   to be **stochastic** and not merely to nearest, and §2 says why. The glossy and pane means are
-   kept so already (`roundedToHalf`). The accumulator and wavelet's 200 B/px drop to about 96 B/px,
-   the shadow fields' 2 × 48 to 52, and the pane's held surface moves to the G-buffer (§3–§5). The
-   total goes from **328 to about 220 B/px** with the G-buffer's +16.
+   to be **stochastic** and not merely to nearest, and §2 says why. The accumulator, the wavelet and
+   the glossy and pane means are kept so already (`roundedToHalf`). The shadow fields' 2 × 48 drop to
+   52, and the held surfaces move to the G-buffer (§3–§5). The total goes from **256 to about 190
+   B/px** with the G-buffer's +16.
 2. **Time.** The filter zone (0.59–0.74 ms) is the largest. The code says it is ALU- and TEX-bound
    rather than DRAM-bound. The lever there is NRD's own `RELAX_AtrousSmem` shape: a first level that
    decodes each texel's normal and position **once into shared memory**, where today each is decoded
-   twenty-five times over. Add the packed bounce+fill texel, which halves the level's fetch count. The earlier "LDS did not pay" note was about the *strided* levels with
-   Dolp's permutation, which is a different experiment.
+   twenty-five times over. Add the packed bounce+fill texel, which halves the level's fetch count.
+   The earlier "LDS did not pay" note was about the *strided* levels with Dolp's permutation, which
+   is a different experiment.
 
 Measured denoiser share (zone medians, `measured.json`; filter + shadow + accumulate + clamp +
 composite + pane):
@@ -43,8 +44,8 @@ measurement.
 ## 1. What each pass moves today
 
 As audited, before the items done since: one-image histories, one-word fast means, `R32F` shadow
-visibility, the clamp's and the composite's skipped loads, and the glossy and pane means in halves.
-The images total 328 B/px now.
+visibility, the clamp's and the composite's skipped loads, and every mean in halves. The images total
+256 B/px now.
 
 Model: the unique bytes per pixel a pass reads and writes. Apron and neighbour overlap is assumed to
 hit in cache, and DRAM traffic is roughly the unique bytes. Radiance channels are `RGBA16F` (8 B) in
@@ -119,29 +120,11 @@ value**, roughly 0.04 of a level of 255 at mid-grey. For comparison, the noise s
 [*Stochastic rounding: implementation, error analysis and applications*](https://doi.org/10.1098/rsos.211631)
 (R. Soc. Open Sci. 2022), both on stagnation under round-to-nearest.
 
-### 2.3 Welford/EMA variance instead of `E[l²] − E[l]²`
-
-For an EMA, `S' = (1 − α)(S + α(x − μ)²)` is **algebraically identical** to the difference of
-moments. Expanding `E2' − μ'²` gives exactly that. See West 1979, and Finch,
-[*Incremental calculation of weighted mean and variance*](https://fanf2.user.srcf.net/hermes/doc/antiforgery/stats.pdf),
-eq. 143.
-
-- **In full floats it buys nothing.** The cancellation error is `2⁻²⁴ · E[l²]/var`, about 6 × 10⁻⁶
-  even at σ/μ = 0.1.
-- **It is what makes a half possible.** In a half, the difference would lose `2⁻¹¹ · (1 + μ²/σ²)`,
-  which is 5% at σ/μ = 0.1 and garbage below that. Storing `S` (better, `σ = √S`, as the narrow levels
-  store it) keeps the relative precision on the quantity itself.
-- The bilinear gather and the clamp's 5×5 short-history mixture become
-  `Σw(S + μ²) − (Σwμ)²` in fp32 ALU. That is the same mixture as today, and the cancellation stays
-  in full floats.
-
-So: **adopt it together with halving the moments, and not on its own.**
-
-### 2.4 Aliasing
+### 2.3 Aliasing
 
 This is NRD's transient pool, its "Aliasable" column. It is real, but it is the last thing to do.
-§5 shows the cheap form, reusing a dead image of the right shape, which needs no Vulkan memory
-aliasing. True aliasing across formats
+The cheap form, reusing a dead image of the right shape, is done: the second narrow level writes over
+the blend, with no Vulkan memory aliasing. True aliasing across formats
 ([VMA resource aliasing](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/resource_aliasing.html))
 needs:
 
@@ -153,85 +136,33 @@ Lifetimes, as recorded:
 
 - `FastBlended` (accumulate → clamp), each field's shadow `Scratch` (temporal pass → L2), and
   `PaneFastBlended` (pane → its clamp) are all dead before the barrier ahead of the wavelet.
-- The wavelet's narrow images live from L1 to the composite.
+- The wavelet's narrow image lives from L1 to the composite.
 
-So the four narrow images (32 B/px today) fit onto those four (8 B each).
+So the two narrow images (16 B/px today) fit onto those four (8 B each).
 
 There is a catch. Neighbouring dispatches with no barrier between them overlap today: the clamp
 and the sky mask, the specular clamp and the pane filter. Aliasing images across such a boundary
 would add a barrier that serializes them.
 
-## 3. The accumulator and the wavelet (200 B/px → ~96)
+## 3. The accumulator and the wavelet (88 B/px)
 
-### 3.1 Current layout and its waste
+Every slow value in the loop is a half rounded at random, the moments are the running mean and
+deviation, the frame count rides in the fill's alpha, and the second narrow level writes over the
+blend. What is left:
 
-- `Fill`, `FillBlended` and both `FillNarrow`s carry an alpha that is always nought. That is 16 B/px
-  of stored zeros, and the 25 L0 fill taps fetch 16 B where 12 are used.
-- `Moments.b` holds nothing (`accumulate.comp:67-68`), and `Moments` is read whole (16 B) by L0 for
-  `.a` alone (`atrous.comp:208`).
-- `Colour.a` holds the variance for L1, which the accumulator never reads back.
-- `Surface` (`RGBA16F` pair) is a re-encoded copy of last frame's `CHANNEL_SURFACE`
+- **`Surface` (`RGBA16F` pair) is a re-encoded copy of last frame's `CHANNEL_SURFACE`**
   (`heldSurfaceOf`, `surfacematch.glsl:21`). It needs `mDistanceScale` only because it is a half.
-- Both narrow pairs exist only to ping-pong, while `Blended` and `FillBlended` are dead after L0.
-
-### 3.2 Proposed layout ("B2", packed)
-
-Every slow value in the loop is written with stochastic rounding (§2).
-
-| image | format | contents | B/px |
-|---|---|---|---|
-| history (pair) | `RGBA32UI`, 8 halves | bounce rgb, fill rgb, σ for L1, frames | 32 |
-| moments (pair) | `R32UI`, 2 halves | μ_l, σ_l (EMA form, §2.3) | 8 |
-| blended | `RGBA32UI` | as the history; the clamp writes σ | 16 |
-| narrow | `RGBA32UI` | L1 and L3 write it; **L2 writes `blended`**, dead after L0 | 16 |
-| fast (pair) + fast blended | `RG32UI` RGB9E5, unchanged | | 24 |
-| held surface | **moved to the G-buffer**: `CHANNEL_SURFACE` as a pair (+8 there) | | 0 |
-| total | | | **96** (+8 G-buffer) |
-
-Why this is sound:
-
-- **Frames ride in the texel the accumulator already gathers.** L0 copies them from `blended`
-  into the history, so the history fix (`atrous.comp:208`) and the clamp (`accumulateclamp.comp:220`)
-  read them from the texel they already fetch. That removes 16 B/px at L0 and 16 at the clamp.
-- **The surface moved to the G-buffer.** Last frame's `CHANNEL_SURFACE` holds the same normal and
-  the distance in full float, plus the eye flag. The accumulator's 8 B/px write goes away,
-  `HistoryConstants::mDistanceScale` and `ACCUMULATE_DISTANCE_RANGE` go with it, and
-  `heldSurfaceMatches` compares at fp32 distance. RELAX does the equivalent: its first à-trous pass
-  writes `NORMAL_ROUGHNESS_PREV` and `VIEWZ_PREV`. The same applies to `PaneHeld` and
-  `CHANNEL_PANE_SURFACE`.
-- **One pipeline layout for L1..L3** (`utexture2D` sources, sampled as today). The composite then
-  reads one 16 B texel for bounce and fill.
-
-Traffic per pixel (current → proposed):
-
-| pass | current | proposed |
-|---|---|---|
-| accumulate | 160 | ~96 (reads 32 + 8 + 16 + 4 + 8; writes 16 + 4 + 8) |
-| clamp | 120 | ~76 |
-| L0 | 88 | ~40 |
-| L1 | 56 | 40 |
-| L2, L3 | 40 each | 40 each |
-
-On TEX, L0 goes from 93 to 68 fetches and from ~1.2 KB to ~0.8 KB per pixel. The narrow levels go
-from 27 to 18 fetches per pixel.
-
-A simpler "B1" keeps separate `RGBA16F` bounce and fill images with stochastic rounding, puts frames
-in `fill.a` and the moments in `RG16F`. It comes to about 104 B/px (120 without the surface move).
-It keeps the formatless composite, but it keeps two fetches a tap.
-
-### 3.3 Risk and proof
-
-- **Not bit-exact.** The history gains about 0.1% of SR noise and keeps no bias.
-- **Tests:** the helper is held by `RtxHalfStoreTest`; the tests that hold a mean to the float's
-  rounding move to `halfRoundedMeanError`; `RtxBounceTrailTest`, and
-  `theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt`.
-- **Harness runs:** `./omw release noise --ab=<switch>`, starting with `--still` and then the full
-  suite (bias and fireflies, `balmora-fog-night` for dim light); `./omw repeat --pairs=10`;
-  `./omw shot --against` (small differences everywhere are expected, so read them);
-  `./omw kernels --against`; then `bench`.
-
-This is an experiment and a large change. Do the frames move and the narrow reuse first, because
-they are format-neutral (§5).
+  Last frame's `CHANNEL_SURFACE` holds the same normal and the distance in full float, plus the eye
+  flag: the accumulator's 8 B/px write goes away, `HistoryConstants::mDistanceScale` and
+  `ACCUMULATE_DISTANCE_RANGE` go with it, and `heldSurfaceMatches` compares at fp32 distance. RELAX
+  does the equivalent: its first à-trous pass writes `NORMAL_ROUGHNESS_PREV` and `VIEWZ_PREV`. The
+  same applies to `PaneHeld` and `CHANNEL_PANE_SURFACE`. −16 B/px net.
+- **"B2": the bounce and its fill in one texel**, eight halves in an `RGBA32UI`, for time alone: a
+  tap fetches one texel where it fetches two today, and on TEX the first level goes from 93 to 68
+  fetches a pixel and the narrow levels from 27 to 18, at the same memory. It costs an unpack at
+  every tap and a second read path in the composite beside the unfiltered channels. Only if a
+  profile says the fetches limit the levels; measured, the first level is 0.22–0.36 ms and each
+  narrow one 0.08–0.13.
 
 ## 4. The shadow denoiser (2 × 48 → 2 × 26 B/px)
 
@@ -326,17 +257,16 @@ check its register count.
 
 | # | what | where | saving | picture | kind |
 |---|---|---|---|---|---|
-| 1 | Narrow ping-pong through `Blended` | `atrouspass.cpp:101-149` | −16 B/px memory, +16 B/px traffic in today's formats; free under #3 | none | straightforward |
-| 2 | Shadow history and scratch packed (unorm16 + half) | `shadow.h:49`, `shadowtiles.comp`, `shadowfilter.comp` | −16 B/px | ≤ 3e-4 | experiment-light |
-| 3 | Accumulator "B2" packed halves with stochastic rounding + EMA variance + frames in the texel | `accumulate.h`, `atrous.h`, the 4 shaders | 200 → 96 B/px; accumulate, clamp and L0 traffic −40 to −55% | ~0.1% SR noise, no bias | experiment |
-| 4 | L0 in shared memory (`RELAX_AtrousSmem`) | `atrous.comp` | est. −0.1 to −0.15 ms | bit-exact reachable | experiment |
-| 5 | Held surfaces → G-buffer pairs | `GBuffer`, `surfacematch.glsl`, `accumulate.comp:216,314`, `pane.comp:113` | −16 B/px net, −16 B/px writes; removes `mDistanceScale` | fp32 distances | experiment |
-| 6 | Shadow moments in the EMA form, capped | `shadowtiles.comp:265-290` | −32 B/px | behaviour change | experiment |
-| 7 | Barrier interleave across the shadow fields and filters | `shadowpass.cpp`, `denoisepasses.cpp` | est. 0.01–0.03 ms | none | experiment |
-| 8 | Composite fused into L3 | `atrous.comp`, `compositepass.cpp` | −16 B/px, one dispatch | none | experiment |
-| 9 | True aliasing of the narrow images onto the dead scratch | `denoisehistory.cpp` (a lifetime column) | −32 B/px today; less after #1 and #3 | none | last |
+| 1 | Shadow history and scratch packed (unorm16 + half) | `shadow.h:49`, `shadowtiles.comp`, `shadowfilter.comp` | −16 B/px | ≤ 3e-4 | experiment-light |
+| 2 | Bounce and fill in one texel ("B2") | `accumulate.h`, `atrous.h`, the 4 shaders, `composite.comp` | first level 93 → 68 fetches a pixel; no memory | ~0.1% SR noise, no bias | experiment, measure first |
+| 3 | L0 in shared memory (`RELAX_AtrousSmem`) | `atrous.comp` | est. −0.1 to −0.15 ms | bit-exact reachable | experiment |
+| 4 | Held surfaces → G-buffer pairs | `GBuffer`, `surfacematch.glsl`, `accumulate.comp:216,314`, `pane.comp:113` | −16 B/px net, −16 B/px writes; removes `mDistanceScale` | fp32 distances | experiment |
+| 5 | Shadow moments in the EMA form, capped | `shadowtiles.comp:265-290` | −32 B/px | behaviour change | experiment |
+| 6 | Barrier interleave across the shadow fields and filters | `shadowpass.cpp`, `denoisepasses.cpp` | est. 0.01–0.03 ms | none | experiment |
+| 7 | Composite fused into L3 | `atrous.comp`, `compositepass.cpp` | −16 B/px, one dispatch | none | experiment |
+| 8 | True aliasing of the narrow images onto the dead scratch | `denoisehistory.cpp` (a lifetime column) | −16 B/px | none | last |
 
-Combined memory with #2, #3, #5 and #6: **328 → ~220 B/px** including the G-buffer's +16.
+Combined memory with #1, #4 and #5: **256 → ~190 B/px** including the G-buffer's +16.
 Every one of these needs `./omw test` and finally `./omw gate`. Every change that moves a picture needs the `noise` suite as
 the verdict, after a narrowed A/B (`--views=… --strafe=0 --walk=0 --still`).
 

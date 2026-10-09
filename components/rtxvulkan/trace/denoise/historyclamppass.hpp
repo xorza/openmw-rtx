@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
@@ -31,11 +29,10 @@ namespace Rtx
             const Image& mFast;
         };
 
-        /// Records the clamp over a frame `width` by `height`, behind the filter's writes, which this
-        /// orders. `antilag` is `FilterSwitches::mAntilag`: without it the means pass through. `frame`
-        /// is the frame's number, which seeds its store's rounding.
-        void record(VkCommandBuffer commands, const Images& images, std::uint32_t width, std::uint32_t height,
-            bool antilag, std::uint32_t frame) const;
+        /// Records the clamp over the frame `constants` names, behind the filter's writes, which this
+        /// orders.
+        void record(
+            VkCommandBuffer commands, const Images& images, const Shaders::HistoryClampConstants& constants) const;
 
     private:
         ComputePipeline<Shaders::HistoryClampConstants> mPipeline;

@@ -139,12 +139,19 @@ const uint SEED_WAVELET_TAPS = SEED_SEE_THROUGH + 1u;
 /// so no other draw moves.
 const uint SEED_SHADOW_THROUGH = SEED_WAVELET_TAPS + 1u;
 
-/// And one for which way a history kept in halves is rounded at its store (`roundedToHalf`): a hash
-/// of the texel and the frame, so `repeat` draws it again, and of nothing a picture draws. A second
-/// for a pass that stores over the same texel later in the frame — the history clamp, in place —
-/// so its draws are not the filter's.
-const uint SEED_HALF_ROUNDING = SEED_SHADOW_THROUGH + 1u;
-const uint SEED_HALF_ROUNDING_AGAIN = SEED_HALF_ROUNDING + 1u;
+/// And one for each store that rounds a history kept in halves (`roundedToHalf`): a hash of the
+/// texel and the frame, so `repeat` draws it again, and of nothing a picture draws. **One a store**,
+/// since one pixel holds the bounce, a glossy surface and a pane at once, and one draw shared rounds
+/// the three the same way: their errors would add where they are to stand apart. The glossy and the
+/// pane filters' and their clamp's for each (`HistoryClampConstants::mLayer`), and the bounce's: the
+/// accumulator's, its clamp's and the first wavelet level's.
+const uint SEED_GLOSSY_ROUNDING = SEED_SHADOW_THROUGH + 1u;
+const uint SEED_GLOSSY_CLAMP_ROUNDING = SEED_GLOSSY_ROUNDING + 1u;
+const uint SEED_PANE_ROUNDING = SEED_GLOSSY_CLAMP_ROUNDING + 1u;
+const uint SEED_PANE_CLAMP_ROUNDING = SEED_PANE_ROUNDING + 1u;
+const uint SEED_BOUNCE_ROUNDING = SEED_PANE_CLAMP_ROUNDING + 1u;
+const uint SEED_BOUNCE_CLAMP_ROUNDING = SEED_BOUNCE_ROUNDING + 1u;
+const uint SEED_BOUNCE_HISTORY_ROUNDING = SEED_BOUNCE_CLAMP_ROUNDING + 1u;
 
 /// A key for one pixel, which a caller offsets by a `SEED_` constant to say which sequence it wants.
 ///
@@ -165,15 +172,20 @@ uint froxelKey(uvec2 column, uint slice)
     return pixelKey(column) ^ slice * 83492791u;
 }
 
-float randomNext(inout uint state)
+/// The next twenty-four bits of `state`'s sequence, as an integer: every one a float can hold
+/// without rounding two of them together, which `randomNext` scales into `[0, 1)`.
+uint randomWord(inout uint state)
 {
     state = state * 747796405u + 2891336453u;
 
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
     word ^= word >> 22u;
+    return word >> 8u;
+}
 
-    // Twenty-four bits, which is every one a float can hold without rounding two of them together.
-    return float(word >> 8u) * (1.0 / 16777216.0);
+float randomNext(inout uint state)
+{
+    return float(randomWord(state)) * (1.0 / 16777216.0);
 }
 
 /// A key stepped by the multiplier every sequence here starts from.

@@ -17,20 +17,18 @@
 // by the trace and read once by whatever consumes it. That is what lets the two formats part: a
 // reference is built through that channel and never through this one.
 //
-// **Full floats, because the first level writes the bounce's running mean**, which the accumulator
-// blends into the next frame (`ACCUMULATE_COLOUR` is this format by definition). A half store
-// rounds toward nought on this card (`RtxHalfStoreTest`), so a mean kept in halves falls a little
-// at every store: up to one step a frame, which a blend of `ACCUMULATE_FRAMES` keeps at up to
-// thirty-two, about 1.6 per cent under the mean of the same frames.
+// **Halves at every level, each rounded by the shader before its store** (`lib/halfround.glsl`). A
+// half store rounds toward nought on this card (`RtxHalfStoreTest`), and the first level writes the
+// bounce's running mean, which the accumulator blends into the next frame (`ACCUMULATE_COLOUR` is
+// this format by definition): stored as it is, it fell a step a frame, which a blend of
+// `ACCUMULATE_FRAMES` keeps at up to thirty-two, 1.6 per cent under the mean of the same frames. So
+// the first level rounds at random, as the accumulator and its clamp do, and the levels after it,
+// whose answers are shown and never blended back, round to the nearest. **The bounce's texel holds
+// the deviation in `a`, the fill's the frame count** where a history holds one, as the levels read
+// them; one format at every level, so the second narrow level writes over the blend the first
+// level read (`AtrousPass::record`).
 
-#define ATROUS_CHANNEL STORAGE_RGBA32F
-
-// **The narrow levels in halves**, every level after the first: each is shown and never summed, so
-// a half's rounding is taken once a level, three times in all, and never compounds over frames.
-// They read nine taps a pixel, which in halves is half the traffic. The kernel stores without a
-// declared format, so the one entry point writes either.
-
-#define ATROUS_NARROW STORAGE_RGBA16F
+#define ATROUS_CHANNEL STORAGE_RGBA16F
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -45,9 +43,8 @@ namespace Rtx::Shaders
     const uint ATROUS_BIND_SURFACE = 2;
     const uint ATROUS_BIND_FILL_SOURCE = 3;
     const uint ATROUS_BIND_FILL_FILTERED = 4;
-    const uint ATROUS_BIND_MOMENTS = 5;
-    const uint ATROUS_BIND_FAST = 6;
-    const uint ATROUS_BINDINGS = 7;
+    const uint ATROUS_BIND_FAST = 5;
+    const uint ATROUS_BINDINGS = 6;
 
     /// Where `atrous.comp`'s specialization constant sits: `ATROUS_WIDE`, true for the first level
     /// and false for every level after it.

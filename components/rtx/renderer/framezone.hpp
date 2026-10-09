@@ -35,7 +35,14 @@ namespace Rtx
         Shadow,
         Specular,
         Pane,
-        Filter,
+
+        /// The wavelet, a zone a level (`AtrousPass`): the wide first level, which writes the history,
+        /// and the narrow three, so a change to one is measured apart from the others.
+        Filter0,
+        Filter1,
+        Filter2,
+        Filter3,
+
         Composite,
         Upscale,
         Bloom,
@@ -77,7 +84,10 @@ namespace Rtx
         std::pair{ FrameZone::Shadow, std::string_view("shadow") },
         std::pair{ FrameZone::Specular, std::string_view("specular") },
         std::pair{ FrameZone::Pane, std::string_view("pane") },
-        std::pair{ FrameZone::Filter, std::string_view("filter") },
+        std::pair{ FrameZone::Filter0, std::string_view("filter0") },
+        std::pair{ FrameZone::Filter1, std::string_view("filter1") },
+        std::pair{ FrameZone::Filter2, std::string_view("filter2") },
+        std::pair{ FrameZone::Filter3, std::string_view("filter3") },
         std::pair{ FrameZone::Composite, std::string_view("composite") },
         std::pair{ FrameZone::Upscale, std::string_view("upscale") },
         std::pair{ FrameZone::Bloom, std::string_view("bloom") },

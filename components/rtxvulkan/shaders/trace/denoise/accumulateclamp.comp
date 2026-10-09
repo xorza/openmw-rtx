@@ -57,6 +57,7 @@
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
+#include "lib/halfround.glsl"
 #include "lib/historyclamp.glsl"
 #include "lib/pixels.glsl"
 #include "lib/sharedexponent.glsl"
@@ -78,14 +79,15 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_FAST) un
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED) uniform readonly image2D sampled;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform readonly image2D sampledFill;
 
-/// The slow means as the accumulator blended them, and in the bounce's `a` the deviation this writes:
-/// the square root of the variance, which the wavelet squares back (`atrous.comp` says why).
+/// The slow means as the accumulator blended them, in the bounce's `a` the deviation this writes —
+/// the square root of the variance, which the wavelet squares back (`atrous.comp` says why) — and in
+/// the fill's how many frames the mean holds: whether the ring holds it down, and whether its
+/// variance is its own or the square's.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_BLENDED, ATROUS_CHANNEL) uniform image2D blended;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHANNEL) uniform image2D fillBlended;
 
-/// The moments of each pixel's slow mean's luminance in `rg`, which its variance is measured from,
-/// and how many frames it holds in `a`: whether the ring holds it down, and whether its variance is
-/// its own or the square's.
+/// The mean and the deviation of each pixel's slow mean's luminance (`ACCUMULATE_MOMENTS`), which its
+/// variance is measured from.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_MOMENTS, ACCUMULATE_MOMENTS) uniform readonly image2D moments;
 
 /// This frame's fast means, which the next frame's accumulator reads.
@@ -112,7 +114,8 @@ const int INSET = OUTER - REACH;
 
 /// The fast mean at every pixel of the workgroup's ring, in YCoCg in `xyz` and its luminance in `w`,
 /// which is below nought where the pixel holds no surface; and over the clamp's square the samples of
-/// the bounce and the fill, and the moments of the slow mean's luminance.
+/// the bounce and the fill, and the first two moments of the slow mean's luminance, which a mixture
+/// sums.
 shared vec4 gFast[RING_SPAN][RING_SPAN];
 shared vec3 gSampled[SPAN][SPAN];
 shared vec3 gSampledFill[SPAN][SPAN];
@@ -150,7 +153,8 @@ void main()
         const bool held = gFast[square.y + INSET][square.x + INSET].w >= 0.0;
         gSampled[square.y][square.x] = held ? imageLoad(sampled, inside).rgb : vec3(0.0);
         gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, inside).rgb : vec3(0.0);
-        gMoments[square.y][square.x] = held ? imageLoad(moments, inside).rg : vec2(0.0);
+        const vec2 luminance = imageLoad(moments, inside).rg;
+        gMoments[square.y][square.x] = held ? vec2(luminance.x, secondMoment(luminance.x, luminance.y)) : vec2(0.0);
         // No surface is `SURFACE_NO_NORMAL`, whose normal of nought weighs nought in the variance.
         const vec2 seen = held ? imageLoad(surfaceChannel, inside).rg : vec2(SURFACE_NO_NORMAL, 0.0);
         gNormals[square.y][square.x] = unpackSurfaceNormal(seen.x);
@@ -218,13 +222,14 @@ void main()
 
     const vec3 blend = imageLoad(blended, at).rgb;
     const float blendLit = dot(blend, LUMINANCE_WEIGHTS);
-    const float frames = imageLoad(moments, at).a;
+    const vec4 fillBlend = imageLoad(fillBlended, at);
+    const float frames = fillBlend.a;
     const float young = frames <= ACCUMULATE_RING_FRAMES ? 1.0 : 0.0;
     const float slowHere = mix(
         blendLit, ringHeldLuminance(blendLit, ringSum, ringSquares, ringCount), float(ACCUMULATE_RING) * young);
     const float ringScale = blendLit > 0.0 ? slowHere / blendLit : 1.0;
     const vec3 slow = blend * ringScale;
-    const vec3 slowFill = imageLoad(fillBlended, at).rgb * ringScale;
+    const vec3 slowFill = fillBlend.rgb * ringScale;
     const float antilag = float(frame.mAntilag);
 
     const HeldHistory clamped = heldToFast(slow, fastHere, box);
@@ -251,7 +256,8 @@ void main()
     // pixel, the weights cost the clamp 0.02 to 0.04 ms more on the bench, and under the branch 0.01
     // to 0.02; what is left is the square's normals and points, which the workgroup loads either way.
     const ivec2 own = centre - INSET;
-    float variance = momentVariance(gMoments[own.y][own.x].x, gMoments[own.y][own.x].y);
+    const float deviation = imageLoad(moments, at).g;
+    float variance = deviation * deviation;
     if (frames <= ACCUMULATE_SETTLED)
     {
         const vec3 normal = gNormals[own.y][own.x];
@@ -272,7 +278,11 @@ void main()
             }
         variance = shortHistoryVariance(momentSum.x / momentWeight, momentSum.y / momentWeight, frames);
     }
-    RTX_STORE_COUNTED(blended, at, vec4(held, sqrt(variance)))
-    RTX_STORE_COUNTED(fillBlended, at, vec4(heldFill, 0.0))
+    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_BOUNCE_CLAMP_ROUNDING, frame.mFrame);
+    vec4 bounceOut = vec4(held, sqrt(variance));
+    vec4 fillOut = vec4(heldFill, frames);
+    roundedToHalves(bounceOut, fillOut, rounding);
+    RTX_STORE_COUNTED(blended, at, bounceOut)
+    RTX_STORE_COUNTED(fillBlended, at, fillOut)
     RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u))
 }

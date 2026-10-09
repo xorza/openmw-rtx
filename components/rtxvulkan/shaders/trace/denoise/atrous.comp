@@ -36,8 +36,8 @@
 // why).
 //
 // **The alpha holds the deviation, its square root, and not the variance itself.** Each level
-// shrinks the variance by its weights' squares, and the narrow levels store it in a half
-// (`ATROUS_NARROW`): in dim light the variance fell under the least normal half, 6.1e-5, or was
+// shrinks the variance by its weights' squares, and every level stores it in a half
+// (`ATROUS_CHANNEL`): in dim light the variance fell under the least normal half, 6.1e-5, or was
 // flushed to nought, and the brightness test refused every tap in the dark. The deviation spans half
 // the exponents, so a half holds it where it held none of the variance. Every level squares what
 // it reads and stores the root of what it leaves.
@@ -68,6 +68,7 @@
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
+#include "lib/halfround.glsl"
 #include "lib/hash.glsl"
 #include "lib/pixels.glsl"
 #include "lib/sharedexponent.glsl"
@@ -85,11 +86,11 @@ layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 ///
 /// **A sampled image and not a storage one, on every input this pass only reads.**
 /// `AtrousPass::sBindings` carries the measurement. A sampled declaration states no format, which
-/// is why these three name none. The targets name none either: the first level writes
-/// `ATROUS_CHANNEL` and every level after it `ATROUS_NARROW`.
+/// is why these three name none. The targets name none either, and hold `ATROUS_CHANNEL`.
 layout(set = SET_PASS, binding = ATROUS_BIND_SOURCE) uniform texture2D source;
 
-/// Where this level puts what it made of it, in full floats or in halves.
+/// Where this level puts what it made of it, rounded to the half it holds: at random at the first
+/// level, which writes the history, and to the nearest at every level after it (`atrous.h`).
 layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED) uniform writeonly image2D filtered;
 
 /// The shading normal's code in `r` and the distance from the eye in `g`, in world units, with the
@@ -99,7 +100,9 @@ layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED) uniform writeonly image2D
 layout(set = SET_PASS, binding = ATROUS_BIND_SURFACE) uniform texture2D surfaceChannel;
 
 /// The share of `source` that is the fill, as the last level left it, and where this level puts
-/// what it made of it.
+/// what it made of it. **At the first level its `a` holds how many frames the mean holds**, which
+/// the accumulator wrote: whether the history fix rebuilds the pixel, and how far apart its taps
+/// stand; the level copies it into the history the accumulator reads it from next frame.
 ///
 /// **Taken by the weights the whole bounce's taps earn**, and by no luminance test of its own: a
 /// level is linear in what it averages, so the fill's answer stays the share of the bounce's answer
@@ -108,11 +111,6 @@ layout(set = SET_PASS, binding = ATROUS_BIND_SURFACE) uniform texture2D surfaceC
 /// the bounce alone would show it.
 layout(set = SET_PASS, binding = ATROUS_BIND_FILL_SOURCE) uniform texture2D fillSource;
 layout(set = SET_PASS, binding = ATROUS_BIND_FILL_FILTERED) uniform writeonly image2D fillFiltered;
-
-/// The accumulator's moments, for how many frames each pixel's mean holds in `a`: whether the history
-/// fix rebuilds it, and how far apart its taps stand. Read only where `AtrousConstants::mFixFrames`
-/// asks.
-layout(set = SET_PASS, binding = ATROUS_BIND_MOMENTS) uniform texture2D moments;
 
 /// The accumulator's fast means, as the clamp wrote them: where the history fix rebuilds a pixel,
 /// its answer goes here too, so the next frame's fast mean starts from the rebuilt light and not
@@ -213,7 +211,9 @@ void main()
 
     // Whether this level rebuilds the pixel's history, and how far apart its taps stand. A pixel
     // with a surface holds one frame at least.
-    const float held = ATROUS_WIDE && level.mFixFrames > 0.0 ? texelFetch(moments, at, 0).a : 0.0;
+    const vec4 fillCentre = texelFetch(fillSource, at, 0);
+    const float frames = ATROUS_WIDE ? fillCentre.a : 0.0;
+    const float held = level.mFixFrames > 0.0 ? frames : 0.0;
     const bool fixing = held > 0.0 && held <= level.mFixFrames;
     const int step = fixing ? int(floor(ACCUMULATE_FIX_STRIDE / (1.0 + held) + 0.5)) : int(level.mStep);
     const int reach = ATROUS_WIDE ? 2 : 1;
@@ -282,10 +282,13 @@ void main()
         }
 
     // The centre always passes its own tests, so the weight can only be zero if it underflowed.
-    const vec4 answer = weight > 0.0 ? vec4(sum / weight, sqrt(variance) / weight) : centre;
-    const vec4 answerFill = weight > 0.0 ? vec4(sumFill / weight, 0.0) : texelFetch(fillSource, at, 0);
-    RTX_STORE_COUNTED(filtered, at, answer)
-    RTX_STORE_COUNTED(fillFiltered, at, answerFill)
+    vec4 answer = weight > 0.0 ? vec4(sum / weight, sqrt(variance) / weight) : centre;
+    vec4 answerFill = vec4(weight > 0.0 ? sumFill / weight : fillCentre.rgb, frames);
+    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_BOUNCE_HISTORY_ROUNDING, level.mFrame);
+    if (ATROUS_WIDE)
+        roundedToHalves(answer, answerFill, rounding);
+    RTX_STORE_COUNTED(filtered, at, ATROUS_WIDE ? answer : nearestHalf(answer))
+    RTX_STORE_COUNTED(fillFiltered, at, ATROUS_WIDE ? answerFill : nearestHalf(answerFill))
     if (fixing)
         RTX_STORE_WORDS(fast, at, uvec4(packRgb9e5(answer.rgb), packRgb9e5(answerFill.rgb), 0u, 0u))
 }

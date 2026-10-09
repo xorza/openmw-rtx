@@ -32,6 +32,7 @@
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
+#include "lib/halfround.glsl"
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
 #include "lib/sharedexponent.glsl"
@@ -55,7 +56,7 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_SURFACE, GBUFFER_SURFACE) unifo
 /// **Written by the cascade's first level and not by this pass**, which is SVGF's feedback: what a
 /// pixel carries forward is the filtered light rather than the single sample it blended, so the
 /// history it draws on is as quiet as the picture the frame showed. How many frames are in it is
-/// the fourth channel of `historyMoments`.
+/// the fourth channel of `historyFill`.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_COLOUR, ACCUMULATE_COLOUR)
     uniform readonly image2D historyColour;
 
@@ -64,8 +65,8 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_COLOUR, ACCUMULATE_COLO
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_SURFACE, ACCUMULATE_SURFACE)
     uniform readonly image2D historySurface;
 
-/// The first and second moments of that mean's luminance in `rg`, and in `a` how many frames the mean
-/// holds. `b` holds nothing: the variance goes to the cascade beside the blend.
+/// The mean and the deviation of that mean's luminance (`ACCUMULATE_MOMENTS`). The variance goes to the
+/// cascade beside the blend, by the clamp.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_MOMENTS, ACCUMULATE_MOMENTS)
     uniform readonly image2D historyMoments;
 
@@ -73,17 +74,18 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_SURFACE_OUT, ACCUMULATE_SURFACE
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_MOMENTS_OUT, ACCUMULATE_MOMENTS) uniform writeonly image2D momentsOut;
 
 /// This frame's bounce blended with the history in `rgb`, which is what the cascade reads. **Nought
-/// in `a`, where the clamp writes the variance** the cascade weighs a tap by, out of the moments this
-/// writes beside it (`accumulateclamp.comp`): `E[l²] - E[l]²` over one sample is exactly nought,
-/// which a filter reads as "this pixel is certain", and only the square around a short history can
-/// say how noisy it is.
+/// in `a`, where the clamp writes the deviation** the cascade weighs a tap by, out of the moments this
+/// writes beside it (`accumulateclamp.comp`): the variance over one sample is exactly nought, which a
+/// filter reads as "this pixel is certain", and only the square around a short history can say how
+/// noisy it is.
 ///
 /// **The cascade's channel and not the trace's**, so `CHANNEL_INDIRECT` keeps what the trace put
 /// there for the whole of the frame. `AccumulatePass::record` says what that separation is worth.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_BLENDED_OUT, ATROUS_CHANNEL) uniform writeonly image2D blendedOut;
 
 /// The share of the bounce that is the fill, `CHANNEL_FILL`, its last frame's mean, and the two
-/// blended in `rgb`, as the bounce's are.
+/// blended in `rgb`, as the bounce's are; and in the mean's and the blend's `a`, how many frames
+/// each holds.
 ///
 /// **Blended by the bounce's weights and the bounce's count**, so the fill's mean stays the share of
 /// the bounce's mean that its samples were of theirs: what the composite takes off the one and puts
@@ -128,14 +130,15 @@ void gatherHistory(inout Held held, HistoryFootprint before, vec4 shares)
         if (!(bilinear > 0.0))
             continue;
 
-        const vec4 heldMoments = imageLoad(historyMoments, tap);
+        const vec2 heldMoments = imageLoad(historyMoments, tap).rg;
+        const vec4 heldFill = imageLoad(historyFill, tap);
         held.mMean += imageLoad(historyColour, tap).rgb * bilinear;
-        held.mMeanFill += imageLoad(historyFill, tap).rgb * bilinear;
+        held.mMeanFill += heldFill.rgb * bilinear;
         const uvec2 heldFast = imageLoad(historyFast, tap).xy;
         held.mFast += unpackRgb9e5(heldFast.x) * bilinear;
         held.mFastFill += unpackRgb9e5(heldFast.y) * bilinear;
-        held.mMoments += heldMoments.rg * bilinear;
-        held.mFrames += heldMoments.a * bilinear;
+        held.mMoments += vec2(heldMoments.x, secondMoment(heldMoments.x, heldMoments.y)) * bilinear;
+        held.mFrames += heldFill.a * bilinear;
         held.mWeight += bilinear;
     }
 }
@@ -205,14 +208,18 @@ void main()
 
     // A pixel with no surface under it has nothing to accumulate and nothing to hand on. The sky is
     // resolved into `direct` by the trace and never reaches here as light.
+    uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_BOUNCE_ROUNDING, frame.mHistory.mFrame);
     if (dot(normal, normal) <= 0.0)
     {
         // **The sky writes its sample on too, and it has to.** The cascade copies a pixel with no
         // surface straight through, so one this never wrote would arrive there as whatever the
         // allocation held — and the composite multiplies it by an albedo of nought, which turns a
         // stray infinity into a NaN rather than into nothing.
-        RTX_STORE_COUNTED(blendedOut, at, vec4(sampled, 0.0))
-        RTX_STORE_COUNTED(fillBlendedOut, at, vec4(sampledFill, 0.0))
+        vec4 skyBounce = vec4(sampled, 0.0);
+        vec4 skyFill = vec4(sampledFill, 0.0);
+        roundedToHalves(skyBounce, skyFill, rounding);
+        RTX_STORE_COUNTED(blendedOut, at, skyBounce)
+        RTX_STORE_COUNTED(fillBlendedOut, at, skyFill)
         RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mHistory.mDistanceScale))
         RTX_STORE_COUNTED(momentsOut, at, vec4(0.0))
         RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u))
@@ -271,7 +278,7 @@ void main()
     vec3 blendedFill = sampledFill;
     vec3 blendedFast = sampled;
     vec3 blendedFastFill = sampledFill;
-    vec2 blendedMoments = vec2(lit, lit * lit);
+    vec2 blendedMoments = vec2(lit, 0.0);
     // **Not `length`, which is GLSL's own**: a local of that name hides the builtin from everything
     // below it, and the next edit that reaches for one gets a compile error with no explanation in it.
     //
@@ -302,16 +309,24 @@ void main()
         // outlier is the wavelet's to spread, weighed by the variance it raises.
         blended = mix(mean, sampled, alpha);
         blendedFill = mix(meanFill, sampledFill, alpha);
-        blendedMoments = mix(moments, vec2(lit, lit * lit), alpha);
+
+        // The running variance (`ACCUMULATE_MOMENTS`): the same blend of the moments, kept as what it
+        // is the variance of.
+        const float offMean = lit - moments.x;
+        const float variance = (1.0 - alpha) * (momentVariance(moments.x, moments.y) + alpha * offMean * offMean);
+        blendedMoments = vec2(mix(moments.x, lit, alpha), sqrt(variance));
 
         const float fastAlpha = 1.0 / min(frames + 1.0, ACCUMULATE_FAST_FRAMES);
         blendedFast = mix(fast, sampled, fastAlpha);
         blendedFastFill = mix(fastFill, sampledFill, fastAlpha);
     }
 
-    RTX_STORE_COUNTED(blendedOut, at, vec4(blended, 0.0))
-    RTX_STORE_COUNTED(fillBlendedOut, at, vec4(blendedFill, 0.0))
+    vec4 bounceOut = vec4(blended, 0.0);
+    vec4 fillOut = vec4(blendedFill, count);
+    roundedToHalves(bounceOut, fillOut, rounding);
+    RTX_STORE_COUNTED(blendedOut, at, bounceOut)
+    RTX_STORE_COUNTED(fillBlendedOut, at, fillOut)
     RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mHistory.mDistanceScale))
-    RTX_STORE_COUNTED(momentsOut, at, vec4(blendedMoments, 0.0, count))
+    RTX_STORE_COUNTED(momentsOut, at, vec4(roundedToHalf(blendedMoments, rounding), 0.0, 0.0))
     RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u))
 }

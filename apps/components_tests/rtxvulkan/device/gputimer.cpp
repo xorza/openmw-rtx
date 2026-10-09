@@ -222,12 +222,13 @@ namespace Rtx
             const Drawn settled = draw(mRenderer, camera);
             EXPECT_FALSE(reports(settled.mGpu.spans(), FrameZone::Blas)) << "nothing arrived, so nothing was built";
 
-            // **A denoised frame runs every pass of the bounce**: the accumulator, its clamp and the
-            // wavelet each open a zone.
+            // **A denoised frame runs every pass of the bounce**: the accumulator, its clamp and each
+            // of the wavelet's levels open a zone.
             ReconstructionRequest filtered = mRenderer.getProfile().mReconstruction;
             filtered.mDenoise = true;
             const Drawn traced = draw(mRenderer, camera, 0.0, filtered);
-            for (const FrameZone pass : { FrameZone::Accumulate, FrameZone::Clamp, FrameZone::Filter })
+            for (const FrameZone pass : { FrameZone::Accumulate, FrameZone::Clamp, FrameZone::Filter0,
+                     FrameZone::Filter1, FrameZone::Filter2, FrameZone::Filter3 })
                 EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << sFrameZoneNames.name(pass);
 
             // **The ripple field is stood for a scene that holds water and stepped only where the

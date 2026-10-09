@@ -29,7 +29,7 @@ namespace Rtx
 {
     namespace
     {
-        constexpr std::array<VkDescriptorSetLayoutBinding, 4> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 5> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::HALF_STORE_BIND_VALUES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
                 VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             VkDescriptorSetLayoutBinding{ Shaders::HALF_STORE_BIND_STORED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
@@ -38,16 +38,19 @@ namespace Rtx
                 VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             VkDescriptorSetLayoutBinding{ Shaders::HALF_STORE_BIND_BYTES, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
                 VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::HALF_STORE_BIND_NEAREST, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
         /// What the probe made of each float: stored into a half-float image, packed by
-        /// `packHalf2x16` and widened again on the host, and stored into an eight-bit normalized
-        /// image, as the byte.
+        /// `packHalf2x16` and widened again on the host, stored into an eight-bit normalized image,
+        /// as the byte, and rounded to the nearest half by the shader (`nearestHalf`).
         struct Converted
         {
             std::vector<float> mStored;
             std::vector<float> mPacked;
             std::vector<std::uint8_t> mBytes;
+            std::vector<float> mNearest;
         };
 
         struct RtxHalfStoreTest : Testing::DeviceTest
@@ -68,6 +71,8 @@ namespace Rtx
                     device, count * sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "half store packed");
                 const Image bytes(device, count, 1, toVulkanFormat(STORAGE_RGBA8),
                     VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "half store bytes");
+                const Buffer nearest = Buffer::readBack(
+                    device, values.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "half store nearest");
 
                 DescriptorWrites writes(pipeline);
                 writes.buffer(
@@ -76,6 +81,8 @@ namespace Rtx
                 writes.buffer(
                     Shaders::HALF_STORE_BIND_PACKED, VkDescriptorBufferInfo{ packed.getHandle(), 0, VK_WHOLE_SIZE });
                 writes.image(Shaders::HALF_STORE_BIND_BYTES, bytes.describeStorage());
+                writes.buffer(
+                    Shaders::HALF_STORE_BIND_NEAREST, VkDescriptorBufferInfo{ nearest.getHandle(), 0, VK_WHOLE_SIZE });
 
                 getPool().submitAndWait([&](VkCommandBuffer commands) {
                     stored.transition(commands, Use::sUndefined, Use::sComputeWrite);
@@ -93,19 +100,22 @@ namespace Rtx
                 std::vector<std::uint8_t> pixels;
                 bytes.read(VK_IMAGE_LAYOUT_GENERAL, pixels);
                 const auto* words = static_cast<const std::uint32_t*>(packed.map());
+                const auto* rounded = static_cast<const float*>(nearest.map());
                 for (std::uint32_t at = 0; at < count; ++at)
                 {
                     converted.mStored.push_back(texels[at * 4]);
                     converted.mPacked.push_back(fromHalf(static_cast<std::uint16_t>(words[at] & 0xffffu)));
                     converted.mBytes.push_back(pixels[at * 4]);
+                    converted.mNearest.push_back(rounded[at]);
                 }
                 return converted;
             }
         };
 
-        /// Floats a quarter, a half and three quarters of a half's step above 1, 1024 and a
-        /// quarter, either sign, where the step is 2^-10 of the value; and each one's base, the half
-        /// under it in size.
+        /// Floats a quarter, a half and three quarters of a half's step above 1, 1024, a quarter and
+        /// the subnormal 2^-23, either sign, where the step is 2^-10 of the value and 2^-24 under the
+        /// least normal half; and each one's base, the half under it in size. Every base's mantissa
+        /// is even.
         struct BetweenHalves
         {
             std::vector<float> mValues;
@@ -116,7 +126,7 @@ namespace Rtx
         BetweenHalves betweenHalves()
         {
             BetweenHalves between;
-            for (const float base : { 1.0f, 1024.0f, 0.25f })
+            for (const float base : { 1.0f, 1024.0f, 0.25f, 0x1p-23f })
                 for (const float fraction : { 0.25f, 0.5f, 0.75f })
                     for (const float sign : { 1.0f, -1.0f })
                     {
@@ -144,12 +154,40 @@ namespace Rtx
                     << between.mValues[at] << " was stored as " << converted.mStored[at];
         }
 
+        /// **Every value a half holds is stored as itself, the subnormals with the rest**, which a
+        /// history rounded to halves in the shader rests on (`roundedToHalf`): the spec stores a
+        /// representable value exactly, but leaves a device free to flush a denormal, and a dim
+        /// bounce stands under the least normal half, 2^-14. The least subnormal, 2^-24, three of
+        /// it, the largest, 1023 × 2^-24, the least normal, one and the step over it, and the
+        /// largest half, 65504, either sign. **And the shader's rounding to the nearest leaves each
+        /// as it is** (`nearestHalf`).
+        TEST_F(RtxHalfStoreTest, everyHalfIsStoredAsItselfTheSubnormalsWithTheRest)
+        {
+            std::vector<float> values;
+            for (const float magnitude :
+                { 0x1p-24f, 3.0f * 0x1p-24f, 1023.0f * 0x1p-24f, 0x1p-14f, 1.0f, 1.0f + 0x1p-10f, 65504.0f })
+                for (const float sign : { 1.0f, -1.0f })
+                    values.push_back(sign * magnitude);
+
+            const Converted converted = convert(values);
+            ASSERT_EQ(converted.mStored.size(), values.size());
+            for (std::size_t at = 0; at < values.size(); ++at)
+            {
+                EXPECT_EQ(converted.mStored[at], values[at])
+                    << values[at] << " was stored as " << converted.mStored[at];
+                EXPECT_EQ(converted.mNearest[at], values[at])
+                    << values[at] << " was rounded by the shader to " << converted.mNearest[at];
+            }
+        }
+
         /// **`packHalf2x16` rounds to nearest on this card, where its image store does not**: the
         /// same floats (`betweenHalves`) packed in the arithmetic. A quarter of a step lands on the
         /// base, three quarters on the half above it in size, and a half on the even one of the two,
-        /// which is the base: every base's mantissa is nought. Nothing may rest on it — the spec
-        /// leaves this rounding to the device as it leaves the store's — and this says what a
-        /// history that did would have met here.
+        /// which is the base. Nothing may rest on it — the spec leaves this rounding to the device
+        /// as it leaves the store's — and this says what a history that did would have met here.
+        ///
+        /// **And the shader's own `nearestHalf` rounds each the same, on every device**, which the
+        /// wavelet's narrow levels rest on: exact steps, a tie to the even one.
         TEST_F(RtxHalfStoreTest, aPackedHalfRoundsToNearestOnThisCard)
         {
             const BetweenHalves between = betweenHalves();
@@ -162,6 +200,8 @@ namespace Rtx
                 const float nearest = between.mFractions[at] > 0.5f ? above : base;
                 EXPECT_EQ(converted.mPacked[at], nearest)
                     << between.mValues[at] << " was packed as " << converted.mPacked[at];
+                EXPECT_EQ(converted.mNearest[at], nearest)
+                    << between.mValues[at] << " was rounded by the shader to " << converted.mNearest[at];
             }
         }
 

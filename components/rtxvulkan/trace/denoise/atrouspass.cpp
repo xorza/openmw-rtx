@@ -23,9 +23,9 @@ namespace Rtx
     {
         /// The channel coming in with its variance, which says where the edges in the light are,
         /// the channel going out, the one that says where the edges in the surface are and which
-        /// eye each pixel's ray left, the fill in and out, the accumulator's moments, whose count
-        /// the history fix reads, and its fast means, which the fix writes its answer into. All
-        /// pushed. Sampled on the four this pass only reads,
+        /// eye each pixel's ray left, the fill in and out — whose count the history fix reads —
+        /// and the accumulator's fast means, which the fix writes its answer into. All pushed.
+        /// Sampled on the three this pass only reads,
         /// because a twenty-five tap gather wants the texture unit's cache — a few per cent of the
         /// cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
@@ -34,7 +34,6 @@ namespace Rtx
             computeBinding(Shaders::ATROUS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILL_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILL_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-            computeBinding(Shaders::ATROUS_BIND_MOMENTS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FAST, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
 
@@ -42,6 +41,10 @@ namespace Rtx
         /// is each in turn as the levels ping-pong, so a dependency that named one of the two would
         /// leave the other frame's access uncovered.
         constexpr VkAccessFlags2 sReads = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+
+        constexpr std::array sLevelZones{ FrameZone::Filter0, FrameZone::Filter1, FrameZone::Filter2,
+            FrameZone::Filter3 };
+        static_assert(sLevelZones.size() == Shaders::ATROUS_LEVELS, "a zone for every level");
 
         ComputePipeline<Shaders::AtrousConstants> makeLevel(const Device& device, bool wide, std::string_view name)
         {
@@ -74,8 +77,6 @@ namespace Rtx
     AtrousPass::Filtered AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
-        const GpuZone timed(timer, commands, FrameZone::Filter);
-
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mNarrow.getWidth() >= camera.mWidth && images.mNarrow.getHeight() >= camera.mHeight);
         assert(buffer.getWidth() >= camera.mWidth && buffer.getHeight() >= camera.mHeight);
@@ -93,22 +94,21 @@ namespace Rtx
         };
 
         // The first level reads the blend and writes the mean the accumulator reads next frame —
-        // SVGF's feedback — in full floats; the levels after it ping-pong between the narrow pair,
-        // in halves (`ATROUS_NARROW`), and leave both alone. The bounce's and the fill's take the
-        // same turns.
+        // SVGF's feedback; the levels after it ping-pong between the narrow image and the blend,
+        // which nothing reads once the first level has, and leave the history alone. The bounce's
+        // and the fill's take the same turns.
         constexpr std::size_t blended = 0;
         constexpr std::size_t history = 1;
         constexpr std::size_t narrow = 2;
-        constexpr std::size_t other = 3;
-        const std::array<const Image*, 4> bounce{ &images.mBlended, &images.mColour, &images.mNarrow,
-            &images.mNarrowOther };
-        const std::array<const Image*, 4> fill{ &images.mFillBlended, &images.mFill, &images.mFillNarrow,
-            &images.mFillNarrowOther };
+        const std::array<const Image*, 3> bounce{ &images.mBlended, &images.mColour, &images.mNarrow };
+        const std::array<const Image*, 3> fill{ &images.mFillBlended, &images.mFill, &images.mFillNarrow };
         std::size_t source = blended;
         std::size_t target = history;
 
         for (std::uint32_t pass = 0; pass < Shaders::ATROUS_LEVELS; ++pass)
         {
+            const GpuZone timed(timer, commands, sLevelZones[pass]);
+
             if (pass > 0)
             {
                 // The level about to run reads what the last one wrote and overwrites what it read,
@@ -125,7 +125,7 @@ namespace Rtx
                 between.flush();
             }
 
-            // Sampled from `GENERAL` on the four this pass only reads. A `SAMPLED_IMAGE`
+            // Sampled from `GENERAL` on the three this pass only reads. A `SAMPLED_IMAGE`
             // descriptor names the image alone and no sampler, which is what `sBindings` declares.
             const ComputePipeline<Shaders::AtrousConstants>& pipeline = pass == 0 ? mWide : mNarrow;
             DescriptorWrites writes(pipeline);
@@ -134,7 +134,6 @@ namespace Rtx
             writes.image(Shaders::ATROUS_BIND_SURFACE, buffer.get(Channel::Surface).describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILL_SOURCE, fill[source]->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILL_FILTERED, fill[target]->describeStorage());
-            writes.image(Shaders::ATROUS_BIND_MOMENTS, images.mMoments.describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FAST, images.mFast.describeStorage());
 
             level.mStep = 1u << pass;
@@ -143,10 +142,10 @@ namespace Rtx
             dispatch(commands, pipeline, writes, level,
                 Groups::covering(camera.mWidth, camera.mHeight, Shaders::ATROUS_WORKGROUP));
 
-            // The next level reads what this one wrote, and writes whichever of the narrow pair it is
-            // not reading.
+            // The next level reads what this one wrote, and writes whichever of the narrow image and
+            // the blend it is not reading.
             source = target;
-            target = source == narrow ? other : narrow;
+            target = source == narrow ? blended : narrow;
         }
 
         // The cascade hands over what it wrote, because nothing after it does: with the last level

@@ -17,11 +17,11 @@ Sizes: B/px is bytes per traced pixel. 1 B/px is 1.64 MB at 1707×960 (`quality`
 
 | Owner | Today | Published practice |
 |---|---|---|
-| `DenoiseHistory` | **328 B/px** (538 MB at 1707×960) | NRD RELAX diffuse+specular 81 B/px, SIGMA shadow 15 B/px |
+| `DenoiseHistory` | **256 B/px** (420 MB at 1707×960) | NRD RELAX diffuse+specular 81 B/px, SIGMA shadow 15 B/px |
 | G-buffer: 21 channels | 142 B/px (233 MB); 19 B/px of it written and never read | an NRD game's G-buffer ~40–60 B/px |
 | Fog volume: one froxel per traced pixel | ~100 B/froxel (165 MB) | Frostbite and UE ~40 B/froxel; RTX Remix a grid 5× coarser |
 | FSR at render size | ~40 B/px | matches the SDK exactly; AMD lists 106 MB at 1440p Quality |
-| **Total per traced pixel** | **~610 B/px** | |
+| **Total per traced pixel** | **~540 B/px** | |
 
 - The frame reserve plans for the native mode whatever mode runs (`vulkanrenderer.cpp:73-91`). At a
   4K output that is ~6 GB, which leaves an 8 GB RTX 20/30 card almost no room for textures.
@@ -54,7 +54,7 @@ means use it. The other histories, the fog volume and the payload are group 4.
 |---|---|---|---|---|
 | 0 | Measure first: counters and ceilings | — | none | measurement |
 | 2 | G-buffer exact packing | 4–8 B/px, 2–3 channels | bit-exact (pane albedo: experiment) | straightforward |
-| 4 | Stochastic-rounding halves | history 328 → ~200 B/px; fog −53 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
+| 4 | Stochastic-rounding halves | history 256 → ~190 B/px; fog −53 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
 | 5 | Transient memory (aliasing) | 50–130 MB | none | infrastructure |
 | 6 | Scene tables and structures | ~40–80 MB; one frame-path spike removed | bit-exact | straightforward |
 | 7 | TLAS and traversal | after measurement | none moved | mixed |
@@ -84,7 +84,6 @@ win. Do this group before groups 6–8.
 - the texture total split by source: file, completed chain, bake, ground composite, gloss. The vanilla
   BSAs hold 142.8 MB of textures in all, so at least ~245 MB of `seyda-neen-ship`'s 418 MB is likely
   ground composites (group 12);
-- each wavelet level timed apart (the `filter` zone does not split them).
 
 **Ceilings, one bench leg each, none shippable:**
 - groundcover off (`[Groundcover] enabled = false`): bounds what group 7's grass items can win in
@@ -101,7 +100,7 @@ win. Do this group before groups 6–8.
   exactly k/255 (group 6).
 
 **Probes and tests:**
-- extend `RtxHalfStoreTest`: a subnormal and an overflow row;
+- extend `RtxHalfStoreTest`: an overflow row;
 - an allocation test for a mesh arrival, beside `aTextureArrivingCostsWhatATextureIs`.
 
 **Outside the renderer:** 44 % of the bench's CPU samples are in an NVIDIA driver thread named
@@ -138,27 +137,27 @@ tests held to bounds derived from a half's step (`halfRoundedMeanError`). Pictur
 noise and keep no bias; `noise` is the verdict.
 
 **In order of saving:**
-1. **Accumulator and wavelet packed** (200 → ~96 B/px). Bounce rgb, fill rgb, σ and the frame count in
-   one `RGBA32UI` texel of halves; the moments as an EMA variance (μ, σ) in one `R32UI` word (the
-   Welford/EMA form is algebraically identical to `E[l²] − E[l]²`, buys nothing in full floats, and is
-   what makes a half possible). Accumulate, clamp and first-level traffic fall 40–55 %; the first level
-   goes from 93 to 68 fetches a pixel.
-   - With it, the held surfaces move to the G-buffer as last frame's `CHANNEL_SURFACE` and
-     `CHANNEL_PANE_SURFACE` (+16 B/px there, −32 here), as RELAX keeps its previous guides;
-     `mDistanceScale` goes away.
-   - A smaller "B1" (separate RGBA16F bounce and fill) reaches ~104 B/px with two fetches a tap.
-2. **Shadow history and scratch**: unorm16 mean + half variance in one word (−16 B/px).
-3. **Shadow moments** in the capped EMA form (−32 B/px). A behaviour change: Welford's M2 grows with an
+1. **The held surfaces to the G-buffer** as last frame's `CHANNEL_SURFACE` and `CHANNEL_PANE_SURFACE`
+   (+16 B/px there, −32 here), as RELAX keeps its previous guides; `mDistanceScale` goes away.
+   Distances compared at full float.
+2. **The bounce and its fill in one texel ("B2")**, for time alone: bounce rgb, fill rgb, the deviation
+   and the frame count as eight halves in one `RGBA32UI` texel, where a tap fetches two RGBA16F
+   texels today; the first level goes from 93 to 68 fetches a pixel, at the same memory. It costs an
+   unpack at every tap and a second read path in the composite beside the unfiltered channels. Only
+   if a profile says the fetches limit the levels: measured, the first level is 0.22–0.36 ms and each
+   narrow one 0.08–0.13.
+3. **Shadow history and scratch**: unorm16 mean + half variance in one word (−16 B/px).
+4. **Shadow moments** in the capped EMA form (−32 B/px). A behaviour change: Welford's M2 grows with an
    uncapped count. The SDK's `R11G11B10` moments already stall their count near 128.
-4. **Fog history pairs** (`fogvolume.h:30`, RGBA32F → RGBA16F): −52.6 MB, ~79 MB a frame of traffic.
-5. **Payload radiances** (F4 in the G-buffer report): the six full-float radiances (18 of 30 words)
+5. **Fog history pairs** (`fogvolume.h:30`, RGBA32F → RGBA16F): −52.6 MB, ~79 MB a frame of traffic.
+6. **Payload radiances** (F4 in the G-buffer report): the six full-float radiances (18 of 30 words)
    exist only for summed references, and stochastic rounding is unbiased in a sum. 30 → 21 words on one
    path for both widths. The tree measured up to 0.02 ms per payload word (`a72bc240f4`); the gain may
    be nothing if the hit shader's own registers dominate. Drop it if `bench` shows nothing.
-6. **Bloom pyramid in `B10G11R11`** (alpha is a constant 1.0, `bloomdown.comp:49`): 9.8 → 4.9 MB, only
+7. **Bloom pyramid in `B10G11R11`** (alpha is a constant 1.0, `bloomdown.comp:49`): 9.8 → 4.9 MB, only
    with the pre-rounded store; ≤ 0.02 ms.
 
-End state: history 328 → ~200 B/px. Proof per item:
+End state: history 256 → ~190 B/px. Proof per item:
 `./omw release noise --ab=<switch>` narrowed first (`--views= --strafe=0 --walk=0 --still`), then the
 suite; `repeat`; `shot --against` (small differences everywhere, read them); `kernels --against`; then
 `bench`.
@@ -167,12 +166,9 @@ suite; `repeat`; `shot --against` (small differences everywhere, read them); `ke
 
 Memory only, no time. Do it after group 4, which shrinks what there is to alias.
 
-- **Cheap form, no aliasing:** reuse a dead image of the same shape. The wavelet's later levels can write
-  into `Blended`, dead after the first level (free once group 4 gives them one format).
 - **Real aliasing** (VMA aliasing images, Frostbite FrameGraph, NRD's "aliasable" pool): a lifetime column
   in the image tables and a `constexpr` check that aliased rows do not overlap, the discard moved to
   each alias's first write. Candidates:
-  - the wavelet's narrow pairs over `Blended`/`FillBlended` (−32 B/px);
   - G-buffer channels dead mid-frame — indirect and fill after the clamp, the pane channels and
     specular after their filters — under the denoiser's frame-only images (52–79 MB);
   - FSR's transients (36.6 MB: the SDK's six aliasable images plus the three shared ones) under the
