@@ -506,7 +506,9 @@ namespace Rtx
         virtual void finishGuiTraces() = 0;
 
         /// Resizes the frame; what the trace runs at follows from the upscaler, and `getExtents`
-        /// says.
+        /// says. Where the room the new targets take moves, the world goes with the old targets
+        /// (`describeHeld` answers nought), so its content is held against the room it has: the
+        /// next hand-over builds it again (`SceneUploader`), and a frame is traced after it.
         virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
 
         /// The window is `width` by `height` pixels: the surface follows it, and the frame is shown
@@ -516,8 +518,9 @@ namespace Rtx
         virtual void showIn(std::uint32_t width, std::uint32_t height) = 0;
 
         /// How hard the upscaler works, which decides what the frame is traced at. Rebuilds every
-        /// target, so the old extents describe a camera nothing will accept. Throws where the mode
-        /// cannot be reached, and a caller that offers the mode catches it and stays where it was.
+        /// target, so the old extents describe a camera nothing will accept, and lets the world go
+        /// where `resize` would. Throws where the mode cannot be reached, and a caller that offers
+        /// the mode catches it and stays where it was.
         virtual void setUpscale(Upscale upscale) = 0;
 
         /// How the presented image meets the monitor's refresh. Costs the presentation's rebuild, so a

@@ -35,6 +35,12 @@ namespace Misc
         /// drawable, which is exact, where the other side's was rounded to a whole pixel.
         float shownScale() const;
 
+        /// How many frame pixels a unit of the interface takes: `setting` times `displayScale`, the
+        /// window pixels the desktop gives a point of its own interface, over the window pixels a
+        /// frame pixel covers. So the interface keeps one size on the display, whatever the frame
+        /// it is drawn into and the window that shows it, as the desktop's own interface does.
+        float interfaceScale(float setting, float displayScale) const;
+
         bool operator==(const Presentation& other) const = default;
     };
 
@@ -58,15 +64,6 @@ namespace Misc
     /// whole numbers where it works in double, so the two can part by a pixel where the double
     /// lands a hair under a whole one. Sides of nought or less are asked of nothing.
     Crop cropToAspect(osg::Vec2i frame, osg::Vec2i asked);
-
-    /// How many frame pixels a unit of the interface takes: `setting` times the frame pixels that
-    /// would fall on one of the display's points if the frame filled the display, and never less
-    /// than `setting`. So the interface keeps its size on the display where the frame is finer than
-    /// the display's points, the way a display's own density scales it at its own resolution, and
-    /// is drawn a frame pixel a unit where the frame is coarser, the way Morrowind drew it at any
-    /// resolution. The window plays no part: the interface is part of the frame, and a window
-    /// resized scales both together. A display with no size gives `setting`.
-    float interfaceScale(float setting, osg::Vec2i frame, osg::Vec2i displayPoints);
 
     /// Which of the three a resolution menu offers stands picked: the display's own, a mode the
     /// display lists, or two sides typed in.

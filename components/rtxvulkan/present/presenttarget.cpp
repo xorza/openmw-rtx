@@ -73,8 +73,12 @@ namespace Rtx
     VkDeviceSize PresentTarget::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
     {
         return Image::bytesFor(device, pictureDescription(width, height))
-            + Image::bytesFor(device, shownDescription(width, height))
-            + Image::bytesFor(device, deepDescription(width, height));
+            + Image::bytesFor(device, shownDescription(width, height));
+    }
+
+    VkDeviceSize PresentTarget::deepBytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
+    {
+        return Image::bytesFor(device, deepDescription(width, height));
     }
 
     Image* PresentTarget::beginPicture(const Device& device, const bool deep)

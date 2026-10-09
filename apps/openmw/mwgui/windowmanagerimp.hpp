@@ -637,8 +637,9 @@ namespace MWGui
 
         void sizeVideo(int screenWidth, int screenHeight);
 
-        /// The scale the interface takes at `frame` on the window's display.
-        float scaleAt(osg::Vec2i frame) const;
+        /// The scale the interface takes in the frame the renderer presents now, on the window's
+        /// display.
+        float scaleNow() const;
 
         /// Lays the interface out at the renderer's frame and the scale it takes there, where either
         /// moved: a window resized at Native, another resolution chosen, or another display. The

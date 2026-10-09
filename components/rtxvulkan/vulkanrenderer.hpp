@@ -258,6 +258,11 @@ namespace Rtx
         /// After the passes above, which every scene holds by reference.
         SceneSlots mScenes;
 
+        /// `SceneDesc::getIdentity` of the world a change of mode released for its reserve, until
+        /// the hand-over builds it again: that build is the same world, which keeps every history a
+        /// new world loses. Nought where none waits.
+        std::uint64_t mReleasedWorld = 0;
+
         GuiDrawer mGui;
 
         /// After the media, the display and the interface, which it holds by reference.

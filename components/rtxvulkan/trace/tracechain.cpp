@@ -86,8 +86,12 @@ namespace Rtx
         const RadianceWidth radiance, const TracePast past)
     {
         return GBuffer::bytesAt(device, width, height, radiance) + FogVolume::bytesAt(device, width, height, past)
-            + DenoiseHistory::bytesAt(device, width, height, past)
-            + Image::bytesFor(device, sumDescription(width, height));
+            + DenoiseHistory::bytesAt(device, width, height, past);
+    }
+
+    VkDeviceSize TraceChain::sumBytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
+    {
+        return Image::bytesFor(device, sumDescription(width, height));
     }
 
     void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)

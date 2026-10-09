@@ -47,15 +47,15 @@ namespace Rtx
 
     /// What a range of memory is for, which says what becomes of the content where the device has
     /// no room for it — and so the order the room is given in. Each use stops where every use
-    /// before it could be made again: the frame's targets at the largest extents its output can be
-    /// traced at, and everything else essential once more, since a table grows by making itself
-    /// again while the frame behind reads the old one.
+    /// before it could be made again: the running mode's targets, and everything else essential
+    /// once more, since a table grows by making itself again while the frame behind reads the old
+    /// one.
     enum class MemoryUse : std::uint8_t
     {
         /// The frame's targets, which a change of mode makes again at its new extents. Made again
         /// only once the old are gone (`VulkanRenderer::createTargets`), so what they hold is
-        /// counted once, and room is kept for the largest of them the output allows
-        /// (`MemoryAllocator::reserveFrame`). Never refused here, as essential memory is not.
+        /// counted once, and room is kept for the running mode's (`MemoryAllocator::reserveFrame`).
+        /// Never refused here, as essential memory is not.
         Frame,
 
         /// What the frame cannot go without besides its targets: its tables, and the geometry every
@@ -204,9 +204,9 @@ namespace Rtx
         /// What `use` holds on `heap`, the ranges and not the blocks around them.
         VkDeviceSize getHeld(std::uint32_t heap, MemoryUse use) const;
 
-        /// Keeps room on the video heap for the frame's targets to be made at `bytes`, the most
-        /// they take at any extents the output can be traced at: content stops where that, and not
-        /// only what the targets hold now, still fits. Asked by each change of mode.
+        /// Keeps room on the video heap for the frame's targets to be made at `bytes`, what the
+        /// running mode's take: content stops where that, and not only what the targets hold now,
+        /// still fits. Asked by each change of mode, which builds the world again where it moves.
         void reserveFrame(VkDeviceSize bytes);
 
         /// What `reserveFrame` was last told.

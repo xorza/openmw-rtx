@@ -88,22 +88,43 @@ namespace Misc
                 EXPECT_EQ(presentation.toFrame(presentation.toDrawable(point)), point);
         }
 
-        /// A display of 7680 × 2160 pixels at a density of 1.5 is 5120 × 1440 points. Its own
-        /// resolution puts max(7680 / 5120, 2160 / 1440) = 1.5 frame pixels on a point, and so does
-        /// 3840 × 2160 by its height; 2560 × 1440 puts one, and 800 × 600 puts max(0.16, 0.42), which
-        /// the floor of one raises. The setting multiplies whichever, and a display of no size
-        /// leaves the setting alone.
-        TEST(MiscPresentationTest, theInterfaceScaleIsTheFramePixelsOnAPointAndNeverUnderOne)
+        /// **The interface keeps one size on the display**: a unit covers `setting × displayScale`
+        /// window pixels at every frame and window, so in the frame it takes that over the window
+        /// pixels a frame pixel covers. A 7680 × 2160 window at a display scale of 1.5: its own
+        /// frame shows a frame pixel a window pixel, so 1.5; 5120 × 1440 shows one on 7680 / 5120 =
+        /// 1.5, so 1; 3840 × 1080 on 2, so 0.75; 2560 × 1440, narrower, fills the height,
+        /// 2160 / 1440 = 1.5, so 1. A 1200 × 900 window at Native is its frame, so 1.5. A setting of
+        /// two doubles each, and the same 3840 × 1080 frame in a window of its own size takes 1.5,
+        /// where the larger window gave 0.75.
+        TEST(MiscPresentationTest, theInterfaceKeepsOneSizeOnTheDisplay)
         {
-            const osg::Vec2i display(5120, 1440);
-            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 7680, 2160 }, display), 1.5f);
-            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 3840, 2160 }, display), 1.5f);
-            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 2560, 1440 }, display), 1.f);
-            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 800, 600 }, display), 1.f);
-            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 1200, 900 }, display), 1.f) << "a small window at Native";
-            EXPECT_FLOAT_EQ(interfaceScale(2.f, { 800, 600 }, display), 2.f);
-            EXPECT_FLOAT_EQ(interfaceScale(2.f, { 7680, 2160 }, display), 3.f);
-            EXPECT_FLOAT_EQ(interfaceScale(1.25f, { 7680, 2160 }, { 0, 0 }), 1.25f);
+            const osg::Vec2i window(7680, 2160);
+            constexpr float display = 1.5f;
+            const struct
+            {
+                osg::Vec2i mAsked;
+                osg::Vec2i mWindow;
+                float mSetting;
+                float mScale;
+            } cases[] = {
+                { { 7680, 2160 }, window, 1.f, 1.5f },
+                { { 5120, 1440 }, window, 1.f, 1.f },
+                { { 3840, 1080 }, window, 1.f, 0.75f },
+                { { 2560, 1440 }, window, 1.f, 1.f },
+                { { 0, 0 }, { 1200, 900 }, 1.f, 1.5f },
+                { { 7680, 2160 }, window, 2.f, 3.f },
+                { { 3840, 1080 }, window, 2.f, 1.5f },
+                { { 3840, 1080 }, { 3840, 1080 }, 1.f, 1.5f },
+            };
+            for (const auto& c : cases)
+            {
+                const Presentation presentation = present(c.mAsked, c.mWindow);
+                const float scale = presentation.interfaceScale(c.mSetting, display);
+                EXPECT_FLOAT_EQ(scale, c.mScale) << c.mAsked.x() << " x " << c.mAsked.y() << " in " << c.mWindow.x();
+                EXPECT_FLOAT_EQ(scale * presentation.shownScale(), c.mSetting * display)
+                    << "a unit's window pixels moved with the frame";
+            }
+            EXPECT_FLOAT_EQ(present(window, window).interfaceScale(1.f, 1.f), 1.f) << "the display scale had no say";
         }
 
         /// **A save's thumbnail is the middle of the frame at the thumbnail's aspect**, 518 by 266.

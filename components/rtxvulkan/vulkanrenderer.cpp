@@ -1,6 +1,5 @@
 #include "vulkanrenderer.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <chrono>
@@ -63,28 +62,28 @@ namespace Rtx
 {
     namespace
     {
-        /// The most the frame's targets take at an output `width` by `height`, over every mode the
-        /// renderer can be switched to there: what `createTargets` makes for the mode that takes
-        /// the most, a deep picture and a running sum included, which a frame may ask for.
-        VkDeviceSize largestFrameAt(
-            const Device& device, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+        /// What the frame's targets take under `profile` at an output `width` by `height`: what
+        /// `createTargets` makes for it, and the running sum and the deep picture a frame may ask
+        /// for where the run sums.
+        VkDeviceSize frameAt(
+            const Device& device, const std::uint32_t width, const std::uint32_t height, const RenderProfile& profile)
         {
             const VkExtent2D output{ width, height };
-            const VkDeviceSize shown
-                = PresentTarget::bytesAt(device, width, height) + DisplayChain::bytesAt(device, width, height);
+            const FrameExtents extents = extentsFor(width, height, profile.mUpscale);
+            const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
+            VkDeviceSize bytes = PresentTarget::bytesAt(device, width, height)
+                + DisplayChain::bytesAt(device, width, height)
+                + TraceChain::bytesAt(device, render.width, render.height, profile.mRadianceWidth, TracePast::Kept);
+            if (upscales(profile.mUpscale))
+                bytes += Upscaler::bytesAt(device, render, output);
 
-            VkDeviceSize largest = 0;
-            for (const Upscale mode : sUpscaleNames.values())
-            {
-                const FrameExtents extents = extentsFor(width, height, mode);
-                const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
-                VkDeviceSize bytes
-                    = shown + TraceChain::bytesAt(device, render.width, render.height, radiance, TracePast::Kept);
-                if (upscales(mode))
-                    bytes += Upscaler::bytesAt(device, render, output);
-                largest = std::max(largest, bytes);
-            }
-            return largest;
+            // **Only a run at the reference's width sums**, which `RadianceWidth` argues: a player's
+            // run is shown, and room for 8 bytes an output pixel and 16 a traced one would be room
+            // its textures stood smaller for, 251 MB at 7680 by 2160 in the quality mode.
+            if (profile.mRadianceWidth == RadianceWidth::Summed)
+                bytes += TraceChain::sumBytesAt(device, render.width, render.height)
+                    + PresentTarget::deepBytesAt(device, width, height);
+            return bytes;
         }
 
         /// The instance a window needs, which is the headless one plus whatever SDL asks for — the
@@ -201,15 +200,32 @@ namespace Rtx
         if (traceMoves || outputMoves)
             mPast |= FramePast::resized();
 
+        // **Room for the running mode's targets, and not for the most any mode would take**: the
+        // native mode's are about twice the quality mode's, which traces 2.25 times fewer pixels,
+        // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
+        const VkDeviceSize reserve = frameAt(mDevice, width, height, mProfile);
+
+        // **So the world is built again where the reserve moves**, by the hand-over after this, which
+        // finds its slot empty (`SceneUploader`) and stands every texture against the room the new
+        // targets leave, as a load does: a reserve that grew past what content left is room the
+        // device does not have, and one that shrank is room content was held smaller without.
+        const DeviceScene* const world = mScenes.find(SceneSlot::world());
+        const bool rebuildsWorld = reserve != mDevice.getMemory().getFrameReserve() && world != nullptr;
+
         // **The targets a mode does not keep go before the new are made**, so a change of mode
-        // holds one set of them and never two: content stops where the largest set the output
-        // allows still fits (`MemoryUse::Frame`), which leaves no room for a second beside the
-        // first. A change of mode may wait, as a new world does.
+        // holds one set of them and never two: content stops where the set it takes still fits
+        // (`MemoryUse::Frame`), which leaves no room for a second beside the first. A change of mode
+        // may wait, as a new world does.
         const bool upscalerMoves = mUpscaler.isBuilt() && !(upscaling() && mUpscaler.isAt(render, output));
         const bool shownMoves = mTarget.isOpen() && outputMoves;
-        if ((mFrame.isBuilt() && traceMoves) || shownMoves || upscalerMoves)
+        if ((mFrame.isBuilt() && traceMoves) || shownMoves || upscalerMoves || rebuildsWorld)
         {
             drain();
+            if (rebuildsWorld)
+            {
+                mReleasedWorld = world->describe().mIdentity;
+                mScenes.clear(SceneSlot::world());
+            }
             if (traceMoves)
                 mFrame.release();
             if (shownMoves)
@@ -221,7 +237,7 @@ namespace Rtx
                 mUpscaler.release();
             mDevice.collectIdle();
         }
-        mDevice.getMemory().reserveFrame(largestFrameAt(mDevice, width, height, mProfile.mRadianceWidth));
+        mDevice.getMemory().reserveFrame(reserve);
 
         mFrame.resize(render.width, render.height);
 
@@ -270,7 +286,14 @@ namespace Rtx
         // not yet carried keeps it until the submit that carries the picture has run.
         mScenes.clear(slot);
 
-        if (slot.isWorld())
+        // The world a change of mode released, built again: one world, whose reports, sum, eye and
+        // wake go on describing it, as across the change of mode itself. Its motion does not: what
+        // moved since the last frame stands where the build found it, in both copies of its poses.
+        const bool rebuilt = slot.isWorld() && std::exchange(mReleasedWorld, 0) == scene.getIdentity();
+        if (rebuilt)
+            mPast |= FramePast::resized();
+
+        if (slot.isWorld() && !rebuilt)
         {
             // **A limit on memory, and not a matter of safety.** A new world is a load, and a load
             // may wait: the drain frees what the old one just buried, so a second world does not
@@ -600,6 +623,8 @@ namespace Rtx
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
         const DeviceScene& world = *held;
+        assert((options.mAccumulate == 0 || mProfile.mRadianceWidth == RadianceWidth::Summed)
+            && "a sum of frames in a run that only shows them, whose reserve keeps no room for it");
         assert(camera.mEyes.mWorld.mWidth == mFrame.getWidth() && camera.mEyes.mWorld.mHeight == mFrame.getHeight()
             && "the camera has to be built for the render extent; ask getExtents");
 
