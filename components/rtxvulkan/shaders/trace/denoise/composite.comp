@@ -96,9 +96,10 @@ void main()
     {
         const vec4 sky = imageLoad(shadowed, at);
         const vec4 lamps = imageLoad(lamped, at);
-        const float skySeen = (frame.mShadowed & COMPOSITE_SHADOWED_SKY) != 0u ? imageLoad(shadow, at).r : sky.a;
-        const float lampSeen
-            = (frame.mShadowed & COMPOSITE_SHADOWED_LAMPS) != 0u ? imageLoad(lampShadow, at).r : lamps.a;
+        const float skySeen = (frame.mShadowed & COMPOSITE_SHADOWED_SKY) != 0u ? imageLoad(shadow, at).r
+                                                                               : float(shadowOpen(sky.a));
+        const float lampSeen = (frame.mShadowed & COMPOSITE_SHADOWED_LAMPS) != 0u ? imageLoad(lampShadow, at).r
+                                                                                 : float(shadowOpen(lamps.a));
         const vec3 lobe
             = frame.mLobed != 0u ? imageLoad(specular, at).rgb * imageLoad(specularAlbedo, at).rgb : vec3(0.0);
         resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb,

@@ -1,5 +1,8 @@
+#include <cmath>
+
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtxvulkan/shaders/shared/shadow.h>
 
@@ -29,6 +32,22 @@ namespace Rtx
             EXPECT_GT(Shaders::SHADOW_PENUMBRA_DRAWN, 1.0f);
             EXPECT_GT(Shaders::SHADOW_PENUMBRA_CLEAR, Shaders::SHADOW_PENUMBRA_DRAWN);
             EXPECT_EQ(Shaders::SHADOW_PENUMBRA_CLEAR, 65504.0f) << "the largest finite half";
+        }
+
+        /// **The alpha carries the bit in its sign and the penumbra whole**, both marks and a radius
+        /// of nought among them: closed at nought is `-0.0`, which reads closed, where `+0.0` would
+        /// have read open.
+        TEST(RtxShadowTest, aShadowAlphaCarriesTheBitInItsSignAndThePenumbraWhole)
+        {
+            for (const float penumbra :
+                { 0.0f, 0.375f, Shaders::SHADOW_PENUMBRA_DRAWN, Shaders::SHADOW_PENUMBRA_CLEAR })
+                for (const bool open : { false, true })
+                {
+                    const float alpha = Shaders::packShadowAlpha(open, penumbra);
+                    EXPECT_EQ(Testing::shadowOpen(alpha), open) << penumbra;
+                    EXPECT_EQ(Shaders::shadowPenumbra(alpha), penumbra) << penumbra << (open ? " open" : " closed");
+                }
+            EXPECT_TRUE(std::signbit(Shaders::packShadowAlpha(false, 0.0f))) << "a closed ray at nought";
         }
     }
 }

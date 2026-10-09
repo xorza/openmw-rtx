@@ -68,7 +68,6 @@
 #define GBUFFER_BACKDROP STORAGE_RGBA8
 #define GBUFFER_UPSCALE_MASKS STORAGE_RG8
 #define GBUFFER_LIFT STORAGE_RGBA8
-#define GBUFFER_PENUMBRA STORAGE_R16F
 
 // Which binding of `SET_CHANNELS` each channel is.
 //
@@ -116,18 +115,28 @@ namespace Rtx::Shaders
 
     /// What the sky's source — the sun, or a moon at night — adds to what the eye sees as though
     /// its ray got through, in `rgb`, the albedo, the lobe and the path's transmittance already in;
-    /// and in `a` whether the ray did, one or nought (`gather`). What the eye sees is the solid it
-    /// found, or what the water reflects and what is seen through it. The bit the shadow denoiser
-    /// filters in its place: `rgb` is exact per pixel, so a texture under a penumbra stays sharp.
-    /// What a translucent surface on the way lets through is drawn into the bit and not carried in
-    /// `rgb`, which one ray's through would leave noisy. Nought and one wherever nothing split it
-    /// off, which no filter reads as a shadow.
+    /// and in `a` whether the ray did and how wide its penumbra is (`packShadowAlpha`). What the eye
+    /// sees is the solid it found, or what the water reflects and what is seen through it. The bit
+    /// the shadow denoiser filters in its place: `rgb` is exact per pixel, so a texture under a
+    /// penumbra stays sharp. What a translucent surface on the way lets through is drawn into the bit
+    /// and not carried in `rgb`, which one ray's through would leave noisy. Nought, open and
+    /// `SHADOW_PENUMBRA_CLEAR` wherever nothing split it off, which no filter reads as a shadow.
     ///
     /// **The sky's alone, and the lamps' beside it in `CHANNEL_LAMPED`**, each filtered as a field
     /// of its own. One bit a pixel, drawn between the two by the light each adds, was the sun's on
     /// one face and a lamp's on the next where a face turned from the sun lay beside one turned to
     /// it: the filter carried the lamp's open bit across the edge and lit the face in the sun's
     /// shadow with the sun, a bright line along every such edge a PBR replacer's lobe made strong.
+    ///
+    /// **The penumbra is the alpha's magnitude** and whether the ray got through its sign, open where
+    /// the sign is clear. The penumbra is the radius in the pixel's own footprints: the ray's
+    /// distance to what stopped it, times the tangent of the source's half angle (`skyPenumbra`), or
+    /// over what is left of the way to the lamp for `CHANNEL_LAMPED` (`lampPenumbra`).
+    /// `SHADOW_PENUMBRA_CLEAR` where the ray got through, or nothing was split off. What the shadow
+    /// denoiser sizes its reach by (NVIDIA's SIGMA sizes its blur the same way): a hard shadow is
+    /// noiseless, and a reach wider than its penumbra is what blurs it. In the sign, because a
+    /// radius never spends it, and a shadow pass then reads both in one load; a channel of halves
+    /// a field beside it was four bytes a pixel more.
     const uint CHANNEL_SHADOWED = 7;
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, times the
@@ -190,17 +199,8 @@ namespace Rtx::Shaders
     /// display pass reads it at the shown extent through the texture unit.
     const uint CHANNEL_LIFT = 16;
 
-    /// How wide the penumbra of `CHANNEL_SHADOWED`'s bit is, as its radius in the pixel's own
-    /// footprints: the ray's distance to what stopped it, times the tangent of the source's half
-    /// angle (`skyPenumbra`). `CHANNEL_LAMP_PENUMBRA` is the same for the lamps' bit, over what is
-    /// left of the way to the lamp (`lampPenumbra`).
-    /// `SHADOW_PENUMBRA_CLEAR` where the ray got through, or nothing was split off. What the shadow
-    /// denoiser sizes its reach by (NVIDIA's SIGMA sizes its blur the same way): a hard shadow is
-    /// noiseless, and a reach wider than its penumbra is what blurs it.
-    const uint CHANNEL_PENUMBRA = 17;
-
-    /// What `CHANNEL_PENUMBRA` holds where no ray was stopped: the largest half, past every penumbra
-    /// a frame can hold in pixels.
+    /// The penumbra where no ray was stopped: the largest half, past every penumbra a frame can hold
+    /// in pixels.
     const float SHADOW_PENUMBRA_CLEAR = 65504.0f;
 
     /// What it holds where the bit was drawn from among sources — the sun or a moon, one lamp of
@@ -235,19 +235,16 @@ namespace Rtx::Shaders
     /// (`specularModulation`), held at `SPECULAR_ALBEDO_FLOOR` from below, and one wherever there
     /// is no lobe. Demodulated for the reason the bounce is: the glossy filter's bilinear history blurs
     /// what it averages, and a replacer's reflectance is detail the light behind it is not.
-    const uint CHANNEL_SPECULAR_ALBEDO = 18;
+    const uint CHANNEL_SPECULAR_ALBEDO = 17;
 
     /// What every lamp's diffuse half adds to what the eye sees as though their rays got through,
     /// summed, and whether the held lamp's ray did: `CHANNEL_SHADOWED`'s record for the lamps, which
     /// the shadow denoiser filters as a field of its own beside the sky's. The held lamp's bit is
     /// Heitz et al. 2018's ratio estimator over the reservoir's draw (`gather`).
-    const uint CHANNEL_LAMPED = 19;
-
-    /// `CHANNEL_PENUMBRA` for the lamps' bit.
-    const uint CHANNEL_LAMP_PENUMBRA = 20;
+    const uint CHANNEL_LAMPED = 18;
 
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 21;
+    const uint CHANNEL_COUNT = 19;
 
     /// How far apart, in traced pixels, an image and the motion vector its pixel is handed may move
     /// in one frame before the upscaler is told to trust none of that image's history: half a
@@ -316,6 +313,20 @@ namespace Rtx::Shaders
         return abs(packed);
     }
 
+    /// A shadow channel's alpha: `penumbra`, never below nought, with `open` in its sign — clear where
+    /// the ray got through. A closed ray at a radius of nought is `-0.0`, which every store of a half
+    /// keeps.
+    RTX_SHADER float packShadowAlpha(bool open, float penumbra)
+    {
+        return open ? penumbra : -penumbra;
+    }
+
+    /// The penumbra `packShadowAlpha` packed.
+    RTX_SHADER float shadowPenumbra(float alpha)
+    {
+        return abs(alpha);
+    }
+
 #ifdef RTX_HOST
 }
 #endif
@@ -327,6 +338,12 @@ namespace Rtx::Shaders
 bool surfaceOnArms(float packed)
 {
     return (floatBitsToUint(packed) & 0x80000000u) != 0u;
+}
+
+/// Whether the ray whose shadow alpha this is got through — `packShadowAlpha`.
+bool shadowOpen(float alpha)
+{
+    return (floatBitsToUint(alpha) & 0x80000000u) == 0u;
 }
 
 /// The eye the trace cast a pixel's ray from: the arms' where it drew the pixel on an arm, the

@@ -321,7 +321,7 @@ at the top, over all of them.
   the ray to a lamp where the scene has one (`CHANNEL_LAMPED`). One bit a pixel for both carried a
   lamp's open ray across an edge into the sun's light beside it. Each field counts in its local mean
   only the pixels its source lights.
-  Its reach is the penumbra's (`CHANNEL_PENUMBRA`, `CHANNEL_LAMP_PENUMBRA`, NVIDIA SIGMA's rule): a
+  Its reach is the penumbra's (the shadow channels' alpha, NVIDIA SIGMA's rule): a
   bit whose penumbra is under a pixel and whose source was not drawn is handed on as it is, and a
   filter level runs only where its step fits the penumbra.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane

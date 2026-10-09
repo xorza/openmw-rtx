@@ -60,7 +60,6 @@ namespace Rtx
     {
         const bool sky = images.mField == ShadowField::Sky;
         const Image& shadowed = buffer.get(sky ? Channel::Shadowed : Channel::Lamped);
-        const Image& penumbra = buffer.get(sky ? Channel::Penumbra : Channel::LampPenumbra);
 
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const std::uint32_t width = camera.mWidth;
@@ -76,7 +75,6 @@ namespace Rtx
             writes.image(Shaders::SHADOW_MASK_BIND_SHADOWED, shadowed.describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_MASK, images.mMask.describeStorage());
-            writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA, penumbra.describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
 
             dispatch(commands, mMask, writes, Shaders::ShadowMaskConstants{ .mWidth = width, .mHeight = height },
