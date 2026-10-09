@@ -14,6 +14,11 @@
 // average, and the cost is noise of half a step at most, about a part in two thousand at a store:
 // stochastic rounding (Croci et al. 2022; Connolly, Higham and Mary 2021).
 //
+// **A draw is a sample like any of the trace's**, so another draw moves a filtered picture where the
+// filters' decisions amplify a part in two thousand: another glossy rounding seed moved 13 of
+// `seyda-neen-ship-west`'s two million pixels by more than a level of 255, and none by more than 7,
+// where another seed of the bounce's lobe moved 664,734, and one by 166.
+//
 // **In integers on the float's bits**, as `visibility.rgen` rounds the pane albedo: the half drops
 // the float's low bits, so a number under them added and the bits cleared rounds up with exactly
 // the share they hold, and half of them added, with the lowest kept bit, rounds to the nearest.
