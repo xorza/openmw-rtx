@@ -82,8 +82,8 @@ namespace Rtx
             .mSlot = slot,
             .mTables = mSkinTables,
             .mPoses = mAcceleration.getPoses(),
-            .mNormals = mBuffers.getNormals(),
-            .mTangents = mBuffers.getTangents(),
+            .mNormals = mBuffers.getPosedNormals(),
+            .mTangents = mBuffers.getPosedTangents(),
             .mTimer = timer,
         };
     }

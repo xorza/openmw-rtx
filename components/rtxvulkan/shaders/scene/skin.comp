@@ -15,7 +15,7 @@
 // matrix stands in for the inverse transpose there as well.
 //
 // Source and destination are different tables: the bind pose stays where it arrived and the pose
-// lands in the slot's copy of the positions, the normals and the tangents, at the mesh's own run —
+// lands in the slot's copy of the positions, the normals and the tangents, at the mesh's bind run —
 // which is what the structure is refitted from and what a hit reads its shading frame out of.
 
 #include "skinning.h"

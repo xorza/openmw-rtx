@@ -118,7 +118,7 @@ namespace Rtx
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
                 {}, oneBone);
             const Index raised = onOneBone.mMesh;
-            const Index still = scene.addMesh(
+            scene.addMesh(
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices });
             const DeformedMesh onTwoBones = scene.addMesh(
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
@@ -162,13 +162,13 @@ namespace Rtx
             // The pass's destination, owned here so it can be copied back: the renderer's own blocks
             // are build input and never a transfer source.
             //
-            // **Two lengths, because the pass writes two spaces.** A hit reads a normal, so every
-            // mesh has a run among them; nothing reads a position at a hit, so the poses hold the
-            // four deforming quads and not the static one between them.
+            // **One length, because the pass writes one space**, the bind offsets: the poses, the
+            // normals and the tangents hold the four deforming quads and not the static one between
+            // them, whose normals are the scene's one copy and never posed.
             const auto vertices = static_cast<std::uint32_t>(scene.meshes().getPositions().size());
             const std::uint32_t posedVertices = scene.deformers().getBindVertexCount();
             EXPECT_EQ(vertices, 20u) << "five quads of four vertices";
-            EXPECT_EQ(posedVertices, 16u) << "the static quad took a run in the pose table";
+            EXPECT_EQ(posedVertices, 16u) << "the static quad took a run among the posed vertices";
 
             constexpr VkBufferUsageFlags readable
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -184,8 +184,8 @@ namespace Rtx
             {
                 Batch setup(pool);
                 poses.reserve(setup, posedVertices);
-                normals.reserve(setup, vertices);
-                tangents.reserve(setup, vertices);
+                normals.reserve(setup, posedVertices);
+                tangents.reserve(setup, posedVertices);
                 setup.flush();
             }
             for (std::uint32_t slot = 0; slot < 2; ++slot)
@@ -201,10 +201,10 @@ namespace Rtx
             const SkinPass pass(device);
 
             const VkDeviceSize poseBytes = VkDeviceSize{ posedVertices } * sizeof(osg::Vec3f);
-            const VkDeviceSize normalBytes = VkDeviceSize{ vertices } * sizeof(osg::Vec3f);
+            const VkDeviceSize normalBytes = VkDeviceSize{ posedVertices } * sizeof(osg::Vec3f);
             const Buffer readPositions = Buffer::readBack(device, poseBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
             const Buffer readNormals = Buffer::readBack(device, normalBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
-            const VkDeviceSize tangentBytes = VkDeviceSize{ vertices } * sizeof(std::uint32_t);
+            const VkDeviceSize tangentBytes = VkDeviceSize{ posedVertices } * sizeof(std::uint32_t);
             const Buffer readTangents
                 = Buffer::readBack(device, tangentBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
 
@@ -237,10 +237,10 @@ namespace Rtx
                 return readAt<osg::Vec3f>(readPositions, scene.meshes().getRows()[mesh].mBindOffset + vertex);
             };
             const auto normalOf = [&](Index mesh, std::uint32_t vertex) {
-                return readAt<osg::Vec3f>(readNormals, scene.meshes().getRows()[mesh].mVertices.mOffset + vertex);
+                return readAt<osg::Vec3f>(readNormals, scene.meshes().getRows()[mesh].mBindOffset + vertex);
             };
             const auto tangentOf = [&](Index mesh, std::uint32_t vertex) {
-                return readAt<std::uint32_t>(readTangents, scene.meshes().getRows()[mesh].mVertices.mOffset + vertex);
+                return readAt<std::uint32_t>(readTangents, scene.meshes().getRows()[mesh].mBindOffset + vertex);
             };
 
             // One bone at five: every corner five up, and an upward normal left as it was.
@@ -290,16 +290,10 @@ namespace Rtx
             EXPECT_EQ(normalOf(lifted, 0), osg::Vec3f()) << "a morph moved a normal";
             EXPECT_EQ(tangentOf(lifted, 0), 0u) << "a morph moved a tangent";
 
-            // **And the quad between them is untouched among the normals.** Its run holds what the
-            // block was made with, which is nothing: a kernel that wrote past its mesh would have
-            // landed here. It has no run among the poses at all, which the bind count above says,
-            // and the sixteen that are there are each asserted exactly.
+            // **And the quad between them has no run here at all**, which the bind count above says,
+            // so a kernel that wrote past its mesh lands in a neighbour's, each asserted exactly.
             for (std::uint32_t vertex = 0; vertex < 4; ++vertex)
-            {
-                EXPECT_EQ(normalOf(still, vertex), osg::Vec3f()) << "a pose landed in a static neighbour at " << vertex;
-                EXPECT_EQ(tangentOf(still, vertex), 0u) << "a pose landed in a static neighbour at " << vertex;
                 EXPECT_EQ(tangentOf(raised, vertex), 0u) << "a mesh with no tangents was posed some at " << vertex;
-            }
 
             // **The account: what one copy was paid the other still owes.** A frame that poses
             // nothing new still has to bring the second copy level, and a copy that is level

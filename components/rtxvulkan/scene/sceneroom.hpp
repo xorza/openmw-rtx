@@ -23,7 +23,7 @@ namespace Rtx
     /// the room is a table and both its copies made again on the frame a cell arrives on. The suites'
     /// largest place reaches 80,324 placements, so the placements are three times that, at 16 MiB of
     /// rows a copy. One session through every place of the suites held 5,641 meshes and 1,561
-    /// materials at most, so each is five times that, for a mod list's: 768 KiB of meshes and
+    /// materials at most, so each is five times that, for a mod list's: 896 KiB of meshes and
     /// 864 KiB of materials a copy.
     inline constexpr SceneRoom sWorldRoom{ .mPlacements = 1u << 18, .mMeshes = 1u << 15, .mMaterials = 1u << 13 };
 }

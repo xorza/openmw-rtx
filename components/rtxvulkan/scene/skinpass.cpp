@@ -59,12 +59,9 @@ namespace Rtx
         const MeshRange& mesh = scene.meshes().getRows()[index];
         assert(posable(mesh) && "a pose of a mesh with nothing to pose");
 
-        // The pose table is indexed by the bind offset and the normals and tangents by the scene's
-        // own. A hit reads a normal out of the shared table, so every mesh has a run there; nothing
-        // reads a position at a hit, so only the bodies have one here.
         const VkDeviceAddress posed = into.addressOf(mesh.mBindOffset);
-        const VkDeviceAddress shaded = normalsInto.addressOf(mesh.mVertices.mOffset);
-        const VkDeviceAddress turned = tangentsInto.addressOf(mesh.mVertices.mOffset);
+        const VkDeviceAddress shaded = normalsInto.addressOf(mesh.mBindOffset);
+        const VkDeviceAddress turned = tangentsInto.addressOf(mesh.mBindOffset);
 
         // The pose, whichever kind: the bones as rows or the weights four to a word, as
         // `Rtx::PoseWord` lays them, at the one address either kernel reads from nought.

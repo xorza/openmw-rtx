@@ -83,6 +83,12 @@ namespace Rtx::Shaders
     /// megabytes of positions a block.
     const uint VERTEX_BLOCK = 256u * 1024u;
 
+    /// The block a deforming mesh's normals and tangents start at, among the ids a frame slot's
+    /// normal and tangent tables resolve: past every block a standing mesh's can reach, since this
+    /// many blocks of normals are twelve gigabytes. A skin poses a body's into the slot's own
+    /// blocks there, and every other vertex's are one copy every slot shares.
+    const uint POSED_FIRST_BLOCK = 4096u;
+
     /// The index buffer wants its own number: a triangle soup has three indices a vertex and a
     /// terrain chunk closer to six.
     const uint INDEX_BLOCK = 1024u * 1024u;
@@ -586,7 +592,7 @@ namespace Rtx::Shaders
         /// What the shape pass found this mesh to be — `MESH_SHEET` and `MESH_TANGENTS`.
         ///
         /// **Bits and not two words, because this row is read on every hit.** A mesh table entry is
-        /// six words and every ray that lands fetches one.
+        /// seven words and every ray that lands fetches one.
         uint mShape;
 
         /// Where this mesh's second set of texture coordinates begins in the blocks of their own,
@@ -603,8 +609,14 @@ namespace Rtx::Shaders
         /// Where this mesh's posed vertices sit among the deforming meshes' — `Rtx::MeshRange::
         /// mBindOffset`, the index the pose blocks are addressed by — or `NO_RUN` for a mesh
         /// that stands. What lets a hit on a body read where its triangle stood last frame: the
-        /// one field a moving surface's motion cannot do without, and the sixth word of the row.
+        /// one field a moving surface's motion cannot do without.
         uint mBindOffset;
+
+        /// What a vertex id is moved by to name its normal and its tangent: nought for a mesh that
+        /// stands, and for one that deforms, modulo 2³², from `mVertexOffset` to its bind run past
+        /// `POSED_FIRST_BLOCK`. An add and not a select of the table: the select cost 1.2 % of the
+        /// trace at `seyda-neen-ship`.
+        uint mNormalShift;
     };
 
     /// A run a mesh does not have: `GpuMesh::mSecondTexCoordOffset` for a mesh that brought no
@@ -793,7 +805,8 @@ namespace Rtx::Shaders
     struct GpuTables
     {
         /// The five tables of block addresses, which a global vertex or index id is resolved
-        /// through. The normals and the tangents are this slot's copy.
+        /// through. The normals and the tangents are this slot's table, which a deforming mesh's
+        /// ids reach past `POSED_FIRST_BLOCK` (`GpuMesh::mNormalShift`).
         uint64 mNormalBlocks;
         uint64 mTangentBlocks;
         uint64 mTexCoordBlocks;
@@ -1218,7 +1231,7 @@ namespace Rtx::Shaders
     // produces a plausible wrong image rather than an error. GLSL is pinned separately, by the
     // `--scalar-block-layout` the build hands the validator.
 #ifdef RTX_HOST
-    static_assert(sizeof(GpuMesh) == 24, "GpuMesh must be scalar-packed on every side");
+    static_assert(sizeof(GpuMesh) == 28, "GpuMesh must be scalar-packed on every side");
     static_assert(sizeof(GpuInstance) == 64, "GpuInstance must be scalar-packed on every side");
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),
         "the lamp body's bit stands above every ray mask's");

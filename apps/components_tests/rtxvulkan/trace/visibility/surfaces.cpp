@@ -112,8 +112,9 @@ namespace Rtx::Testing
                 std::uint64_t mAddress;
                 std::uint32_t mAlign;
             };
-            const std::array<Named, 12> named{ {
+            const std::array<Named, 13> named{ {
                 { "the normal blocks", addressed.mNormalBlocks, Shaders::TABLE_ALIGN_BLOCKS },
+                { "the tangent blocks", addressed.mTangentBlocks, Shaders::TABLE_ALIGN_BLOCKS },
                 { "the texture coordinate blocks", addressed.mTexCoordBlocks, Shaders::TABLE_ALIGN_BLOCKS },
                 { "the meshes", addressed.mMeshes, Shaders::TABLE_ALIGN_ROWS },
                 { "the instance rows", addressed.mInstances, Shaders::TABLE_ALIGN_ROWS },
@@ -138,7 +139,7 @@ namespace Rtx::Testing
         /// four rows each, one frame slot: one mesh at the start, then three meshes and three
         /// materials, which fill both rooms with the untextured row, leave the bytes where the
         /// tables were made. One more of each makes each table again at twice its four rows
-        /// (`GrowableBuffer::outgrow`): 4 · 24 + 4 · 108 = 528 bytes more.
+        /// (`GrowableBuffer::outgrow`): 4 · 28 + 4 · 108 = 544 bytes more.
         TEST_F(RtxSceneTableTest, theMeshAndMaterialTablesHoldTheirRoomAndGrowPastIt)
         {
             constexpr SceneRoom room{ .mMeshes = 4, .mMaterials = 4 };
