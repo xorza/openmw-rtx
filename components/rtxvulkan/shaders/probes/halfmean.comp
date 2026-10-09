@@ -30,7 +30,7 @@ void main()
 
     const ivec2 texel = ivec2(int(at), 0);
     const float blended = mix(mean.mTarget, imageLoad(history, texel).r, mean.mKept);
-    uint draws = seededKey(pixelKey(uvec2(at, 0u)) + SEED_HALF_ROUNDING, mean.mFrame);
-    const float stored = mean.mRounded != 0u ? roundedToHalf(blended, randomNext(draws)) : blended;
+    uint draws = seededKey(pixelKey(uvec2(at, 0u)) + SEED_BOUNCE_ROUNDING, mean.mFrame);
+    const float stored = mean.mRounded != 0u ? roundedToHalf(blended, randomWord(draws)) : blended;
     imageStore(history, texel, vec4(stored));
 }

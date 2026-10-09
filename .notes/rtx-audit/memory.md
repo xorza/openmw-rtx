@@ -19,30 +19,30 @@ structures 148 MiB reserved and tables 142 MiB (`tableBytes` 149.2 MB). That lea
 | owner (render-pixel grid) | B/px | 1280×720 (bench) | 1920×1080 native | 2560×1440 | 3840×2160 native |
 |---|---|---|---|---|---|
 | `GBuffer`: 21 channels (`gbuffer.cpp:62-90`, `gbuffer.h:62-71`) | 142 | 131 MB | 294 MB | 523 MB | 1178 MB |
-| `DenoiseHistory` (`denoisehistory.cpp`) | **328** | **302 MB** | **680 MB** | 1209 MB | 2721 MB |
+| `DenoiseHistory` (`denoisehistory.cpp`) | **256** | **236 MB** | **531 MB** | 944 MB | 2123 MB |
 | `FogVolume`: 64 slices on an 8× column grid, so one froxel per pixel, ~100 B each | ~100 | ~92 MB | ~207 MB | ~369 MB | ~829 MB |
 | FSR targets at render size (`upscaler.cpp:331-352`) | ~40 | ~37 MB | ~83 MB | ~147 MB | ~332 MB |
-| **sum** | **~610** | **~562 MB** | **~1.3 GB** | **~2.2 GB** | **~5.1 GB** |
+| **sum** | **~540** | **~496 MB** | **~1.1 GB** | **~2.0 GB** | **~4.5 GB** |
 
 The FSR targets at output size (history ×2, output and locks, about 25 B per output pixel) and the
 bloom and present targets come on top of the sum.
 
-How the denoiser's 328 B/px adds up:
-- Pairs, two copies each, 160 B/px: Surface 16, Moments 32, sky and lamp shadow moments 32 + 32,
+How the denoiser's 256 B/px adds up:
+- Pairs, two copies each, 136 B/px: Surface 16, Moments 8, sky and lamp shadow moments 32 + 32,
   SpecularMean 16, PaneMean 16, PaneHeld 16.
-- Singles, 168 B/px: Colour 16, Fill 16, Fast 8, Blended 16, Narrow 8 + 8, FillBlended 16,
-  FillNarrow 8 + 8, FastBlended 8, SpecularFast 4, PaneFast 4, two shadow fields at 20 each, and two
-  fast blends at 4 each.
+- Singles, 120 B/px: Colour 8, Fill 8, Fast 8, Blended 8, Narrow 8, FillBlended 8, FillNarrow 8,
+  FastBlended 8, SpecularFast 4, PaneFast 4, two shadow fields at 20 each, and two fast blends at 4
+  each.
 
 For comparison, NVIDIA's NRD README lists RELAX_DIFFUSE_SPECULAR at 169 MB for its whole working set
 at 1080p, of which 97 MB persists and 72 MB is aliasable, and SIGMA_SHADOW at 32 MB
-(https://github.com/NVIDIA-RTX/NRD). This denoiser keeps 680 MB at 1080p native, about 3.4× those
+(https://github.com/NVIDIA-RTX/NRD). This denoiser keeps 531 MB at 1080p native, about 2.6× those
 two together.
 
 **This decides content room on the target hardware.** `MemoryAllocator::reserveFrame` reserves
 `largestFrameAt` over **every** upscale mode, native included (`vulkanrenderer.cpp:82`). Content
 (textures and structures) is refused once it would cut into that reserve:
-- At a 3840×2160 output, the reserve plans for about 5 GB of frame targets, even when the player
+- At a 3840×2160 output, the reserve plans for about 4.5 GB of frame targets, even when the player
   runs `performance`.
 - An 8 GB RTX 2070/2080/3070 is then left with almost nothing for textures, which come down a level
   at a time and then draw the stand-in.
@@ -69,27 +69,22 @@ two together.
 - **Saving.** 22 / 50 / 199 MB at the three extents, on vanilla.
 - **Proof.** `check`, plus `shot --against` with maps on and off.
 
-### 1.3 Transient aliasing inside the wavelet (−32 B/px, no picture change). Experiment.
+### 1.3 Transient aliasing of the frame-local images (up to ~18 B/px, no picture change). Experiment.
 
-- **What.** `Blended` and `FillBlended` are RGBA32F (16 B) and are dead after the wavelet's first
-  level. The narrow pairs (`Narrow`/`NarrowOther` and the fill's, RGBA16F, 8 B each) are first
-  written at level 1 (`atrouspass.cpp:96-140`). Each narrow pair fits in the memory of its blend.
+- **What.** The image table could carry a lifetime column (`Role::Scratch` already names the
+  candidates). `FastBlended`, the shadow scratch and the fast blends could then alias FSR's own
+  frame-local targets (intermediate, dilated depth, motion and masks, about 18 B/px), which only live
+  inside the upscale zone. The wavelet already reuses its dead blend for its second narrow level.
 - **How.**
-  - One allocation per pair, with `vmaCreateAliasingImage2` at offsets 0 and size/2. If the driver's
-    requirements do not fit two narrow images, size the allocation to the larger need.
-  - The first write of each narrow image transitions it from `UNDEFINED`. Its source scope is level
-    0's sampled read of the blend.
+  - Aliased images by `vmaCreateAliasingImage2`, the allocation sized to the larger need.
+  - The first write of each alias transitions it from `UNDEFINED`, its source scope the last read of
+    the image under it.
   - This is the field's frame-graph transient pool: Frostbite's FrameGraph, and NRD's "aliasable"
     pool.
 - **Sources.**
   - https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/resource_aliasing.html
   - https://www.gdcvault.com/play/1024612/FrameGraph-Extensible-Rendering-Architecture-in
   - https://github.com/NVIDIA-RTX/NRD
-- **Further.** The same table could carry a lifetime column (`Role::Scratch` already names the
-  candidates). FastBlended, the shadow scratch and the fast blends could then alias FSR's own
-  frame-local targets (intermediate, dilated depth, motion and masks, about 18 B/px), which only live
-  inside the upscale zone.
-- **Saving.** 30 / 66 / 265 MB at the three extents.
 - **Risk.** Medium, because aliasing bugs are hazards. The synchronisation validation layer and
   `repeat` are the proof. `shot --against` should be identical.
 

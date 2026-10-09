@@ -50,11 +50,13 @@ namespace Rtx
         };
 
         /// What a shader hands an image's store: its value as it computed it, or that value rounded
-        /// at random to one the format holds exactly (`roundedToHalf`), so what the store does with
-        /// what it is handed decides nothing.
+        /// to one the format holds exactly, so what the store does with what it is handed decides
+        /// nothing — at random (`roundedToHalf`), which a blend may read back, or to the nearest
+        /// (`nearestHalf`), which none may.
         enum class Store : std::uint8_t
         {
             AsComputed,
+            RoundedToNearest,
             RoundedAtRandom,
         };
 
@@ -97,23 +99,21 @@ namespace Rtx
             { DenoiseImage::Surface, "accumulate-surface", ACCUMULATE_SURFACE, Role::OneFrame, true, Grid::Pixels,
                 sStorage, Temporal::Accumulate },
             { DenoiseImage::Colour, "accumulate-colour", ACCUMULATE_COLOUR, Role::FedBack, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Accumulate },
+                sReadAndWrite, Temporal::Accumulate, Store::RoundedAtRandom },
             { DenoiseImage::Moments, "accumulate-moments", ACCUMULATE_MOMENTS, Role::FedBack, true, Grid::Pixels,
-                sReadAndWrite, Temporal::Accumulate },
+                sReadAndWrite, Temporal::Accumulate, Store::RoundedAtRandom },
+            // And the second narrow level's target, rounded to the nearest, after the first level
+            // has read it (`AtrousPass::record`).
             { DenoiseImage::Blended, "accumulate-blended", ATROUS_CHANNEL, Role::InLoop, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Accumulate },
-            { DenoiseImage::Narrow, "atrous-narrow", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels, sReadAndWrite,
-                Temporal::Accumulate },
-            { DenoiseImage::NarrowOther, "atrous-narrow-other", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Accumulate },
+                sReadAndWrite, Temporal::Accumulate, Store::RoundedAtRandom },
+            { DenoiseImage::Narrow, "atrous-narrow", ATROUS_CHANNEL, Role::Scratch, false, Grid::Pixels, sReadAndWrite,
+                Temporal::Accumulate, Store::RoundedToNearest },
             { DenoiseImage::Fill, "accumulate-fill", ACCUMULATE_COLOUR, Role::FedBack, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Accumulate },
+                sReadAndWrite, Temporal::Accumulate, Store::RoundedAtRandom },
             { DenoiseImage::FillBlended, "accumulate-fill-blended", ATROUS_CHANNEL, Role::InLoop, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Accumulate },
-            { DenoiseImage::FillNarrow, "atrous-fill-narrow", ATROUS_NARROW, Role::Scratch, false, Grid::Pixels,
-                sReadAndWrite, Temporal::Accumulate },
-            { DenoiseImage::FillNarrowOther, "atrous-fill-narrow-other", ATROUS_NARROW, Role::Scratch, false,
-                Grid::Pixels, sReadAndWrite, Temporal::Accumulate },
+                sReadAndWrite, Temporal::Accumulate, Store::RoundedAtRandom },
+            { DenoiseImage::FillNarrow, "atrous-fill-narrow", ATROUS_CHANNEL, Role::Scratch, false, Grid::Pixels,
+                sReadAndWrite, Temporal::Accumulate, Store::RoundedToNearest },
             { DenoiseImage::Fast, "accumulate-fast", ACCUMULATE_FAST, Role::FedBack, false, Grid::Pixels, sStorage,
                 Temporal::Accumulate },
             { DenoiseImage::FastBlended, "accumulate-fast-blended", ACCUMULATE_FAST, Role::InLoop, false, Grid::Pixels,
@@ -174,7 +174,7 @@ namespace Rtx
         {
             for (const Declared& declared : sDeclared)
                 if ((declared.mRole == Role::FedBack || declared.mRole == Role::InLoop)
-                    && Shaders::mayRoundTowardNought(declared.mFormat) && declared.mStore == Store::AsComputed)
+                    && Shaders::mayRoundTowardNought(declared.mFormat) && declared.mStore != Store::RoundedAtRandom)
                     return false;
             return true;
         }
@@ -360,11 +360,9 @@ namespace Rtx
             .mMoments = now(DenoiseImage::Moments, step),
             .mBlended = only(DenoiseImage::Blended),
             .mNarrow = only(DenoiseImage::Narrow),
-            .mNarrowOther = only(DenoiseImage::NarrowOther),
             .mFill = only(DenoiseImage::Fill),
             .mFillBlended = only(DenoiseImage::FillBlended),
             .mFillNarrow = only(DenoiseImage::FillNarrow),
-            .mFillNarrowOther = only(DenoiseImage::FillNarrowOther),
             .mFast = only(DenoiseImage::Fast),
             .mFastBlended = only(DenoiseImage::FastBlended),
             .mFresh = step.mFresh[Temporal::Accumulate],

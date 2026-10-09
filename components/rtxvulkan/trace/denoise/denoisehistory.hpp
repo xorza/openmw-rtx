@@ -24,11 +24,9 @@ namespace Rtx
         Moments,
         Blended,
         Narrow,
-        NarrowOther,
         Fill,
         FillBlended,
         FillNarrow,
-        FillNarrowOther,
         Fast,
         FastBlended,
         SkyShadowMoments,
@@ -117,7 +115,8 @@ namespace Rtx
         void discard(VkCommandBuffer commands, const TemporalTurns::Step& step) const;
 
         /// The accumulator's and the wavelet's images: the histories the accumulator reads and
-        /// writes, the blend it hands the cascade, and the pair its narrow levels ping-pong through.
+        /// writes, the blend it hands the cascade, and the narrow image its later levels ping-pong
+        /// through with the blend.
         struct AccumulateImages
         {
             /// The surface last frame's histories belong to, as every temporal pass that asks
@@ -139,16 +138,15 @@ namespace Rtx
             /// and not a pair, because nothing reads it after the frame that wrote it.
             const Image& mBlended;
 
-            /// What the levels after the first write by turns, in `ATROUS_NARROW`.
+            /// What the levels after the first write by turns with the blend, which nothing reads
+            /// once the first level has.
             const Image& mNarrow;
-            const Image& mNarrowOther;
 
-            /// The share of the bounce that is the fill, through the same four: the mean, as `mColour`
-            /// is held, the blend and the narrow pair.
+            /// The share of the bounce that is the fill, through the same three: the mean, as
+            /// `mColour` is held, the blend and the narrow image.
             const Image& mFill;
             const Image& mFillBlended;
             const Image& mFillNarrow;
-            const Image& mFillNarrowOther;
 
             /// The fast means of the bounce and the fill (`ACCUMULATE_FAST`), which the accumulator
             /// reads as last frame's and the clamp writes, and the accumulator's blend of them, which

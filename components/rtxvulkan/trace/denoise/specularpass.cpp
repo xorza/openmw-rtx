@@ -53,7 +53,11 @@ namespace Rtx
                 .mMean = images.mMean,
                 .mFastBlended = images.mFastBlended,
                 .mFast = images.mFast },
-            width, height, frame.mFilters.mAntilag, frame.mSampled.mFrame);
+            Shaders::HistoryClampConstants{ .mWidth = width,
+                .mHeight = height,
+                .mAntilag = frame.mFilters.mAntilag ? 1u : 0u,
+                .mFrame = frame.mSampled.mFrame,
+                .mLayer = Shaders::HISTORY_CLAMP_GLOSSY });
         return images.mMean;
     }
 }

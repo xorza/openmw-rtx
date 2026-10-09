@@ -24,12 +24,16 @@
 // at full width is an argument about rounding a term before adding it to a thousand others, and a
 // normal is compared against a neighbour's.
 //
-// **Full floats for the mean**, which is the cascade's first level (`atrous.h` says why): a running
-// value a half store would round toward nought at every frame.
+// **Halves for the mean**, which is the cascade's first level's (`atrous.h` says why), rounded at
+// random at every store; the fill's alpha holds how many frames it is of.
 //
-// **And the moments stay full floats whatever the other two do.** `E[l²] - E[l]²` is a difference of
-// two numbers that are nearly equal once a pixel has settled, and a format that rounds each of them
-// separately loses the whole of what is left.
+// **And the moments as the mean and the deviation of the luminance, not its first two moments.**
+// `E[l²] - E[l]²` is a difference of two numbers that are nearly equal once a pixel has settled, and
+// a half that rounds each of them loses the whole of what is left; the running variance, `S' = (1 -
+// a)(S + a(l - mean)²)`, is the same number in exact arithmetic (Finch 2009, eq. 143) and keeps its
+// own precision. Its root is kept, which spans half the variance's exponents, so a half holds it
+// where a dim pixel's variance would fall under the least normal half. A mixture of texels is formed
+// in full floats, as `S + mean²` summed and the square of the mean's sum taken off.
 
 // **The mean is the cascade's format, by definition and not by agreement**: the cascade's first
 // level writes the mean through the one declaration every level writes through, `ATROUS_CHANNEL`,
@@ -37,7 +41,7 @@
 
 #define ACCUMULATE_COLOUR ATROUS_CHANNEL
 #define ACCUMULATE_SURFACE STORAGE_RGBA16F
-#define ACCUMULATE_MOMENTS STORAGE_RGBA32F
+#define ACCUMULATE_MOMENTS STORAGE_RG16F
 
 // **The fast means of the bounce and the fill in one texel of two words**, each in shared-exponent
 // `RGB9E5` (`lib/sharedexponent.glsl`), which rounds to nearest. They are read at four taps and over
@@ -97,6 +101,9 @@ namespace Rtx::Shaders
         /// One where the slow mean is held to the fast one, nought where the run asked for the A/B
         /// without it (`Reconstruction::mAntilag`): a factor, so both runs take one path.
         uint mAntilag;
+
+        /// The frame's number, which the clamp's store in place seeds its rounding with.
+        uint mFrame;
     };
 
     /// Where `accumulateclamp.comp`'s specialization constant sits: `ACCUMULATE_RING`, whether the
@@ -205,6 +212,13 @@ namespace Rtx::Shaders
         return max(second - first * first, 0.0f);
     }
 
+    /// The second moment of a luminance kept as its mean and deviation (`ACCUMULATE_MOMENTS`), which
+    /// a mixture of texels sums.
+    RTX_SHADER float secondMoment(float mean, float deviation)
+    {
+        return deviation * deviation + mean * mean;
+    }
+
     /// The variance of a slow mean of `frames` frames whose own second moment means nothing yet
     /// (`ACCUMULATE_SETTLED`): that of the moments `first` and `second` averaged over the clamp's
     /// square, raised for a mean of very few frames (`ACCUMULATE_VARIANCE_BOOST`).
@@ -230,7 +244,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(HistoryConstants) == 224, "HistoryConstants must be scalar-packed on every side");
     static_assert(sizeof(AccumulateConstants) == 228, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
-        sizeof(AccumulateClampConstants) == 156, "AccumulateClampConstants must be scalar-packed on every side");
+        sizeof(AccumulateClampConstants) == 160, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,
         "the clamp's square and the ring's hole are read out of the ring's square");
 #endif
