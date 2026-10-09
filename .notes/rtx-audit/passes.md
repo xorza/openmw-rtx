@@ -7,17 +7,16 @@ medians from `measured.json`.
 
 ## Bottom line
 
-- **The air volume is the largest single allocation in this area: 165 MB.** The fog volume takes about
-  100 bytes per froxel. Frostbite- and UE-style volumes take about 40, and RTX Remix, a path-traced
-  shipping renderer, runs a grid 5x coarser. 105 MB of the 165 is the two history pairs kept in
-  RGBA32F, and they are 32-bit only because this card's half stores round toward zero. If the shader
-  rounds to nearest before the store (stochastic rounding if the dead band matters), the store becomes
-  exact and the history fits in halves. That saves 53 MB and about a third of the volume's traffic.
-- **The `air` zone (0.41 ms, 0.60 at dawn) is 1.64 M froxels times 2-4 rays.** The grid has as many
-  froxels as the traced frame has pixels. The lever with the biggest effect is `FOG_VOLUME_SCALE`
-  8 → 12 (an experiment). The `column` zone (0.11 ms) runs at about 21% occupancy (25.7 K threads, each
-  with a 64-step loop of 18 fetches). Two fixes apply: staging the tent in LDS, and a segmented scan,
-  which the transmittance's affine form permits.
+- **The air volume is the largest single allocation in this area: 74 MB at scale 12** (165 MB at the
+  audit's scale 8, which the figures in §1 are at). The fog volume takes about 100 bytes per froxel.
+  Frostbite- and UE-style volumes take about 40, and RTX Remix, a path-traced shipping renderer, runs
+  a grid 5x coarser than scale 8. Most of it is the two history pairs kept in RGBA32F, and they are
+  32-bit only because this card's half stores round toward zero. If the shader rounds before the store
+  (`roundedToHalf`), the store becomes exact and the history fits in halves: 23 MB at scale 12, and
+  about a third of the volume's traffic.
+- **The `column` zone (0.07 ms at scale 12) runs at low occupancy**, a thread to a column, some
+  11,000 a frame, each with a 64-step loop of 18 fetches. A segmented scan, which the transmittance's
+  affine form permits, lifts it.
 - **The wave and wake mip chains are built with one barrier per level** (`Image::buildMips`): about
   19 queue drains a frame for 77 tiny blits. A single SPD dispatch replaces them. The wake field also
   stores each height twice (RG32F, `.y` is the last frame's `.x`). A three-image R32F ring holds the same
@@ -42,16 +41,14 @@ Nothing here re-proposes the declined items: async compute, opacity micromaps an
 | # | What | Saving (1707x960 / 2560x1440) | Kind | Risk / proof |
 |---|------|------------------------------|------|--------------|
 | 1 | Fog history pairs RGBA32F → RGBA16F, with an explicit round-to-nearest (or stochastic rounding) before the store | 52.6 MB; about 79 MB a frame of traffic; ~0.05–0.1 ms of `air`+`column` (estimate) | experiment | Moves the air by under a half ulp. Proof: `noise` suite, `shot --against` at the fog places, `repeat` |
-| 2 | `FOG_VOLUME_SCALE` 8 → 12 | 165 → 74 MB (→ ~50 MB with #1); `air` ~0.41 → ~0.19 ms, `column` ~0.11 → ~0.05 ms (scales with froxels; estimate) | experiment | Shaft and bank edges soften. Proof: `shot --against` on every fog place, `noise --strafe/--walk`, `bench` |
-| 3 | Integrate pass: stage each slice's 10x10 tile of `fogScatter`/`fogSunward` in LDS (18 fetches → ~3 a froxel) | part of `column`'s 0.11 ms | straightforward | Bit-identical if the sum order is kept. Proof: `kernels`, `shot --against` exact |
-| 4 | Integrate pass: segmented scan, 4 threads a column of 16 slices, combined by subgroup ops | `column` occupancy 21% → ~85%; ~0.03–0.06 ms (estimate) | experiment | ulp-level change. Proof: `shot --against`, `repeat` |
-| 5 | SPD (one dispatch) for the wave and ripple mip chains instead of blit-per-level | ~19 queue drains a frame; ~0.03–0.06 ms of `waves`+`ripples` (estimate; confirm with `nsys`) | straightforward-to-medium | Box mean as now. Proof: `shot --against` (the store rounding may differ from the blit's), `kernels` |
-| 6 | Ripple field RG32F ping-pong → three R32F images | 16 → 12 MB; step traffic 16 → 12 B/texel, compose reads halved | straightforward | Bit-identical. Proof: `shot --against` exact, `repeat` |
-| 7 | One world sprite bin instead of one per frame slot (report buffer stays per slot) | One full set of sprite tables, including the tile list at its high-water mark (up to 64 MB in a storm) | straightforward, verify | None if the head-barrier argument holds. Proof: `repeat`, `check` in the storm suite |
-| 8 | Transient aliasing: bloom over FSR's dead transients or the fog transients; FSR transients over the denoiser's | Bloom 9.8 MB now; ~37 MB more once the denoiser side joins | experiment (infrastructure) | Barriers. Proof: `repeat`, validation |
-| 9 | Bloom pyramid alpha: RGBA16F (alpha written 1.0) → B10G11R11 with a nearest-rounded store | 9.8 → 4.9 MB; half the bloom traffic; ≤0.02 ms | experiment | Needs pre-rounding, or the RTZ bias darkens the veil. Proof: `shot --against` |
-| 10 | Histogram fused into the bloom's frame halving | 29.5 MB read; ~0.01–0.02 ms | straightforward | Same pixels counted. Proof: exposure tests, `shot --against` exact |
-| 11 | Fog `seeing` written only in frames with puffs; `airSunward`+`sliceSunward` merged into one RG16F image | 13 MB of writes on puff-free frames; one image fewer | straightforward | Worst case unchanged, so low value |
+| 2 | Integrate pass: segmented scan, 4 threads a column of 16 slices, combined by subgroup ops | `column` occupancy 21% → ~85%; ~0.03–0.06 ms (estimate) | experiment | ulp-level change. Proof: `shot --against`, `repeat` |
+| 3 | SPD (one dispatch) for the wave and ripple mip chains instead of blit-per-level | ~19 queue drains a frame; ~0.03–0.06 ms of `waves`+`ripples` (estimate; confirm with `nsys`) | straightforward-to-medium | Box mean as now. Proof: `shot --against` (the store rounding may differ from the blit's), `kernels` |
+| 4 | Ripple field RG32F ping-pong → three R32F images | 16 → 12 MB; step traffic 16 → 12 B/texel, compose reads halved | straightforward | Bit-identical. Proof: `shot --against` exact, `repeat` |
+| 5 | One world sprite bin instead of one per frame slot (report buffer stays per slot) | One full set of sprite tables, including the tile list at its high-water mark (up to 64 MB in a storm) | straightforward, verify | None if the head-barrier argument holds. Proof: `repeat`, `check` in the storm suite |
+| 6 | Transient aliasing: bloom over FSR's dead transients or the fog transients; FSR transients over the denoiser's | Bloom 9.8 MB now; ~37 MB more once the denoiser side joins | experiment (infrastructure) | Barriers. Proof: `repeat`, validation |
+| 7 | Bloom pyramid alpha: RGBA16F (alpha written 1.0) → B10G11R11 with a nearest-rounded store | 9.8 → 4.9 MB; half the bloom traffic; ≤0.02 ms | experiment | Needs pre-rounding, or the RTZ bias darkens the veil. Proof: `shot --against` |
+| 8 | Histogram fused into the bloom's frame halving | 29.5 MB read; ~0.01–0.02 ms | straightforward | Same pixels counted. Proof: exposure tests, `shot --against` exact |
+| 9 | Fog `seeing` written only in frames with puffs; `airSunward`+`sliceSunward` merged into one RG16F image | 13 MB of writes on puff-free frames; one image fewer | straightforward | Worst case unchanged, so low value |
 
 Details follow, pass by pass.
 
@@ -149,46 +146,7 @@ blue-noise offset in [−½, ½) ulp before the RNE.
 - A mean-level check: hold the converged volume against the 32-bit build. `check` already asserts what
   the tree claims about the air.
 
-### Finding 2: `FOG_VOLUME_SCALE` 8 → 12 (experiment)
-
-**Where:** `components/rtx/shaders/scene.h:242`.
-
-**Why the comment above it does not settle this:** it argues that a *finer* grid buys nothing, and
-that is right. The question is whether 8 is coarser than the field and the shafts need:
-- Remix runs 16 with a 2–4 froxel spatial kernel.
-- The fork already blurs over 3 columns (the tent, 24 px), and reapplies the sun's phase per pixel, so
-  the sharpest thing the grid carries is a shadow edge in the air.
-
-**Saving:** both zones scale with froxel count. At 12: 143x80x64 = 732 K froxels, 2.24x fewer.
-- Memory 165 → 74 MB (≈50 MB with finding 1).
-- `air` ~0.41 → ~0.19 ms, ~0.60 → ~0.27 ms at dawn.
-- `column` ~0.11 → ~0.05 ms. Estimates, linear in froxels.
-
-**Risk:**
-- Shafts and bank edges spread over 36 px instead of 24.
-- The silhouette rules (`fogdepth.rgen`'s column depth and the tent's surface test) work per column, so
-  a 12 px column gets the "column ray misses the block's edge" case more often.
-
-**Proof:** `shot --against` at every fog place with `--map --upscale=off`, `noise --strafe=150
---walk=150`, and `bench`. Try 12 before 16.
-
-### Finding 3: stage the tent in LDS (straightforward)
-
-**Where:** `fogintegrate.comp:84-118` (`sliceAt`), called twice for each of the 64 slices
-(`:150-170`).
-
-**Why:** each slice reads 9 neighbours x 2 RGBA32F texels (`texelFetch(fogScatter…)`,
-`texelFetch(fogSunward…)`), which is 18 fetches and 288 B of L1/L2 traffic per froxel. An 8x8 group
-with a 1-column halo needs a 10x10 tile a slice: 200 loads per 64 threads, about 3 each. The rest come
-from shared memory.
-
-**Picture:** unchanged bit for bit, as long as the weighted sum keeps its order. `kernels` names the
-kernel, and `shot --against` must report nothing.
-
-**Saving:** this pass is latency-bound (finding 4). Fewer outstanding fetches per thread is what it
-needs. Part of 0.11 ms; measure.
-
-### Finding 4: a segmented scan down the column (experiment)
+### Finding 2: a segmented scan down the column (experiment)
 
 **Where:** `fogintegrate.comp`, with the `FOG_COLUMN_WORKGROUP` comment at `shared/fogvolume.h`
 ("a thread to a column … not a shape to be improved").
@@ -256,7 +214,7 @@ Files:
   - surface and curvature: RGBA16F with chains, 22.4 MB.
   - About 39 MB.
 
-### Finding 5: SPD for the mip chains (straightforward to medium)
+### Finding 3: SPD for the mip chains (straightforward to medium)
 
 **Where:**
 - `Image::buildMips`, `device/memory/image.cpp:343`
@@ -288,7 +246,7 @@ the difference of two rounded means, and a one-signed bias in either one is a bi
 
 **Proof:** `kernels`, then `shot --against` at the sea places (`seyda-neen-ship*`) and `repeat`.
 
-### Finding 6: the wake field stores each height twice (straightforward)
+### Finding 4: the wake field stores each height twice (straightforward)
 
 **Where:**
 - `shared/ripple.h:42` (`RIPPLE_FIELD_FORMAT STORAGE_RG32F`)
@@ -347,7 +305,7 @@ All `GrowableBuffer`s grown to twice the high-water mark and never shrunk:
 The sizing rule is sound: a misjudged frame falls back to `SPRITE_TILE_UNBINNED` rather than dropping
 anything.
 
-### Finding 7: the world keeps a bin per frame slot that it does not need (straightforward, verify)
+### Finding 5: the world keeps a bin per frame slot that it does not need (straightforward, verify)
 
 **Where:**
 - `tracechain.cpp:46-49`: the world's chain is made with `sFrameSlots` bins (`vulkanrenderer.cpp:128`)
@@ -408,7 +366,7 @@ Checked against the SDK's `ffx_fsr3upscaler.cpp` at v1.1.4 (`internalSurfaceDesc
 | dilated masks, intermediate, new locks, SPD mips, farthest mip1, shading change | — | 16.9 | **ALIASABLE** in the SDK |
 | dilated depth, dilated motion, prev nearest depth | R32F, RG16F, R32UI | 19.7 | "shared"; transient here (written each frame by `Inputs`, read by later passes, `PreviousDepth` cleared every frame) |
 
-### Finding 8: aliasing the transients (experiment, infrastructure)
+### Finding 6: aliasing the transients (experiment, infrastructure)
 
 The SDK's own flags say 16.9 MB is dead outside FSR's dispatch, and here the shared three are too:
 36.6 MB in all. In this frame's order:
@@ -445,7 +403,7 @@ The pyramid follows published practice:
   disjoint 2x2 blocks. With 11 dispatches in about 70 µs, there is little left to fuse except the
   tail: levels 3–5 are 160x90 and smaller and fit one workgroup's LDS.
 
-**Finding 9, the alpha channel is dead (experiment).**
+**Finding 7, the alpha channel is dead (experiment).**
 - `bloomdown.comp:49` stores `vec4(…, 1.0)` into `BLOOM_LEVEL STORAGE_RGBA16F` (`shared/bloom.h:93`),
   so a quarter of every bloom byte is a constant.
 - `B10G11R11_UFLOAT` is a storage format under Vulkan's `shaderStorageImageExtendedFormats` (supported
@@ -457,7 +415,7 @@ The pyramid follows published practice:
   this format.
 - Saving ≤ 0.02 ms. **Proof:** `shot --against`, which also checks the veil's level.
 
-**Finding 10, fuse the histogram into the frame's halving (straightforward).**
+**Finding 8, fuse the histogram into the frame's halving (straightforward).**
 - `histogram.comp:47` reads every shown pixel (29.5 MB at 2560x1440) right after `bloomdown.comp`'s
   `KARIS` dispatch has sampled the same image.
 - A halving thread owns source texels `2p … 2p+1`. Loading those four (L1-hot from its own taps) and

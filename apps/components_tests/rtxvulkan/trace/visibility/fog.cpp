@@ -55,6 +55,15 @@ namespace Rtx::Testing
         /// at nought.
         constexpr float sVolumeOverEvenAir = 0.999f;
 
+        /// A frame `columns` columns of the air volume across, and a pixel more, so a centre pixel
+        /// stands on its axis. **For a test whose figures are the volume's**: what a column reads and
+        /// how far its tent reaches stand still in the world at a frame of so many columns, whatever
+        /// `FOG_VOLUME_SCALE` makes a column's pixels, where a frame of so many pixels moves them.
+        constexpr std::uint32_t framedInColumns(std::uint32_t columns)
+        {
+            return columns * Shaders::FOG_VOLUME_SCALE + 1;
+        }
+
         /// What one unit of a lamp's intensity delivers `span` units away, from the same windowed
         /// inverse square the shader uses: an inverse square that reaches exactly zero at the
         /// lamp's reach, because Morrowind's is a hard cutoff and clipping one leaves a ring.
@@ -214,7 +223,7 @@ namespace Rtx::Testing
         /// first, putting grey between the eye and the seabed twice over.
         TEST_F(RtxVisibilityTest, theFogLayerSitsOnTheWaterThinsAboveItAndStopsAtIt)
         {
-            constexpr std::uint32_t size = 33;
+            constexpr std::uint32_t size = framedInColumns(4);
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float distance = 2000.0f;
             constexpr float extinction = 3.5e-4f;
@@ -466,10 +475,10 @@ namespace Rtx::Testing
         /// for — and that is the whole of what they are about. A lamp reaching the whole ray asks the volume
         /// no question the closed form has not already answered.
         ///
-        /// **A narrow field of view, because a column is eight pixels wide.** At sixty degrees a
-        /// column of a thirty-three pixel frame spans thirteen of them, so the ray the middle pixel
-        /// reads its air along leaves the ray it was traced along by hundreds of units. Ten degrees
-        /// puts that under forty, which is small against a reach of five hundred.
+        /// **A narrow field of view, because a column is `FOG_VOLUME_SCALE` pixels wide.** At sixty
+        /// degrees a column of a thirty-three pixel frame spans twenty-two of them, so the ray the
+        /// middle pixel reads its air along leaves the ray it was traced along by hundreds of units.
+        /// Ten degrees puts that under forty, which is small against a reach of five hundred.
         struct LampInTheAir
         {
             /// How far the wall stands, and so how long the ray the middle pixel reads is.
@@ -556,7 +565,7 @@ namespace Rtx::Testing
 
         /// The air under a lamp settles instead of flickering block by block.
         ///
-        /// **What a boiling image is, measured as what it is.** A froxel stands for eight pixels
+        /// **What a boiling image is, measured as what it is.** A froxel stands for a column's pixels
         /// squared, so an estimator that decides one thing for a whole stretch of a column paints
         /// that decision across a block of the frame — and redecides it next frame. The complaint
         /// is not that the mean is wrong, it is that the frames do not stand still, so what this
@@ -648,7 +657,7 @@ namespace Rtx::Testing
         /// history, so the stretch they are integrated over has to end where that ray ends, on every
         /// frame.
         ///
-        /// Two posts 760 units out with a slit between them eleven pixels wide, and the centre pixel
+        /// Two posts 760 units out with a slit between them 44 units wide, and the centre pixel
         /// looking through the slit at a black wall. The two columns the pixel reads both have their
         /// middle ray in the slit, and their outer two or three pixels behind a post, so the
         /// jittered ray each draws meets a post on a quarter to three eighths of the frames. A lamp
@@ -658,18 +667,18 @@ namespace Rtx::Testing
         /// **Measured against the same air with no posts**, which holds perfectly still. Cut where
         /// the jittered ray stopped, the pixel stepped by 20% of itself from one frame to the next
         /// and settled 12% darker than the open air. Cut where the middle ray stops, it is the open
-        /// air's to half a per cent, and steps by 6.5%: the draws of the shadow rays the posts'
-        /// edges stop, which the froxel's history averages and nothing here can take away.
+        /// air's to 1.5 per cent, and steps by 2.9%: the draws of the shadow rays the posts' edges
+        /// stop, which the froxel's history averages and nothing here can take away.
         TEST_F(RtxVisibilityTest, theLampLightBesideAnEdgeHoldsStillAndAsBrightAsOpenAir)
         {
-            constexpr std::uint32_t size = 33;
+            constexpr std::uint32_t size = framedInColumns(4);
             constexpr std::size_t centre = centreOf(size);
             constexpr std::size_t frames = 96;
             constexpr std::size_t settled = 48;
             constexpr float eye = -2000.0f;
             constexpr float posts = eye + 760.0f;
-            // Five and a half pixels either side of the centre, a pixel being `2 * 760 * tan 5° / 33`
-            // = 4.03 units out there: the columns' middles, four pixels either side, stand inside.
+            // A column being `2 * 760 * tan 5° / 4` = 33 units out there, a little less for the frame's
+            // last pixel: the columns' middles, half a column either side of the centre, stand inside.
             constexpr float slit = 22.0f;
             constexpr float reach = 100.0f;
             const osg::Vec3f lamp(0.0f, eye + 800.0f, 20.0f);
@@ -677,7 +686,9 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, eye, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 10.0f, size, size, 100000.0f);
             litThroughFog(camera, LampInTheAir::sExtinction);
-            camera.mFogUniform = sVolumeOverEvenAir;
+            // **Even air, with no band**: the open air is to hold exactly still, and the band, drawn at
+            // points that move from frame to frame, moved it by parts in a hundred thousand.
+            camera.mFogUniform = 1.0f;
             camera.mFogColour = osg::Vec3f();
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
@@ -1022,7 +1033,7 @@ namespace Rtx::Testing
         /// a NaN to show in the colour.
         TEST_F(RtxVisibilityTest, aStoreThatIsNotFiniteIsCountedAgainstItsModule)
         {
-            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t size = 8 * Shaders::FOG_VOLUME_SCALE;
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -50000.0f, 0.0f), osg::Vec3f(0.0f, -60000.0f, 0.0f), 90.0f, size, size, 100000.0f);
 
@@ -1072,7 +1083,7 @@ namespace Rtx::Testing
         /// camera moved the wrong way sees a different field, which the last assertion checks.
         TEST_F(RtxVisibilityTest, theWindCarriesTheFieldAndAnEyeThatWalksWithItSeesItStandStill)
         {
-            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t size = 8 * Shaders::FOG_VOLUME_SCALE;
             constexpr std::size_t count = std::size_t{ size } * size;
             constexpr float seconds = 2.0f;
             const osg::Vec2f wind(0.3f, 0.4f);
@@ -1130,15 +1141,15 @@ namespace Rtx::Testing
         /// what is left is `p(26.6 degrees) / p(153.4)`. An isotropic fog would give exactly one.
         TEST_F(RtxVisibilityTest, theFogScattersTheSunForwardFarHarderThanBack)
         {
-            // **Wider than the 33 every other test here uses, because the volume answers per
-            // column.** A column is eight pixels across and holds the air along *its own* ray, so
-            // at 33 pixels the column the centre pixel reads points six degrees off that pixel's,
-            // climbs out of the layer, and carries air a fifth thinner than the level ray the
-            // closed form below is written for. The bias falls with the frame — 0.63 at 33 pixels,
-            // 0.53 at 129, 0.515 at 257 and 0.509 at 513, against the 0.4999 it is going to — and
-            // at 1920 by 1080 a column is a quarter of a degree wide. The ratio does not care,
-            // since the transport it divides out is the column's either way.
-            constexpr std::uint32_t size = 257;
+            // **Wider than the four columns most tests here use, because the volume answers per
+            // column.** A column holds the air along *its own* ray, so at four columns the column
+            // the centre pixel reads points six degrees off that pixel's, climbs out of the layer,
+            // and carries air a fifth thinner than the level ray the closed form below is written
+            // for. The bias falls with the columns across the frame — 0.63 at four, 0.53 at sixteen,
+            // 0.515 at thirty-two and 0.509 at sixty-four, against the 0.4999 it is going to — and
+            // at 1920 by 1080 a column is well under a degree wide. The ratio does not care, since
+            // the transport it divides out is the column's either way.
+            constexpr std::uint32_t size = framedInColumns(32);
             constexpr std::size_t centre = centreValueOf(size);
 
             // Bright enough to read against eight bits after the fog's own column has taken 83% of
@@ -1197,8 +1208,8 @@ namespace Rtx::Testing
             //
             // which the sRGB curve puts at 188 of 255. Four pi times that is white.
             //
-            // **The tolerance is what a column eight pixels wide has left over**, which the frame
-            // size above is about: 0.515 measured against 0.4999 here, and falling as the frame
+            // **The tolerance is what a frame thirty-two columns across has left over**, which the
+            // frame size above is about: 0.515 measured against 0.4999 here, and falling as the frame
             // grows rather than sitting where it is.
             const float climb = 0.5f / std::sqrt(1.25f);
             const float column = std::exp(-Shaders::FOG_HEIGHT * 3.0e-4f / climb);
@@ -1519,7 +1530,7 @@ namespace Rtx::Testing
         /// round figure above its own.
         TEST_F(RtxVisibilityTest, aPaneIsHazedOverItsOwnDistanceAndNotOverThePathBehindIt)
         {
-            constexpr std::uint32_t size = 33;
+            constexpr std::uint32_t size = framedInColumns(4);
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float wallAway = 4000.0f;
             constexpr float extinction = 3.5e-4f;

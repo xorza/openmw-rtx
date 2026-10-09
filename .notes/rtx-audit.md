@@ -19,9 +19,9 @@ Sizes: B/px is bytes per traced pixel. 1 B/px is 1.64 MB at 1707×960 (`quality`
 |---|---|---|
 | `DenoiseHistory` | **256 B/px** (420 MB at 1707×960) | NRD RELAX diffuse+specular 81 B/px, SIGMA shadow 15 B/px |
 | G-buffer: 21 channels | 142 B/px (233 MB); 19 B/px of it written and never read | an NRD game's G-buffer ~40–60 B/px |
-| Fog volume: one froxel per traced pixel | ~100 B/froxel (165 MB) | Frostbite and UE ~40 B/froxel; RTX Remix a grid 5× coarser |
+| Fog volume: one froxel per 12×12 pixels a slice, 0.44 per traced pixel | ~100 B/froxel (74 MB) | Frostbite and UE ~40 B/froxel; RTX Remix a grid 5× coarser |
 | FSR at render size | ~40 B/px | matches the SDK exactly; AMD lists 106 MB at 1440p Quality |
-| **Total per traced pixel** | **~540 B/px** | |
+| **Total per traced pixel** | **~485 B/px** | |
 
 - The frame reserve plans for the native mode whatever mode runs (`vulkanrenderer.cpp:73-91`). At a
   4K output that is ~6 GB, which leaves an 8 GB RTX 20/30 card almost no room for textures.
@@ -54,11 +54,11 @@ means use it. The other histories, the fog volume and the payload are group 4.
 |---|---|---|---|---|
 | 0 | Measure first: counters and ceilings | — | none | measurement |
 | 2 | G-buffer exact packing | 4–8 B/px, 2–3 channels | bit-exact (pane albedo: experiment) | straightforward |
-| 4 | Stochastic-rounding halves | history 256 → ~190 B/px; fog −53 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
+| 4 | Stochastic-rounding halves | history 256 → ~190 B/px; fog −23 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
 | 5 | Transient memory (aliasing) | 50–130 MB | none | infrastructure |
 | 6 | Scene tables and structures | ~40–80 MB; one frame-path spike removed | bit-exact | straightforward |
 | 7 | TLAS and traversal | after measurement | none moved | mixed |
-| 8 | Air volume | 165 → ~50 MB with group 4; air+column ~0.5 → ~0.25 ms (est.) | softer shafts at scale 12 | experiment |
+| 8 | Air volume | `column` 0.07 ms, est. −0.02 to −0.04 | ulp-level | experiment |
 | 9 | Water | 4 MB; ~19 queue drains a frame | bit-exact / ulp | straightforward |
 | 10 | Display and sprites | one sprite table set (up to 64 MB in a storm); one full-frame read | bit-exact | straightforward |
 | 11 | Denoiser dispatch shape | est. 0.01–0.15 ms each | bit-exact reachable | experiment |
@@ -66,7 +66,9 @@ means use it. The other histories, the fog volume and the payload are group 4.
 
 Not proposed again: opacity micromaps, async compute, SER (AGENTS.md's declined list), TLAS update or a
 split TLAS (against NVIDIA's guidance and the worst-frame rule), R11G11B10F radiance, RGB10A2 normals
-(same size, coarser), a visibility buffer, fusing the accumulator with its clamp.
+(same size, coarser), a visibility buffer, fusing the accumulator with its clamp, a shared-memory tile
+in the air's integrate pass (measured 16–29% slower at scale 12: two barriers a slice, against fetches
+the texture cache already served).
 
 ---
 
@@ -149,7 +151,7 @@ noise and keep no bias; `noise` is the verdict.
 3. **Shadow history and scratch**: unorm16 mean + half variance in one word (−16 B/px).
 4. **Shadow moments** in the capped EMA form (−32 B/px). A behaviour change: Welford's M2 grows with an
    uncapped count. The SDK's `R11G11B10` moments already stall their count near 128.
-5. **Fog history pairs** (`fogvolume.h:30`, RGBA32F → RGBA16F): −52.6 MB, ~79 MB a frame of traffic.
+5. **Fog history pairs** (`fogvolume.h:30`, RGBA32F → RGBA16F): −23 MB, ~35 MB a frame of traffic.
 6. **Payload radiances** (F4 in the G-buffer report): the six full-float radiances (18 of 30 words)
    exist only for summed references, and stochastic rounding is unbiased in a sum. 30 → 21 words on one
    path for both widths. The tree measured up to 0.02 ms per payload word (`a72bc240f4`); the gain may
@@ -230,16 +232,11 @@ Proof: `repeat`, `shot --against`, `bench` at the grass places, `noise` for item
 
 ## Group 8: the air volume
 
-1. **`FOG_VOLUME_SCALE` 8 → 12** (`scene.h:242`): 2.24× fewer froxels. 165 → 74 MB (→ ~50 MB with group
-   4's history halves); `air` est. 0.41 → 0.19 ms, `column` 0.11 → 0.05 ms. Shafts and bank edges spread
-   over 36 px instead of 24; RTX Remix runs 16. Try 12 before 16.
-2. **Stage each slice's 10×10 tile in shared memory** in the integrate pass (`fogintegrate.comp:84-118`):
-   18 fetches a froxel → ~3. Bit-identical if the sum keeps its order.
-3. **A segmented scan down each column**: `fogThrough` is affine in the column state, so the front-to-back
-   pass is a prefix scan. 4 threads a column of 16 slices lift occupancy from ~21 % to ~85 %; est.
-   0.03–0.06 ms. Ulp-level change. (The header says one thread a column cannot be improved; the affine
-   form says it can.)
-4. Small: `seeing` written only on frames with puffs; `airSunward` and `sliceSunward` merged into one
+1. **A segmented scan down each column**: `fogThrough` is affine in the column state, so the front-to-back
+   pass is a prefix scan. 4 threads a column of 16 slices lift the occupancy, which at scale 12 has
+   some 11,000 columns a frame to run; est. 0.02–0.04 of the 0.07 ms `column` zone. Ulp-level change.
+   (The header says one thread a column cannot be improved; the affine form says it can.)
+2. Small: `seeing` written only on frames with puffs; `airSunward` and `sliceSunward` merged into one
    RG16F image.
 
 Not recommended: culling froxels behind surfaces (rests on last frame's depth, fails at disocclusions).
