@@ -31,6 +31,7 @@
 #include <components/sky/skyclock.hpp>
 #include <components/sky/sunglarefader.hpp>
 #include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace MWRender
 {
@@ -377,7 +378,7 @@ namespace MWRender
             const SkyReader reader;
 
             SkyState rain = standing.mSky;
-            rain.mWeather.mRainEffect = "meshes/raindrop.nif";
+            rain.mWeather.mRainEffect = VFS::Path::NormalizedView("meshes/raindrop.nif");
             rain.mWeather.mRainDiameter = 600.0f;
             rain.mWeather.mRainMinHeight = 200.0f;
             rain.mWeather.mRainMaxHeight = 700.0f;

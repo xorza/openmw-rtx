@@ -13,6 +13,7 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace MWRender
 {
@@ -24,7 +25,7 @@ namespace MWRender
         {
             SkyState sky;
             WeatherResult& weather = sky.mWeather;
-            weather.mRainEffect = "meshes/raindrop.nif";
+            weather.mRainEffect = VFS::Path::NormalizedView("meshes/raindrop.nif");
             weather.mRainDiameter = 600.0f;
             weather.mRainMinHeight = 200.0f;
             weather.mRainMaxHeight = 700.0f;

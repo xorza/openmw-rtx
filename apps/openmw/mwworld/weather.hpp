@@ -12,6 +12,7 @@
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/sky/timeofday.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "../mwbase/soundmanager.hpp"
 
@@ -73,12 +74,12 @@ namespace MWWorld
         static osg::Vec3f defaultDirection();
 
         Weather(const ESM::RefId id, const int scriptId, const std::string& name, float stormWindSpeed, float dlFactor,
-            float dlOffset, std::string_view particleEffect);
+            float dlOffset, VFS::Path::NormalizedView particleEffect);
 
         ESM::RefId mId;
         int mScriptId;
         std::string mName;
-        std::string mCloudTexture;
+        VFS::Path::Normalized mCloudTexture;
 
         // Sky (atmosphere) color
         TimeOfDayInterpolator<osg::Vec4f> mSkyColor;
@@ -147,9 +148,9 @@ namespace MWWorld
         float mRainMinHeight;
         float mRainMaxHeight;
 
-        std::string mParticleEffect;
+        VFS::Path::Normalized mParticleEffect;
 
-        std::string mRainEffect;
+        VFS::Path::Normalized mRainEffect;
 
         osg::Vec3f mStormDirection;
 
@@ -334,7 +335,7 @@ namespace MWWorld
         /// What this settled about the sky, for whatever draws it.
         const MWRender::SkyState& getSkyState() const { return mSky; }
 
-        void write(ESM::ESMWriter& writer, Loading::Listener& progress);
+        void write(ESM::ESMWriter& writer, Loading::Listener& progress) const;
 
         bool readRecord(ESM::ESMReader& reader, uint32_t type);
 
@@ -349,8 +350,9 @@ namespace MWWorld
         float mSunsetDuration;
         float mSunPreSunsetTime;
 
-        /// The sky as this settles it, which both renderers read. `mTimeSettings` and `mResult`
-        /// are its parts under upstream's names, so the code that fills them reads as upstream's.
+        /// The sky as this settles it, which both renderers read. `mTimeSettings` is its part under
+        /// upstream's name, so the code that fills it reads as upstream's, and `update` moves the
+        /// result upstream's `calculateWeatherResult` returns into its `mWeather`.
         MWRender::SkyState mSky;
         TimeOfDaySettings& mTimeSettings = mSky.mTimes;
 
@@ -384,7 +386,6 @@ namespace MWWorld
         ESM::RefId mQueuedWeather;
         bool mHeld = false;
         std::map<ESM::RefId, RegionWeather> mRegions;
-        MWRender::WeatherResult& mResult = mSky.mWeather;
 
         MWBase::Sound* mAmbientSound{ nullptr };
         ESM::RefId mPlayingAmbientSoundID;
@@ -402,10 +403,12 @@ namespace MWWorld
         bool inTransition() const;
         void addWeatherTransition(ESM::RefId weatherID);
 
-        void calculateWeatherResult(const float gameHour, const float elapsedSeconds, const bool isPaused);
-        void calculateResult(const Weather& weather, const float gameHour);
-        void calculateTransitionResult(const float factor, const float gameHour);
-        float calculateWindSpeed(const Weather& weather, float currentSpeed);
+        MWRender::WeatherResult calculateWeatherResult(
+            const float gameHour, const float elapsedSeconds, const bool isPaused) const;
+        MWRender::WeatherResult calculateResult(const Weather& weather, const float gameHour) const;
+        MWRender::WeatherResult calculateTransitionResult(
+            const Weather& currentWeather, const Weather& nextWeather, const float factor, const float gameHour) const;
+        float calculateWindSpeed(const Weather& weather, float currentSpeed) const;
     };
 }
 
