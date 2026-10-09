@@ -16,14 +16,17 @@
 
 // What the passes keep, said once for both sides that have to agree.
 //
-// **Full floats where the SDK keeps halves.** The temporal pass's answer and the filter's levels are
-// a mean and a variance, which the SDK stores in two halves, and the moments — a mean, a running
-// sum of squared deviations and a count — which it stores in `R11G11B10_FLOAT`. Both are read back
-// into their own blend: the moments by the next frame's temporal pass, and the first level's answer
-// as the history it blends into. A half store rounds toward nought on this card (`RtxHalfStoreTest`),
-// so a history kept in halves fell a little at every store, and a penumbra stood 0.68% dark after
-// 256 frames (`RtxPenumbraDenoiseTest`). The second level writes the scratch the temporal pass
-// blends into, which keeps full floats for that blend, and the third writes the mean alone.
+// **A mean and its variance in one word, which the shader rounds** (`lib/shadowword.glsl`). The
+// temporal pass's answer and the filter's levels are a mean and a variance, which the SDK stores in
+// two halves: here the mean is a sixteen-bit unorm and the variance a half. The first level's
+// answer is the history the next frame's temporal pass blends into, and the temporal pass's own is
+// what the first level filters, so both are in the history's loop and their means are rounded at
+// random: a mean rounded to the nearest step stalls (`RtxShadowWordTest`), and one the store rounds
+// falls, as halves did, which round toward nought on this card (`RtxHalfStoreTest`) and stood a
+// penumbra 0.68% dark after 256 frames (`RtxPenumbraDenoiseTest`). The second level writes the
+// scratch again once the first has read it, and only the third reads that, so it rounds to the
+// nearest. The SDK keeps its moments — a mean, a running sum of squared deviations and a count — in
+// `R11G11B10_FLOAT`; they stay full floats here, since the count is uncapped.
 //
 // **The rays' bits, packed**: two words an 8×4 tile of pixels, bit `(y % 4) * 8 + x % 8` of each
 // for that pixel — the SDK's layout. The first is one where the pixel receives and its rays got
@@ -46,12 +49,12 @@
 // (`shadowPenumbra`), which the temporal pass widens to the tiles around it.
 //
 // **The last level's answer is its mean alone**, which is all the composite reads: one full float,
-// where the variance beside it has no reader. The levels write through a declaration with no
-// format, so the one pipeline stores either.
+// as its bits in a word, where the variance beside it has no reader. The levels write through one
+// declaration of words with no format, so the one pipeline stores either.
 
 #define SHADOW_MASK STORAGE_RG32UI
-#define SHADOW_REPROJECTED STORAGE_RG32F
-#define SHADOW_VISIBILITY STORAGE_R32F
+#define SHADOW_REPROJECTED STORAGE_R32UI
+#define SHADOW_VISIBILITY STORAGE_R32UI
 #define SHADOW_MOMENTS STORAGE_RGBA32F
 #define SHADOW_TILES STORAGE_RG16F
 #define SHADOW_PENUMBRA_TILES STORAGE_R16F
@@ -123,11 +126,29 @@ namespace Rtx::Shaders
         uint mHeight;
     };
 
+    /// Which field a pass runs over, which its rounding is seeded by: one draw shared by the two
+    /// fields would round a pixel's sky and lamps the same way, and their errors would add.
+    const uint SHADOW_FIELD_SKY = 0u;
+    const uint SHADOW_FIELD_LAMPS = 1u;
+
+    /// What the temporal pass reads that is not an image: the accumulator's record — its reset is
+    /// the SDK's `IsFirstFrame`, and its distance scale the one the accumulator's surface history,
+    /// which this pass reads, was written at — and the field, `SHADOW_FIELD_SKY` or
+    /// `SHADOW_FIELD_LAMPS`.
+    struct ShadowTilesConstants
+    {
+        HistoryConstants mHistory;
+        uint mField;
+    };
+
     /// What a filter level reads that is not an image: the two eyes a pixel's ray can have left, so
-    /// its position is rebuilt through the one that cast it, as the wavelet rebuilds it.
+    /// its position is rebuilt through the one that cast it, as the wavelet rebuilds it; and the
+    /// frame and the field, which the first level's rounding is seeded by.
     struct ShadowFilterConstants
     {
         Eyes mEyes;
+        uint mFrame;
+        uint mField;
     };
 
     /// Whether a field's source lights a pixel at all: a surface stands there, `normalCode` its
@@ -164,7 +185,8 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(ShadowMaskConstants) == 8, "ShadowMaskConstants must be scalar-packed on every side");
-    static_assert(sizeof(ShadowFilterConstants) == 152, "ShadowFilterConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowTilesConstants) == 228, "ShadowTilesConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowFilterConstants) == 160, "ShadowFilterConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

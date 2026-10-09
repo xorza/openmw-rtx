@@ -121,9 +121,11 @@ namespace Rtx
             { DenoiseImage::SkyShadowMoments, "sky-shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
                 sStorage, Temporal::SkyShadow },
             { DenoiseImage::SkyShadowHistory, "sky-shadow-history", SHADOW_REPROJECTED, Role::FedBack, false,
-                Grid::Pixels, sStorage, Temporal::SkyShadow },
+                Grid::Pixels, sStorage, Temporal::SkyShadow, Store::RoundedAtRandom },
+            // And the second filter level's target, rounded to the nearest, after the first level has
+            // read it (`shadowfilter.comp`).
             { DenoiseImage::SkyShadowScratch, "sky-shadow-scratch", SHADOW_REPROJECTED, Role::InLoop, false,
-                Grid::Pixels, sStorage, Temporal::SkyShadow },
+                Grid::Pixels, sStorage, Temporal::SkyShadow, Store::RoundedAtRandom },
             { DenoiseImage::SkyShadowVisibility, "sky-shadow-visibility", SHADOW_VISIBILITY, Role::Scratch, false,
                 Grid::Pixels, sStorage, Temporal::SkyShadow },
             { DenoiseImage::SkyShadowTiles, "sky-shadow-tiles", SHADOW_TILES, Role::Scratch, false, Grid::ShadowTiles,
@@ -135,9 +137,11 @@ namespace Rtx
             { DenoiseImage::LampShadowMoments, "lamp-shadow-moments", SHADOW_MOMENTS, Role::FedBack, true, Grid::Pixels,
                 sStorage, Temporal::LampShadow },
             { DenoiseImage::LampShadowHistory, "lamp-shadow-history", SHADOW_REPROJECTED, Role::FedBack, false,
-                Grid::Pixels, sStorage, Temporal::LampShadow },
+                Grid::Pixels, sStorage, Temporal::LampShadow, Store::RoundedAtRandom },
+            // And the second filter level's target, rounded to the nearest, after the first level has
+            // read it (`shadowfilter.comp`).
             { DenoiseImage::LampShadowScratch, "lamp-shadow-scratch", SHADOW_REPROJECTED, Role::InLoop, false,
-                Grid::Pixels, sStorage, Temporal::LampShadow },
+                Grid::Pixels, sStorage, Temporal::LampShadow, Store::RoundedAtRandom },
             { DenoiseImage::LampShadowVisibility, "lamp-shadow-visibility", SHADOW_VISIBILITY, Role::Scratch, false,
                 Grid::Pixels, sStorage, Temporal::LampShadow },
             { DenoiseImage::LampShadowTiles, "lamp-shadow-tiles", SHADOW_TILES, Role::Scratch, false, Grid::ShadowTiles,

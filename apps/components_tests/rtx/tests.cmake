@@ -192,6 +192,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/halfstore.cpp
     rtxvulkan/device/probe.cpp
     rtxvulkan/device/readstamp.cpp
+    rtxvulkan/device/unormround.cpp
     rtxvulkan/display/bloompass.cpp
     rtxvulkan/display/exposurepass.cpp
     rtxvulkan/digestpass.cpp

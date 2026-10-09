@@ -17,11 +17,11 @@ Sizes: B/px is bytes per traced pixel. 1 B/px is 1.64 MB at 1707×960 (`quality`
 
 | Owner | Today | Published practice |
 |---|---|---|
-| `DenoiseHistory` | **256 B/px** (420 MB at 1707×960) | NRD RELAX diffuse+specular 81 B/px, SIGMA shadow 15 B/px |
+| `DenoiseHistory` | **240 B/px** (394 MB at 1707×960) | NRD RELAX diffuse+specular 81 B/px, SIGMA shadow 15 B/px |
 | G-buffer: 19 channels | 138 B/px (226 MB); 19 B/px of it written and never read | an NRD game's G-buffer ~40–60 B/px |
 | Fog volume: one froxel per 12×12 pixels a slice, 0.44 per traced pixel | ~100 B/froxel (74 MB) | Frostbite and UE ~40 B/froxel; RTX Remix a grid 5× coarser |
 | FSR at render size | ~40 B/px | matches the SDK exactly; AMD lists 106 MB at 1440p Quality |
-| **Total per traced pixel** | **~485 B/px** | |
+| **Total per traced pixel** | **~469 B/px** | |
 
 - On the GPU, the frame at `seyda-neen-ship` is 6.8 ms: trace 2.78, the denoisers 1.5 (21–31 % of the
   frame across the places), air 0.41, TLAS 0.41, upscale 0.37.
@@ -52,7 +52,7 @@ means use it. The other histories, the fog volume and the payload are group 4.
 |---|---|---|---|---|
 | 0 | Measure first: counters and ceilings | — | none | measurement |
 | 2 | G-buffer exact packing | 4–8 B/px, 0–1 channel | bit-exact (pane albedo: experiment) | straightforward |
-| 4 | Stochastic-rounding halves | history 256 → ~190 B/px; fog −23 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
+| 4 | Stochastic-rounding halves | history 240 → ~190 B/px; fog −23 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
 | 5 | Transient memory (aliasing) | 50–130 MB | none | infrastructure |
 | 6 | Scene tables and structures | ~20–50 MB | bit-exact | straightforward |
 | 7 | TLAS and traversal | after measurement | none moved | mixed |
@@ -135,18 +135,17 @@ noise and keep no bias; `noise` is the verdict.
    unpack at every tap and a second read path in the composite beside the unfiltered channels. Only
    if a profile says the fetches limit the levels: measured, the first level is 0.22–0.30 ms and each
    narrow one 0.08–0.13.
-3. **Shadow history and scratch**: unorm16 mean + half variance in one word (−16 B/px).
-4. **Shadow moments** in the capped EMA form (−32 B/px). A behaviour change: Welford's M2 grows with an
+3. **Shadow moments** in the capped EMA form (−32 B/px). A behaviour change: Welford's M2 grows with an
    uncapped count. The SDK's `R11G11B10` moments already stall their count near 128.
-5. **Fog history pairs** (`fogvolume.h:30`, RGBA32F → RGBA16F): −23 MB, ~35 MB a frame of traffic.
-6. **Payload radiances** (F4 in the G-buffer report): the six full-float radiances (18 of 30 words)
+4. **Fog history pairs** (`fogvolume.h:30`, RGBA32F → RGBA16F): −23 MB, ~35 MB a frame of traffic.
+5. **Payload radiances** (F4 in the G-buffer report): the six full-float radiances (18 of 30 words)
    exist only for summed references, and stochastic rounding is unbiased in a sum. 30 → 21 words on one
    path for both widths. The tree measured up to 0.02 ms per payload word (`a72bc240f4`); the gain may
    be nothing if the hit shader's own registers dominate. Drop it if `bench` shows nothing.
-7. **Bloom pyramid in `B10G11R11`** (alpha is a constant 1.0, `bloomdown.comp:49`): 9.8 → 4.9 MB, only
+6. **Bloom pyramid in `B10G11R11`** (alpha is a constant 1.0, `bloomdown.comp:49`): 9.8 → 4.9 MB, only
    with the pre-rounded store; ≤ 0.02 ms.
 
-End state: history 256 → ~190 B/px. Proof per item:
+End state: history 240 → ~190 B/px. Proof per item:
 `./omw release noise --ab=<switch>` narrowed first (`--views= --strafe=0 --walk=0 --still`), then the
 suite; `repeat`; `shot --against` (small differences everywhere, read them); `kernels --against`; then
 `bench`.

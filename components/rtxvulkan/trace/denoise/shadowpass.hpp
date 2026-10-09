@@ -5,7 +5,6 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
-#include <components/rtxvulkan/shaders/shared/accumulate.h>
 #include <components/rtxvulkan/shaders/shared/shadow.h>
 
 #include "denoiseframe.hpp"
@@ -39,7 +38,7 @@ namespace Rtx
 
     private:
         ComputePipeline<Shaders::ShadowMaskConstants> mMask;
-        ComputePipeline<Shaders::HistoryConstants> mTiles;
+        ComputePipeline<Shaders::ShadowTilesConstants> mTiles;
         std::array<ComputePipeline<Shaders::ShadowFilterConstants>, Shaders::SHADOW_FILTER_LEVELS> mFilters;
     };
 }

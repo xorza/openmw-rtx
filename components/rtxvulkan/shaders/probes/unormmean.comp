@@ -1,0 +1,36 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// One blend of each running mean toward its target, kept as a shadow field's mean is in a word
+// (`lib/shadowword.glsl`), for `RtxHalfStoreTest` to read back where it settles: rounded to the
+// nearest step, or at random.
+
+#include "shared/sets.h"
+#include "shared/unormmean.h"
+#include "storageformat.h"
+
+#include "lib/hash.glsl"
+#include "lib/shadowword.glsl"
+
+layout(local_size_x = UNORM_MEAN_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = UNORM_MEAN_BIND_HISTORY, STORAGE_R32UI) uniform uimage2D history;
+
+layout(push_constant, scalar) uniform Push
+{
+    UnormMeanConstants mean;
+};
+
+void main()
+{
+    const uint at = gl_GlobalInvocationID.x;
+    if (at >= mean.mCount)
+        return;
+
+    const ivec2 texel = ivec2(int(at), 0);
+    const float blended = mix(mean.mTarget, unpackShadowWord(imageLoad(history, texel).r).x, mean.mKept);
+    uint draws = seededKey(pixelKey(uvec2(at, 0u)) + SEED_SKY_SHADOW_ROUNDING, mean.mFrame);
+    const uint word = mean.mRounded != 0u ? randomWord(draws) : UNORM16_NEAREST;
+    imageStore(history, texel, uvec4(packShadowWord(vec2(blended, 0.0), word), 0u, 0u, 0u));
+}
