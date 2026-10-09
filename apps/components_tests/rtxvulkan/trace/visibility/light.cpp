@@ -23,6 +23,7 @@
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/lobeintegrals.hpp>
+#include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/index.hpp>
@@ -248,7 +249,8 @@ namespace Rtx::Testing
             std::vector<float> bits;
             mRenderer.readChannel(Channel::Shadowed, bits);
             for (std::size_t value = 3; value < bits.size(); value += 4)
-                ASSERT_EQ(bits[value], 1.0f) << "a light ray stopped on a texel under the cut at " << value / 4;
+                ASSERT_TRUE(Testing::shadowOpen(bits[value]))
+                    << "a light ray stopped on a texel under the cut at " << value / 4;
         }
 
         /// Every layer of a stack is peeled, and not only the nearest of them.
@@ -439,14 +441,14 @@ namespace Rtx::Testing
                 shoot(scene, textures, wallCamera(size, bright), size,
                     { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
                          mRenderer.readChannel(Channel::Shadowed, shadowed);
-                         mRenderer.readChannel(Channel::Penumbra, penumbrae);
+                         Testing::penumbraeOf(shadowed, penumbrae);
                          EXPECT_EQ(shadowed[centre * 4], whole) << "the light under the pane, as though it got through";
                          EXPECT_EQ(penumbrae[centre], Shaders::SHADOW_PENUMBRA_DRAWN);
                          for (std::size_t pixel = 0; pixel < penumbrae.size(); ++pixel)
                              if (penumbrae[pixel] == Shaders::SHADOW_PENUMBRA_DRAWN)
                              {
                                  ++drawn.mDraws;
-                                 drawn.mOpen += shadowed[pixel * 4 + 3] == 1.0f ? 1 : 0;
+                                 drawn.mOpen += Testing::shadowOpen(shadowed[pixel * 4 + 3]) ? 1 : 0;
                              }
                      } });
                 EXPECT_GE(drawn.mDraws, std::size_t{ frames });

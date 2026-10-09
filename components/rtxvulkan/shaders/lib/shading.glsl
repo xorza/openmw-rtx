@@ -67,11 +67,11 @@ struct DirectLight
     /// The penumbra where the sky's ray was stopped, in the surface's own footprints:
     /// `SHADOW_PENUMBRA_CLEAR` where it got through or nothing was split, and
     /// `SHADOW_PENUMBRA_DRAWN` where the source it went to was drawn, or what it let through:
-    /// `CHANNEL_PENUMBRA`.
+    /// `CHANNEL_SHADOWED`'s.
     float mSkyPenumbra;
 
     /// The lamps' the same: every lamp's diffuse half summed, per unit albedo and net of the lobe's
-    /// share, and the held lamp's bit and penumbra (`CHANNEL_LAMPED`, `CHANNEL_LAMP_PENUMBRA`). Their
+    /// share, and the held lamp's bit and penumbra (`CHANNEL_LAMPED`). Their
     /// lobe is in `mSpecular`, under the held lamp's own ray.
     vec3 mLampDiffuse;
     float mLampOpen;

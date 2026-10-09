@@ -39,7 +39,7 @@
 //
 // **And the widest penumbra of the workgroup's bits, a half a workgroup**: the workgroup's two
 // words are one tile of the classification, which reads the nine around its own rather than the 576
-// texels of `CHANNEL_PENUMBRA` they stand for. A ray that got through has none unless its source
+// penumbrae they stand for. A ray that got through has none unless its source
 // was drawn (`SHADOW_PENUMBRA_DRAWN`), and a tile where no bit has one stands at nought.
 
 #include "colour.h"
@@ -53,8 +53,8 @@
 layout(local_size_x = SHADOW_MASK_WIDTH, local_size_y = 2 * SHADOW_MASK_HEIGHT) in;
 
 /// The field's channel, `CHANNEL_SHADOWED` or `CHANNEL_LAMPED`: the light its source would add, and
-/// in its alpha whether the pixel's ray got through. No format, because it is as wide as the run
-/// keeps radiance.
+/// in its alpha whether the pixel's ray got through and its penumbra (`packShadowAlpha`). No format,
+/// because it is as wide as the run keeps radiance.
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SHADOWED) uniform readonly image2D shadowed;
 
 /// `CHANNEL_SURFACE`, for whether a surface stands at the pixel at all.
@@ -62,8 +62,7 @@ layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SURFACE, GBUFFER_SURFACE) unif
 
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_MASK, SHADOW_MASK) uniform writeonly uimage2D mask;
 
-/// `CHANNEL_PENUMBRA`, and the widest of it in the workgroup.
-layout(set = SET_PASS, binding = SHADOW_MASK_BIND_PENUMBRA, GBUFFER_PENUMBRA) uniform readonly image2D penumbra;
+/// The widest penumbra in the workgroup.
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_PENUMBRA_TILES, SHADOW_PENUMBRA_TILES)
     uniform writeonly image2D penumbraTiles;
 
@@ -103,13 +102,13 @@ void main()
         {
             const uint bit = 1u << ((local.y % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH + local.x);
             atomicOr(gReceiving[local.y / SHADOW_MASK_HEIGHT], bit);
-            if (light.a > 0.5)
+            if (shadowOpen(light.a))
                 atomicOr(gOpen[local.y / SHADOW_MASK_HEIGHT], bit);
         }
 
-        const float radius = imageLoad(penumbra, ivec2(at)).r;
+        const float radius = shadowPenumbra(light.a);
         if (radius < SHADOW_PENUMBRA_CLEAR)
-            atomicMax(gWidest, floatBitsToUint(max(radius, 0.0)));
+            atomicMax(gWidest, floatBitsToUint(radius));
     }
 
     barrier();

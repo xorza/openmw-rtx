@@ -12,6 +12,7 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/index.hpp>
@@ -150,7 +151,7 @@ namespace Rtx::Testing
             {
                 if (value % 4 == 3)
                 {
-                    ASSERT_EQ(first[value], 1.0f) << "every lamp reaches pixel " << value / 4;
+                    ASSERT_TRUE(Testing::shadowOpen(first[value])) << "every lamp reaches pixel " << value / 4;
                     continue;
                 }
                 brightest = std::max(brightest, first[value]);

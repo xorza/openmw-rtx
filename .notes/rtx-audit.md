@@ -18,7 +18,7 @@ Sizes: B/px is bytes per traced pixel. 1 B/px is 1.64 MB at 1707×960 (`quality`
 | Owner | Today | Published practice |
 |---|---|---|
 | `DenoiseHistory` | **256 B/px** (420 MB at 1707×960) | NRD RELAX diffuse+specular 81 B/px, SIGMA shadow 15 B/px |
-| G-buffer: 21 channels | 142 B/px (233 MB); 19 B/px of it written and never read | an NRD game's G-buffer ~40–60 B/px |
+| G-buffer: 19 channels | 138 B/px (226 MB); 19 B/px of it written and never read | an NRD game's G-buffer ~40–60 B/px |
 | Fog volume: one froxel per 12×12 pixels a slice, 0.44 per traced pixel | ~100 B/froxel (74 MB) | Frostbite and UE ~40 B/froxel; RTX Remix a grid 5× coarser |
 | FSR at render size | ~40 B/px | matches the SDK exactly; AMD lists 106 MB at 1440p Quality |
 | **Total per traced pixel** | **~485 B/px** | |
@@ -53,7 +53,7 @@ means use it. The other histories, the fog volume and the payload are group 4.
 | # | Group | Saves (1707×960) | Picture | Kind |
 |---|---|---|---|---|
 | 0 | Measure first: counters and ceilings | — | none | measurement |
-| 2 | G-buffer exact packing | 4–8 B/px, 2–3 channels | bit-exact (pane albedo: experiment) | straightforward |
+| 2 | G-buffer exact packing | 4–8 B/px, 0–1 channel | bit-exact (pane albedo: experiment) | straightforward |
 | 4 | Stochastic-rounding halves | history 256 → ~190 B/px; fog −23 MB; payload 30 → 21 words | ~0.1 % noise, no bias | experiment |
 | 5 | Transient memory (aliasing) | 50–130 MB | none | infrastructure |
 | 6 | Scene tables and structures | ~20–50 MB | bit-exact | straightforward |
@@ -110,26 +110,19 @@ and `nsys`.
 
 ## Group 2: G-buffer exact packing
 
-142 → 134 B/px and 21 → 19 channels with no pixel moving; 130 B/px and 18 channels with the experiment.
+138 → 134 B/px with no pixel moving; 130 B/px and 18 channels with the experiment.
 
-1. **Each penumbra in its shadow channel's alpha, the open bit as the sign** (−4 B/px, −2 channels).
-   `CHANNEL_SHADOWED.a` and `CHANNEL_LAMPED.a` hold one bit each in a half; the radius beside them is
-   never negative. Store `±radius` by bits (a closed zero radius is −0.0) and drop both R16F channels.
-   Exact: the radius already crosses the payload as a half, and a half store keeps the sign under any
-   rounding. One load fewer per pixel per field in `shadowmask.comp`. A small `lib/shadowed.glsl` trio
-   keeps the encoding in one place.
-2. **Specular albedo as an `R32UI` RGB9E5 word** (−4 B/px). `specularModulation` (`shading.glsl:482`)
+1. **Specular albedo as an `R32UI` RGB9E5 word** (−4 B/px). `specularModulation` (`shading.glsl:482`)
    already rounds it to RGB9E5, so the RGBA16F channel spends 8 B on 4 B of data. Needs a uint path in
    the digest (`digest.comp:24`) and `readChannel`; storing the bits through `R32F` is not an option,
    since RGB9E5 words are often float NaN patterns.
    - Experiment on top: the pane albedo in the same `RG32UI` texel (−4 B/px, −1 channel). The trace
      already rounds `paneModulation` before it divides by it, so the unfiltered picture matches; the
      pane filter's input moves, so `noise --ab` at a pane place.
-3. Minor: lift is written every frame (4 B/px) and read only under Night-Eye (`tone.comp:138`). Worth a
+2. Minor: lift is written every frame (4 B/px) and read only under Night-Eye (`tone.comp:138`). Worth a
    launch-variant bit only beside group 11's pane-free variant.
 
-Proof: `shot --against` (nothing moves), `check`, `repeat`; the tests reading `Channel::Penumbra`
-(`shadow.cpp`, `light.cpp`) move to the decoder.
+Proof: `shot --against` (nothing moves), `check`, `repeat`.
 
 ## Group 4: stochastic-rounding halves
 
@@ -269,7 +262,7 @@ Experiments for time, after group 4 settles the formats.
    earlier compute, so interleaving halves the drains. Est. 0.01–0.03 ms. Conflicts with sharing one
    shadow scratch set between the fields; pick one.
 2. **The composite fused into the last wavelet level**: −16 B/px of traffic and one dispatch.
-3. **A pane-free launch variant**: the four pane channels are 32 B/px (22.5 % of the G-buffer), written
+3. **A pane-free launch variant**: the four pane channels are 32 B/px (23 % of the G-buffer), written
    and filtered every frame even where no surface can be peeled. A conservative "no peelable material"
    fact skips the stores and the pane pass; the channels are cleared once on entry. Up to ~0.15 ms
    (est.).

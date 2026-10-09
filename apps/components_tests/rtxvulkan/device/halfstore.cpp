@@ -159,13 +159,14 @@ namespace Rtx
         /// representable value exactly, but leaves a device free to flush a denormal, and a dim
         /// bounce stands under the least normal half, 2^-14. The least subnormal, 2^-24, three of
         /// it, the largest, 1023 × 2^-24, the least normal, one and the step over it, and the
-        /// largest half, 65504, either sign. **And the shader's rounding to the nearest leaves each
-        /// as it is** (`nearestHalf`).
+        /// largest half, 65504, either sign. **And nought either sign, its sign kept**, which a shadow
+        /// channel's alpha rests on: a closed ray at a radius of nought is `-0.0` (`packShadowAlpha`).
+        /// **And the shader's rounding to the nearest leaves each as it is** (`nearestHalf`).
         TEST_F(RtxHalfStoreTest, everyHalfIsStoredAsItselfTheSubnormalsWithTheRest)
         {
             std::vector<float> values;
             for (const float magnitude :
-                { 0x1p-24f, 3.0f * 0x1p-24f, 1023.0f * 0x1p-24f, 0x1p-14f, 1.0f, 1.0f + 0x1p-10f, 65504.0f })
+                { 0.0f, 0x1p-24f, 3.0f * 0x1p-24f, 1023.0f * 0x1p-24f, 0x1p-14f, 1.0f, 1.0f + 0x1p-10f, 65504.0f })
                 for (const float sign : { 1.0f, -1.0f })
                     values.push_back(sign * magnitude);
 
@@ -175,6 +176,8 @@ namespace Rtx
             {
                 EXPECT_EQ(converted.mStored[at], values[at])
                     << values[at] << " was stored as " << converted.mStored[at];
+                EXPECT_EQ(std::signbit(converted.mStored[at]), std::signbit(values[at]))
+                    << values[at] << " was stored with the other sign";
                 EXPECT_EQ(converted.mNearest[at], values[at])
                     << values[at] << " was rounded by the shader to " << converted.mNearest[at];
             }

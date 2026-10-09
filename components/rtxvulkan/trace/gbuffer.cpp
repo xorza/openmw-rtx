@@ -39,10 +39,6 @@ namespace Rtx
         /// A byte a channel, for the reason `gbuffer.h` gives.
         constexpr VkFormat sLift = toVulkanFormat(GBUFFER_LIFT);
 
-        /// A half, which holds a radius in pixels finely enough to gate a filter level by, and
-        /// `SHADOW_PENUMBRA_CLEAR`.
-        constexpr VkFormat sPenumbra = toVulkanFormat(GBUFFER_PENUMBRA);
-
         /// `SAMPLED` on all of them: the cascade samples the surface and the puffs, an upscaler samples
         /// what it is handed, and the bit costs no memory, so every channel carries it.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -83,10 +79,8 @@ namespace Rtx
                 every[indexOf(Channel::Fill)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[indexOf(Channel::AmbientAlbedo)] = { sAlbedo, sReadable };
                 every[indexOf(Channel::Lift)] = { sLift, sReadable };
-                every[indexOf(Channel::Penumbra)] = { sPenumbra, sReadable };
                 every[indexOf(Channel::SpecularAlbedo)] = { sAlbedo, sReadable };
                 every[indexOf(Channel::Lamped)] = { VK_FORMAT_UNDEFINED, sReadable };
-                every[indexOf(Channel::LampPenumbra)] = { sPenumbra, sReadable };
 
                 return every;
             }();

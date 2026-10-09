@@ -43,7 +43,7 @@
 // at is the temporal pass's own answer, which it wrote as exactly nought or one.
 //
 // **And a half a tile for the penumbra**: the widest the mask pass found in the tile
-// (`CHANNEL_PENUMBRA`), which the temporal pass widens to the tiles around it.
+// (`shadowPenumbra`), which the temporal pass widens to the tiles around it.
 //
 // **The last level's answer is its mean alone**, which is all the composite reads: one full float,
 // where the variance beside it has no reader. The levels write through a declaration with no
@@ -80,9 +80,8 @@ namespace Rtx::Shaders
     const uint SHADOW_MASK_BIND_SHADOWED = 0;
     const uint SHADOW_MASK_BIND_SURFACE = 1;
     const uint SHADOW_MASK_BIND_MASK = 2;
-    const uint SHADOW_MASK_BIND_PENUMBRA = 3;
-    const uint SHADOW_MASK_BIND_PENUMBRA_TILES = 4;
-    const uint SHADOW_MASK_BINDINGS = 5;
+    const uint SHADOW_MASK_BIND_PENUMBRA_TILES = 3;
+    const uint SHADOW_MASK_BINDINGS = 4;
 
     /// The three levels the spatial filter runs at: the level is the filter module's one
     /// specialization constant, and its taps stand `1 << level` pixels apart.

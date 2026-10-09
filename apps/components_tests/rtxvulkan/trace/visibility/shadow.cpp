@@ -13,6 +13,7 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -79,7 +80,7 @@ namespace Rtx::Testing
                     for (std::size_t value = 0; value < sunlit.size(); value += 4)
                     {
                         ASSERT_GT(sunlit[value], 0.0f) << "the sun lights every pixel of the floor, roofed or not";
-                        ASSERT_EQ(sunlit[value + 3], roofed ? 0.0f : 1.0f) << "pixel " << value / 4;
+                        ASSERT_EQ(Testing::shadowBit(sunlit[value + 3]), roofed ? 0.0f : 1.0f) << "pixel " << value / 4;
                     }
 
                     const Frame filtered = shoot(scene, {}, camera, size,
@@ -108,7 +109,7 @@ namespace Rtx::Testing
                     mRenderer.readChannel(Channel::Shadowed, sunlit);
                     std::size_t shadowed = 0;
                     for (std::size_t value = 0; value < sunlit.size(); value += 4)
-                        shadowed += sunlit[value + 3] == 0.0f ? 1 : 0;
+                        shadowed += Testing::shadowOpen(sunlit[value + 3]) ? 0 : 1;
                     if (noShadows == 0u)
                         EXPECT_GT(shadowed, std::size_t{ 2 * size })
                             << "the slab cast no shadow, or this proves nothing";
@@ -152,7 +153,7 @@ namespace Rtx::Testing
             for (std::size_t value = 0; value < sunlit.size(); value += 4)
             {
                 const bool lit = sunlit[value] > 0.0f;
-                ASSERT_EQ(sunlit[value + 3], lit ? 0.0f : 1.0f) << "pixel " << value / 4;
+                ASSERT_EQ(Testing::shadowBit(sunlit[value + 3]), lit ? 0.0f : 1.0f) << "pixel " << value / 4;
                 ++(lit ? floor : wall);
             }
             ASSERT_GT(floor, std::size_t{ 8 * size }) << "no floor under the wall, or this proves nothing";
@@ -202,7 +203,8 @@ namespace Rtx::Testing
                 if (!(sunlit[value] > 0.0f))
                     continue;
                 ++floor;
-                EXPECT_EQ(sunlit[value + 3], 0.0f) << "pixel " << value / 4 << " lit through the wall";
+                EXPECT_FALSE(Testing::shadowOpen(sunlit[value + 3]))
+                    << "pixel " << value / 4 << " lit through the wall";
             }
             ASSERT_GT(floor, std::size_t{ 8 * size }) << "no floor before the wall, or this proves nothing";
         }
@@ -246,7 +248,7 @@ namespace Rtx::Testing
                 std::vector<float> shadowed;
                 std::vector<float> penumbra;
                 mRenderer.readChannel(Channel::Shadowed, shadowed);
-                mRenderer.readChannel(Channel::Penumbra, penumbra);
+                Testing::penumbraeOf(shadowed, penumbra);
                 EXPECT_EQ(shadowed.size(), std::size_t{ size } * size * 4);
 
                 const osg::Vec3f sum = (sunlight + moonlight * std::cos(tilt)) * (0.5f * Shaders::INV_PI);
@@ -255,7 +257,7 @@ namespace Rtx::Testing
                     for (std::size_t channel = 0; channel < 3; ++channel)
                         EXPECT_NEAR(shadowed[pixel * 4 + channel], sum[channel], sum[channel] * 1e-5f)
                             << "pixel " << pixel << ", channel " << channel;
-                    EXPECT_EQ(shadowed[pixel * 4 + 3], 1.0f) << "pixel " << pixel;
+                    EXPECT_TRUE(Testing::shadowOpen(shadowed[pixel * 4 + 3])) << "pixel " << pixel;
                 }
                 return penumbra;
             };
@@ -302,8 +304,7 @@ namespace Rtx::Testing
             std::vector<float> bits;
             std::vector<float> widths;
             mRenderer.readChannel(Channel::Shadowed, bits);
-            mRenderer.readChannel(Channel::Penumbra, widths);
-            ASSERT_EQ(widths.size() * 4, bits.size()) << "a channel of one half a pixel";
+            Testing::penumbraeOf(bits, widths);
 
             const auto sine = static_cast<double>(Shaders::SUN_SHADOW_RADIUS);
             const double radius = 100.0 * sine / std::sqrt(1.0 - sine * sine);
@@ -316,7 +317,7 @@ namespace Rtx::Testing
             for (std::size_t pixel = 0; pixel < bits.size() / 4; ++pixel)
             {
                 const float width = widths[pixel];
-                if (bits[pixel * 4 + 3] > 0.5f)
+                if (Testing::shadowOpen(bits[pixel * 4 + 3]))
                 {
                     ASSERT_EQ(width, Shaders::SHADOW_PENUMBRA_CLEAR) << "an open ray at pixel " << pixel;
                     continue;
@@ -382,8 +383,10 @@ namespace Rtx::Testing
                 addQuad(scene, roofOver(-100.0f, -60.0f, barHeight));
                 shoot(scene, {}, tilted, size, {});
 
+                std::vector<float> shadowed;
+                mRenderer.readChannel(Channel::Shadowed, shadowed);
                 std::vector<float> widths;
-                mRenderer.readChannel(Channel::Penumbra, widths);
+                Testing::penumbraeOf(shadowed, widths);
                 return widths;
             };
 
@@ -437,12 +440,12 @@ namespace Rtx::Testing
             std::size_t roofed = 0;
             shoot(scene, {}, between, size, { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
                                                  mRenderer.readChannel(Channel::Shadowed, shadowed);
-                                                 mRenderer.readChannel(Channel::Penumbra, penumbrae);
+                                                 Testing::penumbraeOf(shadowed, penumbrae);
                                                  for (std::size_t pixel = 0; pixel < penumbrae.size(); ++pixel)
                                                  {
                                                      EXPECT_NEAR(shadowed[pixel * 4], sunlit, 2e-3f)
                                                          << "pixel " << pixel;
-                                                     const float bit = shadowed[pixel * 4 + 3];
+                                                     const float bit = Testing::shadowBit(shadowed[pixel * 4 + 3]);
                                                      if (penumbrae[pixel] == Shaders::SHADOW_PENUMBRA_DRAWN)
                                                      {
                                                          ++drawn;
@@ -477,11 +480,12 @@ namespace Rtx::Testing
 
             std::vector<double> mean(std::size_t{ size } * size, 0.0);
             std::vector<float> bits;
-            shoot(scene, {}, camera, size, { .mFrames = 256, .mAverage = false, .mEachFrame = [&](const Frame&) {
-                                                mRenderer.readChannel(Channel::Shadowed, bits);
-                                                for (std::size_t pixel = 0; pixel < mean.size(); ++pixel)
-                                                    mean[pixel] += static_cast<double>(bits[pixel * 4 + 3]) / 256.0;
-                                            } });
+            shoot(scene, {}, camera, size,
+                { .mFrames = 256, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                     mRenderer.readChannel(Channel::Shadowed, bits);
+                     for (std::size_t pixel = 0; pixel < mean.size(); ++pixel)
+                         mean[pixel] += static_cast<double>(Testing::shadowBit(bits[pixel * 4 + 3])) / 256.0;
+                 } });
 
             const auto blurredError = [&](NoiseSource noise) {
                 camera.mFrame = 1000;
@@ -499,7 +503,7 @@ namespace Rtx::Testing
                             {
                                 const std::size_t at
                                     = static_cast<std::size_t>((y + dy) * static_cast<int>(size) + x + dx);
-                                box += static_cast<double>(bits[at * 4 + 3]) / 25.0;
+                                box += static_cast<double>(Testing::shadowBit(bits[at * 4 + 3])) / 25.0;
                                 truth += mean[at] / 25.0;
                             }
                         squares += (box - truth) * (box - truth);
@@ -792,8 +796,10 @@ namespace Rtx::Testing
                 const std::vector<float> open = alone(false, true);
                 for (std::size_t pixel = 0; pixel < pixels; ++pixel)
                 {
-                    EXPECT_EQ(stopped[pixel * 4 + 3], 0.0f) << "the first source's ray got through at " << pixel;
-                    EXPECT_EQ(open[pixel * 4 + 3], 1.0f) << "the second source's ray was stopped at " << pixel;
+                    EXPECT_FALSE(Testing::shadowOpen(stopped[pixel * 4 + 3]))
+                        << "the first source's ray got through at " << pixel;
+                    EXPECT_TRUE(Testing::shadowOpen(open[pixel * 4 + 3]))
+                        << "the second source's ray was stopped at " << pixel;
                 }
 
                 std::vector<float> both;
@@ -801,7 +807,8 @@ namespace Rtx::Testing
                 shootWith(true, true, { .mFrames = sFrames, .mAverage = false, .mEachFrame = [&](const Frame&) {
                                            mRenderer.readChannel(Channel::Shadowed, both);
                                            for (std::size_t pixel = 0; pixel < pixels; ++pixel)
-                                               kept[pixel] += static_cast<double>(both[pixel * 4 + 3]);
+                                               kept[pixel]
+                                                   += static_cast<double>(Testing::shadowBit(both[pixel * 4 + 3]));
                                        } });
 
                 BitShares shares{ .mShare = 0.0, .mDrawn = 0.0 };
@@ -884,25 +891,28 @@ namespace Rtx::Testing
             std::vector<float> sky;
             std::vector<float> lamps;
             std::size_t frame = 0;
-            shoot(lit, {}, camera, size,
-                { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
-                     mRenderer.readChannel(Channel::Shadowed, sky);
-                     mRenderer.readChannel(Channel::Lamped, lamps);
-                     for (std::size_t value = 0; value < pixels * 4; ++value)
-                     {
-                         if (value % 4 == 3)
-                         {
-                             ASSERT_EQ(sky[value], 0.0f) << "the sun's ray got through at " << value / 4;
-                             ASSERT_EQ(lamps[value], 1.0f) << "the lamp's ray was stopped at " << value / 4;
-                             continue;
-                         }
-                         ASSERT_NEAR(sky[value], sunAlone[value], 1e-5f * sunAlone[value])
-                             << "the sun's channel took other light at value " << value << ", frame " << frame;
-                         ASSERT_NEAR(lamps[value], lampAlone[value], 1e-5f * lampAlone[value])
-                             << "the lamp's channel took other light at value " << value << ", frame " << frame;
-                     }
-                     ++frame;
-                 } });
+            shoot(lit, {}, camera, size, { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                                              mRenderer.readChannel(Channel::Shadowed, sky);
+                                              mRenderer.readChannel(Channel::Lamped, lamps);
+                                              for (std::size_t value = 0; value < pixels * 4; ++value)
+                                              {
+                                                  if (value % 4 == 3)
+                                                  {
+                                                      ASSERT_FALSE(Testing::shadowOpen(sky[value]))
+                                                          << "the sun's ray got through at " << value / 4;
+                                                      ASSERT_TRUE(Testing::shadowOpen(lamps[value]))
+                                                          << "the lamp's ray was stopped at " << value / 4;
+                                                      continue;
+                                                  }
+                                                  ASSERT_NEAR(sky[value], sunAlone[value], 1e-5f * sunAlone[value])
+                                                      << "the sun's channel took other light at value " << value
+                                                      << ", frame " << frame;
+                                                  ASSERT_NEAR(lamps[value], lampAlone[value], 1e-5f * lampAlone[value])
+                                                      << "the lamp's channel took other light at value " << value
+                                                      << ", frame " << frame;
+                                              }
+                                              ++frame;
+                                          } });
             ASSERT_EQ(frame, frames);
 
             const Shot filtered{
