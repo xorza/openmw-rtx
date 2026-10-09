@@ -36,6 +36,9 @@ them.
   - opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts: no faster, and longer loading;
   - async compute (the next trace on a second queue beside this frame's reconstruction): 0.1–0.2 ms
     gained (the branch `async` has the record);
+  - hashed alpha (Wyman and McGuire 2017) for the soft edges, a cut fixed to the surface in place of
+    one drawn each frame: a moving frame at the deck stayed noisier than its frames averaged under
+    the upscaler's jitter, and the edges converged harder, with more fireflies (`cutAt`);
   - Shader Execution Reordering (`VK_EXT_ray_tracing_invocation_reorder`): its sorting cost 17–23%
     of the trace, and it shuts out Mesa's drivers;
   - in the rasterizer alone, which the ray tracer already does right: the ripple field that loses

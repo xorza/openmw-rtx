@@ -90,6 +90,12 @@ bool isSoftEdged(GpuMaterial material)
 /// fringe was a line of bright dots. Never under `ALPHA_PANE_CUTOFF`: a texel the blend draws as
 /// nothing is a hole to every ray.
 ///
+/// **Drawn again each frame, not fixed to the surface**, so a pixel's coverage at dense foliage is a
+/// mean that only the upscaler's history takes, and a moving frame, which keeps less of it, is
+/// noisier than its frames averaged. Hashed alpha (Wyman and McGuire 2017), a draw fixed to the
+/// surface, left a moving frame as noisy under the upscaler's own jitter, and converged to harder
+/// edges with more fireflies.
+///
 /// @param dither in `[0, 1)` for the eye's own candidates, drawn a pixel, a frame and a triangle
 ///        apart so two soft layers are met apart; one for every other ray, which keeps the cut.
 float cutAt(GpuMaterial material, float dither)
