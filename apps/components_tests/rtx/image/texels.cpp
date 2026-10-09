@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <random>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -355,6 +356,17 @@ namespace Rtx
 
             // Read with no encoding named, a file is a colour: every caller but a companion map's.
             EXPECT_EQ(readFormat(*makeImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)), TextureFormat::Bc3Srgb);
+
+            // **And the formats a backend encodes into, which no spelling reads as**: what the ground's
+            // composites are made in on the device, named, under the curve and as data.
+            for (const auto& [format, name, srgb] : { std::tuple{ TextureFormat::Bc7Srgb, "BC7", true },
+                     std::tuple{ TextureFormat::Bc7Unorm, "BC7 (linear)", false } })
+            {
+                EXPECT_EQ(nameOf(format), name);
+                EXPECT_EQ(isSrgb(format), srgb) << name;
+                EXPECT_TRUE(isUploadable(format)) << name;
+                met[static_cast<std::size_t>(format)] = true;
+            }
 
             // A format added to the enum and left out of the table above is a failure here rather
             // than a count nothing can name.

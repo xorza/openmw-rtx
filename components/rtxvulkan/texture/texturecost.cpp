@@ -11,6 +11,8 @@
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/shaders/shared/normalspread.h>
 
+#include "bc7encodepass.hpp"
+
 namespace Rtx
 {
     namespace
@@ -91,9 +93,24 @@ namespace Rtx
     TextureCost priceComposite()
     {
         return TextureCost{
-            .mImage = writtenBytes(chainTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT)),
+            .mImage = Bc7Chain::of(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
+                levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT))
+                          .mBytes,
             .mCompanion = sShadingBytes,
         };
+    }
+
+    TextureCost priceCanvas()
+    {
+        return TextureCost{ .mImage
+            = writtenBytes(chainTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT)) };
+    }
+
+    TextureCost priceBlocks()
+    {
+        return TextureCost{ .mImage = Bc7Chain::of(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
+                                levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT))
+                                          .mBytes };
     }
 
     TextureCost priceColour()

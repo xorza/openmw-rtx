@@ -207,6 +207,7 @@ namespace Rtx
         /// the two cannot disagree about which slots they counted.
         std::uint32_t mTextureCount = 0;
         std::uint64_t mTextureBytes = 0;
+        TextureSourceBytes mTextureBytesBySource;
 
         /// How many of those stand smaller than their files: held to a smaller side where the
         /// device had no room for them as the files are, or past the side it takes.

@@ -53,6 +53,7 @@ set(RTX_SHADERS
     shaders/scene/spriteshade.comp
     shaders/scene/spritestarts.comp
     shaders/scene/toplevelpack.comp
+    shaders/texture/bc7encode.comp
     shaders/texture/groundcomposite.comp
     shaders/texture/mipchain.comp
     shaders/texture/normalspread.comp
@@ -359,6 +360,7 @@ set(RTX_VULKAN_FILES
     scene/toplevelpackpass.hpp
     shaders/shared/accumulate.h
     shaders/shared/atrous.h
+    shaders/shared/bc7.h
     shaders/shared/bindings.h
     shaders/shared/bloom.h
     shaders/shared/channeldigest.h
@@ -396,6 +398,8 @@ set(RTX_VULKAN_FILES
     shaders/shared/toplevelpack.h
     shaders/shared/tracerecords.h
     shaders/shared/wavetransform.h
+    texture/bc7encodepass.cpp
+    texture/bc7encodepass.hpp
     texture/groundcompositepass.cpp
     texture/groundcompositepass.hpp
     texture/mipchainpass.cpp

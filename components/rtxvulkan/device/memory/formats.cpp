@@ -52,6 +52,10 @@ namespace Rtx
                 return VK_FORMAT_BC5_UNORM_BLOCK;
             case TextureFormat::Bc4Unorm:
                 return VK_FORMAT_BC4_UNORM_BLOCK;
+            case TextureFormat::Bc7Srgb:
+                return VK_FORMAT_BC7_SRGB_BLOCK;
+            case TextureFormat::Bc7Unorm:
+                return VK_FORMAT_BC7_UNORM_BLOCK;
 
             // Never uploaded: `describeImage` widens these to RGBA8 and refuses the rest, so one
             // arriving here is a contract broken and not a file.

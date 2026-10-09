@@ -141,7 +141,8 @@ namespace Rtx
 
         /// Records the bake of every composite that arrived since the last, over `slot`'s copy of
         /// the tables — the copy just written, whose set is synced. True where one was recorded.
-        bool bakeGround(VkCommandBuffer commands, FrameSlot slot);
+        /// Timed on `timer`, null where nothing is timed.
+        bool bakeGround(VkCommandBuffer commands, FrameSlot slot, GpuTimer* timer);
 
         /// Gives back the structures of the meshes the scene freed since the last hand-over, once
         /// per hand-over whichever of `extend` and `place` meets them first. Departures before

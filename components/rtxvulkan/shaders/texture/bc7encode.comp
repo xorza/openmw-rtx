@@ -1,0 +1,401 @@
+#version 460
+
+#extension GL_EXT_control_flow_attributes : require
+#extension GL_GOOGLE_include_directive : require
+
+// An image made on the device, encoded as BC7 blocks, every level in one dispatch and one lane a
+// block: the small levels a dispatch each cost more than their blocks. **Each level whole
+// workgroups**, so the level a workgroup reads is the same in every lane of it, and indexing the
+// array of levels by it asks the device for nothing it does not have.
+//
+// **Mode 6 alone**: one subset, two RGBA end points of seven bits and a shared lowest bit each, and
+// a four-bit index a texel. The mode a runtime encoder takes, since the others' partitions are a
+// search an arrival cannot pay for; it holds a smooth gradient in sixteen steps, which BC1's four
+// band.
+//
+// **The end points along the block's principal axis, then fitted by least squares** to the indices
+// they chose, twice, keeping the attempt with the least error. **Each texel tries the three levels
+// around its projection**, each level the integers the format decodes it to. The error is the
+// squared difference of the stored bytes, which is what a sampler decodes, the alpha's only where
+// it is read (`Bc7Constants::mWeighsAlpha`). An attempt with no error ends the search.
+//
+// **And the block's mean as one colour**, by the end points that reach it exactly at one index
+// (`BC7_SINGLE_INDEX`): a uniform block has no axis, and the two equal end points the axis leaves
+// share their lowest bit across the channels, which an odd red beside an even blue cannot.
+//
+// **The bytes as stored**, read through a view with no curve under it, so an sRGB image is fitted
+// in its encoded values and decoded through the same curve it was written with.
+
+#include "scene.h"
+#include "shared/bc7.h"
+#include "shared/sets.h"
+
+layout(local_size_x = BC7_WORKGROUP) in;
+
+/// Every level, through its view with no curve under it; past the chain's last, that level again.
+layout(set = SET_PASS, binding = BC7_BIND_SOURCE, TEXTURE_WRITTEN_FORMAT) uniform readonly image2D
+    sources[BC7_MOST_LEVELS];
+
+/// The chain's blocks.
+layout(set = SET_PASS, binding = BC7_BIND_BLOCKS, std430) writeonly buffer Blocks
+{
+    uvec4 blocks[];
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    Bc7Constants chain;
+};
+
+const uint WEIGHTS[16] = uint[16](0u, 4u, 9u, 13u, 17u, 21u, 26u, 30u, 34u, 38u, 43u, 47u, 51u, 55u, 60u, 64u);
+
+/// The block's texels, four bytes to a word, and which of them stand inside the level, a bit each: a
+/// block past a level's edge holds texels no sampler reads, which no fit weighs. Packed, because the
+/// texels are bytes, and sixteen as floats were a quarter of the registers the kernel ran short of.
+uint gTexels[16];
+uint gInside;
+
+vec4 texelAt(uint texel)
+{
+    const uint word = gTexels[texel];
+    return vec4(uvec4(word, word >> 8u, word >> 16u, word >> 24u) & 0xffu);
+}
+
+float insideAt(uint texel)
+{
+    return float((gInside >> texel) & 1u);
+}
+
+/// What each channel's error counts for.
+vec4 gWeights;
+
+/// One attempt's end points as stored — seven bits a channel and a lowest bit each — its indices,
+/// four bits a texel eight to a word, and its error. Packed, because an attempt is copied each time
+/// it beats the best, and sixteen words a copy were what the kernel spent its registers on.
+struct Attempt
+{
+    uvec4 mLow;
+    uvec4 mHigh;
+    uint mLowBit;
+    uint mHighBit;
+    uvec2 mIndices;
+    float mError;
+};
+
+/// A pair of end points as stored: seven bits a channel, and a lowest bit each.
+struct Ends
+{
+    uvec4 mLow;
+    uvec4 mHigh;
+    uint mLowBit;
+    uint mHighBit;
+};
+
+uint indexOf(Attempt attempt, uint texel)
+{
+    return (attempt.mIndices[texel >> 3u] >> ((texel & 7u) * 4u)) & 15u;
+}
+
+/// `value`, a channel of an end point in bytes, as seven bits under the lowest bit `bit`.
+uvec4 quantized(vec4 value, uint bit)
+{
+    return uvec4(clamp(round((clamp(value, 0.0, 255.0) - float(bit)) * 0.5), 0.0, 127.0));
+}
+
+/// The level `weight` of the way from `low` to `high`, as every decoder computes it.
+vec4 interpolated(uvec4 low, uvec4 high, uint weight)
+{
+    return vec4(((BC7_WEIGHT_TOTAL - weight) * low + weight * high + 32u) >> 6u);
+}
+
+/// The block's best indices and their error for `ends`.
+Attempt attemptWith(Ends ends)
+{
+    Attempt attempt;
+    attempt.mLowBit = ends.mLowBit;
+    attempt.mHighBit = ends.mHighBit;
+    attempt.mLow = ends.mLow;
+    attempt.mHigh = ends.mHigh;
+    const uvec4 lowBytes = ends.mLow * 2u + ends.mLowBit;
+    const uvec4 highBytes = ends.mHigh * 2u + ends.mHighBit;
+
+    // The levels lie on the line from one end point to the other, each channel rounded to a byte,
+    // so the nearest is the level the texel projects to or one beside it: three levels and not
+    // sixteen. A near tie the rounding decides otherwise costs the difference of two errors that
+    // are all but equal.
+    const vec4 from = vec4(lowBytes);
+    const vec4 span = vec4(highBytes) - from;
+    const float spanSquared = dot(span * span, gWeights);
+    const float toStep = spanSquared > 0.0 ? 15.0 / spanSquared : 0.0;
+
+    attempt.mError = 0.0;
+    attempt.mIndices = uvec2(0u);
+    for (uint texel = 0u; texel < 16u; ++texel)
+    {
+        const float projected = dot((texelAt(texel) - from) * span, gWeights) * toStep;
+        const uint centre = uint(clamp(round(projected), 0.0, 15.0));
+        uint best = 0u;
+        float least = 1e30;
+        for (uint step = max(centre, 1u) - 1u; step <= min(centre + 1u, 15u); ++step)
+        {
+            const vec4 apart = interpolated(lowBytes, highBytes, WEIGHTS[step]) - texelAt(texel);
+            const float error = dot(apart * apart, gWeights);
+            best = error < least ? step : best;
+            least = min(error, least);
+        }
+        attempt.mIndices[texel >> 3u] |= best << ((texel & 7u) * 4u);
+        attempt.mError += least * insideAt(texel);
+    }
+    return attempt;
+}
+
+/// How far `value`, an end point in bytes, lands from itself stored under the lowest bit `bit`.
+float storedError(vec4 value, uint bit)
+{
+    const vec4 apart = vec4(quantized(value, bit) * 2u + bit) - clamp(value, 0.0, 255.0);
+    return dot(apart * apart, gWeights);
+}
+
+/// End points `low` and `high` in bytes, each stored under the lowest bit that keeps it nearest
+/// itself. **Chosen by the end point and not by the block**: the four pairs tried on every texel
+/// were four attempts in place of one, for a bit whose choice the end point alone all but decides.
+Ends storedNearest(vec4 low, vec4 high)
+{
+    const uint lowBit = storedError(low, 1u) < storedError(low, 0u) ? 1u : 0u;
+    const uint highBit = storedError(high, 1u) < storedError(high, 0u) ? 1u : 0u;
+    return Ends(quantized(low, lowBit), quantized(high, highBit), lowBit, highBit);
+}
+
+/// The end points whose level `BC7_SINGLE_INDEX` lies nearest `colour`, under the pair of lowest
+/// bits that reaches it nearest, searched in each channel among the seven-bit values one step
+/// either side of it: under one lowest bit the pair `v, v` or `v - 1, v + 1` reaches every byte `v`
+/// there, and under two `v, v + 1` or `v - 1, v + 2` does, each within a step of `v / 2`.
+Ends singleColour(vec4 colour)
+{
+    const uint weight = WEIGHTS[BC7_SINGLE_INDEX];
+    uvec4 bestLow = uvec4(0u);
+    uvec4 bestHigh = uvec4(0u);
+    uint bestBits = 0u;
+    float bestError = 1e30;
+    [[dont_unroll]] for (uint bits = 0u; bits < 4u; ++bits)
+    {
+        const uint lowBit = bits & 1u;
+        const uint highBit = bits >> 1u;
+        uvec4 low = uvec4(0u);
+        uvec4 high = uvec4(0u);
+        float error = 0.0;
+        for (uint channel = 0u; channel < 4u; ++channel)
+        {
+            const int target = int(clamp(round(colour[channel]), 0.0, 255.0));
+            const int centre = target / 2;
+            int least = 256;
+            for (int lowStep = max(centre - 1, 0); lowStep <= min(centre + 1, 127); ++lowStep)
+                for (int highStep = max(centre - 1, 0); highStep <= min(centre + 1, 127); ++highStep)
+                {
+                    const uint lowByte = uint(lowStep) * 2u + lowBit;
+                    const uint highByte = uint(highStep) * 2u + highBit;
+                    const int reached = int(((BC7_WEIGHT_TOTAL - weight) * lowByte + weight * highByte + 32u) >> 6u);
+                    const int apart = abs(reached - target);
+                    if (apart < least)
+                    {
+                        least = apart;
+                        low[channel] = uint(lowStep);
+                        high[channel] = uint(highStep);
+                    }
+                }
+            error += float(least * least) * gWeights[channel];
+        }
+        if (error < bestError)
+        {
+            bestError = error;
+            bestLow = low;
+            bestHigh = high;
+            bestBits = bits;
+        }
+    }
+    return Ends(bestLow, bestHigh, bestBits & 1u, bestBits >> 1u);
+}
+
+/// The end points that fit `chosen`'s indices best by least squares, or `chosen`'s own where the
+/// indices name one level, which no pair of end points is fitted to.
+bool fittedTo(Attempt chosen, out vec4 low, out vec4 high)
+{
+    float lowLow = 0.0;
+    float lowHigh = 0.0;
+    float highHigh = 0.0;
+    vec4 towardLow = vec4(0.0);
+    vec4 towardHigh = vec4(0.0);
+    for (uint texel = 0u; texel < 16u; ++texel)
+    {
+        const float share = float(WEIGHTS[indexOf(chosen, texel)]) / float(BC7_WEIGHT_TOTAL);
+        const float rest = 1.0 - share;
+        const float inside = insideAt(texel);
+        lowLow += inside * rest * rest;
+        lowHigh += inside * rest * share;
+        highHigh += inside * share * share;
+        towardLow += inside * rest * texelAt(texel);
+        towardHigh += inside * share * texelAt(texel);
+    }
+
+    const float determinant = lowLow * highHigh - lowHigh * lowHigh;
+    low = vec4(0.0);
+    high = vec4(0.0);
+    if (determinant <= 1e-6)
+        return false;
+
+    low = clamp((highHigh * towardLow - lowHigh * towardHigh) / determinant, 0.0, 255.0);
+    high = clamp((lowLow * towardHigh - lowHigh * towardLow) / determinant, 0.0, 255.0);
+    return true;
+}
+
+/// Writes `value`'s low `bits` into `packed` from bit `at` on, and moves `at` past them.
+void put(inout uvec4 packed, inout uint at, uint value, uint bits)
+{
+    const uint word = at >> 5u;
+    const uint shift = at & 31u;
+    const uint low = value << shift;
+    const uint spill = shift == 0u ? 0u : value >> (32u - shift);
+    packed[word] |= low;
+    if (shift + bits > 32u)
+        packed[word + 1u] |= spill;
+    at += bits;
+}
+
+uvec4 packBlock(Attempt chosen)
+{
+    uvec4 block = uvec4(0u);
+    uint at = 0u;
+
+    // Mode 6: six noughts and a one.
+    put(block, at, 1u << 6u, 7u);
+    for (uint channel = 0u; channel < 4u; ++channel)
+    {
+        put(block, at, chosen.mLow[channel], BC7_ENDPOINT_BITS);
+        put(block, at, chosen.mHigh[channel], BC7_ENDPOINT_BITS);
+    }
+    put(block, at, chosen.mLowBit, 1u);
+    put(block, at, chosen.mHighBit, 1u);
+
+    put(block, at, indexOf(chosen, 0u), BC7_ANCHOR_BITS);
+    for (uint texel = 1u; texel < 16u; ++texel)
+        put(block, at, indexOf(chosen, texel), BC7_INDEX_BITS);
+    return block;
+}
+
+void main()
+{
+    // Which level the workgroup is of, and where that level's blocks begin.
+    uint level = 0u;
+    uint group = gl_WorkGroupID.x;
+    uint first = 0u;
+    uvec2 extent = uvec2(chain.mWidth, chain.mHeight);
+    uint across = (extent.x + BC7_BLOCK_SIDE - 1u) / BC7_BLOCK_SIDE;
+    uint levelBlocks = across * ((extent.y + BC7_BLOCK_SIDE - 1u) / BC7_BLOCK_SIDE);
+    [[dont_unroll]] for (; level + 1u < chain.mLevels; ++level)
+    {
+        const uint groups = (levelBlocks + BC7_WORKGROUP - 1u) / BC7_WORKGROUP;
+        if (group < groups)
+            break;
+        group -= groups;
+        first += levelBlocks;
+        extent = max(extent >> 1u, uvec2(1u));
+        across = (extent.x + BC7_BLOCK_SIDE - 1u) / BC7_BLOCK_SIDE;
+        levelBlocks = across * ((extent.y + BC7_BLOCK_SIDE - 1u) / BC7_BLOCK_SIDE);
+    }
+
+    const uint within = group * BC7_WORKGROUP + gl_LocalInvocationID.x;
+    if (within >= levelBlocks)
+        return;
+
+    gWeights = vec4(1.0, 1.0, 1.0, chain.mWeighsAlpha != 0u ? 1.0 : 0.0);
+    gInside = 0u;
+
+    const uvec2 corner = uvec2(within % across, within / across) * BC7_BLOCK_SIDE;
+    vec4 sum = vec4(0.0);
+    float count = 0.0;
+    for (uint texel = 0u; texel < 16u; ++texel)
+    {
+        const uvec2 at = corner + uvec2(texel % BC7_BLOCK_SIDE, texel / BC7_BLOCK_SIDE);
+        const bool inside = at.x < extent.x && at.y < extent.y;
+        const ivec2 read = ivec2(min(at, extent - 1u));
+        const uvec4 bytes = uvec4(round(imageLoad(sources[level], read) * 255.0));
+        gTexels[texel] = bytes.r | (bytes.g << 8u) | (bytes.b << 16u) | (bytes.a << 24u);
+        gInside |= (inside ? 1u : 0u) << texel;
+        sum += insideAt(texel) * vec4(bytes);
+        count += insideAt(texel);
+    }
+    const vec4 mean = sum / count;
+
+    // The principal axis by power iteration on the covariance, from the widest channel's direction.
+    mat4 covariance = mat4(0.0);
+    vec4 least = vec4(255.0);
+    vec4 most = vec4(0.0);
+    for (uint texel = 0u; texel < 16u; ++texel)
+    {
+        const vec4 apart = (texelAt(texel) - mean) * insideAt(texel);
+        covariance += outerProduct(apart, apart);
+        least = insideAt(texel) > 0.0 ? min(least, texelAt(texel)) : least;
+        most = insideAt(texel) > 0.0 ? max(most, texelAt(texel)) : most;
+    }
+    vec4 axis = most - least;
+    for (uint iteration = 0u; iteration < 8u; ++iteration)
+    {
+        const vec4 turned = covariance * axis;
+        const float length = sqrt(dot(turned, turned));
+        axis = length > 1e-6 ? turned / length : axis;
+    }
+    const float axisLength = sqrt(dot(axis, axis));
+    axis = axisLength > 1e-6 ? axis / axisLength : vec4(0.0);
+
+    float nearest = 0.0;
+    float farthest = 0.0;
+    for (uint texel = 0u; texel < 16u; ++texel)
+    {
+        const float along = dot(texelAt(texel) - mean, axis);
+        nearest = insideAt(texel) > 0.0 ? min(nearest, along) : nearest;
+        farthest = insideAt(texel) > 0.0 ? max(farthest, along) : farthest;
+    }
+
+    // **Four rounds through one attempt**, so its code stands once: the single colour, which a
+    // uniform block is exact by; the axis; and twice the end points fitted to the best indices so
+    // far, while a fit improves on them. An exact block is done.
+    Attempt best;
+    best.mError = 1e30;
+    [[dont_unroll]] for (uint round = 0u; round < 4u && best.mError > 0.0; ++round)
+    {
+        Ends ends;
+        if (round == 0u)
+            ends = singleColour(mean);
+        else if (round == 1u)
+            ends = storedNearest(mean + nearest * axis, mean + farthest * axis);
+        else
+        {
+            vec4 low;
+            vec4 high;
+            if (!fittedTo(best, low, high))
+                break;
+            ends = storedNearest(low, high);
+        }
+
+        const Attempt tried = attemptWith(ends);
+        if (tried.mError < best.mError)
+            best = tried;
+        else if (round > 1u)
+            break;
+    }
+
+    // The first texel's index has no top bit: where it needs one, the same palette backwards, whose
+    // index `15 - i` is every index's four bits inverted.
+    if (indexOf(best, 0u) >= 8u)
+    {
+        const uvec4 low = best.mLow;
+        best.mLow = best.mHigh;
+        best.mHigh = low;
+        const uint lowBit = best.mLowBit;
+        best.mLowBit = best.mHighBit;
+        best.mHighBit = lowBit;
+        best.mIndices = ~best.mIndices;
+    }
+
+    blocks[first + within] = packBlock(best);
+}

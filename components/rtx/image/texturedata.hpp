@@ -119,6 +119,22 @@ namespace Rtx
         StandIn,
     };
 
+    /// What the textures a backend stands come to on the device, by what stands in each slot: which
+    /// of them a memory budget is spent on. The stand-in costs a slot nothing and is not here.
+    struct TextureSourceBytes
+    {
+        /// A file standing as the content carried its chain, and one whose chain the device completed
+        /// from its one level (`TextureData::mCompleteChain`).
+        std::uint64_t mFiles = 0;
+        std::uint64_t mCompletedFiles = 0;
+
+        std::uint64_t mSpriteBakes = 0;
+
+        /// The ground's composites and the canvas they are baked on, and their gloss.
+        std::uint64_t mGroundComposites = 0;
+        std::uint64_t mGroundGloss = 0;
+    };
+
     /// A decoded texture, ready to upload and owning none of it. No graphics API in it, because an
     /// upload of a block-compressed file with its chain already built is a copy and never a
     /// conversion.

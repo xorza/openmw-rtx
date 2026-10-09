@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -20,6 +21,7 @@
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -33,6 +35,7 @@ namespace Rtx
 {
     class Batch;
     class Device;
+    class GpuTimer;
     class GroundCompositePass;
     struct TexturePasses;
 
@@ -75,9 +78,8 @@ namespace Rtx
             const Texture& source, TextureFormat format, std::string_view name);
 
         /// Stands a chunk's flattened ground in this one, which is empty, under the neutral map:
-        /// `GROUND_COMPOSITE_EXTENT` square, with a chain to one texel and a view without the curve a
-        /// dispatch stores through, left undefined. Written by `TextureArray::bakeComposites`, in the
-        /// placement after it arrives.
+        /// `GROUND_COMPOSITE_EXTENT` square in BC7, with a chain to one texel, left undefined. Copied
+        /// into by `TextureArray::bakeComposites`, in the placement after it arrives.
         ///
         /// @param format what the description says the composite is, which is its image's format.
         Misc::Result<void, std::string_view> standComposite(
@@ -138,6 +140,13 @@ namespace Rtx
 
         /// How many of those stand smaller than their files, from a level further down.
         std::uint32_t mReduced = 0;
+
+        /// `mBytes` by what stands in each slot.
+        TextureSourceBytes mBySource;
+
+        /// The canvases the scene's composites are baked on and the blocks they are encoded through,
+        /// beside the slots (`priceCanvas`, `priceBlocks`): nought until the first composite stands.
+        VkDeviceSize mCanvasBytes = 0;
     };
 
     /// Every texture a scene uses, in one descriptor array a shader indexes by material, and every
@@ -199,9 +208,10 @@ namespace Rtx
         /// composites themselves, reading `slot`'s set and texel counts and the tables `tables`
         /// names — the copy the placement recording this has just written. After `sync(slot)`, so the set holds the
         /// layers' textures and the composites alike. True where a bake was recorded, because a
-        /// placement that recorded nothing else is not submitted.
+        /// placement that recorded nothing else is not submitted. Timed as `FrameZone::Ground` on
+        /// `timer`, null where nothing is timed.
         bool bakeComposites(VkCommandBuffer commands, const GroundCompositePass& pass, FrameSlot slot,
-            const Shaders::GpuTables& tables);
+            const Shaders::GpuTables& tables, GpuTimer* timer);
 
         /// Waits until nothing on the queue binds `slot`'s set, ahead of the `sync` that writes it.
         void finishReads(FrameSlot slot) const;
@@ -269,12 +279,19 @@ namespace Rtx
             /// Whether the texture stands smaller than its file.
             bool mReduced = false;
 
+            /// What the texture was made from, which `mHeld` counts its bytes under.
+            TextureSource mSource = TextureSource::File;
+            bool mCompletedChain = false;
+
             bool isEmpty() const { return mTexture.isEmpty() && !mStandIn; }
         };
 
         /// Takes what `slot` stands off `mHeld`, before it changes, and counts what it stands after.
         void forget(const Slot& slot);
         void count(const Slot& slot);
+
+        /// Where `slot`'s bytes are counted in `held`.
+        static std::uint64_t& bytesBySource(TexturesHeld& held, const Slot& slot);
 
         /// What `slot` is sampled through: its texture, or the stand-in.
         const Texture& standingIn(const Slot& slot) const { return slot.mStandIn ? mStandIn : slot.mTexture; }
@@ -328,6 +345,22 @@ namespace Rtx
 
         /// What the slots stand, kept by `forget` and `count` around every change to one.
         TexturesHeld mHeld;
+
+        /// Where a chunk is baked before it is encoded into its slot, its albedo and its gloss as the
+        /// bake writes them, and the blocks each is encoded through. **Each made at the scene's first
+        /// composite that needs it, and kept**, since every later bake reuses it: a scene with no
+        /// ground makes none, and one whose ground has nothing that reflects makes no gloss.
+        struct CompositeCanvas
+        {
+            std::optional<Image> mAlbedo;
+            std::optional<Image> mGloss;
+            std::optional<Buffer> mBlocks;
+        };
+        CompositeCanvas mCanvas;
+
+        /// Makes the blocks and the canvas a composite of `source` is baked on, where either is
+        /// missing, or says why the device has no room for one.
+        Misc::Result<void, std::string_view> makeCanvas(TextureSource source);
 
         /// One per `TextureWrap`, indexed by it: the sampler a slot is bound through is the one its
         /// file's wrap names, for the texture and for its shading map alike.
