@@ -89,10 +89,11 @@ layout(set = SET_PASS, binding = SHADOW_TILES_BIND_HELD_SURFACE, ACCUMULATE_SURF
 /// Last frame's first filter level: the mean the SDK carries forward, as SVGF carries the wavelet's.
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_HISTORY, SHADOW_REPROJECTED) uniform readonly uimage2D history;
 
-/// The mean, the running sum of squared deviations and the sample count, last frame's and this one's.
+/// The mean, the running sum of squared deviations and the sample count, last frame's and this one's,
+/// in two words (`packShadowMoments`).
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOMENTS_BEFORE, SHADOW_MOMENTS)
-    uniform readonly image2D momentsBefore;
-layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOMENTS, SHADOW_MOMENTS) uniform writeonly image2D moments;
+    uniform readonly uimage2D momentsBefore;
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOMENTS, SHADOW_MOMENTS) uniform writeonly uimage2D moments;
 
 /// This frame's blend and its variance, which the first filter level reads.
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_REPROJECTED, SHADOW_REPROJECTED)
@@ -176,6 +177,11 @@ void main()
     const bool inFrame = !outsideOf(uvec2(at), extent);
     const ivec2 corner = ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - int(REACH);
 
+    // The draws every store of this pass rounds by, one stream a field.
+    uint rounding = seededKey(
+        pixelKey(uvec2(at)) + (temporal.mField == SHADOW_FIELD_SKY ? SEED_SKY_SHADOW_ROUNDING : SEED_LAMP_SHADOW_ROUNDING),
+        frame.mFrame);
+
     if (gl_LocalInvocationIndex == 0u)
         gReach = 0u;
 
@@ -250,10 +256,11 @@ void main()
             RTX_STORE_COUNTED(tiles, ivec2(gl_WorkGroupID.xy), vec4(1.0, reach, 0.0, 0.0))
         if (inFrame)
         {
-            // Nought or one, which every rounding keeps.
+            // Nought or one, and moments of nought or one, which every rounding keeps.
             RTX_STORE_WORDS(reprojected, at,
                 uvec4(packShadowWord(vec2(value, receiver ? 0.0 : SHADOW_NO_RECEIVER), UNORM16_NEAREST), 0u, 0u, 0u))
-            RTX_STORE_COUNTED(moments, at, vec4(value, 0.0, receiver ? 1.0 : 0.0, 0.0))
+            RTX_STORE_WORDS(
+                moments, at, uvec4(packShadowMoments(vec3(value, 0.0, receiver ? 1.0 : 0.0), rounding), 0u, 0u))
         }
         return;
     }
@@ -299,19 +306,10 @@ void main()
         const ivec2 nearest = before.mLow + ivec2(greaterThanEqual(before.mAcross, vec2(0.5)));
         const bool held = frame.mReset == 0u && !outsideOf(nearest, extent)
             && heldSurfaceMatches(imageLoad(heldSurface, nearest), nearest, plane);
-        const vec3 previousMoments = held ? imageLoad(momentsBefore, nearest).xyz : vec3(0.0);
-
-        const float samples = previousMoments.z + 1.0;
-        const float mean = previousMoments.x + (current - previousMoments.x) / samples;
-        const float deviations = previousMoments.y + (current - previousMoments.x) * (current - mean);
-
-        // **Never past one, which is the SDK's own answer for a history of one sample**, and more
-        // than a bit's variance can be: the count is damped below for a history that stood off,
-        // so `samples - 1` falls toward nought while the deviations stay, and a variance of a
-        // million passed what the filter's halves hold. Its infinity over its own square was a
-        // NaN at every level of the filter after it, at every place `check` visits.
-        variance = samples > 1.0 ? min(deviations / (samples - 1.0), 1.0) : 1.0;
-        momentsNow = vec3(mean, deviations, samples);
+        const ShadowMoments updated = updatedShadowMoments(
+            held ? unpackShadowMoments(imageLoad(momentsBefore, nearest).rg) : vec3(0.0), current);
+        variance = updated.mVariance;
+        momentsNow = updated.mMoments;
 
         // The bounds the history is clamped to: half a deviation either side of the local mean.
         const float spatialVariance = max(neighbourhood - neighbourhood * neighbourhood, 0.0);
@@ -357,12 +355,10 @@ void main()
     // **Selected and not branched around**: every lane runs the history, and one no source lights
     // stores nought and says so. Measured against the branch on the default suite, three alternated
     // rounds: the shadow zone's median 0.236 ms became 0.232 on the ship, and 0.288 became 0.281
-    // in the guild. The mean at random, since the first level filters it into the history.
-    uint rounding = seededKey(
-        pixelKey(uvec2(at)) + (temporal.mField == SHADOW_FIELD_SKY ? SEED_SKY_SHADOW_ROUNDING : SEED_LAMP_SHADOW_ROUNDING),
-        frame.mFrame);
+    // in the guild. Every store at random, since the first level filters the mean into the history
+    // and the next frame's update reads the moments back.
     RTX_STORE_WORDS(reprojected, at,
         uvec4(packShadowWord(receiver ? vec2(blended, variance) : vec2(0.0, SHADOW_NO_RECEIVER), randomWord(rounding)),
             0u, 0u, 0u))
-    RTX_STORE_COUNTED(moments, at, receiver ? vec4(momentsNow, 0.0) : vec4(0.0))
+    RTX_STORE_WORDS(moments, at, uvec4(packShadowMoments(receiver ? momentsNow : vec3(0.0), rounding), 0u, 0u))
 }

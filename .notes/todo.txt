@@ -1,1 +1,2 @@
 disk writes
+remove gamma

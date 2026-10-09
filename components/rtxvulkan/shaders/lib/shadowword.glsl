@@ -2,7 +2,8 @@
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SHADOWWORD_GLSL
 
 // A shadow field's mean and variance in one word, `SHADOW_REPROJECTED`: the mean, which is in
-// `[0, 1]`, as a sixteen-bit unorm in the low half, and the variance as a half in the high half.
+// `[0, 1]`, as a sixteen-bit unorm in the low half, and the variance as a half in the high half. And
+// its moments in two, `SHADOW_MOMENTS`, with the update that makes them.
 //
 // **The mean rounded by the shader, and at random where a blend reads it back**, for the reason
 // `halfround.glsl` gives: a running mean rounded to the nearest step stops anywhere within half a
@@ -20,8 +21,11 @@
 // its own from the moments, so a rounding of it never builds. `SHADOW_NO_RECEIVER` is a half
 // exactly.
 
+#include "shared/shadow.h"
+
 #include "census.glsl"
 #include "halfround.glsl"
+#include "hash.glsl"
 
 /// What a unorm's step is multiplied back by, 2^-16 + 2^-32: 1/65535 rounded to a float, and so
 /// the product that lands on 1 from 65535, since that product is `1 - 2^-32`. Nought and one come
@@ -70,6 +74,53 @@ uint packShadowWord(vec2 value, uint word)
 vec2 unpackShadowWord(uint word)
 {
     return vec2(float(word & 0xffffu) * UNORM16_STEP, unpackHalf2x16(word >> 16u).x);
+}
+
+/// A field's moments, the SDK's three: the mean of the bits, the sum of their squared deviations
+/// from it, and how many frames they count. And the variance this frame's update made of them.
+struct ShadowMoments
+{
+    vec3 mMoments;
+    float mVariance;
+};
+
+/// `previous` with this frame's bit `current` counted in: Welford's update, which is the SDK's, up to
+/// `SHADOW_MOMENT_FRAMES`, and past it the same mean and sum over that many frames, the earlier ones'
+/// sum scaled to the share the mean's weight leaves them. **So both become running means over the
+/// cap's frames**, where Welford's sum grew with every frame and its count without end.
+///
+/// **The variance never past one, which is the SDK's own answer for a history of one sample**, and
+/// more than a bit's variance can be: the count is damped for a history that stood off, so
+/// `samples - 1` falls toward nought while the sum stays, and a variance of a million passed what
+/// the filter's halves hold. Its infinity over its own square was a NaN at every level of the filter
+/// after it, at every place `check` visits.
+ShadowMoments updatedShadowMoments(vec3 previous, float current)
+{
+    const float samples = min(previous.z + 1.0, SHADOW_MOMENT_FRAMES);
+    const float kept = previous.z > SHADOW_MOMENT_FRAMES - 1.0 ? (SHADOW_MOMENT_FRAMES - 1.0) / previous.z : 1.0;
+    const float mean = previous.x + (current - previous.x) / samples;
+    const float deviations = previous.y * kept + (current - previous.x) * (current - mean);
+    const float variance = samples > 1.0 ? min(deviations / (samples - 1.0), 1.0) : 1.0;
+    return ShadowMoments(vec3(mean, deviations, samples), variance);
+}
+
+/// `moments` in two words: the mean as a unorm in the first's low half and the sum as a half in its
+/// high half, and the count as a half in the second's low half. **Each rounded at random by a draw
+/// of its own from `draws`**, since the next frame's update reads all three back. A half's steps
+/// stand in proportion to what it holds, so the sum needs no scale to keep its precision, however
+/// few frames it counts; the cap holds the count, and the sum wherever the count reaches it, far
+/// under the largest half, and a sum a damped count left larger reads a variance of one anyway.
+uvec2 packShadowMoments(vec3 moments, inout uint draws)
+{
+    const uint mean = roundedToUnorm16(moments.x, randomWord(draws));
+    const float deviations = roundedToHalf(moments.y, randomWord(draws));
+    const float samples = roundedToHalf(moments.z, randomWord(draws));
+    return uvec2(mean | (packHalf2x16(vec2(deviations, 0.0)) << 16u), packHalf2x16(vec2(samples, 0.0)));
+}
+
+vec3 unpackShadowMoments(uvec2 words)
+{
+    return vec3(float(words.x & 0xffffu) * UNORM16_STEP, unpackHalf2x16(words.x >> 16u).x, unpackHalf2x16(words.y).x);
 }
 
 #endif

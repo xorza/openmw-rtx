@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <random>
 #include <span>
 #include <vector>
@@ -24,6 +25,7 @@
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/shadow.h>
+#include <components/rtxvulkan/shaders/shared/shadowmoments.h>
 #include <components/rtxvulkan/shaders/shared/unormmean.h>
 #include <components/rtxvulkan/shaders/shared/unormround.h>
 
@@ -53,6 +55,34 @@ namespace Rtx
         {
             const double scaled = static_cast<double>(value) * 65535.0;
             return static_cast<std::uint32_t>(std::floor((scaled - std::floor(scaled)) * 0x1p24));
+        }
+
+        /// One lane's moments after a run of bits, by `updatedShadowMoments`' rule worked in doubles
+        /// with the count capped at `cap`, and the variance the last frame made.
+        struct Moments
+        {
+            double mMean = 0.0;
+            double mDeviations = 0.0;
+            double mCount = 0.0;
+            double mVariance = 0.0;
+        };
+
+        Moments momentsAfter(const std::vector<std::uint32_t>& bits, const std::vector<float>& damping,
+            std::uint32_t lanes, std::uint32_t lane, double cap)
+        {
+            Moments moments;
+            for (std::size_t frame = 0; frame < damping.size(); ++frame)
+            {
+                const double current = bits[frame * lanes + lane];
+                const double samples = std::min(moments.mCount + 1.0, cap);
+                const double kept = moments.mCount > cap - 1.0 ? (cap - 1.0) / moments.mCount : 1.0;
+                const double mean = moments.mMean + (current - moments.mMean) / samples;
+                moments.mDeviations = moments.mDeviations * kept + (current - moments.mMean) * (current - mean);
+                moments.mMean = mean;
+                moments.mVariance = samples > 1.0 ? std::min(moments.mDeviations / (samples - 1.0), 1.0) : 1.0;
+                moments.mCount = samples * static_cast<double>(damping[frame]);
+            }
+            return moments;
         }
 
         constexpr std::array<VkDescriptorSetLayoutBinding, 6> sRoundBindings{
@@ -131,6 +161,53 @@ namespace Rtx
                     .mVariances = std::vector<float>(variancesOut, variancesOut + count),
                     .mNearest = std::vector<float>(nearestOut, nearestOut + count),
                 };
+            }
+
+            /// Each lane's moments after `damping.size()` frames of its `bits`, kept as they are or
+            /// packed and read back each frame (`ShadowMomentsProbeConstants`).
+            std::vector<float> momentsOf(const std::vector<std::uint32_t>& bits, const std::vector<float>& damping,
+                std::uint32_t lanes, bool packed)
+            {
+                const Device& device = getDevice();
+                constexpr std::array<VkDescriptorSetLayoutBinding, 3> bindings{
+                    VkDescriptorSetLayoutBinding{ Shaders::SHADOW_MOMENTS_PROBE_BIND_BITS,
+                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                    VkDescriptorSetLayoutBinding{ Shaders::SHADOW_MOMENTS_PROBE_BIND_DAMPING,
+                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                    VkDescriptorSetLayoutBinding{ Shaders::SHADOW_MOMENTS_PROBE_BIND_MOMENTS,
+                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                };
+                const ComputePipeline<Shaders::ShadowMomentsProbeConstants> pipeline(
+                    device, bindings, {}, "shadowmoments.comp.spv", "shadow moments");
+
+                Buffer bitsIn = Buffer::hostWritten(device, bits.size() * sizeof(std::uint32_t),
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments bits");
+                bitsIn.write(std::span<const std::uint32_t>(bits));
+                Buffer dampingIn = Buffer::hostWritten(device, damping.size() * sizeof(float),
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments damping");
+                dampingIn.write(std::span<const float>(damping));
+                const Buffer out = Buffer::readBack(
+                    device, lanes * 4 * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments");
+
+                DescriptorWrites writes(pipeline);
+                writes.buffer(Shaders::SHADOW_MOMENTS_PROBE_BIND_BITS,
+                    VkDescriptorBufferInfo{ bitsIn.getHandle(), 0, VK_WHOLE_SIZE });
+                writes.buffer(Shaders::SHADOW_MOMENTS_PROBE_BIND_DAMPING,
+                    VkDescriptorBufferInfo{ dampingIn.getHandle(), 0, VK_WHOLE_SIZE });
+                writes.buffer(Shaders::SHADOW_MOMENTS_PROBE_BIND_MOMENTS,
+                    VkDescriptorBufferInfo{ out.getHandle(), 0, VK_WHOLE_SIZE });
+
+                getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    dispatch(commands, pipeline, writes,
+                        Shaders::ShadowMomentsProbeConstants{ .mLanes = lanes,
+                            .mFrames = static_cast<std::uint32_t>(damping.size()),
+                            .mPacked = packed ? 1u : 0u },
+                        Groups::along(lanes, Shaders::SHADOW_MOMENTS_PROBE_WORKGROUP));
+                    handOver(commands, Use::sBufferComputeWrite, Use::sBufferHostRead);
+                });
+
+                const auto* values = static_cast<const float*>(out.map());
+                return std::vector<float>(values, values + lanes * 4);
             }
 
             /// The words of `count` running means kept as a shadow field's are, each blended toward
@@ -273,6 +350,73 @@ namespace Rtx
             for (const std::uint32_t word : settle(target, kept, true, frames, count))
                 sum += static_cast<double>(word & 0xffffu) * static_cast<double>(sStep);
             EXPECT_NEAR(sum / count, static_cast<double>(target), 2e-6) << "a mean rounded at random settled elsewhere";
+        }
+
+        /// **A field's moments are Welford's under the cap and running means past it, and their
+        /// packed store moves neither.** 4096 lanes, each drawing bits at a chance of its own from
+        /// 0.05 to 0.95, 400 frames, the count damped to 0.3 of itself at frame 200 as a history that
+        /// stood off is (`shadowtiles.comp`).
+        ///
+        /// - **Kept as they are**, each lane's moments are the rule worked in doubles
+        ///   (`momentsAfter`), to the float's rounding, and its count stands at the cap, 128: the
+        ///   damping took it to 38.4, and the 199 frames after count it back past the cap. **Without
+        ///   the cap the sum holds every frame's**: about 400 × 0.1825 a lane, the mean of `p(1 - p)`
+        ///   over the chances, where the capped one settles toward 128 × 0.1825 and stands near 30
+        ///   after the damping, so the lanes' sums stand 2.4 times apart.
+        /// - **Packed and read back each frame**, every store rounded at random, the lanes' means of
+        ///   the mean, the sum and the variance stand where the unpacked ones do: a mean's store adds
+        ///   noise of half a unorm step, 7.6 × 10^-6, and the sum's half of a half's step, 2^-12 of
+        ///   it, each held over about 128 frames of the running mean; averaged over 4096 lanes, the
+        ///   bounds below are more than five deviations wide. Each count is 128 either way, which a
+        ///   half holds exactly.
+        TEST_F(RtxShadowWordTest, aFieldsMomentsAreWelfordsUnderTheCapAndRunningMeansPastIt)
+        {
+            constexpr std::uint32_t lanes = 4096;
+            constexpr std::uint32_t frames = 400;
+            ASSERT_EQ(Shaders::SHADOW_MOMENT_FRAMES, 128.0f);
+
+            std::vector<float> damping(frames, 1.0f);
+            damping[200] = 0.3f;
+            std::vector<std::uint32_t> bits(static_cast<std::size_t>(lanes) * frames);
+            std::mt19937 draws(20261010u);
+            std::uniform_real_distribution<double> inUnit(0.0, 1.0);
+            std::vector<double> chances(lanes);
+            for (double& chance : chances)
+                chance = 0.05 + 0.9 * inUnit(draws);
+            for (std::uint32_t frame = 0; frame < frames; ++frame)
+                for (std::uint32_t lane = 0; lane < lanes; ++lane)
+                    bits[static_cast<std::size_t>(frame) * lanes + lane] = inUnit(draws) < chances[lane] ? 1u : 0u;
+
+            const std::vector<float> unpacked = momentsOf(bits, damping, lanes, false);
+            const std::vector<float> packed = momentsOf(bits, damping, lanes, true);
+
+            double cappedSum = 0.0;
+            double uncappedSum = 0.0;
+            double meanApart = 0.0;
+            double sumApart = 0.0;
+            double varianceApart = 0.0;
+            for (std::uint32_t lane = 0; lane < lanes; ++lane)
+            {
+                const Moments expected = momentsAfter(bits, damping, lanes, lane, Shaders::SHADOW_MOMENT_FRAMES);
+                const float* kept = &unpacked[lane * 4];
+                EXPECT_NEAR(kept[0], expected.mMean, 1e-5) << "lane " << lane;
+                EXPECT_NEAR(kept[1], expected.mDeviations, 1e-4 * std::max(1.0, expected.mDeviations))
+                    << "lane " << lane;
+                EXPECT_EQ(kept[2], 128.0f) << "lane " << lane;
+                EXPECT_NEAR(kept[3], expected.mVariance, 1e-5) << "lane " << lane;
+                EXPECT_EQ(packed[lane * 4 + 2], 128.0f) << "lane " << lane;
+
+                cappedSum += expected.mDeviations;
+                uncappedSum
+                    += momentsAfter(bits, damping, lanes, lane, std::numeric_limits<double>::infinity()).mDeviations;
+                meanApart += static_cast<double>(packed[lane * 4]) - static_cast<double>(kept[0]);
+                sumApart += static_cast<double>(packed[lane * 4 + 1]) - static_cast<double>(kept[1]);
+                varianceApart += static_cast<double>(packed[lane * 4 + 3]) - static_cast<double>(kept[3]);
+            }
+            EXPECT_GT(uncappedSum, 2.0 * cappedSum) << "the cap moved nothing a test can see";
+            EXPECT_NEAR(meanApart / lanes, 0.0, 1e-5) << "the packed mean drifted";
+            EXPECT_NEAR(sumApart / lanes, 0.0, 5e-3) << "the packed sum drifted";
+            EXPECT_NEAR(varianceApart / lanes, 0.0, 1e-4) << "the packed variance drifted";
         }
     }
 }
