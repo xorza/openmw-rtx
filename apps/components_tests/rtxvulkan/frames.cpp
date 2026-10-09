@@ -561,6 +561,38 @@ namespace Rtx
                 << "the reserve and what a summing frame holds differ";
         }
 
+        /// **A world built again stands every body in the pose it held**, though nothing moved since:
+        /// the walk names a pose only where it changed (`MeshTable::getDeformed`), and a hand-over
+        /// clears what arrived, so a still body is on no list when a change of mode lets the world go
+        /// and the uploader builds it again. The wall posed a thousand units behind the eye, then the
+        /// lists cleared as the uploader clears them and the reserve moved: a body built in its bind
+        /// pose stands two hundred units ahead and fills the frame. Two frames, one on each copy of
+        /// the poses, since each copy is posed by the placement that writes it.
+        TEST_F(RtxFramesTest, aWorldBuiltAgainStandsEveryBodyInThePoseItHeld)
+        {
+            deformTo(-1000.0f);
+            mRenderer.renderFrame(ahead(), FrameOptions{});
+            ASSERT_EQ(finishedHits(), 0u) << "the pose did not carry the wall away, so this proves nothing";
+
+            mScene.clearPlacement();
+            mScene.clearArrivals();
+            const Upscale held = mRenderer.getProfile().mUpscale;
+            mRenderer.setUpscale(held == Upscale::Native ? Upscale::Off : Upscale::Native);
+            ASSERT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, 0u)
+                << "the reserve did not move, so nothing was built again";
+            mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
+
+            for (int copy = 0; copy < 2; ++copy)
+            {
+                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+                EXPECT_EQ(finishedHits(), 0u) << "copy " << copy << " stood the body in its bind pose";
+            }
+
+            // The renderer every test shares, given back in the mode it was found in.
+            mRenderer.setUpscale(held);
+        }
+
         /// A refitted structure is built whole again on a rota: the posed body built longest ago,
         /// on every placement that poses anything, one a placement, and never one built whole on
         /// its own arrival.
