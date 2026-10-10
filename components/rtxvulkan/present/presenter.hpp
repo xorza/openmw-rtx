@@ -42,7 +42,20 @@ namespace Rtx
         /// image where `Misc::present` places it, black beside it, and queues it. A surface that no
         /// longer matches the window is not an error: the swapchain is marked stale, the one record
         /// of it, and `wantsResize` answers yes.
-        void present(const Image& frame);
+        ///
+        /// **`first` records into the blit's own command buffer, ahead of the blit**: what draws
+        /// `frame` goes in the one submit with what shows it, and not in a submit and a head barrier
+        /// of its own. It is handed the open buffer, and called only where an image was taken.
+        template <class First>
+        void present(const Image& frame, First&& first)
+        {
+            std::optional<Taken> taken = take();
+            if (!taken.has_value())
+                return;
+
+            first(taken->mRecording.get());
+            hand(std::move(*taken), frame);
+        }
 
         /// Whether the swapchain has to be remade to show `extent`. Split from `rebuild` because a
         /// rebuild frees the command buffers a handed-over batch may be sitting beside, so the
@@ -72,6 +85,21 @@ namespace Rtx
         }
 
     private:
+        /// A swapchain image taken for a present, and the blit's command buffer open on it.
+        struct Taken
+        {
+            Recording mRecording;
+            std::uint32_t mIndex;
+            std::uint32_t mAcquisition;
+        };
+
+        /// Takes the next acquire slot and swapchain image once both are free, and opens the image's
+        /// command buffer; nothing where the swapchain no longer matches the window.
+        std::optional<Taken> take();
+
+        /// Records the blit of `frame` into what `take` opened, submits it and queues the present.
+        void hand(Taken held, const Image& frame);
+
         /// Two semaphores and one command buffer per swapchain image, and a present fence where the
         /// device offers one, for the swapchain as it now stands. `releaseImageSync` comes first.
         void makeImageSync();

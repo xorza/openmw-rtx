@@ -19,9 +19,9 @@ namespace Rtx
     class Image;
 
     /// The interface over the frame: its pass, the textures it samples, and a ring of its own beside
-    /// the frame's. Drawn after the frame is submitted and waited for by nobody but the draw two
-    /// behind it, because a menu is drawn on frames with no world and the frame has nothing to gain
-    /// by being held open for it.
+    /// the frame's. Taken after the frame is submitted, recorded into the present's submit or one of
+    /// its own, and waited for by nobody but the draw two behind it, because a menu is drawn on
+    /// frames with no world and the frame has nothing to gain by being held open for it.
     class GuiDrawer
     {
     public:
@@ -30,11 +30,21 @@ namespace Rtx
         GuiTextures& getTextures() { return mTextures; }
         const GuiTextures& getTextures() const { return mTextures; }
 
-        /// Draws `picture` into `shown` whole, and `batches` of `vertices` over it. Both are taken
-        /// from `PresentTarget::sResting` and left there, `shown` rewritten whole. Its own submit,
-        /// and not waited for.
-        void draw(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches, const Image& picture,
-            const Image& shown);
+        /// Takes `batches` of `vertices` for the next draw, replacing a draw taken and never
+        /// recorded: a frame that was not shown.
+        void prepare(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches);
+
+        /// Whether a draw was taken and not yet recorded.
+        bool isPrepared() const { return mPrepared; }
+
+        /// Records the draw taken into `commands`: `picture` into `shown` whole, and the batches
+        /// over it. Both are taken from `PresentTarget::sResting` and left there, `shown` rewritten
+        /// whole.
+        void record(VkCommandBuffer commands, const Image& picture, const Image& shown);
+
+        /// `record`, into a submit of its own and not waited for, where nothing else is about to
+        /// submit it.
+        void submit(const Image& picture, const Image& shown);
 
     private:
         /// What one draw records into and draws out of. The vertices carry the submit that bound
@@ -48,6 +58,9 @@ namespace Rtx
             GrowableBuffer mVertices;
         };
 
+        /// The slot the next draw takes.
+        Slot& current() { return mSlots.at(FrameSlot{ static_cast<std::uint32_t>(mDrawn % sFrameSlots) }); }
+
         const Device& mDevice;
         GuiPass mPass;
         GuiTextures mTextures;
@@ -60,5 +73,7 @@ namespace Rtx
 
         /// How many draws there were, which picks the slot: the interface runs on its own count.
         std::uint64_t mDrawn = 0;
+
+        bool mPrepared = false;
     };
 }

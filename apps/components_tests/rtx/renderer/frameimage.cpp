@@ -125,12 +125,25 @@ namespace Rtx
             ASSERT_NE(second, nullptr);
             EXPECT_EQ(second[2], 0) << "blue, and not the alpha that stood after it";
 
-            // And at the frame's own size, where four channels take the row-copy path and three
-            // cannot.
-            const osg::ref_ptr<osg::Image> whole = frameImage(frame, 4, 4, RowOrder::TopFirst, Channels::Rgb);
-            ASSERT_NE(whole, nullptr);
-            EXPECT_EQ(whole->getRowSizeInBytes(), 12u);
-            EXPECT_EQ(at(*whole, 3, 3), (std::pair<std::uint8_t, std::uint8_t>{ 30, 30 }));
+            // And at the frame's own size, every texel as it was with the alpha dropped, either way
+            // up: column `x` and row `y` hold ten times each, and blue is nought.
+            for (const RowOrder order : { RowOrder::TopFirst, RowOrder::BottomFirst })
+            {
+                const osg::ref_ptr<osg::Image> whole = frameImage(frame, 4, 4, order, Channels::Rgb);
+                ASSERT_NE(whole, nullptr);
+                EXPECT_EQ(whole->getPixelFormat(), GL_RGB);
+                EXPECT_EQ(whole->getRowSizeInBytes(), 12u);
+                for (int y = 0; y < 4; ++y)
+                    for (int x = 0; x < 4; ++x)
+                    {
+                        const int row = order == RowOrder::BottomFirst ? 3 - y : y;
+                        EXPECT_EQ(at(*whole, x, y),
+                            (std::pair<std::uint8_t, std::uint8_t>{
+                                static_cast<std::uint8_t>(10 * x), static_cast<std::uint8_t>(10 * row) }))
+                            << "texel " << x << ", " << y;
+                        EXPECT_EQ(whole->data(0, y)[x * 3 + 2], 0) << "blue of texel " << x << ", " << y;
+                    }
+            }
 
             // **A frame of another aspect is cut to the middle first** (`Misc::cropToAspect`): four
             // by two asked as two by two keeps columns one and two, which a pixel each takes whole.
