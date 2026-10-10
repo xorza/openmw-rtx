@@ -93,9 +93,12 @@ namespace Rtx::Shaders
     /// specialization constant, and its taps stand `1 << level` pixels apart.
     const uint SHADOW_FILTER_LEVELS = 3;
 
-    /// The filter module's specialization constants, by `constant_id`: the level alone.
+    /// The filter module's specialization constants, by `constant_id`: its level, and the fields
+    /// it filters, a bit a field at `SHADOW_FIELD_*` — the sky's, the lamps' or both, which one
+    /// dispatch filters over one read of the surface.
     const uint SHADOW_SPEC_LEVEL = 0u;
-    const uint SHADOW_SPEC_COUNT = 1u;
+    const uint SHADOW_SPEC_FIELDS = 1u;
+    const uint SHADOW_SPEC_COUNT = 2u;
 
     /// Where `shadowtiles.comp` binds what it reads and writes in set 0, and how many there are.
     const uint SHADOW_TILES_BIND_SURFACE = 0;
@@ -110,12 +113,14 @@ namespace Rtx::Shaders
     const uint SHADOW_TILES_BIND_PENUMBRA_TILES = 9;
     const uint SHADOW_TILES_BINDINGS = 10;
 
-    /// Where `shadowfilter.comp` binds what it reads and writes in set 0, and how many there are.
+    /// Where `shadowfilter.comp` binds what it reads and writes in set 0, and how many there are:
+    /// the surface, and each field's tiles, source and target, the sky's at the binding named and
+    /// the lamps' at the one after it (`SHADOW_FIELD_*`).
     const uint SHADOW_FILTER_BIND_SURFACE = 0;
     const uint SHADOW_FILTER_BIND_TILES = 1;
-    const uint SHADOW_FILTER_BIND_SOURCE = 2;
-    const uint SHADOW_FILTER_BIND_FILTERED = 3;
-    const uint SHADOW_FILTER_BINDINGS = 4;
+    const uint SHADOW_FILTER_BIND_SOURCE = 3;
+    const uint SHADOW_FILTER_BIND_FILTERED = 5;
+    const uint SHADOW_FILTER_BINDINGS = 7;
 
     /// The variance a pixel that receives nothing is written with, by the temporal pass and by every
     /// level after it: below every variance there is, so the levels know such a pixel from its own
@@ -138,11 +143,10 @@ namespace Rtx::Shaders
     /// fields would round a pixel's sky and lamps the same way, and their errors would add.
     const uint SHADOW_FIELD_SKY = 0u;
     const uint SHADOW_FIELD_LAMPS = 1u;
+    const uint SHADOW_FIELD_COUNT = 2u;
 
-    /// What the temporal pass reads that is not an image: the accumulator's record — its reset is
-    /// the SDK's `IsFirstFrame`, and its distance scale the one the accumulator's surface history,
-    /// which this pass reads, was written at — and the field, `SHADOW_FIELD_SKY` or
-    /// `SHADOW_FIELD_LAMPS`.
+    /// What the temporal pass reads that is not an image: the accumulator's record, whose reset is
+    /// the SDK's `IsFirstFrame`, and the field, `SHADOW_FIELD_SKY` or `SHADOW_FIELD_LAMPS`.
     struct ShadowTilesConstants
     {
         HistoryConstants mHistory;
@@ -151,12 +155,11 @@ namespace Rtx::Shaders
 
     /// What a filter level reads that is not an image: the two eyes a pixel's ray can have left, so
     /// its position is rebuilt through the one that cast it, as the wavelet rebuilds it; and the
-    /// frame and the field, which the first level's rounding is seeded by.
+    /// frame, which the first level's rounding is seeded by.
     struct ShadowFilterConstants
     {
         Eyes mEyes;
         uint mFrame;
-        uint mField;
     };
 
     /// Whether a field's source lights a pixel at all: a surface stands there, `normalCode` its
@@ -193,8 +196,8 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(ShadowMaskConstants) == 8, "ShadowMaskConstants must be scalar-packed on every side");
-    static_assert(sizeof(ShadowTilesConstants) == 232, "ShadowTilesConstants must be scalar-packed on every side");
-    static_assert(sizeof(ShadowFilterConstants) == 160, "ShadowFilterConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowTilesConstants) == 224, "ShadowTilesConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowFilterConstants) == 156, "ShadowFilterConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

@@ -40,7 +40,6 @@
 // and a qualifier that differs from the image's format is undefined values over the whole image.
 
 #define ACCUMULATE_COLOUR ATROUS_CHANNEL
-#define ACCUMULATE_SURFACE STORAGE_RGBA16F
 #define ACCUMULATE_MOMENTS STORAGE_RG16F
 
 // **The fast means of the bounce and the fill in one texel of two words**, each in shared-exponent
@@ -64,15 +63,14 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_BIND_HISTORY_COLOUR = 3;
     const uint ACCUMULATE_BIND_HISTORY_SURFACE = 4;
     const uint ACCUMULATE_BIND_HISTORY_MOMENTS = 5;
-    const uint ACCUMULATE_BIND_SURFACE_OUT = 6;
-    const uint ACCUMULATE_BIND_MOMENTS_OUT = 7;
-    const uint ACCUMULATE_BIND_BLENDED_OUT = 8;
-    const uint ACCUMULATE_BIND_FILL = 9;
-    const uint ACCUMULATE_BIND_HISTORY_FILL = 10;
-    const uint ACCUMULATE_BIND_FILL_BLENDED_OUT = 11;
-    const uint ACCUMULATE_BIND_HISTORY_FAST = 12;
-    const uint ACCUMULATE_BIND_FAST_OUT = 13;
-    const uint ACCUMULATE_BINDINGS = 14;
+    const uint ACCUMULATE_BIND_MOMENTS_OUT = 6;
+    const uint ACCUMULATE_BIND_BLENDED_OUT = 7;
+    const uint ACCUMULATE_BIND_FILL = 8;
+    const uint ACCUMULATE_BIND_HISTORY_FILL = 9;
+    const uint ACCUMULATE_BIND_FILL_BLENDED_OUT = 10;
+    const uint ACCUMULATE_BIND_HISTORY_FAST = 11;
+    const uint ACCUMULATE_BIND_FAST_OUT = 12;
+    const uint ACCUMULATE_BINDINGS = 13;
 
     /// Threads along each edge of the accumulator's workgroup, and of the clamp's.
     const uint ACCUMULATE_WORKGROUP = 8;
@@ -173,23 +171,6 @@ namespace Rtx::Shaders
         /// through. Every pixel then starts its count again.
         uint mReset;
 
-        /// What a world distance is multiplied by before `surfaceOut` holds it, which is
-        /// `ACCUMULATE_DISTANCE_RANGE` over the frame's far plane.
-        ///
-        /// **Here rather than in `Camera`, because it is a storage scale and not a depth range.**
-        /// `camera.h` keeps `mFar` out on the grounds that a filter has no use for what a depth was
-        /// written against, and that still holds — what this pass needs is a number that keeps a
-        /// stored distance inside a half's proportional range, and it is only derived from the same
-        /// value.
-        float mDistanceScale;
-
-        /// What the distances the history holds were multiplied by when they were stored: the
-        /// frame's that wrote them, which a held distance is divided by (`DenoiseHistory::
-        /// exchangeDistanceScale`). **Not this frame's**: a far plane that moved between the two
-        /// frames scaled every held distance by the ratio, and the plane test refused or took the
-        /// whole history by it.
-        float mHeldDistanceScale;
-
         /// Where inside its pixel the previous frame sampled, `VisibilityConstants::mPreviousJitter`:
         /// what a history holding one frame's geometry was traced through, which a test that
         /// rebuilds the previous ray needs.
@@ -267,8 +248,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 228, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 232, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 220, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 224, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 160, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

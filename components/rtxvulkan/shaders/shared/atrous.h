@@ -46,6 +46,22 @@ namespace Rtx::Shaders
     const uint ATROUS_BIND_FAST = 5;
     const uint ATROUS_BINDINGS = 6;
 
+    /// Where `atrouscompose.comp` binds the composite's channels after the level's own, and how many
+    /// it binds in all: the frame it composes over, the albedos, the shadowed sources and what the
+    /// shadow denoiser made of them, the lobe and the layers' light with what puts each back.
+    const uint ATROUS_COMPOSE_BIND_DIRECT = 6;
+    const uint ATROUS_COMPOSE_BIND_ALBEDO = 7;
+    const uint ATROUS_COMPOSE_BIND_AMBIENT_ALBEDO = 8;
+    const uint ATROUS_COMPOSE_BIND_SHADOWED = 9;
+    const uint ATROUS_COMPOSE_BIND_LAMPED = 10;
+    const uint ATROUS_COMPOSE_BIND_SHADOW = 11;
+    const uint ATROUS_COMPOSE_BIND_LAMP_SHADOW = 12;
+    const uint ATROUS_COMPOSE_BIND_SPECULAR = 13;
+    const uint ATROUS_COMPOSE_BIND_SPECULAR_ALBEDO = 14;
+    const uint ATROUS_COMPOSE_BIND_PANE = 15;
+    const uint ATROUS_COMPOSE_BIND_PANE_ALBEDO = 16;
+    const uint ATROUS_COMPOSE_BINDINGS = 17;
+
     /// Where `atrous.comp`'s specialization constant sits: `ATROUS_WIDE`, true for the first level
     /// and false for every level after it.
     const uint ATROUS_SPEC_WIDE = 0u;
@@ -81,12 +97,17 @@ namespace Rtx::Shaders
         /// The frame's number, `VisibilityConstants::mFrame`, which a level whose step passes
         /// `ATROUS_JITTER_STEP` draws its taps' offset by.
         uint mFrame;
+
+        /// What the composing level composes by, `CompositeConstants::mShadowed` and `mLobed`, and
+        /// what no other level reads.
+        uint mShadowed RTX_ZERO;
+        uint mLobed RTX_ZERO;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(AtrousConstants) == 164, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 172, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

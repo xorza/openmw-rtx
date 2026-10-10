@@ -60,9 +60,8 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_SURFACE, GBUFFER_SURFACE) unifo
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_COLOUR, ACCUMULATE_COLOUR)
     uniform readonly image2D historyColour;
 
-/// The surface last frame's mean belongs to: its normal in `xyz` and its distance from the eye in
-/// `w`. Zero normal where nothing was accumulated.
-layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_SURFACE, ACCUMULATE_SURFACE)
+/// The surface last frame's mean belongs to: the frame before's `CHANNEL_SURFACE` (`GBuffer::getHeld`).
+layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_SURFACE, GBUFFER_SURFACE)
     uniform readonly image2D historySurface;
 
 /// The mean and the deviation of that mean's luminance (`ACCUMULATE_MOMENTS`). The variance goes to the
@@ -70,7 +69,6 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_SURFACE, ACCUMULATE_SUR
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_MOMENTS, ACCUMULATE_MOMENTS)
     uniform readonly image2D historyMoments;
 
-layout(set = SET_PASS, binding = ACCUMULATE_BIND_SURFACE_OUT, ACCUMULATE_SURFACE) uniform writeonly image2D surfaceOut;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_MOMENTS_OUT, ACCUMULATE_MOMENTS) uniform writeonly image2D momentsOut;
 
 /// This frame's bounce blended with the history in `rgb`, which is what the cascade reads. **Nought
@@ -220,7 +218,6 @@ void main()
         roundedToHalves(skyBounce, skyFill, rounding);
         RTX_STORE_COUNTED(blendedOut, at, skyBounce)
         RTX_STORE_COUNTED(fillBlendedOut, at, skyFill)
-        RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mHistory.mDistanceScale))
         RTX_STORE_COUNTED(momentsOut, at, vec4(0.0))
         RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u))
 
@@ -326,7 +323,6 @@ void main()
     roundedToHalves(bounceOut, fillOut, rounding);
     RTX_STORE_COUNTED(blendedOut, at, bounceOut)
     RTX_STORE_COUNTED(fillBlendedOut, at, fillOut)
-    RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mHistory.mDistanceScale))
     RTX_STORE_COUNTED(momentsOut, at, vec4(roundedToHalf(blendedMoments, rounding), 0.0, 0.0))
     RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u))
 }

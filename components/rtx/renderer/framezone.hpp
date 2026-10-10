@@ -34,11 +34,14 @@ namespace Rtx
         Puffs,
         Sprites,
         Shade,
-        Accumulate,
+        /// The denoisers before the wavelet, a zone a stage and not a family: their families read
+        /// nothing another writes, so a stage records a dispatch of each behind one barrier
+        /// (`DenoisePasses::record`). The temporal passes — the accumulator, the shadow masks, the
+        /// glossy and the pane filters; the clamps and the shadow tiles; and the shadow filter's
+        /// three levels.
+        Temporal,
         Clamp,
         Shadow,
-        Specular,
-        Pane,
 
         /// The wavelet, a zone a level (`AtrousPass`): the wide first level, which writes the history,
         /// and the narrow three, so a change to one is measured apart from the others.
@@ -84,11 +87,9 @@ namespace Rtx
         std::pair{ FrameZone::Puffs, std::string_view("puffs") },
         std::pair{ FrameZone::Sprites, std::string_view("sprites") },
         std::pair{ FrameZone::Shade, std::string_view("shade") },
-        std::pair{ FrameZone::Accumulate, std::string_view("accumulate") },
+        std::pair{ FrameZone::Temporal, std::string_view("temporal") },
         std::pair{ FrameZone::Clamp, std::string_view("clamp") },
         std::pair{ FrameZone::Shadow, std::string_view("shadow") },
-        std::pair{ FrameZone::Specular, std::string_view("specular") },
-        std::pair{ FrameZone::Pane, std::string_view("pane") },
         std::pair{ FrameZone::Filter0, std::string_view("filter0") },
         std::pair{ FrameZone::Filter1, std::string_view("filter1") },
         std::pair{ FrameZone::Filter2, std::string_view("filter2") },

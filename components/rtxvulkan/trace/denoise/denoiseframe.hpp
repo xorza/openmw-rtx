@@ -9,16 +9,8 @@ namespace Rtx
     /// What one frame hands every denoising pass beside the images.
     struct DenoiseFrame
     {
-        /// What the trace sampled: both eyes, the previous frame's basis, and the far plane.
+        /// What the trace sampled: both eyes and the previous frame's basis.
         const Shaders::VisibilityConstants& mSampled;
-
-        /// What a world distance is multiplied by before a surface history holds it —
-        /// `HistoryConstants::mDistanceScale` says why — worked out once for the frame.
-        float mDistanceScale;
-
-        /// What the distances the histories hold were stored at — `HistoryConstants::
-        /// mHeldDistanceScale`.
-        float mHeldDistanceScale;
 
         /// `Reconstruction::mFilters`: how the bounce is filtered past the wavelet.
         FilterSwitches mFilters;
@@ -30,8 +22,6 @@ namespace Rtx
             return Shaders::HistoryConstants{
                 .mEyes = mSampled.mEyes,
                 .mReset = fresh ? 1u : 0u,
-                .mDistanceScale = mDistanceScale,
-                .mHeldDistanceScale = mHeldDistanceScale,
                 .mPreviousJitter = mSampled.mPreviousJitter,
                 .mPrevious = mSampled.mPrevious,
                 .mArmsSpread = mSampled.mArmsSpread,

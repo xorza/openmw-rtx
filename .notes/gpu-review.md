@@ -21,7 +21,7 @@ When two reviewers found the same thing, the finding has both IDs.
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
 | 1 | G-buffer and fill diet | 1 | A payload sized to the radiance width, which needs both vendors to settle |
-| 2 | Denoiser pass graph | 7 | About 13 queue drains where 5 would do, a composite round trip, transients that could share memory |
+| 2 | Denoiser pass graph | 1 | Transients that could share memory, which needs an arena the tree does not have |
 | 3 | Sprites and fog | 5 | Worst-frame sprite walks, a serial shade chain, 32F fog history |
 | 4 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
 | 5 | Display and presentation | 6 | Two extra full-frame copies and submits, input latency, bloom order |
@@ -30,7 +30,7 @@ When two reviewers found the same thing, the finding has both IDs.
 | 8 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
 | 9 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
 
-37 findings are open: 0 high, 7 medium, 30 low. No reviewer found a GLSL/C++ layout,
+31 findings are open: 0 high, 5 medium, 26 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
@@ -55,35 +55,9 @@ references run at `RadianceWidth::Summed`. A played frame stores them through RG
 
 ## Batch 2 — Denoiser pass graph
 
-All of these items touch `trace/denoise/*` and the denoise shaders, so do them in one go. Measure
-the `denoise` zones from `--json`: medians and p99. When the families overlap, the per-family zones
-merge, so add per-stage timestamps before the change.
-
-### DENOISE-2 / XCUT-2: The independent denoiser families are recorded one after another, so their internal barriers drain the queue about 13 times. The sky and lamp shadow fields repeat all their geometry work
-perf · M · conf M — `trace/denoise/denoisepasses.cpp:79-115`, `trace/denoise/shadowpass.cpp:41-47,79-134`, `trace/denoise/historyclamppass.cpp:34-46`, `trace/wavepass.cpp:131-133` (the pattern done right)
-
-Order today: accumulate │ clamp; sky mask │ tiles │ f0 │ f1 │ f2; lamp mask │ … │ f2; specular │
-clamp; pane │ clamp; `ready`. Each `│` is a stage-wide COMPUTE→COMPUTE barrier, so it waits on every
-earlier dispatch. The sky field, the lamp field, the glossy filter and the pane filter read nothing
-that the others write (the comment at `denoisepasses.cpp:100-102` says so). The two shadow fields
-also read the same surface square, rebuild the same positions and compute the same
-`coplanarWeight`/`facingWeights`. Only the bits, the brightness test and the tile class differ.
-
-**Direction:** record in stages with one barrier each:
-{accumulate, both masks, specular, pane} │ {clamp, both tiles, glossy clamp, pane clamp} │ {both f0} │ {both f1} │ {both f2} │ wavelet.
-Fuse the two shadow fields into one pipeline per step, with a specialization constant for the field
-set. That gives about 5 drains instead of 13, and half the shadow dispatches.
-
-### DENOISE-3 / XCUT-4: The composite is a separate full-resolution pass that reads back what the last wavelet level just wrote
-perf · M · conf M — `trace/denoise/atrouspass.cpp:109-165`, `trace/tracechain.cpp:199-224`, `shaders/trace/denoise/composite.comp`
-
-Only the composite reads `Denoised::mIndirect`/`mFill`, at the same pixel. Every other composite
-input is final before the cascade (`ready`). That is 32 B/px plus one dispatch and one drain per
-denoised frame: about 66 MB at 1080p and 236 MB at 5120×1440.
-
-**Direction:** give the last narrow level a specialization that composes and stores `direct` (about
-20 push descriptors, under 32). Keep `composite.comp` for unfiltered and summed frames. Measure the
-register pressure first.
+The pass graph is done: the families record stage by stage behind one barrier each, the shadow filter
+runs both fields in one dispatch a level, the last wavelet level composes the frame, and the temporal
+filters read the frame before's surface channels. What is left is memory, and a design of its own.
 
 ### DENOISE-8 / XCUT-11: Transients with lifetimes that do not overlap each hold their own memory for the life of the chain
 perf · L · conf M — `trace/denoise/denoisehistory.cpp:98-167`, `trace/gbuffer.cpp:66-86`, `upscale/upscaler.cpp:321-360`, `display/bloompass.cpp:75-88`
@@ -91,51 +65,14 @@ perf · L · conf M — `trace/denoise/denoisehistory.cpp:98-167`, `trace/gbuffe
 The denoiser keeps about 209 B/px. `FastBlended`, the shadow scratches and the two `*FastBlended`
 are dead before the cascade starts, and `Narrow`/`FillNarrow` live only inside it. After the
 composite, 12 G-buffer channels (96 B/px) have no reader, while the upscaler's transients (about
-16 B/px) and the bloom pyramid each have their own allocation. The upscaler already aliases its
-`Intermediate`, so the technique is already in the tree.
+16 B/px) and the bloom pyramid each have their own allocation. **No memory aliasing exists in the
+tree**: the upscaler's `Intermediate` is several of the SDK's roles on one image, not several images
+on one allocation, so this needs an arena images bind into without owning it.
 
 **Direction:** alias the cascade's scratch onto the pre-cascade scratch, and the upscaler's and bloom's
 transients onto the channels that are dead after the composite. Turn the aliasing off for runs that
-read a channel back after the composite. **Interaction:** DENOISE-2's field fusion removes the serial
-reuse of the shadow scratch, so plan the aliasing after the fusion.
-
-### DENOISE-7: The held surfaces are a re-encoding of last frame's surface channels, written every frame, and they lose the arm flag
-simplify · L · conf M — `shaders/trace/denoise/accumulate.comp:223,329`, `shaders/trace/denoise/pane.comp:115`, `shaders/lib/surfacematch.glsl:21-25,154,174`
-
-`heldSurfaceOf` is a pure function of `CHANNEL_SURFACE` and a constant, written whole by two passes
-every frame (2 × 8 B/px written, 32 B/px allocated). Its `abs` drops the arm flag that
-`packSurfaceDistance` keeps in the sign, so `heldSurfaceMatches` rebuilds every history texel through
-the centre pixel's eye.
-
-**Direction:** keep the previous frame's surface channels instead (paired in `GBuffer`), and decode
-them with `unpackSurfaceNormal`. That restores the flag and removes DENOISE-6. Weigh it against the
-octahedral decode at 4 taps in each of the four temporal passes.
-
-### DENOISE-10: The same texel is loaded twice in one invocation in several passes
-perf · L · conf L — `specular.comp:143-150`, `pane.comp:94-100`, `shadowtiles.comp:324-333`, `accumulateclamp.comp:143,159,265`, `atrous.comp:265,289,313,331`
-
-The `holds` predicate of `RTX_HISTORY_SHARES` loads each tap, and the sum loop loads it again. The
-clamp loads `surfaceChannel` three times. The narrow wavelet fetches the centre as the centre and
-again as tap (0,0).
-
-**Direction:** keep the first load in a local. Check the ISA first, because the driver may already merge them.
-
-### DENOISE-5: A dead barrier entry, and two wrong comments: the cascade reads no moments and no puffs
-simplify · L · conf H — `trace/denoise/denoisepasses.cpp:110-115`, `trace/denoise/atrouspass.hpp:43-44`, `shaders/shared/atrous.h:41-47`
-
-`ready` transitions `mMoments` "for the history fix", but `atrous.comp` binds no moments image (the
-count comes from `fillSource.a`). `AtrousPass::record`'s doc says that it reads the puffs, but it binds none.
-
-**Direction:** remove `mMoments` from the list and correct both comments.
-
-### DENOISE-9: The stated reason that narrow wavelet levels get no shared-memory tile is wrong for steps 2 and 4
-robustness · L · conf M — `trace/denoise/atrouspass.cpp:66-69`
-
-"At their strides no texel is reached twice." An 8×8 group's 3×3 taps read each texel 4× at step 2
-and 2.25× at step 4. The measurement can still be right (L1 catches the reuse), but the wrong reason
-hides an untried variant.
-
-**Direction:** correct the comment. Measure a 12×12 tile for step 2 only, once.
+read a channel back after the composite. Since batch 2 the held surfaces are gone (DENOISE-7) and
+the composite's two levels with them (DENOISE-3), so recount what is left before sizing an arena.
 
 ---
 
@@ -527,6 +464,27 @@ The reviewers checked these items and found no fault:
   3.58/3.56 at dawn, 1.82/1.87 against 1.85/1.84 at balmora-mages-guild — inside a leg's spread.
   16 B/px is about 15 MB a frame there, some 0.03 ms. Every place of the suite has a puff, so the
   composite's skip did not apply.
+
+- **The denoiser's pass graph, measured** (DENOISE-2/XCUT-2, DENOISE-3/XCUT-4, DENOISE-5, DENOISE-7,
+  DENOISE-9; default suite, release, two legs each, medians). The families recorded stage by stage,
+  six drains where thirteen were: the stages before the wavelet 0.650–0.679 to 0.639–0.648 ms on the
+  ship, 0.750 to 0.732–0.738 at dawn, level in the guild — the drains were short. The shadow filter
+  over both fields in one dispatch a level: 0.231 to 0.219 ms at dawn, where both run, level
+  elsewhere; the mask and the tiles left a dispatch a field, for a gain of the same size against
+  doubling the tiles' state. The composite in the last wavelet level: the last level and the
+  composite 0.172 to 0.116–0.125 ms on the ship, 0.175 to 0.126 at dawn, 0.204 to 0.152 in the guild.
+  The held surfaces replaced by the frame before's surface channels: the zones level, 16 B/px of
+  memory and of writes fewer, each texel rebuilt through its own eye. Every step but the last the
+  same to the bit at every view; the last moved by a level of 255, and by up to 25 on 0.01% of
+  `mournhold-arrival`'s pixels, isolated in its dark.
+
+- **DENOISE-10, measured and left.** The driver does not merge a history tap loaded for the test and
+  again for the sum (each binary 1 to 2% smaller loaded once), and every way of loading it once cost
+  more: a `vec4` a corner kept from the test was laid in shared memory (768 bytes a workgroup in the
+  pane filter), a gather unrolled a corner a block spilled the accumulator to local memory, and the
+  shadow tiles' `vec2` a corner moved the composed frame over SPIR-V of the same arithmetic
+  (`.notes/ISSUES.md`). The clamp's two loads stand in two loops over squares of different sizes,
+  and the narrow wavelet's centre and middle tap are one coordinate once the loop unrolls.
 
 - **FRAME-2 / SCENE-14, withdrawn by measurement.** It said that the graveyard frees all of a
   crossing's burials in one collect, so one frame absorbs the sweep. A release profile of the

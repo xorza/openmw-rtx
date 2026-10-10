@@ -14,6 +14,8 @@
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 
+#include "tracepast.hpp"
+
 namespace Rtx
 {
     class Device;
@@ -57,12 +59,14 @@ namespace Rtx
         ///        and `Rtx::RadianceWidth`'s argument.
         /// @param use what its channels are counted as: the frame's targets, or essential memory
         ///        where the chain grows while a frame reads the old one.
+        /// @param past whether the frame before's surfaces are kept (`getHeld`): a second image of
+        ///        each, or the frame's own where the past is dropped.
         GBuffer(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height,
-            RadianceWidth radiance, MemoryUse use);
+            RadianceWidth radiance, MemoryUse use, TracePast past);
 
         /// What a G-buffer of this extent and radiance width takes of the device's memory.
         static VkDeviceSize bytesAt(
-            const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance);
+            const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
 
         /// The set every `GBuffer` is addressed through, made once and outliving all of them,
         /// because a pipeline layout names every set it will ever be handed, and the trace's
@@ -70,9 +74,16 @@ namespace Rtx
         static SetLayout describeLayout(const Device& device);
 
         /// One channel's image, which is the image bound at that channel's number.
-        const Image& get(Channel channel) const { return mChannels[indexOf(channel)]; }
+        const Image& get(Channel channel) const;
 
-        VkDescriptorSet getSet() const { return mSet.get(0); }
+        /// What `channel`, `Channel::Surface` or `Channel::PaneSurface`, held on the frame before:
+        /// the surface every temporal filter holds its history to, **the trace's own channel and not
+        /// a copy a filter made of it**, so a texel keeps the eye that saw it in its distance's sign
+        /// and is rebuilt through that one (`heldSurfaceMatches`). This frame's own where the past is
+        /// dropped, which a fresh history never reads.
+        const Image& getHeld(Channel channel) const;
+
+        VkDescriptorSet getSet() const { return mSet.get(mNow); }
 
         std::uint32_t getWidth() const { return get(Channel::Direct).getWidth(); }
         std::uint32_t getHeight() const { return get(Channel::Direct).getHeight(); }
@@ -97,6 +108,18 @@ namespace Rtx
         /// three times each — a member, an accessor, and a hand-written table mapping the index
         /// back — a channel added to `Rtx::Channel` without the third reaches its pass as a null.
         std::vector<Image> mChannels;
+
+        /// The other image of each channel `getHeld` answers for, at its index among them: the one
+        /// the frame before wrote, or the one this frame writes, by `mNow`. Empty where the past is
+        /// dropped.
+        std::array<Image, 2> mOthers;
+
+        /// Which of a held channel's two images this frame writes, `mChannels`' or `mOthers`', and
+        /// which set binds it: each frame's `begin` turns it.
+        std::uint32_t mNow = 0;
+
+        /// Whether the frame before's images are laid out, which the first `begin` does.
+        bool mHeldLaidOut = false;
 
         /// Whether each channel holds its nothing from a clear `begin` recorded and nothing wrote
         /// it since. False from the start, since a channel made holds nothing defined.

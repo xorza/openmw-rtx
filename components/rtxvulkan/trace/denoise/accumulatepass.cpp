@@ -6,11 +6,7 @@
 #include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtxvulkan/device/gputimer.hpp>
-#include <components/rtxvulkan/device/memory/barriers.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/accumulate.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
@@ -51,10 +47,8 @@ namespace Rtx
     }
 
     void AccumulatePass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
+        const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        const GpuZone timed(timer, commands, FrameZone::Accumulate);
-
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
@@ -63,9 +57,8 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_COLOUR, images.mColour.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_SURFACE, images.mSurfaceBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_SURFACE, buffer.getHeld(Channel::Surface).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_MOMENTS, images.mMomentsBefore.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_SURFACE_OUT, images.mSurface.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOMENTS_OUT, images.mMoments.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_BLENDED_OUT, images.mBlended.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FILL, buffer.get(Channel::Fill).describeStorage());
@@ -84,21 +77,9 @@ namespace Rtx
     }
 
     void AccumulatePass::recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
+        const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        const GpuZone timed(timer, commands, FrameZone::Clamp);
-
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-
-        // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it,
-        // and the moments the accumulator wrote beside it; and it writes the fast means the
-        // accumulator just read as last frame's.
-        Barriers blended(commands);
-        for (const Image* image : { &images.mBlended, &images.mFillBlended, &images.mFastBlended })
-            image->addTransition(blended, Use::sComputeWrite, Use::sComputeReadWrite);
-        images.mMoments.addTransition(blended, Use::sComputeWrite, Use::sComputeRead);
-        images.mFast.addTransition(blended, Use::sComputeRead, Use::sComputeWrite);
-        blended.flush();
 
         const ComputePipeline<Shaders::AccumulateClampConstants>& clamp
             = frame.mFilters.mAntiFirefly ? mClampRing : mClamp;

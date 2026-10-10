@@ -328,9 +328,12 @@ at the top, over all of them.
   filter averages what was drawn for the see-through layers over time, against a history of the
   nearest layer's own surface and motion. Each holds its slow mean to a fast one as the accumulator
   does (`historyclamp.comp`), so a lamp that changes on a still surface is followed in a reflection
-  and a window as in the bounce. The accumulator, the shadow denoiser and the glossy filter
-  read one surface history, the accumulator's. Every history is matched from the eye it was measured
-  from: the motion vector carries how much farther the surface stood from the previous eye.
+  and a window as in the bounce. Every temporal filter holds its history to the frame before's
+  surface channels, which the G-buffer keeps (`GBuffer::getHeld`), each texel rebuilt through the
+  eye that saw it, the arms' or the world's. Every history is matched from the eye it was measured
+  from: the motion vector carries how much farther the surface stood from the previous eye. The
+  families record stage by stage, a dispatch of each behind one barrier, since none reads what
+  another writes.
 
   **The denoised frame is not bit-exact on every card, and that is the card's.** On the RTX 4090
   Laptop (driver 615.71), the first wavelet dispatch after a pipeline drain sometimes computes the
@@ -406,9 +409,9 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-denoiser where it runs (the accumulator and its clamp, the shadow denoiser, the glossy filter, the
-pane filter, the wavelet), the composite where a denoiser or a sum needs one, the upscaler where
-one runs, the display chain, the GUI, the present.
+denoiser where it runs (the temporal passes, the clamps, the shadow filter's levels, and the
+wavelet, whose last level composes the frame where nothing sums it), the composite where a sum
+needs one, the upscaler where one runs, the display chain, the GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's

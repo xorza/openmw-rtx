@@ -27,12 +27,11 @@ namespace Rtx::Shaders
     const uint PANE_BIND_SURFACE = 1;
     const uint PANE_BIND_MOTION = 2;
     const uint PANE_BIND_HELD_BEFORE = 3;
-    const uint PANE_BIND_HELD = 4;
-    const uint PANE_BIND_MEAN_BEFORE = 5;
-    const uint PANE_BIND_MEAN = 6;
-    const uint PANE_BIND_FAST_BEFORE = 7;
-    const uint PANE_BIND_FAST_BLENDED = 8;
-    const uint PANE_BINDINGS = 9;
+    const uint PANE_BIND_MEAN_BEFORE = 4;
+    const uint PANE_BIND_MEAN = 5;
+    const uint PANE_BIND_FAST_BEFORE = 6;
+    const uint PANE_BIND_FAST_BLENDED = 7;
+    const uint PANE_BINDINGS = 8;
 
     /// Threads along each edge of the pane filter's workgroup.
     const uint PANE_WORKGROUP = 8;

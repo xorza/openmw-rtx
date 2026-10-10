@@ -13,17 +13,6 @@
 #include "gbuffer.h"
 #include "look.h"
 
-/// What a surface history holds of a pixel whose `CHANNEL_SURFACE` reads `seen`: the shading
-/// normal and the distance from the eye times `distanceScale` (`HistoryConstants::mDistanceScale`),
-/// or nought where no surface stands, which no surface matches. **One statement** for the
-/// accumulator, which keeps it beside the bounce's mean, and the pane filter, which keeps the
-/// nearest layer's.
-vec4 heldSurfaceOf(vec2 seen, float distanceScale)
-{
-    const vec3 normal = unpackSurfaceNormal(seen.x);
-    return dot(normal, normal) > 0.0 ? vec4(normal, surfaceDistance(seen.y) * distanceScale) : vec4(0.0);
-}
-
 /// Where a pixel's surface stood on the previous frame's screen, as the four texels a bilinear fetch
 /// of it spans: the lower corner, and how far across the four it lies.
 struct HistoryFootprint
@@ -90,22 +79,21 @@ float footprintAlong(Camera eye, float away)
 /// every texel any temporal filter takes is held to it by `heldSurfaceMatches`.
 struct HistoryPlane
 {
-    /// The eye the history's texels were traced through: the previous basis, at the arms' spread
-    /// where the pixel is on an arm, and the previous jitter, since a held surface is one frame's
-    /// geometry (`historyFootprint`).
-    Camera mBefore;
+    /// The eyes the history's texels were traced through, the world's and the arms': the previous
+    /// basis, the arms' at their spread, and the previous jitter, since a held surface is one
+    /// frame's geometry (`historyFootprint`). A texel is rebuilt through its own, which its
+    /// surface's code says.
+    Camera mWorldBefore;
+    Camera mArmsBefore;
 
     vec3 mNormal;
 
-    /// The pixel's point from that eye, which no history texel is rebuilt without.
+    /// The pixel's point from the eye that saw it before, which no history texel is held to without.
     vec3 mAnchor;
 
     /// In world units: `planeTolerance`, and below nought where there was no previous eye, which
     /// refuses every texel.
     float mTolerance;
-
-    /// `HistoryConstants::mHeldDistanceScale`, which a held distance is divided by.
-    float mHeldDistanceScale;
 };
 
 /// How far off a pixel's plane a history texel may stand and still be its surface, in world units:
@@ -158,29 +146,38 @@ HistoryPlane historyPlane(HistoryConstants history, ivec2 at, vec2 seen, vec3 mo
     const vec3 anchor = ray.mOffset + ray.mDirection * (away + moved.z);
     const bool seenBefore = dot(history.mPrevious.mForward, history.mPrevious.mForward) > 0.0;
     const float tolerance = planeTolerance(eye, away, normal, rayAt(eye, vec2(at)).mDirection);
-    return HistoryPlane(before, normal, anchor, seenBefore ? tolerance : -1.0, history.mHeldDistanceScale);
+    return HistoryPlane(
+        previousEye(history, false), previousEye(history, true), normal, anchor, seenBefore ? tolerance : -1.0);
 }
 
-/// Whether the history texel at `tap`, which holds `was` — its normal in `xyz`, nought where nothing
-/// was accumulated, and its distance in `w` times `HistoryConstants::mHeldDistanceScale` — is the
-/// surface `plane` stands for: its normal within `ACCUMULATE_FACING` of the plane's, and the point it
-/// holds, rebuilt along the previous eye's ray through it, within the plane's tolerance of it. **The
-/// one rule** every temporal filter holds a history to.
-bool heldSurfaceMatches(vec4 was, ivec2 tap, HistoryPlane plane)
+/// Whether the history texel at `tap`, whose surface the frame before's `CHANNEL_SURFACE` or
+/// `CHANNEL_PANE_SURFACE` reads `was` (`GBuffer::getHeld`), is the surface `plane` stands for: its
+/// normal within `ACCUMULATE_FACING` of the plane's, and the point it holds, rebuilt along the ray
+/// of the eye that saw it — the arms' or the world's, which its distance's sign says — within the
+/// plane's tolerance of it. **The one rule** every temporal filter holds a history to.
+bool heldSurfaceMatches(vec2 was, ivec2 tap, HistoryPlane plane)
 {
-    if (dot(was.xyz, was.xyz) <= 0.0)
+    if (was.x == SURFACE_NO_NORMAL)
         return false;
 
-    const vec3 there = positionAlong(plane.mBefore, tap, was.w / plane.mHeldDistanceScale);
-    return dot(was.xyz, plane.mNormal) >= ACCUMULATE_FACING
+    const Camera eye = surfaceOnArms(was.y) ? plane.mArmsBefore : plane.mWorldBefore;
+    const vec3 there = positionAlong(eye, tap, surfaceDistance(was.y));
+    return dot(unpackSurfaceNormal(was.x), plane.mNormal) >= ACCUMULATE_FACING
         && abs(dot(plane.mNormal, there - plane.mAnchor)) <= plane.mTolerance;
 }
 
 /// What a history fetch takes of each of the four texels `footprint` spans, into a new `vec4`
 /// named `shares`: its bilinear share where it is on the screen, is the surface of `plane`
-/// (`heldSurfaceMatches` against `heldImage`) and holds a history (`holds`, an expression that may
-/// name the tap as `historyAt`), and nought where it is refused. Their sum, before any kernel
-/// divides by it, is how much of the footprint the history covers.
+/// (`heldSurfaceMatches` against `heldImage`, the frame before's surface channel) and holds a history (`holds`, an expression that may
+/// name the tap as `historyAt` and its corner as `historyCorner`), and nought where it is refused.
+/// Their sum, before any kernel divides by it, is how much of the footprint the history covers.
+///
+/// **A kernel loads the texels it weighs again**, after `holds` loaded them to test them, and the
+/// driver does not merge the two (each binary 1 to 2% smaller with one load, off the pipelines'
+/// statistics). Kept from `holds` instead, a `vec4` a corner was laid in shared memory, 768 bytes a
+/// workgroup in the pane filter; a loop unrolled a corner a block spilled the accumulator to local
+/// memory; and the shadow tiles' `vec2` a corner moved the composed frame, deterministically, over
+/// SPIR-V whose arithmetic was the same instruction for instruction (`.notes/ISSUES.md`).
 ///
 /// **One gather for every temporal filter**, so the accumulator, the shadow denoiser, the glossy
 /// filter and the pane filter cannot come to refuse a tap by four rules: written four times, the
@@ -194,7 +191,7 @@ bool heldSurfaceMatches(vec4 was, ivec2 tap, HistoryPlane plane)
         const float historyBilinear = historyShare(footprint, historyCorner);                      \
         const ivec2 historyAt = historyTap(footprint, historyCorner);                              \
         if (historyBilinear <= 0.0 || outsideOf(historyAt, extent)                                 \
-            || !heldSurfaceMatches(imageLoad(heldImage, historyAt), historyAt, plane) || !(holds)) \
+            || !heldSurfaceMatches(imageLoad(heldImage, historyAt).rg, historyAt, plane) || !(holds)) \
             continue;                                                                              \
         shares[historyCorner] = historyBilinear;                                                   \
     }

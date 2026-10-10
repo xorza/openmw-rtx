@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 
 #include <vulkan/vulkan_core.h>
 
@@ -29,16 +30,35 @@ namespace Rtx
     public:
         explicit ShadowPass(const Device& device);
 
-        /// Records the five dispatches over the field `images` names and hands back its filtered
-        /// visibility, its mean in `r`, as the last level wrote it: the caller orders it for a read,
-        /// beside the passes that run alongside (`DenoisePasses::record`), and times it. `buffer`
+        /// The five dispatches over the field `images` names, one a step, each behind a dependency on
+        /// everything the step before read and wrote, which the caller records between the steps of
+        /// every field and family that runs beside it (`DenoisePasses::record`). The last level
+        /// leaves the field's filtered visibility, its mean in `r`, in `images.mVisibility`. `buffer`
         /// must have been handed over, and `DenoiseHistory::discard` has readied the images.
-        const Image& record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images, const GBuffer& buffer,
+        ///
+        /// The rays' bits packed, and the widest penumbra of each tile.
+        void recordMask(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images, const GBuffer& buffer,
             const DenoiseFrame& frame) const;
+
+        /// The temporal blend and the tiles' classification.
+        void recordTiles(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images, const GBuffer& buffer,
+            const DenoiseFrame& frame) const;
+
+        /// One of the spatial filter's `SHADOW_FILTER_LEVELS`, in order, over every field whose bit
+        /// `filtering` sets (`SHADOW_FIELD_*`), one dispatch reading the surface once for all of them.
+        /// At least one. `fields` holds each field's images at its index, the ones not filtered as
+        /// well, which the module names all the same.
+        void recordLevel(VkCommandBuffer commands, std::uint32_t level,
+            const std::array<const DenoiseHistory::ShadowImages*, sShadowFields>& fields, std::uint32_t filtering,
+            const GBuffer& buffer, const DenoiseFrame& frame) const;
 
     private:
         ComputePipeline<Shaders::ShadowMaskConstants> mMask;
         ComputePipeline<Shaders::ShadowTilesConstants> mTiles;
-        std::array<ComputePipeline<Shaders::ShadowFilterConstants>, Shaders::SHADOW_FILTER_LEVELS> mFilters;
+        /// A level's module for each set of fields it filters, by the set's bits less one
+        /// (`SHADOW_SPEC_FIELDS`): the sky's, the lamps' and both.
+        using FieldFilters
+            = std::array<ComputePipeline<Shaders::ShadowFilterConstants>, (1u << Shaders::SHADOW_FIELD_COUNT) - 1u>;
+        std::array<FieldFilters, Shaders::SHADOW_FILTER_LEVELS> mFilters;
     };
 }

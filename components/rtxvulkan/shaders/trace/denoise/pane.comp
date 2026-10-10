@@ -46,9 +46,8 @@ layout(set = SET_PASS, binding = PANE_BIND_PANE) uniform readonly image2D paneCh
 layout(set = SET_PASS, binding = PANE_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D paneSurface;
 layout(set = SET_PASS, binding = PANE_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D paneMotion;
 
-/// The layer the history belongs to, as `heldSurfaceMatches` reads one: last frame's, and this one's.
-layout(set = SET_PASS, binding = PANE_BIND_HELD_BEFORE, ACCUMULATE_SURFACE) uniform readonly image2D heldBefore;
-layout(set = SET_PASS, binding = PANE_BIND_HELD, ACCUMULATE_SURFACE) uniform writeonly image2D held;
+/// The layer the history belongs to: the frame before's `CHANNEL_PANE_SURFACE` (`GBuffer::getHeld`).
+layout(set = SET_PASS, binding = PANE_BIND_HELD_BEFORE, GBUFFER_SURFACE) uniform readonly image2D heldBefore;
 
 /// The history as `RunningMean` stores it, nought frames where no layer stood: last frame's, and
 /// this frame's, whose `rgb` the composite multiplies back by `CHANNEL_PANE_ALBEDO`.
@@ -112,5 +111,4 @@ void main()
     uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_PANE_ROUNDING, frame.mFrame);
     RTX_STORE_COUNTED(mean, at, roundedToHalf(stands ? texelOf(blended) : vec4(sampled, 0.0), rounding))
     RTX_STORE_WORDS(fastBlended, at, uvec4(stands ? packRgb9e5(blendedFast) : HISTORY_CLAMP_EMPTY, 0u, 0u, 0u))
-    RTX_STORE_COUNTED(held, at, heldSurfaceOf(seen, frame.mDistanceScale))
 }

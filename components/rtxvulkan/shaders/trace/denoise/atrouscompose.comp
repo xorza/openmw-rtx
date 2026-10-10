@@ -1,0 +1,16 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// `texelFetch` without a sampler, which is what the four read-only inputs below are declared as.
+#extension GL_EXT_samplerless_texture_functions : require
+
+// The wavelet's last level, composing the frame where it ends: its answer goes into the picture and
+// not into a level the composite reads back, thirty-two bytes a pixel and a pass with its drain.
+// **A module of its own and not a specialization**, because it binds the composite's channels, which
+// a specialization would leave every level binding: `atrouslevel.glsl` is the level, and
+// `ATROUS_COMPOSE` the one switch in it.
+
+#define ATROUS_COMPOSE
+#include "atrouslevel.glsl"

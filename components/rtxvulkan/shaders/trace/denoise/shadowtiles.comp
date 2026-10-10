@@ -44,7 +44,7 @@
 // - **The tree's reprojection.** The SDK fetches its history at `uv + velocity`, dilated to the
 //   nearest depth of a quad, and calls a pixel disoccluded by a depth through projection matrices.
 //   This fetches where the accumulator fetches and keeps a tap only where `heldSurfaceMatches` says it
-//   is this surface, against the accumulator's own surface history: one rule for "the same surface
+//   is this surface, against the frame before's surface channel: one rule for "the same surface
 //   as last frame", and no depth history beside it.
 // - **The frame's edge is not a shadow.** The local mean is taken over the pixels the frame holds,
 //   where the SDK counts those off it as shadowed; `horizontalNeighbourhood` says what that cost.
@@ -81,9 +81,8 @@ layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
 
-/// The surface the accumulator's history belongs to, which this history belongs to as well: both
-/// were written over the same pixels of the same frame.
-layout(set = SET_PASS, binding = SHADOW_TILES_BIND_HELD_SURFACE, ACCUMULATE_SURFACE)
+/// The surface this history belongs to: the frame before's `CHANNEL_SURFACE` (`GBuffer::getHeld`).
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_HELD_SURFACE, GBUFFER_SURFACE)
     uniform readonly image2D heldSurface;
 
 /// Last frame's first filter level: the mean the SDK carries forward, as SVGF carries the wavelet's.
@@ -305,7 +304,7 @@ void main()
         // another surface: the SDK's disocclusion.
         const ivec2 nearest = before.mLow + ivec2(greaterThanEqual(before.mAcross, vec2(0.5)));
         const bool held = frame.mReset == 0u && !outsideOf(nearest, extent)
-            && heldSurfaceMatches(imageLoad(heldSurface, nearest), nearest, plane);
+            && heldSurfaceMatches(imageLoad(heldSurface, nearest).rg, nearest, plane);
         const ShadowMoments updated = updatedShadowMoments(
             held ? unpackShadowMoments(imageLoad(momentsBefore, nearest).rg) : vec3(0.0), current);
         variance = updated.mVariance;
