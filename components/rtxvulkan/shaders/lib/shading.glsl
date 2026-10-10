@@ -369,9 +369,10 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // where the cosine was. A glossy surface weighs each lamp by both — `surfaceCandidate` says why —
     // and either estimate is unbiased under any weight positive where its term is.
     Reservoir kept = noLamps();
-    // **Every lamp at the eye's own split hit, whose unshadowed sum must be exact, and a fixed count
-    // of candidates everywhere else** (`VisibilityConstants::mLampCandidates`): a path's far end, a
-    // pane, a water leg cost what a lamp-dense cell costs only where it is seen.
+    // **Every lamp at a split hit, whose unshadowed sum must be exact, and a fixed count of
+    // candidates everywhere else** (`VisibilityConstants::mLampCandidates`): a path's far end and a
+    // pane cost what a lamp-dense cell costs only where it is seen. What is seen splits, the water's
+    // legs among it (`lightAtPathEnd`), so a water pixel walks the cell once a leg.
     weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit, split ? 0u : frame.mLampCandidates);
     kept.mFrom = leaving;
 
@@ -395,7 +396,10 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // lamp's estimate of how much of it got through: clamped on that one-lamp estimate instead,
     // every pixel the held lamp outshone the darkening kept light the mean did not have, and the
     // ground near a negative lamp came out brighter than its own lamps leave it.
-    const vec3 darkening = darkeningAt(position, facing, INV_PI, surface.mLampLit);
+    // Walked only where a lamp was held. With none, every lamp weighed nought, so its light is
+    // nought or the albedo that would show it is (`surfaceCandidate`): unsplit the sum below is
+    // nought whatever is taken off it, and split it reaches the picture only times that albedo.
+    const vec3 darkening = darkeningAt(position, facing, INV_PI, surface.mLampLit && kept.mWeight > 0.0);
     // `1 - min(d / u, 1)` is `max(u - d, 0) / u`, and exactly one where nothing darkens.
     const vec3 lampDiffuse = split
         ? max(lampsArriving - darkening, vec3(0.0))

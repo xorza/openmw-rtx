@@ -21,55 +21,17 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, a false invariant, and an unbudgeted darkening walk |
-| 2 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 3 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 4 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
+| 1 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
+| 2 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 3 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
 
-10 findings are open: 0 high, 1 medium, 9 low. No reviewer found a GLSL/C++ layout,
+7 findings are open: 0 high, 0 medium, 7 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
 ---
 
-## Batch 1 — Lamp sampling
-
-### TRACE-1: Every split hit walks every lamp in its cell, up to 256, with the full glossy lobe per lamp. The comment says the water legs do not
-perf · M · conf H (behaviour), M (cost) — `shaders/lib/shading.glsl:372-375,199-204`, `shaders/lib/water.glsl:107`, `shaders/lib/lights.glsl:131,444-458,566-618`
-
-`weighLamps(..., split ? 0u : frame.mLampCandidates)`, where 0 means every lamp. The comment above
-says that "a water leg" takes the fixed count, but `waterRay` shades each leg with
-`shadeAtPathEnd(..., true, ...)`, so `split` is true. A shoreline pixel adds the bed. One water pixel
-can walk the cell list three times (reflection, refraction, bed), up to 3×256 evaluations, each with
-a 40-byte load, `lampAt`, a PCG step and, on a glossy surface, the full GGX `reflectionAt`. Every
-other path end pays 8. Canals at night are the worst case.
-
-**Direction:** keep the exact unshadowed sum over all lamps, but with only falloff, cosine and
-Fresnel. Draw the reservoir from `LAMP_CANDIDATES` uniform candidates weighed with the full lobe (RIS
-stays unbiased). At minimum, correct the comment. Measure on a lamp-dense water view, and check
-`./omw noise` for the variance cost.
-
-### TRACE-9: The blue-noise comment says that the R2 pairs are never read together, but the bounce pair and the sun-disc pair are read at the same hit
-robustness · L · conf H — `shaders/lib/bluenoise.glsl:25-36`, `rtx/shaders/scene.h:159,178`, `shaders/lib/shading.glsl:253,953`
-
-`STREAM_BOUNCE` and `STREAM_SUN_DISC` both turn by R2, and `shadeSolid` reads both at the same pixel,
-so their offset never changes over time. This is harmless today (separate terms, separate filters),
-but the stated invariant is false.
-
-**Direction:** give the sun pair its own irrational step (as the lamp pair has), or correct the comment.
-
-### TRACE-8: `darkeningAt` walks every darkening lamp at every gather, with no budget, even when no lamp was held
-perf · L · conf H — `shaders/lib/lights.glsl:626-638`, `shaders/lib/shading.glsl:398-402`
-
-Its result only multiplies `lampsArriving`, which is zero when `kept.mWeight == 0`. Negligible in
-vanilla. Unbounded with mods that place many negative lights.
-
-**Direction:** skip the walk when `kept.mWeight == 0`. Give the far-hit, pane and leg calls the same
-candidate budget as the positive lamps.
-
----
-
-## Batch 2 — Layered ground in the trace
+## Batch 1 — Layered ground in the trace
 
 ### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
 simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
@@ -93,7 +55,7 @@ non-detailed hits from it. Keep the live stack for the eye, reflections and the 
 
 ---
 
-## Batch 3 — Scene record layout for the trace
+## Batch 2 — Scene record layout for the trace
 
 Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
 interior and a foliage exterior, and keep only what measures.
@@ -130,7 +92,7 @@ dispatch per kind (a binary search over the prefix, or indirect). Measure the `s
 
 ---
 
-## Batch 4 — Housekeeping
+## Batch 3 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -149,8 +111,7 @@ dispatch", but the fog samples them in ray-tracing launches.
 
 **Direction:** restate both comments.
 
-Comment corrections that belong to a batch above stay with their batch: TRACE-1 and TRACE-9 (batch 1),
-TRACE-3 (batch 2).
+Comment corrections that belong to a batch above stay with their batch: TRACE-3 (batch 1).
 
 ---
 
@@ -215,6 +176,20 @@ The reviewers checked these items and found no fault:
   present-wait does not touch; a just-in-time sleep would take the vendor extensions
   (`VK_NV_low_latency2`, `VK_AMD_anti_lag`), and the harness has no input-to-photon measure to
   judge one by.
+- **Lamp sampling.** Since the review, the darkening walk takes an empty run where no lamp was
+  held (TRACE-8), which leaves every picture as it was: with none held, the lamps' sum is nought
+  and so is what the darkening takes off it. Its walk is not sampled to the positive lamps'
+  budget, because the darkening is subtracted under a clamp at nought, where an estimate is
+  biased. The comments now say that a water leg splits and walks every lamp (TRACE-1), and that
+  the bounce and the sun's disc share `R2` at one hit (TRACE-9).
+- **Every lamp at a split hit (TRACE-1), measured and dropped.** The fixed eight candidates there
+  in place of the full walk moved the `trace` median from 1.39 to 1.41 ms at `balmora-fog-night`,
+  1.26 to 1.28 at `balmora-storm-night` and 1.19 to 1.36 at `vivec-canalworks`, in release: the
+  walk is not where the trace spends its time, and the exact unshadowed sum stays.
+- **The sun's disc on its own steps (TRACE-9), measured and dropped.** Turned by
+  `(sqrt 19 - 4, sqrt 23 - 4)` in place of `R2`, the frame was noisier at the pier, mean 0.72 and
+  p99 2.03 against 0.71 and 2.00; the pond's frame and the guild, which has no sun, the same to
+  the last digit.
 
 - **Dropped as better left as they are**, each for what it would cost against what it could give:
   - **XCUT-3**, the histogram inside the bloom's first halving: the exposure is recorded before the
@@ -347,9 +322,9 @@ World frame, denoised and upscaled, in record order. **T** = traced extent, **O*
 | 1 | glare clear | fill | — | sun-glare counts | — |
 | 1 | ripple step ×1–4 (`ripplestep.comp`), clock moved and field moving or pressed | 1024²/16² | field[before], impulses | field[after], moving word (last step) | │ each |
 | 1 | ripple compose (`ripplecompose.comp`) + blit mips, as the step | 1024²/16² | field | ripple surface, curvature (+mips) | │ |
-| 2 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates, twiddles | wave surface, curvature (+mips) | │ │ |
-| 3 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
-| 4 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
+| 1 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates, twiddles | wave surface, curvature (+mips) | │ │ |
+| 2 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
+| 3 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
 | 7 | sprite emitters (`spriteemitters.rgen`) | emitters × 1 | frame, emitters, fog | emitter frames | │ |
 | 8 | sprite shade (`spriteshade.comp`) | one group per emitter per light | sprites, emitters | sprite light/order | │ |
 | 9 | sprite bin: clear │ `spriterects` │ `spritestarts` │ `spriteruns` | various | sprites, emitters, presences, camera | rects, presence words, starts, runs, report | │ │ │ │ |
