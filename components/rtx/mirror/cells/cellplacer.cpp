@@ -240,11 +240,12 @@ namespace Rtx
         return !sorted.empty() && std::binary_search(sorted.begin(), sorted.end(), refnum);
     }
 
-    bool CellPlacer::wantsFlattening(const osg::Vec2i& cell, const Material& ground, const WorldAround& around)
+    GroundFlattening CellPlacer::flatteningOf(const osg::Vec2i& cell, const Material& ground, const WorldAround& around)
     {
-        // A stack is flattened outside the active grid, where the quad tree flattens too, and a
-        // single layer is never, because it is already a single fetch.
-        return ground.mLayers.mCount > 1 && !inActiveGrid(cell, around.mActiveGrid);
+        if (ground.mLayers.mCount <= 1)
+            return GroundFlattening::None;
+
+        return inActiveGrid(cell, around.mActiveGrid) ? GroundFlattening::Undetailed : GroundFlattening::Every;
     }
 
     void CellPlacer::holdCell(
@@ -329,7 +330,7 @@ namespace Rtx
         material.mLayersMapped = mapped;
         if (!mLayerScratch.empty())
             material.mLayers = mScene.materials().addLayers(mLayerScratch);
-        material.mFlatten = wantsFlattening(held.mCell, material, around);
+        material.mFlatten = flatteningOf(held.mCell, material, around);
         stands.mStood.mMaterial = mScene.addMaterial(material);
 
         // A heightfield is neither a sheet nor closed, and no fold is needed to say so.
@@ -632,15 +633,14 @@ namespace Rtx
             else if (!inReach)
                 drop(ground.mStood, mGroundPlaced);
 
-            // A cell crossing the grid's edge shades the other way from now on. The composite it
-            // held goes with the rewrite, and one it now wants is asked for by the row.
+            // A cell crossing the grid's edge shades the other way from now on. **The composite it
+            // holds stays**: it is the stack's sum on either side of the edge, and only which hits
+            // read it changes.
             const Material& stood = mScene.materials().getRows()[ground.mStood.mMaterial];
-            if (const bool wanted = wantsFlattening(cell.mCell, stood, around); wanted != stood.mFlatten)
+            if (const GroundFlattening wanted = flatteningOf(cell.mCell, stood, around); wanted != stood.mFlatten)
             {
                 Material given = stood;
                 given.mFlatten = wanted;
-                given.mDiffuse = sNoIndex;
-                given.mSpecular = sNoIndex;
                 mScene.setMaterial(ground.mStood.mMaterial, given);
             }
         }

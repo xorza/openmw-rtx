@@ -5,7 +5,8 @@
 #include <components/rtx/shaders/portable.h>
 
 // A chunk of ground flattened into one texture — the shading LOD: a distant chunk carries every
-// ground type in many cells, and distant hits are most of the pixels. `groundcomposite.comp` makes
+// ground type in many cells, and distant hits are most of the pixels; a near chunk's is what its
+// bounces read, where the stack's detail is averaged away. `groundcomposite.comp` makes
 // one on the device from the chunk's own stack, in the placement the chunk's material row is
 // written in, and what it is told is here.
 
@@ -28,14 +29,15 @@ namespace Rtx::Shaders
 
     /// How much painted light a bake divides out: full, because a composite cannot be corrected
     /// later — the estimate repeats with a texture's tiling and a composite has none — so
-    /// `--delight` reaches the near field and not distant ground.
+    /// `--delight` reaches the near field and not distant ground. A near chunk's bounce reads its
+    /// composite only at this delight and sums its stack at any other (`resolve`).
     const float GROUND_COMPOSITE_DELIGHT = 1.0f;
 
     /// The bake's workgroup, square.
     const uint GROUND_COMPOSITE_WORKGROUP = 16u;
 
     /// What a bake writes, as bits: the chunk's albedo, its gloss — how much of the ground reflects
-    /// in red and its roughness in green, `CompositeQueue` says why a distant chunk needs both — or
+    /// in red and its roughness in green, `CompositeQueue` says why a flattened chunk needs both — or
     /// both from the one sum, which is what a chunk that arrived with both is baked as.
     const uint GROUND_COMPOSITE_ALBEDO = 1u;
     const uint GROUND_COMPOSITE_GLOSS = 2u;

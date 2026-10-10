@@ -311,17 +311,16 @@ namespace Rtx
             {
                 const std::array<std::string_view, Shaders::MISS_RECORD_COUNT> miss{ "visibility.rmiss.spv",
                     "visibilityunshaded.rmiss.spv" };
-                // The one hit module under its three settings, in `MaterialKind` order, which is the
-                // order traversal indexes them by: which albedo `resolve` may build, and whether the
-                // hit is shaded as water.
-                const auto settled = [&](const bool layered, const bool water) {
+                // The one hit module in `MaterialKind` order, which is the order traversal indexes
+                // them by, set to whether the hit is shaded as water: a surface and a chunk of ground
+                // are one stage, which `makeTracePipeline` builds once.
+                const auto settled = [&](const bool water) {
                     std::array<std::uint32_t, Shaders::SPEC_COUNT> words = specialization;
-                    words[Shaders::SPEC_LAYERED] = layered ? 1u : 0u;
                     words[Shaders::SPEC_WATER] = water ? 1u : 0u;
                     return words;
                 };
                 const std::array<std::array<std::uint32_t, Shaders::SPEC_COUNT>, Shaders::HIT_SHADER_COUNT> hitWords{
-                    settled(false, false), settled(true, false), settled(false, true)
+                    settled(false), settled(false), settled(true)
                 };
                 const std::string_view hitModule = "visibilityhit.rchit.spv";
                 const std::array<HitShader, Shaders::HIT_SHADER_COUNT> hit{

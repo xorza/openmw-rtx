@@ -110,7 +110,7 @@ struct GatherRule
     /// Whether `MATERIAL_ADD_WHOLE` is honoured: a `ONE, ONE` sheet reads no alpha at all.
     bool mWholeAlpha;
 
-    /// Whether the vertex colour selects the tint and the glow, as `resolveFor` reads it. A cloud
+    /// Whether the vertex colour selects the tint and the glow, as `resolve` reads it. A cloud
     /// takes its material's own; an effect's sheet takes what the content asked for.
     bool mVertexTint;
 
@@ -228,7 +228,7 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         const float alpha = rule.mThickens ? mediumCrossing(painted, abs(dot(plane, direction))) : painted;
 
         // The vertex colour replaces the tint or the glow where the content asked and the rule
-        // reads it, as `resolveFor` reads it, and the same two weights select without a branch.
+        // reads it, as `resolve` reads it, and the same two weights select without a branch.
         // **The material's own glow, summed with the light and not beside it**, which is where the
         // original engine puts it: a surface carrying one glows *with its texture in it*. An
         // emissive *map* is not read — no cloud in the game carries one, and a fetch a crossing
@@ -243,7 +243,7 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
             gathered.mGlowed, sharePart(texel.rgb * mix(material.mEmissiveColour, vertexColour, glowing) * alpha));
         if (rule.mSheets)
         {
-            // The surface's rule for the sheet, `resolveFor`'s: lit where the player asked for it.
+            // The surface's rule for the sheet, `resolve`'s: lit where the player asked for it.
             const vec3 shading = faceforward(plane, direction, plane);
             const vec3 sheet = sheetAt(material, meshAt(crossing.mInstance.mMesh), crossing.mCorner, shading, direction,
                                    crossing.mCone, crossing.mConeWidth)

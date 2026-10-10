@@ -873,7 +873,7 @@ namespace Rtx
             scene.textures().add(VFS::Path::NormalizedView("textures/over.dds"));
             Rtx::Material chunk;
             chunk.mKind = Rtx::MaterialKind::Terrain;
-            chunk.mFlatten = true;
+            chunk.mFlatten = GroundFlattening::Every;
             chunk.mLayers = scene.materials().addLayers(layers);
             const Rtx::Index material = scene.addMaterial(chunk);
 

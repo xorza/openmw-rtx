@@ -92,6 +92,9 @@ namespace Rtx
                     | (material.isTranslucent() ? Shaders::MATERIAL_TRANSLUCENT : 0u)
                     | (material.isSoftEdged() ? Shaders::MATERIAL_SOFT_EDGE : 0u)
                     | (untextured && material.mLayers.mCount > 0 ? Shaders::MATERIAL_STACKED : 0u)
+                    | (!untextured && material.mLayers.mCount > 0 && material.mFlatten != GroundFlattening::Every
+                            ? Shaders::MATERIAL_STACKED_SEEN
+                            : 0u)
                     | (material.mParallax ? Shaders::MATERIAL_PARALLAX : 0u) | vertexColourFlag(material.mVertexColour)
                     | (material.mSpecularClassic ? Shaders::MATERIAL_SPECULAR_CLASSIC : 0u)
                     | (material.mLampLit ? 0u : Shaders::MATERIAL_NO_LAMPS)

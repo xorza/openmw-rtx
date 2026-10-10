@@ -3,19 +3,21 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_ray_tracing : require
 
-// The one closest-hit shader the trace's hit table names, compiled three times.
+// The one closest-hit shader the trace's hit table names, compiled twice.
 //
 // **Picked by traversal and not by a branch.** `SceneAcceleration::placeRow` writes each
 // instance's shader-table offset from its material kind, so the hardware follows an index to the
-// stage for that kind — and the three stages are this module under three settings of the two
-// constants below: which albedo `resolve` is allowed to build, and whether the surface is shaded
-// as water. One module is how the three cannot come to disagree about a hit the launch can no
-// longer see for itself.
+// stage for that kind — and the stages are this module under the two settings of the constant
+// below, whether the surface is shaded as water: a surface and a chunk of ground share one. One
+// module is how the stages cannot come to disagree about a hit the launch can no longer see for
+// itself.
 //
-// **`LAYERED` folds the layer stack's loop and the four tables it walks out of the two stages no
-// terrain can reach.** `WATER` picks the water's answer, and a frame with no sea still binds that
-// record — an instance's offset is its material's kind, and a scene can hold water the build was
-// told to ignore — so `HAS_SEA` is what says whether it shades as water or as the solid it then is.
+// **No setting for the ground's layer stack**, though no ground reaches the other two: every inline
+// trace in them resolves whatever it meets, so the stack's loop is in each stage whichever kind
+// picked it, and the stages that kept it out of the primary hit alone traced no faster than with
+// it there (`./omw bench`). `WATER` picks the water's answer, and a frame with no sea still binds that record
+// — an instance's offset is its material's kind, and a scene can hold water the build was told to
+// ignore — so `HAS_SEA` is what says whether it shades as water or as the solid it then is.
 
 #include "shared/tracerecords.h"
 #include "camera.h"
@@ -33,10 +35,8 @@
 #include "lib/variants.glsl"
 #include "lib/water.glsl"
 
-/// The two the hit module is specialized on, after the frame's tuple in `variants.glsl`: whether
-/// ground that kept its layer stack can reach this stage, and whether a hit is shaded as water.
-/// `VisibilityPass` hands each of the three stages its pair.
-layout(constant_id = SPEC_LAYERED) const bool LAYERED = false;
+/// What the hit module is specialized on, after the frame's tuple in `variants.glsl`: whether a hit
+/// is shaded as water. `VisibilityPass` hands each stage its own.
 layout(constant_id = SPEC_WATER) const bool WATER = false;
 
 layout(location = RTX_PAYLOAD) rayPayloadInEXT VisibilityPayload packed;
@@ -252,8 +252,7 @@ void main()
 {
     Answer answer = noAnswer();
 
-    const Surface surface
-        = resolveFor(stageHit(barycentrics), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, LAYERED, true);
+    const Surface surface = resolve(stageHit(barycentrics), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, true);
 
     WaterImages images = WaterImages(WaterImage(0.0, 0.0, false), WaterImage(0.0, 0.0, false));
     const bool pane = !(WATER && HAS_SEA) && peeled(surface);

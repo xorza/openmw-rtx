@@ -75,7 +75,7 @@ layout(constant_id = SPEC_HAS_SEA) const bool HAS_SEA = true;
 /// one it ran before the maps existed.
 layout(constant_id = SPEC_HAS_MAPS) const bool HAS_MAPS = true;
 
-// `SPEC_LAYERED` and `SPEC_WATER` are the hit module's own — `visibilityhit.rchit` — and stand after
-// these in the one table every stage of a pipeline is handed.
+// `SPEC_WATER` is the hit module's own — `visibilityhit.rchit` — and stands after these in the one
+// table every stage of a pipeline is handed.
 
 #endif

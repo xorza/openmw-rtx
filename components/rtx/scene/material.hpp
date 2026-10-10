@@ -28,6 +28,24 @@ namespace Rtx
         Water,
     };
 
+    /// Which hits on a terrain chunk read its stack flattened into one texture, its composite, and
+    /// not the stack itself.
+    enum class GroundFlattening
+    {
+        /// None: a chunk of one layer is one fetch already, and wants no composite.
+        None,
+
+        /// The hits no picture is drawn from, a diffuse bounce's far end: a chunk inside the active
+        /// grid, whose eye, reflections and bed read the stack for its sharpness. At a bounce's far
+        /// hit the stack's detail is averaged over a hemisphere and filtered away, and the
+        /// composite read there in its place took 0.05 to 0.08 ms off the trace at 1080p and 0.2
+        /// to 0.6 ms at 7680 by 2160, in the exteriors (`./omw bench`).
+        Undetailed,
+
+        /// Every hit: a chunk outside the active grid, where the quad tree flattens too.
+        Every,
+    };
+
     /// What traversal is told about one placement: the facts of the material it wears, with the
     /// placement's own fade applied (`Material::Traversed::placedAt`). The one rule, which the
     /// counts that gate the trace and the instance records that drive traversal both read, so the
@@ -161,11 +179,11 @@ namespace Rtx
         /// path costs the rest of them one comparison and no indirection.
         Run mLayers{};
 
-        /// Whether this chunk is wide enough that its stack is worth flattening into one texture.
-        /// Asked for here and answered later, because a composite costs tens of milliseconds; until
-        /// one arrives `mDiffuse` stays unset and the chunk shades from the stack, so only the cost
-        /// per hit differs.
-        bool mFlatten = false;
+        /// Which hits read this chunk's stack flattened into one texture. Asked for here and
+        /// answered later, because a composite costs tens of milliseconds; until one arrives
+        /// `mDiffuse` stays unset and every hit shades from the stack, so only the cost per hit
+        /// differs.
+        GroundFlattening mFlatten = GroundFlattening::None;
 
         /// Whether any of this chunk's layers reads a map: a normal map, or an authored albedo with
         /// its roughness beside it (`Shaders::LAYER_AUTHORED`). A layer run is the scene's and not
@@ -252,7 +270,10 @@ namespace Rtx
         bool isAdditive() const { return additiveSurface(mAlphaMode, mBlend); }
 
         /// Whether this is a terrain chunk that asked to be flattened and has no composite yet.
-        bool wantsFlattening() const { return mKind == MaterialKind::Terrain && mFlatten && mDiffuse == sNoIndex; }
+        bool wantsFlattening() const
+        {
+            return mKind == MaterialKind::Terrain && mFlatten != GroundFlattening::None && mDiffuse == sNoIndex;
+        }
 
         /// Whether `mOpacity` is a number the trace reads at all: what the content asked a blend to
         /// weigh by, which is coverage where the surface covers and strength where it adds. An

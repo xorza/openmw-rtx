@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -50,6 +52,7 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/sceneroom.hpp>
+#include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/shaders/shared/tables.h>
 #include <components/rtxvulkan/trace/spritebin.hpp>
 #include <components/rtxvulkan/trace/spritepasses.hpp>
@@ -1880,6 +1883,102 @@ namespace Rtx::Testing
             EXPECT_EQ(shownWith(1, false), isotropic) << "and moved back to one";
         }
 
+        /// Ground inside the active grid shows the eye its stack and gives a bounce its composite
+        /// (`GroundFlattening::Undetailed`, `MATERIAL_STACKED_SEEN`).
+        ///
+        /// **A wall of ground lit square by the sun, over a grey floor the sun only grazes**, under a
+        /// black sky: the floor's light is all bounced off the wall, so its colour is the wall's
+        /// albedo where the floor's bounces met it. The stack is red and the composite stood beside
+        /// it green, as no bake would leave it, so which of the two a hit read is the colour it
+        /// shows, and the other channel is nought exactly: nothing else in the scene has colour.
+        /// Under `Undetailed` the eye on the wall reads red and the floor's bounces green; with no
+        /// composite, both red; and under `Every` both green. **A composite on a chunk that asked
+        /// for none is read by the eye as `Undetailed`'s is not**: only `Every` lets the eye read
+        /// one, whatever else the row holds. **And a bounce reads a near chunk's composite only at
+        /// the delight it was baked at** (`GROUND_COMPOSITE_DELIGHT`): at another, `Undetailed`'s
+        /// floor is red, since the near field is what the delight reaches.
+        TEST_F(RtxVisibilityTest, groundInsideTheActiveGridShowsTheEyeItsStackAndABounceItsComposite)
+        {
+            constexpr std::uint32_t size = 16;
+            constexpr std::array<std::uint8_t, 4> sRed{ 255, 0, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> sGreen{ 0, 255, 0, 255 };
+            const std::array<TextureData, 2> textures{ describeTexel(sRed, 0), describeTexel(sGreen, 1) };
+
+            const osg::Vec3f facing(0.0f, -1.0f, 0.0f);
+            const std::array normals{ facing, facing, facing, facing };
+            const std::array wall = uprightQuadAt(4000.0f, 0.0f);
+            const std::array floor{ osg::Vec3f(-4000.0f, -4000.0f, -100.0f), osg::Vec3f(4000.0f, -4000.0f, -100.0f),
+                osg::Vec3f(4000.0f, 0.0f, -100.0f), osg::Vec3f(-4000.0f, 0.0f, -100.0f) };
+
+            const auto sceneFor = [&](const GroundFlattening flattening, const bool composite) {
+                SceneDesc scene;
+                scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+                const Index green = scene.textures().add(VFS::Path::NormalizedView("green.dds"));
+
+                const std::array layers{ Testing::layerOf(0) };
+                Material ground;
+                ground.mKind = MaterialKind::Terrain;
+                ground.mLayers = scene.materials().addLayers(layers);
+                ground.mFlatten = flattening;
+                if (composite)
+                    ground.mDiffuse = green;
+
+                scene.addInstance(MeshInstance{
+                    .mMesh = scene.addMesh(MeshArrays{
+                        .mPositions = wall, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(ground) });
+                addQuad(scene, floor);
+                return scene;
+            };
+
+            // The sun along the wall's normal, square to it and grazing the floor; nothing else lights.
+            const auto lit = [](Shaders::VisibilityConstants camera) {
+                camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, -1.0f, 0.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                camera.mAmbientFromSky = 1.0f;
+                return camera;
+            };
+            const Shaders::VisibilityConstants onTheWall = lit(Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f));
+            const Shaders::VisibilityConstants onTheFloor = lit(Testing::makeCamera(
+                osg::Vec3f(0.0f, -200.0f, 0.0f), osg::Vec3f(0.0f, -150.0f, -100.0f), 60.0f, size, size, 100000.0f));
+
+            struct Case
+            {
+                GroundFlattening mFlattening;
+                bool mComposite;
+                float mDelight;
+            };
+            const float baked = Shaders::GROUND_COMPOSITE_DELIGHT;
+            for (const Case& one :
+                { Case{ GroundFlattening::None, false, baked }, Case{ GroundFlattening::Undetailed, true, baked },
+                    Case{ GroundFlattening::Every, true, baked }, Case{ GroundFlattening::None, true, baked },
+                    Case{ GroundFlattening::Undetailed, true, 0.0f }, Case{ GroundFlattening::Every, true, 0.0f } })
+            {
+                const GroundFlattening flattening = one.mFlattening;
+                const SceneDesc scene = sceneFor(flattening, one.mComposite);
+                const bool eyeGreen = flattening == GroundFlattening::Every;
+                const bool bounceGreen
+                    = one.mComposite && (flattening == GroundFlattening::Every || one.mDelight == baked);
+                const std::string name = std::to_string(static_cast<int>(flattening))
+                    + (one.mComposite ? " with a composite" : "") + " at a delight of " + std::to_string(one.mDelight);
+
+                const Frame wallSeen = shoot(
+                    scene, textures, onTheWall, size, Shot{ .mShow = SurfaceView::Albedo, .mDelight = one.mDelight });
+                EXPECT_EQ(wallSeen.mHits, size * size);
+                EXPECT_EQ(wallSeen.mean(eyeGreen ? 0 : 1), 0.0f) << "the eye read the other image, " << name;
+                EXPECT_GT(wallSeen.mean(eyeGreen ? 1 : 0), 0.9f) << "the eye read neither, " << name;
+
+                const Frame floorLit
+                    = shoot(scene, textures, onTheFloor, size, Shot{ .mFrames = 16, .mDelight = one.mDelight });
+                EXPECT_EQ(floorLit.mean(bounceGreen ? 0 : 1), 0.0f) << "a bounce read the other image, " << name;
+                EXPECT_GT(floorLit.mean(bounceGreen ? 1 : 0), 0.01f)
+                    << "the floor took no bounce off the wall, " << name;
+            }
+        }
+
         /// **Ground sums its layers' maps by the weights it sums their albedo by**: the normals, and
         /// how much of it reflects and how rough — and a flattened chunk reflects as the stack does.
         ///
@@ -1961,7 +2060,7 @@ namespace Rtx::Testing
                 material.mLayersMapped = true;
                 if (flattened)
                 {
-                    material.mFlatten = true;
+                    material.mFlatten = GroundFlattening::Every;
                     material.mDiffuse = 0;
                     material.mSpecular = 3;
                 }
@@ -2232,7 +2331,7 @@ namespace Rtx::Testing
             // material rewritten in place, and the slot described as the builder describes a
             // composite — which chunk it is the ground of, and no bytes.
             Material flattened = material;
-            flattened.mFlatten = true;
+            flattened.mFlatten = GroundFlattening::Every;
             flattened.mDiffuse = scene.textures().addGround(chunk, TextureKind::GroundAlbedo);
             scene.setMaterial(chunk, flattened);
             const TextureData composite{

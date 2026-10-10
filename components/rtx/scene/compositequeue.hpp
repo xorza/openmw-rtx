@@ -16,10 +16,10 @@ namespace Rtx
     /// their stacks.
     inline constexpr std::size_t sCompositesPerFrame = 2;
 
-    /// Every distant chunk whose ground is to be flattened, in the order the walks asked. A chunk
-    /// that asks is given a slot and its material's `mDiffuse`, and the slot arrives at the
-    /// device empty: the backend sums the chunk's own stack into it in the placement
-    /// after, reading the layers' textures and masks the device already holds. Nothing is wrong
+    /// Every chunk whose ground is to be flattened (`GroundFlattening`), in the order the walks
+    /// asked. A chunk that asks is given a slot and its material's `mDiffuse`, and the slot arrives
+    /// at the device empty: the backend sums the chunk's own stack into it in the placement after,
+    /// reading the layers' textures and masks the device already holds. Nothing is wrong
     /// while a chunk waits: it keeps `mDiffuse` unset and the shader sums its layer stack at the
     /// hit, so the bake buys the cost of that hit and not the sight of the ground.
     ///

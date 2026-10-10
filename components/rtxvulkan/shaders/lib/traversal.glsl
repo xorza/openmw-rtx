@@ -14,6 +14,7 @@
 #include "gbuffer.h"
 #include "look.h"
 #include "scene.h"
+#include "shared/ground.h"
 #include "basis.glsl"
 #include "bindings.glsl"
 #include "geometry.glsl"
@@ -903,8 +904,7 @@ struct Surface
     ///
     /// **What `BOUNCE_REACH` is allowed to hand the sky.** A draw about open ground reaches it
     /// whatever stands nearby; the same draw about a wall spends half of itself on whatever the wall
-    /// belongs to. `layered` folds it to false in the two shaders no terrain can reach, so the
-    /// escape and the reach compile out of them entirely.
+    /// belongs to. A material with a layer stack is ground, and only ground has one.
     bool mGround;
 
     vec3 mPosition;
@@ -1052,18 +1052,16 @@ vec3 stepOf(Surface surface)
 /// is keyed on where the ray landed — the instance, its mesh, its material, its textures — and
 /// `Hit` is what the traversal answered.
 ///
-/// @param layered whether ground that kept its layer stack can reach this hit. **A literal at every
-///        call**, so the stack's loop and the four tables it walks are compiled out of a shader no
-///        such hit can arrive at. A closest-hit shader is picked by the instance's own material
-///        kind, so the two that are not terrain's know the answer is no — register relief no
-///        driver here will report a number for.
+/// Every query in the frame resolves its hit here — the eye's, a bounce, a reflection, the bed
+/// under a waterline pixel.
+///
 /// @param detailed whether the hit is a picture: the eye's own, a reflection's, the bed under a
 ///        waterline — `trace`'s `draws`. **A diffuse bounce's far hit is not**, and reads no normal
 ///        map and no parallax: what it sends back is averaged over a hemisphere and then filtered,
 ///        and relief read there moved nothing a 1024-frame reference could tell from its own noise,
 ///        at Balmora or in the census office. The albedo, the reflectance and the roughness are read
 ///        either way, because the energy the hit sends back is theirs.
-Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool detailed)
+Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
 {
     Surface surface = noSurface(origin);
 
@@ -1120,7 +1118,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     surface.mSmooth = surface.mNormal;
 
     const GpuMaterial material = materialAt(instance.mMaterial);
-    surface.mGround = layered && material.mLayerCount > 0u;
+    surface.mGround = material.mLayerCount > 0u;
 
     // **Fetched for every hit, and selected between without a branch.** A mesh that brought no
     // colour holds white, so the load answers neutrally rather than needing a case, and the two
@@ -1189,19 +1187,32 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction);
     }
 
-    // **Ground that kept its stack**, which is every chunk near enough to be worth the sharpness,
-    // and one fetch for everything else, an untextured surface included: its diffuse is
-    // `TEXTURE_NEUTRAL`, whose one texel is white. A chunk outside the active grid
-    // had the whole stack flattened into one texture in its own coordinates instead, by
-    // `groundcomposite.comp` over the same sum as this, and is that one fetch too.
-    // `CellPlacer::wantsFlattening` is where the two swap over, and `MATERIAL_STACKED` is what the
-    // row says about which it is.
+    // **Ground summed from its stack** where the hit is a picture of ground near enough to be worth
+    // the sharpness, or the chunk has no composite, and one fetch for everything else, an
+    // untextured surface included: its diffuse is `TEXTURE_NEUTRAL`, whose one texel is white. A
+    // chunk of more than one layer has the whole stack flattened into one texture in its own
+    // coordinates, by `groundcomposite.comp` over the same sum as this, and a hit that reads it is
+    // that one fetch too: every hit outside the active grid, and inside it a bounce's far end.
+    // `CellPlacer::flatteningOf` is where they swap over, and `MATERIAL_STACKED` and
+    // `MATERIAL_STACKED_SEEN` are what the row says about which it is.
+    //
+    // **Near ground's bounce reads the composite only where the frame divides out the painted light
+    // the bake did** (`GROUND_COMPOSITE_DELIGHT`): the near field is what `--delight` reaches, its
+    // bounces as well as its eye, and a composite baked to another delight would bounce a colour the
+    // eye does not see. **A chunk whose composite stands in is summed from its stack**, which is
+    // still the scene's: the composites are what give way first where the device runs out of room,
+    // and the grey stand-in would be the whole chunk.
+    const bool stacked = (material.mFlags & MATERIAL_STACKED) != 0u
+        || ((material.mFlags & MATERIAL_STACKED_SEEN) != 0u
+            && (detailed || frame.mDelight != GROUND_COMPOSITE_DELIGHT))
+        || (material.mLayerCount > 0u && !holdsTexture(material.mDiffuse));
     vec3 albedo = vec3(0.0);
 
-    // Asked once: each is a load through a buffer reference, and three branches below ask it.
-    const bool specularMap = HAS_MAPS && holdsTexture(material.mSpecular);
+    // Asked once: each is a load through a buffer reference, and three branches below ask it. A
+    // stack's gloss is its layers', and the composite's beside it is not read under the stack.
+    const bool specularMap = HAS_MAPS && !stacked && holdsTexture(material.mSpecular);
 
-    // What a stack sums to, as `groundcomposite.comp` sums it into a distant chunk's composite and
+    // What a stack sums to, as `groundcomposite.comp` sums it into a chunk's composite and
     // gloss (`GroundSum`), and beside it what only a hit reads: the tangent-space normals, each
     // weighted as the layer's albedo is — the layers' own where they have a map and straight up
     // where not — and what their maps lost.
@@ -1210,12 +1221,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     vec3 painted = vec3(0.0);
     bool relief = false;
 
-    // **A chunk whose composite stands in is summed from its stack**, which is still the scene's: the
-    // composites are what give way first where the device runs out of room, and the grey stand-in
-    // would be the whole chunk.
-    if (layered
-        && ((material.mFlags & MATERIAL_STACKED) != 0u
-            || (material.mLayerCount > 0u && !holdsTexture(material.mDiffuse))))
+    if (stacked)
     {
         // Each layer is a tiling texture masked by its own grid of weights, and the stack sums to
         // one where the masks were built to — the same sum the rasterizer reaches by drawing the
@@ -1311,7 +1317,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // occlusion that convention is for.
     //
     // **Ground reflects as a dielectric, over the share of it that reflects at all** — a stack from
-    // its layers, a distant chunk from the gloss baked beside its composite — and the tint darkens
+    // its layers, a flattened chunk from the gloss baked beside its composite — and the tint darkens
     // it for the same reason. A stack with no layer that reflects keeps the Lambert surface's
     // numbers exactly, since no division is taken for it.
     if (HAS_MAPS && (ground.mReflecting > 0.0 || ground.mShining > 0.0))
@@ -1400,15 +1406,6 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         = lit ? min(surface.mAmbientAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAmbientAlbedo;
 
     return surface;
-}
-
-/// The same, for a ray that could have landed on anything. Every inline query in the frame — a
-/// bounce, a reflection, the bed under a waterline pixel — is one of these.
-///
-/// @param draws whether the ray draws the picture, which is whether the hit is `detailed`.
-Surface resolve(Hit hit, vec3 origin, vec3 direction, bool draws)
-{
-    return resolveFor(hit, origin, direction, true, draws);
 }
 
 /// Traverses, and answers with what the query committed.

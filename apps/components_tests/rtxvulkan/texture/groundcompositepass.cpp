@@ -95,7 +95,7 @@ namespace Rtx
                     layers[1].mFlags = Shaders::LAYER_CLASSIC;
                 Material chunk;
                 chunk.mKind = MaterialKind::Terrain;
-                chunk.mFlatten = true;
+                chunk.mFlatten = GroundFlattening::Every;
                 chunk.mLayers = scene.materials().addLayers(layers);
                 const Index material = scene.addMaterial(chunk);
 
