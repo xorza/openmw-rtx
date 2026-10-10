@@ -143,6 +143,9 @@ namespace Rtx
         /// next bin. Staging, because it is the one table the host reads.
         Buffer mReport;
 
+        /// Whether a bin here has been recorded, before which the report holds no bin's figure.
+        bool mRecorded = false;
+
         /// How long `mTileList` is and how much of it a bin may fill. Grown from the report and
         /// never shrunk, so the list settles at its high-water mark like every other table.
         /// `SpriteListSize` says why the two numbers are one object.

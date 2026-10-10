@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/device.hpp>
@@ -57,8 +58,9 @@ namespace Rtx
         // function of the frames and not of the clock; a bin whose report is not yet waited for
         // keeps the capacity it has, which `SpriteListSize` never shrinks anyway. Here with the
         // rest, because the frame block carries this table's address too.
-        const std::uint32_t reported
-            = timeline.hasFinished(mReport.getNamedUntil()) ? *static_cast<const std::uint32_t*>(mReport.map()) : 0;
+        const std::optional<std::uint32_t> reported = mRecorded && timeline.hasFinished(mReport.getNamedUntil())
+            ? std::optional(*static_cast<const std::uint32_t*>(mReport.map()))
+            : std::nullopt;
         mListSize.sizeFor(Shaders::spriteTilesIn(camera.mWidth, camera.mHeight), count, reported);
 
         // Past the need as the tables above are; the pass is told the capacity the rule gave, which
@@ -125,5 +127,6 @@ namespace Rtx
         // What the next bin here sizes its list from. A fence's access scope is the device's, so
         // without this the figure is whatever the caches held.
         mReport.orderForHostRead(commands);
+        mRecorded = true;
     }
 }

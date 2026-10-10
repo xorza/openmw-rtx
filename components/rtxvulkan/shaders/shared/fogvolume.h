@@ -9,7 +9,7 @@
 // What the fog volume's images are made of and where each one is bound, said once for both sides
 // that have to agree. `gbuffer.h` says what a channel costs when its format and its image's drift.
 //
-// **Five formats and not one.** Two of these images hold a single channel: the sun's
+// **Four formats and not one.** Two of these images hold a single channel: the sun's
 // transport is a product of transmittances and carries no colour, so the accumulated and the
 // per-slice copies of it are half floats one wide. The column depth is a world distance and is the
 // one thing here a half float cannot hold.
@@ -19,15 +19,17 @@
 // the brightest pixel this game reaches is under nine, so a half has room to spare — and rounding
 // the term every froxel of a night reads would move the night's air for a megabyte at 1080p.
 //
-// **The scatter pass's two answers are the fifth, full width because they are a history**: the
-// next frame's scatter pass reads them back into its own blend (`FOG_VOLUME_HISTORY`), and a half
-// store rounds toward nought on this card (`RtxHalfStoreTest`), so kept in halves the blend fell a
-// little at every store and settled about 0.3% under the air it averages — ten times a store's
-// mean loss at a history weight of nine tenths. `Shaders::mayRoundTowardNought` is the rule, which
-// `FogVolume` checks, as `DenoiseHistory` checks the denoiser's.
+// **The scatter pass's two answers are a history, in halves rounded at random**: the next frame's
+// scatter pass reads them back into its own blend (`FOG_VOLUME_HISTORY`), and a half store rounds
+// toward nought on this card (`RtxHalfStoreTest`), so stored as computed the blend fell a little at
+// every store and settled about 0.3% under the air it averages — ten times a store's mean loss at a
+// history weight of nine tenths. `roundedToHalf` rounds each value up or down by a draw before the
+// store, which is unbiased, as the denoiser's histories are kept; `Shaders::mayRoundTowardNought`
+// is the rule, which `FogVolume` checks, as `DenoiseHistory` checks the denoiser's. Full floats cost
+// sixteen bytes a froxel in four volumes, some 236 MB at a 3840×2160 traced frame.
 
 #define FOG_VOLUME_FORMAT STORAGE_RGBA16F
-#define FOG_HISTORY_FORMAT STORAGE_RGBA32F
+#define FOG_HISTORY_FORMAT STORAGE_RGBA16F
 #define FOG_SUNWARD_FORMAT STORAGE_R16F
 #define FOG_DEPTH_FORMAT STORAGE_RG32F
 #define FOG_MOONS_FORMAT STORAGE_RGBA32F
@@ -47,6 +49,10 @@
 namespace Rtx::Shaders
 {
 #endif
+
+    /// Whether `fogscatter.rgen` rounds each history value at random into its half before it stores
+    /// it, which `FogVolume` holds `FOG_HISTORY_FORMAT` to: the one statement both sides read.
+    const bool FOG_HISTORY_ROUNDED_AT_RANDOM = true;
 
     /// What the air scatters at a point and the three answers a ray each gave there, as the
     /// previous frame left them. These are the quantities that reproject, so these are the ones a

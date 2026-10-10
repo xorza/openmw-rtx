@@ -57,6 +57,7 @@
 #include "lib/counts.glsl"
 #include "lib/fog.glsl"
 #include "lib/froxel.glsl"
+#include "lib/halfround.glsl"
 #include "lib/lights.glsl"
 #include "lib/random.glsl"
 #include "lib/reproject.glsl"
@@ -181,7 +182,8 @@ void main()
     // **Over the stretch short of the surface and not over the slice**, so a froxel the ground
     // stands inside holds the mean over its air: the surface the middle ray met, since the stretch
     // is the middle ray's.
-    uint lampState = randomSeed(froxelKey(uvec2(column), slice) + SEED_LAMPS_FOG);
+    const uint key = froxelKey(uvec2(column), slice);
+    uint lampState = randomSeed(key + SEED_LAMPS_FOG);
 
     // **The sky's draws first, at a fixed place in the sequence**: the ray's pair for the sun, the
     // ray's pair for the moon, and the moon's pick. The walk below steps the same state once a lamp,
@@ -248,7 +250,7 @@ void main()
     // where it was not asked, so a puff that enters a frame of none starts from the open fill and
     // the history takes it to what its froxel sees.
     const float ambientSeen = frame.mPuffsInFrame != 0u
-        ? ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG,
+        ? ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, 0.0, key + SEED_AMBIENT_FOG,
               AMBIENT_EXTERIOR_RATE)
         : 1.0;
 
@@ -302,8 +304,16 @@ void main()
         ambient = mix(ambient, was.mSeeing.mAmbientSeen, FOG_VOLUME_HISTORY);
     }
 
+    // Rounded at random into the halves they are kept in, each by a sequence of its own:
+    // `FOG_HISTORY_FORMAT` says why.
     const FogPoint point = FogPoint(source, held, FogSeeing(transport, seen, ambient, sunSource));
-    RTX_STORE_COUNTED(fogScatterTarget, froxel, packFogScatter(point))
-    RTX_STORE_COUNTED(fogSunwardTarget, froxel, packFogSeeing(point.mSeeing))
+    const vec4 scatter = packFogScatter(point);
+    const vec4 sunward = packFogSeeing(point.mSeeing);
+    uint scatterRounding = randomSeed(key + SEED_FOG_SCATTER_ROUNDING);
+    uint sunwardRounding = randomSeed(key + SEED_FOG_SUNWARD_ROUNDING);
+    RTX_STORE_COUNTED(fogScatterTarget, froxel,
+        FOG_HISTORY_ROUNDED_AT_RANDOM ? roundedToHalf(scatter, scatterRounding) : scatter)
+    RTX_STORE_COUNTED(fogSunwardTarget, froxel,
+        FOG_HISTORY_ROUNDED_AT_RANDOM ? roundedToHalf(sunward, sunwardRounding) : sunward)
     RTX_STORE_COUNTED(fogLampsTarget, froxel, vec4(lampScatter, 0.0))
 }

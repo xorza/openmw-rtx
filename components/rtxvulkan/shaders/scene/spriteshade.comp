@@ -55,6 +55,21 @@ shared float grid[SPRITE_SHADE_WORKGROUP];
 /// The largest radius in the run, reduced through one entry a lane.
 shared float radii[SPRITE_SHADE_WORKGROUP];
 
+/// The next stretch of the sorted run, one sprite a lane: its disc on the grid — the centre, the
+/// radius in cells and the alpha — and its index in the emitter, where its layers are written.
+///
+/// **Staged by every lane at once, so the serial walk reads nothing but shared memory.** Read where
+/// it is walked, each step was a load of the key and a load of the sprite it names, the second
+/// waiting on the first, with the whole workgroup held at the barriers behind them. The discs are
+/// the expressions the walk computed; staged, a centre's scale and its half-cell offset are one
+/// rounding, where in the walk the optimizer folded `roundHalfAway` onto the scale and kept them two.
+///
+/// **Two barriers a step stay.** A second copy of the grid, read by turns, takes one away, but the
+/// lane that reads has then to lay the disc before at the four cells it reads: under snow the zone's
+/// median went from 0.64 to 0.81 ms, the serial read longer than the barrier it saved.
+shared vec4 discs[SPRITE_SHADE_WORKGROUP];
+shared uint indices[SPRITE_SHADE_WORKGROUP];
+
 /// Whether this emitter is shaded at all.
 ///
 /// A flame emits and shadows nothing of its own kind, a streak is a thin thing seen by what passes
@@ -263,34 +278,47 @@ void main()
     const uint cx = lane % SPRITE_SHADE_CELLS;
     const uint cy = lane / SPRITE_SHADE_CELLS;
 
-    for (uint step = 0u; step < held.mCount; ++step)
+    for (uint base = 0u; base < held.mCount; base += SPRITE_SHADE_WORKGROUP)
     {
-        const uint at = uint(run.at[first + step] & 0xFFFFFFFFul);
-        const GpuSprite sprite = sprites.at[held.mFirst + at];
-        const vec3 local = sprite.mPosition - held.mCentre;
-
-        // Cell centres sit at whole numbers, so the reach's edge is half a cell outside the first.
-        const float x = (dot(local, across) + held.mReach) * inverseCell - 0.5;
-        const float y = (dot(local, upward) + held.mReach) * inverseCell - 0.5;
-
-        // **Read before anything is laid down, and written by one lane.** What a sprite reads is
-        // what the sprites nearer the light left, so the read has to finish before this sprite's
-        // own disc reaches a cell — which is what the barrier under it is for.
-        if (lane == 0u)
+        // The last step of the stretch before was read before its last barrier, so these writes
+        // reach no lane still reading one.
+        if (base + lane < held.mCount)
         {
-            const float layers = readAt(x, y);
-            countNotFinite(layers);
+            const uint at = uint(run.at[first + base + lane] & 0xFFFFFFFFul);
+            const GpuSprite sprite = sprites.at[held.mFirst + at];
+            const vec3 local = sprite.mPosition - held.mCentre;
 
-            if (light == SPRITE_SHADE_SUN)
-                sprites.at[held.mFirst + at].mSunLayers = layers;
-            else
-                sprites.at[held.mFirst + at].mSkyLayers = layers;
+            // Cell centres sit at whole numbers, so the reach's edge is half a cell outside the first.
+            discs[lane] = vec4((dot(local, across) + held.mReach) * inverseCell - 0.5,
+                (dot(local, upward) + held.mReach) * inverseCell - 0.5, sprite.mRadius * inverseCell, sprite.mAlpha);
+            indices[lane] = at;
         }
-
-        const float taken = coverage(cx, cy, x, y, sprite.mRadius * inverseCell, sprite.mAlpha);
         barrier();
 
-        grid[lane] += taken;
-        barrier();
+        const uint steps = min(SPRITE_SHADE_WORKGROUP, held.mCount - base);
+        for (uint step = 0u; step < steps; ++step)
+        {
+            const vec4 disc = discs[step];
+
+            // **Read before anything is laid down, and written by one lane.** What a sprite reads is
+            // what the sprites nearer the light left, so the read has to finish before this sprite's
+            // own disc reaches a cell — which is what the barrier under it is for.
+            if (lane == 0u)
+            {
+                const float layers = readAt(disc.x, disc.y);
+                countNotFinite(layers);
+
+                if (light == SPRITE_SHADE_SUN)
+                    sprites.at[held.mFirst + indices[step]].mSunLayers = layers;
+                else
+                    sprites.at[held.mFirst + indices[step]].mSkyLayers = layers;
+            }
+
+            const float taken = coverage(cx, cy, disc.x, disc.y, disc.z, disc.w);
+            barrier();
+
+            grid[lane] += taken;
+            barrier();
+        }
     }
 }

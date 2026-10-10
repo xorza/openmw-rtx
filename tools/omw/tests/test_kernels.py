@@ -2,7 +2,17 @@ import struct
 import threading
 import unittest
 
-from omw.kernels import Setting, SpecConstant, header_count, keyed, map_cancelling, moved, settings, spec_constants
+from omw.kernels import (
+    Setting,
+    SpecConstant,
+    domains,
+    header_count,
+    keyed,
+    map_cancelling,
+    moved,
+    settings,
+    spec_constants,
+)
 from omw.system import Refusal
 
 MAGIC = 0x07230203
@@ -55,8 +65,12 @@ class SpecConstantsTest(unittest.TestCase):
 
     def test_a_domain_is_read_from_the_header_that_sizes_it(self):
         self.assertEqual(header_count("    const uint SHADOW_FILTER_LEVELS = 3;\n", "SHADOW_FILTER_LEVELS"), 3)
+        self.assertEqual(header_count("    const uint SHADOW_FIELD_COUNT = 2u;\n", "SHADOW_FIELD_COUNT"), 2)
         with self.assertRaises(Refusal):
             header_count("    const uint SHADOW_FILTER_LEVEL = 3;\n", "SHADOW_FILTER_LEVELS")
+
+        # The tree's own: three levels, and two fields filtered as either alone or both.
+        self.assertEqual(domains(), {"SHADOW_LEVEL": (0, 1, 2), "SHADOW_FIELDS": (1, 2, 3)})
 
     def test_a_module_that_is_not_one_is_refused(self):
         cut = module()[:-4]
