@@ -40,18 +40,17 @@ namespace Rtx
         /// @param look the frame's, or null for a picture inside the interface, which takes no glare,
         ///        no gamma, no Night-Eye and no dither: the interface draws it as it draws its own.
         Shaders::ToneConstants toneFor(const Shaders::VisibilityConstants& frame, const FrameLook* look,
-            const bool upscaled, const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
-            const VkDeviceAddress textureTexels, const VkDeviceAddress blueNoise, std::uint32_t width,
-            std::uint32_t height)
+            const bool upscaled, const SpriteTables& sprites, const VkDeviceAddress textureTexels,
+            const VkDeviceAddress blueNoise, std::uint32_t width, std::uint32_t height)
         {
             const SunGlare fader = look != nullptr ? look->mGlare : SunGlare{};
 
-            assert(spriteTileList != 0 && spritePresence != 0 && "a curve told no tiles to test the puffs by");
+            assert(sprites.mTileList != 0 && sprites.mPresence != 0 && "a curve told no tiles to test the puffs by");
             assert(textureTexels != 0 && "a curve told no texel counts to test the star sheet by");
 
             return Shaders::ToneConstants{
-                .mSpriteTileList = spriteTileList,
-                .mSpritePresence = spritePresence,
+                .mSpriteTileList = sprites.mTileList,
+                .mSpritePresence = sprites.mPresence,
                 .mTextureTexels = textureTexels,
                 .mBlueNoise = blueNoise,
                 .mTracedWidth = frame.mEyes.mWorld.mWidth,
@@ -66,6 +65,7 @@ namespace Rtx
                 .mLiftOffset = upscaled ? -frame.mEyes.mWorld.mJitter : osg::Vec2f(),
                 .mFrame = frame.mFrame,
                 .mDitherStep = look != nullptr && look->mDither ? Shaders::TONE_DITHER_STEP : 0.0f,
+                .mPuffs = sprites.mPuffs ? 1u : 0u,
             };
         }
     }
@@ -110,9 +110,16 @@ namespace Rtx
         // both reads.
         const GBuffer& channels = inputs.mChannels;
 
-        shown.transition(commands, what.mShown.mLeftAs, Use::sTraceReadWrite);
-        mPuffs.recordSpriteComposite(commands, inputs, shown, what.mSampled.mEyes, what.mExtent, timer);
-        shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
+        // **None in a frame no puff can be met in**, where the composite would write every pixel back
+        // as it found it and the curve reads none of its alpha (`ToneConstants::mPuffs`).
+        if (what.mTrace.mSprites.mPuffs)
+        {
+            shown.transition(commands, what.mShown.mLeftAs, Use::sTraceReadWrite);
+            mPuffs.recordSpriteComposite(commands, inputs, shown, what.mSampled.mEyes, what.mExtent, timer);
+            shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
+        }
+        else
+            shown.transition(commands, what.mShown.mLeftAs, Use::sComputeReadOrSample);
 
         // What the lens will spread, built here and applied by the curve. Nothing is written back
         // over the frame — `BloomPass` says why the trace's own answer has to reach `readComposite`
@@ -157,9 +164,8 @@ namespace Rtx
             share = &mSunGlare.getShare();
         }
 
-        const Shaders::ToneConstants constants = toneFor(what.mSampled, look, what.mUpscaled,
-            what.mTrace.mSprites.mTileList, what.mTrace.mSprites.mPresence, inputs.mSubject.mScene->getTextureTexels(),
-            mPuffs.getBlueNoise(), what.mExtent.width, what.mExtent.height);
+        const Shaders::ToneConstants constants = toneFor(what.mSampled, look, what.mUpscaled, what.mTrace.mSprites,
+            inputs.mSubject.mScene->getTextureTexels(), mPuffs.getBlueNoise(), what.mExtent.width, what.mExtent.height);
         const auto toneInto = [&](const Image& target, const Shaders::ToneConstants& into) {
             mTone.record(commands,
                 Tone{

@@ -175,6 +175,8 @@ namespace Rtx
             // structure builds happen in submits of their own before the frame's, and the whole
             // point of carrying them in the same report is that they are the same frame's cost.
             EXPECT_FALSE(reports(drawn.mGpu.spans(), FrameZone::Tlas)) << "nothing was placed, so nothing was built";
+            EXPECT_FALSE(reports(drawn.mGpu.spans(), FrameZone::Puffs))
+                << "a frame no puff can be met in composited puffs over every pixel as it found it";
 
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             const Drawn placed = draw(mRenderer, camera);

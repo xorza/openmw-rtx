@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
@@ -92,7 +93,32 @@ namespace Rtx
             if (described.mFormat == VK_FORMAT_UNDEFINED)
                 described.mFormat = radianceFormat(width);
 
+            // What `GBuffer::begin` clears a channel a trace may leave out through, read off the one
+            // rule that says which those are.
+            if (!ChannelWrites{ .mLobe = false, .mPuffs = false }.writes(channel))
+                described.mUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
             return described;
+        }
+
+        /// What a trace writes into a channel `ChannelWrites` may leave out, where it has nothing to
+        /// say: no lobe — nought light at `SPECULAR_NO_LOBE`, and a specular albedo of one — and no
+        /// puff, nought colour wholly let through.
+        VkClearColorValue nothingOf(const Channel channel)
+        {
+            switch (channel)
+            {
+                case Channel::Specular:
+                    return VkClearColorValue{ .float32 = { 0.0f, 0.0f, 0.0f, Shaders::SPECULAR_NO_LOBE } };
+                case Channel::SpecularAlbedo:
+                    return VkClearColorValue{ .float32 = { 1.0f, 1.0f, 1.0f, 1.0f } };
+                case Channel::Puffs:
+                    return VkClearColorValue{ .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } };
+                default:
+                    break;
+            }
+
+            Crash::fatal("the nothing of a channel every trace writes");
         }
 
         ImageDescription descriptionOf(
@@ -146,16 +172,44 @@ namespace Rtx
     static_assert(
         Shaders::CHANNEL_COUNT <= Barriers::sMostImages, "the G-buffer's channels overflow one barrier batch");
 
-    void GBuffer::begin(VkCommandBuffer commands) const
+    bool ChannelWrites::writes(const Channel channel) const
+    {
+        switch (channel)
+        {
+            case Channel::Specular:
+            case Channel::SpecularAlbedo:
+                return mLobe;
+            case Channel::Puffs:
+                return mPuffs;
+            default:
+                return true;
+        }
+    }
+
+    void GBuffer::begin(VkCommandBuffer commands, const ChannelWrites writes)
     {
         // From undefined, because every pixel is written before any is read. One set of channels
         // serves every frame and two are in flight, and the head barrier `CommandPool::begin`
         // recorded is what orders this buffer after the last frame's readers.
         Barriers barriers(commands);
-        for (const Image& image : mChannels)
-            image.addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
+        for (const Channel channel : sEveryChannel)
+            if (writes.writes(channel))
+            {
+                mChannels[indexOf(channel)].addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
+                mHoldsNothing[indexOf(channel)] = false;
+            }
 
         barriers.flush();
+
+        // Left as a write of the trace's, so `handOver` orders it for the readers as it orders what
+        // the trace wrote. Rare: a scene that wears no map, or a frame no puff is met in, is so for
+        // every frame until it changes.
+        for (const Channel channel : sEveryChannel)
+            if (!writes.writes(channel) && !mHoldsNothing[indexOf(channel)])
+            {
+                mChannels[indexOf(channel)].clear(commands, Use::sUndefined, nothingOf(channel), Use::sTraceWrite);
+                mHoldsNothing[indexOf(channel)] = true;
+            }
     }
 
     void GBuffer::handOver(VkCommandBuffer commands) const

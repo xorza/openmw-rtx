@@ -110,6 +110,16 @@ namespace Rtx
         /// What the fill is reflected by: the stated ambient colour, or the diffuse where none is.
         osg::Vec3f getAmbientColour() const { return mAmbientColour.value_or(mDiffuseColour); }
 
+        /// Whether the fill reflects off this surface otherwise than the bounce does: an ambient
+        /// colour apart from the diffuse, or a vertex colour that replaces one of the two and not the
+        /// other. Where neither, the trace forms the two albedos by one expression over one input, so
+        /// they are one number to the bit and the fill adds nought to the bounce (`composedLight`).
+        bool hasAmbientApart() const
+        {
+            return getAmbientColour() != mDiffuseColour || mVertexColour == VertexColour::Diffuse
+                || mVertexColour == VertexColour::Ambient;
+        }
+
         /// How much the surface glows on its own, with the material's own multiplier folded in,
         /// because the game's own shader only ever uses their product.
         osg::Vec3f mEmissiveColour{ 0.0f, 0.0f, 0.0f };

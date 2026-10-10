@@ -169,15 +169,17 @@ namespace Rtx::Shaders
         /// which a dither would only add noise to. A factor and not a switch, so every lane takes
         /// the one path.
         float mDitherStep;
+
+        /// Whether a puff can be met in the frame at all, `SpriteTables::mPuffs`. Nought where none
+        /// can, and then the puffs' composite did not run and the frame's alpha is nobody's: every
+        /// pixel reads as one let through, which is what the composite would have written.
+        uint mPuffs;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    // The host rounds the block up to 224, a multiple of eight for the addresses at its head, and the
-    // push range covers four bytes past the shader's block that nothing reads.
-    static_assert(offsetof(ToneConstants, mDitherStep) + sizeof(float) == 220,
-        "ToneConstants must be scalar-packed on every side");
+    static_assert(sizeof(ToneConstants) == 224, "ToneConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

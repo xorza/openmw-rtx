@@ -99,6 +99,19 @@ float nearestHalf(float value)
     return abs(held) < HALF_LEAST ? (held < 0.0 ? -least : least) : rounded;
 }
 
+/// `value` as a half holds it, each channel rounded toward nought by clearing the thirteen bits a
+/// half drops: **only for a value between the least normal half, 2^-14, and `HALF_LARGEST`**, which
+/// the caller holds it to, since under 2^-14 a half drops more and past the largest it holds none.
+/// For a factor two shaders must meet to the bit, the light divided by it and the channel that
+/// multiplies it back: every store of a half keeps what this leaves exactly. **By its bits, and not
+/// by `unpackHalf2x16(packHalf2x16(x))`**, which this card's driver folds back to `x`: a pane's
+/// albedo of 0.129 stored as 0.12890625 left its first filtered frame 0.07% darker than the frame the
+/// trace composed.
+vec3 truncatedToNormalHalf(vec3 value)
+{
+    return uintBitsToFloat(floatBitsToUint(value) & 0xffffe000u);
+}
+
 vec4 nearestHalf(vec4 value)
 {
     const vec2 xy = vec2(nearestHalf(value.x), nearestHalf(value.y));

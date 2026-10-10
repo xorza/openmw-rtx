@@ -179,7 +179,7 @@ namespace Rtx
                 .mTimer = what.mTimer,
             });
 
-        mChannels->begin(commands);
+        mChannels->begin(commands, mPasses.mVisibility.writesOf(inputs, what.mSampled, tables.mPuffs));
         mPasses.mVisibility.record(commands, inputs, what.mSampled, what.mTimer);
         mChannels->handOver(commands);
 

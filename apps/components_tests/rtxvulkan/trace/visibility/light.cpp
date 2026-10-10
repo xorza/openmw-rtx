@@ -1256,6 +1256,33 @@ namespace Rtx::Testing
                         << "a tint of " << tint << ", channel " << channel;
             }
 
+            // **A scene that wears no map leaves the lobe's channels holding no lobe**, though the
+            // frame before wrote one at the floor: neither is stored, and both hold what a trace stores
+            // where there is no lobe — nought light at `SPECULAR_NO_LOBE`, and an albedo of one.
+            {
+                SceneDesc plain;
+                plain.addInstance(MeshInstance{
+                    .mMesh = plain.addMesh(MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }),
+                    .mMaterial = plain.addMaterial(Material{}) });
+                shoot(plain, {}, camera, size);
+
+                std::vector<float> modulation;
+                mRenderer.readChannel(Channel::SpecularAlbedo, modulation);
+                std::vector<float> lobe;
+                mRenderer.readChannel(Channel::Specular, lobe);
+                ASSERT_EQ(lobe.size(), modulation.size());
+                for (std::size_t value = 0; value < lobe.size(); value += 4)
+                {
+                    ASSERT_EQ(osg::Vec4f(modulation[value], modulation[value + 1], modulation[value + 2],
+                                  modulation[value + 3]),
+                        osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f))
+                        << "pixel " << value / 4 << " of a scene with no map";
+                    ASSERT_EQ(osg::Vec4f(lobe[value], lobe[value + 1], lobe[value + 2], lobe[value + 3]),
+                        osg::Vec4f(0.0f, 0.0f, 0.0f, Shaders::SPECULAR_NO_LOBE))
+                        << "pixel " << value / 4 << " of a scene with no map";
+                }
+            }
+
             // The same through the leaning map, decoded as `2 * byte / 255 - 1`.
             const osg::Vec3f painted(
                 2.0f * 191.0f / 255.0f - 1.0f, 2.0f * 128.0f / 255.0f - 1.0f, 2.0f * 221.0f / 255.0f - 1.0f);

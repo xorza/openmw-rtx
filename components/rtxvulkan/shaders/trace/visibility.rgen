@@ -30,6 +30,7 @@
 #include "lib/counts.glsl"
 #include "lib/fog.glsl"
 #include "lib/frame.glsl"
+#include "lib/halfround.glsl"
 #include "lib/payload.glsl"
 #include "lib/random.glsl"
 #include "lib/reproject.glsl"
@@ -424,9 +425,15 @@ void main()
     // which is the composite's; gathered here as well, it was hidden and let through by this
     // jittered sample and not by the pixel the picture shows, and a cloud's edge shook the way a
     // puff's did at a silhouette.
-    const PuffLayer sprites
-        = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
-    RTX_STORE_COUNTED(puffs, ivec2(pixel), vec4(sprites.mColour, sprites.mTransmittance))
+    //
+    // **Only in a frame a puff can be met in**, a uniform branch: in any other the layer is no puff
+    // at every pixel, which the channel holds already (`GBuffer::begin`).
+    if (frame.mPuffsInFrame != 0u)
+    {
+        const PuffLayer sprites
+            = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
+        RTX_STORE_COUNTED(puffs, ivec2(pixel), vec4(sprites.mColour, sprites.mTransmittance))
+    }
 
     // **The sun glare fader's query, one ray at a time.** The rasterizer draws the sun's quad
     // against the world's depth and counts the pixels that survived; here every primary ray inside
@@ -474,15 +481,10 @@ void main()
     const vec3 paneAlbedoSum = armsStack.mAlbedo + armsStack.mThrough * panes.mAlbedo;
     // **Rounded to what `CHANNEL_PANE_ALBEDO` holds before anything is divided by it**, as
     // `specularModulation` is: the light divided by this and the channel the composite multiplies by
-    // are one number, so the two meet to the rounding of a product.
-    //
-    // **By its bits, and not by `unpackHalf2x16(packHalf2x16(x))`**, which this card's driver folds
-    // back to `x`: the trace then composed with 0.129 and the store kept 0.12890625, rounding toward
-    // nought, so a pane's first filtered frame came out 0.07% darker than the frame the trace
-    // composed. The 13 bits a half has not, cleared, leave a value every store of a half keeps exactly,
-    // over the whole range between the floor — past the least normal half — and the greatest half.
-    const vec3 paneHeld = clamp(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR), vec3(65504.0));
-    const vec3 paneModulation = uintBitsToFloat(floatBitsToUint(paneHeld) & 0xffffe000u);
+    // are one number, so the two meet to the rounding of a product. The floor stands past the least
+    // normal half, which the truncation asks.
+    const vec3 paneModulation
+        = truncatedToNormalHalf(clamp(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR), vec3(HALF_LARGEST)));
     const vec3 paneLight = paneDrawn / paneModulation;
 
     // **What the upscaler is told its motion vector does not describe**, `CHANNEL_UPSCALE_MASKS`:
@@ -512,10 +514,16 @@ void main()
     RTX_STORE_COUNTED(fill, at, vec4(filled, 1.0))
     RTX_STORE_COUNTED(shadowed, at, vec4(sky.mLight, packShadowAlpha(sky.mOpen > 0.0, sky.mPenumbra)))
     RTX_STORE_COUNTED(lamped, at, vec4(lamps.mLight, packShadowAlpha(lamps.mOpen > 0.0, lamps.mPenumbra)))
-    RTX_STORE_COUNTED(specular, at, vec4(lobe, answer.mRoughness))
     RTX_STORE_COUNTED(albedo, at, vec4(answer.mResponse.mDiffuse, 1.0))
     RTX_STORE_COUNTED(ambientAlbedo, at, vec4(answer.mResponse.mAmbient, 1.0))
-    RTX_STORE_COUNTED(specularAlbedo, at, vec4(answer.mResponse.mSpecular, 1.0))
+
+    // **The lobe's two only where a surface can have one**, which without the maps' code none can:
+    // the channels hold no lobe already (`GBuffer::begin`), sixteen bytes a pixel nothing reads.
+    if (HAS_MAPS)
+    {
+        RTX_STORE_COUNTED(specular, at, vec4(lobe, answer.mRoughness))
+        RTX_STORE_COUNTED(specularAlbedo, at, vec4(answer.mResponse.mSpecular, 1.0))
+    }
 
     // **The layers' lift, the world's behind the arms', and the surface's behind both**, by what the
     // path let through — the layers, the water and the air: each lit thing the pixel shows, by the

@@ -283,7 +283,12 @@ namespace RtxTool
         // from, so a run says what the rule caught.
         std::uint32_t lampBodies = 0;
         std::uint32_t glowingBodies = 0;
+        std::uint32_t ambientApart = 0;
+        std::uint32_t seeThrough = 0;
         scene.placements().forEachPlaced([&](Rtx::Index, const Rtx::PlacementRow& row) {
+            const Rtx::Index worn = row.mInstance.mMaterial;
+            ambientApart += worn != Rtx::sNoIndex && scene.materials().getRows()[worn].hasAmbientApart() ? 1 : 0;
+            seeThrough += row.mWorn.placedAt(row.mInstance.mOpacity).mTranslucent ? 1 : 0;
             if (!row.mInstance.mLampBody)
                 return;
             ++lampBodies;
@@ -310,14 +315,16 @@ namespace RtxTool
                         "  media:                {} of those are nowhere opaque\n"
                         "  emissive materials:   {}\n"
                         "  lamp bodies:          {} placements of a light's own model, {} of them glowing\n"
+                        "  ambient apart:        {} placements, see-through {}\n"
                         "  companion maps:       {} materials wear a normal map, {} a specular map; {} meshes "
                         "carry tangents\n"
                         "  lights:               {} casting\n"
                         "  deforming drawables:  {}\n"
                         "  flattened ground:     {} cells outside the active grid\n"
                         "  emitters:             {} holding {} live particles\n",
-                cutouts, tested, translucent, media, glowing, lampBodies, glowingBodies, normalMapped, specularMapped,
-                tangentMeshes, scene.lights().size(), stats.mDeformed, flattened, stats.mEmitters, stats.mSprites));
+                cutouts, tested, translucent, media, glowing, lampBodies, glowingBodies, ambientApart, seeThrough,
+                normalMapped, specularMapped, tangentMeshes, scene.lights().size(), stats.mDeformed, flattened,
+                stats.mEmitters, stats.mSprites));
 
         into.mRecord.note(
             std::format("\nnot placed\n"
