@@ -56,6 +56,16 @@ namespace Rtx
         /// `vkCreate*Pipelines` accepts as "no cache" — so a caller passes this without asking.
         VkPipelineCache getHandle() const { return mHandle.get(); }
 
+        /// Writes the driver's current blob back where it differs from what was loaded or last
+        /// written, through a temporary and a rename — or deletes the file where the blob has
+        /// outgrown `sMostBytes`, which is what the next run would do with it anyway. Nothing where
+        /// the spec keeps no cache.
+        ///
+        /// **Once the start's pipelines are made, and again as the cache goes**: written only as it
+        /// went, a crash or a kill later in the session threw away the whole compile, and the next
+        /// start compiled every kernel again.
+        void save();
+
         /// The most a blob may hold before a run throws it away and starts one again — a backstop
         /// and not the eviction, which the name is. Well clear of the largest live set, because a
         /// cap that trips on a working cache throws it away every run for ever: one shader
@@ -79,11 +89,6 @@ namespace Rtx
             const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties);
 
     private:
-        /// Writes the driver's current blob back, through a temporary and a rename — or deletes the
-        /// file where the blob has outgrown `sMostBytes`, which is what the next run would do with
-        /// it anyway.
-        void write() const;
-
         /// Removes the oldest of this renderer's other caches in the same directory, past the few it
         /// keeps — the eviction. Another cache is for a driver or a shader tree this run does not
         /// have, which a second card or the tree before an edit may have again; one older than the
@@ -101,7 +106,8 @@ namespace Rtx
         Immediate<VkPipelineCache, vkDestroyPipelineCache> mHandle;
         std::filesystem::path mPath;
 
-        /// What was loaded, kept so that a run which compiled nothing new rewrites nothing.
+        /// What was loaded or last written, kept so that a run which compiled nothing new since
+        /// rewrites nothing.
         std::vector<std::uint8_t> mLoaded;
     };
 }

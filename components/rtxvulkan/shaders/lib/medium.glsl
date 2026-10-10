@@ -35,6 +35,7 @@
 #include "fog.glsl"
 #include "frame.glsl"
 #include "geometry.glsl"
+#include "share.glsl"
 // A medium is lit the way a puff of smoke is and fills the layer a puff of smoke fills — `puffLight`
 // and `PuffLayer` are the one place each of those is said, and this walk is the second caller.
 #include "sprites.glsl"

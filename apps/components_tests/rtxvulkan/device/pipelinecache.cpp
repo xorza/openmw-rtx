@@ -79,6 +79,46 @@ namespace Rtx
             }
         };
 
+        /// A cache saved while it stands is on the disk before it goes, and a save with nothing
+        /// compiled since writes nothing, then or as it goes.
+        ///
+        /// **What a crash after the start's compile keeps** (`VulkanRenderer::awaitKernels`): the
+        /// file is there while the cache still stands. A rewrite is seen by the file's time, set
+        /// back an hour after the first save so that one in the same tick would still show.
+        TEST_F(RtxPipelineCacheTest, aSavedCacheIsOnTheDiskAndASecondSaveWritesNothing)
+        {
+            const std::filesystem::path cacheDirectory = TestingOpenMW::outputFilePath("cache-save-test");
+            std::filesystem::remove_all(cacheDirectory);
+
+            std::filesystem::file_time_type stamped;
+            {
+                PipelineCache cache(getDevice().getHandle(), deviceProperties(),
+                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, Testing::getShaderDirectory());
+                ASSERT_NE(cache.getHandle(), VK_NULL_HANDLE) << "a cache was made";
+                ASSERT_TRUE(filesIn(cacheDirectory).empty()) << "nothing on the disk before a save";
+
+                cache.save();
+                const std::vector<std::string> saved = filesIn(cacheDirectory);
+                ASSERT_EQ(saved.size(), 1u) << "the save wrote the cache's file while it stands";
+
+                const std::filesystem::path file = cacheDirectory / saved.front();
+                const Misc::Result<std::vector<std::uint8_t>, std::string_view> read
+                    = PipelineCache::read(file, deviceProperties());
+                ASSERT_TRUE(read.isOk()) << "the saved file reads back: " << read.error();
+
+                stamped = std::filesystem::file_time_type::clock::now() - std::chrono::hours(1);
+                std::filesystem::last_write_time(file, stamped);
+
+                cache.save();
+                EXPECT_EQ(std::filesystem::last_write_time(file), stamped) << "a save with nothing new rewrote";
+            }
+
+            const std::vector<std::string> left = filesIn(cacheDirectory);
+            ASSERT_EQ(left.size(), 1u);
+            EXPECT_EQ(std::filesystem::last_write_time(cacheDirectory / left.front()), stamped)
+                << "the cache going rewrote what its save had written";
+        }
+
         /// The device has a cache, and what it writes is what the loader will take back.
         ///
         /// **The check the loader applies has to accept the driver's own output**, and there is

@@ -248,16 +248,17 @@ struct PuffLayer
     /// blending hides nothing by definition.
     float mTransmittance;
 
-    /// How far along the ray the covering happened, weighted by how much each sprite covered.
+    /// How far along the ray the covering happened, at each puff's share of what the layer shows:
+    /// in order for the sprites' nearest four (`PuffLayers`), and by alpha for a medium's shells,
+    /// which have none.
     ///
     /// **What the caller splits the air at.** A layer that covers what is behind it must not cover
-    /// the haze in front of it, and the mean is the right depth for the same reason the mean colour
-    /// is the right colour: the walk has no order to composite by, so it reports what the coverage
-    /// came to and where it came from. Nought for a frame that covered nothing.
+    /// the haze in front of it, and the depth the colour came from is the one to split at. Nought
+    /// for a frame that covered nothing.
     float mCoveredAt;
 
-    /// The sum of the covering puffs' alphas, which is what the walk weighed `mColour` and
-    /// `mCoveredAt` by, and what `mergedPuffs` weighs two layers by.
+    /// The sum of the covering puffs' alphas: what `mergedPuffs` weighs two layers by, and what a
+    /// medium's walk weighed `mColour` and `mCoveredAt` by.
     float mWeight;
 };
 
@@ -828,15 +829,14 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     return layer;
 }
 
-/// Two layers of puffs as one.
+/// Two layers of puffs as one: the sprites' and a medium's.
 ///
-/// **The same rule each walk already uses inside itself, applied once more.** Neither walk has an
-/// order to composite by, so each reports the exact coverage `1 - prod(1 - a)` filled with its own
-/// mean colour, weighted by each puff's alpha, and taken at its own depth weighted alike. The two
-/// are put together by the same weights, the sum of each walk's alphas, so a pixel's colour is the
-/// same whichever walk drew which puff: four sprites at half and one shell at half weigh four to
-/// one, merged or not. It is exact wherever the colours agree — which is what one emitter's smoke
-/// and one cloud's shells each are.
+/// **No order between them, so weighed by the sum of each layer's alphas**, the rule a medium's walk
+/// uses inside itself. Each layer reports the exact coverage `1 - prod(1 - a)`, filled with one
+/// colour at one depth — the sprites' composited in order (`PuffLayers`), a medium's weighed by
+/// alpha — and the two colours and depths are weighed by their sums, so four sprites at half and one
+/// shell at half weigh four to one. It is exact wherever one layer is empty or the colours agree —
+/// which is what one emitter's smoke and one cloud's shells each are.
 ///
 /// **What it gives up is the depth**, and only where both walks found something on one pixel: rain
 /// a few units out and a cloud two thousand away come to one mean the air is split at. The weight

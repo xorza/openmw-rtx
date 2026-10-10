@@ -20,6 +20,7 @@
 #include "geometry.glsl"
 #include "ground.glsl"
 #include "random.glsl"
+#include "share.glsl"
 #include "texturing.glsl"
 #include "variants.glsl"
 
@@ -203,48 +204,6 @@ float sampledOpacity(float opacity, float painted)
 float sampledOpacity(float opacity, GpuMaterial material, TexturePoint point)
 {
     return sampledOpacity(opacity, sampleDiffuse(material.mDiffuse, point).a);
-}
-
-/// One, in the units an order-free sum over candidates is taken in: twenty fractional bits.
-///
-/// **A sum over candidates is an integer sum, because the order candidates arrive in is the
-/// card's.** The specification's "Ray Intersection Candidate Determination" says *there is no
-/// ordering guarantee between operations performed on different intersection candidates*, and a
-/// float sum or product rounds differently for every order it is taken in — so a shadow made of
-/// three panes came out one bit different from run to run, and the frame hash with it. An integer
-/// sum is the same sum in every order. Twenty bits, because the largest term is a colour times a
-/// coverage and the sums saturate at four thousand of those, which no stack of shells reaches; and
-/// it holds a shadow's logarithm to a relative part in a million.
-///
-/// **Saturating, so an overflow is a clamp and not a wrap**: `addShare` is the one way a share is
-/// summed.
-const float SHARE_UNIT = 1048576.0;
-
-/// A term of an order-free sum, off a non-negative float.
-uint sharePart(float part)
-{
-    return uint(round(max(part, 0.0) * SHARE_UNIT));
-}
-
-uvec3 sharePart(vec3 part)
-{
-    return uvec3(round(max(part, vec3(0.0)) * SHARE_UNIT));
-}
-
-/// `sharePart` undone, for a sum read back as a float.
-float shareTotal(uint total)
-{
-    return float(total) / SHARE_UNIT;
-}
-
-uint addShare(uint total, uint part)
-{
-    return total + min(part, ~total);
-}
-
-uvec3 addShare(uvec3 total, uvec3 part)
-{
-    return total + min(part, ~total);
 }
 
 /// What a see-through candidate keeps from a ray, as the term an order-free sum carries: the

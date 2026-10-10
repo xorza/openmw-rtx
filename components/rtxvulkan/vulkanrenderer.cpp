@@ -612,7 +612,17 @@ namespace Rtx
 
     JobProgress VulkanRenderer::awaitKernels(const std::chrono::milliseconds patience)
     {
-        return mTracePasses.mVisibility.awaitKernels(patience);
+        const JobProgress progress = mTracePasses.mVisibility.awaitKernels(patience);
+
+        // **The cache is written the moment the start's compile is whole**, under the loading screen
+        // that waited for it, and not only as the device goes: a crash or a kill later in the
+        // session threw that whole compile away. Once; what compiles after it is written at exit.
+        if (progress.isDone() && !mKernelsSaved)
+        {
+            mDevice.savePipelineCache();
+            mKernelsSaved = true;
+        }
+        return progress;
     }
 
     FrameTraced VulkanRenderer::renderFrame(const FrameRequest& request)

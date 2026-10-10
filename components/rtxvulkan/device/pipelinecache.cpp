@@ -252,13 +252,10 @@ namespace Rtx
 
     PipelineCache::~PipelineCache()
     {
-        if (mHandle.get() == VK_NULL_HANDLE)
-            return;
-
         // The one destructor here that is not about a handle. A destructor, so nothing in it may
         // throw: allocating the blob can, and a cache that failed to save is not worth taking the
         // process down over. `tearDown` is where that rule lives.
-        tearDown("the pipeline cache was not saved", [&] { write(); });
+        tearDown("the pipeline cache was not saved", [&] { save(); });
     }
 
     void PipelineCache::sweep() const
@@ -306,9 +303,9 @@ namespace Rtx
         }
     }
 
-    void PipelineCache::write() const
+    void PipelineCache::save()
     {
-        if (mPath.empty())
+        if (mPath.empty() || mHandle.get() == VK_NULL_HANDLE)
             return;
 
         std::size_t bytes = 0;
@@ -364,6 +361,8 @@ namespace Rtx
         std::error_code failed;
         if (written)
             std::filesystem::rename(partial, mPath, failed);
+        if (written && !failed)
+            mLoaded = std::move(data);
 
         // Whether the write failed or the rename did, what must not be left behind is the temporary:
         // a directory filling with abandoned near-copies of a megabyte is a worse fault than the one
