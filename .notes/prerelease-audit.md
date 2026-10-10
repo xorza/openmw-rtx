@@ -62,22 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 14. Read every GUI texture through the core's reader
-- **Audit**: CORE-3 (PLAUSIBLE), and the GUI half of CORE-2.
-- **Close first**: Read `osg::Image::getColor` in OSG 3.6.5 and confirm that it returns white for
-  the packed 16-bit types and for `GL_HALF_FLOAT`.
-- **Where**: `components/myguirtx/slottexture.cpp:33-54`, `:93-127` (`byteLayoutOf`, `sendImage`).
-- **Problem**: `sendImage` has a byte reader of its own and sends the other formats through
-  `getColor`. Its reader copies an X8 file's spare byte as alpha, so the image does not show. For
-  `GL_UNSIGNED_SHORT_5_6_5`, `_1_5_5_5_REV` and `_4_4_4_4_REV`, `getColor` gives opaque white, so old
-  mods' icons and book images show as white boxes.
-- **Fix**: `sendImage` names the format with `Rtx::readFormat`. A format that the core widens goes
-  through the core's widening (`describeFinestLevel` or `layImage`), and its RGBA8 bytes are copied.
-  `getColor` stays for S3TC only. With item 13 done, an X8 file is then opaque here as well.
-- **Test**: `RtxSharedTextureTest.aPictureIsSentAsItsColoursReadInEveryFormat`: add X8 with byte 3 at
-  0 (sent with alpha 255), and the three packed formats with known words, such as `0xF800` R5G6B5 to
-  `(255, 0, 0, 255)`.
-
 ### 15. Trace a NIF's embedded texture
 - **Audit**: MIRROR-5. CONFIRMED. **Upstream** (decision 1).
 - **Where**: `components/rtx/mirror/materialresolver.cpp:353-357` (`takeTexture`),
