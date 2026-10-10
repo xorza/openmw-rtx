@@ -66,6 +66,8 @@ namespace Rtx
             case TextureFormat::Xrgb4444:
             case TextureFormat::Rgb8:
             case TextureFormat::Bgr8:
+            case TextureFormat::Xbgr8:
+            case TextureFormat::Xrgb8:
             case TextureFormat::Luminance:
             case TextureFormat::LuminanceAlpha:
             case TextureFormat::Alpha8:
