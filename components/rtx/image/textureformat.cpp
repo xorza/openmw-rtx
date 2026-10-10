@@ -93,6 +93,12 @@ namespace Rtx
             return opaque ? TextureFormat::Xrgb4444 : TextureFormat::Argb4444;
         }
 
+        // And a thirty-two-bit one whose header gave its spare byte no mask, the same way a byte
+        // wide: four bytes a texel in the order the pixel format states, the fourth undefined.
+        if ((pixelFormat == GL_BGRA || pixelFormat == GL_RGBA) && type == GL_UNSIGNED_BYTE
+            && image.getInternalTextureFormat() == GL_RGB)
+            return pixelFormat == GL_BGRA ? TextureFormat::Xrgb8 : TextureFormat::Xbgr8;
+
         for (const GlFormat& row : sGlFormats)
             if (row.mPixelFormat == pixelFormat && (row.mType == sAnyType || row.mType == type))
                 return encoding == TextureEncoding::Colour ? row.mColour : row.mData;

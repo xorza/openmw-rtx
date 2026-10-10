@@ -315,6 +315,8 @@ namespace Rtx
                 { GL_BGRA, Colour, TextureFormat::Xrgb1555, "X1R5G5B5", GL_UNSIGNED_SHORT_1_5_5_5_REV, GL_RGB },
                 { GL_BGRA, Data, TextureFormat::Argb4444, "A4R4G4B4", GL_UNSIGNED_SHORT_4_4_4_4_REV },
                 { GL_BGRA, Colour, TextureFormat::Xrgb4444, "X4R4G4B4", GL_UNSIGNED_SHORT_4_4_4_4_REV, GL_RGB },
+                { GL_BGRA, Colour, TextureFormat::Xrgb8, "X8R8G8B8", GL_UNSIGNED_BYTE, GL_RGB },
+                { GL_RGBA, Data, TextureFormat::Xbgr8, "X8B8G8R8", GL_UNSIGNED_BYTE, GL_RGB },
                 { GL_RGBA, Data, TextureFormat::Rgba16, "RGBA16", GL_UNSIGNED_SHORT },
                 { GL_LUMINANCE, Colour, TextureFormat::Luminance16, "L16", GL_UNSIGNED_SHORT },
                 { GL_LUMINANCE_ALPHA, Colour, TextureFormat::LuminanceAlpha16, "LA16", GL_UNSIGNED_SHORT },

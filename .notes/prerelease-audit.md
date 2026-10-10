@@ -62,19 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 13. Read an X8 DDS as opaque
-- **Audit**: CORE-2. CONFIRMED: the table in `osgdb_dds.so` was read.
-- **Where**: `components/rtx/image/textureformat.cpp:81-101` (`readFormat`),
-  `components/rtx/image/alphaimage.cpp:109-129`, `components/rtx/image/texels.cpp:114`.
-- **Problem**: OSG loads `X8R8G8B8` as `GL_BGRA` and `X8B8G8R8` as `GL_RGBA`, each with an internal
-  format of `GL_RGB`, and GL samples alpha as 1. `readFormat` reads the internal format for the
-  16-bit X formats but not for these, so the spare byte (often 0) becomes alpha. The surface is
-  traced as a hole or as never solid.
-- **Fix**: `readFormat` reads `GL_BGRA` or `GL_RGBA` with `GL_UNSIGNED_BYTE` and an internal
-  `GL_RGB` as an opaque format, by the rule the 16-bit X formats already follow.
-- **Test**: The `readFormat` table in `apps/components_tests/rtx/image/texels.cpp:290-332` gets both
-  rows. `reachesSolid` of a 4x4 image of that format with byte 3 at 0 is true.
-
 ### 14. Read every GUI texture through the core's reader
 - **Audit**: CORE-3 (PLAUSIBLE), and the GUI half of CORE-2.
 - **Close first**: Read `osg::Image::getColor` in OSG 3.6.5 and confirm that it returns white for

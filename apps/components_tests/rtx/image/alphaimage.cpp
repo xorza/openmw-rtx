@@ -306,6 +306,17 @@ namespace Rtx
                 << "the blight cloud's own peak";
             EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 255, 255, 255, 255 })))
                 << "an untextured surface's stand-in";
+
+            // **A spare byte is no alpha**: an X8 file, whose fourth byte the header gave no mask,
+            // is opaque wherever its byte reads, nought included, as GL samples the `GL_RGB`
+            // OpenSceneGraph states it in.
+            for (const GLenum order : { GL_RGBA, GL_BGRA })
+            {
+                const osg::ref_ptr<osg::Image> spare = makeAlphaImage({ 0, 0, 0, 0 });
+                spare->setPixelFormat(order);
+                spare->setInternalTextureFormat(GL_RGB);
+                EXPECT_TRUE(content.reachesSolid(*spare)) << "a spare byte of nought cut a hole, " << order;
+            }
         }
 
         /// How many bytes OpenSceneGraph counts in one level of `spelling`, which `describeImage` holds
