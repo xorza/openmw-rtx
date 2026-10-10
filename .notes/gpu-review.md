@@ -21,53 +21,15 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 2 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
+| 1 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
 
-5 findings are open: 0 high, 0 medium, 5 low. No reviewer found a GLSL/C++ layout,
+2 findings are open: 0 high, 0 medium, 2 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
 ---
 
-## Batch 1 — Scene record layout for the trace
-
-Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
-interior and a foliage exterior, and keep only what measures.
-
-### SCENE-6: The candidate loop's rows are read with a 4-byte alignment claim, and the hot material fields are spread across 108 bytes
-perf · L · conf M — `shaders/shared/tables.h:14-26`, `shaders/lib/bindings.glsl:296-309`, `rtx/shaders/scene.h:648-675,772-776,1142-1227`, `shaders/lib/traversal.glsl:424-470`
-
-`InstanceTable` and `LightCellTable` claim `TABLE_ALIGN_ROWS` (4), but their rows are 64 and 16 bytes
-on a 16-aligned base. `GpuLightCell`'s doc ("both runs in one fetch") does not hold under a 4-byte
-claim. `candidateStops` reads `GpuMaterial` fields at offsets 0, 4, 8, 60–76 and 104, which is up to
-four sectors per candidate on a cutout.
-
-**Direction:** claim 16 for both tables, and correct the `tables.h` comment. Move the candidate's
-fields to the front of `GpuMaterial`, pad it to 112, and claim 16.
-
-### SCENE-7: Every attribute fetch goes through a block-table load that the mesh row could carry already resolved
-perf · L · conf L — `shaders/lib/bindings.glsl:236-283`, `shaders/lib/geometry.glsl:33-40`, `rtx/shaders/scene.h:587-620`, `scene/scenebuffers.cpp:216-233`
-
-instance → mesh → `BlockTable` → indices → `BlockTable` → uvs → `TexelTable` → sample. A mesh's runs
-never cross a block (`checkFits`), so each run's address is a per-mesh constant. `mMeshTable` is
-already one copy per slot, so the posed streams fit as well.
-
-**Direction:** prototype `GpuMesh` with run addresses (about +40 B per row). That removes
-`POSED_FIRST_BLOCK`, `mNormalShift` and the `JoinedBlocks` joining. Marginal: an A/B experiment, kept
-only on a measured gain.
-
-### SCENE-10 / XCUT-9: Skinning and morphing record one dispatch and one push per deformed mesh
-perf · L · conf L — `scene/skinpass.cpp:49-147`
-
-A street of 30 NPCs is 100–200 small dispatches per frame, with tails smaller than a wave and a host push each.
-
-**Direction:** write per-mesh constants into a per-slot table with a vertex-count prefix, and run one
-dispatch per kind (a binary search over the prefix, or indirect). Measure the `skin` zone first.
-
----
-
-## Batch 2 — Housekeeping
+## Batch 1 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -177,6 +139,20 @@ The reviewers checked these items and found no fault:
   and by 0.21 to 0.62 ms at 7680×2160. Of 70 pictures 42 moved, the exteriors, a moved pixel by 0.35
   of a level on average and in no one direction; the streaming suite's frame p99 stayed at
   14.6 ms against 16.1, and its `ground` zone's at 0.38 against 0.37.
+- **Scene record layout (SCENE-6), measured: the material row stays reordered, the alignment
+  claims do not.** In release, five alternating legs at the guild, the canalworks, the ship and
+  Sadrith Mora: the candidate loop's material fields at the front of a 112-byte row claimed
+  sixteen took the ship's `trace` median from 2.424–2.432 ms to 2.407–2.414, every leg below every
+  leg without it, and left the other three inside their spread, so it stays. A claim of sixteen on
+  the instance and light cell tables moved every median by −0.008 to +0.017 ms inside overlapping
+  spreads, so the tables still claim four and `GpuLightCell` says so.
+- **Resolved run addresses in the mesh row (SCENE-7), dropped.** The block tables are small and
+  cached, so what it removes is one cached dependent load per stream per hit, against about
+  fifty bytes a mesh row and every fetch site rewritten; the layout changes measured above set
+  the scale.
+- **One dispatch per deformed mesh (SCENE-10 / XCUT-9), measured and dropped.** The `skin` zone is
+  0.007 to 0.028 ms in release at the four places above, which is all a batched dispatch could
+  save on the device; the whole placement it is recorded in is 0.13 to 0.42 ms of CPU.
 
 - **Dropped as better left as they are**, each for what it would cost against what it could give:
   - **XCUT-3**, the histogram inside the bloom's first halving: the exposure is recorded before the

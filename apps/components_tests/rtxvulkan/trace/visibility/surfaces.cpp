@@ -142,7 +142,7 @@ namespace Rtx::Testing
         /// four rows each, one frame slot: one mesh at the start, then three meshes and three
         /// materials, which fill both rooms with the untextured row, leave the bytes where the
         /// tables were made. One more of each makes each table again at twice its four rows
-        /// (`GrowableBuffer::outgrow`): 4 · 28 + 4 · 108 = 544 bytes more.
+        /// (`GrowableBuffer::outgrow`): 4 · 28 + 4 · 112 = 560 bytes more.
         TEST_F(RtxSceneTableTest, theMeshAndMaterialTablesHoldTheirRoomAndGrowPastIt)
         {
             constexpr SceneRoom room{ .mMeshes = 4, .mMaterials = 4 };
@@ -470,7 +470,7 @@ namespace Rtx::Testing
         /// materials: arrived and placed twice, so both copies take them, the tables' bytes stand
         /// where the empty world's stood. One material past the room makes each copy again at
         /// twice its size (`GrowableBuffer::outgrow`), so the two copies add
-        /// `2 · sWorldRoom.mMaterials · sizeof(GpuMaterial)`: 2 · 8192 · 108 = 1,769,472 bytes.
+        /// `2 · sWorldRoom.mMaterials · sizeof(GpuMaterial)`: 2 · 8192 · 112 = 1,835,008 bytes.
         TEST_F(RtxVisibilityTest, aWorldsMaterialTableHoldsItsRoomAndGrowsPastIt)
         {
             constexpr std::uint32_t size = 8;
