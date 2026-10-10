@@ -35,6 +35,8 @@
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/gui/guitextures.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -272,6 +274,22 @@ namespace Rtx
 
             mRenderer.dropGuiTexture(second);
             mRenderer.dropGuiTexture(third);
+        }
+
+        /// **A size no image takes is refused, and the slot is none**: nought on a side, or one past
+        /// the device's texture side. The side itself is made.
+        TEST_F(RtxGuiDrawTest, aSizeNoImageTakesIsRefused)
+        {
+            const std::uint32_t side = mRenderer.getDevice().getPhysicalDevice().getTextureSide();
+
+            EXPECT_TRUE(mRenderer.addGuiTexture(0, 4).isNone()) << "no width";
+            EXPECT_TRUE(mRenderer.addGuiTexture(4, 0).isNone()) << "no height";
+            EXPECT_TRUE(mRenderer.addGuiTexture(side + 1, 4).isNone()) << "past the side";
+            EXPECT_TRUE(mRenderer.addGuiTexture(4, side + 1).isNone()) << "past the side";
+
+            const GuiSlot widest = mRenderer.addGuiTexture(side, 1);
+            ASSERT_FALSE(widest.isNone()) << "the device's own side was refused";
+            mRenderer.dropGuiTexture(widest);
         }
 
         /// A texture the table has just handed out is blank rather than whatever the memory held.

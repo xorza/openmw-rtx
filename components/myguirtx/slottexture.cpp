@@ -94,6 +94,10 @@ namespace MyGUIRtx
     {
         assert(image.s() == mWidth && image.t() == mHeight && "an image sent into a slot of another size");
 
+        // A size the renderer refused, which it said in the log: the texture draws as nothing.
+        if (mSlot.isNone())
+            return;
+
         std::uint8_t* into = mRenderer.lendGuiTexture(mSlot, whole()).data();
         const std::size_t bytes = static_cast<std::size_t>(mWidth) * mHeight * 4;
         if (image.getPixelFormat() == GL_RGBA && image.getDataType() == GL_UNSIGNED_BYTE && image.isDataContiguous()
