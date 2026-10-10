@@ -62,19 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 7. Refuse a GUI texture of size zero or past the device's limit
-- **Audit**: VKFRAME-3 (CONFIRMED), SEAM-7 (CONFIRMED that the size is not checked).
-- **Where**: `components/rtxvulkan/gui/guitextures.cpp:33-40`, `components/myguirtx/texture.cpp:84`,
-  `apps/openmw/mwrender/rtx/tracedview.cpp:63-71`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:568-576`.
-- **Problem**: `GuiTextures::add` makes an Essential image at any extent that MyGUI or a map tile asks
-  for. A mod's UI image past the limit, a `createManual(0, h)`, or `[Map] local map resolution`
-  times the raster scale past the limit gives an invalid `vkCreateImage`. For a map tile, the failure
-  is inside the `noexcept` `createWorldView`. The GL backend fails only that one texture.
-- **Fix**: `GuiTextures::add` returns `GuiSlot::none()` for a zero extent or one past the limit of
-  item 6, and logs once. A traced view clamps its side to the same limit.
-- **Test**: `rtx-gpu-tests`: `addGuiTexture(0, 4)` and `addGuiTexture(side + 1, 4)` give
-  `GuiSlot::none()`, and a draw that names them records no batch.
-
 ### 8. Make the skin kernel compute what `RigGeometry::cull` computes
 - **Audit**: MIRROR-1. CONFIRMED: both sides were read against each other.
 - **Where**: `components/rtx/mirror/meshresolver.cpp:243-265` (`pose`), `:315-345` (`readRig`),

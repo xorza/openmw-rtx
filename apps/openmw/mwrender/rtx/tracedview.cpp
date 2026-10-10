@@ -15,6 +15,7 @@
 
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/myguirtx/texture.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
@@ -38,9 +39,14 @@ namespace MWRender
         {
             osg::Node* const subject = kind == ViewKind::Subject ? &spec.mScene : nullptr;
             const ViewDescription described = describeView(spec.mMask);
+            // Held to the frame's own sides, which every device chosen makes an image at: a map
+            // tile is `[Map] local map resolution` times the raster scale, which nothing bounds.
+            const auto sideOf = [](int asked) {
+                return std::clamp(static_cast<std::uint32_t>(std::max(asked, 1)), 1u, Rtx::sLargestFrameSide);
+            };
             return Rtx::ViewRequest{
-                .mWidth = static_cast<std::uint32_t>(spec.mWidth),
-                .mHeight = static_cast<std::uint32_t>(spec.mHeight),
+                .mWidth = sideOf(spec.mWidth),
+                .mHeight = sideOf(spec.mHeight),
                 .mRayMask = described.mRayMask,
                 .mLamps = described.mLamps,
                 .mFraming = spec.mFraming,
