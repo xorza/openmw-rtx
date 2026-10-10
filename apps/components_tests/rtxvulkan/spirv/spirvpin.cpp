@@ -1,13 +1,16 @@
 #include <algorithm>
 #include <bit>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -647,6 +650,128 @@ namespace Rtx
             for (const auto& [id, made] : pinned.mDefinitions)
                 highest = std::max(highest, id);
             EXPECT_GT(pinned.mBound, highest);
+        }
+
+        /// **The guard marks what the pinning takes off, and the two together are the pinning.** Every
+        /// rounding operation the source left unmarked is `NoContraction` beside the guard's
+        /// `UserSemantic`; one the source marked `precise` keeps its own mark and takes no second.
+        /// Pinned, the guarded module is word for word the module pinned unguarded: the multiply the
+        /// guard held is fused into the add that reads it as it would have been, and the `precise`
+        /// one is not. A module older than SPIR-V 1.4, which has no `UserSemantic`, is refused.
+        TEST(RtxSpirvPinTest, theGuardIsWhatThePinningTakesOffAndNothingElse)
+        {
+            Writer writer;
+            const std::uint32_t s = writer.input(writer.mFloat, "s");
+            const std::uint32_t t = writer.input(writer.mFloat, "t");
+            const std::uint32_t u = writer.input(writer.mFloat, "u");
+            const std::uint32_t product = writer.op(spv::OpFMul, writer.mFloat, { s, t });
+            const std::uint32_t sum = writer.op(spv::OpFAdd, writer.mFloat, { product, u });
+            const std::uint32_t precise = writer.op(spv::OpFMul, writer.mFloat, { s, u });
+            const std::uint32_t preciseSum = writer.op(spv::OpFAdd, writer.mFloat, { precise, t });
+            const std::uint32_t quotient = writer.op(spv::OpFDiv, writer.mFloat, { s, t });
+            writer.decorate(precise, spv::DecorationNoContraction);
+            const std::vector<std::uint32_t> module = writer.finish();
+
+            const Decoded guarded = decode(guardFloatArithmetic(module));
+            std::map<std::uint32_t, int> marks;
+            for (const Decoded::Made& made : guarded.mOrder)
+                if (made.mOp == spv::OpDecorateString && made.mOperands[1] == spv::DecorationUserSemantic)
+                    ++marks[made.mOperands[0]];
+            for (const std::uint32_t id : { product, sum, preciseSum, quotient })
+            {
+                EXPECT_EQ(guarded.mNoContraction.at(id), 1) << describe(guarded, writer.names(), id);
+                EXPECT_EQ(marks[id], 1) << describe(guarded, writer.names(), id);
+            }
+            EXPECT_EQ(guarded.mNoContraction.at(precise), 1);
+            EXPECT_EQ(marks[precise], 0) << "the source's precise is the source's, and the guard's mark is not on it";
+
+            EXPECT_EQ(pinFloatArithmetic(guardFloatArithmetic(module)), pinFloatArithmetic(module));
+
+            std::vector<std::uint32_t> older = module;
+            older[1] = 0x00010300;
+            EXPECT_THROW(guardFloatArithmetic(older), std::runtime_error);
+        }
+
+        /// **Arithmetic on constants is its value, correctly rounded, and a division by a constant the
+        /// multiply by its reciprocal.** Each figure is the float operation itself, which is the
+        /// correct rounding: `0.1f + 0.2f` is 0x3e99999a, folded again where a product reads it, and
+        /// per component in a vector. `x / 3` is `x 0x3eaaaaab`, `1/3` rounded once, and `x / 4` is
+        /// `x 0.25`, exactly; `x / (3 + 3)` is `x (1/6)`, its divisor folded first; `0.1f / 3` is
+        /// folded whole. What the device may compute otherwise is left
+        /// to it: a subnormal operand, a division by a subnormal, whose reciprocal is no normal float,
+        /// and a NaN.
+        TEST(RtxSpirvPinTest, constantArithmeticIsFoldedHereAndADivisionByAConstantIsItsReciprocal)
+        {
+            Writer writer;
+            const auto constant = [&](float value) {
+                const std::uint32_t id = writer.fresh();
+                writer.raw(writer.mTypes, spv::OpConstant, { writer.mFloat, id, std::bit_cast<std::uint32_t>(value) });
+                return id;
+            };
+            const std::uint32_t tenth = constant(0.1f);
+            const std::uint32_t fifth = constant(0.2f);
+            const std::uint32_t three = constant(3.0f);
+            const std::uint32_t four = constant(4.0f);
+            const std::uint32_t tiny = constant(1e-40f);
+            const std::uint32_t nan = constant(std::numeric_limits<float>::quiet_NaN());
+            const std::uint32_t pair = writer.fresh();
+            writer.raw(writer.mTypes, spv::OpConstantComposite, { writer.mVec2, pair, tenth, fifth });
+            const std::uint32_t swapped = writer.fresh();
+            writer.raw(writer.mTypes, spv::OpConstantComposite, { writer.mVec2, swapped, fifth, tenth });
+            const std::uint32_t x = writer.input(writer.mFloat, "x");
+
+            const std::uint32_t sum = writer.op(spv::OpFAdd, writer.mFloat, { tenth, fifth });
+            const std::uint32_t chained = writer.op(spv::OpFMul, writer.mFloat, { sum, three });
+            const std::uint32_t vector = writer.op(spv::OpFAdd, writer.mVec2, { pair, swapped });
+            const std::uint32_t byThree = writer.op(spv::OpFDiv, writer.mFloat, { x, three });
+            const std::uint32_t byFour = writer.op(spv::OpFDiv, writer.mFloat, { x, four });
+            const std::uint32_t bySix
+                = writer.op(spv::OpFDiv, writer.mFloat, { x, writer.op(spv::OpFAdd, writer.mFloat, { three, three }) });
+            const std::uint32_t whole = writer.op(spv::OpFDiv, writer.mFloat, { tenth, three });
+            const std::uint32_t subnormal = writer.op(spv::OpFAdd, writer.mFloat, { tiny, tenth });
+            const std::uint32_t byTiny = writer.op(spv::OpFDiv, writer.mFloat, { x, tiny });
+            const std::uint32_t notANumber = writer.op(spv::OpFMul, writer.mFloat, { nan, tenth });
+            // A constant a rewrite makes is one the folding reads too, and a fused multiply-add is folded
+            // as the one rounding it is: `mix(x, y, a)` is `fma(y, a, x (1 - a))`, its 1 the rewrite's.
+            const std::uint32_t mixed = writer.glsl(writer.mFloat, GLSLstd450FMix, { tenth, fifth, three });
+
+            const Decoded pinned = decode(pinFloatArithmetic(writer.finish()));
+            const auto copied = [&](std::uint32_t id) -> std::vector<float> {
+                const Decoded::Made& made = pinned.mDefinitions.at(id);
+                if (made.mOp != spv::OpCopyObject)
+                    return {};
+                const Decoded::Made& source = pinned.mDefinitions.at(made.mOperands[2]);
+                if (source.mOp == spv::OpConstant)
+                    return { std::bit_cast<float>(source.mOperands[2]) };
+                std::vector<float> components;
+                for (std::size_t at = 2; at < source.mOperands.size(); ++at)
+                    components.push_back(pinned.mConstants.at(source.mOperands[at]));
+                return components;
+            };
+
+            constexpr float sTenthAndFifth = 0.1f + 0.2f;
+            static_assert(std::bit_cast<std::uint32_t>(sTenthAndFifth) == 0x3e99999au);
+            EXPECT_EQ(copied(sum), std::vector<float>{ sTenthAndFifth });
+            EXPECT_EQ(copied(chained), std::vector<float>{ sTenthAndFifth * 3.0f });
+            EXPECT_EQ(copied(vector), (std::vector<float>{ sTenthAndFifth, 0.2f + 0.1f }));
+            EXPECT_EQ(copied(whole), std::vector<float>{ 0.1f / 3.0f });
+
+            for (const auto& [quotient, reciprocal] : { std::pair(byThree, 0x3eaaaaabu), std::pair(byFour, 0x3e800000u),
+                     std::pair(bySix, std::bit_cast<std::uint32_t>(1.0f / 6.0f)) })
+            {
+                const Decoded::Made& made = pinned.mDefinitions.at(quotient);
+                ASSERT_EQ(made.mOp, spv::OpFMul) << describe(pinned, writer.names(), quotient);
+                EXPECT_EQ(made.mOperands[2], x);
+                EXPECT_EQ(std::bit_cast<std::uint32_t>(pinned.mConstants.at(made.mOperands[3])), reciprocal);
+            }
+
+            EXPECT_EQ(copied(mixed), std::vector<float>{ std::fma(0.2f, 3.0f, 0.1f * (1.0f - 3.0f)) })
+                << "a mix of constants is the fused multiply-add the pinning states, folded once";
+
+            EXPECT_EQ(pinned.mDefinitions.at(subnormal).mOp, spv::OpFAdd) << "a subnormal is the device's to flush";
+            EXPECT_EQ(pinned.mDefinitions.at(byTiny).mOp, spv::OpFDiv)
+                << "the reciprocal of a subnormal is no normal float";
+            EXPECT_EQ(pinned.mDefinitions.at(notANumber).mOp, spv::OpFMul) << "a NaN's bits are the device's";
         }
 
         /// A rewrite that needs `GLSL.std.450` in a module that does not import it imports it: `mod`
