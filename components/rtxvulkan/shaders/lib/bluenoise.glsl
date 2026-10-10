@@ -22,16 +22,19 @@
 /// know — which channels are taken — is the `STREAM_` ids, and those sit with the count in
 /// `scene.h`.
 ///
-/// The two-dimensional `R2` pair for the fog's column and for the bounce, `sqrt(2) - 1` for the
-/// water and the golden ratio for the fog's march — two different irrationals for the two single
-/// numbers, because two streams turning by the same step differ only by where they started and
-/// converge on the same sweep. The two pairs share `R2`, and are never read together.
+/// The two-dimensional `R2` pair for the fog's column, for the bounce and for the sun's disc,
+/// `sqrt(2) - 1` for the water and the golden ratio for the fog's march — two different irrationals
+/// for the two single numbers, because two streams turning by the same step differ only by where
+/// they started and converge on the same sweep. The fog's column is drawn in a pass of its own.
 ///
-/// **The split hit's four draws are read together**, so each turns by its own: the sun's pair by
-/// `R2`, which nothing beside it reads, the lamp's by `(sqrt 3 - 1, sqrt 7 - 2)`, and the two picks
-/// by `sqrt 11 - 3` and `sqrt 13 - 3`. Square roots of distinct square-free numbers are independent
-/// over the rationals, and of the plastic constant too, so no two of these turn in step. The tone
-/// pass's dither turns by `sqrt 17 - 4`, for the same reason.
+/// **The bounce and the sun's disc share `R2` though one hit reads both**, so the offset between
+/// their draws at a pixel never changes. The two are separate terms under separate filters, and
+/// the sun's pair turned by `(sqrt 19 - 4, sqrt 23 - 4)` in its place left the frame noisier at the
+/// pier, mean 0.72 and p99 2.03 against 0.71 and 2.00 (`./omw noise`). The split hit's other draws
+/// turn by their own: the lamp's pair by `(sqrt 3 - 1, sqrt 7 - 2)`, and the two picks by
+/// `sqrt 11 - 3` and `sqrt 13 - 3`. Square roots of distinct square-free numbers are independent
+/// over the rationals, and of the plastic constant too, so none of these turns in step with
+/// another. The tone pass's dither turns by `sqrt 17 - 4`, for the same reason.
 const float STREAM_TURN[RANDOM_STREAMS] = float[](0.7548777, 0.5698403, 0.7548777, 0.5698403, 0.4142136, 0.6180340,
     0.7548777, 0.5698403, 0.7320508, 0.6457513, 0.3166248, 0.6055513, 0.1231056);
 
