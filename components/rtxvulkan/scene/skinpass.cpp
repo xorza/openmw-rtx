@@ -155,16 +155,20 @@ namespace Rtx
         const Pipeline* bound = nullptr;
         bool recorded = false;
 
-        BlockedBuffer& into = what.mPoses.at(what.mSlot);
-        BlockedBuffer& normalsInto = what.mNormals.at(what.mSlot);
-        BlockedBuffer& tangentsInto = what.mTangents.at(what.mSlot);
-        for (const Index index : arrived)
+        for (std::uint32_t copy = 0; copy < what.mPoses.count(); ++copy)
         {
-            if (!posable(what.mScene.meshes().getRows()[index]))
-                continue;
+            const FrameSlot slot{ copy };
+            BlockedBuffer& into = what.mPoses.at(slot);
+            BlockedBuffer& normalsInto = what.mNormals.at(slot);
+            BlockedBuffer& tangentsInto = what.mTangents.at(slot);
+            for (const Index index : arrived)
+            {
+                if (!posable(what.mScene.meshes().getRows()[index]))
+                    continue;
 
-            pose(commands, what, index, Rows::Staged, into, normalsInto, tangentsInto, bound);
-            recorded = true;
+                pose(commands, what, index, Rows::Staged, into, normalsInto, tangentsInto, bound);
+                recorded = true;
+            }
         }
 
         if (!recorded)

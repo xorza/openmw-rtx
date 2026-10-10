@@ -466,6 +466,71 @@ namespace Rtx::Testing
                 << "the sheet's texel is not what this reads";
         }
 
+        /// **The deck is read at the level the ray's cone covers where it crosses**, as a surface is,
+        /// and not at the finest. A sheet whose finest level is white and whose two levels under it
+        /// are black, looked at from below at a hundredth of a tile a unit: the cone is the camera's
+        /// spread over the altitude, about 0.0053 radians at ten degrees over 33 pixels, so at an
+        /// altitude of a thousand it covers `0.0053 × 1000 × 0.01 × 4` = 0.21 of a texel, the finest
+        /// level, and at a hundred thousand 21 texels, past the last. White against the sheet's own
+        /// mean is half lit (`theDeckTakesItsShapeFromWhatTheSheetPaints`), and black is the shadowed
+        /// colour of nothing.
+        TEST_F(RtxVisibilityTest, theDeckIsReadAtTheLevelItsConeCovers)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            SceneDesc scene;
+            scene.textures().add(VFS::Path::NormalizedView("cloud.dds"));
+            addQuad(scene, sheetAt(100.0f, -2000.0f));
+
+            std::array<std::uint8_t, (16 + 4 + 1) * 4> chain{};
+            for (std::size_t texel = 0; texel < 21; ++texel)
+            {
+                const std::uint8_t paint = texel < 16 ? 255 : 0;
+                chain[texel * 4] = paint;
+                chain[texel * 4 + 1] = paint;
+                chain[texel * 4 + 2] = paint;
+                chain[texel * 4 + 3] = 255;
+            }
+            const std::array<MipLevel, 3> levels{ MipLevel{ 0, 4, 4 }, MipLevel{ 64, 2, 2 }, MipLevel{ 80, 1, 1 } };
+            const std::array<TextureData, 1> sheets{ TextureData{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = 4,
+                .mHeight = 4,
+                .mBytes = std::as_bytes(std::span(chain)),
+                .mLevels = levels,
+            } };
+
+            const auto overhead = [&](float altitude) {
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 1000.0f), 10.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mClouds = Shaders::CloudDeck{
+                    .mOpacity = 1.0f,
+                    .mLit = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                    .mShadowed = osg::Vec3f(),
+                    .mMean = 1.0f,
+                    .mAltitude = altitude,
+                    .mPerTile = osg::Vec2f(0.01f, 0.01f),
+                    .mBearing = osg::Vec2f(1.0f, 0.0f),
+                    .mNextBearing = osg::Vec2f(1.0f, 0.0f),
+                    .mRings = osg::Vec3f(1.0e5f, 2.0e5f, 3.0e5f),
+                    .mTexture = 0u,
+                    .mNext = 0u,
+                };
+
+                return shoot(scene, sheets, camera, size).at(centre);
+            };
+
+            const float near = overhead(1000.0f);
+            const float far = overhead(100000.0f);
+            EXPECT_NEAR(near, 0.5f, 1.0e-3f) << "a cone a fifth of a texel wide read past the finest level";
+            EXPECT_NEAR(far, 0.0f, 1.0e-3f) << "a cone twenty texels wide read the finest level";
+            EXPECT_NE(near, far);
+        }
+
         /// The display pass draws the star field, and draws it only where a ray reached the sky.
         ///
         /// **It is drawn there because a point source is what an upscaler removes.** The trace no

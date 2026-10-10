@@ -96,11 +96,6 @@ namespace Rtx
         mIndices.open(device, sBuildInputUsage, "indices");
 
         writeGeometry(batch, scene, everyMesh);
-
-        // Every copy holds a bind pose for every body the scene arrived with, so what a copy owes
-        // from now on is the poses it missed.
-        for (std::uint32_t slot = 0; slot < mPoses.count(); ++slot)
-            mPoses.settle(FrameSlot{ slot });
     }
 
     void SceneAcceleration::build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
@@ -124,20 +119,15 @@ namespace Rtx
         mPoses.reserve(batch, scene.deformers().getBindVertexCount());
         mIndices.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getIndices().size()));
 
+        // **No pose here**: a body's run in every copy is the skin pass's, which poses whatever
+        // arrives into each copy before the build reads the first (`SkinPass::recordArrived`). A
+        // static mesh has no run at all: `buildArrived` stages its vertices for the build and
+        // nothing else.
         for (const Index mesh : meshes)
         {
             const MeshRange& range = scene.meshes().getRows()[mesh];
             if (range.mVertices.empty())
                 continue;
-
-            // The bind pose into every copy, and only for a mesh that has one. A body stands in
-            // whatever pose the copy being traced was last given, so a copy the pass has never
-            // dispatched for it still has to hold something a refit can read. A static mesh has no
-            // run here at all: `buildArrived` stages its vertices for the build and nothing else.
-            if (range.deforms())
-                for (std::uint32_t slot = 0; slot < mPoses.count(); ++slot)
-                    mPoses.at(FrameSlot{ slot })
-                        .writeAt(batch, range.mBindOffset, scene.meshes().getMeshPositions(mesh));
 
             mIndices.writeAt(batch, range.mIndices.mOffset, range.mIndices.in(scene.meshes().getIndices()));
         }

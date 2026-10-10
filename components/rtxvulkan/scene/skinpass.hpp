@@ -60,12 +60,19 @@ namespace Rtx
         /// against the copy's previous reader is the fence the caller waited.
         bool record(VkCommandBuffer commands, const Skinning& what) const;
 
-        /// The same for the deforming meshes among `arrived`, and those alone, into the copy, for
-        /// the build over them: nothing is owed or paid, and the rows are the ones
-        /// `SkinTables::extend` staged there. An arrival does not wait the frames in flight out,
-        /// so it may not write a row a placement in flight reads — which posing every mesh the
-        /// copy owed did. `what.mTimer` is not read: the frame's report carries one `skin` zone
-        /// and it is the placement's.
+        /// The same for the deforming meshes among `arrived`, and those alone, into every copy:
+        /// nothing is owed or paid, and the rows are the ones `SkinTables::extend` staged into
+        /// `what.mSlot`'s, which the build over the arrivals reads. An arrival does not wait the
+        /// frames in flight out, so it may not write a row a placement in flight reads — which
+        /// posing every mesh the copy owed did. `what.mTimer` is not read: the frame's report
+        /// carries one `skin` zone and it is the placement's.
+        ///
+        /// **Every copy, and not the one the build reads alone**: the trace reads a body's motion as
+        /// its pose in the copy it traces less its pose in the other, and a copy the arrival left
+        /// in the bind pose was a body thrown from its bind pose to where it stands, on the first
+        /// frame of every arrival the placement after it posed into the same copy. The arrivals' runs
+        /// are theirs alone, and a run a mesh that went held is written behind the frame that read
+        /// it, since a dispatch recorded now runs behind it.
         bool recordArrived(VkCommandBuffer commands, const Skinning& what, std::span<const Index> arrived) const;
 
     private:

@@ -238,15 +238,22 @@ void main()
         * antilagAcceleration(dot(abs(fastHere - slow), LUMINANCE_WEIGHTS), share,
             dot(abs(sampledMean - fastHere), LUMINANCE_WEIGHTS));
 
+    const vec3 heldBounce = mix(slow, clamped.mHeld, antilag);
+    const vec3 heldShare = vec3(clampedFill(slow.r, slowFill.r, fastHere.r, fastFillHere.r, heldBounce.r, share),
+        clampedFill(slow.g, slowFill.g, fastHere.g, fastFillHere.g, heldBounce.g, share),
+        clampedFill(slow.b, slowFill.b, fastHere.b, fastFillHere.b, heldBounce.b, share));
+
     const vec3 toward = sampledMean - fastHere;
     const vec3 towardFill = sampledFillMean - fastFillHere;
     // **Held at nought**: the push is the fast mean's way to the samples, and a slow mean the clamp
     // moved only a little toward a bright fast one is pushed back by all of it, past nought where
-    // the samples stand far under the fast mean.
-    const vec3 held = max(mix(slow, clamped.mHeld, antilag) + pushed * toward, vec3(0.0));
-    const vec3 heldFill = max(mix(slowFill, fastFillHere, share) + pushed * towardFill, vec3(0.0));
-    const vec3 followed = fastHere + pushed * toward;
-    const vec3 followedFill = fastFillHere + pushed * towardFill;
+    // the samples stand far under the fast mean. **And each fill under its bounce**: the push moves
+    // the fill by its own way to the samples, and where the rest of the bounce falls faster than
+    // the fill does, the fill alone would stand over the bounce it is a part of.
+    const vec3 held = max(heldBounce + pushed * toward, vec3(0.0));
+    const vec3 heldFill = clamp(heldShare + pushed * towardFill, vec3(0.0), held);
+    const vec3 followed = max(fastHere + pushed * toward, vec3(0.0));
+    const vec3 followedFill = clamp(fastFillHere + pushed * towardFill, vec3(0.0), followed);
 
     // **A short history's variance is the square's moments, by how nearly each tap is this surface**
     // (`facingWeights`, `coplanarWeight`), as ReLAX weighs its spatial estimate's taps and SVGF its

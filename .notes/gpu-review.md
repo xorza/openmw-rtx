@@ -21,7 +21,7 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Picture bugs | 4 | Wrong pixels on screen today |
+| 1 | Picture bugs | 3 | Wrong pixels on screen today |
 | 2 | Measurement integrity | 3 | `bench` times a kernel the game does not run. Do this before any perf batch |
 | 3 | Device loss and contract guards | 7 | A crash, a wild read, or a silent drift waiting for a trigger |
 | 4 | Memory budget and allocation | 6 | A throw instead of a refusal on 6–8 GB / 256 MiB BAR cards. Room lost for good |
@@ -36,7 +36,7 @@ When two reviewers found the same thing, the finding has both IDs.
 | 13 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
 | 14 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
 
-The reviewers filed 74 findings, which are 68 after merging duplicates: 0 high, 21 medium, 53 low. No reviewer found a GLSL/C++ layout,
+The reviewers filed 74 findings, which are 67 after merging duplicates and removing one false finding: 0 high, 21 medium, 52 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
@@ -76,19 +76,6 @@ pane filter then fetch history from the wrong place. `repeat` runs unfiltered an
 **Direction:** make the arrival leave its pose in every copy (dispatch `recordArrived` per copy, or
 owe it to both and fill the previous copy before the first trace). Add a test that holds
 `previousPoseBlocks == poseBlocks` for an arrival on its first traced frame, for both slots.
-
-### TRACE-6: An opaque texel of a see-through caster never stops a shadow ray, so its shadow has no occluder distance and is filtered as noise
-bug · L · conf M — `shaders/lib/traversal.glsl:484-488`, `shaders/lib/shading.glsl:416-434`
-
-On `MEET_WALK_PAST`, a candidate of a see-through placement is never confirmed. Only
-`blocked += blockedBy(sampledOpacity(...))` happens. A fully opaque texel adds 24 orders, so the ray
-stays `mOpen = 1` with `mThrough ≈ 6e-8` and no `mOccluder`. Split `gather` then marks it
-`SHADOW_PENUMBRA_DRAWN`, and the shadow denoiser filters it at its widest reach (8 px). The hard
-shadow of a window's lead or frame, or of any opaque texel on a `MATERIAL_TRANSLUCENT` surface,
-blurs. Rare in vanilla, more common with replacer glass.
-
-**Direction:** confirm the candidate when its opacity reaches 1 (or `blockedBy` saturates). Treat a
-bit as drawn only when the crossed translucency was strictly between 0 and 1.
 
 ### MEDIA-7: The cloud deck is always read at mip 0 and ignores the cone its caller hands the sky
 latent · L · conf M — `shaders/lib/sky.glsl:56-78` (`cloudSheetAt`), `:120-160` (`cloudDeck`)
@@ -892,6 +879,11 @@ The reviewers checked these items and found no fault:
   sky-pick unbiasedness.
 - **Fog and waves.** Fog reprojection and history rejection are correct (apart from MEDIA-1's format).
   The FFT is correct.
+
+- **TRACE-6, withdrawn.** It said that an opaque texel of a see-through caster never stops a
+  shadow ray. A see-through surface has no opaque texel: `Material::isTranslucent` needs an opacity
+  under 1 or a texture whose alpha never reaches 255 (`reachesSolid`), and a fade under 1 keeps
+  `sampledOpacity` under 1 as well. Filtering cannot go above the largest texel.
 
 ## Not reached
 

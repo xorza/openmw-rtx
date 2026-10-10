@@ -136,6 +136,25 @@ namespace Rtx::Shaders
         return distance > 0.0f ? min(push / distance, 1.0f) : 0.0f;
     }
 
+    /// The fill of one channel where the clamp turned the slow mean's bounce `slow`, of fill
+    /// `slowFill`, into `held`, and moved the rest of the slow mean toward the fast one by `share`
+    /// (`antilagShare`): the share of the bounce the fill is, moved from the slow mean's toward the
+    /// fast mean's (`fast`, `fastFill`) by `share`, of the bounce as held. Exactly `slowFill` where
+    /// the clamp moved nothing.
+    ///
+    /// **A share of the bounce, and not the fill moved on its own**, because the fill is a part of
+    /// the bounce (`CHANNEL_FILL`) and the composite gives the rest of the bounce the diffuse albedo
+    /// and the fill the ambient one. The clamp holds each axis of the bounce to its box, and the fill
+    /// moved by the luminance's share alone stood over the bounce in a channel whose chroma the box
+    /// held: what the composite then added of the bounce went under nought there. A slow mean of no
+    /// bounce has no share of its own, and takes the fast mean's.
+    RTX_SHADER float clampedFill(float slow, float slowFill, float fast, float fastFill, float held, float share)
+    {
+        const float fastShare = fast > 0.0f ? clamp(fastFill / fast, 0.0f, 1.0f) : 0.0f;
+        const float slowShare = slow > 0.0f ? clamp(slowFill / slow, 0.0f, 1.0f) : fastShare;
+        return slowFill + (held - slow) * slowShare + share * held * (fastShare - slowShare);
+    }
+
     /// What a pass that keeps a history of the frame's surfaces is handed: the accumulator, which
     /// writes the history a level of the wavelet reads, and the glossy filter, the pane filter and
     /// the shadow denoiser's temporal half, which read and keep histories of their own over the same
