@@ -1,0 +1,1 @@
+a NIF that carries its texture inside it (NiPixelData) is traced untextured, with no word in the log. I checked the vanilla BSAs: one vanilla mesh does this, meshes\i\tx_crystal_02.nif (an ingredient), so a vanilla object draws wrong today. Older mods do it more often. What must the fix do? → Trace them (Recommended) - tal
