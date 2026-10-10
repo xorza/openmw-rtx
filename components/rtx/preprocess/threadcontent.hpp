@@ -5,6 +5,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "contentpreprocessor.hpp"
@@ -54,13 +55,14 @@ namespace Rtx
         /// The same, for a caller that keeps no entry.
         const MeanTexel& meanOf(const osg::Image& image) { return meanOf(factsOf(image), image); }
 
-        /// `image`'s file name normalised as the texture table normalises it, in a scratch kept and
+        /// `image`'s name (`SceneUtil::EmbeddedImage::nameOf`) normalised as the texture table
+        /// normalises it, in a scratch kept and
         /// refilled, so taking a texture by its name reaches the heap only for a name longer than
         /// any before it: valid until the next call. A `VFS::Path::Normalized` apiece was a string
         /// at every material that took a texture.
         VFS::Path::NormalizedView pathOf(const osg::Image& image)
         {
-            mPath.assign(image.getFileName());
+            mPath.assign(SceneUtil::EmbeddedImage::nameOf(image));
             VFS::Path::normalizeFilenameInPlace(mPath);
             return VFS::Path::NormalizedView(mPath.c_str());
         }

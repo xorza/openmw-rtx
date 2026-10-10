@@ -84,6 +84,9 @@ is not here is held to the rules above.
   A frame the ray tracer threw out of on purpose left the worker inside its update, and the ray
   tracer's cell reader marks the visibility gates through the script manager until the world's
   renderer lets it go.
+- The stamp `NifOsg::Loader` puts on an image a model carries inside it (`SceneUtil::EmbeddedImage`):
+  the ray tracer keys a texture by what names it, and such an image has no file. Vanilla's
+  `tx_crystal_02.nif` is one.
 - The lamp body marker (`SceneUtil::LampBody`) that `SceneUtil::addLight` leaves on a light's group:
   the bounce takes no glow from a lamp's own model, whose light already delivers it, and the
   rasterizer never reads it.
