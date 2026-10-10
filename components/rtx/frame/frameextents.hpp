@@ -4,6 +4,11 @@
 
 namespace Rtx
 {
+    /// **The largest side a frame is shown at**: the least `maxImageDimension2D` a device may report
+    /// and be chosen (`PhysicalDevice::profileOf`), which every target card reports or passes. The
+    /// frame is held to it where its size is decided, before an image is made at it.
+    inline constexpr std::uint32_t sLargestFrameSide = 16384;
+
     /// What the renderer traces at, and what it presents at. Equal wherever nothing is upscaling.
     struct FrameExtents
     {

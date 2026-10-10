@@ -41,6 +41,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/frameclock.hpp>
+#include <components/misc/presentation.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -159,6 +160,12 @@ namespace MWRender
         // itself, and the seconds it saves at start are the player's.
         if (run == nullptr)
             options.mCacheDirectory = spec.mCachePath;
+        // None whose traced extent truncates to nought, and none past the side every device chosen
+        // makes an image at.
+        constexpr auto smallest = static_cast<int>(Rtx::sSmallestFrameSide);
+        constexpr auto largest = static_cast<int>(Rtx::sLargestFrameSide);
+        boundFrame(
+            Misc::FrameBounds{ .mSmallest = osg::Vec2i(smallest, smallest), .mLargest = osg::Vec2i(largest, largest) });
         presentIn(mWindow.readSize());
         options.mWidth = static_cast<std::uint32_t>(getPresentation().mFrame.x());
         options.mHeight = static_cast<std::uint32_t>(getPresentation().mFrame.y());

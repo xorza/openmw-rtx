@@ -62,26 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 6. Bound the frame's size where it is decided
-- **Audit**: CORE-1 (CONFIRMED), GAME-4, HARNESS-10 (CONFIRMED that nothing bounds the frame).
-- **Where**: `components/misc/presentation.cpp:57` (`present`), `apps/openmw/mwrender/renderer.cpp:235-245`
-  (`presentIn`), `components/rtx/frame/upscale.cpp:7-28`, `components/rtx/frame/reconstruction.hpp:218-224`,
-  `components/rtxvulkan/vulkanrenderer.cpp:191-196`, `components/settings/categories/video.hpp:23-24`.
-- **Problem**: The fork made `[Video] resolution x/y` the frame's size and changed its sanitizer
-  from at least 1 to at least 0, which means native. Nothing bounds a positive value:
-  - `resolution y = 2` under `ultraperformance` gives a render height of 0. Release builds divide by
-    zero in `jitterPhasesFor`, `levelBiasOf` gives `log2(0)`, and `vkCreateImage` gets a zero extent.
-  - `resolution x = 38400` or `--size=40000x40000` passes the device's largest 2D image, which is
-    invalid usage. The rasterizer's frame has the same fault, because the presentation is the
-    fork's for both renderers.
-- **Fix**: The seam's `Renderer` states the smallest and the largest frame it draws. The ray tracer's
-  largest is `maxImageDimension2D`. Its smallest is the size at which every upscale mode keeps a
-  render extent of at least the smallest size that its passes are tested at. `presentIn` clamps the
-  asked frame into those bounds before `present`, and logs once when it clamps. Every reader then
-  sees one size. `extentsFor` asserts a non-zero render extent, because its input is now bounded.
-- **Test**: `components-tests`: `Misc::present` with bounds clamps 2 and 38400 to them. A GPU test
-  draws one frame at the ray tracer's smallest frame in every upscale mode.
-
 ### 7. Refuse a GUI texture of size zero or past the device's limit
 - **Audit**: VKFRAME-3 (CONFIRMED), SEAM-7 (CONFIRMED that the size is not checked).
 - **Where**: `components/rtxvulkan/gui/guitextures.cpp:33-40`, `components/myguirtx/texture.cpp:84`,

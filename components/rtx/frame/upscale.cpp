@@ -7,12 +7,15 @@ namespace Rtx
     FrameExtents extentsFor(const std::uint32_t outputWidth, const std::uint32_t outputHeight, const Upscale mode)
     {
         const float ratio = upscaleRatio(mode);
-        return FrameExtents{
+        const FrameExtents extents{
             .mRenderWidth = static_cast<std::uint32_t>(static_cast<float>(outputWidth) / ratio),
             .mRenderHeight = static_cast<std::uint32_t>(static_cast<float>(outputHeight) / ratio),
             .mOutputWidth = outputWidth,
             .mOutputHeight = outputHeight,
         };
+        assert(extents.mRenderWidth > 0 && extents.mRenderHeight > 0
+            && "a frame too small to trace under its mode, which `sSmallestFrameSide` bounds");
+        return extents;
     }
 
     std::uint32_t jitterPhasesFor(const std::uint32_t renderWidth, const std::uint32_t outputWidth)
