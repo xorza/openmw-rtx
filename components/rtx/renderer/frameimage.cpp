@@ -50,15 +50,22 @@ namespace Rtx
         osg::ref_ptr<osg::Image> image = new osg::Image;
         image->allocateImage(width, height, 1, channels == Channels::Rgb ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE);
 
-        // A row at a time where nothing is being resized or dropped, which is both callers
-        // that want the whole frame: at 4K the general path below is eight million short copies.
-        if (width == wide && height == tall && channels == Channels::Rgba)
+        // A row at a time where nothing is being resized, which is every caller that wants the
+        // whole frame: the general path below weighs each texel by one, which at 7680 by 2160 is
+        // four hundred megabytes of sums for the same bytes. Three channels drop the alpha as they
+        // copy.
+        if (width == wide && height == tall)
         {
             for (int y = 0; y < height; ++y)
             {
                 const int row = order == RowOrder::BottomFirst ? height - 1 - y : y;
-                std::memcpy(image->data(0, y), frame.mPixels.data() + static_cast<std::size_t>(row) * wide * 4,
-                    static_cast<std::size_t>(wide) * 4);
+                const std::uint8_t* const from = frame.mPixels.data() + static_cast<std::size_t>(row) * wide * 4;
+                std::uint8_t* const into = image->data(0, y);
+                if (channels == Channels::Rgba)
+                    std::memcpy(into, from, static_cast<std::size_t>(wide) * 4);
+                else
+                    for (std::size_t x = 0; x < static_cast<std::size_t>(wide); ++x)
+                        std::memcpy(into + x * bytes, from + x * 4, bytes);
             }
 
             return image;

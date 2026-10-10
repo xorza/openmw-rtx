@@ -21,73 +21,18 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Display and presentation | 5 | A bloom weighed by the last exposure, input latency, two extra full-frame copies and submits |
-| 2 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, a false invariant, and an unbudgeted darkening walk |
-| 3 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 4 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 5 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
+| 1 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, a false invariant, and an unbudgeted darkening walk |
+| 2 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
+| 3 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 4 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
 
-15 findings are open: 0 high, 2 medium, 13 low. No reviewer found a GLSL/C++ layout,
+10 findings are open: 0 high, 1 medium, 9 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
 ---
 
-## Batch 1 — Display and presentation
-
-All of these items touch `display/`, `gui/` and `present/`.
-
-### FRAME-7: The bloom's Karis weight reads the previous frame's exposure, though nothing prevents recording the exposure first
-bug · L · conf H — `display/displaychain.cpp:117-147`, `shaders/display/bloomdown.comp:25-31`
-
-`mBloom.record(..., mExposure.getExposure(), ...)` runs before the exposure is recorded. Both read only
-`shown`. Under `FixedExposure`, frame 0 of a reference run weighs the pyramid with what the buffer held
-before, so frames 0 and 1 differ on the same input.
-
-**Direction:** record the exposure (fixed or measured) before the pyramid, and delete the lag comment.
-
-### FRAME-12: Nothing paces the CPU to the display, so input-to-photon latency under FIFO is about 3 vblanks plus the ring
-perf · L · conf M — `present/swapchain.cpp:133-135`, `present/presenter.cpp:150-262`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:838-864`
-
-`minImageCount + 1` images, and the only pacing is the ring's wait for frame N−2 and the blocking
-acquire. `present_wait` and the present fence (already owned) are not used to hold the next frame's
-input sampling.
-
-**Direction:** before the next frame's update, wait for the present of frame N−1 (present-wait or the
-present fence), or keep at most one present queued.
-
-### FRAME-6: After the tone curve, every frame makes two more full-frame copies in two more submits
-perf · L · conf M — `gui/guidrawer.cpp:46-90`, `present/presenter.cpp:179-254`, `vulkanrenderer.cpp:558-580`
-
-`GuiDrawer::draw` always draws the picture whole into `shown` and submits. `Presenter::present` then
-blits `shown` to the swapchain in a second submit, and each command buffer opens with a full head
-barrier. At 7680×2160 that is about 265 MB per frame, two extra `vkQueueSubmit2` calls and two drains,
-in menus too. Estimated 0.3–0.6 ms at the user's resolution.
-
-**Direction:** record the GUI into the present's command buffer. At Native with no letterbox, draw the
-picture and interface directly into the swapchain image (`COLOR_ATTACHMENT`), and skip `shown` and the
-blit. At minimum, merge the GUI and blit submits.
-
-### FRAME-5: A full-size screenshot goes through the area-resampling path and allocates about 400 MB of doubles at 7680×2160
-perf · M · conf H — `rtx/renderer/frameimage.cpp:55-102`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:548`
-
-The fast path needs `Channels::Rgba`, and `saveScreenshot` asks for `Rgb` at the frame's own size. It
-takes the general path: `std::vector<double>(width × height × 3)` = 398 MB, and about 50 M lambda calls
-whose weights are all 1.
-
-**Direction:** extend the fast path to any channel set at the identity size (copy rows, drop alpha).
-
-### FRAME-14: The exposure histogram bins every output pixel
-perf · L · conf M — `display/exposurepass.cpp:67-117`, `shaders/display/histogram.comp:39-55`
-
-16.6 M loads and up to 256 global atomics per group at 7680×2160. For a trimmed log-luminance mean, a
-regular 2×2 subsample is an unbiased estimate (a box-filtered level is not).
-
-**Direction:** bin one pixel per 2×2, with a fixed offset or an offset that turns with the frame.
-
----
-
-## Batch 2 — Lamp sampling
+## Batch 1 — Lamp sampling
 
 ### TRACE-1: Every split hit walks every lamp in its cell, up to 256, with the full glossy lobe per lamp. The comment says the water legs do not
 perf · M · conf H (behaviour), M (cost) — `shaders/lib/shading.glsl:372-375,199-204`, `shaders/lib/water.glsl:107`, `shaders/lib/lights.glsl:131,444-458,566-618`
@@ -124,7 +69,7 @@ candidate budget as the positive lamps.
 
 ---
 
-## Batch 3 — Layered ground in the trace
+## Batch 2 — Layered ground in the trace
 
 ### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
 simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
@@ -148,7 +93,7 @@ non-detailed hits from it. Keep the live stack for the eye, reflections and the 
 
 ---
 
-## Batch 4 — Scene record layout for the trace
+## Batch 3 — Scene record layout for the trace
 
 Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
 interior and a foliage exterior, and keep only what measures.
@@ -185,7 +130,7 @@ dispatch per kind (a binary search over the prefix, or indirect). Measure the `s
 
 ---
 
-## Batch 5 — Housekeeping
+## Batch 4 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -204,8 +149,8 @@ dispatch", but the fog samples them in ray-tracing launches.
 
 **Direction:** restate both comments.
 
-Comment corrections that belong to a batch above stay with their batch: TRACE-1 and TRACE-9 (batch 2),
-TRACE-3 (batch 3).
+Comment corrections that belong to a batch above stay with their batch: TRACE-1 and TRACE-9 (batch 1),
+TRACE-3 (batch 2).
 
 ---
 
@@ -250,18 +195,30 @@ The reviewers checked these items and found no fault:
   before `sin`/`cos` (`phasorAt`), so the driver's precision applies only inside an eighth of a turn.
 - **Ripples.** Since the review, a press is as deep as the time it stands for (`kept^n`), the
   pass drops an impulse whose ring cannot reach the window and, past the cap, the impulses farthest
-  from the eye, and the field is not stepped while it is
-  still and nothing presses it: a dead band under `RIPPLE_STILL` makes "still" exact, and the
-  device reports it.
+  from the eye, and the field is not stepped while it is still and nothing presses it: a dead band
+  under `RIPPLE_STILL` makes "still" exact, and the device reports it.
 - **The narrow wave cascade's idle lanes (MEDIA-10), measured and dropped.** The 128-point cascade
   runs on 256-lane workgroups, but its two dispatches cost about 1 µs: at `seyda-neen-pier` in
   release, the `waves` median is 0.1489 ms with them and 0.1477 ms without them, 1,200 frames a leg.
   A smaller workgroup cannot save more than that.
-  The FFT is correct.
+- **Display and presentation.** Since the review, the exposure is recorded before the bloom, so the
+  Karis average weighs a frame by the exposure its own curve maps it with (FRAME-7). A screenshot at
+  the frame's own size copies rows for three channels as for four (FRAME-5). The interface is
+  recorded into the present's command buffer, ahead of the blit, so a frame ends in one submit after
+  the world's and not two (FRAME-6); the copies stay, at about 0.11 ms for the interface and 0.27 ms
+  for the blit at 7680×2160, measured with Nsight Systems.
+- **The exposure histogram over every pixel (FRAME-14), measured and dropped.** At 7680×2160 in
+  release the `exposure` zone is 0.17–0.19 ms of a 34–41 ms frame. A 2×2 subsample saves at most
+  three quarters of that and makes the exposure an estimate in place of the exact histogram.
+- **CPU pacing to the display (FRAME-12), dropped.** At 7680×2160 the frames are GPU-bound
+  (37–42 ms), so the latency comes from the CPU running ahead of the GPU in the ring, which
+  present-wait does not touch; a just-in-time sleep would take the vendor extensions
+  (`VK_NV_low_latency2`, `VK_AMD_anti_lag`), and the harness has no input-to-photon measure to
+  judge one by.
 
 - **Dropped as better left as they are**, each for what it would cost against what it could give:
-  - **XCUT-3**, the histogram inside the bloom's first halving: FRAME-7 records the exposure before the
-    bloom, so the histogram cannot live inside it; FRAME-14's subsample is the cost fix that stays.
+  - **XCUT-3**, the histogram inside the bloom's first halving: the exposure is recorded before the
+    bloom (FRAME-7), so the histogram cannot live inside it.
   - **SCENE-12**, octahedral normals and a 16-bit colour: the trace's geometry quantized and the
     picture moved, for an unmeasured gain.
   - **TRACE-5**, the payload's radiances as halves: a second payload layout for every pipeline,
@@ -389,10 +346,10 @@ World frame, denoised and upscaled, in record order. **T** = traced extent, **O*
 | — | TLAS pack (`toplevelpack.comp`) + BLAS refit / TLAS build, at placement | rows/256 | instance rows, starts | packed instances, AS | │ |
 | 1 | glare clear | fill | — | sun-glare counts | — |
 | 1 | ripple step ×1–4 (`ripplestep.comp`), clock moved and field moving or pressed | 1024²/16² | field[before], impulses | field[after], moving word (last step) | │ each |
-| 2 | ripple compose (`ripplecompose.comp`) + blit mips, as the step | 1024²/16² | field | ripple surface, curvature (+mips) | │ |
-| 3 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates, twiddles | wave surface, curvature (+mips) | │ │ |
-| 4 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
-| 5 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
+| 1 | ripple compose (`ripplecompose.comp`) + blit mips, as the step | 1024²/16² | field | ripple surface, curvature (+mips) | │ |
+| 2 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates, twiddles | wave surface, curvature (+mips) | │ │ |
+| 3 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
+| 4 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
 | 7 | sprite emitters (`spriteemitters.rgen`) | emitters × 1 | frame, emitters, fog | emitter frames | │ |
 | 8 | sprite shade (`spriteshade.comp`) | one group per emitter per light | sprites, emitters | sprite light/order | │ |
 | 9 | sprite bin: clear │ `spriterects` │ `spritestarts` │ `spriteruns` | various | sprites, emitters, presences, camera | rects, presence words, starts, runs, report | │ │ │ │ |
@@ -409,11 +366,11 @@ World frame, denoised and upscaled, in record order. **T** = traced extent, **O*
 | 20 | digest (`digest.comp`), harness read-back only | T/16², two runs of 16 float and 8 word slots | 19 channels, 20 denoiser images | digest lanes | │ |
 | 21 | FSR: clears │ inputs │ luma pyramid │ change pyramid │ change │ reactivity │ instability │ accumulate | T/8², SPD, (T/2)/8², O/8² | colour, surface, motion, masks, histories | FSR transients, history, output (O) | │ each |
 | 22 | puffs composite (`spritecomposite.rgen`) | T.x × T.y | surface, backdrop, puffs, sprite list, fog | shown (in place) | │ |
-| 23 | bloom down ×≤6 │ bloom up ×≤5 | (O/2ᵏ)/8² | shown, exposure (last frame) | bloom levels | │ each |
-| 24 | histogram │ reduce (`histogram.comp`, `exposure.comp`) | O/16², 1 group | shown | bins → exposure | │ │ |
+| 23 | histogram │ reduce (`histogram.comp`, `exposure.comp`) | O/16², 1 group | shown | bins → exposure | │ │ |
+| 24 | bloom down ×≤6 │ bloom up ×≤5 | (O/2ᵏ)/8² | shown, exposure | bloom levels | │ each |
 | 25 | sun glare ease (`sunglare.comp`) | 1 group | glare counts | glare share | │ |
 | 26 | tone (`tone.comp`) | O/8² | shown, bloom, exposure, glare, backdrop, surface, lift, stars, blue noise, sprite list | target (rgba8) | │ |
 | 27 | debug lines, when debug is on | draw | surface | target | │ |
 | 28 | read-back / stress hold, harness only | copy / 1 group | target / counts | host buffer | — |
-| 29 | GUI (`gui.vert`/`gui.frag`), its own submit | draws | GUI textures, picture | shown | │ |
-| 30 | present: clear when letterboxed, then blit, its own submit | transfer | shown | swapchain image | — |
+| 29 | GUI (`gui.vert`/`gui.frag`), in the present's submit (its own where no window presents) | draws | GUI textures, picture | shown | │ |
+| 30 | present: clear when letterboxed, then blit, one submit with the GUI | transfer | shown | swapchain image | — |

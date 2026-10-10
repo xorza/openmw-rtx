@@ -22,9 +22,8 @@ layout(set = SET_PASS, binding = BLOOM_BIND_SOURCE) uniform sampler2D source;
 /// The level being filled. Written outright, so nothing has to have cleared it.
 layout(set = SET_PASS, binding = BLOOM_BIND_LEVEL, BLOOM_LEVEL) uniform writeonly image2D level;
 
-/// What the curve scaled the frame before by, which the Karis average weighs the frame's squares
-/// with: the exposure this frame's curve will use is measured after the pyramid is begun, and one
-/// frame's lag in a weight on a veil mixed in at a twenty-fifth is under anything the eye sees.
+/// What this frame's curve scales the frame by, which the Karis average weighs the frame's squares
+/// with.
 layout(set = SET_PASS, binding = BLOOM_BIND_EXPOSURE, scalar) readonly buffer Exposure
 {
     float exposure;

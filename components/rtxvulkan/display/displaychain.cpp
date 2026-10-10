@@ -121,14 +121,6 @@ namespace Rtx
         else
             shown.transition(commands, what.mShown.mLeftAs, Use::sComputeReadOrSample);
 
-        // What the lens will spread, built here and applied by the curve. Nothing is written back
-        // over the frame — `BloomPass` says why the trace's own answer has to reach `readComposite`
-        // untouched.
-        if (look != nullptr)
-        {
-            mBloom.record(commands, shown, mExposure.getExposure(), timer);
-        }
-
         // Measured off the image the curve is about to map, which is the upscaled one wherever
         // something upscales — see `histogram.comp` for what measuring the other one costs. One
         // `mShown` feeds both, so the two cannot come apart. A picture is measured off nothing, or
@@ -152,6 +144,13 @@ namespace Rtx
             }
             exposure = &mExposure.getExposure();
         }
+
+        // What the lens will spread, built here and applied by the curve, weighed by the exposure
+        // the curve maps this frame with, which the lines above settled. Nothing is written back
+        // over the frame — `BloomPass` says why the trace's own answer has to reach `readComposite`
+        // untouched.
+        if (look != nullptr)
+            mBloom.record(commands, shown, *exposure, timer);
 
         // What the eye saw of the sun's quad, eased at the query's own rate, which the curve lays
         // the glare fader over the picture by. Read after the trace and before the curve, on the

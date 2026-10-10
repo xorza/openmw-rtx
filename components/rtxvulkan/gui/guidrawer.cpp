@@ -31,12 +31,11 @@ namespace Rtx
         }
     }
 
-    void GuiDrawer::draw(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches, const Image& picture,
-        const Image& shown)
+    void GuiDrawer::prepare(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches)
     {
         // The interface drawn two draws ago drew out of this slot, and the vertices carry the
         // submit that bound them: that passed is what says they may be written over.
-        Slot& slot = mSlots.at(FrameSlot{ static_cast<std::uint32_t>(mDrawn % sFrameSlots) });
+        Slot& slot = current();
         slot.mVertices.get().waitIdle("the interface drawn two frames ago");
 
         // The picture first, over the whole of what is shown and replacing it, and the interface's
@@ -58,7 +57,9 @@ namespace Rtx
 
         mDraws.clear();
         mDraws.reserve(batches.size() + 1);
-        mDraws.push_back(GuiDraw{ .mTexture = picture.getView(),
+        // The picture's view is filled in as the draw is recorded, against the picture it is
+        // recorded over: a target remade between the two would leave a view of an image gone.
+        mDraws.push_back(GuiDraw{ .mTexture = VK_NULL_HANDLE,
             .mFirstVertex = 0,
             .mVertexCount = first,
             .mBlend = Blend::None,
@@ -77,8 +78,15 @@ namespace Rtx
                     mTextures.alphaOf(batch.mTexture) });
         }
 
-        Recording recording = mDevice.getPool().begin(slot.mCommands[0]);
-        const VkCommandBuffer commands = recording.get();
+        mPrepared = true;
+    }
+
+    void GuiDrawer::record(const VkCommandBuffer commands, const Image& picture, const Image& shown)
+    {
+        assert(mPrepared && "an interface recorded that was never prepared");
+        const Slot& slot = current();
+
+        mDraws.front().mTexture = picture.getView();
         picture.transition(commands, PresentTarget::sResting, Use::sFragmentGeneralSample);
         shown.transition(commands, Use::sUndefined, Use::sColourAttachment);
         mPass.record(commands, shown, slot.mVertices.get(), mDraws);
@@ -87,8 +95,15 @@ namespace Rtx
         picture.addTransition(rested, Use::sFragmentGeneralSample, PresentTarget::sResting);
         shown.addTransition(rested, Use::sColourAttachment, PresentTarget::sResting);
         rested.flush();
-        std::move(recording).submit();
 
+        mPrepared = false;
         ++mDrawn;
+    }
+
+    void GuiDrawer::submit(const Image& picture, const Image& shown)
+    {
+        Recording recording = mDevice.getPool().begin(current().mCommands[0]);
+        record(recording.get(), picture, shown);
+        std::move(recording).submit();
     }
 }

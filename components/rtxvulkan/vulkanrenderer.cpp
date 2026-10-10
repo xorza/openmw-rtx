@@ -575,10 +575,15 @@ namespace Rtx
         assert(mTarget.isOpen());
 
         // After the frame's submit, and not waited for. The GUI is collected once the world has
-        // been drawn and there is nothing to gain by holding the frame open for it; the queue draws
-        // it after the frame, and the present blits after both. Drawn with no batches as well,
-        // because what is shown is the picture under them either way.
-        mGui.draw(vertices, batches, mTarget.getPicture(), mTarget.getShown());
+        // been drawn and there is nothing to gain by holding the frame open for it. Drawn with no
+        // batches as well, because what is shown is the picture under them either way.
+        //
+        // **Recorded into the present's own submit where one follows**, ahead of its blit: a submit
+        // of its own was a second head barrier and a second trip through the queue every frame. A
+        // renderer with no window submits it here, so what is shown can be read.
+        mGui.prepare(vertices, batches);
+        if (mPresenter == nullptr)
+            mGui.submit(mTarget.getPicture(), mTarget.getShown());
         mTarget.showInterface();
     }
 
@@ -588,9 +593,10 @@ namespace Rtx
         assert(mTarget.isOpen());
 
         if (!mTarget.isShownCurrent())
-            mGui.draw({}, {}, mTarget.getPicture(), mTarget.getShown());
+            mGui.prepare({}, {});
 
-        mPresenter->present(mTarget.getShown());
+        mPresenter->present(mTarget.getShown(),
+            [&](const VkCommandBuffer commands) { mGui.record(commands, mTarget.getPicture(), mTarget.getShown()); });
         mTarget.spendShown();
     }
 
@@ -874,6 +880,10 @@ namespace Rtx
     void VulkanRenderer::readShown(std::vector<std::uint8_t>& pixels)
     {
         assert(mTarget.isOpen());
+
+        // An interface the present would have recorded, drawn now: what is shown is what is read.
+        if (mGui.isPrepared())
+            mGui.submit(mTarget.getPicture(), mTarget.getShown());
 
         mTarget.getShown().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
     }

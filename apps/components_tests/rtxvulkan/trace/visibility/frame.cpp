@@ -281,6 +281,40 @@ namespace Rtx::Testing
             EXPECT_TRUE(lifted) << "a gamma of two lifted nothing";
         }
 
+        /// The bloom weighs a frame by the exposure that frame's curve maps it with, and not by the
+        /// one before it.
+        ///
+        /// **A bright patch over a black sky**, whose rim is where the Karis average weighs a bright
+        /// tap against dark ones: each tap's weight is `1 / (1 + luma × exposure)`, so the rim's
+        /// halving, and the veil the curve lays over the picture from it, moves with the exposure.
+        /// One frame at a fixed exposure of one after a frame at a hundredth, against one after a
+        /// frame at one: the same input, so the same bytes, where a pyramid weighed by what the
+        /// buffer held from the frame before differs at the rim.
+        TEST_F(RtxVisibilityTest, theBloomWeighsAFrameByItsOwnExposure)
+        {
+            constexpr std::uint32_t size = 32;
+
+            SceneDesc scene;
+            addQuad(scene, uprightQuadAt(20.0f, 0.0f));
+
+            Shaders::VisibilityConstants camera = wallCamera(size, osg::Vec3f(8.0f, 8.0f, 8.0f));
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+
+            const auto after = [&](const float before) {
+                shoot(scene, {}, camera, size, Shot{ .mExposure = before });
+                shoot(scene, {}, camera, size, Shot{ .mSetScene = false });
+                std::vector<std::uint8_t> shown;
+                mRenderer.readPixels(shown);
+                return shown;
+            };
+
+            const std::vector<std::uint8_t> afterDim = after(0.01f);
+            const std::vector<std::uint8_t> afterSame = after(1.0f);
+            ASSERT_EQ(afterDim.size(), std::size_t{ size } * size * 4);
+            EXPECT_EQ(afterDim, afterSame) << "the pyramid was weighed by the frame before's exposure";
+        }
+
         /// The dither keeps a flat grey's mean inside the byte the curve rounds it to, a step either
         /// way at most, and grey, and a mean that follows the curve's level within that byte.
         ///

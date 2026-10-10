@@ -147,9 +147,10 @@ namespace Rtx
         makeImageSync();
     }
 
-    void Presenter::present(const Image& frame)
+    std::optional<Presenter::Taken> Presenter::take()
     {
-        Acquisition& acquisition = mAcquiring[mAcquisition];
+        const std::uint32_t slot = mAcquisition;
+        Acquisition& acquisition = mAcquiring[slot];
         mAcquisition = (mAcquisition + 1) % static_cast<std::uint32_t>(mAcquiring.size());
 
         // A slot is free when its blit has run, and not when the call that queued it returned.
@@ -161,7 +162,7 @@ namespace Rtx
         if (!mSwapchain.acquire(acquisition.mSemaphore.get(), index))
         {
             mStale = true;
-            return;
+            return std::nullopt;
         }
 
         // This image may still be in the presentation engine's hands. Mailbox releases a frame
@@ -177,7 +178,15 @@ namespace Rtx
         if (image.mPresented.has_value())
             image.mPresented->settle(mDevice, "the presentation engine letting go of this image");
 
-        Recording recording = mDevice.getPool().begin(mCommands[index]);
+        return Taken{ .mRecording = mDevice.getPool().begin(mCommands[index]), .mIndex = index, .mAcquisition = slot };
+    }
+
+    void Presenter::hand(Taken held, const Image& frame)
+    {
+        const std::uint32_t index = held.mIndex;
+        Acquisition& acquisition = mAcquiring[held.mAcquisition];
+        SwapImage& image = mImages[index];
+        Recording& recording = held.mRecording;
         const VkCommandBuffer commands = recording.get();
 
         frame.transition(commands, PresentTarget::sResting, Use::sBlitRead);
