@@ -76,6 +76,8 @@ is not here is held to the rules above.
   writes a shared PDB; and `$<COMPILE_LANGUAGE:C,CXX>`, which keeps the C++ flags off Crashpad's MASM.
 - `install_fork_licenses` and `files/licenses/`: the licences of the third-party code the fork
   ships, which ask to be shipped with it.
+- `InstallRequiredSystemLibraries` in the Windows install: the fork ships a portable folder and not
+  upstream's installer, which ran the C++ runtime's redistributable.
 - The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them the
   distance stands scripted stages the game keeps down.
 - The lamp body marker (`SceneUtil::LampBody`) that `SceneUtil::addLight` leaves on a light's group:
