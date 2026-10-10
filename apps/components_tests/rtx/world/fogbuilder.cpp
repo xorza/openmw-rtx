@@ -614,6 +614,16 @@ namespace Rtx
             // The wind alone would put foggy under a rainstorm, which is the mistake the depth
             // exists to stop: rain records 0.8 and blows at 0.3.
             EXPECT_GT(fogLift(1.9f, 0.0f), fogLift(0.8f, 0.3f)) << "depth beats wind, which is why both are read";
+
+            // A depth `fogExtinction` reads as no fog stands the clear layer, so no shader divides by
+            // nought or by a negative; and a wind not above nought lifts nothing.
+            for (const float none : { 0.0f, -1.0f, std::numeric_limits<float>::quiet_NaN() })
+            {
+                EXPECT_EQ(fogExtinction(none, 1000.0f), 0.0f) << none;
+                EXPECT_EQ(fogLift(none, 0.9f), 1.0f) << none;
+            }
+            EXPECT_EQ(fogLift(1.9f, -5.0f), fogLift(1.9f, 0.0f));
+            EXPECT_EQ(fogLift(1.9f, std::numeric_limits<float>::quiet_NaN()), fogLift(1.9f, 0.0f));
         }
 
         /// The open air is measured over the same reach it closes at, and a cell that is built

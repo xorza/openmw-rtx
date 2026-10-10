@@ -62,22 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 11. Give the fog layer a defined height when the weather has no fog
-- **Audit**: SHADER-1. CONFIRMED.
-- **Where**: `components/rtx/world/fogbuilder.cpp:291-313` (`fogExtinction`, `fogLift`),
-  `components/rtx/world/frameworld.cpp:158`, `components/rtxvulkan/shaders/lib/fog.glsl:161`,
-  `:239`, `:529-590`.
-- **Problem**: `fogExtinction` reads a depth that is not above 0 (0, negative or NaN) as no fog,
-  but `fogLift` uses the same depth as it is. A depth of 0 (a "no fog" mod, a Lua override) gives
-  `mFogLift = 0`, and `fogHeightAt`, `fogColumnOver` and `fogBeamDepth` compute 0/0 at the fog base,
-  which is the water level outdoors. A negative depth or wind gives a negative lift, and `exp`
-  overflows, and `0 * inf` is NaN. The NaN enters the froxel history and spreads through its filters.
-- **Fix**: `fogLift` reads the depth by `fogExtinction`'s rule. A depth that is not above 0 gives the
-  clear weather's lift of 1, because a layer with no density has no shape to keep. A wind that is not
-  above 0 adds nothing. Every lift is then positive, with no tolerance.
-- **Test**: `rtx/world/fogbuilder.cpp`: depths 0, -1 and NaN give a lift of exactly 1, and a wind of
-  -5 gives the lift of a wind of 0.
-
 ### 12. Refuse a field of view outside (0°, 180°) in the camera builder
 - **Audit**: CORE-4. CONFIRMED that NaN reaches the frame constants.
 - **Where**: `components/rtx/frame/camera.cpp:32-41`, `:159-171`,
