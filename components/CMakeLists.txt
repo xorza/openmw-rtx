@@ -611,7 +611,7 @@ endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_component_dir(platform
-        kernelfile
+        kernelfilelinux
         )
 endif()
 

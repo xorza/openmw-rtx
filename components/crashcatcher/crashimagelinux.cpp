@@ -20,7 +20,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/platform/folder.hpp>
-#include <components/platform/kernelfile.hpp>
+#include <components/platform/kernelfilelinux.hpp>
 #include <components/platform/process.hpp>
 
 #include "crashinstall.hpp"
