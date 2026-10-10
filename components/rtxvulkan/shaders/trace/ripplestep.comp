@@ -33,18 +33,28 @@ layout(set = SET_PASS, binding = RIPPLE_STEP_BIND_IMPULSES, scalar) readonly buf
     GpuRippleImpulse impulses[];
 };
 
+/// Whether any texel of the field is not nought once the frame's last step has written it: a word
+/// the host reads back, which a workgroup with a moving texel sets.
+layout(set = SET_PASS, binding = RIPPLE_STEP_BIND_MOVING, scalar) buffer Moving
+{
+    uint moving;
+};
+
 layout(push_constant, scalar) uniform Push
 {
     RippleStepConstants step;
 };
 
+shared uint movingHere;
+
 /// What `ripples_blobber.frag` presses at `texel` for one impulse: a ring of the impulse's radius,
-/// pressing both heights a fifth of the way to `mStrength` on the ring and less either side of it.
-/// The ring and not a disc, because a footfall's rim is what a wake is made of.
+/// pressing both heights a fifth of the way to `mStrength` on the ring and less either side of it,
+/// a sixtieth — over `mPress` of them, what that many presses keep (`RippleStepConstants`). The
+/// ring and not a disc, because a footfall's rim is what a wake is made of.
 vec2 pressed(vec2 heights, GpuRippleImpulse impulse, vec2 texel)
 {
     const float away = length(impulse.mAt - texel) / max(impulse.mRadius, 1.0e-3);
-    const float kept = clamp(0.2 * abs(away - 1.0) + 0.8, 0.0, 1.0);
+    const float kept = pow(clamp(0.2 * abs(away - 1.0) + 0.8, 0.0, 1.0), step.mPress);
 
     return mix(vec2(impulse.mStrength), heights, kept);
 }
@@ -59,13 +69,8 @@ vec2 was(ivec2 texel)
     return imageLoad(before, old).xy;
 }
 
-void main()
+void stepTexel(ivec2 texel)
 {
-    const uvec2 cell = gl_GlobalInvocationID.xy;
-    if (outsideOf(cell, uvec2(RIPPLE_GRID)))
-        return;
-
-    const ivec2 texel = ivec2(cell);
     const vec2 held = was(texel);
 
     const float neighbours = was(texel + ivec2(1, 0)).x + was(texel - ivec2(1, 0)).x + was(texel + ivec2(0, 1)).x
@@ -75,7 +80,8 @@ void main()
     // moved over the last step carried on, and the coupling to the four neighbours less what the
     // height gives away and its own damping, as an acceleration.
     const float pull = RIPPLE_STIFFNESS * (neighbours - 4.0 * held.x) - RIPPLE_HEIGHT_DAMPING * held.x;
-    const float next = held.x + (held.x - held.y) * step.mCarry + pull * step.mScale;
+    const float stepped = held.x + (held.x - held.y) * step.mCarry + pull * step.mScale;
+    const float next = abs(stepped) < RIPPLE_STILL ? 0.0 : stepped;
 
     // Bounded by the constant as every loop here is, and the count below it: the host never hands
     // more than the buffer holds, and a count that said otherwise would read past it.
@@ -84,4 +90,22 @@ void main()
         heights = pressed(heights, impulses[at], vec2(texel) + 0.5);
 
     RTX_STORE_COUNTED(after, texel, vec4(heights, 0.0, 0.0))
+    if (step.mReport != 0u && heights != vec2(0.0))
+        atomicOr(movingHere, 1u);
+}
+
+void main()
+{
+    if (gl_LocalInvocationIndex == 0u)
+        movingHere = 0u;
+    barrier();
+
+    // Every lane on to the barrier below, so the dispatch's overhang reaches it too.
+    const uvec2 cell = gl_GlobalInvocationID.xy;
+    if (!outsideOf(cell, uvec2(RIPPLE_GRID)))
+        stepTexel(ivec2(cell));
+    barrier();
+
+    if (step.mReport != 0u && gl_LocalInvocationIndex == 0u && movingHere != 0u)
+        atomicOr(moving, 1u);
 }

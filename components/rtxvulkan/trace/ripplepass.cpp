@@ -1,9 +1,13 @@
 #include "ripplepass.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
+#include <utility>
 
 #include <osg/Vec2f>
 #include <osg/Vec2i>
@@ -17,6 +21,7 @@
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/ripple.h>
@@ -30,6 +35,7 @@ namespace Rtx
             computeBinding(Shaders::RIPPLE_STEP_BIND_BEFORE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::RIPPLE_STEP_BIND_AFTER, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::RIPPLE_STEP_BIND_IMPULSES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+            computeBinding(Shaders::RIPPLE_STEP_BIND_MOVING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
         };
 
         /// The field in, and the two tiles out.
@@ -52,6 +58,11 @@ namespace Rtx
             return Buffer::hostWritten(device, Shaders::RIPPLE_IMPULSES_MOST * sizeof(Shaders::GpuRippleImpulse),
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "ripple impulses");
         })
+        , mMoving([&](const FrameSlot) {
+            return Buffer::readBack(device, sizeof(std::uint32_t),
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "ripple moving");
+        })
+        , mReportedAt([](const FrameSlot) { return std::optional<std::uint64_t>(); })
     {
         constexpr VkImageUsageFlags fieldUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         constexpr VkImageUsageFlags tileUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
@@ -66,7 +77,7 @@ namespace Rtx
             = Image(device, sGrid, sGrid, toVulkanFormat(WAVE_TILE_FORMAT), tileUsage, "ripple curvature", levels);
 
         mImpulseScratch.reserve(Shaders::RIPPLE_IMPULSES_MOST);
-        mPending.reserve(Shaders::RIPPLE_IMPULSES_MOST);
+        mCandidates.reserve(Shaders::RIPPLE_IMPULSES_MOST);
 
         // Still water in every tile from the first frame, in the layout the trace samples them in:
         // a frame with no water records nothing here and binds them anyway.
@@ -98,6 +109,18 @@ namespace Rtx
         const std::span<const RippleImpulse> impulses, const osg::Vec2f& eye, const double waterSeconds,
         GpuTimer* const timer)
     {
+        ++mFrames;
+
+        // What the slot's last frame reported, once its submit is done: nought there, with nothing
+        // pressed since, is a field nought now — a step of nought is nought. Asked of the timeline
+        // and not taken from the ring's order, because a frame recorded into the same submit as the
+        // one that wrote the word has not run it yet.
+        const Buffer& moving = mMoving.at(slot);
+        if (const std::optional<std::uint64_t> reported = std::exchange(mReportedAt.at(slot), std::nullopt);
+            reported.has_value() && mDevice.getTimeline().hasFinished(moving.getNamedUntil())
+            && *static_cast<const std::uint32_t*>(moving.map()) == 0 && mPressedAt <= *reported)
+            mStill = true;
+
         // A field that was reset, or never started, stands still where the eye is now and owes
         // nothing to where it stood.
         if (mReset)
@@ -108,25 +131,20 @@ namespace Rtx
             mReset = false;
 
             // The tiles too, because the step below is due only once the clock moves and the trace
-            // samples them in between.
+            // samples them in between. Nought is what the compose writes of a field of nought, so
+            // the field is still from here.
             const VkClearColorValue still{ .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } };
             for (const Image& field : mFields)
                 field.clear(commands, Use::sComputeReadWrite, still, Use::sComputeReadWrite);
             for (const Image* image : { &mSurface, &mCurvature })
                 image->clear(commands, Use::sShaderSample, still, Use::sShaderSample);
+            mStill = true;
         }
-
-        // What this frame disturbed, kept until the step that presses it: a frame the water's clock
-        // stood still over steps nothing, and its footfalls wait for the step rather than being
-        // dropped. Capped at what the buffer holds, oldest first.
-        for (const RippleImpulse& impulse : impulses)
-            if (mPending.size() < Shaders::RIPPLE_IMPULSES_MOST)
-                mPending.push_back(impulse);
 
         // **Every frame the clock moved, by the time it moved**, where `RipplesSurface::updateState`
         // steps once a sixtieth: at 120 frames a second that left every other frame the whole cost
         // of a step and the frames between none, and under 60 the wake slowed. A clock that stood
-        // still or ran backwards steps nothing and moves no window.
+        // still or ran backwards steps nothing, moves no window and presses nothing.
         const double elapsed = (waterSeconds - mSteppedSeconds) * static_cast<double>(Shaders::RIPPLE_STEP_RATE);
         if (!(elapsed > 0.0))
             return;
@@ -140,30 +158,76 @@ namespace Rtx
                 static_cast<double>(Shaders::RIPPLE_SUBSTEPS_MOST)));
         const float step = std::min(static_cast<float>(elapsed / static_cast<double>(steps)), getLongestStep());
 
-        const GpuZone timed(timer, commands, FrameZone::Ripples);
-
         // The window follows the eye by whole texels, and the step reads the old field at the
         // offset the window moved by.
         const osg::Vec2i window = windowOf(eye);
         const osg::Vec2i shift = window - mWindow;
         standWindow(window);
 
-        // The impulses in the new window's texels.
+        // The impulses in the new window's texels, those whose ring reaches a texel of it: a press
+        // takes a texel only within twice its radius, where `pressed` keeps less than all.
+        constexpr float sGrid = static_cast<float>(Shaders::RIPPLE_GRID);
+        const osg::Vec2f eyeAt = (eye - mOrigin) / Shaders::RIPPLE_TEXEL;
         mImpulseScratch.clear();
-        for (const RippleImpulse& impulse : mPending)
-            mImpulseScratch.push_back(Shaders::GpuRippleImpulse{
-                .mAt = (impulse.mAt - mOrigin) / Shaders::RIPPLE_TEXEL,
-                .mRadius = impulse.mSize / Shaders::RIPPLE_TEXEL,
-                .mStrength = -1.0f,
-            });
-        mPending.clear();
+        mCandidates.clear();
+        for (const RippleImpulse& impulse : impulses)
+        {
+            const osg::Vec2f at = (impulse.mAt - mOrigin) / Shaders::RIPPLE_TEXEL;
+            const float radius = impulse.mSize / Shaders::RIPPLE_TEXEL;
+            const float reach = 2.0f * radius;
+            if (at.x() + reach <= 0.5f || at.x() - reach >= sGrid - 0.5f || at.y() + reach <= 0.5f
+                || at.y() - reach >= sGrid - 0.5f)
+                continue;
+
+            mCandidates.push_back(Candidate{
+                .mDistance = (at - eyeAt).length2(), .mOrder = static_cast<std::uint32_t>(mImpulseScratch.size()) });
+            mImpulseScratch.push_back(Shaders::GpuRippleImpulse{ .mAt = at, .mRadius = radius, .mStrength = -1.0f });
+        }
+
+        // Past what the buffer holds, the nearest the eye, and of two as near the one the game gave
+        // first; pressed in the game's order still.
+        if (mCandidates.size() > Shaders::RIPPLE_IMPULSES_MOST)
+        {
+            const auto nearer = [](const Candidate& left, const Candidate& right) {
+                return left.mDistance != right.mDistance ? left.mDistance < right.mDistance
+                                                         : left.mOrder < right.mOrder;
+            };
+            const auto kept = mCandidates.begin() + Shaders::RIPPLE_IMPULSES_MOST;
+            std::nth_element(mCandidates.begin(), kept, mCandidates.end(), nearer);
+            mCandidates.erase(kept, mCandidates.end());
+            std::sort(mCandidates.begin(), mCandidates.end(),
+                [](const Candidate& left, const Candidate& right) { return left.mOrder < right.mOrder; });
+            for (std::size_t at = 0; at < mCandidates.size(); ++at)
+                mImpulseScratch[at] = mImpulseScratch[mCandidates[at].mOrder];
+            mImpulseScratch.resize(mCandidates.size());
+        }
+
+        // A still field nothing presses: nothing to step and nothing to compose. The next step
+        // after it starts from a field of nought, whose last step is moot.
+        if (mStill && mImpulseScratch.empty())
+        {
+            mLastStep = 0.0f;
+            return;
+        }
+        mStill = false;
+        if (!mImpulseScratch.empty())
+            mPressedAt = mFrames;
+
+        const GpuZone timed(timer, commands, FrameZone::Ripples);
 
         Buffer& impulseBuffer = mImpulses.at(slot);
         if (!mImpulseScratch.empty())
             impulseBuffer.write(std::span<const Shaders::GpuRippleImpulse>(mImpulseScratch));
 
-        // The first step reads the old window at its shift and presses the frame's impulses; the
-        // steps after it carry on from it.
+        // Cleared on the queue, behind whatever step last wrote it: the host's read of it came first,
+        // and a frame recorded into the same submit as the last stands after that one's step.
+        moving.transition(commands, Use::sBufferComputeReadWrite, Use::sBufferClearWrite);
+        moving.clear(commands);
+        moving.transition(commands, Use::sBufferClearWrite, Use::sBufferComputeReadWrite);
+
+        // The first step reads the old window at its shift and presses the frame's impulses for
+        // the time every step together covers; the steps after it carry on from it, and the last
+        // says whether anything still moves.
         for (std::uint32_t at = 0; at < steps; ++at)
         {
             const Image& before = mFields[mLatest];
@@ -174,6 +238,7 @@ namespace Rtx
             writes.image(Shaders::RIPPLE_STEP_BIND_BEFORE, before.describeStorage());
             writes.image(Shaders::RIPPLE_STEP_BIND_AFTER, after.describeStorage());
             writes.buffer(Shaders::RIPPLE_STEP_BIND_IMPULSES, impulseBuffer.describe());
+            writes.buffer(Shaders::RIPPLE_STEP_BIND_MOVING, moving.describe());
 
             // A field that has taken no step yet holds two equal heights, so the ratio is moot; one.
             const float last = mLastStep > 0.0f ? mLastStep : step;
@@ -182,6 +247,8 @@ namespace Rtx
                 .mCount = at == 0 ? static_cast<std::uint32_t>(mImpulseScratch.size()) : 0u,
                 .mCarry = step / last * std::pow(1.0f - Shaders::RIPPLE_VELOCITY_DAMPING, step),
                 .mScale = 0.5f * step * (step + last),
+                .mPress = step * static_cast<float>(steps),
+                .mReport = at + 1 == steps ? 1u : 0u,
             };
             mLastStep = step;
 
@@ -190,6 +257,8 @@ namespace Rtx
             // The step wrote what the compose reads, and what the next step reads back.
             handOver(commands, Use::sBufferComputeWrite, Use::sBufferComputeReadWrite);
         }
+        moving.orderForHostRead(commands);
+        mReportedAt.at(slot) = mFrames;
 
         const Image& after = mFields[mLatest];
 

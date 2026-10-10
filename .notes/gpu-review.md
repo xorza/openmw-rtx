@@ -21,73 +21,19 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Water: ripples and waves | 5 | A frame-rate-dependent wake at the 120 Hz this machine runs, driver-precision twiddles, idle work |
-| 2 | Display and presentation | 5 | A bloom weighed by the last exposure, input latency, two extra full-frame copies and submits |
-| 3 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, a false invariant, and an unbudgeted darkening walk |
-| 4 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 5 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 6 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
+| 1 | Display and presentation | 5 | A bloom weighed by the last exposure, input latency, two extra full-frame copies and submits |
+| 2 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, a false invariant, and an unbudgeted darkening walk |
+| 3 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
+| 4 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 5 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
 
-20 findings are open: 0 high, 2 medium, 18 low. No reviewer found a GLSL/C++ layout,
+15 findings are open: 0 high, 2 medium, 13 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
 ---
 
-## Batch 1 — Water: ripples and waves
-
-### MEDIA-6: Ripple impulses press a fixed 20% once per frame while the field steps by real time, so the wake's strength depends on the frame rate
-bug · L · conf M — `apps/openmw/mwrender/rtx/rippleemitters.cpp:59-71`, `trace/ripplepass.cpp:122-124,152-185`, `shaders/trace/ripplestep.comp:255-264,294-298`
-
-Propagation is time-correct (`mCarry`, `mScale` per sixtieth), but the press is per frame:
-`kept = 0.2·|away−1| + 0.8` whatever the step is. At 144 fps a wake presses about 41% per sixtieth
-against 20% at 60 fps, and half that at 30 fps. The harness's fixed step hides it.
-
-**Direction:** weight each press by the time it covers (`1 − kept^s`, s = sixtieths since the last
-press), or accumulate presses on the water's clock at 60 Hz on the host.
-
-### MEDIA-9: The sea's FFT takes its twiddles and time phase from `sin`/`cos` of float angles, and the phase falls outside the range that Vulkan bounds
-robustness · L · conf M — `rtx/shaders/wave.h:80-86`, `shaders/lib/wavelines.glsl:271-279`, `shaders/trace/waverows.comp:82-84`
-
-The angle is in [0, 2π). Vulkan bounds `sin`/`cos` to 2⁻¹¹ absolute only inside [−π, π]. This is the
-one part of the pinned arithmetic whose precision belongs to the driver, and the error compounds over
-nine stages into the caustic's curvature. RDNA under Mesa is the exposure.
-
-**Direction:** pass a host-computed (double) twiddle table of `WAVE_GRID/2` entries. Reduce the phase
-to [−½, ½) turns before multiplying by TAU.
-
-### MEDIA-13: Pending ripple impulses are capped at 128 silently, and the newest are dropped
-robustness · L · conf H — `trace/ripplepass.cpp:119-124`
-
-While the water's clock is held, footfalls accumulate and everything past 128 is dropped with no count.
-
-**Direction:** merge an actor's repeated impulses before the cap, or count the drops into the report.
-
-### MEDIA-11: The ripple field is stepped, composed and mip-chained every frame, even when nothing disturbed it for seconds
-perf · L · conf H — `trace/ripplepass.cpp:130-212`
-
-1–4 steps over 1024² RG32F, a compose into two RGBA16F tiles and an 11-level blit chain, on every
-frame with a sea. A press decays below 1e-6 within about 6 s.
-
-**Direction:** track the time since the last impulse on the host. After the decay bound, clear the
-tiles once and skip the pass until the next impulse.
-
-### MEDIA-10: The 128-point cascade runs on 256-lane workgroups sized for the 512 grid
-perf · L · conf H — `shaders/shared/wavetransform.h:122-127`, `rtx/environment/wavecascade.hpp:40-43`
-
-Three quarters of the lanes are idle in every butterfly stage of the second cascade, but they still
-take every barrier.
-
-**Direction:** make the workgroup size a specialization constant per cascade, or run two rows per
-workgroup on the narrow grid. Marginal: the whole `waves` zone is about 0.14 ms, so measure the
-second cascade first and drop this if it does not show.
-
-(Checked and sound: the FFT's normalisation, centre shift, conjugate pairing and Nyquist exclusion.
-Rows and columns cannot fuse, because a 512² grid does not fit in shared memory.)
-
----
-
-## Batch 2 — Display and presentation
+## Batch 1 — Display and presentation
 
 All of these items touch `display/`, `gui/` and `present/`.
 
@@ -141,7 +87,7 @@ regular 2×2 subsample is an unbiased estimate (a box-filtered level is not).
 
 ---
 
-## Batch 3 — Lamp sampling
+## Batch 2 — Lamp sampling
 
 ### TRACE-1: Every split hit walks every lamp in its cell, up to 256, with the full glossy lobe per lamp. The comment says the water legs do not
 perf · M · conf H (behaviour), M (cost) — `shaders/lib/shading.glsl:372-375,199-204`, `shaders/lib/water.glsl:107`, `shaders/lib/lights.glsl:131,444-458,566-618`
@@ -178,7 +124,7 @@ candidate budget as the positive lamps.
 
 ---
 
-## Batch 4 — Layered ground in the trace
+## Batch 3 — Layered ground in the trace
 
 ### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
 simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
@@ -202,7 +148,7 @@ non-detailed hits from it. Keep the live stack for the eye, reflections and the 
 
 ---
 
-## Batch 5 — Scene record layout for the trace
+## Batch 4 — Scene record layout for the trace
 
 Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
 interior and a foliage exterior, and keep only what measures.
@@ -239,7 +185,7 @@ dispatch per kind (a binary search over the prefix, or indirect). Measure the `s
 
 ---
 
-## Batch 6 — Housekeeping
+## Batch 5 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -258,8 +204,8 @@ dispatch", but the fog samples them in ray-tracing launches.
 
 **Direction:** restate both comments.
 
-Comment corrections that belong to a batch above stay with their batch: TRACE-1 and TRACE-9 (batch 3),
-TRACE-3 (batch 4).
+Comment corrections that belong to a batch above stay with their batch: TRACE-1 and TRACE-9 (batch 2),
+TRACE-3 (batch 3).
 
 ---
 
@@ -297,7 +243,20 @@ The reviewers checked these items and found no fault:
 - **Trace.** The payload pack/unpack (30 words), the rgb9e5 range, the `HitRecord`/SBT order against
   `MaterialKind`, push-descriptor persistence across binds, `tmin ≤ tmax` at the clip, and RIS and
   sky-pick unbiasedness.
-- **Fog and waves.** Fog reprojection and history rejection are correct.
+- **Fog and waves.** Fog reprojection and history rejection are correct. The FFT's normalisation, centre
+  shift, conjugate pairing and Nyquist exclusion are correct. Rows and columns cannot fuse, because a
+  512² grid does not fit in shared memory. Since the review, the twiddles come from a table the host
+  computes in double (`Rtx::waveTwiddles`), and the time phase is turned by exact quarter turns
+  before `sin`/`cos` (`phasorAt`), so the driver's precision applies only inside an eighth of a turn.
+- **Ripples.** Since the review, a press is as deep as the time it stands for (`kept^n`), the
+  pass drops an impulse whose ring cannot reach the window and, past the cap, the impulses farthest
+  from the eye, and the field is not stepped while it is
+  still and nothing presses it: a dead band under `RIPPLE_STILL` makes "still" exact, and the
+  device reports it.
+- **The narrow wave cascade's idle lanes (MEDIA-10), measured and dropped.** The 128-point cascade
+  runs on 256-lane workgroups, but its two dispatches cost about 1 µs: at `seyda-neen-pier` in
+  release, the `waves` median is 0.1489 ms with them and 0.1477 ms without them, 1,200 frames a leg.
+  A smaller workgroup cannot save more than that.
   The FFT is correct.
 
 - **Dropped as better left as they are**, each for what it would cost against what it could give:
@@ -429,11 +388,11 @@ World frame, denoised and upscaled, in record order. **T** = traced extent, **O*
 | — | skin / morph (`skin.comp`, `morph.comp`), at placement | one dispatch per deformed mesh, 64-lane groups | bind streams, influences, bones/weights | pose blocks (slot) | │ |
 | — | TLAS pack (`toplevelpack.comp`) + BLAS refit / TLAS build, at placement | rows/256 | instance rows, starts | packed instances, AS | │ |
 | 1 | glare clear | fill | — | sun-glare counts | — |
-| 2 | ripple step ×1–4 (`ripplestep.comp`) | 1024²/16² | field[before], impulses | field[after] | │ each |
-| 3 | ripple compose (`ripplecompose.comp`) + blit mips | 1024²/16² | field | ripple surface, curvature (+mips) | │ |
-| 4 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates | wave surface, curvature (+mips) | │ │ |
-| 5 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
-| 6 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
+| 1 | ripple step ×1–4 (`ripplestep.comp`), clock moved and field moving or pressed | 1024²/16² | field[before], impulses | field[after], moving word (last step) | │ each |
+| 2 | ripple compose (`ripplecompose.comp`) + blit mips, as the step | 1024²/16² | field | ripple surface, curvature (+mips) | │ |
+| 3 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates, twiddles | wave surface, curvature (+mips) | │ │ |
+| 4 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
+| 5 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
 | 7 | sprite emitters (`spriteemitters.rgen`) | emitters × 1 | frame, emitters, fog | emitter frames | │ |
 | 8 | sprite shade (`spriteshade.comp`) | one group per emitter per light | sprites, emitters | sprite light/order | │ |
 | 9 | sprite bin: clear │ `spriterects` │ `spritestarts` │ `spriteruns` | various | sprites, emitters, presences, camera | rects, presence words, starts, runs, report | │ │ │ │ |

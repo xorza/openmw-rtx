@@ -16,6 +16,7 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
+#include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/wave.h>
 #include <components/rtx/world/frameworld.hpp>
@@ -43,24 +44,29 @@ namespace Rtx
         /// below are exact rather than nearly so.
         constexpr float sExtent = 256.0f;
 
-        /// The amplitudes, how fast each turns, and the three packed fields the rows leave.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sRowsBindings{
-            VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+        /// The amplitudes, how fast each turns, the three packed fields the rows leave, and the
+        /// twiddles.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_ROWS_BINDINGS> sRowsBindings{
+            VkDescriptorSetLayoutBinding{ Shaders::WAVE_ROWS_BIND_AMPLITUDES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::WAVE_ROWS_BIND_TURN_RATES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::WAVE_ROWS_BIND_FIELD, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::WAVE_BIND_TWIDDLES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
-        /// The fields in, and the two textures out.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sColumnsBindings{
-            VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+        /// The fields in, the two textures out, and the twiddles.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_COLUMNS_BINDINGS> sColumnsBindings{
+            VkDescriptorSetLayoutBinding{ Shaders::WAVE_COLUMNS_BIND_FIELD, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::WAVE_COLUMNS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::WAVE_COLUMNS_BIND_CURVATURE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::WAVE_BIND_TWIDDLES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
         /// What one texel of the surface and the curvature came out as.
@@ -101,8 +107,13 @@ namespace Rtx
             const Buffer field = Buffer::deviceLocal(
                 device, 3 * sCells * sizeof(osg::Vec2f), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
 
+            const std::array<osg::Vec2f, Shaders::WAVE_TWIDDLES> twiddles = waveTwiddles();
+            const Buffer twiddling
+                = Buffer::staging(device, sizeof(twiddles), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
+
             table.write(amplitudes);
             turning.write(turnRates);
+            twiddling.write(std::span<const osg::Vec2f>(twiddles));
 
             constexpr VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
             const Image surface(device, sCount, sCount, toVulkanFormat(WAVE_TILE_FORMAT), usage, "test-wave-surface");
@@ -110,7 +121,8 @@ namespace Rtx
                 device, sCount, sCount, toVulkanFormat(WAVE_TILE_FORMAT), usage, "test-wave-curvature");
 
             const VkDescriptorBufferInfo whole[]{ { table.getHandle(), 0, VK_WHOLE_SIZE },
-                { turning.getHandle(), 0, VK_WHOLE_SIZE }, { field.getHandle(), 0, VK_WHOLE_SIZE } };
+                { turning.getHandle(), 0, VK_WHOLE_SIZE }, { field.getHandle(), 0, VK_WHOLE_SIZE },
+                { twiddling.getHandle(), 0, VK_WHOLE_SIZE } };
 
             const VkDescriptorImageInfo images[]{ { VK_NULL_HANDLE, surface.getView(), VK_IMAGE_LAYOUT_GENERAL },
                 { VK_NULL_HANDLE, curvature.getView(), VK_IMAGE_LAYOUT_GENERAL } };
@@ -120,9 +132,10 @@ namespace Rtx
                     image->transition(commands, Use::sUndefined, Use::sComputeWrite);
 
                 DescriptorWrites formed(rows);
-                formed.buffer(0, whole[0]);
-                formed.buffer(1, whole[1]);
-                formed.buffer(2, whole[2]);
+                formed.buffer(Shaders::WAVE_ROWS_BIND_AMPLITUDES, whole[0]);
+                formed.buffer(Shaders::WAVE_ROWS_BIND_TURN_RATES, whole[1]);
+                formed.buffer(Shaders::WAVE_ROWS_BIND_FIELD, whole[2]);
+                formed.buffer(Shaders::WAVE_BIND_TWIDDLES, whole[3]);
                 const Shaders::WaveRowsConstants shaped{ .mCount = sCount, .mExtent = sExtent, .mTime = time };
 
                 // A row a workgroup, and then a column a workgroup, as `WavePass` records them.
@@ -130,9 +143,10 @@ namespace Rtx
                 Testing::orderStorageWrites(commands);
 
                 DescriptorWrites unpacking(columns);
-                unpacking.buffer(0, whole[2]);
-                unpacking.image(1, images[0]);
-                unpacking.image(2, images[1]);
+                unpacking.buffer(Shaders::WAVE_COLUMNS_BIND_FIELD, whole[2]);
+                unpacking.image(Shaders::WAVE_COLUMNS_BIND_SURFACE, images[0]);
+                unpacking.image(Shaders::WAVE_COLUMNS_BIND_CURVATURE, images[1]);
+                unpacking.buffer(Shaders::WAVE_BIND_TWIDDLES, whole[3]);
                 const Shaders::WaveColumnsConstants unpacked{ .mCount = sCount };
 
                 dispatch(commands, columns, unpacking, unpacked, Groups{ .mX = sCount });
@@ -231,13 +245,19 @@ namespace Rtx
             }
         }
 
-        /// A wave a hundred hours into its clock stands where its phase says, to the float's last place.
+        /// A wave a hundred hours into its clock stands where its phase says, to the float's last
+        /// place, and so does a wave at a phase in each quarter of a turn.
         ///
         /// **What the clock in two halves is for.** The phase is `rate * seconds` in turns, and at
         /// 360,000 s one float holding the clock steps by 1/32 of a second and one holding the
         /// product 2.9 × 360,000 = 1,044,000 turns steps by 1/8 of a turn: taken that way the phase
         /// comes to 0.375 of a turn where it is 0.391, and the height's square below is a tenth
         /// out. The expected phase is the fraction of the same product in long double.
+        ///
+        /// **And the quarters are what `phasorAt` turns exactly.** At 2.9 turns a second the short
+        /// clocks stand at 0.087, 0.29, 0.87 and 0.957 of a turn: the nearest quarters are nought,
+        /// one, three and four, and the hundred hours two — a rotation by each power of `i`, and
+        /// four quarters, which is nought again.
         TEST_F(RtxWaveFieldTest, aWaveAHundredHoursInStandsWhereItsPhaseSays)
         {
             const Device& device = getDevice();
@@ -262,26 +282,31 @@ namespace Rtx
             turning[at] = rate;
             turning[mirror] = rate;
 
-            const osg::Vec2f clock = splitSeconds(360000.123);
-            const std::vector<Sampled> field = run(device, pool, passes, table, turning, clock);
-            ASSERT_EQ(field.size(), sCells);
-
-            const long double turns = static_cast<long double>(rate)
-                * (static_cast<long double>(clock.x()) + static_cast<long double>(clock.y()));
-            const float phase
-                = static_cast<float>((turns - std::floor(turns)) * 2.0L * std::numbers::pi_v<long double>);
-
-            const float wavenumber = Shaders::TAU / sExtent * static_cast<float>(alongX);
-            const float texel = sExtent / static_cast<float>(sCount);
-            for (std::uint32_t x = 0; x < sCount; ++x)
+            for (const double seconds : { 360000.123, 0.03, 0.1, 0.3, 0.33 })
             {
-                const float wave = 2.0f * amplitude * std::cos(texel * wavenumber * static_cast<float>(x) + phase);
-                const float derivative
-                    = -2.0f * amplitude * std::sin(texel * wavenumber * static_cast<float>(x) + phase);
+                const osg::Vec2f clock = splitSeconds(seconds);
+                const std::vector<Sampled> field = run(device, pool, passes, table, turning, clock);
+                ASSERT_EQ(field.size(), sCells);
 
-                const Sampled& got = field[x];
-                ASSERT_NEAR(got.mHeightSquared, wave * wave, 5e-3f) << "height squared at " << x;
-                ASSERT_NEAR(got.mSlope.x(), wavenumber * derivative, 5e-3f) << "slope at " << x;
+                const long double turns = static_cast<long double>(rate)
+                    * (static_cast<long double>(clock.x()) + static_cast<long double>(clock.y()));
+                const float phase
+                    = static_cast<float>((turns - std::floor(turns)) * 2.0L * std::numbers::pi_v<long double>);
+
+                const float wavenumber = Shaders::TAU / sExtent * static_cast<float>(alongX);
+                const float texel = sExtent / static_cast<float>(sCount);
+                for (std::uint32_t x = 0; x < sCount; ++x)
+                {
+                    const float wave = 2.0f * amplitude * std::cos(texel * wavenumber * static_cast<float>(x) + phase);
+                    const float derivative
+                        = -2.0f * amplitude * std::sin(texel * wavenumber * static_cast<float>(x) + phase);
+
+                    const Sampled& got = field[x];
+                    ASSERT_NEAR(got.mHeightSquared, wave * wave, 5e-3f)
+                        << "height squared at " << x << ", " << seconds << " s";
+                    ASSERT_NEAR(got.mSlope.x(), wavenumber * derivative, 5e-3f)
+                        << "slope at " << x << ", " << seconds << " s";
+                }
             }
         }
     }

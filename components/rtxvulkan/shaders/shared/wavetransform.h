@@ -20,14 +20,17 @@ namespace Rtx::Shaders
     const uint WAVE_ROWS_BIND_AMPLITUDES = 0;
     const uint WAVE_ROWS_BIND_TURN_RATES = 1;
     const uint WAVE_ROWS_BIND_FIELD = 2;
-    const uint WAVE_ROWS_BINDINGS = 3;
 
-    /// Where `wavecolumns.comp` binds what it reads and writes in set 0, and how many there are, by
-    /// the same rule.
+    /// Where `wavecolumns.comp` binds what it reads and writes in set 0, by the same rule.
     const uint WAVE_COLUMNS_BIND_FIELD = 0;
     const uint WAVE_COLUMNS_BIND_SURFACE = 1;
     const uint WAVE_COLUMNS_BIND_CURVATURE = 2;
-    const uint WAVE_COLUMNS_BINDINGS = 3;
+
+    /// Where both passes bind the twiddles `wavelines.glsl` reads, past each one's own, and so how
+    /// many each binds.
+    const uint WAVE_BIND_TWIDDLES = 3;
+    const uint WAVE_ROWS_BINDINGS = WAVE_BIND_TWIDDLES + 1;
+    const uint WAVE_COLUMNS_BINDINGS = WAVE_BIND_TWIDDLES + 1;
 
     /// Threads in a transform workgroup, one per butterfly.
     ///

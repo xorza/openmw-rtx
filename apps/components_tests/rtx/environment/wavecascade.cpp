@@ -2,6 +2,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 #include <random>
 #include <vector>
 
@@ -215,6 +216,49 @@ namespace Rtx
                 moved += third[0].mAmplitudes[at] != first[0].mAmplitudes[at] ? 1 : 0;
 
             EXPECT_GT(moved, first[0].mAmplitudes.size() / 20) << "a different sea state is a different sea";
+        }
+
+        /// Each twiddle is its angle's cosine and sine rounded once, and the axes and the mirror
+        /// about the eighth are exact.
+        ///
+        /// **Hand-computed where it is exact**: nought steps is `(1, 0)`, a quarter turn — 128 of
+        /// 512 — is `(0, 1)`, and an eighth is `sqrt(1/2)` in both, 0.70710678 rounded to a float.
+        /// Elsewhere against the double, within half the gap from the entry to the next float out
+        /// from nought, which is how far a rounding to nearest can move it; the double itself is
+        /// off by under `1e-16`, and by `6e-17` at the axis, where its `cos` of a rounded
+        /// `PI / 2` is not nought.
+        TEST(RtxWaveCascadeTest, eachTwiddleIsItsAngleRoundedOnce)
+        {
+            const auto twiddles = waveTwiddles();
+            constexpr std::size_t quarter = Shaders::WAVE_GRID / 4;
+            constexpr float sRootHalf = 0.70710678118654752f;
+
+            EXPECT_EQ(twiddles[0], osg::Vec2f(1.0f, 0.0f));
+            EXPECT_EQ(twiddles[quarter], osg::Vec2f(0.0f, 1.0f));
+            EXPECT_EQ(twiddles[quarter / 2], osg::Vec2f(sRootHalf, sRootHalf));
+            EXPECT_EQ(twiddles[3 * quarter / 2], osg::Vec2f(-sRootHalf, sRootHalf));
+
+            const auto within = [](float got, double exact) {
+                const float gap = std::nextafter(std::abs(got), 2.0f) - std::abs(got);
+                return std::abs(double{ got } - exact) <= 0.5 * double{ gap } + 1e-15;
+            };
+
+            for (std::size_t k = 0; k < twiddles.size(); ++k)
+            {
+                const double angle = 2.0 * std::numbers::pi * static_cast<double>(k) / Shaders::WAVE_GRID;
+                EXPECT_TRUE(within(twiddles[k].x(), std::cos(angle))) << "cosine at " << k;
+                EXPECT_TRUE(within(twiddles[k].y(), std::sin(angle))) << "sine at " << k;
+
+                if (k <= quarter)
+                {
+                    EXPECT_EQ(twiddles[k].x(), twiddles[quarter - k].y()) << "the mirror of " << k;
+                }
+                if (k < quarter)
+                {
+                    EXPECT_EQ(twiddles[k + quarter], osg::Vec2f(-twiddles[k].y(), twiddles[k].x()))
+                        << "a quarter turn past " << k;
+                }
+            }
         }
 
         /// `causticGain` is the mean it says it is, against the field it was fitted to.

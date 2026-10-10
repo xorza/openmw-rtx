@@ -83,6 +83,22 @@ namespace Rtx
 
             return osg::Vec2d(step * column, step * row);
         }
+
+        /// `(cos, sin)` of `TAU steps / WAVE_GRID`, for up to a quarter turn of steps, off whichever
+        /// axis is nearer. So the axes are exact, where `cos` of a rounded `PI / 2` is not nought,
+        /// and an entry and its mirror about the eighth are the same two numbers swapped.
+        osg::Vec2d quarterPhasor(std::size_t steps)
+        {
+            constexpr std::size_t eighth = Shaders::WAVE_GRID / 8;
+            const auto angleOf
+                = [](std::size_t of) { return 2.0 * std::numbers::pi * static_cast<double>(of) / Shaders::WAVE_GRID; };
+
+            if (steps <= eighth)
+                return osg::Vec2d(std::cos(angleOf(steps)), std::sin(angleOf(steps)));
+
+            const double rest = angleOf(2 * eighth - steps);
+            return osg::Vec2d(std::sin(rest), std::cos(rest));
+        }
     }
 
     std::array<WaveCascade, Shaders::WAVE_CASCADES> makeWaveCascades(const SeaState& sea)
@@ -246,6 +262,21 @@ namespace Rtx
                 squared += 2.0 * double{ cascade.mAmplitudes[at].length2() } * wavevectorAt(cascade, at).length2();
 
         return static_cast<float>(std::sqrt(squared));
+    }
+
+    std::array<osg::Vec2f, Shaders::WAVE_TWIDDLES> waveTwiddles()
+    {
+        constexpr std::size_t quarter = Shaders::WAVE_GRID / 4;
+
+        std::array<osg::Vec2f, Shaders::WAVE_TWIDDLES> twiddles;
+        for (std::size_t k = 0; k < twiddles.size(); ++k)
+        {
+            // Past a quarter turn is a quarter turn times `i`, which swaps and negates exactly.
+            const osg::Vec2d near = quarterPhasor(k <= quarter ? k : k - quarter);
+            const osg::Vec2d phasor = k <= quarter ? near : osg::Vec2d(-near.y(), near.x());
+            twiddles[k] = osg::Vec2f(static_cast<float>(phasor.x()), static_cast<float>(phasor.y()));
+        }
+        return twiddles;
     }
 
 }

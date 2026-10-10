@@ -10,6 +10,7 @@
 #include <volk.h>
 
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/death.hpp>
@@ -265,10 +266,11 @@ namespace Rtx
             }
 
             // **The ripple field is stood for a scene that holds water and stepped only where the
-            // sky's clock has moved a sixtieth**, before the sea reads it. The frame the field is
-            // stood on steps nothing and reports no zone; a sixtieth on, the step comes first of
-            // all, ahead of the sea.
-            const SceneDesc flooding = wallOverWater();
+            // sky's clock has moved and something presses it**, before the sea reads it. The frame
+            // the field is stood on steps nothing and reports no zone; a sixtieth on, the footfall
+            // the scene holds is pressed and the step comes first of all, ahead of the sea.
+            SceneDesc flooding = wallOverWater();
+            flooding.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
             mRenderer.setScene(Rtx::SceneSlot::world(), flooding, {});
 
             Shaders::VisibilityConstants standing = flooded;
@@ -277,11 +279,21 @@ namespace Rtx
             EXPECT_FALSE(reports(stood.mGpu.spans(), FrameZone::Ripples))
                 << "a frame with no step due stepped the field";
 
+            // Placed again, as the game places every frame: the stood frame spent what the setting
+            // kept, on a clock that had not moved.
+            mRenderer.placeScene(Rtx::SceneSlot::world(), flooding);
             const Drawn stepped = draw(mRenderer, standing, 1.0 / 60.0);
             EXPECT_TRUE(reports(stepped.mGpu.spans(), FrameZone::Ripples))
                 << "a sixtieth on, the field was not stepped";
-            EXPECT_EQ(stepped.mGpu.spans().front().mZone, FrameZone::Ripples)
-                << "the field was stepped somewhere other than before the sea";
+            // First of the frame's own work: the placement's structures go ahead of it, and
+            // placing the scene again compacts what setting it built.
+            constexpr std::array sPlacement{ FrameZone::Blas, FrameZone::Compact, FrameZone::Refit, FrameZone::Tlas,
+                FrameZone::Skin, FrameZone::Ground };
+            const auto placement
+                = [&](const GpuSpan& span) { return std::ranges::find(sPlacement, span.mZone) != sPlacement.end(); };
+            const auto first = std::ranges::find_if_not(stepped.mGpu.spans(), placement);
+            ASSERT_NE(first, stepped.mGpu.spans().end());
+            EXPECT_EQ(first->mZone, FrameZone::Ripples) << "the field was stepped somewhere other than before the sea";
 
             // **A surface with no level is a sea as much as a level with no surface**, and the
             // trace samples the tiles wherever a ray meets the water: a frame that synthesised them

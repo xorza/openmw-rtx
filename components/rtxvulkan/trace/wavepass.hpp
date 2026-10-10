@@ -108,6 +108,9 @@ namespace Rtx
 
         Sampler mSampler;
 
+        /// What `Rtx::waveTwiddles` made, which every tile's transform reads.
+        Buffer mTwiddles;
+
         std::array<Tile, Shaders::WAVE_CASCADES> mTiles;
 
         SeaState mSea;

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -47,8 +48,19 @@ namespace Rtx
 
         /// Steps the field by the time `waterSeconds` moved since the last step, in as few steps as
         /// keep each within `getLongestStep` and no more than `RIPPLE_SUBSTEPS_MOST`, presses
-        /// `impulses` with the first, and unpacks the tiles. The window follows `eye` by whole
-        /// texels. Nothing at all where the clock did not move, which leaves the tiles as they were.
+        /// `impulses` with the first, for the time the steps cover, and unpacks the tiles. The
+        /// window follows `eye` by whole texels. Nothing at all where the clock did not move, which
+        /// leaves the tiles as they were and presses nothing: a press stands for time, and that
+        /// frame's water had none.
+        ///
+        /// **The impulses that reach the window, the nearest first**: one whose ring presses no
+        /// texel of it is no impulse to the field, and past `RIPPLE_IMPULSES_MOST` the ones nearest
+        /// the eye are the ones it shows. Pressed in the order the game gave them.
+        ///
+        /// **And nothing at all while the field is still and nothing presses it**, which is most of
+        /// the time by the water: once a frame's last step reports every texel nought
+        /// (`RIPPLE_STILL`) and nothing has pressed since, each step would step nought to nought and
+        /// each compose write the tiles they hold, so the frame skips both — exactly.
         ///
         /// **Every frame and not once a sixtieth**, as upstream steps, which is a look of its own:
         /// the same springs over the same time, and a wake that keeps its pace under sixty frames a
@@ -76,6 +88,10 @@ namespace Rtx
 
         /// Drops what the field holds, for a world that was replaced rather than moved through.
         void reset() { mReset = true; }
+
+        /// Whether the field is known to be nought everywhere, so the frames skip it until
+        /// something presses it again.
+        bool isStill() const { return mStill; }
 
         /// Linear, mipmapped and clamped to a border of nothing: past the field's edge is still
         /// water.
@@ -112,10 +128,27 @@ namespace Rtx
         Image mCurvature;
 
         /// The frame's impulses, one copy a frame slot so a write never lands under a submit, and
-        /// the ones waiting for a step to be due.
+        /// the ones of them the field takes, beside the eye's distance and the game's order for
+        /// choosing the nearest.
         PerSlot<Buffer> mImpulses;
         std::vector<Shaders::GpuRippleImpulse> mImpulseScratch;
-        std::vector<RippleImpulse> mPending;
+        struct Candidate
+        {
+            float mDistance;
+            std::uint32_t mOrder;
+        };
+        std::vector<Candidate> mCandidates;
+
+        /// Whether the field moves once a frame's last step has written it, a word a frame slot,
+        /// and which frame wrote each, nothing for a slot whose frame took no step.
+        PerSlot<Buffer> mMoving;
+        PerSlot<std::optional<std::uint64_t>> mReportedAt;
+
+        /// The frames this has recorded, the last of them that pressed an impulse, and whether the
+        /// field is known to be nought everywhere.
+        std::uint64_t mFrames = 0;
+        std::uint64_t mPressedAt = 0;
+        bool mStill = false;
 
         /// Where the window begins, in texels and in world units.
         osg::Vec2i mWindow;
