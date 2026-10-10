@@ -60,20 +60,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P0: release blockers
 
-### 2. Ship the MSVC C++ runtime in the Windows folder
-- **Audit**: BUILD-2. CONFIRMED that the files are absent from the folder.
-- **Where**: `CMakeLists.txt:964-997` (the runtime set excludes `msvcp*` and `vcruntime*`),
-  `CMakeLists.txt:1184-1191` (`VCREDIST64` is an NSIS step only), `tools/omw/package.py:240-250`.
-- **Problem**: The portable folder has no `vcruntime140.dll`, `vcruntime140_1.dll` or
-  `msvcp140.dll`. Without the redistributable, no executable starts. With an old one, binaries from
-  MSVC 17.10 and later fault in `std::mutex::lock` before the crash catcher can report.
-- **Fix**: `include(InstallRequiredSystemLibraries)` with `CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION`
-  beside `openmw.exe`, from the toolset that built the binaries. The application's folder is searched
-  before the system's, so the binaries always load the runtime they were built against. Windows
-  Update does not patch these copies, and each release ships the toolset's current ones.
-- **Test**: `_archive_windows` refuses a folder without `vcruntime140.dll`, `vcruntime140_1.dll` and
-  `msvcp140.dll` beside `openmw.exe`, and a `tools/omw/tests` case holds that check.
-
 ### 3. Stop the Lua worker and the cell reader before the managers they read go
 - **Audit**: SEAM-1, SEAM-2. CONFIRMED (the order in `~Engine`). **Upstream** (decision 1, new line).
 - **Where**: `apps/openmw/engine.cpp:294-298` and `:334-369`, `apps/openmw/mwlua/worker.cpp:26-34`,

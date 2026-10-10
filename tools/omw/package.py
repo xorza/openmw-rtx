@@ -268,6 +268,7 @@ def _archive_windows(build: Build, name: str) -> None:
     run(["cmake", "--install", build.dir, "--prefix", folder], env=build.env, stdout=subprocess.DEVNULL)
     prune_empty(folder)
     _refuse_harness(folder)
+    _refuse_missing_runtime(folder, WINDOWS_RUNTIME)
 
 
 def symbols(build: Build, name: str) -> None:

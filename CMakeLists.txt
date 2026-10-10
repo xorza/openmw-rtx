@@ -989,6 +989,15 @@ if (NOT APPLE AND OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
         # CMP0207 will avoid the need for this
         string(REPLACE "/" "(/|\\\\)" post_exclude_regexes "${post_exclude_regexes}")
         set(directories "${RUNTIME_OUTPUT_DIRECTORY}")
+
+        # **The C++ runtime the binaries were built against, beside them**, from the toolset that
+        # built them: the fork ships a portable folder and not upstream's installer, which ran the
+        # redistributable. The application's folder is searched before the system's, so an older
+        # runtime installed system-wide, inside whose `std::mutex::lock` binaries of MSVC 17.10 and
+        # later fault, is never the one loaded. The universal CRT is the system's from Windows 10 on.
+        set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION "${CMAKE_INSTALL_BINDIR}")
+        set(CMAKE_INSTALL_UCRT_LIBRARIES OFF)
+        include(InstallRequiredSystemLibraries)
     endif ()
     install(RUNTIME_DEPENDENCY_SET openmw-dependencies
         PRE_EXCLUDE_REGEXES ${pre_exclude_regexes}
