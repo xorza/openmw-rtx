@@ -58,6 +58,8 @@ namespace Rtx
     /// - `faceforward(n, i, r)`: `n` where `dot(r, i) < 0`, else `-n`.
     /// - `asin(x)` is `atan2(x, sqrt(fma(-x, x, 1)))`; `acos(x)` is `atan2(sqrt(fma(-x, x, 1)), x)`.
     /// - `mod(x, y)` is `fma(-y, floor(x / y), x)`, and `rem` the same with `trunc`.
+    /// - `round` is `roundEven`, and the float `min`, `max` and `clamp` are `NMin`, `NMax` and
+    ///   `NClamp`: where one operand is a NaN, the other, which the F forms leave to the compile.
     ///
     /// Throws `std::runtime_error` for a module it cannot read and for an operation it cannot pin —
     /// a derivative or a level of detail worked out from one, a relaxed precision, a rounding mode or

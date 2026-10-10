@@ -273,6 +273,13 @@ namespace Rtx
         return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
     }
 
+    float DenoiseHistory::exchangeDistanceScale(const float scale)
+    {
+        const float held = mHeldDistanceScale > 0.0f ? mHeldDistanceScale : scale;
+        mHeldDistanceScale = scale;
+        return held;
+    }
+
     void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height)
     {
         for (const Declared& declared : sDeclared)

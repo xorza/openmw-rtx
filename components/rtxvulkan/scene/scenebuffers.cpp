@@ -7,6 +7,7 @@
 
 #include <osg/Vec4f>
 
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -45,6 +46,10 @@ namespace Rtx
 
             return 0u;
         }
+
+        // The optional maps cross as the scene's own index, so the scene's "none" has to be the one
+        // the shaders test for.
+        static_assert(sNoIndex == Shaders::NO_TEXTURE, "a material's missing map crosses as a texture");
 
         Shaders::GpuMaterial toGpu(const Material& material)
         {

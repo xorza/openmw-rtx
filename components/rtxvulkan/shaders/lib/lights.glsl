@@ -87,7 +87,10 @@ float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 ///        the two runs side by side — `Rtx::LightGrid::getCells`.
 uvec2 lightRunInCell(vec3 cell, uint key)
 {
-    if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(frame.mLightGrid.mSize))))
+    // **Asked as "inside", so a cell that is not a number is outside**: every comparison with a NaN
+    // is false, and asked as "outside" one passed on to a conversion with no answer and a read
+    // wherever that landed.
+    if (!all(greaterThanEqual(cell, vec3(0.0))) || !all(lessThan(cell, vec3(frame.mLightGrid.mSize))))
         return uvec2(0u, 0u);
 
     const uvec3 at = uvec3(cell);

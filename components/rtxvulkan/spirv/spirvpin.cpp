@@ -145,13 +145,10 @@ namespace Rtx
                 case GLSLstd450Degrees:
                 case GLSLstd450Modf:
                 case GLSLstd450ModfStruct:
-                case GLSLstd450FMin:
                 case GLSLstd450UMin:
                 case GLSLstd450SMin:
-                case GLSLstd450FMax:
                 case GLSLstd450UMax:
                 case GLSLstd450SMax:
-                case GLSLstd450FClamp:
                 case GLSLstd450UClamp:
                 case GLSLstd450SClamp:
                 case GLSLstd450Step:
@@ -197,8 +194,12 @@ namespace Rtx
                     return Treatment::Bounded;
 
                 // `Round` too: the specification lets a compile round a half either way, and
-                // `RoundEven` is one of the two.
+                // `RoundEven` is one of the two. And the float `min`, `max` and `clamp`, whose
+                // answer to a NaN operand it leaves to the compile: either operand.
                 case GLSLstd450Round:
+                case GLSLstd450FMin:
+                case GLSLstd450FMax:
+                case GLSLstd450FClamp:
                 case GLSLstd450Asin:
                 case GLSLstd450Acos:
                 case GLSLstd450FMix:
@@ -767,6 +768,15 @@ namespace Rtx
                 case GLSLstd450Round:
                     glsl(type, GLSLstd450RoundEven, { argument(0) }, result);
                     return;
+                case GLSLstd450FMin:
+                    glsl(type, GLSLstd450NMin, { argument(0), argument(1) }, result);
+                    return;
+                case GLSLstd450FMax:
+                    glsl(type, GLSLstd450NMax, { argument(0), argument(1) }, result);
+                    return;
+                case GLSLstd450FClamp:
+                    glsl(type, GLSLstd450NClamp, { argument(0), argument(1), argument(2) }, result);
+                    return;
                 case GLSLstd450Fma:
                     // The device fuses 32-bit floats and nothing narrower or wider is asked of it.
                     if (typeNamed(scalar).mWidth != 32)
@@ -850,7 +860,7 @@ namespace Rtx
                         const std::uint32_t along = make(spv::OpFDiv, scalar,
                             { make(spv::OpFSub, scalar, { x[at], low[at] }),
                                 make(spv::OpFSub, scalar, { high[at], low[at] }) });
-                        const std::uint32_t t = glsl(scalar, GLSLstd450FClamp, { along, zero, one });
+                        const std::uint32_t t = glsl(scalar, GLSLstd450NClamp, { along, zero, one });
                         const std::uint32_t shape
                             = make(spv::OpFSub, scalar, { three, make(spv::OpFMul, scalar, { two, t }) });
                         return emit(spv::OpFMul, scalar, into, { make(spv::OpFMul, scalar, { t, t }), shape });
@@ -883,7 +893,7 @@ namespace Rtx
                         { one, make(spv::OpFMul, scalar, { make(spv::OpFMul, scalar, { eta, eta }), across }) });
                     const std::uint32_t inside = make(spv::OpFOrdLessThan, boolType(), { k, zero });
                     const std::uint32_t root
-                        = glsl(scalar, GLSLstd450Sqrt, { glsl(scalar, GLSLstd450FMax, { k, zero }) });
+                        = glsl(scalar, GLSLstd450Sqrt, { glsl(scalar, GLSLstd450NMax, { k, zero }) });
                     const std::uint32_t bend
                         = make(spv::OpFAdd, scalar, { make(spv::OpFMul, scalar, { eta, cosine }), root });
                     perComponent(type, result, [&](std::uint32_t at, std::uint32_t into) {

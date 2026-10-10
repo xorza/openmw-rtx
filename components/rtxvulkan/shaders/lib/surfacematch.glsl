@@ -104,8 +104,8 @@ struct HistoryPlane
     /// refuses every texel.
     float mTolerance;
 
-    /// `HistoryConstants::mDistanceScale`, which a held distance is divided by.
-    float mDistanceScale;
+    /// `HistoryConstants::mHeldDistanceScale`, which a held distance is divided by.
+    float mHeldDistanceScale;
 };
 
 /// How far off a pixel's plane a history texel may stand and still be its surface, in world units:
@@ -158,11 +158,11 @@ HistoryPlane historyPlane(HistoryConstants history, ivec2 at, vec2 seen, vec3 mo
     const vec3 anchor = ray.mOffset + ray.mDirection * (away + moved.z);
     const bool seenBefore = dot(history.mPrevious.mForward, history.mPrevious.mForward) > 0.0;
     const float tolerance = planeTolerance(eye, away, normal, rayAt(eye, vec2(at)).mDirection);
-    return HistoryPlane(before, normal, anchor, seenBefore ? tolerance : -1.0, history.mDistanceScale);
+    return HistoryPlane(before, normal, anchor, seenBefore ? tolerance : -1.0, history.mHeldDistanceScale);
 }
 
 /// Whether the history texel at `tap`, which holds `was` — its normal in `xyz`, nought where nothing
-/// was accumulated, and its distance in `w` times `HistoryConstants::mDistanceScale` — is the
+/// was accumulated, and its distance in `w` times `HistoryConstants::mHeldDistanceScale` — is the
 /// surface `plane` stands for: its normal within `ACCUMULATE_FACING` of the plane's, and the point it
 /// holds, rebuilt along the previous eye's ray through it, within the plane's tolerance of it. **The
 /// one rule** every temporal filter holds a history to.
@@ -171,7 +171,7 @@ bool heldSurfaceMatches(vec4 was, ivec2 tap, HistoryPlane plane)
     if (dot(was.xyz, was.xyz) <= 0.0)
         return false;
 
-    const vec3 there = positionAlong(plane.mBefore, tap, was.w / plane.mDistanceScale);
+    const vec3 there = positionAlong(plane.mBefore, tap, was.w / plane.mHeldDistanceScale);
     return dot(was.xyz, plane.mNormal) >= ACCUMULATE_FACING
         && abs(dot(plane.mNormal, there - plane.mAnchor)) <= plane.mTolerance;
 }

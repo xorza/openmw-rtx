@@ -68,9 +68,11 @@ namespace Rtx
         history.discard(commands, step);
 
         const DenoiseHistory::AccumulateImages accumulated = history.accumulate(step);
+        const float distanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar);
         const DenoiseFrame frame{
             .mSampled = sampled,
-            .mDistanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar),
+            .mDistanceScale = distanceScale,
+            .mHeldDistanceScale = history.exchangeDistanceScale(distanceScale),
             .mFilters = reconstruction.mFilters,
         };
 

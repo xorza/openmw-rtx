@@ -193,7 +193,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(ShadowMaskConstants) == 8, "ShadowMaskConstants must be scalar-packed on every side");
-    static_assert(sizeof(ShadowTilesConstants) == 228, "ShadowTilesConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowTilesConstants) == 232, "ShadowTilesConstants must be scalar-packed on every side");
     static_assert(sizeof(ShadowFilterConstants) == 160, "ShadowFilterConstants must be scalar-packed on every side");
 #endif
 

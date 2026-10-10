@@ -320,11 +320,17 @@ void main()
         // The history bilinear over the taps that are this surface and received, as the
         // accumulator takes its own; the frame's own bit where none is, which is a history of one
         // sample. A texel that received nothing holds no history: its value is the frame's
-        // nought, which pulled a terminator's history toward shadow.
-        RTX_HISTORY_SHARES(shares, before, extent, heldSurface,
-            unpackShadowWord(imageLoad(history, historyAt).r).y != SHADOW_NO_RECEIVER, plane)
-        if (frame.mReset != 0u)
-            shares = vec4(0.0);
+        // nought, which pulled a terminator's history toward shadow. **Not gathered at all on a
+        // reset**, as every other temporal pass leaves it: a chain that keeps no past holds its
+        // surfaces in the image the accumulator wrote this frame, which nothing orders this read
+        // after.
+        vec4 shares = vec4(0.0);
+        if (frame.mReset == 0u)
+        {
+            RTX_HISTORY_SHARES(gathered, before, extent, heldSurface,
+                unpackShadowWord(imageLoad(history, historyAt).r).y != SHADOW_NO_RECEIVER, plane)
+            shares = gathered;
+        }
 
         float previous = current;
         float sum = 0.0;
