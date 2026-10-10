@@ -60,21 +60,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P0: release blockers
 
-### 4. Keep a hosted run's saves out of the player's saves folder
-- **Audit**: HARNESS-1. CONFIRMED. **Upstream** (decision 1, the `EngineHost` line).
-- **Where**: `apps/rtxtool/main.cpp:1206-1211`, `apps/openmw/engine.cpp:444`, `apps/openmw/engine.hpp:116`
-  (`EngineHost`).
-- **Problem**: A hosted run has its own config directory, but the saves folder is under the
-  player's user data. In a played `view`, F5, a menu save or an autosave writes a save with god mode,
-  255 in every skill and `rtxtool.omwscripts` into the real saves folder. With `--load-savegame`, the
-  quicksave can replace a slot of the player's own character.
-- **Fix**: Add `EngineHost::getSavesFolder()`, which returns no path by default. The engine makes its
-  `StateManager` there when the host gives one, and the harness gives its run directory. Do not move
-  all of `user-data`: it also holds the navmesh database, which a run must find warm. A
-  `--load-savegame` path stays the path the user gave.
-- **Test**: `components_tests/rtxtool`: the saves folder the host gives lies under
-  `ownConfigDirectory`.
-
 ## P1: crashes and wrong pictures
 
 ### 5. Make the swapchain safe on a hidden or lost surface

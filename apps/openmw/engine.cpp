@@ -445,7 +445,10 @@ void OMW::Engine::setWindowIcon()
 
 void OMW::Engine::prepareEngine()
 {
-    mStateManager = std::make_unique<MWState::StateManager>(mCfgMgr.getUserDataPath() / "saves", mContentFiles);
+    const std::optional<std::filesystem::path> hostSaves
+        = mHost != nullptr ? mHost->getSavesFolder() : std::optional<std::filesystem::path>();
+    mStateManager = std::make_unique<MWState::StateManager>(
+        hostSaves.value_or(mCfgMgr.getUserDataPath() / "saves"), mContentFiles);
     mEnvironment.setStateManager(*mStateManager);
 
     osg::ref_ptr<osg::Group> rootNode(new osg::Group);

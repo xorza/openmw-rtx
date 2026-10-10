@@ -119,8 +119,10 @@ is not here is held to the rules above.
   write of `GameHour` past the frame's own step is a cut (`World::noteHourWritten`).
 - What the harness holds of the game through `OMW::EngineHost`, which the game alone asks nothing
   of: a sky between two weathers for one update (`WeatherManager::holdWeather`), since a filmed
-  frame must name its sky; a game hour the host stated (`holdsGameClock`); and a content script's
-  message box logged rather than shown (`showsScriptMessageBoxes`), since a box pauses the world.
+  frame must name its sky; a game hour the host stated (`holdsGameClock`); a content script's
+  message box logged rather than shown (`showsScriptMessageBoxes`), since a box pauses the world;
+  and a saves folder of the run's own (`getSavesFolder`), since a run's world is god mode and the
+  harness's scripts.
 - The scripts' `math.random` seeded where the harness seeds the world's generators
   (`LuaUtil::LuaState::seedRandom`): seeded from the clock, the fish `cellhandlers.lua` spawns stood
   elsewhere in every run.
