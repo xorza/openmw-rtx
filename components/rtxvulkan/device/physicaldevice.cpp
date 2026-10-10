@@ -17,6 +17,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "requirements.hpp"
@@ -301,6 +302,15 @@ namespace Rtx
         if (pushed < sPushConstantsFloor)
         {
             profile.mObstacle = std::format("push constants of {} bytes, under {}", pushed, sPushConstantsFloor);
+            return profile;
+        }
+
+        // The frame is held to `sLargestFrameSide` where its size is decided, before a device is
+        // asked, so every device chosen must make an image that large.
+        const std::uint32_t side = properties.mProperties2.properties.limits.maxImageDimension2D;
+        if (side < sLargestFrameSide)
+        {
+            profile.mObstacle = std::format("images of {} pixels a side at most, under {}", side, sLargestFrameSide);
             return profile;
         }
 

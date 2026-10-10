@@ -499,6 +499,10 @@ namespace MWRender
         /// show its frame scaled, the rasterizer under stereo, whose eyes split the window.
         void presentAtNative() { mNative = true; }
 
+        /// The frames this renderer draws, which `presentIn` holds every frame inside: said before
+        /// the first `presentIn`, for a renderer that cannot draw every frame a setting can ask.
+        void boundFrame(const Misc::FrameBounds& bounds) { mFrameBounds = bounds; }
+
         /// `isWorldShown` or `isWorldToggled` has changed; put both where this renderer reads
         /// them from.
         virtual void applyWorldShown() = 0;
@@ -535,6 +539,10 @@ namespace MWRender
         osg::ref_ptr<osg::Group> mTraversalRoot;
         unsigned int mViewMask = ~0u;
         Misc::Presentation mPresentation;
+        Misc::FrameBounds mFrameBounds;
+
+        /// Whether a frame asked outside `mFrameBounds` was said in the log, which is said once.
+        bool mToldBounded = false;
         bool mNative = false;
 
         /// False behind a loading screen and the main menu's cover, where nothing updates.

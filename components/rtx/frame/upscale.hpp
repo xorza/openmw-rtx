@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <string_view>
@@ -82,6 +83,17 @@ namespace Rtx
 
         return 1.0f;
     }
+
+    /// **The smallest side a frame is shown at**: the one every mode traces a pixel or more of, the
+    /// largest ratio rounded up. A side under it truncates to a traced extent of nought, which no
+    /// image can be made at.
+    inline constexpr std::uint32_t sSmallestFrameSide = [] {
+        float largest = 1.0f;
+        for (const Upscale mode : sUpscaleMenu)
+            largest = std::max(largest, upscaleRatio(mode));
+        const auto whole = static_cast<std::uint32_t>(largest);
+        return static_cast<float>(whole) < largest ? whole + 1 : whole;
+    }();
 
     /// What a frame shown at `outputWidth` by `outputHeight` is traced at under `mode`: each axis the
     /// output over `upscaleRatio`, truncated, in floats — `ffxFsr3UpscalerGetRenderResolutionFromQualityMode`

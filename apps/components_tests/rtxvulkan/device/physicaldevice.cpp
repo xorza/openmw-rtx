@@ -315,6 +315,12 @@ namespace Rtx
                 EXPECT_EQ(cramped.profile().mObstacle, "push constants of 128 bytes, under 256");
             }
             {
+                // One under the largest frame's side, which RDNA 2 reports exactly.
+                Card small(&describeTuring);
+                small.mProperties.mProperties2.properties.limits.maxImageDimension2D = 16383;
+                EXPECT_EQ(small.profile().mObstacle, "images of 16383 pixels a side at most, under 16384");
+            }
+            {
                 Card split(&describeTuring);
                 split.mQueues.front().queueFlags = VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
                 EXPECT_EQ(split.profile().mObstacle, "no queue family with graphics and compute");

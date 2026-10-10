@@ -17,6 +17,7 @@
 #include <osg/Stats>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -236,9 +237,18 @@ namespace MWRender
     {
         const osg::Vec2i asked
             = mNative ? osg::Vec2i() : osg::Vec2i(Settings::video().mResolutionX, Settings::video().mResolutionY);
-        const Misc::Presentation presentation = Misc::present(asked, drawable);
+        const Misc::Presentation presentation = Misc::present(asked, drawable, mFrameBounds);
         if (presentation == mPresentation)
             return;
+
+        if (const osg::Vec2i wanted = Misc::askedFrame(asked, presentation.mDrawable);
+            !mToldBounded && presentation.mFrame != wanted)
+        {
+            mToldBounded = true;
+            Log(Debug::Warning) << "A frame of " << wanted.x() << "x" << wanted.y()
+                                << " is outside what this renderer draws, which is drawn at " << presentation.mFrame.x()
+                                << "x" << presentation.mFrame.y() << " instead";
+        }
 
         mPresentation = presentation;
         applyPresentation();
