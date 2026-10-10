@@ -62,22 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 10. Refuse non-finite and singular transforms in the cell ring and the motion record
-- **Audit**: MIRROR-4 (CONFIRMED), MIRROR-6 (PLAUSIBLE).
-- **Close first**: MIRROR-6: read `osg::Matrixf::inverse` (`invert_4x3`) and confirm that it divides
-  by a zero determinant with no check.
-- **Where**: `components/rtx/mirror/cells/cellreader.cpp:45-56`, `:281-300`, `:323-350`,
-  `components/rtx/mirror/cells/cellplacer.cpp:357-369`, `components/rtx/scene/instancerecord.cpp:154`.
-- **Problem**: The ring reads a `CellRef`'s position and rotation as they are, and `std::clamp` lets
-  a NaN scale through. A distant reference with a NaN transform becomes a top-level instance. The walk
-  refuses that case, but the ring does not. Also, a placement that shrinks to scale 0 is finite, but
-  `moveRecord` inverts it, and inf or NaN motion reaches the reprojection and the denoiser.
-- **Fix**: `readStatic` and `readGrass` refuse a reference whose transform is not finite, and record
-  a `Refusal`. `moveRecord` writes `sStillTransform` when the product is not finite: a part that
-  vanishes has no motion to report.
-- **Test**: `rtx/mirror/cells/cellring.cpp`: a reference at a NaN position stands no placement and
-  counts a refusal. A test of `updateInstanceRecords`: identity to `scale(0)` gives finite motion.
-
 ### 11. Give the fog layer a defined height when the weather has no fog
 - **Audit**: SHADER-1. CONFIRMED.
 - **Where**: `components/rtx/world/fogbuilder.cpp:291-313` (`fogExtinction`, `fogLift`),

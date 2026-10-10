@@ -5,6 +5,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -151,7 +152,11 @@ namespace Rtx
                     return;
             }
 
-            record.mMotion = toTransform3x4(osg::Matrixf::inverse(instance.mTransform) * previous);
+            // A part shrunk to a scale of nought has no inverse, and no motion to report: what OSG's
+            // inverse gives it is NaN, which is a history fetched from nowhere.
+            const osg::Matrixf motion = osg::Matrixf::inverse(instance.mTransform) * previous;
+            if (isFinite(motion))
+                record.mMotion = toTransform3x4(motion);
         }
     }
 
