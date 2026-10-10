@@ -352,7 +352,7 @@ namespace Rtx
             // **And a frame with no pyramid closes its zone**, so the zone after it opens and both
             // come back: the pass returned before its close, and the next open was an assert.
             Bloomed small(device, 6, 6);
-            GpuTimer timer(device);
+            GpuTimer timer(device, true);
             timer.beginFrame();
             device.getPool().submitAndWait([&](VkCommandBuffer commands) {
                 small.mBloom.record(commands, small.mFrame, small.mExposure, &timer);

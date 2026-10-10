@@ -14,7 +14,7 @@
 
 namespace Rtx
 {
-    GpuTimer::GpuTimer(const Device& device)
+    GpuTimer::GpuTimer(const Device& device, const bool timing)
         : mDevice(device)
     {
         const VkPhysicalDeviceLimits& limits
@@ -30,8 +30,8 @@ namespace Rtx
 
         // A period of zero is the driver saying its clock does not advance, which no amount of
         // arithmetic recovers from.
-        mSupported = bits > 0 && limits.timestampPeriod > 0.0f;
-        if (!mSupported)
+        mTimes = timing && bits > 0 && limits.timestampPeriod > 0.0f;
+        if (!mTimes)
             return;
 
         mPeriod = limits.timestampPeriod;
@@ -64,8 +64,11 @@ namespace Rtx
 
         assert(mOpen == mZones.size() && "a zone was opened while another was still open");
 
-        // A frame that wanted more zones than the pool holds is a frame being instrumented past what
-        // this was built for; the label above still names it for a capture.
+        // **A frame that wants more zones than the pool holds broke `sMaxGpuZones`**, which counts
+        // what one frame opens, and a report short of its last zones would say nothing of it. Left
+        // out past the assert rather than written past the pool; the label above still names it for
+        // a capture.
+        assert(mZones.size() < sMaxGpuZones && "a frame opened more zones than `sMaxGpuZones` counts");
         if (mZones.size() >= sMaxGpuZones)
             return;
 
@@ -74,7 +77,7 @@ namespace Rtx
             Zone{ .mCheckpoint = Checkpoint{ .mName = name, .mFrame = mFrame }, .mZone = zone, .mFirstQuery = first });
         mDevice.checkpoint(commands, &opened.mCheckpoint);
 
-        if (!mSupported)
+        if (!mTimes)
             return;
 
         // Reset here rather than once per command buffer. The zones of one frame are spread over
@@ -91,7 +94,7 @@ namespace Rtx
         if (mOpen == mZones.size())
             return;
 
-        if (mSupported)
+        if (mTimes)
             vkCmdWriteTimestamp2(
                 commands, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, mHandle.get(), mZones[mOpen].mFirstQuery + 1);
         ++mOpen;
@@ -102,7 +105,7 @@ namespace Rtx
         assert(mOpen == mZones.size() && "a zone was left open when the frame was resolved");
 
         into.clear();
-        if (mZones.empty() || !mSupported)
+        if (mZones.empty() || !mTimes)
             return;
 
         // A tick and its availability for each query.

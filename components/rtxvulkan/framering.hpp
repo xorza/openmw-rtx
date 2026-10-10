@@ -39,7 +39,8 @@ namespace Rtx
 
     struct FrameRecord
     {
-        explicit FrameRecord(const Device& device);
+        /// @param timing whether its zones write timestamps — `RendererOptions::mTiming`.
+        FrameRecord(const Device& device, bool timing);
 
         /// The placements' commands and the trace's, submitted apart because a picture inside
         /// the interface is traced between the two. Only the trace's value is waited on: it is
@@ -111,9 +112,10 @@ namespace Rtx
         /// @param readsCounts whether a frame's counts come back to the host at all: where the
         ///        trace counts its hits, and where a hold leaves its reading. Decided once, and read
         ///        where the block is cleared, ordered for the host and read back.
+        /// @param timing whether a frame's zones write timestamps — `RendererOptions::mTiming`.
         /// @param holdTickMs the milliseconds one tick of the hold's clock is worth
         ///        (`StressPass::getTickMs`), or nought where no hold runs.
-        FrameRing(const Device& device, bool readsCounts, double holdTickMs);
+        FrameRing(const Device& device, bool readsCounts, bool timing, double holdTickMs);
 
         FrameRing(const FrameRing&) = delete;
         FrameRing& operator=(const FrameRing&) = delete;

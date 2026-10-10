@@ -178,6 +178,10 @@ namespace MWRender
         // pixel that hit anything. The census is the shaders' (`RunSetup::mShaders`).
         options.mCounting = run != nullptr;
 
+        // **Timed where a run is installed, for the same reason**: a report is what reads the
+        // zones' timestamps, and a played session's report goes nowhere.
+        options.mTiming = run != nullptr;
+
         // **Said once, where it is decided.** What reconstructs the frame does not change while the
         // session runs, so it does not belong in the periodic line; what that line carries is the
         // one word a reader of any single line needs, and the rest — at what pair of sizes — is here,

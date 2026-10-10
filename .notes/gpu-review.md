@@ -10,8 +10,8 @@ GLSL↔C++ interface with the pass graph. Nothing was built or run, so every cos
 from formats and extents, or a figure quoted from a code comment. Each batch says how to measure it.
 
 The findings are in **batches**. One batch is one change set that touches one area, so you can do
-it in one go. The batches are in order of importance: picture correctness first, then measurement
-integrity, crashes, memory, worst-frame spikes, and then throughput.
+it in one go. The batches are in order of importance: crashes and contract guards first, then memory,
+worst-frame spikes, and then throughput.
 
 Labels on each finding: **kind** (bug, latent, perf, simplify, robustness), **severity** (H/M/L)
 and **confidence** (H/M/L). The ID is the reviewer's own (TRACE, DENOISE, MEDIA, SCENE, FRAME, XCUT).
@@ -21,118 +21,26 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Picture bugs | 3 | Wrong pixels on screen today |
-| 2 | Measurement integrity | 3 | `bench` times a kernel the game does not run. Do this before any perf batch |
-| 3 | Device loss and contract guards | 7 | A crash, a wild read, or a silent drift waiting for a trigger |
-| 4 | Memory budget and allocation | 6 | A throw instead of a refusal on 6–8 GB / 256 MiB BAR cards. Room lost for good |
-| 5 | Worst-frame spikes at arrival and departure | 6 | One frame absorbs a sweep, a build or a rebuild |
-| 6 | G-buffer and fill diet | 6 | 50–180 B/px of dead traffic on every vanilla frame |
-| 7 | Denoiser pass graph | 7 | About 13 queue drains where 5 would do, a composite round trip, transients that could share memory |
-| 8 | Sprites and fog | 5 | Worst-frame sprite walks, a serial shade chain, 32F fog history |
-| 9 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
-| 10 | Display and presentation | 6 | Two extra full-frame copies and submits, input latency, bloom order |
-| 11 | Water: ripples and waves | 5 | A frame-rate-dependent wake, idle work, driver-precision twiddles |
-| 12 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 13 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 14 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
+| 1 | Device loss and contract guards | 7 | A crash, a wild read, or a silent drift waiting for a trigger |
+| 2 | Memory budget and allocation | 6 | A throw instead of a refusal on 6–8 GB / 256 MiB BAR cards. Room lost for good |
+| 3 | Worst-frame spikes at arrival and departure | 6 | One frame absorbs a sweep, a build or a rebuild |
+| 4 | G-buffer and fill diet | 6 | 50–180 B/px of dead traffic on every vanilla frame |
+| 5 | Denoiser pass graph | 7 | About 13 queue drains where 5 would do, a composite round trip, transients that could share memory |
+| 6 | Sprites and fog | 5 | Worst-frame sprite walks, a serial shade chain, 32F fog history |
+| 7 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
+| 8 | Display and presentation | 6 | Two extra full-frame copies and submits, input latency, bloom order |
+| 9 | Water: ripples and waves | 5 | A frame-rate-dependent wake, idle work, driver-precision twiddles |
+| 10 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 11 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
+| 12 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
 
-The reviewers filed 74 findings, which are 67 after merging duplicates and removing one false finding: 0 high, 21 medium, 52 low. No reviewer found a GLSL/C++ layout,
+61 findings are open: 0 high, 17 medium, 44 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
 ---
 
-## Batch 1 — Picture bugs
-
-Small, independent fixes. Each one moves pixels, so take a `./omw shot --views=all --map --upscale=off`
-baseline first and compare after the batch.
-
-### DENOISE-1: The bounce clamp moves the fill by the luma share, so the fill can exceed the bounce in a channel and the composite subtracts light
-bug · M · conf M — `shaders/trace/denoise/accumulateclamp.comp:243-244`, `shaders/lib/historyclamp.glsl:42-49`, `shaders/lib/compose.glsl:29`
-
-The fill must stay a per-channel share of `CHANNEL_INDIRECT` (`gbuffer.h:186`). Every other step keeps
-that rule. `heldToFast` clamps the slow mean per YCoCg axis, but returns only the **Y** share.
-`heldFill = max(mix(slowFill, fastFillHere, share) + pushed * towardFill, 0)` then moves all three fill
-channels by that luma share. Worked case: slow (1.0, 0.2, 0.2), fast (0.4, 0.4, 0.4), a ±0.05 box.
-Y is inside the box, so share = 0, but Co/Cg clamp. The bounce becomes (0.5, 0.35, 0.4) and the fill
-stays (0.8, 0.16, 0.16), so fill.r > bounce.r. `composedLight` is `albedo·(indirect − fill) + ambient·fill`.
-With albedo 0.8 and ambient 0.2 the red term is −0.08. The value is finite, so the census does not
-count it. It shows where a light changes colour or moves, on materials whose ambient ≠ diffuse.
-
-**Direction:** move the fill by the bounce's own per-channel ratio (`slowFill * held / slow`, guarded
-at zero), or clamp `heldFill ≤ held` per channel after the clamp and push.
-
-### SCENE-1: An arriving deforming mesh has the bind pose in its "previous" copy for one frame when its first placement goes into slot 0
-bug · M · conf M — `scene/sceneacceleration.cpp:137-140`, `scene/skinpass.cpp:153-176`, `scene/devicescene.cpp:155`, `shaders/lib/geometry.glsl:171-179`
-
-`writeGeometry` stages the bind pose into every copy. `recordArrived` then poses the arrival into
-the slot it is handed (`FrameSlot{}`, slot 0) only. `SkinPass::record` owes the mesh to both copies
-and pays only `into`. When `into` is slot 0, slot 1 still holds the bind pose. The trace reads
-`previousPoseBlocks = poses.at(slot.next())`, so `triangleDeformation` returns `P − bind`. About half
-of the skinned arrivals (an NPC that enters the grid, an armour piece equipped in view) get a motion
-vector equal to their T-pose offset for one frame. FSR, the accumulator, the glossy filter and the
-pane filter then fetch history from the wrong place. `repeat` runs unfiltered and cannot see it.
-
-**Direction:** make the arrival leave its pose in every copy (dispatch `recordArrived` per copy, or
-owe it to both and fill the previous copy before the first trace). Add a test that holds
-`previousPoseBlocks == poseBlocks` for an arrival on its first traced frame, for both slots.
-
-### MEDIA-7: The cloud deck is always read at mip 0 and ignores the cone its caller hands the sky
-latent · L · conf M — `shaders/lib/sky.glsl:56-78` (`cloudSheetAt`), `:120-160` (`cloudDeck`)
-
-The comment says a ray tracer has no gradient to pick a level from. But every other sky term
-(`skyRadiance` with its sun cap, moon rims and stars) already uses the `blur` cone, and the rest of
-the renderer takes levels from ray cones (`waveLevel`, `fogFieldAt`, sprite `lod`). The deck aliases
-toward the horizon, and a rough water reflection (`blur + 0.5·lobe`) shows sharp clouds beside a
-blurred sun and moons.
-
-**Direction:** pass `blur` into `cloudDeck`. Take the level from the closed-form deck footprint
-(`blur × height × fallen / dir.z²` against `1/mPerTile`). Correct the comment.
-
----
-
-## Batch 2 — Measurement integrity
-
-**Do this batch before any perf batch.** Every A/B in batches 6–13 depends on it.
-
-### FRAME-1: Every harness run, `bench` included, traces a counting kernel whose miss shader does one atomic per missed primary ray into host memory
-perf · M · conf H (mechanism), M (cost) — `apps/openmw/mwrender/rtx/rtxrenderer.cpp:179`, `framering.cpp:43`, `shaders/lib/counts.glsl:15-19`, `shaders/trace/visibility.rmiss:31`
-
-`options.mCounting = run != nullptr` specializes `COUNTING` on for every harness process, measured
-ones included. `mCounts` is `Buffer::readBack` (host-visible, host-cached system memory). `countMiss()`
-does `atomicAdd(counts.mMisses, 1u)` per missed primary ray, all on one address, across the bus.
-`DigestPass` already records what this pattern cost: "every atomic was a transaction across the bus,
-and the pass took twenty-four milliseconds a frame" (`digestpass.hpp:40-44`). So `bench` times a
-different pipeline from the game's (other specialization, possibly other register allocation), and
-exterior figures grow with the amount of sky.
-
-**Direction:** count into a device-local word with `subgroupAdd` and one atomic per subgroup, then
-copy it into the read-back block at frame end, as `DigestPass` does with `mLanes`. Alternatively
-keep `COUNTING` off for measured runs. Then re-take the baselines.
-
-### FRAME-9: The GPU timer silently drops every zone past 40, and crossing frames exceed that
-robustness · L · conf M — `device/gputimer.cpp:60-71`, `rtx/renderer/renderer.hpp:227`
-
-`if (mZones.size() >= sMaxGpuZones) return;` with `sMaxGpuZones = 40`. A traced frame opens about 28
-zones, and each placement opens up to 6. A cell crossing places twice and an arrival adds more, so it
-reaches the mid-40s. The worst frames lose their tail zones (display, digest, stress), and the report
-does not show that anything is missing. Those are the frames the p99 analysis needs.
-
-**Direction:** size the pool to the worst frame, with a `static_assert` beside `FrameZone`, or count
-the dropped zones into the report.
-
-### FRAME-10: A played session writes, resets and resolves GPU timestamps every frame for a report nothing reads
-perf · L · conf H — `apps/openmw/mwrender/rtx/rtxrun.hpp:138`, `framering.cpp:221`, `device/gputimer.cpp:53-97`
-
-`PlayedRun::frame(...) override {}` discards the report. Every zone still records a reset and two
-`ALL_COMMANDS` timestamps, and `finishOldest` reads the query pool every frame.
-
-**Direction:** hand the ring a "timed" flag, as it already has `readsCounts`, and pass no timer when
-the host reads no report.
-
----
-
-## Batch 3 — Device loss and contract guards
+## Batch 1 — Device loss and contract guards
 
 Each item is a crash, a wild read, or a silent drift that needs a trigger. They are small and
 independent, so one pass can fix them all.
@@ -203,7 +111,7 @@ constant `sFarPlane`. A per-frame far plane without a cut would scale every held
 every temporal plane test, with nothing to report it.
 
 **Direction:** store at a fixed scale, or carry the previous scale in `HistoryConstants`, or assert
-that far is unchanged across frames that keep their history. DENOISE-7 (batch 7) removes the coupling
+that far is unchanged across frames that keep their history. DENOISE-7 (batch 5) removes the coupling
 completely.
 
 ### DENOISE-4: The shadow tiles pass gathers the history even on a reset frame. In a picture chain that read races the accumulator's write
@@ -219,7 +127,7 @@ reports a hazard, and every reset frame pays 16 loads per pixel per field for no
 
 ---
 
-## Batch 4 — Memory budget and allocation
+## Batch 2 — Memory budget and allocation
 
 On the target RTX 20 cards (6–8 GB, 256 MiB BAR without Resizable BAR), these items turn a budget
 refusal into a throw, or keep room lost for good.
@@ -291,7 +199,7 @@ RGBA8 and replace the comment with the real reason (level 0 kept byte-exact).
 
 ---
 
-## Batch 5 — Worst-frame spikes at arrival and departure
+## Batch 3 — Worst-frame spikes at arrival and departure
 
 AGENTS.md: "no frame absorbs a … eviction sweep … or rebuild the others didn't." Measure each item
 with `./omw release bench --frame-times` on a ring walk before and after. Report the p99 and the worst frame.
@@ -359,7 +267,7 @@ Keep `mFogColumns` as the image's grid, because readers normalise by it.
 
 ---
 
-## Batch 6 — G-buffer and fill diet
+## Batch 4 — G-buffer and fill diet
 
 Every vanilla frame writes and filters channels that nothing reads in that frame. The common blocker
 is the digest: `GBuffer::begin` discards every channel from `UNDEFINED`, and `visibility.rgen:504-507`
@@ -392,7 +300,7 @@ history memory and shared-memory footprint in the widest wavelet level.
 specialize the fill out of the whole chain when the count is zero, as `HAS_MAPS` does for the lobe.
 The wide level keeps its frame count in the fill's alpha, so move that count first (for example, into
 the moments). **Settle first:** count the materials with ambient ≠ diffuse over the suite's views. If
-vanilla has them everywhere, this finding is void. **Interaction:** DENOISE-1 (batch 1) fixes the same fill.
+vanilla has them everywhere, this finding is void.
 
 ### XCUT-7: The specular albedo is rgb9e5-exact but stored as four halves, and four albedo channels spend a quarter of their texel on a constant alpha
 perf · L · conf H — `shaders/lib/shading.glsl:480-484`, `shaders/lib/payload.glsl:162-164,215`, `rtx/shaders/gbuffer.h:64`
@@ -433,7 +341,7 @@ precondition, and use `HALF_LARGEST`.
 
 ---
 
-## Batch 7 — Denoiser pass graph
+## Batch 5 — Denoiser pass graph
 
 All of these items touch `trace/denoise/*` and the denoise shaders, so do them in one go. Measure
 the `denoise` zones from `--json`: medians and p99. When the families overlap, the per-family zones
@@ -519,7 +427,7 @@ hides an untried variant.
 
 ---
 
-## Batch 8 — Sprites and fog
+## Batch 6 — Sprites and fog
 
 ### MEDIA-4: An unbinned tile walks every sprite one load at a time, though a missed emitter's sprites are contiguous
 perf · M · conf H — `shaders/lib/sprites.glsl:640-670`, `shaders/lib/spritelist.glsl:94-101`, `rtx/shaders/scene.h:1058-1059`
@@ -573,7 +481,7 @@ the static_assert. Check with `./omw release noise` at the fog places and an A/B
 
 ---
 
-## Batch 9 — Lamp sampling
+## Batch 7 — Lamp sampling
 
 ### TRACE-1: Every split hit walks every lamp in its cell, up to 256, with the full glossy lobe per lamp. The comment says the water legs do not
 perf · M · conf H (behaviour), M (cost) — `shaders/lib/shading.glsl:372-375,199-204`, `shaders/lib/water.glsl:107`, `shaders/lib/lights.glsl:131,444-458,566-618`
@@ -610,7 +518,7 @@ but the stated invariant is false.
 
 ---
 
-## Batch 10 — Display and presentation
+## Batch 8 — Display and presentation
 
 All of these items touch `display/`, `gui/` and `present/`.
 
@@ -680,7 +588,7 @@ whose weights are all 1.
 
 ---
 
-## Batch 11 — Water: ripples and waves
+## Batch 9 — Water: ripples and waves
 
 ### MEDIA-6: Ripple impulses press a fixed 20% once per frame while the field steps by real time, so the wake's strength depends on the frame rate
 bug · L · conf M — `apps/openmw/mwrender/rtx/rippleemitters.cpp:59-71`, `trace/ripplepass.cpp:122-124,152-185`, `shaders/trace/ripplestep.comp:255-264,294-298`
@@ -732,7 +640,7 @@ Rows and columns cannot fuse, because a 512² grid does not fit in shared memory
 
 ---
 
-## Batch 12 — Scene record layout for the trace
+## Batch 10 — Scene record layout for the trace
 
 Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
 interior and a foliage exterior, and keep only what measures.
@@ -777,7 +685,7 @@ dispatch per kind (a binary search over the prefix, or indirect). Measure the `s
 
 ---
 
-## Batch 13 — Layered ground in the trace
+## Batch 11 — Layered ground in the trace
 
 ### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
 simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
@@ -801,7 +709,7 @@ non-detailed hits from it. Keep the live stack for the eye, reflections and the 
 
 ---
 
-## Batch 14 — Housekeeping
+## Batch 12 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -839,8 +747,8 @@ dispatch", but the fog samples them in ray-tracing launches.
 
 **Direction:** restate both comments.
 
-Comment corrections that belong to a batch above stay with their batch: DENOISE-5, DENOISE-9 (batch 7),
-TRACE-1 and TRACE-9 (batch 9), TRACE-3 (batch 13).
+Comment corrections that belong to a batch above stay with their batch: DENOISE-5, DENOISE-9 (batch 5),
+TRACE-1 and TRACE-9 (batch 7), TRACE-3 (batch 11).
 
 ---
 
@@ -884,6 +792,13 @@ The reviewers checked these items and found no fault:
   shadow ray. A see-through surface has no opaque texel: `Material::isTranslucent` needs an opacity
   under 1 or a texture whose alpha never reaches 255 (`reachesSolid`), and a fade under 1 keeps
   `sampledOpacity` under 1 as well. Filtering cannot go above the largest texel.
+
+- **FRAME-1, withdrawn by measurement.** It said that the harness's counting kernel, one atomic per
+  missed primary ray into host memory, makes `bench` slower than the game. Three release legs back to
+  back, counting on, off and on again, at seyda-neen-ship, seyda-neen-ship-dawn and balmora (84–88%
+  of the primary rays hit): the trace median with counting off fell between the two legs with it,
+  2.638 / 2.682 / 2.698, 3.183 / 3.225 / 3.230 and 1.590 / 1.610 / 1.609 ms. The atomics go to one
+  address, which the compiler joins per subgroup; the digest's slow atomics went to many.
 
 ## Not reached
 
