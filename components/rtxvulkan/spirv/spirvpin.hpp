@@ -32,6 +32,12 @@ namespace Rtx
     /// implementation; and whether a denormal is flushed, which an NVIDIA device lets no module
     /// choose. The pinned forms keep each of these as one operation on pinned operands.
     ///
+    /// **Left to the device even where its operands are constants.** `glslc` folds a constant
+    /// expression into the module, but an operand that is constant only once the driver unrolls a
+    /// loop or inlines a call the driver folds itself, to a value it does not round correctly and that
+    /// moves with the rest of the module: an edit elsewhere in `shadowtiles.comp` moved three of its
+    /// kernel's `exp` weights by an ulp. Such a value is the build's to write (`shadowLocalWeight`).
+    ///
     /// **And the module keeps its signed zeros, infinities and NaNs.** Vulkan lets a compile assume a
     /// float is none of them unless the entry point says otherwise, and so fold `isnan` to false or
     /// `!(a >= b)` to `a < b` — which every guard against a value from the world is written as. Each

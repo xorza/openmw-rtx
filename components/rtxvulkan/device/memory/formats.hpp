@@ -90,6 +90,16 @@ namespace Rtx
         return rowOf(format).mVulkan;
     }
 
+    /// Whether `format` is a storage format that holds words (`Shaders::holdsWords`). False for one
+    /// no shader stores in.
+    constexpr bool holdsWords(const VkFormat format)
+    {
+        for (const StorageFormatRow& row : sStorageFormats)
+            if (row.mVulkan == format)
+                return Shaders::holdsWords(row.mStorage);
+        return false;
+    }
+
     /// A format with a transfer curve and its twin without one: the same bytes in the same
     /// compatibility class, read through the curve or as the bytes they are.
     struct CurveTwins

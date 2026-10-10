@@ -133,18 +133,11 @@ shared uint gReach;
 /// reads: the weight of the open pixels, and the weight of the pixels inside the frame.
 shared vec2 gRows[SHADOW_WORKGROUP][SPAN];
 
-/// The SDK's local-neighbourhood kernel: a Gaussian of radius `REACH`, `exp(-3 i² / (REACH + 1)²)`.
+/// The horizontal half of the kernel (`shadowLocalWeight`) over row `row` of the square, centred on
+/// column `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off
+/// three tile words — the weight of the open pixels, and beside it the weight of the receivers.
 /// **Not normalised over its taps, as the SDK's is**, because what reads it is the ratio of two
 /// sums under the same weights, and the factor falls out of it.
-float kernelWeight(float offset)
-{
-    const float width = float(REACH + 1u);
-    return exp(-3.0 * offset * offset / (width * width));
-}
-
-/// The horizontal half of the kernel over row `row` of the square, centred on column
-/// `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off
-/// three tile words — the weight of the open pixels, and beside it the weight of the receivers.
 ///
 /// **What the SDK does not carry is the second**: it counts every pixel, a pixel off the frame as
 /// shadowed and one no source lights as whatever its bit says. Off the frame, the local mean of a lit
@@ -159,7 +152,7 @@ vec2 horizontalNeighbourhood(uint row, uint column)
     vec2 moment = vec2(0.0);
     for (int i = 0; i <= 2 * int(REACH); ++i)
     {
-        const float weight = kernelWeight(float(i - int(REACH)));
+        const float weight = shadowLocalWeight(uint(abs(i - int(REACH))));
         moment += vec2(((open >> uint(i)) & 1u) != 0u ? weight : 0.0,
             ((receiving >> uint(i)) & 1u) != 0u ? weight : 0.0);
     }
@@ -280,10 +273,10 @@ void main()
 
     // The centre and the two ends first and the taps between after, the order the SDK sums in.
     const uint centre = local.y + REACH;
-    vec2 kernel = gRows[local.x][centre] * kernelWeight(0.0)
-        + (gRows[local.x][centre - REACH] + gRows[local.x][centre + REACH]) * kernelWeight(float(REACH));
+    vec2 kernel = gRows[local.x][centre] * shadowLocalWeight(0u)
+        + (gRows[local.x][centre - REACH] + gRows[local.x][centre + REACH]) * shadowLocalWeight(REACH);
     for (uint i = 1u; i < REACH; ++i)
-        kernel += (gRows[local.x][centre - i] + gRows[local.x][centre + i]) * kernelWeight(float(i));
+        kernel += (gRows[local.x][centre - i] + gRows[local.x][centre + i]) * shadowLocalWeight(i);
 
     vec3 momentsNow = vec3(0.0);
     float variance = SHADOW_NO_RECEIVER;

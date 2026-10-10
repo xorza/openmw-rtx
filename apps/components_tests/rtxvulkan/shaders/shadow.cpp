@@ -1,4 +1,6 @@
+#include <bit>
 #include <cmath>
+#include <cstdint>
 
 #include <gtest/gtest.h>
 
@@ -26,6 +28,27 @@ namespace Rtx
         /// the spatial filter, whose widest step is `1 << (SHADOW_FILTER_LEVELS - 1)`, four pixels,
         /// and passes the one pixel under which a bit counts as hard; a clear ray stands past both,
         /// and is a half, the channel's width, exactly.
+        /// Each weight is `exp(-3 d² / 81) = exp(-d² / 27)` rounded to the nearest float, which a
+        /// double's exponential decides on every compiler: it is within an ulp of a double, a part in
+        /// 2^29 of a float's, and the nine values lie at least 0.03 of a float's ulp from a midpoint
+        /// between two floats, the nearest at four pixels. e^(-1/3) at three pixels is 0.716531311,
+        /// whose nearest float is 0x3f376e99 where the driver had folded 0x3f376e98. One past the
+        /// reach is outside the kernel.
+        TEST(RtxShadowTest, theLocalKernelIsTheGaussianCorrectlyRounded)
+        {
+            const double width = Shaders::SHADOW_REACH + 1;
+            for (std::uint32_t away = 0; away <= Shaders::SHADOW_REACH; ++away)
+            {
+                const double squared = static_cast<double>(away) * away;
+                const auto expected = static_cast<float>(std::exp(-3.0 * squared / (width * width)));
+                EXPECT_EQ(Shaders::shadowLocalWeight(away), expected) << away;
+            }
+
+            EXPECT_EQ(std::bit_cast<std::uint32_t>(Shaders::shadowLocalWeight(3)), 0x3f376e99u);
+            EXPECT_EQ(Shaders::shadowLocalWeight(0), 1.0f);
+            EXPECT_EQ(Shaders::shadowLocalWeight(Shaders::SHADOW_REACH + 1), 0.0f);
+        }
+
         TEST(RtxShadowTest, theDrawnAndTheClearPenumbraStandPastEveryReach)
         {
             EXPECT_GT(Shaders::SHADOW_PENUMBRA_DRAWN, static_cast<float>(1u << (Shaders::SHADOW_FILTER_LEVELS - 1u)));

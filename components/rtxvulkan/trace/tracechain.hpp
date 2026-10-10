@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -8,6 +9,7 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -91,6 +93,10 @@ namespace Rtx
 
         /// What the trace writes and the composite reads: one picture's light, still in pieces.
         const GBuffer& getChannels() const { return *mChannels; }
+
+        /// What the last `record`'s denoisers wrote, null where a filter did not run on it
+        /// (`DenoiseHistory::written`).
+        void denoiserWritten(std::array<const Image*, sDenoiserImageCount>& into) const { mDenoise.written(into); }
 
         /// Records one camera's whole trace, from the discards it opens with to the barrier after
         /// the composite, and hands back what the display reads of it. What the caller keeps is

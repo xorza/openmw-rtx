@@ -37,7 +37,11 @@ namespace RtxTool
             return denoised ? "on" : "off";
         }
 
-        constexpr std::size_t sColumns = sNamedColumns + sTracedColumns + static_cast<std::size_t>(ScenePart::Count);
+        constexpr std::size_t sColumns
+            = sNamedColumns + sTracedColumns + Rtx::sDenoiserImageCount + static_cast<std::size_t>(ScenePart::Count);
+
+        /// How a denoiser image no filter wrote on the frame is spelled, where a hash would be.
+        constexpr std::string_view sNotWritten = "-";
 
         /// What a file opens with, and the one statement of what its columns are.
         std::string headerLine()
@@ -45,9 +49,11 @@ namespace RtxTool
             // The format's own number first, stepped where the columns keep their names and a
             // value changes its meaning — a digest hashed another way — so a file an older build
             // wrote is refused rather than compared.
-            std::string header = "hashes 6: view,frame,upscale,denoise,picture";
+            std::string header = "hashes 7: view,frame,upscale,denoise,picture";
             for (std::size_t column = 0; column < sTracedColumns; ++column)
                 header += ',' + std::string(tracedName(column));
+            for (const auto& [image, name] : Rtx::sDenoiserImageNames.mNames)
+                header += ',' + std::string(name);
             for (const auto& [part, name] : sSceneParts.mNames)
                 header += ',' + std::string(name);
 
@@ -114,6 +120,18 @@ namespace RtxTool
                     std::format("the composed frame differs on {} frames where nothing else did, which is the "
                                 "card's arithmetic under the wavelet and not a verdict",
                         difference.mDenoisedDiffering.size()));
+
+            // **In the order the stages run and not by count**, since the first that moved is where
+            // to look and every one after it may only be following it.
+            std::string denoiser;
+            for (const auto& [image, name] : Rtx::sDenoiserImageNames.mNames)
+                if (const std::uint32_t frames = difference.mDenoiserDiffering[static_cast<std::size_t>(image)];
+                    frames > 0)
+                    denoiser += std::format("{}{} {}", denoiser.empty() ? "" : ", ", name, frames);
+            if (!denoiser.empty())
+                clauses.push_back(std::format(
+                    "the denoiser's images differ, in the order the frame writes them — {}, which is not a verdict",
+                    denoiser));
         }
 
         std::string_view partName(const std::size_t part)
@@ -159,6 +177,11 @@ namespace RtxTool
             row->mTraced[image] = finished.mDigest->mImages[image];
         row->mTraced[sReconstructionColumn] = digestHanded(*finished.mDigest);
 
+        for (std::size_t image = 0; image < Rtx::sDenoiserImageCount; ++image)
+            row->mDenoiser[image] = (finished.mDigest->mDenoiserTaken & (1u << image)) != 0
+                ? std::optional(finished.mDigest->mDenoiser[image])
+                : std::nullopt;
+
         row->mUpscale = finished.mReconstruction.mUpscale;
         row->mDenoised = finished.mReconstruction.mDenoised;
         row->mPictured = true;
@@ -190,6 +213,8 @@ namespace RtxTool
                 << spellDenoised(held.mDenoised) << ',' << spellHash(held.mHash);
             for (const Rtx::DigestWords& column : held.mTraced)
                 out << ',' << spellHash(column);
+            for (const std::optional<Rtx::DigestWords>& image : held.mDenoiser)
+                out << ',' << (image.has_value() ? spellHash(*image) : std::string(sNotWritten));
             for (const Rtx::DigestWords& part : held.mParts)
                 out << ',' << spellHash(part);
 
@@ -285,8 +310,18 @@ namespace RtxTool
                 if (!readHash(fields[sNamedColumns + column], frame.mTraced[column]))
                     throw fail(line);
 
+            for (std::size_t image = 0; image < frame.mDenoiser.size(); ++image)
+            {
+                const std::string_view field = fields[sNamedColumns + sTracedColumns + image];
+                if (field == sNotWritten)
+                    continue;
+                if (!readHash(field, frame.mDenoiser[image].emplace()))
+                    throw fail(line);
+            }
+
             for (std::size_t part = 0; part < frame.mParts.size(); ++part)
-                if (!readHash(fields[sNamedColumns + sTracedColumns + part], frame.mParts[part]))
+                if (!readHash(
+                        fields[sNamedColumns + sTracedColumns + Rtx::sDenoiserImageCount + part], frame.mParts[part]))
                     throw fail(line);
 
             // **A view's rows in frame order, because `against` finds a frame by searching
@@ -416,6 +451,11 @@ namespace RtxTool
 
             if (denoised && !anyTraced && (composedMoved || (pictureMoved && !upscaled)))
                 difference.mDenoisedDiffering.push_back(held.mFrame);
+
+            if (denoised)
+                for (std::size_t image = 0; image < held.mDenoiser.size(); ++image)
+                    if (found->mDenoiser[image] != held.mDenoiser[image])
+                        ++difference.mDenoiserDiffering[image];
 
             bool anyPart = false;
             for (std::size_t part = 0; part < held.mParts.size(); ++part)

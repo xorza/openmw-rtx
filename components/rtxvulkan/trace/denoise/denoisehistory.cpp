@@ -280,6 +280,7 @@ namespace Rtx
         }
 
         mTurns = TemporalTurns{};
+        mLast = TemporalTurns::Step{};
     }
 
     const Image& DenoiseHistory::before(const DenoiseImage image, const TemporalTurns::Step& step) const
@@ -307,7 +308,57 @@ namespace Rtx
         for (std::size_t at = 0; at < sTemporals; ++at)
             assert((mPast == TracePast::Kept || !step.mRuns.mFlags[at] || step.mFresh.mFlags[at])
                 && "a history read where the past is dropped and a pair is one image");
+        mLast = step;
         return step;
+    }
+
+    void DenoiseHistory::written(std::array<const Image*, sDenoiserImageCount>& into) const
+    {
+        [[maybe_unused]] std::uint32_t named = 0;
+        const auto at = [&](const DenoiserImage image, const Temporal filter, const Image& written) {
+            into[static_cast<std::size_t>(image)] = mLast.mRuns[filter] ? &written : nullptr;
+            named |= 1u << static_cast<std::uint32_t>(image);
+        };
+
+        at(DenoiserImage::AccumulateMoments, Temporal::Accumulate, now(DenoiseImage::Moments, mLast));
+        at(DenoiserImage::AccumulateFast, Temporal::Accumulate, only(DenoiseImage::Fast));
+        at(DenoiserImage::PaneMean, Temporal::Pane, now(DenoiseImage::PaneMean, mLast));
+        at(DenoiserImage::PaneFast, Temporal::Pane, only(DenoiseImage::PaneFast));
+        at(DenoiserImage::SpecularMean, Temporal::Specular, now(DenoiseImage::SpecularMean, mLast));
+        at(DenoiserImage::SpecularFast, Temporal::Specular, only(DenoiseImage::SpecularFast));
+        at(DenoiserImage::WaveletHistory, Temporal::Accumulate, only(DenoiseImage::Colour));
+        at(DenoiserImage::WaveletFillHistory, Temporal::Accumulate, only(DenoiseImage::Fill));
+        at(DenoiserImage::WaveletNarrow, Temporal::Accumulate, only(DenoiseImage::Narrow));
+        at(DenoiserImage::WaveletFillNarrow, Temporal::Accumulate, only(DenoiseImage::FillNarrow));
+        at(DenoiserImage::WaveletBlend, Temporal::Accumulate, only(DenoiseImage::Blended));
+        at(DenoiserImage::WaveletFillBlend, Temporal::Accumulate, only(DenoiseImage::FillBlended));
+
+        // Each field's levels by the image each writes: the history the first, the scratch the
+        // second, the visibility the third.
+        struct ShadowDigested
+        {
+            DenoiserImage mMoments;
+            DenoiserImage mLevel0;
+            DenoiserImage mLevel1;
+            DenoiserImage mLevel2;
+        };
+        constexpr std::array<ShadowDigested, sShadowFields> sShadowDigested{ {
+            { DenoiserImage::SkyShadowMoments, DenoiserImage::SkyShadowLevel0, DenoiserImage::SkyShadowLevel1,
+                DenoiserImage::SkyShadowLevel2 },
+            { DenoiserImage::LampShadowMoments, DenoiserImage::LampShadowLevel0, DenoiserImage::LampShadowLevel1,
+                DenoiserImage::LampShadowLevel2 },
+        } };
+        for (std::size_t field = 0; field < sShadowFields; ++field)
+        {
+            const ShadowRows& rows = sShadowRows[field];
+            const ShadowDigested& digested = sShadowDigested[field];
+            at(digested.mMoments, rows.mFilter, now(rows.mMoments, mLast));
+            at(digested.mLevel0, rows.mFilter, only(rows.mHistory));
+            at(digested.mLevel1, rows.mFilter, only(rows.mScratch));
+            at(digested.mLevel2, rows.mFilter, only(rows.mVisibility));
+        }
+
+        assert(named == (1u << sDenoiserImageCount) - 1u && "a denoiser image the digest takes and nothing here names");
     }
 
     void DenoiseHistory::discard(const VkCommandBuffer commands, const TemporalTurns::Step& step) const

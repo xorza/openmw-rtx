@@ -26,6 +26,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
@@ -723,7 +724,10 @@ namespace Rtx
             for (const Channel channel : sEveryChannel)
                 digested[indexOf(channel)] = &channels.get(channel);
 
-            mRing.readDigest(frame, commands, digested,
+            std::array<const Image*, sDenoiserImageCount> denoiser{};
+            mFrame.denoiserWritten(denoiser);
+
+            mRing.readDigest(frame, commands, digested, denoiser,
                 FrameDigest{
                     .mJitterX = sampled.mEyes.mWorld.mJitter.x(),
                     .mJitterY = sampled.mEyes.mWorld.mJitter.y(),

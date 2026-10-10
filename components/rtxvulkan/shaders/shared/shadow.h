@@ -182,10 +182,34 @@ namespace Rtx::Shaders
         return ~0u >> (32u - count);
     }
 
+    /// The SDK's local-neighbourhood kernel at `away` pixels from its centre: a Gaussian of radius
+    /// `SHADOW_REACH`, `exp(-3 away² / (SHADOW_REACH + 1)²)`, correctly rounded, and nought past the
+    /// reach.
+    ///
+    /// **Written by the build, and not an `exp` the device evaluates.** Every caller's `away` is a
+    /// constant once its loop is unrolled, and the driver folds an `exp` of a constant to a value
+    /// that moves with the rest of the module (`spirvpin.hpp`). Selected rather than indexed, since
+    /// the shading languages spell an array apart; the unrolled loop folds the selection to the one
+    /// literal.
+    RTX_SHADER float shadowLocalWeight(uint away)
+    {
+        return away == 0u ? 1.0f
+            : away == 1u  ? 0.963640451f
+            : away == 2u  ? 0.862303376f
+            : away == 3u  ? 0.716531336f
+            : away == 4u  ? 0.552892029f
+            : away == 5u  ? 0.396164417f
+            : away == 6u  ? 0.263597131f
+            : away == 7u  ? 0.162868068f
+            : away == 8u  ? 0.0934461132f
+                          : 0.0f;
+    }
+
 #ifdef RTX_HOST
     static_assert(SHADOW_WORKGROUP + 2 * SHADOW_REACH <= 32, "a row of the classification's square past a word");
     static_assert(SHADOW_REACH == SHADOW_WORKGROUP,
         "the temporal pass reads the penumbra of the eight tiles around its own as the apron's");
+    static_assert(SHADOW_REACH == 8, "shadowLocalWeight's literals are the kernel of this reach");
     static_assert(SHADOW_MASK_WIDTH == SHADOW_WORKGROUP && 2 * SHADOW_MASK_HEIGHT == SHADOW_WORKGROUP,
         "the mask pass's workgroup is one tile of the classification, whose penumbra it writes");
     static_assert(SHADOW_REACH % SHADOW_MASK_WIDTH == 0 && SHADOW_WORKGROUP % SHADOW_MASK_WIDTH == 0,

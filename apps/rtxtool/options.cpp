@@ -536,7 +536,10 @@ namespace RtxTool
             "one. Under the filter the composed frame is the wavelet's, whose last bit is the "
             "card's and not the tree's (`docs/rtx/architecture.md`): a difference there alone is "
             "reported beside the verdict, and `shot` holds that picture to within one level of "
-            "255, as it holds every doll and map tile, which are denoised whatever the filter");
+            "255, as it holds every doll and map tile, which are denoised whatever the filter. "
+            "What each of the denoiser's stages left is hashed beside it and reported, never a "
+            "verdict, in the order the frame writes it: the first that moved is where a difference "
+            "under the composed frame began");
 
         option(Verbs::Bench, "pictures", bpo::bool_switch(),
             "write every measured frame's picture into --out as <view>-<frame>.png, beside its "
@@ -547,7 +550,8 @@ namespace RtxTool
         option(Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Film | Verbs::View | Verbs::Noise, "out",
             bpo::value<std::string>()->default_value(""),
             "the directory to write into: a `bench`'s `hashes.csv`, one row a frame — the picture, "
-            "every image the trace wrote, what the frame handed the reconstruction and every part "
+            "every image the trace wrote, what the frame handed the reconstruction, every image the "
+            "denoiser left where its filter ran and every part "
             "of the scene, each as a hash, the oracle a moving camera has instead of `shot`'s stills "
             "— which a `bench` writes only where this is named, since reading a frame back waits on "
             "the device and a run under this or --against is no benchmark; and every picture, as "

@@ -19,9 +19,11 @@
 
 layout(local_size_x = DIGEST_WORKGROUP, local_size_y = DIGEST_WORKGROUP) in;
 
-/// The images to digest, all at one extent and in `GENERAL`, whatever their formats: the load
-/// converts from each view's.
-layout(set = SET_PASS, binding = DIGEST_BIND_IMAGES) uniform readonly image2D images[DIGEST_IMAGES];
+/// One dispatch's run of the images to digest, all at one extent and in `GENERAL`, whatever their
+/// formats: the load converts from each view's. Those held in floats, and apart, those held in
+/// words, which a float view cannot read.
+layout(set = SET_PASS, binding = DIGEST_BIND_IMAGES) uniform readonly image2D images[DIGEST_FLOAT_SLOTS];
+layout(set = SET_PASS, binding = DIGEST_BIND_WORDS) uniform readonly uimage2D words[DIGEST_WORD_SLOTS];
 
 layout(set = SET_PASS, binding = DIGEST_BIND_LANES, scalar) buffer Lanes
 {
@@ -35,11 +37,29 @@ layout(push_constant, scalar) uniform Push
 
 /// The workgroup's own fold, so the lane buffer sees one atomic a lane a workgroup and not one a
 /// texel. Shared atomics on an integer, which is exact in any order.
-shared uint folded[DIGEST_IMAGES * DIGEST_LANES];
+shared uint folded[DIGEST_SLOTS * DIGEST_LANES];
+
+/// Folds one texel's `bits` into slot `slot`'s words, at `pixel`.
+void fold(uint slot, uvec4 bits, uvec2 pixel)
+{
+    const uint sum = digestTexel(bits.r, bits.g, bits.b, bits.a, pixel.x, pixel.y, DIGEST_SEED_SUM);
+    const uint xor = digestTexel(bits.r, bits.g, bits.b, bits.a, pixel.x, pixel.y, DIGEST_SEED_XOR);
+
+    const uint first = slot * DIGEST_LANES;
+    atomicAdd(folded[first], sum);
+    atomicXor(folded[first + 1u], sum);
+    atomicAdd(folded[first + 2u], xor);
+    atomicXor(folded[first + 3u], xor);
+}
+
+bool bound(uint slots, uint slot)
+{
+    return (slots & (1u << slot)) != 0u;
+}
 
 void main()
 {
-    for (uint lane = gl_LocalInvocationIndex; lane < DIGEST_IMAGES * DIGEST_LANES;
+    for (uint lane = gl_LocalInvocationIndex; lane < DIGEST_SLOTS * DIGEST_LANES;
          lane += DIGEST_WORKGROUP * DIGEST_WORKGROUP)
         folded[lane] = 0u;
     barrier();
@@ -49,28 +69,31 @@ void main()
     const uvec2 pixel = gl_GlobalInvocationID.xy;
     if (!outsideOf(pixel, uvec2(push.mWidth, push.mHeight)))
     {
-        for (uint image = 0u; image < DIGEST_IMAGES; ++image)
-        {
-            const uvec4 bits = floatBitsToUint(imageLoad(images[image], ivec2(pixel)));
-            const uint sum = digestTexel(bits.r, bits.g, bits.b, bits.a, pixel.x, pixel.y, DIGEST_SEED_SUM);
-            const uint xor = digestTexel(bits.r, bits.g, bits.b, bits.a, pixel.x, pixel.y, DIGEST_SEED_XOR);
-
-            const uint first = image * DIGEST_LANES;
-            atomicAdd(folded[first], sum);
-            atomicXor(folded[first + 1u], sum);
-            atomicAdd(folded[first + 2u], xor);
-            atomicXor(folded[first + 3u], xor);
-        }
+        // A stand-in is one texel, read nowhere: a uniform branch on what the dispatch was told.
+        for (uint slot = 0u; slot < DIGEST_FLOAT_SLOTS; ++slot)
+            if (bound(push.mFloats, slot))
+                fold(slot, floatBitsToUint(imageLoad(images[slot], ivec2(pixel))), pixel);
+        for (uint slot = 0u; slot < DIGEST_WORD_SLOTS; ++slot)
+            if (bound(push.mWords, slot))
+                fold(DIGEST_FLOAT_SLOTS + slot, imageLoad(words[slot], ivec2(pixel)), pixel);
     }
     barrier();
 
-    // Even lanes are sums and odd lanes exclusive-ors, which is `DIGEST_LANES`' order.
-    for (uint lane = gl_LocalInvocationIndex; lane < DIGEST_IMAGES * DIGEST_LANES;
+    // Even lanes are sums and odd lanes exclusive-ors, which is `DIGEST_LANES`' order. A slot
+    // nothing is bound at has no image of the frame to land in.
+    for (uint lane = gl_LocalInvocationIndex; lane < DIGEST_SLOTS * DIGEST_LANES;
          lane += DIGEST_WORKGROUP * DIGEST_WORKGROUP)
     {
+        const uint slot = lane / DIGEST_LANES;
+        const bool held = slot >= DIGEST_FLOAT_SLOTS;
+        const uint inRun = held ? slot - DIGEST_FLOAT_SLOTS : slot;
+        if (!bound(held ? push.mWords : push.mFloats, inRun))
+            continue;
+
+        const uint target = ((held ? push.mWordFirst : push.mFloatFirst) + inRun) * DIGEST_LANES + lane % DIGEST_LANES;
         if ((lane & 1u) == 0u)
-            atomicAdd(lanes[lane], folded[lane]);
+            atomicAdd(lanes[target], folded[lane]);
         else
-            atomicXor(lanes[lane], folded[lane]);
+            atomicXor(lanes[target], folded[lane]);
     }
 }
