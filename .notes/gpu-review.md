@@ -11,8 +11,7 @@ from formats and extents, or a figure quoted from a code comment. Each batch say
 
 The findings are in **batches**. One batch is one change set that touches one area, so you can do
 it in one go. The batches, and the findings inside each, are in order of impact: what is wrong
-first, then what is imprecise, then what costs, the biggest cost first. The last two are deferred:
-each waits on something this machine or the tree does not have yet.
+first, then what is imprecise, then what costs, the biggest cost first.
 
 Labels on each finding: **kind** (bug, latent, perf, simplify, robustness), **severity** (H/M/L)
 and **confidence** (H/M/L). The ID is the reviewer's own (TRACE, DENOISE, MEDIA, SCENE, FRAME, XCUT).
@@ -23,15 +22,13 @@ When two reviewers found the same thing, the finding has both IDs.
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
 | 1 | Water: ripples and waves | 5 | A frame-rate-dependent wake at the 120 Hz this machine runs, driver-precision twiddles, idle work |
-| 2 | Display and presentation | 6 | A bloom weighed by the last exposure, input latency, two extra full-frame copies and submits |
+| 2 | Display and presentation | 5 | A bloom weighed by the last exposure, input latency, two extra full-frame copies and submits |
 | 3 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, a false invariant, and an unbudgeted darkening walk |
 | 4 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 5 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 6 | Housekeeping | 4 | Pipeline cache, stale comments, duplicate probes, capture flags |
-| 7 | G-buffer and fill diet | 1 | Deferred: a payload sized to the radiance width, which needs both vendors to settle |
-| 8 | Denoiser pass graph | 1 | Deferred: transients that could share memory, which needs an arena the tree does not have |
+| 5 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 6 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
 
-26 findings are open: 0 high, 2 medium, 24 low. No reviewer found a GLSL/C++ layout,
+20 findings are open: 0 high, 2 medium, 18 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
@@ -82,7 +79,8 @@ Three quarters of the lanes are idle in every butterfly stage of the second casc
 take every barrier.
 
 **Direction:** make the workgroup size a specialization constant per cascade, or run two rows per
-workgroup on the narrow grid.
+workgroup on the narrow grid. Marginal: the whole `waves` zone is about 0.14 ms, so measure the
+second cascade first and drop this if it does not show.
 
 (Checked and sound: the FFT's normalisation, centre shift, conjugate pairing and Nyquist exclusion.
 Rows and columns cannot fuse, because a 512² grid does not fit in shared memory.)
@@ -93,11 +91,6 @@ Rows and columns cannot fuse, because a 512² grid does not fit in shared memory
 
 All of these items touch `display/`, `gui/` and `present/`.
 
-**Interaction to decide first:** XCUT-3 computes the histogram inside the bloom's first halving.
-FRAME-7 wants the exposure recorded *before* the bloom, so that the bloom's Karis weight uses this
-frame's exposure. You cannot have both. Either keep a one-frame-late Karis weight on purpose (and
-correct the comment's reason), or keep the histogram separate and apply FRAME-14's 2×2 subsample to it.
-
 ### FRAME-7: The bloom's Karis weight reads the previous frame's exposure, though nothing prevents recording the exposure first
 bug · L · conf H — `display/displaychain.cpp:117-147`, `shaders/display/bloomdown.comp:25-31`
 
@@ -106,7 +99,6 @@ bug · L · conf H — `display/displaychain.cpp:117-147`, `shaders/display/bloo
 before, so frames 0 and 1 differ on the same input.
 
 **Direction:** record the exposure (fixed or measured) before the pyramid, and delete the lag comment.
-See the interaction note above.
 
 ### FRAME-12: Nothing paces the CPU to the display, so input-to-photon latency under FIFO is about 3 vblanks plus the ring
 perf · L · conf M — `present/swapchain.cpp:133-135`, `present/presenter.cpp:150-262`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:838-864`
@@ -139,23 +131,13 @@ whose weights are all 1.
 
 **Direction:** extend the fast path to any channel set at the identity size (copy rows, drop alpha).
 
-### XCUT-3: The exposure histogram reads the whole shown frame again, directly after the bloom's first halving read every pixel of it
-perf · L · conf M — `display/displaychain.cpp:118-141`, `shaders/display/bloomdown.comp:42-50`, `shaders/display/histogram.comp:38-54`
-
-An 8×8 level-0 bloom group covers exactly the 16×16 pixels of one histogram group. That is one extra
-read of the frame (66 MB at 3840×2160), one dispatch and one barrier.
-
-**Direction:** let the `KARIS` halving also bin its 2×2 into a shared histogram. Keep `histogram.comp`
-for frames too small to have a pyramid. See the interaction note above.
-
 ### FRAME-14: The exposure histogram bins every output pixel
 perf · L · conf M — `display/exposurepass.cpp:67-117`, `shaders/display/histogram.comp:39-55`
 
 16.6 M loads and up to 256 global atomics per group at 7680×2160. For a trimmed log-luminance mean, a
 regular 2×2 subsample is an unbiased estimate (a box-filtered level is not).
 
-**Direction:** bin one pixel per 2×2, with a fixed offset or an offset that turns with the frame. This
-is the alternative to XCUT-3.
+**Direction:** bin one pixel per 2×2, with a fixed offset or an offset that turns with the frame.
 
 ---
 
@@ -244,16 +226,8 @@ never cross a block (`checkFits`), so each run's address is a per-mesh constant.
 already one copy per slot, so the posed streams fit as well.
 
 **Direction:** prototype `GpuMesh` with run addresses (about +40 B per row). That removes
-`POSED_FIRST_BLOCK`, `mNormalShift` and the `JoinedBlocks` joining.
-
-### SCENE-12: The vertex streams are wider than the data needs
-perf · L · conf L — `rtx/scene/meshtable.hpp:116-122`, `shaders/lib/bindings.glsl:207-222`, `shaders/lib/geometry.glsl:133-200`
-
-Normal and colour are each a 12-byte vec3 (the colour is white when the mesh has none). The tangent is
-already 4-byte octahedral. A committed hit reads 72 of its approximately 108 bytes from these two streams.
-
-**Direction:** octahedral normals (reuse `octahedral.h`), and a 16-bit colour or a `NO_RUN` colour
-stream like the second uv set. The picture moves slightly, so keep it only on a measured gain.
+`POSED_FIRST_BLOCK`, `mNormalShift` and the `JoinedBlocks` joining. Marginal: an A/B experiment, kept
+only on a measured gain.
 
 ### SCENE-10 / XCUT-9: Skinning and morphing record one dispatch and one push per deformed mesh
 perf · L · conf L — `scene/skinpass.cpp:49-147`
@@ -284,67 +258,8 @@ dispatch", but the fog samples them in ray-tracing launches.
 
 **Direction:** restate both comments.
 
-### XCUT-10: The four probe kernels are two kernels written twice
-simplify · L · conf H — `shaders/probes/{halfmean,unormmean,halfstore,unormround}.comp`, `shaders/shared/{halfmean,unormmean}.h`
-
-`HalfMeanConstants` and `UnormMeanConstants` are the same five fields. The `main`s differ only in the
-store. `halfstore` and `unormround` have the same shape. (These are device-behaviour tests, compiled
-only under `BUILD_COMPONENTS_TESTS`. The renderer has no light probes.)
-
-**Direction:** one running-mean probe and one rounding probe, each with a specialization for the store
-kind and one constants header.
-
-### FRAME-16: Every pipeline in every build is created with `CAPTURE_STATISTICS`, and its statistics are queried and formatted at creation
-simplify · L · conf L — `pipeline/pipeline.hpp:80-83`, `pipeline/pipeline.cpp:61-71`, `device/device.cpp:291-372`
-
-`VK_KHR_pipeline_executable_properties` is a required extension for this alone. A `std::string` is
-built per executable even with Verbose off, and capture flags can change driver cache keys.
-
-**Direction:** capture only when a harness verb asks, and make the extension optional. Time a cold and
-a warm start with and without the flag first.
-
 Comment corrections that belong to a batch above stay with their batch: TRACE-1 and TRACE-9 (batch 3),
 TRACE-3 (batch 4).
-
----
-
-## Batch 7 — G-buffer and fill diet
-
-The channels a frame may leave out are gated now (`ChannelWrites`, `GBuffer::begin`): the lobe's pair
-without maps and the puffs' layer without a puff, each holding what the trace stores where it has
-nothing to say. What is left here waits on a card this machine does not have.
-
-### TRACE-5: The payload carries six radiances as full floats even where the run stores radiance as halves
-perf · L · conf L — `shaders/lib/payload.glsl:10-16,146-185`, `trace/gbuffer.hpp:22-26`
-
-18 of the 30 payload words are fp32 radiances. The comment justifies that for references, but
-references run at `RadianceWidth::Summed`. A played frame stores them through RGBA16F.
-
-**Direction:** pick the payload layout per pipeline by radiance width. Keep it only if `bench` and
-`kernels` show a gain on both vendors (RADV passes the payload through registers or scratch).
-
----
-
-## Batch 8 — Denoiser pass graph
-
-The pass graph is done: the families record stage by stage behind one barrier each, the shadow filter
-runs both fields in one dispatch a level, the last wavelet level composes the frame, and the temporal
-filters read the frame before's surface channels. What is left is memory, and a design of its own.
-
-### DENOISE-8 / XCUT-11: Transients with lifetimes that do not overlap each hold their own memory for the life of the chain
-perf · L · conf M — `trace/denoise/denoisehistory.cpp:98-167`, `trace/gbuffer.cpp:66-86`, `upscale/upscaler.cpp:321-360`, `display/bloompass.cpp:75-88`
-
-The denoiser keeps about 209 B/px. `FastBlended`, the shadow scratches and the two `*FastBlended`
-are dead before the cascade starts, and `Narrow`/`FillNarrow` live only inside it. After the
-composite, 12 G-buffer channels (96 B/px) have no reader, while the upscaler's transients (about
-16 B/px) and the bloom pyramid each have their own allocation. **No memory aliasing exists in the
-tree**: the upscaler's `Intermediate` is several of the SDK's roles on one image, not several images
-on one allocation, so this needs an arena images bind into without owning it.
-
-**Direction:** alias the cascade's scratch onto the pre-cascade scratch, and the upscaler's and bloom's
-transients onto the channels that are dead after the composite. Turn the aliasing off for runs that
-read a channel back after the composite. The held surfaces are gone since the review (DENOISE-7), and
-the composite's two levels with them (DENOISE-3), so recount what is left before sizing an arena.
 
 ---
 
@@ -384,6 +299,21 @@ The reviewers checked these items and found no fault:
   sky-pick unbiasedness.
 - **Fog and waves.** Fog reprojection and history rejection are correct.
   The FFT is correct.
+
+- **Dropped as better left as they are**, each for what it would cost against what it could give:
+  - **XCUT-3**, the histogram inside the bloom's first halving: FRAME-7 records the exposure before the
+    bloom, so the histogram cannot live inside it; FRAME-14's subsample is the cost fix that stays.
+  - **SCENE-12**, octahedral normals and a 16-bit colour: the trace's geometry quantized and the
+    picture moved, for an unmeasured gain.
+  - **TRACE-5**, the payload's radiances as halves: a second payload layout for every pipeline,
+    since a reference needs full floats, for a gain only an AMD card could judge.
+  - **DENOISE-8 / XCUT-11**, the transients aliased in an arena: memory is not short — about 1.7 GB
+    reserved against a budget of about 13 GB — and aliasing adds lifetime and barrier hazards and an
+    arena the tree does not have.
+  - **FRAME-16**, statistics captured only on request: the register counts are in use, and the
+    cost falls at pipeline creation, at start and never during play.
+  - **XCUT-10**, the four probe kernels merged: test-only shaders with nothing wrong in them, and
+    merging them only adds specialization plumbing.
 
 - **TRACE-6, withdrawn.** It said that an opaque texel of a see-through caster never stops a
   shadow ray. A see-through surface has no opaque texel: `Material::isTranslucent` needs an opacity
