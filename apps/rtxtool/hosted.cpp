@@ -12,6 +12,7 @@
 
 #include <apps/openmw/engine.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/options.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
@@ -101,6 +102,7 @@ namespace RtxTool
         }
 
         applyHostedSettings(window);
+        request.mSaves = ownSavesFolder(config);
         if (request.mMaps.has_value())
             applyShippedMapNames(config);
 

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -81,6 +82,8 @@ namespace RtxTool
         /// rest of its take. A played `view` flies a camera through a place, and a box stops that
         /// world as it stops a film's.
         bool showsScriptMessageBoxes() const override { return false; }
+
+        std::optional<std::filesystem::path> getSavesFolder() const override;
 
         /// Measures the frame, and asks the game to quit once the last stop is done.
         void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report) override;

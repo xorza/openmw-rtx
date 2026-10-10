@@ -743,6 +743,11 @@ namespace RtxTool
         return config.getCachePath() / "rtxtool" / run;
     }
 
+    std::filesystem::path ownSavesFolder(const Files::ConfigurationManager& config)
+    {
+        return ownConfigDirectory(config) / "saves";
+    }
+
     void sweepEndedRuns(const std::filesystem::path& runs)
     {
         // Listed whole before anything goes, as `DriverCache::sweep` says why.

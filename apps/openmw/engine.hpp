@@ -142,6 +142,12 @@ namespace OMW
         /// (`MWBase::WindowManager::scriptMessageBox`); the engine's own boxes still are. Asked once,
         /// as the window manager is made.
         virtual bool showsScriptMessageBoxes() const { return true; }
+
+        /// Where the game's saves go, or nothing for the player's own under the user data. A host
+        /// whose world the player's saves must never hold — god mode, a boosted character, its own
+        /// scripts in the content list — names a folder of its own. Asked once, as the state manager
+        /// is made.
+        virtual std::optional<std::filesystem::path> getSavesFolder() const { return std::nullopt; }
     };
 
     /// \brief Main engine class, that brings together all the components of OpenMW

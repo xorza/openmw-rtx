@@ -48,6 +48,13 @@ namespace RtxTool
         return mRequest.mStep;
     }
 
+    std::optional<std::filesystem::path> Session::getSavesFolder() const
+    {
+        if (mRequest.mSaves.empty())
+            return std::nullopt;
+        return mRequest.mSaves;
+    }
+
     SessionResult Session::describe() const
     {
         return mRecord.describe(mNote.getLeft());
