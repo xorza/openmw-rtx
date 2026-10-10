@@ -150,6 +150,12 @@ namespace Rtx
         /// silent nought; the game clears it. Not a knob of the run's picture, which is why it is
         /// not in the profile.
         bool mCounting = true;
+
+        /// Whether the frame times its zones on the device for the host — `FrameResult::mGpu`. On
+        /// by default, for the reason `mCounting` is; the game clears it. The zones are still
+        /// opened without it, and still name the work a lost device was on (`Device::checkpoint`):
+        /// what goes is the timestamps and the read of them.
+        bool mTiming = true;
     };
 
     /// What a backend holds in one of its slots, as it says so itself. A slot and a scene are one
@@ -222,15 +228,17 @@ namespace Rtx
         double mMs = 0.0;
     };
 
-    /// The most zones one frame may open: every zone there is, and room past them for a pass
-    /// recorded in batches, which opens its zone once a batch.
+    /// The most zones one frame may open: every zone there is, the tone pass of a summed run again,
+    /// and a second placement's five where a caller places the world again before it traces, which
+    /// the game never does. A frame that opens more is a broken contract, which `GpuTimer` asserts.
     inline constexpr std::uint32_t sMaxGpuZones = 40;
     static_assert(sFrameZoneCount <= sMaxGpuZones, "a zone a frame opens that the timer cannot hold");
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
-    /// cannot write timestamps. Owned by the report rather than borrowed from the timer that
-    /// measured it: with `sFramesInFlight` in flight, the frame that takes this frame's slot begins its
-    /// timer before this report is read.
+    /// cannot write timestamps or the renderer was made not to time (`RendererOptions::mTiming`).
+    /// Owned by the report rather than borrowed from the timer that measured it: with
+    /// `sFramesInFlight` in flight, the frame that takes this frame's slot begins its timer before
+    /// this report is read.
     class GpuZones
     {
     public:

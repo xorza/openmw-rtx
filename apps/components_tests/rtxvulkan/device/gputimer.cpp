@@ -275,7 +275,7 @@ namespace Rtx
             if (device.getPhysicalDevice().getTimestampBits() == 0)
                 GTEST_SKIP() << "this device cannot write timestamps";
 
-            GpuTimer timer(device);
+            GpuTimer timer(device, true);
             device.getPool().submitAndWait(
                 [&](VkCommandBuffer commands) { vkCmdResetQueryPool(commands, timer.getQueryPool(), 0, 2); });
 
@@ -290,6 +290,49 @@ namespace Rtx
             GpuZones zones;
             Testing::expectDies([&] { timer.resolve(zones); },
                 "the GPU timer's trace zone was resolved before a submit wrote its timestamps");
+        }
+
+        /// **A timer made not to time writes no timestamp and reports no zone**, for a session
+        /// nobody reads a report of (`RendererOptions::mTiming`): no query pool, and a zone recorded
+        /// and submitted resolves to nothing. The same zone through a timer that times is one span.
+        TEST_F(RtxGpuTimerReadTest, aTimerMadeNotToTimeReportsNoZone)
+        {
+            const Device& device = *mHarness.mDevice;
+            const auto zonesOf = [&](bool timing) {
+                GpuTimer timer(device, timing);
+                timer.beginFrame();
+                device.getPool().submitAndWait(
+                    [&](VkCommandBuffer commands) { const GpuZone timed(&timer, commands, FrameZone::Trace); });
+                GpuZones zones;
+                timer.resolve(zones);
+                return zones.spans().size();
+            };
+
+            EXPECT_EQ(GpuTimer(device, false).getQueryPool(), VK_NULL_HANDLE)
+                << "a pool for a timer that never reads it";
+            EXPECT_EQ(zonesOf(false), 0u) << "a timer made not to time reported a zone";
+            if (device.getPhysicalDevice().getTimestampBits() > 0)
+            {
+                EXPECT_EQ(zonesOf(true), 1u) << "a timer that times lost its zone";
+            }
+        }
+
+        /// **A frame that opens more zones than `sMaxGpuZones` counts ends the process**, where the
+        /// zones past the pool were left out of its report without a word.
+        TEST_F(RtxGpuTimerReadTest, aFrameThatOpensMoreZonesThanCountedDies)
+        {
+            const Device& device = *mHarness.mDevice;
+            Testing::expectAssertDies(
+                [&] {
+                    GpuTimer timer(device, false);
+                    timer.beginFrame();
+                    const LentCommands lent = device.getPool().lend(1);
+                    Recording recording = device.getPool().begin(lent[0]);
+                    for (std::uint32_t zone = 0; zone <= sMaxGpuZones; ++zone)
+                        const GpuZone timed(&timer, recording.get(), FrameZone::Trace);
+                    std::move(recording).end();
+                },
+                "a frame opened more zones than `sMaxGpuZones` counts");
         }
     }
 }

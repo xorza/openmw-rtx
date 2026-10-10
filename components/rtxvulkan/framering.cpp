@@ -36,10 +36,10 @@ namespace Rtx
         }
     }
 
-    FrameRecord::FrameRecord(const Device& device)
+    FrameRecord::FrameRecord(const Device& device, const bool timing)
         : mPlaceCommands(device.getPool().lend(1))
         , mTraceCommands(device.getPool().lend(1))
-        , mTimer(device)
+        , mTimer(device, timing)
         , mCounts(Buffer::readBack(device, sizeof(Shaders::FrameCounts),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame counts"))
         , mDebugVertices(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "debug vertices")
@@ -50,11 +50,13 @@ namespace Rtx
                 device, NotFiniteCensus::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame not-finite census");
     }
 
-    FrameRing::FrameRing(const Device& device, const bool readsCounts, const double holdTickMs)
+    FrameRing::FrameRing(const Device& device, const bool readsCounts, const bool timing, const double holdTickMs)
         : mDevice(device)
         , mReadsCounts(readsCounts)
         , mHoldTickMs(holdTickMs)
-        , mSlots([&](FrameSlot) { return FrameRecord{ device }; })
+        , mSlots([&](FrameSlot) {
+            return FrameRecord{ device, timing };
+        })
         , mDigest(device)
     {
         for (GrowableBuffer& picture : mPictures)

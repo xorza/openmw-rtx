@@ -69,7 +69,7 @@ namespace Rtx
         TEST_F(RtxStressPassTest, theHoldIsTheTimeAskedOnEveryFrameWhateverTheCardsClock)
         {
             Device& device = getDevice();
-            GpuTimer timer(device);
+            GpuTimer timer(device, true);
 
             StressPass four(device, 4.0);
             StressPass twentyFour(device, 24.0);

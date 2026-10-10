@@ -25,7 +25,10 @@ namespace Rtx
     class GpuTimer
     {
     public:
-        explicit GpuTimer(const Device& device);
+        /// @param timing whether the zones write timestamps at all — `RendererOptions::mTiming`.
+        ///        Without it a zone is still filed, labelled and checkpointed, and a frame resolves
+        ///        to no spans, as on a queue that cannot write timestamps.
+        GpuTimer(const Device& device, bool timing);
 
         /// Forgets the last frame's zones. Whatever is opened after this is one report, and
         /// `frame` is what a checkpoint the zones set names it as.
@@ -56,7 +59,9 @@ namespace Rtx
         /// Nanoseconds a tick of the device's clock is worth, and how many of its bits count.
         double mPeriod = 1.0;
         std::uint64_t mMask = ~std::uint64_t{ 0 };
-        bool mSupported = false;
+
+        /// Whether the zones write timestamps: asked to, on a queue that can.
+        bool mTimes = false;
 
         /// The first of the two queries bracketing a zone, and the checkpoint the queue was set
         /// at its open. The checkpoint is in here rather than beside it because the queue keeps a
