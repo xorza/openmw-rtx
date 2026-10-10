@@ -679,7 +679,7 @@ namespace Rtx::Testing
                 camera.mSun
                     = Shaders::sunSource(osg::Vec3f(std::sin(off), std::cos(off), 0.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
                 if (armsDegrees > 0.0f)
-                    camera.mEyes.mArms = cameraAtFieldOfView(camera.mEyes.mWorld, armsDegrees);
+                    camera.mEyes.mArms = cameraAtFieldOfView(camera.mEyes.mWorld, armsDegrees).value();
 
                 const SunGlare fader{
                     .mFader = Sky::SunGlareFader{ .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),

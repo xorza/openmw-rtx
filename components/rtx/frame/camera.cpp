@@ -156,9 +156,17 @@ namespace Rtx
         return basis;
     }
 
-    Shaders::Camera cameraAtFieldOfView(const Shaders::Camera& camera, const float verticalFovDegrees)
+    bool isFieldOfView(const float verticalFovDegrees)
+    {
+        return verticalFovDegrees > 0.0f && verticalFovDegrees < 180.0f;
+    }
+
+    std::optional<Shaders::Camera> cameraAtFieldOfView(const Shaders::Camera& camera, const float verticalFovDegrees)
     {
         assert(camera.mOrthographic == 0 && "a parallel projection has no field of view to widen");
+
+        if (!isFieldOfView(verticalFovDegrees))
+            return std::nullopt;
 
         const Spread spread = spreadOf(verticalFovDegrees, camera.mWidth, camera.mHeight);
 
@@ -194,6 +202,9 @@ namespace Rtx
     std::optional<Viewpoint> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees, std::uint32_t width,
         std::uint32_t height, float near, float far)
     {
+        if (!isFieldOfView(verticalFovDegrees))
+            return std::nullopt;
+
         return cameraAt(view, spreadOf(verticalFovDegrees, width, height), false, width, height, near, far);
     }
 

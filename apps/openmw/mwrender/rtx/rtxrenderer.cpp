@@ -891,6 +891,17 @@ namespace MWRender
                              << mWalked.mFound.mSkippedUnknown << " it has no reader for";
     }
 
+    void RtxRenderer::refuseEye(const std::string_view why)
+    {
+        // Once, because a camera nobody filled in and a real defect look identical from here until
+        // it is said how often it happens.
+        if (mComplained)
+            return;
+
+        mComplained = true;
+        Log(Debug::Warning) << "Ray tracing skipped a frame: " << why;
+    }
+
     std::optional<Rtx::FrameRequest> RtxRenderer::describeTrace(const SceneFrame& frame, const osg::Matrixd& view)
     {
         const Rtx::FrameExtents extents = mRenderer->getExtents();
@@ -912,17 +923,11 @@ namespace MWRender
             extents.mRenderWidth, extents.mRenderHeight, Rtx::sNearPlane, Rtx::sFarPlane);
 
         // **Asked of the builder rather than tested for here**: a test here would be a copy of
-        // the builder's contract with two places to be right. Reported once, because a camera
-        // nobody filled in and a real defect look identical from here until it is said how often
-        // it happens.
+        // the builder's contract with two places to be right.
         if (!camera.has_value())
         {
-            if (!mComplained)
-            {
-                mComplained = true;
-                Log(Debug::Warning) << "Ray tracing skipped a frame: the view matrix has no basis to look along";
-            }
-
+            refuseEye(Rtx::isFieldOfView(frame.mEye.mFieldOfView) ? "the view matrix has no basis to look along"
+                                                                  : "its field of view is outside 0 to 180 degrees");
             return std::nullopt;
         }
 
@@ -932,7 +937,14 @@ namespace MWRender
         Rtx::shiftPicture(camera->mEyes.mWorld, frame.mEye.mProjectionShift);
 
         // The arms' own eye, at the field of view the game draws them through.
-        camera->mEyes.mArms = Rtx::cameraAtFieldOfView(camera->mEyes.mWorld, frame.mEye.mArmsFieldOfView);
+        const std::optional<Rtx::Shaders::Camera> arms
+            = Rtx::cameraAtFieldOfView(camera->mEyes.mWorld, frame.mEye.mArmsFieldOfView);
+        if (!arms.has_value())
+        {
+            refuseEye("the arms' field of view is outside 0 to 180 degrees");
+            return std::nullopt;
+        }
+        camera->mEyes.mArms = *arms;
 
         // What the game decided the eye sees, read where the rasterizer reads it.
         const ViewDescription described = describeView(worldViewMask());

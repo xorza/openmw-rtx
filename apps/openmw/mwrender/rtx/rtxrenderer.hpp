@@ -288,6 +288,9 @@ namespace MWRender
         /// reported once.
         std::optional<Rtx::FrameRequest> describeTrace(const SceneFrame& frame, const osg::Matrixd& view);
 
+        /// Says in the log why the camera builder refused this frame's eye, the first time it does.
+        void refuseEye(std::string_view why);
+
         /// Traces one frame from `request`, with the world the frame stands in read into it, and
         /// closes the report with what it came to.
         void trace(
@@ -403,8 +406,7 @@ namespace MWRender
         /// which `configureResources` weighs against the frame clock's stated step.
         std::optional<bool> mSettled;
 
-        /// Whether a camera the builder refused has already been reported. `describeTrace` says why
-        /// once is the whole of it.
+        /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;
     };
 }

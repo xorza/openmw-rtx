@@ -62,21 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 12. Refuse a field of view outside (0°, 180°) in the camera builder
-- **Audit**: CORE-4. CONFIRMED that NaN reaches the frame constants.
-- **Where**: `components/rtx/frame/camera.cpp:32-41`, `:159-171`,
-  `components/rtx/frame/framesampling.cpp:22-26`, `:71-72`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:904-920`.
-- **Problem**: Lua's `camera.setFieldOfView` and the fallback `General_Werewolf_FOV` reach the camera
-  with no range check. At 0°, the basis is zero, and `mUnitRight`, `mUnitUp` and `mArmsSpread` are
-  NaN. Past 180°, the picture is mirrored. The rasterizer recovers on the next frame, but the ray
-  tracer's histories keep the NaN.
-- **Fix**: `makeCameraFromView` and `cameraAtFieldOfView` give no camera for a field of view outside
-  (0, 180), as they do for a collapsed basis. The frame is skipped, because no correct picture
-  exists, and a clamp would draw a wrong one. The renderer's warning names which reason skipped the
-  frame. Upstream's bindings do not change.
-- **Test**: `RtxCameraTest`: 0° and 180° give `nullopt`, and `cameraAtFieldOfView` at 0° and 200°
-  gives no camera.
-
 ### 13. Read an X8 DDS as opaque
 - **Audit**: CORE-2. CONFIRMED: the table in `osgdb_dds.so` was read.
 - **Where**: `components/rtx/image/textureformat.cpp:81-101` (`readFormat`),
