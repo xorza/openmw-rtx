@@ -333,6 +333,11 @@ OMW::Engine::Engine(Files::ConfigurationManager& configurationManager)
 
 OMW::Engine::~Engine()
 {
+    // **The threads that read the managers end before the managers do.** A frame the renderer threw
+    // out of on purpose left the Lua worker inside its update; and the ray tracer's cell reader marks
+    // the visibility gates through the script manager until the world's renderer lets it go.
+    mLuaWorker = nullptr;
+
     if (mScreenCaptureOperation != nullptr)
     {
         mScreenCaptureOperation->stop();
@@ -343,12 +348,11 @@ OMW::Engine::~Engine()
     mDialogueManager = nullptr;
     mJournal = nullptr;
     mWindowManager = nullptr;
-    mScriptManager = nullptr;
     mWorld = nullptr;
+    mScriptManager = nullptr;
     mSoundManager = nullptr;
     mInputManager = nullptr;
     mStateManager = nullptr;
-    mLuaWorker = nullptr;
     mLuaManager = nullptr;
     mL10nManager = nullptr;
 
