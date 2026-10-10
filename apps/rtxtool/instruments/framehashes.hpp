@@ -12,6 +12,7 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/shaders/digest.h>
 
@@ -124,6 +125,12 @@ namespace RtxTool
             /// Reported and never a verdict.
             std::vector<std::uint32_t> mDenoisedDiffering{};
 
+            /// How many frames of two denoised runs each of the denoiser's images differs on,
+            /// indexed by `Rtx::DenoiserImage`: one that only one of the two wrote differs. What
+            /// says where under the composed frame a difference began, the first stage it shows in.
+            /// Reported and never a verdict, since the wavelet's are the card's arithmetic too.
+            std::array<std::uint32_t, Rtx::sDenoiserImageCount> mDenoiserDiffering{};
+
             /// Frames where any part of the scene differs, in order.
             std::vector<std::uint32_t> mSceneDiffering{};
 
@@ -173,6 +180,9 @@ namespace RtxTool
 
             Rtx::DigestWords mHash{};
             std::array<Rtx::DigestWords, sTracedColumns> mTraced{};
+
+            /// What the denoiser left, nothing of an image its filter did not run on this frame.
+            std::array<std::optional<Rtx::DigestWords>, Rtx::sDenoiserImageCount> mDenoiser{};
             ScenePartDigests mParts{};
 
             /// The renderer's own number for the frame, for `picture` alone; not written.

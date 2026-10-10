@@ -12,6 +12,9 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <components/rtx/common/digestwords.hpp>
+#include <components/rtx/renderer/denoiserimage.hpp>
+#include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -60,6 +63,13 @@ namespace Rtx
             return lanes;
         }
 
+        /// The four lanes as `DigestPass::unpack` reads them, two words.
+        DigestWords wordsOf(const Lanes& lanes)
+        {
+            return DigestWords{ lanes[0] | (std::uint64_t{ lanes[1] } << 32),
+                lanes[2] | (std::uint64_t{ lanes[3] } << 32) };
+        }
+
         /// A pattern no two texels share and no row repeats, with signs and a nought in it.
         float valueAt(const std::uint32_t x, const std::uint32_t y, const std::uint32_t channel)
         {
@@ -71,12 +81,23 @@ namespace Rtx
                 * (static_cast<float>(x) * 0.125f + static_cast<float>(y) * 3.5f + static_cast<float>(channel));
         }
 
+        /// What one record digested: every channel's lanes, the denoiser's words as
+        /// `DigestPass::unpack` reads them, and how many lanes past the channels' hold anything.
+        struct Digested
+        {
+            std::vector<Lanes> mChannels;
+            FrameDigest mFrame;
+            std::size_t mDenoiserLanesHeld = 0;
+        };
+
         struct RtxDigestPassTest : Testing::DeviceTest
         {
-            /// Digests `images` in one record, from where `from` left them, and hands back every
-            /// image's lanes. The pass takes the frame's count of images, so the last one given
-            /// stands in for the rest.
-            std::vector<Lanes> digest(const std::span<Image* const> images, const ImageUse& from = Use::sTextureSample)
+            /// Digests `images` and the bound of `denoiser` in one record, from where `from` left
+            /// them. The pass takes the frame's count of channels, so the last one given stands in
+            /// for the rest.
+            Digested digest(const std::span<Image* const> images,
+                const std::array<const Image*, sDenoiserImageCount>& denoiser = {},
+                const ImageUse& from = Use::sTextureSample)
             {
                 Device& device = getDevice();
                 const DigestPass pass(device);
@@ -87,24 +108,33 @@ namespace Rtx
                 for (std::size_t at = 0; at < digested.size(); ++at)
                     digested[at] = images[std::min(at, images.size() - 1)];
 
+                Digested read;
                 Batch batch(getPool());
                 for (Image* const image : images)
                     image->transition(batch.getCommands(), from, Use::sComputeRead);
-                pass.record(batch.getCommands(), digested, lanes, nullptr);
+                for (const Image* const image : denoiser)
+                    if (image != nullptr && std::ranges::find(images, image) == images.end())
+                        image->transition(batch.getCommands(), from, Use::sComputeRead);
+                read.mFrame.mDenoiserTaken = pass.record(batch.getCommands(), digested, denoiser, lanes, nullptr);
                 batch.flush();
 
-                std::vector<Lanes> read(Shaders::DIGEST_IMAGES);
                 const auto* const words = static_cast<const std::uint32_t*>(lanes.map());
-                for (std::size_t image = 0; image < read.size(); ++image)
+                read.mChannels.resize(Shaders::DIGEST_IMAGES);
+                for (std::size_t image = 0; image < read.mChannels.size(); ++image)
                     for (std::size_t lane = 0; lane < Shaders::DIGEST_LANES; ++lane)
-                        read[image][lane] = words[image * Shaders::DIGEST_LANES + lane];
+                        read.mChannels[image][lane] = words[image * Shaders::DIGEST_LANES + lane];
+                for (std::size_t lane = Shaders::DIGEST_IMAGES * Shaders::DIGEST_LANES;
+                     lane < Shaders::DIGEST_ALL_IMAGES * Shaders::DIGEST_LANES; ++lane)
+                    read.mDenoiserLanesHeld += words[lane] != 0 ? 1 : 0;
 
+                DigestPass::unpack(lanes, read.mFrame);
                 return read;
             }
 
-            /// An image of `channels` floats a texel, uploaded and left where a sampler expects it.
+            /// An image of `channels` values a texel, uploaded and left where a sampler expects it.
+            template <class Value>
             Image upload(const std::uint32_t width, const std::uint32_t height, const std::uint32_t channels,
-                const VkFormat format, const std::vector<float>& values, const std::string_view name)
+                const VkFormat format, const std::vector<Value>& values, const std::string_view name)
             {
                 EXPECT_EQ(values.size(), std::size_t{ width } * height * channels);
 
@@ -147,7 +177,8 @@ namespace Rtx
             const Lanes expected = fold(texels, width);
 
             std::array<Image*, 1> once{ &image };
-            const std::vector<Lanes> first = digest(once);
+            const Digested digested = digest(once);
+            const std::vector<Lanes>& first = digested.mChannels;
             ASSERT_EQ(first.size(), Shaders::DIGEST_IMAGES);
             for (std::size_t slot = 0; slot < first.size(); ++slot)
                 for (std::size_t lane = 0; lane < Shaders::DIGEST_LANES; ++lane)
@@ -156,7 +187,13 @@ namespace Rtx
             EXPECT_NE(expected[0], 0u) << "a digest of something is not the digest of nothing";
             EXPECT_NE(expected[0], expected[2]) << "the two seeds are two mixes";
 
-            EXPECT_EQ(digest(once, Use::sComputeRead), first) << "the same image twice is the same digest";
+            EXPECT_EQ(digest(once, {}, Use::sComputeRead).mChannels, first)
+                << "the same image twice is the same digest";
+
+            EXPECT_EQ(digested.mFrame.mDenoiserTaken, 0u) << "no denoiser image was handed over";
+            EXPECT_EQ(digested.mDenoiserLanesHeld, 0u) << "a stand-in folds nothing";
+            for (std::size_t at = 0; at < sDenoiserImageCount; ++at)
+                EXPECT_EQ(digested.mFrame.mDenoiser[at], DigestWords{}) << at;
         }
 
         TEST_F(RtxDigestPassTest, oneTexelMovesTheDigestAndOnlyItsImage)
@@ -177,7 +214,7 @@ namespace Rtx
             Image moved = upload(width, height, 4, VK_FORMAT_R32G32B32A32_SFLOAT, values, "digest test moved");
 
             std::array<Image*, 3> three{ &same, &other, &moved };
-            const std::vector<Lanes> lanes = digest(three);
+            const std::vector<Lanes> lanes = digest(three).mChannels;
             ASSERT_EQ(lanes.size(), Shaders::DIGEST_IMAGES);
 
             EXPECT_EQ(lanes[0], lanes[1]) << "two images of the same bits digest the same in different lanes";
@@ -186,6 +223,8 @@ namespace Rtx
                 EXPECT_NE(lanes[0][lane], lanes[2][lane]) << "every lane sees the texel, lane " << lane;
         }
 
+        /// And a denoiser image of either kind, bound at its own slot: a float image short of
+        /// channels, and a word image, whose missing alpha the load fills with the integer one.
         TEST_F(RtxDigestPassTest, aFormatShortOfChannelsIsReadAsTheLoadFillsIt)
         {
             constexpr std::uint32_t width = 5;
@@ -206,10 +245,40 @@ namespace Rtx
 
             Image image = upload(width, height, 2, VK_FORMAT_R32G32_SFLOAT, values, "digest test rg");
 
+            std::vector<std::uint32_t> wordValues;
+            std::vector<Texel> wordTexels;
+            for (std::uint32_t y = 0; y < height; ++y)
+                for (std::uint32_t x = 0; x < width; ++x)
+                {
+                    const std::uint32_t word = x * 977u + y * 31u + 0x80000005u;
+                    wordValues.push_back(word);
+                    wordTexels.push_back(Texel{ .mR = word, .mA = 1u });
+                }
+            Image words = upload(width, height, 1, VK_FORMAT_R32_UINT, wordValues, "digest test words");
+
+            std::array<const Image*, sDenoiserImageCount> denoiser{};
+            denoiser[static_cast<std::size_t>(DenoiserImage::PaneMean)] = &image;
+            denoiser[static_cast<std::size_t>(DenoiserImage::SkyShadowLevel0)] = &words;
+
             std::array<Image*, 1> once{ &image };
-            const std::vector<Lanes> lanes = digest(once);
+            const Digested digested = digest(once, denoiser);
+            const std::vector<Lanes>& lanes = digested.mChannels;
             ASSERT_EQ(lanes.size(), Shaders::DIGEST_IMAGES);
             EXPECT_EQ(lanes[0], fold(texels, width)) << "blue reads as nought and alpha as one";
+
+            EXPECT_EQ(digested.mFrame.mDenoiserTaken,
+                (1u << static_cast<std::size_t>(DenoiserImage::PaneMean))
+                    | (1u << static_cast<std::size_t>(DenoiserImage::SkyShadowLevel0)));
+            EXPECT_EQ(digested.mDenoiserLanesHeld, 2 * Shaders::DIGEST_LANES)
+                << "the two bound images' lanes and nothing of the stand-ins";
+            for (std::size_t at = 0; at < sDenoiserImageCount; ++at)
+            {
+                const auto named = static_cast<DenoiserImage>(at);
+                const DigestWords expected = named == DenoiserImage::PaneMean ? wordsOf(fold(texels, width))
+                    : named == DenoiserImage::SkyShadowLevel0                 ? wordsOf(fold(wordTexels, width))
+                                                                              : DigestWords{};
+                EXPECT_EQ(digested.mFrame.mDenoiser[at], expected) << sDenoiserImageNames.name(named);
+            }
         }
     }
 }

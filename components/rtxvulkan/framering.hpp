@@ -10,6 +10,7 @@
 
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/digest.h>
@@ -91,10 +92,9 @@ namespace Rtx
         /// recorded, nought for a frame that did not.
         VkDeviceSize mReadBackBytes = 0;
 
-        /// Where `DigestPass` copies the frame's words, `Shaders::DIGEST_IMAGES` of
-        /// `Shaders::DIGEST_LANES`, and the digest the report carries: what `FrameRing::readDigest`
-        /// was told while the frame was recorded, the words once it is waited for, and nothing for
-        /// a frame that did not ask.
+        /// Where `DigestPass` copies the frame's words, `DigestPass::sBytes` of them, and the digest
+        /// the report carries: what `FrameRing::readDigest` was told while the frame was recorded,
+        /// the words once it is waited for, and nothing for a frame that did not ask.
         Buffer mDigestLanes;
         std::optional<FrameDigest> mDigest;
     };
@@ -141,10 +141,12 @@ namespace Rtx
         /// last pass that writes `target`.
         void readPicture(FrameRecord& frame, VkCommandBuffer commands, const Image& target);
 
-        /// Records the fold of `images` into the frame's digest, and notes `facts` for the report —
-        /// `FrameResult::mDigest`, whose words are read once the frame is waited for.
+        /// Records the fold of `channels` and of what the denoisers wrote, null where a filter did not
+        /// run, into the frame's digest, and notes `facts` for the report — `FrameResult::mDigest`,
+        /// whose words are read once the frame is waited for.
         void readDigest(FrameRecord& frame, VkCommandBuffer commands,
-            const std::array<const Image*, Shaders::DIGEST_IMAGES>& images, const FrameDigest& facts, GpuTimer* timer);
+            const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels,
+            const std::array<const Image*, sDenoiserImageCount>& denoiser, const FrameDigest& facts, GpuTimer* timer);
 
         /// The recording of `frame`'s trace, begun on the frame's own buffer. An exception that
         /// leaves it unsubmitted leaves the frame begun, and the next trace begins it again.

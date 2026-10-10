@@ -52,6 +52,15 @@ namespace RtxTool
             Rtx::FrameDigest digest;
             for (std::size_t at = 0; at < digest.mImages.size(); ++at)
                 digest.mImages[at] = hashOf(seed + 1000 + at);
+            // Every denoiser image but the pane filter's, which a frame with no layers leaves.
+            for (std::size_t at = 0; at < digest.mDenoiser.size(); ++at)
+            {
+                const auto image = static_cast<Rtx::DenoiserImage>(at);
+                if (image == Rtx::DenoiserImage::PaneMean || image == Rtx::DenoiserImage::PaneFast)
+                    continue;
+                digest.mDenoiser[at] = hashOf(seed + 2000 + at);
+                digest.mDenoiserTaken |= 1u << at;
+            }
             digest.mJitterX = 0.25f;
             digest.mJitterY = -0.125f;
             digest.mFrameDeltaMs = 16.0f;
@@ -248,6 +257,44 @@ namespace RtxTool
                     << "said once: " << report;
             }
 
+            // **The denoiser's images are named in the order the frame writes them**, whatever their
+            // counts, and one only one run wrote differs.
+            Rtx::FrameDigest filtered = composed;
+            filtered.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::WaveletHistory)] = hashOf(4244);
+            filtered.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::SkyShadowLevel1)] = hashOf(4245);
+            filtered.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::PaneMean)] = hashOf(4246);
+            filtered.mDenoiserTaken |= 1u << static_cast<std::size_t>(Rtx::DenoiserImage::PaneMean);
+            FrameHashes twoFrames = denoisedRunOf(sPixels, filtered);
+            twoFrames.note("somewhere", 2, 2, partsOf(100));
+            Rtx::FrameDigest secondFiltered = digestOf(100);
+            secondFiltered.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::WaveletHistory)] = hashOf(4247);
+            twoFrames.picture(
+                Finished{ .mFrame = 2, .mPixels = sPixels, .mDigest = secondFiltered, .mDenoised = true }.result());
+            FrameHashes twoReference = denoisedRunOf(sPixels, digestOf(100));
+            twoReference.note("somewhere", 2, 2, partsOf(100));
+            twoReference.picture(
+                Finished{ .mFrame = 2, .mPixels = sPixels, .mDigest = digestOf(100), .mDenoised = true }.result());
+
+            const FrameHashes::ViewDifference underneath = onlyView(twoFrames.against(twoReference));
+            for (std::size_t at = 0; at < Rtx::sDenoiserImageCount; ++at)
+            {
+                const auto image = static_cast<Rtx::DenoiserImage>(at);
+                const std::uint32_t expected = image == Rtx::DenoiserImage::WaveletHistory                  ? 2u
+                    : image == Rtx::DenoiserImage::SkyShadowLevel1 || image == Rtx::DenoiserImage::PaneMean ? 1u
+                                                                                                            : 0u;
+                EXPECT_EQ(underneath.mDenoiserDiffering[at], expected) << Rtx::sDenoiserImageNames.name(image);
+            }
+            EXPECT_TRUE(underneath.same()) << "the denoiser's images are never a verdict";
+            const std::string named = describeDifference(underneath);
+            EXPECT_NE(named.find("in the order the frame writes them — pane-mean 1, sky-shadow-level1 1, "
+                                 "wavelet-history 2, which is not a verdict"),
+                std::string::npos)
+                << named;
+
+            EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels, filtered).against(plainRun())).mDenoiserDiffering,
+                (std::array<std::uint32_t, Rtx::sDenoiserImageCount>{}))
+                << "an undenoised frame's are not compared";
+
             const FrameHashes::ViewDifference pictureAlone
                 = onlyView(denoisedRunOf(sOtherPixels, digestOf(100)).against(reference));
             EXPECT_EQ(pictureAlone.mDenoisedDiffering, std::vector<std::uint32_t>{ 1u });
@@ -389,6 +436,32 @@ namespace RtxTool
             EXPECT_EQ(
                 onlyView(denoisedRunOf(sPixels, digestOf(100)).against(denoisedRead)).mConfigurationDiffering, 0u);
             EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels).against(denoisedRead)).mConfigurationDiffering, 1u);
+
+            // And the denoiser's images, an unwritten one as unwritten: a run that wrote it differs.
+            EXPECT_EQ(onlyView(denoisedRunOf(sPixels, digestOf(100)).against(denoisedRead)).mDenoiserDiffering,
+                (std::array<std::uint32_t, Rtx::sDenoiserImageCount>{}));
+            Rtx::FrameDigest paned = digestOf(100);
+            paned.mDenoiserTaken |= 1u << static_cast<std::size_t>(Rtx::DenoiserImage::PaneMean);
+            paned.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::SpecularMean)] = hashOf(4243);
+            const FrameHashes::ViewDifference panedAgainst
+                = onlyView(denoisedRunOf(sPixels, paned).against(denoisedRead));
+            for (std::size_t at = 0; at < Rtx::sDenoiserImageCount; ++at)
+            {
+                const auto image = static_cast<Rtx::DenoiserImage>(at);
+                EXPECT_EQ(panedAgainst.mDenoiserDiffering[at],
+                    image == Rtx::DenoiserImage::PaneMean || image == Rtx::DenoiserImage::SpecularMean ? 1u : 0u)
+                    << Rtx::sDenoiserImageNames.name(image);
+            }
+            {
+                std::ifstream in(denoisedFile);
+                std::string row;
+                std::getline(in, row);
+                std::getline(in, row);
+                std::size_t unwritten = 0;
+                for (std::size_t at = row.find(",-,"); at != std::string::npos; at = row.find(",-,", at + 1))
+                    ++unwritten;
+                EXPECT_EQ(unwritten, 2u) << "the pane filter's two, spelled as unwritten: " << row;
+            }
             std::filesystem::remove(denoisedFile);
 
             std::string header;
@@ -396,13 +469,14 @@ namespace RtxTool
                 std::ifstream in(file);
                 std::getline(in, header);
             }
-            EXPECT_EQ(header.substr(0, 45), "hashes 6: view,frame,upscale,denoise,picture,");
+            EXPECT_EQ(header.substr(0, 45), "hashes 7: view,frame,upscale,denoise,picture,");
             EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
             EXPECT_NE(header.find(",g-puffs,g-shadowed,g-specular,g-pane,g-pane-albedo,g-pane-surface,g-pane-motion,"
                                   "g-upscale-masks,g-fill,g-ambient-albedo,g-lift,g-specular-albedo,g-lamped,"
-                                  "reconstruction,positions,"),
+                                  "reconstruction,accumulate-moments,pane-mean,"),
                 std::string::npos)
                 << header;
+            EXPECT_NE(header.find(",wavelet-blend,wavelet-fill-blend,positions,"), std::string::npos) << header;
             EXPECT_NE(header.find(",textures,"), std::string::npos) << header;
 
             std::filesystem::remove(file);

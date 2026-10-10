@@ -56,6 +56,13 @@ namespace Rtx::Shaders
     {
         return format == StorageFormat::R16f || format == StorageFormat::Rg16f || format == StorageFormat::Rgba16f;
     }
+
+    /// Whether `format` holds unsigned words, which a shader reads through a `uimage2D` and a float
+    /// view cannot read at all.
+    constexpr bool holdsWords(const StorageFormat format)
+    {
+        return format == StorageFormat::R32ui || format == StorageFormat::Rg32ui;
+    }
 }
 
 #define STORAGE_RGBA8 ::Rtx::Shaders::StorageFormat::Rgba8

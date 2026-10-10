@@ -12,15 +12,22 @@ namespace Rtx::Shaders
 {
 #endif
 
-    /// What the dispatch is told: how far the images reach, which is one extent for all of them.
+    /// What one dispatch is told: how far the images reach, which is one extent for all of them;
+    /// which image of the frame its first float slot and its first word slot hold, counted as the
+    /// lanes count them (`DIGEST_LANES` words an image); and which slots are bound, a bit each. The
+    /// rest are a stand-in of one texel, which nothing reads, and digest as nothing.
     struct DigestConstants
     {
         uint mWidth;
         uint mHeight;
+        uint mFloatFirst;
+        uint mFloats;
+        uint mWordFirst;
+        uint mWords;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(DigestConstants) == 8, "DigestConstants must be scalar-packed on every side");
+    static_assert(sizeof(DigestConstants) == 24, "DigestConstants must be scalar-packed on every side");
 }
 #endif
 

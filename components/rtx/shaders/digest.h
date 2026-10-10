@@ -25,8 +25,9 @@ namespace Rtx::Shaders
     /// shader's layout and the pass's own layout and writes are numbered by these and by nothing
     /// else, so the two cannot drift apart.
     const uint DIGEST_BIND_IMAGES = 0;
-    const uint DIGEST_BIND_LANES = 1;
-    const uint DIGEST_BINDINGS = 2;
+    const uint DIGEST_BIND_WORDS = 1;
+    const uint DIGEST_BIND_LANES = 2;
+    const uint DIGEST_BINDINGS = 3;
 
     /// One side of the square of texels a workgroup digests.
     const uint DIGEST_WORKGROUP = 16u;
@@ -38,6 +39,22 @@ namespace Rtx::Shaders
     /// What one frame digests: every channel of the trace at its binding, the direct one holding
     /// the composed frame. Image `i`'s words are the `DIGEST_LANES` from `i * DIGEST_LANES`.
     const uint DIGEST_IMAGES = CHANNEL_COUNT;
+
+    /// And what it digests of the denoiser (`Rtx::DenoiserImage`): the images held in floats, whose
+    /// words follow the channels', and then the ones held in words, which a float view cannot read.
+    const uint DIGEST_DENOISER_FLOATS = 9u;
+    const uint DIGEST_DENOISER_WORDS = 11u;
+    const uint DIGEST_FLOAT_IMAGES = DIGEST_IMAGES + DIGEST_DENOISER_FLOATS;
+    const uint DIGEST_ALL_IMAGES = DIGEST_FLOAT_IMAGES + DIGEST_DENOISER_WORDS;
+
+    /// How many float images one dispatch binds at `DIGEST_BIND_IMAGES`, and how many word images
+    /// at `DIGEST_BIND_WORDS`: **a run of each per dispatch, and as many dispatches as the longer
+    /// run needs**, since a pass's set is pushed, and a device need push no more than 32
+    /// descriptors a set, the census's among them, and the backend no more than 24 images
+    /// (`DescriptorWrites::sMostImages`). Every image of the frame in one set is more.
+    const uint DIGEST_FLOAT_SLOTS = 16u;
+    const uint DIGEST_WORD_SLOTS = 8u;
+    const uint DIGEST_SLOTS = DIGEST_FLOAT_SLOTS + DIGEST_WORD_SLOTS;
 
     /// The two seeds, one per mix, so the two lanes of a texel are not one word twice.
     const uint DIGEST_SEED_SUM = 0x9e3779b9u;

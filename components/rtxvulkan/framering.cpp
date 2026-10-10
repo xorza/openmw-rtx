@@ -21,21 +21,6 @@
 
 namespace Rtx
 {
-    namespace
-    {
-        /// The words the pass folded, each image's four lanes read as two words.
-        void unpackDigest(const Buffer& lanes, FrameDigest& into)
-        {
-            const auto* const words = static_cast<const std::uint32_t*>(lanes.map());
-            for (std::size_t image = 0; image < into.mImages.size(); ++image)
-            {
-                const std::uint32_t* const lane = words + image * Shaders::DIGEST_LANES;
-                into.mImages[image] = DigestWords{ lane[0] | (std::uint64_t{ lane[1] } << 32),
-                    lane[2] | (std::uint64_t{ lane[3] } << 32) };
-            }
-        }
-    }
-
     FrameRecord::FrameRecord(const Device& device, const bool timing)
         : mPlaceCommands(device.getPool().lend(1))
         , mTraceCommands(device.getPool().lend(1))
@@ -110,12 +95,13 @@ namespace Rtx
     }
 
     void FrameRing::readDigest(FrameRecord& frame, const VkCommandBuffer commands,
-        const std::array<const Image*, Shaders::DIGEST_IMAGES>& images, const FrameDigest& facts, GpuTimer* const timer)
+        const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels,
+        const std::array<const Image*, sDenoiserImageCount>& denoiser, const FrameDigest& facts, GpuTimer* const timer)
     {
         frame.mState.expect(FrameState::Begun);
 
-        mDigest.record(commands, images, frame.mDigestLanes, timer);
         frame.mDigest = facts;
+        frame.mDigest->mDenoiserTaken = mDigest.record(commands, channels, denoiser, frame.mDigestLanes, timer);
     }
 
     VkCommandBuffer FrameRing::takePlaceCommands(FrameRecord& frame)
@@ -200,7 +186,7 @@ namespace Rtx
             : std::span<const std::uint8_t>();
 
         if (frame.mDigest.has_value())
-            unpackDigest(frame.mDigestLanes, *frame.mDigest);
+            DigestPass::unpack(frame.mDigestLanes, *frame.mDigest);
 
         assert(counted.mMisses <= frame.mCountedRays && "more primary rays missed than were launched");
 

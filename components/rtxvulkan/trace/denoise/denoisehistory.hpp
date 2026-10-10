@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/shaders/shared/shadow.h>
 #include <components/rtxvulkan/trace/tracepast.hpp>
@@ -199,6 +200,10 @@ namespace Rtx
             bool mFresh;
         };
 
+        /// What the filters of the frame `turn` last turned to wrote, at each `DenoiserImage`, and null
+        /// where its filter did not run: the image then holds an older frame's, or nothing.
+        void written(std::array<const Image*, sDenoiserImageCount>& into) const;
+
         AccumulateImages accumulate(const TemporalTurns::Step& step) const;
         ShadowImages shadow(ShadowField field, const TemporalTurns::Step& step) const;
         SpecularImages specular(const TemporalTurns::Step& step) const;
@@ -221,5 +226,8 @@ namespace Rtx
 
         /// Started again by `resize`, so the first frame after one reads no image nothing wrote.
         TemporalTurns mTurns;
+
+        /// What `turn` last handed out, which `written` reads.
+        TemporalTurns::Step mLast;
     };
 }
