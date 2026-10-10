@@ -393,8 +393,9 @@ namespace Rtx
             written.flush();
         }
 
-        // Both stages, because the wave tiles are what has a chain: the fog volume samples them as
-        // a dispatch and the trace as a launch.
+        // Into the scope every sampled image rests in (`Use::sShaderSample`). The chains built here
+        // — the wave and ripple tiles and a ground's composite — are sampled in launches, the
+        // trace's and the fog scatter's.
         Barriers sampled(commands);
         for (const Image* image : images)
             if (image->mMipLevels > 1)

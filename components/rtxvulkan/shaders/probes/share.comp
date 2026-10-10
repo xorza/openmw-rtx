@@ -1,0 +1,44 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// Each float as a share's term and as that term added to itself, for `RtxShareTest` to hold against
+// what it computes exactly.
+
+#include "shared/sets.h"
+#include "shared/share.h"
+
+#include "lib/share.glsl"
+
+layout(local_size_x = SHARE_PROBE_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = SHARE_PROBE_BIND_VALUES, scalar) readonly buffer Values
+{
+    float values[];
+};
+
+layout(set = SET_PASS, binding = SHARE_PROBE_BIND_TERMS, scalar) writeonly buffer Terms
+{
+    uint terms[];
+};
+
+layout(set = SET_PASS, binding = SHARE_PROBE_BIND_SUMS, scalar) writeonly buffer Sums
+{
+    uint sums[];
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    ShareProbeConstants probe;
+};
+
+void main()
+{
+    const uint at = gl_GlobalInvocationID.x;
+    if (at >= probe.mCount)
+        return;
+
+    const uint term = sharePart(values[at]);
+    terms[at] = term;
+    sums[at] = addShare(term, term);
+}

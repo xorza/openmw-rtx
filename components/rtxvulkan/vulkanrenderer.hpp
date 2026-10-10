@@ -194,6 +194,9 @@ namespace Rtx
         /// the game's does not.
         bool mCounting = false;
 
+        /// Whether `awaitKernels` has seen the start's compile whole and saved the pipeline cache.
+        bool mKernelsSaved = false;
+
         /// What the run decided once, read where each knob is used: how wide both chains store
         /// their radiance, how long the queue is held, and what the frames are traced under —
         /// `mUpscale` as it was handed over, and then whatever `setUpscale` moved it to, which

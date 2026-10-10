@@ -172,6 +172,10 @@ namespace Rtx
         /// per change rather than once per pipeline.
         VkPipelineCache getPipelineCache() const;
 
+        /// Writes the pipeline cache's file where it changed since it was last read or written —
+        /// `PipelineCache::save`.
+        void savePipelineCache();
+
         const std::filesystem::path& getShaderDirectory() const { return mShaderDirectory; }
 
         /// The census every pipeline made on the device counts its stores that were not finite

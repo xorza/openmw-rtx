@@ -288,6 +288,11 @@ namespace Rtx
         return mPipelineCache->getHandle();
     }
 
+    void Device::savePipelineCache()
+    {
+        mPipelineCache->save();
+    }
+
     void Device::reportPipeline(VkPipeline pipeline, std::string_view name, const std::optional<double> compileMs) const
     {
         if (compileMs.has_value())
