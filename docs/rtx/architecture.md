@@ -73,7 +73,9 @@ Shaders are GLSL, compiled by `glslc` and validated by `spirv-val` in one build 
 invalid module fails the build. Between the two, `Rtx::pinFloatArithmetic`
 (`components/rtxvulkan/spirv/spirvpin.hpp`) fixes the order and fusion of every float operation the
 Vulkan specification leaves open, so every compile of a module, the driver's recompiles
-included, computes the same frame. The structures both languages read are headers that compile as
+included, computes the same frame. `glslc` compiles unoptimized and `spirv-opt` optimizes the module
+`Rtx::guardFloatArithmetic` has marked, so the optimizer folds none of the arithmetic the pinning
+then holds. The structures both languages read are headers that compile as
 C++ and as GLSL, beside the C++ that reads them: `components/rtx/shaders/*.h` for what the core
 reads, and `components/rtxvulkan/shaders/shared/*.h` for what only the backend and its shaders read
 (the bindings, the passes' constants, the shader binding table's records).

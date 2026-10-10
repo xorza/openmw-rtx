@@ -18,7 +18,7 @@ if (NOT _openmw_spirv_fma)
 endif()
 unset(_openmw_spirv_fma)
 
-# The pinning every shader takes between glslc and the validator (`spirv/spirvpin.hpp`), and the
+# The guard and the pinning every shader takes around the optimizer (`spirv/spirvpin.hpp`), and the
 # digest `omw kernels` names kernels by: a library the tests reach into, and tools the build runs.
 # They link nothing of the renderer's, which waits for the shaders, and stay out of every install.
 set(RTX_SPIRV_PIN_FILES spirv/spirvinterface.cpp spirv/spirvinterface.hpp spirv/spirvfile.cpp spirv/spirvfile.hpp
@@ -120,29 +120,35 @@ set(RTX_SHADER_VENDORED "${OpenMW_SOURCE_DIR}/extern/fidelityfx/gpu")
 # compiling twice, so the two differ in nothing else; both are pinned before validation, so the
 # validator reads what the driver gets.
 #
-# **One level for every flavour**, because the pinning fuses a multiply into the add that reads it
-# only where the module is in SSA form: at `-O0` glslc keeps locals in memory, nothing is fused, and
-# the debug build that runs every test computed other arithmetic than the release build a figure is
-# quoted from.
-set(RTX_GLSLC_FLAGS -g -O)
+# **Unoptimized by glslc, guarded, then optimized**, the same level for every flavour: the pinning
+# fuses a multiply into the add that reads it only where the module is in SSA form, which at `-O0`
+# it is not, and the debug build that runs every test would compute other arithmetic than the release
+# build a figure is quoted from. And the optimizer is handed the module guarded
+# (`Rtx::guardFloatArithmetic`), because what `glslc -O` optimized it folded first: arithmetic the
+# source does not state, before anything pinned it.
+set(RTX_GLSLC_FLAGS -g -O0)
 
 # Every shader twice: the renderers' set, which carries no census, and the harness's, which counts
 # into it (`lib/census.glsl`, `RTX_CENSUS`). A specialization constant cannot take the census out,
 # because Vulkan holds a pipeline to every binding a module's code names, reached or not.
 function(rtx_compile_shader shader census sourcedDir strippedDir)
     get_filename_component(name "${shader}" NAME)
+    set(compiled "${CMAKE_CURRENT_BINARY_DIR}/compiled/census${census}/${name}.spv")
     set(sourced "${sourcedDir}/${name}.spv")
     set(spv "${strippedDir}/${name}.spv")
     set(depfile "${CMAKE_CURRENT_BINARY_DIR}/${name}.census${census}.d")
 
     add_custom_command(
         # The module glslc writes first, because it is the one its depfile names.
-        OUTPUT "${sourced}" "${spv}"
+        OUTPUT "${compiled}" "${sourced}" "${spv}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${strippedDir}" "${sourcedDir}"
+                "${CMAKE_CURRENT_BINARY_DIR}/compiled/census${census}"
         COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -DRTX_CENSUS=${census}
                 -I "${RTX_SHADER_INCLUDE}" -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -I "${OpenMW_SOURCE_DIR}"
-                -MD -MF "${depfile}" -o "${sourced}"
+                -MD -MF "${depfile}" -o "${compiled}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
+        COMMAND openmw-rtx-spirv-pin --guard "${compiled}"
+        COMMAND "${OPENMW_SPIRV_OPT}" -O --target-env=vulkan1.4 --scalar-block-layout -o "${sourced}" "${compiled}"
         COMMAND openmw-rtx-spirv-pin "${sourced}"
         # --scalar-block-layout because the shared C++/GLSL headers rely on the feature the
         # device enables; without the flag the validator applies std430 straddling rules.
@@ -152,7 +158,7 @@ function(rtx_compile_shader shader census sourcedDir strippedDir)
         # The tool as well as the shader, so a change to what pinning does compiles every shader again.
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${shader}" openmw-rtx-spirv-pin
         DEPFILE "${depfile}"
-        COMMENT "Compiling, pinning and validating ${name}, census ${census}"
+        COMMENT "Compiling, guarding, optimizing, pinning and validating ${name}, census ${census}"
         VERBATIM)
 
     set(RTX_SHADER_OUTPUTS ${RTX_SHADER_OUTPUTS} "${spv}" "${sourced}" PARENT_SCOPE)

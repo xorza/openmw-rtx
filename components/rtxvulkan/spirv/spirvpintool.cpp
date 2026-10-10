@@ -5,6 +5,7 @@
 #include <ios>
 #include <iostream>
 #include <stdexcept>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -13,14 +14,15 @@
 #include "spirvfile.hpp"
 #include "spirvpin.hpp"
 
-// `openmw-rtx-spirv-pin <module>`: the module rewritten in place by `Rtx::pinFloatArithmetic`, which
-// is the step the build runs on every shader between `glslc` and `spirv-val`. In place, because the
-// file `glslc` wrote is the one its depfile names.
+// `openmw-rtx-spirv-pin [--guard] <module>`: the module rewritten in place by `Rtx::pinFloatArithmetic`,
+// the step the build runs on every shader before `spirv-val`, or with `--guard` by
+// `Rtx::guardFloatArithmetic`, the step between `glslc` and the optimizer. In place, because each is a
+// step over the one file of its stage.
 
 namespace
 {
     /// Written beside the module and moved over it, so a build that stops halfway leaves the
-    /// module `glslc` wrote or the pinned one and never part of either.
+    /// module as it was or as rewritten and never part of either.
     void writeWords(const std::filesystem::path& path, const std::vector<std::uint32_t>& words)
     {
         std::filesystem::path written = path;
@@ -42,13 +44,14 @@ namespace
 
 int main(int argc, char* argv[])
 {
-    if (argc != 2)
+    const bool guard = argc == 3 && std::string_view(argv[1]) == "--guard";
+    if (argc != 2 && !guard)
     {
-        std::cerr << "usage: openmw-rtx-spirv-pin <module.spv>\n";
+        std::cerr << "usage: openmw-rtx-spirv-pin [--guard] <module.spv>\n";
         return 2;
     }
 
-    const std::filesystem::path path(argv[1]);
+    const std::filesystem::path path(argv[argc - 1]);
     std::vector<std::uint32_t> words;
     try
     {
@@ -63,7 +66,7 @@ int main(int argc, char* argv[])
 
     try
     {
-        writeWords(path, Rtx::pinFloatArithmetic(words));
+        writeWords(path, guard ? Rtx::guardFloatArithmetic(words) : Rtx::pinFloatArithmetic(words));
         return 0;
     }
     catch (const std::exception& error)

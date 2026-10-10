@@ -8,7 +8,7 @@ namespace Rtx
 {
     /// The module with every float operation's result fixed by the Vulkan specification rather than
     /// by whichever compile of it the driver runs. The build puts every shader through this between
-    /// `glslc` and `spirv-val`, so the modules any renderer reads are already pinned.
+    /// the optimizer and `spirv-val`, so the modules any renderer reads are already pinned.
     ///
     /// **Why the build decides and not the driver.** Vulkan lets a compile evaluate `OpDot`, the
     /// matrix products, `length`, `distance`, `normalize`, `cross`, `mix`, `smoothstep`, `reflect`,
@@ -66,6 +66,13 @@ namespace Rtx
     /// - `mod(x, y)` is `fma(-y, floor(x / y), x)`, and `rem` the same with `trunc`.
     /// - `round` is `roundEven`, and the float `min`, `max` and `clamp` are `NMin`, `NMax` and
     ///   `NClamp`: where one operand is a NaN, the other, which the F forms leave to the compile.
+    /// - An add, subtract, multiply, divide or fused multiply-add of 32-bit constants, as the fusion
+    ///   leaves them, is its value, correctly rounded here, where a driver folds what it is handed its
+    ///   own way; not where an operand or the value is subnormal or a NaN, which stay the device's.
+    /// - `x / c` for a constant `c` is `x (1 / c)`, the reciprocal rounded here: the quotient exactly
+    ///   where `c` is a power of two and within an ulp and a half elsewhere, against the two and a
+    ///   half a division is owed, and one answer on every device. Not where `c` or `1 / c` is not
+    ///   a normal float.
     ///
     /// Throws `std::runtime_error` for a module it cannot read and for an operation it cannot pin —
     /// a derivative or a level of detail worked out from one, a relaxed precision, a rounding mode or
@@ -73,4 +80,21 @@ namespace Rtx
     /// extended instruction set it does not know, an instruction newer than the SPIR-V headers it
     /// was built with — naming it, so the build stops rather than ships a shader a compile may change.
     std::vector<std::uint32_t> pinFloatArithmetic(std::span<const std::uint32_t> module);
+
+    /// The module with every rounding add, subtract, multiply and divide `NoContraction`, beside a
+    /// `UserSemantic` that says the guard put it there: what the build hands the optimizer, which
+    /// `pinFloatArithmetic` then reads as the source's arithmetic, the guard's marks taken off.
+    ///
+    /// **Because the optimizer's folds reach the module before the pinning holds it.** `glslc -O`
+    /// rewrote `floor((m - 0.5) + 0.5)` as `floor(m)`, and `(x c1) c2` as `x (c1 c2)` is the same
+    /// rule: arithmetic the source does not state, decided before anything pinned it. A
+    /// `NoContraction` operation is one the optimizer folds no further, and the guard's are none
+    /// the source asked for, so the pinning still fuses them where it would have.
+    ///
+    /// **The rounding operations alone**, and not the extended set: the optimizer folds an
+    /// exponential of constants on the host, exactly, where left in the module the driver folds it
+    /// its own way (`shadowLocalWeight`).
+    ///
+    /// Throws `std::runtime_error` for a module older than SPIR-V 1.4, which has no `UserSemantic`.
+    std::vector<std::uint32_t> guardFloatArithmetic(std::span<const std::uint32_t> module);
 }

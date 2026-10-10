@@ -61,8 +61,7 @@ shared float radii[SPRITE_SHADE_WORKGROUP];
 /// **Staged by every lane at once, so the serial walk reads nothing but shared memory.** Read where
 /// it is walked, each step was a load of the key and a load of the sprite it names, the second
 /// waiting on the first, with the whole workgroup held at the barriers behind them. The discs are
-/// the expressions the walk computed; staged, a centre's scale and its half-cell offset are one
-/// rounding, where in the walk the optimizer folded `roundHalfAway` onto the scale and kept them two.
+/// the expressions the walk computed.
 ///
 /// **Two barriers a step stay.** A second copy of the grid, read by turns, takes one away, but the
 /// lane that reads has then to lay the disc before at the four cells it reads: under snow the zone's

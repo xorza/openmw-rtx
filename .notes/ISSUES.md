@@ -7,10 +7,3 @@
   window minimized and restored through KWin receives `FOCUS_LOST` and `OCCLUDED`, then `EXPOSED`, and
   no `MINIMIZED`, `HIDDEN`, `SHOWN` or `RESTORED`; it presented at about 20 frames a second while
   occluded.
-
-- **The optimizer reassociates float arithmetic before the pin marks it.** `glslc -O` folded
-  `floor((m - 0.5) + 0.5)` in `spriteshade.comp` (`roundHalfAway` of a centre `x = m - 0.5`) to
-  `floor(m)` in the module the pin is handed, so the pinned module computes an expression the source
-  does not, and the fold decided which multiplies the pin could fuse (`m` gained a second reader).
-  `components/rtxvulkan/spirv/spirvpin.hpp` says every add, subtract, multiply and divide is held to
-  its order; the optimizer's folds reach the module before that holds.

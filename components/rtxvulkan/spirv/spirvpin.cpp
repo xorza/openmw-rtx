@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <cmath>
 #include <cstddef>
 #include <format>
 #include <functional>
@@ -297,6 +298,10 @@ namespace Rtx
             }
         }
 
+        /// What `guardFloatArithmetic` marks its own `NoContraction` with, so the pinning tells it
+        /// from the source's `precise`.
+        constexpr std::string_view sGuardMark = "rtx-pin-guard";
+
         bool isAnnotation(spv::Op op)
         {
             switch (op)
@@ -444,6 +449,16 @@ namespace Rtx
 
             /// Every float constant, by its type and bits, so a rewrite that needs one reuses it.
             std::map<std::pair<std::uint32_t, std::uint32_t>, std::uint32_t> mConstants;
+
+            /// What each 32-bit float constant, and each vector of them, holds, a word a component:
+            /// what the exact folding reads, the values it folds included.
+            std::unordered_map<std::uint32_t, std::vector<std::uint32_t>> mValues;
+
+            /// Every vector constant, by its type and components, so a fold that makes one reuses it.
+            std::map<std::pair<std::uint32_t, std::vector<std::uint32_t>>, std::uint32_t> mComposites;
+
+            /// The results the folding made copies of constants.
+            std::unordered_set<std::uint32_t> mFolded;
             std::optional<std::uint32_t> mBool;
 
             /// The declarations the rewrites add before the first function.
@@ -464,7 +479,11 @@ namespace Rtx
             void rewrite();
             void rewriteOne(const Instruction& instruction);
             void rewriteGlsl(const Instruction& instruction);
+            void foldBeforeFusion();
             void fuse();
+            void foldAfterFusion();
+            bool foldOne(Instruction& instruction);
+            void dropFoldedDecorations();
             std::optional<Fusion> fusionOf(const Instruction& add,
                 const std::unordered_map<std::uint32_t, std::size_t>& definedAt,
                 const std::unordered_map<std::uint32_t, std::uint32_t>& uses);
@@ -476,6 +495,9 @@ namespace Rtx
             std::uint32_t typeOfValue(std::uint32_t value) const;
             std::uint32_t scalarOf(std::uint32_t type) const;
             std::uint32_t floatConstant(std::uint32_t type, float value);
+            std::uint32_t floatValue(std::uint32_t type, const std::vector<std::uint32_t>& bits);
+            std::optional<std::vector<std::uint32_t>> componentsOf(std::uint32_t value, std::size_t count) const;
+            std::optional<std::size_t> floatComponents(std::uint32_t type) const;
             std::uint32_t boolType();
             std::uint32_t glslSet();
 
@@ -497,7 +519,10 @@ namespace Rtx
             read(words);
             survey();
             rewrite();
+            foldBeforeFusion();
             fuse();
+            foldAfterFusion();
+            dropFoldedDecorations();
         }
 
         void Pinner::read(std::span<const std::uint32_t> words)
@@ -527,6 +552,7 @@ namespace Rtx
                     if (const std::optional<std::uint32_t> type = resultTypeOf(instruction))
                         mTypeOf[*resultOf(instruction)] = *type;
 
+            std::unordered_set<std::uint32_t> guarded;
             for (const Instruction& instruction : mGlobal)
             {
                 const std::vector<std::uint32_t>& operands = instruction.mOperands;
@@ -563,6 +589,36 @@ namespace Rtx
                     case spv::OpConstant:
                         if (operands.size() == 3)
                             mConstants.emplace(std::pair(operands[0], operands[2]), operands[1]);
+                        if (const auto shape = mTypes.find(operands[0]); operands.size() == 3 && shape != mTypes.end()
+                            && shape->second.mKind == Kind::Float && shape->second.mWidth == 32)
+                            mValues[operands[1]] = { operands[2] };
+                        break;
+                    case spv::OpConstantComposite:
+                    {
+                        const auto found = mTypes.find(operands[0]);
+                        if (found == mTypes.end() || found->second.mKind != Kind::Vector)
+                            break;
+                        const Type& shape = found->second;
+                        std::vector<std::uint32_t> bits;
+                        for (std::size_t at = 2; at < operands.size(); ++at)
+                        {
+                            const auto value = mValues.find(operands[at]);
+                            if (value == mValues.end())
+                                break;
+                            bits.push_back(value->second.front());
+                        }
+                        if (bits.size() == shape.mCount)
+                        {
+                            mComposites.emplace(
+                                std::pair(operands[0], std::vector(operands.begin() + 2, operands.end())), operands[1]);
+                            mValues[operands[1]] = std::move(bits);
+                        }
+                        break;
+                    }
+                    case spv::OpDecorateString:
+                        if (static_cast<spv::Decoration>(operandAt(instruction, 1)) == spv::DecorationUserSemantic
+                            && readString(std::span(operands).subspan(2)) == sGuardMark)
+                            guarded.insert(operands[0]);
                         break;
                     case spv::OpDecorate:
                         switch (static_cast<spv::Decoration>(operandAt(instruction, 1)))
@@ -612,6 +668,19 @@ namespace Rtx
                         break;
                 }
             }
+
+            // **The guard's marks off, so what it guarded is the source's arithmetic again**: no
+            // `precise` of the source's, and every one of them decorated below as every rounding
+            // step is.
+            for (const std::uint32_t id : guarded)
+                mDecorated.erase(id);
+            std::erase_if(mGlobal, [&](const Instruction& instruction) {
+                if (instruction.mOperands.size() < 2 || !guarded.contains(instruction.mOperands[0]))
+                    return false;
+                const auto decoration = static_cast<spv::Decoration>(instruction.mOperands[1]);
+                return (instruction.mOp == spv::OpDecorate && decoration == spv::DecorationNoContraction)
+                    || (instruction.mOp == spv::OpDecorateString && decoration == spv::DecorationUserSemantic);
+            });
 
             mUnfused = mDecorated;
         }
@@ -1280,8 +1349,182 @@ namespace Rtx
             const std::uint32_t made = fresh();
             mDeclared.push_back(Instruction{ spv::OpConstant, { type, made, bits } });
             mConstants.emplace(std::pair(type, bits), made);
+            mValues[made] = { bits };
             mTypeOf[made] = type;
             return made;
+        }
+
+        std::uint32_t Pinner::floatValue(std::uint32_t type, const std::vector<std::uint32_t>& bits)
+        {
+            const Type& shape = typeNamed(type);
+            if (shape.mKind == Kind::Float)
+                return floatConstant(type, std::bit_cast<float>(bits.front()));
+
+            std::vector<std::uint32_t> components;
+            for (const std::uint32_t component : bits)
+                components.push_back(floatConstant(shape.mPart, std::bit_cast<float>(component)));
+            const auto found = mComposites.find(std::pair(type, components));
+            if (found != mComposites.end())
+                return found->second;
+
+            const std::uint32_t made = fresh();
+            std::vector<std::uint32_t> operands{ type, made };
+            operands.insert(operands.end(), components.begin(), components.end());
+            mDeclared.push_back(Instruction{ spv::OpConstantComposite, std::move(operands) });
+            mComposites.emplace(std::pair(type, components), made);
+            mValues[made] = bits;
+            mTypeOf[made] = type;
+            return made;
+        }
+
+        /// Each component of `value`, as many as `count`, where it is a 32-bit float constant: a
+        /// scalar stands for every one.
+        std::optional<std::vector<std::uint32_t>> Pinner::componentsOf(std::uint32_t value, std::size_t count) const
+        {
+            const auto found = mValues.find(value);
+            if (found == mValues.end())
+                return std::nullopt;
+            if (found->second.size() == count)
+                return found->second;
+            if (found->second.size() == 1)
+                return std::vector<std::uint32_t>(count, found->second.front());
+            return std::nullopt;
+        }
+
+        /// How many components a float, a vector of floats, has where they are 32 bits wide, and
+        /// nothing for anything else.
+        std::optional<std::size_t> Pinner::floatComponents(std::uint32_t type) const
+        {
+            const Type& shape = typeNamed(type);
+            const std::uint32_t scalar = shape.mKind == Kind::Vector ? shape.mPart : type;
+            if (typeNamed(scalar).mKind != Kind::Float || typeNamed(scalar).mWidth != 32)
+                return std::nullopt;
+            return shape.mKind == Kind::Vector ? shape.mCount : 1;
+        }
+
+        bool Pinner::foldOne(Instruction& instruction)
+        {
+            const spv::Op op = instruction.mOp;
+            if (op != spv::OpFAdd && op != spv::OpFSub && op != spv::OpFMul && op != spv::OpFDiv
+                && op != spv::OpVectorTimesScalar && op != spv::OpFmaKHR)
+                return false;
+
+            const std::uint32_t type = operandAt(instruction, 0);
+            const std::optional<std::size_t> count = floatComponents(type);
+            if (!count.has_value())
+                return false;
+
+            const std::size_t operands = op == spv::OpFmaKHR ? 3 : 2;
+            std::vector<std::vector<std::uint32_t>> values;
+            for (std::size_t at = 0; at < operands; ++at)
+                if (std::optional<std::vector<std::uint32_t>> value
+                    = componentsOf(operandAt(instruction, 2 + at), *count))
+                    values.push_back(std::move(*value));
+            if (values.size() != operands)
+                return false;
+
+            // A component the host computes as the device does: nought, a normal float or an
+            // infinity, and never a subnormal, which the device may flush, or a NaN, whose bits are
+            // each machine's own.
+            const auto foldable = [](std::uint32_t bits) {
+                const float value = std::bit_cast<float>(bits);
+                return std::fpclassify(value) != FP_SUBNORMAL && !std::isnan(value);
+            };
+
+            std::vector<std::uint32_t> bits;
+            for (std::size_t at = 0; at < *count; ++at)
+            {
+                const float a = std::bit_cast<float>(values[0][at]);
+                const float b = std::bit_cast<float>(values[1][at]);
+                const float c = operands == 3 ? std::bit_cast<float>(values[2][at]) : 0.0f;
+                const float made = op == spv::OpFAdd ? a + b
+                    : op == spv::OpFSub              ? a - b
+                    : op == spv::OpFDiv              ? a / b
+                    : op == spv::OpFmaKHR            ? std::fma(a, b, c)
+                                                     : a * b;
+                bool sound = foldable(std::bit_cast<std::uint32_t>(made));
+                for (const std::vector<std::uint32_t>& value : values)
+                    sound = sound && foldable(value[at]);
+                if (!sound)
+                    return false;
+                bits.push_back(std::bit_cast<std::uint32_t>(made));
+            }
+
+            const std::uint32_t result = operandAt(instruction, 1);
+            instruction = Instruction{ spv::OpCopyObject, { type, result, floatValue(type, bits) } };
+            mValues[result] = std::move(bits);
+            mFolded.insert(result);
+            return true;
+        }
+
+        void Pinner::foldBeforeFusion()
+        {
+            // **What the fusion cannot change, folded first, so a division sees the constant its
+            // divisor folds to**: an add, a subtract and a division of constants, and a product of
+            // constants that no add or subtract reads. A product one does read is the fusion's, and
+            // folded after it as the one rounding it becomes.
+            std::unordered_set<std::uint32_t> summed;
+            for (const Instruction& instruction : mOut)
+                if (instruction.mOp == spv::OpFAdd || instruction.mOp == spv::OpFSub)
+                    for (std::size_t at = 2; at < instruction.mOperands.size(); ++at)
+                        summed.insert(instruction.mOperands[at]);
+
+            for (Instruction& instruction : mOut)
+            {
+                const bool product = instruction.mOp == spv::OpFMul || instruction.mOp == spv::OpVectorTimesScalar;
+                if (instruction.mOp == spv::OpFmaKHR || (product && summed.contains(operandAt(instruction, 1)))
+                    || foldOne(instruction))
+                    continue;
+
+                // **A division by a constant is the multiply by its reciprocal, rounded once here**:
+                // exactly the quotient where the constant is a power of two, and within an ulp and a
+                // half of it elsewhere, where the device owes a division two and a half and each
+                // device rounds its own — so the same answer on every device, from a multiply the
+                // fusion may then take. Only where the constant and its reciprocal are normal floats.
+                if (instruction.mOp != spv::OpFDiv)
+                    continue;
+                const std::uint32_t type = operandAt(instruction, 0);
+                const std::optional<std::size_t> count = floatComponents(type);
+                const std::optional<std::vector<std::uint32_t>> divisor
+                    = count.has_value() ? componentsOf(operandAt(instruction, 3), *count) : std::nullopt;
+                if (!divisor.has_value())
+                    continue;
+
+                std::vector<std::uint32_t> reciprocal;
+                for (const std::uint32_t bits : *divisor)
+                {
+                    const float value = std::bit_cast<float>(bits);
+                    const float inverse = 1.0f / value;
+                    if (!std::isnormal(value) || !std::isnormal(inverse))
+                        break;
+                    reciprocal.push_back(std::bit_cast<std::uint32_t>(inverse));
+                }
+                if (reciprocal.size() != *count)
+                    continue;
+
+                instruction.mOp = spv::OpFMul;
+                instruction.mOperands[3] = floatValue(type, reciprocal);
+            }
+        }
+
+        void Pinner::foldAfterFusion()
+        {
+            // **Every operand constant: the value, correctly rounded**, of the arithmetic the pinned
+            // module states, a fused multiply-add as its one rounding: what the device owes an add,
+            // a subtract, a multiply and a fused multiply-add exactly, and what a driver handed
+            // constants folds its own way.
+            for (Instruction& instruction : mOut)
+                foldOne(instruction);
+        }
+
+        void Pinner::dropFoldedDecorations()
+        {
+            // A source's `precise` on what folded to a copy decorates no arithmetic any more.
+            std::erase_if(mGlobal, [&](const Instruction& instruction) {
+                return instruction.mOp == spv::OpDecorate && instruction.mOperands.size() >= 2
+                    && instruction.mOperands[1] == spv::DecorationNoContraction
+                    && mFolded.contains(instruction.mOperands[0]);
+            });
         }
 
         std::uint32_t Pinner::boolType()
@@ -1382,5 +1625,65 @@ namespace Rtx
     std::vector<std::uint32_t> pinFloatArithmetic(std::span<const std::uint32_t> module)
     {
         return Pinner(module).assemble();
+    }
+
+    std::vector<std::uint32_t> guardFloatArithmetic(std::span<const std::uint32_t> module)
+    {
+        // The sections before the module's types: the preamble, the debug names and the annotations,
+        // after which the guard's decorations go.
+        const auto beforeTypes = [](spv::Op op) {
+            switch (op)
+            {
+                case spv::OpCapability:
+                case spv::OpExtension:
+                case spv::OpExtInstImport:
+                case spv::OpMemoryModel:
+                case spv::OpEntryPoint:
+                case spv::OpExecutionMode:
+                case spv::OpExecutionModeId:
+                case spv::OpString:
+                case spv::OpSourceExtension:
+                case spv::OpSource:
+                case spv::OpSourceContinued:
+                case spv::OpName:
+                case spv::OpMemberName:
+                case spv::OpModuleProcessed:
+                    return true;
+                default:
+                    return isAnnotation(op);
+            }
+        };
+
+        std::unordered_set<std::uint32_t> decorated;
+        std::vector<std::uint32_t> rounding;
+        std::optional<std::size_t> types;
+        forEachInstruction(
+            module, [&](const spv::Op op, const std::span<const std::uint32_t> operands, std::size_t at) {
+                if (op == spv::OpDecorate && operands.size() >= 2 && operands[1] == spv::DecorationNoContraction)
+                    decorated.insert(operands[0]);
+                if (!types.has_value() && !beforeTypes(op))
+                    types = at;
+                if (isRounding(op))
+                    rounding.push_back(operands[1]);
+            });
+        if (module[1] < 0x00010400u)
+            throw std::runtime_error("a module older than SPIR-V 1.4 has no UserSemantic to mark the guard with");
+
+        const std::size_t split = types.value_or(module.size());
+        std::vector<std::uint32_t> guarded(module.begin(), module.begin() + static_cast<std::ptrdiff_t>(split));
+        const std::vector<std::uint32_t> mark = spell(sGuardMark);
+        for (const std::uint32_t id : rounding)
+        {
+            if (decorated.contains(id))
+                continue;
+            guarded.push_back(3u << spv::WordCountShift | spv::OpDecorate);
+            guarded.insert(guarded.end(), { id, static_cast<std::uint32_t>(spv::DecorationNoContraction) });
+            guarded.push_back(
+                static_cast<std::uint32_t>(3 + mark.size()) << spv::WordCountShift | spv::OpDecorateString);
+            guarded.insert(guarded.end(), { id, static_cast<std::uint32_t>(spv::DecorationUserSemantic) });
+            guarded.insert(guarded.end(), mark.begin(), mark.end());
+        }
+        guarded.insert(guarded.end(), module.begin() + static_cast<std::ptrdiff_t>(split), module.end());
+        return guarded;
     }
 }
