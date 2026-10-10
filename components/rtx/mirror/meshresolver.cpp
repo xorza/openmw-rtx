@@ -184,7 +184,19 @@ namespace Rtx
         if (held.mKind != read.mDeform)
             return false;
 
-        return read.mDeform != Deform::Morph || held.mRows == read.mMorph->getMorphTargetList().size();
+        // The rows a pose is packed into: a skin whose bones changed under one source, or a set of
+        // targets that grew under one base, is a pose of another length over the held run.
+        switch (read.mDeform)
+        {
+            case Deform::Rig:
+                return held.mRows == read.mRig->getInfluenceData()->mBones.size();
+            case Deform::Morph:
+                return held.mRows == read.mMorph->getMorphTargetList().size();
+            case Deform::None:
+                break;
+        }
+
+        return true;
     }
 
     Index MeshResolver::adopt(const osg::Drawable& drawable, const MeshReading& reading)
@@ -433,10 +445,21 @@ namespace Rtx
 
             const auto first = static_cast<std::uint32_t>(mInfluenceScratch.size());
             for (const auto& [bone, weight] : weights)
+            {
+                // **What the file says, held to what the skin is**: the kernel reads a bone's rows
+                // at the index with no check of its own, so an index past the skin's bones reads
+                // another mesh's pose, and a weight that is not a number poses a vertex at none.
+                if (bone >= skin->mBones.size())
+                    return Misc::Err{ "its skin names bone " + std::to_string(bone) + " of "
+                        + std::to_string(skin->mBones.size()) };
+                if (!std::isfinite(weight))
+                    return Misc::Err{ std::string("its skin weighs a vertex by a number that is not finite") };
+
                 mInfluenceScratch.push_back(Shaders::GpuInfluence{
                     .mBone = static_cast<std::uint32_t>(bone),
                     .mWeight = weight,
                 });
+            }
 
             const std::uint32_t run = Shaders::runWord(first, static_cast<std::uint32_t>(weights.size()));
             for (const unsigned short vertex : group)
