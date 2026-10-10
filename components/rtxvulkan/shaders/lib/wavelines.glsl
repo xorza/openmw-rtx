@@ -14,7 +14,15 @@
 // between the passes that read the others.
 
 #include "scene.h"
+#include "shared/sets.h"
+#include "shared/wavetransform.h"
 #include "wave.h"
+
+/// `exp(i TAU k / WAVE_GRID)` for each `k` below `WAVE_TWIDDLES`, from the host.
+layout(set = SET_PASS, binding = WAVE_BIND_TWIDDLES, scalar) readonly buffer Twiddles
+{
+    vec2 twiddles[WAVE_TWIDDLES];
+};
 
 /// The three lines a workgroup transforms, before and after. Ping-pong is what Stockham buys and
 /// this does not: one array a field, and a barrier between reading it and writing it.
@@ -53,11 +61,11 @@ void transformLines(uint count)
 
             // **Positive, which is what makes this the inverse.** The forward transform turns the
             // other way, and the sea's amplitudes are stated as what an inverse turns into a
-            // surface. One twiddle for the three lines.
-            const float angle = TAU * float(within) / float(span << 1u);
+            // surface. `within / (2 span)` of a turn, and one twiddle for the three lines.
+            const vec2 twiddle = twiddles[within * (WAVE_GRID / (span << 1u))];
             for (int field = 0; field < 3; ++field)
             {
-                const vec2 rotated = turnedBy(gLines[field][lower + span], angle);
+                const vec2 rotated = turnedBy(gLines[field][lower + span], twiddle);
                 const vec2 held = gLines[field][lower];
 
                 gLines[field][lower] = held + rotated;

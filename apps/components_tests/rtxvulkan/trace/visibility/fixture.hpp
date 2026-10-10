@@ -446,8 +446,10 @@ namespace Rtx::Testing
 
         /// How far the water's clock moves a frame, which is what the ripple field steps by and the
         /// waves run on. A step of nought stands the field still, which is what every test that is
-        /// not about it wants. What disturbs the water is the scene's own list,
-        /// `SceneDesc::addRipple`, read when the scene is set and pressed on every frame of the run.
+        /// not about it wants. The clock stands `mFirstFrame` steps in on the run's first frame, so
+        /// a run that carries on from another carries its clock on too. What disturbs the water is
+        /// the scene's own list, `SceneDesc::addRipple`, kept when the scene is placed and pressed
+        /// once, on the run's first frame: a frame the clock did not move on presses nothing.
         float mWaterStep = 0.0f;
 
         /// What the debug modes drew, over the picture. Nothing, for every test not about it.
@@ -549,7 +551,8 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants sampled = camera;
                 if (shot.mFrames > 0)
                     sampled.mFrame = shot.mFirstFrame + at;
-                const double waterSeconds = static_cast<double>(at) * static_cast<double>(shot.mWaterStep);
+                const double waterSeconds
+                    = static_cast<double>(shot.mFirstFrame + at) * static_cast<double>(shot.mWaterStep);
                 if (shot.mWaterStep > 0.0f)
                     sampled.mWaterTime = splitSeconds(waterSeconds);
                 mRenderer.renderFrame(sampled,

@@ -25,15 +25,17 @@ namespace Rtx
 {
     namespace
     {
-        /// The amplitudes, how fast each turns, and the three packed fields the rows leave.
+        /// The amplitudes, how fast each turns, the three packed fields the rows leave, and the
+        /// twiddles.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_ROWS_BINDINGS> sRowsBindings
             = computeBindings<Shaders::WAVE_ROWS_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
-        /// The fields in, and the two textures out.
+        /// The fields in, the two textures out, and the twiddles.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_COLUMNS_BINDINGS> sColumnsBindings{
             computeBinding(Shaders::WAVE_COLUMNS_BIND_FIELD, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
             computeBinding(Shaders::WAVE_COLUMNS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::WAVE_COLUMNS_BIND_CURVATURE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::WAVE_BIND_TWIDDLES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
         };
 
         /// How many complex numbers the transform runs over for one tile: three packed fields, each
@@ -46,6 +48,17 @@ namespace Rtx
         std::uint32_t gridOf(std::size_t cascade)
         {
             return static_cast<std::uint32_t>(sWaveTiles[cascade].mGrid);
+        }
+
+        Buffer uploadTwiddles(const Device& device)
+        {
+            const std::array<osg::Vec2f, Shaders::WAVE_TWIDDLES> twiddles = waveTwiddles();
+
+            Batch batch(device.getPool());
+            Buffer uploaded = uploadBuffer(
+                batch, std::span<const osg::Vec2f>(twiddles), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "wave twiddles");
+            batch.flush();
+            return uploaded;
         }
 
         /// What a capture calls one of a cascade's objects, or nothing where no build names any:
@@ -64,6 +77,7 @@ namespace Rtx
         , mRowsPipeline(device, sRowsBindings, {}, "waverows.comp.spv", "wave rows")
         , mColumnsPipeline(device, sColumnsBindings, {}, "wavecolumns.comp.spv", "wave columns")
         , mSampler(makeContentSampler(device, "wave"))
+        , mTwiddles(uploadTwiddles(device))
     {
         constexpr VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
             | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -161,6 +175,7 @@ namespace Rtx
             rows.buffer(Shaders::WAVE_ROWS_BIND_AMPLITUDES, tile.mAmplitudes.describe());
             rows.buffer(Shaders::WAVE_ROWS_BIND_TURN_RATES, tile.mTurnRates.describe());
             rows.buffer(Shaders::WAVE_ROWS_BIND_FIELD, tile.mField.describe());
+            rows.buffer(Shaders::WAVE_BIND_TWIDDLES, mTwiddles.describe());
 
             const Shaders::WaveRowsConstants shaped{
                 .mCount = grid,
@@ -180,6 +195,7 @@ namespace Rtx
             columns.buffer(Shaders::WAVE_COLUMNS_BIND_FIELD, tile.mField.describe());
             columns.image(Shaders::WAVE_COLUMNS_BIND_SURFACE, tile.mSurface.describeStorage());
             columns.image(Shaders::WAVE_COLUMNS_BIND_CURVATURE, tile.mCurvature.describeStorage());
+            columns.buffer(Shaders::WAVE_BIND_TWIDDLES, mTwiddles.describe());
 
             const Shaders::WaveColumnsConstants unpacked{ .mCount = grid };
             dispatch(commands, mColumnsPipeline, columns, unpacked, Groups{ .mX = grid });

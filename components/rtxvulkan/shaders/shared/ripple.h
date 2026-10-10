@@ -27,7 +27,8 @@ namespace Rtx::Shaders
     const uint RIPPLE_STEP_BIND_BEFORE = 0;
     const uint RIPPLE_STEP_BIND_AFTER = 1;
     const uint RIPPLE_STEP_BIND_IMPULSES = 2;
-    const uint RIPPLE_STEP_BINDINGS = 3;
+    const uint RIPPLE_STEP_BIND_MOVING = 3;
+    const uint RIPPLE_STEP_BINDINGS = 4;
 
     /// Where `ripplecompose.comp` binds what it reads and writes in set 0, and how many there are.
     /// The shader's layout and the pass's own layout and writes are numbered by these and by
@@ -59,6 +60,16 @@ namespace Rtx::Shaders
 
     /// How many impulses one frame may stamp. Upstream keeps a hundred positions a frame.
     const uint RIPPLE_IMPULSES_MOST = 128u;
+
+    /// The height under which the step writes nought: 2^-26.
+    ///
+    /// **Nothing the tiles can show**: the compose stores a texel's slopes, curvatures and squares,
+    /// each at most 0.64 of the largest height about it in magnitude, the curvature `4 h / 2.5²`
+    /// the largest — so under this every stored value is under 2^-25, which a half holds as nought
+    /// whether its store rounds to the nearest or toward nought. **And what lets a still field be
+    /// still**: without it a decaying field ends in subnormals that rounding holds up for ever, and
+    /// a field that is exactly nought is what `RipplePass` stops stepping.
+    const float RIPPLE_STILL = 1.0f / 67108864.0f;
 
     /// The side of the square workgroup every ripple dispatch runs on.
     const uint RIPPLE_WORKGROUP = 16u;
@@ -92,17 +103,25 @@ namespace Rtx::Shaders
     /// over `s` sixtieths, `(1 − vdamp)^s`, which is `mCarry`; and by the springs' pull and the
     /// height's damping, stated per sixtieth squared, over `s (s + p) / 2` of them, `mScale`. At
     /// `s = p = 1` that is `applySprings` to the term.
+    ///
+    /// **And a press as long as the time it stands for**, `mPress` sixtieths: the frame's steps
+    /// together, which the first step presses for. Upstream presses once a sixtieth, a fifth of the
+    /// way; pressed once over `n` of them by the fifth to the `n`, a still field takes what `n`
+    /// presses would, so a wake is as deep at any frame rate. `mReport` on the frame's last step,
+    /// which says whether any of the field still moves.
     struct RippleStepConstants
     {
         ivec2 mShift;
         uint mCount;
         float mCarry;
         float mScale;
+        float mPress;
+        uint mReport;
     };
 
 #ifdef RTX_HOST
     static_assert(sizeof(GpuRippleImpulse) == 16, "GpuRippleImpulse must be scalar-packed on every side");
-    static_assert(sizeof(RippleStepConstants) == 20, "RippleStepConstants must be scalar-packed on every side");
+    static_assert(sizeof(RippleStepConstants) == 28, "RippleStepConstants must be scalar-packed on every side");
 }
 #endif
 

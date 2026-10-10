@@ -42,11 +42,12 @@ namespace Rtx
         {
             const double frame = sixtieths / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
             pool.submitAndWait([&](VkCommandBuffer commands) {
-                // The first record stands the window and keeps the impulses, at a clock that steps
-                // nothing; each one after steps, and the first step presses what was kept.
-                ripples.record(commands, FrameSlot{ 0 }, impulses, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
+                // The first record stands the window, at a clock that steps nothing; each one after
+                // steps, and the first step presses the impulses, for the time it covers.
+                ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
                 for (int at = 1; at <= frames; ++at)
-                    ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), at * frame, nullptr);
+                    ripples.record(commands, FrameSlot{ 0 }, at == 1 ? impulses : std::span<const RippleImpulse>(),
+                        osg::Vec2f(0.0f, 0.0f), at * frame, nullptr);
             });
         }
 
@@ -236,14 +237,18 @@ namespace Rtx
             EXPECT_EQ(field(60.0), capped) << "a second's frame stepped past the cap";
         }
 
-        /// **What a step presses is capped at what the buffer holds, oldest first**: one impulse
-        /// past `RIPPLE_IMPULSES_MOST` is dropped, and the water where it fell stays still. The
-        /// kept ones fall a hundred texels east, where the dropped one's ring could not reach.
-        TEST_F(RtxRipplePassTest, theImpulsesPastWhatTheBufferHoldsAreDropped)
+        /// **What a step presses is what reaches the window, and past what the buffer holds the
+        /// nearest the eye.** Ten impulses five thousand units off, whose rings press no texel of
+        /// the window, come first and take no room; then `RIPPLE_IMPULSES_MOST` a hundred texels
+        /// east, and last one at the eye, which makes one too many. The one at the eye is pressed,
+        /// being the nearest, and the east ones are too, a hundred and twenty-seven of them; pressed
+        /// oldest first, the ten off the window would have taken ten of the room and the last none.
+        TEST_F(RtxRipplePassTest, thePressesThatReachTheWindowAndTheNearestOfThemAreKept)
         {
             RipplePass ripples(getDevice());
 
-            std::vector<RippleImpulse> impulses(Shaders::RIPPLE_IMPULSES_MOST,
+            std::vector<RippleImpulse> impulses(10, RippleImpulse{ .mAt = osg::Vec2f(5000.0f, 0.0f), .mSize = 12.0f });
+            impulses.insert(impulses.end(), Shaders::RIPPLE_IMPULSES_MOST,
                 RippleImpulse{ .mAt = osg::Vec2f(100.0f * Shaders::RIPPLE_TEXEL, 0.0f), .mSize = 12.0f });
             impulses.push_back(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
             run(ripples, getPool(), impulses, 10);
@@ -251,14 +256,41 @@ namespace Rtx
             const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
             constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
             float near = 0.0f;
-            float kept = 0.0f;
+            float east = 0.0f;
             for (int away = -10; away <= 10; ++away)
             {
                 near = std::max(near, std::abs(surface[texelOf(centre + away, centre)]));
-                kept = std::max(kept, std::abs(surface[texelOf(centre + 100 + away, centre)]));
+                east = std::max(east, std::abs(surface[texelOf(centre + 100 + away, centre)]));
             }
-            EXPECT_GT(kept, 0.0f) << "the kept impulses pressed nothing";
-            EXPECT_EQ(near, 0.0f) << "the one past the cap was pressed";
+            EXPECT_GT(east, 0.0f) << "the east impulses pressed nothing";
+            EXPECT_GT(near, 0.0f) << "the nearest was dropped";
+        }
+
+        /// **A press stands for the time its frame covers**: what a single step leaves on the ring,
+        /// where a texel stands its radius from the impulse and keeps 0.8 a sixtieth, is the height
+        /// pulled from still water toward -1 by `1 - 0.8^n` over `n` sixtieths — a fifth at one,
+        /// 0.1056 at a half, 0.2434 at a sixtieth and a quarter, each a single step. The surface
+        /// tile holds the square of the height, so `(1 - 0.8^n)^2`; a press a frame of a fixed fifth
+        /// pressed 41% a sixtieth at 144 frames a second and half that at 30.
+        TEST_F(RtxRipplePassTest, aPressIsAsDeepAsTheTimeItStandsFor)
+        {
+            // The impulse on a texel's centre and four texels wide, so the texel four east stands on
+            // the ring exactly.
+            const float middle = 0.5f * Shaders::RIPPLE_TEXEL;
+            const std::array<RippleImpulse, 1> footfall{ RippleImpulse{
+                .mAt = osg::Vec2f(middle, middle), .mSize = 4.0f * Shaders::RIPPLE_TEXEL } };
+            constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
+
+            for (const double sixtieths : { 1.0, 0.5, 1.25 })
+            {
+                SCOPED_TRACE(sixtieths);
+                RipplePass ripples(getDevice());
+                run(ripples, getPool(), footfall, 1, sixtieths);
+                const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
+
+                const double pulled = 1.0 - std::pow(0.8, sixtieths);
+                EXPECT_NEAR(surface[texelOf(centre + 4, centre) + 3], pulled * pulled, 2.0e-3 * pulled * pulled);
+            }
         }
 
         /// The window follows the eye by whole texels and the ring stays where it was pressed.
@@ -295,7 +327,7 @@ namespace Rtx
         }
 
         /// **A placement's footfalls are pressed once, however many traces read it.** One placement
-        /// that stands a footfall, traced twice before a step is due and then stepped thirty times,
+        /// that stands a footfall, traced twice at one clock and then stepped thirty times,
         /// leaves the field one press leaves: `TraceMedia::stepRipples` spends what it kept. Without
         /// that, every trace of a frame the game paused on handed the pass the last footfalls again.
         TEST_F(RtxRipplePassTest, aPlacementsFootfallIsPressedOnceHoweverOftenItIsTraced)
@@ -304,13 +336,16 @@ namespace Rtx
             SceneDesc scene;
             scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
 
+            // The window stood first, at a clock that steps nothing; the traces of the placement then
+            // all at one clock, the first of them stepping, and thirty steps after.
             const auto field = [&](const int traces) {
                 TraceMedia media(getDevice(), FogNoise::shared());
-                media.keepRipples(scene);
                 getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
+                    media.keepRipples(scene);
                     for (int trace = 0; trace < traces; ++trace)
-                        media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
-                    for (int step = 1; step <= 30; ++step)
+                        media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), sixtieth, nullptr);
+                    for (int step = 2; step <= 31; ++step)
                         media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), step * sixtieth, nullptr);
                 });
                 return Testing::readHalves(media.getRipples().getSurface(), 0);
@@ -320,6 +355,45 @@ namespace Rtx
             const std::vector<float> twice = field(2);
             EXPECT_TRUE(std::ranges::any_of(once, [](float value) { return value != 0.0f; })) << "nothing was pressed";
             EXPECT_EQ(once, twice) << "a second trace of one placement pressed its footfall again";
+        }
+        /// **A field that has decayed is nought, the pass stops stepping it, and a press after is a
+        /// press on still water.** A footfall and two thousand sixtieths, enough for every texel to
+        /// fall under `RIPPLE_STILL`; the report of the last step is read on the next frame, which
+        /// finds the field still and steps nothing. A footfall then leaves, thirty steps on, the
+        /// tiles one footfall on a field just made leaves, to the bit: nothing of the first survived
+        /// to be pressed on, and nothing the skipped frames did not do mattered.
+        TEST_F(RtxRipplePassTest, aDecayedFieldIsStillAndIsPressedAsStillWater)
+        {
+            const double sixtieth = 1.0 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
+            const std::array<RippleImpulse, 1> footfall{ RippleImpulse{
+                .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f } };
+
+            RipplePass fresh(getDevice());
+            run(fresh, getPool(), footfall, 30);
+            const std::vector<float> pressedOnce = Testing::readHalves(fresh.getSurface(), 0);
+
+            RipplePass ripples(getDevice());
+            run(ripples, getPool(), footfall, 2000);
+            EXPECT_FALSE(ripples.isStill()) << "the report of a frame was read before its submit was done";
+
+            double clock = 2000.0 * sixtieth;
+            getPool().submitAndWait([&](VkCommandBuffer commands) {
+                clock += sixtieth;
+                ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), clock, nullptr);
+            });
+            ASSERT_TRUE(ripples.isStill()) << "two thousand sixtieths left the field moving";
+
+            getPool().submitAndWait([&](VkCommandBuffer commands) {
+                for (int step = 1; step <= 30; ++step)
+                {
+                    clock += sixtieth;
+                    ripples.record(commands, FrameSlot{ 0 },
+                        step == 1 ? std::span<const RippleImpulse>(footfall) : std::span<const RippleImpulse>(),
+                        osg::Vec2f(0.0f, 0.0f), clock, nullptr);
+                }
+            });
+            EXPECT_FALSE(ripples.isStill());
+            EXPECT_EQ(Testing::readHalves(ripples.getSurface(), 0), pressedOnce);
         }
     }
 }

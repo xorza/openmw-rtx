@@ -96,4 +96,8 @@ namespace Rtx
     /// off the spectrum, so a tile that dropped a band for want of grid says so here too.
     float waveSlope(const std::array<WaveCascade, Shaders::WAVE_CASCADES>& cascades);
 
+    /// The transform's twiddles: `(cos, sin)` of `TAU k / WAVE_GRID` for each `k` below
+    /// `WAVE_TWIDDLES`, each computed in double and rounded once.
+    std::array<osg::Vec2f, Shaders::WAVE_TWIDDLES> waveTwiddles();
+
 }

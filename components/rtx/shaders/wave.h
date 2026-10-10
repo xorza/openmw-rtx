@@ -55,6 +55,15 @@ namespace Rtx::Shaders
     /// tile's own end, which is the answer a clamp gives anyway.
     const uint WAVE_LEVELS = 10u;
 
+    /// How many twiddles the transform reads: `exp(i TAU k / WAVE_GRID)` for `k` below half the
+    /// widest grid, which holds every stage's of every grid, since a stage `2 span` long wants
+    /// those at multiples of `WAVE_GRID / (2 span)`.
+    ///
+    /// **A table, because the driver owns the precision of `sin` and `cos`.** Vulkan bounds them to
+    /// `2^-11` absolute, and only for an angle inside `[-PI, PI]`, and the error of each of nine
+    /// stages carries into the curvature the caustics read. The host computes the table in double and rounds it once.
+    const uint WAVE_TWIDDLES = WAVE_GRID / 2u;
+
 #ifdef RTX_HOST
     static_assert((1u << (WAVE_LEVELS - 1u)) == WAVE_GRID, "WAVE_LEVELS must be the widest grid's own chain");
 #endif
@@ -72,17 +81,14 @@ namespace Rtx::Shaders
 // What both shading languages read and nothing on this side calls.
 #ifndef RTX_HOST
 
-/// A complex number turned by an angle, which is a multiply by `exp(i angle)`.
+/// A complex number turned by a unit phasor `(cos, sin)`, which is a multiply by it.
 ///
 /// **Shared, because the pass that turns the spectrum and the pass that transforms it both do it.**
-/// One is `h0` carried to a time and the other is a butterfly's twiddle, and they are the same four
+/// One is `h0` carried to a time and the other is a butterfly's twiddle, and they are the same two
 /// lines — two copies of which are two places for a sign to be wrong.
-RTX_SHADER vec2 turnedBy(vec2 value, float angle)
+RTX_SHADER vec2 turnedBy(vec2 value, vec2 phasor)
 {
-    const float sine = sin(angle);
-    const float cosine = cos(angle);
-
-    return vec2(value.x * cosine - value.y * sine, value.x * sine + value.y * cosine);
+    return vec2(value.x * phasor.x - value.y * phasor.y, value.x * phasor.y + value.y * phasor.x);
 }
 
 #endif

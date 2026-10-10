@@ -79,9 +79,11 @@ void main()
 
         const vec2 wavevector = step * vec2(int(column) - middle, int(row) - middle);
 
-        const float angle = TAU * turnsAt(turnRates[at], frame.mTime);
-        const vec2 ahead = turnedBy(amplitudes[at], angle);
-        const vec2 behind = turnedBy(vec2(amplitudes[mirror].x, -amplitudes[mirror].y), -angle);
+        // The partner turns by the conjugate, so the pair is conjugate to the bit and not to two
+        // calls of `sin` agreeing on a negated angle.
+        const vec2 phasor = phasorAt(turnsAt(turnRates[at], frame.mTime));
+        const vec2 ahead = turnedBy(amplitudes[at], phasor);
+        const vec2 behind = turnedBy(vec2(amplitudes[mirror].x, -amplitudes[mirror].y), vec2(phasor.x, -phasor.y));
 
         const vec2 height = ahead + behind;
 

@@ -217,22 +217,32 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
             litThroughWater(camera, osg::DegreesToRadians(45.0f));
 
-            // On the scene, as the walk puts them, and pressed on every frame of the run: the
-            // renderer reads the scene's list as the scene is set.
-            const auto look = [&](std::vector<std::uint8_t>& pixels) {
-                pixels = shoot(scene, {}, camera, size,
-                    Shot{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
-                        .mFrames = 30,
-                        .mAverage = false,
-                        .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE })
-                             .bytes();
+            // A frame on the scene with nothing pressed, which stands the field, and then the run
+            // on the scene placed again, as the walk puts it: its footfalls are pressed on the run's
+            // first frame, a sixtieth after the field was stood, and stepped thirty times in all.
+            const Shot stand{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
+                .mFrames = 1,
+                .mAverage = false,
+                .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE };
+            const Shot run{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
+                .mFrames = 30,
+                .mAverage = false,
+                .mFirstFrame = 1,
+                .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE,
+                .mSetScene = false };
+
+            // The footfall goes on the scene between the two, once: what the scene lists is kept
+            // again at every placement, and a stand set on it after spends it on a clock run back
+            // to nought, which presses nothing.
+            const auto look = [&](const bool walk) {
+                shoot(scene, {}, camera, size, stand);
+                if (walk && scene.ripples().empty())
+                    scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
+                return shoot(scene, {}, camera, size, run).bytes();
             };
 
-            std::vector<std::uint8_t> still;
-            std::vector<std::uint8_t> walked;
-            look(still);
-            scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
-            look(walked);
+            const std::vector<std::uint8_t> still = look(false);
+            const std::vector<std::uint8_t> walked = look(true);
 
             EXPECT_NE(still, walked) << "the footfall moved nothing";
 
@@ -252,15 +262,16 @@ namespace Rtx::Testing
 
             // **A cut keeps the wake, and only another worldspace takes it**, as the rasterizer
             // keeps its ripples over a teleport and lets them go with the worldspace. One frame
-            // after the walk, past a cut: the ring still bends the surface, where the frame past a
-            // worldspace change shows the water the walk left.
+            // after the walk at the walk's last moment, so nothing is stepped or pressed, past a
+            // cut: the ring still bends the surface, where the frame past a worldspace change shows
+            // the water the walk left.
             const auto oneAfterTheWalk = [&](const HistoryLoss loss) {
-                std::vector<std::uint8_t> ignored;
-                look(ignored);
+                look(true);
                 return shoot(scene, {}, camera, size,
                     Shot{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
                         .mFrames = 1,
                         .mAverage = false,
+                        .mFirstFrame = 30,
                         .mLoss = loss,
                         .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE,
                         .mSetScene = false })
