@@ -509,14 +509,16 @@ namespace Rtx::Testing
         }
 
         /// **A skin two drawables share is one deformer**, held twice. `NpcAnimation` clones a body
-        /// part's rig per actor and the clone keeps the template's `InfluenceData`, so the runs and
-        /// the influences are read once and the second mesh stands on the same row.
+        /// part's rig per actor and the clone keeps the template's `InfluenceData` and its source
+        /// geometry, which the deformer is keyed on, so the runs and the influences are read once and
+        /// the second mesh stands on the same row.
         TEST_F(RtxSceneExtractorTest, aSkinTwoDrawablesShareIsOneDeformerHeldTwice)
         {
             RiggedQuad rigged;
             osg::ref_ptr<SceneUtil::RigGeometry> twin
                 = new SceneUtil::RigGeometry(*rigged.mRig, osg::CopyOp::SHALLOW_COPY);
             ASSERT_EQ(twin->getInfluenceData(), rigged.mRig->getInfluenceData());
+            ASSERT_EQ(twin->getSourceGeometry(), rigged.mRig->getSourceGeometry());
 
             osg::ref_ptr<osg::Group> holder = new osg::Group;
             holder->addChild(twin);

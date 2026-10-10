@@ -168,7 +168,7 @@ namespace Rtx
         switch (read.mDeform)
         {
             case Deform::Rig:
-                return read.mRig->getInfluenceData();
+                return read.mRig->getSourceGeometry().get();
             case Deform::Morph:
                 return read.mMorph->getMorphTarget(0).getOffsets();
             case Deform::None:
@@ -256,9 +256,9 @@ namespace Rtx
         }
 
         // Otherwise this drawable gets a deformer of its own, made with its mesh. A skin rewritten
-        // in place under the same address is a new skin: `setInfluences` on a rig the mirror has
-        // met writes into the `InfluenceData` every copy shares, so what the map held described a
-        // mesh of another length; the deformer it named stays for the meshes still on it and goes
+        // in place under the same key is a new skin: `setInfluences` on a rig the mirror has met
+        // writes into the `InfluenceData` every copy shares, so what the map held described a mesh
+        // of another length; the deformer it named stays for the meshes still on it and goes
         // with the last of them. A set of targets grown or shrunk under the same base is a new set
         // for the same reason.
         DeformedMesh added;

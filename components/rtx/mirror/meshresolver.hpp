@@ -112,9 +112,14 @@ namespace Rtx
             DeformerEntry mEntry;
         };
 
-        /// What a drawable's deformer is keyed on: the skin every copy of a rig shares, or the
-        /// base target every copy of a morph shares. Both are `osg::Referenced`, so one map holds
-        /// both and holds them alive — `ByAddress`.
+        /// What a drawable's deformer is keyed on: the source geometry every copy of a rig shares,
+        /// or the base target every copy of a morph shares. Both are `osg::Referenced`, so one map
+        /// holds both and holds them alive — `ByAddress`.
+        ///
+        /// **A rig by its geometry and not its skin**, because the skin, `InfluenceData`, is held
+        /// in a `std::shared_ptr` the map cannot own, and a raw address is one the allocator hands
+        /// on. The loader gives a rig its geometry and its skin together and a copy takes both, so
+        /// the geometry stands for the skin one for one.
         static const osg::Referenced* deformerKeyOf(const DrawableRead& read);
 
         /// Whether the deformer in `slot` is what `read` asks for: the same kind, and for a morph
