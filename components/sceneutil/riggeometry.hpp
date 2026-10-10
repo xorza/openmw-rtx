@@ -4,6 +4,7 @@
 #include <osg/Geometry>
 #include <osg/Matrixf>
 
+#include <memory>
 #include <span>
 #include <string_view>
 
@@ -96,7 +97,7 @@ namespace SceneUtil
 
     public:
         using VertexList = std::vector<unsigned short>;
-        struct InfluenceData : public osg::Referenced
+        struct InfluenceData
         {
             std::vector<BoneInfo> mBones;
             std::vector<std::pair<BoneWeights, VertexList>> mInfluences;
@@ -113,7 +114,7 @@ namespace SceneUtil
         const osg::RefMatrix* getSkinToSkelMatrix() const { return mSkinToSkelMatrix.get(); }
 
     private:
-        osg::ref_ptr<InfluenceData> mData;
+        std::shared_ptr<InfluenceData> mData;
         std::vector<Bone*> mNodes;
 
         unsigned int mLastFrameNumber{ 0 };

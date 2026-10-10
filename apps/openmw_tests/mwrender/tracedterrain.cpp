@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <span>
 #include <vector>
@@ -159,7 +160,7 @@ namespace MWRender
 
             EXPECT_EQ(making.mSceneRoot->getNumChildren(), 2u) << "the terrain root and the statics' answer";
 
-            const osg::ref_ptr<Terrain::View> view = ground.createView();
+            const std::unique_ptr<Terrain::View> view = ground.createView();
             ASSERT_NE(view, nullptr);
             view->reset();
 
