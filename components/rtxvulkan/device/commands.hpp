@@ -82,8 +82,15 @@ namespace Rtx
             return best;
         }
 
+        /// Lets go of the free staging blocks past the `keep` bytes the smallest of them hold
+        /// together, burying each as a buffer is buried: after a load, the one stretch whose
+        /// staging no frame needs again. **The ring otherwise settles at its busiest stretch**, and
+        /// a world built in one submit is the busiest there is — every texture and every vertex of
+        /// it, held in main memory until exit. The arrivals after grow it again to their own.
+        void trimStaging(VkDeviceSize keep);
+
         // Read by the tests and by nothing else.
-        std::size_t getStagingBlockCount() const { return mStaging.size(); }
+        std::size_t getStagingBlockCount() const { return mStaging.size() - mLetGoStaging.size(); }
         VkDeviceSize getStagingSize(VkBuffer block) const;
 
     private:
@@ -214,6 +221,10 @@ namespace Rtx
         Retiring<std::size_t> mRetiringStaging;
         std::vector<std::size_t> mSpareStaging;
 
+        /// The places in `mStaging` `trimStaging` emptied, which the next block made takes, so an
+        /// index a batch holds never moves.
+        std::vector<std::size_t> mLetGoStaging;
+
         std::vector<BatchHold> mHolds;
         std::vector<std::size_t> mFreeHolds;
 
@@ -299,6 +310,11 @@ namespace Rtx
     /// cost a few blocks rather than hundreds of buffers. An upload larger than a block is given a
     /// block of its own exactly its size, which the ring keeps like any other.
     inline constexpr VkDeviceSize sStagingBlock = 8 * 1024 * 1024;
+
+    /// What `CommandPool::trimStaging` leaves once a world is built: a town's tens of megabytes, the
+    /// most a crossing commonly brings, so the arrivals after a load make few blocks before the ring
+    /// settles again.
+    inline constexpr VkDeviceSize sStagingKept = 8 * sStagingBlock;
 
     /// What every run inside a block starts on: the largest texel block of any format this renderer
     /// uploads, BC2's and BC3's sixteen bytes. `VkBufferImageCopy::bufferOffset` has to be a

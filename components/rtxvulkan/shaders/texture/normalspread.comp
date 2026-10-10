@@ -35,12 +35,14 @@ layout(local_size_x = NORMAL_SPREAD_WORKGROUP, local_size_y = NORMAL_SPREAD_WORK
 /// The normal map, at its finest level.
 layout(set = SET_PASS, binding = NORMALSPREAD_BIND_SOURCE) uniform texture2D source;
 
-/// The means of the level before the one written. Bound to the level written for the first
-/// dispatch, which reads the map instead.
-layout(set = SET_PASS, binding = NORMALSPREAD_BIND_ABOVE, NORMAL_SPREAD_MEAN_FORMAT) uniform readonly image2D above;
-
-/// The means of the level written, for the dispatch after this one.
-layout(set = SET_PASS, binding = NORMALSPREAD_BIND_MEAN, NORMAL_SPREAD_MEAN_FORMAT) uniform writeonly image2D mean;
+/// The means of the map's level before the one written, read at `mAboveAt`, and of the level written,
+/// stored at `mMeanAt` for the dispatch after this one: the part of the arrival's room this dispatch
+/// works in, which every map of a group shares and the next group works in again (`TextureArrival`).
+layout(set = SET_PASS, binding = NORMALSPREAD_BIND_MEANS, std430) buffer Means
+{
+    vec4 at[];
+}
+means;
 
 /// What the level written has lost, which the trace reads.
 layout(set = SET_PASS, binding = NORMALSPREAD_BIND_SPREAD, NORMAL_SPREAD_FORMAT) uniform writeonly image2D spread;
@@ -59,7 +61,7 @@ void main()
     // Which level this is holds for the whole dispatch, so the two reads are a branch no lane
     // diverges on.
     const bool first = level.mLevel == 1u;
-    const uvec2 extentAbove = uvec2(first ? textureSize(source, 0) : imageSize(above));
+    const uvec2 extentAbove = uvec2(level.mAboveWidth, level.mAboveHeight);
     const AxisTaps across = axisTaps(texel.x, extentAbove.x);
     const AxisTaps down = axisTaps(texel.y, extentAbove.y);
 
@@ -80,7 +82,7 @@ void main()
             child[at] = vec4(dot(decoded, decoded) > 0.0 ? normalize(decoded) : vec3(0.0, 0.0, 1.0), 0.0);
         }
         else
-            child[at] = imageLoad(above, from);
+            child[at] = means.at[level.mAboveAt + uint(from.y) * level.mAboveWidth + uint(from.x)];
     }
 
     vec3 averaged = vec3(0.0);
@@ -96,6 +98,8 @@ void main()
         }
     }
 
-    RTX_STORE_COUNTED(mean, ivec2(texel), vec4(averaged, loss))
+    const vec4 mean = vec4(averaged, loss);
+    countNotFinite(mean);
+    means.at[level.mMeanAt + texel.y * level.mWidth + texel.x] = mean;
     RTX_STORE_COUNTED(spread, ivec2(texel), vec4(slopeRoughness(normalSpreadSlopes(loss)), 0.0, 0.0, 0.0))
 }

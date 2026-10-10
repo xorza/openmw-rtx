@@ -38,6 +38,14 @@ namespace Rtx
             return texelsOf(shape) * texelBytes(TEXTURE_WRITTEN_FORMAT);
         }
 
+        /// The texels of a spread of a file begun at level `first`: half the side it stands at, to
+        /// one texel.
+        VkDeviceSize spreadTexels(const TextureData& texture, const std::uint32_t first)
+        {
+            const MipLevel& top = texture.mLevels[first];
+            return texelsOf(chainTo1x1(std::max(top.mWidth / 2, 1u), std::max(top.mHeight / 2, 1u)));
+        }
+
         constexpr VkDeviceSize sShadingBytes
             = VkDeviceSize{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT * texelBytes(SHADING_MAP_FORMAT);
     }
@@ -70,19 +78,18 @@ namespace Rtx
         else
             cost.mImage = texture.bytesFrom(first);
 
-        if (texture.getCompanion() == TextureCompanion::Spread)
-        {
-            // Half the side the texture stands at, to one texel, and its means beside it.
-            const MipLevel& top = texture.mLevels[first];
-            const VkDeviceSize texels
-                = texelsOf(chainTo1x1(std::max(top.mWidth / 2, 1u), std::max(top.mHeight / 2, 1u)));
-            cost.mCompanion = texels * texelBytes(NORMAL_SPREAD_FORMAT);
-            cost.mTransient += texels * texelBytes(NORMAL_SPREAD_MEAN_FORMAT);
-        }
-        else
-            cost.mCompanion = sShadingBytes;
+        cost.mCompanion = texture.getCompanion() == TextureCompanion::Spread
+            ? spreadTexels(texture, first) * texelBytes(NORMAL_SPREAD_FORMAT)
+            : sShadingBytes;
 
         return cost;
+    }
+
+    VkDeviceSize spreadMeansBytes(const TextureData& texture, const std::uint32_t first)
+    {
+        return texture.getCompanion() == TextureCompanion::Spread
+            ? spreadTexels(texture, first) * Shaders::NORMAL_SPREAD_MEAN_BYTES
+            : 0;
     }
 
     TextureCost priceBake(const ImageShape& source)

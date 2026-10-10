@@ -14,15 +14,25 @@
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/shaders/shared/normalspread.h>
 #include <components/rtxvulkan/shaders/shared/spritelight.h>
 
+#include "normalspreadpass.hpp"
 #include "texturepasses.hpp"
 
 namespace Rtx
 {
-    TextureArrival::TextureArrival(const Device& device)
+    TextureArrival::TextureArrival(const Device& device, const VkDeviceSize meansRoom)
         : mSums(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shading sums")
+        , mMeansRoom(meansRoom)
+        , mMeans(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+              "normal spread means")
     {
+    }
+
+    VkDeviceSize TextureArrival::meansNeeded(const VkDeviceSize total, const VkDeviceSize largest) const
+    {
+        return std::min(total, std::max(mMeansRoom, largest));
     }
 
     void TextureArrival::open(const std::size_t textures)
@@ -30,8 +40,8 @@ namespace Rtx
         assert(mUploads.empty() && mClears.empty() && mChains.empty() && mShades.empty() && mSpreads.empty()
             && mBakes.empty() && mHeld.empty() && "a run opened over one nobody recorded");
 
-        // An upload a chain is made from, and the means of a spread: two a texture at most.
-        mHeld.reserve(2 * textures);
+        // An upload a chain is made from: one a texture at most.
+        mHeld.reserve(textures);
     }
 
     void TextureArrival::upload(
@@ -77,9 +87,9 @@ namespace Rtx
         mShades.push_back(Shade{ .mSource = &source, .mMap = &map, .mWrap = wrap });
     }
 
-    void TextureArrival::spread(const Image& map, const Image& means, const Image& spread)
+    void TextureArrival::spread(const Image& map, const Image& spread)
     {
-        mSpreads.push_back(Spread{ .mMap = &map, .mMeans = &means, .mSpread = &spread });
+        mSpreads.push_back(Spread{ .mMap = &map, .mSpread = &spread });
     }
 
     void TextureArrival::bake(const Image& source, const Image& bake)
@@ -95,9 +105,9 @@ namespace Rtx
         if (any)
         {
             // Room for the widest barrier of the run, the one after the copies, which holds every
-            // image the run writes once: a spread's means beside its spread.
-            const std::size_t widest = mUploads.size() + mClears.size() + mChains.size() + mShades.size()
-                + 2 * mSpreads.size() + mBakes.size();
+            // image the run writes once.
+            const std::size_t widest
+                = mUploads.size() + mClears.size() + mChains.size() + mShades.size() + mSpreads.size() + mBakes.size();
             mImageBarriers.resize(std::max(widest, mImageBarriers.size()));
 
             const VkCommandBuffer commands = batch.getCommands();
@@ -150,7 +160,7 @@ namespace Rtx
 
         // What was written, as the textures they are, and what a dispatch writes next, out of
         // `UNDEFINED`: read and written from a chain's first level, for the reason
-        // `MipChainPass::recordLevel` gives, and a spread's means the same.
+        // `MipChainPass::recordLevel` gives.
         for (const Upload& upload : mUploads)
             upload.mImage->addTransition(barriers, Use::sCopyWrite, Use::sTextureSample);
         for (const Image* const map : mClears)
@@ -160,10 +170,7 @@ namespace Rtx
         for (const Shade& shade : mShades)
             shade.mMap->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
         for (const Spread& spread : mSpreads)
-        {
-            spread.mMeans->addTransition(barriers, Use::sUndefined, Use::sComputeReadWrite);
             spread.mSpread->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
-        }
         for (const Bake& bake : mBakes)
             bake.mBake->addTransition(barriers, Use::sUndefined, Use::sComputeReadWrite);
     }
@@ -223,22 +230,64 @@ namespace Rtx
 
     void TextureArrival::recordSpreads(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)
     {
-        std::uint32_t deepest = 0;
-        for (const Spread& spread : mSpreads)
-            deepest = std::max(deepest, spread.mSpread->getMipLevels());
+        if (mSpreads.empty())
+            return;
 
-        for (std::uint32_t level = 0; level < deepest; ++level)
+        // **In groups whose means fit the room**, each over the room the group before worked in, in
+        // the order the spreads came: the largest group is what the means are grown to, and
+        // `meansNeeded` what an arrival is priced at, so the two cannot part. A map past the room
+        // is a group of its own.
+        const auto bytesOf = [](const Spread& spread) {
+            return VkDeviceSize{ NormalSpreadPass::meansTexels(*spread.mSpread) } * Shaders::NORMAL_SPREAD_MEAN_BYTES;
+        };
+        mGroupEnds.clear();
+        VkDeviceSize largestGroup = 0;
+        VkDeviceSize group = 0;
+        for (std::size_t at = 0; at < mSpreads.size(); ++at)
         {
-            // Each level reads the means of the one before, as a chain reads its level above.
-            if (level > 0)
-                for (const Spread& spread : mSpreads)
-                    if (level < spread.mSpread->getMipLevels())
-                        spread.mMeans->addTransition(barriers, Use::sComputeReadWrite, Use::sComputeReadWrite);
-            barriers.flush();
+            if (group > 0 && group + bytesOf(mSpreads[at]) > mMeansRoom)
+            {
+                mGroupEnds.push_back(at);
+                group = 0;
+            }
+            group += bytesOf(mSpreads[at]);
+            largestGroup = std::max(largestGroup, group);
+        }
+        mGroupEnds.push_back(mSpreads.size());
+        mMeans.growTo(largestGroup);
+        const Buffer& means = mMeans.get();
 
-            for (const Spread& spread : mSpreads)
-                if (level < spread.mSpread->getMipLevels())
-                    passes.mSpread.recordLevel(commands, *spread.mMap, *spread.mMeans, *spread.mSpread, level);
+        // What one level of a group reads of the level before, and what a group's first level
+        // writes over what the group before read and wrote.
+        const BufferUse readWrite{ VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT };
+
+        std::size_t begin = 0;
+        for (const std::size_t end : mGroupEnds)
+        {
+            std::uint32_t deepest = 0;
+            for (std::size_t at = begin; at < end; ++at)
+                deepest = std::max(deepest, mSpreads[at].mSpread->getMipLevels());
+
+            for (std::uint32_t level = 0; level < deepest; ++level)
+            {
+                // Each level reads the means of the one before, as a chain reads its level above,
+                // and a group's first works in the means the group before used. One memory barrier
+                // either way, which the first group's first level needs none of.
+                if (level > 0 || begin > 0)
+                    barriers.add(memoryBarrier(readWrite, readWrite));
+                barriers.flush();
+
+                std::uint32_t meansAt = 0;
+                for (std::size_t at = begin; at < end; ++at)
+                {
+                    const Spread& spread = mSpreads[at];
+                    if (level < spread.mSpread->getMipLevels())
+                        passes.mSpread.recordLevel(commands, *spread.mMap, *spread.mSpread, level, means, meansAt);
+                    meansAt += NormalSpreadPass::meansTexels(*spread.mSpread);
+                }
+            }
+            begin = end;
         }
 
         for (const Spread& spread : mSpreads)

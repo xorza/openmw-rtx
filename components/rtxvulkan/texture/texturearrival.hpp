@@ -19,6 +19,11 @@ namespace Rtx
     class Device;
     struct TexturePasses;
 
+    /// How many bytes of means the spreads of one group are carried through at once, past what one
+    /// map needs alone (`TextureArrival::recordSpreads`): a storage block's worth, two normal maps of
+    /// two thousand texels a side.
+    inline constexpr VkDeviceSize sSpreadMeansRoom = 64 * 1024 * 1024;
+
     /// What a run of arriving textures leaves the device to do, recorded once for the whole run a
     /// phase at a time: every copy and clear, then each level of every chain, every shading map,
     /// each level of every spread and every bake, with one barrier between two phases rather than
@@ -33,7 +38,9 @@ namespace Rtx
     class TextureArrival
     {
     public:
-        explicit TextureArrival(const Device& device);
+        /// @param meansRoom what one group of spreads works in: `sSpreadMeansRoom`, and less for a
+        ///        test that splits a few maps into groups.
+        explicit TextureArrival(const Device& device, VkDeviceSize meansRoom = sSpreadMeansRoom);
 
         TextureArrival(const TextureArrival&) = delete;
         TextureArrival& operator=(const TextureArrival&) = delete;
@@ -47,7 +54,7 @@ namespace Rtx
             std::span<const VkBufferImageCopy> regions);
 
         /// Holds `image` until the run is recorded, and then hands it to the batch: an upload a
-        /// chain is made from, or the means a spread is made through. Where it stays until then.
+        /// chain is made from. Where it stays until then.
         const Image& hold(Image&& image);
 
         /// Clears `map`, met undefined, to the neutral shading factor.
@@ -59,8 +66,8 @@ namespace Rtx
         /// `ShadingPass` of `source` into `map`, met undefined.
         void shade(const Image& source, const Image& map, TextureWrap wrap);
 
-        /// `NormalSpreadPass` of `map` into `spread` through `means`, both met undefined.
-        void spread(const Image& map, const Image& means, const Image& spread);
+        /// `NormalSpreadPass` of `map` into `spread`, met undefined, through the run's means.
+        void spread(const Image& map, const Image& spread);
 
         /// `SpriteLightPass` of `source` into `bake`, met undefined.
         void bake(const Image& source, const Image& bake);
@@ -69,9 +76,19 @@ namespace Rtx
         /// image the run names is left as a texture the trace samples.
         void record(Batch& batch, const TexturePasses& passes);
 
+        /// How many bytes of means the spreads are carried through now, which an arrival that needs
+        /// more is priced the rest of (`TextureArray::costAt`).
+        VkDeviceSize getMeansBytes() const { return mMeans.get().getSize(); }
+
+        /// The bytes of means an arrival needs whose spreads come to `total` together, the largest of
+        /// them `largest`: what its largest group holds, the room or the one map past it, and never
+        /// more than all of them.
+        VkDeviceSize meansNeeded(VkDeviceSize total, VkDeviceSize largest) const;
+
         // Read by the tests and by nothing else.
         /// How many barrier commands the last `record` emitted.
         std::size_t getRecordedBarriers() const { return mRecordedBarriers; }
+        const Buffer& getMeans() const { return mMeans.get(); }
 
     private:
         struct Upload
@@ -100,7 +117,6 @@ namespace Rtx
         struct Spread
         {
             const Image* mMap;
-            const Image* mMeans;
             const Image* mSpread;
         };
 
@@ -119,7 +135,8 @@ namespace Rtx
         /// Every sum, one barrier, every map.
         void recordShading(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
 
-        /// Each level of every spread, as the chains are.
+        /// Each level of every spread of a group, as the chains are, one group after another over
+        /// the same means.
         void recordSpreads(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
 
         void recordBakes(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
@@ -143,6 +160,17 @@ namespace Rtx
         /// Every texture's own sums, `ShadingPass::sSumBytes` each, so a run's sums are dispatched
         /// together: one buffer for every texture in turn ordered each against the one before.
         GrowableBuffer mSums;
+
+        /// The means the spreads are carried through, one group at a time: grown to the largest
+        /// group so far, and worked in again by every group after. **A room and not a chain apiece**,
+        /// because a map's float means are four times what the map keeps, a chain of them stood for
+        /// every normal map of an arrival at once, and the arrival's room then held every texture of
+        /// it to a smaller side for good, for memory let go of a frame later.
+        const VkDeviceSize mMeansRoom;
+        GrowableBuffer mMeans;
+
+        /// Where each group of `recordSpreads` ends in the spreads, the last at their end.
+        std::vector<std::size_t> mGroupEnds;
 
         std::size_t mRecordedBarriers = 0;
     };

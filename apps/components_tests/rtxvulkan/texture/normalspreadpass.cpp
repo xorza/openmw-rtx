@@ -5,12 +5,14 @@
 #include <cstdint>
 #include <cstring>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 
 #include <osg/Vec3d>
 
+#include <volk.h>
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
@@ -18,7 +20,9 @@
 #include <components/rtx/shaders/brdf.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/shaders/shared/normalspread.h>
 #include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
@@ -26,52 +30,93 @@ namespace Rtx
 {
     namespace
     {
+        /// A map to measure the spread of: its texels, four bytes each unless `mFormat` says
+        /// otherwise.
+        struct SpreadMap
+        {
+            std::span<const std::uint8_t> mTexels;
+            std::uint32_t mWidth = 1;
+            std::uint32_t mHeight = 1;
+            VkFormat mFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        };
+
+        /// What a run measured: every map's spread, level by level, a byte a texel, and the means as
+        /// the device left them, four floats a texel, in the room of the run's last group.
+        struct Spreads
+        {
+            std::vector<std::vector<std::vector<std::uint8_t>>> mLevels;
+            std::vector<float> mMeans;
+        };
+
         struct RtxNormalSpreadPassTest : Testing::DeviceTest
         {
-            /// Uploads a map of `texels`, four bytes a texel unless `format` says otherwise, measures
-            /// its spread on the device into an image of the test's own, and hands every level of it
-            /// back as bytes, a byte a texel, and the first level's means into `firstMeans` where
-            /// one is given, four floats a texel.
-            /// The test's own image and not `Texture`'s, because a spread the trace samples is never
-            /// copied back and carries no usage for it.
-            std::vector<std::vector<std::uint8_t>> spreadOf(std::span<const std::uint8_t> texels, std::uint32_t width,
-                std::uint32_t height, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
-                std::vector<float>* firstMeans = nullptr)
+            /// Uploads `maps`, measures their spreads on the device in one run whose groups work in
+            /// `room`, into images of the test's own, and hands them back with the means. The test's
+            /// own images and not `Texture`'s, because a spread the trace samples is never copied
+            /// back and carries no usage for it.
+            Spreads spreadsOf(std::span<const SpreadMap> maps, const VkDeviceSize room = sSpreadMeansRoom)
             {
                 Device& device = getDevice();
                 const TexturePasses passes(device);
 
-                const std::uint32_t across = std::max(width / 2, 1u);
-                const std::uint32_t down = std::max(height / 2, 1u);
-                const std::uint32_t levels = levelsTo1x1(across, down);
-                const Image spread(device, across, down, VK_FORMAT_R8_UNORM,
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                    "normal spread test spread", levels);
-                const Image means(device, across, down, VK_FORMAT_R32G32B32A32_SFLOAT,
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "normal spread test means", levels);
+                std::vector<Image> spreads;
+                std::vector<Image> images;
+                spreads.reserve(maps.size());
+                images.reserve(maps.size());
 
                 Batch upload(getPool());
-                TextureArrival arrival(device);
-                arrival.open(1);
-                const Image map(device, width, height, format,
-                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "normal spread test map", 1);
-                const std::array regions{ wholeLevel(0, 0, VkExtent3D{ width, height, 1 }) };
-                arrival.upload(upload, map, std::as_bytes(texels), regions);
-                arrival.spread(map, means, spread);
+                TextureArrival arrival(device, room);
+                arrival.open(maps.size());
+                for (const SpreadMap& map : maps)
+                {
+                    const std::uint32_t across = std::max(map.mWidth / 2, 1u);
+                    const std::uint32_t down = std::max(map.mHeight / 2, 1u);
+                    const Image& spread = spreads.emplace_back(device, across, down, VK_FORMAT_R8_UNORM,
+                        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                        "normal spread test spread", levelsTo1x1(across, down));
+                    const Image& image = images.emplace_back(device, map.mWidth, map.mHeight, map.mFormat,
+                        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "normal spread test map", 1);
+                    const std::array regions{ wholeLevel(0, 0, VkExtent3D{ map.mWidth, map.mHeight, 1 }) };
+                    arrival.upload(upload, image, std::as_bytes(map.mTexels), regions);
+                    arrival.spread(image, spread);
+                }
                 arrival.record(upload, passes);
                 upload.flush();
 
-                std::vector<std::vector<std::uint8_t>> read(levels);
-                for (std::uint32_t level = 0; level < levels; ++level)
-                    spread.read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read[level], level);
+                Spreads read;
+                for (const Image& spread : spreads)
+                {
+                    std::vector<std::vector<std::uint8_t>>& levels = read.mLevels.emplace_back(spread.getMipLevels());
+                    for (std::uint32_t level = 0; level < spread.getMipLevels(); ++level)
+                        spread.read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, levels[level], level);
+                }
+
+                const Buffer& means = arrival.getMeans();
+                const Buffer copy = Buffer::readBack(device, means.getSize(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
+                getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    const VkBufferCopy whole{ .srcOffset = 0, .dstOffset = 0, .size = means.getSize() };
+                    vkCmdCopyBuffer(commands, means.getHandle(), copy.getHandle(), 1, &whole);
+                    copy.orderForHostRead(commands);
+                });
+                read.mMeans.resize(means.getSize() / sizeof(float));
+                std::memcpy(read.mMeans.data(), copy.map(), read.mMeans.size() * sizeof(float));
+                return read;
+            }
+
+            /// One map's spread, and the first level's means into `firstMeans` where one is given.
+            std::vector<std::vector<std::uint8_t>> spreadOf(std::span<const std::uint8_t> texels, std::uint32_t width,
+                std::uint32_t height, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
+                std::vector<float>* firstMeans = nullptr)
+            {
+                const std::array maps{ SpreadMap{
+                    .mTexels = texels, .mWidth = width, .mHeight = height, .mFormat = format } };
+                Spreads read = spreadsOf(maps);
                 if (firstMeans != nullptr)
                 {
-                    std::vector<std::uint8_t> bytes;
-                    means.read(VK_IMAGE_LAYOUT_GENERAL, bytes, 0);
-                    firstMeans->resize(bytes.size() / sizeof(float));
-                    std::memcpy(firstMeans->data(), bytes.data(), firstMeans->size() * sizeof(float));
+                    const std::size_t first = std::size_t{ std::max(width / 2, 1u) } * std::max(height / 2, 1u) * 4;
+                    firstMeans->assign(read.mMeans.begin(), read.mMeans.begin() + static_cast<std::ptrdiff_t>(first));
                 }
-                return read;
+                return std::move(read.mLevels.front());
             }
         };
 
@@ -176,6 +221,40 @@ namespace Rtx
             const std::vector<std::vector<std::uint8_t>> spreadLine = spreadOf(line, 3, 1);
             ASSERT_EQ(spreadLine.size(), 1u);
             EXPECT_NEAR(int{ spreadLine[0][0] }, byteOf(third), 1) << "the odd line's last texel was dropped";
+        }
+
+        /// **The spreads of a group work in the room the group before used**, and come out as they
+        /// do where every map has room of its own. Two maps of four texels a side, the leaning one of
+        /// `eachLevelLosesWhatItsNormalsDisagreeBy` and the same mirrored, each a spread of four
+        /// texels and one, so five texels of means, eighty bytes: under a room of eighty they are two
+        /// groups over eighty bytes, under the whole room one group over a hundred and sixty, which
+        /// says the room is what splits them. The second map's spread reads the same either way.
+        TEST_F(RtxNormalSpreadPassTest, aGroupOfSpreadsWorksInTheRoomTheGroupBeforeUsed)
+        {
+            constexpr std::uint8_t flat[4]{ 128, 128, 255, 255 };
+            constexpr std::uint8_t right[4]{ 218, 128, 218, 255 };
+            constexpr std::uint8_t left[4]{ 37, 128, 218, 255 };
+            std::vector<std::uint8_t> leaning;
+            std::vector<std::uint8_t> mirrored;
+            for (std::size_t y = 0; y < 4; ++y)
+                for (std::size_t x = 0; x < 4; ++x)
+                {
+                    const bool tilted = y < 2 && x >= 2;
+                    const std::uint8_t* texel = tilted ? ((x + y) % 2 == 0 ? right : left) : flat;
+                    const std::uint8_t* other = tilted ? ((x + y) % 2 == 0 ? left : right) : flat;
+                    leaning.insert(leaning.end(), texel, texel + 4);
+                    mirrored.insert(mirrored.end(), other, other + 4);
+                }
+            const std::array maps{ SpreadMap{ .mTexels = leaning, .mWidth = 4, .mHeight = 4 },
+                SpreadMap{ .mTexels = mirrored, .mWidth = 4, .mHeight = 4 } };
+            constexpr VkDeviceSize one = 5 * Shaders::NORMAL_SPREAD_MEAN_BYTES;
+
+            const Spreads apart = spreadsOf(maps, one);
+            const Spreads together = spreadsOf(maps);
+            EXPECT_EQ(apart.mMeans.size() * sizeof(float), one) << "two groups did not share one map's room";
+            EXPECT_EQ(together.mMeans.size() * sizeof(float), 2 * one) << "one group did not hold both maps";
+            EXPECT_EQ(apart.mLevels, together.mLevels) << "a group in the room the one before used came out otherwise";
+            EXPECT_NE(int{ apart.mLevels[1][0][1] }, 0) << "the second map's leaning quarter lost nothing";
         }
 
         /// **A texel that points nowhere stands in as the flat normal**, where it was normalised to a

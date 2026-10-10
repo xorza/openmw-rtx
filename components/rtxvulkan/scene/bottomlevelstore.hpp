@@ -54,10 +54,16 @@ namespace Rtx
     /// One bottom-level acceleration structure per mesh, all inside a single storage buffer at
     /// offsets, and the compaction that keeps them tight: a structure is built loose, the driver is
     /// asked what a tight copy would come to, and the copy takes room out of the same storage.
+    /// How much scratch one run of builds works in, and how many positions it stages, past what one
+    /// mesh needs alone: a storage block's worth, which takes a cell's meshes in a run or two.
+    inline constexpr VkDeviceSize sStructureBuildRoom = 64 * 1024 * 1024;
+
     class BottomLevelStore
     {
     public:
-        explicit BottomLevelStore(const Device& device);
+        /// @param buildRoom what one run of `build` may work in: `sStructureBuildRoom`, and less for
+        ///        a test that splits a few meshes into runs.
+        explicit BottomLevelStore(const Device& device, VkDeviceSize buildRoom = sStructureBuildRoom);
 
         /// Creates and records the build of a structure for each of `meshes`, taking storage for it.
         /// A slot that already holds one has it destroyed first: a slot the scene handed out again
@@ -121,6 +127,9 @@ namespace Rtx
         /// geometry they were built from.
         VkDeviceSize getBytes() const { return mStorage.getBytes(); }
         VkDeviceSize getLiveBytes() const { return mStorage.getLiveBytes(); }
+
+        // Read by the tests and by nothing else.
+        VkDeviceSize getScratchBytes() const { return mScratch.get().getSize(); }
 
         /// What the structures still to be copied tight would come to, or nought where there are
         /// none and where the device would not say — what is left to save, falling to nothing over
@@ -218,6 +227,7 @@ namespace Rtx
         };
 
         const Device& mDevice;
+        const VkDeviceSize mBuildRoom;
 
         // Before the rows, which give their rooms back to it as they go.
         StructureStorage mStorage{ sStructureStorageUsage, "bottom level structures" };
@@ -225,31 +235,36 @@ namespace Rtx
         /// One row per mesh slot, grown with the mesh table.
         std::vector<Row> mRows;
 
-        /// What a build reads: the arrivals' positions, copied in ahead of it, and the scratch the
-        /// build works in. Kept across builds rather than made per arrival, settling at the
-        /// high-water mark, and grown by a replacement that buries the old: a build in flight still reads them,
-        /// and the next build's copies and work are ordered after it by the barrier every command
-        /// buffer opens with.
+        /// What a run of builds reads: its static meshes' positions, copied in ahead of it, and the
+        /// scratch it works in. Kept across builds rather than made per arrival, settling at the
+        /// largest run — the build room, or one mesh past it — and grown by a replacement that buries
+        /// the old: a build in flight still reads them, and the next build's copies and work are
+        /// ordered after it by the barrier every command buffer opens with.
         GrowableBuffer mArrived;
         GrowableBuffer mScratch;
 
         /// What one run of `build` describes.
         StructureBuildBatch mBuild;
 
-        /// One mesh of the run `build` was handed: how big its structure comes out, where in the one
-        /// scratch buffer they share its build takes its working room, and where its vertices sit in
-        /// the buffer `build` stages them into. All three are filled in one pass and read in the
-        /// next, so they are one row. The staging offset means nothing for a mesh that deforms,
-        /// which is built from its pose.
+        /// One mesh of the list `build` was handed: how big its structure comes out, how much scratch
+        /// its build works in and how many bytes of positions it stages, and where in its run's
+        /// scratch and staged positions each lands. Filled in passes over the list and read in the
+        /// last, so they are one row. The positions are nought for a mesh that deforms, which is
+        /// built from its pose.
         struct BuildRow
         {
             VkDeviceSize mSize = 0;
+            VkDeviceSize mScratch = 0;
+            VkDeviceSize mPositions = 0;
             VkDeviceSize mScratchOffset = 0;
             VkDeviceSize mArrivedAt = 0;
         };
 
         /// Refilled per `build`, one row per mesh handed in, in that order.
         std::vector<BuildRow> mBuilding;
+
+        /// Where each run of `build` ends in `mBuilding`, the last at its end.
+        std::vector<std::size_t> mRunEnds;
 
         /// The builds actually recorded, which is `mBuild.mBuilds` without the meshes that came out
         /// at nought bytes — a mesh with no triangles is described by nobody and built by nobody.

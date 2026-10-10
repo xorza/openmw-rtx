@@ -358,8 +358,7 @@ namespace Rtx
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VmaBudget& budget = budgets[heap];
-        if (budget.usage + (own ? size : sBlockBytes)
-            > ceilingOf(heap, use, budget.budget, budget.usage, budget.statistics.blockBytes))
+        if (budget.usage + (own ? size : sBlockBytes) > ceilingOf(heap, use, budget.budget))
             return Misc::Err{ sNoRoom };
 
         // A driver refusing what its budget said it had is the same answer, and the one `tryTake`
@@ -389,10 +388,10 @@ namespace Rtx
         vmaFreeMemory(mLibrary.get(), memory.mAllocation);
     }
 
-    VkDeviceSize MemoryAllocator::ceilingOf(const std::uint32_t heap, const MemoryUse use, const VkDeviceSize budget,
-        const VkDeviceSize usage, const VkDeviceSize blockBytes) const
+    VkDeviceSize MemoryAllocator::ceilingOf(
+        const std::uint32_t heap, const MemoryUse use, const VkDeviceSize budget) const
     {
-        VkDeviceSize owed = usage > blockBytes ? usage - blockBytes : 0;
+        VkDeviceSize owed = 0;
         const VkDeviceSize frame = mHeld[heap][static_cast<std::size_t>(MemoryUse::Frame)];
         if (heap == mVideoHeap && mFrameReserve > frame)
             owed += mFrameReserve - frame;
@@ -413,8 +412,7 @@ namespace Rtx
         VmaStatistics content{};
         vmaGetPoolStatistics(mLibrary.get(), mLibrary.poolOf(mVideoType), &content);
 
-        const VkDeviceSize ceiling
-            = ceilingOf(mVideoHeap, use, budget.budget, budget.usage, budget.statistics.blockBytes);
+        const VkDeviceSize ceiling = ceilingOf(mVideoHeap, use, budget.budget);
         const VkDeviceSize above = ceiling > budget.usage ? ceiling - budget.usage : 0;
 
         // Whole blocks, because that is what the small resources `tryAllocate` places are placed in.

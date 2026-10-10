@@ -127,12 +127,13 @@ namespace Rtx
         ///
         /// **The companions and what a texture is made through count too.** The ladder as a normal
         /// map brings a spread of half its side to one texel, a byte a texel, and the sixteen-byte
-        /// means it is built through: from 64, 32 square down is 1365 texels, 1365 + 21840 bytes
-        /// beside the 21504, 44709 in all; from 32, 341 texels and 5120, 10917; from 16, 85 texels
-        /// and 1024, 2469. A one-level 64 square the device completes is its chain to one texel,
-        /// 5461 texels and 21844 bytes, the 16384 bytes of the level uploaded to make it, and its
-        /// map, 40276 — whatever the side, because the file has no smaller level — and a bake of it
-        /// is the whole chain again with a map, 23892, and not its one level.
+        /// means it is built through, which are the arrival's room and priced once as what it grows
+        /// by — all of it here, where the array holds none yet: from 64, 32 square down is 1365
+        /// texels, 1365 + 21840 bytes beside the 21504, 44709 in all; from 32, 341 texels and 5120,
+        /// 10917; from 16, 85 texels and 1024, 2469. A one-level 64 square the device completes is its chain to one
+        /// texel, 5461 texels and 21844 bytes, the 16384 bytes of the level uploaded to make it, and its map, 40276 —
+        /// whatever the side, because the file has no smaller level — and a bake of it is the whole chain again with a
+        /// map, 23892, and not its one level.
         TEST_F(RtxTextureArrayTest, anArrivalIsHeldToTheLargestSideItFitsTheRoomAt)
         {
             Device& device = getDevice();
@@ -165,7 +166,8 @@ namespace Rtx
             const TextureCost atTop = priceFile(normals.mData, 0);
             EXPECT_EQ(atTop.mImage, 21504u);
             EXPECT_EQ(atTop.mCompanion, 1365u);
-            EXPECT_EQ(atTop.mTransient, 21840u);
+            EXPECT_EQ(atTop.mTransient, 0u) << "a file priced the means its arrival's room holds";
+            EXPECT_EQ(spreadMeansBytes(normals.mData, 0), 21840u);
             EXPECT_EQ(atTop.standing(), 21504u + 1365u) << "a standing texture keeps no means";
             EXPECT_EQ(priceFile(completed.mData, 0).mTransient, 16384u);
 
@@ -205,6 +207,43 @@ namespace Rtx
             for (const Case& one : cases)
                 EXPECT_EQ(textures.chooseSide(one.mArrived, one.mRoom), one.mSide)
                     << one.mArrived.size() << " textures in " << one.mRoom << " bytes";
+        }
+
+        /// **An arrival is priced only what its means room must grow by.** The normal map of
+        /// `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt` costs 44709 at the top, 21840 of it means,
+        /// where the array holds none: a byte short of that and it is held to 32. Once one such map
+        /// has arrived, the room holds its 21840 and the next pays none of it: 22869 is the top, and a
+        /// byte short of it 32.
+        TEST_F(RtxTextureArrayTest, anArrivalIsPricedWhatItsMeansRoomMustGrowBy)
+        {
+            Device& device = getDevice();
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            Batch setup(getPool());
+            TextureArray textures(device, setup, layout, passes, 2);
+            setup.flush();
+            const std::uint32_t limit = textures.getSideLimit();
+
+            Testing::TestTexture first;
+            Testing::paintLevels(first, 64, 64, 3, "normals");
+            first.mData.mEncoding = TextureEncoding::Normal;
+            Testing::TestTexture second;
+            Testing::paintLevels(second, 64, 64, 3, "normals again");
+            second.mData.mEncoding = TextureEncoding::Normal;
+            second.mData.mSlot = 1;
+
+            EXPECT_EQ(textures.chooseSide(std::span(&first.mData, 1), 44709), limit);
+            EXPECT_EQ(textures.chooseSide(std::span(&first.mData, 1), 44708), 32u);
+
+            std::vector<Refusal> refused;
+            Batch arrival(getPool());
+            textures.write(arrival, passes, std::span(&first.mData, 1), refused);
+            arrival.flush();
+            ASSERT_TRUE(refused.empty());
+
+            EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840), limit)
+                << "the means the room holds were priced again";
+            EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840 - 1), 32u);
         }
 
         /// A texture past the side the device takes stands from its first level within the side,

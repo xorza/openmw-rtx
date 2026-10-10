@@ -35,6 +35,7 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtx/world/frameworld.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -336,6 +337,11 @@ namespace Rtx
         }
 
         setup.flush();
+
+        // The whole world's upload, every block of it free now that the flush has waited, and not
+        // what any arrival after needs.
+        mDevice.getPool().trimStaging(sStagingKept);
+
         held.readStats(mStats);
         mMedia.keepRipples(scene);
     }

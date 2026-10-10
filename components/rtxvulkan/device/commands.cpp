@@ -232,9 +232,37 @@ namespace Rtx
             return block;
         }
 
-        mStaging.push_back(Buffer::staging(
-            mDevice, std::max(bytes, sStagingBlock), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging block"));
+        Buffer made = Buffer::staging(
+            mDevice, std::max(bytes, sStagingBlock), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging block");
+        if (!mLetGoStaging.empty())
+        {
+            const std::size_t block = mLetGoStaging.back();
+            mLetGoStaging.pop_back();
+            mStaging[block] = std::move(made);
+            return block;
+        }
+
+        mStaging.push_back(std::move(made));
         return mStaging.size() - 1;
+    }
+
+    void CommandPool::trimStaging(const VkDeviceSize keep)
+    {
+        std::ranges::sort(mSpareStaging, [&](const std::size_t one, const std::size_t other) {
+            return mStaging[one].getSize() < mStaging[other].getSize();
+        });
+
+        VkDeviceSize kept = 0;
+        std::size_t keeping = 0;
+        while (keeping < mSpareStaging.size() && kept + mStaging[mSpareStaging[keeping]].getSize() <= keep)
+            kept += mStaging[mSpareStaging[keeping++]].getSize();
+
+        for (std::size_t at = keeping; at < mSpareStaging.size(); ++at)
+        {
+            mStaging[mSpareStaging[at]] = Buffer{};
+            mLetGoStaging.push_back(mSpareStaging[at]);
+        }
+        mSpareStaging.resize(keeping);
     }
 
     VkDeviceSize CommandPool::getStagingSize(const VkBuffer block) const
