@@ -481,10 +481,12 @@ The reviewers checked these items and found no fault:
 - **DENOISE-10, measured and left.** The driver does not merge a history tap loaded for the test and
   again for the sum (each binary 1 to 2% smaller loaded once), and every way of loading it once cost
   more: a `vec4` a corner kept from the test was laid in shared memory (768 bytes a workgroup in the
-  pane filter), a gather unrolled a corner a block spilled the accumulator to local memory, and the
-  shadow tiles' `vec2` a corner moved the composed frame over SPIR-V of the same arithmetic
-  (`.notes/ISSUES.md`). The clamp's two loads stand in two loops over squares of different sizes,
-  and the narrow wavelet's centre and middle tap are one coordinate once the loop unrolls.
+  pane filter), and a gather unrolled a corner a block spilled the accumulator to local memory. The
+  shadow tiles' `vec2` a corner moved the composed frame only because the driver folded the
+  kernel's `exp` weights apart in the two modules; with the weights the build's
+  (`shadowLocalWeight`) it draws the same to the bit, 128 bytes smaller and a register fewer, and
+  is not timed. The clamp's two loads stand in two loops over squares of different sizes, and the
+  narrow wavelet's centre and middle tap are one coordinate once the loop unrolls.
 
 - **FRAME-2 / SCENE-14, withdrawn by measurement.** It said that the graveyard frees all of a
   crossing's burials in one collect, so one frame absorbs the sweep. A release profile of the
@@ -549,22 +551,19 @@ World frame, denoised and upscaled, in record order. **T** = traced extent, **O*
 | 12 | fog scatter (`fogscatter.rgen`) | C.x × C.y × 64 | column depth/moons, fog history, field, lights | scatter, sunward, lamps (3D) | │ |
 | 13 | fog integrate (`fogintegrate.comp`) | C/8² | scatter, sunward, lamps | air, slices, seeing (3D) | │ |
 | 14 | trace (`visibility.rgen` + rchit×3, rahit, rmiss×2) | T.x × T.y | TLAS, frame, tables, textures, waves, ripples, fog, sprite list | 19 channels, counts, glare | │ |
-| 15 | digest (`digest.comp`), harness read-back only | T/16² | all 19 channels | digest lanes | │ |
-| 16 | accumulate (`accumulate.comp`) | T/G | indirect, fill, motion, surface, histories | surface out, moments, blended, fill blended, fast blended | │ |
-| 17 | accumulate clamp (`accumulateclamp.comp`) | T/G | surface, fast blended, indirect, fill, moments | blended, fill blended (in place), fast | — |
-| 18 | sky shadow: mask │ tiles │ filter L0 │ L1 │ L2 | T/(8×8), T/G | shadowed, surface, motion, held surface, history, moments | mask, tiles, moments, scratch, visibility | │ ×5 |
-| 19 | lamp shadow: the same 5 dispatches | as 18 | lamped, … | lamp images | │ ×5 |
-| 20 | glossy (`specular.comp`) │ clamp (`historyclamp.comp`), when mapped | T/G each | specular, surface, motion, held surface, means | mean, fast | │ |
-| 21 | pane (`pane.comp`) │ clamp (`historyclamp.comp`) | T/G each | pane channels, held/mean/fast | held, mean, fast | │ (`ready`) |
-| 22 | wavelet ×4 (`atrous.comp`, level 0 `ATROUS_WIDE`) | T/G each | blended, fill, surface, moments | ping-pong narrow; level 0 histories | │ each |
-| 23 | composite (`composite.comp`) | T/G | direct, filtered indirect/fill, 4 albedos, shadows, specular, pane | direct, sum | │ |
-| 24 | FSR: clears │ inputs │ luma pyramid │ change pyramid │ change │ reactivity │ instability │ accumulate | T/8², SPD, (T/2)/8², O/8² | colour, surface, motion, masks, histories | FSR transients, history, output (O) | │ each |
-| 25 | puffs composite (`spritecomposite.rgen`) | T.x × T.y | surface, backdrop, puffs, sprite list, fog | shown (in place) | │ |
-| 26 | bloom down ×≤6 │ bloom up ×≤5 | (O/2ᵏ)/8² | shown, exposure (last frame) | bloom levels | │ each |
-| 27 | histogram │ reduce (`histogram.comp`, `exposure.comp`) | O/16², 1 group | shown | bins → exposure | │ │ |
-| 28 | sun glare ease (`sunglare.comp`) | 1 group | glare counts | glare share | │ |
-| 29 | tone (`tone.comp`) | O/8² | shown, bloom, exposure, glare, backdrop, surface, lift, stars, blue noise, sprite list | target (rgba8) | │ |
-| 30 | debug lines, when debug is on | draw | surface | target | │ |
-| 31 | read-back / stress hold, harness only | copy / 1 group | target / counts | host buffer | — |
-| 32 | GUI (`gui.vert`/`gui.frag`), its own submit | draws | GUI textures, picture | shown | │ |
-| 33 | present: clear when letterboxed, then blit, its own submit | transfer | shown | swapchain image | — |
+| 15 | temporal stage: accumulate, shadow mask a field, glossy (when mapped), pane | T/G each | indirect, fill, motion, surface, the frame before's surface, histories, shadowed, lamped, specular, pane | moments, blends, fast blends, masks, penumbra tiles, means | │ |
+| 16 | clamp stage: accumulate clamp, shadow tiles a field, glossy and pane clamps (`historyclamp.comp`) | T/G each | blends, fast blends, moments, masks, shadow histories | blends (in place), fast means, shadow moments and scratch | │ |
+| 17 | shadow filter L0 │ L1 │ L2, both fields in one dispatch a level | T/G | scratch, history, moments, surface | history, scratch, visibility | │ each |
+| 18 | wavelet ×4 (`atrous.comp`, level 0 `ATROUS_WIDE`; the last `atrouscompose.comp` where nothing sums) | T/G each | blends, surface, moments; the last level also the shadows, specular, pane and albedos | ping-pong narrow, level 0 histories; direct, composed | │ each |
+| 19 | composite (`composite.comp`), only where nothing filtered or a sum is kept | T/G | direct, indirect, fill, 4 albedos, shadows, specular, pane | direct, sum | │ |
+| 20 | digest (`digest.comp`), harness read-back only | T/16², two runs of 16 float and 8 word slots | 19 channels, 20 denoiser images | digest lanes | │ |
+| 21 | FSR: clears │ inputs │ luma pyramid │ change pyramid │ change │ reactivity │ instability │ accumulate | T/8², SPD, (T/2)/8², O/8² | colour, surface, motion, masks, histories | FSR transients, history, output (O) | │ each |
+| 22 | puffs composite (`spritecomposite.rgen`) | T.x × T.y | surface, backdrop, puffs, sprite list, fog | shown (in place) | │ |
+| 23 | bloom down ×≤6 │ bloom up ×≤5 | (O/2ᵏ)/8² | shown, exposure (last frame) | bloom levels | │ each |
+| 24 | histogram │ reduce (`histogram.comp`, `exposure.comp`) | O/16², 1 group | shown | bins → exposure | │ │ |
+| 25 | sun glare ease (`sunglare.comp`) | 1 group | glare counts | glare share | │ |
+| 26 | tone (`tone.comp`) | O/8² | shown, bloom, exposure, glare, backdrop, surface, lift, stars, blue noise, sprite list | target (rgba8) | │ |
+| 27 | debug lines, when debug is on | draw | surface | target | │ |
+| 28 | read-back / stress hold, harness only | copy / 1 group | target / counts | host buffer | — |
+| 29 | GUI (`gui.vert`/`gui.frag`), its own submit | draws | GUI textures, picture | shown | │ |
+| 30 | present: clear when letterboxed, then blit, its own submit | transfer | shown | swapchain image | — |
