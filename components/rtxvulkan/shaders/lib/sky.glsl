@@ -53,24 +53,31 @@ vec2 cloudUvAt(vec2 crossing, vec2 bearing)
     return along * frame.mClouds.mPerTile + vec2(0.0, frame.mClouds.mScroll);
 }
 
+/// A step across the layer, in the sheet's own coordinates: `cloudUvAt`'s turn and scale, without
+/// the point it turns about and the scroll, which a difference of two points does not carry.
+vec2 cloudUvStep(vec2 step, vec2 bearing)
+{
+    return vec2(step.x * bearing.x - step.y * bearing.y, step.x * bearing.y + step.y * bearing.x)
+        * frame.mClouds.mPerTile;
+}
+
 /// The sheet where a crossing lands on it, across whatever transition the weather is part way
-/// through.
-///
-/// **The top mip and no cone.** A deck seen edge-on wants a level off the ray's gradient, and the
-/// gradient is what the hardware works out for itself from neighbouring lanes, which a ray tracer
-/// does not have. The engine's own fade is what stands in: the band where the stretch would alias is
-/// the band it takes the deck out over.
-vec4 cloudSheetAt(vec2 crossing)
+/// through, read along the footprint `across` and `along` of the ray's cone there: two steps across
+/// the layer in the world, which `cloudDeck` works out. Through the anisotropic samplers, as the
+/// rasterizer's hardware reads the deck mesh along its own gradients.
+vec4 cloudSheetAt(vec2 crossing, vec2 across, vec2 along)
 {
     // With no test on the weather ahead: the host names the near sheet twice where the weather
     // ahead has none — `CloudDeck::mNext` — so the mix is one path however the weather stands. A
     // sheet ahead that stands in is the near one again, as one that was never named is: the deck
     // is there, and a grey stand-in blended into it would be sky that is not.
-    const vec4 near
-        = textureLod(textures[nonuniformEXT(frame.mClouds.mTexture)], cloudUvAt(crossing, frame.mClouds.mBearing), 0.0);
+    const vec2 bearing = frame.mClouds.mBearing;
+    const vec4 near = textureGrad(texturesAlong[nonuniformEXT(frame.mClouds.mTexture)], cloudUvAt(crossing, bearing),
+        cloudUvStep(across, bearing), cloudUvStep(along, bearing));
     const bool ahead = holdsTexture(frame.mClouds.mNext);
-    const vec4 far = textureLod(textures[nonuniformEXT(ahead ? frame.mClouds.mNext : frame.mClouds.mTexture)],
-        cloudUvAt(crossing, ahead ? frame.mClouds.mNextBearing : frame.mClouds.mBearing), 0.0);
+    const vec2 nextBearing = ahead ? frame.mClouds.mNextBearing : bearing;
+    const vec4 far = textureGrad(texturesAlong[nonuniformEXT(ahead ? frame.mClouds.mNext : frame.mClouds.mTexture)],
+        cloudUvAt(crossing, nextBearing), cloudUvStep(across, nextBearing), cloudUvStep(along, nextBearing));
 
     return mix(near, far, frame.mClouds.mBlend);
 }
@@ -120,8 +127,10 @@ bool insideCap(vec3 direction, vec3 axis, float chord)
 /// radiates. A photograph of a 2002 sky is a shape and not a colour.
 ///
 /// @param origin where the ray started, which is what the sheet is laid out from.
+/// @param blur how far this ray's cone has spread from its axis, in radians, which is what decides
+///        how much of the sheet the crossing averages.
 /// @param covered how much of what lies behind the deck it hides, which is what puts the stars out.
-vec3 cloudDeck(vec3 origin, vec3 direction, out float covered)
+vec3 cloudDeck(vec3 origin, vec3 direction, float blur, out float covered)
 {
     covered = 0.0;
     if (direction.z <= 0.0)
@@ -159,7 +168,23 @@ vec3 cloudDeck(vec3 origin, vec3 direction, out float covered)
     const float outer = clamp((reach - rings.y) / max(rings.z - rings.y, 1.0e-6), 0.0, 1.0);
     const float reaches = mix(mix(1.0, CLOUD_RING_ALPHA, inner), 0.0, outer);
 
-    const vec4 cloud = cloudSheetAt(origin.xy + offset);
+    // **The cone's footprint where it crosses the layer, in closed form**, as every surface's is
+    // (`texturePoint`): the cone is `2 blur` wide over the `h · fallen / z` the ray ran. Square to
+    // the plane the ray climbs in, the layer is level and takes that width as it is. Along it, the
+    // width is stretched over the cosine to the layer's normal, `(2kr r̂, 1)` unnormalised for
+    // `z = h - k r²`, and shortened back by the slope's own cosine onto the ground the sheet is
+    // addressed by — together `width / (z + 2kr |xy|)`, with `kr = mCurvature · fallen · |xy| / z`
+    // since `k = mCurvature / h` and `r = h · fallen · |xy| / z`. The frame's level bias is in the
+    // width, as it is in a surface's. A ray straight up has no plane to climb in, and its two axes
+    // are the same length there, so either pair serves.
+    const float outward = length(direction.xy);
+    const float width = 2.0 * blur * (height * fallen / direction.z) * exp2(frame.mLevelBias);
+    const vec2 radial = outward > 0.0 ? direction.xy / outward : vec2(1.0, 0.0);
+    const vec2 across = vec2(-radial.y, radial.x) * width;
+    const vec2 along = radial
+        * (width / (direction.z + 2.0 * frame.mClouds.mCurvature * fallen * outward * outward / direction.z));
+
+    const vec4 cloud = cloudSheetAt(origin.xy + offset, across, along);
 
     covered = cloud.a * reaches * frame.mClouds.mOpacity;
 
@@ -415,7 +440,7 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float 
 
     // Last, and over everything: the deck is nearer than any of it.
     float covered;
-    const vec3 clouds = cloudDeck(origin, direction, covered);
+    const vec3 clouds = cloudDeck(origin, direction, blur, covered);
     shown *= 1.0 - covered;
 
     return colour * (1.0 - covered) + clouds;

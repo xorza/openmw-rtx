@@ -442,6 +442,45 @@ namespace Rtx
             }
         }
 
+        /// **A body that arrives has not moved on its first frame**, whichever copy of the poses that
+        /// frame traces: its pose in the copy the frame did not trace is the one it arrived in, and
+        /// not its bind pose. Each arrival is bound at two hundred units and posed ten units nearer
+        /// than the one before, the first wall walked behind the eye so the arrival is what the centre
+        /// meets. Two arrivals on two placements, one on each copy: a copy the arrival left in the
+        /// bind pose reads as a body that came ten or twenty units nearer, a step of about that much
+        /// in the vector's distance.
+        TEST_F(RtxFramesTest, aBodyThatArrivesHasNotMovedOnItsFirstFrame)
+        {
+            constexpr std::size_t centre = std::size_t{ sSize / 2 } * sSize + sSize / 2;
+            moveTo(-1000.0f);
+
+            for (int copy = 0; copy < 2; ++copy)
+            {
+                mScene.clearPlacement();
+                mScene.clearArrivals();
+                const Index arrived = Testing::addOneBoneBody(
+                    mScene, MeshArrays{ .mPositions = Testing::wallAt(200.0f), .mIndices = Testing::sQuadIndices })
+                                          .mMesh;
+                mScene.addInstance(MeshInstance{ .mMesh = arrived });
+                Testing::poseByOneBone(
+                    mScene, arrived, osg::Matrixf::translate(0.0f, -10.0f * static_cast<float>(copy + 1), 0.0f));
+                mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
+                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+
+                std::vector<float> motion;
+                mRenderer.readChannel(Channel::Motion, motion);
+                EXPECT_EQ(finishedHits(), sEveryPixel) << "copy " << copy << ": the arrival does not fill the frame";
+                for (std::size_t axis = 0; axis < 3; ++axis)
+                    EXPECT_EQ(motion[centre * 4 + axis], 0.0f)
+                        << "copy " << copy << ", axis " << axis << ": the arrival moved from its bind pose";
+            }
+
+            while (mRenderer.finishFrame().has_value())
+            {
+            }
+        }
+
         /// **A pose turns a body's shading normal, read off the copy its frame posed, and a standing
         /// mesh beside it keeps its own.** A wall on one bone whose vertex normals lean off its
         /// plane, `(1, -1, 0)`, turned a quarter about the view axis by its bone: in

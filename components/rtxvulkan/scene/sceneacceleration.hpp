@@ -197,8 +197,8 @@ namespace Rtx
         const Device& mDevice;
         const std::uint32_t mPlacementRoom;
 
-        /// Every deforming mesh's vertices as the frame tracing them sees them: the bind pose on
-        /// arrival, and afterwards what `SkinPass` writes every frame a body moves. Indexed by
+        /// Every deforming mesh's vertices as the frame tracing them sees them: what `SkinPass`
+        /// writes into every copy on arrival, and afterwards every frame a body moves. Indexed by
         /// `MeshRange::mBindOffset`, so the table is as long as the bodies rather than the cell — a
         /// static mesh's vertices are a build input `BottomLevelStore::build` stages. Blocked, so a
         /// scene that grows keeps the poses it was already given: a pose is on the device and

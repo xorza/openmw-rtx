@@ -40,6 +40,28 @@ namespace Rtx
             EXPECT_EQ(Shaders::antilagAcceleration(0.2f, 0.5f, 0.0f), 0.0f);
         }
 
+        /// **The fill the clamp leaves a channel, by hand**: a share of the bounce as held, moved from
+        /// the slow mean's share toward the fast mean's by the clamp's share. A slow bounce of 1 whose
+        /// fill is 0.8 holds a share of 0.8; a fast bounce of 0.4 whose fill is 0.1 one of 0.25.
+        ///
+        /// - Nothing moved, so the fill is the slow one to the bit: 0.3 of 0.6 held at 0.6.
+        /// - A channel the box held, the luminance not moved (share 0): 0.8 of a bounce held at 0.5
+        ///   is 0.4, and not the 0.8 that stood over it; 0.16 of 0.2 held at 0.35 is 0.28.
+        /// - Moved the whole way: held at 0.4, the fast fill, `0.8 - 0.6 × 0.8 + 0.4 × (0.25 - 0.8) = 0.1`.
+        /// - Half the way, held at 0.7: `0.7 × (0.8 + 0.25) / 2 = 0.3675`.
+        /// - A slow mean of no bounce takes the fast share: 0.25 of 0.2 is 0.05. With no fast
+        ///   bounce either, no fill.
+        TEST(RtxAccumulateClampTest, theFillStaysTheShareOfTheBounceTheClampHeld)
+        {
+            EXPECT_EQ(Shaders::clampedFill(0.6f, 0.3f, 0.4f, 0.1f, 0.6f, 0.0f), 0.3f);
+            EXPECT_FLOAT_EQ(Shaders::clampedFill(1.0f, 0.8f, 0.4f, 0.1f, 0.5f, 0.0f), 0.4f);
+            EXPECT_FLOAT_EQ(Shaders::clampedFill(0.2f, 0.16f, 0.4f, 0.1f, 0.35f, 0.0f), 0.28f);
+            EXPECT_FLOAT_EQ(Shaders::clampedFill(1.0f, 0.8f, 0.4f, 0.1f, 0.4f, 1.0f), 0.1f);
+            EXPECT_FLOAT_EQ(Shaders::clampedFill(1.0f, 0.8f, 0.4f, 0.1f, 0.7f, 0.5f), 0.3675f);
+            EXPECT_FLOAT_EQ(Shaders::clampedFill(0.0f, 0.0f, 0.4f, 0.1f, 0.2f, 0.5f), 0.05f);
+            EXPECT_EQ(Shaders::clampedFill(0.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.0f), 0.0f);
+        }
+
         /// **The ring's ceiling, by hand**: 72 fast means, half at 1 and half at 3, are a mean of 2, a
         /// mean square of `(1 + 9) / 2 = 5` and a deviation of `sqrt(5 - 4) = 1`, so the ceiling at two
         /// deviations is 4.

@@ -46,14 +46,16 @@ namespace Rtx
     {
         // Posed before it is built. The structures are built over the first copy of the
         // positions, and a skinned body's bind pose is not where the body is; the pass writes the
-        // pose into that copy and the build then reads it. The other copy is owed the same pose and
-        // takes it on the first placement that writes it.
+        // pose into that copy and the build then reads it. **And into every other copy**, which the
+        // trace reads a body's motion against: a copy left in the bind pose until a placement wrote
+        // it threw every body from its bind pose on the first frame traced off the first copy.
         //
         // **Every body owed, and not the walk's deformed ones alone**: the walk names a pose only
         // where it changed, so a scene built again while its bodies stand still — the world a change
         // of mode let go — named none, and every body stood in its bind pose in both copies.
         mAcceleration.getPoses().write(mEveryMesh);
-        mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{}));
+        for (std::uint32_t copy = 0; copy < mAcceleration.getPoses().count(); ++copy)
+            mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }));
         mAcceleration.build(batch, scene, mEveryMesh, mRecords, mPasses.mTopLevelPack, mRefusals);
         mTextures.write(batch, mPasses.mTextures, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
@@ -123,7 +125,7 @@ namespace Rtx
             mSkinTables.extend(batch, scene);
             mAcceleration.extend(batch, scene);
 
-            // Posed before it is built, as the constructor does, into the first copy, which is what
+            // Posed before it is built, as the constructor does, into every copy, the first of which
             // the build reads — and only the meshes that arrived, over the rows `SkinTables::extend`
             // staged. `SkinPass::recordArrived` says why it may not be every mesh the copy owes.
             mPasses.mSkin.recordArrived(batch.getCommands(), skinning(scene, FrameSlot{}), scene.meshes().getArrived());
