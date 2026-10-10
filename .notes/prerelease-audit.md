@@ -82,24 +82,6 @@ The user took these calls on 2026-10-11. The items carry them.
   and three vertices: no group, weight 0.5 on one bone, and one bone the skeleton lacks. They land at
   bind, `0.5·(p·B)·R_T + t_T` and `t_T`, as `RigGeometry::cull` computes them.
 
-### 9. Validate a skin where it is read
-- **Audit**: MIRROR-3 (CONFIRMED), MIRROR-7, MIRROR-8 (PLAUSIBLE).
-- **Close first**: MIRROR-7: find a loader path that gives an index past the bone count (a
-  `BSTriShape` skin). MIRROR-8: find a caller that grows a skin's bones under one geometry. The
-  checks are cheap, so add them even if no path is found, but say so in the commit.
-- **Where**: `components/rtx/mirror/meshresolver.cpp:327-331` (`readRig`), `:162-169` (`fits`),
-  `components/rtx/scene/deformertable.cpp:73-75`, `:99-118`.
-- **Problem**:
-  - A NaN or inf weight from `NiSkinData` reaches `GpuInfluence::mWeight`, and the kernel writes
-    non-finite vertices. Every other deform input is checked.
-  - A debug assert is the only check of a bone index against the bone count. In release, the kernel
-    reads another mesh's bones.
-  - `fits` does not compare a rig's bone count, so a skin with more bones writes past its pose run.
-- **Fix**: `readRig` refuses a skin with a weight that is not finite or a bone index out of range.
-  `fits` compares the held rows with the skin's bone count.
-- **Test**: `rtx/mirror/extractor/skinning.cpp`: a NaN weight, and a bone index equal to the count,
-  each give a refusal and no mesh. A rig that grew bones gets a new deformer.
-
 ### 10. Refuse non-finite and singular transforms in the cell ring and the motion record
 - **Audit**: MIRROR-4 (CONFIRMED), MIRROR-6 (PLAUSIBLE).
 - **Close first**: MIRROR-6: read `osg::Matrixf::inverse` (`invert_4x3`) and confirm that it divides
