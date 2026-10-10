@@ -21,7 +21,7 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Device loss and contract guards | 7 | A crash, a wild read, or a silent drift waiting for a trigger |
+| 1 | Device loss and contract guards | 6 | A crash, a wild read, or a silent drift waiting for a trigger |
 | 2 | Memory budget and allocation | 6 | A throw instead of a refusal on 6–8 GB / 256 MiB BAR cards. Room lost for good |
 | 3 | Worst-frame spikes at arrival and departure | 6 | One frame absorbs a sweep, a build or a rebuild |
 | 4 | G-buffer and fill diet | 6 | 50–180 B/px of dead traffic on every vanilla frame |
@@ -34,7 +34,7 @@ When two reviewers found the same thing, the finding has both IDs.
 | 11 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
 | 12 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
 
-61 findings are open: 0 high, 17 medium, 44 low. No reviewer found a GLSL/C++ layout,
+60 findings are open: 0 high, 16 medium, 44 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
@@ -44,19 +44,6 @@ binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDi
 
 Each item is a crash, a wild read, or a silent drift that needs a trigger. They are small and
 independent, so one pass can fix them all.
-
-### FRAME-4: A timeout from acquire or the present fence is treated as device loss, so a hidden FIFO window can end the game
-robustness · M · conf L — `present/swapchain.cpp:211-226`, `present/presentfence.hpp:30`, `device/result.cpp:142-148`, `components/sdlutil/sdlinputwrapper.cpp:343-346`
-
-`vkAcquireNextImageKHR(..., sPatience, ...)` passes `VK_TIMEOUT` to `checkVkWait`, which calls
-`deviceFailed` and then `Crash::fatal`. The engine stops drawing only on `HIDDEN`/`MINIMIZED`.
-xdg-shell has no minimized state, and `SDL_EVENT_WINDOW_OCCLUDED` is not handled. On KWin Wayland a
-FIFO swapchain on a window that is not shown can legally stop returning images. The result is a crash
-after 10 s, and the report blames the GPU.
-
-**Direction:** handle a timeout from acquire or the present fence as "nothing to present now" (mark
-the swapchain stale, skip the present). Keep `deviceFailed` for the device's own waits. Handle
-`OCCLUDED` as hidden. To settle the confidence, minimize the game on KWin with vsync on for 15 s.
 
 ### TRACE-7: The light-grid bounds test lets a NaN position through to an out-of-bounds buffer-reference read
 robustness · L · conf M — `shaders/lib/lights.glsl:88-98`
@@ -799,6 +786,12 @@ The reviewers checked these items and found no fault:
   of the primary rays hit): the trace median with counting off fell between the two legs with it,
   2.638 / 2.682 / 2.698, 3.183 / 3.225 / 3.230 and 1.590 / 1.610 / 1.609 ms. The atomics go to one
   address, which the compiler joins per subgroup; the digest's slow atomics went to many.
+
+- **FRAME-4, not reproduced.** It said that a timeout from acquire or the present fence, treated as
+  device loss, ends a game whose window the compositor stopped showing. Minimized through KWin
+  (Plasma 6, Wayland, NVIDIA) for about 45 s with a FIFO swapchain, the game kept presenting at
+  about 31 frames a second and nothing waited near its 10 s patience. A window on another virtual
+  desktop, and other compositors, were not tried.
 
 ## Not reached
 

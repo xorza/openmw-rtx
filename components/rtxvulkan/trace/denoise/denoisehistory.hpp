@@ -103,6 +103,11 @@ namespace Rtx
         /// whose far plane is `far`: `HistoryConstants::mDistanceScale`, which says why.
         static float distanceScaleFor(float far);
 
+        /// The distance scale the surfaces the histories hold were stored at, for this frame to read
+        /// them back by — `scale` where nothing was stored yet — and `scale` kept for the next
+        /// frame, which reads what this one stores. Once a recorded frame, by the frame that stores.
+        float exchangeDistanceScale(float scale);
+
         /// Turns to the other half of every pair for the frame being recorded, on which `runs` run:
         /// which halves each filter reads and writes, and which have nothing to read.
         TemporalTurns::Step turn(const TemporalFlags& runs);
@@ -242,5 +247,8 @@ namespace Rtx
 
         /// Started again by `resize`, so the first frame after one reads no image nothing wrote.
         TemporalTurns mTurns;
+
+        /// What `exchangeDistanceScale` kept, nought before any frame stored a surface.
+        float mHeldDistanceScale = 0.0f;
     };
 }

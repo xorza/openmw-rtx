@@ -418,6 +418,8 @@ namespace Rtx
 
     void SceneAcceleration::placeRow(const Index slot, const InstanceRecord& record)
     {
+        assert(slot < (Index{ 1 } << 24) && "a placement past what an instance's 24-bit custom index names");
+
         // Counted in its block as the row it replaces is taken out, whatever the record says now.
         std::uint32_t& placed = mBlockPlaced[slot / Shaders::TOP_LEVEL_PACK_WORKGROUP];
         if (mRowTable.getRows()[slot].accelerationStructureReference != 0)

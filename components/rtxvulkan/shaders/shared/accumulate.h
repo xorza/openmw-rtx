@@ -183,6 +183,13 @@ namespace Rtx::Shaders
         /// value.
         float mDistanceScale;
 
+        /// What the distances the history holds were multiplied by when they were stored: the
+        /// frame's that wrote them, which a held distance is divided by (`DenoiseHistory::
+        /// exchangeDistanceScale`). **Not this frame's**: a far plane that moved between the two
+        /// frames scaled every held distance by the ratio, and the plane test refused or took the
+        /// whole history by it.
+        float mHeldDistanceScale;
+
         /// Where inside its pixel the previous frame sampled, `VisibilityConstants::mPreviousJitter`:
         /// what a history holding one frame's geometry was traced through, which a test that
         /// rebuilds the previous ray needs.
@@ -260,8 +267,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 224, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 228, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 228, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 232, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 160, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

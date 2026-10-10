@@ -223,10 +223,12 @@ namespace Rtx
                     return "abs";
                 case GLSLstd450FSign:
                     return "sign";
-                case GLSLstd450FClamp:
-                    return "clamp";
-                case GLSLstd450FMax:
-                    return "max";
+                case GLSLstd450NMin:
+                    return "nmin";
+                case GLSLstd450NMax:
+                    return "nmax";
+                case GLSLstd450NClamp:
+                    return "nclamp";
                 case GLSLstd450Floor:
                     return "floor";
                 case GLSLstd450Trunc:
@@ -352,8 +354,8 @@ namespace Rtx
                         return w.glsl(w.mFloat, GLSLstd450SmoothStep,
                             { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
                     },
-                    "mul(mul(clamp(div(sub(u, s), sub(t, s)), 0, 1), clamp(div(sub(u, s), sub(t, s)), 0, 1)), "
-                    "fma(neg(2), clamp(div(sub(u, s), sub(t, s)), 0, 1), 3))" },
+                    "mul(mul(nclamp(div(sub(u, s), sub(t, s)), 0, 1), nclamp(div(sub(u, s), sub(t, s)), 0, 1)), "
+                    "fma(neg(2), nclamp(div(sub(u, s), sub(t, s)), 0, 1), 3))" },
                 { "reflect",
                     [](Writer& w) {
                         return w.glsl(w.mVec2, GLSLstd450Reflect, { w.input(w.mVec2, "a"), w.input(w.mVec2, "b") });
@@ -366,7 +368,7 @@ namespace Rtx
                             { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
                     },
                     "select(lt(fma(neg(mul(u, u)), fma(neg(mul(t, s)), mul(t, s), 1), 1), 0), 0, "
-                    "fma(neg(fma(u, mul(t, s), sqrt(max(fma(neg(mul(u, u)), fma(neg(mul(t, s)), mul(t, s), 1), 1), "
+                    "fma(neg(fma(u, mul(t, s), sqrt(nmax(fma(neg(mul(u, u)), fma(neg(mul(t, s)), mul(t, s), 1), 1), "
                     "0)))), "
                     "t, mul(u, s)))" },
                 { "faceforward",
@@ -382,6 +384,22 @@ namespace Rtx
                 { "round, whose halves a compile may take either way",
                     [](Writer& w) { return w.glsl(w.mFloat, GLSLstd450Round, { w.input(w.mFloat, "s") }); },
                     "roundeven(s)" },
+                { "min, whose answer to a NaN the F form leaves to the compile",
+                    [](Writer& w) {
+                        return w.glsl(w.mFloat, GLSLstd450FMin, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
+                    },
+                    "nmin(s, t)" },
+                { "max",
+                    [](Writer& w) {
+                        return w.glsl(w.mFloat, GLSLstd450FMax, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
+                    },
+                    "nmax(s, t)" },
+                { "clamp",
+                    [](Writer& w) {
+                        return w.glsl(w.mFloat, GLSLstd450FClamp,
+                            { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
+                    },
+                    "nclamp(s, t, u)" },
                 { "an explicit fma",
                     [](Writer& w) {
                         return w.glsl(w.mFloat, GLSLstd450Fma,

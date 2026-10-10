@@ -16,6 +16,10 @@ namespace Rtx
         /// `HistoryConstants::mDistanceScale` says why — worked out once for the frame.
         float mDistanceScale;
 
+        /// What the distances the histories hold were stored at — `HistoryConstants::
+        /// mHeldDistanceScale`.
+        float mHeldDistanceScale;
+
         /// `Reconstruction::mFilters`: how the bounce is filtered past the wavelet.
         FilterSwitches mFilters;
 
@@ -27,6 +31,7 @@ namespace Rtx
                 .mEyes = mSampled.mEyes,
                 .mReset = fresh ? 1u : 0u,
                 .mDistanceScale = mDistanceScale,
+                .mHeldDistanceScale = mHeldDistanceScale,
                 .mPreviousJitter = mSampled.mPreviousJitter,
                 .mPrevious = mSampled.mPrevious,
                 .mArmsSpread = mSampled.mArmsSpread,

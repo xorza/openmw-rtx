@@ -186,5 +186,54 @@ namespace Rtx
             EXPECT_EQ(readInterface(module(false, 3)).mPushEnd, std::optional<std::uint32_t>(80u));
             EXPECT_EQ(readInterface(module(true, 3)).mPushEnd, std::optional<std::uint32_t>(68u));
         }
+
+        /// **A layout C++ cannot mirror is refused**: a structure of a 64-bit address at nought and a
+        /// `uint` at eight ends at twelve, and C++ rounds it to its eight-byte alignment, sixteen. A
+        /// member after it at twelve stands where C++ has padding, and one at sixteen where C++ has
+        /// the next member; an array of it strided by twelve is short of C++'s stride, and one
+        /// strided by sixteen is C++'s.
+        TEST(RtxSpirvInterfaceTest, aLayoutCppCannotMirrorIsRefused)
+        {
+            const auto instruction = [](spv::Op op, std::vector<std::uint32_t> operands) {
+                operands.insert(operands.begin(), (static_cast<std::uint32_t>(operands.size() + 1) << 16) | op);
+                return operands;
+            };
+            enum : std::uint32_t
+            {
+                Float = 1,
+                Uint,
+                Uint64,
+                Two,
+                Inner,
+                Array,
+                Block,
+                Pointer,
+                Variable,
+            };
+            const auto module = [&](const std::uint32_t after, const std::uint32_t stride) {
+                std::vector<std::uint32_t> words{ spv::MagicNumber, 0x00010600u, 0u, Variable + 1, 0u };
+                for (const std::vector<std::uint32_t>& each :
+                    { instruction(spv::OpDecorate, { Array, spv::DecorationArrayStride, stride }),
+                        instruction(spv::OpMemberDecorate, { Inner, 0, spv::DecorationOffset, 0 }),
+                        instruction(spv::OpMemberDecorate, { Inner, 1, spv::DecorationOffset, 8 }),
+                        instruction(spv::OpMemberDecorate, { Block, 0, spv::DecorationOffset, 0 }),
+                        instruction(spv::OpMemberDecorate, { Block, 1, spv::DecorationOffset, after }),
+                        instruction(spv::OpMemberDecorate, { Block, 2, spv::DecorationOffset, 64 }),
+                        instruction(spv::OpTypeFloat, { Float, 32 }), instruction(spv::OpTypeInt, { Uint, 32, 0 }),
+                        instruction(spv::OpTypeInt, { Uint64, 64, 0 }), instruction(spv::OpConstant, { Uint, Two, 2 }),
+                        instruction(spv::OpTypeStruct, { Inner, Uint64, Uint }),
+                        instruction(spv::OpTypeArray, { Array, Inner, Two }),
+                        instruction(spv::OpTypeStruct, { Block, Inner, Float, Array }),
+                        instruction(spv::OpTypePointer, { Pointer, spv::StorageClassPushConstant, Block }),
+                        instruction(spv::OpVariable, { Pointer, Variable, spv::StorageClassPushConstant }) })
+                    words.insert(words.end(), each.begin(), each.end());
+                return words;
+            };
+
+            EXPECT_EQ(readInterface(module(16, 16)).mPushEnd, std::optional<std::uint32_t>(64u + 16u + 12u))
+                << "the layout C++ has";
+            EXPECT_THROW(readInterface(module(12, 16)), InputError) << "a member in the padding C++ gives a structure";
+            EXPECT_THROW(readInterface(module(16, 12)), InputError) << "an array strided short of C++'s";
+        }
     }
 }
