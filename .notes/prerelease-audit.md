@@ -60,17 +60,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P0: release blockers
 
-### 1. Ship the Vulkan 1.4 loader in the AppImage
-- **Audit**: BUILD-1. CONFIRMED: the last release log has no `libvulkan.so` among the deployed
-  libraries, and `tools/omw/package.py` has no step that adds it.
-- **Where**: `tools/omw/package.py:162-237` (`_archive_linux`), `components/rtxvulkan/device/instance.cpp:68-73`.
-- **Problem**: volk `dlopen`s the loader, so linuxdeploy does not see it. On Ubuntu 24.04, Debian 12
-  and Mint 22 the system loader is 1.3, `Instance` throws `Unsupported`, and the ray tracer cannot
-  start. The docstring and the release workflow say that the image carries the 1.4 loader.
-- **Fix**: Copy the pinned SDK's `libvulkan.so.1` (already in `deps/vulkan-sdk-*`) into
-  `AppDir/usr/lib` through linuxdeploy's `--library`. Refuse to archive an AppDir without it.
-- **Test**: `tools/omw/tests`: the AppDir check refuses a folder without `usr/lib/libvulkan.so.1`.
-
 ### 2. Ship the MSVC C++ runtime in the Windows folder
 - **Audit**: BUILD-2. CONFIRMED that the files are absent from the folder.
 - **Where**: `CMakeLists.txt:964-997` (the runtime set excludes `msvcp*` and `vcruntime*`),
