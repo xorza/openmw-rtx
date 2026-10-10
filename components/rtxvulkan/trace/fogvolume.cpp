@@ -61,9 +61,9 @@ namespace Rtx
         constexpr VkFormat sFormat = toVulkanFormat(FOG_VOLUME_FORMAT);
 
         /// What the scatter pass's two answers are kept in, which the next frame's reads back into
-        /// its own blend: `FOG_HISTORY_FORMAT` says why that is never a half.
+        /// its own blend: `FOG_HISTORY_FORMAT` says why a half is a history only rounded at random.
         constexpr VkFormat sHistoryFormat = toVulkanFormat(FOG_HISTORY_FORMAT);
-        static_assert(!Shaders::mayRoundTowardNought(FOG_HISTORY_FORMAT),
+        static_assert(!Shaders::mayRoundTowardNought(FOG_HISTORY_FORMAT) || Shaders::FOG_HISTORY_ROUNDED_AT_RANDOM,
             "a history read back into its own blend is stored where a store may round toward nought");
 
         /// `TRANSFER_DST` because the constructor empties every one of these, which is what a

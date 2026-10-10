@@ -689,28 +689,38 @@ namespace Rtx
         /// clears a word while the lanes are between barriers. A storm's worth of small billboards
         /// and streaks, a few puffs around the eye that reach every tile, and the property checked
         /// on top of the runs matching their rectangles.
+        ///
+        /// **And again with the puffs first and a storm on one side after them**, so a tile only the
+        /// puffs reach is full after the first stride and stops there, beside tiles the storm keeps
+        /// filling to its last: the stop a tile
+        /// makes and the one a workgroup of full tiles makes, held to the same rectangles.
         TEST_F(RtxSpriteBinPassTest, aStormOfSpritesFillsEveryRunAcrossManyStrides)
         {
             constexpr std::uint32_t width = 320;
             constexpr std::uint32_t height = 240;
 
+            const auto addStorm = [](Layer& into) {
+                into.addEmitter(0.0f, osg::Vec3f());
+                for (float x : { 30.0f, 60.0f, 120.0f, 250.0f })
+                    for (int y = -12; y <= 12; ++y)
+                        for (int z = -8; z <= 8; z += 2)
+                            into.addSprite(
+                                osg::Vec3f(x, static_cast<float>(y) * 4.0f, static_cast<float>(z) * 3.0f), 1.5f);
+
+                into.addEmitter(0.1f, osg::Vec3f(0.0f, 0.0f, -1.0f));
+                for (float x : { 25.0f, 75.0f, 150.0f })
+                    for (int y = -10; y <= 10; ++y)
+                        into.addSprite(osg::Vec3f(x, static_cast<float>(y) * 5.0f, 2.0f), 4.0f);
+            };
+            const auto addPuffs = [](Layer& into) {
+                into.addEmitter(0.0f, osg::Vec3f());
+                for (float x : { 1.0f, 3.0f, 5.0f })
+                    into.addSprite(osg::Vec3f(x, 0.0f, 0.0f), 40.0f);
+            };
+
             Layer layer;
-
-            layer.addEmitter(0.0f, osg::Vec3f());
-            for (float x : { 30.0f, 60.0f, 120.0f, 250.0f })
-                for (int y = -12; y <= 12; ++y)
-                    for (int z = -8; z <= 8; z += 2)
-                        layer.addSprite(
-                            osg::Vec3f(x, static_cast<float>(y) * 4.0f, static_cast<float>(z) * 3.0f), 1.5f);
-
-            layer.addEmitter(0.1f, osg::Vec3f(0.0f, 0.0f, -1.0f));
-            for (float x : { 25.0f, 75.0f, 150.0f })
-                for (int y = -10; y <= 10; ++y)
-                    layer.addSprite(osg::Vec3f(x, static_cast<float>(y) * 5.0f, 2.0f), 4.0f);
-
-            layer.addEmitter(0.0f, osg::Vec3f());
-            for (float x : { 1.0f, 3.0f, 5.0f })
-                layer.addSprite(osg::Vec3f(x, 0.0f, 0.0f), 40.0f);
+            addStorm(layer);
+            addPuffs(layer);
 
             ASSERT_GT(layer.mSprites.size(), 6 * Shaders::SPRITE_RUNS_LANES)
                 << "the fixture stopped being many strides";
@@ -752,6 +762,25 @@ namespace Rtx
                 }
 
             EXPECT_GT(met, 1000u) << "the fixture stopped covering the frame";
+
+            // The storm here on one side of the frame, past the strides the puffs fill.
+            Layer puffsFirst;
+            addPuffs(puffsFirst);
+            puffsFirst.addEmitter(0.0f, osg::Vec3f());
+            for (int y = 10; y <= 50; ++y)
+                for (int z = -8; z <= 8; z += 2)
+                    puffsFirst.addSprite(
+                        osg::Vec3f(200.0f, static_cast<float>(y) * 2.0f, static_cast<float>(z) * 3.0f), 1.5f);
+            ASSERT_GT(puffsFirst.mSprites.size(), 6 * Shaders::SPRITE_RUNS_LANES)
+                << "the side storm is a stride or two";
+            const Binned early = bin(puffsFirst, constants, 1u << 20);
+            ASSERT_TRUE(early.isWhole());
+            std::size_t fullAtOnce = 0;
+            std::size_t fullLater = 0;
+            for (std::size_t tile = 0; tile < early.getTileCount(); ++tile)
+                (early.getRun(tile).size() == 3 ? fullAtOnce : fullLater) += 1;
+            EXPECT_GT(fullAtOnce, 0u) << "no tile is full after the puffs";
+            EXPECT_GT(fullLater, 0u) << "no tile is filled by the storm after them";
         }
 
         /// The frame the game traces, over an interior's worth of candle smoke: nineteen columns of
@@ -1029,6 +1058,11 @@ namespace Rtx
         ///
         /// Three on the axis at twelve, six and nought, fading a half, a quarter and one: the last reads
         /// three quarters, the middle a half, the first nothing — from either end of the array.
+        ///
+        /// **And along a run longer than the workgroup**, whose walk is staged a workgroup at a time:
+        /// 1,100 sprites on the axis, four in radius and fading 1/1024 each, so every disc covers the
+        /// four cells read at the axis whole and the sprite with `k` nearer the sun reads `k / 1024`
+        /// exactly — the 1,024th, the first of the second stretch, a whole layer.
         TEST_F(RtxSpriteShadeTest, layersAddUpAlongTheLightWhateverTheOrder)
         {
             const auto build = [this](bool reversed) {
@@ -1053,6 +1087,16 @@ namespace Rtx
             EXPECT_FLOAT_EQ(backward.mSprites[2].mSunLayers, 0.0f);
             EXPECT_FLOAT_EQ(backward.mSprites[1].mSunLayers, 0.5f);
             EXPECT_FLOAT_EQ(backward.mSprites[0].mSunLayers, 0.75f);
+
+            constexpr std::size_t sLong = 1100;
+            static_assert(sLong > 1024, "the long run is one stretch");
+            Column long_;
+            for (std::size_t i = 0; i < sLong; ++i)
+                long_.add(
+                    osg::Vec3f(15.0f - static_cast<float>(i) * (30.0f / sLong), 0.0f, 0.0f), 4.0f, 1.0f / 1024.0f);
+            long_.shade(mShading, sEast);
+            for (std::size_t i = 0; i < sLong; ++i)
+                ASSERT_EQ(long_.mSprites[i].mSunLayers, static_cast<float>(i) / 1024.0f) << "sprite " << i;
         }
 
         /// A sprite beside the light's path to another is not in it.

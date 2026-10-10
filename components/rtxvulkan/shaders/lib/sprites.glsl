@@ -655,6 +655,12 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
                 || along - emitter.mReach >= limit
                 || dot(toCentre, toCentre) - along * along > emitter.mReach * emitter.mReach;
 
+            // **An unbinned walk steps past a missed emitter's whole run**: its slot is the sprite's
+            // index, met at the run's first, and the run lies end to end (`GpuEmitter::mFirst`), so
+            // a storm's twenty emitters are twenty loads where its two thousand drops were. A binned
+            // run holds only the tile's sprites, and steps each.
+            slot = unbinned && missed ? emitter.mFirst + emitter.mCount - 1u : slot;
+
             if (!missed)
             {
                 measured = emitterFrameAt(held);

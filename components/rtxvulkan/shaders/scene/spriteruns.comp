@@ -27,6 +27,13 @@
 // stride `i` the word for stride `i + 2` is cleared, which every lane last read before the
 // barrier of stride `i - 1` and will next set only after the barrier of stride `i + 1`.
 //
+// **A tile tests only while its run is filling, and the workgroup stops when none is.** A tile with
+// an empty run, or one already full, has nothing left to place, so its lanes load no rectangle; and
+// the strides end for the workgroup once each of its tiles is full, which most are long before the
+// last sprite. The count of tiles still filling is cycled three ways for the reason the matched word
+// is: each stride's count is complete at that stride's barrier, and read after it by every lane, so
+// the stop is uniform.
+//
 // **Ascending sprite index within a tile, and that is load-bearing.** Sprites composite in the
 // order they are walked, and a sprite's index is contiguous per emitter, so ascending index keeps
 // an emitter's sprites consecutive — which is what lets the march evaluate the fog and walk the
@@ -45,6 +52,10 @@ layout(push_constant, scalar) uniform Push
 
 /// Which lanes of each tile matched the stride being walked, cycled three ways.
 shared uint matched[3][SPRITE_RUNS_WORKGROUP / SPRITE_RUNS_LANES];
+
+/// How many of the workgroup's tiles go into each stride with room left in their run, cycled as
+/// `matched` is.
+shared uint filling[3];
 
 void main()
 {
@@ -79,11 +90,21 @@ void main()
         matched[1][group] = 0u;
         matched[2][group] = 0u;
     }
+    if (gl_LocalInvocationID.x == 0u)
+    {
+        filling[0] = 0u;
+        filling[1] = 0u;
+        filling[2] = 0u;
+    }
 
     const uint below = (1u << lane) - 1u;
     SpriteRects rects = SpriteRects(bin.mRects);
 
     barrier();
+
+    bool fills = present && slot < end;
+    if (lane == 0u && fills)
+        atomicAdd(filling[0], 1u);
 
     uint stride = 0u;
     for (uint base = 0u; base < bin.mCount; base += SPRITE_RUNS_LANES, ++stride)
@@ -91,7 +112,7 @@ void main()
         const uint sprite = base + lane;
 
         bool hit = false;
-        if (present && sprite < bin.mCount)
+        if (fills && sprite < bin.mCount)
         {
             uvec2 from;
             uvec2 to;
@@ -105,6 +126,10 @@ void main()
             atomicOr(matched[current][group], 1u << lane);
 
         barrier();
+
+        // Every tile that went into this stride counted itself before the barrier.
+        if (filling[current] == 0u)
+            break;
 
         const uint word = matched[current][group];
 
@@ -120,8 +145,13 @@ void main()
         }
 
         slot += bitCount(word);
+        fills = fills && slot < end;
+        if (lane == 0u && fills)
+            atomicAdd(filling[(stride + 1u) % 3u], 1u);
 
         if (lane == 0u)
             matched[(stride + 2u) % 3u][group] = 0u;
+        if (gl_LocalInvocationID.x == 0u)
+            filling[(stride + 2u) % 3u] = 0u;
     }
 }

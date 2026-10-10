@@ -64,9 +64,13 @@ def header_count(header: str, name: str) -> int:
 
 def domains() -> dict[str, tuple[int, ...]]:
     """**Each unsigned constant's values, by its `OpName`, read from the header that sizes it**, as
-    `listing.py` reads the CMake text: the shadow filter's level, one module per level."""
+    `listing.py` reads the CMake text: the shadow filter's level, one module per level, and the set of
+    fields it filters, a bit a field and never none, since a frame no field runs on records no level."""
     shadow = read_text(ROOT / "components" / "rtxvulkan" / "shaders" / "shared" / "shadow.h")
-    return {"SHADOW_LEVEL": tuple(range(header_count(shadow, "SHADOW_FILTER_LEVELS")))}
+    return {
+        "SHADOW_LEVEL": tuple(range(header_count(shadow, "SHADOW_FILTER_LEVELS"))),
+        "SHADOW_FIELDS": tuple(range(1, 1 << header_count(shadow, "SHADOW_FIELD_COUNT"))),
+    }
 
 
 def _string(words: tuple[int, ...]) -> str:

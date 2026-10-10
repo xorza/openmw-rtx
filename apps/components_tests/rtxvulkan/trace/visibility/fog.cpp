@@ -1024,13 +1024,12 @@ namespace Rtx::Testing
         /// **A store that is not finite is counted against the module that made it, and a sound
         /// frame counts nought.** A fog colour of NaN puts one into every froxel that holds air —
         /// the columns of the frame by every slice, one scatter store each, with the sunward store
-        /// and the lamps' still finite. The integration carries it into two of its five stores a
-        /// froxel, the air accumulated to the slice's edge and the slice's own sample, which both
-        /// hold the colour; the seeing and the two sunward stores hold none. It reaches no store of
-        /// the trace: the air folds into the pixel through `max(shaded - peeled, 0)`, which on this
-        /// card answers nought to a NaN — which is why the fault it was found by read as black
-        /// blocks and not as noise, and why every module counts its own stores rather than trusting
-        /// a NaN to show in the colour.
+        /// and the lamps' still finite. It goes no further: the scatter store is a history rounded
+        /// into a half (`roundedToHalf`), which counts the value and clamps it into the half's range,
+        /// as every rounded history does, so the integration and the trace are handed a finite
+        /// number. Which is why every module counts what it is about to store rather than trusting
+        /// a NaN to show downstream: the fault this was found by read as black blocks, and now reads
+        /// as nothing at all.
         TEST_F(RtxVisibilityTest, aStoreThatIsNotFiniteIsCountedAgainstItsModule)
         {
             constexpr std::uint32_t size = 8 * Shaders::FOG_VOLUME_SCALE;
@@ -1050,9 +1049,8 @@ namespace Rtx::Testing
             constexpr std::uint32_t froxels = columns * columns * Shaders::FOG_VOLUME_SLICES;
             EXPECT_EQ(frame.mNotFinite.of("fogscatter.rgen"), froxels)
                 << "8 by 8 columns by 64 slices, every one in air short of a wall behind the eye";
-            EXPECT_EQ(frame.mNotFinite.of("fogintegrate.comp"), 2 * froxels);
-            EXPECT_EQ(frame.mNotFinite.kernels().size(), 2u) << "no other module stores one";
-            EXPECT_EQ(frame.mNotFinite.total(), 3 * froxels);
+            EXPECT_EQ(frame.mNotFinite.kernels().size(), 1u) << "no other module stores one";
+            EXPECT_EQ(frame.mNotFinite.total(), froxels);
 
             // **A door: the frame before stood 80000 units off**, farther than a half float holds,
             // and the reset says that no step from there reaches this frame's motion. The motion

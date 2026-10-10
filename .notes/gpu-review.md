@@ -22,15 +22,14 @@ When two reviewers found the same thing, the finding has both IDs.
 |---|---|---|---|
 | 1 | G-buffer and fill diet | 1 | A payload sized to the radiance width, which needs both vendors to settle |
 | 2 | Denoiser pass graph | 1 | Transients that could share memory, which needs an arena the tree does not have |
-| 3 | Sprites and fog | 5 | Worst-frame sprite walks, a serial shade chain, 32F fog history |
-| 4 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
-| 5 | Display and presentation | 6 | Two extra full-frame copies and submits, input latency, bloom order |
-| 6 | Water: ripples and waves | 5 | A frame-rate-dependent wake, idle work, driver-precision twiddles |
-| 7 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 8 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 9 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
+| 3 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
+| 4 | Display and presentation | 6 | Two extra full-frame copies and submits, input latency, bloom order |
+| 5 | Water: ripples and waves | 5 | A frame-rate-dependent wake, idle work, driver-precision twiddles |
+| 6 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 7 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
+| 8 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
 
-31 findings are open: 0 high, 5 medium, 26 low. No reviewer found a GLSL/C++ layout,
+26 findings are open: 0 high, 2 medium, 24 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
@@ -76,61 +75,7 @@ the composite's two levels with them (DENOISE-3), so recount what is left before
 
 ---
 
-## Batch 3 — Sprites and fog
-
-### MEDIA-4: An unbinned tile walks every sprite one load at a time, though a missed emitter's sprites are contiguous
-perf · M · conf H — `shaders/lib/sprites.glsl:640-670`, `shaders/lib/spritelist.glsl:94-101`, `rtx/shaders/scene.h:1058-1059`
-
-On the unbinned frame (which `scene.h` names "the worst frame of a run": a storm that doubled, a first
-step into rain), each pixel past the overflow loads every sprite in the scene only to read
-`mEmitter`, and then `continue`s while `missed`. In an unbinned walk, the slot is the sprite index.
-
-**Direction:** when an emitter is missed in the unbinned case, set `slot = emitter.mFirst + emitter.mCount − 1`.
-For a storm with 20 emitters, that is about 20 loads plus hits instead of about 2000.
-
-### MEDIA-5: `spriteruns.comp` walks every sprite for every tile, including tiles whose run is empty or full
-perf · L · conf M — `shaders/scene/spriteruns.comp:43-104`
-
-A tile with a count of zero still loads every rect, and the workgroup runs every stride with a barrier.
-The cost is tiles × sprites (32 400 tiles at a 3840×2160 traced frame).
-
-**Direction:** treat `slot == end` as not present. Keep a shared count of tiles that are still
-filling, and `break` uniformly when it reaches zero.
-
-### MEDIA-8: The `SpriteListSize` floor is applied on every frame, not only before the first report as documented
-robustness · L · conf H — `rtx/frame/spritelistsize.cpp:15-18`, `rtx/frame/spritelistsize.hpp:21`
-
-`max(mCapacity, floor, 2·reported)` on every call means a known report never lowers the target below
-`sprites × tiles / 64`. A storm of 20 000 drops at a 3840×2160 traced frame sizes about 40 MB per bin
-where about 40 k entries are used, and a rise is a grow on the frame path.
-
-**Direction:** apply the floor only while no report has landed, or correct the header to match the code.
-
-### MEDIA-3: The sprite self-shadow pass is a serial chain of two dependent global loads and two barriers per sprite, on two workgroups per emitter
-perf · M · conf L — `shaders/scene/spriteshade.comp:141-164,365-394`, `trace/spritepasses.cpp:174`
-
-Per sprite in depth order, every lane loads `run.at[...]` from a `coherent` buffer, then the sprite
-that it names, then waits at two barriers. Weather billboards (snow, ash, blight) qualify, and only
-`2 × emitters` workgroups are alive.
-
-**Direction:** stage the sorted run 1024 at a time into shared memory in parallel. The serial loop
-then reads only shared memory, with the same order and the same answer. Measure the `shade` zone at
-a snow or ash place and at Vivec first.
-
-### MEDIA-1: The fog volume's two history images are RGBA32F, though the denoiser solves the same truncating-store problem in halves with stochastic rounding
-perf · M · conf M — `shaders/shared/fogvolume.h:22-30`, `trace/fogvolume.cpp:63-67,127-131`, `shaders/trace/fogintegrate.comp:97-108`, `trace/denoise/denoisehistory.cpp:176-187`
-
-The header's reason is a measured truncation of a half store. `loopsKeepTheirPrecision` already
-permits a feedback image in such a format when its store is `Store::RoundedAtRandom` (`roundedToHalf`).
-Four full-grid volumes at 16 B: about 47 MB at 1707×960 and 236 MB at a 3840×2160 traced frame.
-`fogintegrate` makes 18 RGBA32F fetches per froxel per slice from them.
-
-**Direction:** store RGBA16F through `roundedToHalf` with a fog seed, and use the denoiser's rule in
-the static_assert. Check with `./omw release noise` at the fog places and an A/B on `air`/`column`.
-
----
-
-## Batch 4 — Lamp sampling
+## Batch 3 — Lamp sampling
 
 ### TRACE-1: Every split hit walks every lamp in its cell, up to 256, with the full glossy lobe per lamp. The comment says the water legs do not
 perf · M · conf H (behaviour), M (cost) — `shaders/lib/shading.glsl:372-375,199-204`, `shaders/lib/water.glsl:107`, `shaders/lib/lights.glsl:131,444-458,566-618`
@@ -167,7 +112,7 @@ but the stated invariant is false.
 
 ---
 
-## Batch 5 — Display and presentation
+## Batch 4 — Display and presentation
 
 All of these items touch `display/`, `gui/` and `present/`.
 
@@ -237,7 +182,7 @@ whose weights are all 1.
 
 ---
 
-## Batch 6 — Water: ripples and waves
+## Batch 5 — Water: ripples and waves
 
 ### MEDIA-6: Ripple impulses press a fixed 20% once per frame while the field steps by real time, so the wake's strength depends on the frame rate
 bug · L · conf M — `apps/openmw/mwrender/rtx/rippleemitters.cpp:59-71`, `trace/ripplepass.cpp:122-124,152-185`, `shaders/trace/ripplestep.comp:255-264,294-298`
@@ -289,7 +234,7 @@ Rows and columns cannot fuse, because a 512² grid does not fit in shared memory
 
 ---
 
-## Batch 7 — Scene record layout for the trace
+## Batch 6 — Scene record layout for the trace
 
 Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
 interior and a foliage exterior, and keep only what measures.
@@ -334,7 +279,7 @@ dispatch per kind (a binary search over the prefix, or indirect). Measure the `s
 
 ---
 
-## Batch 8 — Layered ground in the trace
+## Batch 7 — Layered ground in the trace
 
 ### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
 simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
@@ -358,7 +303,7 @@ non-detailed hits from it. Keep the live stack for the eye, reflections and the 
 
 ---
 
-## Batch 9 — Housekeeping
+## Batch 8 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -396,8 +341,8 @@ dispatch", but the fog samples them in ray-tracing launches.
 
 **Direction:** restate both comments.
 
-Comment corrections that belong to a batch above stay with their batch: DENOISE-5, DENOISE-9 (batch 2),
-TRACE-1 and TRACE-9 (batch 4), TRACE-3 (batch 8).
+Comment corrections that belong to a batch above stay with their batch: TRACE-1 and TRACE-9 (batch 3),
+TRACE-3 (batch 7).
 
 ---
 
@@ -434,7 +379,7 @@ The reviewers checked these items and found no fault:
 - **Trace.** The payload pack/unpack (30 words), the rgb9e5 range, the `HitRecord`/SBT order against
   `MaterialKind`, push-descriptor persistence across binds, `tmin ≤ tmax` at the clip, and RIS and
   sky-pick unbiasedness.
-- **Fog and waves.** Fog reprojection and history rejection are correct (apart from MEDIA-1's format).
+- **Fog and waves.** Fog reprojection and history rejection are correct.
   The FFT is correct.
 
 - **TRACE-6, withdrawn.** It said that an opaque texel of a see-through caster never stops a
@@ -477,6 +422,19 @@ The reviewers checked these items and found no fault:
   memory and of writes fewer, each texel rebuilt through its own eye. Every step but the last the
   same to the bit at every view; the last moved by a level of 255, and by up to 25 on 0.01% of
   `mournhold-arrival`'s pixels, isolated in its dark.
+
+- **The sprites and the fog, measured** (MEDIA-4, MEDIA-5, MEDIA-8, MEDIA-3, MEDIA-1; release, two
+  legs each after a warm-up, at vivec, seyda-neen-ship and ald-ruhn under `--weather` Ashstorm and
+  Snow, medians/p99 in ms). The self-shadow walk staged a workgroup of the sorted run at a time into
+  shared memory: `shade` under snow 1.016/2.243 to 0.638/0.672 at Vivec and 1.019/2.148 to
+  0.642/1.903 on the ship, under ash 0.129 to 0.092 and 0.070 to 0.050. A second copy of the grid,
+  one barrier a step, measured slower (0.81 under snow) and was dropped. The fog history in halves
+  rounded at random: `air` 0.210 to 0.203, 0.242 to 0.234, 0.200 to 0.193; `column` 3–9% lower; the
+  noise and the bias at balmora-fog-night, balmora-storm-night and seyda-neen-pier the same to the
+  verb's two decimals; half the memory, some 118 MB at a 3840×2160 traced frame, and no device need
+  of a filtered 32-bit float. The unbinned walk's skip and the fill's stop draw the same list and the
+  same picture; the list sized from the floor only until a report lands. Every picture of the suite
+  within a level of 255.
 
 - **DENOISE-10, measured and left.** The driver does not merge a history tap loaded for the test and
   again for the sum (each binary 1 to 2% smaller loaded once), and every way of loading it once cost

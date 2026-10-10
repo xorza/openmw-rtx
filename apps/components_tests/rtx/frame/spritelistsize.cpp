@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <limits>
+#include <optional>
 
 #include <gtest/gtest.h>
 
@@ -19,19 +20,23 @@ namespace Rtx
         TEST(RtxSpriteListSizeTest, theBufferHoldsTheStartsAndTheCapacityTogether)
         {
             SpriteListSize size;
-            size.sizeFor(sTiles, 4096, 0);
+            size.sizeFor(sTiles, 4096, std::nullopt);
 
             EXPECT_EQ(size.getEntries(), std::uint64_t{ sTiles } + 1 + size.getCapacity());
             EXPECT_EQ(size.getBytes(), size.getEntries() * sizeof(std::uint32_t));
         }
 
-        /// The floor is a share of the tiles, the report doubles it, and neither ever gives ground.
+        /// The floor until a report lands, twice the report from then on, and the mark never gives
+        /// ground.
         ///
         /// **Hand-computed.** 4,096 sprites over 8,160 tiles is 33,423,360, and one tile in
-        /// `sFloorShare` of that is 522,240 — which is what a copy nothing has reported to gets. A
-        /// report of 600,000 then asks for twice that, and a report of one asks for less than the
-        /// mark already holds and moves nothing.
-        TEST(RtxSpriteListSizeTest, theMarkFollowsTheFloorAndTheReportAndNeverGoesBack)
+        /// `sFloorShare` of that is 522,240 — what a copy nothing has reported to gets. A report of
+        /// 600,000 then asks for twice that, 1,200,000; a report of one asks for two, and a frame
+        /// with no sprites for none, which the mark already holds. **The floor is not given again
+        /// once a report has landed**: one of no entries asks for nothing, and twice 8,192 sprites
+        /// over the same tiles, which the floor would give 1,044,480, is not given on a frame whose
+        /// report is not yet waited for either.
+        TEST(RtxSpriteListSizeTest, theMarkFollowsTheFloorUntilAReportAndTheReportAfter)
         {
             constexpr std::uint32_t sSprites = 4096;
             constexpr std::uint32_t sFloor
@@ -41,17 +46,25 @@ namespace Rtx
             SpriteListSize size;
             EXPECT_EQ(size.getCapacity(), 0u) << "a copy nothing has sized";
 
-            size.sizeFor(sTiles, sSprites, 0);
+            size.sizeFor(sTiles, sSprites, std::nullopt);
             EXPECT_EQ(size.getCapacity(), sFloor) << "the first frame takes the floor";
 
-            size.sizeFor(sTiles, sSprites, 600000);
+            size.sizeFor(sTiles, sSprites, 600000u);
             EXPECT_EQ(size.getCapacity(), 1200000u) << "a report is doubled";
 
-            size.sizeFor(sTiles, sSprites, 1);
+            size.sizeFor(sTiles, sSprites, 1u);
             EXPECT_EQ(size.getCapacity(), 1200000u) << "a quiet frame gave the room back";
 
-            size.sizeFor(sTiles, 0, 0);
+            size.sizeFor(sTiles, 0, 0u);
             EXPECT_EQ(size.getCapacity(), 1200000u) << "a frame with no sprites gave the room back";
+
+            SpriteListSize reported;
+            reported.sizeFor(sTiles, sSprites, 0u);
+            EXPECT_EQ(reported.getCapacity(), 0u) << "a report of nothing took the floor";
+            reported.sizeFor(sTiles, 2 * sSprites, std::nullopt);
+            EXPECT_EQ(reported.getCapacity(), 0u) << "the floor came back while a report was in flight";
+            reported.sizeFor(sTiles, 2 * sSprites, 300u);
+            EXPECT_EQ(reported.getCapacity(), 600u) << "the report after it is doubled";
         }
 
         /// Neither the floor nor the report can carry the mark past the cap or round the top.
@@ -68,7 +81,7 @@ namespace Rtx
             // 4,000,000 sprites over 8,160 tiles is 32,640,000,000, which is past a `uint32` before
             // the share is taken and 510,000,000 after it — itself past the cap.
             SpriteListSize byFloor;
-            byFloor.sizeFor(sTiles, 4000000, 0);
+            byFloor.sizeFor(sTiles, 4000000, std::nullopt);
             EXPECT_EQ(byFloor.getCapacity(), SpriteListSize::sMostEntries) << "the floor went round";
 
             // Doubling this wraps to 2,147,483,646 in thirty-two bits, which is smaller than the

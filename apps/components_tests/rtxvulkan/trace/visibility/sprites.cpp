@@ -465,6 +465,66 @@ namespace Rtx::Testing
             EXPECT_NEAR(both.mGreen / shell.mGreen, green, 1e-3f) << "the shell was weighed by its coverage";
         }
 
+        /// **An unbinned walk that steps past a missed emitter's run draws the emitter after it whole.**
+        /// One frame, which has no report to size its list by, so every tile walks every sprite. Two
+        /// emitters off to the side of the centre's ray, three sprites each, the first and third in
+        /// the table, and two on it, the second and the fourth, one sprite each: a red puff and a
+        /// green one behind it. The centre is the same to the bit with the side emitters as without
+        /// them; a step one sprite too far would drop each puff on the ray, since each is its run's
+        /// only sprite.
+        TEST_F(RtxVisibilityTest, anUnbinnedWalkSkipsAMissedEmittersRunAndNothingAfterIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+
+            Shaders::VisibilityConstants camera = Testing::makeCameraAlong(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+            camera.mAmbient = osg::Vec3f();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+
+            const auto shot = [&](bool aside) {
+                SceneDesc scene;
+                std::array<TextureData, 1> textures{ describeTexel(white) };
+                const Index cut = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                const auto addAside = [&] {
+                    std::array<Sprite, 3> three{};
+                    for (std::size_t at = 0; at < three.size(); ++at)
+                        three[at] = Sprite{ .mPosition = osg::Vec3f(120.0f, 300.0f, 20.0f * static_cast<float>(at)),
+                            .mRadius = 10.0f,
+                            .mColour = osg::Vec3f(0.0f, 0.0f, 1.0f),
+                            .mAlpha = 0.5f };
+                    scene.addEmitter(three, cut, BlendKind::Over);
+                };
+                const auto addOnRay = [&](float distance, const osg::Vec3f& colour) {
+                    const std::array<Sprite, 1> one{ Sprite{ .mPosition = osg::Vec3f(0.0f, distance, 0.0f),
+                        .mRadius = 40.0f,
+                        .mColour = colour,
+                        .mAlpha = 0.5f } };
+                    scene.addEmitter(one, cut, BlendKind::Over);
+                };
+
+                if (aside)
+                    addAside();
+                addOnRay(300.0f, osg::Vec3f(1.0f, 0.0f, 0.0f));
+                if (aside)
+                    addAside();
+                addOnRay(500.0f, osg::Vec3f(0.0f, 1.0f, 0.0f));
+
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mLoss = HistoryLoss::Cut });
+                return std::array<float, 4>{ frame.at(centre), frame.at(centre + 1), frame.at(centre + 2),
+                    frame.at(centre + 3) };
+            };
+
+            const std::array<float, 4> onRay = shot(false);
+            ASSERT_GT(onRay[0], 0.0f) << "the red puff on the ray is drawn";
+            ASSERT_GT(onRay[1], 0.0f) << "the green puff behind it is drawn";
+            EXPECT_EQ(shot(true), onRay) << "the emitters aside moved the centre";
+        }
+
         /// **Puffs on one pixel are drawn in order of depth, whatever order their emitter holds
         /// them in**: a thin red puff in front of a dense green one shows its own red as it does
         /// alone, and the green behind it as the green alone times what the red lets through. The

@@ -145,7 +145,7 @@ const uint SEED_SHADOW_THROUGH = SEED_WAVELET_TAPS + 1u;
 /// one draw shared rounds them the same way: their errors would add where they are to stand apart.
 /// The glossy and the pane filters' and their clamp's for each (`HistoryClampConstants::mLayer`), the
 /// bounce's: the accumulator's, its clamp's and the first wavelet level's; and each shadow field's
-/// temporal pass's and first filter level's.
+/// temporal pass's and first filter level's. And the fog's two history images, a froxel's.
 const uint SEED_GLOSSY_ROUNDING = SEED_SHADOW_THROUGH + 1u;
 const uint SEED_GLOSSY_CLAMP_ROUNDING = SEED_GLOSSY_ROUNDING + 1u;
 const uint SEED_PANE_ROUNDING = SEED_GLOSSY_CLAMP_ROUNDING + 1u;
@@ -157,6 +157,8 @@ const uint SEED_SKY_SHADOW_ROUNDING = SEED_BOUNCE_HISTORY_ROUNDING + 1u;
 const uint SEED_SKY_SHADOW_HISTORY_ROUNDING = SEED_SKY_SHADOW_ROUNDING + 1u;
 const uint SEED_LAMP_SHADOW_ROUNDING = SEED_SKY_SHADOW_HISTORY_ROUNDING + 1u;
 const uint SEED_LAMP_SHADOW_HISTORY_ROUNDING = SEED_LAMP_SHADOW_ROUNDING + 1u;
+const uint SEED_FOG_SCATTER_ROUNDING = SEED_LAMP_SHADOW_HISTORY_ROUNDING + 1u;
+const uint SEED_FOG_SUNWARD_ROUNDING = SEED_FOG_SCATTER_ROUNDING + 1u;
 
 /// A key for one pixel, which a caller offsets by a `SEED_` constant to say which sequence it wants.
 ///

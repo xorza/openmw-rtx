@@ -12,7 +12,6 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
-#include <components/rtxvulkan/shaders/shared/fogvolume.h>
 #include <components/rtxvulkan/shaders/shared/normalspread.h>
 #include <components/rtxvulkan/shaders/shared/tone.h>
 
@@ -272,12 +271,6 @@ namespace Rtx
             // And the curve's sixteen-bit picture of a summed frame, the same way — `TONE_DEEP_FORMAT`.
             RequiredFormat{ toVulkanFormat(TONE_DEEP_FORMAT), VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
                 "the summed picture's sixteen bits" },
-            // And the fog's history in full floats, written by a dispatch and read back filtered
-            // across the froxels it reprojects between — `FOG_HISTORY_FORMAT`. Filtering a 32-bit
-            // float is another of the features Vulkan leaves optional.
-            RequiredFormat{ toVulkanFormat(FOG_HISTORY_FORMAT),
-                VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT,
-                "the fog's history" },
         };
     }
 
