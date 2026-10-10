@@ -202,13 +202,14 @@ namespace Rtx::Testing
         return scene.addMesh(arrays, {}, RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 });
     }
 
-    /// Poses a mesh on a rig by `bones`, laid as the scene takes them. The scratch is kept, as
-    /// the resolver keeps its own, because a test counts a frame's allocations through this.
-    inline void poseRig(
-        SceneDesc& scene, Index mesh, std::span<const Shaders::GpuBone> bones, const osg::BoundingBoxf& reach)
+    /// Poses a mesh on a rig by `bones` under `transform` for the skin's own, laid as the scene
+    /// takes them. The scratch is kept, as the resolver keeps its own, because a test counts a
+    /// frame's allocations through this.
+    inline void poseRig(SceneDesc& scene, Index mesh, std::span<const Shaders::GpuBone> bones,
+        const osg::BoundingBoxf& reach, const Shaders::GpuBone& transform = toGpuBone(osg::Matrixf::identity()))
     {
         static std::vector<PoseWord> words;
-        packBones(bones, words);
+        packRig(transform, bones, words);
         scene.pose(mesh, words, reach);
     }
 

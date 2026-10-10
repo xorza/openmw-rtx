@@ -62,26 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 8. Make the skin kernel compute what `RigGeometry::cull` computes
-- **Audit**: MIRROR-1. CONFIRMED: both sides were read against each other.
-- **Where**: `components/rtx/mirror/meshresolver.cpp:243-265` (`pose`), `:315-345` (`readRig`),
-  `components/rtxvulkan/shaders/scene/skin.comp:44-58`. The reference is
-  `components/sceneutil/riggeometry.cpp:170-208`.
-- **Problem**: The rasterizer blends the bones that the skeleton has, keeps the blend's homogeneous
-  column at (0,0,0,1), and then applies the skin transform `T` once. The kernel blends rows that
-  already contain `T`, so `T`'s translation is scaled by the sum of the weights. Thus:
-  - a vertex with no weights lands at the origin, but the rasterizer keeps its bind position (the
-    kernel's comment says the opposite);
-  - a vertex whose bones the skeleton does not have lands at 0, not at `T`'s translation;
-  - weights that do not sum to 1 move the vertex.
-  Partially or badly skinned mod meshes stretch to the origin.
-- **Fix**: Pack the bones without `T`. Each pose gets one extra row set for `T`, and the kernel
-  applies it after the blend. A run of zero influences writes the bind position and normal
-  unchanged. Correct the kernel's comment.
-- **Test**: `components_tests` `rtxvulkan/scene/skinpass.cpp`: a rig with `T` = translate(10,0,0)
-  and three vertices: no group, weight 0.5 on one bone, and one bone the skeleton lacks. They land at
-  bind, `0.5·(p·B)·R_T + t_T` and `t_T`, as `RigGeometry::cull` computes them.
-
 ### 10. Refuse non-finite and singular transforms in the cell ring and the motion record
 - **Audit**: MIRROR-4 (CONFIRMED), MIRROR-6 (PLAUSIBLE).
 - **Close first**: MIRROR-6: read `osg::Matrixf::inverse` (`invert_4x3`) and confirm that it divides

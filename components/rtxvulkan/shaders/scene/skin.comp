@@ -8,7 +8,8 @@
 // bones that move it and by how much; the rows of those bones are blended at their weights, and the
 // blend is of the matrices and not of the results — the same thing for a position and not for a
 // normal, and one matrix at the end is three dot products against a normal instead of many. The
-// bones already carry the skin transform, composed on the host, so the blend is the whole pose.
+// skin's own transform is applied once, to the blend, as `cull` applies it: composed into each bone
+// it would be scaled by the sum of the weights (`Rtx::packRig`).
 //
 // The normal and the tangent take the linear part and are not normalised, because the rasterizer
 // does not: what a hit reads is what it would have read. Morrowind scales uniformly, so the plain
@@ -42,23 +43,36 @@ void main()
     const uint first = runFirst(run);
     const uint count = runCount(run);
 
-    // A vertex no bone moves sums to the zero matrix and lands at the origin, which is where the
-    // rasterizer puts it too.
     vec4 rows[3] = vec4[3](vec4(0.0), vec4(0.0), vec4(0.0));
     for (uint at = 0u; at < count; ++at)
     {
         const GpuInfluence share = InfluenceRun(skin.mInfluences).at[first + at];
-        const GpuBone bone = BoneRun(skin.mBones).at[share.mBone];
+        const GpuBone bone = BoneRun(skin.mBones).at[1u + share.mBone];
         rows[0] += share.mWeight * bone.mRows[0];
         rows[1] += share.mWeight * bone.mRows[1];
         rows[2] += share.mWeight * bone.mRows[2];
     }
 
+    // The blend under the skin's transform, the product `cull` takes: each row of the transform
+    // weighs the blend's rows, and its translation is added once.
+    const GpuBone transform = BoneRun(skin.mBones).at[0];
+    vec4 posed[3];
+    for (uint row = 0u; row < 3u; ++row)
+        posed[row] = transform.mRows[row].x * rows[0] + transform.mRows[row].y * rows[1]
+            + transform.mRows[row].z * rows[2] + vec4(0.0, 0.0, 0.0, transform.mRows[row].w);
+
+    // **A vertex no bone moves keeps its bind pose**, where `cull` leaves one: it writes only the
+    // vertices a group names, into a copy of the source. Selected rather than branched on.
+    const bool still = count == 0u;
+    posed[0] = still ? vec4(1.0, 0.0, 0.0, 0.0) : posed[0];
+    posed[1] = still ? vec4(0.0, 1.0, 0.0, 0.0) : posed[1];
+    posed[2] = still ? vec4(0.0, 0.0, 1.0, 0.0) : posed[2];
+
     const vec4 point = vec4(Vec3Run(skin.mBindPositions).at[vertex], 1.0);
     const vec3 normal = Vec3Run(skin.mBindNormals).at[vertex];
 
-    const vec3 position = vec3(dot(rows[0], point), dot(rows[1], point), dot(rows[2], point));
-    const vec3 posedNormal = vec3(dot(rows[0].xyz, normal), dot(rows[1].xyz, normal), dot(rows[2].xyz, normal));
+    const vec3 position = vec3(dot(posed[0], point), dot(posed[1], point), dot(posed[2], point));
+    const vec3 posedNormal = vec3(dot(posed[0].xyz, normal), dot(posed[1].xyz, normal), dot(posed[2].xyz, normal));
     countNotFinite(position);
     countNotFinite(posedNormal);
     Vec3Written(skin.mPositions).at[vertex] = position;
@@ -68,7 +82,7 @@ void main()
     // as none — a body no normal map is read through carries none.
     const vec4 tangent = unpackTangent(UintRun(skin.mBindTangents).at[vertex]);
     const vec3 posedTangent
-        = vec3(dot(rows[0].xyz, tangent.xyz), dot(rows[1].xyz, tangent.xyz), dot(rows[2].xyz, tangent.xyz));
+        = vec3(dot(posed[0].xyz, tangent.xyz), dot(posed[1].xyz, tangent.xyz), dot(posed[2].xyz, tangent.xyz));
     countNotFinite(posedTangent);
     UintWritten(skin.mTangents).at[vertex] = packTangent(posedTangent, tangent.w < 0.0);
 }
