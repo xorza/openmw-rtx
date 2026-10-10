@@ -560,8 +560,9 @@ namespace Rtx
             EXPECT_EQ(mScene.meshes().getRows()[mOther].mBindOffset, 4u);
             EXPECT_EQ(mScene.deformers().getBindVertexCount(), 8u) << "the bind table holds the skinned meshes alone";
             EXPECT_EQ(mScene.meshes().getRows()[mMoving].mPoseOffset, 0u);
-            EXPECT_EQ(mScene.meshes().getRows()[mOther].mPoseOffset, 3u) << "three words a bone";
-            EXPECT_EQ(mScene.deformers().getPoses().size(), 6u) << "one bone a mesh";
+            EXPECT_EQ(mScene.meshes().getRows()[mOther].mPoseOffset, 6u)
+                << "three words the skin's transform and three a bone";
+            EXPECT_EQ(mScene.deformers().getPoses().size(), 12u) << "one bone a mesh, and its transform";
         }
 
         /// A pose is rows and never vertices, and it names its mesh once a frame it moves.
