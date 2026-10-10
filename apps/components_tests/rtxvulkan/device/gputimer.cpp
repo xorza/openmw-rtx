@@ -135,9 +135,10 @@ namespace Rtx
 
             // The passes every frame records, whatever it is drawing. `filter` is here too — the
             // shared renderer does not upscale, so the wavelet runs — and is left out of the list
-            // because a build without it is not a failure of this.
-            for (const FrameZone pass :
-                { FrameZone::Trace, FrameZone::Composite, FrameZone::Exposure, FrameZone::Glare, FrameZone::Tone })
+            // because a build without it is not a failure of this. The composite is not: the trace
+            // composes a frame nothing filters, and the cascade's last level one it filters, so the
+            // composite runs only to add a frame to a sum.
+            for (const FrameZone pass : { FrameZone::Trace, FrameZone::Exposure, FrameZone::Glare, FrameZone::Tone })
                 EXPECT_TRUE(reports(drawn.mGpu.spans(), pass)) << "no zone called " << sFrameZoneNames.name(pass);
 
             // **And the sea is not among them where the frame has none.** `makeCamera` names no
@@ -242,14 +243,26 @@ namespace Rtx
             EXPECT_TRUE(reports(unplaced.mGpu.spans(), FrameZone::Tlas))
                 << "a structure arrived and the top level kept the bounds of what stood before";
 
-            // **A denoised frame runs every pass of the bounce**: the accumulator, its clamp and each
-            // of the wavelet's levels open a zone.
+            // **A denoised frame runs every pass of the bounce**: the denoisers' stages, the temporal
+            // passes and the clamps, and each of the wavelet's levels open a zone, in that order — the
+            // shadow filter's levels between the clamps and the wavelet, where a source lights.
             ReconstructionRequest filtered = mRenderer.getProfile().mReconstruction;
             filtered.mDenoise = true;
             const Drawn traced = draw(mRenderer, camera, 0.0, filtered);
-            for (const FrameZone pass : { FrameZone::Accumulate, FrameZone::Clamp, FrameZone::Filter0,
-                     FrameZone::Filter1, FrameZone::Filter2, FrameZone::Filter3 })
-                EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << sFrameZoneNames.name(pass);
+            EXPECT_FALSE(reports(traced.mGpu.spans(), FrameZone::Composite))
+                << "a denoised frame nothing sums was composed in a pass of its own, after its cascade";
+            const std::span<const GpuSpan> stages = traced.mGpu.spans();
+            const auto stageAt = [&](FrameZone zone) { return std::ranges::find(stages, zone, &GpuSpan::mZone); };
+            for (const FrameZone pass : { FrameZone::Temporal, FrameZone::Clamp, FrameZone::Filter0, FrameZone::Filter1,
+                     FrameZone::Filter2, FrameZone::Filter3 })
+                EXPECT_NE(stageAt(pass), stages.end()) << "no zone called " << sFrameZoneNames.name(pass);
+            EXPECT_LT(stageAt(FrameZone::Temporal), stageAt(FrameZone::Clamp));
+            EXPECT_LT(stageAt(FrameZone::Clamp), stageAt(FrameZone::Filter0));
+            if (stageAt(FrameZone::Shadow) != stages.end())
+            {
+                EXPECT_LT(stageAt(FrameZone::Clamp), stageAt(FrameZone::Shadow));
+                EXPECT_LT(stageAt(FrameZone::Shadow), stageAt(FrameZone::Filter0));
+            }
 
             // **The ripple field is stood for a scene that holds water and stepped only where the
             // sky's clock has moved a sixtieth**, before the sea reads it. The frame the field is

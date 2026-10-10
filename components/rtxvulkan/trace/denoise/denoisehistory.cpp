@@ -6,7 +6,6 @@
 #include <string>
 #include <string_view>
 
-#include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -96,8 +95,6 @@ namespace Rtx
         };
 
         constexpr std::array<Declared, sDenoiseImages> sDeclared{ {
-            { DenoiseImage::Surface, "accumulate-surface", ACCUMULATE_SURFACE, Role::OneFrame, true, Grid::Pixels,
-                sStorage, Temporal::Accumulate },
             { DenoiseImage::Colour, "accumulate-colour", ACCUMULATE_COLOUR, Role::FedBack, false, Grid::Pixels,
                 sReadAndWrite, Temporal::Accumulate, Store::RoundedAtRandom },
             { DenoiseImage::Moments, "accumulate-moments", ACCUMULATE_MOMENTS, Role::FedBack, true, Grid::Pixels,
@@ -158,8 +155,6 @@ namespace Rtx
                 Grid::Pixels, sStorage, Temporal::Specular },
             { DenoiseImage::PaneMean, "pane-mean", PANE_MEAN, Role::FedBack, true, Grid::Pixels, sStorage,
                 Temporal::Pane, Store::RoundedAtRandom },
-            { DenoiseImage::PaneHeld, "pane-held", ACCUMULATE_SURFACE, Role::OneFrame, true, Grid::Pixels, sStorage,
-                Temporal::Pane },
             { DenoiseImage::PaneFast, "pane-fast", HISTORY_CLAMP_FAST, Role::FedBack, false, Grid::Pixels, sStorage,
                 Temporal::Pane },
             { DenoiseImage::PaneFastBlended, "pane-fast-blended", HISTORY_CLAMP_FAST, Role::InLoop, false, Grid::Pixels,
@@ -267,19 +262,6 @@ namespace Rtx
         return bytes;
     }
 
-    float DenoiseHistory::distanceScaleFor(const float far)
-    {
-        assert(far > 0.0f && "a frame with no far plane to scale a stored distance by");
-        return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
-    }
-
-    float DenoiseHistory::exchangeDistanceScale(const float scale)
-    {
-        const float held = mHeldDistanceScale > 0.0f ? mHeldDistanceScale : scale;
-        mHeldDistanceScale = scale;
-        return held;
-    }
-
     void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height)
     {
         for (const Declared& declared : sDeclared)
@@ -320,7 +302,7 @@ namespace Rtx
 
     TemporalTurns::Step DenoiseHistory::turn(const TemporalFlags& runs)
     {
-        assert(!mImages[static_cast<std::size_t>(DenoiseImage::Surface)][0].isEmpty() && "a turn before resize");
+        assert(!mImages[static_cast<std::size_t>(DenoiseImage::Colour)][0].isEmpty() && "a turn before resize");
         const TemporalTurns::Step step = mTurns.next(runs);
         for (std::size_t at = 0; at < sTemporals; ++at)
             assert((mPast == TracePast::Kept || !step.mRuns.mFlags[at] || step.mFresh.mFlags[at])
@@ -358,16 +340,25 @@ namespace Rtx
                 only(declared.mImage).addTransition(barriers, Use::sUndefined, Use::sComputeRead);
         }
 
+        // **A shadow field that does not run beside one that does is bound all the same**: one module
+        // filters both fields (`ShadowPass::recordLevel`) and names each one's images, which a binding
+        // states in its layout though the module never reads them. Laid out for it every such frame:
+        // what they held is nothing the field reads again, since one that does not run is fresh the
+        // next time it does.
+        const bool shadowRuns = step.mRuns[Temporal::SkyShadow] || step.mRuns[Temporal::LampShadow];
+        for (const ShadowRows& rows : sShadowRows)
+            if (shadowRuns && !step.mRuns[rows.mFilter])
+                for (const DenoiseImage image : { rows.mHistory, rows.mScratch, rows.mVisibility, rows.mTiles })
+                    only(image).addTransition(barriers, Use::sUndefined, Use::sComputeRead);
+
         barriers.flush();
     }
 
     DenoiseHistory::AccumulateImages DenoiseHistory::accumulate(const TemporalTurns::Step& step) const
     {
         return AccumulateImages{
-            .mSurfaceBefore = before(DenoiseImage::Surface, step),
             .mMomentsBefore = before(DenoiseImage::Moments, step),
             .mColour = only(DenoiseImage::Colour),
-            .mSurface = now(DenoiseImage::Surface, step),
             .mMoments = now(DenoiseImage::Moments, step),
             .mBlended = only(DenoiseImage::Blended),
             .mNarrow = only(DenoiseImage::Narrow),
@@ -392,7 +383,6 @@ namespace Rtx
             .mTiles = only(rows.mTiles),
             .mPenumbra = only(rows.mPenumbra),
             .mMask = only(rows.mMask),
-            .mHeldSurface = before(DenoiseImage::Surface, step),
             .mField = field,
             .mFresh = step.mFresh[rows.mFilter],
         };
@@ -405,7 +395,6 @@ namespace Rtx
             .mMean = now(DenoiseImage::SpecularMean, step),
             .mFast = only(DenoiseImage::SpecularFast),
             .mFastBlended = only(DenoiseImage::SpecularFastBlended),
-            .mHeldSurface = before(DenoiseImage::Surface, step),
             .mFresh = step.mFresh[Temporal::Specular],
         };
     }
@@ -414,9 +403,7 @@ namespace Rtx
     {
         return PaneImages{
             .mMeanBefore = before(DenoiseImage::PaneMean, step),
-            .mHeldBefore = before(DenoiseImage::PaneHeld, step),
             .mMean = now(DenoiseImage::PaneMean, step),
-            .mHeld = now(DenoiseImage::PaneHeld, step),
             .mFast = only(DenoiseImage::PaneFast),
             .mFastBlended = only(DenoiseImage::PaneFastBlended),
             .mFresh = step.mFresh[Temporal::Pane],

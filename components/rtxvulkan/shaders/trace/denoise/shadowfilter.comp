@@ -73,16 +73,25 @@
 /// Which of the `SHADOW_FILTER_LEVELS` this module is: its taps are `1 << SHADOW_LEVEL` apart.
 layout(constant_id = SHADOW_SPEC_LEVEL) const uint SHADOW_LEVEL = 0u;
 
+/// Which fields this module filters, a bit a field at `SHADOW_FIELD_*`.
+layout(constant_id = SHADOW_SPEC_FIELDS) const uint SHADOW_FIELDS = (1u << SHADOW_FIELD_COUNT) - 1u;
+
 layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
 
 layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 
-layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_TILES, SHADOW_TILES) uniform readonly image2D tiles;
+/// Each field's tiles, the temporal pass's.
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_TILES + SHADOW_FIELD_SKY, SHADOW_TILES) uniform readonly image2D skyTiles;
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_TILES + SHADOW_FIELD_LAMPS, SHADOW_TILES) uniform readonly image2D lampTiles;
 
-/// The level before's mean and variance, or the temporal pass's: `SHADOW_NO_RECEIVER` for the
-/// variance of a pixel the shadowed sources do not light.
-layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SOURCE, SHADOW_REPROJECTED) uniform readonly uimage2D source;
-layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_FILTERED) uniform writeonly uimage2D filtered;
+/// Each field's level before, its mean and variance, or the temporal pass's: `SHADOW_NO_RECEIVER`
+/// for the variance of a pixel its source does not light. And what this level writes of each.
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SOURCE + SHADOW_FIELD_SKY, SHADOW_REPROJECTED)
+    uniform readonly uimage2D skySource;
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SOURCE + SHADOW_FIELD_LAMPS, SHADOW_REPROJECTED)
+    uniform readonly uimage2D lampSource;
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_FILTERED + SHADOW_FIELD_SKY) uniform writeonly uimage2D skyFiltered;
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_FILTERED + SHADOW_FIELD_LAMPS) uniform writeonly uimage2D lampFiltered;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -96,19 +105,59 @@ layout(push_constant, scalar) uniform Push
 const int APRON = 1 << SHADOW_LEVEL;
 const uint SPAN = SHADOW_WORKGROUP + 2u * uint(APRON);
 
-/// The level's input, the surface's normal code — `SURFACE_NO_NORMAL` where the pixel receives
-/// nothing, so no test passes it — and where the surface stands. Six kilobytes at the widest level.
-shared vec2 gInput[SPAN][SPAN];
+/// How many fields this module filters, and where a field's input stands among them: shared memory
+/// for the ones it filters alone, since what a workgroup holds is what lets another run beside it.
+const uint FIELD_SLOTS = SHADOW_FIELDS == (1u << SHADOW_FIELD_COUNT) - 1u ? SHADOW_FIELD_COUNT : 1u;
+
+uint slotOf(uint field)
+{
+    return FIELD_SLOTS == SHADOW_FIELD_COUNT ? field : 0u;
+}
+
+/// Each field's input, the surface's normal code, and where the surface stands. **The surface once
+/// for both fields**, each tap weighed by whether its own field's source lights it: the two fields
+/// read the same square of the same surface, and a dispatch a field rebuilt every position twice.
+shared vec2 gInput[FIELD_SLOTS][SPAN][SPAN];
 shared float gNormal[SPAN][SPAN];
 shared vec3 gPosition[SPAN][SPAN];
 
-/// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them.
+/// Whether this module filters `field`. Every caller names a field as a constant, so this and every
+/// branch on a field below fold where the module is specialised.
+bool filters(uint field)
+{
+    return (SHADOW_FIELDS & (1u << field)) != 0u;
+}
+
+vec2 fieldTile(uint field)
+{
+    if (field == SHADOW_FIELD_SKY)
+        return imageLoad(skyTiles, ivec2(gl_WorkGroupID.xy)).rg;
+    return imageLoad(lampTiles, ivec2(gl_WorkGroupID.xy)).rg;
+}
+
+uint sourceWord(uint field, ivec2 pixel)
+{
+    if (field == SHADOW_FIELD_SKY)
+        return imageLoad(skySource, pixel).r;
+    return imageLoad(lampSource, pixel).r;
+}
+
+void storeFiltered(uint field, ivec2 pixel, uint word)
+{
+    if (field == SHADOW_FIELD_SKY)
+        RTX_STORE_WORDS(skyFiltered, pixel, uvec4(word, 0u, 0u, 0u))
+    else
+        RTX_STORE_WORDS(lampFiltered, pixel, uvec4(word, 0u, 0u, 0u))
+}
+
+/// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them:
+/// the surface, and the input of each field `filtering` names.
 ///
 /// **Each level rebuilds its positions from the surface it reads anyway**, and no pass stores them
 /// once a frame: skipping the rebuild outright took 0.025 to 0.033 ms off the shadow zone of the
 /// default suite, three alternated rounds, and an image of positions in full floats at 1280×720 is
 /// 14.7 MB a frame, whose write alone takes 0.026 ms at the card's 576 GB/s before a level reads it.
-void readSquare(ivec2 corner)
+void readSquare(ivec2 corner, bvec2 filtering)
 {
     const ivec2 last = ivec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight) - 1;
     for (uint i = gl_LocalInvocationIndex; i < SPAN * SPAN; i += SHADOW_WORKGROUP * SHADOW_WORKGROUP)
@@ -117,30 +166,39 @@ void readSquare(ivec2 corner)
         const ivec2 pixel = clamp(corner + ivec2(square), ivec2(0), last);
 
         const vec2 seen = imageLoad(surfaceChannel, pixel).rg;
-        const vec2 value = unpackShadowWord(imageLoad(source, pixel).r);
-        const bool lit = value.y != SHADOW_NO_RECEIVER;
-
-        gInput[square.y][square.x] = value;
-        gNormal[square.y][square.x] = lit ? seen.x : SURFACE_NO_NORMAL;
+        const bool stands = seen.x != SURFACE_NO_NORMAL;
+        gNormal[square.y][square.x] = seen.x;
         gPosition[square.y][square.x]
-            = lit ? positionAlong(eyeOfPixel(seen.y, level.mEyes), pixel, surfaceDistance(seen.y)) : vec3(0.0);
+            = stands ? positionAlong(eyeOfPixel(seen.y, level.mEyes), pixel, surfaceDistance(seen.y)) : vec3(0.0);
+
+        if (filters(SHADOW_FIELD_SKY) && filtering[SHADOW_FIELD_SKY])
+            gInput[slotOf(SHADOW_FIELD_SKY)][square.y][square.x] = unpackShadowWord(sourceWord(SHADOW_FIELD_SKY, pixel));
+        if (filters(SHADOW_FIELD_LAMPS) && filtering[SHADOW_FIELD_LAMPS])
+            gInput[slotOf(SHADOW_FIELD_LAMPS)][square.y][square.x]
+                = unpackShadowWord(sourceWord(SHADOW_FIELD_LAMPS, pixel));
     }
 }
 
-vec2 inputAt(ivec2 square)
+vec2 inputAt(uint field, ivec2 square)
 {
-    return gInput[square.y][square.x];
+    return gInput[slotOf(field)][square.y][square.x];
+}
+
+/// Whether `field`'s source lights the pixel at `square`, which its input says by its variance.
+bool receives(uint field, ivec2 square)
+{
+    return inputAt(field, square).y != SHADOW_NO_RECEIVER;
 }
 
 /// The SDK's 3×3 Gaussian over the variance, which is the tent (`tentWeight`). A pixel that
 /// receives nothing adds a variance of nought, as the SDK's sky does.
-float filteredVariance(ivec2 square)
+float filteredVariance(uint field, ivec2 square)
 {
     float variance = 0.0;
     for (int y = -1; y <= 1; ++y)
         for (int x = -1; x <= 1; ++x)
         {
-            variance += tentWeight(ivec2(x, y)) * max(inputAt(square + ivec2(x, y)).y, 0.0);
+            variance += tentWeight(ivec2(x, y)) * max(inputAt(field, square + ivec2(x, y)).y, 0.0);
         }
     return variance;
 }
@@ -174,79 +232,92 @@ float kernelAt(int offset)
     return offset == 0 ? 1.0 : 2.0 / 3.0;
 }
 
+/// Whether this workgroup filters `field`'s tile, storing the copy where it does not. **A cleared tile
+/// is copied**: its value is the temporal pass's exact nought or one. Not at the middle level, whose
+/// target is the temporal pass's own image, so the value is already there for the last level to
+/// read. **And a tile whose penumbra this level's step does not fit is copied at every level**, the
+/// middle one too: the first may have run, and its target is not the temporal pass's value the
+/// middle one's is.
+bool filtersTile(uint field, ivec2 at, bool inFrame)
+{
+    const vec2 tile = fieldTile(field);
+    const bool cleared = tile.r > 0.5;
+    if (!cleared && !(float(1u << SHADOW_LEVEL) > tile.g))
+        return true;
+
+    if ((!cleared || SHADOW_LEVEL != 1u) && inFrame)
+        storeFiltered(field, at, copiedWord(sourceWord(field, at)));
+    return false;
+}
+
+/// One field's filter at the pixel `at`, the workgroup's square read: the level's mean and variance,
+/// or nought and `SHADOW_NO_RECEIVER` where the field's source lights nothing there.
+vec2 filtered(uint field, ivec2 centre, vec3 normal, vec3 position, float footprint)
+{
+    if (!receives(field, centre))
+        return vec2(0.0, SHADOW_NO_RECEIVER);
+
+    const vec2 here = inputAt(field, centre);
+    const float deviation = sqrt(max(filteredVariance(field, centre) + 1e-9, 0.0));
+
+    const int step = 1 << SHADOW_LEVEL;
+    float weightSum = 1.0;
+    vec2 sum = here;
+    for (int y = -1; y <= 1; ++y)
+        for (int x = -1; x <= 1; ++x)
+        {
+            if (x == 0 && y == 0)
+                continue;
+
+            const ivec2 tap = centre + ivec2(x, y) * step;
+            const vec2 there = inputAt(field, tap);
+            const float tested = kernelAt(x) * kernelAt(y) * exp(-abs(here.x - there.x) / deviation)
+                * coplanarWeight(normal, position, gPosition[tap.y][tap.x], footprint)
+                * facingWeights(normal, unpackSurfaceNormal(gNormal[tap.y][tap.x])).mFilter;
+            // Selected and not skipped, as the temporal pass selects what it stores
+            // (`shadowtiles.comp` names the measurement).
+            const float weight = there.y != SHADOW_NO_RECEIVER ? tested : 0.0;
+
+            sum += vec2(weight, weight * weight) * there;
+            weightSum += weight;
+        }
+
+    return vec2(sum.x / weightSum, sum.y / (weightSum * weightSum));
+}
+
 void main()
 {
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
     const bool inFrame = !outsideOf(uvec2(at), uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight));
 
-    // **A cleared tile is copied**: its value is the temporal pass's exact nought or one. Not at the
-    // middle level, whose target is the temporal pass's own image, so the value is already there
-    // for the last level to read.
-    const vec2 tile = imageLoad(tiles, ivec2(gl_WorkGroupID.xy)).rg;
-    if (tile.r > 0.5)
-    {
-        if (SHADOW_LEVEL != 1u && inFrame)
-            RTX_STORE_WORDS(filtered, at, uvec4(copiedWord(imageLoad(source, at).r), 0u, 0u, 0u))
+    // Which fields' tiles this workgroup filters, a uniform answer a field: the rest are copied here.
+    const bvec2 filtering = bvec2(filters(SHADOW_FIELD_SKY) && filtersTile(SHADOW_FIELD_SKY, at, inFrame),
+        filters(SHADOW_FIELD_LAMPS) && filtersTile(SHADOW_FIELD_LAMPS, at, inFrame));
+    if (!any(filtering))
         return;
-    }
 
-    // **At every level**, the middle one too: the first may have run, and its target is not the
-    // temporal pass's value the middle one's is.
-    if (float(1u << SHADOW_LEVEL) > tile.g)
-    {
-        if (inFrame)
-            RTX_STORE_WORDS(filtered, at, uvec4(copiedWord(imageLoad(source, at).r), 0u, 0u, 0u))
-        return;
-    }
-
-    readSquare(ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - APRON);
+    readSquare(ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - APRON, filtering);
     barrier();
 
     if (!inFrame)
         return;
 
     const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + APRON;
-    const float normalCode = gNormal[centre.y][centre.x];
+    const vec3 normal = unpackSurfaceNormal(gNormal[centre.y][centre.x]);
+    const vec3 position = gPosition[centre.y][centre.x];
+    const float packed = imageLoad(surfaceChannel, at).g;
+    const float footprint = footprintAlong(eyeOfPixel(packed, level.mEyes), surfaceDistance(packed));
 
-    // One that receives nothing is nought, with nothing to filter, and says so to the next level.
-    vec2 result = vec2(0.0, SHADOW_NO_RECEIVER);
+    if (filtering[SHADOW_FIELD_SKY])
     {
-        const vec2 here = inputAt(centre);
-        const vec3 normal = unpackSurfaceNormal(normalCode);
-        const vec3 position = gPosition[centre.y][centre.x];
-        const float packed = imageLoad(surfaceChannel, at).g;
-        const float footprint = footprintAlong(eyeOfPixel(packed, level.mEyes), surfaceDistance(packed));
-        const float deviation = sqrt(max(filteredVariance(centre) + 1e-9, 0.0));
-
-        const int step = 1 << SHADOW_LEVEL;
-        float weightSum = 1.0;
-        vec2 sum = here;
-        for (int y = -1; y <= 1; ++y)
-            for (int x = -1; x <= 1; ++x)
-            {
-                if (x == 0 && y == 0)
-                    continue;
-
-                const ivec2 tap = centre + ivec2(x, y) * step;
-                const float tapNormal = gNormal[tap.y][tap.x];
-
-                const vec2 there = inputAt(tap);
-                const float tested = kernelAt(x) * kernelAt(y) * exp(-abs(here.x - there.x) / deviation)
-                    * coplanarWeight(normal, position, gPosition[tap.y][tap.x], footprint)
-                    * facingWeights(normal, unpackSurfaceNormal(tapNormal)).mFilter;
-                // Selected and not skipped, as the temporal pass selects what it stores
-                // (`shadowtiles.comp` names the measurement).
-                const float weight = tapNormal != SURFACE_NO_NORMAL ? tested : 0.0;
-
-                sum += vec2(weight, weight * weight) * there;
-                weightSum += weight;
-            }
-
-        result = normalCode != SURFACE_NO_NORMAL ? vec2(sum.x / weightSum, sum.y / (weightSum * weightSum)) : result;
+        uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_SKY_SHADOW_HISTORY_ROUNDING, level.mFrame);
+        storeFiltered(SHADOW_FIELD_SKY, at,
+            storedWord(filtered(SHADOW_FIELD_SKY, centre, normal, position, footprint), randomWord(rounding)));
     }
-
-    uint rounding = seededKey(pixelKey(uvec2(at))
-            + (level.mField == SHADOW_FIELD_SKY ? SEED_SKY_SHADOW_HISTORY_ROUNDING : SEED_LAMP_SHADOW_HISTORY_ROUNDING),
-        level.mFrame);
-    RTX_STORE_WORDS(filtered, at, uvec4(storedWord(result, randomWord(rounding)), 0u, 0u, 0u))
+    if (filtering[SHADOW_FIELD_LAMPS])
+    {
+        uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_LAMP_SHADOW_HISTORY_ROUNDING, level.mFrame);
+        storeFiltered(SHADOW_FIELD_LAMPS, at,
+            storedWord(filtered(SHADOW_FIELD_LAMPS, centre, normal, position, footprint), randomWord(rounding)));
+    }
 }

@@ -29,8 +29,10 @@ namespace Rtx
             const Image& mFast;
         };
 
-        /// Records the clamp over the frame `constants` names, behind the filter's writes, which this
-        /// orders.
+        /// Records the clamp over the frame `constants` names, behind a dependency on the filter's
+        /// dispatch, which the caller records (`DenoisePasses::record`): the clamp reads a neighbour's
+        /// fast blend, holds the slow mean the filter wrote in place, and writes the fast mean the
+        /// filter just read as last frame's.
         void record(
             VkCommandBuffer commands, const Images& images, const Shaders::HistoryClampConstants& constants) const;
 

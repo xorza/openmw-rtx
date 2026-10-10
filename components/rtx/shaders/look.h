@@ -1363,18 +1363,6 @@ namespace Rtx::Shaders
     /// seven pixels for a new pixel, so its taps reach fourteen, and four once three frames hold.
     const float ACCUMULATE_FIX_STRIDE = 14.0f;
 
-    /// Where the far plane lands once a distance has been scaled for `ACCUMULATE_SURFACE`.
-    ///
-    /// **A half float is precise in proportion rather than in steps, so what a distance wants from
-    /// it is a range and not more bits.** Its normal numbers run from 6.1e-5 to 65504, which is
-    /// thirty binades, and a distance from one world unit to a far plane of 200000 needs eighteen of
-    /// them. Stored raw the far end overflows at 65504, and every surface past that carries an
-    /// infinity `sameSurface` compares against a NaN. Stored as a plain fraction of the far plane
-    /// the near end falls to 5e-6, a denormal whose step is 1.2% of the value against a tolerance of
-    /// 2%. Putting the far plane at 2^15 does neither: a surface a world unit from the eye stores
-    /// 0.164, eleven binades clear of where a half stops holding proportion.
-    const float ACCUMULATE_DISTANCE_RANGE = 32768.0f;
-
     /// What share of the lobe's volume the glossy filter's lobe angle holds: ReLAX's
     /// `GetSpecLobeTanHalfAngle` default, whose half angle is `atan(r² · v / (1 - v))` for a
     /// perceptual roughness `r` — three `r²` at this share.

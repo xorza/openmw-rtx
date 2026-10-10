@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <optional>
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framezone.hpp>
@@ -63,7 +64,7 @@ namespace Rtx
         mWidth = width;
         mHeight = height;
 
-        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance, mUse);
+        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance, mUse, mPast);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mUse, mPast);
         mDenoise.resize(mWidth, mHeight);
 
@@ -85,7 +86,7 @@ namespace Rtx
     VkDeviceSize TraceChain::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
         const RadianceWidth radiance, const TracePast past)
     {
-        return GBuffer::bytesAt(device, width, height, radiance) + FogVolume::bytesAt(device, width, height, past)
+        return GBuffer::bytesAt(device, width, height, radiance, past) + FogVolume::bytesAt(device, width, height, past)
             + DenoiseHistory::bytesAt(device, width, height, past);
     }
 
@@ -189,24 +190,31 @@ namespace Rtx
         // the turn, that run would read the history of the frame before this one as last frame's.
         if (!denoised)
             mDenoise.turn(TemporalFlags{});
-        const Denoised resolved = denoised
+
+        // **A denoised frame nothing sums is composed where the cascade ends**, in its last level,
+        // with no level written for the composite to read back (`atrouscompose.comp`). The composite
+        // stays for what is left: a frame nothing filtered, and a sum.
+        const bool composesInCascade = denoised && what.mAccumulate == 0;
+        const std::optional<Denoised> resolved = denoised
             ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
-                inputs.mSubject.mLamps, what.mReconstruction, what.mTimer)
+                inputs.mSubject.mLamps, composesInCascade, what.mReconstruction, what.mTimer)
             : Denoised::unfiltered(*mChannels);
+        assert(resolved.has_value() != composesInCascade
+            && "the cascade composed where it was not asked, or not where it was");
 
         // **Only where something is left to do**: a filter to put the albedo back in behind, or a sum
-        // to add the frame to. Anything else was composed by the trace,
-        // into the channel that is the frame, and every pass after it reads the channel as
-        // `handOver` left it.
+        // to add the frame to. Anything else was composed by the trace, or by the cascade,
+        // into the channel that is the frame.
         const Image& frame = mChannels->get(Channel::Direct);
-        ImageUse leftAs = Use::sAnyShaderRead;
-        if (!composed || what.mAccumulate > 0)
+        const bool written = !composed || what.mAccumulate > 0;
+        assert((!composesInCascade || written) && "a frame the trace composed handed to the cascade to compose");
+        if (written && resolved.has_value())
         {
             // Written over, where the hand-over left it to be read: nothing has read it since, and
             // this is the dependency that keeps it so.
             frame.transition(commands, Use::sAnyShaderRead, Use::sComputeReadWrite);
 
-            mPasses.mComposite.record(commands, *mChannels, resolved, mSum.isEmpty() ? nullptr : &mSum,
+            mPasses.mComposite.record(commands, *mChannels, *resolved, mSum.isEmpty() ? nullptr : &mSum,
                 Shaders::CompositeConstants{
                     .mWidth = what.mSampled.mEyes.mWorld.mWidth,
                     .mHeight = what.mSampled.mEyes.mWorld.mHeight,
@@ -215,13 +223,14 @@ namespace Rtx
                     .mLobed = inputs.mSubject.mMapped ? 1u : 0u,
                 },
                 what.mTimer);
-
-            // Whatever comes next reads what the composite just wrote. The frame's scope is the
-            // wider of the two — an upscaler, a lens and a curve against a picture's one curve —
-            // and covers both.
-            frame.transition(commands, Use::sComputeReadWrite, Use::sAnyGeneralRead);
-            leftAs = Use::sAnyGeneralRead;
         }
+
+        // Whatever comes next reads what the composite or the cascade just wrote. The frame's scope
+        // is the wider of the two — an upscaler, a lens and a curve against a picture's one curve —
+        // and covers both.
+        if (written)
+            frame.transition(commands, Use::sComputeReadWrite, Use::sAnyGeneralRead);
+        const ImageUse leftAs = written ? Use::sAnyGeneralRead : Use::sAnyShaderRead;
 
         return TraceResult{
             .mInputs = inputs, .mColour = HandedImage{ .mImage = frame, .mLeftAs = leftAs }, .mSprites = tables

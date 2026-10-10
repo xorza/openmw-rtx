@@ -2,9 +2,7 @@
 
 #include <array>
 
-#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/pane.h>
 #include <components/rtxvulkan/shaders/shared/specular.h>
@@ -28,15 +26,6 @@ namespace Rtx
     void HistoryClampPass::record(
         const VkCommandBuffer commands, const Images& images, const Shaders::HistoryClampConstants& constants) const
     {
-        // The clamp reads a neighbour's fast blend, so every pixel's is behind it, holds the slow
-        // mean the filter wrote in place, and writes the fast mean the filter just read as last
-        // frame's.
-        Barriers written(commands);
-        images.mMean.addTransition(written, Use::sComputeWrite, Use::sComputeReadWrite);
-        images.mFastBlended.addTransition(written, Use::sComputeWrite, Use::sComputeRead);
-        images.mFast.addTransition(written, Use::sComputeRead, Use::sComputeWrite);
-        written.flush();
-
         DescriptorWrites writes(mPipeline);
         writes.image(Shaders::HISTORY_CLAMP_BIND_SAMPLED, images.mSampled.describeStorage());
         writes.image(Shaders::HISTORY_CLAMP_BIND_MEAN, images.mMean.describeStorage());

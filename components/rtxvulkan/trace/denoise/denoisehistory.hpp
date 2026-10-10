@@ -20,7 +20,6 @@ namespace Rtx
     /// each its format, its role, its grid and the filter it belongs to.
     enum class DenoiseImage : std::uint8_t
     {
-        Surface,
         Colour,
         Moments,
         Blended,
@@ -48,7 +47,6 @@ namespace Rtx
         SpecularFast,
         SpecularFastBlended,
         PaneMean,
-        PaneHeld,
         PaneFast,
         PaneFastBlended,
     };
@@ -99,15 +97,6 @@ namespace Rtx
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
 
-        /// What a world distance is multiplied by before a surface history holds it, for a frame
-        /// whose far plane is `far`: `HistoryConstants::mDistanceScale`, which says why.
-        static float distanceScaleFor(float far);
-
-        /// The distance scale the surfaces the histories hold were stored at, for this frame to read
-        /// them back by — `scale` where nothing was stored yet — and `scale` kept for the next
-        /// frame, which reads what this one stores. Once a recorded frame, by the frame that stores.
-        float exchangeDistanceScale(float scale);
-
         /// Turns to the other half of every pair for the frame being recorded, on which `runs` run:
         /// which halves each filter reads and writes, and which have nothing to read.
         TemporalTurns::Step turn(const TemporalFlags& runs);
@@ -126,19 +115,12 @@ namespace Rtx
         /// through with the blend.
         struct AccumulateImages
         {
-            /// The surface last frame's histories belong to, as every temporal pass that asks
-            /// whether a texel is still the same surface reads it (`heldSurfaceMatches`): the normal
-            /// and the distance the accumulator wrote for each pixel. **One surface history for
-            /// every pass that asks**, since each asks it of the same pixels of the same frames; the
-            /// accumulator writes it, and the shadow denoiser and the glossy filter only read it.
-            const Image& mSurfaceBefore;
             const Image& mMomentsBefore;
 
             /// Read by the accumulator as last frame's and written by the cascade's first level — SVGF's
             /// feedback, so what carries forward is the filtered light. One image and not a pair: the
             /// read is behind the frame's barriers before the write.
             const Image& mColour;
-            const Image& mSurface;
             const Image& mMoments;
 
             /// This frame's bounce blended with the history, which the cascade filters. One image
@@ -186,9 +168,6 @@ namespace Rtx
             /// One word an 8×4 tile of the rays' bits.
             const Image& mMask;
 
-            /// `AccumulateImages::mSurfaceBefore`.
-            const Image& mHeldSurface;
-
             /// Which rays' bits these filter.
             ShadowField mField;
 
@@ -206,20 +185,15 @@ namespace Rtx
             const Image& mFast;
             const Image& mFastBlended;
 
-            /// `AccumulateImages::mSurfaceBefore`.
-            const Image& mHeldSurface;
-
             bool mFresh;
         };
 
-        /// The pane filter's: the mean with its frame count, and the layer it belongs to, the last
-        /// frame's and this one's; and the fast mean, as the glossy filter keeps it.
+        /// The pane filter's: the mean with its frame count, the last frame's and this one's; and the
+        /// fast mean, as the glossy filter keeps it.
         struct PaneImages
         {
             const Image& mMeanBefore;
-            const Image& mHeldBefore;
             const Image& mMean;
-            const Image& mHeld;
             const Image& mFast;
             const Image& mFastBlended;
             bool mFresh;
@@ -247,8 +221,5 @@ namespace Rtx
 
         /// Started again by `resize`, so the first frame after one reads no image nothing wrote.
         TemporalTurns mTurns;
-
-        /// What `exchangeDistanceScale` kept, nought before any frame stored a surface.
-        float mHeldDistanceScale = 0.0f;
     };
 }

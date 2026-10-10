@@ -12,7 +12,6 @@ namespace Rtx
 {
     class Device;
     class GBuffer;
-    class GpuTimer;
 
     /// The denoiser's temporal half: this frame's bounce averaged with what the same surface gave on
     /// the frames before it. SVGF, A-SVGF, ReLAX and ReBLUR are all a temporal accumulator with a
@@ -28,12 +27,13 @@ namespace Rtx
         /// `Channel::Indirect` would mean two different things — its moments beside it, and the fast
         /// blend in the scratch. `DenoiseHistory::discard` has readied what this reads and writes.
         void record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images, const GBuffer& buffer,
-            const DenoiseFrame& frame, GpuTimer* timer) const;
+            const DenoiseFrame& frame) const;
 
         /// Holds the blend's slow mean to the fast one (`accumulateclamp.comp`), writes its variance
-        /// beside it and writes the fast means. After `record`.
+        /// beside it and writes the fast means. After `record`, behind a dependency on everything it
+        /// wrote and read, which the caller records (`DenoisePasses::record`).
         void recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-            const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const;
+            const GBuffer& buffer, const DenoiseFrame& frame) const;
 
     private:
         ComputePipeline<Shaders::AccumulateConstants> mPipeline;

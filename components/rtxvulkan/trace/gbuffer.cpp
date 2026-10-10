@@ -2,6 +2,10 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <cstddef>
+#include <optional>
+#include <tuple>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/shaders/gbuffer.h>
@@ -121,6 +125,19 @@ namespace Rtx
             Crash::fatal("the nothing of a channel every trace writes");
         }
 
+        /// The channels whose frame before every temporal filter reads (`GBuffer::getHeld`), at their
+        /// index in `GBuffer::mOthers`.
+        constexpr std::array sHeldChannels{ Channel::Surface, Channel::PaneSurface };
+
+        /// `channel`'s index among `sHeldChannels`, or none.
+        constexpr std::optional<std::size_t> heldIndexOf(const Channel channel)
+        {
+            for (std::size_t at = 0; at < sHeldChannels.size(); ++at)
+                if (sHeldChannels[at] == channel)
+                    return at;
+            return std::nullopt;
+        }
+
         ImageDescription descriptionOf(
             const Channel channel, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
         {
@@ -145,27 +162,58 @@ namespace Rtx
     }
 
     GBuffer::GBuffer(const Device& device, const SetLayout& layout, const std::uint32_t width,
-        const std::uint32_t height, const RadianceWidth radiance, const MemoryUse use)
-        : mSet(device, sBindings, layout.get(), 1)
+        const std::uint32_t height, const RadianceWidth radiance, const MemoryUse use, const TracePast past)
+        : mSet(device, sBindings, layout.get(), past == TracePast::Kept ? 2 : 1)
     {
+        static_assert(sHeldChannels.size() == std::tuple_size_v<decltype(mOthers)>, "a held channel with no image");
+
         mChannels.reserve(sChannelCount);
         for (const Channel channel : sEveryChannel)
             mChannels.emplace_back(use, device, descriptionOf(channel, width, height, radiance), channelName(channel));
 
-        DescriptorWrites writes(layout, mSet.get(0));
-        for (std::uint32_t channel = 0; channel < sChannelCount; ++channel)
-            writes.image(channel, mChannels[channel].describeStorage());
+        if (past == TracePast::Kept)
+            for (std::size_t at = 0; at < sHeldChannels.size(); ++at)
+                mOthers[at] = Image(use, device, descriptionOf(sHeldChannels[at], width, height, radiance),
+                    channelName(sHeldChannels[at]));
 
-        updateSets(device, writes.get());
+        // A set a frame parity: the second binds each held channel's other image, and every other
+        // channel as the first does.
+        for (std::uint32_t set = 0; set < (past == TracePast::Kept ? 2u : 1u); ++set)
+        {
+            DescriptorWrites writes(layout, mSet.get(set));
+            for (const Channel channel : sEveryChannel)
+            {
+                const std::optional<std::size_t> held = heldIndexOf(channel);
+                const Image& bound = set == 1 && held.has_value() ? mOthers[*held] : mChannels[indexOf(channel)];
+                writes.image(indexOf(channel), bound.describeStorage());
+            }
+            updateSets(device, writes.get());
+        }
     }
 
-    VkDeviceSize GBuffer::bytesAt(
-        const Device& device, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+    VkDeviceSize GBuffer::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
+        const RadianceWidth radiance, const TracePast past)
     {
         VkDeviceSize bytes = 0;
         for (const Channel channel : sEveryChannel)
-            bytes += Image::bytesFor(device, descriptionOf(channel, width, height, radiance));
+            bytes += Image::bytesFor(device, descriptionOf(channel, width, height, radiance))
+                * (past == TracePast::Kept && heldIndexOf(channel).has_value() ? 2 : 1);
         return bytes;
+    }
+
+    const Image& GBuffer::get(const Channel channel) const
+    {
+        const std::optional<std::size_t> held = heldIndexOf(channel);
+        return held.has_value() && mNow == 1 ? mOthers[*held] : mChannels[indexOf(channel)];
+    }
+
+    const Image& GBuffer::getHeld(const Channel channel) const
+    {
+        const std::optional<std::size_t> held = heldIndexOf(channel);
+        assert(held.has_value() && "the frame before of a channel no temporal filter reads");
+        if (mOthers[*held].isEmpty())
+            return mChannels[indexOf(channel)];
+        return mNow == 1 ? mChannels[indexOf(channel)] : mOthers[*held];
     }
 
     // One command a hand-over and not two: a run past the batch's room emits what it holds.
@@ -188,6 +236,12 @@ namespace Rtx
 
     void GBuffer::begin(VkCommandBuffer commands, const ChannelWrites writes)
     {
+        // The frame before's surfaces become what this one holds them to, and the images it read
+        // as those are this frame's to write.
+        const bool keeps = !mOthers.front().isEmpty();
+        if (keeps)
+            mNow ^= 1u;
+
         // From undefined, because every pixel is written before any is read. One set of channels
         // serves every frame and two are in flight, and the head barrier `CommandPool::begin`
         // recorded is what orders this buffer after the last frame's readers.
@@ -195,9 +249,16 @@ namespace Rtx
         for (const Channel channel : sEveryChannel)
             if (writes.writes(channel))
             {
-                mChannels[indexOf(channel)].addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
+                get(channel).addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
                 mHoldsNothing[indexOf(channel)] = false;
             }
+
+        // **The frame before's laid out where no frame wrote it**, the first: a history that fresh
+        // reads none of it, and a binding states it all the same.
+        if (keeps && !mHeldLaidOut)
+            for (const Channel channel : sHeldChannels)
+                getHeld(channel).addTransition(barriers, Use::sUndefined, Use::sComputeRead);
+        mHeldLaidOut = true;
 
         barriers.flush();
 
@@ -207,7 +268,7 @@ namespace Rtx
         for (const Channel channel : sEveryChannel)
             if (!writes.writes(channel) && !mHoldsNothing[indexOf(channel)])
             {
-                mChannels[indexOf(channel)].clear(commands, Use::sUndefined, nothingOf(channel), Use::sTraceWrite);
+                get(channel).clear(commands, Use::sUndefined, nothingOf(channel), Use::sTraceWrite);
                 mHoldsNothing[indexOf(channel)] = true;
             }
     }
@@ -218,8 +279,8 @@ namespace Rtx
         // of the frame but the direct one, which a composite writes the frame over and orders for
         // itself. Sampled as well as loaded, because an upscaler samples what it is handed.
         Barriers barriers(commands);
-        for (const Image& image : mChannels)
-            image.addTransition(barriers, Use::sTraceWrite, Use::sAnyShaderRead);
+        for (const Channel channel : sEveryChannel)
+            get(channel).addTransition(barriers, Use::sTraceWrite, Use::sAnyShaderRead);
 
         barriers.flush();
     }

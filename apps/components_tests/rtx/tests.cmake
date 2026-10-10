@@ -217,7 +217,6 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/texture/spritelightpass.cpp
     rtxvulkan/texture/texturearrival.cpp
     rtxvulkan/texture/texturearray.cpp
-    rtxvulkan/trace/denoise/denoisehistory.cpp
     rtxvulkan/trace/fogvolume.cpp
     rtxvulkan/trace/ripplepass.cpp
     rtxvulkan/trace/spritepasses.cpp

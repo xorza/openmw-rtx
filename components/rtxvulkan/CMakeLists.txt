@@ -63,6 +63,7 @@ set(RTX_SHADERS
     shaders/trace/denoise/accumulate.comp
     shaders/trace/denoise/accumulateclamp.comp
     shaders/trace/denoise/atrous.comp
+    shaders/trace/denoise/atrouscompose.comp
     shaders/trace/denoise/composite.comp
     shaders/trace/denoise/historyclamp.comp
     shaders/trace/denoise/pane.comp
@@ -202,6 +203,7 @@ set(RTX_SHADER_LIB
     shaders/lib/random.glsl
     shaders/lib/records.glsl
     shaders/lib/reproject.glsl
+    shaders/lib/resolve.glsl
     shaders/lib/runningmean.glsl
     shaders/lib/runs.glsl
     shaders/lib/sharedexponent.glsl
@@ -223,6 +225,7 @@ set(RTX_SHADER_LIB
     shaders/lib/water.glsl
     shaders/lib/wavelines.glsl
     shaders/lib/wavetile.glsl
+    shaders/trace/denoise/atrouslevel.glsl
     shaders/upscale/fsrcallbacks.glsl
 )
 

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
@@ -12,9 +13,12 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/atrous.h>
+#include <components/rtxvulkan/shaders/shared/composite.h>
+#include <components/rtxvulkan/shaders/shared/shadow.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx
@@ -46,12 +50,30 @@ namespace Rtx
             FrameZone::Filter3 };
         static_assert(sLevelZones.size() == Shaders::ATROUS_LEVELS, "a zone for every level");
 
+        /// The level's own and, after them, the composite's channels and the filters' answers, which the
+        /// composing level reads as storage, as the composite does.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_COMPOSE_BINDINGS> sComposingBindings = [] {
+            std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_COMPOSE_BINDINGS> bindings{};
+            for (std::uint32_t slot = 0; slot < bindings.size(); ++slot)
+                bindings[slot] = slot < sBindings.size() ? sBindings[slot]
+                                                         : computeBinding(slot, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+            return bindings;
+        }();
+
         ComputePipeline<Shaders::AtrousConstants> makeLevel(const Device& device, bool wide, std::string_view name)
         {
             std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
             specialization[Shaders::ATROUS_SPEC_WIDE] = wide ? VK_TRUE : VK_FALSE;
             return ComputePipeline<Shaders::AtrousConstants>(
                 device, sBindings, {}, "atrous.comp.spv", name, specialization);
+        }
+
+        ComputePipeline<Shaders::AtrousConstants> makeComposing(const Device& device)
+        {
+            std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
+            specialization[Shaders::ATROUS_SPEC_WIDE] = VK_FALSE;
+            return ComputePipeline<Shaders::AtrousConstants>(
+                device, sComposingBindings, {}, "atrouscompose.comp.spv", "atrous-compose", specialization);
         }
 
         /// **One fetch of eight bytes a tap for the surface**, the normal's code and the distance,
@@ -65,18 +87,23 @@ namespace Rtx
         /// **The first level reads a tile in shared memory** (`atrous.comp`), where each texel is
         /// reached by twenty-five pixels' taps: measured on the default suite, the level went from
         /// 0.359 to 0.295 ms in the guild and from 0.283 to 0.244 at dawn, to the bit the same. A
-        /// tile with Dolp's permutation for the narrow levels was measured and did not pay: at their
-        /// strides no texel is reached twice.
+        /// tile with Dolp's permutation for the narrow levels was measured and did not pay, though
+        /// an 8×8 group's 3×3 taps still reach each texel four times at a step of two and 2.25
+        /// times at four (once at eight): what the cache answers for them, it answers without the
+        /// tile's fill and barrier.
     }
 
     AtrousPass::AtrousPass(const Device& device)
         : mWide(makeLevel(device, true, "atrous"))
         , mNarrow(makeLevel(device, false, "atrous-narrow"))
+        , mComposing(makeComposing(device))
+        , mNoShadow(makeStandIn(device, toVulkanFormat(SHADOW_VISIBILITY), VK_IMAGE_USAGE_STORAGE_BIT, "no-shadow"))
     {
     }
 
-    AtrousPass::Filtered AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
+    std::optional<AtrousPass::Filtered> AtrousPass::record(VkCommandBuffer commands,
+        const DenoiseHistory::AccumulateImages& images, const GBuffer& buffer, const DenoiseFrame& frame,
+        const Composing* composing, GpuTimer* timer) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mNarrow.getWidth() >= camera.mWidth && images.mNarrow.getHeight() >= camera.mHeight);
@@ -93,6 +120,12 @@ namespace Rtx
             .mFixFrames = 0.0f,
             .mFrame = frame.mSampled.mFrame,
         };
+        if (composing != nullptr)
+        {
+            level.mShadowed = (composing->mSkyShadow != nullptr ? Shaders::COMPOSITE_SHADOWED_SKY : 0u)
+                | (composing->mLampShadow != nullptr ? Shaders::COMPOSITE_SHADOWED_LAMPS : 0u);
+            level.mLobed = composing->mLobed ? 1u : 0u;
+        }
 
         // The first level reads the blend and writes the mean the accumulator reads next frame —
         // SVGF's feedback; the levels after it ping-pong between the narrow image and the blend,
@@ -128,7 +161,9 @@ namespace Rtx
 
             // Sampled from `GENERAL` on the three this pass only reads. A `SAMPLED_IMAGE`
             // descriptor names the image alone and no sampler, which is what `sBindings` declares.
-            const ComputePipeline<Shaders::AtrousConstants>& pipeline = pass == 0 ? mWide : mNarrow;
+            const bool composes = composing != nullptr && pass == Shaders::ATROUS_LEVELS - 1;
+            const ComputePipeline<Shaders::AtrousConstants>& pipeline
+                = pass == 0 ? mWide : (composes ? mComposing : mNarrow);
             DescriptorWrites writes(pipeline);
             writes.image(Shaders::ATROUS_BIND_SOURCE, bounce[source]->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILTERED, bounce[target]->describeStorage());
@@ -136,6 +171,25 @@ namespace Rtx
             writes.image(Shaders::ATROUS_BIND_FILL_SOURCE, fill[source]->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILL_FILTERED, fill[target]->describeStorage());
             writes.image(Shaders::ATROUS_BIND_FAST, images.mFast.describeStorage());
+            if (composes)
+            {
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_DIRECT, buffer.get(Channel::Direct).describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_ALBEDO, buffer.get(Channel::Albedo).describeStorage());
+                writes.image(
+                    Shaders::ATROUS_COMPOSE_BIND_AMBIENT_ALBEDO, buffer.get(Channel::AmbientAlbedo).describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_LAMPED, buffer.get(Channel::Lamped).describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_SHADOW,
+                    (composing->mSkyShadow != nullptr ? *composing->mSkyShadow : mNoShadow).describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_LAMP_SHADOW,
+                    (composing->mLampShadow != nullptr ? *composing->mLampShadow : mNoShadow).describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_SPECULAR, composing->mSpecular.describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_SPECULAR_ALBEDO,
+                    buffer.get(Channel::SpecularAlbedo).describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_PANE, composing->mPane.describeStorage());
+                writes.image(
+                    Shaders::ATROUS_COMPOSE_BIND_PANE_ALBEDO, buffer.get(Channel::PaneAlbedo).describeStorage());
+            }
 
             level.mStep = 1u << pass;
             level.mFixFrames = pass == 0 && frame.mFilters.mHistoryFix ? Shaders::ACCUMULATE_FIX_FRAMES : 0.0f;
@@ -148,6 +202,10 @@ namespace Rtx
             source = target;
             target = source == narrow ? blended : narrow;
         }
+
+        // The frame, composed over the direct channel, is the caller's to order.
+        if (composing != nullptr)
+            return std::nullopt;
 
         // The cascade hands over what it wrote, because nothing after it does: with the last level
         // ordered against nothing, the composite ran beside the dispatch still writing it, and two

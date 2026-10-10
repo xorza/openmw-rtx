@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/visibility.h>
@@ -37,7 +39,10 @@ namespace Rtx
         explicit DenoisePasses(const Device& device);
 
         /// Records every pass over `buffer`, which must have been handed over, and hands back where
-        /// the light ended up.
+        /// the light ended up — or, where `composes`, composes the frame over `CHANNEL_DIRECT` in the
+        /// wavelet's last level and hands back nothing: the composite's work, done where the cascade
+        /// ends, for a frame nothing sums. The direct channel is then left as `Use::sComputeReadWrite`,
+        /// for the caller to order for what reads it next.
         ///
         /// @param sampled the camera the trace sampled: both eyes, the previous basis and the far
         ///        plane.
@@ -46,9 +51,9 @@ namespace Rtx
         /// @param reconstruction what puts the frame back together, of which this reads the
         ///        accumulator's and the wavelet's switches.
         /// @param timer null where the run is not being timed, which a picture is not.
-        Denoised record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
-            const Shaders::VisibilityConstants& sampled, bool mapped, bool lamps, const Reconstruction& reconstruction,
-            GpuTimer* timer) const;
+        std::optional<Denoised> record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
+            const Shaders::VisibilityConstants& sampled, bool mapped, bool lamps, bool composes,
+            const Reconstruction& reconstruction, GpuTimer* timer) const;
 
     private:
         AccumulatePass mAccumulate;

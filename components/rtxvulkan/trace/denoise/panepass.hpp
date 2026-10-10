@@ -13,7 +13,6 @@ namespace Rtx
 {
     class Device;
     class GBuffer;
-    class GpuTimer;
     class Image;
 
     /// The pane filter: `CHANNEL_PANE` averaged over the frames the nearest see-through layer stood
@@ -24,11 +23,16 @@ namespace Rtx
     public:
         explicit PanePass(const Device& device);
 
-        /// Records the one dispatch and hands back the filtered light as it wrote it: the caller
-        /// orders it for a read (`DenoisePasses::record`). `buffer` must have been handed over, and
-        /// `DenoiseHistory::discard` has readied the images.
-        const Image& record(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images, const GBuffer& buffer,
-            const DenoiseFrame& frame, const HistoryClampPass& clamp, GpuTimer* timer) const;
+        /// Records the one dispatch, whose filtered light `recordClamp` then holds to its fast means.
+        /// `buffer` must have been handed over, and `DenoiseHistory::discard` has readied the images.
+        void record(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images, const GBuffer& buffer,
+            const DenoiseFrame& frame) const;
+
+        /// Holds the filter's mean to its fast means by `clamp`, behind a dependency on `record`'s
+        /// dispatch the caller records, and hands back the filtered light as the clamp left it: the
+        /// caller orders it for a read (`DenoisePasses::record`).
+        const Image& recordClamp(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images,
+            const GBuffer& buffer, const DenoiseFrame& frame, const HistoryClampPass& clamp) const;
 
     private:
         ComputePipeline<Shaders::HistoryConstants> mPipeline;

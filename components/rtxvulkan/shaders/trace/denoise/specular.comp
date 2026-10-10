@@ -27,8 +27,8 @@
 // before a still eye.
 //
 // **The accumulator's rules otherwise**: bilinear over the four texels the motion lands between,
-// each only if it is this surface by `heldSurfaceMatches`, against the accumulator's own surface
-// history; `blendedMean` into a history of this pass's own; and beside it a fast mean of the same
+// each only if it is this surface by `heldSurfaceMatches`, against the frame before's surface
+// channel; `blendedMean` into a history of this pass's own; and beside it a fast mean of the same
 // samples over at most `ACCUMULATE_FAST_FRAMES`, which `historyclamp.comp` holds the slow one to.
 
 #include "shared/accumulate.h"
@@ -55,9 +55,8 @@ layout(set = SET_PASS, binding = SPECULAR_BIND_SPECULAR) uniform readonly image2
 layout(set = SET_PASS, binding = SPECULAR_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 layout(set = SET_PASS, binding = SPECULAR_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
 
-/// The surface the accumulator's history belongs to, which this history belongs to as well: both
-/// were written over the same pixels of the same frame.
-layout(set = SET_PASS, binding = SPECULAR_BIND_HELD_SURFACE, ACCUMULATE_SURFACE) uniform readonly image2D heldSurface;
+/// The surface this history belongs to: the frame before's `CHANNEL_SURFACE` (`GBuffer::getHeld`).
+layout(set = SET_PASS, binding = SPECULAR_BIND_HELD_SURFACE, GBUFFER_SURFACE) uniform readonly image2D heldSurface;
 
 /// The history as `RunningMean` stores it, nought frames where it holds no reflection: last frame's,
 /// and this frame's, whose `rgb` the composite adds.
