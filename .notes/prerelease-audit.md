@@ -62,27 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 5. Make the swapchain safe on a hidden or lost surface
-- **Audit**: VKFRAME-1, VKFRAME-2, VKFRAME-4. CONFIRMED that the code breaks the Vulkan rules. How
-  often a player reaches each path is open.
-- **Where**: `components/rtxvulkan/present/swapchain.cpp:120-133`, `:204-218`, `:248`,
-  `present/presenter.hpp:70-78`, `present/presenter.cpp:36-40`, `device/result.cpp:142-148`.
-- **Problem**:
-  - On Win32 a minimised window reports a 0x0 extent. `create` raises it to 1x1, outside
-    `[minImageExtent, maxImageExtent]` (VUID-VkSwapchainCreateInfoKHR-imageExtent-01274).
-    `setVerticalSync` and the constructor do not ask `surfaceIsHidden` first.
-  - `vkAcquireNextImageKHR` with a 10 s timeout returns `VK_TIMEOUT` when a compositor stops
-    releasing images to a hidden window. `checkVkWait` takes that as a dead device and calls
-    `Crash::fatal`. For an acquire, `VK_TIMEOUT` and `VK_NOT_READY` are success codes.
-  - `VK_ERROR_SURFACE_LOST_KHR` throws `DeviceError` out of `RtxRenderer::renderGui() noexcept`, and
-    the process ends in `std::terminate` with no message.
-- **Fix**: `Presenter::remake` and the constructor make no swapchain while the surface is hidden.
-  They set `mStale`, as `wantsResize` does. `acquire` returns a third state for `VK_TIMEOUT` and
-  `VK_NOT_READY`, and the frame skips its present. A lost surface goes to `deviceFailed` with a
-  message that names the surface. A new surface after a loss goes to `.notes/ISSUES.md`.
-- **Test**: None practical, because each path needs a window system in that state. Read the change
-  against the valid-usage rules.
-
 ### 6. Bound the frame's size where it is decided
 - **Audit**: CORE-1 (CONFIRMED), GAME-4, HARNESS-10 (CONFIRMED that nothing bounds the frame).
 - **Where**: `components/misc/presentation.cpp:57` (`present`), `apps/openmw/mwrender/renderer.cpp:235-245`
