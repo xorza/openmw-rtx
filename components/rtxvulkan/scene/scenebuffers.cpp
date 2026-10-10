@@ -76,18 +76,6 @@ namespace Rtx
                 // holds at nought stands at full strength: that alpha is what draws the rays around
                 // the Heart of Lorkhan, and they would shine before the heart is struck.
                 .mOpacity = material.isBlended() ? material.mOpacity : 1.0f,
-                .mLayerOffset = material.mLayers.mOffset,
-                .mLayerCount = material.mLayers.mCount,
-                .mEmissive = material.mEmissive,
-                .mDiffuseColour = material.mDiffuseColour,
-                .mAmbientColour = material.getAmbientColour(),
-                .mEmissiveColour = material.mEmissiveColour,
-                .mTextureTransform = material.mTextureTransform,
-                .mEnvironment = material.mEnvironment,
-                .mEnvironmentColour = material.mEnvironmentColour,
-                .mDark = material.mDark,
-                .mNormal = material.mNormal,
-                .mSpecular = material.mSpecular,
                 .mFlags = (material.isMedium() ? Shaders::MATERIAL_MEDIUM : 0u)
                     | (material.isTranslucent() ? Shaders::MATERIAL_TRANSLUCENT : 0u)
                     | (material.isSoftEdged() ? Shaders::MATERIAL_SOFT_EDGE : 0u)
@@ -103,6 +91,18 @@ namespace Rtx
                     | ((material.mDarkUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MATERIAL_DARK_UNIT_SHIFT)
                     | ((material.mEmissiveUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MATERIAL_EMISSIVE_UNIT_SHIFT)
                     | (test.mPasses << Shaders::MATERIAL_ALPHA_PASSES_SHIFT),
+                .mTextureTransform = material.mTextureTransform,
+                .mLayerOffset = material.mLayers.mOffset,
+                .mLayerCount = material.mLayers.mCount,
+                .mEmissive = material.mEmissive,
+                .mDiffuseColour = material.mDiffuseColour,
+                .mAmbientColour = material.getAmbientColour(),
+                .mEmissiveColour = material.mEmissiveColour,
+                .mEnvironment = material.mEnvironment,
+                .mEnvironmentColour = material.mEnvironmentColour,
+                .mDark = material.mDark,
+                .mNormal = material.mNormal,
+                .mSpecular = material.mSpecular,
             };
         }
 
@@ -115,19 +115,19 @@ namespace Rtx
                 .mDiffuse = Shaders::TEXTURE_NEUTRAL,
                 .mAlphaReference = 0.0f,
                 .mOpacity = 1.0f,
+                .mFlags = Shaders::ALPHA_PASSES_ALL << Shaders::MATERIAL_ALPHA_PASSES_SHIFT,
+                .mTextureTransform = osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f),
                 .mLayerOffset = 0,
                 .mLayerCount = 0,
                 .mEmissive = Shaders::NO_TEXTURE,
                 .mDiffuseColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAmbientColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mEmissiveColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
-                .mTextureTransform = osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f),
                 .mEnvironment = Shaders::NO_TEXTURE,
                 .mEnvironmentColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mDark = Shaders::NO_TEXTURE,
                 .mNormal = Shaders::NO_TEXTURE,
                 .mSpecular = Shaders::NO_TEXTURE,
-                .mFlags = Shaders::ALPHA_PASSES_ALL << Shaders::MATERIAL_ALPHA_PASSES_SHIFT,
             };
         }
     }

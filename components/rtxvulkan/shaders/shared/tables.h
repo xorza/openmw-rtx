@@ -20,9 +20,11 @@ namespace Rtx::Shaders
     /// least sixteen-aligned on this device and the host asserts it, so the stride decides:
     /// `GpuLayer` is 64 bytes with two `vec4` at sixteen and thirty-two, the block tables hold
     /// eight-byte addresses, a top level's instance row is 64 bytes moved as four sixteen-byte words
-    /// (and sixteen-aligned by Vulkan's own rule for instance data), and every other row or list is
-    /// four-aligned only.
+    /// (and sixteen-aligned by Vulkan's own rule for instance data), `GpuMaterial` is 112 bytes so
+    /// that what the candidate loop reads of a row lies in one sector, and every other row or list
+    /// is four-aligned only.
     const uint TABLE_ALIGN_ROWS = 4u;
+    const uint TABLE_ALIGN_MATERIALS = 16u;
     const uint TABLE_ALIGN_BLOCKS = 8u;
     const uint TABLE_ALIGN_LAYERS = 16u;
     const uint TABLE_ALIGN_INSTANCES = 16u;

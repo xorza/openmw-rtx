@@ -774,7 +774,9 @@ namespace Rtx::Shaders
 
     /// One cell of the light grid: its two runs in the light list, the lamps that light it and then
     /// those that take light away — `Rtx::LightGrid::getCells` says why apart from the list. One
-    /// 16-byte row, so a shaded point reads both runs in one fetch.
+    /// 16-byte row on a sixteen-aligned table, so both runs a shaded point reads lie in one
+    /// 32-byte sector. The table claims four (`TABLE_ALIGN_ROWS`): a claim of sixteen, which lets
+    /// one load take the row, traced no faster (`./omw bench`).
     struct GpuLightCell
     {
         uvec2 mCount;
@@ -1170,6 +1172,18 @@ namespace Rtx::Shaders
         /// surface is a pane at all is `MATERIAL_TRANSLUCENT`.
         float mOpacity;
 
+        /// What this material is that no number above says — the `MATERIAL_*` bits.
+        ///
+        /// **Here, beside the reference and the opacity, with the texture transform after it**:
+        /// these and the diffuse are what `candidateStops` reads of a row, and in its first 32
+        /// bytes they cost one sector a candidate where across the row they cost up to four. On the
+        /// ship that took the trace from 2.424–2.432 ms to 2.407–2.414 (`./omw bench`).
+        uint mFlags RTX_ZERO;
+
+        /// Mesh texture coordinates to this material's, as `uv * xy + zw`. The identity for
+        /// everything that does not scroll, which is nearly everything.
+        vec4 mTextureTransform;
+
         /// Where this material's terrain layers are, or a count of zero for a single-textured
         /// surface — which is everything but the ground.
         ///
@@ -1202,10 +1216,6 @@ namespace Rtx::Shaders
         /// albedo instead, the cap comes out flat white.
         vec3 mEmissiveColour;
 
-        /// Mesh texture coordinates to this material's, as `uv * xy + zw`. The identity for
-        /// everything that does not scroll, which is nearly everything.
-        vec4 mTextureTransform;
-
         /// A sphere-mapped sheet added past the albedo, indexed by where the eye is, or
         /// `NO_TEXTURE`; and what it is tinted by. `Rtx::Material::mEnvironment` says what it is.
         uint mEnvironment;
@@ -1225,11 +1235,9 @@ namespace Rtx::Shaders
         /// row carry one at all.
         uint mSpecular;
 
-        /// What this material is that no number above says — the `MATERIAL_*` bits.
-        ///
-        /// **Last.** A `vec4` is four-aligned in scalar layout like everything else here, so this
-        /// costs the row four bytes and pads nothing.
-        uint mFlags RTX_ZERO;
+        /// Up to 112 bytes, a multiple of sixteen, so a row stands on sixteen wherever the table puts
+        /// it and the candidate's fields above share one 32-byte sector.
+        uint mPadding RTX_ZERO;
     };
 
     // **The host's layout has to be the one the device reads**, because this side writes these
@@ -1245,7 +1253,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLightCell) == 16, "GpuLightCell must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 64, "GpuLayer must be scalar-packed on every side");
-    static_assert(sizeof(GpuMaterial) == 108, "GpuMaterial must be scalar-packed on every side");
+    static_assert(sizeof(GpuMaterial) == 112, "GpuMaterial must be scalar-packed on every side");
     static_assert(sizeof(GpuSprite) == 56, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");

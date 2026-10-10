@@ -23,7 +23,7 @@
 
 #include "texturearray.glsl"
 
-layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer MaterialTable
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_MATERIALS) readonly buffer MaterialTable
 {
     GpuMaterial at[];
 };
