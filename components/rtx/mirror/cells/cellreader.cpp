@@ -97,6 +97,7 @@ namespace Rtx
         PreparedTexture& texture = mTextures.take([&](PreparedTexture& into) {
             const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image = mContent.getImage(path);
             into.mImage = image.isOk() ? image.value() : nullptr;
+            into.mLaid = into.mImage != nullptr ? mWalk.laidOf(*into.mImage) : nullptr;
             into.mPath = path;
         });
 

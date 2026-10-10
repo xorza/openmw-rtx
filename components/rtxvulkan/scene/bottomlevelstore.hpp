@@ -86,6 +86,11 @@ namespace Rtx
 
         std::size_t size() const { return mRows.size(); }
 
+        /// Whether the device had no room for a structure since the store was made, which a store
+        /// made against more room might have built. Kept past the mesh that went without, which
+        /// may since have gone: an answer that asks for a build too often and never too seldom.
+        bool wasRefusedRoom() const { return mRefusedRoom; }
+
         /// Whether `mesh` has a structure: not where its slot is free, where it holds no triangle,
         /// or where the device had no room for it.
         bool stands(const Index mesh) const { return !mRows[mesh].mStructure.isEmpty(); }
@@ -295,6 +300,8 @@ namespace Rtx
         /// so the pair the report prints is a saving rather than a number on its own.
         VkDeviceSize mCompactableNow = 0;
         VkDeviceSize mCompactableTight = 0;
+
+        bool mRefusedRoom = false;
 
         /// What this placement copies, refilled each time. Kept so a compaction allocates nothing.
         std::vector<VkCopyAccelerationStructureInfoKHR> mCompactionCopies;

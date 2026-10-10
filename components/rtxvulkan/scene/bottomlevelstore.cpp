@@ -312,6 +312,7 @@ namespace Rtx
                     row.mUpdateScratch = 0;
                     row.mBuildScratch = 0;
                     wanted = 0;
+                    mRefusedRoom = true;
                     refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(room.error()) });
                     continue;
                 }

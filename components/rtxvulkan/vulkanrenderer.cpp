@@ -207,12 +207,20 @@ namespace Rtx
         // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
         const VkDeviceSize reserve = frameAt(mDevice, width, height, mProfile);
 
-        // **So the world is built again where the reserve moves**, by the hand-over after this, which
-        // finds its slot empty (`SceneUploader`) and stands every texture against the room the new
-        // targets leave, as a load does: a reserve that grew past what content left is room the
-        // device does not have, and one that shrank is room content was held smaller without.
+        // **The world is built again where the reserve moving changes what it would stand as**, by the
+        // hand-over after this, which finds its slot empty (`SceneUploader`) and stands every texture
+        // against the room the new targets leave, as a load does: a reserve that grew past what
+        // content left is room the device does not have, and one that shrank is room content was
+        // held back without. **Only there**, because a rebuild is every structure and every texture
+        // in one flushed batch, seconds of a frame, and a reserve that moves within the room content
+        // left makes the same world again.
+        MemoryAllocator& memory = mDevice.getMemory();
+        const VkDeviceSize reserved = memory.getFrameReserve();
+        memory.refreshBudget(mDevice.getTimeline().getNext());
+        memory.reserveFrame(reserve);
         const DeviceScene* const world = mScenes.find(SceneSlot::world());
-        const bool rebuildsWorld = reserve != mDevice.getMemory().getFrameReserve() && world != nullptr;
+        const bool rebuildsWorld = world != nullptr && reserve != reserved
+            && (reserve > reserved ? !memory.contentFits() : world->wasHeldBack());
 
         // **The targets a mode does not keep go before the new are made**, so a change of mode
         // holds one set of them and never two: content stops where the set it takes still fits
@@ -239,7 +247,6 @@ namespace Rtx
                 mUpscaler.release();
             mDevice.collectIdle();
         }
-        mDevice.getMemory().reserveFrame(reserve);
 
         mFrame.resize(render.width, render.height);
 

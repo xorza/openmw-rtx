@@ -382,6 +382,39 @@ namespace Rtx
         return describeLevels(image, format, encoding, keptLevels(image), levels, texels);
     }
 
+    osg::ref_ptr<const osg::Image> layImage(const osg::Image& image, const TextureFormat format,
+        std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
+    {
+        if (!isWidened(format))
+            return nullptr;
+
+        // The encoding names the widened format and lays no byte differently: every widened
+        // format reads alike as a colour and as data (`readFormat`).
+        levels.clear();
+        texels.clear();
+        const Misc::Result<TextureData, std::string> described
+            = describeLevels(image, format, TextureEncoding::Colour, keptLevels(image), levels, texels);
+        if (!described.isOk())
+            return nullptr;
+
+        const TextureData& laid = described.value();
+        auto* const data = new unsigned char[laid.mBytes.size()];
+        std::copy(laid.mBytes.begin(), laid.mBytes.end(), reinterpret_cast<std::byte*>(data));
+
+        osg::ref_ptr<osg::Image> made = new osg::Image;
+        made->setImage(static_cast<int>(laid.mWidth), static_cast<int>(laid.mHeight), 1, GL_RGBA8, GL_RGBA,
+            GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+
+        osg::Image::MipmapDataType offsets;
+        offsets.reserve(laid.mLevels.size() - 1);
+        for (const MipLevel& level : laid.mLevels.subspan(1))
+            offsets.push_back(level.mOffset);
+        made->setMipmapLevels(offsets);
+
+        made->setFileName(image.getFileName());
+        return made;
+    }
+
     Misc::Result<TextureData, std::string> describeFinestLevel(
         const osg::Image& image, std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
     {

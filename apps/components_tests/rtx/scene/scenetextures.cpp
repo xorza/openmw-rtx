@@ -311,6 +311,8 @@ namespace Rtx
                     + " bytes, past what a level's 32-bit offset reaches");
             EXPECT_TRUE(levels.empty()) << "a refusal adds no level";
             EXPECT_TRUE(texels.empty()) << "a refused copy was laid";
+            EXPECT_EQ(layImage(*image, Rtx::readFormat(*image), levels, texels), nullptr)
+                << "an image the description refuses was laid";
         }
 
         /// A volume is described as its first slice at every level, which is what the rasterizer
@@ -392,6 +394,20 @@ namespace Rtx
             EXPECT_EQ(std::to_integer<std::uint32_t>(texel[2]), 0u);
             EXPECT_EQ(std::to_integer<std::uint32_t>(texel[3]), 255u);
 
+            // Laid, the first slice at every level, flat: the same 84 bytes, spanned.
+            std::vector<Rtx::MipLevel> layLevels;
+            std::vector<std::byte> layTexels;
+            const osg::ref_ptr<const osg::Image> laid
+                = layImage(*sixteen, Rtx::readFormat(*sixteen), layLevels, layTexels);
+            ASSERT_NE(laid, nullptr);
+            EXPECT_EQ(laid->r(), 1);
+            const Rtx::TextureData flatLaid
+                = describeImage(*laid, Rtx::TextureEncoding::Colour, levels, texels).value();
+            EXPECT_EQ(flatLaid.mBytes.data(), reinterpret_cast<const std::byte*>(laid->data()));
+            EXPECT_TRUE(std::ranges::equal(flatLaid.mBytes, widened.mBytes));
+            EXPECT_EQ(layImage(*rgba, Rtx::readFormat(*rgba), layLevels, layTexels), nullptr)
+                << "a format uploaded as it is was laid";
+
             // Through a scene, beside a volume in a format with no layout: the reserve holds what
             // the gathering lays down, and the other volume is refused by name rather than asked
             // for a layout it has none of.
@@ -400,6 +416,7 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> odd = makeVolume(GL_RGB, GL_UNSIGNED_BYTE_3_3_2, 1);
             odd->setFileName(std::string(oddPath.value()));
             EXPECT_EQ(Rtx::laidBytes(*odd, Rtx::readFormat(*odd)), 0u) << "a format with no layout was counted";
+            EXPECT_EQ(layImage(*odd, Rtx::readFormat(*odd), layLevels, layTexels), nullptr);
 
             Rtx::SceneDesc scene;
             Testing::addModel(scene, rgbaPath, rgba);
@@ -555,6 +572,10 @@ namespace Rtx
         /// 0x7F7F 127. A half: 0x3800 is 0.5, and 127.5 rounds away to 128; 0x4000 is 2 and 0xBC00
         /// is -1, held to 255 and nought; 0x7E00 is no number and reads nought. A float: 0.25 is
         /// 63.75, so 64, 0.75 is 191.25, so 191, and 1.5 and -0.5 are held.
+        ///
+        /// **Laid off the frame, the same file describes to the same bytes** (`layImage`): an RGBA8
+        /// image of its own under the file's name, which a description spans where it lies, in
+        /// either encoding's format.
         TEST(RtxSceneTexturesTest, aFileOfMissingChannelsIsWidenedToRgba8)
         {
             struct Case
@@ -619,6 +640,28 @@ namespace Rtx
 
                 ASSERT_EQ(described.mLevels.size(), 2u);
                 EXPECT_EQ(described.mLevels[1].mOffset, 16u);
+
+                std::vector<Rtx::MipLevel> layLevels;
+                std::vector<std::byte> layTexels;
+                const osg::ref_ptr<const osg::Image> laid
+                    = layImage(*image, Rtx::readFormat(*image), layLevels, layTexels);
+                ASSERT_NE(laid, nullptr) << "format " << one.mPixelFormat;
+                EXPECT_EQ(laid->getFileName(), image->getFileName());
+                EXPECT_EQ(Rtx::laidBytes(*laid, Rtx::readFormat(*laid)), 0u) << "a laid image laid again";
+
+                for (const Rtx::TextureEncoding encoding : { Rtx::TextureEncoding::Colour, Rtx::TextureEncoding::Data })
+                {
+                    const Rtx::TextureData read = describeImage(*laid, encoding, levels, texels).value();
+                    EXPECT_EQ(read.mFormat,
+                        encoding == Rtx::TextureEncoding::Colour ? Rtx::TextureFormat::Rgba8Srgb
+                                                                 : Rtx::TextureFormat::Rgba8Unorm);
+                    EXPECT_EQ(read.mBytes.data(), reinterpret_cast<const std::byte*>(laid->data()))
+                        << "a laid image was copied rather than spanned";
+                    EXPECT_TRUE(std::ranges::equal(read.mBytes, described.mBytes)) << "format " << one.mPixelFormat;
+                    ASSERT_EQ(read.mLevels.size(), 2u);
+                    EXPECT_EQ(read.mLevels[1].mOffset, 16u);
+                    EXPECT_EQ(read.mLevels[1].mWidth, 1u);
+                }
             }
         }
 
@@ -691,15 +734,33 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView sixteen("textures/tx_sixteen.dds");
             const osg::ref_ptr<osg::Image> widened = makeSixteenBit(GL_UNSIGNED_SHORT_5_6_5, GL_RGB, { 0, 0, 0, 0, 0 });
 
+            // And the same file laid by a reader, read where it lies and laid into nothing here, in
+            // the format of the slot's encoding.
+            constexpr VFS::Path::NormalizedView laidPath("textures/tx_laid.dds");
+            std::vector<Rtx::MipLevel> layLevels;
+            std::vector<std::byte> layTexels;
+            const osg::ref_ptr<const osg::Image> laid
+                = layImage(*widened, Rtx::readFormat(*widened), layLevels, layTexels);
+            ASSERT_NE(laid, nullptr);
+
             Rtx::SceneDesc scene;
             Testing::addModel(scene, path, image);
             Testing::addModel(scene, sixteen, widened);
+            const Index laidSlot = scene.textures().add(
+                laidPath, widened.get(), Rtx::TextureWrap::Repeat, Rtx::TextureEncoding::Normal, laid.get());
 
             SceneTextures described;
             described.describeAll(scene);
             ASSERT_TRUE(described.getRefusals().empty()) << "an image the slot kept was not described";
-            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 2 });
+            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 3 });
             ASSERT_EQ(described.getDescriptions()[1].mBytes.size(), 20u) << "the widened texels were not described";
+
+            const Rtx::TextureData& fromLaid = described.getDescriptions()[2];
+            EXPECT_EQ(fromLaid.mSlot, laidSlot);
+            EXPECT_EQ(fromLaid.mBytes.data(), reinterpret_cast<const std::byte*>(laid->data()))
+                << "a laid image was widened again at the hand-over";
+            EXPECT_TRUE(std::ranges::equal(fromLaid.mBytes, described.getDescriptions()[1].mBytes));
+            EXPECT_EQ(fromLaid.mFormat, Rtx::TextureFormat::Rgba8Unorm) << "a laid image read in the wrong encoding";
 
             // Four texels across and one level in the file, which is the level described: the rest
             // are the device's to make.
@@ -713,7 +774,7 @@ namespace Rtx
 
             // And it answered, rather than reaching the heap not at all by doing nothing.
             EXPECT_TRUE(described.getRefusals().empty());
-            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 2 });
+            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 3 });
         }
 
         /// A slot the scene has given up is described by nobody, and the gap it leaves is survived.

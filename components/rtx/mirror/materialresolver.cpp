@@ -238,6 +238,12 @@ namespace Rtx
             return reading;
         }
 
+        // On the reader's thread, which every caller of this is, so the frame that takes the
+        // textures over hands the laid images to the upload and widens none of them.
+        for (TextureUse& use : reading.mDescribed->mTextures)
+            if (use.mImage != nullptr)
+                use.mLaid = thread.laidOf(*use.mImage);
+
         // Off the description the material is copied from, so the reader walks the texels of
         // exactly the images `describe` would.
         const SurfaceDescription& described = *reading.mDescribed;
@@ -365,7 +371,7 @@ namespace Rtx
         {
             // Held, because this entry is the reference. `mTextureOf` says why a slot the map names
             // has to be one nothing else can hand out.
-            slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding);
+            slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding, use.mLaid.get());
             if (slot.empty())
                 held.mRefused.refuse(bit, freed);
         }

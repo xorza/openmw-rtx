@@ -62,6 +62,15 @@ namespace Rtx
     Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, TextureFormat format,
         TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
+    /// `image` as `describeImage` lays it where `format` is one it widens: every level it keeps, the
+    /// first slice of a volume, each texel as RGBA8, in an image of its own under the same name. An
+    /// image `describeImage` spans where it is, so a thread off the frame pays the widening and the
+    /// frame's hand-over reads the bytes as they stand. Null where `format` is not widened, or where
+    /// `describeImage` refuses the image, which then answers for itself. `levels` and `texels` are
+    /// the caller's scratch, cleared and refilled.
+    osg::ref_ptr<const osg::Image> layImage(
+        const osg::Image& image, TextureFormat format, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
+
     /// `describeImage` of the finest level alone, as a colour, for a reader of nothing else: the
     /// coarser levels are neither held against OpenSceneGraph's count nor laid, and a volume's first
     /// slice of it is spanned where it lies.

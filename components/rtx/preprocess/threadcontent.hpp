@@ -3,11 +3,13 @@
 #include <string>
 
 #include <osg/Image>
+#include <osg/ref_ptr>
 
 #include <components/vfs/pathutil.hpp>
 
 #include "contentpreprocessor.hpp"
 #include "imagefactcache.hpp"
+#include "laidimagecache.hpp"
 
 namespace Rtx
 {
@@ -24,9 +26,13 @@ namespace Rtx
     {
         ContentPreprocessor mPreprocessor;
         ImageFactCache mFacts;
+        LaidImageCache mLaid;
 
         /// `ImageFactCache::of`.
         ImageFacts& factsOf(const osg::Image& image) { return mFacts.of(image); }
+
+        /// `LaidImageCache::of`.
+        osg::ref_ptr<const osg::Image> laidOf(const osg::Image& image) { return mLaid.of(image); }
 
         /// Whether `image`'s alpha ever reaches solid, read into `facts` — `image`'s entry — at
         /// the first ask.

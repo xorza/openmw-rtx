@@ -72,6 +72,14 @@ namespace Rtx
         std::uint32_t getColumns() const { return mColumns; }
         std::uint32_t getRows() const { return mRows; }
 
+        /// The columns and rows a trace of `pixels` fills and integrates: those its pixels cover,
+        /// the one past them that the pixel at the far edge interpolates against, and the one past
+        /// that which the integrate pass's tent reads around it, and never more than the grid. So a
+        /// picture traces what it reads and draws what it would in a grid of its own size, though
+        /// a larger picture grew the grid: the doll's preview left every map tile after it
+        /// tracing three to seven times its own air.
+        VkExtent2D tracedFor(VkExtent2D pixels) const;
+
         /// Turns to the other half of the point pair, for the trace about to be recorded: the half
         /// the last trace wrote becomes this one's history. Once a trace and never once a frame,
         /// because a frame the ring closes untraced wrote no air, and a turn for it left the next

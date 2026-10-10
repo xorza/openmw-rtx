@@ -377,6 +377,9 @@ namespace Rtx
         /// **The frame's targets are owed their reserve and not themselves once more**: a frame
         /// target of sixteen megabytes held, and a reserve of exactly what the targets hold, leave
         /// the three blocks; a reserve two blocks beyond it leaves one.
+        ///
+        /// **Content fits to the byte**: under a budget that puts the textures' ceiling at the heap
+        /// it fits, and under one a byte less, or with a reserve a byte more, it does not.
         TEST_F(RtxMemoryTest, eachUseStopsWhereTheUsesBeforeItCouldBeMadeOnceMore)
         {
             MemoryAllocator& memory = getDevice().getMemory();
@@ -420,6 +423,19 @@ namespace Rtx
 
             memory.reserveFrame(frame + 2 * block);
             EXPECT_EQ(memory.getRoom(MemoryUse::Structure), free + block) << "the reserve beyond the targets";
+
+            const VkDeviceSize atTheHeap = Testing::budgetAbove(memory, MemoryUse::Texture, 0);
+            {
+                const Testing::BudgetLimit at(memory, atTheHeap);
+                EXPECT_TRUE(memory.contentFits()) << "content at the textures' ceiling was told it does not fit";
+                memory.reserveFrame(frame + 2 * block + 1);
+                EXPECT_FALSE(memory.contentFits()) << "a reserve a byte larger left content over its ceiling";
+                memory.reserveFrame(frame + 2 * block);
+            }
+            {
+                const Testing::BudgetLimit below(memory, atTheHeap - 1);
+                EXPECT_FALSE(memory.contentFits()) << "a budget a byte smaller left content over its ceiling";
+            }
             memory.reserveFrame(reserve);
         }
     }

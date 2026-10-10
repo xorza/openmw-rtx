@@ -514,9 +514,10 @@ namespace Rtx
         virtual void finishGuiTraces() = 0;
 
         /// Resizes the frame; what the trace runs at follows from the upscaler, and `getExtents`
-        /// says. Where the room the new targets take moves, the world goes with the old targets
-        /// (`describeHeld` answers nought), so its content is held against the room it has: the
-        /// next hand-over builds it again (`SceneUploader`), and a frame is traced after it.
+        /// says. Where the room the new targets take grows past what the world's content left, or
+        /// shrinks where content was held back for want of room, the world goes with the old
+        /// targets (`describeHeld` answers nought), so its content is held against the room it
+        /// has: the next hand-over builds it again (`SceneUploader`), and a frame is traced after it.
         virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
 
         /// The window is `width` by `height` pixels: the surface follows it, and the frame is shown

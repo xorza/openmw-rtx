@@ -430,6 +430,14 @@ namespace Rtx
         mFrameReserve = bytes;
     }
 
+    bool MemoryAllocator::contentFits() const
+    {
+        VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
+        const VmaBudget& budget = budgets[mVideoHeap];
+        return budget.usage <= ceilingOf(mVideoHeap, MemoryUse::Texture, budget.budget);
+    }
+
     void MemoryAllocator::limitBudget(const std::optional<VkDeviceSize> bytes)
     {
         mBudgetLimit = bytes;

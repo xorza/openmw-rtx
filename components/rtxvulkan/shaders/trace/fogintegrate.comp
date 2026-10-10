@@ -127,7 +127,7 @@ FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9], out ve
 
 void main()
 {
-    const ivec2 grid = ivec2(frame.mFogColumns);
+    const ivec2 grid = ivec2(frame.mFogTraced);
     const ivec2 column = ivec2(gl_GlobalInvocationID.xy);
     if (outsideOf(uvec2(column), uvec2(grid)))
         return;

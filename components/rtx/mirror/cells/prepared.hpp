@@ -46,6 +46,10 @@ namespace Rtx
         /// describe, or null where the file does not read.
         osg::ref_ptr<const osg::Image> mImage;
 
+        /// `mImage` as the upload reads it, laid on the reader's thread where its format is widened
+        /// (`ThreadContent::laidOf`), or null.
+        osg::ref_ptr<const osg::Image> mLaid;
+
         /// The file, normalised, which is what the reader files it under and the scene names a
         /// texture by. Kept here so that a frame adopting a layer names its texture without
         /// building the path again.

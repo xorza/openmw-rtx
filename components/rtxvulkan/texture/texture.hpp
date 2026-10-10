@@ -251,6 +251,12 @@ namespace Rtx
         /// nothing, and neither is counted here.
         const TexturesHeld& getHeld() const { return mHeld; }
 
+        /// Whether a texture stands smaller than its file, or the device had no room for one since
+        /// the array was made: what an array made against more room might have stood whole. A
+        /// refusal is kept past the slot that went without, as `BottomLevelStore::wasRefusedRoom`
+        /// keeps one.
+        bool wasHeldBack() const { return mHeld.mReduced > 0 || mRefusedRoom; }
+
         /// The side the last `write` held its files to, which is `getSideLimit` where the room took
         /// nothing off. Read by the tests and by nothing else.
         std::uint32_t getSide() const { return mSide; }
@@ -418,5 +424,7 @@ namespace Rtx
             std::uint32_t mOutput;
         };
         std::vector<PendingComposite> mPendingComposites;
+
+        bool mRefusedRoom = false;
     };
 }

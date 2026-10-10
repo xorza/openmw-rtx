@@ -58,6 +58,9 @@ namespace Rtx
         ///        frame's walk carries, so the two reach the same drawables.
         void read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
 
+        /// `ThreadContent::laidOf`, through this thread's content.
+        osg::ref_ptr<const osg::Image> laidOf(const osg::Image& image) { return mContent.laidOf(image); }
+
         /// What the reads computed from the content since the last take — `ContentPreprocessor`.
         ContentStats takeStats() { return mContent.mPreprocessor.takeStats(); }
 

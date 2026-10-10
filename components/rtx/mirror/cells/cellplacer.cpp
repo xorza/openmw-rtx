@@ -281,7 +281,8 @@ namespace Rtx
 
             // A table with no room left names the neutral texel: the device reads a layer's slot
             // with no test, as it reads a material's diffuse.
-            const Index slot = mScene.textures().add(layer.mTexture->mPath, layer.mTexture->mImage.get());
+            const Index slot = mScene.textures().add(layer.mTexture->mPath, layer.mTexture->mImage.get(),
+                TextureWrap::Repeat, TextureEncoding::Colour, layer.mTexture->mLaid.get());
             row.mDiffuse = slot != sNoIndex ? slot : Shaders::TEXTURE_NEUTRAL;
 
             // A normal map tiles with the diffuse; one the table has no room for is no normal map,
@@ -289,7 +290,7 @@ namespace Rtx
             if (layer.mNormalTexture != nullptr)
             {
                 row.mNormal = mScene.textures().add(layer.mNormalTexture->mPath, layer.mNormalTexture->mImage.get(),
-                    TextureWrap::Repeat, TextureEncoding::Normal);
+                    TextureWrap::Repeat, TextureEncoding::Normal, layer.mNormalTexture->mLaid.get());
                 if (layer.mParallax && row.mNormal != sNoIndex)
                     row.mFlags |= Shaders::LAYER_PARALLAX;
             }

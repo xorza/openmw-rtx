@@ -56,6 +56,7 @@ set(RTX_TEST_FILES
     rtx/mirror/statereading.cpp
     rtx/preprocess/contentkey.cpp
     rtx/preprocess/contentpreprocessor.cpp
+    rtx/preprocess/laidimagecache.cpp
     rtx/preprocess/shape/creasesplit.cpp
     rtx/preprocess/shape/shapefold.cpp
     rtx/renderer/frameimage.cpp
@@ -217,6 +218,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/texture/texturearrival.cpp
     rtxvulkan/texture/texturearray.cpp
     rtxvulkan/trace/denoise/denoisehistory.cpp
+    rtxvulkan/trace/fogvolume.cpp
     rtxvulkan/trace/ripplepass.cpp
     rtxvulkan/trace/spritepasses.cpp
     rtxvulkan/trace/stresspass.cpp

@@ -367,6 +367,7 @@ namespace Rtx
             lone.mData.mSlot = 1;
 
             const Testing::NoRoomForContent full(device);
+            EXPECT_FALSE(textures.wasHeldBack()) << "an array that stands nothing held something back";
 
             const Testing::BudgetLimit oneBlock(
                 memory, Testing::budgetAbove(memory, MemoryUse::Texture, VkDeviceSize{ 65 } << 20));
@@ -381,6 +382,7 @@ namespace Rtx
             EXPECT_EQ(textures.getSide(), textures.getSideLimit()) << "the room chose the level, and not the device";
             EXPECT_EQ(textures.getHeld().mBytes, VkDeviceSize{ 1536 } * 1536 * 4 + 2048);
             EXPECT_EQ(textures.getHeld().mReduced, 1u);
+            EXPECT_TRUE(textures.wasHeldBack()) << "a texture stood smaller than its file and held nothing back";
 
             {
                 Batch arrival(getPool());
@@ -408,6 +410,18 @@ namespace Rtx
             EXPECT_EQ(textures.getHeld().mReduced, 1u) << "a texture standing as its file was counted as smaller";
             EXPECT_EQ(textures.getTexels(1), 3072u * 3072u) << "a slot that stands at last still says the stand-in";
             EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(3072u, 3072u)) << "and still measures it";
+
+            // **A refusal is kept past the slot that went without**: the ladder stood again whole
+            // leaves nothing smaller than its file, and the array still says the room held it back.
+            {
+                const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
+                Batch arrival(getPool());
+                textures.write(arrival, passes, std::span(&ladder.mData, 1), refused);
+                arrival.flush();
+            }
+            EXPECT_TRUE(refused.empty());
+            EXPECT_EQ(textures.getHeld().mReduced, 0u);
+            EXPECT_TRUE(textures.wasHeldBack()) << "a refusal was forgotten once its slot stood";
 
             // Before the array goes: what the writes replaced is buried, and the fillers give their
             // room back after it.
