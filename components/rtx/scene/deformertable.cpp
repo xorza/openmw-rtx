@@ -13,17 +13,37 @@
 
 namespace Rtx
 {
-    void packBones(const std::span<const Shaders::GpuBone> bones, std::vector<PoseWord>& into)
+    namespace
     {
         // Word by word rather than one copy of the bytes: `osg::Vec4f` is not trivially copyable
         // as the compiler counts it, and a row is four floats either way.
-        into.resize(bones.size() * 3);
-        for (std::size_t at = 0; at < bones.size(); ++at)
+        void layBone(const Shaders::GpuBone& bone, const std::span<PoseWord> into)
+        {
             for (std::size_t row = 0; row < 3; ++row)
             {
-                const osg::Vec4f& values = bones[at].mRows[row];
-                into[at * 3 + row] = PoseWord{ { values.x(), values.y(), values.z(), values.w() } };
+                const osg::Vec4f& values = bone.mRows[row];
+                into[row] = PoseWord{ { values.x(), values.y(), values.z(), values.w() } };
             }
+        }
+
+        Shaders::GpuBone readBone(const std::span<const PoseWord> words)
+        {
+            Shaders::GpuBone bone;
+            for (std::size_t row = 0; row < 3; ++row)
+                bone.mRows[row] = osg::Vec4f(
+                    words[row].mValues[0], words[row].mValues[1], words[row].mValues[2], words[row].mValues[3]);
+            return bone;
+        }
+    }
+
+    void packRig(
+        const Shaders::GpuBone& transform, const std::span<const Shaders::GpuBone> bones, std::vector<PoseWord>& into)
+    {
+        into.resize(poseWordsFor(Deform::Rig, static_cast<Index>(bones.size())));
+        const std::span<PoseWord> words(into);
+        layBone(transform, words.first(3));
+        for (std::size_t at = 0; at < bones.size(); ++at)
+            layBone(bones[at], words.subspan((at + 1) * 3, 3));
     }
 
     void packWeights(const std::span<const float> weights, std::vector<PoseWord>& into)
@@ -37,15 +57,14 @@ namespace Rtx
 
     Shaders::GpuBone boneAt(const std::span<const PoseWord> pose, const Index at)
     {
-        assert(std::size_t{ at } * 3 + 3 <= pose.size() && "a bone past the pose");
+        assert((std::size_t{ at } + 1) * 3 + 3 <= pose.size() && "a bone past the pose");
+        return readBone(pose.subspan((std::size_t{ at } + 1) * 3, 3));
+    }
 
-        Shaders::GpuBone bone;
-        for (std::size_t row = 0; row < 3; ++row)
-        {
-            const PoseWord& word = pose[std::size_t{ at } * 3 + row];
-            bone.mRows[row] = osg::Vec4f(word.mValues[0], word.mValues[1], word.mValues[2], word.mValues[3]);
-        }
-        return bone;
+    Shaders::GpuBone skinTransformOf(const std::span<const PoseWord> pose)
+    {
+        assert(pose.size() >= 3 && "a pose with no transform");
+        return readBone(pose.first(3));
     }
 
     float weightAt(const std::span<const PoseWord> pose, const Index at)

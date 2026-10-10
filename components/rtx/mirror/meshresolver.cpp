@@ -349,17 +349,18 @@ namespace Rtx
             const std::span<SceneUtil::Bone* const> bones = rig.getBones();
             assert(bones.size() == skin.mBones.size());
 
-            // `RigGeometry::cull`'s arithmetic, row for row, with the skin's transform composed
-            // into every bone, which is the same product because the blend is linear and the
-            // transform affine. From the matrices the update traversal left: a skeleton it
-            // skipped is one whose bones did not move.
+            // `RigGeometry::cull`'s arithmetic, row for row: each bone's rows, and the skin's
+            // transform beside them for the kernel to apply once to their blend (`packRig` says
+            // why not into each). From the matrices the update traversal left: a skeleton it
+            // skipped is one whose bones did not move. A bone the skeleton lacks is rows of
+            // nought, which the blend adds nothing for, as `cull` skips it.
             osg::Matrixf transform = skin.mTransform;
             if (const osg::RefMatrix* skinToSkel = rig.getSkinToSkelMatrix())
                 transform = (*skinToSkel) * skin.mTransform;
 
             mBoneScratch.clear();
             mBoneScratch.reserve(bones.size());
-            bool finite = true;
+            bool finite = isFinite(transform);
             for (std::size_t at = 0; at < bones.size(); ++at)
             {
                 if (bones[at] == nullptr)
@@ -368,19 +369,18 @@ namespace Rtx
                     continue;
                 }
 
-                const osg::Matrixf bone
-                    = skin.mBones[at].mInvBindMatrix * bones[at]->mMatrixInSkeletonSpace * transform;
+                const osg::Matrixf bone = skin.mBones[at].mInvBindMatrix * bones[at]->mMatrixInSkeletonSpace;
                 finite = finite && isFinite(bone);
                 mBoneScratch.push_back(toGpuBone(bone));
             }
 
-            // A body never posed is held at zeroed rows, which stand every vertex at the skin's
-            // origin: where the rasterizer puts one no bone moves.
+            // A body never posed is held at zeroed rows, which stand every vertex a bone moves at
+            // the origin, and nothing is drawn of them.
             if (!finite)
                 holdPose(mesh, rig, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f()));
             else
             {
-                packBones(mBoneScratch, mPoseScratch);
+                packRig(toGpuBone(transform), mBoneScratch, mPoseScratch);
                 mScene.pose(mesh, mPoseScratch, reachOf(rig));
             }
         }
@@ -433,7 +433,8 @@ namespace Rtx
         // The groups flattened into a run per vertex. `RigGeometry::setInfluences` gathers the
         // vertices that share one weight list so the rasterizer blends each list once; a kernel
         // blends per lane and wants to find its list from its vertex, which is what the run word
-        // is. A vertex in no group is a run of nothing, as the rasterizer leaves it at the origin.
+        // is. A vertex in no group is a run of nothing, which the kernel leaves at its bind pose, as
+        // the rasterizer does.
 
         mRunScratch.assign(vertices, 0);
         mInfluenceScratch.clear();

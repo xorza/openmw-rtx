@@ -830,12 +830,16 @@ namespace Rtx
             EXPECT_EQ(sorted(scene.meshes().getDeformed()), (std::vector<Index>{ face }));
             EXPECT_EQ(weightAt(scene.getMeshPose(face), 4), 0.75f);
 
-            // And a bone is three words, laid row by row, so the same words read back as the bone.
+            // And a bone is three words, laid row by row after the skin's transform's three, so
+            // the same words read back as the transform and the bones.
             const std::array bones{ Testing::boneUp(5.0f), Testing::boneUp(7.0f) };
+            const Shaders::GpuBone transform = Testing::boneUp(3.0f);
             std::vector<PoseWord> words;
-            packBones(bones, words);
-            ASSERT_EQ(words.size(), 6u);
-            EXPECT_EQ(words[2], (PoseWord{ { 0.0f, 0.0f, 1.0f, 5.0f } }));
+            packRig(transform, bones, words);
+            ASSERT_EQ(words.size(), 9u);
+            EXPECT_EQ(words[2], (PoseWord{ { 0.0f, 0.0f, 1.0f, 3.0f } }));
+            EXPECT_EQ(words[5], (PoseWord{ { 0.0f, 0.0f, 1.0f, 5.0f } }));
+            EXPECT_EQ(skinTransformOf(words), transform);
             EXPECT_EQ(boneAt(words, 1), bones[1]);
         }
 
