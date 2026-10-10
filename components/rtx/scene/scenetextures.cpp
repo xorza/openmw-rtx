@@ -12,6 +12,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/imagedescription.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "refusal.hpp"
@@ -50,8 +51,14 @@ namespace Rtx
             Kept kept{ .mSlot = slot, .mEncoding = row.mEncoding };
 
             // The image the adder held, and never the file opened again: this runs on the frame an
-            // arrival lands on, and a path is a lock and a disk read.
-            if (row.mKind == TextureKind::File && row.mImage != nullptr)
+            // arrival lands on, and a path is a lock and a disk read. Laid where a reader laid it, so
+            // its texels are read as they stand rather than widened here.
+            if (row.mKind == TextureKind::File && row.mLaid != nullptr)
+            {
+                kept.mImage = row.mLaid;
+                kept.mFormat = readFormat(*row.mLaid, row.mEncoding);
+            }
+            else if (row.mKind == TextureKind::File && row.mImage != nullptr)
             {
                 kept.mImage = row.mImage;
                 kept.mFormat = row.mFormat;

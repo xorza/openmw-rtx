@@ -4,8 +4,10 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -55,8 +57,26 @@ namespace Rtx
             for (RowDebt& owed : mOwed.live())
                 owed.owe(std::span<const Index>(&at, 1));
 
+            ++mWrites;
             return mRows[at];
         }
+
+        /// `row` at `at` where its bytes differ from the row there, and nothing where they do not: a
+        /// row rewritten as it was owes no copy anything and leaves `getWrites` where it was.
+        void writeChanged(Index at, const Row& row)
+        {
+            static_assert(std::is_trivially_copyable_v<Row>);
+            assert(at < mRows.size() && "a row past the end of the table; grow it first");
+
+            if (std::memcmp(&mRows[at], &row, sizeof(Row)) != 0)
+                write(at) = row;
+        }
+
+        /// How many times the rows were written or grown: a count that moves whenever the host rows
+        /// do, for an owner that keeps what it built from them and asks whether that is still them.
+        /// A copy remade empty owes everything and moves nothing here, since the rows it is owed are
+        /// the ones they were.
+        std::uint64_t getWrites() const { return mWrites; }
 
         /// Makes the table `rows` long, value-initialising what is appended. What is appended is
         /// owed and what was already there is not. Never shorter: every table of these is sized
@@ -77,6 +97,7 @@ namespace Rtx
 
             for (RowDebt& owed : mOwed.live())
                 owed.owe(mAppended);
+            ++mWrites;
         }
 
         /// Makes the host rows and every copy room for `rows`, so no `sync` up to there makes a copy
@@ -158,6 +179,8 @@ namespace Rtx
 
         /// Cleared and refilled by `grow`, never freed: the rows one growth appended.
         std::vector<Index> mAppended;
+
+        std::uint64_t mWrites = 0;
     };
 
     /// One `BlockedBuffer` per frame in flight, and what each copy has yet to be told —

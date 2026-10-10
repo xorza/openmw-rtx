@@ -342,6 +342,25 @@ namespace Rtx::Testing
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
             EXPECT_EQ(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid, std::optional<bool>(false));
             EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mMean.has_value()) << "a pane asks no mean";
+
+            // **And lays what the hand-over would widen**, beside the file: the RGBA8 pane uploads as
+            // it is, and an RGB8 file is laid on the reader's thread under its own name.
+            const SurfaceDescription& read = *model.mParts[0].mMaterial.mDescribed;
+            EXPECT_EQ(read.getTextureUse(SurfaceMap::Diffuse).mLaid, nullptr) << "a file uploaded as it is was laid";
+
+            osg::ref_ptr<osg::Image> loose = new osg::Image;
+            loose->setFileName("textures/tx_loose.tga");
+            loose->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            PreparedModel looseModel;
+            osg::ref_ptr<osg::Geometry> looseQuad = makeQuad();
+            paint(*looseQuad->getOrCreateStateSet(), *loose);
+            walk.read(*looseQuad, ~0u, looseModel);
+            ASSERT_EQ(looseModel.mParts.size(), 1u);
+            const TextureUse& laid = looseModel.mParts[0].mMaterial.mDescribed->getTextureUse(SurfaceMap::Diffuse);
+            EXPECT_EQ(laid.mImage, loose) << "the file was replaced rather than laid beside";
+            ASSERT_NE(laid.mLaid, nullptr) << "a widened file was left to the hand-over";
+            EXPECT_EQ(laid.mLaid->getPixelFormat(), static_cast<GLenum>(GL_RGBA));
+            EXPECT_EQ(laid.mLaid->getFileName(), loose->getFileName());
         }
 
         /// A surface that adds — `SRC_ALPHA, ONE` — is no cutout, no pane and no medium: it is

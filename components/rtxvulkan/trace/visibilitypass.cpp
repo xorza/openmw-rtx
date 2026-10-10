@@ -538,6 +538,9 @@ namespace Rtx
         // And how many froxels stand in front of the camera, off the volume that holds them, so the
         // three shaders that divide by it stop asking the driver for a number the host already has.
         described.mFogColumns = Shaders::uvec2(inputs.mFogVolume.getColumns(), inputs.mFogVolume.getRows());
+        const VkExtent2D traced
+            = inputs.mFogVolume.tracedFor(VkExtent2D{ described.mEyes.mWorld.mWidth, described.mEyes.mWorld.mHeight });
+        described.mFogTraced = Shaders::uvec2(traced.width, traced.height);
 
         // And where every table is. Every address read here names a buffer that is alive when the
         // trace runs, because the placement buried what it displaced in the graveyard and nothing
@@ -619,12 +622,10 @@ namespace Rtx
 
         const TracePipeline<NoConstants>& scatter = scatterPipelineFor(variant);
 
-        // Every column the image has and not every column the camera needs. A traced view is
-        // drawn into a volume grown to the largest one asked for, and the pixel at its edge
-        // interpolates against the column outside it — which has to hold air rather than
-        // whatever was there.
-        const std::uint32_t columns = inputs.mFogVolume.getColumns();
-        const std::uint32_t rows = inputs.mFogVolume.getRows();
+        const VkExtent2D traced
+            = inputs.mFogVolume.tracedFor(VkExtent2D{ constants.mEyes.mWorld.mWidth, constants.mEyes.mWorld.mHeight });
+        const std::uint32_t columns = traced.width;
+        const std::uint32_t rows = traced.height;
 
         // Each zone ends before the barrier after it, so a barrier's wait is no zone's time.
         {

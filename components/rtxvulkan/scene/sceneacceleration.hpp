@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -133,6 +134,9 @@ namespace Rtx
         /// triangle's corners through: a table of the scene's as the vertex attributes are.
         VkDeviceSize getIndexBytes() const { return mIndices.getBytes(); }
 
+        /// `BottomLevelStore::wasRefusedRoom`.
+        bool wasRefusedRoom() const { return mBottomLevel.wasRefusedRoom(); }
+
         VkDeviceSize getCompactableBytes() const { return mBottomLevel.getCompactableBytes(); }
         VkDeviceSize getCompactableNowBytes() const { return mBottomLevel.getCompactableNowBytes(); }
 
@@ -222,6 +226,10 @@ namespace Rtx
         /// rows out of. A gap is an inactive row — a reference of nought — and not a row left out,
         /// because a row's index is the slot a hit reads back.
         SlotTable<VkAccelerationStructureInstanceKHR> mRowTable;
+
+        /// `mRowTable.getWrites()` when the top level was last built: none before the first build,
+        /// which an empty world asks for too, and none again once a structure arrives.
+        std::optional<std::uint64_t> mBuiltOverWrites;
 
         /// Kept across frames and built into again, made anew only when the slot table grows
         /// past what it was sized for: destroyed and created every frame, it would ask the driver

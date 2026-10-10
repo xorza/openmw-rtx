@@ -37,8 +37,8 @@ float fogDepthInverse(float distance)
 ///
 /// **Normalised by the image and never by the frame.** A traced view is drawn into a volume grown
 /// to the largest one asked for, so the two are not the same number — and the scatter pass fills
-/// every column the image has for exactly that reason: the pixel at the edge interpolates against
-/// the column outside it.
+/// the column past the frame's for exactly that reason: the pixel at the edge interpolates against
+/// it (`mFogTraced`).
 ///
 /// @param pixel a position on the frame in pixels, with its half already added where a texel's
 ///        centre is meant.

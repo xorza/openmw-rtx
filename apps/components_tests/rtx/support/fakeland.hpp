@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -198,6 +199,13 @@ namespace Rtx::Testing
         }
 
         void lose(std::string_view path) { mLost.emplace(path); }
+
+        /// Answers `path` with `image` from here on, for a file of a format other than RGBA8.
+        void put(std::string_view path, osg::ref_ptr<osg::Image> image)
+        {
+            image->setFileName(std::string(path));
+            mImages.insert_or_assign(std::string(path), std::move(image));
+        }
 
         /// How many times a file was asked for, which a reader that opens each once keeps low.
         std::size_t getOpened() const { return mOpened; }

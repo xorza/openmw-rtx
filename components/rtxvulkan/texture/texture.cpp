@@ -649,9 +649,14 @@ namespace Rtx
             why = pastTheSide(texture, mSideLimit);
         else if (texture.mSource != TextureSource::StandIn)
         {
+            // Every refusal `make` answers is the device's room: a file past the side is the one
+            // that is not, and it is known above.
             const Misc::Result<void, std::string_view> stood = make(batch, slot.mTexture, texture, side, name);
             if (!stood.isOk())
+            {
                 why = stood.error();
+                mRefusedRoom = true;
+            }
         }
 
         const Texture& made = slot.mTexture;

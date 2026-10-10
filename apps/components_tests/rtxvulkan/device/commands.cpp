@@ -267,8 +267,14 @@ namespace Rtx
         {
             CommandPool& pool = getPool();
             const auto blocks = [&] { return pool.getStagingBlockCount(); };
+
+            // From a queue run dry, so every block a test before left retiring is free and the trim
+            // lets go of it: a block still retiring is one no trim reaches, and freed by a later
+            // submit it was a block the counts below never expected.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
             pool.trimStaging(0);
-            const std::size_t none = blocks();
+            ASSERT_EQ(blocks(), 0u) << "a block outlived a trim of everything on an idle queue";
 
             // A recording opened, so the flush is a submit the blocks are read until: a batch that
             // recorded nothing rides none, and its blocks wait for whatever submit comes next.
@@ -280,16 +286,16 @@ namespace Rtx
                 batch.flush();
             };
             stage({ sStagingBlock, sStagingBlock, sStagingBlock, 20 << 20 });
-            ASSERT_EQ(blocks(), none + 4) << "the batch did not take a block per run";
+            ASSERT_EQ(blocks(), 4u) << "the batch did not take a block per run";
 
             pool.trimStaging(2 * sStagingBlock);
-            EXPECT_EQ(blocks(), none + 2) << "the trim kept more or fewer than the two smallest";
+            EXPECT_EQ(blocks(), 2u) << "the trim kept more or fewer than the two smallest";
 
             stage({ sStagingBlock, sStagingBlock });
-            EXPECT_EQ(blocks(), none + 2) << "a batch the kept blocks hold made one";
+            EXPECT_EQ(blocks(), 2u) << "a batch the kept blocks hold made one";
 
             stage({ sStagingBlock, sStagingBlock, sStagingBlock });
-            EXPECT_EQ(blocks(), none + 3) << "a third block was not made, or not into a place let go of";
+            EXPECT_EQ(blocks(), 3u) << "a third block was not made, or not into a place let go of";
         }
     }
 }

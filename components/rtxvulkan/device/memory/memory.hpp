@@ -206,8 +206,14 @@ namespace Rtx
 
         /// Keeps room on the video heap for the frame's targets to be made at `bytes`, what the
         /// running mode's take: content stops where that, and not only what the targets hold now,
-        /// still fits. Asked by each change of mode, which builds the world again where it moves.
+        /// still fits. Asked by each change of mode.
         void reserveFrame(VkDeviceSize bytes);
+
+        /// Whether the video heap stands under the ceiling a texture is made against, as the
+        /// budget and the frame's reserve set it now: whether everything content holds is what a
+        /// load would stand it in. Asks the driver's budget as the library last read it, so after
+        /// `refreshBudget` for an answer about now.
+        bool contentFits() const;
 
         /// What `reserveFrame` was last told.
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }

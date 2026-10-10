@@ -511,12 +511,12 @@ namespace RtxTool
         // **And every other field of the row, bound whole**, as `forEachMaterialField` binds a
         // material: the wrap reaches the sampler and the encoding and format how the texels decode,
         // so a slot read another way is a trace that moves over this column. A field added to
-        // `TextureRow` does not compile here until it is named. The image is the file's bytes, which
-        // the path already names.
+        // `TextureRow` does not compile here until it is named. The image and its laid copy are the
+        // file's bytes, which the path already names.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const auto& [kind, path, groundOf, wrap, encoding, image, format] = row;
+            const auto& [kind, path, groundOf, wrap, encoding, image, laid, format] = row;
             const std::string_view name = path.value();
             textures.add(std::span<const char>(name.data(), name.size()));
             textures.add(static_cast<std::uint32_t>(name.size()));
@@ -527,6 +527,7 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(encoding));
             textures.add(static_cast<std::uint32_t>(format));
             static_cast<void>(image);
+            static_cast<void>(laid);
         }
         take(ScenePart::Textures, textures.take());
 

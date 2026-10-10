@@ -244,6 +244,7 @@ namespace Rtx
 
             BottomLevelStore store(getDevice());
             build(store, std::span(grids).subspan(0, 1));
+            EXPECT_FALSE(store.wasRefusedRoom());
 
             std::vector<Refusal> refused;
             {
@@ -266,6 +267,7 @@ namespace Rtx
 
             build(store, std::span(grids).subspan(1, 1));
             EXPECT_TRUE(store.stands(grids[1]));
+            EXPECT_TRUE(store.wasRefusedRoom()) << "a refusal was forgotten once its mesh stood";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
             getDevice().waitIdle();

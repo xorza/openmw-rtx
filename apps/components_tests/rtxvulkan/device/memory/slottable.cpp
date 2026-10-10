@@ -89,6 +89,19 @@ namespace Rtx
 
             sync(1);
             EXPECT_FALSE(mTable.owes(FrameSlot{ 1 }));
+
+            // A row rewritten as it stands owes nothing and counts no write, and one rewritten
+            // otherwise is a write like any other.
+            const std::uint64_t writes = mTable.getWrites();
+            mTable.writeChanged(2, TestRow{ .mValue = 7 });
+            EXPECT_FALSE(mTable.owes(FrameSlot{ 0 })) << "a row rewritten as it stood was owed";
+            EXPECT_EQ(mTable.getWrites(), writes) << "a row rewritten as it stood counted a write";
+
+            mTable.writeChanged(2, TestRow{ .mValue = 8 });
+            EXPECT_EQ(mTable.getRows()[2].mValue, 8u);
+            EXPECT_EQ(owedBy(0), (std::vector<Index>{ 2 }));
+            EXPECT_EQ(owedBy(1), (std::vector<Index>{ 2 }));
+            EXPECT_EQ(mTable.getWrites(), writes + 1);
         }
 
         /// A copy owes every row written since it was last paid, however many frames that spans.
@@ -121,11 +134,16 @@ namespace Rtx
             sync(0);
             sync(1);
 
+            const std::uint64_t writes = mTable.getWrites();
             mTable.grow(6);
 
             EXPECT_EQ(owedBy(0), (std::vector<Index>{ 3, 4, 5 }));
             EXPECT_EQ(owedBy(1), (std::vector<Index>{ 3, 4, 5 }));
             EXPECT_FALSE(mTable.owesEverything(FrameSlot{ 0 })) << "a growth rewrote rows that had not moved";
+            EXPECT_EQ(mTable.getWrites(), writes + 1) << "a growth went uncounted";
+
+            mTable.grow(6);
+            EXPECT_EQ(mTable.getWrites(), writes + 1) << "a growth by nothing counted a write";
         }
 
         /// A copy that has never been written owes the whole table, and paying it clears that.

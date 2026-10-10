@@ -75,6 +75,11 @@ namespace Rtx
         /// uploads it opens nothing. Null for a bake, and for a file nothing reads at.
         osg::ref_ptr<const osg::Image> mImage{};
 
+        /// `mImage` laid as the upload reads it, where a reader off the frame laid it (`layImage`),
+        /// and what the upload then reads in its place; null otherwise, and the upload widens
+        /// `mImage` itself. `mImage` stays the file, which the format count and the name are of.
+        osg::ref_ptr<const osg::Image> mLaid{};
+
         /// `mImage`'s format as `mEncoding` reads it, read once when the slot is taken.
         /// `TextureFormat::Unnamed` where there is no image.
         TextureFormat mFormat = TextureFormat::Unnamed;
@@ -110,8 +115,10 @@ namespace Rtx
         /// @param image what the upload reads for the slot: kept by the add that takes it, and
         ///        counted in `getFormats` while the slot stands. Null where nothing reads at `path`,
         ///        which the upload stands in for and refuses.
+        /// @param laid `image` laid as the upload reads it (`layImage`), or null: kept beside it by
+        ///        the add that takes the slot, so the hand-over widens nothing a reader laid.
         Index add(VFS::Path::NormalizedView path, const osg::Image* image, TextureWrap wrap = TextureWrap::Repeat,
-            TextureEncoding encoding = TextureEncoding::Colour);
+            TextureEncoding encoding = TextureEncoding::Colour, const osg::Image* laid = nullptr);
 
         /// The same with no image, for a caller that describes its textures to the backend itself,
         /// as a test does.
@@ -176,7 +183,7 @@ namespace Rtx
         /// caller until it drops it: what a surface, a sprite, a sky layer and a moon turn their
         /// image into. `sNoIndex`, holding nothing, where `add` refuses it.
         Index take(VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat,
-            TextureEncoding encoding = TextureEncoding::Colour);
+            TextureEncoding encoding = TextureEncoding::Colour, const osg::Image* laid = nullptr);
 
         /// Takes and gives back one name on a slot. A slot this never hands out — `sNoIndex`, and
         /// the neutral texel a layer names where the table had no room — is "none" and costs a

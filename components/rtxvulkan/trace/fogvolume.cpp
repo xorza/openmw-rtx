@@ -202,6 +202,12 @@ namespace Rtx
         return bytes;
     }
 
+    VkExtent2D FogVolume::tracedFor(const VkExtent2D pixels) const
+    {
+        return VkExtent2D{ std::min(mColumns, columnsFor(pixels.width) + 2),
+            std::min(mRows, columnsFor(pixels.height) + 2) };
+    }
+
     FogVolume::FogVolume(const Device& device, const SetLayout& layout, const std::uint32_t width,
         const std::uint32_t height, const MemoryUse use, const TracePast past)
         : mColumns(columnsFor(width))

@@ -10,8 +10,7 @@ GLSL↔C++ interface with the pass graph. Nothing was built or run, so every cos
 from formats and extents, or a figure quoted from a code comment. Each batch says how to measure it.
 
 The findings are in **batches**. One batch is one change set that touches one area, so you can do
-it in one go. The batches are in order of importance: crashes and contract guards first, then memory,
-worst-frame spikes, and then throughput.
+it in one go. The batches are in order of importance.
 
 Labels on each finding: **kind** (bug, latent, perf, simplify, robustness), **severity** (H/M/L)
 and **confidence** (H/M/L). The ID is the reviewer's own (TRACE, DENOISE, MEDIA, SCENE, FRAME, XCUT).
@@ -21,240 +20,23 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Device loss and contract guards | 6 | A crash, a wild read, or a silent drift waiting for a trigger |
-| 2 | Memory budget and allocation | 6 | A throw instead of a refusal on 6–8 GB / 256 MiB BAR cards. Room lost for good |
-| 3 | Worst-frame spikes at arrival and departure | 6 | One frame absorbs a sweep, a build or a rebuild |
-| 4 | G-buffer and fill diet | 6 | 50–180 B/px of dead traffic on every vanilla frame |
-| 5 | Denoiser pass graph | 7 | About 13 queue drains where 5 would do, a composite round trip, transients that could share memory |
-| 6 | Sprites and fog | 5 | Worst-frame sprite walks, a serial shade chain, 32F fog history |
-| 7 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
-| 8 | Display and presentation | 6 | Two extra full-frame copies and submits, input latency, bloom order |
-| 9 | Water: ripples and waves | 5 | A frame-rate-dependent wake, idle work, driver-precision twiddles |
-| 10 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 11 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 12 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
+| 1 | G-buffer and fill diet | 6 | 50–180 B/px of dead traffic on every vanilla frame |
+| 2 | Denoiser pass graph | 7 | About 13 queue drains where 5 would do, a composite round trip, transients that could share memory |
+| 3 | Sprites and fog | 5 | Worst-frame sprite walks, a serial shade chain, 32F fog history |
+| 4 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
+| 5 | Display and presentation | 6 | Two extra full-frame copies and submits, input latency, bloom order |
+| 6 | Water: ripples and waves | 5 | A frame-rate-dependent wake, idle work, driver-precision twiddles |
+| 7 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 8 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
+| 9 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
 
-60 findings are open: 0 high, 16 medium, 44 low. No reviewer found a GLSL/C++ layout,
+42 findings are open: 0 high, 9 medium, 33 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
 ---
 
-## Batch 1 — Device loss and contract guards
-
-Each item is a crash, a wild read, or a silent drift that needs a trigger. They are small and
-independent, so one pass can fix them all.
-
-### TRACE-7: The light-grid bounds test lets a NaN position through to an out-of-bounds buffer-reference read
-robustness · L · conf M — `shaders/lib/lights.glsl:88-98`
-
-`any(lessThan(cell, 0)) || any(greaterThanEqual(cell, size))` is false for NaN. `uvec3(NaN)` is
-undefined, and it then indexes `lightCellAt` and `lightListAt` through buffer references with no
-robust access. One NaN position becomes a wild read, and possibly a lost device, where it would
-otherwise be one counted pixel.
-
-**Direction:** write the test so that NaN fails it: `!all(greaterThanEqual(cell, vec3(0)) && lessThan(cell, vec3(size)))`.
-Apply the same form to the other float→index conversions on the path (`specularTableTaps`, `maskWeightIn`).
-
-### FRAME-13: The pinning files FMin, FMax and FClamp as fixed, but GLSL.std.450 leaves the result undefined for a NaN operand
-robustness · L · conf M — `spirv/spirvpin.cpp:148-157`, `spirv/spirvpin.hpp:9-12`
-
-The header promises that every float result is fixed by the specification. For FMin/FMax, "which
-operand is the result is undefined if one of the operands is a NaN". `SignedZeroInfNanPreserve` does
-not choose an operand. So a guard such as `max(value, 0.0)`, written to absorb a NaN, gives an answer
-that depends on the compile. TRACE-7 shows that such guards matter.
-
-**Direction:** rewrite the F-variants to NMin/NMax/NClamp, which fix the NaN answer, or class them as
-bounded and say so in the header.
-
-### XCUT-8: The module-interface check covers push blocks only. Uniform-block sizes and buffer-reference array strides are not held to the C++ type
-robustness · L · conf H — `spirv/spirvinterface.cpp:200-212,385-388`, `pipeline/shadercode.cpp:95-107`
-
-`readInterface` computes a block end only for `StorageClassPushConstant`. The frame block (1624 B),
-the FSR blocks, `FrameCounts` and every `buffer_reference` table's `ArrayStride` are checked only by
-C++ `static_assert`s against hand-computed numbers, which pin the C++ side only. The one way the two
-sides can drift in scalar layout (a nested struct whose size is not a multiple of its 8-byte
-alignment, followed by another member) passes every check. No struct has that shape today.
-
-**Direction:** report each uniform/storage block's end and each runtime array's `ArrayStride` in the
-same walk, and hold them to the C++ `sizeof`, as `pushDisagreement` does.
-
-### SCENE-13: Two sentinel and index limits are held by coincidence or a silent mask
-robustness · L · conf H — `scene/scenebuffers.cpp:76-85`, `rtx/common/index.hpp:10`, `rtx/shaders/scene.h:31`, `scene/sceneacceleration.cpp:472`
-
-`toGpu` copies `sNoIndex = ~Index{0}` into fields that the shaders test against `Shaders::NO_TEXTURE`,
-with nothing to assert that the two are equal. `placeRow` writes `instanceCustomIndex = slot & 0xFFFFFFu`
-with no assert, and the placement table grows without a cap.
-
-**Direction:** `static_assert(sNoIndex == Shaders::NO_TEXTURE)` beside `toGpu`, and
-`assert(slot < (1u << 24))` in `placeRow`.
-
-### DENOISE-6: Held distances are decoded with this frame's distance scale, not the scale they were stored at
-latent · L · conf H — `shaders/lib/surfacematch.glsl:24,161,174`, `trace/denoise/denoisepasses.cpp:73`
-
-`heldSurfaceOf` stores `distance * mDistanceScale` (`RANGE / mFar` of the writing frame).
-`heldSurfaceMatches` divides by this frame's scale. It is correct only because the far plane is the
-constant `sFarPlane`. A per-frame far plane without a cut would scale every held distance and break
-every temporal plane test, with nothing to report it.
-
-**Direction:** store at a fixed scale, or carry the previous scale in `HistoryConstants`, or assert
-that far is unchanged across frames that keep their history. DENOISE-7 (batch 5) removes the coupling
-completely.
-
-### DENOISE-4: The shadow tiles pass gathers the history even on a reset frame. In a picture chain that read races the accumulator's write
-robustness · L · conf H — `shaders/trace/denoise/shadowtiles.comp:324-327`, `trace/denoise/denoisehistory.cpp:296-300`
-
-The `RTX_HISTORY_SHARES` gather runs first, and only afterwards does `if (frame.mReset != 0u) shares = vec4(0.0)`
-discard it. Every other temporal pass guards the gather. In a `TracePast::Dropped` chain,
-`before() == now() == [0]`, so `mHeldSurface` is the image `accumulate.comp` writes in the same
-command buffer, with no barrier that names it. No pixel is wrong, but synchronization validation
-reports a hazard, and every reset frame pays 16 loads per pixel per field for nothing.
-
-**Direction:** put the gather behind `frame.mReset == 0u`.
-
----
-
-## Batch 2 — Memory budget and allocation
-
-On the target RTX 20 cards (6–8 GB, 256 MiB BAR without Resizable BAR), these items turn a budget
-refusal into a throw, or keep room lost for good.
-
-### FRAME-8: Host-written memory is essential, never refused and unbounded, with doubling growth, on target hardware whose BAR heap is 256 MiB
-robustness · L · conf L — `device/memory/buffer.cpp:27-28`, `device/memory/memory.cpp:247-273`, `device/memory/slottable.hpp:111`, `device/memory/growablebuffer.cpp:19-25`
-
-Every `SlotTable` copy, the poses, lights, sprites, emitters, SBTs and the GUI vertices are
-`DEVICE_LOCAL|HOST_VISIBLE|HOST_COHERENT`, which is the BAR window. They grow ×2, with the old copy
-buried for two frames (3× transiently), through `take`, which throws `DeviceError` on out-of-memory.
-`mHostWrittenBytes` is only printed. To settle: read `MemoryReport::mHostWrittenLive` at its peak in
-a crowded exterior.
-
-**Direction:** report or assert against `mHostWrittenBytes`. Give the large per-frame tables a
-device-local staged path (as `BlockedBuffer` does) when the BAR heap is small.
-
-### SCENE-3: The BLAS build scratch is the sum over every mesh in one build call. It is taken as essential memory, kept at its high-water mark and not reported
-robustness · M · conf M — `scene/bottomlevelstore.cpp:115-128,229-253`, `scene/devicescene.cpp:45-68`, `device/memory/growablebuffer.cpp:8-17`
-
-`build()` places each mesh's scratch end to end and records one build over all of them. The scene
-build calls it with every mesh of the world. `mScratch` and `mArrived` (all static positions) go
-through `MemoryUse::Essential`, before the structures ask for content room, and they never shrink.
-`getStructureBytes` and `SceneStats` do not count them. On a card near its budget, the process fails
-where the device should refuse meshes.
-
-**Direction:** build in chunks under a fixed scratch budget, with a barrier between chunks. Take the
-scratch and arrival buffers as content memory, or trim them after the build, and report them.
-
-### SCENE-4: Staging blocks are never given back, so a whole-scene upload stays pinned in host memory until exit
-perf · M · conf M — `device/commands.cpp:128,223-238`, `scene/devicescene.hpp:46-52`
-
-`takeStaging` reuses or makes `max(bytes, 8 MiB)` blocks, and nothing destroys a spare. A world build
-with a texture replacer stages everything in one batch, possibly more than 1 GB, and keeps it.
-
-**Direction:** trim spares above a fixed reserve after their batch retires, a few per frame. Or cap
-a batch's staging and split a scene build across submits (this fits with SCENE-3's chunks).
-
-### SCENE-2: The normal-spread means are a large transient. Summed across an arrival, they can hold every texture of that arrival to a smaller side for good
-perf · M · conf M — `texture/texture.cpp:79-86,202-209,483-580`, `texture/texturecost.cpp:73-82`, `shaders/shared/normalspread.h:48-51`
-
-Each normal map makes an RGBA32F image at half side with a full chain, alive until the batch runs.
-For a 2048² BC5 map that is about 22 MB of means against 5.6 MB that the map keeps. `costAt` sums the
-transients over the arrival, and `chooseSide` halves **every** file until that peak fits. With 40
-replacer normal maps that is about 0.9 GB of transient, which downsizes colour and normal maps
-permanently for memory that is freed a frame later.
-
-**Direction:** build the spreads through one fixed-size reused means scratch (in groups, with a
-barrier between groups), or fuse levels in shared memory. Price the bounded scratch once per arrival.
-
-### FRAME-15: The content ceilings count the memory outside the allocator twice
-robustness · L · conf M — `device/memory/memory.cpp:392-422`, `apps/components_tests/rtxvulkan/device/memory/memory.cpp:364-377`
-
-`owed = usage − blockBytes` is subtracted from the budget, and then `usage + new` (which includes the
-same outside memory) is compared against that ceiling. The "owed twice" rule is for uses that could
-be made again while the old one stands. The swapchain is destroyed before it is made again, so the
-rule does not cover it. A 7680×2160 swapchain of 3 images is about 200 MB lost from the content room.
-
-**Direction:** owe the outside memory once, or name what is made again beside it. Update the test's
-hand computation.
-
-### SCENE-8: Completed chains stay loose RGBA8, and the stated reason ("no encoder") is out of date
-perf · L · conf M — `rtx/image/texturedata.hpp:215-226`, `texture/texture.cpp:221-245`
-
-A one-level BC1/BC3 file (vanilla ships 187, the rain among them) becomes an RGBA8 chain: 8× the BC1
-bytes. `Bc7EncodePass` now exists and encodes every ground composite.
-
-**Direction:** encode the completed chain to BC7 through `Bc7EncodePass` (`mWeighsAlpha` on), or keep
-RGBA8 and replace the comment with the real reason (level 0 kept byte-exact).
-
----
-
-## Batch 3 — Worst-frame spikes at arrival and departure
-
-AGENTS.md: "no frame absorbs a … eviction sweep … or rebuild the others didn't." Measure each item
-with `./omw release bench --frame-times` on a ring walk before and after. Report the p99 and the worst frame.
-
-### FRAME-2 / SCENE-14: The graveyard frees everything the timeline has passed in one collect, so all of a crossing's burials land on one frame
-perf · M · conf M — `device/graveyard.cpp:40-66`, `device/retiring.hpp:24-33`, `texture/texture.cpp:843-859`, `scene/bottomlevelstore.cpp:64-77`
-
-`Retiring::releaseThrough` hands over every passed entry at once. A departing cell buries hundreds of
-images, views, structures and ranges under one stamp. Two frames later, all of the `vkDestroy*` and
-`vmaFreeMemory` calls (and possibly a `vkFreeMemory` of a 64 MiB block) run in that one frame.
-
-**Direction:** give `freeThrough` a budget per collect (handles or bytes), and keep the remainder for
-the next collect. `collectIdle` still frees everything.
-
-### SCENE-5: All of an arrival's BLAS builds land on the arrival frame
-perf · M · conf L — `scene/sceneacceleration.cpp:157-170`, `scene/bottomlevelstore.cpp:79-311`, `shaders/scene/toplevelpack.comp:65-69`
-
-`buildArrived` builds every arrived mesh in one call, bounded by cells but not by triangles. A row
-whose BLAS does not stand is already a gap that the pack leaves out, so delaying is safe by
-construction. Textures and composites have a rota (`sCompositesPerFrame`). BLAS builds have none.
-
-**Direction:** measure the `Blas` zone's p99 first. If it spikes, give the builds a per-frame triangle
-budget (FIFO), as `CompositeQueue` does.
-
-### SCENE-9: Loose formats are widened on the frame thread at the hand-over, and then stay uncompressed
-perf · L · conf M — `rtx/scene/scenetextures.cpp:76-121`, `rtx/image/imagedescription.cpp:99-130,320-375`
-
-`SceneUploader::hand` calls `describe` on the arrival frame. Each `isWidened` format (RGB8, L8, LA8,
-16-bit, packed) is widened texel by texel, with a per-channel `switch` in the loop. A 2048² TGA is
-about 5.6 M texels on the arrival frame, and it then stays at 22 MB.
-
-**Direction:** widen on the cell reader thread, or upload raw and widen in a compute pass. Optionally
-encode widened colour files with `Bc7EncodePass`.
-
-### SCENE-11: The TLAS is rebuilt a second, redundant time on the frame after any change
-perf · L · conf M — `scene/sceneacceleration.cpp:337-353`, `device/memory/slottable.hpp:52-61`
-
-`SlotTable::write` owes a changed row to both copies, and `place` rebuilds when
-`mRowTable.owes(slot)`. There is one `mTopLevel`, so on the next frame the other copy's debt causes a
-pack and a full TLAS build over identical rows.
-
-**Direction:** keep a generation counter that `placeRow` bumps. Skip the build when only the copy's
-debt remains, but still pay the copy, because the pack reads it.
-
-### FRAME-3: Any change to the frame reserve clears and rebuilds the whole world synchronously, even far below the ceiling
-perf · M · conf M — `vulkanrenderer.cpp:206-228,292-337`, `apps/openmw/mwrender/rtx/rtxwindow.cpp:119-146`
-
-`rebuildsWorld = reserve != getFrameReserve() && world != nullptr`. An upscale mode change, a
-resolution change or a window resize at Native rebuilds every BLAS and uploads every texture in one
-flushed batch: a stall of seconds. In the common case it makes the same scene again.
-
-**Direction:** rebuild only when the new ceiling is below what content now takes, or when the old
-room refused or downsized something that the new room admits. Otherwise call `reserveFrame` only.
-
-### MEDIA-2: A picture fills and integrates the fog volume over every column of the largest picture ever asked, not its own
-perf · M · conf M — `trace/visibilitypass.cpp:620-664`, `picturetracer.cpp:42-44`, `trace/tracechain.cpp:97-103`
-
-`TraceChain::grow` keeps the maximum extent. After the 512×1024 doll preview opens, every 256×256
-local-map tile traces 43×86 instead of 23×23 columns × 64 slices: 3.5–7× the fog work. A cell
-crossing traces a row of map tiles on the frame that already carries the arrival. The comment's
-reason (interpolation at the edge) needs one extra column and row, not the whole image.
-
-**Direction:** trace and integrate `min(columns, groupsFor(extent, FOG_VOLUME_SCALE) + 1)` per axis.
-Keep `mFogColumns` as the image's grid, because readers normalise by it.
-
----
-
-## Batch 4 — G-buffer and fill diet
+## Batch 1 — G-buffer and fill diet
 
 Every vanilla frame writes and filters channels that nothing reads in that frame. The common blocker
 is the digest: `GBuffer::begin` discards every channel from `UNDEFINED`, and `visibility.rgen:504-507`
@@ -328,7 +110,7 @@ precondition, and use `HALF_LARGEST`.
 
 ---
 
-## Batch 5 — Denoiser pass graph
+## Batch 2 — Denoiser pass graph
 
 All of these items touch `trace/denoise/*` and the denoise shaders, so do them in one go. Measure
 the `denoise` zones from `--json`: medians and p99. When the families overlap, the per-family zones
@@ -414,7 +196,7 @@ hides an untried variant.
 
 ---
 
-## Batch 6 — Sprites and fog
+## Batch 3 — Sprites and fog
 
 ### MEDIA-4: An unbinned tile walks every sprite one load at a time, though a missed emitter's sprites are contiguous
 perf · M · conf H — `shaders/lib/sprites.glsl:640-670`, `shaders/lib/spritelist.glsl:94-101`, `rtx/shaders/scene.h:1058-1059`
@@ -468,7 +250,7 @@ the static_assert. Check with `./omw release noise` at the fog places and an A/B
 
 ---
 
-## Batch 7 — Lamp sampling
+## Batch 4 — Lamp sampling
 
 ### TRACE-1: Every split hit walks every lamp in its cell, up to 256, with the full glossy lobe per lamp. The comment says the water legs do not
 perf · M · conf H (behaviour), M (cost) — `shaders/lib/shading.glsl:372-375,199-204`, `shaders/lib/water.glsl:107`, `shaders/lib/lights.glsl:131,444-458,566-618`
@@ -505,7 +287,7 @@ but the stated invariant is false.
 
 ---
 
-## Batch 8 — Display and presentation
+## Batch 5 — Display and presentation
 
 All of these items touch `display/`, `gui/` and `present/`.
 
@@ -575,7 +357,7 @@ whose weights are all 1.
 
 ---
 
-## Batch 9 — Water: ripples and waves
+## Batch 6 — Water: ripples and waves
 
 ### MEDIA-6: Ripple impulses press a fixed 20% once per frame while the field steps by real time, so the wake's strength depends on the frame rate
 bug · L · conf M — `apps/openmw/mwrender/rtx/rippleemitters.cpp:59-71`, `trace/ripplepass.cpp:122-124,152-185`, `shaders/trace/ripplestep.comp:255-264,294-298`
@@ -627,7 +409,7 @@ Rows and columns cannot fuse, because a 512² grid does not fit in shared memory
 
 ---
 
-## Batch 10 — Scene record layout for the trace
+## Batch 7 — Scene record layout for the trace
 
 Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
 interior and a foliage exterior, and keep only what measures.
@@ -672,7 +454,7 @@ dispatch per kind (a binary search over the prefix, or indirect). Measure the `s
 
 ---
 
-## Batch 11 — Layered ground in the trace
+## Batch 8 — Layered ground in the trace
 
 ### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
 simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
@@ -696,7 +478,7 @@ non-detailed hits from it. Keep the live stack for the eye, reflections and the 
 
 ---
 
-## Batch 12 — Housekeeping
+## Batch 9 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -734,8 +516,8 @@ dispatch", but the fog samples them in ray-tracing launches.
 
 **Direction:** restate both comments.
 
-Comment corrections that belong to a batch above stay with their batch: DENOISE-5, DENOISE-9 (batch 5),
-TRACE-1 and TRACE-9 (batch 7), TRACE-3 (batch 11).
+Comment corrections that belong to a batch above stay with their batch: DENOISE-5, DENOISE-9 (batch 2),
+TRACE-1 and TRACE-9 (batch 4), TRACE-3 (batch 8).
 
 ---
 
@@ -780,6 +562,17 @@ The reviewers checked these items and found no fault:
   under 1 or a texture whose alpha never reaches 255 (`reachesSolid`), and a fade under 1 keeps
   `sampledOpacity` under 1 as well. Filtering cannot go above the largest texel.
 
+- **FRAME-2 / SCENE-14, withdrawn by measurement.** It said that the graveyard frees all of a
+  crossing's burials in one collect, so one frame absorbs the sweep. A release profile of the
+  streaming suite, 6.59 s over 19 crossings: `Graveyard::freeThrough` is 0.02% of it, about 1.3 ms in
+  all, under 0.1 ms a crossing. The worst frames of the same suite are the game's own `update`, 12–24
+  ms on the CPU.
+
+- **SCENE-5, measured and left.** It said that all of an arrival's BLAS builds land on the arrival
+  frame. The streaming suite's `Blas` zone, on the 367 of 598 frames that build: median 0.24 ms, p99
+  0.58 ms, worst 1.23 ms — a twentieth of the game's own worst `update`. A triangle budget would hold
+  a mesh out of the trace for frames (pop-in) to move a millisecond that no frame shows.
+
 - **FRAME-1, withdrawn by measurement.** It said that the harness's counting kernel, one atomic per
   missed primary ray into host memory, makes `bench` slower than the game. Three release legs back to
   back, counting on, off and on again, at seyda-neen-ship, seyda-neen-ship-dawn and balmora (84–88%
@@ -822,7 +615,7 @@ World frame, denoised and upscaled, in record order. **T** = traced extent, **O*
 | 2 | ripple step ×1–4 (`ripplestep.comp`) | 1024²/16² | field[before], impulses | field[after] | │ each |
 | 3 | ripple compose (`ripplecompose.comp`) + blit mips | 1024²/16² | field | ripple surface, curvature (+mips) | │ |
 | 4 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates | wave surface, curvature (+mips) | │ │ |
-| 5 | frame block update (`vkCmdUpdateBuffer`, 1624 B) | — | — | `VisibilityConstants` | │ |
+| 5 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
 | 6 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
 | 7 | sprite emitters (`spriteemitters.rgen`) | emitters × 1 | frame, emitters, fog | emitter frames | │ |
 | 8 | sprite shade (`spriteshade.comp`) | one group per emitter per light | sprites, emitters | sprite light/order | │ |

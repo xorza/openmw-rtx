@@ -157,6 +157,13 @@ namespace Rtx
         mBottomLevel.build(
             batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), mIndices, mPlacements + 1, refused);
         sizeRefitScratch();
+
+        // **A structure built is a top level to build, whatever its rows say.** A top level holds
+        // each instance's bounds from the structure it named at its own build, and a slot the scene
+        // handed out again may land its new structure at the address a buried one gave back: rows
+        // the same to the byte over different geometry.
+        if (!scene.meshes().getArrived().empty())
+            mBuiltOverWrites.reset();
     }
 
     void SceneAcceleration::sizeRefitScratch()
@@ -313,10 +320,6 @@ namespace Rtx
     {
         prepareRefit(scene, placing.mSlot);
 
-        // What this copy owes, and not what the scene moved: a world that stands still owes
-        // nothing, and building the same top level over the same rows was a submit and a fence on
-        // every frame of a standing camera. A refit alone still rebuilds it, because a top level
-        // caches the bounds of what it names.
         writeRows(records, changed);
 
         // After the rows are grown to the scene and before the copy they are synced from. A
@@ -324,7 +327,11 @@ namespace Rtx
         // the same table, so every copy owes them the way it owes anything else.
         const bool compacting = placeCompacted(scene, records);
 
-        if (!compacting && !mRowTable.owes(placing.mSlot) && mRefit.mBuilds.empty())
+        // Whether the rows moved since the top level was last built, and not what this copy owes:
+        // there is one top level, so a row the copy before was synced with is in it already, and
+        // building it again on the frame after every change was a pack and a build for nothing. A
+        // refit alone still rebuilds it, because a top level caches the bounds of what it names.
+        if (!compacting && mRowTable.getWrites() == mBuiltOverWrites && mRefit.mBuilds.empty())
             return false;
 
         prepareTopLevel(scene, placing.mSlot);
@@ -430,7 +437,7 @@ namespace Rtx
         // packing leaves out of what the build reads.
         if (!record.mPlaced)
         {
-            mRowTable.write(slot) = VkAccelerationStructureInstanceKHR{};
+            mRowTable.writeChanged(slot, VkAccelerationStructureInstanceKHR{});
             return;
         }
 
@@ -458,21 +465,23 @@ namespace Rtx
         if (record.mCutout || record.mTranslucent || record.mAdditive)
             flags |= VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR;
 
-        mRowTable.write(slot) = VkAccelerationStructureInstanceKHR{
-            .transform = toVulkanTransform(record.mTransform),
-            // A row's position is the custom index the shader reads back at a hit.
-            .instanceCustomIndex = slot & 0xFFFFFFu,
-            .mask = record.mMask,
+        // Compared, because a placement settling where it moved to is written again as it stands.
+        mRowTable.writeChanged(slot,
+            VkAccelerationStructureInstanceKHR{
+                .transform = toVulkanTransform(record.mTransform),
+                // A row's position is the custom index the shader reads back at a hit.
+                .instanceCustomIndex = slot & 0xFFFFFFu,
+                .mask = record.mMask,
 
-            // The kind, so that traversal picks the shader and the trace never asks what it hit:
-            // one closest-hit shader stands behind `HIT_RECORDS_PER_SHADER` records, kinds in the
-            // order `MaterialKind` names them, and the launch adds the eye and the layer it traces
-            // for — `hitRecordOffset`.
-            .instanceShaderBindingTableRecordOffset
-            = static_cast<std::uint32_t>(record.mKind) * Shaders::HIT_RECORDS_PER_SHADER,
-            .flags = flags,
-            .accelerationStructureReference = mBottomLevel.getAddress(record.mMesh),
-        };
+                // The kind, so that traversal picks the shader and the trace never asks what it hit:
+                // one closest-hit shader stands behind `HIT_RECORDS_PER_SHADER` records, kinds in the
+                // order `MaterialKind` names them, and the launch adds the eye and the layer it traces
+                // for — `hitRecordOffset`.
+                .instanceShaderBindingTableRecordOffset
+                = static_cast<std::uint32_t>(record.mKind) * Shaders::HIT_RECORDS_PER_SHADER,
+                .flags = flags,
+                .accelerationStructureReference = mBottomLevel.getAddress(record.mMesh),
+            });
         if (mRowTable.getRows()[slot].accelerationStructureReference != 0)
             ++placed;
     }
@@ -558,5 +567,6 @@ namespace Rtx
                 .mCount = rows });
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);
         barrierAfterBuild(commands);
+        mBuiltOverWrites = mRowTable.getWrites();
     }
 }

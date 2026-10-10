@@ -105,6 +105,11 @@ namespace Rtx
         /// What this scene holds, as `Renderer::describeHeld` answers it.
         SceneHeld describe() const;
 
+        /// Whether the room the scene was built and extended in held any of it back: a texture stood
+        /// smaller than its file, or a texture or a structure left out. A scene built again in more
+        /// room would stand more of it.
+        bool wasHeldBack() const { return mTextures.wasHeldBack() || mAcceleration.wasRefusedRoom(); }
+
         /// What the build or the last `extend` left out for want of room on the device, or for a
         /// side the device does not take — `Renderer::getRefusals`.
         std::span<const Refusal> getRefusals() const { return mRefusals; }

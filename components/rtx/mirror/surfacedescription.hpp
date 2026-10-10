@@ -167,9 +167,15 @@ namespace Rtx
         osg::ref_ptr<const osg::Image> mImage;
         TextureWrap mWrap = TextureWrap::Repeat;
 
+        /// `mImage` as the upload reads it, laid off the frame where its format is widened
+        /// (`ThreadContent::laidOf`), or null: the ring's reader lays what it reads, and the frame's
+        /// own walks leave the widening to the hand-over.
+        osg::ref_ptr<const osg::Image> mLaid{};
+
         const osg::Image* get() const { return mImage.get(); }
 
-        bool operator==(const TextureUse& other) const = default;
+        /// Not `mLaid`, which is `mImage` laid out and says nothing of its own.
+        bool operator==(const TextureUse& other) const { return mImage == other.mImage && mWrap == other.mWrap; }
     };
 
     /// What one texel of a sheet adds on average under `blend`: weighted by its own alpha where the

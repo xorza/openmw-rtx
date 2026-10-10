@@ -456,6 +456,12 @@ namespace Rtx::Shaders
         /// within a frame.
         uvec2 mFogColumns;
 
+        /// How many of those a trace fills and integrates, `FogVolume::tracedFor`: the grid's own
+        /// for the frame, and fewer for a picture smaller than the largest its chain was grown to.
+        /// The integrate pass's tent stops at its edge, because a column past it holds the air of
+        /// a picture traced before.
+        uvec2 mFogTraced;
+
         /// Where the trace's per-pixel draws come from: `NOISE_BLUE_TILE` or `NOISE_WHITE_HASH`,
         /// as `Rtx::Reconstruction::mNoise` resolved it. One uniform branch in `randomAt`.
         uint mNoise;
@@ -536,8 +542,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1432, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1624, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1440, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1632, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

@@ -1719,13 +1719,17 @@ namespace Rtx::Testing
         /// read. Two cells of grass and rock are three files; a third file would be the second
         /// cell's own. The rock's `_nh` carries a height, which is its format's to say, and the
         /// grass asks for none. Given back and read again, a file that no longer reads keeps its
-        /// place and its path, for the texture table to stand in and refuse.
+        /// place and its path, for the texture table to stand in and refuse. The grass is an RGB8
+        /// file, which the reader lays beside it for the upload; the rock's RGBA8 uploads as it is.
         TEST(RtxCellReaderTest, aLayersFileIsOpenedOnceWhileACellHoldsIt)
         {
             FakeLand land;
             land.mWithData = { osg::Vec2i(0, 0), osg::Vec2i(1, 0) };
             FewStatics storage;
             FewContent content;
+            osg::ref_ptr<osg::Image> looseGrass = new osg::Image;
+            looseGrass->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            content.mImages.put("textures/grass.dds", looseGrass);
             CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
 
             PreparedCell& west = reader.read(osg::Vec2i(0, 0), true);
@@ -1743,6 +1747,10 @@ namespace Rtx::Testing
             EXPECT_TRUE(rock.mParallax) << "an `_nh` of four channels carries a height";
             EXPECT_FALSE(grass.mParallax);
             EXPECT_EQ(grass.mNormalTexture, nullptr);
+            EXPECT_EQ(grass.mTexture->mImage, looseGrass) << "the file was replaced rather than laid beside";
+            ASSERT_NE(grass.mTexture->mLaid, nullptr) << "a widened file was left to the hand-over";
+            EXPECT_EQ(grass.mTexture->mLaid->getPixelFormat(), static_cast<GLenum>(GL_RGBA));
+            EXPECT_EQ(rock.mTexture->mLaid, nullptr) << "a file uploaded as it is was laid";
 
             // What a cell holds is the one list `collectTextures` derives: each layer's diffuse,
             // then its normal map.

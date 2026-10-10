@@ -14,6 +14,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
@@ -32,6 +33,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -531,12 +533,18 @@ namespace Rtx::Testing
             // **A new extent keeps the eye**: an eye adapted to the bright sky meets the dim one past
             // two upscale modes as it met it before them, barely moved, where an eye that lost its
             // past would start again at a day — the world the modes' reserves released built again
-            // in between, as the uploader builds it, which is the same world and no new one.
+            // in between, as the uploader builds it, which is the same world and no new one. Under a
+            // budget a byte short of the textures' ceiling at the heap, so whichever of the two
+            // modes grows the reserve finds content past what it leaves.
             EXPECT_EQ(settle(bright), lit);
-            mRenderer.setUpscale(Upscale::Quality);
-            mRenderer.setUpscale(Upscale::Off);
+            {
+                MemoryAllocator& memory = mRenderer.getDevice().getMemory();
+                const Testing::BudgetLimit tight(memory, Testing::budgetAbove(memory, MemoryUse::Texture, 0) - 1);
+                mRenderer.setUpscale(Upscale::Quality);
+                mRenderer.setUpscale(Upscale::Off);
+            }
             ASSERT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, 0u)
-                << "the modes moved no reserve, so nothing here was built again";
+                << "neither mode grew the reserve past what content left, so nothing here was built again";
             mRenderer.setScene(Rtx::SceneSlot::world(), sky, {});
             EXPECT_LT(shot(dim), 0.5 * adapted) << "a new extent snapped the eye";
 

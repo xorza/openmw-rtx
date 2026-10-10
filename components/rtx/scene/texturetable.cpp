@@ -39,7 +39,7 @@ namespace Rtx
     }
 
     Index TextureTable::add(const VFS::Path::NormalizedView path, const osg::Image* const image, const TextureWrap wrap,
-        const TextureEncoding encoding)
+        const TextureEncoding encoding, const osg::Image* const laid)
     {
         const auto as = static_cast<std::size_t>(encoding);
         const auto at = static_cast<std::size_t>(wrap);
@@ -58,6 +58,7 @@ namespace Rtx
             .mWrap = wrap,
             .mEncoding = encoding,
             .mImage = image,
+            .mLaid = laid,
             .mFormat = format,
         });
 
@@ -77,9 +78,9 @@ namespace Rtx
     }
 
     Index TextureTable::take(const VFS::Path::NormalizedView path, const osg::Image& image, const TextureWrap wrap,
-        const TextureEncoding encoding)
+        const TextureEncoding encoding, const osg::Image* const laid)
     {
-        const Index slot = add(path, &image, wrap, encoding);
+        const Index slot = add(path, &image, wrap, encoding, laid);
         hold(slot);
         return slot;
     }

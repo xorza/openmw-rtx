@@ -194,11 +194,16 @@ namespace Rtx
             EXPECT_TRUE(compact == zones.end() || compact < tlas) << "the top level was built before the copy it names";
             EXPECT_EQ(zones.front().mZone, compact == zones.end() ? FrameZone::Tlas : FrameZone::Compact);
 
-            // And the report does not accumulate: the frame after is its own again.
+            // And the report does not accumulate: the frame after is its own again. Placed again
+            // unchanged into the other frame's copy, which owes the rows the top level was built
+            // over the frame before, so there is nothing to build.
+            scene.placements().advance();
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             const Drawn after = draw(mRenderer, camera);
             EXPECT_EQ(after.mGpu.spans().size(), drawn.mGpu.spans().size())
                 << "last frame's zones were carried into this one";
-            EXPECT_FALSE(reports(after.mGpu.spans(), FrameZone::Tlas));
+            EXPECT_FALSE(reports(after.mGpu.spans(), FrameZone::Tlas))
+                << "the top level was built again over the rows it was built over the frame before";
 
             // **A cell arriving says so too, and that is the frame worth having a figure for.** The
             // structures its meshes bring are recorded ahead of the placement and ride its submit,
@@ -221,6 +226,19 @@ namespace Rtx
             // And only on the frame the arrival landed in.
             const Drawn settled = draw(mRenderer, camera);
             EXPECT_FALSE(reports(settled.mGpu.spans(), FrameZone::Blas)) << "nothing arrived, so nothing was built";
+
+            // **A structure that arrives builds the top level though no row moved**: a slot handed
+            // out again can land its new structure at an address a buried one gave back, under rows
+            // the same to the byte. A mesh nothing places is that arrival with no row at all.
+            scene.placements().advance();
+            scene.clearArrivals();
+            Testing::addQuadMesh(scene);
+            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            const Drawn unplaced = draw(mRenderer, camera);
+            EXPECT_TRUE(reports(unplaced.mGpu.spans(), FrameZone::Blas));
+            EXPECT_TRUE(reports(unplaced.mGpu.spans(), FrameZone::Tlas))
+                << "a structure arrived and the top level kept the bounds of what stood before";
 
             // **A denoised frame runs every pass of the bounce**: the accumulator, its clamp and each
             // of the wavelet's levels open a zone.
