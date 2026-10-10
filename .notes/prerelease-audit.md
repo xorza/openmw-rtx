@@ -60,25 +60,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P0: release blockers
 
-### 3. Stop the Lua worker and the cell reader before the managers they read go
-- **Audit**: SEAM-1, SEAM-2. CONFIRMED (the order in `~Engine`). **Upstream** (decision 1, new line).
-- **Where**: `apps/openmw/engine.cpp:294-298` and `:334-369`, `apps/openmw/mwlua/worker.cpp:26-34`,
-  `apps/openmw/mwrender/objectpaging.cpp:1158`, `apps/openmw/mwrender/rtx/worldmirror.cpp:208-212`.
-- **Problem**:
-  - `RtxRenderer::renderFrame` throws on purpose (device out of room, a failed resize) while the Lua
-    worker runs its update. `~Engine` destroys the window manager, the scripts and the world, and
-    only then joins the worker. The worker reads freed managers, and the game crashes where the error
-    box was to show.
-  - The cell ring's reader thread calls `ScriptManager::markVisibilityGates` through
-    `ObjectStorage::collect`. `~Engine` destroys the script manager one line before the world, and
-    only the world's destruction stops the reader. A quit during a band read can crash. Only the ray
-    tracer's reader reaches this call.
-- **Fix**: `~Engine` first calls `mLuaWorker->join()`. Then it destroys `mWorld` before
-  `mScriptManager`. `~World` reaches no script manager, but read what `~World`'s members and the
-  renderer's detach reach before the move, and keep upstream's order for everything else.
-- **Test**: None practical as a unit test. Run `openmw-rtxtool` built with ASan, and quit on the
-  frame after a teleport into a new band.
-
 ### 4. Keep a hosted run's saves out of the player's saves folder
 - **Audit**: HARNESS-1. CONFIRMED. **Upstream** (decision 1, the `EngineHost` line).
 - **Where**: `apps/rtxtool/main.cpp:1206-1211`, `apps/openmw/engine.cpp:444`, `apps/openmw/engine.hpp:116`

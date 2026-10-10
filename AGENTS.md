@@ -80,6 +80,10 @@ is not here is held to the rules above.
   upstream's installer, which ran the C++ runtime's redistributable.
 - The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them the
   distance stands scripted stages the game keeps down.
+- The order in `~Engine`: the Lua worker joins first, and the world goes before the script manager.
+  A frame the ray tracer threw out of on purpose left the worker inside its update, and the ray
+  tracer's cell reader marks the visibility gates through the script manager until the world's
+  renderer lets it go.
 - The lamp body marker (`SceneUtil::LampBody`) that `SceneUtil::addLight` leaves on a light's group:
   the bounce takes no glow from a lamp's own model, whose light already delivers it, and the
   rasterizer never reads it.
