@@ -62,23 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 15. Trace a NIF's embedded texture
-- **Audit**: MIRROR-5. CONFIRMED. **Upstream** (decision 1).
-- **Where**: `components/rtx/mirror/materialresolver.cpp:353-357` (`takeTexture`),
-  `components/nifosg/nifloader.cpp:2024` (`handleInternalTexture`), and the texture table's key.
-- **Problem**: A NIF that carries its texture as `NiPixelData` gives an image with no file name.
-  `takeTexture` returns `sNoIndex`, and the surface is traced untextured with no word in the log.
-  Vanilla has one such mesh, `meshes\i\tx_crystal_02.nif` (an ingredient), so a vanilla object
-  draws wrong.
-- **Fix**: `handleInternalTexture` stamps the image with the model's path and the `NiPixelData`
-  record's index, in user data and not as a file name, which OSG or the image cache could try to load.
-  The texture table keys a stamped image by that pair, and the cache and the upload hold it as they
-  hold a file. An image with neither a file name nor a stamp is refused with `Refused::Texture` and
-  the model's name, as `emitterresolver.cpp:76` refuses a sprite.
-- **Test**: `rtx/mirror/extractor/materials.cpp`: a stamped nameless image takes a texture slot, two
-  drawables with one stamp share it, and an unstamped nameless image gives one `Refused::Texture`.
-  Then `./omw shot` at a place with the crystal.
-
 ### 16. Wake a frozen root when the game adds a controller under it
 - **Audit**: MIRROR-2. PLAUSIBLE.
 - **Close first**: Find an object that hits the path: an activator, door or container with

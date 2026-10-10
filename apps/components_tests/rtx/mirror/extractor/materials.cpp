@@ -59,6 +59,7 @@
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/sceneutil/texmat.hpp>
@@ -519,6 +520,39 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.textures().getRows()[material.mDiffuse].mWrap, TextureWrap::Repeat);
             EXPECT_EQ(mScene.textures().getRows()[material.mEmissive].mWrap, TextureWrap::Clamp);
             EXPECT_EQ(mScene.textures().getRows().size(), 4u);
+        }
+
+        /// **A model's own image is traced under its stamp, and an image with no name is refused.**
+        /// The NIF loader stamps an image a model carries inside it with the model and the record
+        /// (`SceneUtil::EmbeddedImage`), so two images of one record share one slot, as two of one
+        /// file do. An image with neither a file nor a stamp has nothing a table finds it by: its
+        /// surface is traced untextured, and the log says so once.
+        TEST_F(RtxSceneExtractorTest, aModelsOwnImageIsTracedUnderItsStampAndANamelessOneRefused)
+        {
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            std::array<osg::ref_ptr<osg::Image>, 3> images;
+            for (osg::ref_ptr<osg::Image>& image : images)
+            {
+                image = new osg::Image;
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                paint(*quad->getOrCreateStateSet(), *image);
+                root->addChild(quad);
+            }
+            SceneUtil::EmbeddedImage::stamp(*images[0], "meshes/i/tx_crystal_02.nif", 7);
+            SceneUtil::EmbeddedImage::stamp(*images[1], "meshes/i/tx_crystal_02.nif", 7);
+
+            walk(*root);
+
+            std::vector<Index> diffuse;
+            for (const Rtx::Material& material : mScene.materials().getRows())
+                diffuse.push_back(material.mDiffuse);
+            std::sort(diffuse.begin(), diffuse.end());
+            ASSERT_EQ(diffuse.size(), 3u);
+            EXPECT_NE(diffuse[0], sNoIndex);
+            EXPECT_EQ(diffuse[0], diffuse[1]) << "two images of one record took two slots";
+            EXPECT_EQ(diffuse[2], sNoIndex) << "the nameless image took a slot";
+            EXPECT_EQ(mScene.textures().getRows()[diffuse[0]].mPath.value(), "meshes/i/tx_crystal_02.nif#7");
+            EXPECT_EQ(mScene.refusals().count(Refused::Texture), 1u);
         }
 
         /// **The companion maps reach the material, the specular map in the layout that names what

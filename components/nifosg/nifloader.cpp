@@ -51,6 +51,7 @@
 #include <components/nif/property.hpp>
 #include <components/nif/texture.hpp>
 #include <components/sceneutil/depth.hpp>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/sceneutil/extradata.hpp>
 #include <components/sceneutil/fog.hpp>
 #include <components/sceneutil/material.hpp>
@@ -2151,6 +2152,10 @@ namespace NifOsg
             }
 
             image->setMipmapLevels(mipmapOffsets);
+
+            // Known by the model and the record, where a file's image is known by its file: the ray
+            // tracer keys a texture by what names it, and this one has no name of its own.
+            SceneUtil::EmbeddedImage::stamp(*image, mFilename.value(), pixelData->mRecordIndex);
 
             return image;
         }
