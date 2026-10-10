@@ -1,5 +1,6 @@
 #include "tracepipeline.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -95,11 +96,29 @@ namespace Rtx
             ? addStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shaders.mAnyHit, specialization)
             : VK_SHADER_UNUSED_KHR;
 
-        for (const HitShader& hit : shaders.mHit)
+        // **One stage for hit shaders that are one**, the same module under the same words: two
+        // kinds shaded alike stand behind two runs of records and are compiled once.
+        std::vector<std::uint32_t> hitStages;
+        hitStages.reserve(shaders.mHit.size());
+        for (std::size_t at = 0; at < shaders.mHit.size(); ++at)
         {
+            const HitShader& hit = shaders.mHit[at];
             const std::span<const std::uint32_t> words
                 = hit.mSpecialization.empty() ? specialization : hit.mSpecialization;
-            const std::uint32_t closestHit = addStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, hit.mModule, words);
+
+            std::uint32_t closestHit = VK_SHADER_UNUSED_KHR;
+            for (std::size_t before = 0; before < at && closestHit == VK_SHADER_UNUSED_KHR; ++before)
+            {
+                const HitShader& earlier = shaders.mHit[before];
+                const std::span<const std::uint32_t> earlierWords
+                    = earlier.mSpecialization.empty() ? specialization : earlier.mSpecialization;
+                if (earlier.mModule == hit.mModule && std::ranges::equal(earlierWords, words))
+                    closestHit = hitStages[before];
+            }
+            if (closestHit == VK_SHADER_UNUSED_KHR)
+                closestHit = addStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, hit.mModule, words);
+            hitStages.push_back(closestHit);
+
             for (std::uint32_t record = 0; record < shaders.mHitRecordsPerShader; ++record)
                 groups.push_back(VkRayTracingShaderGroupCreateInfoKHR{
                     .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,

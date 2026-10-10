@@ -37,7 +37,7 @@ namespace Rtx
 
             Material material;
             material.mKind = MaterialKind::Terrain;
-            material.mFlatten = true;
+            material.mFlatten = GroundFlattening::Every;
             material.mLayers = scene.materials().addLayers(layers);
 
             return scene.addMaterial(material);

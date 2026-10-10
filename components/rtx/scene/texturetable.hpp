@@ -47,7 +47,7 @@ namespace Rtx
         /// the bake is made from.
         SpriteLight,
 
-        /// A distant chunk's ground, flattened from its layer stack: the albedo, and the gloss.
+        /// A chunk's ground, flattened from its layer stack: the albedo, and the gloss.
         /// `TextureRow::mGroundOf` carries the chunk's material.
         GroundAlbedo,
         GroundGloss,
@@ -133,7 +133,7 @@ namespace Rtx
         /// bake is one image whose coordinates run edge to edge. `sNoIndex` as `add` answers it.
         Index addSpriteLight(VFS::Path::NormalizedView source);
 
-        /// The slot for the ground `kind` of the distant chunk `material` flattens, taking one where
+        /// The slot for the ground `kind` of the chunk `material` flattens, taking one where
         /// the material has none: the albedo as a colour, the gloss as data. One material is one
         /// chunk, and one that takes the material over is a different chunk that wants the slot
         /// overwritten. Clamped and refused as `addSpriteLight` is.

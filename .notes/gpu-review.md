@@ -21,41 +21,16 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 2 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 3 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
+| 1 | Scene record layout for the trace | 3 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 2 | Housekeeping | 2 | A pipeline cache only a clean exit writes, and stale comments |
 
-7 findings are open: 0 high, 0 medium, 7 low. No reviewer found a GLSL/C++ layout,
+5 findings are open: 0 high, 0 medium, 5 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
 ---
 
-## Batch 1 — Layered ground in the trace
-
-### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
-simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
-
-The rchit header says that `LAYERED` folds the loop out of the two stages that no terrain reaches. But
-every inline trace in those stages (bounce, shoreline bed, both water legs) goes through `resolve`,
-which hard-codes `layered = true`. Only the primary hit's detailed copy is removed.
-
-**Direction:** correct both comments. Measure the stage with `LAYERED` forced true. If nothing
-changes, remove `SPEC_LAYERED` and read `mGround` from the material row.
-
-### TRACE-4: A diffuse bounce's far hit on near ground sums the whole layer stack
-perf · L · conf L — `shaders/lib/traversal.glsl:1060-1065,1216-1271`, `shaders/lib/ground.glsl:134-158`
-
-A non-detailed hit on a chunk that kept its stack loops over every layer: a 64-byte row, four mask
-loads, and a diffuse plus delight fetch per showing layer. The `resolveFor` doc already concludes that
-detail at a bounce's far hit is invisible. Composites exist only for chunks past `wantsFlattening`.
-
-**Direction:** bake a composite for near chunks too, at load, through `groundcomposite.comp`. Resolve
-non-detailed hits from it. Keep the live stack for the eye, reflections and the bed.
-
----
-
-## Batch 2 — Scene record layout for the trace
+## Batch 1 — Scene record layout for the trace
 
 Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
 interior and a foliage exterior, and keep only what measures.
@@ -92,7 +67,7 @@ dispatch per kind (a binary search over the prefix, or indirect). Measure the `s
 
 ---
 
-## Batch 3 — Housekeeping
+## Batch 2 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -110,8 +85,6 @@ composites its nearest four in depth order. `buildMips` says that the fog sample
 dispatch", but the fog samples them in ray-tracing launches.
 
 **Direction:** restate both comments.
-
-Comment corrections that belong to a batch above stay with their batch: TRACE-3 (batch 1).
 
 ---
 
@@ -190,6 +163,20 @@ The reviewers checked these items and found no fault:
   `(sqrt 19 - 4, sqrt 23 - 4)` in place of `R2`, the frame was noisier at the pier, mean 0.72 and
   p99 2.03 against 0.71 and 2.00; the pond's frame and the guild, which has no sun, the same to
   the last digit.
+- **Layered ground.** Since the review, the hit module has no `LAYERED` setting (TRACE-3): every
+  inline trace in the stages no terrain reaches resolved whatever it met, so the stack's loop was
+  in each stage anyway, and the stages with it at their primary hit as well traced no slower —
+  `trace` median 2.50 ms against 2.67 and 2.71 on the ship, 1.63 against 1.64 in the guild, 1.96
+  against 1.95 and 1.97 at Vivec. A surface and a chunk of ground are one stage, compiled once.
+- **A composite for near ground, read at a bounce's far hit (TRACE-4).** A chunk of more than one
+  layer is flattened wherever it stands (`GroundFlattening`): outside the active grid every hit
+  reads the composite, and inside it only a bounce's far end, while the eye, reflections and the
+  bed sum the stack. Crossing the grid's edge keeps the composite and changes which hits read it.
+  In release, five alternating legs, the `trace` median fell by 0.066, 0.084, 0.046 and 0.048 ms at
+  the ship, Balmora, Ald-ruhn and Dagon Fel at 1080p, every leg with it below every leg without,
+  and by 0.21 to 0.62 ms at 7680×2160. Of 70 pictures 42 moved, the exteriors, a moved pixel by 0.35
+  of a level on average and in no one direction; the streaming suite's frame p99 stayed at
+  14.6 ms against 16.1, and its `ground` zone's at 0.38 against 0.37.
 
 - **Dropped as better left as they are**, each for what it would cost against what it could give:
   - **XCUT-3**, the histogram inside the bloom's first halving: the exposure is recorded before the
@@ -320,11 +307,11 @@ World frame, denoised and upscaled, in record order. **T** = traced extent, **O*
 | — | skin / morph (`skin.comp`, `morph.comp`), at placement | one dispatch per deformed mesh, 64-lane groups | bind streams, influences, bones/weights | pose blocks (slot) | │ |
 | — | TLAS pack (`toplevelpack.comp`) + BLAS refit / TLAS build, at placement | rows/256 | instance rows, starts | packed instances, AS | │ |
 | 1 | glare clear | fill | — | sun-glare counts | — |
-| 1 | ripple step ×1–4 (`ripplestep.comp`), clock moved and field moving or pressed | 1024²/16² | field[before], impulses | field[after], moving word (last step) | │ each |
-| 1 | ripple compose (`ripplecompose.comp`) + blit mips, as the step | 1024²/16² | field | ripple surface, curvature (+mips) | │ |
-| 1 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates, twiddles | wave surface, curvature (+mips) | │ │ |
-| 2 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
-| 3 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
+| 2 | ripple step ×1–4 (`ripplestep.comp`), clock moved and field moving or pressed | 1024²/16² | field[before], impulses | field[after], moving word (last step) | │ each |
+| 3 | ripple compose (`ripplecompose.comp`) + blit mips, as the step | 1024²/16² | field | ripple surface, curvature (+mips) | │ |
+| 4 | waves: `waverows.comp` ×2 │ `wavecolumns.comp` ×2 + blit mips (sea, clock moved) | one group per row/column | amplitudes, turn rates, twiddles | wave surface, curvature (+mips) | │ │ |
+| 5 | frame block update (`vkCmdUpdateBuffer`, 1632 B) | — | — | `VisibilityConstants` | │ |
+| 6 | sprite shelter (`spriteshelter.rgen`), when shelter > 0 | sprites × 1 | TLAS, frame, sprites | sprite copy | │ |
 | 7 | sprite emitters (`spriteemitters.rgen`) | emitters × 1 | frame, emitters, fog | emitter frames | │ |
 | 8 | sprite shade (`spriteshade.comp`) | one group per emitter per light | sprites, emitters | sprite light/order | │ |
 | 9 | sprite bin: clear │ `spriterects` │ `spritestarts` │ `spriteruns` | various | sprites, emitters, presences, camera | rects, presence words, starts, runs, report | │ │ │ │ |

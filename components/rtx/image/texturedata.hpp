@@ -102,7 +102,7 @@ namespace Rtx
         /// from, and it carries no bytes: a bake is shaped like its source.
         SpriteBake,
 
-        /// A distant chunk's layer stack, flattened on the device in the placement that writes the
+        /// A chunk's layer stack, flattened on the device in the placement that writes the
         /// chunk's material row. `TextureData::mFrom` is that row, and it carries no bytes: a
         /// composite is `GROUND_COMPOSITE_EXTENT` square with a chain to one texel.
         GroundComposite,

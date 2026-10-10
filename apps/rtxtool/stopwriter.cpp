@@ -274,7 +274,7 @@ namespace RtxTool
             translucent += material.isTranslucent() ? 1 : 0;
             media += material.isMedium() ? 1 : 0;
             glowing += glows(material) ? 1 : 0;
-            flattened += material.mFlatten ? 1 : 0;
+            flattened += material.mFlatten == Rtx::GroundFlattening::Every ? 1 : 0;
             normalMapped += material.mNormal != Rtx::sNoIndex ? 1 : 0;
             specularMapped += material.mSpecular != Rtx::sNoIndex ? 1 : 0;
         }

@@ -174,7 +174,7 @@ namespace RtxTool
             const auto [scene, layout] = digestsOfMaterial([](Rtx::Material&) {});
 
             for (const auto& [what, change] : std::initializer_list<std::pair<const char*, void (*)(Rtx::Material&)>>{
-                     { "flatten", [](Rtx::Material& m) { m.mFlatten = true; } },
+                     { "flatten", [](Rtx::Material& m) { m.mFlatten = Rtx::GroundFlattening::Every; } },
                      { "animated", [](Rtx::Material& m) { m.mAnimated = true; } },
                      { "never solid", [](Rtx::Material& m) { m.mDiffuseNeverSolid = true; } },
                      { "parallax", [](Rtx::Material& m) { m.mParallax = true; } },

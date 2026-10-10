@@ -662,8 +662,8 @@ namespace Rtx::Testing
 
             // **The ground stands where the storage put it**: cell (3, 0)'s placement is translated
             // to the cell's centre, and its mesh's first vertex is the storage's own south-western
-            // corner. Its two layers, outside the active grid, ask for a composite; the eye's own
-            // cell shades from its stack.
+            // corner. Its two layers, outside the active grid, ask for a composite every hit reads;
+            // the eye's own cell asks for one only its bounces read, and the eye reads its stack.
             const std::optional<MeshInstance> far = groundOf(osg::Vec2i(3, 0));
             ASSERT_TRUE(far.has_value());
             EXPECT_EQ(mScene.meshes().getMeshPositions(far->mMesh)[0], FakeLand::positionAt(0, 0));
@@ -673,7 +673,7 @@ namespace Rtx::Testing
                 const Material& material = mScene.materials().getRows()[far->mMaterial];
                 EXPECT_EQ(material.mKind, MaterialKind::Terrain);
                 EXPECT_EQ(material.mLayers.mCount, 2u);
-                EXPECT_TRUE(material.mFlatten);
+                EXPECT_EQ(material.mFlatten, GroundFlattening::Every);
 
                 // The rock's maps: its normal map in a slot of its own, tiled and read as data, and
                 // its `_diffusespec` authored under the layout that reads the alpha as a roughness.
@@ -697,7 +697,7 @@ namespace Rtx::Testing
             }
             const std::optional<MeshInstance> home = groundOf(osg::Vec2i(0, 0));
             ASSERT_TRUE(home.has_value());
-            EXPECT_FALSE(mScene.materials().getRows()[home->mMaterial].mFlatten);
+            EXPECT_EQ(mScene.materials().getRows()[home->mMaterial].mFlatten, GroundFlattening::Undetailed);
             EXPECT_FALSE(groundOf(osg::Vec2i(5, 0)).has_value()) << "prepared a band out, and not placed";
 
             // The sheet's origin, lifted five units in the template and then stood as the game
@@ -755,19 +755,25 @@ namespace Rtx::Testing
             while (composites.advance(mScene) > 0)
             {
             }
-            EXPECT_NE(mScene.materials().getRows()[far->mMaterial].mDiffuse, sNoIndex);
-            EXPECT_NE(mScene.materials().getRows()[far->mMaterial].mSpecular, sNoIndex);
+            const Index farAlbedo = mScene.materials().getRows()[far->mMaterial].mDiffuse;
+            const Index farGloss = mScene.materials().getRows()[far->mMaterial].mSpecular;
+            EXPECT_NE(farAlbedo, sNoIndex);
+            EXPECT_NE(farGloss, sNoIndex);
+            EXPECT_NE(mScene.materials().getRows()[home->mMaterial].mDiffuse, sNoIndex)
+                << "the eye's own cell was given the composite its bounces read";
 
-            // The active grid moves over cell (3, 0): its ground shades from its stack from now
-            // on, on the same row and with neither of the two images its composite was, the two
-            // trees inside the grid are the game's, and the tree at the eye's own cell — outside
-            // the grid now — is the ring's.
+            // The active grid moves over cell (3, 0): its eye reads its stack from now on, on the
+            // same row and **with the two images its composite was**, which are the stack's sum on
+            // either side of the grid's edge; the two trees inside the grid are the game's, and the
+            // tree at the eye's own cell — outside the grid now — is the ring's.
             around(osg::Vec4i(2, -1, 5, 2));
             walk(mWalked++);
             EXPECT_EQ(placed(), 2u + sPlacedCells) << "the fern and the tree at home stand outside the grid";
-            EXPECT_FALSE(mScene.materials().getRows()[far->mMaterial].mFlatten);
-            EXPECT_EQ(mScene.materials().getRows()[far->mMaterial].mDiffuse, sNoIndex);
-            EXPECT_EQ(mScene.materials().getRows()[far->mMaterial].mSpecular, sNoIndex);
+            EXPECT_EQ(mScene.materials().getRows()[far->mMaterial].mFlatten, GroundFlattening::Undetailed);
+            EXPECT_EQ(mScene.materials().getRows()[far->mMaterial].mDiffuse, farAlbedo);
+            EXPECT_EQ(mScene.materials().getRows()[far->mMaterial].mSpecular, farGloss);
+            EXPECT_EQ(mScene.materials().getRows()[home->mMaterial].mFlatten, GroundFlattening::Every)
+                << "the eye's own cell, outside the grid now, reads its composite at every hit";
             EXPECT_TRUE(mExtractor.retire().empty());
 
             // The eye leaves for a cell far away. **The band that left goes on the first walk after

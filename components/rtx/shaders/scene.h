@@ -39,7 +39,7 @@ namespace Rtx::Shaders
     /// specular map no lobe and no base colour, a dark map no darkening, a cloud deck no deck — and
     /// each already has its exact path for none. Grey read as any of those is a wrong value and not
     /// a placeholder. Only a base colour draws the grey, where it is one, and the refusal names the
-    /// file; a distant chunk's composite that stands in is summed from its stack instead.
+    /// file; a chunk's composite that stands in is summed from its stack instead.
     ///
     /// On the device and not in the rows, because it is the backend that decides, as each texture
     /// arrives and as its room comes and goes, and one word per slot follows that where every row
@@ -503,11 +503,17 @@ namespace Rtx::Shaders
     /// `additiveAlong` and to nothing that shades a hit — so no bit here says so twice.
     const uint MATERIAL_ADD_WHOLE = 0x08u;
 
-    /// Ground that kept its layer stack: the albedo is the sum over `mLayerOffset`'s run and the
-    /// diffuse is the neutral slot. A chunk far enough to be flattened names its composite as the
-    /// diffuse instead and carries this bit no longer — `CellPlacer::wantsFlattening` is where the
-    /// two swap, and this is the host's one rule for which a row is, written where the row is.
+    /// Ground with no composite: the albedo is the sum over `mLayerOffset`'s run and the diffuse
+    /// is the neutral slot. A chunk of more than one layer names its composite as the diffuse once
+    /// one is baked and carries this bit no longer — `CellPlacer::flatteningOf` asks for one, and
+    /// this is the host's one rule for which a row is, written where the row is.
     const uint MATERIAL_STACKED = 0x10u;
+
+    /// Ground whose composite stands in only where no picture is drawn from the hit — a bounce's
+    /// far end — and whose eye, reflections and bed sum the stack: a chunk inside the active grid,
+    /// `Rtx::GroundFlattening::Undetailed`. Every chunk with a composite carries it but one
+    /// flattened for every hit, so a composite no rule asked the eye to read is never read by it.
+    const uint MATERIAL_STACKED_SEEN = 0x400000u;
 
     /// The normal map's alpha is a height the texture coordinates are shifted by —
     /// `Rtx::Material::mParallax`, and `parallaxShift` says by how much.

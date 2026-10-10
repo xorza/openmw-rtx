@@ -19,9 +19,10 @@ namespace Rtx
     class Device;
     class ShaderCode;
 
-    /// One closest-hit stage: a module, and its own whole table of specialization words, indexed by
-    /// `constant_id` as the pipeline's is — so three stages may be one module under three
-    /// settings. Empty takes the pipeline's.
+    /// One closest-hit shader: a module, and its own whole table of specialization words, indexed by
+    /// `constant_id` as the pipeline's is — so the shaders may be one module under several
+    /// settings. Empty takes the pipeline's. Two that are the same module under the same words are
+    /// one stage of the pipeline.
     struct HitShader
     {
         std::string_view mModule;

@@ -177,7 +177,7 @@ struct TexturePoint
 
 /// @param transform mesh texture coordinates to this texture's, as `uv * xy + zw`.
 /// @param anisotropic whether the texture is read along the footprint's two axes rather than at the
-///        level of its long one: a surface the eye sees — `resolveFor`'s `detailed` — and the cutout
+///        level of its long one: a surface the eye sees — `resolve`'s `detailed` — and the cutout
 ///        the eye's own traversal tests, so a hole and the leaf around it are read at one footprint.
 ///        **A literal at every call**, so the other reads compile as they were.
 TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone cone, float coneWidth, bool anisotropic)
