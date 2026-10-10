@@ -166,7 +166,7 @@ namespace Rtx
 
         // The impulses in the new window's texels, those whose ring reaches a texel of it: a press
         // takes a texel only within twice its radius, where `pressed` keeps less than all.
-        constexpr float sGrid = static_cast<float>(Shaders::RIPPLE_GRID);
+        const float grid = static_cast<float>(sGrid);
         const osg::Vec2f eyeAt = (eye - mOrigin) / Shaders::RIPPLE_TEXEL;
         mImpulseScratch.clear();
         mCandidates.clear();
@@ -175,8 +175,8 @@ namespace Rtx
             const osg::Vec2f at = (impulse.mAt - mOrigin) / Shaders::RIPPLE_TEXEL;
             const float radius = impulse.mSize / Shaders::RIPPLE_TEXEL;
             const float reach = 2.0f * radius;
-            if (at.x() + reach <= 0.5f || at.x() - reach >= sGrid - 0.5f || at.y() + reach <= 0.5f
-                || at.y() - reach >= sGrid - 0.5f)
+            if (at.x() + reach <= 0.5f || at.x() - reach >= grid - 0.5f || at.y() + reach <= 0.5f
+                || at.y() - reach >= grid - 0.5f)
                 continue;
 
             mCandidates.push_back(Candidate{
