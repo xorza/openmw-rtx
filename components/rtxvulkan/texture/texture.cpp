@@ -76,15 +76,6 @@ namespace Rtx
                 VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, spreadName, levelsTo1x1(across, down));
         }
 
-        /// The float means `spread` is built through, shaped as it is: made with the texture and let
-        /// go of with the batch that builds it.
-        Misc::Result<Image, std::string_view> makeSpreadMeans(
-            const Device& device, std::string_view name, MemoryUse use, const Image& spread)
-        {
-            return Image::tryMake(use, device, spread.getWidth(), spread.getHeight(),
-                toVulkanFormat(NORMAL_SPREAD_MEAN_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, name, spread.getMipLevels());
-        }
-
         ImageShape shapeOf(const Image& image)
         {
             return ImageShape{
@@ -191,22 +182,13 @@ namespace Rtx
 
         // Estimated off the texture about to be made, by a dispatch behind it, or cleared to the
         // neutral factor where nothing is to be estimated — `TextureData::getCompanion`. A normal
-        // map's spread, with the means it is built through, made here with every other image.
+        // map's spread is built through the arrival's means.
         const TextureCompanion companion = data.getCompanion();
         Misc::Result<Image, std::string_view> shading = companion == TextureCompanion::Spread
             ? makeSpreadMap(device, name, use, top.mWidth, top.mHeight)
             : makeShadingMap(device, name, use);
         if (!shading.isOk())
             return Misc::Err{ shading.error() };
-
-        std::optional<Image> means;
-        if (companion == TextureCompanion::Spread)
-        {
-            Misc::Result<Image, std::string_view> built = makeSpreadMeans(device, name, use, shading.value());
-            if (!built.isOk())
-                return Misc::Err{ built.error() };
-            means = std::move(built.value());
-        }
 
         std::optional<Image> upload;
         Image image;
@@ -268,7 +250,7 @@ namespace Rtx
                 arrival.shade(mImage, mCompanion, data.mWrap);
                 break;
             case TextureCompanion::Spread:
-                arrival.spread(mImage, arrival.hold(std::move(*means)), mCompanion);
+                arrival.spread(mImage, mCompanion);
                 break;
         }
 
@@ -540,6 +522,8 @@ namespace Rtx
         };
 
         VkDeviceSize cost = 0;
+        VkDeviceSize means = 0;
+        VkDeviceSize largestMeans = 0;
         bool blocks = mCanvas.mBlocks.has_value();
         bool albedoCanvas = mCanvas.mAlbedo.has_value();
         bool glossCanvas = mCanvas.mGloss.has_value();
@@ -549,7 +533,13 @@ namespace Rtx
             {
                 case TextureSource::File:
                     if (texture.firstLevelWithin(mSideLimit).has_value())
-                        cost += priceFile(texture, firstLevelAt(texture, side)).total();
+                    {
+                        const std::uint32_t first = firstLevelAt(texture, side);
+                        cost += priceFile(texture, first).total();
+                        const VkDeviceSize itsMeans = spreadMeansBytes(texture, first);
+                        means += itsMeans;
+                        largestMeans = std::max(largestMeans, itsMeans);
+                    }
                     break;
 
                 case TextureSource::SpriteBake:
@@ -576,7 +566,11 @@ namespace Rtx
             }
         }
 
-        return cost;
+        // The means the spreads are built through are the arrival's room, grown once to its largest
+        // group and kept: what this arrival needs past what it holds already.
+        const VkDeviceSize needed = mArrival.meansNeeded(means, largestMeans);
+        const VkDeviceSize held = mArrival.getMeansBytes();
+        return cost + (needed > held ? needed - held : 0);
     }
 
     Misc::Result<void, std::string_view> TextureArray::make(

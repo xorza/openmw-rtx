@@ -256,5 +256,40 @@ namespace Rtx
             }
             EXPECT_EQ(blocks(), full + 1) << "a batch after the busiest stretch allocated";
         }
+
+        /// **A trim lets go of the free blocks past what it keeps, smallest kept**, and a block made
+        /// after takes a place one let go of. Three blocks of the standard size and one of twenty
+        /// megabytes, staged by one batch and free once it ran, against a keep of two standard blocks:
+        /// the two smallest stay and the other two go. A batch of the two standard sizes after takes
+        /// the two kept and makes none; one that needs a third block makes one, into a place let go
+        /// of, so the count is one more and not two.
+        TEST_F(RtxBatchTest, aTrimLetsGoOfTheFreeBlocksPastWhatItKeeps)
+        {
+            CommandPool& pool = getPool();
+            const auto blocks = [&] { return pool.getStagingBlockCount(); };
+            pool.trimStaging(0);
+            const std::size_t none = blocks();
+
+            // A recording opened, so the flush is a submit the blocks are read until: a batch that
+            // recorded nothing rides none, and its blocks wait for whatever submit comes next.
+            const auto stage = [&](const std::initializer_list<VkDeviceSize> sizes) {
+                Batch batch(pool);
+                static_cast<void>(batch.getCommands());
+                for (const VkDeviceSize size : sizes)
+                    static_cast<void>(batch.reserve(size));
+                batch.flush();
+            };
+            stage({ sStagingBlock, sStagingBlock, sStagingBlock, 20 << 20 });
+            ASSERT_EQ(blocks(), none + 4) << "the batch did not take a block per run";
+
+            pool.trimStaging(2 * sStagingBlock);
+            EXPECT_EQ(blocks(), none + 2) << "the trim kept more or fewer than the two smallest";
+
+            stage({ sStagingBlock, sStagingBlock });
+            EXPECT_EQ(blocks(), none + 2) << "a batch the kept blocks hold made one";
+
+            stage({ sStagingBlock, sStagingBlock, sStagingBlock });
+            EXPECT_EQ(blocks(), none + 3) << "a third block was not made, or not into a place let go of";
+        }
     }
 }

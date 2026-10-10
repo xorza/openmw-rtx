@@ -18,8 +18,10 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
@@ -33,10 +35,27 @@ namespace Rtx
         /// standing, so compacting a cell in one placement would make the high-water mark the sum.
         /// At this rate a cell is tight within a few dozen placements of arriving.
         constexpr VkDeviceSize sCompactionPerPlacement = 8 * 1024 * 1024;
+
+        /// After one run of builds and before the next works in the same room: the structures for
+        /// whatever reads them, as `barrierAfterBuild` orders them, and the scratch and the staged
+        /// positions for the next run's build and copies, which write both again.
+        void barrierAfterRun(const VkCommandBuffer commands)
+        {
+            handOver(commands,
+                BufferUse{ VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                    VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR
+                        | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR },
+                BufferUse{ VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR
+                        | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR
+                        | VK_PIPELINE_STAGE_2_COPY_BIT,
+                    VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR
+                        | VK_ACCESS_2_TRANSFER_WRITE_BIT });
+        }
     }
 
-    BottomLevelStore::BottomLevelStore(const Device& device)
+    BottomLevelStore::BottomLevelStore(const Device& device, const VkDeviceSize buildRoom)
         : mDevice(device)
+        , mBuildRoom(buildRoom)
         , mArrived(
               device, BufferKind::DeviceLocal, sBuildInputUsage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "arrived positions")
         , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch")
@@ -101,45 +120,11 @@ namespace Rtx
         // after part of an arrival went into the holes a departed cell left covers the rest and
         // not the whole arrival again.
         VkDeviceSize wanted = 0;
-        VkDeviceSize scratchTotal = 0;
 
         // Every row at nought, which is what a mesh with no triangles is left at: nothing
         // describes it, nothing builds it, and the gate below reads that nought.
         mBuilding.clear();
         mBuilding.resize(meshes.size());
-
-        // A static mesh's vertices are a build input and nothing else, so they go with the submit:
-        // a hit reads them back out of the structure through position fetch. Held for the life of
-        // the cell they were a quarter of what a world reserved. A mesh that deforms is built over
-        // the pose in the poses.
-        VkDeviceSize arrivedBytes = 0;
-        for (std::size_t at = 0; at < meshes.size(); ++at)
-        {
-            const MeshRange& mesh = scene.meshes().getRows()[meshes[at]];
-            if (mesh.deforms() || mesh.mVertices.empty())
-                continue;
-
-            mBuilding[at].mArrivedAt = arrivedBytes;
-            arrivedBytes += VkDeviceSize{ mesh.mVertices.mCount } * sizeof(osg::Vec3f);
-        }
-
-        // A byte where nothing static arrived, because a buffer of nothing cannot be created.
-        mArrived.growTo(arrivedBytes);
-        const VkDeviceAddress arrivedAddress = mArrived.get().addressFor();
-
-        for (std::size_t at = 0; at < meshes.size(); ++at)
-        {
-            const Index mesh = meshes[at];
-            const MeshRange& range = scene.meshes().getRows()[mesh];
-            if (range.deforms() || range.mVertices.empty())
-                continue;
-
-            stageInto(
-                batch, mArrived.get(), mBuilding[at].mArrivedAt, std::as_bytes(scene.meshes().getMeshPositions(mesh)));
-        }
-
-        if (arrivedBytes > 0)
-            orderStagedWrites(batch);
 
         for (std::size_t at = 0; at < meshes.size(); ++at)
         {
@@ -155,11 +140,9 @@ namespace Rtx
             // A pose or an arrival's staging, and which one is what the mesh is. A deforming
             // mesh is built over what `SkinPass` wrote into the first copy ahead of this, so its
             // structure carries the pose rather than the bind; a static one is built over the
-            // vertices staged above.
-            VkDeviceAddress vertices = 0;
-            if (!mesh.mVertices.empty())
-                vertices
-                    = mesh.deforms() ? poses.addressOf(mesh.mBindOffset) : arrivedAddress + mBuilding[at].mArrivedAt;
+            // vertices its run stages, whose address is its run's and is filled in there.
+            const VkDeviceAddress vertices
+                = mesh.deforms() && !mesh.mVertices.empty() ? poses.addressOf(mesh.mBindOffset) : 0;
 
             // Indices are mesh-local, so each structure is handed the slice of the shared buffers
             // that belongs to it and addresses vertex zero as its own first vertex. The addresses
@@ -224,10 +207,10 @@ namespace Rtx
                 VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mBuild.mBuilds[at], &triangles, &sizes);
 
             mBuilding[at].mSize = sizes.accelerationStructureSize;
+            mBuilding[at].mScratch = alignUp(sizes.buildScratchSize, scratchAlignment);
+            if (!mesh.deforms())
+                mBuilding[at].mPositions = VkDeviceSize{ mesh.mVertices.mCount } * sizeof(osg::Vec3f);
             wanted = alignUp(wanted + sizes.accelerationStructureSize, StructureStorage::sAlignment);
-
-            mBuilding[at].mScratchOffset = scratchTotal;
-            scratchTotal = alignUp(scratchTotal + sizes.buildScratchSize, scratchAlignment);
 
             // Kept so a refit of this one mesh does not have to ask the driver its size again. The
             // same geometry describes it, so the answer cannot have changed. The build's own scratch
@@ -246,68 +229,131 @@ namespace Rtx
         // named once.
         mRefittable.compact();
 
-        if (scratchTotal == 0)
-            return;
-
-        mScratch.growTo(scratchTotal);
-        const VkDeviceAddress scratchAddress = mScratch.get().addressFor();
-
+        // **In runs whose scratch and staged positions fit the build room**, each built over the room
+        // the run before used: one run over every mesh held the sum of their scratch and their
+        // positions, which on a world's build is the world's, as essential memory for as long as
+        // the scene stood. A mesh larger than the room is a run of its own, and the room is then
+        // what it needs.
+        mRunEnds.clear();
+        VkDeviceSize runScratch = 0;
+        VkDeviceSize runPositions = 0;
+        VkDeviceSize mostScratch = 0;
+        VkDeviceSize mostPositions = 0;
+        bool runHolds = false;
         for (std::size_t at = 0; at < meshes.size(); ++at)
         {
-            if (mBuilding[at].mSize == 0)
+            BuildRow& building = mBuilding[at];
+            if (building.mSize == 0)
                 continue;
 
-            const Index slot = meshes[at];
-            Row& row = mRows[slot];
-
-            // Left out where the device has no room: the slot holds no structure and so nothing a
-            // refit or a rebuild reads, and the scratch it was counted into goes unread. A load's
-            // whole total is not asked for again once the device has refused it, and each structure
-            // after asks for its own room.
-            const Misc::Result<StructureRoom, std::string_view> room
-                = mStorage.take(mDevice, mBuilding[at].mSize, wanted);
-            if (!room.isOk())
+            if (runHolds
+                && (runScratch + building.mScratch > mBuildRoom || runPositions + building.mPositions > mBuildRoom))
             {
-                row.mUpdatable = false;
-                row.mUpdateScratch = 0;
-                row.mBuildScratch = 0;
-                wanted = 0;
-                refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(room.error()) });
-                continue;
+                mRunEnds.push_back(at);
+                runScratch = 0;
+                runPositions = 0;
             }
 
-            row.mStructure = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), mBuilding[at].mSize);
-            wanted -= std::min(wanted, alignUp(mBuilding[at].mSize, StructureStorage::sAlignment));
-
-            mBuild.mBuilds[at].dstAccelerationStructure = row.mStructure.getHandle();
-            mBuild.mBuilds[at].scratchData.deviceAddress = scratchAddress + mBuilding[at].mScratchOffset;
-
-            // Kept per slot so the figure compaction is judged against covers the whole scene rather
-            // than the meshes this call happened to build.
-            row.mCompaction.mBuiltSize = mBuilding[at].mSize;
-
-            // Built loose whatever stood in the slot before, and a mesh that refits keeps its
-            // slack: a refit writes back into it.
-            row.mCompaction.mTightness = row.mUpdatable ? Tightness::None : Tightness::Loose;
-            if (row.mUpdatable)
-                mRefittable.addMakingRoom(slot);
-            else
-                mLoose.push_back(slot);
-
-            mLiveBuilds.push_back(mBuild.mBuilds[at]);
-            mBuild.mRangePointers.push_back(&mBuild.mRanges[at]);
+            building.mScratchOffset = runScratch;
+            building.mArrivedAt = runPositions;
+            runScratch += building.mScratch;
+            runPositions += building.mPositions;
+            runHolds = true;
+            mostScratch = std::max(mostScratch, runScratch);
+            mostPositions = std::max(mostPositions, runPositions);
         }
 
-        // Every structure refused: a build of none is not a command Vulkan takes.
-        if (mLiveBuilds.empty())
+        if (!runHolds)
             return;
+        mRunEnds.push_back(meshes.size());
 
-        const VkCommandBuffer commands = batch.getCommands();
-        functions.mCmdBuildAccelerationStructures(
-            commands, static_cast<std::uint32_t>(mLiveBuilds.size()), mLiveBuilds.data(), mBuild.mRangePointers.data());
-        barrierAfterBuild(commands);
+        // A byte where nothing static arrived, because a buffer of nothing cannot be created.
+        mArrived.growTo(mostPositions);
+        mScratch.growTo(mostScratch);
+        const VkDeviceAddress arrivedAddress = mArrived.get().addressFor();
+        const VkDeviceAddress scratchAddress = mScratch.get().addressFor();
 
-        askWhatCompactionWouldSave(commands);
+        std::size_t begin = 0;
+        for (const std::size_t end : mRunEnds)
+        {
+            // A static mesh's vertices are a build input and nothing else, so they go with the
+            // submit: a hit reads them back out of the structure through position fetch. Held for
+            // the life of the cell they were a quarter of what a world reserved.
+            bool staged = false;
+            for (std::size_t at = begin; at < end; ++at)
+                if (mBuilding[at].mPositions > 0)
+                {
+                    stageInto(batch, mArrived.get(), mBuilding[at].mArrivedAt,
+                        std::as_bytes(scene.meshes().getMeshPositions(meshes[at])));
+                    staged = true;
+                }
+            if (staged)
+                orderStagedWrites(batch);
+
+            mLiveBuilds.clear();
+            mBuild.mRangePointers.clear();
+            for (std::size_t at = begin; at < end; ++at)
+            {
+                if (mBuilding[at].mSize == 0)
+                    continue;
+
+                const Index slot = meshes[at];
+                Row& row = mRows[slot];
+
+                // Left out where the device has no room: the slot holds no structure and so nothing a
+                // refit or a rebuild reads, and the scratch it was counted into goes unread. A load's
+                // whole total is not asked for again once the device has refused it, and each structure
+                // after asks for its own room.
+                const Misc::Result<StructureRoom, std::string_view> room
+                    = mStorage.take(mDevice, mBuilding[at].mSize, wanted);
+                if (!room.isOk())
+                {
+                    row.mUpdatable = false;
+                    row.mUpdateScratch = 0;
+                    row.mBuildScratch = 0;
+                    wanted = 0;
+                    refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(room.error()) });
+                    continue;
+                }
+
+                row.mStructure
+                    = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), mBuilding[at].mSize);
+                wanted -= std::min(wanted, alignUp(mBuilding[at].mSize, StructureStorage::sAlignment));
+
+                if (mBuilding[at].mPositions > 0)
+                    mBuild.mGeometries[at].geometry.triangles.vertexData.deviceAddress
+                        = arrivedAddress + mBuilding[at].mArrivedAt;
+                mBuild.mBuilds[at].dstAccelerationStructure = row.mStructure.getHandle();
+                mBuild.mBuilds[at].scratchData.deviceAddress = scratchAddress + mBuilding[at].mScratchOffset;
+
+                // Kept per slot so the figure compaction is judged against covers the whole scene
+                // rather than the meshes this call happened to build.
+                row.mCompaction.mBuiltSize = mBuilding[at].mSize;
+
+                // Built loose whatever stood in the slot before, and a mesh that refits keeps its
+                // slack: a refit writes back into it.
+                row.mCompaction.mTightness = row.mUpdatable ? Tightness::None : Tightness::Loose;
+                if (row.mUpdatable)
+                    mRefittable.addMakingRoom(slot);
+                else
+                    mLoose.push_back(slot);
+
+                mLiveBuilds.push_back(mBuild.mBuilds[at]);
+                mBuild.mRangePointers.push_back(&mBuild.mRanges[at]);
+            }
+            begin = end;
+
+            // Every structure of the run refused: a build of none is not a command Vulkan takes.
+            if (mLiveBuilds.empty())
+                continue;
+
+            const VkCommandBuffer commands = batch.getCommands();
+            functions.mCmdBuildAccelerationStructures(commands, static_cast<std::uint32_t>(mLiveBuilds.size()),
+                mLiveBuilds.data(), mBuild.mRangePointers.data());
+            barrierAfterRun(commands);
+        }
+
+        askWhatCompactionWouldSave(batch.getCommands());
     }
 
     void BottomLevelStore::askWhatCompactionWouldSave(const VkCommandBuffer commands)

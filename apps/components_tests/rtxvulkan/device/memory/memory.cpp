@@ -365,10 +365,11 @@ namespace Rtx
         /// Each use's room is what content's blocks have free and the whole blocks its ceiling leaves,
         /// and the ceiling of each stands below the one before it by what the one before it holds.
         ///
-        /// **Hand-computed from the heap's own figures.** The budget is set to what the heap holds,
-        /// plus what the process holds outside the allocator and what essential memory holds —
-        /// owed once more — plus three blocks and a megabyte: the structures' ceiling is then three
-        /// blocks and a megabyte above the heap, which is three whole blocks. The textures' stands
+        /// **Hand-computed from the heap's own figures.** The budget is set to what the heap holds —
+        /// what the process holds outside the allocator among it, once — plus what essential memory
+        /// holds, owed once more, plus three blocks and a megabyte: the structures' ceiling is then
+        /// three blocks and a megabyte above the heap, which is three whole blocks. The memory
+        /// outside the allocator is more than that megabyte, so counted twice it would leave two. The textures' stands
         /// lower by the forty-eight megabytes of structure held here and whatever other structures
         /// the binary's device holds, which the heap's own count says; the megabyte is there so the
         /// division by a block does not land on its edge.
@@ -406,6 +407,9 @@ namespace Rtx
 
             const VkDeviceSize structures = memory.getHeld(heap, MemoryUse::Structure);
             ASSERT_GE(structures, VkDeviceSize{ 48 } << 20);
+            const HeapUse heapNow = memory.report().mHeaps[heap];
+            ASSERT_GT(heapNow.mHeld - heapNow.mReserved, VkDeviceSize{ 1 } << 20)
+                << "no memory outside the allocator past the margin, so counting it twice would show nothing";
 
             const VkDeviceSize above = 3 * block + (1 << 20);
             const Testing::BudgetLimit limit(memory, Testing::budgetAbove(memory, MemoryUse::Structure, above));

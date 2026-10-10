@@ -793,6 +793,11 @@ The reviewers checked these items and found no fault:
   about 31 frames a second and nothing waited near its 10 s patience. A window on another virtual
   desktop, and other compositors, were not tried.
 
+- **FRAME-8, measured safe.** It said that host-written memory could run out of a 256 MiB BAR heap
+  on an RTX 20 card. At the largest distant land setting (`landCells` 10, distant statics on), the
+  busiest exteriors (Vivec, Ald-ruhn, Sadrith Mora) and a streamed flight held 77.8 MiB live and
+  104 MiB reserved. Running out would still be a `DeviceError` with a message, not a silent fault.
+
 ## Not reached
 
 - `rtx/preprocess/shape/*`, `rtx/image/{alphaimage,colour,colourblock,texels,formatcensus}` in depth,

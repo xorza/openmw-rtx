@@ -272,6 +272,35 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
+        /// **A build runs in runs that fit its room, each over the room the one before used.** Four
+        /// grids of sixty-four built under a room of a byte are four runs, so the scratch is one
+        /// grid's, `s`; the same four under the whole room are one run, and the scratch is `4s`,
+        /// which says the room is what splits them. Every structure stands either way, and the suite
+        /// runs under synchronization validation, so a run that wrote the scratch or the positions
+        /// under the build before it would be a hazard reported.
+        TEST_F(RtxBottomLevelStoreTest, aBuildRunsInRunsThatFitItsRoom)
+        {
+            const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+                addGrid(mScene, 64, 2.0f), addGrid(mScene, 64, 3.0f) };
+            stage();
+
+            const auto scratchOf = [&](const VkDeviceSize room) {
+                BottomLevelStore store(getDevice(), room);
+                build(store, grids);
+                for (const Index grid : grids)
+                    EXPECT_TRUE(store.stands(grid)) << "room " << room << ", grid " << grid;
+                const VkDeviceSize scratch = store.getScratchBytes();
+                getDevice().waitIdle();
+                getDevice().collectIdle();
+                return scratch;
+            };
+
+            const VkDeviceSize alone = scratchOf(1);
+            const VkDeviceSize together = scratchOf(sStructureBuildRoom);
+            ASSERT_GT(alone, 0u);
+            EXPECT_EQ(together, 4 * alone) << "four grids in one run do not share one scratch";
+        }
+
         /// **A block made part way through an arrival covers what is still to place.** Two grids of
         /// sixty-four make one block of `2s`, `s` a grid's aligned room; one goes, leaving a hole of
         /// `s`. An arrival of a small grid and another of sixty-four puts the small one into the

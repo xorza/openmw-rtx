@@ -32,7 +32,7 @@ namespace Rtx::Testing
         if (held.mHeld == 0)
             throw std::runtime_error("a device with no budget extension cannot say what the heap holds");
 
-        VkDeviceSize owed = held.mHeld - held.mReserved;
+        VkDeviceSize owed = 0;
         const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
         if (memory.getFrameReserve() > frame)
             owed += memory.getFrameReserve() - frame;

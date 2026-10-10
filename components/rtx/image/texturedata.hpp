@@ -221,8 +221,11 @@ namespace Rtx
         /// that last level is already the texture's own mean to within what a ray can tell —
         /// and rebuilding those would decompress the whole game to gain nothing. A texel has no
         /// level below it, and a level with no extent has no texel to read. **Completed in loose
-        /// texels** and not compressed again, because a block format cannot be filtered without an
-        /// encoder, and the largest of these files is five hundred and twelve square.
+        /// texels** and not compressed again, because a level in another format is a level read
+        /// differently: `Bc7EncodePass` writes every level of an image, the file's own among them,
+        /// and its mode 6 shares one low bit across an endpoint's channels, which a decoded BC1 or
+        /// BC3 texel does not survive — a vanilla picture moved for a renderer's bookkeeping. The
+        /// largest of these files is five hundred and twelve square, a chain of 1.4 MB.
         bool wantsCompletedChain() const;
 
         /// Whether every level lies inside `mBytes` at its format's layout: what `describeImage`

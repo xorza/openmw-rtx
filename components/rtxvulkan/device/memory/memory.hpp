@@ -254,14 +254,16 @@ namespace Rtx
         /// Frees what `memory` holds and takes it off what its use holds.
         void give(DeviceMemory& memory);
 
-        /// How far up `heap` a use content takes may go, from the library's figures for it: the
-        /// budget, less what the process holds outside the library — the swapchain and the
-        /// driver's own, which the frame cannot do without either — and less what every use before
-        /// `use` would take to be made again, for the reason `MemoryUse` gives: on the video heap,
-        /// what the frame's reserve has beyond what its targets hold, and everything else held
-        /// once more.
-        VkDeviceSize ceilingOf(
-            std::uint32_t heap, MemoryUse use, VkDeviceSize budget, VkDeviceSize usage, VkDeviceSize blockBytes) const;
+        /// How far up `heap` a use content takes may go, against the process's whole usage of it:
+        /// the budget, less what every use before `use` would take to be made again, for the reason
+        /// `MemoryUse` gives — on the video heap, what the frame's reserve has beyond what its
+        /// targets hold, and everything else held once more.
+        ///
+        /// **What the process holds outside the library is counted once, in the usage**: the
+        /// swapchain and the driver's own memory, which nothing here makes a second time beside the
+        /// first. Taken off the budget as well, it stood twice under the ceiling, and a 7680 by 2160
+        /// swapchain of three images held two hundred megabytes of content out for nothing.
+        VkDeviceSize ceilingOf(std::uint32_t heap, MemoryUse use, VkDeviceSize budget) const;
 
         VkDevice mDevice = VK_NULL_HANDLE;
         const VkPhysicalDeviceMemoryProperties& mMemory;
