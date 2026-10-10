@@ -10,7 +10,9 @@ GLSL↔C++ interface with the pass graph. Nothing was built or run, so every cos
 from formats and extents, or a figure quoted from a code comment. Each batch says how to measure it.
 
 The findings are in **batches**. One batch is one change set that touches one area, so you can do
-it in one go. The batches are in order of importance.
+it in one go. The batches, and the findings inside each, are in order of impact: what is wrong
+first, then what is imprecise, then what costs, the biggest cost first. The last two are deferred:
+each waits on something this machine or the tree does not have yet.
 
 Labels on each finding: **kind** (bug, latent, perf, simplify, robustness), **severity** (H/M/L)
 and **confidence** (H/M/L). The ID is the reviewer's own (TRACE, DENOISE, MEDIA, SCENE, FRAME, XCUT).
@@ -20,14 +22,14 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | G-buffer and fill diet | 1 | A payload sized to the radiance width, which needs both vendors to settle |
-| 2 | Denoiser pass graph | 1 | Transients that could share memory, which needs an arena the tree does not have |
-| 3 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
-| 4 | Display and presentation | 6 | Two extra full-frame copies and submits, input latency, bloom order |
-| 5 | Water: ripples and waves | 5 | A frame-rate-dependent wake, idle work, driver-precision twiddles |
-| 6 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
-| 7 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
-| 8 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
+| 1 | Water: ripples and waves | 5 | A frame-rate-dependent wake at the 120 Hz this machine runs, driver-precision twiddles, idle work |
+| 2 | Display and presentation | 6 | A bloom weighed by the last exposure, input latency, two extra full-frame copies and submits |
+| 3 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, a false invariant, and an unbudgeted darkening walk |
+| 4 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
+| 5 | Scene record layout for the trace | 4 | Dependent loads and wide rows in the hottest loops. A/B first |
+| 6 | Housekeeping | 4 | Pipeline cache, stale comments, duplicate probes, capture flags |
+| 7 | G-buffer and fill diet | 1 | Deferred: a payload sized to the radiance width, which needs both vendors to settle |
+| 8 | Denoiser pass graph | 1 | Deferred: transients that could share memory, which needs an arena the tree does not have |
 
 26 findings are open: 0 high, 2 medium, 24 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
@@ -35,43 +37,125 @@ binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDi
 
 ---
 
-## Batch 1 — G-buffer and fill diet
+## Batch 1 — Water: ripples and waves
 
-The channels a frame may leave out are gated now (`ChannelWrites`, `GBuffer::begin`): the lobe's pair
-without maps and the puffs' layer without a puff, each holding what the trace stores where it has
-nothing to say. What is left here waits on a card this machine does not have.
+### MEDIA-6: Ripple impulses press a fixed 20% once per frame while the field steps by real time, so the wake's strength depends on the frame rate
+bug · L · conf M — `apps/openmw/mwrender/rtx/rippleemitters.cpp:59-71`, `trace/ripplepass.cpp:122-124,152-185`, `shaders/trace/ripplestep.comp:255-264,294-298`
 
-### TRACE-5: The payload carries six radiances as full floats even where the run stores radiance as halves
-perf · L · conf L — `shaders/lib/payload.glsl:10-16,146-185`, `trace/gbuffer.hpp:22-26`
+Propagation is time-correct (`mCarry`, `mScale` per sixtieth), but the press is per frame:
+`kept = 0.2·|away−1| + 0.8` whatever the step is. At 144 fps a wake presses about 41% per sixtieth
+against 20% at 60 fps, and half that at 30 fps. The harness's fixed step hides it.
 
-18 of the 30 payload words are fp32 radiances. The comment justifies that for references, but
-references run at `RadianceWidth::Summed`. A played frame stores them through RGBA16F.
+**Direction:** weight each press by the time it covers (`1 − kept^s`, s = sixtieths since the last
+press), or accumulate presses on the water's clock at 60 Hz on the host.
 
-**Direction:** pick the payload layout per pipeline by radiance width. Keep it only if `bench` and
-`kernels` show a gain on both vendors (RADV passes the payload through registers or scratch).
+### MEDIA-9: The sea's FFT takes its twiddles and time phase from `sin`/`cos` of float angles, and the phase falls outside the range that Vulkan bounds
+robustness · L · conf M — `rtx/shaders/wave.h:80-86`, `shaders/lib/wavelines.glsl:271-279`, `shaders/trace/waverows.comp:82-84`
+
+The angle is in [0, 2π). Vulkan bounds `sin`/`cos` to 2⁻¹¹ absolute only inside [−π, π]. This is the
+one part of the pinned arithmetic whose precision belongs to the driver, and the error compounds over
+nine stages into the caustic's curvature. RDNA under Mesa is the exposure.
+
+**Direction:** pass a host-computed (double) twiddle table of `WAVE_GRID/2` entries. Reduce the phase
+to [−½, ½) turns before multiplying by TAU.
+
+### MEDIA-13: Pending ripple impulses are capped at 128 silently, and the newest are dropped
+robustness · L · conf H — `trace/ripplepass.cpp:119-124`
+
+While the water's clock is held, footfalls accumulate and everything past 128 is dropped with no count.
+
+**Direction:** merge an actor's repeated impulses before the cap, or count the drops into the report.
+
+### MEDIA-11: The ripple field is stepped, composed and mip-chained every frame, even when nothing disturbed it for seconds
+perf · L · conf H — `trace/ripplepass.cpp:130-212`
+
+1–4 steps over 1024² RG32F, a compose into two RGBA16F tiles and an 11-level blit chain, on every
+frame with a sea. A press decays below 1e-6 within about 6 s.
+
+**Direction:** track the time since the last impulse on the host. After the decay bound, clear the
+tiles once and skip the pass until the next impulse.
+
+### MEDIA-10: The 128-point cascade runs on 256-lane workgroups sized for the 512 grid
+perf · L · conf H — `shaders/shared/wavetransform.h:122-127`, `rtx/environment/wavecascade.hpp:40-43`
+
+Three quarters of the lanes are idle in every butterfly stage of the second cascade, but they still
+take every barrier.
+
+**Direction:** make the workgroup size a specialization constant per cascade, or run two rows per
+workgroup on the narrow grid.
+
+(Checked and sound: the FFT's normalisation, centre shift, conjugate pairing and Nyquist exclusion.
+Rows and columns cannot fuse, because a 512² grid does not fit in shared memory.)
 
 ---
 
-## Batch 2 — Denoiser pass graph
+## Batch 2 — Display and presentation
 
-The pass graph is done: the families record stage by stage behind one barrier each, the shadow filter
-runs both fields in one dispatch a level, the last wavelet level composes the frame, and the temporal
-filters read the frame before's surface channels. What is left is memory, and a design of its own.
+All of these items touch `display/`, `gui/` and `present/`.
 
-### DENOISE-8 / XCUT-11: Transients with lifetimes that do not overlap each hold their own memory for the life of the chain
-perf · L · conf M — `trace/denoise/denoisehistory.cpp:98-167`, `trace/gbuffer.cpp:66-86`, `upscale/upscaler.cpp:321-360`, `display/bloompass.cpp:75-88`
+**Interaction to decide first:** XCUT-3 computes the histogram inside the bloom's first halving.
+FRAME-7 wants the exposure recorded *before* the bloom, so that the bloom's Karis weight uses this
+frame's exposure. You cannot have both. Either keep a one-frame-late Karis weight on purpose (and
+correct the comment's reason), or keep the histogram separate and apply FRAME-14's 2×2 subsample to it.
 
-The denoiser keeps about 209 B/px. `FastBlended`, the shadow scratches and the two `*FastBlended`
-are dead before the cascade starts, and `Narrow`/`FillNarrow` live only inside it. After the
-composite, 12 G-buffer channels (96 B/px) have no reader, while the upscaler's transients (about
-16 B/px) and the bloom pyramid each have their own allocation. **No memory aliasing exists in the
-tree**: the upscaler's `Intermediate` is several of the SDK's roles on one image, not several images
-on one allocation, so this needs an arena images bind into without owning it.
+### FRAME-7: The bloom's Karis weight reads the previous frame's exposure, though nothing prevents recording the exposure first
+bug · L · conf H — `display/displaychain.cpp:117-147`, `shaders/display/bloomdown.comp:25-31`
 
-**Direction:** alias the cascade's scratch onto the pre-cascade scratch, and the upscaler's and bloom's
-transients onto the channels that are dead after the composite. Turn the aliasing off for runs that
-read a channel back after the composite. Since batch 2 the held surfaces are gone (DENOISE-7) and
-the composite's two levels with them (DENOISE-3), so recount what is left before sizing an arena.
+`mBloom.record(..., mExposure.getExposure(), ...)` runs before the exposure is recorded. Both read only
+`shown`. Under `FixedExposure`, frame 0 of a reference run weighs the pyramid with what the buffer held
+before, so frames 0 and 1 differ on the same input.
+
+**Direction:** record the exposure (fixed or measured) before the pyramid, and delete the lag comment.
+See the interaction note above.
+
+### FRAME-12: Nothing paces the CPU to the display, so input-to-photon latency under FIFO is about 3 vblanks plus the ring
+perf · L · conf M — `present/swapchain.cpp:133-135`, `present/presenter.cpp:150-262`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:838-864`
+
+`minImageCount + 1` images, and the only pacing is the ring's wait for frame N−2 and the blocking
+acquire. `present_wait` and the present fence (already owned) are not used to hold the next frame's
+input sampling.
+
+**Direction:** before the next frame's update, wait for the present of frame N−1 (present-wait or the
+present fence), or keep at most one present queued.
+
+### FRAME-6: After the tone curve, every frame makes two more full-frame copies in two more submits
+perf · L · conf M — `gui/guidrawer.cpp:46-90`, `present/presenter.cpp:179-254`, `vulkanrenderer.cpp:558-580`
+
+`GuiDrawer::draw` always draws the picture whole into `shown` and submits. `Presenter::present` then
+blits `shown` to the swapchain in a second submit, and each command buffer opens with a full head
+barrier. At 7680×2160 that is about 265 MB per frame, two extra `vkQueueSubmit2` calls and two drains,
+in menus too. Estimated 0.3–0.6 ms at the user's resolution.
+
+**Direction:** record the GUI into the present's command buffer. At Native with no letterbox, draw the
+picture and interface directly into the swapchain image (`COLOR_ATTACHMENT`), and skip `shown` and the
+blit. At minimum, merge the GUI and blit submits.
+
+### FRAME-5: A full-size screenshot goes through the area-resampling path and allocates about 400 MB of doubles at 7680×2160
+perf · M · conf H — `rtx/renderer/frameimage.cpp:55-102`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:548`
+
+The fast path needs `Channels::Rgba`, and `saveScreenshot` asks for `Rgb` at the frame's own size. It
+takes the general path: `std::vector<double>(width × height × 3)` = 398 MB, and about 50 M lambda calls
+whose weights are all 1.
+
+**Direction:** extend the fast path to any channel set at the identity size (copy rows, drop alpha).
+
+### XCUT-3: The exposure histogram reads the whole shown frame again, directly after the bloom's first halving read every pixel of it
+perf · L · conf M — `display/displaychain.cpp:118-141`, `shaders/display/bloomdown.comp:42-50`, `shaders/display/histogram.comp:38-54`
+
+An 8×8 level-0 bloom group covers exactly the 16×16 pixels of one histogram group. That is one extra
+read of the frame (66 MB at 3840×2160), one dispatch and one barrier.
+
+**Direction:** let the `KARIS` halving also bin its 2×2 into a shared histogram. Keep `histogram.comp`
+for frames too small to have a pyramid. See the interaction note above.
+
+### FRAME-14: The exposure histogram bins every output pixel
+perf · L · conf M — `display/exposurepass.cpp:67-117`, `shaders/display/histogram.comp:39-55`
+
+16.6 M loads and up to 256 global atomics per group at 7680×2160. For a trimmed log-luminance mean, a
+regular 2×2 subsample is an unbiased estimate (a box-filtered level is not).
+
+**Direction:** bin one pixel per 2×2, with a fixed offset or an offset that turns with the frame. This
+is the alternative to XCUT-3.
 
 ---
 
@@ -92,15 +176,6 @@ Fresnel. Draw the reservoir from `LAMP_CANDIDATES` uniform candidates weighed wi
 stays unbiased). At minimum, correct the comment. Measure on a lamp-dense water view, and check
 `./omw noise` for the variance cost.
 
-### TRACE-8: `darkeningAt` walks every darkening lamp at every gather, with no budget, even when no lamp was held
-perf · L · conf H — `shaders/lib/lights.glsl:626-638`, `shaders/lib/shading.glsl:398-402`
-
-Its result only multiplies `lampsArriving`, which is zero when `kept.mWeight == 0`. Negligible in
-vanilla. Unbounded with mods that place many negative lights.
-
-**Direction:** skip the walk when `kept.mWeight == 0`. Give the far-hit, pane and leg calls the same
-candidate budget as the positive lamps.
-
 ### TRACE-9: The blue-noise comment says that the R2 pairs are never read together, but the bounce pair and the sun-disc pair are read at the same hit
 robustness · L · conf H — `shaders/lib/bluenoise.glsl:25-36`, `rtx/shaders/scene.h:159,178`, `shaders/lib/shading.glsl:253,953`
 
@@ -110,131 +185,42 @@ but the stated invariant is false.
 
 **Direction:** give the sun pair its own irrational step (as the lamp pair has), or correct the comment.
 
----
+### TRACE-8: `darkeningAt` walks every darkening lamp at every gather, with no budget, even when no lamp was held
+perf · L · conf H — `shaders/lib/lights.glsl:626-638`, `shaders/lib/shading.glsl:398-402`
 
-## Batch 4 — Display and presentation
+Its result only multiplies `lampsArriving`, which is zero when `kept.mWeight == 0`. Negligible in
+vanilla. Unbounded with mods that place many negative lights.
 
-All of these items touch `display/`, `gui/` and `present/`.
-
-**Interaction to decide first:** XCUT-3 computes the histogram inside the bloom's first halving.
-FRAME-7 wants the exposure recorded *before* the bloom, so that the bloom's Karis weight uses this
-frame's exposure. You cannot have both. Either keep a one-frame-late Karis weight on purpose (and
-correct the comment's reason), or keep the histogram separate and apply FRAME-14's 2×2 subsample to it.
-
-### FRAME-6: After the tone curve, every frame makes two more full-frame copies in two more submits
-perf · L · conf M — `gui/guidrawer.cpp:46-90`, `present/presenter.cpp:179-254`, `vulkanrenderer.cpp:558-580`
-
-`GuiDrawer::draw` always draws the picture whole into `shown` and submits. `Presenter::present` then
-blits `shown` to the swapchain in a second submit, and each command buffer opens with a full head
-barrier. At 7680×2160 that is about 265 MB per frame, two extra `vkQueueSubmit2` calls and two drains,
-in menus too. Estimated 0.3–0.6 ms at the user's resolution.
-
-**Direction:** record the GUI into the present's command buffer. At Native with no letterbox, draw the
-picture and interface directly into the swapchain image (`COLOR_ATTACHMENT`), and skip `shown` and the
-blit. At minimum, merge the GUI and blit submits.
-
-### FRAME-7: The bloom's Karis weight reads the previous frame's exposure, though nothing prevents recording the exposure first
-bug · L · conf H — `display/displaychain.cpp:117-147`, `shaders/display/bloomdown.comp:25-31`
-
-`mBloom.record(..., mExposure.getExposure(), ...)` runs before the exposure is recorded. Both read only
-`shown`. Under `FixedExposure`, frame 0 of a reference run weighs the pyramid with what the buffer held
-before, so frames 0 and 1 differ on the same input.
-
-**Direction:** record the exposure (fixed or measured) before the pyramid, and delete the lag comment.
-See the interaction note above.
-
-### XCUT-3: The exposure histogram reads the whole shown frame again, directly after the bloom's first halving read every pixel of it
-perf · L · conf M — `display/displaychain.cpp:118-141`, `shaders/display/bloomdown.comp:42-50`, `shaders/display/histogram.comp:38-54`
-
-An 8×8 level-0 bloom group covers exactly the 16×16 pixels of one histogram group. That is one extra
-read of the frame (66 MB at 3840×2160), one dispatch and one barrier.
-
-**Direction:** let the `KARIS` halving also bin its 2×2 into a shared histogram. Keep `histogram.comp`
-for frames too small to have a pyramid. See the interaction note above.
-
-### FRAME-14: The exposure histogram bins every output pixel
-perf · L · conf M — `display/exposurepass.cpp:67-117`, `shaders/display/histogram.comp:39-55`
-
-16.6 M loads and up to 256 global atomics per group at 7680×2160. For a trimmed log-luminance mean, a
-regular 2×2 subsample is an unbiased estimate (a box-filtered level is not).
-
-**Direction:** bin one pixel per 2×2, with a fixed offset or an offset that turns with the frame. This
-is the alternative to XCUT-3.
-
-### FRAME-12: Nothing paces the CPU to the display, so input-to-photon latency under FIFO is about 3 vblanks plus the ring
-perf · L · conf M — `present/swapchain.cpp:133-135`, `present/presenter.cpp:150-262`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:838-864`
-
-`minImageCount + 1` images, and the only pacing is the ring's wait for frame N−2 and the blocking
-acquire. `present_wait` and the present fence (already owned) are not used to hold the next frame's
-input sampling.
-
-**Direction:** before the next frame's update, wait for the present of frame N−1 (present-wait or the
-present fence), or keep at most one present queued.
-
-### FRAME-5: A full-size screenshot goes through the area-resampling path and allocates about 400 MB of doubles at 7680×2160
-perf · M · conf H — `rtx/renderer/frameimage.cpp:55-102`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:548`
-
-The fast path needs `Channels::Rgba`, and `saveScreenshot` asks for `Rgb` at the frame's own size. It
-takes the general path: `std::vector<double>(width × height × 3)` = 398 MB, and about 50 M lambda calls
-whose weights are all 1.
-
-**Direction:** extend the fast path to any channel set at the identity size (copy rows, drop alpha).
+**Direction:** skip the walk when `kept.mWeight == 0`. Give the far-hit, pane and leg calls the same
+candidate budget as the positive lamps.
 
 ---
 
-## Batch 5 — Water: ripples and waves
+## Batch 4 — Layered ground in the trace
 
-### MEDIA-6: Ripple impulses press a fixed 20% once per frame while the field steps by real time, so the wake's strength depends on the frame rate
-bug · L · conf M — `apps/openmw/mwrender/rtx/rippleemitters.cpp:59-71`, `trace/ripplepass.cpp:122-124,152-185`, `shaders/trace/ripplestep.comp:255-264,294-298`
+### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
+simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
 
-Propagation is time-correct (`mCarry`, `mScale` per sixtieth), but the press is per frame:
-`kept = 0.2·|away−1| + 0.8` whatever the step is. At 144 fps a wake presses about 41% per sixtieth
-against 20% at 60 fps, and half that at 30 fps. The harness's fixed step hides it.
+The rchit header says that `LAYERED` folds the loop out of the two stages that no terrain reaches. But
+every inline trace in those stages (bounce, shoreline bed, both water legs) goes through `resolve`,
+which hard-codes `layered = true`. Only the primary hit's detailed copy is removed.
 
-**Direction:** weight each press by the time it covers (`1 − kept^s`, s = sixtieths since the last
-press), or accumulate presses on the water's clock at 60 Hz on the host.
+**Direction:** correct both comments. Measure the stage with `LAYERED` forced true. If nothing
+changes, remove `SPEC_LAYERED` and read `mGround` from the material row.
 
-### MEDIA-11: The ripple field is stepped, composed and mip-chained every frame, even when nothing disturbed it for seconds
-perf · L · conf H — `trace/ripplepass.cpp:130-212`
+### TRACE-4: A diffuse bounce's far hit on near ground sums the whole layer stack
+perf · L · conf L — `shaders/lib/traversal.glsl:1060-1065,1216-1271`, `shaders/lib/ground.glsl:134-158`
 
-1–4 steps over 1024² RG32F, a compose into two RGBA16F tiles and an 11-level blit chain, on every
-frame with a sea. A press decays below 1e-6 within about 6 s.
+A non-detailed hit on a chunk that kept its stack loops over every layer: a 64-byte row, four mask
+loads, and a diffuse plus delight fetch per showing layer. The `resolveFor` doc already concludes that
+detail at a bounce's far hit is invisible. Composites exist only for chunks past `wantsFlattening`.
 
-**Direction:** track the time since the last impulse on the host. After the decay bound, clear the
-tiles once and skip the pass until the next impulse.
-
-### MEDIA-13: Pending ripple impulses are capped at 128 silently, and the newest are dropped
-robustness · L · conf H — `trace/ripplepass.cpp:119-124`
-
-While the water's clock is held, footfalls accumulate and everything past 128 is dropped with no count.
-
-**Direction:** merge an actor's repeated impulses before the cap, or count the drops into the report.
-
-### MEDIA-9: The sea's FFT takes its twiddles and time phase from `sin`/`cos` of float angles, and the phase falls outside the range that Vulkan bounds
-robustness · L · conf M — `rtx/shaders/wave.h:80-86`, `shaders/lib/wavelines.glsl:271-279`, `shaders/trace/waverows.comp:82-84`
-
-The angle is in [0, 2π). Vulkan bounds `sin`/`cos` to 2⁻¹¹ absolute only inside [−π, π]. This is the
-one part of the pinned arithmetic whose precision belongs to the driver, and the error compounds over
-nine stages into the caustic's curvature. RDNA under Mesa is the exposure.
-
-**Direction:** pass a host-computed (double) twiddle table of `WAVE_GRID/2` entries. Reduce the phase
-to [−½, ½) turns before multiplying by TAU.
-
-### MEDIA-10: The 128-point cascade runs on 256-lane workgroups sized for the 512 grid
-perf · L · conf H — `shaders/shared/wavetransform.h:122-127`, `rtx/environment/wavecascade.hpp:40-43`
-
-Three quarters of the lanes are idle in every butterfly stage of the second cascade, but they still
-take every barrier.
-
-**Direction:** make the workgroup size a specialization constant per cascade, or run two rows per
-workgroup on the narrow grid.
-
-(Checked and sound: the FFT's normalisation, centre shift, conjugate pairing and Nyquist exclusion.
-Rows and columns cannot fuse, because a 512² grid does not fit in shared memory.)
+**Direction:** bake a composite for near chunks too, at load, through `groundcomposite.comp`. Resolve
+non-detailed hits from it. Keep the live stack for the eye, reflections and the bed.
 
 ---
 
-## Batch 6 — Scene record layout for the trace
+## Batch 5 — Scene record layout for the trace
 
 Each item changes what the hottest loops load. The gain is unmeasured, so A/B each item on an
 interior and a foliage exterior, and keep only what measures.
@@ -279,31 +265,7 @@ dispatch per kind (a binary search over the prefix, or indirect). Measure the `s
 
 ---
 
-## Batch 7 — Layered ground in the trace
-
-### TRACE-3: `LAYERED` does not remove the layer-stack loop from the surface and water stages
-simplify · L · conf H — `shaders/trace/visibilityhit.rchit:15-18`, `shaders/lib/traversal.glsl:1055-1059,1409-1412`
-
-The rchit header says that `LAYERED` folds the loop out of the two stages that no terrain reaches. But
-every inline trace in those stages (bounce, shoreline bed, both water legs) goes through `resolve`,
-which hard-codes `layered = true`. Only the primary hit's detailed copy is removed.
-
-**Direction:** correct both comments. Measure the stage with `LAYERED` forced true. If nothing
-changes, remove `SPEC_LAYERED` and read `mGround` from the material row.
-
-### TRACE-4: A diffuse bounce's far hit on near ground sums the whole layer stack
-perf · L · conf L — `shaders/lib/traversal.glsl:1060-1065,1216-1271`, `shaders/lib/ground.glsl:134-158`
-
-A non-detailed hit on a chunk that kept its stack loops over every layer: a 64-byte row, four mask
-loads, and a diffuse plus delight fetch per showing layer. The `resolveFor` doc already concludes that
-detail at a bounce's far hit is invisible. Composites exist only for chunks past `wantsFlattening`.
-
-**Direction:** bake a composite for near chunks too, at load, through `groundcomposite.comp`. Resolve
-non-detailed hits from it. Keep the live stack for the eye, reflections and the bed.
-
----
-
-## Batch 8 — Housekeeping
+## Batch 6 — Housekeeping
 
 ### FRAME-11: The pipeline cache is written only by a clean destructor
 robustness · L · conf H — `device/pipelinecache.cpp:253-262`, `trace/visibilitypass.hpp:159`
@@ -313,14 +275,14 @@ Every pipeline is made at start, but a crash or a kill later in the session disc
 **Direction:** write the cache when `awaitKernels` reports done (the write is already crash-safe).
 Write it again at exit only if the blob changed.
 
-### FRAME-16: Every pipeline in every build is created with `CAPTURE_STATISTICS`, and its statistics are queried and formatted at creation
-simplify · L · conf L — `pipeline/pipeline.hpp:80-83`, `pipeline/pipeline.cpp:61-71`, `device/device.cpp:291-372`
+### MEDIA-12: Two comments describe code that changed
+simplify · L · conf H — `shaders/lib/sprites.glsl:825-837` (`mergedPuffs`), `device/memory/image.cpp:396-397` (`buildMips`)
 
-`VK_KHR_pipeline_executable_properties` is a required extension for this alone. A `std::string` is
-built per executable even with Verbose off, and capture flags can change driver cache keys.
+`mergedPuffs` says that each walk reports an alpha-weighted mean colour, but `spritesAlong` now
+composites its nearest four in depth order. `buildMips` says that the fog samples the wave tiles "as a
+dispatch", but the fog samples them in ray-tracing launches.
 
-**Direction:** capture only when a harness verb asks, and make the extension optional. Time a cold and
-a warm start with and without the flag first.
+**Direction:** restate both comments.
 
 ### XCUT-10: The four probe kernels are two kernels written twice
 simplify · L · conf H — `shaders/probes/{halfmean,unormmean,halfstore,unormround}.comp`, `shaders/shared/{halfmean,unormmean}.h`
@@ -332,17 +294,57 @@ only under `BUILD_COMPONENTS_TESTS`. The renderer has no light probes.)
 **Direction:** one running-mean probe and one rounding probe, each with a specialization for the store
 kind and one constants header.
 
-### MEDIA-12: Two comments describe code that changed
-simplify · L · conf H — `shaders/lib/sprites.glsl:825-837` (`mergedPuffs`), `device/memory/image.cpp:396-397` (`buildMips`)
+### FRAME-16: Every pipeline in every build is created with `CAPTURE_STATISTICS`, and its statistics are queried and formatted at creation
+simplify · L · conf L — `pipeline/pipeline.hpp:80-83`, `pipeline/pipeline.cpp:61-71`, `device/device.cpp:291-372`
 
-`mergedPuffs` says that each walk reports an alpha-weighted mean colour, but `spritesAlong` now
-composites its nearest four in depth order. `buildMips` says that the fog samples the wave tiles "as a
-dispatch", but the fog samples them in ray-tracing launches.
+`VK_KHR_pipeline_executable_properties` is a required extension for this alone. A `std::string` is
+built per executable even with Verbose off, and capture flags can change driver cache keys.
 
-**Direction:** restate both comments.
+**Direction:** capture only when a harness verb asks, and make the extension optional. Time a cold and
+a warm start with and without the flag first.
 
 Comment corrections that belong to a batch above stay with their batch: TRACE-1 and TRACE-9 (batch 3),
-TRACE-3 (batch 7).
+TRACE-3 (batch 4).
+
+---
+
+## Batch 7 — G-buffer and fill diet
+
+The channels a frame may leave out are gated now (`ChannelWrites`, `GBuffer::begin`): the lobe's pair
+without maps and the puffs' layer without a puff, each holding what the trace stores where it has
+nothing to say. What is left here waits on a card this machine does not have.
+
+### TRACE-5: The payload carries six radiances as full floats even where the run stores radiance as halves
+perf · L · conf L — `shaders/lib/payload.glsl:10-16,146-185`, `trace/gbuffer.hpp:22-26`
+
+18 of the 30 payload words are fp32 radiances. The comment justifies that for references, but
+references run at `RadianceWidth::Summed`. A played frame stores them through RGBA16F.
+
+**Direction:** pick the payload layout per pipeline by radiance width. Keep it only if `bench` and
+`kernels` show a gain on both vendors (RADV passes the payload through registers or scratch).
+
+---
+
+## Batch 8 — Denoiser pass graph
+
+The pass graph is done: the families record stage by stage behind one barrier each, the shadow filter
+runs both fields in one dispatch a level, the last wavelet level composes the frame, and the temporal
+filters read the frame before's surface channels. What is left is memory, and a design of its own.
+
+### DENOISE-8 / XCUT-11: Transients with lifetimes that do not overlap each hold their own memory for the life of the chain
+perf · L · conf M — `trace/denoise/denoisehistory.cpp:98-167`, `trace/gbuffer.cpp:66-86`, `upscale/upscaler.cpp:321-360`, `display/bloompass.cpp:75-88`
+
+The denoiser keeps about 209 B/px. `FastBlended`, the shadow scratches and the two `*FastBlended`
+are dead before the cascade starts, and `Narrow`/`FillNarrow` live only inside it. After the
+composite, 12 G-buffer channels (96 B/px) have no reader, while the upscaler's transients (about
+16 B/px) and the bloom pyramid each have their own allocation. **No memory aliasing exists in the
+tree**: the upscaler's `Intermediate` is several of the SDK's roles on one image, not several images
+on one allocation, so this needs an arena images bind into without owning it.
+
+**Direction:** alias the cascade's scratch onto the pre-cascade scratch, and the upscaler's and bloom's
+transients onto the channels that are dead after the composite. Turn the aliasing off for runs that
+read a channel back after the composite. The held surfaces are gone since the review (DENOISE-7), and
+the composite's two levels with them (DENOISE-3), so recount what is left before sizing an arena.
 
 ---
 
@@ -353,8 +355,7 @@ The reviewers checked these items and found no fault:
 - **History validity.** The first frame, a resize, a cut, an unfiltered frame and a mode change are
   handled through one table (`TemporalTurns`, `DenoiseHistory::discard`, `FramePast::mPastLost`,
   `Upscaler::reset`). Every barrier between accumulator, clamp, shadow, glossy, pane, cascade,
-  composite and FSR was traced, including the ping-pong write-after-read cases. The only hazard found
-  is DENOISE-4.
+  composite and FSR was traced, including the ping-pong write-after-read cases.
 - **FSR port.** The host constants, formats, dispatch sizes, clears, parity and SPD setup match the
   3.1.4 SDK as far as the vendored headers allow a check.
 - **GLSL/C++ interface.** All shared structs are scalar layout, and no struct has the one shape where
@@ -367,7 +368,9 @@ The reviewers checked these items and found no fault:
   dither is placed correctly. The exposure bin centres and the trimmed mean are right, and the float
   sums are exact below 2²⁴ pixels.
 - **SPIR-V pinning.** Operand classification, single-use fusion, `precise` propagation and float
-  widths hold within the stated contract (apart from FRAME-13).
+  widths hold within the stated contract. Since the review, the optimizer is handed the module
+  guarded (`Rtx::guardFloatArithmetic`), so it folds none of the arithmetic the pinning holds, and
+  the pinning folds the constants itself, exactly, and divides by a constant's reciprocal.
 - **Pipelines.** All are compiled at start, with no compile during play. `SET_PASS` is pushed per
   dispatch, with no descriptor pool on the frame path.
 - **Acceleration structures.** A full TLAS rebuild with `PREFER_FAST_TRACE` when something moves, a
