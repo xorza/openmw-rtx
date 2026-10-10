@@ -204,9 +204,9 @@ namespace MWRender
         mBorders->setNodeMask(enabled ? mNodeMask : 0u);
     }
 
-    Terrain::View* TracedTerrain::createView()
+    std::unique_ptr<Terrain::View> TracedTerrain::createView()
     {
-        return new NullView;
+        return std::make_unique<NullView>();
     }
 
     TracedTerrain::CellGrid TracedTerrain::takeGrid()

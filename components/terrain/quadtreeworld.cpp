@@ -286,7 +286,7 @@ namespace Terrain
         bool debugChunks, ESM::RefId worldspace, double expiryDelay)
         : TerrainGrid(
             parent, compileRoot, resourceSystem, storage, nodeMask, worldspace, expiryDelay, preCompileMask, borderMask)
-        , mViewDataMap(new ViewDataMap)
+        , mViewDataMap(std::make_unique<ViewDataMap>())
         , mQuadTreeBuilt(false)
         , mLodFactor(lodFactor)
         , mVertexLodMod(vertexLodMod)
@@ -540,7 +540,7 @@ namespace Terrain
             mTerrainRoot->removeChild(mRootNode);
     }
 
-    View* QuadTreeWorld::createView()
+    std::unique_ptr<View> QuadTreeWorld::createView()
     {
         return mViewDataMap->createIndependentView();
     }

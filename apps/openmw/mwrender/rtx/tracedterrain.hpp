@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <span>
 #include <vector>
@@ -100,8 +101,8 @@ namespace MWRender
         ~TracedTerrain() override;
 
         /// A view that holds nothing and resets to nothing, because there is nothing to preload
-        /// into it. The caller owns it, as `Terrain::World::createView` promises.
-        Terrain::View* createView() override;
+        /// into it.
+        std::unique_ptr<Terrain::View> createView() override;
 
         /// Stands the cell's grid for the intersector, out of a grid a cell that left gave back
         /// where there is one: the arrays are refilled in place, so a cell arriving while the game
