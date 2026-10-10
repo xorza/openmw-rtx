@@ -398,6 +398,15 @@ namespace Rtx
         return mSpecialize ? variant.index() : VisibilityVariant{}.index();
     }
 
+    ChannelWrites VisibilityPass::writesOf(
+        const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants, const bool puffs) const
+    {
+        const VisibilityVariant run = mSpecialize
+            ? VisibilityVariant::resolve(constants, inputs.mSubject.mSea, inputs.mSubject.mMapped)
+            : VisibilityVariant{};
+        return ChannelWrites{ .mLobe = run.mMaps, .mPuffs = puffs };
+    }
+
     const TracePipeline<NoConstants>& VisibilityPass::pipelineFor(const VisibilityVariant variant) const
     {
         const std::unique_ptr<TracePipeline<NoConstants>>& held = kernels().mVisibility[slotOf(variant)];

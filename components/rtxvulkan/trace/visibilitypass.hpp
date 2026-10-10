@@ -22,12 +22,13 @@
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
 
+#include "gbuffer.hpp"
+
 namespace Rtx
 {
     class Device;
     class DeviceScene;
     class FogVolume;
-    class GBuffer;
     class GpuTimer;
     class Image;
     struct SpriteTables;
@@ -185,6 +186,13 @@ namespace Rtx
         /// trace that reads them.
         void recordSpriteEmitters(
             VkCommandBuffer commands, const VisibilityInputs& inputs, std::uint32_t count, GpuTimer* timer) const;
+
+        /// What `record` writes of the channels a trace may leave out, in the kernel it runs for these
+        /// inputs: the lobe's where that kernel holds the maps' code — a scene that wears a map, or
+        /// every scene where nothing is specialised — and the puffs' where a puff can be met,
+        /// `puffs` (`SpriteTables::mPuffs`, which `writeFrame` states as `mPuffsInFrame`).
+        ChannelWrites writesOf(
+            const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants, bool puffs) const;
 
         /// Records the trace, in whichever kernel this frame calls for. After `writeFrame`, which
         /// is what every launch here reads.

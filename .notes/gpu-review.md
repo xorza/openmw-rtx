@@ -20,7 +20,7 @@ When two reviewers found the same thing, the finding has both IDs.
 
 | # | Batch | Findings | Why it is here |
 |---|---|---|---|
-| 1 | G-buffer and fill diet | 6 | 50–180 B/px of dead traffic on every vanilla frame |
+| 1 | G-buffer and fill diet | 1 | A payload sized to the radiance width, which needs both vendors to settle |
 | 2 | Denoiser pass graph | 7 | About 13 queue drains where 5 would do, a composite round trip, transients that could share memory |
 | 3 | Sprites and fog | 5 | Worst-frame sprite walks, a serial shade chain, 32F fog history |
 | 4 | Lamp sampling | 3 | O(lamps in cell) per water pixel, up to 3×256, and an unbudgeted darkening walk |
@@ -30,7 +30,7 @@ When two reviewers found the same thing, the finding has both IDs.
 | 8 | Layered ground in the trace | 2 | A stage split that does not exist, and bounce hits that sum the whole stack |
 | 9 | Housekeeping | 4 | Pipeline cache, capture flags, duplicate probes, stale comments |
 
-42 findings are open: 0 high, 9 medium, 33 low. No reviewer found a GLSL/C++ layout,
+37 findings are open: 0 high, 7 medium, 30 low. No reviewer found a GLSL/C++ layout,
 binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDisagreement`,
 `storageformat.h`, `mayRoundTowardNought`) hold.
 
@@ -38,57 +38,9 @@ binding or format mismatch. The interface checks (`pushDisagreement`, `bindingDi
 
 ## Batch 1 — G-buffer and fill diet
 
-Every vanilla frame writes and filters channels that nothing reads in that frame. The common blocker
-is the digest: `GBuffer::begin` discards every channel from `UNDEFINED`, and `visibility.rgen:504-507`
-writes every channel to keep the digest deterministic. Solve that once (clear the conditional
-channels at creation and do not discard them, or hash a channel that a frame flags as constant as
-its constant), and then gate the stores. Measure with `./omw release bench` and `./omw kernels`.
-
-### TRACE-2 / XCUT-6: The lobe and pane channels are stored on every pixel, though no pass reads them when nothing is mapped or layered
-perf · M · conf M — `shaders/trace/visibility.rgen:505-528`, `shaders/trace/denoise/composite.comp:104-105`, `trace/denoise/denoisepasses.cpp:45-61`, `trace/gbuffer.cpp:235-245`
-
-`specular` and `specularAlbedo` (16 B/px) are stored unconditionally. The composite reads them only
-under `mLobed` (= `mMapped`), and the glossy filter runs only when mapped. The four pane channels
-(32 B/px) are stored unconditionally too, and the pane filter averages zeros where no layer stands.
-That is 48 of 138 B/px constant in a vanilla frame: about 177 MB of writes per frame at 2560×1440.
-
-**Direction:** put the two lobe stores behind `HAS_MAPS` (the tuple already has it). Add a per-frame
-fact "a see-through layer can be met" (`InstanceCounts` does not count see-through instances today)
-as a specialization constant. It folds `peelLayers`, gates the pane stores, and lets the pane filter skip.
-
-### XCUT-1: The fill channel and its whole filter chain run on every frame, though the fill is multiplied by zero wherever a material's ambient equals its diffuse
-perf · M · conf M — `shaders/lib/compose.glsl:12-14,29`, `shaders/lib/traversal.glsl:1297-1299`, `shaders/lib/records.glsl:31-33`, `shaders/trace/denoise/atrous.comp:290`
-
-`(ambientAlbedo − albedo) * fill` is zero to the bit when `mAmbientColour == mDiffuseColour` and the
-two vertex-tint flags agree. Despite that, the trace stores `fill` and `ambientAlbedo`, and the
-accumulator, the clamp, all four wavelet levels and the composite read and write the fill. That is
-about 130 B/px of traffic (about 0.45 ms of bandwidth at 1080p as an upper bound), plus 40 B/px of
-history memory and shared-memory footprint in the widest wavelet level.
-
-**Direction:** count per placement the materials whose ambient term differs (beside `mMapped`), and
-specialize the fill out of the whole chain when the count is zero, as `HAS_MAPS` does for the lobe.
-The wide level keeps its frame count in the fill's alpha, so move that count first (for example, into
-the moments). **Settle first:** count the materials with ambient ≠ diffuse over the suite's views. If
-vanilla has them everywhere, this finding is void.
-
-### XCUT-7: The specular albedo is rgb9e5-exact but stored as four halves, and four albedo channels spend a quarter of their texel on a constant alpha
-perf · L · conf H — `shaders/lib/shading.glsl:480-484`, `shaders/lib/payload.glsl:162-164,215`, `rtx/shaders/gbuffer.h:64`
-
-The payload already carries the specular albedo as one rgb9e5 word. It is stored as `GBUFFER_ALBEDO`
-(rgba16f, `a = 1`). `albedo`, `ambientAlbedo`, `paneAlbedo` and `lift` also store a constant 1 in alpha.
-
-**Direction:** store the specular albedo as `r32ui` rgb9e5 and unpack it in the composite. After
-XCUT-1 decides the fill, check whether the ambient albedo can travel as a ratio or share a texel.
-
-### XCUT-5: The puffs composite runs, with two transitions of the shown image, on frames that have no sprite and no presence
-perf · L · conf M — `display/displaychain.cpp:112-115`, `trace/spritebin.cpp:68`, `shaders/trace/spritecomposite.rgen:232-245`
-
-`SpriteTables::mPuffs` is known on the host. The launch over the traced extent still runs, and on
-arms pixels it writes back what was already there. The trace's `puffs` store (8 B/px) is also
-unconditional.
-
-**Direction:** skip `recordSpriteComposite` and its transitions when `!mPuffs`. Store `puffs` under
-`frame.mPuffsInFrame != 0u`. First confirm that a shell's `mAdded` comes only through a presence.
+The channels a frame may leave out are gated now (`ChannelWrites`, `GBuffer::begin`): the lobe's pair
+without maps and the puffs' layer without a puff, each holding what the trace stores where it has
+nothing to say. What is left here waits on a card this machine does not have.
 
 ### TRACE-5: The payload carries six radiances as full floats even where the run stores radiance as halves
 perf · L · conf L — `shaders/lib/payload.glsl:10-16,146-185`, `trace/gbuffer.hpp:22-26`
@@ -98,15 +50,6 @@ references run at `RadianceWidth::Summed`. A played frame stores them through RG
 
 **Direction:** pick the payload layout per pipeline by radiance width. Keep it only if `bench` and
 `kernels` show a gain on both vendors (RADV passes the payload through registers or scratch).
-
-### XCUT-12: A half's largest value and a truncation to half are written inline in the trace, beside the library that names both
-simplify · L · conf H — `shaders/trace/visibility.rgen:484-485`, `shaders/lib/halfround.glsl:33,53-98`
-
-`vec3(65504.0)` repeats `HALF_LARGEST`, and `& 0xffffe000u` is a third rounding to half, beside
-`roundedToHalf` and `nearestHalf`.
-
-**Direction:** move the truncation into `halfround.glsl` as a named function that states its range
-precondition, and use `HALF_LARGEST`.
 
 ---
 
@@ -561,6 +504,29 @@ The reviewers checked these items and found no fault:
   shadow ray. A see-through surface has no opaque texel: `Material::isTranslucent` needs an opacity
   under 1 or a texture whose alpha never reaches 255 (`reachesSolid`), and a fade under 1 keeps
   `sampledOpacity` under 1 as well. Filtering cannot go above the largest texel.
+
+- **XCUT-1, void by count.** It asked to specialise the fill out where no placed material's ambient
+  term differs from its diffuse. The scene report's `ambient apart` line, over every view of
+  `views.cfg`: placements with an ambient apart at every place but `arkngthand` and
+  `mournhold-arrival` (0 of each), and 7 to 401 elsewhere. No vanilla frame of the suite would take
+  the specialisation.
+
+- **TRACE-2, the panes' half void by count.** It asked to gate the four pane channels on a
+  see-through layer that can be met. The same line counts see-through placements: none only at
+  `wolverine-hall`, `addamasartus`, `ahemmusa-yurt` and `mournhold-arrival`, and 7 to 697 elsewhere,
+  so a gate per scene stays open nearly everywhere. The lobe's half is done.
+
+- **XCUT-7, closed.** It asked to store the specular albedo as one rgb9e5 word. Once the lobe's
+  channels are gated it saves 4 B/px in a scene that wears a map and nothing in a vanilla one,
+  against an integer channel through the digest and `readChannel`. The alpha half was void: no
+  three-channel half format takes storage.
+
+- **The gated channels, measured.** The lobe's pair and the puffs' layer gated, against the same
+  build with the gates open, on the default suite at 1280×720 traced, release, two legs each after
+  a warm-up: trace medians 2.92/2.93 against 2.90/2.91 ms at seyda-neen-ship, 3.53/3.57 against
+  3.58/3.56 at dawn, 1.82/1.87 against 1.85/1.84 at balmora-mages-guild — inside a leg's spread.
+  16 B/px is about 15 MB a frame there, some 0.03 ms. Every place of the suite has a puff, so the
+  composite's skip did not apply.
 
 - **FRAME-2 / SCENE-14, withdrawn by measurement.** It said that the graveyard frees all of a
   crossing's burials in one collect, so one frame absorbs the sweep. A release profile of the

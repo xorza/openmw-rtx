@@ -154,10 +154,11 @@ void main()
 
         // And through the puffs, whose transmittance the composite left in the frame's alpha at
         // this pass's own resolution wherever it drew one; where it drew none it wrote nothing, and
-        // the alpha there is whatever the upscaler left.
-        const float puffs = puffsCoverNothing(SpriteTileList(frame.mSpriteTileList),
-                                SpritePresence(frame.mSpritePresence), frame.mTracedWidth, traced,
-                                surfaceOnArms(imageLoad(surfaceChannel, ivec2(traced)).y))
+        // the alpha there is whatever the upscaler left. Nowhere at all in a frame no puff can be met
+        // in, which the composite did not run over.
+        const float puffs = frame.mPuffs == 0u
+                || puffsCoverNothing(SpriteTileList(frame.mSpriteTileList), SpritePresence(frame.mSpritePresence),
+                    frame.mTracedWidth, traced, surfaceOnArms(imageLoad(surfaceChannel, ivec2(traced)).y))
             ? 1.0
             : lit.a;
 

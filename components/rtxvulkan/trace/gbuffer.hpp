@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -24,6 +25,18 @@ namespace Rtx
         return width == RadianceWidth::Summed ? toVulkanFormat(GBUFFER_RADIANCE_SUMMED)
                                               : toVulkanFormat(GBUFFER_RADIANCE_SHOWN);
     }
+
+    /// What a trace writes of the channels only some traces need, every other channel being written
+    /// by every trace: the lobe's two where the scene places a material that wears a map (`HAS_MAPS`,
+    /// `InstanceCounts::mMapped`), and the puffs' layer where a puff can be met
+    /// (`VisibilityConstants::mPuffsInFrame`).
+    struct ChannelWrites
+    {
+        bool mLobe = true;
+        bool mPuffs = true;
+
+        bool writes(Channel channel) const;
+    };
 
     /// What the trace leaves behind, before anything has decided what the picture looks like. A
     /// picture cannot be filtered and these can: one bounce per pixel is noisy, and the only thing
@@ -64,10 +77,15 @@ namespace Rtx
         std::uint32_t getWidth() const { return get(Channel::Direct).getWidth(); }
         std::uint32_t getHeight() const { return get(Channel::Direct).getHeight(); }
 
-        /// Discards the contents and makes every channel writable, which is how a frame starts.
-        /// Waits for the previous frame's readers to be done with them, so that one set of channels
-        /// can serve a window that keeps several frames in flight.
-        void begin(VkCommandBuffer commands) const;
+        /// Discards the contents of every channel `writes` names and makes it writable, which is how a
+        /// frame starts. Waits for the previous frame's readers to be done with them, so that one set
+        /// of channels can serve a window that keeps several frames in flight.
+        ///
+        /// **A channel the trace does not write holds what the trace writes where it has nothing to
+        /// say** — no lobe, no puff — so every reader meets the bits a trace that wrote it would have
+        /// left: the digest, a read-back, and a pass that reads it regardless. Cleared on the trace
+        /// that first leaves it out, and left alone by every trace after that leaves it out too.
+        void begin(VkCommandBuffer commands, ChannelWrites writes);
 
         /// Orders the pass that wrote them against the passes about to read them, as
         /// `Use::sAnyShaderRead`. The composite, which writes the frame over the direct channel,
@@ -79,6 +97,10 @@ namespace Rtx
         /// three times each — a member, an accessor, and a hand-written table mapping the index
         /// back — a channel added to `Rtx::Channel` without the third reaches its pass as a null.
         std::vector<Image> mChannels;
+
+        /// Whether each channel holds its nothing from a clear `begin` recorded and nothing wrote
+        /// it since. False from the start, since a channel made holds nothing defined.
+        std::array<bool, sChannelCount> mHoldsNothing{};
 
         /// One set, in a pool of its own that goes with it.
         DescriptorSets mSet;
