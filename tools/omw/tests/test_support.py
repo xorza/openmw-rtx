@@ -13,9 +13,12 @@ from omw.deps import pinned_folder
 from omw.fetch import build_beside, download, extract_member, partial_of, settle
 from omw.package import (
     CONTAINER_DIR,
+    LINUX_RUNTIME,
     RELEASE_IMAGE,
+    WINDOWS_RUNTIME,
     container_command,
     harness_files,
+    missing_runtime,
     on_release_base,
     os_release,
     prune_empty,
@@ -317,6 +320,15 @@ class InstallTest(unittest.TestCase):
             "rtxtool/views.cfg",
             "test-output/crash-matrix/abort/log.txt",
         ])
+
+    def test_the_runtime_an_archive_lacks_is_named_and_a_folder_in_its_place_counts_for_nothing(self):
+        self.assertEqual(missing_runtime(self.root, LINUX_RUNTIME), ["usr/lib/libvulkan.so.1"])
+        self.touch("usr/lib/libvulkan.so.1")
+        self.assertEqual(missing_runtime(self.root, LINUX_RUNTIME), [])
+
+        self.touch("msvcp140.dll")
+        (self.root / "vcruntime140.dll").mkdir()
+        self.assertEqual(missing_runtime(self.root, WINDOWS_RUNTIME), ["vcruntime140.dll", "vcruntime140_1.dll"])
 
     def test_pruning_takes_every_folder_without_a_file_and_keeps_the_rest(self):
         self.touch("resources/a.txt")
