@@ -29,7 +29,7 @@
 #include <sched.h>
 #include <sys/syscall.h>
 
-#include "kernelfile.hpp"
+#include "kernelfilelinux.hpp"
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
 #include <pthread.h>

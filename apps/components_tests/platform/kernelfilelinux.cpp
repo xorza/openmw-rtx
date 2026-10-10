@@ -12,7 +12,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <components/platform/kernelfile.hpp>
+#include <components/platform/kernelfilelinux.hpp>
 
 namespace
 {
