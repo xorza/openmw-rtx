@@ -16,6 +16,8 @@ namespace Rtx
             .mStateSet = root.getStateSet(),
             .mFirstChild = children > 0 ? group->getChild(0) : nullptr,
             .mChildren = children,
+            .mUpdate = root.getUpdateCallback(),
+            .mUpdating = root.getNumChildrenRequiringUpdateTraversal(),
         };
     }
 
@@ -41,9 +43,8 @@ namespace Rtx
             return false;
 
         // **What can move a frozen subtree from outside it**: the game placing the root elsewhere,
-        // giving it a child or taking one, or hanging a state set on it — an enchantment's glow is
-        // the one the game hangs. A change deeper down is a controller's, and a controller never
-        // let it freeze.
+        // giving it a child or taking one, hanging a state set on it — an enchantment's glow is
+        // the one the game hangs — or a controller anywhere in it, which `Face` says how it sees.
         Frozen& frozen = known->second;
         meet(frozen, walk);
         const Face face = Face::of(root, world);

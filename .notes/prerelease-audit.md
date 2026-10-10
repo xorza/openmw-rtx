@@ -62,21 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 16. Wake a frozen root when the game adds a controller under it
-- **Audit**: MIRROR-2. PLAUSIBLE.
-- **Close first**: Find an object that hits the path: an activator, door or container with
-  animation sources and no idle group, which a script plays (`PlayGroup`). Without one, the fix
-  stays, because the check costs one load, but the commit says that no case was found.
-- **Where**: `components/rtx/mirror/frozenroots.hpp:96-106` (`Face`), `frozenroots.cpp:36-63`,
-  `apps/openmw/mwrender/animation.cpp:1170-1180`.
-- **Problem**: A root with no update callbacks freezes. A later `PlayGroup`, or a container that opens
-  with an animation, adds `KeyframeController`s deep inside it. `Face` does not change, so the ray
-  tracer shows the frozen pose.
-- **Fix**: Add `getNumChildrenRequiringUpdateTraversal()` and the root's own update callback to
-  `Face`. OSG raises the count along the parent chain.
-- **Test**: `rtx/mirror/extractor/` (frozen roots): freeze a root, add a moving callback on a
-  grandchild, and the next walk moves the placement.
-
 ### 17. Drop a queued map tile after a cut
 - **Audit**: SEAM-3. CONFIRMED.
 - **Where**: `apps/openmw/mwrender/rtx/viewqueue.cpp:32-55`, `tracedview.cpp:114-148`,

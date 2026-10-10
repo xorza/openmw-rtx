@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <osg/Callback>
 #include <osg/Matrix>
 #include <osg/Node>
 #include <osg/StateSet>
@@ -94,13 +95,18 @@ namespace Rtx
 
     private:
         /// What can change a frozen subtree from outside it, as its root stands: where the root is
-        /// in the world, its state set, and its children, by their count and the first of them.
+        /// in the world, its state set, its children, by their count and the first of them, and
+        /// the update callbacks on it and under it. **The last because the game hangs a controller
+        /// deep inside a still root**, a `PlayGroup` on an activator with no idle group among
+        /// others, and OpenSceneGraph counts it up the parent chain to the root.
         struct Face
         {
             osg::Matrix mWorld;
             const osg::StateSet* mStateSet = nullptr;
             const osg::Node* mFirstChild = nullptr;
             unsigned int mChildren = 0;
+            const osg::Callback* mUpdate = nullptr;
+            unsigned int mUpdating = 0;
 
             static Face of(const osg::Node& root, const osg::Matrix& world);
 
