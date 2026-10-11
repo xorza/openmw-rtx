@@ -78,16 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 24. Take the timeline value only after the submit succeeds
-- **Audit**: VKDEV-2. CONFIRMED.
-- **Where**: `components/rtxvulkan/device/commands.cpp:62-83`, `device/timeline.hpp:85`.
-- **Problem**: `timeline.next()` counts the submit before `vkQueueSubmit2`. An out-of-memory result
-  throws, but the clock then waits for a value that no submit signals. A later wait times out and
-  blames the device.
-- **Fix**: Signal `getNext()`, and commit it with `next()` only after the submit returns success.
-  Only the device's thread submits, so no other submit can take the value in between.
-- **Test**: None practical: it needs a layer that injects faults.
-
 ### 25. Keep the player's name out of the prefilled crash issue
 - **Audit**: BUILD-3. CONFIRMED.
 - **Where**: `components/crashcatcher/crashsummary.cpp:150`, `crashpackage.cpp:448-475` (`newIssueUrl`).
