@@ -14,6 +14,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -41,6 +42,7 @@
 #include <components/platform/appendfile.hpp>
 #include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
+#include <components/platform/userhome.hpp>
 
 #include "crashmonitorarguments.hpp"
 #include "crashnote.hpp"
@@ -54,7 +56,7 @@ namespace Crash
     namespace
     {
         /// What the last report of a session was, which an issue is filled in with: the summary the
-        /// public reads (`SummaryReaders::Public`).
+        /// public reads (`SummaryReaders::mPublic`).
         struct LastReport
         {
             std::string mTitle;
@@ -347,17 +349,22 @@ namespace Crash
                 facts.mDump = Files::pathToUnicodeString(dump);
 
                 std::vector<std::string> lines;
-                summarise(facts, lines, SummaryReaders::Player);
+                summarise(facts, lines, SummaryReaders{});
                 appendToLog(mMonitor, lines);
 
+                const std::optional<std::filesystem::path> home = Platform::userHome();
+                const SummaryReaders anybody{
+                    .mPublic = true,
+                    .mHome = home.has_value() ? Files::pathToUnicodeString(*home) : std::string(),
+                };
                 std::vector<std::string> shared;
-                summarise(facts, shared, SummaryReaders::Public);
+                summarise(facts, shared, anybody);
 
                 {
                     const std::lock_guard lock(mMonitor.mReportMutex);
                     mMonitor.mDumps.push_back(dump);
                     mMonitor.mCrashed = mMonitor.mCrashed || facts.mNotes.mKind == ReportKind::Crash;
-                    mMonitor.mLastReport = { title(facts), std::move(shared) };
+                    mMonitor.mLastReport = { title(facts, anybody), std::move(shared) };
                 }
 
                 std::string text;
@@ -594,14 +601,25 @@ namespace Crash
             }
             message += "\n\n";
 
+            // **Said before the player is asked to share it**: a dump holds the game's memory, the
+            // stacks and what they point to, and on Windows the process's whole environment, which
+            // names the account and the computer; the log names the folders the game read. Nothing
+            // makes a dump safe to post, so the player decides with what it holds in front of them.
+            const std::string_view holds = packaged ? "It holds" : "They hold";
+            message += std::string(holds)
+                + " what the game had in memory, the folders it ran from, and on Windows the account's and "
+                  "the computer's names.\n\n";
+
             const bool issues = !monitor.mIssues.empty();
             const std::string attach
                 = packaged ? Files::pathToUnicodeString(package.filename()) : "the log and the dump";
             if (issues)
                 message += "Report the crash opens this folder and a new issue at\n" + monitor.mIssues
-                    + "\nPlease attach " + (packaged ? "the file" : "the files") + " to it.";
+                    + "\nThe issue is public: anyone can read what is attached to it. Attach "
+                    + (packaged ? "the file" : "the files") + " only if you are content with that.";
             else
-                message += packaged ? "Sending it helps to fix it." : "Sending them helps to fix it.";
+                message += packaged ? "Sending it helps to fix it. Send it only to someone you trust with that."
+                                    : "Sending them helps to fix it. Send them only to someone you trust with that.";
 
             enum Button : int
             {

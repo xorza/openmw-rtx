@@ -28,6 +28,8 @@
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/mapoverlay.hpp>
 #include <apps/openmw/mwrender/offscreenview.hpp>
@@ -348,15 +350,14 @@ namespace MWRender
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
     }
 
-    void RtxRenderer::functionKey(const int index, const bool pressed)
+    void RtxRenderer::functionKey(const int index, const SDLUtil::KeyChange change)
     {
         // F3 and F4: the indices count from F1.
-        if (!pressed || (index != 2 && index != 3) || mToldStats)
+        if (change != SDLUtil::KeyChange::Pressed || (index != 2 && index != 3))
             return;
 
-        mToldStats = true;
-        Log(Debug::Warning) << notAvailable(
-            "The statistics overlay", support().declinedRequest(PictureRequest::StatsOverlay));
+        MWBase::Environment::get().getWindowManager()->messageBox(
+            notAvailable("The statistics overlay", support().declinedRequest(PictureRequest::StatsOverlay)));
     }
 
     void RtxRenderer::windowResized(int, int, const int width, const int height) noexcept

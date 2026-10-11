@@ -47,9 +47,6 @@ namespace Crash
         std::string mDump;
     };
 
-    /// What the report is, as the summary's first line says it without the thread: an issue's title.
-    std::string title(const CrashFacts& facts);
-
     /// Why `std::terminate` ran, as a report names it: the uncaught exception's message where there
     /// is one, written into `into` and cut to what a note holds. Called from inside a terminate
     /// handler, where the exception is still current, so it allocates nothing: an uncaught
@@ -58,17 +55,25 @@ namespace Crash
 
     /// Who reads a summary: the player, in the log and the report the package holds, or anybody,
     /// in the public issue the player is offered to open.
-    enum class SummaryReaders
+    struct SummaryReaders
     {
-        Player,
-        Public,
+        /// Whether anybody does. **What the public reads names no folder of the user's**, which
+        /// names the account and often the player: the dump by its file alone, since the package
+        /// carries it, and `mHome` as `~` wherever a line spells it — an exception's message
+        /// carries whatever path it was handed.
+        bool mPublic = false;
+
+        /// The user's home folder in UTF-8 (`Platform::userHome`), or empty where the system names
+        /// none.
+        std::string mHome;
     };
 
+    /// What the report is, as the summary's first line says it without the thread: an issue's title.
+    std::string title(const CrashFacts& facts, const SummaryReaders& readers);
+
     /// The summary of `facts`, a line each into `lines`, each without the log's time stamp or a
-    /// line end. The same lines on every system, whichever of them wrote the report. **The dump by
-    /// its file alone for the public**, because the folder it lies in is the user's, which names
-    /// the account and often the player; the package carries the dump.
-    void summarise(const CrashFacts& facts, std::vector<std::string>& lines, SummaryReaders readers);
+    /// line end. The same lines on every system, whichever of them wrote the report.
+    void summarise(const CrashFacts& facts, std::vector<std::string>& lines, const SummaryReaders& readers);
 
     /// `value` in hexadecimal, as the facts write an address or a code: `0x10`.
     std::string hex(std::uint64_t value);

@@ -25,6 +25,7 @@
 #include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/sdlutil/graphicslistener.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -132,9 +133,9 @@ namespace MWRender
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
         void windowResized(int x, int y, int width, int height) noexcept override;
 
-        /// F3 and F4, which the rasterizer hands OpenSceneGraph's overlays: said once in the log,
-        /// as `rtxSupport` declines them, and nothing else.
-        void functionKey(int index, bool pressed) override;
+        /// F3 and F4, which the rasterizer hands OpenSceneGraph's overlays: a message box saying
+        /// why `rtxSupport` declines them, once a press as F2 is, and nothing else.
+        void functionKey(int index, SDLUtil::KeyChange change) override;
 
         void advance(double simulationTime) noexcept override;
         void updateTraversal() noexcept override;
@@ -412,8 +413,5 @@ namespace MWRender
 
         /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;
-
-        /// Whether F3 or F4 was answered (`functionKey`), which is answered once.
-        bool mToldStats = false;
     };
 }

@@ -11,6 +11,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/sdlutil/graphicslistener.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -147,7 +148,7 @@ namespace MWRender
         /// Into the viewer's queue, for the handlers it carries: the stats overlay's keys, and
         /// the resize its own handlers reposition by. The graphics context follows the window too.
         void beginEvents() override;
-        void functionKey(int index, bool pressed) override;
+        void functionKey(int index, SDLUtil::KeyChange change) override;
         void windowResized(int x, int y, int width, int height) override;
 
         /// Upstream's camera blit for the world map's overlay, hung under the traversal root.

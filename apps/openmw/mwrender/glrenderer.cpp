@@ -912,13 +912,14 @@ namespace MWRender
         mViewer->getEventQueue()->frame(0.f);
     }
 
-    void GlRenderer::functionKey(const int index, const bool pressed)
+    void GlRenderer::functionKey(const int index, const SDLUtil::KeyChange change)
     {
+        // A repeat is a press, as upstream's wrapper handed OpenSceneGraph every key down.
         const int key = osgGA::GUIEventAdapter::KEY_F1 + index;
-        if (pressed)
-            mViewer->getEventQueue()->keyPress(key);
-        else
+        if (change == SDLUtil::KeyChange::Released)
             mViewer->getEventQueue()->keyRelease(key);
+        else
+            mViewer->getEventQueue()->keyPress(key);
     }
 
     void GlRenderer::windowResized(const int x, const int y, const int width, const int height)
