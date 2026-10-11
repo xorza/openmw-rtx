@@ -63,6 +63,7 @@ The user took these calls on 2026-10-11. The items carry them.
 ## P1: crashes and wrong pictures
 
 ### 20. Stop the window size drift on a mixed-scale Wayland desktop
+- **Skipped**: see `prerelease-audit_QUESTIONS.md`. The fault is confirmed in SDL's source, and no fix can be tested on one display.
 - **Audit**: GAME-1. PLAUSIBLE: traced through SDL's Wayland backend, not run.
 - **Close first**: Run the game windowed on two outputs at scales 1.0 and 2.0, and start it twice.
   The size in `settings.cfg` must change between the starts.
