@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -43,11 +42,6 @@ namespace Platform
         ~SharedMemory() { unmap(); }
 
         void* data() const { return mData; }
-
-        /// Whether the other side has opened what this side made, where the system can tell: a
-        /// POSIX `open` gives the name up, so a name gone is memory opened. Nothing on a system that
-        /// keeps the name for as long as any handle to it stands, and for memory this side opened.
-        std::optional<bool> isOpenedElsewhere() const;
 
     private:
         /// What `other` held, leaving it holding nothing. This holds nothing first.

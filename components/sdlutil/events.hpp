@@ -96,7 +96,12 @@ namespace SDLUtil
 
         virtual void windowClosed() {}
 
+        /** @remarks The window's drawable is now x by y pixels */
         virtual void windowResized(int x, int y) {}
+
+        /** @remarks The window is now width by height in the desktop's unit, which `SDL_GetWindowSize`
+         * answers: points on macOS and Wayland, pixels on Windows and X11 */
+        virtual void windowSized(int width, int height) {}
 
         /// The window went to another display, or its display's desktop mode or scale changed.
         virtual void windowDisplayChanged() {}

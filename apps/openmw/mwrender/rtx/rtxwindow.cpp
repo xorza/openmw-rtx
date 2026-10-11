@@ -11,6 +11,7 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
+#include <components/sdlutil/sdlvideowrapper.hpp>
 
 namespace MWRender
 {
@@ -32,11 +33,11 @@ namespace MWRender
         constexpr double sSettleSeconds = 0.1;
     }
 
-    RtxWindow::RtxWindow(const bool hidden)
+    RtxWindow::RtxWindow(const bool hidden, const std::optional<osg::Vec2i> pixels)
     {
         // **The backend's own flags, and no `SDL_GL_SetAttribute` anywhere near them.** No GL context
         // is ever made, which is the point of the whole path.
-        mWindow.reset(openWindow(Rtx::vulkanWindowFlags()));
+        mWindow.reset(openWindow(Rtx::vulkanWindowFlags(), pixels));
         if (mWindow == nullptr)
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
 
@@ -44,8 +45,21 @@ namespace MWRender
         // nobody is looking at costs a present per frame and nothing else — so a headless run is
         // the same renderer rather than a second path through it. Never shown, it also keeps the
         // compositor from raising a window over whatever the person running it is doing.
-        if (!hidden)
-            SDL_ShowWindow(mWindow.get());
+        if (hidden)
+            return;
+        SDL_ShowWindow(mWindow.get());
+
+        // A hidden Wayland window takes the largest scale of any display, and keeps its size in
+        // points on the display it shows on: a run's pixels are made again at that one's density.
+        if (!pixels.has_value())
+            return;
+        SDL_SyncWindow(mWindow.get());
+        if (readSize() == *pixels)
+            return;
+        const float density = SDL_GetWindowPixelDensity(mWindow.get());
+        SDL_SetWindowSize(
+            mWindow.get(), SDLUtil::windowPoints(pixels->x(), density), SDLUtil::windowPoints(pixels->y(), density));
+        SDL_SyncWindow(mWindow.get());
     }
 
     osg::Vec2i RtxWindow::readSize() const

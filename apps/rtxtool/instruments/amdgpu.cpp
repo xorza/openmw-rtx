@@ -3,14 +3,15 @@
 #include <array>
 #include <charconv>
 #include <cstddef>
+#include <format>
 #include <fstream>
 #include <ios>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
-#include <components/files/conversion.hpp>
 #include <components/platform/folder.hpp>
 
 namespace RtxTool
@@ -52,44 +53,34 @@ namespace RtxTool
     {
     }
 
-    std::optional<AmdGpu> AmdGpu::find()
+    std::optional<AmdGpu> AmdGpu::at(const std::filesystem::path& devices, const Rtx::PciAddress& card)
     {
-        const std::optional<std::vector<std::filesystem::directory_entry>> cards
-            = Platform::listFolder("/sys/class/drm");
-        if (!cards.has_value())
-            return std::nullopt;
+        const std::filesystem::path device = devices / folderName(card);
 
         std::array<char, 512> text;
-        for (const std::filesystem::directory_entry& card : *cards)
+        const std::optional<std::string_view> vendor = readSmall(device / "vendor", text);
+        if (!vendor.has_value() || !vendor->starts_with(sAmdVendor))
+            return std::nullopt;
+
+        std::filesystem::path temperature;
+        const std::optional<std::vector<std::filesystem::directory_entry>> monitors
+            = Platform::listFolder(device / "hwmon");
+        for (const std::filesystem::directory_entry& hwmon :
+            monitors.value_or(std::vector<std::filesystem::directory_entry>{}))
         {
-            // `card0` and not a connector of it, `card0-HDMI-A-1`, which holds no `device/vendor`
-            // of its own but a link back to the card's.
-            const std::string name = Files::pathToUnicodeString(card.path().filename());
-            if (!name.starts_with("card") || name.find('-') != std::string::npos)
-                continue;
-
-            const std::filesystem::path device = card.path() / "device";
-            const std::optional<std::string_view> vendor = readSmall(device / "vendor", text);
-            if (!vendor.has_value() || !vendor->starts_with(sAmdVendor))
-                continue;
-
-            std::filesystem::path temperature;
-            const std::optional<std::vector<std::filesystem::directory_entry>> monitors
-                = Platform::listFolder(device / "hwmon");
-            for (const std::filesystem::directory_entry& hwmon :
-                monitors.value_or(std::vector<std::filesystem::directory_entry>{}))
+            std::error_code error;
+            if (std::filesystem::exists(hwmon.path() / "temp1_input", error))
             {
-                std::error_code error;
-                if (std::filesystem::exists(hwmon.path() / "temp1_input", error))
-                {
-                    temperature = hwmon.path() / "temp1_input";
-                    break;
-                }
+                temperature = hwmon.path() / "temp1_input";
+                break;
             }
-            return AmdGpu(device, std::move(temperature));
         }
+        return AmdGpu(device, std::move(temperature));
+    }
 
-        return std::nullopt;
+    std::string AmdGpu::folderName(const Rtx::PciAddress& card)
+    {
+        return std::format("{:04x}:{:02x}:{:02x}.{:x}", card.mDomain, card.mBus, card.mDevice, card.mFunction);
     }
 
     GpuClock AmdGpu::readClock() const

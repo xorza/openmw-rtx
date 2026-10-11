@@ -1306,17 +1306,20 @@ namespace MWGui
 
     void WindowManager::windowResized(int x, int y)
     {
-        // The size the player left a window at; a fullscreen window is the display's size.
-        if (Settings::video().mWindowMode.get() == Settings::WindowMode::Windowed)
-        {
-            Settings::video().mWindowWidth.set(x);
-            Settings::video().mWindowHeight.set(y);
-
-            // Said by the window rather than chosen in the menu, so nothing is to follow it.
-            Settings::Manager::resetPendingChanges({ { "Video", "window width" }, { "Video", "window height" } });
-        }
-
         layOut();
+    }
+
+    void WindowManager::windowSized(int width, int height)
+    {
+        // The size the player left a window at; a fullscreen window is the display's size.
+        if (Settings::video().mWindowMode.get() != Settings::WindowMode::Windowed)
+            return;
+
+        Settings::video().mWindowWidth.set(width);
+        Settings::video().mWindowHeight.set(height);
+
+        // Said by the window rather than chosen in the menu, so nothing is to follow it.
+        Settings::Manager::resetPendingChanges({ { "Video", "window width" }, { "Video", "window height" } });
     }
 
     void WindowManager::windowDisplayChanged()

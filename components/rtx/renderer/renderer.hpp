@@ -15,6 +15,7 @@
 #include <osg/Vec2d>
 #include <osg/Vec3f>
 
+#include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
@@ -599,6 +600,9 @@ namespace Rtx
 
         /// Multi-line report: the device and what it can trace with.
         virtual std::string describeDevice() const = 0;
+
+        /// Which card the renderer runs on, for an instrument that reads that card's clock.
+        virtual CardAddress getCardAddress() const = 0;
 
         /// The knobs the frames are traced under now: what the renderer was made with, and then
         /// whatever a setting moved since. The one copy, so a stop that writes a picture by the

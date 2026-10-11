@@ -10,6 +10,7 @@
 #include <components/debug/debuglog.hpp>
 
 #include "graphicslistener.hpp"
+#include "sdlvideowrapper.hpp"
 
 namespace SDLUtil
 {
@@ -46,11 +47,13 @@ namespace SDLUtil
         , mPendingWheelY(0.0)
         , mWindowHasFocus(true)
         , mMouseInWindow(true)
+        , mWindowShown(true)
         , mPixelDensity(1.f)
     {
         SDL_WindowFlags flags = SDL_GetWindowFlags(mSDLWindow);
         mWindowHasFocus = (flags & SDL_WINDOW_INPUT_FOCUS);
         mMouseInWindow = (flags & SDL_WINDOW_MOUSE_FOCUS);
+        mWindowShown = isWindowShown(flags);
         _setWindowScale();
     }
 
@@ -296,6 +299,17 @@ namespace SDLUtil
                 // I'm not sure what OSG is using the window position for, but I don't think it's needed,
                 // so we ignore window moved events (improves window movement performance)
                 break;
+            case SDL_EVENT_WINDOW_RESIZED:
+            {
+                // From the window and not the event: SDL drops a superseded resize from its queue,
+                // and the window holds the latest.
+                int width = 0;
+                int height = 0;
+                SDL_GetWindowSize(mSDLWindow, &width, &height);
+                if (mWindowListener)
+                    mWindowListener->windowSized(width, height);
+                break;
+            }
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
             {
                 const int w = evt.window.data1;
@@ -337,15 +351,20 @@ namespace SDLUtil
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                 break;
             case SDL_EVENT_WINDOW_SHOWN:
-            case SDL_EVENT_WINDOW_RESTORED:
-                if (mWindowListener)
-                    mWindowListener->windowVisibilityChange(true);
-                break;
             case SDL_EVENT_WINDOW_HIDDEN:
             case SDL_EVENT_WINDOW_MINIMIZED:
-                if (mWindowListener)
-                    mWindowListener->windowVisibilityChange(false);
+            case SDL_EVENT_WINDOW_RESTORED:
+            case SDL_EVENT_WINDOW_OCCLUDED:
+            case SDL_EVENT_WINDOW_EXPOSED:
+            {
+                // From the flags, since Wayland reports a minimized window as occluded only.
+                const bool shown = isWindowShown(SDL_GetWindowFlags(mSDLWindow));
+                if (mWindowListener == nullptr || shown == mWindowShown)
+                    break;
+                mWindowShown = shown;
+                mWindowListener->windowVisibilityChange(shown);
                 break;
+            }
         }
     }
 

@@ -348,7 +348,7 @@ namespace MWRender
         Crash::fatal("a renderer kind past the two");
     }
 
-    SDL_Window* openWindow(const SDL_WindowFlags surfaceFlag)
+    SDL_Window* openWindow(const SDL_WindowFlags surfaceFlag, const std::optional<osg::Vec2i> pixels)
     {
         // Read inside `SDL_CreateWindow`.
         SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
@@ -373,7 +373,12 @@ namespace MWRender
 
         if (window != nullptr)
         {
-            SDLUtil::setVideoMode(window, width, height, Settings::video().mWindowMode, border);
+            // A run's pixels at the density of the window just made, which a hidden window keeps.
+            const float density = SDL_GetWindowPixelDensity(window);
+            const osg::Vec2i size = pixels.has_value()
+                ? osg::Vec2i(SDLUtil::windowPoints(pixels->x(), density), SDLUtil::windowPoints(pixels->y(), density))
+                : osg::Vec2i(width, height);
+            SDLUtil::setVideoMode(window, size.x(), size.y(), Settings::video().mWindowMode, border);
             // So the size a renderer reads next is the one just asked for: a window system applies a
             // size or a mode when it gets round to it.
             SDL_SyncWindow(window);

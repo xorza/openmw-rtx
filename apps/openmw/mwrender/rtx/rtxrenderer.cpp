@@ -130,7 +130,7 @@ namespace MWRender
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run, const RunSetup& setup)
         : mRun(run != nullptr ? run->mRun : mPlayed)
         , mInterface(setup.mInterface)
-        , mWindow(setup.mHeadless)
+        , mWindow(setup.mHeadless, setup.mWindowPixels)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
         , mMirror(setup.mMirror)
@@ -222,6 +222,11 @@ namespace MWRender
         // `osgViewer` that slipped back in. A context that exists is one something is paying for.
         if (SDL_GL_GetCurrentContext() != nullptr)
             throw std::runtime_error("something initialised OpenGL under the ray tracing renderer");
+    }
+
+    Rtx::CardAddress RtxRenderer::getCardAddress() const
+    {
+        return mRenderer->getCardAddress();
     }
 
     // Out of line because the members it destroys are only forward declared in the header.

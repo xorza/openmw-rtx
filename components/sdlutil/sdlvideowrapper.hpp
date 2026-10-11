@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
 
-struct SDL_Window;
+#include <SDL3/SDL_video.h>
 
 namespace Settings
 {
@@ -19,10 +19,14 @@ namespace SDLUtil
     /// truncated fell a pixel short wherever the float did.
     int displayPixels(int points, float density);
 
+    /// False for a hidden, minimized or occluded window.
+    bool isWindowShown(SDL_WindowFlags flags);
+
     /// Puts `window` in `windowMode`: exclusive fullscreen at the display's desktop mode, borderless
-    /// fullscreen on the whole display, or a window of `width` by `height` pixels centred on its
-    /// display. Never another display mode: the frame's resolution is the renderer's, which scales
-    /// it to whatever the window is. What a new window and a changed setting both go through.
+    /// fullscreen on the whole display, or a window of `width` by `height` in the desktop's unit
+    /// (`SDL_GetWindowSize`'s) centred on its display. Never another display mode: the frame's
+    /// resolution is the renderer's, which scales it to whatever the window is. What a new window
+    /// and a changed setting both go through.
     void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder);
 }
 
