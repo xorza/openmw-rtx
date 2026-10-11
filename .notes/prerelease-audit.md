@@ -78,20 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 23. Reject a device, not the whole selection, on a failed query
-- **Audit**: VKDEV-1. PLAUSIBLE.
-- **Close first**: Confirm that `examine` runs for every device before `profileOf` reads the
-  version (`physicaldevice.cpp:289-321`). The audit read it so, and the failing driver is the open
-  point.
-- **Where**: `components/rtxvulkan/device/physicaldevice.cpp:164-198` (`examine`), `:289-321` (`select`).
-- **Problem**: One device that answers a query with an error throws `DeviceError` out of `select`, so
-  no device is chosen. `examine` also asks a device below 1.4 about image flags that 1.0 does not
-  define, which a validation run reports.
-- **Fix**: Read the API version first, and skip the other queries below `sApiVersion`. A failed query
-  becomes that candidate's `mObstacle`.
-- **Test**: A unit test in the style of `profileOf`: a candidate whose query fails is rejected, and
-  the next one is chosen.
-
 ### 24. Take the timeline value only after the submit succeeds
 - **Audit**: VKDEV-2. CONFIRMED.
 - **Where**: `components/rtxvulkan/device/commands.cpp:62-83`, `device/timeline.hpp:85`.
