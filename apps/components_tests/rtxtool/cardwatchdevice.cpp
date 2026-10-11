@@ -20,6 +20,9 @@ namespace RtxTool
 {
     namespace
     {
+        using RtxNvmlDeviceTest = Rtx::Testing::DeviceTest;
+        using RtxCardWatchDeviceTest = Rtx::Testing::DeviceTest;
+
         /// The card the renderer runs on, as the session hands it to the watch.
         Rtx::CardAddress rendererCard()
         {
@@ -44,7 +47,7 @@ namespace RtxTool
         /// **A skip and not a failure where no library answers**, on another vendor's card or a
         /// driver without it: the card's clock is instrumentation rather than a renderer. A library
         /// that loads and finds no card at the renderer's address is a failure.
-        TEST(RtxNvmlTest, theLibraryAnswersAClockAndNamesThisProcess)
+        TEST_F(RtxNvmlDeviceTest, theLibraryAnswersAClockAndNamesThisProcess)
         {
             const std::optional<Rtx::PciAddress> card = nvidiaCard();
             if (!card.has_value())
@@ -100,7 +103,7 @@ namespace RtxTool
         /// **The reading count is the whole claim for the clock.** Two samples printed as a range
         /// cannot be told from a card watched throughout, so what a watch has to prove is that it
         /// took more than two.
-        TEST(RtxCardWatchTest, aWatchSamplesAcrossTheWindowAndEveryWindowStartsFromNothing)
+        TEST_F(RtxCardWatchDeviceTest, aWatchSamplesAcrossTheWindowAndEveryWindowStartsFromNothing)
         {
             const std::optional<Rtx::PciAddress> card = nvidiaCard();
             if (!card.has_value())

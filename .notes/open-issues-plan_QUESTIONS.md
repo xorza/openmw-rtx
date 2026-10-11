@@ -33,6 +33,9 @@ surface has no test that runs without one.
 
 **Recommendation.** Option 1: it tests the real path, on the one machine that runs the GPU binary.
 
+**Whichever option.** The patch's test is a plain `TEST` in `rtx-gpu-tests`, which
+`RtxSourceTreeTest.everyTestIsInTheBinaryItsNeedsDecide` refuses: it must run over a device fixture.
+
 ## Item 5, done: a settings file from before the change
 
 **What is open.** Item 5 is committed without the one-time conversion that the plan's review added
