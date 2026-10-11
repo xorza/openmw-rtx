@@ -74,8 +74,9 @@ namespace Crash
         /// once where the system cannot tell (`Platform::SharedMemory::isOpenedElsewhere`).
         bool awaitMonitor(std::chrono::milliseconds patience) const;
 
-        /// Hands the monitor the game's log, `log` in UTF-8, or says it cannot: no page, or a path
-        /// longer than `sPathCapacity`. Once, from the thread that sets up the log.
+        /// Hands the monitor the game's log, `log` in UTF-8, or says it cannot: no page, a path
+        /// longer than `sPathCapacity`, or one handed over already. Once, from the thread that sets
+        /// up the log.
         bool setLogPath(std::string_view log) const;
 
         /// The log the game handed over, in UTF-8, or empty where it has handed none yet.

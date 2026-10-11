@@ -109,8 +109,9 @@ namespace Crash
     void endReport();
 
     /// Takes the table for a report the process does not outlive, `kind` for `reason`, once any
-    /// report in progress has ended, and refuses every request from then on. A second call keeps
-    /// the first's kind and reason. Not for a signal handler that may have interrupted a report.
+    /// report another thread has in progress has ended, and refuses every request from then on. A
+    /// report the calling thread has in progress is taken over. A second call keeps the first's kind
+    /// and reason. Not for a signal handler that may have interrupted a report.
     void finalReport(ReportKind kind, std::string_view reason);
 
     /// Whether a report is being written, or the process is ending on one. Read by the tests and by

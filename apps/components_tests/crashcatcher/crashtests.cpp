@@ -16,6 +16,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
@@ -266,11 +267,27 @@ namespace CrashTests
             if (mode == "paused-past-limit")
             {
                 // A wait the game chose, longer than the limit, and the rest of its frame after it,
-                // as `rearmed-after-quiet` times it.
+                // as `rearmed-after-quiet` times it. **Two pauses that overlap, on two threads, with
+                // a limit set while both stand**: the first to end leaves the watch off under the
+                // other, which outlasts the limit, and the limit set meanwhile holds after the last.
                 stall(std::chrono::milliseconds(0));
+                std::promise<void> paused;
+                std::thread other;
                 {
                     const Crash::HangPause waiting;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+                    other = std::thread([&paused] {
+                        const Crash::HangPause alsoWaiting;
+                        paused.set_value();
+                        std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+                    });
+                    paused.get_future().wait();
+                    Crash::setHangLimit(std::chrono::seconds(2));
+                }
+                other.join();
+                if (Crash::getHangLimit() != std::chrono::seconds(2))
+                {
+                    Log(Debug::Error) << "crash-tests lost the limit set during a pause";
+                    return 1;
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 stall(std::chrono::milliseconds(0));

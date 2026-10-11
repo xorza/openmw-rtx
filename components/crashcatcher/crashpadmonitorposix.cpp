@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
@@ -31,6 +32,15 @@ namespace Crash::Monitor
     {
         bool send(std::uint32_t id, std::intptr_t hold, int number)
         {
+            // **An id a process can have, or nothing sent**: as a `pid_t`, nought is the monitor's
+            // own process group and a number past the largest is negative, which `kill` reads as a
+            // group, or as every process of the user.
+            if (id == 0 || id > static_cast<std::uint32_t>(std::numeric_limits<pid_t>::max()))
+            {
+                errno = EINVAL;
+                return false;
+            }
+
 #if defined(__linux__) && defined(SYS_pidfd_send_signal)
             // No descriptor is a kernel older than 5.3, where nothing is sent rather than something
             // sent to whatever process has the id now.

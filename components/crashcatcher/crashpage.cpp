@@ -55,7 +55,9 @@ namespace Crash
     {
         bool writePath(std::uint32_t& length, char (&bytes)[sPathCapacity], const std::string_view path)
         {
-            if (path.size() > sPathCapacity)
+            // **Once**: a second write would change the bytes under a length the monitor may be
+            // reading them by.
+            if (path.size() > sPathCapacity || std::atomic_ref(length).load(std::memory_order_relaxed) != 0)
                 return false;
 
             std::memcpy(bytes, path.data(), path.size());

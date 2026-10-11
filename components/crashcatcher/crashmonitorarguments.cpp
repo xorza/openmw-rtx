@@ -1,9 +1,12 @@
 #include "crashmonitorarguments.hpp"
 
+#include <charconv>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <variant>
 
 #include <components/files/conversion.hpp>
@@ -84,7 +87,14 @@ namespace Crash
                 continue;
 
             if (const auto client = valueOf(argument, sClient))
-                read.mClient = static_cast<std::uint32_t>(std::strtoul(std::string(*client).c_str(), nullptr, 10));
+            {
+                // An id that does not read as a number to its end is no process at all, and not the
+                // number its first digits make.
+                std::uint32_t id = 0;
+                const std::from_chars_result parsed
+                    = std::from_chars(client->data(), client->data() + client->size(), id);
+                read.mClient = parsed.ec == std::errc() && parsed.ptr == client->data() + client->size() ? id : 0;
+            }
             else if (const auto notes = valueOf(argument, sNotes))
             {
                 // An address that does not read as a number to its end is no table at all.

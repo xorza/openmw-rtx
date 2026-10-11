@@ -68,30 +68,24 @@ namespace Crash
 
     /// How long without a heartbeat is a hang; nought, as it is until this is called, turns the
     /// check off, and a limit set again counts from then and not from the last heartbeat. The watch
-    /// begins at the first heartbeat, so a start that draws nothing for a while is no hang.
+    /// begins at the first heartbeat, so a start that draws nothing for a while is no hang. A limit
+    /// set while a `HangPause` stands takes effect as the last one ends.
     void setHangLimit(std::chrono::seconds limit);
 
-    /// What `setHangLimit` last set; nought where no catcher is installed.
+    /// What `setHangLimit` last set, whether or not a `HangPause` stands; nought where no catcher is
+    /// installed.
     std::chrono::seconds getHangLimit();
 
     /// A stretch the thread that draws spends drawing nothing by design — a wait for work it chose
-    /// to have whole before its next frame — and so no hang: the watch is off while one stands, and
-    /// counts afresh from its end.
+    /// to have whole before its next frame — and so no hang: the watch is off while any one stands,
+    /// on any thread, and counts afresh from the end of the last.
     class HangPause
     {
     public:
-        HangPause()
-            : mLimit(getHangLimit())
-        {
-            setHangLimit(std::chrono::seconds(0));
-        }
-
-        ~HangPause() { setHangLimit(mLimit); }
+        HangPause();
+        ~HangPause();
 
         HangPause(const HangPause&) = delete;
         HangPause& operator=(const HangPause&) = delete;
-
-    private:
-        const std::chrono::seconds mLimit;
     };
 }

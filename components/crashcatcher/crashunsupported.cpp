@@ -32,6 +32,10 @@ namespace Crash
         return std::chrono::seconds(0);
     }
 
+    HangPause::HangPause() = default;
+
+    HangPause::~HangPause() = default;
+
     void heartbeat() {}
 
     void annotate(std::string_view, std::string_view) {}

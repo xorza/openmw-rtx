@@ -90,9 +90,26 @@ namespace Crash
             return nullptr;
         }
 
+        /// How much of `text` is whole UTF-8 characters: all of it, but for a last character its end
+        /// cut short, as a cut to a note's room or `std::format_to_n`'s leaves one.
+        std::size_t wholeCharacters(std::string_view text)
+        {
+            for (std::size_t back = 1; back <= std::min<std::size_t>(4, text.size()); ++back)
+            {
+                const auto byte = static_cast<unsigned char>(text[text.size() - back]);
+                if ((byte & 0xC0) == 0x80)
+                    continue;
+                const std::size_t needs = byte >= 0xF0 ? 4 : byte >= 0xE0 ? 3 : byte >= 0xC0 ? 2 : 1;
+                return needs > back ? text.size() - back : text.size();
+            }
+            return text.size();
+        }
+
         std::size_t append(char (&into)[sNoteCapacity], std::size_t at, std::string_view text)
         {
-            const std::size_t length = std::min(text.size(), sNoteCapacity - 1 - at);
+            // **Cut before a character and not inside one**: the summary that quotes a note goes
+            // into the log and into an address, where half a UTF-8 character reads as none.
+            const std::size_t length = wholeCharacters(text.substr(0, std::min(text.size(), sNoteCapacity - 1 - at)));
             std::copy_n(text.data(), length, into + at);
             return at + length;
         }
@@ -190,12 +207,20 @@ namespace Crash
     void finalReport(ReportKind kind, std::string_view reason)
     {
         // Waited for rather than refused: the report in progress is another thread's and ends by
-        // itself, and this one is the last the process writes.
-        for (std::uint32_t idle = Idle; !sGate.compare_exchange_weak(idle, Ending, std::memory_order_acq_rel);
-             idle = Idle)
+        // itself, and this one is the last the process writes. **Taken over where it is this
+        // thread's own**, which nothing would end while this thread waits: a fatal error on the
+        // thread a report is being written from.
+        const std::uint64_t self = Platform::Process::currentThreadId();
+        for (std::uint32_t found = Idle; !sGate.compare_exchange_weak(found, Ending, std::memory_order_acq_rel);
+             found = Idle)
         {
-            if (idle == Ending)
+            if (found == Ending)
                 return;
+            if (sReporter.load(std::memory_order_acquire) == self)
+            {
+                sGate.store(Ending, std::memory_order_release);
+                break;
+            }
             std::this_thread::yield();
         }
 

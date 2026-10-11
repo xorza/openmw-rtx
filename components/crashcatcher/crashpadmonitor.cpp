@@ -73,15 +73,32 @@ namespace Crash
             {
             }
 
-            /// The game's log, which it hands over through the page once it knows it; empty before.
-            std::filesystem::path getLog() const { return Files::pathFromUnicodeString(mPage.getLogPath()); }
+            /// The game's log, which it hands over through the page once it knows it; empty before,
+            /// and where the page holds no path (`pathOf`).
+            std::filesystem::path getLog() const { return pathOf(mPage.getLogPath()); }
 
             /// Where the session's package goes: the folder the game handed over, or beside the
-            /// dumps where it handed none.
+            /// dumps where it handed none or the page holds no path.
             std::filesystem::path getReportFolder() const
             {
-                const std::string named = mPage.getReportPath();
-                return named.empty() ? mDatabase : Files::pathFromUnicodeString(named);
+                const std::filesystem::path named = pathOf(mPage.getReportPath());
+                return named.empty() ? mDatabase : named;
+            }
+
+            /// `text`, bytes the game wrote into the page, as a path, or empty where the system reads
+            /// it as none: **a page a crash wrote over is the game's memory like any other**, and
+            /// Windows refuses bytes that are no UTF-8 with a throw, which on Crashpad's thread ended
+            /// the monitor with the dump unwritten.
+            static std::filesystem::path pathOf(const std::string& text)
+            {
+                try
+                {
+                    return Files::pathFromUnicodeString(text);
+                }
+                catch (const std::system_error&)
+                {
+                    return {};
+                }
             }
 
             SharedPage mPage;
@@ -307,8 +324,66 @@ namespace Crash
             std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> ProduceStreamData(
                 crashpad::ProcessSnapshot* snapshot) override
             {
+                crashpad::UUID report;
+                snapshot->ReportID(&report);
+                const std::filesystem::path dump
+                    = mMonitor.mDatabase / Monitor::dumpFolder() / (report.ToString() + ".dmp");
+
+                // **The dump is written whatever the summary comes to**: this runs inside Crashpad's
+                // handler, which a throw ends with the dump unwritten and the game left waiting on
+                // it, and the monitor that reports a crash must not become one. What went wrong
+                // stands where the summary would have.
                 CrashFacts facts;
-                const crashpad::ExceptionSnapshot* const exception = snapshot->Exception();
+                std::string text;
+                std::string failure;
+                try
+                {
+                    text = describe(*snapshot, dump, facts);
+                }
+                catch (const std::exception& thrown)
+                {
+                    failure = thrown.what();
+                }
+                catch (...)
+                {
+                    failure = "an exception that is no std::exception";
+                }
+
+                // A report summarised in part is not left to an issue filled in with the report
+                // before it, and the public reads that it failed and not why, since an error's
+                // message names whatever path it was handed.
+                constexpr std::string_view unsummarised = "Crash: the monitor could not summarise this report";
+                if (!failure.empty())
+                {
+                    text = std::string(unsummarised) + ": " + failure;
+                    try
+                    {
+                        appendToLog(mMonitor, { text });
+                    }
+                    catch (...)
+                    {
+                        // The dump carries the line, which is where it is read once the log is not.
+                    }
+                    text += '\n';
+                }
+
+                {
+                    const std::lock_guard lock(mMonitor.mReportMutex);
+                    mMonitor.mDumps.push_back(dump);
+                    mMonitor.mCrashed = mMonitor.mCrashed || facts.mNotes.mKind == ReportKind::Crash;
+                    if (!failure.empty())
+                        mMonitor.mLastReport = LastReport{ std::string(unsummarised), { std::string(unsummarised) } };
+                }
+                return std::make_unique<TextStream>(std::move(text));
+            }
+
+        private:
+            /// Fills `facts` from `process`, appends the player's summary to the log, keeps the
+            /// public one for the issue, and answers the summary the dump carries.
+            std::string describe(
+                const crashpad::ProcessSnapshot& process, const std::filesystem::path& dump, CrashFacts& facts)
+            {
+                const crashpad::ExceptionSnapshot* const exception = process.Exception();
                 const std::uint64_t asked = exception != nullptr ? exception->ThreadID() : 0;
                 facts.mStalledFor = mMonitor.mStalledFor.load();
                 if (exception != nullptr)
@@ -317,7 +392,7 @@ namespace Crash
                 // The exception says what the dump is, and the table only what a dump asked for is:
                 // `describeException` names every fault and nothing the game asked for.
                 std::vector<std::byte> table(noteTable().size());
-                const crashpad::ProcessMemory* const memory = snapshot->Memory();
+                const crashpad::ProcessMemory* const memory = process.Memory();
                 const bool read = memory != nullptr && mMonitor.mNotes != 0
                     && memory->Read(mMonitor.mNotes, table.size(), table.data());
                 Heartbeat* const page = mMonitor.mPage.get();
@@ -329,23 +404,19 @@ namespace Crash
                 // exception's is the thread's that took the monitor's request.
                 const std::uint64_t thread = facts.mNotes.mThread;
                 const crashpad::CPUContext* const context
-                    = exception != nullptr && thread == asked ? exception->Context() : contextOf(*snapshot, thread);
+                    = exception != nullptr && thread == asked ? exception->Context() : contextOf(process, thread);
                 if (context != nullptr)
                 {
-                    facts.mWhere = locate(snapshot->Modules(), context->InstructionPointer());
-                    scanStack(*snapshot, thread, *context, facts.mStack);
+                    facts.mWhere = locate(process.Modules(), context->InstructionPointer());
+                    scanStack(process, thread, *context, facts.mStack);
                 }
 
-                for (const auto& [key, value] : snapshot->AnnotationsSimpleMap())
+                for (const auto& [key, value] : process.AnnotationsSimpleMap())
                     facts.mAnnotations.emplace_back(key, value);
-                for (const crashpad::ModuleSnapshot* module : snapshot->Modules())
+                for (const crashpad::ModuleSnapshot* module : process.Modules())
                     for (const auto& [key, value] : module->AnnotationsSimpleMap())
                         facts.mAnnotations.emplace_back(key, value);
 
-                crashpad::UUID report;
-                snapshot->ReportID(&report);
-                const std::filesystem::path dump
-                    = mMonitor.mDatabase / Monitor::dumpFolder() / (report.ToString() + ".dmp");
                 facts.mDump = Files::pathToUnicodeString(dump);
 
                 std::vector<std::string> lines;
@@ -360,20 +431,18 @@ namespace Crash
                 std::vector<std::string> shared;
                 summarise(facts, shared, anybody);
 
+                LastReport last{ title(facts, anybody), std::move(shared) };
                 {
                     const std::lock_guard lock(mMonitor.mReportMutex);
-                    mMonitor.mDumps.push_back(dump);
-                    mMonitor.mCrashed = mMonitor.mCrashed || facts.mNotes.mKind == ReportKind::Crash;
-                    mMonitor.mLastReport = { title(facts, anybody), std::move(shared) };
+                    mMonitor.mLastReport = std::move(last);
                 }
 
                 std::string text;
                 for (const std::string& line : lines)
                     text += line + '\n';
-                return std::make_unique<TextStream>(std::move(text));
+                return text;
             }
 
-        private:
             MonitorState& mMonitor;
         };
 
