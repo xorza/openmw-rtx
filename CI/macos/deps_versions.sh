@@ -1,4 +1,4 @@
-VCPKG_TAG='2026-09-17'
+VCPKG_TAG='2026-10-10'
 QT_VER='6.11.2'
 
 # What the build targets, and so what a library built for it here targets too: a loader built for a
