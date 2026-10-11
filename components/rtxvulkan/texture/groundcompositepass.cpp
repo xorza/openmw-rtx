@@ -104,6 +104,6 @@ namespace Rtx
         canvas.transition(commands, Use::sShaderSample, Use::sComputeRead);
         handOver(commands, Use::sBufferCopyRead, Use::sBufferComputeWrite);
         // Opaque: the bake stores an alpha of one in both images, and the ground is read as a solid.
-        mEncode.record(commands, canvas, blocks, target, false);
+        mEncode.record(commands, canvas, blocks, 0, target, false);
     }
 }

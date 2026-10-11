@@ -41,6 +41,11 @@ namespace Rtx
 
     /// How many levels a chain from `width` by `height` down to one texel has: what
     /// `MipPyramid::layOutTo1x1` lays out, for an image made to hold one.
+    /// The largest side of a file whose completed chain stays loose (`TextureData::encodesChain`):
+    /// the largest of the hundred and eighty-seven single-level files Morrowind ships, so no
+    /// vanilla picture moves.
+    inline constexpr std::uint32_t sLargestLooseChainSide = 512;
+
     inline std::uint32_t levelsTo1x1(std::uint32_t width, std::uint32_t height)
     {
         return static_cast<std::uint32_t>(std::bit_width(std::max(width, height)));
@@ -221,12 +226,19 @@ namespace Rtx
         /// that last level is already the texture's own mean to within what a ray can tell —
         /// and rebuilding those would decompress the whole game to gain nothing. A texel has no
         /// level below it, and a level with no extent has no texel to read. **Completed in loose
-        /// texels** and not compressed again, because a level in another format is a level read
-        /// differently: `Bc7EncodePass` writes every level of an image, the file's own among them,
-        /// and its mode 6 shares one low bit across an endpoint's channels, which a decoded BC1 or
-        /// BC3 texel does not survive — a vanilla picture moved for a renderer's bookkeeping. The
-        /// largest of these files is five hundred and twelve square, a chain of 1.4 MB.
+        /// texels** up to `sLargestLooseChainSide`, and not compressed again, because a level in
+        /// another format is a level read differently: `Bc7EncodePass` writes every level of an
+        /// image, the file's own among them, and its mode 6 shares one low bit across an endpoint's
+        /// channels, which a decoded BC1 or BC3 texel does not survive — a vanilla picture moved for
+        /// a renderer's bookkeeping. Past that side, `encodesChain` says.
         bool wantsCompletedChain() const;
+
+        /// Whether a chain completed for this file is encoded to BC7 rather than kept loose: a side
+        /// past `sLargestLooseChainSide`, where no vanilla file stands. A replacer's 4096-square BC1
+        /// with no levels is 8 MB on disk, 89 MB as a loose chain and 22 MB as a BC7 one, and the
+        /// budget cannot stand a completed chain from a coarser level. Its own level moves by the
+        /// low bit the comment above names.
+        bool encodesChain() const;
 
         /// Whether every level lies inside `mBytes` at its format's layout: what `describeImage`
         /// guarantees and a reader of the bytes asserts rather than clamps, so a description short
