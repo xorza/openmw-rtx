@@ -35,7 +35,7 @@ namespace Rtx
         /// submit of the device's pool like any other, so it signals the timeline and carries what
         /// was deferred ahead of it — a submit of its own that took a timeline value would let the
         /// graveyard free what a deferred batch names before it ran.
-        Presenter(const Device& device, const Surface& surface, SDL_Window* window, SDLUtil::VSyncMode verticalSync);
+        Presenter(const Device& device, Surface& surface, SDL_Window* window, SDLUtil::VSyncMode verticalSync);
         ~Presenter();
 
         /// Blits `frame`, in `VK_IMAGE_LAYOUT_GENERAL` and left there, onto the next swapchain
@@ -57,16 +57,24 @@ namespace Rtx
             hand(std::move(*taken), frame);
         }
 
-        /// Whether the swapchain has to be remade to show `extent`. Split from `rebuild` because a
-        /// rebuild frees the command buffers a handed-over batch may be sitting beside, so the
-        /// caller has to drain first, and that drain costs more than the rebuild it guards. Not
-        /// const, because a hidden window takes no swapchain and the staleness carries the rebuild
-        /// to the frame the window comes back on.
+        /// Whether the swapchain has to be remade to show `extent`, or the surface with it where the
+        /// window system lost it. Split from `rebuild` because a rebuild frees the command buffers a
+        /// handed-over batch may be sitting beside, so the caller has to drain first, and that drain
+        /// costs more than the rebuild it guards. Not const, because a hidden window takes no
+        /// swapchain and the staleness carries the rebuild to the frame the window comes back on.
         bool wantsResize(VkExtent2D extent);
 
-        /// Remakes the swapchain at `extent`, unconditionally. Waits for everything in flight, so
-        /// it is a stall by construction — ask `wantsResize` first.
+        /// Remakes the swapchain at `extent`, unconditionally, and the surface first where it was
+        /// lost. Waits for everything in flight, so it is a stall by construction — ask
+        /// `wantsResize` first.
         void rebuild(VkExtent2D extent);
+
+        /// What a lost surface does, wherever the swapchain met it: no image is taken until
+        /// `rebuild` made the surface again. A surface lost again before one present showed on it
+        /// ends the process through `deviceFailed`, since a driver that loses each new surface would
+        /// hold the game in a rebuild every frame. Public for a test, which cannot lose a surface for
+        /// real.
+        void surfaceLost();
 
         /// Says how the presented image should meet the refresh, rebuilding only where that changes
         /// the mode the surface will actually run in, and answers whether it rebuilt. A rebuild frees
@@ -76,7 +84,8 @@ namespace Rtx
         template <class BeforeRebuild>
         bool setVerticalSync(SDLUtil::VSyncMode mode, BeforeRebuild&& beforeRebuild)
         {
-            if (!mSwapchain.setVerticalSync(mode))
+            // A lost surface takes the setting with the rebuild that makes it again.
+            if (!mSwapchain.setVerticalSync(mode) || mLost)
                 return false;
 
             beforeRebuild();
@@ -114,6 +123,10 @@ namespace Rtx
         /// everything in flight first.
         void remake(VkExtent2D extent);
 
+        /// Makes the surface again, and the swapchain and the sync objects on it at `extent`.
+        /// Waits for everything in flight first.
+        void remakeSurface(VkExtent2D extent);
+
         const Device& mDevice;
 
         /// The extent the swapchain was last made for, as the window asked and not as the surface
@@ -121,8 +134,9 @@ namespace Rtx
         /// that, every frame the two differed waited the device idle and made the swapchain again.
         VkExtent2D mAsked;
 
-        /// What the swapchain is made on: the renderer's, which outlives this.
-        const Surface& mSurface;
+        /// What the swapchain is made on: the renderer's, which outlives this, and which a rebuild
+        /// makes again where it was lost.
+        Surface& mSurface;
         Swapchain mSwapchain;
 
         /// What an acquire signals and the blit behind it waits.
@@ -174,5 +188,11 @@ namespace Rtx
         /// present can fail at a size nothing asked to change, and a resize that only rebuilt when
         /// the extent differed would leave that one unrecoverable.
         bool mStale = false;
+
+        /// Whether the surface is lost: the one record of it, which `rebuild` clears.
+        bool mLost = false;
+
+        /// Whether the surface was made again and no present showed on it yet.
+        bool mRemade = false;
     };
 }

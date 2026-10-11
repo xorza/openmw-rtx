@@ -8,6 +8,7 @@
 #include <osg/Vec2i>
 #include <volk.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/misc/presentation.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -33,7 +34,7 @@ namespace Rtx
     }
 
     Presenter::Presenter(
-        const Device& device, const Surface& surface, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
+        const Device& device, Surface& surface, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
         : mDevice(device)
         , mAsked(drawableSize(window))
         , mSurface(surface)
@@ -113,27 +114,64 @@ namespace Rtx
 
     bool Presenter::wantsResize(const VkExtent2D extent)
     {
+        // Whatever the extent: a lost surface is made again by the rebuild alone.
+        if (mLost)
+            return true;
         if (!mStale && extent.width == mAsked.width && extent.height == mAsked.height)
             return false;
 
-        // A window that is not on screen is left alone. Its surface reports no extent, a
-        // swapchain of none is invalid usage, and rebuilding once a frame against a surface that
-        // will not take one is a rebuild a minimised game would pay for as long as it stayed
-        // minimised. The staleness stands, so the window coming back rebuilds then.
-        if (mSwapchain.surfaceIsHidden())
+        switch (mSwapchain.getSurfaceState())
         {
-            mStale = true;
-            return false;
+            case SurfaceState::Shown:
+                return true;
+            case SurfaceState::Hidden:
+                // A window that is not on screen is left alone. Its surface reports no extent, a
+                // swapchain of none is invalid usage, and rebuilding once a frame against a surface
+                // that will not take one is a rebuild a minimised game would pay for as long as it
+                // stayed minimised. The staleness stands, so the window coming back rebuilds then.
+                mStale = true;
+                return false;
+            case SurfaceState::Lost:
+                surfaceLost();
+                return true;
         }
-
         return true;
     }
 
     void Presenter::rebuild(const VkExtent2D extent)
     {
         mAsked = extent;
-        remake(extent);
+        if (mLost)
+            remakeSurface(extent);
+        else
+            remake(extent);
         mStale = false;
+    }
+
+    void Presenter::surfaceLost()
+    {
+        if (mRemade)
+            deviceFailed("the window's surface was lost again before a frame was shown on the one made after it");
+        mLost = true;
+    }
+
+    void Presenter::remakeSurface(const VkExtent2D extent)
+    {
+        // The swapchain goes before its surface, which must outlive it, and no old swapchain is
+        // handed to the new one, which cannot cross surfaces.
+        mDevice.waitIdle();
+        releaseImageSync();
+        mSwapchain.release();
+        mSurface.remake();
+        if (!mSurface.supports(mDevice.getPhysicalDevice().getHandle(), mDevice.getQueueFamily()))
+            deviceFailed("the device's queue does not present to the window's surface made again");
+        Log(Debug::Warning) << "The window's surface was lost and was made again";
+
+        mLost = false;
+        mRemade = true;
+        if (!mSwapchain.renew(extent))
+            surfaceLost();
+        makeImageSync();
     }
 
     void Presenter::remake(const VkExtent2D extent)
@@ -143,12 +181,16 @@ namespace Rtx
         // and destroying a swapchain with a present still reading one is invalid usage.
         mDevice.waitIdle();
         releaseImageSync();
-        mSwapchain.recreate(extent);
+        if (!mSwapchain.recreate(extent))
+            surfaceLost();
         makeImageSync();
     }
 
     std::optional<Presenter::Taken> Presenter::take()
     {
+        if (mLost)
+            return std::nullopt;
+
         // The window was hidden when the swapchain was last made, and the staleness carries the
         // rebuild to the frame it comes back on.
         if (!mSwapchain.isMade())
@@ -174,6 +216,9 @@ namespace Rtx
                 mStale = true;
                 return std::nullopt;
             case Acquired::NotYet:
+                return std::nullopt;
+            case Acquired::Lost:
+                surfaceLost();
                 return std::nullopt;
         }
         mAcquisition = (mAcquisition + 1) % static_cast<std::uint32_t>(mAcquiring.size());
@@ -279,8 +324,18 @@ namespace Rtx
         acquisition.mBlit = blitted;
         image.mBlitOn = blitted;
 
-        if (!mSwapchain.present(
-                image.mRendered.get(), index, image.mPresented.has_value() ? &*image.mPresented : nullptr))
-            mStale = true;
+        switch (mSwapchain.present(
+            image.mRendered.get(), index, image.mPresented.has_value() ? &*image.mPresented : nullptr))
+        {
+            case Presented::Shown:
+                mRemade = false;
+                break;
+            case Presented::Stale:
+                mStale = true;
+                break;
+            case Presented::Lost:
+                surfaceLost();
+                break;
+        }
     }
 }
