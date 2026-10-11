@@ -62,19 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 18. Size the cursor by the factor the video driver scales it by
-- **Audit**: GAME-2. CONFIRMED in SDL 3.4.16's source. The SDL3 port is in the Accepted diff.
-- **Where**: `components/sdlutil/sdlcursormanager.cpp:38`, `:131-151`,
-  `apps/openmw/mwgui/windowmanagerimp.cpp:133-140`, `:2519-2531`.
-- **Problem**: `createCursor` makes the base image `size / displayScale` and adds the full image as an
-  alternate. X11 uses the base image as it is. On an X11 desktop at 150 %, the GUI is at 1.5 and the
-  cursor is at 1/1.5 of its size.
-- **Fix**: One `SDLUtil` function gives the divisor: the pixel density on Wayland and Cocoa, the
-  content scale on Windows (the code sets `SDL_HINT_MOUSE_DPI_SCALE_CURSORS`), and 1 on X11. The
-  platform choice stays inside that function.
-- **Test**: `components_tests` on that function: X11 at content scale 1.5 gives 1, Wayland at
-  density 1.5 gives 1.5, and Windows at content scale 1.5 gives 1.5.
-
 ### 20. Stop the window size drift on a mixed-scale Wayland desktop
 - **Audit**: GAME-1. PLAUSIBLE: traced through SDL's Wayland backend, not run.
 - **Close first**: Run the game windowed on two outputs at scales 1.0 and 2.0, and start it twice.
