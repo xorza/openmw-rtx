@@ -204,6 +204,7 @@ namespace RtxTool
             engine.setHost(session);
 
             engine.go();
+            session.endedEarly();
         }
 
         const SessionResult result = session.describe();

@@ -1,5 +1,6 @@
 #include "session.hpp"
 
+#include <exception>
 #include <format>
 #include <memory>
 #include <optional>
@@ -53,6 +54,19 @@ namespace RtxTool
         if (mRequest.mSaves.empty())
             return std::nullopt;
         return mRequest.mSaves;
+    }
+
+    void Session::endedEarly()
+    {
+        if (mDone || !mRequest.mQuitAtEnd)
+            return;
+
+        // The engine has stopped, so nothing is asked of it: the record is abandoned as far as the
+        // run reached, which writes what was measured and fails the run.
+        Log(Debug::Error) << "Ray tracing session: the game ended during stop " << (mAt + 1) << " of "
+                          << mRequest.mStops.size() << ", before the run's last";
+        mRecord.abandon(mRequest);
+        mDone = true;
     }
 
     SessionResult Session::describe() const
@@ -215,9 +229,20 @@ namespace RtxTool
         if (!mRequest.mPlayed)
             Stager::closeMenus();
 
+        // **A stop that throws as it begins is the run's failure, said once**: `Engine::frame`
+        // catches what leaves here and goes on, and the stop began again on every frame after —
+        // with `--perf-control` and nothing reading it, thirty seconds a frame, for ever.
         if (!mStarted)
         {
-            beginStop();
+            try
+            {
+                beginStop();
+            }
+            catch (const std::exception& failure)
+            {
+                abandon(
+                    std::format("stop {} of {} could not begin: {}", mAt + 1, mRequest.mStops.size(), failure.what()));
+            }
             return;
         }
 

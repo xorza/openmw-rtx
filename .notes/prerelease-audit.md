@@ -78,27 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 27. Make a failed or cut-short harness run fail
-- **Audit**: HARNESS-2, HARNESS-4, HARNESS-5, HARNESS-7. CONFIRMED.
-- **Where**: `apps/rtxtool/hosted.cpp:207-224`, `session.cpp:241-251`, `:469-490`,
-  `stopwriter.cpp:503-521`, `measurer.cpp:85-86`, `instruments/frametimes.cpp:283-305`,
-  `main.cpp:786`, `model/runrecord.cpp:47-88`.
-- **Problem**:
-  - A `bench` whose window closes before the last stop exits 0 with no `--json`, no hashes and no
-    `--against` comparison.
-  - `--doll` with an id that is not an NPC throws out of `Session::frame` and ends the run with no
-    report.
-  - `Engine::frame` catches an exception from `beginStop`, and the stop begins again every frame.
-    `--perf-control` with no reader waits 30 s in the frame each time, with no end.
-  - `hashes.csv` and `--json` from the last run stay until this run finishes, so a run that dies
-    leaves another build's hashes beside its pictures.
-- **Fix**: A session that ends with stops left calls `RunRecord::abandon`. `--doll` looks the id up
-  in `ESM::NPC` first, and `fail()`s when it is not there. `Session::beforeFrame` catches and
-  abandons. `PerfControl::open` runs before the engine starts. Remove `hashes.csv` and the `--json`
-  path next to `clearPictures`.
-- **Test**: `components_tests/rtxtool/runrecord.cpp`: a three-stop record with one place, described
-  without `finish`, has a non-zero status. The `clearPictures` test also removes `hashes.csv`.
-
 ### 28. Make the harness's names and numbers safe
 - **Audit**: HARNESS-3, HARNESS-6, HARNESS-9. CONFIRMED.
 - **Where**: `apps/rtxtool/run.cpp:389-390`, `instruments/framehashes.cpp:212-213`, `:277-287`,
