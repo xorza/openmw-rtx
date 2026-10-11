@@ -1,5 +1,6 @@
 #include <components/sdlutil/sdlinputwrapper.hpp>
 
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -22,11 +23,15 @@ namespace SDLUtil
         };
 
         /// What the window listener was told, in order.
-        struct Visibility final : WindowListener
+        struct Told final : WindowListener
         {
             void windowVisibilityChange(bool visible) override { mTold.push_back(visible); }
+            void windowSized(int width, int height) override { mSized.emplace_back(width, height); }
+            void windowResized(int x, int y) override { mResized.emplace_back(x, y); }
 
             std::vector<bool> mTold;
+            std::vector<std::pair<int, int>> mSized;
+            std::vector<std::pair<int, int>> mResized;
         };
 
         /// SDL's video on its offscreen driver, which needs no display.
@@ -65,7 +70,7 @@ namespace SDLUtil
             ASSERT_NE(video.mWindow, nullptr) << SDL_GetError();
 
             NoGraphics graphics;
-            Visibility listener;
+            Told listener;
             InputWrapper input(video.mWindow, graphics, false);
             input.setWindowEventCallback(&listener);
 
@@ -92,6 +97,30 @@ namespace SDLUtil
             ASSERT_TRUE(SDL_ShowWindow(video.mWindow)) << SDL_GetError();
             input.capture(true);
             EXPECT_EQ(listener.mTold, (std::vector<bool>{ false, true }));
+        }
+
+        /// **A resize is told twice, once in each unit**: the window's size in the desktop's unit,
+        /// which a windowed game keeps, and its drawable in pixels, which the layout follows. On the
+        /// offscreen driver a point is a pixel, so both are the size asked for.
+        TEST(SDLUtilInputWrapperTest, aResizeIsToldInTheDesktopsUnitAndInPixels)
+        {
+            OffscreenVideo video;
+            ASSERT_TRUE(video.mStarted) << SDL_GetError();
+            video.mWindow = SDL_CreateWindow("input", 64, 32, 0);
+            ASSERT_NE(video.mWindow, nullptr) << SDL_GetError();
+
+            NoGraphics graphics;
+            Told listener;
+            InputWrapper input(video.mWindow, graphics, false);
+            input.setWindowEventCallback(&listener);
+            input.capture(true);
+            listener.mSized.clear();
+            listener.mResized.clear();
+
+            ASSERT_TRUE(SDL_SetWindowSize(video.mWindow, 100, 50)) << SDL_GetError();
+            input.capture(true);
+            EXPECT_EQ(listener.mSized, (std::vector<std::pair<int, int>>{ { 100, 50 } }));
+            EXPECT_EQ(listener.mResized, (std::vector<std::pair<int, int>>{ { 100, 50 } }));
         }
     }
 }

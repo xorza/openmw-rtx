@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 
 #include <SDL3/SDL_video.h>
 #include <osg/Vec2i>
@@ -27,9 +28,9 @@ namespace MWRender
     class RtxWindow
     {
     public:
-        /// Makes the window from the video settings; `hidden` is a headless run, the same window
-        /// with nobody watching. Throws where SDL refuses.
-        explicit RtxWindow(bool hidden);
+        /// Makes the window from the video settings, or at `pixels` where a run states them; `hidden`
+        /// is a headless run, the same window with nobody watching. Throws where SDL refuses.
+        RtxWindow(bool hidden, std::optional<osg::Vec2i> pixels);
 
         SDL_Window* get() const { return mWindow.get(); }
 

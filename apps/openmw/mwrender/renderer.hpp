@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -579,10 +580,11 @@ namespace MWRender
     std::string describeStartFailure(RendererKind kind, std::string_view reason);
 
     /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
-    /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Hidden,
-    /// because a mode is applied once a window exists: the display's scale, which a size in pixels
-    /// needs, is only known then. `surfaceFlag` names what is drawn into the surface:
-    /// `SDL_WINDOW_OPENGL` for the rasterizer.
-    SDL_Window* openWindow(SDL_WindowFlags surfaceFlag);
+    /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Windowed, it
+    /// is `[Video] window width/height` in the desktop's unit, or `pixels` where a run states its
+    /// window in pixels. Hidden, because a mode is applied once a window exists: the window's
+    /// density, which a size in pixels needs, is only known then. `surfaceFlag` names what is drawn
+    /// into the surface: `SDL_WINDOW_OPENGL` for the rasterizer.
+    SDL_Window* openWindow(SDL_WindowFlags surfaceFlag, std::optional<osg::Vec2i> pixels);
 
 }

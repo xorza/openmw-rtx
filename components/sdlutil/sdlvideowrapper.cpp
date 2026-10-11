@@ -80,8 +80,7 @@ namespace SDLUtil
         }
         else
         {
-            const float density = SDL_GetWindowPixelDensity(window);
-            SDL_SetWindowSize(window, windowPoints(width, density), windowPoints(height, density));
+            SDL_SetWindowSize(window, width, height);
             SDL_SetWindowBordered(window, windowBorder);
 
             centerWindow(window);

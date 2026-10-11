@@ -32,3 +32,34 @@ surface has no test that runs without one.
 3. **No automatic test.** Commit the patch without its test, and check the path once by hand.
 
 **Recommendation.** Option 1: it tests the real path, on the one machine that runs the GPU binary.
+
+## Item 5, done: a settings file from before the change
+
+**What is open.** Item 5 is committed without the one-time conversion that the plan's review added
+to Decision 2. Nothing is blocked: the game behaves as Decision 2 accepted.
+
+**Why.** The settings migration runs when the settings load, before SDL starts, so it cannot read a
+display's density. `openWindow` has the density but no word of which file the size came from. A
+conversion needs a channel between the two, and none exists.
+
+**Options.**
+
+1. **Leave it (recommended).** A file from the fork before this change holds pixels, and on a
+   scaled Wayland or macOS desktop its first start opens a window larger by the scale; the
+   compositor limits it to the display, and the size the player then leaves is stored right.
+   Decision 2 accepted this.
+2. **A migration flag.** The migration marks a fork file that holds a window size and lacks a new
+   marker, through a declared `[Video]` setting that `openWindow` reads once: it divides the size by
+   the density of the desktop mode on `[Video] screen`'s display, and clears the flag. Cost: a
+   setting that exists for one start, in the defaults, the docs and `rtxsupport.cpp`'s list.
+
+**Still to run by hand.** The plan's check on two displays at different scales needs the internal
+eDP enabled next to the G9 (`kscreen-doctor output.eDP-1.enable`), which changes the desktop and
+waits for the user's approval: start windowed on each display three times, and the stored size must
+not change.
+
+## Item 4, done: the check in the real game
+
+`components-tests` covers the rule. The check in the game is left to the user: minimize
+`./omw game` through KWin and read `nvidia-smi --query-gpu=utilization.gpu --format=csv -l 1`; the
+use must fall to the desktop's own, and come back on restore.
