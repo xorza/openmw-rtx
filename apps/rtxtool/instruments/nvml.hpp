@@ -42,6 +42,10 @@ namespace RtxTool
 
         bool isOpen() const { return mDevice != nullptr; }
 
+        /// Whether the driver's library loaded, which a driver may ship without, whether or not it
+        /// then opened the card.
+        bool isLoaded() const { return mLibrary.isOpen(); }
+
         /// Why the card cannot be asked, or empty where it can.
         std::string_view describeAbsence() const { return mAbsence; }
 

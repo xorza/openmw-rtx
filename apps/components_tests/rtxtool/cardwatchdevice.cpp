@@ -36,12 +36,6 @@ namespace RtxTool
             return card.mVendor == 0x10de ? card.mPci : std::nullopt;
         }
 
-        /// Whether the driver's library loaded at all, which a driver may ship without.
-        bool loaded(const Nvml& nvml)
-        {
-            return nvml.isOpen() || nvml.describeAbsence() != "the driver's management library did not load";
-        }
-
         /// What the driver's library answers for the renderer's card, opened at its address.
         ///
         /// **A skip and not a failure where no library answers**, on another vendor's card or a
@@ -53,7 +47,7 @@ namespace RtxTool
             if (!card.has_value())
                 GTEST_SKIP() << "the renderer's card is no NVIDIA card with an address";
             Nvml nvml(*card);
-            if (!loaded(nvml))
+            if (!nvml.isLoaded())
                 GTEST_SKIP() << "no driver library on this machine: " << nvml.describeAbsence();
             ASSERT_TRUE(nvml.isOpen()) << nvml.describeAbsence();
 
@@ -109,7 +103,7 @@ namespace RtxTool
             if (!card.has_value())
                 GTEST_SKIP() << "the renderer's card is no NVIDIA card with an address";
             const Nvml probe(*card);
-            if (!loaded(probe))
+            if (!probe.isLoaded())
                 GTEST_SKIP() << "no driver library on this machine";
             const bool sampled = probe.hasSamples();
 
