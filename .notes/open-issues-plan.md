@@ -71,6 +71,9 @@ The user took these calls on 2026-10-11. Each item that a decision changes says 
 
 **Entry:** "A lost window surface ends the game." **Upstream:** no.
 
+**Blocked:** the test's surface cannot be made without a display. See
+`.notes/open-issues-plan_QUESTIONS.md`, item 3. The code is in `.notes/open-issues-plan_item3.patch`.
+
 **Cause.** `Swapchain::checkPresentable` (`components/rtxvulkan/present/swapchain.cpp`) sends
 `VK_ERROR_SURFACE_LOST_KHR` to `deviceFailed`. `Surface` makes its handle once, in its constructor,
 and nothing makes it again.
