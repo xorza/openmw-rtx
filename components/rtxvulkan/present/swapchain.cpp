@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <initializer_list>
-#include <string>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -50,10 +50,8 @@ namespace Rtx
         /// only mode a surface must support, so it ends every list here and nothing below has to
         /// answer for a driver that offers little else.
         VkPresentModeKHR chooseFrom(
-            const Surface& surface, VkPhysicalDevice device, std::initializer_list<VkPresentModeKHR> wanted)
+            const std::vector<VkPresentModeKHR>& modes, std::initializer_list<VkPresentModeKHR> wanted)
         {
-            const std::vector<VkPresentModeKHR> modes = surface.getPresentModes(device);
-
             for (const VkPresentModeKHR mode : wanted)
                 if (std::find(modes.begin(), modes.end(), mode) != modes.end())
                     return mode;
@@ -66,14 +64,14 @@ namespace Rtx
         /// torn frame; immediate stands behind it for a surface with no mailbox. `Adaptive` is FIFO
         /// that tears when a frame misses its refresh, as the rasterizer's does through SDL.
         /// `Enabled` is FIFO: a frame that meets the refresh is the promise.
-        VkPresentModeKHR presentModeFor(const Surface& surface, VkPhysicalDevice device, SDLUtil::VSyncMode mode)
+        VkPresentModeKHR presentModeFor(const std::vector<VkPresentModeKHR>& modes, SDLUtil::VSyncMode mode)
         {
             switch (mode)
             {
                 case SDLUtil::VSyncMode::Disabled:
-                    return chooseFrom(surface, device, { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
+                    return chooseFrom(modes, { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
                 case SDLUtil::VSyncMode::Adaptive:
-                    return chooseFrom(surface, device, { VK_PRESENT_MODE_FIFO_RELAXED_KHR });
+                    return chooseFrom(modes, { VK_PRESENT_MODE_FIFO_RELAXED_KHR });
                 case SDLUtil::VSyncMode::Enabled:
                     break;
             }
@@ -107,18 +105,21 @@ namespace Rtx
         Crash::contract(surface.supports(physical, device.getQueueFamily()),
             "a device chosen for a queue that does not present to its window (`PhysicalDevice::select`)");
 
-        mFormat = chooseFormat(surface, physical);
-        mPresentMode = presentModeFor(surface, physical, mVerticalSync);
-
-        create(extent);
+        choose();
+        if (!create(extent))
+            throw DeviceError("the window's surface was lost as its first swapchain was made");
 
         Log(Debug::Info) << "Swapchain: " << mImages.size() << " images, " << nameOf(mPresentMode);
     }
 
-    void Swapchain::create(VkExtent2D extent)
+    bool Swapchain::create(VkExtent2D extent)
     {
         const Crash::NoteScope noted("making the swapchain at {}x{}", extent.width, extent.height);
-        const VkSurfaceCapabilitiesKHR capabilities = mSurface.getCapabilities(mDevice.getPhysicalDevice().getHandle());
+        const std::optional<VkSurfaceCapabilitiesKHR> asked
+            = mSurface.getCapabilities(mDevice.getPhysicalDevice().getHandle());
+        if (!asked.has_value())
+            return false;
+        const VkSurfaceCapabilitiesKHR& capabilities = *asked;
 
         // A compositor that has already decided the size says so here; otherwise the window's size
         // is the request, clamped to what the surface will accept.
@@ -133,7 +134,7 @@ namespace Rtx
         if (hasNoExtent(mExtent))
         {
             mExtent = VkExtent2D{};
-            return;
+            return true;
         }
 
         std::uint32_t images = capabilities.minImageCount + 1;
@@ -171,24 +172,44 @@ namespace Rtx
             .clipped = VK_TRUE,
             .oldSwapchain = VK_NULL_HANDLE,
         };
-        mHandle = Immediate<VkSwapchainKHR, vkDestroySwapchainKHR>::make(
-            mDevice.getHandle(), vkCreateSwapchainKHR, create, "vkCreateSwapchainKHR");
+        VkSwapchainKHR made = VK_NULL_HANDLE;
+        const VkResult result = vkCreateSwapchainKHR(mDevice.getHandle(), &create, nullptr, &made);
+        if (result == VK_ERROR_SURFACE_LOST_KHR)
+            return false;
+        checkVk(result, "vkCreateSwapchainKHR");
+        mHandle = Immediate<VkSwapchainKHR, vkDestroySwapchainKHR>(mDevice.getHandle(), made);
 
         mImages = enumerateVk<VkImage>("vkGetSwapchainImagesKHR", [&](std::uint32_t* count, VkImage* into) {
             return vkGetSwapchainImagesKHR(mDevice.getHandle(), mHandle.get(), count, into);
         });
+        return true;
     }
 
-    void Swapchain::destroy()
+    void Swapchain::choose()
+    {
+        const VkPhysicalDevice physical = mDevice.getPhysicalDevice().getHandle();
+        mFormat = chooseFormat(mSurface, physical);
+        mPresentModes = mSurface.getPresentModes(physical);
+        mPresentMode = presentModeFor(mPresentModes, mVerticalSync);
+    }
+
+    void Swapchain::release()
     {
         mHandle.reset();
         mImages.clear();
     }
 
-    void Swapchain::recreate(VkExtent2D extent)
+    bool Swapchain::recreate(VkExtent2D extent)
     {
-        destroy();
-        create(extent);
+        release();
+        return create(extent);
+    }
+
+    bool Swapchain::renew(VkExtent2D extent)
+    {
+        assert(!isMade() && "a swapchain renewed before the old one was let go");
+        choose();
+        return create(extent);
     }
 
     bool Swapchain::setVerticalSync(SDLUtil::VSyncMode mode)
@@ -201,8 +222,7 @@ namespace Rtx
         // What the surface offers decides, so two settings can mean one mode. A driver with no
         // relaxed FIFO answers `Adaptive` with plain FIFO, and rebuilding the swapchain to arrive at
         // the mode it already had is a stall for nothing.
-        const VkPresentModeKHR wanted
-            = presentModeFor(mSurface, mDevice.getPhysicalDevice().getHandle(), mVerticalSync);
+        const VkPresentModeKHR wanted = presentModeFor(mPresentModes, mVerticalSync);
         if (wanted == mPresentMode)
             return false;
 
@@ -234,13 +254,15 @@ namespace Rtx
             case VK_TIMEOUT:
             case VK_NOT_READY:
                 return Acquired::NotYet;
+            case VK_ERROR_SURFACE_LOST_KHR:
+                return Acquired::Lost;
             default:
-                checkPresentable(result, "vkAcquireNextImageKHR");
+                checkVk(mDevice, result, "vkAcquireNextImageKHR");
                 return Acquired::Image;
         }
     }
 
-    bool Swapchain::present(VkSemaphore finished, std::uint32_t index, PresentFence* presented)
+    Presented Swapchain::present(VkSemaphore finished, std::uint32_t index, PresentFence* presented)
     {
         const VkFence fence = presented != nullptr ? presented->arm(mDevice) : VK_NULL_HANDLE;
         const VkSwapchainPresentFenceInfoKHR signalled{
@@ -266,29 +288,20 @@ namespace Rtx
         if (presented != nullptr)
             presented->answered(result);
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-            return false;
-
-        checkPresentable(result, "vkQueuePresentKHR");
-        return true;
-    }
-
-    void Swapchain::checkPresentable(const VkResult result, const char* call) const
-    {
-        // **A lost surface is not a lost device**, and its report says which: the display the window
-        // stood on went away, or the compositor restarted under it. Nothing here makes a surface
-        // again, so the frame loop cannot go on, and a throw would leave the `noexcept` frame as a
-        // bare `std::terminate`.
+            return Presented::Stale;
         if (result == VK_ERROR_SURFACE_LOST_KHR)
-            deviceFailed(std::string(call) + " lost the window's surface: the display it stood on went away or the "
-                                               "compositor restarted, and no new surface is made");
+            return Presented::Lost;
 
-        checkVk(mDevice, result, call);
+        checkVk(mDevice, result, "vkQueuePresentKHR");
+        return Presented::Shown;
     }
 
-    bool Swapchain::surfaceIsHidden() const
+    SurfaceState Swapchain::getSurfaceState() const
     {
-        const VkSurfaceCapabilitiesKHR capabilities = mSurface.getCapabilities(mDevice.getPhysicalDevice().getHandle());
-
-        return hasNoExtent(capabilities.currentExtent);
+        const std::optional<VkSurfaceCapabilitiesKHR> capabilities
+            = mSurface.getCapabilities(mDevice.getPhysicalDevice().getHandle());
+        if (!capabilities.has_value())
+            return SurfaceState::Lost;
+        return hasNoExtent(capabilities->currentExtent) ? SurfaceState::Hidden : SurfaceState::Shown;
     }
 }

@@ -202,6 +202,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/framering.cpp
     rtxvulkan/frames.cpp
     rtxvulkan/present/presentfence.cpp
+    rtxvulkan/present/presenter.cpp
     rtxvulkan/gui/guipass.cpp
     rtxvulkan/gui/guitextures.cpp
     rtxvulkan/pipeline/computepipeline.cpp

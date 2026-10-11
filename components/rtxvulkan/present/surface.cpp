@@ -2,7 +2,9 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <SDL3/SDL_error.h>
@@ -40,6 +42,7 @@ namespace Rtx
 
     Surface::Surface(const Instance& instance, SDL_Window* const window)
         : mInstance(instance.getHandle())
+        , mWindow(window)
     {
         assert(instance.hasExtension(VK_KHR_SURFACE_EXTENSION_NAME) && "a surface on an instance made headless");
 
@@ -58,6 +61,13 @@ namespace Rtx
         mDestroySurface(mInstance, mHandle, nullptr);
     }
 
+    void Surface::remake()
+    {
+        mDestroySurface(mInstance, std::exchange(mHandle, VK_NULL_HANDLE), nullptr);
+        if (!SDL_Vulkan_CreateSurface(mWindow, mInstance, nullptr, &mHandle))
+            deviceFailed(std::string("SDL would not make the window's surface again: ") + SDL_GetError());
+    }
+
     bool Surface::supports(const VkPhysicalDevice device, const std::uint32_t queueFamily) const
     {
         VkBool32 supported = VK_FALSE;
@@ -65,10 +75,13 @@ namespace Rtx
         return supported == VK_TRUE;
     }
 
-    VkSurfaceCapabilitiesKHR Surface::getCapabilities(const VkPhysicalDevice device) const
+    std::optional<VkSurfaceCapabilitiesKHR> Surface::getCapabilities(const VkPhysicalDevice device) const
     {
         VkSurfaceCapabilitiesKHR capabilities{};
-        checkVk(mGetCapabilities(device, mHandle, &capabilities), "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+        const VkResult result = mGetCapabilities(device, mHandle, &capabilities);
+        if (result == VK_ERROR_SURFACE_LOST_KHR)
+            return std::nullopt;
+        checkVk(result, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
         return capabilities;
     }
 
