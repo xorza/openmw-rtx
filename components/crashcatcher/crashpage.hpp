@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -68,6 +69,10 @@ namespace Crash
         static SharedPage open(std::uint32_t process);
 
         Heartbeat* get() const { return static_cast<Heartbeat*>(mMemory.data()); }
+
+        /// Waits up to `patience` for the monitor to open the page, and answers whether it did. Yes at
+        /// once where the system cannot tell (`Platform::SharedMemory::isOpenedElsewhere`).
+        bool awaitMonitor(std::chrono::milliseconds patience) const;
 
         /// Hands the monitor the game's log, `log` in UTF-8, or says it cannot: no page, or a path
         /// longer than `sPathCapacity`. Once, from the thread that sets up the log.

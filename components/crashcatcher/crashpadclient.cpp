@@ -139,6 +139,13 @@ namespace Crash
                 monitor.write(), false, false))
             return Misc::Err{ "its monitor did not start" };
 
+        // **Until the monitor has opened the page**, bounded: on Linux and macOS `StartHandler`
+        // answers once its fork did, and a monitor that never ran left the game with no catcher, a
+        // log that said it had one, and the page in the system's list until a reboot. Ten seconds,
+        // for a cold start of a debug build off a slow disk; a monitor that runs ends the wait.
+        if (!page.awaitMonitor(std::chrono::seconds(10)))
+            return Misc::Err{ "its monitor did not start" };
+
         SharedPage* const kept = new SharedPage(std::move(page));
         sPage.store(kept, std::memory_order_release);
 

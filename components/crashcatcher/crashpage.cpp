@@ -2,10 +2,13 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 
 namespace Crash
 {
@@ -25,6 +28,20 @@ namespace Crash
         if (Heartbeat* const heartbeat = page.get())
             *heartbeat = Heartbeat{};
         return page;
+    }
+
+    bool SharedPage::awaitMonitor(const std::chrono::milliseconds patience) const
+    {
+        const auto until = std::chrono::steady_clock::now() + patience;
+        for (;;)
+        {
+            const std::optional<bool> opened = mMemory.isOpenedElsewhere();
+            if (!opened.has_value() || *opened)
+                return true;
+            if (std::chrono::steady_clock::now() >= until)
+                return false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
     }
 
     SharedPage SharedPage::open(std::uint32_t process)
