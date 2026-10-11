@@ -2,7 +2,6 @@
 
 #include <cerrno>
 #include <cstddef>
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -69,20 +68,6 @@ namespace Platform
         memory.mData = view;
         memory.mSize = size;
         return memory;
-    }
-
-    std::optional<bool> SharedMemory::isOpenedElsewhere() const
-    {
-        if (mMadeName.empty())
-            return std::nullopt;
-
-        const int descriptor = shm_open(mMadeName.c_str(), O_RDONLY, 0);
-        if (descriptor >= 0)
-        {
-            close(descriptor);
-            return false;
-        }
-        return errno == ENOENT;
     }
 
     void SharedMemory::unmap() noexcept

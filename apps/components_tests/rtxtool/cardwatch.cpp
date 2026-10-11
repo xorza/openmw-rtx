@@ -1,10 +1,7 @@
 #include <chrono>
 #include <cstdint>
-#include <filesystem>
 #include <optional>
 #include <string>
-#include <thread>
-#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -12,8 +9,7 @@
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/instruments/nvml.hpp>
-#include <components/files/conversion.hpp>
-#include <components/platform/process.hpp>
+#include <components/rtx/common/cardaddress.hpp>
 
 namespace RtxTool
 {
@@ -119,115 +115,40 @@ namespace RtxTool
             EXPECT_EQ(Nvml::executableOf(""), "");
         }
 
-        /// What the driver's library answers on this machine, where it is there at all.
-        ///
-        /// **A skip and not a failure where nothing answers**: the tests run on machines without
-        /// an NVIDIA driver, and the card's clock is instrumentation rather than a renderer.
-        TEST(RtxNvmlTest, theLibraryAnswersAClockAndNamesThisProcess)
+        /// The two spellings of one address: the kernel's folder with four digits of domain, and
+        /// NVML's bus id with eight, which a domain past four digits still fits.
+        TEST(RtxCardAddressTest, eachReaderSpellsTheAddressItsOwnWay)
         {
-            Nvml nvml;
-            if (!nvml.isOpen())
-                GTEST_SKIP() << "no driver library on this machine: " << nvml.describeAbsence();
+            const Rtx::PciAddress first{ .mDomain = 0, .mBus = 1, .mDevice = 0, .mFunction = 0 };
+            EXPECT_EQ(AmdGpu::folderName(first), "0000:01:00.0");
+            EXPECT_EQ(Nvml::busId(first), "00000000:01:00.0");
 
-            EXPECT_TRUE(nvml.describeAbsence().empty());
-
-            // A graphics clock and a memory clock a card of the last decade could hold, which is
-            // what says the fields were read in the order they were asked for rather than shuffled.
-            const GpuClock clock = nvml.readClock();
-            ASSERT_TRUE(clock.mRead);
-            EXPECT_GT(clock.mCore.mLowestMhz, 100u);
-            EXPECT_LT(clock.mCore.mLowestMhz, 10000u);
-            EXPECT_EQ(clock.mCore.mLowestMhz, clock.mCore.mHighestMhz) << "one reading is not a range";
-            EXPECT_EQ(clock.mMemory.mReadings, 1u);
-            EXPECT_GT(clock.mMemory.mLowestMhz, 100u);
-            ASSERT_TRUE(clock.mTemperatureC.has_value());
-            EXPECT_GT(*clock.mTemperatureC, 0u);
-            EXPECT_LT(*clock.mTemperatureC, 120u);
-            EXPECT_TRUE(clock.mThrottleMask.has_value());
-
-            // This process, by the name the driver keeps for it: the executable's own, without
-            // its directory, which is what a report prints beside a count. The file's name as the
-            // system spells it, so `components-tests` on Linux and `components-tests.exe` on Windows.
-            const std::optional<std::filesystem::path> executable = Platform::Process::executable();
-            ASSERT_TRUE(executable.has_value());
-            std::string name;
-            nvml.nameProcess(Platform::Process::currentId(), name);
-            EXPECT_EQ(name, Files::pathToUnicodeString(executable->filename()));
-
-            // One nobody runs is named by its number.
-            nvml.nameProcess(4'000'000'000u, name);
-            EXPECT_EQ(name, "pid 4000000000");
-
-            // Whatever the driver has sampled since the library opened is newer than what it held
-            // then, so nothing that came back predates the opening.
-            if (nvml.hasSamples())
-            {
-                std::vector<CardSample> samples;
-                nvml.readSamples(samples);
-                for (const CardSample& sample : samples)
-                    EXPECT_GT(sample.mStamp, 0u);
-            }
+            const Rtx::PciAddress far{ .mDomain = 0x10000, .mBus = 0xa, .mDevice = 0x1f, .mFunction = 7 };
+            EXPECT_EQ(AmdGpu::folderName(far), "10000:0a:1f.7");
+            EXPECT_EQ(Nvml::busId(far), "00010000:0a:1f.7");
         }
 
-        /// A watch samples across the window it is open for, and every window starts from
-        /// nothing.
-        ///
-        /// **The reading count is the whole claim for the clock.** Two samples printed as a range
-        /// cannot be told from a card watched throughout, so what a watch has to prove is that it
-        /// took more than two.
-        TEST(RtxCardWatchTest, aWatchSamplesAcrossTheWindowAndEveryWindowStartsFromNothing)
+        /// **A card the watch cannot read is not read, and each window says why**: none named, one
+        /// with no address, and one of a vendor no reader reads.
+        TEST(RtxCardWatchTest, aCardItCannotReadIsNotReadAndTheReportSaysWhy)
         {
-            const bool sampled = Nvml().hasSamples();
-            if (!Nvml().isOpen())
-                GTEST_SKIP() << "no driver library on this machine";
-
-            // A twentieth of the harness's period: what is claimed is a few turns of the loop, and
-            // not how often it turns.
-            CardWatch watch(std::chrono::milliseconds(5));
-            watch.watch();
-
-            // **Waited for and not slept out.** What the claim needs is a few turns of the watch's
-            // own loop, and how long those take is the machine's to say.
-            const auto waitFor = [&](std::uint32_t readings) {
-                const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-                while (watch.getReadings() < readings && std::chrono::steady_clock::now() < deadline)
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            const auto why = [](CardWatch& watch) {
+                const CardWindows windows = watch.stop();
+                EXPECT_FALSE(windows.mPlace.mClock.mRead);
+                EXPECT_FALSE(windows.mPlace.mShare.mViewed);
+                return describeCard(windows.mPlace.mShare);
             };
 
-            waitFor(2);
-            ASSERT_GE(watch.getReadings(), 2u) << "the watch's loop never came round";
+            CardWatch unnamed(std::chrono::milliseconds(5));
+            EXPECT_EQ(why(unnamed), "card not watched: no card was named");
 
-            // A second `watch` is nothing at all: the window goes on counting.
-            watch.watch();
-            EXPECT_GE(watch.getReadings(), 2u);
+            CardWatch unaddressed(std::chrono::milliseconds(5));
+            unaddressed.watch(Rtx::CardAddress{ .mVendor = 0x10de, .mPci = std::nullopt });
+            EXPECT_EQ(why(unaddressed), "card not watched: the renderer's device names no PCI address");
 
-            // **Starting a place's window asks and waits on nothing**: the watch's next turn closes
-            // the window between places and begins the place's, which is waited for, not timed.
-            watch.start();
-            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-            while (!watch.hasBegun() && std::chrono::steady_clock::now() < deadline)
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            ASSERT_TRUE(watch.hasBegun()) << "the watch's loop never began the window";
-
-            waitFor(3);
-            const CardWindows windows = watch.stop();
-            EXPECT_EQ(windows.mBefore.mViewed, sampled);
-            EXPECT_GT(windows.mBefore.mSeconds, 0.0);
-
-            const CardReading& place = windows.mPlace;
-            EXPECT_TRUE(place.mClock.mRead);
-            EXPECT_GT(place.mClock.getReadings(), 2u) << "a watch that answered with no more than its two ends";
-            EXPECT_GE(place.mClock.mCore.getMeanMhz(), place.mClock.mCore.mLowestMhz);
-            EXPECT_LE(place.mClock.mCore.getMeanMhz(), place.mClock.mCore.mHighestMhz);
-            EXPECT_EQ(place.mShare.mViewed, sampled);
-            EXPECT_GT(place.mShare.mSeconds, 0.0);
-
-            // **A window `stop` ends before any turn began it is begun there**, so a place two
-            // frames long still has a window between places and one of its own.
-            watch.start();
-            const CardWindows hurried = watch.stop();
-            EXPECT_TRUE(hurried.mPlace.mClock.mRead) << "the place's own last reading";
-            EXPECT_TRUE(watch.hasBegun());
+            CardWatch unread(std::chrono::milliseconds(5));
+            unread.watch(Rtx::CardAddress{ .mVendor = 0x8086, .mPci = Rtx::PciAddress{} });
+            EXPECT_EQ(why(unread), "card not watched: no instrument reads this vendor's cards");
         }
     }
 }

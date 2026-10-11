@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <boost/program_options/variables_map.hpp>
+#include <osg/Vec2i>
 
 #include <apps/openmw/engine.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
@@ -50,11 +51,9 @@ namespace RtxTool
         /// never through the registry, which is the player's.
         void applyHostedSettings(const WindowRequest& window)
         {
-            // The window at the frame's size, so the frame is shown pixel for pixel.
+            // The frame at the window's size, which the run states in pixels (`RunSetup::mWindowPixels`).
             Settings::video().mResolutionX.set(static_cast<int>(window.mWidth));
             Settings::video().mResolutionY.set(static_cast<int>(window.mHeight));
-            Settings::video().mWindowWidth.set(static_cast<int>(window.mWidth));
-            Settings::video().mWindowHeight.set(static_cast<int>(window.mHeight));
             Settings::video().mWindowMode.set(Settings::WindowMode::Windowed);
             Settings::video().mVsyncMode.set(window.mVerticalSync);
             Settings::video().mFramerateLimit.set(window.mFramerateLimit);
@@ -102,6 +101,8 @@ namespace RtxTool
         }
 
         applyHostedSettings(window);
+        // The window at the frame's size, so the frame is shown pixel for pixel.
+        request.mSetup.mWindowPixels = osg::Vec2i(static_cast<int>(window.mWidth), static_cast<int>(window.mHeight));
         request.mSaves = ownSavesFolder(config);
         if (request.mMaps.has_value())
             applyShippedMapNames(config);

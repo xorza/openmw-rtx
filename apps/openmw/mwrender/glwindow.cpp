@@ -1,5 +1,6 @@
 #include "glwindow.hpp"
 
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -47,7 +48,7 @@ namespace MWRender
         {
             while (!mWindow)
             {
-                mWindow.reset(openWindow(SDL_WINDOW_OPENGL));
+                mWindow.reset(openWindow(SDL_WINDOW_OPENGL, std::nullopt));
                 if (!mWindow)
                 {
                     // Try with a lower AA

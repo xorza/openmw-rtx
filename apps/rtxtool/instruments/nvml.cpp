@@ -35,7 +35,7 @@ namespace RtxTool
         }
     }
 
-    Nvml::Nvml()
+    Nvml::Nvml(const Rtx::PciAddress& card)
     {
         static_assert(sizeof(RawSample) == 32, "nvmlProcessUtilizationSample_t is thirty-two bytes");
 
@@ -53,7 +53,7 @@ namespace RtxTool
         // reasons under the name that replaced `ThrottleReasons` or under that one where the
         // driver is older.
         if (!load(mLibrary, mInit, "nvmlInit_v2") || !load(mLibrary, mShutdown, "nvmlShutdown")
-            || !load(mLibrary, mHandleByIndex, "nvmlDeviceGetHandleByIndex_v2")
+            || !load(mLibrary, mHandleByBusId, "nvmlDeviceGetHandleByPciBusId_v2")
             || !load(mLibrary, mClockInfo, "nvmlDeviceGetClockInfo")
             || !load(mLibrary, mTemperature, "nvmlDeviceGetTemperature")
             || (!load(mLibrary, mEventReasons, "nvmlDeviceGetCurrentClocksEventReasons")
@@ -71,9 +71,10 @@ namespace RtxTool
         mSession = Session(mShutdown);
 
         Device device = nullptr;
-        if (const Return found = mHandleByIndex(0, &device); found != sSuccess)
+        const std::string bus = busId(card);
+        if (const Return found = mHandleByBusId(bus.c_str(), &device); found != sSuccess)
         {
-            mAbsence = std::format("the driver's management library names no device, its error {}", found);
+            mAbsence = std::format("the driver's management library names no card at {}, its error {}", bus, found);
             return;
         }
         mDevice = device;
@@ -183,6 +184,11 @@ namespace RtxTool
         }
 
         into = executableOf(name.data());
+    }
+
+    std::string Nvml::busId(const Rtx::PciAddress& card)
+    {
+        return std::format("{:08x}:{:02x}:{:02x}.{:x}", card.mDomain, card.mBus, card.mDevice, card.mFunction);
     }
 
     std::string_view Nvml::executableOf(const std::string_view called)

@@ -7,6 +7,7 @@
 
 #include <components/platform/library.hpp>
 #include <components/platform/uniquehold.hpp>
+#include <components/rtx/common/cardaddress.hpp>
 
 #include "gpuclock.hpp"
 
@@ -29,16 +30,21 @@ namespace RtxTool
     /// four a second was as often as that could be afforded — the driver's process samples come
     /// five times a second and are lost between polls slower than that.
     ///
-    /// Device nought, which is the line `nvidia-smi` prints first and the card this fork has run
-    /// on; a box with two cards is one this has not met.
+    /// **The card at a PCI address, never by NVML's index**: NVML numbers cards in an order of its
+    /// own, and the renderer's card is the one its driver names.
     class Nvml
     {
     public:
-        Nvml();
+        /// Opens the library and the card at `card`.
+        explicit Nvml(const Rtx::PciAddress& card);
         Nvml(const Nvml&) = delete;
         Nvml& operator=(const Nvml&) = delete;
 
         bool isOpen() const { return mDevice != nullptr; }
+
+        /// Whether the driver's library loaded, which a driver may ship without, whether or not it
+        /// then opened the card.
+        bool isLoaded() const { return mLibrary.isOpen(); }
 
         /// Why the card cannot be asked, or empty where it can.
         std::string_view describeAbsence() const { return mAbsence; }
@@ -71,6 +77,9 @@ namespace RtxTool
         /// inside an argument for one. **Not the first word either**, because a directory may
         /// hold a space and an option begins with a dash.
         static std::string_view executableOf(std::string_view called);
+
+        /// `card` as NVML spells a bus id: `00000000:01:00.0`.
+        static std::string busId(const Rtx::PciAddress& card);
 
     private:
         /// `nvmlProcessUtilizationSample_t`, laid out as the driver writes it.
@@ -111,7 +120,7 @@ namespace RtxTool
 
         Return (*mInit)() = nullptr;
         Return (*mShutdown)() = nullptr;
-        Return (*mHandleByIndex)(unsigned, Device*) = nullptr;
+        Return (*mHandleByBusId)(const char*, Device*) = nullptr;
         Return (*mClockInfo)(Device, int, unsigned*) = nullptr;
         Return (*mTemperature)(Device, int, unsigned*) = nullptr;
         Return (*mEventReasons)(Device, unsigned long long*) = nullptr;

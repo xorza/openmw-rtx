@@ -2,10 +2,11 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -30,18 +31,28 @@ namespace Crash
         return page;
     }
 
-    bool SharedPage::awaitMonitor(const std::chrono::milliseconds patience) const
+    MonitorAnswer SharedPage::awaitMonitor(const std::chrono::milliseconds patience) const
     {
+        Heartbeat* const page = get();
+        assert(page != nullptr && "a monitor awaited on a page the system refused");
+
         const auto until = std::chrono::steady_clock::now() + patience;
         for (;;)
         {
-            const std::optional<bool> opened = mMemory.isOpenedElsewhere();
-            if (!opened.has_value() || *opened)
-                return true;
+            // A word past the last answer is none, because another process wrote it.
+            const std::uint32_t word = std::atomic_ref(page->mMonitorAnswer).load(std::memory_order_acquire);
+            if (word != 0 && word <= static_cast<std::uint32_t>(MonitorAnswer::ReportUnwritable))
+                return static_cast<MonitorAnswer>(word);
             if (std::chrono::steady_clock::now() >= until)
-                return false;
+                return MonitorAnswer::Unanswered;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+    }
+
+    void SharedPage::answerGame(const MonitorAnswer answer) const
+    {
+        if (Heartbeat* const page = get())
+            std::atomic_ref(page->mMonitorAnswer).store(static_cast<std::uint32_t>(answer), std::memory_order_release);
     }
 
     SharedPage SharedPage::open(std::uint32_t process)

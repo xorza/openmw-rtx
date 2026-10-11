@@ -34,8 +34,9 @@ Video Settings
    :range: > 0
    :default: 800
 
-   This setting determines the width of the OpenMW window in Windowed mode, in pixels.
-   Resizing the window changes it.
+   This setting determines the width of the OpenMW window in Windowed mode, in the desktop's unit:
+   points on macOS and Wayland, which keep a window's size on a display of any scale, and pixels on
+   Windows and X11. Resizing the window changes it.
 
 .. omw-setting::
    :title: window height
@@ -43,8 +44,8 @@ Video Settings
    :range: > 0
    :default: 600
 
-   This setting determines the height of the OpenMW window in Windowed mode, in pixels.
-   Resizing the window changes it.
+   This setting determines the height of the OpenMW window in Windowed mode, in the desktop's unit.
+   See window width.
 
 .. omw-setting::
    :title: window mode

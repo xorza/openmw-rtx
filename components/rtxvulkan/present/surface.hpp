@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -29,15 +30,23 @@ namespace Rtx
 
         VkSurfaceKHR getHandle() const { return mHandle; }
 
+        /// Makes the surface again from the window, for one the window system lost. Every swapchain
+        /// made on the old one must be gone. Ends the process through `deviceFailed` where SDL makes
+        /// none: the window then has nothing to draw into.
+        void remake();
+
         /// Whether `queueFamily` of `device` can present to this surface.
         bool supports(VkPhysicalDevice device, std::uint32_t queueFamily) const;
 
-        VkSurfaceCapabilitiesKHR getCapabilities(VkPhysicalDevice device) const;
+        /// Empty where the surface is lost: the one query asked of a surface after its swapchain's
+        /// first, so the one that can meet a loss before an acquire or a present does.
+        std::optional<VkSurfaceCapabilitiesKHR> getCapabilities(VkPhysicalDevice device) const;
         std::vector<VkSurfaceFormatKHR> getFormats(VkPhysicalDevice device) const;
         std::vector<VkPresentModeKHR> getPresentModes(VkPhysicalDevice device) const;
 
     private:
         VkInstance mInstance = VK_NULL_HANDLE;
+        SDL_Window* mWindow = nullptr;
         VkSurfaceKHR mHandle = VK_NULL_HANDLE;
 
         /// `VK_KHR_surface`'s functions, asked of the instance and not taken from volk: the loader

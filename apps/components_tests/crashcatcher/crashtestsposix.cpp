@@ -101,6 +101,20 @@ namespace CrashTests
             .mReports = false,
             .mKept = true });
 #endif
+        // **A report folder that takes no report**, whose catcher refuses to start and says why:
+        // one that Crashpad cannot open, and one that opens and takes no new report.
+        into.push_back({ .mName = "folder-unopened",
+            .mHeadline = "",
+            .mRaised = {},
+            .mFollows = "crash-tests lived on",
+            .mReports = false,
+            .mRefusal = "its report folder could not be opened" });
+        into.push_back({ .mName = "report-unwritable",
+            .mHeadline = "",
+            .mRaised = {},
+            .mFollows = "crash-tests lived on",
+            .mReports = false,
+            .mRefusal = "its report folder takes no new report" });
         into.push_back({ "report-under-hang", "Report: crash-tests asked under a hang request", {},
             "crash-tests lived on", true, ", which asked" });
         // **Stopped past the limit by somebody else**, as a shell's Ctrl+Z or a debugger stops it:
@@ -129,6 +143,17 @@ namespace CrashTests
         }
         if (mode == "kept-ignoring-children")
             signal(SIGCHLD, SIG_IGN);
+        // Read-only where Crashpad writes: the database's own folder, which it cannot then make its
+        // folders in, or the folder a new report is written to.
+        if (mode == "folder-unopened" || mode == "report-unwritable")
+        {
+            const std::filesystem::path reports = std::getenv("OPENMW_CRASH_REPORTS");
+            const std::filesystem::path locked = mode == "folder-unopened" ? reports : reports / "new";
+            std::filesystem::create_directories(locked);
+            using std::filesystem::perms;
+            std::filesystem::permissions(locked, perms::owner_write | perms::group_write | perms::others_write,
+                std::filesystem::perm_options::remove);
+        }
         if (mode == "unkept-disabled")
         {
             Platform::Process::setEnvironment("APPIMAGE", "crash-tests: no image, and no catcher to keep one for");
@@ -138,6 +163,8 @@ namespace CrashTests
 
     std::optional<int> runModeOfThisSystem(std::string_view mode)
     {
+        if (mode == "folder-unopened" || mode == "report-unwritable")
+            return livedOn();
         if (mode == "unkept-disabled")
         {
             if (kept())

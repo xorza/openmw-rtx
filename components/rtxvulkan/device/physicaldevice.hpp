@@ -10,6 +10,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/common/cardaddress.hpp>
+
 #include "requirements.hpp"
 
 namespace Rtx
@@ -100,6 +102,9 @@ namespace Rtx
         {
             return mProperties->mAccelerationStructure.minAccelerationStructureScratchOffsetAlignment;
         }
+
+        /// The device's vendor, and where it stands on the PCI bus where the driver says.
+        CardAddress getAddress() const;
 
         /// Whether this device offers `name`, one of the options' extensions.
         bool hasOptionalExtension(const char* name) const;

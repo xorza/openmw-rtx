@@ -303,6 +303,7 @@ namespace MWGui
 
         void windowVisibilityChange(bool visible) override;
         void windowResized(int x, int y) override;
+        void windowSized(int width, int height) override;
         void windowDisplayChanged() override;
         void windowClosed() override;
         bool isWindowVisible() const override;

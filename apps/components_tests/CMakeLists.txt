@@ -66,6 +66,7 @@ file(GLOB UNITTEST_SRC_FILES
     settings/testvalues.cpp
 
     sdlutil/sdlcursormanager.cpp
+    sdlutil/sdlinputwrapper.cpp
     sdlutil/sdlvideowrapper.cpp
 
     shader/automaps.cpp

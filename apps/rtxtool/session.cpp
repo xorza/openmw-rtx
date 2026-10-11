@@ -42,6 +42,7 @@ namespace RtxTool
         // The engine names the renderer it chose itself, and it chose none here.
         Crash::annotate("renderer", MWRender::nameOf(MWRender::RendererKind::RayTraced));
         auto renderer = std::make_unique<MWRender::RtxRenderer>(spec, &mInstalled);
+        mMeasurer.watchCard(renderer->getCardAddress());
         return renderer;
     }
 

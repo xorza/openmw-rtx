@@ -47,6 +47,11 @@ namespace SDLUtil
         return static_cast<int>(std::lround(static_cast<double>(points) * static_cast<double>(density)));
     }
 
+    bool isWindowShown(SDL_WindowFlags flags)
+    {
+        return (flags & (SDL_WINDOW_HIDDEN | SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED)) == 0;
+    }
+
     void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder)
     {
         SDL_SetWindowFullscreen(window, false);
@@ -75,8 +80,7 @@ namespace SDLUtil
         }
         else
         {
-            const float density = SDL_GetWindowPixelDensity(window);
-            SDL_SetWindowSize(window, windowPoints(width, density), windowPoints(height, density));
+            SDL_SetWindowSize(window, width, height);
             SDL_SetWindowBordered(window, windowBorder);
 
             centerWindow(window);
