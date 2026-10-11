@@ -60,9 +60,12 @@ namespace Rtx
             .deviceMask = 0,
         });
 
-        // The timeline's signal and then whatever the caller adds, which is a present's.
+        // The timeline's signal and then whatever the caller adds, which is a present's. **The value
+        // is taken once the submit is made**: a submit refused for room counted on the clock
+        // left it ahead of the queue for good, and every later wait on a value past it timed out
+        // and blamed the device. Only the device's thread submits, so nothing takes it between.
         Timeline& timeline = mDevice.getTimeline();
-        const std::uint64_t value = timeline.next();
+        const std::uint64_t value = timeline.getNext();
         mSignalScratch.clear();
         mSignalScratch.reserve(signals.size() + 1);
         mSignalScratch.push_back(timeline.signal(value));
@@ -80,6 +83,9 @@ namespace Rtx
             .pSignalSemaphoreInfos = mSignalScratch.data(),
         };
         checkVk(mDevice, vkQueueSubmit2(mDevice.getQueue(), 1, &submit, VK_NULL_HANDLE), "vkQueueSubmit2");
+
+        [[maybe_unused]] const std::uint64_t taken = timeline.next();
+        assert(taken == value && "a timeline value taken off the device's thread between the signal and the submit");
         return value;
     }
 
