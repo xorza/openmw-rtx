@@ -224,6 +224,11 @@ namespace MWRender
             throw std::runtime_error("something initialised OpenGL under the ray tracing renderer");
     }
 
+    Rtx::CardAddress RtxRenderer::getCardAddress() const
+    {
+        return mRenderer->getCardAddress();
+    }
+
     // Out of line because the members it destroys are only forward declared in the header.
     RtxRenderer::~RtxRenderer()
     {

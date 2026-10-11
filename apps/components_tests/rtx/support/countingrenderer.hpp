@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/frameextents.hpp>
@@ -37,6 +38,7 @@ namespace Rtx::Testing
     {
     public:
         std::string describeDevice() const override { return "a renderer that counts rather than draws"; }
+        Rtx::CardAddress getCardAddress() const override { return {}; }
         const Rtx::RenderProfile& getProfile() const override { return mProfile; }
         bool isValidating() const override { return false; }
 

@@ -181,6 +181,7 @@ set(RTX_GPU_TEST_SUPPORT
 )
 
 set(RTX_GPU_TEST_FILES
+    rtxtool/cardwatchdevice.cpp
     rtxvulkan/device/commands.cpp
     rtxvulkan/device/device.cpp
     rtxvulkan/device/gputimer.cpp

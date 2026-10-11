@@ -117,6 +117,12 @@ namespace Rtx
             const PhysicalDevice& physical = mHarness.mDevice->getPhysicalDevice();
             EXPECT_EQ(mHarness.mDevice->canDescribeFault(),
                 physical.hasOptionalExtension(VK_EXT_DEVICE_FAULT_EXTENSION_NAME));
+
+            // Which card it is, as the card watch opens it: the vendor the device states, and a PCI
+            // address, which every driver this fork targets lists `VK_EXT_pci_bus_info` for.
+            const CardAddress address = physical.getAddress();
+            EXPECT_EQ(address.mVendor, physical.getProperties().mProperties2.properties.vendorID);
+            EXPECT_TRUE(address.mPci.has_value());
         }
 
         /// The device and the renderer are made without a validation error. What the layers raise

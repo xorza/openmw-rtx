@@ -12,6 +12,7 @@
 #include <apps/rtxtool/instruments/threadcounters.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/measurewindow.hpp>
+#include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -50,9 +51,14 @@ namespace RtxTool
             Failed,
         };
 
-        /// Reserves every series at the longest stop of `request`, so no measured frame grows one,
-        /// and starts watching the card; `record` is what the run is written into.
+        /// Reserves every series at the longest stop of `request`, so no measured frame grows one;
+        /// `record` is what the run is written into.
         Measurer(const SessionRequest& request, RunRecord& record);
+
+        /// Starts watching `card`, the renderer's, once the renderer stands: before the content
+        /// loads, so the window before the first stop holds the load, at the card's idle clock,
+        /// where a desktop that is drawing shows plainest.
+        void watchCard(const Rtx::CardAddress& card) { mCardWatch.watch(card); }
 
         /// Starts counting `stop`, with the player where the stager put them.
         void begin(const Stop& stop);

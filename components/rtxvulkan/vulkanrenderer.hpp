@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
@@ -68,6 +69,7 @@ namespace Rtx
         VulkanRenderer& operator=(VulkanRenderer&&) = delete;
 
         std::string describeDevice() const override;
+        CardAddress getCardAddress() const override;
         bool isValidating() const override;
 
         void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) override;
