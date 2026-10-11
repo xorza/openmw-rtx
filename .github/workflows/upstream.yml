@@ -39,11 +39,12 @@ name: Upstream merge
 
 on:
   schedule:
-    # Every day at 05:00 UTC. GitHub runs a schedule from the default branch alone, and it is
-    # routinely five to thirty minutes late under load — nothing here depends on the minute. In a
-    # public repository the schedule stops after 60 days with no commit, which a tree this active
-    # never reaches.
-    - cron: "0 5 * * *"
+    # Every day at 06:00 in Chisinau, the maintainer's morning, whatever the season. GitHub runs a
+    # schedule from the default branch alone, and it is routinely five to thirty minutes late under
+    # load — nothing here depends on the minute. In a public repository the schedule stops after 60
+    # days with no commit, which a tree this active never reaches.
+    - cron: "0 6 * * *"
+      timezone: "Europe/Chisinau"
   workflow_dispatch:
 
 # Nothing by default, and each job names what it needs.

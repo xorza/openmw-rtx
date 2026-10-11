@@ -13,9 +13,10 @@ name: Daily
 
 on:
   schedule:
-    # Every day at 03:00 UTC, ahead of the upstream merge at 05:00, so a merge lands on a tree whose
-    # daily state is known. GitHub runs a schedule from the default branch alone, and late under load.
-    - cron: "0 3 * * *"
+    # Every day at 06:00 in Chisinau, the maintainer's morning, whatever the season. GitHub runs a
+    # schedule from the default branch alone, and late under load.
+    - cron: "0 6 * * *"
+      timezone: "Europe/Chisinau"
   workflow_dispatch:
 
 # Nothing by default, and each job names what it needs.
