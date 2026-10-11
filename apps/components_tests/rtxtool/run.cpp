@@ -804,8 +804,9 @@ arms = iron longsword
             EXPECT_EQ(settled.mSchedule.mRoute->mSpeed, 400.0f);
 
             // **A view with no id of its own is named after its cell**, because a report row and a
-            // hash file are keyed on the name and neither can be keyed on nothing.
-            EXPECT_EQ(stopFor(bare, silent).mName, "-2,-9");
+            // hash file are keyed on the name and neither can be keyed on nothing: the comma, which a
+            // hash row cannot hold, as `_`.
+            EXPECT_EQ(stopFor(bare, silent).mName, "-2_-9");
         }
     }
 }
