@@ -154,7 +154,8 @@ namespace RtxTool
         }
         file << "\n]}\n";
 
-        file.flush();
+        // Closed and then asked, because a write the system reports late reports it at the close.
+        file.close();
         if (!file)
             return Misc::Err{ "could not write " + Files::pathToUnicodeString(path) };
         return {};

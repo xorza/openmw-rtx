@@ -78,27 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 29. Watch the card the renderer runs on, check the harness's writes, and keep its keys out of text
-- **Audit**: HARNESS-8, HARNESS-11 (PLAUSIBLE), HARNESS-12 (CONFIRMED).
-- **Close first**: HARNESS-8 needs a machine with two cards, so the fix stands on the code alone.
-  HARNESS-11: write a PNG to `/dev/full` and see whether the run says "wrote".
-- **Where**: `apps/rtxtool/instruments/nvml.cpp:76`, `instruments/amdgpu.cpp:57-90`,
-  `components/rtx/renderer/png.cpp:62-90`, `instruments/framehashes.cpp:227-230`,
-  `model/benchrecord.cpp:557-560`, `noise.cpp:157-160`, `skykeys.cpp:9-23`, `homekey.cpp:45-55`,
-  `memorykey.cpp:41-47`.
-- **Problem**:
-  - The card watch reads NVML index 0 or the first AMD card in `/sys`, not the Vulkan device. On a
-    laptop with an APU and a discrete card, it can read the APU.
-  - The PNG writer and the text writers do not check the close. A full disk or a CIFS mount reports
-    "wrote" over a truncated file.
-  - The sky, Home and End keys read the raw key state, so text typed in the console turns the sky.
-- **Fix**: Pick the card by the renderer's PCI address (`VK_EXT_pci_bus_info`), and say "card not
-  watched" when no card matches. Encode the PNG in memory, and write it with a checked `write` and
-  `close`. Check the text writers after an explicit `close`. Skip the three key listeners while the
-  console or text input is active.
-- **Test**: `rtxtool/cardwatch.cpp`: `AmdGpu::find` over a fake sysfs with two AMD cards picks the
-  asked PCI address. A write to `/dev/full` gives an error.
-
 ## P3: structure
 
 ### 30. Let the required formats table give its own length
