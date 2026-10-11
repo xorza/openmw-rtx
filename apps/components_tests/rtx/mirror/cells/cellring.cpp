@@ -930,8 +930,9 @@ namespace Rtx::Testing
         /// **What the reader cannot take is refused where its cell is adopted**, on the frame's
         /// thread, which is the one that reports: a model its walk refused, a reference and a lamp
         /// standing where no number says. The model is walked once however many references name it,
-        /// and what else the cell holds stands. A land texture that does not read is not the reader's to refuse: its
-        /// layer stands, and the texture table stands it in and refuses it as it does any texture.
+        /// and what else the cell holds stands. A land texture that does not read is not the
+        /// reader's to refuse: its layer stands, and the texture table stands it in and refuses it
+        /// as it does any texture.
         TEST_F(RtxCellRingTest, whatTheReaderCannotTakeIsRefusedWhereItsCellIsAdopted)
         {
             mContent.mImages.lose("textures/rock_diffusespec.dds");

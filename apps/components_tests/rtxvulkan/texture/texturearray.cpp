@@ -246,16 +246,6 @@ namespace Rtx
             EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840 - 1), 32u);
         }
 
-        /// A texture past the side the device takes stands from its first level within the side,
-        /// and one with no level within it draws the stand-in, refused and saying why.
-        ///
-        /// **One texel wider than the device takes**, so the case is the device's own and no
-        /// larger than a row: the second level is half that, within the side, and is what stands —
-        /// four bytes a texel and the map's 2048.
-        ///
-        /// **The slot's texel word says which stands**: the level's count, and the stand-in's four by
-        /// four with `TEXTURE_STANDS_IN` over it — as it does for a slot described as the stand-in,
-        /// which is how the builder describes a file that does not read.
         /// **A one-level file past the loose side stands as BC7**, encoded off the loose chain the
         /// device makes, and one at the side stays loose, so no vanilla file moves. 1024 square to one
         /// texel is eleven levels of 65536, 16384, 4096, 1024, 256, 64, 16, 4, 1, 1 and 1 blocks:
@@ -299,6 +289,16 @@ namespace Rtx
             textures.drop(std::array{ 0u });
         }
 
+        /// A texture past the side the device takes stands from its first level within the side,
+        /// and one with no level within it draws the stand-in, refused and saying why.
+        ///
+        /// **One texel wider than the device takes**, so the case is the device's own and no
+        /// larger than a row: the second level is half that, within the side, and is what stands —
+        /// four bytes a texel and the map's 2048.
+        ///
+        /// **The slot's texel word says which stands**: the level's count, and the stand-in's four by
+        /// four with `TEXTURE_STANDS_IN` over it — as it does for a slot described as the stand-in,
+        /// which is how the builder describes a file that does not read.
         TEST_F(RtxTextureArrayTest, aTexturePastTheDevicesSideBeginsAtItsFirstLevelWithinIt)
         {
             Device& device = getDevice();

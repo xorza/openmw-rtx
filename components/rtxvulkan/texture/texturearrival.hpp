@@ -110,10 +110,8 @@ namespace Rtx
             bool mEncoded;
             TextureEncoding mEncoding;
 
-            /// What the chain is encoded into, or null for a chain the trace samples itself, and the
-            /// blocks its encode writes, at the alignment `recordEncodes` lays them by.
+            /// What the chain is encoded into, or null for a chain the trace samples itself.
             const Image* mBc7;
-            VkDeviceSize mBlockBytes;
         };
 
         struct Shade
@@ -173,8 +171,8 @@ namespace Rtx
         /// together: one buffer for every texture in turn ordered each against the one before.
         GrowableBuffer mSums;
 
-        /// Every encoded chain's blocks, side by side, so a run's encodes write no range another
-        /// one's copy still reads.
+        /// The blocks of the chain being encoded, each encode's in turn: grown to the largest
+        /// chain so far.
         GrowableBuffer mBlocks;
 
         /// The means the spreads are carried through, one group at a time: grown to the largest

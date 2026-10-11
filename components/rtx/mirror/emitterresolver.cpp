@@ -31,6 +31,7 @@
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "extractionstats.hpp"
@@ -73,8 +74,8 @@ namespace Rtx
             if (sprite == nullptr)
                 return sprite;
 
-            if (sprite->getFileName().empty())
-                return Misc::Err{ "its image was never a file" };
+            if (SceneUtil::EmbeddedImage::nameOf(*sprite).empty())
+                return Misc::Err{ "its image is neither a file nor a model's own stamped image" };
 
             return sprite;
         }

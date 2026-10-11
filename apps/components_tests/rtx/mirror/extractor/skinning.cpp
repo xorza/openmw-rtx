@@ -552,7 +552,7 @@ namespace Rtx::Testing
             using BoneWeight = SceneUtil::RigGeometry::BoneWeight;
             const float nan = std::numeric_limits<float>::quiet_NaN();
             const float infinity = std::numeric_limits<float>::infinity();
-            for (const BoneWeight wrong : { BoneWeight{ 1, 1.0f }, BoneWeight{ 0, nan }, BoneWeight{ 0, infinity } })
+            for (const BoneWeight& wrong : { BoneWeight{ 1, 1.0f }, BoneWeight{ 0, nan }, BoneWeight{ 0, infinity } })
             {
                 SCOPED_TRACE(testing::Message() << "bone " << wrong.first << ", weight " << wrong.second);
                 RiggedQuad rigged;

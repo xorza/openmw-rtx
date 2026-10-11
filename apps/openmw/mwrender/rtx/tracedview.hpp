@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <optional>
 
 #include <osg/Matrixd>
@@ -95,9 +94,6 @@ namespace MWRender
         /// Gives up the redraw asked for, which the queue will not draw: its scene was left.
         void abandon();
 
-        /// The scene the last redraw was asked in (`ViewQueue::getScene`).
-        std::uint64_t getAskedIn() const { return mAskedIn; }
-
         void keepCopy() override;
         const osg::Image* getCopy() override;
         bool isAbandoned() const override { return mAbandoned; }
@@ -150,7 +146,6 @@ namespace MWRender
 
         osg::ref_ptr<osg::Image> mCopy;
         CopyState mCopyState = CopyState::NotWanted;
-        std::uint64_t mAskedIn = 0;
 
         /// Whether the last redraw was given up, which the next one ends.
         bool mAbandoned = false;
