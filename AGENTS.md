@@ -90,6 +90,9 @@ is not here is held to the rules above.
 - `LocalMap::requestMap` asks again for a tile the renderer gave up (`OffscreenView::isAbandoned`):
   the ray tracer draws a tile frames after it is asked, and one whose scene the game left before
   then is not drawn over the wrong world.
+- The `SceneUtil::StableIdentity` stamps `MWRender::Objects` puts on every cell root and every
+  reference root, through one maker of a cell root (`Objects::cellRootOf`): the mirror tells roots
+  apart by the stamp and not by their address or their place under the scene root.
 - The lamp body marker (`SceneUtil::LampBody`) that `SceneUtil::addLight` leaves on a light's group:
   the bounce takes no glow from a lamp's own model, whose light already delivers it, and the
   rasterizer never reads it.

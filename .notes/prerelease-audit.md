@@ -79,11 +79,3 @@ The user took these calls on 2026-10-11. The items carry them.
 ## P2: hardening
 
 ## P3: structure
-
-### 32. Make one helper the only maker of a cell root
-- **Audit**: SEAM-8. CONFIRMED that the stamp is missing. No wrong picture was shown.
-- **Where**: `apps/openmw/mwrender/objects.cpp:49-55`, `:209-221`. **Upstream** (decision 1, new line).
-- **Problem**: `updatePtr` makes a cell root without the `StableIdentity` stamp and the "Cell Root"
-  name, and `insertBegin` then uses it again. The mirror tells roots apart by the stamp.
-- **Fix**: One private helper names and stamps a cell root, and `insertBegin` and `updatePtr` call it.
-- **Test**: Move a Ptr into a cell with no node, and the new root carries a `StableIdentity`.
