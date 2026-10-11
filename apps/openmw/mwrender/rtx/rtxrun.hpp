@@ -5,6 +5,8 @@
 #include <optional>
 #include <string_view>
 
+#include <osg/Vec2i>
+
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -35,6 +37,11 @@ namespace MWRender
 
         /// Whether the window stays hidden, which saves a present per frame and nothing else.
         bool mHeadless = false;
+
+        /// The window's size in pixels, where the run states one: the harness's, whose window shows
+        /// the frame pixel for pixel. Nothing for a played session, whose window `[Video] window
+        /// width/height` sizes in the desktop's unit.
+        std::optional<osg::Vec2i> mWindowPixels{};
 
         /// Whether the interface is drawn over the frame: the played game's and a watched window's.
         /// A run that writes a picture of the world draws none unless it asks, because whatever a

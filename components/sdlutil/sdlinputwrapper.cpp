@@ -298,6 +298,17 @@ namespace SDLUtil
                 // I'm not sure what OSG is using the window position for, but I don't think it's needed,
                 // so we ignore window moved events (improves window movement performance)
                 break;
+            case SDL_EVENT_WINDOW_RESIZED:
+            {
+                // From the window and not the event: SDL drops a superseded resize from its queue,
+                // and the window holds the latest.
+                int width = 0;
+                int height = 0;
+                SDL_GetWindowSize(mSDLWindow, &width, &height);
+                if (mWindowListener)
+                    mWindowListener->windowSized(width, height);
+                break;
+            }
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
             {
                 const int w = evt.window.data1;

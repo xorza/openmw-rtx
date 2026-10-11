@@ -1,6 +1,6 @@
 # Open issues: plan
 
-This plan covers two entries in `.notes/ISSUES.md`. For each entry, the cause was traced in the
+This plan covers one entry in `.notes/ISSUES.md`. For each entry, the cause was traced in the
 code and, where the fault is in SDL or Crashpad, in their pinned sources (SDL 3.4.16 under
 `build-container/package/fetched/sdl3`, Crashpad under `build-package/extern/fetched/crashpad`). Each
 item gives a structural fix: the fix removes the cause, and does not add a guard where the fault
@@ -30,7 +30,6 @@ shows.
 Do the items in this order, which puts a quietly wrong answer first:
 
 1. [Item 3](#item-3-a-lost-surface-gets-a-new-surface): a lost surface ends the game.
-2. [Item 5](#item-5-the-window-size-is-kept-in-the-desktops-unit): the window size drifts.
 
 The items share no file.
 
@@ -121,70 +120,3 @@ expects the death through `Testing::expectDies` with the reason `deviceFailed` n
 
 **Verify.** `./omw test rtx-gpu-tests --gtest_filter='*Present*'`. Done when the test passes and
 `RtxPresentFenceTest` still passes.
-
-## Item 5: the window size is kept in the desktop's unit
-
-**Entry:** "A windowed game's size drifts on a Wayland desktop with displays at different scales."
-**Upstream:** yes, under the SDL3 port. **Decision 2** applies.
-
-**Cause.** The setting holds pixels. `SDLUtil::setVideoMode` turns them into points with the density
-of the hidden window (`windowPoints`). SDL gives a hidden Wayland window the largest scale of any
-display (`Wayland_CreateWindow`). When the compositor maps the window on a display at a smaller
-scale, SDL keeps its points (`Wayland_HandlePreferredScaleChanged`), so it has fewer pixels.
-`WindowManager::windowResized` stores those pixels. Each start converts with the wrong density
-again.
-
-**Fix.**
-
-- `[Video] window width/height` holds the size in SDL's window unit, which `SDL_GetWindowSize`
-  answers: points on macOS and Wayland, pixels on Windows and X11. `openWindow` and
-  `setVideoMode` give it to SDL as it is.
-- The wrapper reports a size to store on `SDL_EVENT_WINDOW_RESIZED`, and reads it from
-  `SDL_GetWindowSize` when it handles the event, not from the event's data: SDL removes superseded
-  window events from its queue, and the state is the latest. The layout still reads
-  `PIXEL_SIZE_CHANGED`. The listener gets a call for each, as `sdl3-fixes` splits `windowSized`
-  from `windowResized`. `WindowManager` stores only in windowed mode, as now.
-- The harness needs its window at the frame's size in pixels (`applyHostedSettings`). It states that
-  size through `OMW::EngineHost`, and `openWindow` converts it with `windowPoints` and the density
-  of the window it just made. A hosted run never stores the size, so its conversion cannot drift.
-  `windowPoints` stays for this and for the conversion below.
-- A settings file from before this change holds pixels. The settings migration marks such a file,
-  and `openWindow` converts its size once, with the pixel density of the desktop mode of the display
-  that `[Video] screen` names (`SDL_GetDesktopDisplayMode(display)->pixel_density`). SDL's Wayland
-  backend sets that density to the output's scale. On Windows and X11 it is 1, and the size does not
-  change.
-- `files/settings-default.cfg` and `docs/source/reference/modding/settings/video.rst` say the new
-  unit.
-
-**Why this fix.** The drift is a round trip through two densities. With this fix, no density is
-read for the player's window, so no round trip exists. The size goes to SDL in SDL's unit and comes
-back in it. Desktop toolkits keep a window's geometry in logical units for this reason: Qt's
-`saveGeometry` and the browsers' saved windows do. The fork's frame size is `[Video] resolution`, so
-the window size carries no promise about pixels. Upstream's SDL2 window size was in SDL2's window
-unit too.
-
-**Cost.**
-
-- On Wayland, the compositor and not the game chooses the display a window opens on. Where it
-  chooses a display at another scale than the one `[Video] screen` names, the one-time conversion
-  gives a window larger or smaller by the ratio of the two scales. After that start the size is
-  stable.
-- On Windows, the unit is pixels. Windows resizes a window that moves to a display at another DPI,
-  and the game stores that size. No conversion runs, so no drift occurs.
-- A shown harness window (`./omw view`) on a display at another scale than the largest is not
-  pixel for pixel. The presentation scales the frame into it.
-
-**Tests.**
-
-- The harness's conversion and the one-time conversion are one function of a pixel size and a
-  density, and `SDLUtilVideoWrapperTest` already covers `windowPoints`. Extend the settings migration's
-  test (`apps/components_tests/settings/migration.cpp`): a file with a window size and no mark gets
-  the mark, and a file with the mark is left as it is.
-- The fault needs two displays at different scales. This machine has one: the internal eDP is
-  disabled. The check enables it at scale 1 next to the G9 at 1.5
-  (`kscreen-doctor output.eDP-1.enable`), and only with the user's approval, since it changes the
-  desktop. Then: start windowed on the eDP, quit, and start again three times. Then the same on the
-  G9.
-
-**Verify.** `./omw test components-tests --gtest_filter='SDLUtil*:*Settings*:*Migrat*'`, then the
-two-display check. Done when the stored size is the same after each of the starts on each display.
