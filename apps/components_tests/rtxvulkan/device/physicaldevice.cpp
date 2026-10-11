@@ -233,6 +233,12 @@ namespace Rtx
                 Card old(&describeTuring);
                 old.mProperties.mProperties2.properties.apiVersion = VK_API_VERSION_1_3;
                 EXPECT_EQ(old.profile().mObstacle, "reports Vulkan 1.3.0");
+
+                // **And with nothing else asked of it**, as selection asks a device short of the
+                // version nothing more: its version alone names the obstacle.
+                DeviceFeatures none;
+                EXPECT_EQ(PhysicalDevice::profileOf(old.mProperties, none, {}, {}, {}, {}, {}).mObstacle,
+                    "reports Vulkan 1.3.0");
             }
             {
                 Card short_(&describeTuring);

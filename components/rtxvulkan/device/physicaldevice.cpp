@@ -161,6 +161,21 @@ namespace Rtx
         {
             Candidate found;
             found.mProperties = std::make_unique<DeviceProperties>();
+
+            // **The version before anything else is asked**: the structures the questions below
+            // chain are Vulkan 1.2's and later, and their image flags 1.1's, which a device below
+            // the renderer's version does not define. It is rejected on its version alone, by the
+            // rule every candidate is (`profileOf`).
+            VkPhysicalDeviceProperties plain{};
+            vkGetPhysicalDeviceProperties(handle, &plain);
+            if (plain.apiVersion < sApiVersion)
+            {
+                found.mProperties->mProperties2.properties = plain;
+                DeviceFeatures none;
+                found.mProfile = PhysicalDevice::profileOf(*found.mProperties, none, {}, {}, {}, {}, {});
+                return found;
+            }
+
             vkGetPhysicalDeviceProperties2(handle, &found.mProperties->mProperties2);
             vkGetPhysicalDeviceMemoryProperties(handle, &found.mProperties->mMemory);
 
@@ -356,7 +371,24 @@ namespace Rtx
 
         for (const VkPhysicalDevice handle : handles)
         {
-            Candidate found = examine(handle, presents);
+            // **A device that answers a question with an error is rejected, and the rest asked**:
+            // a broken second driver or a software rasterizer short of memory ended selection for
+            // every card in the machine, and as a fault to report where it is a machine to skip.
+            Candidate found;
+            try
+            {
+                found = examine(handle, presents);
+            }
+            catch (const DeviceError& failure)
+            {
+                VkPhysicalDeviceProperties plain{};
+                vkGetPhysicalDeviceProperties(handle, &plain);
+                rejections += "\n  ";
+                rejections += plain.deviceName;
+                rejections += ": answered a question with an error, ";
+                rejections += failure.what();
+                continue;
+            }
             if (!found.mProfile.mObstacle.empty())
             {
                 rejections += "\n  ";
