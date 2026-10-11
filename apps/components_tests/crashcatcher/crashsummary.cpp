@@ -23,6 +23,9 @@ namespace
         return note;
     }
 
+    /// The player's own summary, which names every folder as it is.
+    const Crash::SummaryReaders player;
+
     /// A fault, word for word: the exception and the thread that raised it, where it stopped,
     /// what its stack points into, every thread's note with the crashed one marked and a half
     /// written one said to be, what the game said of itself, and the dump.
@@ -40,7 +43,7 @@ namespace
         facts.mDump = "C:/Users/x/crashes/reports/1.dmp";
 
         std::vector<std::string> lines;
-        Crash::summarise(facts, lines, Crash::SummaryReaders::Player);
+        Crash::summarise(facts, lines, player);
         const std::vector<std::string> expected{
             "Crash: EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000 in thread 12632",
             "Crash: at VCRUNTIME140.dll+0x1dd06",
@@ -52,17 +55,36 @@ namespace
             "Crash: dump C:/Users/x/crashes/reports/1.dmp",
         };
         EXPECT_EQ(lines, expected);
-        EXPECT_EQ(Crash::title(facts), "Crash: EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000");
+        EXPECT_EQ(Crash::title(facts, player), "Crash: EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000");
 
         // **The public reads the dump by its file alone**: the folder is the user's, and names the
         // account. The rest is the player's own summary, line for line.
         std::vector<std::string> shared;
-        Crash::summarise(facts, shared, Crash::SummaryReaders::Public);
+        Crash::summarise(facts, shared, Crash::SummaryReaders{ .mPublic = true, .mHome = {} });
         std::vector<std::string> sharedExpected = expected;
         sharedExpected.back() = "Crash: dump 1.dmp";
         EXPECT_EQ(shared, sharedExpected);
         for (const std::string& line : shared)
             EXPECT_EQ(line.find("Users/x"), std::string::npos) << line;
+
+        // **And the home folder as `~` wherever a line or the title spells it**, however it is
+        // spelt: the message names it with the other separator and in capitals, and a note names it
+        // whole. `C:/Users/xavier` begins as it does and is another folder, which stays.
+        Crash::CrashFacts thrown = facts;
+        std::strcpy(thrown.mNotes.mReason, "could not write C:/USERS/X/Documents/a.txt or C:/Users/xavier/b.txt");
+        thrown.mNotes.mNotes[0] = noteOf(12632, "reading C:\\Users\\x");
+        const Crash::SummaryReaders anybody{ .mPublic = true, .mHome = "C:\\Users\\x\\" };
+        shared.clear();
+        Crash::summarise(thrown, shared, anybody);
+        ASSERT_EQ(shared.size(), expected.size() + 1) << "the reason is followed by the exception it was raised as";
+        EXPECT_EQ(shared[0], "Crash: could not write ~/Documents/a.txt or C:/Users/xavier/b.txt in thread 12632");
+        EXPECT_EQ(shared[4], "Crash: note of thread 12632, which crashed: reading ~");
+        EXPECT_EQ(Crash::title(thrown, anybody), "Crash: could not write ~/Documents/a.txt or C:/Users/xavier/b.txt");
+        EXPECT_EQ(
+            Crash::title(thrown, player), "Crash: could not write C:/USERS/X/Documents/a.txt or C:/Users/xavier/b.txt");
+        lines.clear();
+        Crash::summarise(thrown, lines, player);
+        EXPECT_EQ(lines[4], "Crash: note of thread 12632, which crashed: reading C:\\Users\\x") << "the player's own";
 
         // The words a system's facts are spelt in: an address in hexadecimal, nought included, and a
         // code by its name, or by what the system half says where it has none.
@@ -87,9 +109,9 @@ namespace
         terminate.mException = "SIGABRT";
         terminate.mNotes.mThread = 7;
         std::vector<std::string> lines;
-        Crash::summarise(terminate, lines, Crash::SummaryReaders::Player);
+        Crash::summarise(terminate, lines, player);
         EXPECT_EQ(lines[0], "Crash: std::terminate on an uncaught exception: bad in thread 7");
-        EXPECT_EQ(Crash::title(terminate), "Crash: std::terminate on an uncaught exception: bad");
+        EXPECT_EQ(Crash::title(terminate, player), "Crash: std::terminate on an uncaught exception: bad");
         EXPECT_EQ(lines[1], "Crash: raised as SIGABRT");
         EXPECT_EQ(lines[2], "Crash: no thread noted anything");
         EXPECT_EQ(lines[3], "Crash: no dump was written");
@@ -102,9 +124,9 @@ namespace
         report.mNotes.mCount = 1;
         report.mNotes.mNotes[0] = noteOf(7, "placing");
         lines.clear();
-        Crash::summarise(report, lines, Crash::SummaryReaders::Player);
+        Crash::summarise(report, lines, player);
         EXPECT_EQ(lines[0], "Report: a contract broken in thread 7");
-        EXPECT_EQ(Crash::title(report), "Report: a contract broken");
+        EXPECT_EQ(Crash::title(report, player), "Report: a contract broken");
         EXPECT_EQ(lines[1], "Report: note of thread 7, which asked: placing");
 
         Crash::CrashFacts hang;
@@ -115,17 +137,17 @@ namespace
         hang.mNotes.mNotes[0] = noteOf(7, "compiling");
         hang.mNotes.mNotes[1] = noteOf(9, "walking");
         lines.clear();
-        Crash::summarise(hang, lines, Crash::SummaryReaders::Player);
+        Crash::summarise(hang, lines, player);
         EXPECT_EQ(lines[0], "Hang: no frame for 20 seconds in thread 7");
-        EXPECT_EQ(Crash::title(hang), "Hang: no frame for 20 seconds");
+        EXPECT_EQ(Crash::title(hang, player), "Hang: no frame for 20 seconds");
         EXPECT_EQ(lines[1], "Hang: note of thread 7, which draws: compiling");
         EXPECT_EQ(lines[2], "Hang: note of thread 9: walking");
 
         Crash::CrashFacts nothing;
         lines.clear();
-        Crash::summarise(nothing, lines, Crash::SummaryReaders::Player);
+        Crash::summarise(nothing, lines, player);
         EXPECT_EQ(lines[0], "Crash: no exception was recorded");
-        EXPECT_EQ(Crash::title(nothing), "Crash: no exception was recorded");
+        EXPECT_EQ(Crash::title(nothing, player), "Crash: no exception was recorded");
     }
 
     /// What a terminate handler reports, for each thing that can be current: the message of a

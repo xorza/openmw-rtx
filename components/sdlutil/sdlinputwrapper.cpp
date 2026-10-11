@@ -124,7 +124,8 @@ namespace SDLUtil
                     mKeyboardListener->keyPressed(evt.key);
 
                     if (!isModifierHeld(SDL_KMOD_ALT) && evt.key.key >= SDLK_F1 && evt.key.key <= SDLK_F12)
-                        mGraphics.functionKey(static_cast<int>(evt.key.key - SDLK_F1), true);
+                        mGraphics.functionKey(static_cast<int>(evt.key.key - SDLK_F1),
+                            evt.key.repeat ? KeyChange::Repeated : KeyChange::Pressed);
 
                     break;
                 case SDL_EVENT_KEY_UP:
@@ -133,7 +134,7 @@ namespace SDLUtil
                         mKeyboardListener->keyReleased(evt.key);
 
                         if (!isModifierHeld(SDL_KMOD_ALT) && evt.key.key >= SDLK_F1 && evt.key.key <= SDLK_F12)
-                            mGraphics.functionKey(static_cast<int>(evt.key.key - SDLK_F1), false);
+                            mGraphics.functionKey(static_cast<int>(evt.key.key - SDLK_F1), KeyChange::Released);
                     }
 
                     break;

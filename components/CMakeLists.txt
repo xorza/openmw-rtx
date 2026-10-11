@@ -590,6 +590,7 @@ if (WIN32)
         fifowin32
         librarywin32
         threadwin32
+        userhomewin32
         )
 elseif (UNIX)
     add_component_dir(platform
@@ -602,6 +603,7 @@ elseif (UNIX)
         fifoposix
         libraryposix
         threadposix
+        userhomeposix
         )
 else ()
     add_component_dir(platform

@@ -1,11 +1,13 @@
 #include "crashsummary.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <format>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -18,6 +20,51 @@ namespace Crash
 {
     namespace
     {
+        /// Whether `left` and `right` spell the same character of a path: either separator for
+        /// the other, and an ASCII letter in either case, as Windows reads a path.
+        bool samePathCharacter(const char left, const char right)
+        {
+            const auto folded = [](const char c) {
+                if (c == '\\')
+                    return '/';
+                return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
+            };
+            return folded(left) == folded(right);
+        }
+
+        /// Whether `c` carries on the name of a folder, so a match of the home folder that `c`
+        /// follows is a longer name and not the folder: `C:/Users/x` in `C:/Users/xavier`.
+        bool continuesName(const char c)
+        {
+            const auto byte = static_cast<unsigned char>(c);
+            return byte >= 0x80 || std::isalnum(byte) != 0 || c == '_' || c == '-' || c == '.';
+        }
+
+        /// `text` with every spelling of `home` in it written `~`. Nothing for an empty `home`.
+        void nameHome(std::string& text, std::string_view home)
+        {
+            while (!home.empty() && (home.back() == '/' || home.back() == '\\'))
+                home.remove_suffix(1);
+            if (home.empty())
+                return;
+
+            std::string named;
+            std::size_t at = 0;
+            while (at < text.size())
+            {
+                const std::size_t end = at + home.size();
+                if (end <= text.size() && std::equal(home.begin(), home.end(), text.begin() + at, samePathCharacter)
+                    && (end == text.size() || !continuesName(text[end])))
+                {
+                    named += '~';
+                    at = end;
+                }
+                else
+                    named += text[at++];
+            }
+            text = std::move(named);
+        }
+
         std::string_view kindOf(ReportKind kind)
         {
             switch (kind)
@@ -105,13 +152,17 @@ namespace Crash
         }
     }
 
-    std::string title(const CrashFacts& facts)
+    std::string title(const CrashFacts& facts, const SummaryReaders& readers)
     {
-        return titleOf(facts, kindPrefix(facts), reasonOf(facts));
+        std::string heading = titleOf(facts, kindPrefix(facts), reasonOf(facts));
+        if (readers.mPublic)
+            nameHome(heading, readers.mHome);
+        return heading;
     }
 
-    void summarise(const CrashFacts& facts, std::vector<std::string>& lines, const SummaryReaders readers)
+    void summarise(const CrashFacts& facts, std::vector<std::string>& lines, const SummaryReaders& readers)
     {
+        const std::size_t first = lines.size();
         const NotesRead& notes = facts.mNotes;
         const std::string kind = kindPrefix(facts);
         const std::string reason = reasonOf(facts);
@@ -150,11 +201,15 @@ namespace Crash
 
         if (facts.mDump.empty())
             lines.push_back(kind + "no dump was written");
-        else if (readers == SummaryReaders::Public)
+        else if (readers.mPublic)
             lines.push_back(
                 kind + "dump " + Files::pathToUnicodeString(Files::pathFromUnicodeString(facts.mDump).filename()));
         else
             lines.push_back(kind + "dump " + facts.mDump);
+
+        if (readers.mPublic)
+            for (std::string& line : std::span(lines).subspan(first))
+                nameHome(line, readers.mHome);
     }
 
     std::string hex(const std::uint64_t value)

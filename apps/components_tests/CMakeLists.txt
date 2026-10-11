@@ -41,6 +41,7 @@ file(GLOB UNITTEST_SRC_FILES
     platform/localtime.cpp
     platform/sharedmemory.cpp
     platform/thread.cpp
+    platform/userhome.cpp
     platform/uniquehold.cpp
 
     detournavigator/navigator.cpp
