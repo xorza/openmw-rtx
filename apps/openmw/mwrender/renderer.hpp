@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -570,6 +571,12 @@ namespace MWRender
     /// The game's own choice. A host with a renderer of its own — the harness, with its run —
     /// makes it itself, as the engine's host (`OMW::EngineHost::createRenderer`).
     std::unique_ptr<Renderer> createRenderer(RendererKind kind, const RendererSpec& spec);
+
+    /// What a player is told where the renderer `kind` could not start for `reason`: for the ray
+    /// tracer, also that `[RTX] enabled` chose it and where to turn it off. **The setting stays as
+    /// the player left it**, so every start until then ends here, and the box is the one place that
+    /// can say how to start the game again.
+    std::string describeStartFailure(RendererKind kind, std::string_view reason);
 
     /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
     /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Hidden,
