@@ -25,9 +25,9 @@ Screenshots
 Demo video
 ----------
 
-[Watch the demo on YouTube](https://www.youtube.com/watch?v=h9wsxzmaoqM)
+[Watch the demo on YouTube](https://www.youtube.com/watch?v=15cdzw8t1x4)
 
-[![OpenMW RTX demo](https://img.youtube.com/vi/h9wsxzmaoqM/maxresdefault.jpg)](https://www.youtube.com/watch?v=h9wsxzmaoqM)
+[![OpenMW RTX demo](https://img.youtube.com/vi/h9wsxzmaoqM/maxresdefault.jpg)](https://www.youtube.com/watch?v=15cdzw8t1x4)
 
 What the fork is
 ----------------
