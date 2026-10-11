@@ -39,13 +39,13 @@ namespace Rtx
         }
     };
 
-    /// How many levels a chain from `width` by `height` down to one texel has: what
-    /// `MipPyramid::layOutTo1x1` lays out, for an image made to hold one.
     /// The largest side of a file whose completed chain stays loose (`TextureData::encodesChain`):
     /// the largest of the hundred and eighty-seven single-level files Morrowind ships, so no
     /// vanilla picture moves.
     inline constexpr std::uint32_t sLargestLooseChainSide = 512;
 
+    /// How many levels a chain from `width` by `height` down to one texel has: what
+    /// `MipPyramid::layOutTo1x1` lays out, for an image made to hold one.
     inline std::uint32_t levelsTo1x1(std::uint32_t width, std::uint32_t height)
     {
         return static_cast<std::uint32_t>(std::bit_width(std::max(width, height)));

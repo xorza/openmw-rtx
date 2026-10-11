@@ -371,18 +371,6 @@ namespace Rtx
         /// A placement into the first copy waits for the arrival that posed it there, and for
         /// nothing longer.
         ///
-        /// **The reader the frame ring does not count.** An arrival stages its rows into the first
-        /// copy and dispatches over them from a batch that rides whatever submit comes next — the
-        /// placement's, in a game — and no trace stamps that read. The next placement into that
-        /// copy waited for the frame that last traced it, which was submitted ahead of the arrival,
-        /// and then wrote the rows from the host under a dispatch still reading them: the assert
-        /// in `Buffer::writable` is what the game hit. `SkinTables::finishReads` is the wait, and
-        /// it is measured off the tables' own stamp rather than the ring's.
-        ///
-        /// **A held submit, opened while this thread waits.** The wait cannot return before the
-        /// hold opens, so it lasts at least the hold's length — and without it the placement would
-        /// run at once, into rows a submit still reads, which the assert catches in a build that
-        /// asserts and the bound catches in one that does not.
         /// **The skin's transform is applied once, to the blend, as `RigGeometry::cull` applies it**,
         /// and a vertex no bone moves keeps its bind pose. The transform is ten along x, and the
         /// bones stand at four up and nowhere, the second the rows of nought a bone the skeleton
@@ -474,6 +462,18 @@ namespace Rtx
             EXPECT_EQ(readAt<osg::Vec3f>(readNormals, bind + 2), osg::Vec3f(0.0f, 0.0f, 1.0f));
         }
 
+        /// **The reader the frame ring does not count.** An arrival stages its rows into the first
+        /// copy and dispatches over them from a batch that rides whatever submit comes next — the
+        /// placement's, in a game — and no trace stamps that read. The next placement into that
+        /// copy waited for the frame that last traced it, which was submitted ahead of the arrival,
+        /// and then wrote the rows from the host under a dispatch still reading them: the assert
+        /// in `Buffer::writable` is what the game hit. `SkinTables::finishReads` is the wait, and
+        /// it is measured off the tables' own stamp rather than the ring's.
+        ///
+        /// **A held submit, opened while this thread waits.** The wait cannot return before the
+        /// hold opens, so it lasts at least the hold's length — and without it the placement would
+        /// run at once, into rows a submit still reads, which the assert catches in a build that
+        /// asserts and the bound catches in one that does not.
         TEST_F(RtxSkinPassTest, aPlacementWaitsForTheArrivalThatPosedTheFirstCopy)
         {
             Device& device = getDevice();

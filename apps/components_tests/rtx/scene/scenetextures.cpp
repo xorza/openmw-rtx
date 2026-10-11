@@ -34,6 +34,7 @@
 #include <components/rtx/scene/scenetextures.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -405,6 +406,18 @@ namespace Rtx
                 = describeImage(*laid, Rtx::TextureEncoding::Colour, levels, texels).value();
             EXPECT_EQ(flatLaid.mBytes.data(), reinterpret_cast<const std::byte*>(laid->data()));
             EXPECT_TRUE(std::ranges::equal(flatLaid.mBytes, widened.mBytes));
+
+            // **A model's own image is laid under its stamp**, which names it to a crash note and a
+            // refusal as a file's name names a file.
+            sixteen->setFileName("");
+            SceneUtil::EmbeddedImage::stamp(*sixteen, "meshes/i/tx_crystal_02.nif", 7);
+            const osg::ref_ptr<const osg::Image> stampedLaid
+                = layImage(*sixteen, Rtx::readFormat(*sixteen), layLevels, layTexels);
+            ASSERT_NE(stampedLaid, nullptr);
+            EXPECT_EQ(SceneUtil::EmbeddedImage::nameOf(*stampedLaid), "meshes/i/tx_crystal_02.nif#7");
+            EXPECT_EQ(describeImage(*stampedLaid, Rtx::TextureEncoding::Colour, levels, texels).value().mName,
+                "meshes/i/tx_crystal_02.nif#7");
+
             EXPECT_EQ(layImage(*rgba, Rtx::readFormat(*rgba), layLevels, layTexels), nullptr)
                 << "a format uploaded as it is was laid";
 

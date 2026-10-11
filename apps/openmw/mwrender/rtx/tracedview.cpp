@@ -42,7 +42,7 @@ namespace MWRender
             // Held to the frame's own sides, which every device chosen makes an image at: a map
             // tile is `[Map] local map resolution` times the raster scale, which nothing bounds.
             const auto sideOf = [](int asked) {
-                return std::clamp(static_cast<std::uint32_t>(std::max(asked, 1)), 1u, Rtx::sLargestFrameSide);
+                return static_cast<std::uint32_t>(std::clamp(asked, 1, static_cast<int>(Rtx::sLargestFrameSide)));
             };
             return Rtx::ViewRequest{
                 .mWidth = sideOf(spec.mWidth),
@@ -146,7 +146,6 @@ namespace MWRender
         if (mCopyState != CopyState::NotWanted)
             mCopyState = CopyState::Queued;
 
-        mAskedIn = mViews.getScene();
         mAbandoned = false;
         mViews.redraw(*this);
     }

@@ -30,7 +30,7 @@ namespace Rtx
     }
 
     void Bc7EncodePass::record(const VkCommandBuffer commands, const Image& source, const Buffer& blocks,
-        const VkDeviceSize offset, const Image& target, const bool weighsAlpha) const
+        const Image& target, const bool weighsAlpha) const
     {
         assert(target.getWidth() == source.getWidth() && target.getHeight() == source.getHeight()
             && target.getMipLevels() == source.getMipLevels() && "a target shaped unlike its source");
@@ -38,7 +38,7 @@ namespace Rtx
             && "a target that is not BC7");
 
         const Bc7Chain chain = Bc7Chain::of(source.getWidth(), source.getHeight(), source.getMipLevels());
-        assert(chain.mCount <= Shaders::BC7_MOST_LEVELS && blocks.getSize() >= offset + chain.mBytes
+        assert(chain.mCount <= Shaders::BC7_MOST_LEVELS && blocks.getSize() >= chain.mBytes
             && "a buffer too small for the chain's blocks");
 
         // One dispatch over every level: the array past the chain's last level repeats it, a view no
@@ -49,7 +49,7 @@ namespace Rtx
 
         DescriptorWrites writes(mPipeline);
         writes.images(Shaders::BC7_BIND_SOURCE, levels);
-        writes.buffer(Shaders::BC7_BIND_BLOCKS, blocks.describe(offset, chain.mBytes));
+        writes.buffer(Shaders::BC7_BIND_BLOCKS, blocks.describe(0, chain.mBytes));
         std::uint32_t groups = 0;
         for (std::uint32_t at = 0; at < chain.mCount; ++at)
             groups += groupsFor(chain.mLevels[at].mBlocks, Shaders::BC7_WORKGROUP);
@@ -65,8 +65,8 @@ namespace Rtx
 
         std::array<VkBufferImageCopy, Shaders::BC7_MOST_LEVELS> regions{};
         for (std::uint32_t at = 0; at < chain.mCount; ++at)
-            regions[at] = wholeLevel(offset + chain.mLevels[at].mOffset, at,
-                VkExtent3D{ chain.mLevels[at].mWidth, chain.mLevels[at].mHeight, 1 });
+            regions[at] = wholeLevel(
+                chain.mLevels[at].mOffset, at, VkExtent3D{ chain.mLevels[at].mWidth, chain.mLevels[at].mHeight, 1 });
         vkCmdCopyBufferToImage(commands, blocks.getHandle(), target.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             chain.mCount, regions.data());
 

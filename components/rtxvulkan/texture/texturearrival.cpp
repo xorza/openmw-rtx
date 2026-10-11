@@ -82,17 +82,8 @@ namespace Rtx
     void TextureArrival::chain(const Image& source, const Image& chain, const bool encoded,
         const TextureEncoding encoding, const Image* const bc7)
     {
-        // Each chain's blocks at an offset of its own, rounded to the largest storage offset
-        // alignment Vulkan lets a device ask for, so no encode waits on another's copy.
-        constexpr VkDeviceSize alignment = 256;
-        const VkDeviceSize blocks
-            = bc7 != nullptr ? Bc7Chain::of(chain.getWidth(), chain.getHeight(), chain.getMipLevels()).mBytes : 0;
-        mChains.push_back(Chain{ .mSource = &source,
-            .mChain = &chain,
-            .mEncoded = encoded,
-            .mEncoding = encoding,
-            .mBc7 = bc7,
-            .mBlockBytes = (blocks + alignment - 1) / alignment * alignment });
+        mChains.push_back(
+            Chain{ .mSource = &source, .mChain = &chain, .mEncoded = encoded, .mEncoding = encoding, .mBc7 = bc7 });
     }
 
     void TextureArrival::shade(const Image& source, const Image& map, const TextureWrap wrap)
@@ -219,25 +210,28 @@ namespace Rtx
 
     void TextureArrival::recordEncodes(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)
     {
-        VkDeviceSize total = 0;
+        VkDeviceSize largest = 0;
         for (const Chain& chain : mChains)
-            total += chain.mBlockBytes;
-        if (total == 0)
+            if (chain.mBc7 != nullptr)
+                largest = std::max(largest,
+                    Bc7Chain::of(chain.mChain->getWidth(), chain.mChain->getHeight(), chain.mChain->getMipLevels())
+                        .mBytes);
+        if (largest == 0)
             return;
 
-        mBlocks.outgrow(total);
+        mBlocks.outgrow(largest);
         barriers.flush();
 
-        // An encode per chain, each with its own copy behind it: only a file past
-        // `sLargestLooseChainSide` with no levels of its own comes here, which a run holds few of.
-        VkDeviceSize offset = 0;
+        // One encode after another through one room, each handing it to the next once its copy has
+        // read it, as the ground's composite does: only a file past `sLargestLooseChainSide` with no
+        // levels of its own comes here, which a run holds few of.
         for (const Chain& chain : mChains)
         {
             if (chain.mBc7 == nullptr)
                 continue;
 
-            passes.mEncode.record(commands, *chain.mChain, mBlocks.get(), offset, *chain.mBc7, true);
-            offset += chain.mBlockBytes;
+            passes.mEncode.record(commands, *chain.mChain, mBlocks.get(), *chain.mBc7, true);
+            handOver(commands, Use::sBufferCopyRead, Use::sBufferComputeWrite);
         }
     }
 
