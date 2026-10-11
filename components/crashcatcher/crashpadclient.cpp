@@ -151,17 +151,28 @@ namespace Crash
         // 4 MiB; on Linux and macOS it keeps what the registers point at.
         info->set_gather_indirectly_referenced_memory(crashpad::TriState::kEnabled, 4 << 20);
 
-        if (!sClient.StartHandler(base::FilePath(self->native()), base::FilePath(settings.mReportFolder.native()),
-                base::FilePath(), std::string(), std::string(), { { "product", settings.mApplication } },
-                monitor.write(), false, false))
-            return Misc::Err{ "its monitor did not start" };
+        const bool started = sClient.StartHandler(base::FilePath(self->native()),
+            base::FilePath(settings.mReportFolder.native()), base::FilePath(), std::string(), std::string(),
+            { { "product", settings.mApplication } }, monitor.write(), false, false);
 
-        // **Until the monitor has opened the page**, bounded: on Linux and macOS `StartHandler`
-        // answers once its fork did, and a monitor that never ran left the game with no catcher, a
-        // log that said it had one, and the page in the system's list until a reboot. Ten seconds,
-        // for a cold start of a debug build off a slow disk; a monitor that runs ends the wait.
-        if (!page.awaitMonitor(std::chrono::seconds(10)))
-            return Misc::Err{ "its monitor did not start" };
+        // **Until the monitor has answered**, bounded: on Linux `StartHandler` answers once its fork
+        // did, and a monitor that never ran left the game with no catcher and a log that said it had
+        // one. Ten seconds, for a cold start of a debug build off a slow disk. Read where it failed as
+        // well: on Windows and macOS a monitor that refuses ends before it hands its handler over,
+        // so `StartHandler` fails, and only the page says why.
+        switch (page.awaitMonitor(started ? std::chrono::milliseconds(10'000) : std::chrono::milliseconds(0)))
+        {
+            case MonitorAnswer::Watching:
+                if (!started)
+                    return Misc::Err{ "its monitor did not start" };
+                break;
+            case MonitorAnswer::Unanswered:
+                return Misc::Err{ "its monitor did not start" };
+            case MonitorAnswer::DatabaseUnopened:
+                return Misc::Err{ "its report folder could not be opened" };
+            case MonitorAnswer::ReportUnwritable:
+                return Misc::Err{ "its report folder takes no new report" };
+        }
 
         SharedPage* const kept = new SharedPage(std::move(page));
         sPage.store(kept, std::memory_order_release);

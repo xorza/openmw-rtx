@@ -50,9 +50,9 @@ namespace Crash
     std::string_view keepImageMounted();
 
     /// Starts the monitor and hooks every way this process can end in a crash. Whether it did, and
-    /// why not where it did not: a system Crashpad does not support, or a monitor that would
-    /// not start. Once in a process, as early as it can be: a crash before the log is set up is a
-    /// crash all the same.
+    /// why not where it did not: a system Crashpad does not support, a monitor that would not start,
+    /// or a report folder its monitor cannot write a report into. Once in a process, as early as it
+    /// can be: a crash before the log is set up is a crash all the same.
     Misc::Result<Installed, std::string_view> install(const Settings& settings);
 
     /// Where the monitor appends each summary: the game's own log, known once the configuration has

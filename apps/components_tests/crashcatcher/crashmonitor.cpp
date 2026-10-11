@@ -111,6 +111,17 @@ namespace
         std::atomic_ref(monitor.get()->mHangEntry).store(0x1234);
         EXPECT_EQ(std::atomic_ref(game.get()->mHangEntry).load(), 0x1234u);
 
+        // **The game waits for the monitor's answer, not for its opening**: the page opened above,
+        // and a game that waited a millisecond still has none. Each answer then ends the wait at
+        // once, where ten seconds would fail the test's own limit.
+        EXPECT_EQ(game.awaitMonitor(std::chrono::milliseconds(1)), Crash::MonitorAnswer::Unanswered);
+        for (const Crash::MonitorAnswer answer : { Crash::MonitorAnswer::DatabaseUnopened,
+                 Crash::MonitorAnswer::ReportUnwritable, Crash::MonitorAnswer::Watching })
+        {
+            monitor.answerGame(answer);
+            EXPECT_EQ(game.awaitMonitor(std::chrono::seconds(10)), answer);
+        }
+
         // **The log goes over once the game knows it**, which is after the monitor has started:
         // nothing before, the path whole after, letters outside ASCII and a space included, and a
         // path past the page's room is not handed over at all rather than cut.

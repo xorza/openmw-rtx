@@ -43,6 +43,10 @@ namespace CrashTests
         /// Whether the mode runs under an AppImage's keeper (`Crash::keepImageMounted`), whose run
         /// ends only once the monitor has: the package then stands when the run ends, not after.
         bool mKept = false;
+
+        /// Why the catcher must refuse to start, where it must: the log says so, says no catcher
+        /// works, and the game goes on without one.
+        std::string_view mRefusal = {};
     };
 
     /// How this system names what the modes every system has raise, one of each list.
