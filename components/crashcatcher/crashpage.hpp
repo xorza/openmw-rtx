@@ -15,6 +15,22 @@ namespace Crash
     /// packages go to. A longer path is not handed over, and the monitor then does without it.
     inline constexpr std::size_t sPathCapacity = 2048;
 
+    /// What the monitor tells the game of itself, once, before Crashpad's handler runs.
+    enum class MonitorAnswer : std::uint32_t
+    {
+        /// Nothing yet, as `SharedPage::create` leaves the page.
+        Unanswered,
+
+        /// The report database opened and took a report, and the handler runs on it.
+        Watching,
+
+        /// Crashpad could not open the report database.
+        DatabaseUnopened,
+
+        /// The report database opened and took no new report.
+        ReportUnwritable,
+    };
+
     /// What the game and its monitor share while both run, read and written through
     /// `std::atomic_ref`: plain words, so both sides map the same bytes.
     struct Heartbeat
@@ -25,6 +41,9 @@ namespace Crash
         /// The thread that counted the last frame, as `Platform::Process::currentThreadId` gives it:
         /// the one a hang stopped, which a hang's report is about. Nought before the first frame.
         alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mDrawing;
+
+        /// The monitor's `MonitorAnswer`, stored once it has one.
+        alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mMonitorAnswer;
 
         /// How long unchanged is a hang, in seconds; nought turns the check off.
         alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mHangSeconds;
@@ -70,9 +89,12 @@ namespace Crash
 
         Heartbeat* get() const { return static_cast<Heartbeat*>(mMemory.data()); }
 
-        /// Waits up to `patience` for the monitor to open the page, and answers whether it did. Yes at
-        /// once where the system cannot tell (`Platform::SharedMemory::isOpenedElsewhere`).
-        bool awaitMonitor(std::chrono::milliseconds patience) const;
+        /// Waits up to `patience` for the monitor's answer, and answers it, or `Unanswered` where none
+        /// came.
+        MonitorAnswer awaitMonitor(std::chrono::milliseconds patience) const;
+
+        /// The monitor's side: tells the game whether it watches. Once, before the handler runs.
+        void answerGame(MonitorAnswer answer) const;
 
         /// Hands the monitor the game's log, `log` in UTF-8, or says it cannot: no page, a path
         /// longer than `sPathCapacity`, or one handed over already. Once, from the thread that sets

@@ -26,6 +26,8 @@
 
 #include <SDL3/SDL_messagebox.h>
 #include <SDL3/SDL_misc.h>
+#include <base/files/file_path.h>
+#include <client/crash_report_database.h>
 #include <handler/handler_main.h>
 #include <handler/user_stream_data_source.h>
 #include <minidump/minidump_user_extension_stream_data_source.h>
@@ -712,6 +714,22 @@ namespace Crash
                 SDL_OpenURL(newIssueUrl(monitor.mIssues, report.mTitle, {}, attach).c_str());
             SDL_OpenURL(folderUrl(folder).c_str());
         }
+
+        /// **What a crash will meet**, asked through Crashpad's own database before its handler opens
+        /// the same one: a report made in the folder a dump is written to, and dropped unfinished,
+        /// which deletes it.
+        MonitorAnswer probeDatabase(const std::filesystem::path& folder)
+        {
+            const std::unique_ptr<crashpad::CrashReportDatabase> database
+                = crashpad::CrashReportDatabase::Initialize(base::FilePath(folder.native()));
+            if (database == nullptr)
+                return MonitorAnswer::DatabaseUnopened;
+
+            std::unique_ptr<crashpad::CrashReportDatabase::NewReport> report;
+            if (database->PrepareNewCrashReport(&report) != crashpad::CrashReportDatabase::kNoError)
+                return MonitorAnswer::ReportUnwritable;
+            return MonitorAnswer::Watching;
+        }
     }
 
     void runMonitorIfAsked(int argc, char** argv)
@@ -721,6 +739,13 @@ namespace Crash
 
         std::vector<std::string> handler;
         MonitorState monitor(MonitorArguments::read(Platform::Process::commandLine(argc, argv), handler));
+
+        // Before the handler, which ends at once on a database it cannot open, while the game would
+        // take a monitor that started for a catcher that works.
+        const MonitorAnswer answer = probeDatabase(monitor.mDatabase);
+        monitor.mPage.answerGame(answer);
+        if (answer != MonitorAnswer::Watching)
+            std::exit(EXIT_FAILURE);
 
         crashpad::UserStreamDataSources sources;
         sources.push_back(std::make_unique<SummarySource>(monitor));

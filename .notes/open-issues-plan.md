@@ -1,6 +1,6 @@
 # Open issues: plan
 
-This plan covers the five entries in `.notes/ISSUES.md`. For each entry, the cause was traced in the
+This plan covers four entries in `.notes/ISSUES.md`. For each entry, the cause was traced in the
 code and, where the fault is in SDL or Crashpad, in their pinned sources (SDL 3.4.16 under
 `build-container/package/fetched/sdl3`, Crashpad under `build-package/extern/fetched/crashpad`). Each
 item gives a structural fix: the fix removes the cause, and does not add a guard where the fault
@@ -29,14 +29,12 @@ shows.
 
 Do the items in this order, which puts a quietly wrong answer first:
 
-1. [Item 1](#item-1-the-crash-catcher-says-it-works-when-it-cannot-write-a-report): the game logs a
-   crash catcher that cannot write a dump.
-2. [Item 2](#item-2-the-card-watch-reads-the-card-the-renderer-runs-on): a bench line can describe
+1. [Item 2](#item-2-the-card-watch-reads-the-card-the-renderer-runs-on): a bench line can describe
    the wrong card.
-3. [Item 3](#item-3-a-lost-surface-gets-a-new-surface): a lost surface ends the game.
-4. [Item 4](#item-4-a-window-that-shows-nothing-draws-nothing): a minimized window keeps the card
+2. [Item 3](#item-3-a-lost-surface-gets-a-new-surface): a lost surface ends the game.
+3. [Item 4](#item-4-a-window-that-shows-nothing-draws-nothing): a minimized window keeps the card
    busy.
-5. [Item 5](#item-5-the-window-size-is-kept-in-the-desktops-unit): the window size drifts.
+4. [Item 5](#item-5-the-window-size-is-kept-in-the-desktops-unit): the window size drifts.
 
 Items 4 and 5 both change `InputWrapper::handleWindowEvent`. Do item 4 first, so that item 5's diff
 starts from it. The other items share no file.
@@ -70,69 +68,6 @@ The user took these calls on 2026-10-11. Each item that a decision changes says 
 3. **Approval of the upstream changes (items 4 and 5): both approved.** Both fix a fault of the
    fork's SDL3 port in upstream files. Each adds a sub-line under the SDL3 port in AGENTS.md's
    Accepted diff, in the same commit as its code.
-
-## Item 1: the crash catcher says it works when it cannot write a report
-
-**Entry:** "A crash monitor whose report database fails to open is reported as a working catcher on
-Linux and macOS." **Upstream:** no. `components/crashcatcher` is the fork's.
-
-**Cause.** `Crash::install` (`components/crashcatcher/crashpadclient.cpp`) waits for
-`SharedPage::awaitMonitor`, which asks `Platform::SharedMemory::isOpenedElsewhere`. That answer says
-only that the monitor process opened the page. The monitor opens the page in the constructor of
-`MonitorState` (`crashpadmonitor.cpp`), before `crashpad::HandlerMain` runs. `HandlerMain` opens
-the database with `CrashReportDatabase::Initialize` and returns `EXIT_FAILURE` when it cannot
-(`handler/handler_main.cc`). So the game logs "Crash reports go to …" while no handler runs. On
-Windows, `isOpenedElsewhere` answers "cannot tell", and the wait passes at once. Windows is safe
-today only because `StartHandler` waits for the handler's pipe, which `HandlerMain` serves after the
-database opens.
-
-**Fix.**
-
-- The page carries the monitor's state. `Heartbeat` gets a word `mMonitor`: `Starting` (nought, as
-  `SharedPage::create` zeroes it), `Watching`, or `Refused`. A second word gives the reason of a
-  refusal as an enum: `DatabaseUnopened` or `ReportUnwritable`. The monitor writes the reason
-  first, then the state with release order. The game reads the state with acquire order.
-- Before `HandlerMain`, the monitor opens the database through Crashpad's own
-  `CrashReportDatabase::Initialize(mDatabase)`. `mDatabase` is the path that the game gives
-  `StartHandler`, which `MonitorArguments::read` takes from the handler's `--database`. Then the
-  monitor calls `PrepareNewCrashReport` and drops the `NewReport` without
-  `FinishedWritingCrashReport`, so Crashpad deletes the file. This is the exact path a dump takes
-  into the `new` folder. The monitor closes its database object before `HandlerMain` opens its
-  own. A monitor that refuses writes `Refused`, ends with a non-zero code, and runs no handler.
-- `install` reads the page's state whatever `StartHandler` answers. On Windows, a monitor that
-  refuses before `HandlerMain` never writes the pipe, so `StartHandler` fails, and only the page
-  holds the reason. `Refused` gives an error that names the reason ("its report folder could not be
-  opened", "its report folder takes no new report"). `Starting` after the patience gives "its
-  monitor did not start", as now.
-- `SharedPage::awaitMonitor` waits for a state that is not `Starting`, on every system, with the
-  same ten seconds, and answers the state. `isOpenedElsewhere` then has no production caller:
-  remove it, its two system implementations and its test in
-  `apps/components_tests/platform/sharedmemory.cpp`.
-
-**Why this fix.** The game's claim must rest on the fact it states: the monitor can write a report.
-A probe through Crashpad's own database code finds what `HandlerMain` will find. A probe of the
-folder with our own file code can disagree with Crashpad. The state word also closes the Windows
-case, where the system cannot tell who opened a mapping, so the three systems take one path.
-
-**Cost.** A disk that fills after the start still loses a dump. No check at the start can see that.
-The monitor's summary already logs "left no dump" for such an end. Between the probe and
-`HandlerMain`, the folder can change. That window is a few milliseconds and is accepted.
-
-**Tests.**
-
-- Extend `CrashPageTest` (`apps/components_tests/crashcatcher/crashmonitor.cpp`): the monitor's
-  side writes `Refused` with each reason, and `awaitMonitor` on the game's side answers that state
-  and reason at once. A page left at `Starting` answers `Starting` after a patience of a few
-  milliseconds.
-- Two modes in the crash matrix (`crashtests.cpp`), one for each reason. `DatabaseUnopened`: the
-  report folder exists with mode `0555`, so Crashpad cannot make its subfolders.
-  `ReportUnwritable`: the database is made first, then its `new` folder gets mode `0555`. In each
-  mode, `install` returns the refusal with that reason, and the mode's log has no "Crash reports go
-  to". Windows: the same two modes with a deny ACL, left to the Windows run.
-
-**Verify.** `./omw test components-tests --gtest_filter='CrashPage*:CrashMonitor*'`, then
-`./omw test -R crash.matrix --output-on-failure`. Done when both pass and the existing matrix modes
-still write their dumps.
 
 ## Item 2: the card watch reads the card the renderer runs on
 

@@ -489,9 +489,19 @@ namespace CrashTests
 
             // `setupLogging` says so in the log and carries on, as the game does, where a mode that
             // reports nothing would then pass without a catcher to have kept quiet.
-            if (const auto missing = std::find_if(said.begin(), said.end(),
-                    [](const std::string& line) { return line.starts_with("No crash catcher"); });
-                missing != said.end())
+            const auto missing = std::find_if(
+                said.begin(), said.end(), [](const std::string& line) { return line.starts_with("No crash catcher"); });
+            if (!mode.mRefusal.empty())
+            {
+                const std::string refused = "No crash catcher: " + std::string(mode.mRefusal);
+                if (missing == said.end() || *missing != refused)
+                    return "the log does not say \"" + refused + "\"";
+                if (const auto claimed = std::find_if(said.begin(), said.end(),
+                        [](const std::string& line) { return line.starts_with("Crash reports go to"); });
+                    claimed != said.end())
+                    return "the log says a catcher works: " + *claimed;
+            }
+            else if (missing != said.end())
                 return *missing;
 
             if (!mode.mReports)

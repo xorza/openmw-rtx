@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -65,12 +64,6 @@ namespace Platform
         memory.mSize = size;
         memory.mHandle = mapping;
         return memory;
-    }
-
-    std::optional<bool> SharedMemory::isOpenedElsewhere() const
-    {
-        // A mapping's name stands for as long as any handle does, so it says nothing of who opened it.
-        return std::nullopt;
     }
 
     void SharedMemory::unmap() noexcept
