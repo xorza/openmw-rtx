@@ -16,6 +16,7 @@
 #include <thread>
 #include <utility>
 
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/fifo.hpp>
 #include <components/rtx/renderer/framezone.hpp>
@@ -32,6 +33,10 @@ namespace RtxTool
     {
         if (mFifo.empty() || mHandle != Platform::File::Handle::Invalid)
             return;
+
+        // A wait the run asked for, inside a frame, which the hang watch is told is not a hang:
+        // perf's thirty seconds are past the twenty the shipped watch allows a frame.
+        const Crash::HangPause waiting;
 
         const std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + mReaderWait;
         while (true)

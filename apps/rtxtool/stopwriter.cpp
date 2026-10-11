@@ -32,6 +32,7 @@
 #include <apps/openmw/mwrender/rtx/tracedview.hpp>
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/manualref.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/worldmodel.hpp>
@@ -41,6 +42,7 @@
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/esm/refid.hpp>
+#include <components/esm3/loadnpc.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
@@ -508,17 +510,20 @@ namespace RtxTool
         // **Stood in the world and not assembled beside it.** `MWRender::NpcAnimation` is what
         // dresses a body out of the parts a race calls for, equips what the record carries and
         // finds the bone a weapon hangs on — and it needs a live reference to do any of it.
-        const MWWorld::Ptr player = world.getPlayerPtr();
-        MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), id, 1);
-        const MWWorld::Ptr subject
-            = world.placeObject(ref.getPtr(), player.getCell(), player.getRefData().getPosition());
-
-        if (subject.isEmpty())
+        // **Looked up first**, as a weapon is (`Stager::arm`): `ManualRef` throws for an id with no
+        // record, and an id of a creature or an item throws from the animation, both out of the
+        // frame and past the run's report.
+        if (MWBase::Environment::get().getESMStore()->get<ESM::NPC>().search(id) == nullptr)
         {
             into.mRecord.note(std::format("no NPC record is called \"{}\"\n", who));
             into.mRecord.fail();
             return;
         }
+
+        const MWWorld::Ptr player = world.getPlayerPtr();
+        MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), id, 1);
+        const MWWorld::Ptr subject
+            = world.placeObject(ref.getPtr(), player.getCell(), player.getRefData().getPosition());
 
         {
             MWRender::InventoryPreview preview(into.mContext.mRenderer, &into.mContext.mResources, subject);

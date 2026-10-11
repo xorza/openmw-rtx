@@ -90,6 +90,11 @@ namespace RtxTool
 
         std::string_view describeTitle() override { return mNote.describeTitle(); }
 
+        /// After `Engine::go` returns: a run meant to end on its own that ended before its last stop
+        /// — a window closed, a script's quit — is abandoned there, so it fails, writes what it
+        /// reached, and is compared, where it exited nought and left the last run's record standing.
+        void endedEarly();
+
         /// What the run came to: the places, the report, the verdict and where the eye was left.
         SessionResult describe() const;
 
