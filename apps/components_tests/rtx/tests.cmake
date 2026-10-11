@@ -245,14 +245,15 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/wavepass.cpp
 )
 
-# One `Platform::Process` test per system, and the fifo and sysfs where the system has them.
+# One `Platform::Process` test per system, and the fifo and sysfs where the system has them: a PCI
+# card's folder in sysfs is a name Windows does not allow.
 if (WIN32)
     list(APPEND RTX_TEST_FILES platform/processwin32.cpp)
 else()
     list(APPEND RTX_TEST_FILES platform/processposix.cpp rtxtool/perffifoposix.cpp)
 endif()
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    list(APPEND RTX_TEST_FILES platform/kernelfilelinux.cpp)
+    list(APPEND RTX_TEST_FILES platform/kernelfilelinux.cpp rtxtool/amdgpulinux.cpp)
 endif()
 
 target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})
