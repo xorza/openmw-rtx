@@ -78,14 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 25. Keep the player's name out of the prefilled crash issue
-- **Audit**: BUILD-3. CONFIRMED.
-- **Where**: `components/crashcatcher/crashsummary.cpp:150`, `crashpackage.cpp:448-475` (`newIssueUrl`).
-- **Problem**: The summary's last line is the dump's absolute path, which holds the account name. The
-  public issue's body carries it.
-- **Fix**: `newIssueUrl` leaves out the dump line. The log and the package keep the full path.
-- **Test**: `CrashPackage`: `newIssueUrl` over a summary with `/home/someone/...` has no `someone`.
-
 ### 26. Make the crash catcher robust on each platform
 - **Audit**: BUILD-4 (PLAUSIBLE), BUILD-5, BUILD-6 (CONFIRMED), BUILD-7 (PLAUSIBLE).
 - **Close first**: BUILD-4: on Windows, open a 6000-character URL with `SDL_OpenURL`. BUILD-7 is a

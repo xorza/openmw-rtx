@@ -56,9 +56,19 @@ namespace Crash
     /// `std::bad_alloc` is one of the reasons it names.
     std::string_view terminateReason(std::span<char, sNoteCapacity> into);
 
+    /// Who reads a summary: the player, in the log and the report the package holds, or anybody,
+    /// in the public issue the player is offered to open.
+    enum class SummaryReaders
+    {
+        Player,
+        Public,
+    };
+
     /// The summary of `facts`, a line each into `lines`, each without the log's time stamp or a
-    /// line end. The same lines on every system, whichever of them wrote the report.
-    void summarise(const CrashFacts& facts, std::vector<std::string>& lines);
+    /// line end. The same lines on every system, whichever of them wrote the report. **The dump by
+    /// its file alone for the public**, because the folder it lies in is the user's, which names
+    /// the account and often the player; the package carries the dump.
+    void summarise(const CrashFacts& facts, std::vector<std::string>& lines, SummaryReaders readers);
 
     /// `value` in hexadecimal, as the facts write an address or a code: `0x10`.
     std::string hex(std::uint64_t value);
