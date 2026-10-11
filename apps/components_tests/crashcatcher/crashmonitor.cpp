@@ -2,7 +2,10 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <initializer_list>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -66,6 +69,21 @@ namespace
         EXPECT_EQ(read.mAnswering, Crash::Answering(Crash::AskThePlayer{}))
             << "a game that names no answer leaves the player to give one";
         EXPECT_EQ(handler, std::vector<std::string>{ "openmw" });
+
+        // **The game's id reads as a number to its end, or is none**, and not the number its first
+        // digits make. Which ids a system can signal is the monitor's half to say.
+        for (const auto& [spelled, id] : std::initializer_list<std::pair<std::string_view, std::uint32_t>>{
+                 { "4242", 4242u },
+                 { "4294967295", 4294967295u },
+                 { "4294967296", 0u },
+                 { "42x", 0u },
+                 { "-1", 0u },
+                 { "", 0u },
+             })
+        {
+            const std::vector<std::string> named{ "openmw", "--openmw-client=" + std::string(spelled) };
+            EXPECT_EQ(Crash::MonitorArguments::read(named, handler).mClient, id) << spelled;
+        }
     }
 
     /// **The page both sides map**, found by the game's id: what one side writes the other reads,
@@ -102,6 +120,8 @@ namespace
         EXPECT_EQ(monitor.getLogPath(), log);
         EXPECT_FALSE(game.setLogPath(std::string(Crash::sPathCapacity + 1, 'x')));
         EXPECT_EQ(monitor.getLogPath(), log) << "a refused path left the one before";
+        EXPECT_FALSE(game.setLogPath("C:/elsewhere.log")) << "a second path written under the first's length";
+        EXPECT_EQ(monitor.getLogPath(), log);
 
         // **And the folder the package goes to**, the same way and apart from the log.
         EXPECT_EQ(monitor.getReportPath(), "");

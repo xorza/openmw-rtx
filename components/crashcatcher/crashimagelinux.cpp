@@ -178,6 +178,12 @@ namespace Crash
                     }
                     else if (ended == -1 && errno == ECHILD)
                         endAs(applicationEnd);
+                    else if (ended == -1)
+                    {
+                        // No other failure is known to `waitpid` with `WNOHANG`; the next `SIGCHLD`
+                        // asks again rather than this loop spinning on it.
+                        break;
+                    }
                 }
             }
         }

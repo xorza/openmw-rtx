@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -56,6 +57,22 @@ namespace Crash
         }
 
         std::atomic<bool> sInstalled{ false };
+
+        /// **The limit the game set, and the pauses that stand, apart**, and the page told what
+        /// they come to: a pause that saved the limit and put it back turned the watch on under
+        /// another thread's pause that still stood, and off for good where that one ended last, and
+        /// undid a limit set while it stood. Locked, because pauses stand on any thread; never
+        /// taken from a signal handler.
+        std::mutex sHangMutex;
+        std::uint32_t sHangLimit = 0;
+        std::uint32_t sHangPauses = 0;
+
+        /// What the monitor watches by: the limit, or nought while a pause stands. Under `sHangMutex`.
+        void showHangLimit()
+        {
+            if (Heartbeat* const page = sharedPage())
+                std::atomic_ref(page->mHangSeconds).store(sHangPauses > 0 ? 0 : sHangLimit, std::memory_order_relaxed);
+        }
 
         /// A dump of every thread and a summary, after which the game goes on. Nothing where a
         /// report is already being written: that one is already a dump of every thread, and this
@@ -148,6 +165,10 @@ namespace Crash
 
         SharedPage* const kept = new SharedPage(std::move(page));
         sPage.store(kept, std::memory_order_release);
+        {
+            const std::lock_guard lock(sHangMutex);
+            showHangLimit();
+        }
 
         Client::keepConnectionToThisProcess();
         Client::prepareInstallingThread();
@@ -176,17 +197,30 @@ namespace Crash
 
     void setHangLimit(std::chrono::seconds limit)
     {
-        if (Heartbeat* const page = sharedPage())
-            std::atomic_ref(page->mHangSeconds)
-                .store(static_cast<std::uint32_t>(std::clamp<std::chrono::seconds::rep>(limit.count(), 0, 0xFFFFFFFF)),
-                    std::memory_order_relaxed);
+        const std::lock_guard lock(sHangMutex);
+        sHangLimit = static_cast<std::uint32_t>(std::clamp<std::chrono::seconds::rep>(limit.count(), 0, 0xFFFFFFFF));
+        showHangLimit();
     }
 
     std::chrono::seconds getHangLimit()
     {
-        Heartbeat* const page = sharedPage();
-        return std::chrono::seconds(
-            page != nullptr ? std::atomic_ref(page->mHangSeconds).load(std::memory_order_relaxed) : 0);
+        const std::lock_guard lock(sHangMutex);
+        return std::chrono::seconds(sHangLimit);
+    }
+
+    HangPause::HangPause()
+    {
+        const std::lock_guard lock(sHangMutex);
+        ++sHangPauses;
+        showHangLimit();
+    }
+
+    HangPause::~HangPause()
+    {
+        const std::lock_guard lock(sHangMutex);
+        Crash::contract(sHangPauses > 0, "a hang pause ended that never began");
+        --sHangPauses;
+        showHangLimit();
     }
 
     void heartbeat()

@@ -139,6 +139,29 @@ namespace
         EXPECT_EQ(std::string_view(readAll().mNotes[0].mText), found);
     }
 
+    /// **A cut falls before a character and never inside one**, whichever of the two cuts it: the
+    /// format's 255 bytes leave "ab \"" and 251 of `Ж`'s two-byte spelling, 125 characters and half
+    /// of one, which goes; and a scope over a note of 201 leaves 51 bytes after " > ", 25
+    /// characters and half of one, which goes too.
+    TEST(CrashNoteTest, aCutFallsBeforeACharacterAndNeverInsideOne)
+    {
+        std::string zhe;
+        for (int i = 0; i < 200; ++i)
+            zhe += reinterpret_cast<const char*>(u8"Ж");
+
+        {
+            const Crash::NoteScope noted("ab \"{}\"", zhe);
+            std::string expected = "ab \"";
+            expected += zhe.substr(0, 250);
+            EXPECT_EQ(std::string_view(readAll().mNotes[0].mText), expected);
+        }
+
+        const std::string found(201, 'a');
+        const Crash::NoteScope noted(found);
+        const Crash::NoteScope deep(zhe);
+        EXPECT_EQ(std::string_view(readAll().mNotes[0].mText), found + " > " + zhe.substr(0, 50));
+    }
+
     /// **A scope adds to the note and puts back what it found**: nested scopes read as the path
     /// through them, and a scope over an empty note begins it with no separator. A thread whose
     /// note is empty is doing nothing it noted, and the monitor reads no line for it. A

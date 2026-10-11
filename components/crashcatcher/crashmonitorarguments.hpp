@@ -18,7 +18,8 @@ namespace Crash
     /// one place, so what the game writes is what the monitor reads.
     struct MonitorArguments
     {
-        /// The game's process id, which names the page they share.
+        /// The game's process id, which names the page they share: nought where the command line
+        /// named none.
         std::uint32_t mClient = 0;
 
         /// Where the note table lies in the game. Its length is `noteTable().size()`: the monitor
