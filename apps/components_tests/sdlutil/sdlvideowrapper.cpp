@@ -30,5 +30,17 @@ namespace SDLUtil
             EXPECT_EQ(displayPixels(2560, 1.5f), 3840);
             EXPECT_EQ(displayPixels(1093, 1.25f), 1366);
         }
+
+        /// A window shows nothing while any of the three flags stands, whatever else is set.
+        TEST(SDLUtilVideoWrapperTest, aWindowHiddenMinimizedOrOccludedShowsNothing)
+        {
+            EXPECT_TRUE(isWindowShown(0));
+            EXPECT_TRUE(isWindowShown(SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE));
+            EXPECT_FALSE(isWindowShown(SDL_WINDOW_HIDDEN));
+            EXPECT_FALSE(isWindowShown(SDL_WINDOW_MINIMIZED));
+            EXPECT_FALSE(isWindowShown(SDL_WINDOW_OCCLUDED));
+            EXPECT_FALSE(isWindowShown(SDL_WINDOW_OCCLUDED | SDL_WINDOW_INPUT_FOCUS));
+            EXPECT_FALSE(isWindowShown(SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED));
+        }
     }
 }
