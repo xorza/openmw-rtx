@@ -22,3 +22,9 @@
   that opens keeps the AMD path from being tried (`CardWatch::CardWatch`). On a machine with two
   cards — an APU laptop with a Radeon card, two NVIDIA cards — a bench's clock, temperature,
   throttle and other-process lines can describe a card the ray tracer does not run on.
+- **A windowed game's size drifts on a Wayland desktop with displays at different scales.** SDL
+  gives a new hidden window the largest scale of any display (`Wayland_CreateWindow`), and
+  `SDLUtil::setVideoMode` divides the stored pixel size by that density; mapped on a display of a
+  smaller scale, the window keeps its points (`Wayland_HandlePreferredScaleChanged`) and opens
+  smaller, and `WindowManager::windowResized` stores the smaller size, so each start opens smaller
+  again (`apps/openmw/mwrender/renderer.cpp`, `openWindow`).
