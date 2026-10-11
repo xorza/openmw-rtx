@@ -51,6 +51,10 @@ namespace MWRender
 
         void insertBegin(const MWWorld::Ptr& ptr);
 
+        /// The root `cell`'s objects stand under, made where there is none: named and stamped
+        /// whoever asks first, an object stood in the cell or one moved into it.
+        osg::Group& cellRootOf(const MWWorld::CellStore* cell);
+
     public:
         Objects(Resource::ResourceSystem* resourceSystem, const osg::ref_ptr<osg::Group>& rootNode,
             SceneUtil::UnrefQueue& unrefQueue);
