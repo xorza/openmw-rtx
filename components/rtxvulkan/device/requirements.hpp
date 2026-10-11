@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -83,6 +84,11 @@ namespace Rtx
         /// The device's heaps and memory types, read once for the device that is chosen: the memory
         /// report names every heap in each report it makes (`Memory::report`).
         VkPhysicalDeviceMemoryProperties mMemory{};
+
+        /// Where the device stands on the PCI bus, asked apart from the chain above and only of a
+        /// device that lists `VK_EXT_pci_bus_info`: a property structure of an extension the device
+        /// does not list is invalid usage in any chain.
+        std::optional<VkPhysicalDevicePCIBusInfoPropertiesEXT> mPciBus;
     };
 
     /// A feature the renderer will not start without, and how to reach it in the chain, so one

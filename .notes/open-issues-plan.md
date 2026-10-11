@@ -1,6 +1,6 @@
 # Open issues: plan
 
-This plan covers four entries in `.notes/ISSUES.md`. For each entry, the cause was traced in the
+This plan covers three entries in `.notes/ISSUES.md`. For each entry, the cause was traced in the
 code and, where the fault is in SDL or Crashpad, in their pinned sources (SDL 3.4.16 under
 `build-container/package/fetched/sdl3`, Crashpad under `build-package/extern/fetched/crashpad`). Each
 item gives a structural fix: the fix removes the cause, and does not add a guard where the fault
@@ -29,12 +29,10 @@ shows.
 
 Do the items in this order, which puts a quietly wrong answer first:
 
-1. [Item 2](#item-2-the-card-watch-reads-the-card-the-renderer-runs-on): a bench line can describe
-   the wrong card.
-2. [Item 3](#item-3-a-lost-surface-gets-a-new-surface): a lost surface ends the game.
-3. [Item 4](#item-4-a-window-that-shows-nothing-draws-nothing): a minimized window keeps the card
+1. [Item 3](#item-3-a-lost-surface-gets-a-new-surface): a lost surface ends the game.
+2. [Item 4](#item-4-a-window-that-shows-nothing-draws-nothing): a minimized window keeps the card
    busy.
-4. [Item 5](#item-5-the-window-size-is-kept-in-the-desktops-unit): the window size drifts.
+3. [Item 5](#item-5-the-window-size-is-kept-in-the-desktops-unit): the window size drifts.
 
 Items 4 and 5 both change `InputWrapper::handleWindowEvent`. Do item 4 first, so that item 5's diff
 starts from it. The other items share no file.
@@ -68,60 +66,6 @@ The user took these calls on 2026-10-11. Each item that a decision changes says 
 3. **Approval of the upstream changes (items 4 and 5): both approved.** Both fix a fault of the
    fork's SDL3 port in upstream files. Each adds a sub-line under the SDL3 port in AGENTS.md's
    Accepted diff, in the same commit as its code.
-
-## Item 2: the card watch reads the card the renderer runs on
-
-**Entry:** "The harness's card watch reads a card chosen without the renderer's device."
-**Upstream:** no.
-
-**Cause.** `Nvml::Nvml` opens device index 0 (`nvmlDeviceGetHandleByIndex_v2(0, …)`).
-`AmdGpu::find` takes the first card in `/sys/class/drm` whose vendor is `0x1002`. `CardWatch`
-tries AMD only when NVML does not open (`CardWatch::CardWatch`). No part asks which card the
-renderer chose in `PhysicalDevice::select`.
-
-**Fix.**
-
-- The core states the device's identity in API-neutral terms: `Rtx::DeviceAddress` in
-  `components/rtx/common/`, which holds the PCI vendor and an optional PCI address (domain, bus,
-  device, function). `Rtx::Renderer` gets `getDeviceAddress()` beside `describeDevice()`.
-- The backend fills it from `VkPhysicalDeviceProperties::vendorID` and from
-  `VkPhysicalDevicePCIBusInfoPropertiesEXT`, chained into the `vkGetPhysicalDeviceProperties2` call
-  where the physical device lists `VK_EXT_pci_bus_info`. A property query needs the extension
-  listed, not enabled, so the device is made as before. It is never a requirement.
-- `CardWatch` is made with no card. `watch(const Rtx::DeviceAddress&)` picks the reader by the
-  vendor and opens that card only. NVIDIA: `nvmlDeviceGetHandleByPciBusId_v2` with NVML's spelling,
-  `"%08x:%02x:%02x.%x"`. amdgpu: `/sys/bus/pci/devices/` with the kernel's spelling,
-  `"%04x:%02x:%02x.%x"`. The scan of `/sys/class/drm` goes. One function per spelling, each with a
-  test.
-- A device with no address, a vendor with no reader on this system, or a reader that does not open
-  that card, gives no reading. The report says "card not watched" and the reason. It never guesses a
-  card.
-- `Session::createRenderer` hands the address to the measurer once the renderer stands, and the
-  watch starts there. `Measurer`'s constructor no longer starts it.
-
-**Why this fix.** A PCI address is the one key that the Vulkan driver, NVML and sysfs share for one
-card. NVML's device index follows its own order, and Vulkan's order is the loader's. MangoHud and
-other overlays match a card by its PCI address for this reason. A refusal is correct where the card
-is not known, because a reading of a different card is quietly wrong.
-
-**Cost.** The window before the first place starts when the renderer stands, not when the process
-starts. `Engine::go` makes the renderer before `prepareEngine` makes the world and loads the content
-files, so the load stays in the window. Only the reading of the configuration falls outside.
-
-**Tests.**
-
-- `AmdGpu` takes its root folder as a parameter, so a test builds a small sysfs tree in a temporary
-  folder: two AMD cards at different addresses with different `pp_dpm_sclk` values. The reader at
-  address B reads B's clock (hand-written values, exact match), and an unknown address gives no
-  reader.
-- The two address spellings, with a domain above `0xffff` for NVML's eight digits.
-- A test on the device harness: `getDeviceAddress()` on this card has an address, and its vendor is
-  `VkPhysicalDeviceProperties::vendorID`. On Linux, a test file that CMake chooses also checks that
-  `/sys/bus/pci/devices/<address>/vendor` names the same vendor.
-
-**Verify.** `./omw test components-tests --gtest_filter='*Card*:*AmdGpu*'`,
-`./omw test rtx-gpu-tests --gtest_filter='*DeviceAddress*'`, then a short `./omw release bench` leg.
-Done when the bench's report has a card line with this card's clock.
 
 ## Item 3: a lost surface gets a new surface
 

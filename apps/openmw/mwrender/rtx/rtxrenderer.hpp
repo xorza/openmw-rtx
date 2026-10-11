@@ -16,6 +16,7 @@
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <components/esm3/refnum.hpp>
+#include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -102,6 +103,9 @@ namespace MWRender
         /// played answers.
         explicit RtxRenderer(const RendererSpec& spec, const RtxSetup* run = nullptr);
         ~RtxRenderer() override;
+
+        /// Which card the backend runs on, for the harness's card watch.
+        Rtx::CardAddress getCardAddress() const;
 
         /// A plain group: the lights are gathered on this renderer's own walk, so nothing here
         /// wants a light manager's method.

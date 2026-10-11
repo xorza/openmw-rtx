@@ -216,8 +216,20 @@ namespace Rtx
                 for (std::uint32_t family = 0; family < queues.size(); ++family)
                     presents.push_back(presentsTo(handle, family) ? VK_TRUE : VK_FALSE);
 
+            const std::vector<std::string> extensions = getDeviceExtensions(handle);
+            if (std::find(extensions.begin(), extensions.end(), VK_EXT_PCI_BUS_INFO_EXTENSION_NAME) != extensions.end())
+            {
+                VkPhysicalDevicePCIBusInfoPropertiesEXT bus{};
+                bus.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT;
+                VkPhysicalDeviceProperties2 asked{};
+                asked.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+                asked.pNext = &bus;
+                vkGetPhysicalDeviceProperties2(handle, &asked);
+                found.mProperties->mPciBus = bus;
+            }
+
             found.mProfile = PhysicalDevice::profileOf(
-                *found.mProperties, supported, getDeviceExtensions(handle), queues, formats, images, presents);
+                *found.mProperties, supported, extensions, queues, formats, images, presents);
 
             return found;
         }
@@ -419,6 +431,16 @@ namespace Rtx
             "driver", std::string(chosen.mVulkan12.driverName) + " " + std::string(chosen.mVulkan12.driverInfo));
 
         return best;
+    }
+
+    CardAddress PhysicalDevice::getAddress() const
+    {
+        CardAddress address{ .mVendor = mProperties->mProperties2.properties.vendorID, .mPci = std::nullopt };
+        if (const std::optional<VkPhysicalDevicePCIBusInfoPropertiesEXT>& bus = mProperties->mPciBus)
+            address.mPci = PciAddress{
+                .mDomain = bus->pciDomain, .mBus = bus->pciBus, .mDevice = bus->pciDevice, .mFunction = bus->pciFunction
+            };
+        return address;
     }
 
     std::string PhysicalDevice::describe() const

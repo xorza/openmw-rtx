@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/worker.hpp>
 
@@ -118,13 +119,16 @@ namespace RtxTool
         /// reading is a few calls into the driver, so a faster poll costs nothing worth measuring.
         static constexpr std::chrono::milliseconds sPeriod{ 100 };
 
+        /// Reads no card until `watch` names one.
         /// @param period how often the watch reads, which only a test that waits on its readings
         ///        asks to be shorter.
         explicit CardWatch(std::chrono::milliseconds period = sPeriod);
         ~CardWatch();
 
-        /// Starts sampling. Nothing where it already is.
-        void watch();
+        /// Opens the reader of `card` and starts sampling. Nothing where it already samples. A card
+        /// with no PCI address, of a vendor no reader reads, or that its reader does not find is not
+        /// read, and every window says why: a reading of another card is wrong.
+        void watch(const Rtx::CardAddress& card);
 
         /// Asks for a place's window to begin, and does nothing else: one store, so the measured
         /// frame it is called on waits on no lock and no driver call. The worker closes the window
@@ -155,11 +159,16 @@ namespace RtxTool
         /// Closes the window between places where `start` asked and no turn has yet. Under the lock.
         void beginAsked();
 
-        /// Where the clock is read: NVML where it opens, and amdgpu's sysfs files where it does not
-        /// and the box has an AMD card — chosen once, since which card a box has does not change
-        /// under a run. The holders are NVML's alone, `AmdGpu` says why.
-        Nvml mNvml;
+        /// Opens the reader `card`'s vendor has, or says why there is none.
+        void open(const Rtx::CardAddress& card);
+
+        /// Where the clock is read, at most one of the two: NVML for an NVIDIA card, amdgpu's sysfs
+        /// files for an AMD one. The holders are NVML's alone, `AmdGpu` says why.
+        std::optional<Nvml> mNvml;
         std::optional<AmdGpu> mAmdGpu;
+
+        /// Why no reader reads the card, where none does.
+        std::string_view mUnread = "no card was named";
 
         /// The lock over everything below but the worker.
         Rtx::Monitor mMonitor;

@@ -263,6 +263,11 @@ namespace Rtx
         mDisplay.resize(width, height);
     }
 
+    CardAddress VulkanRenderer::getCardAddress() const
+    {
+        return mDevice.getPhysicalDevice().getAddress();
+    }
+
     std::string VulkanRenderer::describeDevice() const
     {
         std::string report = "loader:            Vulkan " + versionString(mInstance.getApiVersion()) + '\n'
