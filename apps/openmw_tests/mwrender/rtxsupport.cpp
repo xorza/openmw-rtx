@@ -149,5 +149,17 @@ namespace MWRender
                     EXPECT_TRUE(names.exists(key)) << "[" << key.first << "] " << key.second << " is no setting";
             }
         }
+
+        /// **What the ray tracer cannot draw is declined with a reason**, every request a script or
+        /// a key makes of the picture among them: F2's shader chain, and F3's and F4's overlays, which
+        /// went silent under it.
+        TEST(RtxSupportTest, theOverlaysAndTheShaderChainAreDeclinedWithAReason)
+        {
+            const RenderSupport& support = rtxSupport();
+            for (const PictureRequest request :
+                { PictureRequest::ShaderReload, PictureRequest::LiveShaderReload, PictureRequest::StatsOverlay })
+                EXPECT_FALSE(support.declinedRequest(request).empty()) << static_cast<int>(request);
+            EXPECT_FALSE(support.declinedSetting("Post Processing", "enabled").empty());
+        }
     }
 }

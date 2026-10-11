@@ -348,6 +348,17 @@ namespace MWRender
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
     }
 
+    void RtxRenderer::functionKey(const int index, const bool pressed)
+    {
+        // F3 and F4: the indices count from F1.
+        if (!pressed || (index != 2 && index != 3) || mToldStats)
+            return;
+
+        mToldStats = true;
+        Log(Debug::Warning) << notAvailable(
+            "The statistics overlay", support().declinedRequest(PictureRequest::StatsOverlay));
+    }
+
     void RtxRenderer::windowResized(int, int, const int width, const int height) noexcept
     {
         presentIn(osg::Vec2i(width, height));

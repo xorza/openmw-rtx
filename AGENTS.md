@@ -135,8 +135,8 @@ is not here is held to the rules above.
 - What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
   handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
   renderer draws rain the other hides.
-- `Renderer::support`, asked where the console, Lua and the settings window would otherwise toggle
-  what does nothing under the renderer, and `ToggleBorders` under the ray tracer.
+- `Renderer::support`, asked where the console, Lua, the settings window and F2 would otherwise
+  toggle what does nothing under the renderer, and `ToggleBorders` under the ray tracer.
 - Faults the user approved fixing:
   - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1`
     holds for every error);

@@ -132,6 +132,10 @@ namespace MWRender
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
         void windowResized(int x, int y, int width, int height) noexcept override;
 
+        /// F3 and F4, which the rasterizer hands OpenSceneGraph's overlays: said once in the log,
+        /// as `rtxSupport` declines them, and nothing else.
+        void functionKey(int index, bool pressed) override;
+
         void advance(double simulationTime) noexcept override;
         void updateTraversal() noexcept override;
 
@@ -408,5 +412,8 @@ namespace MWRender
 
         /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;
+
+        /// Whether F3 or F4 was answered (`functionKey`), which is answered once.
+        bool mToldStats = false;
     };
 }
