@@ -19,6 +19,7 @@
 
 #include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <components/crashcatcher/crash.hpp>
@@ -306,7 +307,8 @@ namespace RtxTool
             "runs on a three-day cycle and the hour they rise on a twenty-four day one. A film's key "
             "that names a day of its own keeps it");
 
-        option(Verbs::View | Verbs::Bench, "frames", number(anyNumber<std::uint32_t>())->default_value(0),
+        option(Verbs::View | Verbs::Bench, "frames",
+            number(between(0u, BenchSpan::sUntilClosed, true))->default_value(0),
             "how many frames to run: `view` closes after this many instead of waiting to be "
             "closed, and `bench` measures this many at each place instead of deriving them from "
             "--seconds");

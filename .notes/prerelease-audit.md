@@ -78,23 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 28. Make the harness's names and numbers safe
-- **Audit**: HARNESS-3, HARNESS-6, HARNESS-9. CONFIRMED.
-- **Where**: `apps/rtxtool/run.cpp:389-390`, `instruments/framehashes.cpp:212-213`, `:277-287`,
-  `main.cpp:562-579`, `options.cpp:56`, `:211-218`, `model/benchspec.cpp:59-71`.
-- **Problem**:
-  - A stop named after its cell (`-2,-9`, `Balmora, Guild of Mages`) puts commas in `hashes.csv`, and
-    the next `--against` cannot read it. A `:` in a picture's name writes an NTFS stream.
-  - With `--views`, the options `--cell`, `--view`, `--pos` and `--look` are ignored with no word.
-  - Frame counts from seconds wrap past `uint32`, and `--frames=4294967295` equals the "until closed"
-    sentinel.
-- **Fix**: Name a stop that has no view by `slugOf`, and have `FrameHashes::write` refuse a `,`.
-  Refuse `--views` beside a place option. Bound `--frames` below `sUntilClosed`, and refuse a span
-  whose count does not fit.
-- **Test**: `rtxtool/run.cpp`: `stopFor` on cell `-2,-9` gives a name with no `,`, `:` or `/`.
-  `framehashes.cpp`: a round trip. `options.cpp`: `shot --views=a --pos=1,2,3` and
-  `--frames=4294967295` are refused. `benchspec.cpp`: 1e8 s at 1/60 is refused.
-
 ### 29. Watch the card the renderer runs on, check the harness's writes, and keep its keys out of text
 - **Audit**: HARNESS-8, HARNESS-11 (PLAUSIBLE), HARNESS-12 (CONFIRMED).
 - **Close first**: HARNESS-8 needs a machine with two cards, so the fix stands on the code alone.

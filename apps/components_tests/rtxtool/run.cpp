@@ -228,6 +228,16 @@ namespace RtxTool
 
             const std::string block = describeBlock(spot);
             EXPECT_EQ(block.find("[balmora-guild-of-mages]"), 0u) << block;
+
+            // **The stop's name is the cell's with nothing a hash row or a file name cannot hold**:
+            // `Balmora, Guild of Mages` as it is but the comma, and `-2,-9` keeping its signs, which
+            // the slug's `2-9` shares with `2,9`.
+            EXPECT_EQ(spot.mName, "Balmora_ Guild of Mages");
+            RtxTool::Stop exterior = bare;
+            exterior.mStand.mCell = "-2,-9";
+            EXPECT_EQ(stopFor(exterior, StopSky{ .mDay = 0 }).mName, "-2_-9");
+            exterior.mStand.mCell = "Sadrith Mora, Wolverine Hall: Mage's Guild";
+            EXPECT_EQ(stopFor(exterior, StopSky{ .mDay = 0 }).mName, "Sadrith Mora_ Wolverine Hall_ Mage's Guild");
             EXPECT_EQ(block.find("note ="), std::string::npos) << "an empty note is left out, not written blank";
 
             const std::filesystem::path file = TestingOpenMW::outputFilePath("viewpoint-unnamed.cfg");

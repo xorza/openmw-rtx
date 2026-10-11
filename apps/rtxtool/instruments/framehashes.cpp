@@ -204,6 +204,12 @@ namespace RtxTool
     {
         Crash::contract(countUnpictured() == 0, "frames were noted and never pictured; the ring was not drained");
 
+        // A view's name is the row's first field, so one with a comma is a row `read` cannot take
+        // back: refused here, where the run still fails, and not at the next run's `--against`.
+        for (const Frame& held : mFrames)
+            if (held.mView.find(',') != std::string::npos)
+                return Misc::Err{ "the view \"" + held.mView + "\" holds a comma, which a hash row cannot" };
+
         std::ofstream out(file);
         out << headerLine() << '\n';
 
