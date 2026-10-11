@@ -80,17 +80,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P3: structure
 
-### 31. Answer F2, F3 and F4 under the ray tracer through `Renderer::support`
-- **Audit**: SEAM-5, SEAM-6. CONFIRMED. **Upstream** for F2 (decision 1, the `Renderer::support` line).
-- **Where**: `apps/openmw/mwgui/windowmanagerimp.cpp:2410-2418`,
-  `apps/openmw/mwrender/rtx/rtxsupport.cpp:29-31`, `:108`, `apps/openmw/mwrender/rtx/rtxrenderer.hpp`.
-- **Problem**: F2 says that post-processing "is not enabled" when the setting is on and the ray
-  tracer declines it. F3 and F4 do nothing, and `RenderSupport` does not declare the stats overlay.
-- **Fix**: F2 asks `support().declinedSetting("Post Processing", "enabled")` and shows
-  `MWRender::notAvailable` with that reason. `rtxSupport()` declares the stats overlay, and
-  `RtxRenderer::functionKey` reports it once.
-- **Test**: `RtxSupportTest`: the declaration names the overlay.
-
 ### 32. Make one helper the only maker of a cell root
 - **Audit**: SEAM-8. CONFIRMED that the stamp is missing. No wrong picture was shown.
 - **Where**: `apps/openmw/mwrender/objects.cpp:49-55`, `:209-221`. **Upstream** (decision 1, new line).

@@ -26,19 +26,22 @@ namespace MWRender
         std::string_view mDeclined;
     };
 
-    /// A request a script makes of the picture that is no render mode and no setting.
-    enum class ScriptRequest
+    /// A request a script or a key makes of the picture that is no render mode and no setting.
+    enum class PictureRequest
     {
         /// Lua's `debug.triggerShaderReload`.
         ShaderReload,
 
         /// Lua's `debug.setShaderHotReloadEnabled`.
         LiveShaderReload,
+
+        /// F3's profiler and F4's statistics, OpenSceneGraph's overlays over the picture.
+        StatsOverlay,
     };
 
     struct RequestSupport
     {
-        ScriptRequest mRequest;
+        PictureRequest mRequest;
         std::string_view mDeclined;
     };
 
@@ -71,7 +74,7 @@ namespace MWRender
         bool namesSetting(std::string_view category, std::string_view name) const;
 
         std::string_view declinedMode(RenderMode mode) const;
-        std::string_view declinedRequest(ScriptRequest request) const;
+        std::string_view declinedRequest(PictureRequest request) const;
 
         std::span<const SettingSupport> getSettings() const { return mSettings; }
         std::span<const ModeSupport> getModes() const { return mModes; }
