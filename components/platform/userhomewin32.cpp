@@ -1,8 +1,8 @@
 #include "userhome.hpp"
 
-#include <components/misc/windows.hpp>
-
-// After `<windows.h>`, whose declarations the shell's headers assume.
+// `<Windows.h>` and not the tree's `components/misc/windows.hpp`, which takes away the `far` that
+// the shell's `FAR` spells. First, since the shell's headers assume its declarations.
+#include <Windows.h>
 #include <knownfolders.h>
 #include <shlobj.h>
 
