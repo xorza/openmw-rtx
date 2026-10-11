@@ -75,18 +75,6 @@ The user took these calls on 2026-10-11. The items carry them.
 - **Test**: `components_tests` on that function: X11 at content scale 1.5 gives 1, Wayland at
   density 1.5 gives 1.5, and Windows at content scale 1.5 gives 1.5.
 
-### 19. Migrate a settings file that states only `resolution y`
-- **Audit**: GAME-3. CONFIRMED.
-- **Where**: `components/settings/migration.cpp:11-24`.
-- **Problem**: The migration starts only on `resolution x`. Upstream writes a value only when it
-  differs from 800 × 600, so an upstream 800 × 480 window is in the file as `resolution y = 480`
-  alone. The window then opens at 800 × 600.
-- **Fix**: Either key starts the migration. Each key that is present moves to its window counterpart,
-  and both resolution keys become 0.
-- **Test**: `SettingsMigrationTest.anUpstreamFileKeepsTheWindowItHad`: a map with only
-  `resolution y = 480` gives `window height = 480`, both resolutions at 0, the marker, and no
-  `window width`.
-
 ### 20. Stop the window size drift on a mixed-scale Wayland desktop
 - **Audit**: GAME-1. PLAUSIBLE: traced through SDL's Wayland backend, not run.
 - **Close first**: Run the game windowed on two outputs at scales 1.0 and 2.0, and start it twice.
