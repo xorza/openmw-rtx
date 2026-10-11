@@ -43,16 +43,24 @@ def msvc_versions() -> dict[str, str]:
     return versions
 
 
+def windows_set_dir(tag: str) -> Path:
+    return DEPS / f"vcpkg-x64-windows-2022-{tag}"
+
+
+def windows_set_manifest(tag: str) -> Path:
+    return DEPS / f"{windows_set_dir(tag).name}-manifest.txt"
+
+
 def windows_set(tag: str) -> Path:
     """**Upstream's prebuilt dependency set, the way upstream's Windows workflow gets it.** A manifest
     on `openmw-deps` names the archive and its SHA-512 for the tag — the 2022 set, which upstream's
     own script links against Visual Studio 2026 as well. Unpacked beside its final name, which it
     takes only once the whole of it is there."""
-    deps = DEPS / f"vcpkg-x64-windows-2022-{tag}"
+    deps = windows_set_dir(tag)
     if deps.is_dir():
         return deps
 
-    manifest = DEPS / f"{deps.name}-manifest.txt"
+    manifest = windows_set_manifest(tag)
     fetch.download(f"https://gitlab.com/OpenMW/openmw-deps/-/raw/main/windows/{manifest.name}", manifest)
     lines = read_text(manifest).splitlines()
     # The second line is `sha512sum`'s: the digest, then the file, with a `*` in binary mode.
@@ -69,16 +77,20 @@ def windows_set(tag: str) -> Path:
     return deps
 
 
+def windows_qt_dir() -> Path:
+    return DEPS / "Qt"
+
+
 def windows_qt(version: str) -> Path:
     """**Qt, for the flavours that build the launcher, the wizard and the CS.** The dependency set
     carries none, so it comes the way upstream's Windows workflow takes it: aqt, pinned by release
     and checksum, installs the version upstream pins into deps/Qt — beside its version's directory,
     which takes its name once aqt has finished, so a run stopped halfway is installed again."""
-    qt = DEPS / "Qt" / version / "msvc2019_64"
+    qt = windows_qt_dir() / version / "msvc2019_64"
     if qt.is_dir():
         return qt
 
-    aqt = DEPS / "Qt" / "aqt_x64.exe"
+    aqt = windows_qt_dir() / "aqt_x64.exe"
     fetch.download_pin(pins.AQT, aqt)
     fetch.build_beside(qt.parent, lambda partial: run(
         [aqt, "install-qt", "windows", "desktop", version, "win64_msvc2019_64", "--outputdir", partial],
@@ -87,13 +99,17 @@ def windows_qt(version: str) -> Path:
     return qt
 
 
+def windows_clang_format_dir() -> Path:
+    return DEPS / f"clang-format-{pins.LLVM_RELEASE}"
+
+
 def windows_clang_format() -> Path:
     """**The formatter CI pins, out of LLVM's own Windows package.** Nothing installs clang-format 14
     on Windows any more, but LLVM still serves the last 14 package, an NSIS installer 7-Zip reads
     without running, and `bin/clang-format.exe` is one file of it. LLVM publishes a signature and no
     checksum for that release, so the SHA-256 pinned is the one taken off the download this was
     written against: the same bytes every time, and nothing else."""
-    found = DEPS / f"clang-format-{pins.LLVM_RELEASE}" / "clang-format.exe"
+    found = windows_clang_format_dir() / "clang-format.exe"
     if found.is_file():
         return found
 
@@ -113,10 +129,14 @@ def pinned_folder(name: str, *pinned: pins.Pin) -> Path:
     return DEPS / f"{name}-{digest}"
 
 
+def appimage_tools_dir() -> Path:
+    return pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values())
+
+
 def appimage_tools() -> Path:
     """linuxdeploy, its two plugins and the AppImage runtime, together in one folder, where
     linuxdeploy looks for its plugins: fetched beside it and given its name once all four are in."""
-    tools = pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values())
+    tools = appimage_tools_dir()
     if tools.is_dir():
         return tools
 
@@ -128,11 +148,15 @@ def appimage_tools() -> Path:
     return fetch.build_beside(tools, fill)
 
 
+def crash_tool_dir(name: str) -> Path:
+    return pinned_folder(name, pins.CRASH_TOOLS[(name, SYSTEM)])
+
+
 def crash_tool(name: str) -> Path:
     """One of Breakpad's two tools, fetched once into a folder of its pin's own: the player never has
     them, and the desk and CI take the versions `pins.py` names."""
     pin = pins.CRASH_TOOLS[(name, SYSTEM)]
-    tools = pinned_folder(name, pin)
+    tools = crash_tool_dir(name)
     tool = tools / f"{name}{EXE}"
     if tool.is_file():
         return tool
@@ -209,7 +233,7 @@ def _run_installer(program: Path, arguments: list[str], log: Path, what: str) ->
                                f"-RedirectStandardOutput {_quoted(log)} -ArgumentList @({listed}); exit $p.ExitCode")],
                              check=False)
     if started.returncode != 0:
-        logged = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
+        logged = read_text(log) if log.is_file() else ""
         errors = [line.split("] ", 1)[-1] for line in logged.splitlines() if "Error" in line]
         raise Refusal(f"the Vulkan SDK's {what} stopped with exit code {started.returncode}"
                       + "".join(f"\n  {error}" for error in errors))
@@ -287,13 +311,14 @@ def sdk_environment(env: dict[str, str]) -> None:
 
 
 def pinned_names() -> set[str]:
-    """Every name in deps/ that the pins give this system: what each getter above leaves there."""
-    names = {vulkan_sdk_dir().name, pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values()).name}
-    names |= {pinned_folder(name, pin).name for (name, system), pin in pins.CRASH_TOOLS.items() if system == SYSTEM}
+    """Every name in deps/ that the pins give this system, through the same functions that name what
+    each getter above leaves there, so pruning cannot take what a getter fetched."""
+    kept = [vulkan_sdk_dir(), appimage_tools_dir()]
+    kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:
-        dependency_set = f"vcpkg-x64-windows-2022-{msvc_versions()['VCPKG_TAG']}"
-        names |= {dependency_set, f"{dependency_set}-manifest.txt", "Qt", f"clang-format-{pins.LLVM_RELEASE}"}
-    return names
+        tag = msvc_versions()["VCPKG_TAG"]
+        kept += [windows_set_dir(tag), windows_set_manifest(tag), windows_qt_dir(), windows_clang_format_dir()]
+    return {path.name for path in kept}
 
 
 def prune() -> None:
@@ -304,7 +329,7 @@ def prune() -> None:
         return
     keep = pinned_names()
     stale = [entry for entry in DEPS.iterdir() if entry.name not in keep]
-    qt = DEPS / "Qt"
+    qt = windows_qt_dir()
     if WINDOWS and qt.is_dir():
         stale += [entry for entry in qt.iterdir() if entry.name != msvc_versions()["QT_VER"]]
     for entry in stale:

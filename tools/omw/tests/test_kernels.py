@@ -1,10 +1,12 @@
 import struct
+import sys
 import threading
 import unittest
 
 from omw.kernels import (
     Setting,
     SpecConstant,
+    _produced,
     domains,
     header_count,
     keyed,
@@ -119,6 +121,15 @@ class MovedTest(unittest.TestCase):
             keyed(["a - 1", "-- Configuring done (4.1s)"], "before.txt")
         self.assertEqual(str(refused.exception), "before.txt:2 is no `<module> <tuple> <digest>` line of a "
                                                  "listing: '-- Configuring done (4.1s)'")
+
+
+class ProducedTest(unittest.TestCase):
+    def test_a_tool_s_output_for_its_input_and_its_own_words_where_it_fails(self):
+        echo = [sys.executable, "-c", "import sys; sys.stdout.write(sys.stdin.read().upper())"]
+        self.assertEqual(_produced(echo, "never said", b"spv"), b"SPV")
+        failing = [sys.executable, "-c", "import sys; sys.stderr.write('bad module'); sys.exit(3)"]
+        with self.assertRaisesRegex(Refusal, r"^spirv-opt refused a\.spv: bad module$"):
+            _produced(failing, "spirv-opt refused a.spv")
 
 
 class MapCancellingTest(unittest.TestCase):

@@ -2,12 +2,11 @@
 rewritten in place — or, with `--check`, left alone and every difference reported, which is what the
 gate asks."""
 
-import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 from omw import deps
-from omw.system import ROOT, WINDOWS, Refusal, jobs, working_tree_files
+from omw.system import ROOT, WINDOWS, Refusal, jobs, require, working_tree_files
 
 
 def format_tree(args: list[str]) -> int:
@@ -24,10 +23,7 @@ def format_tree(args: list[str]) -> int:
     if args not in ([], ["--check"]):
         raise Refusal("format takes nothing, or `--check`")
     mode = ["--dry-run", "-Werror"] if args else ["-i"]
-    found = str(deps.windows_clang_format()) if WINDOWS else shutil.which("clang-format-14")
-    if found is None:
-        raise Refusal("clang-format-14 is not on the PATH, and CI pins that version")
-    clang_format: str = found
+    clang_format = str(deps.windows_clang_format()) if WINDOWS else require("clang-format-14", "CI pins that version")
 
     files = working_tree_files(":(exclude)extern/", "*.cpp", "*.hpp", "*.h")
     batches = [files[at:at + 64] for at in range(0, len(files), 64)]

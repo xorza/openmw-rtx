@@ -62,7 +62,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                             what CI's Linux leg builds, and the gate's
 """
 # The gate's steps, from the one place they are stated, wrapped to the column the verbs' words stand in.
-USAGE = USAGE.replace("{gate}", textwrap.fill(gate.STEPS + " — stops at the first failure", width=100,
+USAGE = USAGE.replace("{gate}", textwrap.fill(gate.SUMMARY + " — stops at the first failure", width=100,
                                               initial_indent=" " * 31, subsequent_indent=" " * 31).lstrip())
 
 
@@ -114,6 +114,7 @@ BUILD_VERBS = {
     "profile": Verb(perf.profile, flavour="release"),
 }
 
+
 def _bootstrap(args: list[str]) -> int:
     if args:
         raise Refusal("bootstrap takes no arguments")
@@ -121,14 +122,14 @@ def _bootstrap(args: list[str]) -> int:
     return 0
 
 
-# Verbs no build is configured for: reading a dump or formatting the tree needs none, and a verb
-# that configured one first fetched a dependency set and started MSVC to read a file.
 def _help(args: list[str]) -> int:
     """Asked for, so printed where output goes and answered with success."""
     print(USAGE)
     return 0
 
 
+# Verbs no build is configured for: reading a dump or formatting the tree needs none, and a verb
+# that configured one first fetched a dependency set and started MSVC to read a file.
 BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "help": _help,
     "crash": crash.read_crash,

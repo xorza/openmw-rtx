@@ -116,6 +116,13 @@ def run(command: list, **options) -> subprocess.CompletedProcess:
     return subprocess.run(resolved(command, options.get("env"), options.get("cwd")), check=True, **options)
 
 
+def report(findings: list[str]) -> int:
+    """A check's findings, a line each as it ends, and its exit status: nought where it found nothing."""
+    for line in findings:
+        print(line, flush=True)
+    return 1 if findings else 0
+
+
 def status(code: int) -> int:
     """A child's `returncode` as the shell spells an exit status: a death by signal N is `128 + N`.
     Python says `-N`, and an exit of `-N` wraps to `256 - N`, which put a SIGSEGV at 245 and not 139."""

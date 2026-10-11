@@ -4,7 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
-from omw.build import Build
+from omw.build import Build, properties_of
 from omw.system import FORK, ROOT, Refusal, read_text, status
 
 
@@ -52,7 +52,7 @@ LIMIT_SECONDS = 2.0
 
 def times_folder(build: Build) -> Path:
     """Where each suite's GoogleTest report lands, one a CTest test, as `cmake/Tests.cmake` sets."""
-    return build.cached_folder("RTX_TEST_OUTPUT_DIR") / "times"
+    return Path(build.cached("RTX_TEST_OUTPUT_DIR")) / "times"
 
 
 def durations(report: dict, root: Path = ROOT) -> dict[str, float]:
@@ -69,9 +69,9 @@ def timing(build: Build) -> int:
     test waits for the processors and the card they share. So the last `test` run's reports name the
     candidates, and each runs again by itself, warm, where its time is its own: what is under the limit
     beside the others is under it alone."""
-    targets = {test["name"]: property["value"] for test in build.tests()
-               for property in test.get("properties", []) if property["name"] == "OPENMW_TARGET"}
-    alone = build.cached_folder("RTX_TEST_OUTPUT_DIR") / "alone.json"
+    targets = {test["name"]: target for test in build.tests()
+               if (target := properties_of(test).get("OPENMW_TARGET")) is not None}
+    alone = Path(build.cached("RTX_TEST_OUTPUT_DIR")) / "alone.json"
     slow = 0
     for path in sorted(times_folder(build).glob("*.json")):
         for name, shared in durations(json.loads(read_text(path))).items():

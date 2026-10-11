@@ -13,7 +13,7 @@ import re
 from pathlib import PurePosixPath
 
 from omw.build import Build
-from omw.system import ROOT, WINDOWS, read_text, working_tree_files
+from omw.system import ROOT, WINDOWS, read_text, report, working_tree_files
 
 ELSEWHERE = {
     # Writes `tablesgen.hpp`, built by the `Makefile` beside it.
@@ -105,7 +105,4 @@ def check(build: Build) -> int:
         for listed in sorted((ROOT / "apps").glob("*/CMakeLists.txt")):
             qt_only |= qt_guarded_sources(read_text(listed), listed.parent.relative_to(ROOT).as_posix())
         tracked = [name for name in tracked if name not in qt_only]
-    missing = unlisted(tracked, compiled, WINDOWS)
-    for name in missing:
-        print(f"{name}: tracked, and no list names it")
-    return 1 if missing else 0
+    return report([f"{name}: tracked, and no list names it" for name in unlisted(tracked, compiled, WINDOWS)])

@@ -37,6 +37,12 @@ def used_osg_plugins(cmake_text: str) -> list[str]:
     return match.group(1).split()
 
 
+def osg_plugin_folder(build: Build) -> Path:
+    """The folder a Linux OSG keeps its plugins in, as the build found OSG: beside the library it
+    linked, under `Build.osg_plugin_folder_name`."""
+    return Path(build.cached("OSG_LIBRARY_RELEASE")).parent / build.osg_plugin_folder_name()
+
+
 # What the harness and the tests are and write under the build, which no install may carry: the
 # harness's folder (`RTX_HARNESS_DIR`) and the test output (`RTX_TEST_OUTPUT_DIR`), their files and
 # folders by name wherever they land, and the two programs that never install. The one list: the
@@ -50,7 +56,8 @@ HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches
 # the binaries were built against, which `InstallRequiredSystemLibraries` puts beside them. Without
 # the loader a host whose own is 1.3, Ubuntu 24.04's among them, refuses the ray tracer; without the
 # runtime no executable starts, and an older one installed faults inside `std::mutex::lock`.
-LINUX_RUNTIME = ("usr/lib/libvulkan.so.1",)
+LINUX_LOADER = "usr/lib/libvulkan.so.1"
+LINUX_RUNTIME = (LINUX_LOADER,)
 WINDOWS_RUNTIME = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
 
 
@@ -120,6 +127,15 @@ def harness_files(installed: Path) -> list[str]:
 def _refuse_harness(installed: Path) -> None:
     if found := harness_files(installed):
         raise Refusal("the install carries what the harness or the tests wrote: " + ", ".join(found[:5]))
+
+
+def executables_in(folder: Path) -> list[Path]:
+    """The programs directly in `folder`: its `.exe` files on Windows, and elsewhere its executable
+    files but a shared library, which a build directory holds beside them."""
+    if WINDOWS:
+        return sorted(folder.glob("*.exe"))
+    return sorted(file for file in folder.iterdir()
+                  if file.is_file() and os.access(file, os.X_OK) and ".so" not in file.name)
 
 
 def prune_empty(folder: Path) -> None:
@@ -202,7 +218,6 @@ def _archive_linux(build: Build, name: str) -> None:
     from the host is the AppImage exclude list — glibc and libstdc++, the GL stack, X11, Wayland,
     fontconfig, ALSA — at the versions of a bare Ubuntu 24.04."""
     qmake = require("qmake6", "the Qt plugin reads Qt's layout off it: qt6-base-dev-tools")
-    require("pkg-config", "OSG's version and library directory come off its .pc: pkg-config")
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
     strip = require("strip", "the executables carry the package build's debug information: binutils")
     tools = deps.appimage_tools()
@@ -215,22 +230,20 @@ def _archive_linux(build: Build, name: str) -> None:
     licenses = appdir / "usr" / "share" / "doc" / "OpenMW" / "licenses"
     shutil.copy2(ROOT / "files" / "licenses" / "Vulkan-Loader.txt", licenses)
 
-    osg_version = output(["pkg-config", "--modversion", "openscenegraph-osg"]).strip()
-    osg_libdir = Path(output(["pkg-config", "--variable=libdir", "openscenegraph-osg"]).strip())
-    plugins = appdir / "usr" / "lib" / f"osgPlugins-{osg_version}"
+    osg_plugins = osg_plugin_folder(build)
+    plugins = appdir / "usr" / "lib" / osg_plugins.name
     plugins.mkdir(parents=True)
     # Copied rather than handed to linuxdeploy, whose exclude list names the loader; what it links is
     # glibc's alone. The binaries' rpath, `$ORIGIN/../lib`, is where volk's `dlopen` then finds it.
     shutil.copy2(deps.vulkan_sdk() / "x86_64" / "lib" / "VulkanLoader" / "lib" / "libvulkan.so.1",
-                 appdir / "usr" / "lib" / "libvulkan.so.1")
+                 appdir / LINUX_LOADER)
     for plugin in used_osg_plugins(read_text(ROOT / "CMakeLists.txt")):
-        shutil.copy2(osg_libdir / f"osgPlugins-{osg_version}" / f"{plugin}.so", plugins)
+        shutil.copy2(osg_plugins / f"{plugin}.so", plugins)
     hooks = appdir / "apprun-hooks"
     hooks.mkdir()
     (hooks / "osg-plugins.sh").write_text('export OSG_LIBRARY_PATH="$this_dir/usr/lib"\n')
 
-    installed = [file for file in sorted((appdir / "usr" / "bin").iterdir())
-                 if file.is_file() and os.access(file, os.X_OK)]
+    installed = executables_in(appdir / "usr" / "bin")
     run([strip, *installed])
     executables: list[str | Path] = []
     for file in installed:
@@ -278,13 +291,8 @@ def symbols(build: Build, name: str) -> None:
     `omw crash` reads a player's dump against it. The debug information comes from the package
     presets, and it stays out of the archive."""
     dump_syms = deps.crash_tool("dump_syms")
-    if WINDOWS:
-        executables = sorted(build.dir.glob("*.exe"))
-    else:
-        executables = sorted(f for f in build.dir.iterdir()
-                             if f.is_file() and os.access(f, os.X_OK) and ".so" not in f.name)
     with tempfile.TemporaryDirectory() as store:
-        for executable in executables:
+        for executable in executables_in(build.dir):
             run([dump_syms, "--store", store, executable], stdout=subprocess.DEVNULL)
         target = DIST / f"openmw-{name}-{SYSTEM}-symbols.zip"
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zipped:

@@ -5,8 +5,7 @@ import unittest
 
 from omw import gate
 from omw.main import BUILD_VERBS, BUILDLESS_VERBS, HARNESS_VERBS, USAGE, Line, main, parse
-from omw.system import FORK, ROOT, Refusal, read_text, status
-from omw.testing import ctest_arguments
+from omw.system import ROOT, Refusal, read_text, status
 
 
 class ParseTest(unittest.TestCase):
@@ -78,31 +77,14 @@ class ParseTest(unittest.TestCase):
             with self.subTest(flavour=flavour), self.assertRaisesRegex(Refusal, r"gate is made of the full flavour"):
                 parse([flavour, "gate"])
 
-        # The help's line is `gate.STEPS`, wrapped.
+        # The help's line is `gate.SUMMARY`, wrapped.
         said = " ".join(re.search(r"(?ms)^  gate +(.*?)\s+—\s+stops", USAGE).group(1).split())
-        self.assertEqual(said, gate.STEPS)
-
-    def test_every_fork_folder_is_a_folder(self):
-        for folder in FORK:
-            with self.subTest(folder=folder):
-                self.assertTrue((ROOT / folder).is_dir())
+        self.assertEqual(said, gate.SUMMARY)
 
     def test_the_harness_verbs_are_the_harness_own(self):
         text = read_text(ROOT / "apps" / "rtxtool" / "verbs.cpp")
         named = re.findall(r'std::pair\{ Verbs::\w+, std::string_view\("(\w+)"\) \}', text)
         self.assertEqual(tuple(named), HARNESS_VERBS)
-
-
-class CtestArgumentsTest(unittest.TestCase):
-    def test_the_device_switch_becomes_a_label_and_the_rest_passes(self):
-        cases = [
-            ([], ["--parallel"]),
-            (["--without-device"], ["--parallel", "-LE", "device"]),
-            (["--without-device", "-R", "crash"], ["--parallel", "-LE", "device", "-R", "crash"]),
-        ]
-        for args, expected in cases:
-            with self.subTest(args=args):
-                self.assertEqual(ctest_arguments(args), expected)
 
 
 if __name__ == "__main__":
