@@ -75,4 +75,9 @@ namespace Rtx
     {
         return mLevels.size() == 1 && std::size_t{ mWidth } * mHeight > 1;
     }
+
+    bool TextureData::encodesChain() const
+    {
+        return std::max(mWidth, mHeight) > sLargestLooseChainSide;
+    }
 }

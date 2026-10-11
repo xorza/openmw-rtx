@@ -78,24 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 21. Hold the memory of a large texture with no mips
-- **Audit**: CORE-5. CONFIRMED arithmetic. How much a load order loses depends on its mods.
-- **Where**: `components/rtx/image/texturedata.hpp:214-229`, `texturedata.cpp:74-77`,
-  `components/rtxvulkan/texture/texturecost.cpp:57`, `:73`, `texture.cpp:163`, `:195-215`.
-- **Problem**: Every single-level file larger than 1x1 gets an RGBA8 chain on the device. A replacer's
-  4096² BC1 with no mips (8 MB on disk) costs about 89 MB, and `standFile` cannot stand it from a
-  coarser level, so the budget must take it whole or refuse it.
-- **Fix**: A file above vanilla's largest single-level side (512, a named constant with the
-  comment's census as its reason) has its completed chain encoded through `Bc7EncodePass`, every level
-  included: 1 byte a texel, about 22 MB for 4096². A file of 512 or less keeps the loose chain, so
-  no vanilla picture moves. Update the comment on `wantsCompletedChain`, which says why the chain is
-  loose. The replacer's own top level is encoded again from its BC1 or BC3, and BC7's mode 6 can move
-  a channel's low bit.
-- **Test**: `RtxTextureDataTest`: a one-level 512² file is completed loose, and a 4096² one is
-  completed in BC7. `texturecost`: the 4096² file is priced at its BC7 chain. A GPU test: the
-  encoded chain of a 1024² file has every level, and its 1x1 level is the file's mean within what
-  BC7 keeps.
-
 ### 22. Tell the player how to recover when the ray tracer cannot start
 - **Audit**: SEAM-4. CONFIRMED.
 - **Where**: `apps/openmw/engine.cpp:657-667`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:204`,

@@ -131,7 +131,7 @@ namespace Rtx
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, levels, regions.data());
                     source.transition(commands, Use::sCopyWrite, Use::sComputeRead);
 
-                    pass.record(commands, source, blocks, target, weighsAlpha);
+                    pass.record(commands, source, blocks, 0, target, weighsAlpha);
                     blocks.copyTo(commands, landing, chain.mBytes);
 
                     // The sampler's own decode, texel for texel: a blit of each level at its size,

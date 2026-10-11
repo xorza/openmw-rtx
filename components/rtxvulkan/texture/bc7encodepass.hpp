@@ -60,16 +60,16 @@ namespace Rtx
     public:
         explicit Bc7EncodePass(const Device& device);
 
-        /// Encodes every level of `source` into `blocks`, laid out as `Bc7Chain::of` its shape lays
-        /// them, and copies them into `target`, a BC7 image of the same shape.
+        /// Encodes every level of `source` into `blocks` from `offset`, laid out as `Bc7Chain::of`
+        /// its shape lays them, and copies them into `target`, a BC7 image of the same shape.
         ///
         /// `source` is met readable as storage at every level, through views with no curve; `blocks`
-        /// is met with nothing on the queue still using it, and holds `Bc7Chain::mBytes` at least;
-        /// `target` is met undefined and left as a texture the trace samples.
+        /// is met with nothing on the queue still using that range, and holds `Bc7Chain::mBytes`
+        /// past `offset` at least; `target` is met undefined and left as a texture the trace samples.
         ///
         /// @param weighsAlpha whether a reader reads the alpha (`Bc7Constants::mWeighsAlpha`).
-        void record(VkCommandBuffer commands, const Image& source, const Buffer& blocks, const Image& target,
-            bool weighsAlpha) const;
+        void record(VkCommandBuffer commands, const Image& source, const Buffer& blocks, VkDeviceSize offset,
+            const Image& target, bool weighsAlpha) const;
 
     private:
         ComputePipeline<Shaders::Bc7Constants> mPipeline;

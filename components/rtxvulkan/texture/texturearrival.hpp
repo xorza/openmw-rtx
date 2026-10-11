@@ -45,7 +45,8 @@ namespace Rtx
         TextureArrival(const TextureArrival&) = delete;
         TextureArrival& operator=(const TextureArrival&) = delete;
 
-        /// Begins a run of at most `textures`, with room for every image it holds for its batch.
+        /// Begins a run of at most `textures`, with room for every image it holds for its batch: two
+        /// a texture at most, the upload a chain is made from and a chain encoded from.
         void open(std::size_t textures);
 
         /// Stages `bytes` through `batch` and copies them into `image` by `regions`, whose offsets
@@ -60,8 +61,11 @@ namespace Rtx
         /// Clears `map`, met undefined, to the neutral shading factor.
         void clearNeutral(const Image& map);
 
-        /// `MipChainPass` from `source`, uploaded in this run, into `chain`, met undefined.
-        void chain(const Image& source, const Image& chain, bool encoded, TextureEncoding encoding);
+        /// `MipChainPass` from `source`, uploaded in this run, into `chain`, met undefined; and where
+        /// `bc7` is given, the chain encoded into it, met undefined, which the trace then samples in
+        /// the chain's place (`TextureData::encodesChain`). A chain encoded is one `hold` keeps.
+        void chain(const Image& source, const Image& chain, bool encoded, TextureEncoding encoding,
+            const Image* bc7 = nullptr);
 
         /// `ShadingPass` of `source` into `map`, met undefined.
         void shade(const Image& source, const Image& map, TextureWrap wrap);
@@ -105,6 +109,11 @@ namespace Rtx
             const Image* mChain;
             bool mEncoded;
             TextureEncoding mEncoding;
+
+            /// What the chain is encoded into, or null for a chain the trace samples itself, and the
+            /// blocks its encode writes, at the alignment `recordEncodes` lays them by.
+            const Image* mBc7;
+            VkDeviceSize mBlockBytes;
         };
 
         struct Shade
@@ -131,6 +140,9 @@ namespace Rtx
 
         /// Each level of every chain, a level of all of them between two barriers.
         void recordChains(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
+
+        /// Every chain that is kept as BC7, encoded into it, after every chain is made.
+        void recordEncodes(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
 
         /// Every sum, one barrier, every map.
         void recordShading(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
@@ -160,6 +172,10 @@ namespace Rtx
         /// Every texture's own sums, `ShadingPass::sSumBytes` each, so a run's sums are dispatched
         /// together: one buffer for every texture in turn ordered each against the one before.
         GrowableBuffer mSums;
+
+        /// Every encoded chain's blocks, side by side, so a run's encodes write no range another
+        /// one's copy still reads.
+        GrowableBuffer mBlocks;
 
         /// The means the spreads are carried through, one group at a time: grown to the largest
         /// group so far, and worked in again by every group after. **A room and not a chain apiece**,
