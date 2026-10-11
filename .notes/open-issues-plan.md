@@ -1,8 +1,8 @@
 # Open issues: plan
 
-This plan covers one entry in `.notes/ISSUES.md`. For each entry, the cause was traced in the
+This plan covers one entry in `.notes/ISSUES.md`. The cause was traced in the
 code and, where the fault is in SDL or Crashpad, in their pinned sources (SDL 3.4.16 under
-`build-container/package/fetched/sdl3`, Crashpad under `build-package/extern/fetched/crashpad`). Each
+`build-container/package/fetched/sdl3`, Crashpad under `build-package/extern/fetched/crashpad`). The
 item gives a structural fix: the fix removes the cause, and does not add a guard where the fault
 shows.
 
@@ -10,9 +10,7 @@ shows.
 
 - **Cause** is what the trace found. **Fix** is the change. **Why this fix** says what the fix
   promises, and which established practice it follows. **Cost** is what the fix does not cover.
-- **Upstream** says whether the item changes an upstream file. AGENTS.md lets a bug fix in upstream
-  code go in only after the user approves it. [Decision 3](#decisions) records the approval. An
-  approved item adds its line to AGENTS.md's Accepted diff in the same commit as the code.
+- **Upstream** says whether the item changes an upstream file.
 - **Close first** is a fact the item depends on and the trace did not prove. Close it before the
   fix. When it closes the other way, stop the item and write the result to
   `.notes/open-issues-plan_QUESTIONS.md`.
@@ -24,44 +22,6 @@ shows.
   an entry stays open, write the remaining part as a new entry.
 - This machine runs Linux only. A leg on Windows or macOS is written down in the item and left to a
   run on that system, as `.notes/windows-wer-check.md` does for the WER module.
-
-## Order
-
-Do the items in this order, which puts a quietly wrong answer first:
-
-1. [Item 3](#item-3-a-lost-surface-gets-a-new-surface): a lost surface ends the game.
-
-The items share no file.
-
-## Relation to the upstream MR
-
-The SDL3 port is also upstream's !5670 (`~/Projects/opemw-upstream-prs/sdl3`). The worktree
-`~/Projects/opemw-upstream-prs/sdl3-fixes`, branch `sdl3-fixes`, holds the MR's fixes for the same
-faults. It is not committed.
-
-- Item 4: the fork takes the same code as `sdl3-fixes` (`SDLUtil::isWindowShown` and the derived
-  state in `handleWindowEvent`), so the port stays one change in two places.
-- Item 5: the fork and the MR differ on purpose. In the MR, `resolution x/y` is the render size in
-  pixels, which Lua's `ui.screenSize` reads, so the MR keeps pixels and sets the window again on a
-  change of density. In the fork, the render size is `[Video] resolution`, and the window size is
-  free to use the desktop's unit.
-- The pointer warp and `std::dec` fixes are already in the fork.
-
-## Decisions
-
-The user took these calls on 2026-10-11. Each item that a decision changes says so.
-
-1. **What occlusion does (item 4): pause.** A window that shows nothing pauses the game, as a
-   minimized window does now. The engine has one answer for a window that the player cannot see.
-2. **The unit of `[Video] window width/height` (item 5): the desktop's window unit.** The value goes
-   to SDL in SDL's own unit, so no conversion runs and the drift cannot occur. The harness states its
-   pixel size through `OMW::EngineHost`. The decision accepted one cost: a settings file from before
-   this change holds pixels, and its first start opens a window larger by the scale. The review
-   added a one-time conversion that removes that cost where the window opens on the display that
-   `[Video] screen` names (item 5).
-3. **Approval of the upstream changes (items 4 and 5): both approved.** Both fix a fault of the
-   fork's SDL3 port in upstream files. Each adds a sub-line under the SDL3 port in AGENTS.md's
-   Accepted diff, in the same commit as its code.
 
 ## Item 3: a lost surface gets a new surface
 
