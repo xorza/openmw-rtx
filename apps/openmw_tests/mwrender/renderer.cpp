@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -372,6 +373,21 @@ namespace MWRender
         {
             EXPECT_EQ(nameOf(RendererKind::OpenGl), "opengl");
             EXPECT_EQ(nameOf(RendererKind::RayTraced), "raytrace");
+        }
+
+        /// **A ray tracer that cannot start says how to start the game again**: the reason, the
+        /// setting that chose it, and the two places that turn it off. The rasterizer's reason is
+        /// said as it is.
+        TEST(MWRenderStartFailureTest, aRayTracerThatCannotStartSaysHowToTurnItOff)
+        {
+            const std::string traced
+                = describeStartFailure(RendererKind::RayTraced, "the Vulkan loader offers 1.3.275");
+            EXPECT_TRUE(traced.starts_with("Ray tracing could not start: the Vulkan loader offers 1.3.275"));
+            EXPECT_NE(traced.find("[RTX] enabled"), std::string::npos);
+            EXPECT_NE(traced.find("Experimental Ray Tracing"), std::string::npos) << "the launcher's own label";
+            EXPECT_NE(traced.find("enabled = false"), std::string::npos);
+
+            EXPECT_EQ(describeStartFailure(RendererKind::OpenGl, "no GL context"), "no GL context");
         }
     }
 }

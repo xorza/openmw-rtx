@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <future>
+#include <stdexcept>
 
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
@@ -670,7 +671,14 @@ void OMW::Engine::go()
             = Settings::rtx().mEnabled ? MWRender::RendererKind::RayTraced : MWRender::RendererKind::OpenGl;
         Log(Debug::Info) << "Renderer: " << MWRender::nameOf(wanted);
         Crash::annotate("renderer", MWRender::nameOf(wanted));
-        mRenderer = MWRender::createRenderer(wanted, spec);
+        try
+        {
+            mRenderer = MWRender::createRenderer(wanted, spec);
+        }
+        catch (const std::exception& failure)
+        {
+            throw std::runtime_error(MWRender::describeStartFailure(wanted, failure.what()));
+        }
     }
 
     // The clock every frame is measured by, made once here and read by the renderer from now on:

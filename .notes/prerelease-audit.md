@@ -78,18 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 22. Tell the player how to recover when the ray tracer cannot start
-- **Audit**: SEAM-4. CONFIRMED.
-- **Where**: `apps/openmw/engine.cpp:657-667`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:204`,
-  `components/debug/debugging.cpp:524-535`.
-- **Problem**: The error box shows only the backend's reason. It does not say that `[RTX] enabled`
-  chose the renderer, or that the launcher turns it off. A player who ticked the box in the game
-  sees the box at every start.
-- **Fix**: `Engine::go` catches the renderer's construction failure and throws it again with the
-  backend's reason, then that `[RTX] enabled` chose the ray tracer, and that the launcher's
-  Graphics page or `settings.cfg` turns it off. Nothing else changes.
-- **Test**: A unit test of the message, which is a function of its own.
-
 ### 23. Reject a device, not the whole selection, on a failed query
 - **Audit**: VKDEV-1. PLAUSIBLE.
 - **Close first**: Confirm that `examine` runs for every device before `profileOf` reads the

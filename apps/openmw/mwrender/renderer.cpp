@@ -326,6 +326,16 @@ namespace MWRender
         Crash::fatal("a renderer kind past the two");
     }
 
+    std::string describeStartFailure(const RendererKind kind, const std::string_view reason)
+    {
+        if (kind != RendererKind::RayTraced)
+            return std::string(reason);
+
+        return "Ray tracing could not start: " + std::string(reason)
+            + "\n\nIt is turned on by [RTX] enabled. Clear \"Experimental Ray Tracing\" on the launcher's Graphics "
+              "page, or set enabled = false under [RTX] in settings.cfg, to start with the OpenGL renderer.";
+    }
+
     std::unique_ptr<Renderer> createRenderer(const RendererKind kind, const RendererSpec& spec)
     {
         switch (kind)
