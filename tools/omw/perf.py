@@ -17,14 +17,14 @@ run-to-run spread. A second build directory would explain a frame nobody timed."
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, NamedTuple
+from typing import IO
 
 from omw.build import Build
-from omw.system import WINDOWS, Refusal, Switches, read_text, require, status
+from omw.system import WINDOWS, Refusal, Switches, on_path, read_text, require, status
 
 SAMPLES_A_SECOND = "5999"
 
@@ -103,7 +103,8 @@ def profile(build: Build, args: list[str]) -> int:
     return 0
 
 
-class Measured(NamedTuple):
+@dataclass(frozen=True)
+class Measured:
     frames: int
     seconds: float
 
@@ -168,7 +169,7 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
     # A flame graph if something on this box can fold a stack. Nothing depends on one: the reports
     # are the same data, and the callers file is the same shape read the other way up.
     folders = [("inferno-collapse-perf", "inferno-flamegraph"), ("stackcollapse-perf.pl", "flamegraph.pl")]
-    folder = next((pair for pair in folders if shutil.which(pair[0])), None)
+    folder = next((pair for pair in folders if on_path(pair[0])), None)
     if folder is not None:
         script = subprocess.run(["perf", "script", "-i", str(data), "--no-inline"], capture_output=True,
                                 check=False).stdout
@@ -237,8 +238,8 @@ def _elevation() -> list[str]:
     either way: a `perf` upgrade drops what was set on the file, and a `sudo` asked for every time is
     a password prompt in front of a profile that did not need one. A box without `getcap` reads as a
     `perf` without them."""
-    perf = shutil.which("perf") or "perf"
-    getcap = shutil.which("getcap")
+    perf = on_path("perf") or "perf"
+    getcap = on_path("getcap")
     capabilities = "" if getcap is None else subprocess.run(
         [getcap, perf], capture_output=True, encoding="utf-8", errors="replace", check=False).stdout
     if "cap_bpf" in capabilities:

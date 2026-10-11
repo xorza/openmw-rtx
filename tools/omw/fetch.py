@@ -2,6 +2,7 @@
 run cut off mid-way, or a mirror that served something else, leaves nothing a later run mistakes for
 the file."""
 
+import contextlib
 import hashlib
 import http.client
 import shutil
@@ -12,8 +13,9 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path, PurePosixPath
+from typing import IO
 
 from omw.pins import Pin
 from omw.system import WINDOWS, Refusal, on_path, run
@@ -111,6 +113,29 @@ def unpack_7z(archive: Path, into: Path, *members: str, flat: bool = False) -> N
     run([seven_zip(), "e" if flat else "x", "-y", f"-o{into}", archive, *members], stdout=subprocess.DEVNULL)
 
 
+@contextlib.contextmanager
+def _member(archive: Path, name: str) -> Iterator[IO[bytes]]:
+    """The one file called `name` inside a .zip or a .tar.xz, wherever in it, open to read."""
+    if archive.name.endswith(".zip"):
+        with zipfile.ZipFile(archive) as zipped:
+            entry = next((info for info in zipped.infolist()
+                          if not info.is_dir() and PurePosixPath(info.filename).name == name), None)
+            if entry is None:
+                raise Refusal(f"{archive.name} holds no {name}")
+            with zipped.open(entry) as source:
+                yield source
+        return
+    with tarfile.open(archive) as tarred:
+        found = next((info for info in tarred.getmembers() if info.isfile() and PurePosixPath(info.name).name == name),
+                     None)
+        if found is None:
+            raise Refusal(f"{archive.name} holds no {name}")
+        extracted = tarred.extractfile(found)
+        assert extracted is not None, "a regular member always has contents"
+        with extracted:
+            yield extracted
+
+
 def extract_member(archive: Path, name: str, into: Path) -> Path:
     """The one file called `name` inside a .zip or .tar.xz, wherever in it, into `into` under its own
     name — written beside it and given the name once it is whole, so an extract cut off leaves no
@@ -118,22 +143,8 @@ def extract_member(archive: Path, name: str, into: Path) -> Path:
     into.mkdir(parents=True, exist_ok=True)
     target = into / name
     partial = partial_of(target)
-    if archive.name.endswith(".zip"):
-        with zipfile.ZipFile(archive) as opened:
-            member = next((m for m in opened.namelist() if PurePosixPath(m).name == name), None)
-            if member is None:
-                raise Refusal(f"{archive.name} holds no {name}")
-            with opened.open(member) as source, open(partial, "wb") as out:
-                shutil.copyfileobj(source, out)
-    else:
-        with tarfile.open(archive) as opened:
-            found = next((m for m in opened.getmembers() if m.isfile() and PurePosixPath(m.name).name == name), None)
-            if found is None:
-                raise Refusal(f"{archive.name} holds no {name}")
-            extracted = opened.extractfile(found)
-            assert extracted is not None, "a regular member always has contents"
-            with extracted, open(partial, "wb") as out:
-                shutil.copyfileobj(extracted, out)
+    with _member(archive, name) as source, open(partial, "wb") as out:
+        shutil.copyfileobj(source, out)
     if not WINDOWS:
         partial.chmod(0o755)
     partial.replace(target)

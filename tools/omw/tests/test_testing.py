@@ -1,8 +1,7 @@
 import unittest
 from pathlib import Path
 
-from omw.build import device_free
-from omw.testing import durations
+from omw.testing import ctest_arguments, durations
 
 ROOT = Path("/checkout")
 
@@ -39,17 +38,17 @@ class DurationsTest(unittest.TestCase):
         self.assertEqual(durations({"tests": 0}, ROOT), {})
 
 
-def suite(target: str, *labels: str) -> dict:
-    return {"name": target, "properties": [{"name": "LABELS", "value": list(labels)},
-                                           {"name": "OPENMW_TARGET", "value": target}]}
 
-
-class DeviceFreeTest(unittest.TestCase):
-    def test_a_target_is_left_out_only_where_every_test_of_it_needs_a_device(self):
-        tests = [suite("components-tests"), suite("rtx-gpu-tests", "device"), suite("rtx-gpu-tests", "device"),
-                 suite("crash-tests", "device"), suite("crash-tests"), {"name": "no target", "properties": []}]
-        self.assertEqual(device_free(tests), ["components-tests", "crash-tests"])
-        self.assertEqual(device_free([]), [])
+class CtestArgumentsTest(unittest.TestCase):
+    def test_the_device_switch_becomes_a_label_and_the_rest_passes(self):
+        cases = [
+            ([], ["--parallel"]),
+            (["--without-device"], ["--parallel", "-LE", "device"]),
+            (["--without-device", "-R", "crash"], ["--parallel", "-LE", "device", "-R", "crash"]),
+        ]
+        for args, expected in cases:
+            with self.subTest(args=args):
+                self.assertEqual(ctest_arguments(args), expected)
 
 
 if __name__ == "__main__":

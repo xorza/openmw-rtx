@@ -16,7 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from omw.system import CI, ROOT, Refusal, on_path, read_text, require, working_tree_files
+from omw.system import CI, ROOT, Refusal, on_path, read_text, report, require, working_tree_files
 
 
 @dataclass(frozen=True)
@@ -154,10 +154,5 @@ def lint(args: list[str]) -> int:
     unknown = [name for name in args if name not in CHECKS]
     if unknown:
         raise Refusal(f"no check is called {', '.join(unknown)}: {', '.join(CHECKS)}")
-    failed = False
-    for name in args or list(CHECKS):
-        found = CHECKS[name]()
-        for line in found:
-            print(line, flush=True)
-        failed |= bool(found)
-    return 1 if failed else 0
+    statuses = [report(CHECKS[name]()) for name in args or list(CHECKS)]
+    return max(statuses, default=0)

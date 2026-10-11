@@ -77,11 +77,16 @@ def configured_from(directory: Path, digest: str) -> bool:
             and (directory / "CMakeCache.txt").is_file() and (directory / "build.ninja").is_file())
 
 
+def properties_of(test: dict) -> dict:
+    """A test of CTest's `--show-only=json-v1` listing, its properties by name."""
+    return {property["name"]: property["value"] for property in test.get("properties", [])}
+
+
 def targets_of(tests: list[dict]) -> dict[str, bool]:
     """Each target CTest's tests name (`OPENMW_TARGET`), and whether every test of it needs a device."""
     found: dict[str, bool] = {}
     for test in tests:
-        properties = {property["name"]: property["value"] for property in test.get("properties", [])}
+        properties = properties_of(test)
         if "OPENMW_TARGET" in properties:
             target = properties["OPENMW_TARGET"]
             found[target] = found.get(target, True) and "device" in properties.get("LABELS", [])
@@ -132,22 +137,24 @@ class Build:
             self._env = env
         return self._env
 
-    def cache_value(self, name: str) -> str | None:
-        """The value of `name` in the build's CMake cache; none where it has no cache yet."""
+    def cached(self, name: str) -> str:
+        """**The value the build's CMake cache holds for `name`**, refused where it holds none: no cache
+        yet, no such entry, an empty one, or a `-NOTFOUND`, which CMake reads as false. Every entry
+        the driver asks for is one a configure states — the harness's and the tests' folders, which
+        the top-level `CMakeLists.txt` and `cmake/Tests.cmake` name once, and what CMake found."""
         cache = self.dir / "CMakeCache.txt"
         for entry in read_text(cache).splitlines() if cache.is_file() else []:
             key, _, value = entry.partition("=")
-            if key.split(":", 1)[0] == name:
+            if key.split(":", 1)[0] == name and value and not value.endswith("-NOTFOUND"):
                 return value
-        return None
+        raise Refusal(f"the {self.flavour} build's cache names no {name}: configure it again")
 
-    def cached_folder(self, name: str) -> Path:
-        """The folder the build names `name` in its cache: the harness's and the tests' (`RTX_HARNESS_DIR`
-        and its siblings), which the top-level `CMakeLists.txt` and `cmake/Tests.cmake` name once."""
-        value = self.cache_value(name)
-        if not value:
-            raise Refusal(f"the {self.flavour} build's cache names no {name}: configure it again")
-        return Path(value)
+    def osg_plugin_folder_name(self) -> str:
+        """**The name OSG gives its plugin folder, for the OSG this build found**: `osgPlugins-` and the
+        release `osg/Version` states, which CMake reads into `OPENSCENEGRAPH_VERSION` and osgDB names
+        the folder from. Not pkg-config's version, which a packager may suffix: OpenMW's OSG 3.6.6
+        states `3.6.5-osgos-1` there and installs `osgPlugins-3.6.5`."""
+        return f"osgPlugins-{self.cached('OPENSCENEGRAPH_VERSION')}"
 
     def configure(self, stdout=None) -> None:
         """**Configured again whenever what its preset expands from changes, and from nothing
@@ -201,10 +208,7 @@ class Build:
         writes from them, so Ninja writes it again on every try and gives up after a hundred, naming
         neither the file nor the clock. Each such input is given the time now, which changes nothing
         it holds."""
-        ninja = self.cache_value("CMAKE_MAKE_PROGRAM")
-        if not ninja:
-            raise Refusal(f"{self.dir} names no CMAKE_MAKE_PROGRAM, so no Ninja to ask what build.ninja reads")
-        query = output([ninja, "-C", self.dir, "-t", "query", "build.ninja"], env=self.env)
+        query = output([self.cached("CMAKE_MAKE_PROGRAM"), "-C", self.dir, "-t", "query", "build.ninja"], env=self.env)
         ahead = redate_ahead(manifest_inputs(query, self.dir), time.time())
         if ahead:
             print(f"omw: {len(ahead)} files build.ninja is made from were dated after the clock, {ahead[0]} among "
@@ -214,14 +218,17 @@ class Build:
         """**What vcpkg's own copy step misses, placed the way upstream's MSVC script places it.**
         The toolchain copies each DLL a binary links beside it and stops there: MyGUI's sits a
         directory deeper than it looks and needs FreeType, which needs four more, and OSG's plugins
-        are loaded by name at runtime from `osgPlugins-3.6.5/`, which no link line names. The whole
+        are loaded by name at runtime from `osgPlugins-<version>/`, which no link line names. The whole
         set, 84 MB, rather than a list that goes stale with the next tag."""
         bin_dir = windows_deps / "installed" / "x64-windows" / "bin"
         for dll in [*bin_dir.glob("*.dll"), bin_dir / "Release" / "MyGUIEngine.dll"]:
             shutil.copy2(dll, self.dir)
-        plugins = self.dir / "osgPlugins-3.6.5"
+        name = self.osg_plugin_folder_name()
+        if not (bin_dir / name).is_dir():
+            raise Refusal(f"vcpkg's OSG holds no {name} in {bin_dir}")
+        plugins = self.dir / name
         plugins.mkdir(exist_ok=True)
-        for dll in (bin_dir / "osgPlugins-3.6.5").glob("*.dll"):
+        for dll in (bin_dir / name).glob("*.dll"):
             shutil.copy2(dll, plugins)
 
     def _place_windows_qt(self, qt: Path) -> None:

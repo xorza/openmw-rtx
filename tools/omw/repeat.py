@@ -32,6 +32,7 @@ its phase that two comparisons read."""
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
@@ -48,6 +49,13 @@ TAKEN = {"--window": "false", "--upscale": "off", "--filter": "false"}
 # What would walk another way than `WALK` says, and what each run sets for itself.
 WALK_SWITCHES = (*WALK, "--suite", "--frames")
 RUN_SWITCHES = ("--hold", "--out", "--against")
+
+
+@dataclass(frozen=True)
+class Ran:
+    """One run of the chain: its log, and the harness's status."""
+    log: Path
+    code: int
 
 
 def _tail(log: Path) -> str:
@@ -73,7 +81,7 @@ def repeat(build: Build, args: list[str]) -> int:
     with temporary_folder("omw-repeat-") as out:
         bench = [f"{switch}={value}" for switch, value in (WALK | TAKEN).items()] + extra
 
-        def run(index: int) -> tuple[Path, int]:
+        def run(index: int) -> Ran:
             log = out / f"{index}.log"
             held = ["--hold"] if index % 2 else []
             against = [f"--against={out / str(index - 1)}"] if index else []
@@ -83,27 +91,27 @@ def repeat(build: Build, args: list[str]) -> int:
             ended = build.harness("bench", *bench, *held, f"--out={out / str(index)}", *against,
                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             log.write_bytes(ended.stdout)
-            return log, ended.returncode
+            return Ran(log, ended.returncode)
 
-        first, code = run(0)
-        if code != 0:
-            print(f"the run itself failed, see {first}:\n{_tail(first)}", file=sys.stderr)
+        first = run(0)
+        if first.code != 0:
+            print(f"the run itself failed, see {first.log}:\n{_tail(first.log)}", file=sys.stderr)
             return 1
 
         status = 0
         for pair in range(1, pairs + 1):
-            second, code = run(pair)
-            if code == 0:
+            second = run(pair)
+            if second.code == 0:
                 print(f"pair {pair} of {pairs}: identical")
-            elif code == DIFFERED_STATUS:
+            elif second.code == DIFFERED_STATUS:
                 # Decided by the status alone; the report's comparison is only shown, from where it opens.
                 status = 1
-                lines = read_text(second).splitlines()
+                lines = read_text(second.log).splitlines()
                 against = next((i for i, line in enumerate(lines) if line.startswith("against ")), None)
                 print(f"pair {pair} of {pairs}: NOT repeatable", file=sys.stderr)
-                print(_tail(second) if against is None else "\n".join(lines[against:]), file=sys.stderr)
+                print(_tail(second.log) if against is None else "\n".join(lines[against:]), file=sys.stderr)
             else:
-                print(f"the run itself failed, see {second}:\n{_tail(second)}", file=sys.stderr)
+                print(f"the run itself failed, see {second.log}:\n{_tail(second.log)}", file=sys.stderr)
                 return 1
 
         if status == 0:

@@ -6,7 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from omw.game import setup
+from omw.game import parse_folders, setup
+from omw.system import Refusal
 
 
 class ImportingBuild:
@@ -53,3 +54,17 @@ class SetupTest(unittest.TestCase):
         self.assertEqual(cfg.read_text(),
                          f'data="{install.resolve() / "Data Files"}"\nfallback=Weather_Sunrise_Time,6\n')
         self.assertEqual(sorted(config.iterdir()), [cfg])
+
+
+class FoldersTest(unittest.TestCase):
+    def test_the_two_folders_are_read_among_the_runs_other_lines(self):
+        printed = ("[04:51:08.253 *] Crash reports go to /home/someone/.local/share/openmw/crashes\n"
+                   "config /home/someone/.config/openmw\n"
+                   "data /home/someone/.local/share/open mw\n")
+        folders = parse_folders(printed)
+        self.assertEqual(folders.config, Path("/home/someone/.config/openmw"))
+        self.assertEqual(folders.data, Path("/home/someone/.local/share/open mw"))
+
+    def test_a_run_that_named_no_folders_is_refused(self):
+        with self.assertRaises(Refusal):
+            parse_folders("config /somewhere\n")

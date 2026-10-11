@@ -8,56 +8,58 @@ or a wizard the gate never compiled was a failure only CI found.
 `check` writes its pictures where it always does, under `check/` in the build."""
 
 import unittest
+from collections.abc import Callable
 
 from omw import formatting, lint, listing, spellings, testing
 from omw.build import Build
 from omw.repeat import repeat
 from omw.system import ROOT, Refusal
 
-# **The steps, in the order `gate` runs them**: the one statement of it, which `omw help` prints.
-STEPS = ("format check, spellings, lint (CI's other source checks), the driver's tests, build, the listing check, "
-         "the release compile, tests and their timing, check, repeat")
 
-
-def self_test() -> bool:
+def self_test() -> int:
     """The driver's own tests, which take a second."""
     tools = ROOT / "tools"
     suite = unittest.defaultTestLoader.discover(str(tools / "omw" / "tests"), top_level_dir=str(tools))
-    return unittest.TextTestRunner(verbosity=0).run(suite).wasSuccessful()
+    return 0 if unittest.TextTestRunner(verbosity=0).run(suite).wasSuccessful() else 1
+
+
+def _build(build: Build) -> int:
+    build.build(build.default_targets + build.test_targets())
+    return 0
+
+
+def _release_compile(build: Build) -> int:
+    """The release build too: without its asserts, the optimizer proves paths the debug build never
+    shows a warning on, such as a lookup that can now reach a null. **Every program the preset
+    configures**, as CI's `full` builds every program the tree has: a tool only CI linked, such as
+    `openmw-rtx-spirv-digest`, was a link error the gate passed and every CI platform failed."""
+    Build("release").build(["all"])
+    return 0
+
+
+# **The steps, in the order `gate` runs them**: each a name, which `omw help` prints, and what it
+# runs on the gate's build, nought where it passed. A build that fails raises before it answers.
+STEPS: tuple[tuple[str, Callable[[Build], int]], ...] = (
+    ("format check", lambda build: formatting.format_tree(["--check"])),
+    ("spellings", lambda build: spellings.check()),
+    ("lint (CI's other source checks)", lambda build: lint.lint([])),
+    ("the driver's tests", lambda build: self_test()),
+    ("build", _build),
+    ("the listing check", listing.check),
+    ("the release compile", _release_compile),
+    ("tests", lambda build: testing.test(build, [])),
+    ("their timing", testing.timing),
+    ("check", lambda build: build.harness("check").returncode),
+    ("repeat", lambda build: repeat(build, ["--pairs=1"])),
+)
+SUMMARY = ", ".join(name for name, _ in STEPS)
 
 
 def gate(build: Build, args: list[str]) -> int:
     if args:
         raise Refusal("gate takes no arguments")
-    if formatting.format_tree(["--check"]) != 0:
-        return 1
-    if spellings.check() != 0:
-        return 1
-    if lint.lint([]) != 0:
-        return 1
-    if not self_test():
-        return 1
-
-    targets = build.test_targets()
-    build.build(build.default_targets + targets)
-    if listing.check(build) != 0:
-        return 1
-
-    # The release build too: without its asserts, the optimizer proves paths the debug build never
-    # shows a warning on, such as a lookup that can now reach a null. **Every program the preset
-    # configures**, as CI's `full` builds every program the tree has: a tool only CI linked, such as
-    # `openmw-rtx-spirv-digest`, was a link error the gate passed and every CI platform failed.
-    release = Build("release")
-    release.build(["all"])
-
-    if testing.test(build, []) != 0:
-        return 1
-    if testing.timing(build) != 0:
-        return 1
-
-    if build.harness("check").returncode != 0:
-        return 1
-    if repeat(build, ["--pairs=1"]) != 0:
-        return 1
+    for _, step in STEPS:
+        if step(build) != 0:
+            return 1
     print("gate: clean")
     return 0

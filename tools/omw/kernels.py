@@ -179,6 +179,15 @@ def keyed(lines: list[str], source: str) -> dict[str, str]:
     return found
 
 
+def _produced(command: list, failure: str, given: bytes | None = None) -> bytes:
+    """What a tool of the listing printed, handed `given`, or a refusal that says `failure` and what
+    the tool said."""
+    ran = subprocess.run(command, input=given, capture_output=True, check=False)
+    if ran.returncode != 0:
+        raise Refusal(f"{failure}: {ran.stderr.decode(errors='replace')}")
+    return ran.stdout
+
+
 T = TypeVar("T")
 R = TypeVar("R")
 
@@ -202,18 +211,17 @@ def kernels(build: Build, args: list[str]) -> int:
     # The build's own lines on stderr, because the listing is what a caller keeps.
     build.build(["openmw-rtx-vulkan-shaders", "openmw-rtx-spirv-digest"], stdout=sys.stderr)
 
-    named_optimizer = build.cache_value("OPENMW_SPIRV_OPT")
-    if not named_optimizer or not Path(named_optimizer).is_file():
-        raise Refusal(f"the {build.flavour} build names no spirv-opt")
-    optimizer: str = named_optimizer
+    optimizer = build.cached("OPENMW_SPIRV_OPT")
+    if not Path(optimizer).is_file():
+        raise Refusal(f"there is no spirv-opt at {optimizer}, where the {build.flavour} build names it")
     # The optimizer the build strips its modules with, so the two cannot be different releases.
     disassembler = Path(optimizer).with_name("spirv-dis" + Path(optimizer).suffix)
     if not disassembler.is_file():
         raise Refusal(f"there is no spirv-dis beside {optimizer}")
     program_digest = build.dir / "components" / "rtxvulkan" / f"openmw-rtx-spirv-digest{EXE}"
 
-    shaders = build.cached_folder("RTX_SPIRV_DIR")
-    sources = build.cached_folder("RTX_SPIRV_SOURCE_DIR")
+    shaders = Path(build.cached("RTX_SPIRV_DIR"))
+    sources = Path(build.cached("RTX_SPIRV_SOURCE_DIR"))
     known = domains()
     work: list[tuple[Path, Setting]] = []
     for module in sorted(shaders.glob("*.spv")):
@@ -226,27 +234,17 @@ def kernels(build: Build, args: list[str]) -> int:
     def digest(item: tuple[Path, Setting]) -> str:
         module, setting = item
         label = setting.label or "-"
+        at = f"{module.name} at {label}"
         specialize = ["--set-spec-const-default-value", setting.constants] if setting.constants else []
         with tempfile.TemporaryDirectory() as scratch:
             specialized = Path(scratch) / "specialized.spv"
-            optimized = subprocess.run(
-                [optimizer, "--target-env=vulkan1.4", "--scalar-block-layout", *specialize, "--freeze-spec-const",
-                 "--fold-spec-const-op-composite", "-O", "--eliminate-dead-const", "--strip-debug",
-                 "--strip-nonsemantic", module, "-o", specialized], capture_output=True, check=False)
-            if optimized.returncode != 0:
-                said = optimized.stderr.decode(errors="replace")
-                raise Refusal(f"spirv-opt refused {module.name} at {label}: {said}")
-            disassembled = subprocess.run([disassembler, "--raw-id", "--no-header", specialized],
-                                          capture_output=True, check=False)
-            if disassembled.returncode != 0:
-                said = disassembled.stderr.decode(errors="replace")
-                raise Refusal(f"spirv-dis refused {module.name} at {label}: {said}")
-            disassembly = disassembled.stdout
-        hashed = subprocess.run([program_digest], input=disassembly, capture_output=True, check=False)
-        if hashed.returncode != 0:
-            said = hashed.stderr.decode(errors="replace")
-            raise Refusal(f"{module.name} at {label} could not be digested: {said}")
-        return f"{module.name.removesuffix('.spv')} {label} {hashed.stdout.decode().strip()}"
+            _produced([optimizer, "--target-env=vulkan1.4", "--scalar-block-layout", *specialize,
+                       "--freeze-spec-const", "--fold-spec-const-op-composite", "-O", "--eliminate-dead-const",
+                       "--strip-debug", "--strip-nonsemantic", module, "-o", specialized], f"spirv-opt refused {at}")
+            disassembly = _produced([disassembler, "--raw-id", "--no-header", specialized],
+                                    f"spirv-dis refused {at}")
+        hashed = _produced([program_digest], f"{at} could not be digested", disassembly)
+        return f"{module.name.removesuffix('.spv')} {label} {hashed.decode().strip()}"
 
     listed = sorted(map_cancelling(digest, work, jobs()))
 
