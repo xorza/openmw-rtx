@@ -116,6 +116,9 @@ is not here is held to the rules above.
     scaled by `Presentation::shownScale` alone.
   - Where Wayland refuses relative mouse mode and pointer warps, the pointer goes unwrapped and stops
     at the window's edge (`InputWrapper::mWarpMovesPointer`): each failed warp turned the camera.
+  - A window that is hidden, minimized or occluded draws nothing, read from SDL's window flags and
+    not from its events (`SDLUtil::isWindowShown`): KWin minimizes a window by suspending it, which
+    SDL reports as occluded and never as minimized, so the game drew on behind it.
 - One set of checks for every file, on every compiler: the checks the top-level `CMakeLists.txt`
   adds to upstream's, and the hunks in upstream code that keep it clean under them, the patches to
   `extern/sol3` and `components/files/configurationmanager` included. MSVC's `4244` and `4267` are

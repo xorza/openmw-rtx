@@ -10,6 +10,7 @@
 #include <components/debug/debuglog.hpp>
 
 #include "graphicslistener.hpp"
+#include "sdlvideowrapper.hpp"
 
 namespace SDLUtil
 {
@@ -46,6 +47,7 @@ namespace SDLUtil
         , mPendingWheelY(0.0)
         , mWindowHasFocus(true)
         , mMouseInWindow(true)
+        , mWindowShown(true)
         , mPixelDensity(1.f)
     {
         SDL_WindowFlags flags = SDL_GetWindowFlags(mSDLWindow);
@@ -337,15 +339,20 @@ namespace SDLUtil
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                 break;
             case SDL_EVENT_WINDOW_SHOWN:
-            case SDL_EVENT_WINDOW_RESTORED:
-                if (mWindowListener)
-                    mWindowListener->windowVisibilityChange(true);
-                break;
             case SDL_EVENT_WINDOW_HIDDEN:
             case SDL_EVENT_WINDOW_MINIMIZED:
-                if (mWindowListener)
-                    mWindowListener->windowVisibilityChange(false);
+            case SDL_EVENT_WINDOW_RESTORED:
+            case SDL_EVENT_WINDOW_OCCLUDED:
+            case SDL_EVENT_WINDOW_EXPOSED:
+            {
+                // From the flags, since Wayland reports a minimized window as occluded only.
+                const bool shown = isWindowShown(SDL_GetWindowFlags(mSDLWindow));
+                if (mWindowListener == nullptr || shown == mWindowShown)
+                    break;
+                mWindowShown = shown;
+                mWindowListener->windowVisibilityChange(shown);
                 break;
+            }
         }
     }
 

@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
 
-struct SDL_Window;
+#include <SDL3/SDL_video.h>
 
 namespace Settings
 {
@@ -18,6 +18,9 @@ namespace SDLUtil
     /// window's own. A fractional density is the ratio of two whole sizes in a float, and a product
     /// truncated fell a pixel short wherever the float did.
     int displayPixels(int points, float density);
+
+    /// False for a hidden, minimized or occluded window.
+    bool isWindowShown(SDL_WindowFlags flags);
 
     /// Puts `window` in `windowMode`: exclusive fullscreen at the display's desktop mode, borderless
     /// fullscreen on the whole display, or a window of `width` by `height` pixels centred on its

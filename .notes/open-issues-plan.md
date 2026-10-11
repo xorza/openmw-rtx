@@ -1,6 +1,6 @@
 # Open issues: plan
 
-This plan covers three entries in `.notes/ISSUES.md`. For each entry, the cause was traced in the
+This plan covers two entries in `.notes/ISSUES.md`. For each entry, the cause was traced in the
 code and, where the fault is in SDL or Crashpad, in their pinned sources (SDL 3.4.16 under
 `build-container/package/fetched/sdl3`, Crashpad under `build-package/extern/fetched/crashpad`). Each
 item gives a structural fix: the fix removes the cause, and does not add a guard where the fault
@@ -30,12 +30,9 @@ shows.
 Do the items in this order, which puts a quietly wrong answer first:
 
 1. [Item 3](#item-3-a-lost-surface-gets-a-new-surface): a lost surface ends the game.
-2. [Item 4](#item-4-a-window-that-shows-nothing-draws-nothing): a minimized window keeps the card
-   busy.
-3. [Item 5](#item-5-the-window-size-is-kept-in-the-desktops-unit): the window size drifts.
+2. [Item 5](#item-5-the-window-size-is-kept-in-the-desktops-unit): the window size drifts.
 
-Items 4 and 5 both change `InputWrapper::handleWindowEvent`. Do item 4 first, so that item 5's diff
-starts from it. The other items share no file.
+The items share no file.
 
 ## Relation to the upstream MR
 
@@ -124,56 +121,6 @@ expects the death through `Testing::expectDies` with the reason `deviceFailed` n
 
 **Verify.** `./omw test rtx-gpu-tests --gtest_filter='*Present*'`. Done when the test passes and
 `RtxPresentFenceTest` still passes.
-
-## Item 4: a window that shows nothing draws nothing
-
-**Entry:** "A minimized window keeps drawing on KDE Wayland." **Upstream:** yes, under the SDL3
-port. **Decision 1** applies.
-
-**Cause.** `InputWrapper::handleWindowEvent` (`components/sdlutil/sdlinputwrapper.cpp`) maps four
-event edges to `windowVisibilityChange`: `SHOWN` and `RESTORED` to true, `HIDDEN` and `MINIMIZED` to
-false. KWin minimizes a window through the `xdg_toplevel` suspended state. SDL sends
-`SDL_EVENT_WINDOW_OCCLUDED` for that state, and `EXPOSED` when it ends
-(`SDL_waylandwindow.c`, `XDG_TOPLEVEL_STATE_SUSPENDED`). The wrapper ignores both. macOS sends
-`OCCLUDED` from `windowDidChangeOcclusionState`, and X11 sends it with `MINIMIZED` on an unmap.
-
-**Fix.** The code of `sdl3-fixes`:
-
-- `SDLUtil::isWindowShown(SDL_WindowFlags)` in `sdlvideowrapper`: false when `SDL_WINDOW_HIDDEN`,
-  `SDL_WINDOW_MINIMIZED` or `SDL_WINDOW_OCCLUDED` is set.
-- On each of `SHOWN`, `HIDDEN`, `MINIMIZED`, `RESTORED`, `OCCLUDED` and `EXPOSED`, the wrapper reads
-  `SDL_GetWindowFlags` and tells the listener only when the answer differs from what it last told
-  it (`mWindowShown`, true at the start, as the listener assumes).
-- With Decision 1, nothing else changes: `Engine::frame`, `MenuVideo::run` and the nested loops
-  already pause on `isWindowVisible`. The heartbeat stays alive, because `Renderer::awaitFrame`
-  counts it before `frame` returns.
-- In the same files, the comment on `mWarpMovesPointer` says that Wayland lets no window move the
-  pointer. SDL 3.4 can, where the compositor offers `wp_pointer_warp_v1`, and SDL does not say
-  whether it does. Correct the comment as `sdl3-fixes` has it. The behaviour stays.
-
-**Why this fix.** SDL keeps the window's state in its flags, and it updates them before it queues
-the event (`SDL_SendWindowEvent`). A read of the state cannot disagree with the order of edges that
-a compositor chooses. `OCCLUDED` is SDL's portable statement that the window is not on screen, and a
-Wayland compositor that suspends a window asks the client to stop drawing.
-
-**Cost.** On Wayland, a window that the compositor suspends during a resize gets an `EXPOSED` and
-asks for one frame. The paused game does not draw it, so the compositor keeps the old buffer until
-the window shows again. This is the same as a minimized window today.
-
-**Tests.**
-
-- Extend `SDLUtilVideoWrapperTest` with a table of the predicate over the flag combinations, as
-  `sdl3-fixes` has it.
-- The change filter, under SDL's offscreen driver: a real `InputWrapper` on an offscreen window with
-  a recording listener. `SDL_HideWindow` gives one false, a second hide gives nothing, and
-  `SDL_ShowWindow` gives one true. SDL's public API cannot make a window occluded, so the predicate
-  test alone covers `OCCLUDED`.
-
-**Verify.** `./omw test components-tests --gtest_filter='SDLUtil*'`. Then a check in the real game
-with `./omw game`: minimize it through KWin, and read
-`nvidia-smi --query-gpu=utilization.gpu --format=csv -l 1`. The title cannot show the frame rate of
-frames the game does not draw. Done when the use falls to the desktop's own and comes back on
-restore. On macOS and X11, left to a run on that system.
 
 ## Item 5: the window size is kept in the desktop's unit
 
