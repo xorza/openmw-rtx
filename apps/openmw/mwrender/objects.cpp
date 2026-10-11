@@ -39,26 +39,28 @@ namespace MWRender
         mCellSceneNodes.clear();
     }
 
+    osg::Group& Objects::cellRootOf(const MWWorld::CellStore* cell)
+    {
+        // **One maker for both**, because the mirror tells roots apart by the stamp: a root a move
+        // made unstamped was told apart by its place under the scene root, which moves whenever
+        // another cell's root comes or goes.
+        osg::ref_ptr<osg::Group>& root = mCellSceneNodes[cell];
+        if (root == nullptr)
+        {
+            root = new osg::Group;
+            root->setName("Cell Root");
+            SceneUtil::StableIdentity::stamp(*root, mNextIdentity++);
+            mRootNode->addChild(root);
+        }
+        return *root;
+    }
+
     void Objects::insertBegin(const MWWorld::Ptr& ptr)
     {
         assert(mObjects.find(ptr.mRef) == mObjects.end());
 
-        osg::ref_ptr<osg::Group> cellnode;
-
-        CellMap::iterator found = mCellSceneNodes.find(ptr.getCell());
-        if (found == mCellSceneNodes.end())
-        {
-            cellnode = new osg::Group;
-            cellnode->setName("Cell Root");
-            SceneUtil::StableIdentity::stamp(*cellnode, mNextIdentity++);
-            mRootNode->addChild(cellnode);
-            mCellSceneNodes[ptr.getCell()] = cellnode;
-        }
-        else
-            cellnode = found->second;
-
         osg::ref_ptr<SceneUtil::PositionAttitudeTransform> insert(new SceneUtil::PositionAttitudeTransform);
-        cellnode->addChild(insert);
+        cellRootOf(ptr.getCell()).addChild(insert);
 
         SceneUtil::addUserData(*insert, ptr);
         SceneUtil::StableIdentity::stamp(*insert, mNextIdentity++);
@@ -208,17 +210,7 @@ namespace MWRender
 
         MWWorld::CellStore* newCell = cur.getCell();
 
-        osg::Group* cellnode;
-        if (mCellSceneNodes.find(newCell) == mCellSceneNodes.end())
-        {
-            cellnode = new osg::Group;
-            mRootNode->addChild(cellnode);
-            mCellSceneNodes[newCell] = cellnode;
-        }
-        else
-        {
-            cellnode = mCellSceneNodes[newCell];
-        }
+        osg::Group* cellnode = &cellRootOf(newCell);
 
         if (MWWorld::Ptr* ptr = SceneUtil::findUserData<MWWorld::Ptr>(*objectNode))
             *ptr = cur;

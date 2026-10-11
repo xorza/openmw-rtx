@@ -259,7 +259,7 @@ namespace Rtx
 
     namespace
     {
-        constexpr std::array<RequiredFormat, 4> sRequiredFormats{
+        constexpr std::array sRequiredFormats{
             // The shading estimate is written by a dispatch straight into the sixteen-bit map the
             // trace samples — `ShadingPass` — and a sixteen-bit unorm as a storage image is one of
             // the features Vulkan leaves optional.

@@ -569,6 +569,14 @@ namespace RtxTool
                 stops.push_back(stageOnePlace(command, framed));
             else
             {
+                // **A place named on the line beside `--views` is refused**: every stop comes from
+                // the file, and `--pos` and the rest were read on the one-place path alone, so
+                // `shot --views=balmora --pos=...` drew Balmora at its file's eye and said nothing.
+                for (const char* place : { "cell", "view", "pos", "look" })
+                    if (variables.count(place) != 0 && !variables[place].defaulted())
+                        throw std::runtime_error(std::format(
+                            "--views takes its places from the file, and --{} names one beside them", place));
+
                 stops = stopsFrom(chooseViews(loadViews(viewsFile()), splitNames(named)), variables, framed);
             }
 

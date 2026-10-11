@@ -554,7 +554,8 @@ namespace RtxTool
 
         // Checked as `FrameHashes::write` checks, for its reason: a record compared across commits
         // that was never written leaves the last one at its path to be compared as this one.
-        file.flush();
+        // Closed and then asked, because a write the system reports late reports it at the close.
+        file.close();
         if (!file)
             return Misc::Err{ "could not write " + Files::pathToUnicodeString(path) };
         return {};

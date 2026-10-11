@@ -4,10 +4,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <filesystem>
 #include <format>
 #include <string>
 #include <string_view>
 #include <utility>
+
+#include <components/files/conversion.hpp>
 
 #include "crash.hpp"
 
@@ -107,7 +110,7 @@ namespace Crash
         return titleOf(facts, kindPrefix(facts), reasonOf(facts));
     }
 
-    void summarise(const CrashFacts& facts, std::vector<std::string>& lines)
+    void summarise(const CrashFacts& facts, std::vector<std::string>& lines, const SummaryReaders readers)
     {
         const NotesRead& notes = facts.mNotes;
         const std::string kind = kindPrefix(facts);
@@ -145,7 +148,13 @@ namespace Crash
         for (const auto& [key, value] : facts.mAnnotations)
             lines.push_back(kind + key + ": " + value);
 
-        lines.push_back(kind + (facts.mDump.empty() ? "no dump was written" : "dump " + facts.mDump));
+        if (facts.mDump.empty())
+            lines.push_back(kind + "no dump was written");
+        else if (readers == SummaryReaders::Public)
+            lines.push_back(
+                kind + "dump " + Files::pathToUnicodeString(Files::pathFromUnicodeString(facts.mDump).filename()));
+        else
+            lines.push_back(kind + "dump " + facts.mDump);
     }
 
     std::string hex(const std::uint64_t value)

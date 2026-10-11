@@ -17,7 +17,6 @@
 #include <osgDB/ReadFile>
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
-#include <osgDB/WriteFile>
 #include <zlib.h>
 
 #include <components/crashcatcher/crash.hpp>
@@ -60,16 +59,12 @@ namespace Rtx
             // zlib's fastest level: a 1080p frame in 60 ms against 260 at the plugin's default, for a
             // file a fifth larger — and a run that keeps every frame writes hundreds of them.
             const osg::ref_ptr<osgDB::Options> options = new osgDB::Options("PNG_COMPRESSION 1");
-            if (description.empty())
-            {
-                if (!osgDB::writeImageFile(image, Files::pathToUnicodeString(path), options.get()))
-                    return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) };
-                return {};
-            }
 
-            // **Encoded in memory and the chunk put in before the end**, because OSG's plugin writes no
-            // text of its own. Before `IEND`, which is the last twelve bytes of every PNG and after
-            // which a decoder reads nothing.
+            // **Encoded in memory and written here, every picture**: the plugin's own file is a stream
+            // it never checks, and closed by nobody who asks, so a full disk or a share that reports a
+            // failed write at its close wrote half a picture that a run said it wrote. And the chunk
+            // put in before the end, because OSG's plugin writes no text of its own: before `IEND`,
+            // which is the last twelve bytes of every PNG and after which a decoder reads nothing.
             osgDB::ReaderWriter* const png = osgDB::Registry::instance()->getReaderWriterForExtension("png");
             if (png == nullptr)
                 return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) + ": no PNG plugin" };
@@ -79,13 +74,18 @@ namespace Rtx
                 return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) };
 
             std::string bytes = std::move(encoded).str();
-            constexpr std::size_t endChunk = 12;
-            Crash::contract(bytes.size() > endChunk && bytes.compare(bytes.size() - 8, 4, "IEND") == 0,
-                "the PNG plugin wrote a file that does not end in IEND");
-            bytes.insert(bytes.size() - endChunk, textChunk("Description", description));
+            if (!description.empty())
+            {
+                constexpr std::size_t endChunk = 12;
+                Crash::contract(bytes.size() > endChunk && bytes.compare(bytes.size() - 8, 4, "IEND") == 0,
+                    "the PNG plugin wrote a file that does not end in IEND");
+                bytes.insert(bytes.size() - endChunk, textChunk("Description", description));
+            }
 
             std::ofstream file(path, std::ios::binary);
-            if (!file.write(bytes.data(), static_cast<std::streamsize>(bytes.size())))
+            file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+            file.close();
+            if (!file)
                 return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) };
             return {};
         }

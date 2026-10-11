@@ -38,6 +38,13 @@ namespace
         EXPECT_THROW(Platform::Process::shellWord("C:\\%USERNAME%\\frames"), std::invalid_argument);
         EXPECT_THROW(Platform::Process::shellWord("a \"quoted\" folder"), std::invalid_argument);
         EXPECT_EQ(Platform::Process::shellWord("frames\\%05d.png"), "\"frames\\%05d.png\"");
+
+        // **A trailing backslash does not escape the closing quote**: doubled, which a program's
+        // C runtime reads back as the one. And a word in letters past ASCII reaches `cmd` as written.
+        EXPECT_EQ(Platform::Process::shellWord("C:\\frames\\"), "\"C:\\frames\\\\\"");
+        const std::string accented = Platform::Process::shellWord("J\xc3\xb6rg");
+        EXPECT_TRUE(
+            Platform::Process::runShell("if " + accented + "==\"J\xc3\xb6rg\" (exit 0) else (exit 1)").succeeded());
     }
 
     /// **How a command ended, as `cmd` ran it**: the exit code whole, and no signal, which Windows

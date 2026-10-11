@@ -201,7 +201,10 @@ namespace MWRender
 
         MapSegment& segment = mExteriorSegments[std::make_pair(cellX, cellY)];
         const std::uint8_t neighbourFlags = getExteriorNeighbourFlags(cellX, cellY);
-        if (segment.mLastRenderNeighbourFlags != 0
+        // Drawn again where the renderer gave up the last draw, the scene it showed left before it
+        // could be drawn (`OffscreenView::isAbandoned`), however many neighbours it was asked with.
+        const bool abandoned = segment.mView != nullptr && segment.mView->isAbandoned();
+        if (!abandoned && segment.mLastRenderNeighbourFlags != 0
             && (segment.mLastRenderNeighbourFlags & neighbourFlags) == neighbourFlags)
             return;
         requestExteriorMap(cell, segment);

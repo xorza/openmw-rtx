@@ -7,3 +7,24 @@
   window minimized and restored through KWin receives `FOCUS_LOST` and `OCCLUDED`, then `EXPOSED`, and
   no `MINIMIZED`, `HIDDEN`, `SHOWN` or `RESTORED`; it presented at about 20 frames a second while
   occluded.
+- **A lost window surface ends the game.** `VK_ERROR_SURFACE_LOST_KHR` from an acquire or a present
+  goes to `deviceFailed` (`components/rtxvulkan/present/swapchain.cpp`, `checkPresentable`): nothing
+  makes a new surface and swapchain for the window, so a display that goes away or a compositor that
+  restarts under the game ends it.
+- **A crash monitor whose report database fails to open is reported as a working catcher on Linux
+  and macOS.** The monitor opens the shared page before `crashpad::HandlerMain` opens its database,
+  so `Crash::install` sees the monitor start (`SharedPage::awaitMonitor`) and logs "Crash reports go
+  to …" while a report folder that exists but takes no writes, or a full disk, leaves the game with
+  no dumps (`components/crashcatcher/crashpadclient.cpp`).
+- **The harness's card watch reads a card chosen without the renderer's device.** NVML is opened
+  at device index 0 (`apps/rtxtool/instruments/nvml.cpp`), and an AMD card is the first vendor
+  `0x1002` card in `/sys/class/drm` (`apps/rtxtool/instruments/amdgpu.cpp`), and an NVIDIA library
+  that opens keeps the AMD path from being tried (`CardWatch::CardWatch`). On a machine with two
+  cards — an APU laptop with a Radeon card, two NVIDIA cards — a bench's clock, temperature,
+  throttle and other-process lines can describe a card the ray tracer does not run on.
+- **A windowed game's size drifts on a Wayland desktop with displays at different scales.** SDL
+  gives a new hidden window the largest scale of any display (`Wayland_CreateWindow`), and
+  `SDLUtil::setVideoMode` divides the stored pixel size by that density; mapped on a display of a
+  smaller scale, the window keeps its points (`Wayland_HandlePreferredScaleChanged`) and opens
+  smaller, and `WindowManager::windowResized` stores the smaller size, so each start opens smaller
+  again (`apps/openmw/mwrender/renderer.cpp`, `openWindow`).

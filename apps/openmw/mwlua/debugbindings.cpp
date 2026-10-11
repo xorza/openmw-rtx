@@ -102,7 +102,7 @@ namespace MWLua
         api["triggerShaderReload"] = [context]() {
             context.mLuaManager->addAction([] {
                 if (!refuses("debug.triggerShaderReload",
-                        renderer().support().declinedRequest(MWRender::ScriptRequest::ShaderReload)))
+                        renderer().support().declinedRequest(MWRender::PictureRequest::ShaderReload)))
                     renderer().reloadShaders();
             });
         };
@@ -110,7 +110,7 @@ namespace MWLua
         api["setShaderHotReloadEnabled"] = [context](bool value) {
             context.mLuaManager->addAction([value] {
                 if (!refuses("debug.setShaderHotReloadEnabled",
-                        renderer().support().declinedRequest(MWRender::ScriptRequest::LiveShaderReload)))
+                        renderer().support().declinedRequest(MWRender::PictureRequest::LiveShaderReload)))
                     renderer().setLiveShaderReload(value);
             });
         };

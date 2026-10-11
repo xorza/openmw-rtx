@@ -191,6 +191,7 @@ namespace Rtx
             return Misc::Err{ shading.error() };
 
         std::optional<Image> upload;
+        std::optional<Image> loose;
         Image image;
         if (!data.mCompleteChain)
         {
@@ -223,7 +224,21 @@ namespace Rtx
                 return Misc::Err{ chain.error() };
 
             upload = std::move(uploaded.value());
-            image = std::move(chain.value());
+            if (!data.encodesChain())
+                image = std::move(chain.value());
+            else
+            {
+                // **Kept as BC7 past the loose side**, encoded off the loose chain, which goes with
+                // the batch as the upload does: `TextureData::encodesChain` says why.
+                Misc::Result<Image, std::string_view> bc7 = Image::tryMake(use, device, data.mWidth, data.mHeight,
+                    encoded ? VK_FORMAT_BC7_SRGB_BLOCK : VK_FORMAT_BC7_UNORM_BLOCK, sUploadedTextureUsage, name,
+                    levelsTo1x1(data.mWidth, data.mHeight));
+                if (!bc7.isOk())
+                    return Misc::Err{ bc7.error() };
+
+                loose = std::move(chain.value());
+                image = std::move(bc7.value());
+            }
         }
 
         // Every image is made, so nothing below can refuse: the texture stands from here, and what
@@ -236,7 +251,10 @@ namespace Rtx
         {
             const Image& held = arrival.hold(std::move(*upload));
             arrival.upload(batch, held, data.mBytes, regions);
-            arrival.chain(held, mImage, isSrgb(data.mFormat), data.mEncoding);
+            if (loose.has_value())
+                arrival.chain(held, arrival.hold(std::move(*loose)), isSrgb(data.mFormat), data.mEncoding, &mImage);
+            else
+                arrival.chain(held, mImage, isSrgb(data.mFormat), data.mEncoding);
         }
         else
             arrival.upload(batch, mImage, bytes, regions);

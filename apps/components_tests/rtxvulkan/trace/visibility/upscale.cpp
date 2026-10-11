@@ -132,6 +132,37 @@ namespace Rtx::Testing
             }
         }
 
+        /// **The smallest frame draws in every mode**: the presentation holds a frame to
+        /// `sSmallestFrameSide`, which ultra performance traces at one pixel, and nothing between the
+        /// trace and the upscaler may come to an extent of nought there.
+        TEST_F(RtxVisibilityTest, theSmallestFrameDrawsInEveryUpscale)
+        {
+            constexpr std::uint32_t side = sSmallestFrameSide;
+            SceneDesc scene;
+            addQuad(scene, sheetAt(100.0f, 0.0f));
+
+            for (const Upscale mode : sUpscaleMenu)
+            {
+                SCOPED_TRACE(sUpscaleNames.name(mode));
+                mRenderer.resize(side, side);
+                const UpscaleFor upscale(mRenderer, mode);
+                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+
+                const Shaders::VisibilityConstants camera = overTheFloor(mRenderer.getExtents().mRenderWidth);
+                for (std::uint32_t at = 0; at < 4; ++at)
+                {
+                    Shaders::VisibilityConstants sampled = camera;
+                    sampled.mFrame = at;
+                    mRenderer.renderFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
+                    ASSERT_TRUE(mRenderer.finishFrame().has_value());
+                }
+
+                std::vector<std::uint8_t> pixels;
+                mRenderer.readPixels(pixels);
+                EXPECT_EQ(pixels.size(), std::size_t{ side } * side * 4);
+            }
+        }
+
         /// **Behind a post, upscaled, a puff is hidden where the traced pixel's centre meets the post**,
         /// and so holds still under the jitter: the composite finds the depth once along the ray
         /// through that centre, which does not move with the jitter, and each shown pixel over it

@@ -448,6 +448,7 @@ namespace RtxTool
             const std::filesystem::path own = ownConfigDirectory(config);
             EXPECT_EQ(own, ownConfigDirectory(config)) << "one directory for the whole run";
             EXPECT_EQ(own.parent_path(), config.getCachePath() / "rtxtool");
+            EXPECT_EQ(ownSavesFolder(config), own / "saves") << "a run's saves outside its own directory";
             EXPECT_TRUE(Files::pathToUnicodeString(own.filename())
                             .ends_with(std::format("-{}", Platform::Process::currentId())));
         }

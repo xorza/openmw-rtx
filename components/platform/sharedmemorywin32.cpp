@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -34,6 +36,10 @@ namespace Platform
             return memory;
         }
 
+        // A name an earlier process of this session left is opened as it stood, which a fresh one is
+        // not: noughts either way, as `create` says.
+        std::memset(view, 0, size);
+
         memory.mData = view;
         memory.mSize = size;
         memory.mHandle = mapping;
@@ -59,6 +65,12 @@ namespace Platform
         memory.mSize = size;
         memory.mHandle = mapping;
         return memory;
+    }
+
+    std::optional<bool> SharedMemory::isOpenedElsewhere() const
+    {
+        // A mapping's name stands for as long as any handle does, so it says nothing of who opened it.
+        return std::nullopt;
     }
 
     void SharedMemory::unmap() noexcept

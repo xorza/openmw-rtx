@@ -1,5 +1,6 @@
 #include "session.hpp"
 
+#include <exception>
 #include <format>
 #include <memory>
 #include <optional>
@@ -9,6 +10,7 @@
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwworld/globals.hpp>
@@ -46,6 +48,26 @@ namespace RtxTool
     std::optional<float> Session::getFrameStep() const
     {
         return mRequest.mStep;
+    }
+
+    std::optional<std::filesystem::path> Session::getSavesFolder() const
+    {
+        if (mRequest.mSaves.empty())
+            return std::nullopt;
+        return mRequest.mSaves;
+    }
+
+    void Session::endedEarly()
+    {
+        if (mDone || !mRequest.mQuitAtEnd)
+            return;
+
+        // The engine has stopped, so nothing is asked of it: the record is abandoned as far as the
+        // run reached, which writes what was measured and fails the run.
+        Log(Debug::Error) << "Ray tracing session: the game ended during stop " << (mAt + 1) << " of "
+                          << mRequest.mStops.size() << ", before the run's last";
+        mRecord.abandon(mRequest);
+        mDone = true;
     }
 
     SessionResult Session::describe() const
@@ -208,9 +230,20 @@ namespace RtxTool
         if (!mRequest.mPlayed)
             Stager::closeMenus();
 
+        // **A stop that throws as it begins is the run's failure, said once**: `Engine::frame`
+        // catches what leaves here and goes on, and the stop began again on every frame after —
+        // with `--perf-control` and nothing reading it, thirty seconds a frame, for ever.
         if (!mStarted)
         {
-            beginStop();
+            try
+            {
+                beginStop();
+            }
+            catch (const std::exception& failure)
+            {
+                abandon(
+                    std::format("stop {} of {} could not begin: {}", mAt + 1, mRequest.mStops.size(), failure.what()));
+            }
             return;
         }
 
@@ -230,8 +263,10 @@ namespace RtxTool
             Stager::forgetHistory();
 
         // Where somebody plays the run, and nowhere else: a key pressed in a measured window
-        // would move what the measurement records nothing of.
-        if (mRequest.mPlayed)
+        // would move what the measurement records nothing of. **And not while a menu or the console
+        // has the keys**: the three read the keyboard's state and not the game's input, so text
+        // typed in the console turned the sky and printed the memory block.
+        if (mRequest.mPlayed && !MWBase::Environment::get().getWindowManager()->isGuiMode())
         {
             mHome.listen();
             mMemoryKey.listen();

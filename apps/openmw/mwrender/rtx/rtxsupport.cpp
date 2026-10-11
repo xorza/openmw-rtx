@@ -166,10 +166,13 @@ namespace MWRender
         };
 
         constexpr std::array sRequests{
-            RequestSupport{ ScriptRequest::ShaderReload,
+            RequestSupport{ PictureRequest::ShaderReload,
                 "The ray tracer's kernels are compiled into the build, and a rebuild changes them." },
-            RequestSupport{ ScriptRequest::LiveShaderReload,
+            RequestSupport{ PictureRequest::LiveShaderReload,
                 "The ray tracer's kernels are compiled into the build, and a rebuild changes them." },
+            RequestSupport{ PictureRequest::StatsOverlay,
+                "The profiler and the statistics are OpenSceneGraph's overlays, which the rasterizer draws. The "
+                "ray tracer's frame rate and frame time are in the window's title." },
         };
 
         constexpr RenderSupport sSupport(sSettings, sModes, sRequests);

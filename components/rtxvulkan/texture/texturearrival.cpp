@@ -17,6 +17,7 @@
 #include <components/rtxvulkan/shaders/shared/normalspread.h>
 #include <components/rtxvulkan/shaders/shared/spritelight.h>
 
+#include "bc7encodepass.hpp"
 #include "normalspreadpass.hpp"
 #include "texturepasses.hpp"
 
@@ -24,6 +25,8 @@ namespace Rtx
 {
     TextureArrival::TextureArrival(const Device& device, const VkDeviceSize meansRoom)
         : mSums(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shading sums")
+        , mBlocks(device, BufferKind::DeviceLocal,
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "encoded chain blocks")
         , mMeansRoom(meansRoom)
         , mMeans(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
               "normal spread means")
@@ -40,8 +43,8 @@ namespace Rtx
         assert(mUploads.empty() && mClears.empty() && mChains.empty() && mShades.empty() && mSpreads.empty()
             && mBakes.empty() && mHeld.empty() && "a run opened over one nobody recorded");
 
-        // An upload a chain is made from: one a texture at most.
-        mHeld.reserve(textures);
+        // An upload a chain is made from, and the chain an encode is made from: two a texture at most.
+        mHeld.reserve(2 * textures);
     }
 
     void TextureArrival::upload(
@@ -76,10 +79,11 @@ namespace Rtx
         mClears.push_back(&map);
     }
 
-    void TextureArrival::chain(
-        const Image& source, const Image& chain, const bool encoded, const TextureEncoding encoding)
+    void TextureArrival::chain(const Image& source, const Image& chain, const bool encoded,
+        const TextureEncoding encoding, const Image* const bc7)
     {
-        mChains.push_back(Chain{ .mSource = &source, .mChain = &chain, .mEncoded = encoded, .mEncoding = encoding });
+        mChains.push_back(
+            Chain{ .mSource = &source, .mChain = &chain, .mEncoded = encoded, .mEncoding = encoding, .mBc7 = bc7 });
     }
 
     void TextureArrival::shade(const Image& source, const Image& map, const TextureWrap wrap)
@@ -118,6 +122,7 @@ namespace Rtx
             // phase's first are one command.
             recordWrites(commands, barriers);
             recordChains(commands, barriers, passes);
+            recordEncodes(commands, barriers, passes);
             recordShading(commands, barriers, passes);
             recordSpreads(commands, barriers, passes);
             recordBakes(commands, barriers, passes);
@@ -197,8 +202,37 @@ namespace Rtx
                         commands, *chain.mSource, *chain.mChain, level, chain.mEncoded, chain.mEncoding);
         }
 
+        // A chain kept as BC7 is read by the encode next, as storage, and never sampled.
         for (const Chain& chain : mChains)
-            chain.mChain->addTransition(barriers, Use::sComputeReadWrite, Use::sTextureSample);
+            chain.mChain->addTransition(
+                barriers, Use::sComputeReadWrite, chain.mBc7 != nullptr ? Use::sComputeRead : Use::sTextureSample);
+    }
+
+    void TextureArrival::recordEncodes(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)
+    {
+        VkDeviceSize largest = 0;
+        for (const Chain& chain : mChains)
+            if (chain.mBc7 != nullptr)
+                largest = std::max(largest,
+                    Bc7Chain::of(chain.mChain->getWidth(), chain.mChain->getHeight(), chain.mChain->getMipLevels())
+                        .mBytes);
+        if (largest == 0)
+            return;
+
+        mBlocks.outgrow(largest);
+        barriers.flush();
+
+        // One encode after another through one room, each handing it to the next once its copy has
+        // read it, as the ground's composite does: only a file past `sLargestLooseChainSide` with no
+        // levels of its own comes here, which a run holds few of.
+        for (const Chain& chain : mChains)
+        {
+            if (chain.mBc7 == nullptr)
+                continue;
+
+            passes.mEncode.record(commands, *chain.mChain, mBlocks.get(), *chain.mBc7, true);
+            handOver(commands, Use::sBufferCopyRead, Use::sBufferComputeWrite);
+        }
     }
 
     void TextureArrival::recordShading(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)

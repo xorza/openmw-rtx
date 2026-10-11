@@ -40,7 +40,7 @@ namespace
         facts.mDump = "C:/Users/x/crashes/reports/1.dmp";
 
         std::vector<std::string> lines;
-        Crash::summarise(facts, lines);
+        Crash::summarise(facts, lines, Crash::SummaryReaders::Player);
         const std::vector<std::string> expected{
             "Crash: EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000 in thread 12632",
             "Crash: at VCRUNTIME140.dll+0x1dd06",
@@ -53,6 +53,16 @@ namespace
         };
         EXPECT_EQ(lines, expected);
         EXPECT_EQ(Crash::title(facts), "Crash: EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000");
+
+        // **The public reads the dump by its file alone**: the folder is the user's, and names the
+        // account. The rest is the player's own summary, line for line.
+        std::vector<std::string> shared;
+        Crash::summarise(facts, shared, Crash::SummaryReaders::Public);
+        std::vector<std::string> sharedExpected = expected;
+        sharedExpected.back() = "Crash: dump 1.dmp";
+        EXPECT_EQ(shared, sharedExpected);
+        for (const std::string& line : shared)
+            EXPECT_EQ(line.find("Users/x"), std::string::npos) << line;
 
         // The words a system's facts are spelt in: an address in hexadecimal, nought included, and a
         // code by its name, or by what the system half says where it has none.
@@ -77,7 +87,7 @@ namespace
         terminate.mException = "SIGABRT";
         terminate.mNotes.mThread = 7;
         std::vector<std::string> lines;
-        Crash::summarise(terminate, lines);
+        Crash::summarise(terminate, lines, Crash::SummaryReaders::Player);
         EXPECT_EQ(lines[0], "Crash: std::terminate on an uncaught exception: bad in thread 7");
         EXPECT_EQ(Crash::title(terminate), "Crash: std::terminate on an uncaught exception: bad");
         EXPECT_EQ(lines[1], "Crash: raised as SIGABRT");
@@ -92,7 +102,7 @@ namespace
         report.mNotes.mCount = 1;
         report.mNotes.mNotes[0] = noteOf(7, "placing");
         lines.clear();
-        Crash::summarise(report, lines);
+        Crash::summarise(report, lines, Crash::SummaryReaders::Player);
         EXPECT_EQ(lines[0], "Report: a contract broken in thread 7");
         EXPECT_EQ(Crash::title(report), "Report: a contract broken");
         EXPECT_EQ(lines[1], "Report: note of thread 7, which asked: placing");
@@ -105,7 +115,7 @@ namespace
         hang.mNotes.mNotes[0] = noteOf(7, "compiling");
         hang.mNotes.mNotes[1] = noteOf(9, "walking");
         lines.clear();
-        Crash::summarise(hang, lines);
+        Crash::summarise(hang, lines, Crash::SummaryReaders::Player);
         EXPECT_EQ(lines[0], "Hang: no frame for 20 seconds in thread 7");
         EXPECT_EQ(Crash::title(hang), "Hang: no frame for 20 seconds");
         EXPECT_EQ(lines[1], "Hang: note of thread 7, which draws: compiling");
@@ -113,7 +123,7 @@ namespace
 
         Crash::CrashFacts nothing;
         lines.clear();
-        Crash::summarise(nothing, lines);
+        Crash::summarise(nothing, lines, Crash::SummaryReaders::Player);
         EXPECT_EQ(lines[0], "Crash: no exception was recorded");
         EXPECT_EQ(Crash::title(nothing), "Crash: no exception was recorded");
     }

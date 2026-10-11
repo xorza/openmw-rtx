@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -499,6 +500,10 @@ namespace MWRender
         /// show its frame scaled, the rasterizer under stereo, whose eyes split the window.
         void presentAtNative() { mNative = true; }
 
+        /// The frames this renderer draws, which `presentIn` holds every frame inside: said before
+        /// the first `presentIn`, for a renderer that cannot draw every frame a setting can ask.
+        void boundFrame(const Misc::FrameBounds& bounds) { mFrameBounds = bounds; }
+
         /// `isWorldShown` or `isWorldToggled` has changed; put both where this renderer reads
         /// them from.
         virtual void applyWorldShown() = 0;
@@ -535,6 +540,10 @@ namespace MWRender
         osg::ref_ptr<osg::Group> mTraversalRoot;
         unsigned int mViewMask = ~0u;
         Misc::Presentation mPresentation;
+        Misc::FrameBounds mFrameBounds;
+
+        /// Whether a frame asked outside `mFrameBounds` was said in the log, which is said once.
+        bool mToldBounded = false;
         bool mNative = false;
 
         /// False behind a loading screen and the main menu's cover, where nothing updates.
@@ -562,6 +571,12 @@ namespace MWRender
     /// The game's own choice. A host with a renderer of its own — the harness, with its run —
     /// makes it itself, as the engine's host (`OMW::EngineHost::createRenderer`).
     std::unique_ptr<Renderer> createRenderer(RendererKind kind, const RendererSpec& spec);
+
+    /// What a player is told where the renderer `kind` could not start for `reason`: for the ray
+    /// tracer, also that `[RTX] enabled` chose it and where to turn it off. **The setting stays as
+    /// the player left it**, so every start until then ends here, and the box is the one place that
+    /// can say how to start the game again.
+    std::string describeStartFailure(RendererKind kind, std::string_view reason);
 
     /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
     /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Hidden,

@@ -285,7 +285,7 @@ namespace RtxTool
 
             const std::array bones{ Rtx::toGpuBone(osg::Matrixf::translate(0.0f, 0.0f, up)) };
             std::vector<Rtx::PoseWord> words;
-            Rtx::packBones(bones, words);
+            Rtx::packRig(Rtx::toGpuBone(osg::Matrixf::identity()), bones, words);
             // One reach whatever the pose, because the reach is the mesh's own row and so the
             // meshes column's: what this asks is what the words move on their own.
             scene.pose(quad, words, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f(1.0f, 1.0f, 10.0f)));

@@ -204,6 +204,12 @@ namespace RtxTool
     {
         Crash::contract(countUnpictured() == 0, "frames were noted and never pictured; the ring was not drained");
 
+        // A view's name is the row's first field, so one with a comma is a row `read` cannot take
+        // back: refused here, where the run still fails, and not at the next run's `--against`.
+        for (const Frame& held : mFrames)
+            if (held.mView.find(',') != std::string::npos)
+                return Misc::Err{ "the view \"" + held.mView + "\" holds a comma, which a hash row cannot" };
+
         std::ofstream out(file);
         out << headerLine() << '\n';
 
@@ -224,7 +230,8 @@ namespace RtxTool
         // **Answered, so the run fails and not only says so**: a reference that did not get
         // written and a command that still succeeded is the next run comparing against whatever
         // was at that path before.
-        out.flush();
+        // Closed and then asked, because a write the system reports late reports it at the close.
+        out.close();
         if (!out)
             return Misc::Err{ "could not write " + Files::pathToUnicodeString(file) };
         return {};

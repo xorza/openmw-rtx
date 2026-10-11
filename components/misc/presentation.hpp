@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <string_view>
 
 #include <osg/Vec2f>
@@ -44,10 +45,27 @@ namespace Misc
         bool operator==(const Presentation& other) const = default;
     };
 
-    /// The presentation of a frame `asked` in a window of `drawable` pixels. An `asked` with a side
-    /// of nought is Native: the frame is the drawable. A side of `drawable` under one counts as one,
-    /// because a window being minimised still has a frame to keep.
-    Presentation present(osg::Vec2i asked, osg::Vec2i drawable);
+    /// The frames a renderer draws: each side from `mSmallest` to `mLargest`, both included.
+    struct FrameBounds
+    {
+        osg::Vec2i mSmallest{ 1, 1 };
+        osg::Vec2i mLargest{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
+
+        /// `frame` with each side held inside the bounds on its own: a frame asked outside them is
+        /// drawn at the nearest one the renderer can draw, and its aspect goes where it must.
+        osg::Vec2i clamp(osg::Vec2i frame) const;
+
+        bool operator==(const FrameBounds& other) const = default;
+    };
+
+    /// The frame `asked` names in a window of `drawable` pixels, before a renderer's bounds. An
+    /// `asked` with a side of nought is Native: the frame is the drawable. A side of `drawable` under
+    /// one counts as one, because a window being minimised still has a frame to keep.
+    osg::Vec2i askedFrame(osg::Vec2i asked, osg::Vec2i drawable);
+
+    /// The presentation of the frame `asked` names (`askedFrame`) in a window of `drawable` pixels,
+    /// held inside `bounds`.
+    Presentation present(osg::Vec2i asked, osg::Vec2i drawable, const FrameBounds& bounds = {});
 
     /// Where a picture at the aspect of another size is cut out of a frame.
     struct Crop

@@ -51,6 +51,11 @@ namespace MWRender
 
         bool hasDeferred() const { return !mDeferred.empty(); }
 
+        /// The game has left the scene every picture of the world asked so far shows: the last of
+        /// its cells unloaded, as a door, a teleport or a load does (`notifyWorldspaceChanged`).
+        /// Every such picture still queued is given up (`TracedView::abandon`).
+        void leaveScene();
+
         /// The picture of the world taken straight down over `over`, or null where none is alive:
         /// the local map's tile of the cell the point is in, found by the renderer that drew it.
         TracedView* findWorldView(const osg::Vec2f& over) const;

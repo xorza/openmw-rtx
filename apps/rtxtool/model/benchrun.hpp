@@ -457,6 +457,9 @@ namespace RtxTool
         /// perf's control fifo, or empty where the run is not being profiled.
         std::filesystem::path mPerfControl;
 
+        /// Where the game's saves go (`ownSavesFolder`), or empty for the player's own.
+        std::filesystem::path mSaves;
+
         /// Which suite the stops came from, for the record's own header.
         std::string mSuite;
 

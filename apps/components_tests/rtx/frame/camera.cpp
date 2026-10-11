@@ -89,6 +89,21 @@ namespace Rtx
             EXPECT_FALSE(
                 makeCameraFromView(osg::Matrixf::lookAt(above, osg::Vec3f(), up), 60.0f, 64, 64, sNearPlane, 1.0f)
                     .has_value());
+
+            // **Nor at an angle that is no field of view**, which a script's override or the
+            // content's werewolf one can be: nought spreads no rays, 180 stands the image plane at
+            // infinity, and past it the picture turns over. Either side of each edge.
+            const osg::Matrixf ahead = osg::Matrixf::lookAt(eye, eye + osg::Vec3f(0.0f, 1.0f, 0.0f), up);
+            for (const float none : { 0.0f, -10.0f, 180.0f, 200.0f, std::numeric_limits<float>::quiet_NaN() })
+            {
+                EXPECT_FALSE(isFieldOfView(none)) << none;
+                EXPECT_FALSE(makeCameraFromView(ahead, none, 64, 64, sNearPlane, 1.0f).has_value()) << none;
+            }
+            const Viewpoint seeing = makeCameraFromView(ahead, 60.0f, 64, 64, sNearPlane, 1.0f).value();
+            EXPECT_FALSE(cameraAtFieldOfView(seeing.mEyes.mWorld, 0.0f).has_value());
+            EXPECT_FALSE(cameraAtFieldOfView(seeing.mEyes.mWorld, 200.0f).has_value());
+            EXPECT_TRUE(cameraAtFieldOfView(seeing.mEyes.mWorld, 0.5f).has_value());
+            EXPECT_TRUE(cameraAtFieldOfView(seeing.mEyes.mWorld, 179.5f).has_value());
         }
 
         /// Straight down, the one viewpoint a map has, with the roll `lookAt`'s own up gives it.
@@ -267,7 +282,7 @@ namespace Rtx
             }
 
             const Viewpoint narrow = makeCameraFromView(view, 60.0f, 200, 100, 1.0f, 1000.0f).value();
-            const Shaders::Camera wide = cameraAtFieldOfView(narrow.mEyes.mWorld, 90.0f);
+            const Shaders::Camera wide = cameraAtFieldOfView(narrow.mEyes.mWorld, 90.0f).value();
 
             EXPECT_EQ(wide.mBasis.mForward, narrow.mEyes.mWorld.mBasis.mForward);
             EXPECT_NEAR(wide.mBasis.mRight.length(), 2.0f, 1e-5f);

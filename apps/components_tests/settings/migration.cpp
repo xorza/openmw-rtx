@@ -31,6 +31,17 @@ namespace Settings
                     { { "Video", "resolution sets the frame" }, "true" },
                 }));
 
+            // Upstream writes a side only where it differs from 800 × 600, so a window of 800 × 480
+            // is `resolution y` alone, which is the window's height, and the width stays default.
+            CategorySettingValueMap shorter{ { { "Video", "resolution y" }, "480" } };
+            migrateUserSettings(shorter);
+            EXPECT_EQ(shorter,
+                (CategorySettingValueMap{
+                    { { "Video", "resolution y" }, "0" },
+                    { { "Video", "window height" }, "480" },
+                    { { "Video", "resolution sets the frame" }, "true" },
+                }));
+
             CategorySettingValueMap marked{
                 { { "Video", "resolution x" }, "1920" },
                 { { "Video", "resolution y" }, "1080" },

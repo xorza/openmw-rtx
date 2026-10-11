@@ -57,6 +57,25 @@ namespace MWRender
         mDrawing.clear();
     }
 
+    void ViewQueue::leaveScene()
+    {
+        assert(!isDrawing() && "a scene left inside a flush");
+
+        // **A picture of a scene the game has left is not drawn**, over whatever the backend holds
+        // now: a map tile asked as its cell was explored and still waiting when the player stepped
+        // through a door came out of the interior, all clear colour, and the world map painted
+        // that cell black. Given up here and not when the queue next reaches it, so a scene left
+        // and come back to between two flushes finds the tile given up and asks for it again
+        // (`LocalMap::requestMap`). Its paint lets go (`PendingPaints::finish`).
+        std::erase_if(mDeferred, [](TracedView* view) {
+            if (!view->isOfWorld())
+                return false;
+
+            view->abandon();
+            return true;
+        });
+    }
+
     TracedView* ViewQueue::findWorldView(const osg::Vec2f& over) const
     {
         const auto found = std::find_if(

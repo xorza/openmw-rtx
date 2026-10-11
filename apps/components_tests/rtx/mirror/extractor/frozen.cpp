@@ -222,6 +222,25 @@ namespace Rtx::Testing
             EXPECT_EQ(grown.mMeshesReused, 1u) << "a child given to the root left it frozen";
             EXPECT_EQ(grown.mMeshesAdded, 1u) << "the child it was given";
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 2u);
+            mCell->removeChild(reference);
+            frame();
+
+            // **A controller the game hangs deep inside a frozen root thaws it**, as a `PlayGroup`
+            // hangs one on a bone of an activator that had no idle group: the root's face does not
+            // change, and OpenSceneGraph counts the callback up to it.
+            const osg::ref_ptr<osg::MatrixTransform> still = addReference(osg::Vec3f());
+            osg::ref_ptr<osg::MatrixTransform> part = new osg::MatrixTransform;
+            part->addChild(makeQuad());
+            osg::ref_ptr<osg::Group> holder = new osg::Group;
+            holder->addChild(part);
+            still->addChild(holder);
+            frame();
+            ASSERT_EQ(frame().mMeshesReused, 0u);
+
+            part->setUpdateCallback(new osg::Callback);
+            part->setMatrix(osg::Matrix::translate(0.0f, 0.0f, 5.0f));
+            EXPECT_GT(frame().mMeshesReused, 0u) << "a controller hung deep inside a frozen root left it frozen";
+            EXPECT_GT(frame().mMeshesReused, 0u) << "a root with a controller under it froze";
         }
 
         /// **A reference the game moves on every frame — a door turning — is walked on every frame

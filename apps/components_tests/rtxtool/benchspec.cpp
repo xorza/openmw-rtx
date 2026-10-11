@@ -1,3 +1,5 @@
+#include <limits>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -41,6 +43,13 @@ namespace RtxTool
 
             // A span short enough to round to nothing still measures the frame it asked for.
             EXPECT_EQ((BenchSpan{ .mSeconds = 0.001f }).getFrames(sStepSeconds), 1u);
+
+            // **One past what a count holds is refused and not wrapped**: 1e8 seconds at sixty frames
+            // a second is six billion frames, past the 4294967295 that means a window, which a float
+            // and a `long` came to 1.7 billion; and an endless span is refused the same.
+            EXPECT_THROW((BenchSpan{ .mSeconds = 1e8f }).getFrames(sStepSeconds), std::range_error);
+            EXPECT_THROW((BenchSpan{ .mSeconds = std::numeric_limits<float>::infinity() }).getFrames(sStepSeconds),
+                std::range_error);
 
             // Nothing asked for is nothing measured, which is what an absent warm-up says.
             EXPECT_TRUE(BenchSpan{}.empty());

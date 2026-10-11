@@ -778,12 +778,12 @@ namespace Rtx::Testing
 
                 Shaders::VisibilityConstants first
                     = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
-                first.mEyes.mArms = cameraAtFieldOfView(first.mEyes.mWorld, 90.0f);
+                first.mEyes.mArms = cameraAtFieldOfView(first.mEyes.mWorld, 90.0f).value();
                 shoot(scene, {}, first, size);
 
                 Shaders::VisibilityConstants stepped = Testing::makeCamera(
                     osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
-                stepped.mEyes.mArms = cameraAtFieldOfView(stepped.mEyes.mWorld, 90.0f);
+                stepped.mEyes.mArms = cameraAtFieldOfView(stepped.mEyes.mWorld, 90.0f).value();
                 mRenderer.renderFrame(stepped, FrameOptions{});
 
                 std::vector<float> motion;
@@ -815,7 +815,7 @@ namespace Rtx::Testing
 
                 Shaders::VisibilityConstants still
                     = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
-                still.mEyes.mArms = cameraAtFieldOfView(still.mEyes.mWorld, 90.0f);
+                still.mEyes.mArms = cameraAtFieldOfView(still.mEyes.mWorld, 90.0f).value();
                 shoot(scene, {}, still, size);
                 mRenderer.renderFrame(still, FrameOptions{});
 
@@ -1216,7 +1216,7 @@ namespace Rtx::Testing
             EXPECT_FALSE(narrow.mArmOnArms) << "a pixel the arms miss says the arms' eye cast it";
             EXPECT_NEAR(narrow.mMiddleDistance, 100.0f, 0.01f);
 
-            const Seen wide = seenWith(cameraAtFieldOfView(camera.mEyes.mWorld, 60.0f));
+            const Seen wide = seenWith(cameraAtFieldOfView(camera.mEyes.mWorld, 60.0f).value());
             EXPECT_GT(int{ wide.mArm[0] }, 200) << "the arms' eye did not see the pane";
             EXPECT_TRUE(wide.mArmOnArms);
             EXPECT_LT(int{ wide.mArm[1] }, 50) << "the arms' eye saw something other than the pane";
@@ -1229,7 +1229,7 @@ namespace Rtx::Testing
             EXPECT_NEAR(wide.mArmDistance, 200.0f * std::sqrt(1.0f + across * across), 0.05f)
                 << "the pane stands a hundred units behind the wall, and is drawn in front of it";
 
-            const Seen faded = seenWith(cameraAtFieldOfView(camera.mEyes.mWorld, 60.0f), 0.5f);
+            const Seen faded = seenWith(cameraAtFieldOfView(camera.mEyes.mWorld, 60.0f).value(), 0.5f);
             EXPECT_EQ(faded.mArmDistance, narrow.mArmDistance)
                 << "the world behind a see-through arm was not the world's eye's";
             EXPECT_FALSE(faded.mArmOnArms);
@@ -1277,7 +1277,7 @@ namespace Rtx::Testing
             const auto reflectedWith = [&](float world, float arms) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), world, size, size, 10000.0f);
-                camera.mEyes.mArms = cameraAtFieldOfView(camera.mEyes.mWorld, arms);
+                camera.mEyes.mArms = cameraAtFieldOfView(camera.mEyes.mWorld, arms).value();
                 camera.mSkyHorizon = osg::Vec3f();
                 camera.mSkyZenith = osg::Vec3f();
                 camera.mSun.mIrradiance = osg::Vec3f();

@@ -84,6 +84,12 @@ namespace MWRender
         /// copy off the device the first time it is asked for after it has arrived.
         virtual const osg::Image* getCopy() = 0;
 
+        /// Whether the most recent `redraw()` will never be drawn, so `getCopy` stays null until
+        /// another: a picture of the world asked of a scene the game has since left, which a
+        /// renderer that draws it frames later would draw over the wrong world. A caller waiting
+        /// on the copy lets go. Never for a renderer that draws a picture where it is asked.
+        virtual bool isAbandoned() const { return false; }
+
         /// What the GUI shows, Y-up, so the widget showing it inverts V; a renderer that writes the
         /// other way round owes the flip, or every caller asks which renderer it got.
         virtual MyGUI::ITexture& getTexture() const = 0;

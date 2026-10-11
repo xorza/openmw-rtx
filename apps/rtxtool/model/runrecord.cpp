@@ -1,7 +1,9 @@
 #include "runrecord.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <format>
+#include <system_error>
 #include <utility>
 
 #include <components/files/conversion.hpp>
@@ -22,6 +24,14 @@ namespace RtxTool
             [](const Stop& stop) { return !stop.mSky.mTurnThrough.empty(); });
         mHeader.mSetup = request.mSetup;
         mHeader.mStep = request.mStep;
+
+        // **An earlier run's record goes before this one draws**, as `noise` clears its own: a run
+        // that dies before `finish` left the last run's hashes beside its own pictures, and a later
+        // `--against` compared with what another build drew.
+        std::error_code ignored;
+        for (const std::filesystem::path& earlier : { request.mHashes, request.mJson })
+            if (!earlier.empty())
+                std::filesystem::remove(earlier, ignored);
     }
 
     void RunRecord::add(BenchPlace place)

@@ -149,9 +149,16 @@ namespace Rtx
 
     std::optional<Presenter::Taken> Presenter::take()
     {
+        // The window was hidden when the swapchain was last made, and the staleness carries the
+        // rebuild to the frame it comes back on.
+        if (!mSwapchain.isMade())
+        {
+            mStale = true;
+            return std::nullopt;
+        }
+
         const std::uint32_t slot = mAcquisition;
         Acquisition& acquisition = mAcquiring[slot];
-        mAcquisition = (mAcquisition + 1) % static_cast<std::uint32_t>(mAcquiring.size());
 
         // A slot is free when its blit has run, and not when the call that queued it returned.
         // The blit waits the semaphore the acquire signalled, so until it runs both operations are
@@ -159,11 +166,17 @@ namespace Rtx
         mDevice.waitFor(acquisition.mBlit, "the blit that last took this acquire semaphore");
 
         std::uint32_t index = 0;
-        if (!mSwapchain.acquire(acquisition.mSemaphore.get(), index))
+        switch (mSwapchain.acquire(acquisition.mSemaphore.get(), index))
         {
-            mStale = true;
-            return std::nullopt;
+            case Acquired::Image:
+                break;
+            case Acquired::Stale:
+                mStale = true;
+                return std::nullopt;
+            case Acquired::NotYet:
+                return std::nullopt;
         }
+        mAcquisition = (mAcquisition + 1) % static_cast<std::uint32_t>(mAcquiring.size());
 
         // This image may still be in the presentation engine's hands. Mailbox releases a frame
         // the moment a newer one replaces it, so an image can come back round before the present

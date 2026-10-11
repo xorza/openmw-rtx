@@ -84,6 +84,13 @@ namespace RtxTool
             EXPECT_EQ(number(atLeast(0.0f))->name(), ">=0");
             EXPECT_EQ(number(between(0.0f, 24.0f, true))->name(), "0..<24");
             EXPECT_EQ(number(anyNumber<float>())->name(), "number");
+
+            // An open end at the type's own limit is a bound all the same: `--frames` stops one short
+            // of the count that means a window, and said "number" where it refused one.
+            const std::uint32_t most = std::numeric_limits<std::uint32_t>::max();
+            EXPECT_EQ(number(between(0u, most, true))->name(), "<4294967295");
+            EXPECT_EQ(readOne(number(between(0u, most, true)), "4294967295", count),
+                "the argument ('4294967295') for option '--x' is not a number <4294967295");
             EXPECT_EQ(number(between(0.0f, 1.0f))->default_value(0.5f)->name(), "0..1 (=0.5)")
                 << "and the default beside it, as Boost prints one";
         }

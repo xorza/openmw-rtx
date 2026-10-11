@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -10,6 +11,7 @@
 #include <osg/CopyOp>
 #include <osg/Group>
 #include <osg/Matrix>
+#include <osg/Matrixf>
 #include <osg/NodeVisitor>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -539,6 +541,63 @@ namespace Rtx::Testing
             EXPECT_EQ(again.mMeshesReused, 2u);
             EXPECT_EQ(mScene.deformers().getRows().size(), 1u);
             EXPECT_EQ(mScene.deformers().getHolds(0), 2u);
+        }
+
+        /// **A skin that names a bone it has not got, or weighs a vertex by no number, is refused**,
+        /// and nothing of it reaches the scene: the kernel reads a bone's rows at whatever index the
+        /// skin holds, and a weight that is not finite poses its vertex nowhere. The quad's rig has
+        /// one bone, so bone 1 is past it.
+        TEST_F(RtxSceneExtractorTest, aSkinNamingABoneItHasNotOrWeighingByNoNumberIsRefused)
+        {
+            using BoneWeight = SceneUtil::RigGeometry::BoneWeight;
+            const float nan = std::numeric_limits<float>::quiet_NaN();
+            const float infinity = std::numeric_limits<float>::infinity();
+            for (const BoneWeight& wrong : { BoneWeight{ 1, 1.0f }, BoneWeight{ 0, nan }, BoneWeight{ 0, infinity } })
+            {
+                SCOPED_TRACE(testing::Message() << "bone " << wrong.first << ", weight " << wrong.second);
+                RiggedQuad rigged;
+                // A name each, since a refusal is counted once for each drawable and reason.
+                rigged.mRig->setName("shape " + std::to_string(wrong.first) + " " + std::to_string(wrong.second));
+                rigged.mRig->setInfluences(
+                    std::vector<SceneUtil::RigGeometry::BoneWeights>(4, SceneUtil::RigGeometry::BoneWeights{ wrong }));
+                rigged.update(1);
+
+                const std::uint32_t refused = mScene.refusals().count(Rtx::Refused::Mesh);
+                const std::size_t deformers = mScene.deformers().getRows().size();
+                const ExtractionStats stats = walk(*rigged.mSkeleton);
+
+                EXPECT_EQ(stats.mMeshesAdded, 0u);
+                EXPECT_EQ(mScene.refusals().count(Rtx::Refused::Mesh), refused + 1);
+                EXPECT_EQ(mScene.deformers().getRows().size(), deformers) << "a deformer of the refused skin";
+            }
+        }
+
+        /// **A skin of other bones over the same source is a new deformer**, because a pose is a row
+        /// set per bone and the run a mesh holds was given out for the skin it arrived with. The
+        /// deformer is keyed on the source geometry, which both rigs share, so the fit is what has
+        /// to say so; reused, the second rig's two rows would be written over the first's one.
+        TEST_F(RtxSceneExtractorTest, aSkinOfOtherBonesOverTheSameSourceIsANewDeformer)
+        {
+            RiggedQuad rigged;
+            rigged.update(1);
+            walk(*rigged.mSkeleton);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[0].mRows, 1u);
+
+            RiggedQuad wider;
+            const SceneUtil::RigGeometry::BoneInfo bone{
+                .mName = "bone", .mBoundSphere = {}, .mInvBindMatrix = osg::Matrixf::identity()
+            };
+            wider.mRig->setBoneInfo({ bone, bone });
+            wider.mRig->setInfluences(std::vector<SceneUtil::RigGeometry::BoneWeights>(
+                4, SceneUtil::RigGeometry::BoneWeights{ { 0, 0.5f }, { 1, 0.5f } }));
+            wider.mRig->setSourceGeometry(rigged.mSource);
+            wider.update(1);
+
+            const ExtractionStats again = walk(*wider.mSkeleton, 0, 1);
+            EXPECT_EQ(again.mMeshesAdded, 1u);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 2u) << "on a skin of its own";
+            EXPECT_EQ(mScene.deformers().getRows()[1].mRows, 2u);
         }
 
         /// **A set of targets that grew under the same base is a new deformer**, because a pose is

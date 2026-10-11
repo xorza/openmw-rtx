@@ -209,5 +209,22 @@ namespace RtxTool
             EXPECT_NE(read.str().find("seyda-neen,1,"), std::string::npos) << read.str();
             std::filesystem::remove(hashes);
         }
+
+        /// **A run that begins removes the last run's record**, its hashes and its JSON, so a run
+        /// that dies before it writes its own leaves nothing another build wrote beside its pictures.
+        TEST(RtxRunRecordTest, aRunThatBeginsRemovesTheLastRunsRecord)
+        {
+            SessionRequest request;
+            request.mHashes = TestingOpenMW::outputFilePath("begun-hashes.csv");
+            request.mJson = TestingOpenMW::outputFilePath("begun.json");
+            for (const std::filesystem::path& earlier : { request.mHashes, request.mJson })
+                std::ofstream(earlier) << "the run before\n";
+
+            RunRecord record;
+            record.begin(request);
+
+            EXPECT_FALSE(std::filesystem::exists(request.mHashes)) << "the last run's hashes stood";
+            EXPECT_FALSE(std::filesystem::exists(request.mJson)) << "the last run's record stood";
+        }
     }
 }

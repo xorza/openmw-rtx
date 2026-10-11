@@ -9,12 +9,14 @@
 
 #include <volk.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx
@@ -34,6 +36,16 @@ namespace Rtx
 
     GuiSlot GuiTextures::add(std::uint32_t width, std::uint32_t height)
     {
+        // **A size no image takes fails that one texture**, as the GL backend's does, and not the
+        // game: a mod's interface image past the device's side, or a widget made at nought.
+        const std::uint32_t side = mDevice.getPhysicalDevice().getTextureSide();
+        if (width == 0 || height == 0 || width > side || height > side)
+        {
+            Log(Debug::Warning) << "An interface texture of " << width << "x" << height
+                                << " is not made: this device's textures are 1 to " << side << " pixels a side";
+            return GuiSlot::none();
+        }
+
         Image image(mDevice, width, height, VK_FORMAT_R8G8B8A8_UNORM,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
             "gui texture");

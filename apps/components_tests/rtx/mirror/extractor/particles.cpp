@@ -50,6 +50,7 @@
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -389,6 +390,36 @@ namespace Rtx::Testing
             // system with no texture draws.
             EXPECT_EQ(mScene.refusals().count(Refused::Emitter), 0u);
             EXPECT_EQ(bareScene.refusals().count(Refused::Emitter), 0u);
+        }
+
+        /// **A model's own sprite is drawn under its stamp, and a nameless one refused**, as a
+        /// surface's own image is (`SceneUtil::EmbeddedImage`): the texture and its bake are keyed by
+        /// the model and the record.
+        TEST_F(RtxSceneExtractorTest, aModelsOwnSpriteIsDrawnUnderItsStampAndANamelessOneRefused)
+        {
+            const osg::ref_ptr<osg::Image> own = new osg::Image;
+            SceneUtil::EmbeddedImage::stamp(*own, "meshes/e/magic_cast.nif", 3);
+            const Plume stamped = makePlume(osg::Matrix::identity(), true, own);
+            emit(*stamped.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+            walk(*stamped.mRoot);
+
+            EXPECT_EQ(mScene.refusals().count(Refused::Emitter), 0u);
+            ASSERT_EQ(mScene.textures().getRows().size(), 2u);
+            EXPECT_EQ(mScene.textures().getRows()[0].mPath, VFS::Path::NormalizedView("meshes/e/magic_cast.nif#3"));
+            EXPECT_EQ(mScene.textures().getRows()[1].mKind, TextureKind::SpriteLight);
+            ASSERT_EQ(mScene.emitters().size(), 1u);
+            EXPECT_EQ(mScene.emitters().front().mTexture, 0u);
+
+            const osg::ref_ptr<osg::Image> nameless = new osg::Image;
+            const Plume unnamed = makePlume(osg::Matrix::identity(), true, nameless);
+            unnamed.mParticles->setName("nameless");
+            emit(*unnamed.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+            Rtx::SceneDesc namelessScene;
+            SceneExtractor namelessExtractor(namelessScene, mContext);
+            namelessExtractor.extract(*unnamed.mRoot, osg::Matrixf::identity(), 0);
+
+            EXPECT_EQ(namelessScene.refusals().count(Refused::Emitter), 1u);
+            EXPECT_TRUE(namelessScene.textures().getRows().empty()) << "a slot taken for an image with no name";
         }
 
         /// An emitter's sprite is on no material, so the sweep has to speak for it itself.
