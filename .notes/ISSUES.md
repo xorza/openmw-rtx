@@ -11,3 +11,8 @@
   goes to `deviceFailed` (`components/rtxvulkan/present/swapchain.cpp`, `checkPresentable`): nothing
   makes a new surface and swapchain for the window, so a display that goes away or a compositor that
   restarts under the game ends it.
+- **A crash monitor whose report database fails to open is reported as a working catcher on Linux
+  and macOS.** The monitor opens the shared page before `crashpad::HandlerMain` opens its database,
+  so `Crash::install` sees the monitor start (`SharedPage::awaitMonitor`) and logs "Crash reports go
+  to …" while a report folder that exists but takes no writes, or a full disk, leaves the game with
+  no dumps (`components/crashcatcher/crashpadclient.cpp`).

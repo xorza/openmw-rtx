@@ -618,8 +618,11 @@ namespace Crash
             int chosen = Close;
             if (!SDL_ShowMessageBox(&box, &chosen) || chosen != Report)
                 return;
-            if (issues)
-                SDL_OpenURL(newIssueUrl(monitor.mIssues, report.mTitle, report.mSummary, attach).c_str());
+            // A system that will not open an address as long as the one filled in gets the page with
+            // its title alone, and the summary is in the package: Windows's `ShellExecute` refuses
+            // one past about two thousand characters, which a summary of a few notes passes.
+            if (issues && !SDL_OpenURL(newIssueUrl(monitor.mIssues, report.mTitle, report.mSummary, attach).c_str()))
+                SDL_OpenURL(newIssueUrl(monitor.mIssues, report.mTitle, {}, attach).c_str());
             SDL_OpenURL(folderUrl(folder).c_str());
         }
     }

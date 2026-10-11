@@ -127,12 +127,23 @@ namespace Platform::Process
         if (text.find('"') != std::string_view::npos || std::ranges::count(text, '%') > 1)
             throw std::invalid_argument(
                 "\"" + std::string(text) + "\" holds a \" or two %, which cmd cannot take as one word");
-        return '"' + std::string(text) + '"';
+
+        // **A trailing run of backslashes doubled**, as a program that parses its line by the
+        // C runtime's rules reads one back: a backslash before the closing quote escaped it, and
+        // `C:\frames\` ran into the next word.
+        const std::size_t trailing = text.size() - std::min(text.find_last_not_of('\\') + 1, text.size());
+        return '"' + std::string(text) + std::string(trailing, '\\') + '"';
     }
 
     CommandEnd runShell(const std::string& line)
     {
-        return CommandEnd{ .mExitCode = static_cast<std::uint32_t>(std::system(('"' + line + '"').c_str())) };
+        // **Wide**, because the line is UTF-8 and `std::system` reads the process's ANSI code page:
+        // a path through `C:\Users\Jörg` reached `cmd` as another path.
+        const std::string quoted = '"' + line + '"';
+        const int length = MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<int>(quoted.size()), nullptr, 0);
+        std::wstring wide(static_cast<std::size_t>(length), L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<int>(quoted.size()), wide.data(), length);
+        return CommandEnd{ .mExitCode = static_cast<std::uint32_t>(_wsystem(wide.c_str())) };
     }
 
     void restartOnHugePages(char** /*argv*/) {}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -12,8 +13,9 @@ namespace Platform
     class SharedMemory
     {
     public:
-        /// `size` bytes of noughts under `name`, made over whatever an earlier process of that name
-        /// left. Null where the system refused.
+        /// `size` bytes of noughts under `name`, made over whatever an earlier process of this user
+        /// left under it. Null where the system refused, or where another user holds the name: a
+        /// name a reader can predict, opened as it stood, shared what this side writes with them.
         static SharedMemory create(std::string_view name, std::size_t size);
 
         /// What another process made under `name`. The name is given up where the system can: nothing
@@ -41,6 +43,11 @@ namespace Platform
         ~SharedMemory() { unmap(); }
 
         void* data() const { return mData; }
+
+        /// Whether the other side has opened what this side made, where the system can tell: a
+        /// POSIX `open` gives the name up, so a name gone is memory opened. Nothing on a system that
+        /// keeps the name for as long as any handle to it stands, and for memory this side opened.
+        std::optional<bool> isOpenedElsewhere() const;
 
     private:
         /// What `other` held, leaving it holding nothing. This holds nothing first.

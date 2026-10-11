@@ -1,6 +1,8 @@
 #include "sharedmemory.hpp"
 
+#include <cerrno>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -24,7 +26,13 @@ namespace Platform
     {
         SharedMemory memory;
         const std::string made = systemName(name);
-        const int descriptor = shm_open(made.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0600);
+
+        // **Made afresh and never opened as it stood**: a name an earlier process of this user
+        // left is given up and made again, and one another user holds cannot be given up — the
+        // directory is sticky — so the second make fails as the first did.
+        int descriptor = shm_open(made.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
+        if (descriptor < 0 && errno == EEXIST && shm_unlink(made.c_str()) == 0)
+            descriptor = shm_open(made.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
         if (descriptor < 0)
             return memory;
 
@@ -61,6 +69,20 @@ namespace Platform
         memory.mData = view;
         memory.mSize = size;
         return memory;
+    }
+
+    std::optional<bool> SharedMemory::isOpenedElsewhere() const
+    {
+        if (mMadeName.empty())
+            return std::nullopt;
+
+        const int descriptor = shm_open(mMadeName.c_str(), O_RDONLY, 0);
+        if (descriptor >= 0)
+        {
+            close(descriptor);
+            return false;
+        }
+        return errno == ENOENT;
     }
 
     void SharedMemory::unmap() noexcept

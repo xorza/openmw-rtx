@@ -78,32 +78,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P2: hardening
 
-### 26. Make the crash catcher robust on each platform
-- **Audit**: BUILD-4 (PLAUSIBLE), BUILD-5, BUILD-6 (CONFIRMED), BUILD-7 (PLAUSIBLE).
-- **Close first**: BUILD-4: on Windows, open a 6000-character URL with `SDL_OpenURL`. BUILD-7 is a
-  fault of the design (a predictable name opened without `O_EXCL`) whatever the system's settings,
-  so it needs no close.
-- **Where**: `components/crashcatcher/crashpackage.cpp:41-43`, `crashpadmonitor.cpp:698-700`,
-  `components/platform/processwin32.cpp:127-145`, `components/crashcatcher/crashpadclient.cpp:131-143`,
-  `components/platform/sharedmemoryposix.cpp:22-44`.
-- **Problem**:
-  - On Windows, a new-issue URL past about 2083 characters may not open, and the result of
-    `SDL_OpenURL` is ignored.
-  - On Windows, `runShell` gives UTF-8 to the ANSI `std::system`, so a non-ASCII path arrives
-    corrupted. `shellWord` lets a trailing backslash escape its closing quote.
-  - On Linux, `StartHandler` succeeds once the fork succeeds. A monitor that dies at a read-only
-    report folder leaves the game with no catcher, a log that says otherwise, and a page in `/dev/shm`
-    until reboot.
-  - The shared page's name is predictable, and `create` opens a page that another user made.
-- **Fix**: Check `SDL_OpenURL`, and on failure open the bare `/issues/new?title=` URL. On Windows,
-  widen to UTF-16 and use `_wsystem`, and double a trailing run of backslashes. After `StartHandler`,
-  wait for a bounded time for a ready word in the page, and report a monitor that did not start; the
-  game then unlinks the page. Create the page with `O_EXCL`: unlink and retry a stale page of the
-  player's own, and refuse any other.
-- **Test**: `ProcessWin32` with a word that holds `ö` and a word that ends in `\`. The crash matrix
-  with a read-only `OPENMW_CRASH_REPORTS`: `install` fails and no page stays. `SharedMemory`: a name
-  made first with another mode is not mapped.
-
 ### 27. Make a failed or cut-short harness run fail
 - **Audit**: HARNESS-2, HARNESS-4, HARNESS-5, HARNESS-7. CONFIRMED.
 - **Where**: `apps/rtxtool/hosted.cpp:207-224`, `session.cpp:241-251`, `:469-490`,
