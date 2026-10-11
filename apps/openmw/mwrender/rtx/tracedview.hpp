@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include <osg/Matrixd>
@@ -91,8 +92,15 @@ namespace MWRender
         /// taken before then shows the cell's objects on nothing, and nothing asks for it again.
         bool waitsForGround(const Rtx::CellRing& ring) const;
 
+        /// Gives up the redraw asked for, which the queue will not draw: its scene was left.
+        void abandon();
+
+        /// The scene the last redraw was asked in (`ViewQueue::getScene`).
+        std::uint64_t getAskedIn() const { return mAskedIn; }
+
         void keepCopy() override;
         const osg::Image* getCopy() override;
+        bool isAbandoned() const override { return mAbandoned; }
         bool pick(float x, float y, osg::NodePath& hit) override { return mTrace.pick(x, y, hit); }
         MyGUI::ITexture& getTexture() const override;
 
@@ -142,6 +150,10 @@ namespace MWRender
 
         osg::ref_ptr<osg::Image> mCopy;
         CopyState mCopyState = CopyState::NotWanted;
+        std::uint64_t mAskedIn = 0;
+
+        /// Whether the last redraw was given up, which the next one ends.
+        bool mAbandoned = false;
     };
 
 }

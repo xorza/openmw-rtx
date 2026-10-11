@@ -87,6 +87,9 @@ is not here is held to the rules above.
 - The stamp `NifOsg::Loader` puts on an image a model carries inside it (`SceneUtil::EmbeddedImage`):
   the ray tracer keys a texture by what names it, and such an image has no file. Vanilla's
   `tx_crystal_02.nif` is one.
+- `LocalMap::requestMap` asks again for a tile the renderer gave up (`OffscreenView::isAbandoned`):
+  the ray tracer draws a tile frames after it is asked, and one whose scene the game left before
+  then is not drawn over the wrong world.
 - The lamp body marker (`SceneUtil::LampBody`) that `SceneUtil::addLight` leaves on a light's group:
   the bounce takes no glow from a lamp's own model, whose light already delivers it, and the
   rasterizer never reads it.

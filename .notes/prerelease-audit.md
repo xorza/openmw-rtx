@@ -62,18 +62,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P1: crashes and wrong pictures
 
-### 17. Drop a queued map tile after a cut
-- **Audit**: SEAM-3. CONFIRMED.
-- **Where**: `apps/openmw/mwrender/rtx/viewqueue.cpp:32-55`, `tracedview.cpp:114-148`,
-  `pendingpaints.hpp:30-60`, `components/rtx/mirror/cells/cellring.cpp:149-169`.
-- **Problem**: A tile for a cell that the player just explored waits in `ViewQueue` only while the
-  ring will stand ground under it. After a door, a teleport or a worldspace change, the tile is drawn
-  against the new scene, and the world map shows that cell black until the player returns.
-- **Fix**: A world view keeps the cut count it was asked under. `ViewQueue::draw` drops a deferred
-  view that was asked before the last cut, and `PendingPaints::finish` drops its paint.
-- **Test**: GPU binary: ask a world view over an exterior cell, then cut and move the eye out of
-  reach. The tile's `getCopy()` stays null and the overlay does not change.
-
 ### 18. Size the cursor by the factor the video driver scales it by
 - **Audit**: GAME-2. CONFIRMED in SDL 3.4.16's source. The SDL3 port is in the Accepted diff.
 - **Where**: `components/sdlutil/sdlcursormanager.cpp:38`, `:131-151`,

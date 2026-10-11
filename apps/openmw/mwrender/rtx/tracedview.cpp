@@ -146,7 +146,16 @@ namespace MWRender
         if (mCopyState != CopyState::NotWanted)
             mCopyState = CopyState::Queued;
 
+        mAskedIn = mViews.getScene();
+        mAbandoned = false;
         mViews.redraw(*this);
+    }
+
+    void TracedView::abandon()
+    {
+        // The copy, where one is wanted, stays queued and so null: what the backend holds is the
+        // trace before, which is not this redraw's.
+        mAbandoned = true;
     }
 
     void TracedView::draw(const osg::FrameStamp& posing)
@@ -166,7 +175,12 @@ namespace MWRender
     void TracedView::keepCopy()
     {
         if (mCopyState != CopyState::NotWanted)
+        {
+            // A redraw given up is drawn again for whoever waits on its copy.
+            if (mAbandoned)
+                redraw();
             return;
+        }
 
         mCopyState = CopyState::Queued;
         mCopy = new osg::Image;

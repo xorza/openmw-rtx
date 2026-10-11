@@ -693,6 +693,7 @@ namespace MWRender
         mPhase.expect(Phase::Between);
         mLoss = Rtx::HistoryLoss::Worldspace;
         mRipples.dropStrikes();
+        mViews.leaveScene();
     }
 
     void RtxRenderer::renderFrame(const SceneFrame& frame)
