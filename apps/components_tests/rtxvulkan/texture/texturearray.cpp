@@ -261,7 +261,7 @@ namespace Rtx
         /// texel is eleven levels of 65536, 16384, 4096, 1024, 256, 64, 16, 4, 1, 1 and 1 blocks:
         /// 87383 blocks of sixteen bytes, 1398128, beside its shading map's 2048. The loose chain it is
         /// encoded off is 1398101 texels of four bytes, 5592404, which goes with the batch as the
-        /// upload's four mebibytes and the blocks do.
+        /// upload's four mebibytes do; the blocks are priced beside them, as the room they need.
         TEST_F(RtxTextureArrayTest, aCompletedChainPastTheLooseSideStandsAsBc7)
         {
             Device& device = getDevice();
