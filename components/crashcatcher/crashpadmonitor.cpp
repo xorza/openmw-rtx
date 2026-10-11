@@ -37,6 +37,7 @@
 #include <snapshot/module_snapshot.h>
 #include <snapshot/process_snapshot.h>
 #include <snapshot/thread_snapshot.h>
+#include <util/file/file_writer.h>
 #include <util/misc/uuid.h>
 #include <util/process/process_memory.h>
 
@@ -728,6 +729,10 @@ namespace Crash
             std::unique_ptr<crashpad::CrashReportDatabase::NewReport> report;
             if (database->PrepareNewCrashReport(&report) != crashpad::CrashReportDatabase::kNoError)
                 return MonitorAnswer::ReportUnwritable;
+
+            // Closed before the report goes: it removes its file before its writer closes it, and
+            // Windows removes no file that is open, so each session kept a dump of nothing.
+            report->Writer()->Close();
             return MonitorAnswer::Watching;
         }
     }
