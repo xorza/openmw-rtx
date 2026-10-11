@@ -53,7 +53,8 @@ namespace Crash
 {
     namespace
     {
-        /// What the last report of a session was, which an issue is filled in with.
+        /// What the last report of a session was, which an issue is filled in with: the summary the
+        /// public reads (`SummaryReaders::Public`).
         struct LastReport
         {
             std::string mTitle;
@@ -346,14 +347,17 @@ namespace Crash
                 facts.mDump = Files::pathToUnicodeString(dump);
 
                 std::vector<std::string> lines;
-                summarise(facts, lines);
+                summarise(facts, lines, SummaryReaders::Player);
                 appendToLog(mMonitor, lines);
+
+                std::vector<std::string> shared;
+                summarise(facts, shared, SummaryReaders::Public);
 
                 {
                     const std::lock_guard lock(mMonitor.mReportMutex);
                     mMonitor.mDumps.push_back(dump);
                     mMonitor.mCrashed = mMonitor.mCrashed || facts.mNotes.mKind == ReportKind::Crash;
-                    mMonitor.mLastReport = { title(facts), lines };
+                    mMonitor.mLastReport = { title(facts), std::move(shared) };
                 }
 
                 std::string text;
