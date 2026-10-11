@@ -406,6 +406,21 @@ namespace RtxTool
                 << "a reset the reference did not send is a difference";
         }
 
+        /// **A view whose name holds a comma is refused as the file is written**, which a row of
+        /// comma-separated fields cannot take back, so the run fails where it still can.
+        TEST(RtxFrameHashesTest, aViewNamedWithACommaIsRefusedAsItIsWritten)
+        {
+            FrameHashes hashes;
+            hashes.note("-2,-9", 1, 10, ScenePartDigests{});
+            Rtx::FrameResult finished;
+            finished.mFrame = 10;
+            finished.mDigest = Rtx::FrameDigest{};
+            ASSERT_TRUE(hashes.picture(finished).has_value());
+
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-comma.csv");
+            EXPECT_FALSE(hashes.write(file).isOk());
+        }
+
         TEST(RtxFrameHashesTest, aRunSurvivesTheFileItIsWrittenTo)
         {
             const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-test.csv");

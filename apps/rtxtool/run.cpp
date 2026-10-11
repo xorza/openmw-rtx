@@ -53,6 +53,19 @@ namespace RtxTool
             return slug.empty() ? "new-view" : slug;
         }
 
+        /// A cell's name as a stop's name, which a hash file's row and a picture's file are keyed on:
+        /// the name as it is, but each character a row or a file name cannot hold — a comma, a
+        /// colon, a slash and what Windows refuses — as `_`. `-2,-9` is `-2_-9`, which `slugOf`'s
+        /// `2-9` would share with `2,9`.
+        std::string stopNameOf(std::string_view cell)
+        {
+            std::string name(cell);
+            for (char& letter : name)
+                if (std::string_view(",:/\\*?\"<>|").find(letter) != std::string_view::npos)
+                    letter = '_';
+            return name;
+        }
+
     }
 
     void measureFrames(Stop& stop, const std::uint32_t frames)
@@ -387,7 +400,7 @@ namespace RtxTool
         // **The cell where a view names no id**, because a report row and a hash file are keyed on
         // this and neither can be keyed on nothing.
         if (stop.mName.empty())
-            stop.mName = view.mStand.mCell;
+            stop.mName = stopNameOf(view.mStand.mCell);
 
         stop.mSky.mHour = hourFor(given.mHour, view.mSky.mHour);
         stop.mSky.mWeather = weatherFor(given.mWeather, view.mSky.mWeather);
