@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -82,10 +83,17 @@ namespace RtxTool
         /// world as it stops a film's.
         bool showsScriptMessageBoxes() const override { return false; }
 
+        std::optional<std::filesystem::path> getSavesFolder() const override;
+
         /// Measures the frame, and asks the game to quit once the last stop is done.
         void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report) override;
 
         std::string_view describeTitle() override { return mNote.describeTitle(); }
+
+        /// After `Engine::go` returns: a run meant to end on its own that ended before its last stop
+        /// — a window closed, a script's quit — is abandoned there, so it fails, writes what it
+        /// reached, and is compared, where it exited nought and left the last run's record standing.
+        void endedEarly();
 
         /// What the run came to: the places, the report, the verdict and where the eye was left.
         SessionResult describe() const;

@@ -199,6 +199,15 @@ namespace Rtx
             EXPECT_TRUE(kept[leaf].mMotion == still) << "the frame after a move carried the motion on";
             EXPECT_EQ(changed, (std::vector<Index>{ leaf, water })) << "a settling slot is a row a backend rewrites";
 
+            // **A placement shrunk to nothing has no motion to report**: a scale of nought has no
+            // inverse, and the one OpenSceneGraph gives it is NaN.
+            scene.placements().move(
+                chunk, osg::Matrixf::scale(0.0f, 0.0f, 0.0f) * osg::Matrixf::translate(3.0f, 0.0f, 0.0f));
+            updateInstanceRecords(scene, kept, changed);
+            expectSame(kept, scene, "shrunk to nothing");
+            EXPECT_TRUE(kept[chunk].mMotion == still) << "a vanished placement carried a motion";
+            scene.placements().advance();
+
             // A fade re-classes the row and moves nothing. The cloud's is counted out and back in,
             // and stays in the present set once; the sheet moves, and its sphere with it.
             scene.placements().fade(leaf, 0.5f);

@@ -1,8 +1,10 @@
 #include "swapchain.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <initializer_list>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -20,6 +22,11 @@ namespace Rtx
 {
     namespace
     {
+        bool hasNoExtent(const VkExtent2D extent)
+        {
+            return extent.width == 0 || extent.height == 0;
+        }
+
         VkSurfaceFormatKHR chooseFormat(const Surface& surface, VkPhysicalDevice device)
         {
             const std::vector<VkSurfaceFormatKHR> formats = surface.getFormats(device);
@@ -123,12 +130,11 @@ namespace Rtx
                 std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
             };
 
-        // A minimised window reports no extent at all, and a swapchain of none is invalid usage.
-        // One pixel rather than a refusal, because a window comes back: `Presenter::wantsResize`
-        // declines to rebuild while the surface is hidden, and what stands until then costs a blit
-        // of a single pixel.
-        mExtent.width = std::max(mExtent.width, 1u);
-        mExtent.height = std::max(mExtent.height, 1u);
+        if (hasNoExtent(mExtent))
+        {
+            mExtent = VkExtent2D{};
+            return;
+        }
 
         std::uint32_t images = capabilities.minImageCount + 1;
         if (capabilities.maxImageCount > 0)
@@ -206,23 +212,32 @@ namespace Rtx
         return true;
     }
 
-    bool Swapchain::acquire(VkSemaphore ready, std::uint32_t& index)
+    Acquired Swapchain::acquire(VkSemaphore ready, std::uint32_t& index)
     {
-        // Bounded for the reason `awaitVk` is, and this is the wait a window is most likely to
-        // sit in: a compositor that stops handing images back is indistinguishable from one that is
-        // merely slow, and forever is not an answer a frame loop can act on.
+        assert(isMade() && "an image asked of a swapchain a hidden surface left unmade");
+
+        // Bounded, and the bound is no image this frame rather than a failure: a compositor that
+        // stops handing images back is indistinguishable from one that is merely slow, and both
+        // `VK_TIMEOUT` and `VK_NOT_READY` are success codes of an acquire.
         const VkResult result
             = vkAcquireNextImageKHR(mDevice.getHandle(), mHandle.get(), sPatience, ready, VK_NULL_HANDLE, &index);
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR)
-            return false;
-
-        // Suboptimal still produces a usable image; taking it and rebuilding after the present keeps
-        // the semaphore that was just signalled from being left dangling.
-        if (result != VK_SUBOPTIMAL_KHR)
-            checkVkWait(mDevice, result, "the presentation engine's next image", sPatience);
-
-        return true;
+        switch (result)
+        {
+            case VK_SUCCESS:
+            // Suboptimal still produces a usable image; taking it and rebuilding after the present
+            // keeps the semaphore that was just signalled from being left dangling.
+            case VK_SUBOPTIMAL_KHR:
+                return Acquired::Image;
+            case VK_ERROR_OUT_OF_DATE_KHR:
+                return Acquired::Stale;
+            case VK_TIMEOUT:
+            case VK_NOT_READY:
+                return Acquired::NotYet;
+            default:
+                checkPresentable(result, "vkAcquireNextImageKHR");
+                return Acquired::Image;
+        }
     }
 
     bool Swapchain::present(VkSemaphore finished, std::uint32_t index, PresentFence* presented)
@@ -253,14 +268,27 @@ namespace Rtx
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             return false;
 
-        checkVk(mDevice, result, "vkQueuePresentKHR");
+        checkPresentable(result, "vkQueuePresentKHR");
         return true;
+    }
+
+    void Swapchain::checkPresentable(const VkResult result, const char* call) const
+    {
+        // **A lost surface is not a lost device**, and its report says which: the display the window
+        // stood on went away, or the compositor restarted under it. Nothing here makes a surface
+        // again, so the frame loop cannot go on, and a throw would leave the `noexcept` frame as a
+        // bare `std::terminate`.
+        if (result == VK_ERROR_SURFACE_LOST_KHR)
+            deviceFailed(std::string(call) + " lost the window's surface: the display it stood on went away or the "
+                                               "compositor restarted, and no new surface is made");
+
+        checkVk(mDevice, result, call);
     }
 
     bool Swapchain::surfaceIsHidden() const
     {
         const VkSurfaceCapabilitiesKHR capabilities = mSurface.getCapabilities(mDevice.getPhysicalDevice().getHandle());
 
-        return capabilities.currentExtent.width == 0 || capabilities.currentExtent.height == 0;
+        return hasNoExtent(capabilities.currentExtent);
     }
 }

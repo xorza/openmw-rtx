@@ -41,6 +41,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/frameclock.hpp>
+#include <components/misc/presentation.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -159,6 +160,12 @@ namespace MWRender
         // itself, and the seconds it saves at start are the player's.
         if (run == nullptr)
             options.mCacheDirectory = spec.mCachePath;
+        // None whose traced extent truncates to nought, and none past the side every device chosen
+        // makes an image at.
+        constexpr auto smallest = static_cast<int>(Rtx::sSmallestFrameSide);
+        constexpr auto largest = static_cast<int>(Rtx::sLargestFrameSide);
+        boundFrame(
+            Misc::FrameBounds{ .mSmallest = osg::Vec2i(smallest, smallest), .mLargest = osg::Vec2i(largest, largest) });
         presentIn(mWindow.readSize());
         options.mWidth = static_cast<std::uint32_t>(getPresentation().mFrame.x());
         options.mHeight = static_cast<std::uint32_t>(getPresentation().mFrame.y());
@@ -339,6 +346,17 @@ namespace MWRender
         std::vector<VFS::Path::Normalized>& models, std::vector<VFS::Path::Normalized>& textures) noexcept
     {
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
+    }
+
+    void RtxRenderer::functionKey(const int index, const bool pressed)
+    {
+        // F3 and F4: the indices count from F1.
+        if (!pressed || (index != 2 && index != 3) || mToldStats)
+            return;
+
+        mToldStats = true;
+        Log(Debug::Warning) << notAvailable(
+            "The statistics overlay", support().declinedRequest(PictureRequest::StatsOverlay));
     }
 
     void RtxRenderer::windowResized(int, int, const int width, const int height) noexcept
@@ -686,6 +704,7 @@ namespace MWRender
         mPhase.expect(Phase::Between);
         mLoss = Rtx::HistoryLoss::Worldspace;
         mRipples.dropStrikes();
+        mViews.leaveScene();
     }
 
     void RtxRenderer::renderFrame(const SceneFrame& frame)
@@ -884,6 +903,17 @@ namespace MWRender
                              << mWalked.mFound.mSkippedUnknown << " it has no reader for";
     }
 
+    void RtxRenderer::refuseEye(const std::string_view why)
+    {
+        // Once, because a camera nobody filled in and a real defect look identical from here until
+        // it is said how often it happens.
+        if (mComplained)
+            return;
+
+        mComplained = true;
+        Log(Debug::Warning) << "Ray tracing skipped a frame: " << why;
+    }
+
     std::optional<Rtx::FrameRequest> RtxRenderer::describeTrace(const SceneFrame& frame, const osg::Matrixd& view)
     {
         const Rtx::FrameExtents extents = mRenderer->getExtents();
@@ -905,17 +935,11 @@ namespace MWRender
             extents.mRenderWidth, extents.mRenderHeight, Rtx::sNearPlane, Rtx::sFarPlane);
 
         // **Asked of the builder rather than tested for here**: a test here would be a copy of
-        // the builder's contract with two places to be right. Reported once, because a camera
-        // nobody filled in and a real defect look identical from here until it is said how often
-        // it happens.
+        // the builder's contract with two places to be right.
         if (!camera.has_value())
         {
-            if (!mComplained)
-            {
-                mComplained = true;
-                Log(Debug::Warning) << "Ray tracing skipped a frame: the view matrix has no basis to look along";
-            }
-
+            refuseEye(Rtx::isFieldOfView(frame.mEye.mFieldOfView) ? "the view matrix has no basis to look along"
+                                                                  : "its field of view is outside 0 to 180 degrees");
             return std::nullopt;
         }
 
@@ -925,7 +949,14 @@ namespace MWRender
         Rtx::shiftPicture(camera->mEyes.mWorld, frame.mEye.mProjectionShift);
 
         // The arms' own eye, at the field of view the game draws them through.
-        camera->mEyes.mArms = Rtx::cameraAtFieldOfView(camera->mEyes.mWorld, frame.mEye.mArmsFieldOfView);
+        const std::optional<Rtx::Shaders::Camera> arms
+            = Rtx::cameraAtFieldOfView(camera->mEyes.mWorld, frame.mEye.mArmsFieldOfView);
+        if (!arms.has_value())
+        {
+            refuseEye("the arms' field of view is outside 0 to 180 degrees");
+            return std::nullopt;
+        }
+        camera->mEyes.mArms = *arms;
 
         // What the game decided the eye sees, read where the rasterizer reads it.
         const ViewDescription described = describeView(worldViewMask());

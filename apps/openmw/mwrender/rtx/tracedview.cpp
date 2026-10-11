@@ -15,6 +15,7 @@
 
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/myguirtx/texture.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
@@ -38,9 +39,14 @@ namespace MWRender
         {
             osg::Node* const subject = kind == ViewKind::Subject ? &spec.mScene : nullptr;
             const ViewDescription described = describeView(spec.mMask);
+            // Held to the frame's own sides, which every device chosen makes an image at: a map
+            // tile is `[Map] local map resolution` times the raster scale, which nothing bounds.
+            const auto sideOf = [](int asked) {
+                return static_cast<std::uint32_t>(std::clamp(asked, 1, static_cast<int>(Rtx::sLargestFrameSide)));
+            };
             return Rtx::ViewRequest{
-                .mWidth = static_cast<std::uint32_t>(spec.mWidth),
-                .mHeight = static_cast<std::uint32_t>(spec.mHeight),
+                .mWidth = sideOf(spec.mWidth),
+                .mHeight = sideOf(spec.mHeight),
                 .mRayMask = described.mRayMask,
                 .mLamps = described.mLamps,
                 .mFraming = spec.mFraming,
@@ -140,7 +146,15 @@ namespace MWRender
         if (mCopyState != CopyState::NotWanted)
             mCopyState = CopyState::Queued;
 
+        mAbandoned = false;
         mViews.redraw(*this);
+    }
+
+    void TracedView::abandon()
+    {
+        // The copy, where one is wanted, stays queued and so null: what the backend holds is the
+        // trace before, which is not this redraw's.
+        mAbandoned = true;
     }
 
     void TracedView::draw(const osg::FrameStamp& posing)
@@ -160,7 +174,12 @@ namespace MWRender
     void TracedView::keepCopy()
     {
         if (mCopyState != CopyState::NotWanted)
+        {
+            // A redraw given up is drawn again for whoever waits on its copy.
+            if (mAbandoned)
+                redraw();
             return;
+        }
 
         mCopyState = CopyState::Queued;
         mCopy = new osg::Image;

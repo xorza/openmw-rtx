@@ -26,6 +26,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -249,7 +250,8 @@ namespace Rtx
         const SurfaceDescription& described = *reading.mDescribed;
         const osg::Image* const diffuse = described.getTexture(SurfaceMap::Diffuse);
 
-        if (described.mAlphaMode == AlphaMode::Blend && diffuse != nullptr && !diffuse->getFileName().empty())
+        if (described.mAlphaMode == AlphaMode::Blend && diffuse != nullptr
+            && !SceneUtil::EmbeddedImage::nameOf(*diffuse).empty())
         {
             ImageFacts& known = thread.factsOf(*diffuse);
             Material blended{ .mAlphaMode = described.mAlphaMode, .mBlend = described.mBlend };
@@ -353,8 +355,18 @@ namespace Rtx
         ExtractionStats& stats = mPass.getStats();
 
         const osg::Image* const image = use.get();
-        if (image == nullptr || image->getFileName().empty())
+        if (image == nullptr)
             return sNoIndex;
+
+        // **A texture is keyed by what names it**: a file, or a model's own image stamped with the
+        // model and its record. An image with neither is one no table can find again, refused once
+        // under one name, and the surface traced untextured.
+        if (SceneUtil::EmbeddedImage::nameOf(*image).empty())
+        {
+            mScene.refusals().refuse(Refused::Texture, "an image with no name",
+                "it is neither a file nor a model's own stamped image (`SceneUtil::EmbeddedImage`)");
+            return sNoIndex;
+        }
 
         auto known = mTextureOf.find(image);
         if (known != mTextureOf.end())
@@ -459,7 +471,7 @@ namespace Rtx
         {
             const osg::Image* const named = described->getTexture(SurfaceMap::Diffuse);
             const std::string_view name
-                = named != nullptr ? std::string_view(named->getFileName()) : std::string_view();
+                = named != nullptr ? SceneUtil::EmbeddedImage::nameOf(*named) : std::string_view();
             for (const UnreadState state : sUnreadStates)
                 if (described->isUnread(state))
                     mScene.refusals().refuse(Refused::Surface, name, whyUnread(state));

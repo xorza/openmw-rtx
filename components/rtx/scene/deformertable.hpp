@@ -30,21 +30,31 @@ namespace Rtx
     static_assert(sizeof(PoseWord) == Shaders::BONE_ALIGN, "a pose word is what a bone's reference is aligned to");
     static_assert(sizeof(Shaders::GpuBone) == 3 * sizeof(PoseWord), "a bone is three pose words");
 
-    /// How many words `rows` of `kind` take: three a bone, a quarter a weight rounded up.
+    /// How many words `rows` of `kind` take: for a rig, three a bone and three for the skin's own
+    /// transform ahead of them (`packRig`); for a morph, a quarter a weight rounded up.
     constexpr Index poseWordsFor(const Deform kind, const Index rows)
     {
-        return kind == Deform::Rig ? rows * 3 : (rows + 3) / 4;
+        return kind == Deform::Rig ? (rows + 1) * 3 : (rows + 3) / 4;
     }
 
-    /// Lays `bones` end to end as words, into `into`, refilled.
-    void packBones(std::span<const Shaders::GpuBone> bones, std::vector<PoseWord>& into);
+    /// Lays a rig's pose into `into`, refilled: the skin's transform, then `bones` end to end.
+    ///
+    /// **The transform apart from the bones**, because `RigGeometry::cull` applies it once, to the
+    /// blend of the bones. Composed into each bone it is scaled by the sum of a vertex's weights,
+    /// which is not one for a vertex in no group, one on a bone the skeleton lacks, or one whose
+    /// file's weights do not sum to one.
+    void packRig(
+        const Shaders::GpuBone& transform, std::span<const Shaders::GpuBone> bones, std::vector<PoseWord>& into);
 
     /// Lays `weights` four to a word, the last word zero past the end, into `into`, refilled.
     void packWeights(std::span<const float> weights, std::vector<PoseWord>& into);
 
     // `boneAt` and `weightAt` are read by the tests and by nothing else.
-    /// Bone `at` of a pose laid by `packBones`.
+    /// Bone `at` of a pose laid by `packRig`.
     Shaders::GpuBone boneAt(std::span<const PoseWord> pose, Index at);
+
+    /// The skin's transform of a pose laid by `packRig`.
+    Shaders::GpuBone skinTransformOf(std::span<const PoseWord> pose);
 
     /// Weight `at` of a pose laid by `packWeights`.
     float weightAt(std::span<const PoseWord> pose, Index at);
@@ -163,7 +173,7 @@ namespace Rtx
         /// may equal — `MeshRange::mPosed` says why it counts regardless.
         void stand(MeshRange& range);
 
-        /// Writes one mesh's pose, laid as `packBones` or `packWeights` lays it, over the words it
+        /// Writes one mesh's pose, laid as `packRig` or `packWeights` lays it, over the words it
         /// holds. @return whether they differ from the ones it held.
         bool pose(const MeshRange& range, std::span<const PoseWord> words);
 

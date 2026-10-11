@@ -1,4 +1,5 @@
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <optional>
 
@@ -142,6 +143,18 @@ namespace Rtx
 
                 const Reconstruction resolved = Reconstruction::resolve(row.mMode, ReconstructionRequest{}, extents);
                 EXPECT_EQ(resolved.mJitterPhases, row.mPhases) << sUpscaleNames.name(row.mMode);
+            }
+
+            // **The smallest frame traces a pixel in every mode**: the largest ratio is ultra
+            // performance's 3, so a side of 3 traces 3 / 3 = 1, and a side of 2 would trace 0.
+            static_assert(sSmallestFrameSide == 3);
+            for (const Upscale mode : sUpscaleMenu)
+            {
+                const FrameExtents smallest = extentsFor(sSmallestFrameSide, sSmallestFrameSide, mode);
+                EXPECT_GE(smallest.mRenderWidth, 1u) << sUpscaleNames.name(mode);
+                EXPECT_GE(smallest.mRenderHeight, 1u) << sUpscaleNames.name(mode);
+                EXPECT_TRUE(std::isfinite(Reconstruction::resolve(mode, ReconstructionRequest{}, smallest).mLevelBias))
+                    << sUpscaleNames.name(mode);
             }
 
             const FrameExtents unscaled = extentsFor(1920, 1080, Upscale::Off);

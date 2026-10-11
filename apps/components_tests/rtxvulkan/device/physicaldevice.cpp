@@ -233,6 +233,12 @@ namespace Rtx
                 Card old(&describeTuring);
                 old.mProperties.mProperties2.properties.apiVersion = VK_API_VERSION_1_3;
                 EXPECT_EQ(old.profile().mObstacle, "reports Vulkan 1.3.0");
+
+                // **And with nothing else asked of it**, as selection asks a device short of the
+                // version nothing more: its version alone names the obstacle.
+                DeviceFeatures none;
+                EXPECT_EQ(PhysicalDevice::profileOf(old.mProperties, none, {}, {}, {}, {}, {}).mObstacle,
+                    "reports Vulkan 1.3.0");
             }
             {
                 Card short_(&describeTuring);
@@ -291,6 +297,14 @@ namespace Rtx
                           .bufferFeatures = 0 };
                 EXPECT_EQ(flat.profile().mObstacle,
                     "missing format features for " + std::string(getRequiredFormats().front().mFor));
+
+                // **Every row of the table is a requirement**, and none a slot a fixed size left
+                // empty: an empty one asked every device about an undefined format for no reason.
+                for (const RequiredFormat& required : getRequiredFormats())
+                {
+                    EXPECT_NE(required.mFormat, VK_FORMAT_UNDEFINED);
+                    EXPECT_FALSE(std::string_view(required.mFor).empty());
+                }
             }
             {
                 // Quads in the fragment stage alone, and in compute only the basic operations.
@@ -313,6 +327,12 @@ namespace Rtx
                 Card cramped(&describeTuring);
                 cramped.mProperties.mProperties2.properties.limits.maxPushConstantsSize = 128;
                 EXPECT_EQ(cramped.profile().mObstacle, "push constants of 128 bytes, under 256");
+            }
+            {
+                // One under the largest frame's side, which RDNA 2 reports exactly.
+                Card small(&describeTuring);
+                small.mProperties.mProperties2.properties.limits.maxImageDimension2D = 16383;
+                EXPECT_EQ(small.profile().mObstacle, "images of 16383 pixels a side at most, under 16384");
             }
             {
                 Card split(&describeTuring);

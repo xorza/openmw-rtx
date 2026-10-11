@@ -25,7 +25,8 @@ namespace MWRender
     /// or once the ring stops asking for that ground. A paint dropped where the local map let go
     /// first left a cell crossed quickly after a load black on the world map for the session. What
     /// does stop one is the overlay's own reset — a clear, a save read in — which drops every
-    /// paint (`clear`).
+    /// paint (`clear`), and a tile whose scene the game left before it was drawn, whose picture
+    /// would be of the wrong world (`OffscreenView::isAbandoned`).
     class PendingPaints
     {
     public:
@@ -48,11 +49,15 @@ namespace MWRender
         }
 
         /// Hands every paint whose picture has come back to `paint`, as its destination and the
-        /// picture, and lets go of it. The rest wait.
+        /// picture, and lets go of it, and of every paint whose picture will never come
+        /// (`OffscreenView::isAbandoned`). The rest wait.
         template <class Paint>
         void finish(Paint&& paint)
         {
             std::erase_if(mPending, [&](Pending& pending) {
+                if (pending.mTile->isAbandoned())
+                    return true;
+
                 const osg::Image* drawn = pending.mTile->getCopy();
                 if (drawn == nullptr)
                     return false;

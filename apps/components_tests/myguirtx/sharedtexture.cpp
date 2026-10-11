@@ -1,5 +1,6 @@
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -161,6 +162,49 @@ namespace MyGUIRtx
             const SharedTexture mirror(renderer, *texture);
             ASSERT_EQ(renderer.mLending.size(), std::size_t{ width * height * 4 });
             EXPECT_EQ(renderer.mLending[4], static_cast<std::uint8_t>(4.0f / 23.0f * 255.0f + 0.5f));
+
+            // **What `getColor` cannot read, read as GL samples it**: an X8 file's spare byte is
+            // no alpha, and an old mod's sixteen-bit words are their channels, where `getColor`
+            // answers white for every one. Full red in each: R5G6B5 `0xF800`, A1R5G5B5 `0x7C00`
+            // with its alpha bit clear, X1R5G5B5 the same word with no alpha at all, and A4R4G4B4
+            // `0x0F00` with its alpha nibble nought.
+            struct Packed
+            {
+                GLenum mFormat;
+                GLenum mType;
+                GLenum mInternal;
+                std::uint16_t mWord;
+                std::array<std::uint8_t, 4> mSent;
+            };
+            for (const Packed& one : {
+                     Packed{ GL_RGB, GL_UNSIGNED_SHORT_5_6_5, GL_RGB, 0xF800, { 255, 0, 0, 255 } },
+                     Packed{ GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, GL_RGBA, 0x7C00, { 255, 0, 0, 0 } },
+                     Packed{ GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, GL_RGB, 0x7C00, { 255, 0, 0, 255 } },
+                     Packed{ GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV, GL_RGBA, 0x0F00, { 255, 0, 0, 0 } },
+                 })
+            {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->allocateImage(1, 1, 1, one.mFormat, one.mType);
+                image->setInternalTextureFormat(static_cast<GLint>(one.mInternal));
+                std::memcpy(image->data(), &one.mWord, sizeof(one.mWord));
+
+                Rtx::Testing::CountingRenderer counted;
+                const osg::ref_ptr<osg::Texture2D> sixteen = new osg::Texture2D(image);
+                const SharedTexture sent(counted, *sixteen);
+                EXPECT_EQ(counted.mLending, std::vector<std::uint8_t>(one.mSent.begin(), one.mSent.end()))
+                    << "type " << one.mType << ", internal " << one.mInternal;
+            }
+
+            osg::ref_ptr<osg::Image> spare = new osg::Image;
+            spare->allocateImage(1, 1, 1, GL_BGRA, GL_UNSIGNED_BYTE);
+            spare->setInternalTextureFormat(GL_RGB);
+            const std::array<std::uint8_t, 4> blueGreenRedNought{ 30, 20, 10, 0 };
+            std::memcpy(spare->data(), blueGreenRedNought.data(), blueGreenRedNought.size());
+            Rtx::Testing::CountingRenderer counted;
+            const osg::ref_ptr<osg::Texture2D> x8 = new osg::Texture2D(spare);
+            const SharedTexture sent(counted, *x8);
+            EXPECT_EQ(counted.mLending, (std::vector<std::uint8_t>{ 10, 20, 30, 255 }))
+                << "the spare byte read as alpha";
         }
     }
 }

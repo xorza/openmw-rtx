@@ -32,8 +32,9 @@ namespace RtxTool
         /// where it is every finite number of its type.
         std::string describe() const
         {
-            const bool low = mLow != std::numeric_limits<T>::lowest();
-            const bool high = mHigh != std::numeric_limits<T>::max();
+            // An end at the type's own limit is a bound all the same where it is open.
+            const bool low = mLow != std::numeric_limits<T>::lowest() || mLowOpen;
+            const bool high = mHigh != std::numeric_limits<T>::max() || mHighOpen;
             if (low && high)
                 return std::format("{}{}..{}{}", mLow, mLowOpen ? "<" : "", mHighOpen ? "<" : "", mHigh);
             if (low)

@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include <osg/Matrixf>
 #include <osg/Node>
@@ -22,6 +23,7 @@
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -50,6 +52,23 @@ namespace Rtx
             transform.preMultScale(osg::Vec3f(ref.mScale, ref.mScale, ref.mScale));
 
             return transform;
+        }
+
+        /// The transform of `ref`, or nothing and a refusal of `model` where it is not finite: a
+        /// content file's position, rotation or scale that is not a number. The walk refuses the
+        /// same at the top level of what it stands (`SceneExtractor`), where a NaN is a structure the
+        /// trace walks to no answer every frame it stands.
+        std::optional<osg::Matrixf> finiteTransformOf(
+            const Terrain::PagedCellRef& ref, const PreparedModel& model, std::vector<Refusal>& refusals)
+        {
+            const osg::Matrixf transform = transformOf(ref);
+            if (isFinite(transform))
+                return transform;
+
+            refusals.push_back(Refusal{ .mKind = Refused::Model,
+                .mName = model.mPath,
+                .mWhy = "a reference of it stands at a position, a rotation or a scale that is not a number" });
+            return std::nullopt;
         }
 
         /// Where `SceneUtil::addLight` attaches a lamp's light in the model at `root`: the first
@@ -285,10 +304,14 @@ namespace Rtx
         if (read == nullptr)
             return;
 
+        const std::optional<osg::Matrixf> transform = finiteTransformOf(ref, *read, prepared.mRefusals);
+        if (!transform.has_value())
+            return;
+
         addReference(*read,
             PreparedRef{
                 .mRefNum = ref.mRefNum,
-                .mTransform = transformOf(ref),
+                .mTransform = *transform,
                 .mRadius
                 = lamp.mCarried || read->mEmits ? std::numeric_limits<float>::infinity() : read->mRadius * ref.mScale,
                 .mGate = ref.mGate,
@@ -351,10 +374,14 @@ namespace Rtx
                 if (read == nullptr)
                     continue;
 
+                const std::optional<osg::Matrixf> transform = finiteTransformOf(ref, *read, into.mRefusals);
+                if (!transform.has_value())
+                    continue;
+
                 // No size rule and no gate: a plant is small everywhere it stands, and no script
                 // names a reference of a groundcover file.
-                addReference(*read, PreparedRef{ .mRefNum = ref.mRefNum, .mTransform = transformOf(ref) }, into.mModels,
-                    into.mRefs);
+                addReference(
+                    *read, PreparedRef{ .mRefNum = ref.mRefNum, .mTransform = *transform }, into.mModels, into.mRefs);
             }
             into.mPreprocessed = mWalk.takeStats();
         });

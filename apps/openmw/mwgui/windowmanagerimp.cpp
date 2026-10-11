@@ -65,6 +65,7 @@
 
 #include "../mwrender/renderer.hpp"
 #include "../mwrender/renderingmanager.hpp"
+#include "../mwrender/rendersupport.hpp"
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
@@ -2409,7 +2410,14 @@ namespace MWGui
 
     void WindowManager::togglePostProcessorHud()
     {
-        // Null under a renderer with no shader chain, which to the player is a chain that is off
+        // A renderer that declines the chain says why, and is not a chain the player left off.
+        if (const std::string_view declined = mRenderer.support().declinedSetting("Post Processing", "enabled");
+            !declined.empty())
+        {
+            messageBox(MWRender::notAvailable("Post-processing", declined));
+            return;
+        }
+
         const MWRender::PostProcessor* processor = MWBase::Environment::get().getWorld()->getPostProcessor();
         if (processor == nullptr || !processor->isEnabled())
         {

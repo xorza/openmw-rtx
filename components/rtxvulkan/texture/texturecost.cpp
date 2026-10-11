@@ -69,11 +69,21 @@ namespace Rtx
     {
         TextureCost cost;
 
-        // A completed chain is the device's, made from the file's one level uploaded as it is.
+        // A completed chain is the device's, made from the file's one level uploaded as it is; one
+        // past the loose side stands as BC7, encoded off a loose chain, which goes with the batch as
+        // the upload does, through blocks the arrival's room holds and is priced as if made for it.
         if (texture.mCompleteChain)
         {
-            cost.mImage = writtenBytes(shapeOf(texture, first));
+            const ImageShape shape = shapeOf(texture, first);
             cost.mTransient = texture.mBytes.size();
+            if (!texture.encodesChain())
+                cost.mImage = writtenBytes(shape);
+            else
+            {
+                const VkDeviceSize blocks = Bc7Chain::of(shape.mWidth, shape.mHeight, shape.mLevels).mBytes;
+                cost.mImage = blocks;
+                cost.mTransient += writtenBytes(shape) + blocks;
+            }
         }
         else
             cost.mImage = texture.bytesFrom(first);

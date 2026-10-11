@@ -14,9 +14,25 @@ namespace osg
 
 namespace SDLUtil
 {
+    /// How a video driver shows a cursor's image: at the window's points, scaled to the display
+    /// from an image that size (`SDL_HINT_MOUSE_DPI_SCALE_CURSORS` on Windows, the buffer scale on
+    /// Wayland, the backing scale on macOS), or as its pixels are, which X11 does.
+    enum class CursorScaling
+    {
+        ByDisplay,
+        AsPixels,
+    };
+
     class SDLCursorManager
     {
     public:
+        /// How the driver SDL names `driver` (`SDL_GetCurrentVideoDriver`) shows a cursor.
+        static CursorScaling scalingOf(std::string_view driver);
+
+        /// What a cursor's size in window pixels is divided by for the image SDL is handed: the
+        /// display's scale where the driver scales it back up, and one where it shows its pixels.
+        static float baseDivisor(CursorScaling scaling, float displayScale);
+
         SDLCursorManager();
         virtual ~SDLCursorManager();
 
@@ -29,8 +45,8 @@ namespace SDLUtil
 
         /// A cursor of `width` × `height` window pixels, hot at `hotspotX`, `hotspotY` in the same
         /// pixels, which SDL shows at the display's scale `displayScale`: an image of the size
-        /// divided by it, which is what SDL scales up, and the whole size beside it, which SDL picks
-        /// instead. Shown at once where it is the current cursor.
+        /// divided by `baseDivisor`, which is what SDL scales up, and the whole size beside it, which
+        /// SDL picks instead. Shown at once where it is the current cursor.
         void createCursor(std::string_view name, double rotDegrees, osg::Image* image, int hotspotX, int hotspotY,
             int width, int height, float displayScale);
 
@@ -51,6 +67,7 @@ namespace SDLUtil
         std::string mCurrentCursor;
         bool mEnabled;
         bool mInitialized;
+        CursorScaling mScaling;
     };
 }
 

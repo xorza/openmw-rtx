@@ -62,12 +62,18 @@ namespace Rtx
     /// world, and the renderer lays one over the other (`describeWorld`).
     Shaders::VisibilityConstants constantsFor(const Viewpoint& view);
 
+    /// Whether a camera is built at `verticalFovDegrees`: inside (0°, 180°). At nought the image
+    /// plane has no extent and every ray the same direction, at 180° it stands at infinity, and
+    /// past it the picture turns over. The settings hold the field of view to [1, 179], but a
+    /// script's override and the content's werewolf one reach the camera as they were written.
+    bool isFieldOfView(float verticalFovDegrees);
+
     /// The same eye at another field of view: the basis kept and the image plane's half extents
     /// taken from `verticalFovDegrees`, at the camera's own aspect. What the player's own arms are
     /// seen through — `Shaders::Eyes::mArms` — since `first person field of view`
     /// and `field of view` are two settings. Every camera built below starts with the arms' eye
-    /// equal to its own.
-    Shaders::Camera cameraAtFieldOfView(const Shaders::Camera& camera, float verticalFovDegrees);
+    /// equal to its own. Nothing for an angle that is not a field of view (`isFieldOfView`).
+    std::optional<Shaders::Camera> cameraAtFieldOfView(const Shaders::Camera& camera, float verticalFovDegrees);
 
     /// Moves `camera`'s picture by `shift`, in clip units with x right and y up: what a projection
     /// post-multiplied by that translation draws, which is how the game applies a script's
@@ -81,7 +87,7 @@ namespace Rtx
     /// A camera from a view matrix in OpenSceneGraph's convention: row vectors, and an eye space
     /// looking down its own -Z. The basis comes out of the matrix rather than from the world's up,
     /// which is what lets a map look straight down. Nothing for a matrix that cannot be inverted
-    /// or whose basis collapsed, as `viewBasisOf` says.
+    /// or whose basis collapsed, as `viewBasisOf` says, nor for an angle that is not a field of view.
     std::optional<Viewpoint> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees, std::uint32_t width,
         std::uint32_t height, float near, float far);
 

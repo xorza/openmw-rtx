@@ -24,6 +24,7 @@
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/sky/vertexrules.hpp>
 #include <components/vfs/manager.hpp>
 
@@ -223,7 +224,8 @@ namespace Rtx
                         sheet = dynamic_cast<const osg::Texture2D*>(bound->first.get());
                 }
 
-                if (sheet == nullptr || sheet->getImage() == nullptr || sheet->getImage()->getFileName().empty())
+                if (sheet == nullptr || sheet->getImage() == nullptr
+                    || SceneUtil::EmbeddedImage::nameOf(*sheet->getImage()).empty())
                     return nullptr;
                 return sheet->getImage();
             }
@@ -274,8 +276,9 @@ namespace Rtx
         std::size_t next = 0;
         for (const Layer& layer : read.mLayers)
         {
-            TextureHold held = takeSkySheet(scene, VFS::Path::Normalized(layer.mImage->getFileName()),
-                osg::ref_ptr<const osg::Image>(layer.mImage));
+            TextureHold held
+                = takeSkySheet(scene, VFS::Path::Normalized(SceneUtil::EmbeddedImage::nameOf(*layer.mImage)),
+                    osg::ref_ptr<const osg::Image>(layer.mImage));
             const Index slot = held.get();
             if (slot == sNoIndex)
                 continue;

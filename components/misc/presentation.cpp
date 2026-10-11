@@ -50,11 +50,24 @@ namespace Misc
         return setting * displayScale / shownScale();
     }
 
-    Presentation present(const osg::Vec2i asked, const osg::Vec2i drawable)
+    osg::Vec2i FrameBounds::clamp(const osg::Vec2i frame) const
+    {
+        return osg::Vec2i(
+            std::clamp(frame.x(), mSmallest.x(), mLargest.x()), std::clamp(frame.y(), mSmallest.y(), mLargest.y()));
+    }
+
+    osg::Vec2i askedFrame(const osg::Vec2i asked, const osg::Vec2i drawable)
+    {
+        if (asked.x() > 0 && asked.y() > 0)
+            return asked;
+        return osg::Vec2i(std::max(drawable.x(), 1), std::max(drawable.y(), 1));
+    }
+
+    Presentation present(const osg::Vec2i asked, const osg::Vec2i drawable, const FrameBounds& bounds)
     {
         Presentation presentation;
         presentation.mDrawable = osg::Vec2i(std::max(drawable.x(), 1), std::max(drawable.y(), 1));
-        presentation.mFrame = asked.x() > 0 && asked.y() > 0 ? asked : presentation.mDrawable;
+        presentation.mFrame = bounds.clamp(askedFrame(asked, presentation.mDrawable));
 
         const std::int64_t frameX = presentation.mFrame.x();
         const std::int64_t frameY = presentation.mFrame.y();

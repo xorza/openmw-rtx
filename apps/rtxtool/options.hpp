@@ -98,6 +98,12 @@ namespace RtxTool
     /// other's settings and storage. The same path for every call in one process.
     std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config);
 
+    /// Where the game saves while this tool drives it: inside the run's own directory, so the
+    /// player's saves folder never holds a run's world — god mode, every skill at its top, and the
+    /// harness's own scripts in the content list. F5 in a played `view` replaced the quicksave of the
+    /// character a `--load-savegame` had loaded.
+    std::filesystem::path ownSavesFolder(const Files::ConfigurationManager& config);
+
     /// Removes the directory of every run in `runs` whose process has ended, and nothing else:
     /// not a run still going, and nothing not named as `ownConfigDirectory` names one. At the next
     /// run's start and not at a run's own end, so the log of the last run stays to be read until

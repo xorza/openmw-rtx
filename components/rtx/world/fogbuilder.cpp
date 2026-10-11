@@ -309,7 +309,15 @@ namespace Rtx
 
     float fogLift(float depth, float wind)
     {
-        return depth / sClearFogDepth * (1.0f + wind * sFogWindLift);
+        // **The depth read by `fogExtinction`'s rule**, which takes nought, a negative or not a
+        // number for no fog at all. A layer with no density has no height worth keeping, so it
+        // stands the clear one: the shaders divide by the lift, and nought made the air at the
+        // fog's base, which is the sea outdoors, nought over nought.
+        if (!(depth > 0.0f))
+            return 1.0f;
+
+        const float lifting = wind > 0.0f ? wind : 0.0f;
+        return depth / sClearFogDepth * (1.0f + lifting * sFogWindLift);
     }
 
     osg::Vec3f fogColour(const osg::Vec3f& skyMean, const osg::Vec3f& hue)

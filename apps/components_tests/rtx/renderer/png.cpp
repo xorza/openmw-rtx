@@ -52,6 +52,16 @@ namespace Rtx
             for (const std::uint8_t level : pixels)
                 widened.push_back(static_cast<std::uint16_t>(level * sSamplesPerLevel));
             EXPECT_EQ(read.value().mSamples, widened);
+
+            // **A picture the disk refuses is an error, described or not**: a full disk, which
+            // Linux keeps a device of, refuses the bytes at the write or at the close, and either way
+            // the run is told; the plugin's own file said it wrote it.
+            const std::filesystem::path full("/dev/full");
+            if (std::filesystem::exists(full))
+            {
+                EXPECT_FALSE(writePng(full, 2, 1, pixels).isOk()) << "a full disk took a picture";
+                EXPECT_FALSE(writePng(full, 2, 1, pixels, description).isOk()) << "a full disk took a picture";
+            }
         }
 
         /// **A sixteen-bit picture reads back sample for sample**, the ends of the scale, the middle

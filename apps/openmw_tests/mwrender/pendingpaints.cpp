@@ -24,10 +24,12 @@ namespace MWRender
             void redraw() override {}
             void keepCopy() override { ++mCopiesAsked; }
             const osg::Image* getCopy() override { return mLanded ? mPicture.get() : nullptr; }
+            bool isAbandoned() const override { return mAbandoned; }
             MyGUI::ITexture& getTexture() const override { throw std::logic_error("no texture in this test"); }
 
             osg::ref_ptr<osg::Image> mPicture = new osg::Image;
             bool mLanded = false;
+            bool mAbandoned = false;
             int mCopiesAsked = 0;
         };
 
@@ -86,6 +88,16 @@ namespace MWRender
             pending.add(crossed, std::make_shared<Tile>());
             pending.clear();
             EXPECT_EQ(pending.size(), 0u);
+
+            // **A tile whose scene was left before it was drawn lets go, unpainted**: its picture
+            // would be of the world the game went to, and nothing else would ever end its wait.
+            const auto left = std::make_shared<Tile>();
+            pending.add(crossed, left);
+            left->mAbandoned = true;
+            painted.clear();
+            pending.finish(paint);
+            EXPECT_TRUE(painted.empty()) << "a picture of the wrong world was painted";
+            EXPECT_EQ(pending.size(), 0u) << "a paint that can never land kept waiting";
         }
     }
 }

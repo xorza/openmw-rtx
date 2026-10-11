@@ -246,6 +246,49 @@ namespace Rtx
             EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840 - 1), 32u);
         }
 
+        /// **A one-level file past the loose side stands as BC7**, encoded off the loose chain the
+        /// device makes, and one at the side stays loose, so no vanilla file moves. 1024 square to one
+        /// texel is eleven levels of 65536, 16384, 4096, 1024, 256, 64, 16, 4, 1, 1 and 1 blocks:
+        /// 87383 blocks of sixteen bytes, 1398128, beside its shading map's 2048. The loose chain it is
+        /// encoded off is 1398101 texels of four bytes, 5592404, which goes with the batch as the
+        /// upload's four mebibytes do; the blocks are priced beside them, as the room they need.
+        TEST_F(RtxTextureArrayTest, aCompletedChainPastTheLooseSideStandsAsBc7)
+        {
+            Device& device = getDevice();
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            Batch setup(getPool());
+            TextureArray textures(device, setup, layout, passes, 1);
+            setup.flush();
+
+            Testing::TestTexture vanilla;
+            Testing::paintLevels(vanilla, sLargestLooseChainSide, sLargestLooseChainSide, 1, "vanilla");
+            EXPECT_FALSE(vanilla.mData.encodesChain()) << "a vanilla side was encoded";
+            Testing::TestTexture row;
+            Testing::paintLevels(row, sLargestLooseChainSide + 1, 1, 1, "row");
+            EXPECT_TRUE(row.mData.encodesChain()) << "one past the side on either axis";
+
+            Testing::TestTexture large;
+            Testing::paintLevels(large, 1024, 1024, 1, "large");
+            large.mData.mCompleteChain = true;
+            ASSERT_TRUE(large.mData.encodesChain());
+
+            const TextureCost cost = priceFile(large.mData, 0);
+            EXPECT_EQ(cost.mImage, 1398128u);
+            EXPECT_EQ(cost.mTransient, VkDeviceSize{ 1024 } * 1024 * 4 + 5592404 + 1398128);
+
+            std::vector<Refusal> refused;
+            {
+                Batch arrival(getPool());
+                textures.write(arrival, passes, std::array{ large.mData }, refused);
+                arrival.flush();
+            }
+
+            EXPECT_TRUE(refused.empty());
+            EXPECT_EQ(textures.getHeld().mBySource.mCompletedFiles, 1398128u + 2048u);
+            textures.drop(std::array{ 0u });
+        }
+
         /// A texture past the side the device takes stands from its first level within the side,
         /// and one with no level within it draws the stand-in, refused and saying why.
         ///

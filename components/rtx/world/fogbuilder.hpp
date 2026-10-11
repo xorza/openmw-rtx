@@ -85,7 +85,9 @@ namespace Rtx
     /// wind cannot be the whole of the lift, because the weather named foggy has a wind of nought.
     constexpr float sFogWindLift = 4.0f;
 
-    /// How deep a weather's layer stands, as a multiple of the one `FOG_HEIGHT` names.
+    /// How deep a weather's layer stands, as a multiple of the one `FOG_HEIGHT` names. Positive
+    /// for every record: a depth `fogExtinction` reads as no fog stands the clear layer, and a wind
+    /// not above nought lifts nothing.
     float fogLift(float depth, float wind);
 
     /// What the air scatters toward the eye: as bright as the sky's own light (`skyMean`, a

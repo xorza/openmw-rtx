@@ -11,6 +11,7 @@
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_surface.h>
+#include <SDL3/SDL_video.h>
 
 #include <osg/Version>
 #include <osgViewer/GraphicsWindow>
@@ -28,10 +29,32 @@ USE_GRAPHICSWINDOW()
 
 namespace SDLUtil
 {
+    namespace
+    {
+        /// The video driver SDL runs on, or nothing before SDL's video is up.
+        std::string_view currentDriver()
+        {
+            const char* const driver = SDL_GetCurrentVideoDriver();
+            return driver != nullptr ? std::string_view(driver) : std::string_view();
+        }
+    }
+
+    CursorScaling SDLCursorManager::scalingOf(const std::string_view driver)
+    {
+        // `X11_CreateXCursorCursor` loads the base image as it is and never asks for an alternate,
+        // where every other desktop driver scales it or picks the alternate the display wants.
+        return driver == "x11" ? CursorScaling::AsPixels : CursorScaling::ByDisplay;
+    }
+
+    float SDLCursorManager::baseDivisor(const CursorScaling scaling, const float displayScale)
+    {
+        return scaling == CursorScaling::ByDisplay ? displayScale : 1.f;
+    }
 
     SDLCursorManager::SDLCursorManager()
         : mEnabled(false)
         , mInitialized(false)
+        , mScaling(scalingOf(currentDriver()))
     {
         // So SDL draws a cursor at the display's scale and picks the image `createCursor` made for
         // it, rather than showing its pixels one to one on every display.
@@ -138,22 +161,23 @@ namespace SDLUtil
         if (mCursorMap.find(name) != mCursorMap.end())
             return;
 
-        const int baseWidth = std::max(1, windowPoints(width, displayScale));
-        const int baseHeight = std::max(1, windowPoints(height, displayScale));
+        const float divisor = baseDivisor(mScaling, displayScale);
+        const int baseWidth = std::max(1, windowPoints(width, divisor));
+        const int baseHeight = std::max(1, windowPoints(height, divisor));
 
         try
         {
             const SurfaceUniquePtr decoded = imageToSurface(image);
             SurfaceUniquePtr surface = draw(*decoded, rotDegrees, baseWidth, baseHeight);
-            if (displayScale > 1.f)
+            if (divisor > 1.f)
             {
                 const SurfaceUniquePtr whole = draw(*decoded, rotDegrees, width, height);
                 SDL_AddSurfaceAlternateImage(surface.get(), whole.get());
             }
 
-            SDL_Cursor* cursor = SDL_CreateColorCursor(surface.get(),
-                std::clamp(windowPoints(hotspotX, displayScale), 0, baseWidth - 1),
-                std::clamp(windowPoints(hotspotY, displayScale), 0, baseHeight - 1));
+            SDL_Cursor* cursor
+                = SDL_CreateColorCursor(surface.get(), std::clamp(windowPoints(hotspotX, divisor), 0, baseWidth - 1),
+                    std::clamp(windowPoints(hotspotY, divisor), 0, baseHeight - 1));
             if (cursor == nullptr)
                 fail("Failed to create cursor");
             mCursorMap.emplace(name, cursor);

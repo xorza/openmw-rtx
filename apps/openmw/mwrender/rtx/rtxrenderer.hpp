@@ -132,6 +132,10 @@ namespace MWRender
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
         void windowResized(int x, int y, int width, int height) noexcept override;
 
+        /// F3 and F4, which the rasterizer hands OpenSceneGraph's overlays: said once in the log,
+        /// as `rtxSupport` declines them, and nothing else.
+        void functionKey(int index, bool pressed) override;
+
         void advance(double simulationTime) noexcept override;
         void updateTraversal() noexcept override;
 
@@ -288,6 +292,9 @@ namespace MWRender
         /// reported once.
         std::optional<Rtx::FrameRequest> describeTrace(const SceneFrame& frame, const osg::Matrixd& view);
 
+        /// Says in the log why the camera builder refused this frame's eye, the first time it does.
+        void refuseEye(std::string_view why);
+
         /// Traces one frame from `request`, with the world the frame stands in read into it, and
         /// closes the report with what it came to.
         void trace(
@@ -403,8 +410,10 @@ namespace MWRender
         /// which `configureResources` weighs against the frame clock's stated step.
         std::optional<bool> mSettled;
 
-        /// Whether a camera the builder refused has already been reported. `describeTrace` says why
-        /// once is the whole of it.
+        /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;
+
+        /// Whether F3 or F4 was answered (`functionKey`), which is answered once.
+        bool mToldStats = false;
     };
 }

@@ -81,6 +81,13 @@ namespace Rtx
         /// past either end has nothing to mean here.
         Rgb8,
         Bgr8,
+
+        /// Thirty-two bits a texel whose header gave the fourth byte no mask, which the file leaves
+        /// undefined and many tools write as nought: opaque, as GL samples the `GL_RGB` OpenSceneGraph
+        /// states them in, and never a hole cut by whatever the spare byte holds.
+        Xbgr8,
+        Xrgb8,
+
         Luminance,
         LuminanceAlpha,
         Alpha8,
@@ -243,12 +250,14 @@ namespace Rtx
             return 0;
         }
 
-        constexpr FormatTraits loose(
-            TextureFormat format, std::string_view name, ChannelType type, std::array<std::int8_t, 4> from)
+        /// `spare` channels past the last one read: a texel the file pads.
+        constexpr FormatTraits loose(TextureFormat format, std::string_view name, ChannelType type,
+            std::array<std::int8_t, 4> from, std::uint8_t spare = 0)
         {
             std::uint8_t count = 0;
             for (const std::int8_t channel : from)
                 count = std::max<std::uint8_t>(count, static_cast<std::uint8_t>(channel + 1));
+            count = static_cast<std::uint8_t>(count + spare);
             return FormatTraits{ .mFormat = format,
                 .mName = name,
                 .mLayout = TexelLayout{ .mBytes = channelBytes(type) * count },
@@ -287,6 +296,8 @@ namespace Rtx
         FormatRows::packed(TextureFormat::Xrgb4444, "X4R4G4B4", ChannelBits{ .mRed = 4, .mGreen = 4, .mBlue = 4 }),
         FormatRows::loose(TextureFormat::Rgb8, "RGB8", ChannelType::Unorm8, FormatRows::sRgb),
         FormatRows::loose(TextureFormat::Bgr8, "BGR8", ChannelType::Unorm8, { 2, 1, 0, FormatRows::sNo }),
+        FormatRows::loose(TextureFormat::Xbgr8, "X8B8G8R8", ChannelType::Unorm8, FormatRows::sRgb, 1),
+        FormatRows::loose(TextureFormat::Xrgb8, "X8R8G8B8", ChannelType::Unorm8, { 2, 1, 0, FormatRows::sNo }, 1),
         FormatRows::loose(TextureFormat::Luminance, "L8", ChannelType::Unorm8, { 0, 0, 0, FormatRows::sNo }),
         FormatRows::loose(TextureFormat::LuminanceAlpha, "LA8", ChannelType::Unorm8, { 0, 0, 0, 1 }),
         FormatRows::loose(

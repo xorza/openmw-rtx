@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <future>
+#include <stdexcept>
 
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
@@ -333,6 +334,11 @@ OMW::Engine::Engine(Files::ConfigurationManager& configurationManager)
 
 OMW::Engine::~Engine()
 {
+    // **The threads that read the managers end before the managers do.** A frame the renderer threw
+    // out of on purpose left the Lua worker inside its update; and the ray tracer's cell reader marks
+    // the visibility gates through the script manager until the world's renderer lets it go.
+    mLuaWorker = nullptr;
+
     if (mScreenCaptureOperation != nullptr)
     {
         mScreenCaptureOperation->stop();
@@ -343,12 +349,11 @@ OMW::Engine::~Engine()
     mDialogueManager = nullptr;
     mJournal = nullptr;
     mWindowManager = nullptr;
-    mScriptManager = nullptr;
     mWorld = nullptr;
+    mScriptManager = nullptr;
     mSoundManager = nullptr;
     mInputManager = nullptr;
     mStateManager = nullptr;
-    mLuaWorker = nullptr;
     mLuaManager = nullptr;
     mL10nManager = nullptr;
 
@@ -441,7 +446,10 @@ void OMW::Engine::setWindowIcon()
 
 void OMW::Engine::prepareEngine()
 {
-    mStateManager = std::make_unique<MWState::StateManager>(mCfgMgr.getUserDataPath() / "saves", mContentFiles);
+    const std::optional<std::filesystem::path> hostSaves
+        = mHost != nullptr ? mHost->getSavesFolder() : std::optional<std::filesystem::path>();
+    mStateManager = std::make_unique<MWState::StateManager>(
+        hostSaves.value_or(mCfgMgr.getUserDataPath() / "saves"), mContentFiles);
     mEnvironment.setStateManager(*mStateManager);
 
     osg::ref_ptr<osg::Group> rootNode(new osg::Group);
@@ -663,7 +671,14 @@ void OMW::Engine::go()
             = Settings::rtx().mEnabled ? MWRender::RendererKind::RayTraced : MWRender::RendererKind::OpenGl;
         Log(Debug::Info) << "Renderer: " << MWRender::nameOf(wanted);
         Crash::annotate("renderer", MWRender::nameOf(wanted));
-        mRenderer = MWRender::createRenderer(wanted, spec);
+        try
+        {
+            mRenderer = MWRender::createRenderer(wanted, spec);
+        }
+        catch (const std::exception& failure)
+        {
+            throw std::runtime_error(MWRender::describeStartFailure(wanted, failure.what()));
+        }
     }
 
     // The clock every frame is measured by, made once here and read by the renderer from now on:

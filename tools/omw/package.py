@@ -45,6 +45,25 @@ HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches
                  "shaders-census", "shaders-census-source", "openmw-rtxtool", "rtx-gpu-tests")
 
 
+# **What an archive must carry that no linker names**, from the archive's root: on Linux the 1.4 Vulkan
+# loader, which volk opens by name at start, so linuxdeploy never sees it; on Windows the C++ runtime
+# the binaries were built against, which `InstallRequiredSystemLibraries` puts beside them. Without
+# the loader a host whose own is 1.3, Ubuntu 24.04's among them, refuses the ray tracer; without the
+# runtime no executable starts, and an older one installed faults inside `std::mutex::lock`.
+LINUX_RUNTIME = ("usr/lib/libvulkan.so.1",)
+WINDOWS_RUNTIME = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+
+
+def missing_runtime(folder: Path, runtime: tuple[str, ...]) -> list[str]:
+    """The files of `runtime` that `folder` does not hold."""
+    return [name for name in runtime if not (folder / name).is_file()]
+
+
+def _refuse_missing_runtime(folder: Path, runtime: tuple[str, ...]) -> None:
+    if missing := missing_runtime(folder, runtime):
+        raise Refusal("the archive lacks what its binaries load at run time: " + ", ".join(missing))
+
+
 # The Wayland platform as each Qt names it: one plugin in Qt 6.11's base, and two in the
 # `qt6-wayland` of Ubuntu 24.04's Qt 6.4.
 WAYLAND_PLATFORMS = (("libqwayland.so",), ("libqwayland-generic.so", "libqwayland-egl.so"))
@@ -200,6 +219,10 @@ def _archive_linux(build: Build, name: str) -> None:
     osg_libdir = Path(output(["pkg-config", "--variable=libdir", "openscenegraph-osg"]).strip())
     plugins = appdir / "usr" / "lib" / f"osgPlugins-{osg_version}"
     plugins.mkdir(parents=True)
+    # Copied rather than handed to linuxdeploy, whose exclude list names the loader; what it links is
+    # glibc's alone. The binaries' rpath, `$ORIGIN/../lib`, is where volk's `dlopen` then finds it.
+    shutil.copy2(deps.vulkan_sdk() / "x86_64" / "lib" / "VulkanLoader" / "lib" / "libvulkan.so.1",
+                 appdir / "usr" / "lib" / "libvulkan.so.1")
     for plugin in used_osg_plugins(read_text(ROOT / "CMakeLists.txt")):
         shutil.copy2(osg_libdir / f"osgPlugins-{osg_version}" / f"{plugin}.so", plugins)
     hooks = appdir / "apprun-hooks"
@@ -223,6 +246,7 @@ def _archive_linux(build: Build, name: str) -> None:
          "--desktop-file", appdir / "usr" / "share" / "applications" / "org.openmw.launcher.desktop",
          "--icon-file", appdir / "usr" / "share" / "pixmaps" / "openmw.png",
          "--plugin", "qt"], env=env)
+    _refuse_missing_runtime(appdir, LINUX_RUNTIME)
 
     # From dist/, because appimagetool writes the .zsync into the working directory and the image
     # where it is told.
@@ -244,6 +268,7 @@ def _archive_windows(build: Build, name: str) -> None:
     run(["cmake", "--install", build.dir, "--prefix", folder], env=build.env, stdout=subprocess.DEVNULL)
     prune_empty(folder)
     _refuse_harness(folder)
+    _refuse_missing_runtime(folder, WINDOWS_RUNTIME)
 
 
 def symbols(build: Build, name: str) -> None:

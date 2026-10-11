@@ -11,6 +11,7 @@
 #include <limits>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <osg/Image>
@@ -20,6 +21,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/rtx/common/halffloat.hpp>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "textureformat.hpp"
@@ -265,7 +267,8 @@ namespace Rtx
         {
             // Every reader of an image's bytes on the processor comes through here first, so a crash
             // in one names the file.
-            const Crash::NoteScope noted("describing the texture \"{}\"", image.getFileName());
+            const std::string_view name = SceneUtil::EmbeddedImage::nameOf(image);
+            const Crash::NoteScope noted("describing the texture \"{}\"", name);
 
             if (const Misc::Result<void, std::string> uploadable = checkFormat(image, format); !uploadable.isOk())
                 return Misc::Err{ uploadable.error() };
@@ -325,7 +328,7 @@ namespace Rtx
                 .mHeight = height,
                 .mBytes = std::span(data, kept),
                 .mLevels = std::span<const MipLevel>(levels).subspan(first, count),
-                .mName = image.getFileName(),
+                .mName = name,
             };
             const bool widened = isWidened(format);
             if (!widened && slicesAdjoin(image, count))
@@ -412,6 +415,8 @@ namespace Rtx
         made->setMipmapLevels(offsets);
 
         made->setFileName(image.getFileName());
+        if (const SceneUtil::EmbeddedImage* const stamped = SceneUtil::EmbeddedImage::find(image))
+            made->setUserData(new SceneUtil::EmbeddedImage(*stamped));
         return made;
     }
 

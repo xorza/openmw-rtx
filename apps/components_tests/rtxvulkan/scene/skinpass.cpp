@@ -371,6 +371,97 @@ namespace Rtx
         /// A placement into the first copy waits for the arrival that posed it there, and for
         /// nothing longer.
         ///
+        /// **The skin's transform is applied once, to the blend, as `RigGeometry::cull` applies it**,
+        /// and a vertex no bone moves keeps its bind pose. The transform is ten along x, and the
+        /// bones stand at four up and nowhere, the second the rows of nought a bone the skeleton
+        /// lacks is:
+        /// - corner 0, all of the first bone: `(0, 0, 0) + (0, 0, 4)`, then ten along, `(10, 0, 4)`;
+        /// - corner 1, half of each: `0.5 · ((1, 0, 0) + (0, 0, 4)) = (0.5, 0, 2)` and ten along,
+        ///   `(10.5, 0, 2)`, its normal halved — where the transform composed into each bone scaled
+        ///   the ten by the half the weights come to, `(5.5, 0, 2)`;
+        /// - corner 2, in no group: its bind pose `(1, 1, 0)`, untouched by the transform.
+        TEST_F(RtxSkinPassTest, theSkinTransformIsAppliedOnceToTheBlendAsCullAppliesIt)
+        {
+            Device& device = getDevice();
+            CommandPool& pool = getPool();
+
+            SceneDesc scene;
+            const std::array runs{ Shaders::runWord(0, 1), Shaders::runWord(1, 2), Shaders::runWord(0, 0),
+                Shaders::runWord(0, 1) };
+            const std::array influences{
+                Shaders::GpuInfluence{ .mBone = 0, .mWeight = 1.0f },
+                Shaders::GpuInfluence{ .mBone = 0, .mWeight = 0.5f },
+                Shaders::GpuInfluence{ .mBone = 1, .mWeight = 0.5f },
+            };
+            const std::array upward{
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+            };
+            const Index mesh = scene
+                                   .addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
+                                                .mNormals = upward,
+                                                .mIndices = Testing::sQuadIndices },
+                                       {}, RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 2 })
+                                   .mMesh;
+
+            const std::array bones{ Testing::boneUp(4.0f), Shaders::GpuBone{} };
+            Testing::poseRig(scene, mesh, bones, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f(11.0f, 1.0f, 4.0f)),
+                toGpuBone(osg::Matrixf::translate(10.0f, 0.0f, 0.0f)));
+
+            const std::uint32_t posedVertices = scene.deformers().getBindVertexCount();
+            constexpr VkBufferUsageFlags readable
+                = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            SlotBlocks normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            SlotBlocks tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
+            poses.open(device, 1, readable, "posed positions");
+            normals.open(device, 1, readable, "posed normals");
+            tangents.open(device, 1, readable, "posed tangents");
+            {
+                Batch setup(pool);
+                poses.reserve(setup, posedVertices);
+                normals.reserve(setup, posedVertices);
+                tangents.reserve(setup, posedVertices);
+                setup.flush();
+            }
+            poses.settle(FrameSlot{ 0 });
+            normals.settle(FrameSlot{ 0 });
+            tangents.settle(FrameSlot{ 0 });
+
+            Batch tableSetup(pool);
+            SkinTables tables(device, tableSetup, scene, 1);
+            tableSetup.flush();
+            const SkinPass pass(device);
+
+            const VkDeviceSize bytes = VkDeviceSize{ posedVertices } * sizeof(osg::Vec3f);
+            const Buffer readPositions = Buffer::readBack(device, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
+            const Buffer readNormals = Buffer::readBack(device, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
+            pool.submitAndWait([&](VkCommandBuffer commands) {
+                ASSERT_TRUE(pass.record(commands,
+                    Skinning{ .mScene = scene,
+                        .mSlot = FrameSlot{ 0 },
+                        .mTables = tables,
+                        .mPoses = poses,
+                        .mNormals = normals,
+                        .mTangents = tangents }));
+                handOver(commands, Use::sBufferComputeWrite,
+                    BufferUse{ VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT });
+                poses.at(FrameSlot{ 0 }).getBlock(0).copyTo(commands, readPositions, bytes);
+                normals.at(FrameSlot{ 0 }).getBlock(0).copyTo(commands, readNormals, bytes);
+            });
+
+            const std::uint32_t bind = scene.meshes().getRows()[mesh].mBindOffset;
+            EXPECT_EQ(readAt<osg::Vec3f>(readPositions, bind + 0), osg::Vec3f(10.0f, 0.0f, 4.0f));
+            EXPECT_EQ(readAt<osg::Vec3f>(readPositions, bind + 1), osg::Vec3f(10.5f, 0.0f, 2.0f))
+                << "the transform's translation was scaled by the weights";
+            EXPECT_EQ(readAt<osg::Vec3f>(readNormals, bind + 1), osg::Vec3f(0.0f, 0.0f, 0.5f));
+            EXPECT_EQ(readAt<osg::Vec3f>(readPositions, bind + 2), osg::Vec3f(1.0f, 1.0f, 0.0f))
+                << "a vertex no bone moves left its bind pose";
+            EXPECT_EQ(readAt<osg::Vec3f>(readNormals, bind + 2), osg::Vec3f(0.0f, 0.0f, 1.0f));
+        }
+
         /// **The reader the frame ring does not count.** An arrival stages its rows into the first
         /// copy and dispatches over them from a batch that rides whatever submit comes next — the
         /// placement's, in a game — and no trace stamps that read. The next placement into that

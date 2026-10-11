@@ -928,10 +928,11 @@ namespace Rtx::Testing
         }
 
         /// **What the reader cannot take is refused where its cell is adopted**, on the frame's
-        /// thread, which is the one that reports: a model its walk refused, and a lamp standing where
-        /// no number says. The model is walked once however many references name it, and what else the
-        /// cell holds stands. A land texture that does not read is not the reader's to refuse: its
-        /// layer stands, and the texture table stands it in and refuses it as it does any texture.
+        /// thread, which is the one that reports: a model its walk refused, a reference and a lamp
+        /// standing where no number says. The model is walked once however many references name it,
+        /// and what else the cell holds stands. A land texture that does not read is not the
+        /// reader's to refuse: its layer stands, and the texture table stands it in and refuses it
+        /// as it does any texture.
         TEST_F(RtxCellRingTest, whatTheReaderCannotTakeIsRefusedWhereItsCellIsAdopted)
         {
             mContent.mImages.lose("textures/rock_diffusespec.dds");
@@ -950,6 +951,10 @@ namespace Rtx::Testing
                     .mModel = "tree.nif",
                     .mRefNum = ESM::RefNum{ 3, 0 },
                     .mPosition = inCell },
+                Placed{ .mCell = osg::Vec2i(3, 1),
+                    .mModel = "tree.nif",
+                    .mRefNum = ESM::RefNum{ 6, 0 },
+                    .mPosition = osg::Vec3f(inCell.x(), std::numeric_limits<float>::quiet_NaN(), 0.0f) },
             };
             const float nowhere = std::numeric_limits<float>::quiet_NaN();
             mStorage.mLit = {
@@ -962,7 +967,7 @@ namespace Rtx::Testing
             start();
 
             const ExtractionStats filled = fill();
-            EXPECT_EQ(mScene.refusals().count(Refused::Model), 1u);
+            EXPECT_EQ(mScene.refusals().count(Refused::Model), 2u) << "the broken model, and the tree at no number";
             EXPECT_EQ(mScene.refusals().count(Refused::Lamp), 1u);
             EXPECT_EQ(mContent.mBrokenAsked, 1u) << "a refused model walked again for its second reference";
 
