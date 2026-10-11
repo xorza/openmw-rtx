@@ -28,6 +28,9 @@ namespace SDLUtil
 
     int windowPoints(int pixels, float density);
 
+    /// False for a hidden, minimized or occluded window.
+    bool isWindowShown(SDL_WindowFlags flags);
+
     class VideoWrapper
     {
     public:
@@ -39,6 +42,9 @@ namespace SDLUtil
         /// Sets the mode of `window`, and its size in pixels unless it is borderless fullscreen.
         static void setVideoMode(
             SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder);
+
+        /// Sets the size of `window` in pixels.
+        static void setWindowSize(SDL_Window* window, int width, int height);
 
         static void centerWindow(SDL_Window* window);
 

@@ -63,6 +63,11 @@ namespace SDLUtil
         return static_cast<int>(std::lround(pixels / density));
     }
 
+    bool isWindowShown(SDL_WindowFlags flags)
+    {
+        return (flags & (SDL_WINDOW_HIDDEN | SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED)) == 0;
+    }
+
     VideoWrapper::VideoWrapper(SDL_Window* window, osg::ref_ptr<osgViewer::Viewer> viewer)
         : mWindow(window)
         , mViewer(std::move(viewer))
@@ -117,14 +122,19 @@ namespace SDLUtil
         }
         else
         {
-            const float density = SDL_GetWindowPixelDensity(window);
-            SDL_SetWindowSize(window, windowPoints(width, density), windowPoints(height, density));
+            setWindowSize(window, width, height);
             SDL_SetWindowBordered(window, windowBorder);
             // centerWindow reads the size back, which window systems apply asynchronously.
             SDL_SyncWindow(window);
 
             centerWindow(window);
         }
+    }
+
+    void VideoWrapper::setWindowSize(SDL_Window* window, int width, int height)
+    {
+        const float density = SDL_GetWindowPixelDensity(window);
+        SDL_SetWindowSize(window, windowPoints(width, density), windowPoints(height, density));
     }
 
     void VideoWrapper::centerWindow(SDL_Window* window)

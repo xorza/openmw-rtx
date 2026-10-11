@@ -295,6 +295,8 @@ namespace MWGui
 
         void windowVisibilityChange(bool visible) override;
         void windowResized(int x, int y) override;
+        void windowSized(int x, int y) override;
+        void windowDensityChanged() override;
         void windowClosed() override;
         bool isWindowVisible() const override;
 

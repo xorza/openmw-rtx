@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <ios>
+#include <string_view>
 
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_video.h>
@@ -15,6 +16,14 @@
 
 namespace SDLUtil
 {
+    namespace
+    {
+        bool warpMovesPointer()
+        {
+            const char* const driver = SDL_GetCurrentVideoDriver();
+            return driver == nullptr || std::string_view(driver) != "wayland";
+        }
+    }
 
     InputWrapper::InputWrapper(SDL_Window* window, osg::ref_ptr<osgViewer::Viewer> viewer, bool grab)
         : mSDLWindow(window)
@@ -28,6 +37,7 @@ namespace SDLUtil
         , mWarpY(0)
         , mWarpCompensate(false)
         , mWrapPointer(false)
+        , mWarpMovesPointer(warpMovesPointer())
         , mAllowGrab(grab)
         , mWantMouseVisible(false)
         , mWantGrab(false)
@@ -39,11 +49,15 @@ namespace SDLUtil
         , mPendingWheelY(0.0)
         , mWindowHasFocus(true)
         , mMouseInWindow(true)
+        , mWindowShown(true)
+        , mWindowWidth(0)
+        , mWindowHeight(0)
         , mPixelDensity(1.f)
     {
         SDL_WindowFlags flags = SDL_GetWindowFlags(mSDLWindow);
         mWindowHasFocus = (flags & SDL_WINDOW_INPUT_FOCUS);
         mMouseInWindow = (flags & SDL_WINDOW_MOUSE_FOCUS);
+        SDL_GetWindowSize(mSDLWindow, &mWindowWidth, &mWindowHeight);
         _setWindowScale();
     }
 
@@ -256,7 +270,7 @@ namespace SDLUtil
                     break;
 
                 default:
-                    Log(Debug::Info) << "Unhandled SDL event of type 0x" << std::hex << evt.type;
+                    Log(Debug::Info) << "Unhandled SDL event of type 0x" << std::hex << evt.type << std::dec;
                     break;
             }
         }
@@ -293,8 +307,22 @@ namespace SDLUtil
 
                 mViewer->getEventQueue()->windowResize(x, y, w, h);
 
+                // A density change keeps the size in points, so only a points change is a resize.
+                int width = 0;
+                int height = 0;
+                SDL_GetWindowSize(mSDLWindow, &width, &height);
+                const bool sized = width != mWindowWidth || height != mWindowHeight;
+                mWindowWidth = width;
+                mWindowHeight = height;
+
                 if (mWindowListener)
+                {
+                    if (sized)
+                        mWindowListener->windowSized(w, h);
+                    else
+                        mWindowListener->windowDensityChanged();
                     mWindowListener->windowResized(w, h);
+                }
 
                 _setWindowScale();
 
@@ -315,15 +343,20 @@ namespace SDLUtil
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                 break;
             case SDL_EVENT_WINDOW_SHOWN:
-            case SDL_EVENT_WINDOW_RESTORED:
-                if (mWindowListener)
-                    mWindowListener->windowVisibilityChange(true);
-                break;
             case SDL_EVENT_WINDOW_HIDDEN:
             case SDL_EVENT_WINDOW_MINIMIZED:
-                if (mWindowListener)
-                    mWindowListener->windowVisibilityChange(false);
+            case SDL_EVENT_WINDOW_RESTORED:
+            case SDL_EVENT_WINDOW_OCCLUDED:
+            case SDL_EVENT_WINDOW_EXPOSED:
+            {
+                // From the flags, since Wayland reports a minimized window as occluded only.
+                const bool shown = isWindowShown(SDL_GetWindowFlags(mSDLWindow));
+                if (mWindowListener == nullptr || shown == mWindowShown)
+                    break;
+                mWindowShown = shown;
+                mWindowListener->windowVisibilityChange(shown);
                 break;
+            }
         }
     }
 
@@ -396,8 +429,9 @@ namespace SDLUtil
         bool success = mAllowGrab && SDL_SetWindowRelativeMouseMode(mSDLWindow, relative);
         if (relative && mAllowGrab && !success)
             Log(Debug::Warning) << "No relative mouse mode: " << SDL_GetError();
+        // A warp that cannot move the pointer would turn the camera.
         if (relative && !success)
-            mWrapPointer = true;
+            mWrapPointer = mWarpMovesPointer;
 
         // now remove all mouse events using the old setting from the queue
         SDL_PumpEvents();

@@ -376,6 +376,8 @@ namespace MWBase
 
         void windowVisibilityChange(bool visible) override = 0;
         void windowResized(int x, int y) override = 0;
+        void windowSized(int x, int y) override = 0;
+        void windowDensityChanged() override = 0;
         void windowClosed() override = 0;
         virtual bool isWindowVisible() const = 0;
 

@@ -58,9 +58,8 @@ namespace SDLUtil
         if (!mWindow)
             return false;
 
-        const float density = SDL_GetWindowPixelDensity(mWindow);
         SDL_SetWindowPosition(mWindow, x, y);
-        SDL_SetWindowSize(mWindow, windowPoints(width, density), windowPoints(height, density));
+        VideoWrapper::setWindowSize(mWindow, width, height);
         return true;
     }
 

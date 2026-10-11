@@ -97,7 +97,14 @@ namespace SDLUtil
 
         virtual void windowClosed() {}
 
+        /** @remarks The window's drawable is now x by y pixels */
         virtual void windowResized(int x, int y) {}
+
+        /** @remarks The window was resized, and is now x by y pixels */
+        virtual void windowSized(int x, int y) {}
+
+        /** @remarks The window's pixel density changed, but not its size */
+        virtual void windowDensityChanged() {}
     };
 
 }

@@ -1321,7 +1321,7 @@ namespace MWGui
         }
     }
 
-    void WindowManager::windowResized(int x, int y)
+    void WindowManager::windowSized(int x, int y)
     {
         Settings::video().mResolutionX.set(x);
         Settings::video().mResolutionY.set(y);
@@ -1336,7 +1336,18 @@ namespace MWGui
         }
 
         Settings::Manager::resetPendingChanges(filter);
+    }
 
+    void WindowManager::windowDensityChanged()
+    {
+        // Keep the resolution in pixels.
+        if (Settings::video().mWindowMode == Settings::WindowMode::Windowed)
+            SDLUtil::VideoWrapper::setWindowSize(
+                mWindow, Settings::video().mResolutionX, Settings::video().mResolutionY);
+    }
+
+    void WindowManager::windowResized(int x, int y)
+    {
         mGuiPlatform->getRenderManagerPtr()->setViewSize(x, y);
 
         // scaled size

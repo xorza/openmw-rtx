@@ -28,4 +28,15 @@ namespace
         mode.pixel_density = 1.25f;
         EXPECT_EQ(SDLUtil::modePixels(mode), osg::Vec2i(1366, 769));
     }
+
+    TEST(SDLUtilIsWindowShownTest, shouldBeFalseWhenAnyFlagHidesTheWindow)
+    {
+        EXPECT_TRUE(SDLUtil::isWindowShown(0));
+        EXPECT_TRUE(SDLUtil::isWindowShown(SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE));
+        EXPECT_FALSE(SDLUtil::isWindowShown(SDL_WINDOW_HIDDEN));
+        EXPECT_FALSE(SDLUtil::isWindowShown(SDL_WINDOW_MINIMIZED));
+        EXPECT_FALSE(SDLUtil::isWindowShown(SDL_WINDOW_OCCLUDED));
+        EXPECT_FALSE(SDLUtil::isWindowShown(SDL_WINDOW_OCCLUDED | SDL_WINDOW_INPUT_FOCUS));
+        EXPECT_FALSE(SDLUtil::isWindowShown(SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED));
+    }
 }

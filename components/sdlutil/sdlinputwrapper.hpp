@@ -64,6 +64,9 @@ namespace SDLUtil
         bool mWarpCompensate;
         bool mWrapPointer;
 
+        /// False on Wayland, where SDL cannot tell whether the compositor lets it warp the pointer.
+        bool mWarpMovesPointer;
+
         bool mAllowGrab;
         bool mWantMouseVisible;
         bool mWantGrab;
@@ -78,6 +81,13 @@ namespace SDLUtil
 
         bool mWindowHasFocus;
         bool mMouseInWindow;
+
+        /// What the window listener was last told.
+        bool mWindowShown;
+
+        /// The window's size in points at its last pixel size change.
+        int mWindowWidth;
+        int mWindowHeight;
 
         float mPixelDensity;
     };
