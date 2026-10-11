@@ -297,6 +297,14 @@ namespace Rtx
                           .bufferFeatures = 0 };
                 EXPECT_EQ(flat.profile().mObstacle,
                     "missing format features for " + std::string(getRequiredFormats().front().mFor));
+
+                // **Every row of the table is a requirement**, and none a slot a fixed size left
+                // empty: an empty one asked every device about an undefined format for no reason.
+                for (const RequiredFormat& required : getRequiredFormats())
+                {
+                    EXPECT_NE(required.mFormat, VK_FORMAT_UNDEFINED);
+                    EXPECT_FALSE(std::string_view(required.mFor).empty());
+                }
             }
             {
                 // Quads in the fragment stage alone, and in compute only the basic operations.

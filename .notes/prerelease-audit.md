@@ -80,14 +80,6 @@ The user took these calls on 2026-10-11. The items carry them.
 
 ## P3: structure
 
-### 30. Let the required formats table give its own length
-- **Audit**: VKDEV-3. CONFIRMED.
-- **Where**: `components/rtxvulkan/device/requirements.cpp:262`.
-- **Problem**: `std::array<RequiredFormat, 4>` has three entries. The fourth asks every device about
-  `VK_FORMAT_UNDEFINED`, with an empty reason.
-- **Fix**: `constexpr std::array sRequiredFormats{ ... }`, as the other tables are.
-- **Test**: No entry of `getRequiredFormats()` is `VK_FORMAT_UNDEFINED` or has an empty `mFor`.
-
 ### 31. Answer F2, F3 and F4 under the ray tracer through `Renderer::support`
 - **Audit**: SEAM-5, SEAM-6. CONFIRMED. **Upstream** for F2 (decision 1, the `Renderer::support` line).
 - **Where**: `apps/openmw/mwgui/windowmanagerimp.cpp:2410-2418`,
