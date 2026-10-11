@@ -42,6 +42,16 @@ namespace MWRender
             if (view == nullptr)
                 continue;
 
+            // **A picture of a scene the game has left is not drawn**, over whatever the backend
+            // holds now: a map tile asked as its cell was explored and still waiting when the
+            // player stepped through a door came out of the interior, all clear colour, and the
+            // world map painted that cell black. Its paint lets go (`PendingPaints::finish`).
+            if (view->isOfWorld() && view->getAskedIn() != mScene)
+            {
+                view->abandon();
+                continue;
+            }
+
             if (view->isOfWorld() && (world == worldViews || view->waitsForGround(ring)))
             {
                 mDeferred.push_back(view);

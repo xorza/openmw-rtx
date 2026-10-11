@@ -51,6 +51,13 @@ namespace MWRender
 
         bool hasDeferred() const { return !mDeferred.empty(); }
 
+        /// The game has left the scene every picture of the world asked so far shows: the last of
+        /// its cells unloaded, as a door, a teleport or a load does (`notifyWorldspaceChanged`).
+        void leaveScene() { ++mScene; }
+
+        /// Which scene a picture asked now is of, counted by `leaveScene`.
+        std::uint64_t getScene() const { return mScene; }
+
         /// The picture of the world taken straight down over `over`, or null where none is alive:
         /// the local map's tile of the cell the point is in, found by the renderer that drew it.
         TracedView* findWorldView(const osg::Vec2f& over) const;
@@ -76,5 +83,7 @@ namespace MWRender
 
         /// Every overlay alive, in the order made. The game makes one.
         std::vector<TracedOverlay*> mOverlays;
+
+        std::uint64_t mScene = 0;
     };
 }
