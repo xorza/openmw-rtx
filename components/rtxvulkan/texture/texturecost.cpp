@@ -70,8 +70,8 @@ namespace Rtx
         TextureCost cost;
 
         // A completed chain is the device's, made from the file's one level uploaded as it is; one
-        // past the loose side stands as BC7, encoded off a loose chain and its blocks that go with
-        // the batch as the upload does.
+        // past the loose side stands as BC7, encoded off a loose chain, which goes with the batch as
+        // the upload does, through blocks the arrival's room holds and is priced as if made for it.
         if (texture.mCompleteChain)
         {
             const ImageShape shape = shapeOf(texture, first);

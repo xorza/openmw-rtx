@@ -29,6 +29,15 @@ USE_GRAPHICSWINDOW()
 
 namespace SDLUtil
 {
+    namespace
+    {
+        /// The video driver SDL runs on, or nothing before SDL's video is up.
+        std::string_view currentDriver()
+        {
+            const char* const driver = SDL_GetCurrentVideoDriver();
+            return driver != nullptr ? std::string_view(driver) : std::string_view();
+        }
+    }
 
     CursorScaling SDLCursorManager::scalingOf(const std::string_view driver)
     {
@@ -45,7 +54,7 @@ namespace SDLUtil
     SDLCursorManager::SDLCursorManager()
         : mEnabled(false)
         , mInitialized(false)
-        , mScaling(scalingOf(SDL_GetCurrentVideoDriver() != nullptr ? SDL_GetCurrentVideoDriver() : ""))
+        , mScaling(scalingOf(currentDriver()))
     {
         // So SDL draws a cursor at the display's scale and picks the image `createCursor` made for
         // it, rather than showing its pixels one to one on every display.

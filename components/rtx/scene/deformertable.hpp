@@ -173,7 +173,7 @@ namespace Rtx
         /// may equal — `MeshRange::mPosed` says why it counts regardless.
         void stand(MeshRange& range);
 
-        /// Writes one mesh's pose, laid as `packBones` or `packWeights` lays it, over the words it
+        /// Writes one mesh's pose, laid as `packRig` or `packWeights` lays it, over the words it
         /// holds. @return whether they differ from the ones it held.
         bool pose(const MeshRange& range, std::span<const PoseWord> words);
 
