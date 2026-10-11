@@ -230,7 +230,8 @@ namespace RtxTool
         // **Answered, so the run fails and not only says so**: a reference that did not get
         // written and a command that still succeeded is the next run comparing against whatever
         // was at that path before.
-        out.flush();
+        // Closed and then asked, because a write the system reports late reports it at the close.
+        out.close();
         if (!out)
             return Misc::Err{ "could not write " + Files::pathToUnicodeString(file) };
         return {};

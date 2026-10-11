@@ -10,6 +10,7 @@
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwworld/globals.hpp>
@@ -262,8 +263,10 @@ namespace RtxTool
             Stager::forgetHistory();
 
         // Where somebody plays the run, and nowhere else: a key pressed in a measured window
-        // would move what the measurement records nothing of.
-        if (mRequest.mPlayed)
+        // would move what the measurement records nothing of. **And not while a menu or the console
+        // has the keys**: the three read the keyboard's state and not the game's input, so text
+        // typed in the console turned the sky and printed the memory block.
+        if (mRequest.mPlayed && !MWBase::Environment::get().getWindowManager()->isGuiMode())
         {
             mHome.listen();
             mMemoryKey.listen();

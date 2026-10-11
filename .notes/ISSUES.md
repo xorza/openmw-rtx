@@ -16,3 +16,9 @@
   so `Crash::install` sees the monitor start (`SharedPage::awaitMonitor`) and logs "Crash reports go
   to …" while a report folder that exists but takes no writes, or a full disk, leaves the game with
   no dumps (`components/crashcatcher/crashpadclient.cpp`).
+- **The harness's card watch reads a card chosen without the renderer's device.** NVML is opened
+  at device index 0 (`apps/rtxtool/instruments/nvml.cpp`), and an AMD card is the first vendor
+  `0x1002` card in `/sys/class/drm` (`apps/rtxtool/instruments/amdgpu.cpp`), and an NVIDIA library
+  that opens keeps the AMD path from being tried (`CardWatch::CardWatch`). On a machine with two
+  cards — an APU laptop with a Radeon card, two NVIDIA cards — a bench's clock, temperature,
+  throttle and other-process lines can describe a card the ray tracer does not run on.
