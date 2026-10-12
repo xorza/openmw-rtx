@@ -270,11 +270,15 @@ namespace Rtx::Shaders
     /// pixel to pixel: a coastal flat comes back as salt and pepper rather than as either surface.
     /// A rasterizer settles this with draw order and a depth test; a ray tracer has neither.
     ///
-    /// **The rasterizer never has to answer this and so never had to decide it.** Upstream draws the
-    /// sea as a blended layer with `LEQUAL` and no depth write, over terrain already in the buffer
-    /// (`components/sceneutil/waterutil.cpp`), so "which of the two is at this pixel" is not a
-    /// question it asks: both are, one over the other, and its own fade with depth makes the layer
-    /// contribute nothing where the column is nothing. A ray's first hit is one surface, so the tie
+    /// **The rasterizer settles this in the depth buffer and never in the geometry.** Upstream draws
+    /// the sea as a blended layer with no depth write, over terrain already in the buffer, under a
+    /// strict `LESS` test (`components/sceneutil/waterutil.cpp`) it takes so that a sea clamped to
+    /// the far plane does not draw over the sky. Strict does drop a water fragment landing at the
+    /// ground's depth exactly, which is this tie broken the same way round; but two coplanar
+    /// surfaces interpolate equal at some pixels and either side of equal at the rest, so "which of
+    /// the two is at this pixel" is still answered pixel by pixel, and what keeps that from showing
+    /// is the blend and the layer's own fade with depth, which make it contribute nothing where the
+    /// column is nothing. A ray's first hit is one surface with nothing to blend it into, so the tie
     /// has to be broken rather than blended away.
     ///
     /// It is broken in the ground's favour, which is the reading the content means — a flat the map
