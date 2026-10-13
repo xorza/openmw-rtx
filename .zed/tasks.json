@@ -1,11 +1,11 @@
-// Every task that runs a renderer goes through `./omw [flavour]`, which owns the build directories,
-// `build-<flavour>`, and configures each through CMakePresets.json. A task that ran cmake itself
-// would be a second copy of all of it.
+// Every task goes through `./omw [flavour]`, which owns the build directories, `build-<flavour>`,
+// and configures each through CMakePresets.json. A task that ran cmake itself would be a second
+// copy of all of it, and finds no cache while `omw` configures the directory afresh.
 [
   {
     "label": "RTX: the game",
-    "command": "cmake --build . -j32 --target openmw && ./openmw",
-    "cwd": "$ZED_WORKTREE_ROOT/build-release",
+    "command": "./omw release game",
+    "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": true,
     "reveal": "always",
@@ -124,15 +124,7 @@
   },
   {
     "label": "Build: everything",
-    "command": "cmake --build . -j32",
-    "cwd": "$ZED_WORKTREE_ROOT/build-debug",
-    "use_new_terminal": false,
-    "allow_concurrent_runs": false,
-    "reveal": "always"
-  },
-  {
-    "label": "Test: RTX only",
-    "command": "./omw test",
+    "command": "./omw build all",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -140,7 +132,7 @@
   },
   {
     "label": "Test: everything",
-    "command": "./omw test --all",
+    "command": "./omw test",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
