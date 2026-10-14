@@ -337,7 +337,7 @@ namespace MWWorld
         const MWWorld::WeatherStore& getAllWeather() const override;
 
         int getCurrentWeatherScriptId() const override;
-        const MWWorld::Weather& getCurrentWeather() const override;
+        const MWWorld::Weather* getCurrentWeather() const override;
         int getNextWeatherScriptId() const override;
         const MWWorld::Weather* getNextWeather() const override;
 
