@@ -266,7 +266,7 @@ namespace MWRender
         dummyTexture->setShadowCompareFunc(osg::Texture::ShadowCompareFunc::ALWAYS);
         stateset->setTextureAttribute(7, dummyTexture, osg::StateAttribute::ON);
 
-        osg::ref_ptr<SceneUtil::Light> light = new SceneUtil::Light;
+        auto light = std::make_shared<SceneUtil::Light>();
         float diffuseR = Fallback::Map::getFloat("Inventory_DirectionalDiffuseR");
         float diffuseG = Fallback::Map::getFloat("Inventory_DirectionalDiffuseG");
         float diffuseB = Fallback::Map::getFloat("Inventory_DirectionalDiffuseB");
@@ -335,7 +335,7 @@ namespace MWRender
     {
         mAnimation = nullptr;
 
-        mAnimation = new NpcAnimation(mCharacter, mNode, mResourceSystem, true,
+        mAnimation = std::make_unique<NpcAnimation>(mCharacter, mNode, mResourceSystem, true,
             (renderHeadOnly() ? NpcAnimation::VM_HeadOnly : NpcAnimation::VM_Normal));
 
         onSetup();
