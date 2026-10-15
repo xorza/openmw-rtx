@@ -127,7 +127,10 @@ Almalinux_Generic:
     CCACHE_SIZE: 1G
   before_script:
     - dnf install -y epel-release
+    - dnf config-manager --set-enabled crb
     - dnf install -y git binutils gcc-toolset-13 ccache cmake unzip pkg-config p7zip p7zip-plugins pipx mesa-libGL-devel libxkbcommon-devel mesa-libEGL-devel fontconfig
+    # The bundled SDL3 build needs these headers. SDL3 loads the libraries at run time.
+    - dnf install -y libX11-devel libXext-devel libXrandr-devel libXcursor-devel libXfixes-devel libXi-devel libXScrnSaver-devel libXtst-devel wayland-devel wayland-protocols-devel libdecor-devel dbus-devel systemd-devel ibus-devel
     - source /opt/rh/gcc-toolset-13/enable
     - ./CI/linux/before_install_for_vcpkg.sh
   script:

@@ -1341,7 +1341,7 @@ namespace MWGui
     void WindowManager::windowDensityChanged()
     {
         // Keep the resolution in pixels.
-        if (Settings::video().mWindowMode == Settings::WindowMode::Windowed)
+        if (Settings::video().mWindowMode.get() == Settings::WindowMode::Windowed)
             SDLUtil::VideoWrapper::setWindowSize(
                 mWindow, Settings::video().mResolutionX, Settings::video().mResolutionY);
     }
