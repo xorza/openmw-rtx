@@ -131,8 +131,9 @@ namespace MWRender
         Renderer& getRenderer() { return mRenderer; }
 
         /// The sun's light as the game keeps it: colours, position, what the weather settled on.
-        /// The rasterizer lights through it, the ray tracer reads it off the frame.
-        SceneUtil::Light& getSunLight() { return *mSunLight; }
+        /// The rasterizer lights through it, the ray tracer reads it off the frame. Shared, since
+        /// `SceneUtil::LightManager` keeps the sun it lights from and no longer copies it.
+        const std::shared_ptr<SceneUtil::Light>& getSunLight() const { return mSunLight; }
 
         /// The node the rain and the weather effect hang under, for a renderer that wants state on
         /// it: the rasterizer's shadow and normals exclusions, and its occluder's depth map.
@@ -333,7 +334,7 @@ namespace MWRender
 
         std::shared_ptr<SceneUtil::WorkQueue> mWorkQueue;
 
-        osg::ref_ptr<SceneUtil::Light> mSunLight;
+        std::shared_ptr<SceneUtil::Light> mSunLight;
 
         DetourNavigator::Navigator& mNavigator;
         std::unique_ptr<NavMesh> mNavMesh;
@@ -352,7 +353,7 @@ namespace MWRender
         std::unique_ptr<Precipitation> mPrecipitation;
         std::unique_ptr<FogManager> mFog;
         std::unique_ptr<EffectManager> mEffectManager;
-        osg::ref_ptr<NpcAnimation> mPlayerAnimation;
+        std::unique_ptr<NpcAnimation> mPlayerAnimation;
         osg::ref_ptr<SceneUtil::PositionAttitudeTransform> mPlayerNode;
         std::unique_ptr<Camera> mCamera;
 

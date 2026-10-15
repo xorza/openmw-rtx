@@ -194,9 +194,10 @@ namespace MWRender
             return;
         }
 
-        // The queue holds what it releases as mutable, and dropping a reference modifies nothing.
-        for (const osg::ref_ptr<const osg::Referenced>& object : released.get())
-            mReleasing->push(osg::ref_ptr<osg::Referenced>(const_cast<osg::Referenced*>(object.get())));
+        // The queue takes one shared object, so the frame's references go over as a batch: the
+        // vector moves into it, and the thread that drops the batch drops every reference in it.
+        if (!released.get().empty())
+            mReleasing->push(std::make_shared<Rtx::Released::Held>(std::move(released.get())));
         released.clear();
     }
 

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <optional>
 #include <set>
 #include <span>
 #include <string_view>
@@ -18,6 +19,8 @@
 #include "../mwworld/globalvariablename.hpp"
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/spellcaststate.hpp"
+
+#include "../mwmechanics/movingtarget.hpp"
 
 #include "../mwrender/rendermode.hpp"
 
@@ -491,7 +494,8 @@ namespace MWBase
         virtual void castSpell(const MWWorld::Ptr& actor, bool scriptedSpell = false) = 0;
 
         virtual void launchMagicBolt(const ESM::RefId& spellId, const MWWorld::Ptr& caster,
-            const osg::Vec3f& fallbackDirection, ESM::RefNum item)
+            const osg::Vec3f& fallbackDirection, ESM::RefNum item,
+            const std::optional<MWMechanics::MovingTarget>& movingTarget)
             = 0;
         virtual void launchProjectile(MWWorld::Ptr& actor, MWWorld::Ptr& projectile, const osg::Vec3f& worldPos,
             const osg::Quat& orient, MWWorld::Ptr& bow, float speed, float attackStrength, float attackWindUp)

@@ -153,9 +153,9 @@ namespace Rtx
     Shaders::MoonDisc describeMoon(const MoonPlacement& placement, const osg::Vec3f& towardSun);
 
     /// The angular radius of a moon of `Moons_<name>_Size` `size`, in radians, out of the renderer
-    /// the game already has: the size is scaled by 450/125 onto a quad of half-extent 0.5 a
-    /// thousand units off (`apps/openmw/mwrender/skyutil.cpp`), so the disc is `atan(1.8 * size /
-    /// 1000)`. Masser's 94 comes to 9.6 degrees and Secunda's 40 to 4.1 — thirty-five times the
+    /// the game already has: the size is scaled by 450/115 onto a quad of half-extent 0.5 a
+    /// thousand units off (`apps/openmw/mwrender/skyutil.cpp`), so the disc is `atan(1.957 * size /
+    /// 1000)`. Masser's 94 comes to 10.4 degrees and Secunda's 40 to 4.5 — thirty-nine times the
     /// sun. Nought for a size that is not a finite number above nought.
     float moonAngularRadius(float size);
 }

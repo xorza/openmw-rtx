@@ -63,19 +63,19 @@ namespace Rtx
 
         /// A moon is as wide as the renderer the game already has draws it.
         ///
-        /// `Moons_<name>_Size` is scaled by 450/125 onto a quad of half-extent 0.5 a thousand units
-        /// off (`apps/openmw/mwrender/skyutil.cpp:641`), so the radius is `atan(1.8 * size /
+        /// `Moons_<name>_Size` is scaled by 450/115 onto a quad of half-extent 0.5 a thousand units
+        /// off (`apps/openmw/mwrender/skyutil.cpp:641`), so the radius is `atan(1.957 * size /
         /// 1000)` — the closed form this checks the code against. Morrowind's own ini says 94 and
-        /// 40: `atan(0.1692)` is 0.167613 and `atan(0.072)` is 0.071876.
+        /// 40: `atan(0.183913)` is 0.181880 and `atan(0.078261)` is 0.078102.
         ///
         /// **The configured size is not pinned here, and deliberately.** OpenMW ships defaults of 55
         /// and 20. The conversion is what this owns, and the faces read whatever the run is
-        /// configured with; both give a moon far larger than the real one — 9.6 degrees of radius
-        /// or 5.7, against the quarter of a degree ours has.
+        /// configured with; both give a moon far larger than the real one — 10.4 degrees of radius
+        /// or 6.1, against the quarter of a degree ours has.
         TEST(RtxMoonBuilderTest, aMoonIsAsWideAsTheGameDrawsIt)
         {
-            EXPECT_NEAR(moonAngularRadius(94.0f), 0.167613f, 1e-6f);
-            EXPECT_NEAR(moonAngularRadius(40.0f), 0.071876f, 1e-6f);
+            EXPECT_NEAR(moonAngularRadius(94.0f), 0.181880f, 1e-6f);
+            EXPECT_NEAR(moonAngularRadius(40.0f), 0.078102f, 1e-6f);
 
             const float masser = Fallback::Map::getFloat("Moons_Masser_Size");
             const float secunda = Fallback::Map::getFloat("Moons_Secunda_Size");

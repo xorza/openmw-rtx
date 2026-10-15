@@ -519,12 +519,12 @@ namespace SceneUtil
         mLights.push_back(l);
     }
 
-    void LightManager::setSunlight(osg::ref_ptr<Light> sun)
+    void LightManager::setSunlight(std::shared_ptr<Light> sun)
     {
-        mSun = sun;
+        mSun = std::move(sun);
     }
 
-    osg::ref_ptr<Light> LightManager::getSunlight()
+    const std::shared_ptr<Light>& LightManager::getSunlight() const
     {
         return mSun;
     }
@@ -667,6 +667,7 @@ namespace SceneUtil
 
     LightSource::LightSource(const LightSource& copy, const osg::CopyOp& copyop)
         : osg::Node(copy, copyop)
+        , mLight(copy.mLight)
         , mRadius(copy.mRadius)
         , mSourceRadius(copy.mSourceRadius)
         , mActorFade(copy.mActorFade)
@@ -682,9 +683,6 @@ namespace SceneUtil
              mine = mine->getNestedCallback(), theirs = theirs->getNestedCallback())
             if (theirs == copy.mController)
                 mController = dynamic_cast<LightController*>(mine);
-
-        for (size_t i = 0; i < mLight.size(); ++i)
-            mLight[i] = new Light(*copy.mLight[i].get(), copyop);
     }
 
     void LightListCallback::operator()(osg::Node* node, osgUtil::CullVisitor* cv)

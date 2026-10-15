@@ -15,6 +15,10 @@ namespace Rtx
     class Released
     {
     public:
+        /// The references kept, as one object: what the owner hands over, since a release queue
+        /// takes a whole shared object rather than a reference at a time.
+        using Held = std::vector<osg::ref_ptr<const osg::Referenced>>;
+
         template <class T>
         void keep(const osg::ref_ptr<T>& object)
         {
@@ -23,12 +27,12 @@ namespace Rtx
         }
 
         /// What was kept since the last `clear`, for the owner to hand over.
-        std::vector<osg::ref_ptr<const osg::Referenced>>& get() { return mHeld; }
+        Held& get() { return mHeld; }
 
         /// Drops every reference kept, where the caller stands: an owner with nothing to hand it to.
         void clear() { mHeld.clear(); }
 
     private:
-        std::vector<osg::ref_ptr<const osg::Referenced>> mHeld;
+        Held mHeld;
     };
 }
