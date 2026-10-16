@@ -51,7 +51,6 @@ is not here is held to the rules above.
 
 - the optimizer merges in child order, not address order;
 - an exterior map tile keeps its land where the quad tree did not build the chunk yet;
-- a `NightDaySwitch` shows its mode's child from its first frame, not the child its file opens on;
 - a groundcover plant stands under its model's own transforms, as every other reference does, and
   not inside them (`GroundcoverShapes`);
 - the seam's: both renderers draw at `[Video] resolution x/y` and show it scaled into the window
@@ -152,8 +151,6 @@ is not here is held to the rules above.
     holds for every error);
   - the SDL3 port truncated a window's size over its pixel density, where `SDLUtil::windowPoints`
     rounds;
-  - `cmake/FindOSGPlugins.cmake` restored `CMAKE_FIND_LIBRARY_PREFIXES` unquoted, which dropped
-    MSVC's empty prefix and left every later `find_library` blind to `bz2.lib`;
   - `SDLUtil::InputWrapper` logged an unhandled event's type in hex without `std::dec` after it,
     which left every later number in the log in hex;
   - `NavMeshDb` committed each tile under a rollback journal at full synchronisation, several fsyncs

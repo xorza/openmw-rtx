@@ -261,9 +261,9 @@ namespace Rtx::Shaders
     ///
     /// **And it is the size of Morrowind's moons that makes the physics usable.** Earth's is half a
     /// degree across, so the same formula puts real moonlight at a 407,000th of sunlight — a figure
-    /// no frame here could carry beside a noon. Masser is eleven degrees across at OpenMW's own
-    /// `Moons_Masser_Size` and nineteen at the ini's, which is four hundred to thirteen hundred
-    /// times the sky and puts it between an 858th of the sun and a 299th. A Morrowind night is lit
+    /// no frame here could carry beside a noon. Masser is twelve degrees across at OpenMW's own
+    /// `Moons_Masser_Size` and twenty-one at the ini's, which is five hundred to fifteen hundred
+    /// times the sky and puts it between a 728th of the sun and a 255th. A Morrowind night is lit
     /// by its moons because its moons are enormous, and nothing has to be invented to say so.
     ///
     /// **Masser's alone, because the two moons do not reflect the same.** `tintOf` normalises both

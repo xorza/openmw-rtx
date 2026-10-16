@@ -927,6 +927,13 @@ set(CPACK_PACKAGE_VENDOR "OpenMW.org")
 set(CUSTOM_CPACK_OS_NAME "")
 set(CUSTOM_CPACK_ARCHITECTURE "")
 
+set(CUSTOM_CPACK_LABEL "" CACHE STRING "Override CPack package label. If blank, CPACK_PACKAGE_VERSION will be used.")
+if (CUSTOM_CPACK_LABEL)
+    set(_custom_cpack_label "${CUSTOM_CPACK_LABEL}")
+else ()
+    set(_custom_cpack_label "${CPACK_PACKAGE_VERSION}")
+endif ()
+
 if(APPLE)
     set(CUSTOM_CPACK_OS_NAME "macOS")
 elseif(WIN32)
@@ -945,7 +952,7 @@ else()
     set(CUSTOM_CPACK_ARCHITECTURE "${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
-set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CUSTOM_CPACK_OS_NAME}-${CUSTOM_CPACK_ARCHITECTURE}")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${_custom_cpack_label}-${CUSTOM_CPACK_OS_NAME}-${CUSTOM_CPACK_ARCHITECTURE}")
 
 # The licences of what the fork compiles into the binaries, beside the GPL's own text: each asks for
 # its notice in every copy, binaries included, but SDL's zlib, which goes in so that no licence of
@@ -963,7 +970,9 @@ endfunction()
 
 if (NOT APPLE AND OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
     if (UNIX)
-        set(pre_exclude_regexes)
+        set(pre_exclude_regexes
+            ^libopenal.so.*
+        )
         set(post_exclude_regexes
             ^/lib64/
             ^/usr/lib64/

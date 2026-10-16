@@ -115,7 +115,7 @@ namespace Rtx
         if (!(size > 0.0f) || !std::isfinite(size))
             return 0.0f;
 
-        const float halfWidth = 0.5f * 450.0f * size / 125.0f;
+        const float halfWidth = 0.5f * 450.0f * size / 115.0f;
         return std::atan(halfWidth / 1000.0f);
     }
 

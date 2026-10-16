@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <ios>
+#include <memory>
 
 #include <MyGUI_ITexture.h>
 #include <osg/BlendFunc>
@@ -304,7 +305,7 @@ namespace MWRender
             dummyTexture->setShadowCompareFunc(osg::Texture::ShadowCompareFunc::ALWAYS);
             stateset->setTextureAttribute(7, dummyTexture, osg::StateAttribute::ON);
 
-            osg::ref_ptr<SceneUtil::Light> light = new SceneUtil::Light;
+            auto light = std::make_shared<SceneUtil::Light>();
             light->setPosition(osg::Vec4(spec.mSun.mDirection, 0.0));
             light->setDiffuse(spec.mSun.mDiffuse);
             light->setAmbient(spec.mSun.mAmbient);
@@ -587,19 +588,19 @@ namespace MWRender
         stateset->addUniform(new osg::Uniform("skyBlendingStart", 8000000.0f));
         stateset->addUniform(new osg::Uniform("screenRes", osg::Vec2f{ 1, 1 }));
 
-        osg::ref_ptr<SceneUtil::Light> light = new SceneUtil::Light;
-        light->setPosition(osg::Vec4(mSun.mDirection, 0.f));
-        light->setDiffuse(mSun.mDiffuse);
-        light->setAmbient(mSun.mAmbient);
-        light->setSpecular(osg::Vec4(0, 0, 0, 0));
-        light->setConstantAttenuation(1.f);
-        light->setLinearAttenuation(0.f);
-        light->setQuadraticAttenuation(0.f);
+        SceneUtil::Light light;
+        light.setPosition(osg::Vec4(mSun.mDirection, 0.f));
+        light.setDiffuse(mSun.mDiffuse);
+        light.setAmbient(mSun.mAmbient);
+        light.setSpecular(osg::Vec4(0, 0, 0, 0));
+        light.setConstantAttenuation(1.f);
+        light.setLinearAttenuation(0.f);
+        light.setQuadraticAttenuation(0.f);
 
         SceneUtil::ShadowManager::instance().disableShadowsForStateSet(*stateset);
 
         // override sun for local map
-        SceneUtil::configureStateSetSunOverride(light, stateset);
+        SceneUtil::configureStateSetSunOverride(&light, stateset);
 
         camera->addChild(mSceneRoot);
     }

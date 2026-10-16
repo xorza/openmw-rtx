@@ -63,19 +63,19 @@ namespace Rtx
 
         /// A moon is as wide as the renderer the game already has draws it.
         ///
-        /// `Moons_<name>_Size` is scaled by 450/125 onto a quad of half-extent 0.5 a thousand units
-        /// off (`apps/openmw/mwrender/skyutil.cpp:641`), so the radius is `atan(1.8 * size /
-        /// 1000)` — the closed form this checks the code against. Morrowind's own ini says 94 and
-        /// 40: `atan(0.1692)` is 0.167613 and `atan(0.072)` is 0.071876.
+        /// `Moons_<name>_Size` is scaled by 450/115 onto a quad of half-extent 0.5 a thousand units
+        /// off (`apps/openmw/mwrender/sky.cpp` and `skyutil.cpp`), so the radius is
+        /// `atan(45 * size / 23000)` — the closed form this checks the code against. Morrowind's own
+        /// ini says 94 and 40: `atan(4230 / 23000)` is 0.181881 and `atan(1800 / 23000)` is 0.078102.
         ///
         /// **The configured size is not pinned here, and deliberately.** OpenMW ships defaults of 55
         /// and 20. The conversion is what this owns, and the faces read whatever the run is
-        /// configured with; both give a moon far larger than the real one — 9.6 degrees of radius
-        /// or 5.7, against the quarter of a degree ours has.
+        /// configured with; both give a moon far larger than the real one — 10.4 degrees of radius
+        /// or 6.1, against the quarter of a degree ours has.
         TEST(RtxMoonBuilderTest, aMoonIsAsWideAsTheGameDrawsIt)
         {
-            EXPECT_NEAR(moonAngularRadius(94.0f), 0.167613f, 1e-6f);
-            EXPECT_NEAR(moonAngularRadius(40.0f), 0.071876f, 1e-6f);
+            EXPECT_NEAR(moonAngularRadius(94.0f), 0.181881f, 1e-6f);
+            EXPECT_NEAR(moonAngularRadius(40.0f), 0.078102f, 1e-6f);
 
             const float masser = Fallback::Map::getFloat("Moons_Masser_Size");
             const float secunda = Fallback::Map::getFloat("Moons_Secunda_Size");
@@ -128,8 +128,8 @@ namespace Rtx
             EXPECT_EQ(broken.refusals().count(Refused::Moon), 1u) << "Masser, and not Secunda";
             broken.drop(brokenHolds);
 
-            EXPECT_NEAR(configured().of(Moon::Masser).mRadius, std::atan(1.8f * masser / 1000.0f), 1e-6f);
-            EXPECT_NEAR(configured().of(Moon::Secunda).mRadius, std::atan(1.8f * secunda / 1000.0f), 1e-6f);
+            EXPECT_NEAR(configured().of(Moon::Masser).mRadius, std::atan(45.0f * masser / 23000.0f), 1e-6f);
+            EXPECT_NEAR(configured().of(Moon::Secunda).mRadius, std::atan(45.0f * secunda / 23000.0f), 1e-6f);
 
             // **Enormous either way**, which is the sky Morrowind is remembered for: the smaller of
             // the two pairs still puts Masser at twelve times the real moon's quarter degree.
@@ -405,11 +405,11 @@ namespace Rtx
         /// **A real full moon is a 407,000th of the sun**, which is the published figure and the one
         /// thing here that no content file can move. Half a degree of diameter and a geometric albedo
         /// of 0.12 give `0.12 * sin(0.2593 deg)^2 = 2.45e-6`, and that is the whole of what makes
-        /// Morrowind's moons able to light anything at all: Masser is twenty-two to thirty-eight
+        /// Morrowind's moons able to light anything at all: Masser is twenty-four to forty
         /// times wider, so it covers hundreds of times the sky.
         ///
         /// **A band and not a number, for the reason the sizes are not pinned above.** OpenMW's 55
-        /// puts Masser at an 858th of the sun and the ini's 94 at a 299th, and which of the two a run
+        /// puts Masser at a 728th of the sun and the ini's 94 at a 255th, and which of the two a run
         /// sees is whichever planted the key first. Both are a night that can be lit and neither is a
         /// second sunrise, which is what the band asserts.
         TEST(RtxMoonBuilderTest, theSameLawPutsARealMoonWhereThePhotometryDoes)
@@ -436,7 +436,7 @@ namespace Rtx
         /// **The paleness is what this code owns and the sizes are not.** How much sky each covers
         /// comes out of whichever `Moons_*_Size` the run is configured with, while the ratio between
         /// the two portraits is a number measured off the shipped textures. At the ini's 94 and 40
-        /// the share is 0.1853 and what Secunda delivers is 0.4705 of Masser; at OpenMW's 55 and 20
+        /// the share is 0.1861 and what Secunda delivers is 0.4724 of Masser; at OpenMW's 55 and 20
         /// both are something else and the ratio between them is the same 2.54.
         TEST(RtxMoonBuilderTest, secundaDeliversTheShareOfTheSkyItCovers)
         {
