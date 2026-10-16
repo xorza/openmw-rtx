@@ -227,8 +227,8 @@ namespace Rtx::Shaders
         /// shadow ray.
         ///
         /// The limb is the sine and not the angle, for the reason `SkyPatch::mLimb` gives.
-        /// Masser's angle is between five and a half degrees and nine and a half, on the two
-        /// `Moons_Masser_Size` the game ships — twenty to thirty-six times the sun either way.
+        /// Masser's angle is between six degrees and ten and a half, on the two
+        /// `Moons_Masser_Size` the game ships — twenty-three to thirty-nine times the sun either way.
         SkySource mSource;
 
         /// The two axes the face is painted along.

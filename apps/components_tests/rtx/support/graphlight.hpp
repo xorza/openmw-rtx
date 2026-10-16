@@ -20,9 +20,9 @@ namespace Rtx::Testing
     inline osg::ref_ptr<SceneUtil::LightSource> makeLightSource(
         float radius, const osg::Vec4f& diffuse, const osg::Vec4f& ambient = osg::Vec4f())
     {
-        osg::ref_ptr<SceneUtil::Light> light = new SceneUtil::Light;
-        light->setDiffuse(diffuse);
-        light->setAmbient(ambient);
+        SceneUtil::Light light;
+        light.setDiffuse(diffuse);
+        light.setAmbient(ambient);
 
         osg::ref_ptr<SceneUtil::LightSource> source = new SceneUtil::LightSource;
         source->setRadius(radius);

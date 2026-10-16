@@ -207,7 +207,7 @@ namespace MWRender
             sceneRoot.getParent(0), &sceneRoot, &resources, viewer.getIncrementalCompileOperation());
         mPostProcessor->setupTransparentBin(mWater.get());
 
-        sceneRoot.setSunlight(&world.getSunLight());
+        sceneRoot.setSunlight(world.getSunLight());
 
         scene.setUpNormalsRTForStateSet(sceneRoot.getOrCreateStateSet(), true);
 

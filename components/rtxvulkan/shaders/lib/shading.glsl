@@ -270,7 +270,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // two estimators rather than a saving. Across the two degrees of the sun's shadow cone the cosine
     // varies by parts in a thousand, so drawing it as well would put variance into a term that has
     // none and leave the penumbra — the only part of the integral the cone is wide enough to matter
-    // to — no better resolved for it. Masser subtends thirty-five times the sun's angle, so the cone
+    // to — no better resolved for it. Masser subtends thirty-nine times the sun's angle, so the cone
     // it is drawn from is that much wider and the penumbra under everything it lights that much
     // softer.
     //

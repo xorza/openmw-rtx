@@ -47,8 +47,8 @@ Changes to upstream
 * SDL3 in place of SDL2, for display scaling on high-density and Wayland desktops.
 * `[Video] resolution` sets the frame size, and the frame is scaled into the window.
 * A crash reporter of its own, built on Crashpad.
-* Four rasterizer fixes: the optimizer's merge order, the land of a map tile, a day-night
-  switch's first frame, and a groundcover plant's transforms.
+* Three rasterizer fixes: the optimizer's merge order, the land of a map tile, and a groundcover
+  plant's transforms.
 
 Goal
 ----

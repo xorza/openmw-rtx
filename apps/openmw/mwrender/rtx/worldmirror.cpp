@@ -6,6 +6,8 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <osg/Geometry>
 #include <osg/Image>
@@ -13,6 +15,7 @@
 #include <osg/Matrixf>
 #include <osg/Node>
 #include <osg/PositionAttitudeTransform>
+#include <osg/Referenced>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
@@ -194,9 +197,10 @@ namespace MWRender
             return;
         }
 
-        // The queue holds what it releases as mutable, and dropping a reference modifies nothing.
-        for (const osg::ref_ptr<const osg::Referenced>& object : released.get())
-            mReleasing->push(osg::ref_ptr<osg::Referenced>(const_cast<osg::Referenced*>(object.get())));
+        // One handover for the whole batch, so a frame that lets go of many objects allocates once.
+        if (!released.get().empty())
+            mReleasing->push(
+                std::make_shared<std::vector<osg::ref_ptr<const osg::Referenced>>>(std::move(released.get())));
         released.clear();
     }
 
