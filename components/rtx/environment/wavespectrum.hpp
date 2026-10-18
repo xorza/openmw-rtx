@@ -5,9 +5,9 @@
 
 namespace Rtx
 {
-    /// Morrowind's gravity, in world units per second squared: the game's two factors, multiplied
-    /// here and written nowhere else.
-    inline constexpr float sGravity = Constants::GravityConst * Constants::UnitsPerMeter;
+    /// Morrowind's gravity, in world units per second squared: the game's own figure, since the
+    /// spectrum is laid out in world units and the water must fall at the rate everything else does.
+    inline constexpr float sGravity = Constants::GravityUnits;
 
     /// The shortest wave the spectrum carries, in world units — a band limit in time as much as in
     /// space, because the shortest waves decide the caustics and how fast they reshuffle. Carried
