@@ -34,14 +34,14 @@ namespace Rtx
             // The same wavenumber travels slower over a shallower shelf, because `tanh(k h)` falls.
             // A 1257-unit wave over 60 units of water:
             //
-            //   shallow = sqrt(627.1 * 0.005 * tanh(0.3)) = sqrt(0.9124) = 0.955
-            //   deep    = sqrt(627.1 * 0.005 * tanh(20))  = sqrt(3.1355) = 1.771
+            //   shallow = sqrt(627.2 * 0.005 * tanh(0.3)) = sqrt(0.9136) = 0.956
+            //   deep    = sqrt(627.2 * 0.005 * tanh(20))  = sqrt(3.1360) = 1.771
             //
             // Fifty-four per cent of its open-sea speed, which is the coastal correction this
             // spectrum exists for. A shorter wave barely notices — at a wavenumber of 0.02 the same
             // shelf costs under a tenth.
             constexpr float wavenumber = 0.005f;
-            EXPECT_NEAR(shallow.getFrequency(wavenumber), 0.955f, 0.002f);
+            EXPECT_NEAR(shallow.getFrequency(wavenumber), 0.956f, 0.002f);
             EXPECT_NEAR(deep.getFrequency(wavenumber), 1.771f, 0.002f);
         }
 
