@@ -165,10 +165,12 @@ jobs:
         run: cmake --install build-full --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
-        # Upstream's, from its GitLab pipeline, on the example suite at the revision it pins. The ray
-        # tracer is off by default, so this runs the OpenGL renderer. No crash dialog: under Xvfb it
-        # would wait for a click forever.
+        # Upstream's, from its GitLab pipeline, on the example suite at the revision it pins, under the
+        # OpenGL renderer, named so the runner's missing ray tracing device opens no notice the tests
+        # would have to answer. No crash dialog and no fatal error box: under Xvfb either would wait
+        # for a click forever. A pass takes about a minute, and the limit ends a run that hangs.
         if: matrix.tested && runner.os == 'Linux'
+        timeout-minutes: 10
         env:
           EXAMPLE_SUITE_REVISION: a1ba6fc9d7315c2158ef4c60349fc4e71b7ca343
           OPENMW_CRASH_DIALOG: "0"
@@ -179,6 +181,7 @@ jobs:
           git -C example-suite fetch -q --depth=1 origin "$EXAMPLE_SUITE_REVISION"
           git -C example-suite checkout -q FETCH_HEAD
           suite="$GITHUB_WORKSPACE/example-suite"
+          printf '\n[RTX]\nenabled = false\n' >> "$suite/settings.cfg"
           python omw full exec xvfb-run --auto-servernum --server-args='-screen 0 640x480x24x60' \
             python3 "$GITHUB_WORKSPACE/scripts/integration_tests.py" \
               --verbose \
