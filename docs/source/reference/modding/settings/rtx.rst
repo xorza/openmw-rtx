@@ -18,7 +18,7 @@ follow the settings window while the game runs.
    :title: enabled
    :type: boolean
    :range: true, false
-   :default: false
+   :default: true
 
    Use the ray tracing renderer instead of the OpenGL one. Takes effect on the next start.
 
