@@ -296,6 +296,11 @@ namespace CrashTests
         return "the mode named no process it left";
     }
 
+    std::string_view nullDevice()
+    {
+        return "/dev/null";
+    }
+
     void illegalInstruction()
     {
         __builtin_trap();

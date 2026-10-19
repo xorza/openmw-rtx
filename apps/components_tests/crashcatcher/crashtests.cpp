@@ -80,6 +80,12 @@ namespace CrashTests
                     true, draws },
                 { "ends-before-end", "Hang: no frame for", {}, "Hang: the game ended before End was answered", true,
                     draws },
+                { .mName = "fatal-error",
+                    .mHeadline = "",
+                    .mRaised = {},
+                    .mFollows = "Fatal error: crash-tests could not start",
+                    .mReports = false,
+                    .mThrows = true },
             };
             addModesOfThisSystem(modes, crashed);
             return modes;
@@ -317,6 +323,13 @@ namespace CrashTests
                 std::this_thread::sleep_for(std::chrono::seconds(30));
                 return livedOn();
             }
+            if (mode == "fatal-error")
+            {
+                // **A start that fails**, as a renderer's that cannot start does: the fatal error box
+                // stays shut where a harness asks, as the crash dialog does, and the run ends. A box
+                // that showed would wait here for a click that never comes.
+                throw std::runtime_error("crash-tests could not start");
+            }
             if (mode == "ends-before-end")
             {
                 // Gone without another frame before the monitor answers End: its id is nobody's to end.
@@ -454,6 +467,11 @@ namespace CrashTests
             {
                 if (ended.mSignal != mode.mEndsBy && ended.mExitCode != 128u + static_cast<std::uint32_t>(mode.mEndsBy))
                     return "it ended with " + ended.describe() + ", not signal " + std::to_string(mode.mEndsBy);
+            }
+            else if (mode.mThrows)
+            {
+                if (ended.mSignal != 0 || ended.mExitCode != 1)
+                    return "it ended with " + ended.describe() + ", not one";
             }
             else if (ended.succeeded() == mode.mHeadline.starts_with("Crash: "))
                 return "it ended with " + ended.describe();
@@ -613,7 +631,8 @@ namespace CrashTests
                 std::filesystem::remove_all(folder);
                 std::filesystem::create_directories(folder);
                 ended = Platform::Process::runShell(word(self) + " " + std::string(mode.mName) + " " + word(folder)
-                    + " >" + word(folder / "stdout.txt") + " 2>" + word(errorsIn(folder)));
+                    + " <" + std::string(nullDevice()) + " >" + word(folder / "stdout.txt") + " 2>"
+                    + word(errorsIn(folder)));
                 if (!inconclusive(ended))
                     break;
             }

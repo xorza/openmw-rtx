@@ -447,6 +447,13 @@ namespace Debug
         const bool catches = disable == nullptr || Misc::StringUtils::toNumeric<int>(disable, 0) == 0;
         const std::string_view unkept = catches ? Crash::keepImageMounted() : std::string_view();
 
+        // **One rule for both boxes, the crash dialog and the fatal error**: none for whoever started
+        // the game from a shell, and none where a harness asks, which a box waiting for a click would
+        // stop.
+        bool asks = !Platform::Process::startedFromTerminal();
+        if (const char* const dialog = std::getenv("OPENMW_CRASH_DIALOG"))
+            asks = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
+
 #if defined _WIN32
         (void)attachParentConsole();
         SetConsoleOutputCP(CP_UTF8);
@@ -483,13 +490,8 @@ namespace Debug
                 = Platform::Process::environmentPath("OPENMW_CRASH_REPORTS");
             sReportsNamed = reports.has_value();
             settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / sReportFolder);
-            // As the fatal error box below: none for whoever started the game from a shell; none
-            // where a harness asks, which a box waiting for a click would stop; and a harness's End
-            // in place of the player's where it names one.
-            bool asks = !Platform::Process::startedFromTerminal();
-            if (const char* const dialog = std::getenv("OPENMW_CRASH_DIALOG"))
-                asks = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
             settings.mAnswering = asks ? Crash::Answering(Crash::AskThePlayer{}) : Crash::Answering(Crash::AskNobody{});
+            // A harness's End in place of the player's where it names one.
             if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
                 settings.mAnswering
                     = Crash::EndAfter{ std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0)) };
@@ -524,12 +526,10 @@ namespace Debug
         catch (const std::exception& e)
         {
             framesEnd();
-#if (defined(__APPLE__) || defined(__linux) || defined(__unix) || defined(__posix))
-            if (!isatty(fileno(stdin)))
-#endif
-                SDL_ShowSimpleMessageBox(0, (std::string(appName) + ": Fatal error").c_str(), e.what(), nullptr);
-
+            // Logged before the box, which holds the process until a click.
             Log(Debug::Error) << "Fatal error: " << e.what();
+            if (asks)
+                SDL_ShowSimpleMessageBox(0, (std::string(appName) + ": Fatal error").c_str(), e.what(), nullptr);
 
             ret = 1;
         }
