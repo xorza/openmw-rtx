@@ -28,6 +28,10 @@ LoadingRequiresOldVersionError: |-
     Ladda och spara denna sparfil med {version} för att uppgradera den.
 NewGameConfirmation: "Vill du starta ett nytt spel och förlora det pågående spelet?"
 QuitGameConfirmation: "Avsluta spelet?"
+RayTracingUnsupported: |-
+    Strålspårning kan inte köras på den här datorn: {reason}
+
+    OpenMW ritar i stället med OpenGL-renderaren. Stäng av ”Experimentell strålspårningsrenderare” i inställningarna för att starta utan det här meddelandet.
 SaveGameDenied: "Spelet kan inte sparas just nu."
 SavingInProgress: "Sparar..."
 ScreenshotFailed: "Misslyckades att spara skärmdump"

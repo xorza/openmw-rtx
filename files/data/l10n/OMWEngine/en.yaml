@@ -28,6 +28,10 @@ LoadingRequiresOldVersionError: |-
     Load and save this file using {version} to upgrade it.
 NewGameConfirmation: "Do you want to start a new game and lose the current one?"
 QuitGameConfirmation: "Quit the game?"
+RayTracingUnsupported: |-
+    Ray tracing cannot run on this machine: {reason}
+
+    OpenMW draws with the OpenGL renderer instead. Turn off "Experimental ray tracing renderer" in the settings to start without this message.
 SaveGameDenied: "The game cannot be saved right now."
 SavingInProgress: "Saving..."
 ScreenshotFailed: "Failed to save screenshot"

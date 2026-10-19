@@ -59,8 +59,9 @@ Requirements
 * An NVIDIA RTX card, Turing (RTX 20 series) or later, which is what the renderer is written and
   tested for. An AMD card, RDNA 2 (RX 6000 series) or later, starts too, but nothing has run on
   one yet.
-* Vulkan 1.4 with ray tracing pipelines, ray queries, position fetch and `VK_KHR_shader_fma`. A
-  device missing any of them refuses to start rather than falling back.
+* Vulkan 1.4 with ray tracing pipelines, ray queries, position fetch and `VK_KHR_shader_fma`. On a
+  machine without them the ray tracer does not start: the game draws with the OpenGL renderer and
+  says why.
 * A driver that offers `VK_KHR_shader_fma`: NVIDIA 595 or later, AMD 26.3.1 or later, or Mesa 26.2
   or later on Linux. An older driver is refused for that extension and runs once it is updated.
 
@@ -69,7 +70,8 @@ Tested on one machine so far: a laptop RTX 4090 at 150 W, which is about a deskt
 Building and running
 --------------------
 
-Every build has the renderer. Turn it on with `[RTX] enabled = true` in `settings.cfg`.
+Every build has the renderer, and it is on by default. `[RTX] enabled = false` in `settings.cfg`
+starts the OpenGL renderer.
 
 * [Architecture](docs/rtx/architecture.md) — the seam, the layers, who owns whom, the order a
   frame is computed in

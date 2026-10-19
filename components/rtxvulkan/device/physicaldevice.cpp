@@ -370,6 +370,13 @@ namespace Rtx
 
     PhysicalDevice PhysicalDevice::select(VkInstance instance, const PresentQuery& presents)
     {
+        // **The loader answers `VK_ERROR_INITIALIZATION_FAILED` where none of its drivers found a
+        // device** (`setup_loader_term_phys_devs`), as with a driver installed for a card the
+        // machine lacks: a machine to skip, as an empty list is, and no fault.
+        std::uint32_t counted = 0;
+        if (vkEnumeratePhysicalDevices(instance, &counted, nullptr) == VK_ERROR_INITIALIZATION_FAILED)
+            throw Unsupported("no Vulkan device is installed");
+
         const std::vector<VkPhysicalDevice> handles = enumerateVk<VkPhysicalDevice>(
             "vkEnumeratePhysicalDevices", [&](std::uint32_t* count, VkPhysicalDevice* into) {
                 return vkEnumeratePhysicalDevices(instance, count, into);

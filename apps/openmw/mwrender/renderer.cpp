@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <exception>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
@@ -22,6 +24,7 @@
 #include <components/misc/frameratelimiter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtx/common/error.hpp>
 #include <components/sceneutil/screencapture.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
 #include <components/sdlutil/sdlvideowrapper.hpp>
@@ -346,6 +349,31 @@ namespace MWRender
                 return std::make_unique<RtxRenderer>(spec);
         }
         Crash::fatal("a renderer kind past the two");
+    }
+
+    StartedRenderer startRenderer(const RendererKind wanted, const RendererFactory& create)
+    {
+        Log(Debug::Info) << "Renderer: " << nameOf(wanted);
+        Crash::annotate("renderer", nameOf(wanted));
+        std::string reason;
+        try
+        {
+            return StartedRenderer{ .mRenderer = create(wanted), .mFallbackReason = {} };
+        }
+        catch (const Rtx::Unsupported& unsupported)
+        {
+            assert(wanted == RendererKind::RayTraced && "only the ray tracer asks what this machine can do");
+            reason = unsupported.what();
+        }
+        catch (const std::exception& failure)
+        {
+            throw std::runtime_error(describeStartFailure(wanted, failure.what()));
+        }
+
+        Log(Debug::Warning) << "Ray tracing cannot run on this machine, so the OpenGL renderer draws: " << reason;
+        Crash::annotate("renderer", nameOf(RendererKind::OpenGl));
+        Crash::annotate("renderer fallback", reason);
+        return StartedRenderer{ .mRenderer = create(RendererKind::OpenGl), .mFallbackReason = std::move(reason) };
     }
 
     SDL_Window* openWindow(const SDL_WindowFlags surfaceFlag, const std::optional<osg::Vec2i> pixels)

@@ -28,6 +28,10 @@ LoadingRequiresOldVersionError: |-
     Załaduj i zapisz ten plik przy użyciu wersji {version}, aby go zaktualizować.
 NewGameConfirmation: "Czy chcesz rozpocząć nową grę i porzucić obecną?"
 QuitGameConfirmation: "Wyjść z gry?"
+RayTracingUnsupported: |-
+    Śledzenie promieni nie może działać na tym komputerze: {reason}
+
+    OpenMW używa zamiast tego renderera OpenGL. Wyłącz „Eksperymentalny renderer ze śledzeniem promieni” w ustawieniach, aby ten komunikat więcej się nie pojawiał.
 SaveGameDenied: "Gra nie może być teraz zapisana."
 SavingInProgress: "Zapisywanie..."
 ScreenshotFailed: "Nie udało się zapisać zrzutu ekranu"

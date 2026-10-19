@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -578,6 +579,27 @@ namespace MWRender
     /// the player left it**, so every start until then ends here, and the box is the one place that
     /// can say how to start the game again.
     std::string describeStartFailure(RendererKind kind, std::string_view reason);
+
+    /// Makes the renderer of a kind: `createRenderer` in the game, a renderer of its own in a test.
+    using RendererFactory = std::function<std::unique_ptr<Renderer>(RendererKind kind)>;
+
+    /// The renderer the game draws with, and why it is not the one asked for where it is not.
+    struct StartedRenderer
+    {
+        std::unique_ptr<Renderer> mRenderer;
+
+        /// Why the ray tracer gave way to the OpenGL renderer, for the player to read; empty where
+        /// the renderer asked for started.
+        std::string mFallbackReason;
+    };
+
+    /// **The ray tracer gives way to the OpenGL renderer where this machine cannot run it**
+    /// (`Rtx::Unsupported`: no Vulkan loader, no device with ray tracing), as an engine takes the
+    /// next graphics API on its list. The setting stays as the player left it, so a new card or
+    /// driver takes the ray tracer up again. Any other failure ends the start with
+    /// `describeStartFailure`'s words: a fault hidden behind the OpenGL picture would never be
+    /// reported.
+    StartedRenderer startRenderer(RendererKind wanted, const RendererFactory& create);
 
     /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
     /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Windowed, it
