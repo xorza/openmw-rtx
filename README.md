@@ -19,15 +19,13 @@ Screenshots
 <img width="2560" height="1366" alt="screenshot008" src="https://github.com/user-attachments/assets/ad180077-1a39-4921-ba38-fc34aa566e55" />
 <img width="2560" height="1366" alt="screenshot003" src="https://github.com/user-attachments/assets/7ecbd7a4-37f5-4761-8596-79a2870a3a75" />
 <img width="2560" height="1366" alt="screenshot001" src="https://github.com/user-attachments/assets/2a5855df-bc04-4b08-929a-51edee2c4fcc" />
-<img width="2560" height="1366" alt="screenshot000" src="https://github.com/user-attachments/assets/d85dd6c8-8a77-4ddc-ae83-6ac1f58d42fb" />
 
 
 Demo video
 ----------
 
-[Watch the demo on YouTube](https://www.youtube.com/watch?v=15cdzw8t1x4)
+[Watch the demo on YouTube](https://youtu.be/2_a1KQA44-I)
 
-[![OpenMW RTX demo](https://img.youtube.com/vi/h9wsxzmaoqM/maxresdefault.jpg)](https://www.youtube.com/watch?v=15cdzw8t1x4)
 
 What the fork is
 ----------------
