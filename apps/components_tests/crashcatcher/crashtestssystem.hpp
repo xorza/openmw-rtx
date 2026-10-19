@@ -14,8 +14,8 @@ namespace CrashTests
     /// What one mode must leave: the summary's first line holds `mHeadline` and one of `mRaised`
     /// where that is not empty, and a dump carries the same summary. A mode the game lives through
     /// leaves `mFollows` after it, and a mode that reports nothing leaves no line. A crash ends the
-    /// game with a status other than nought, and every other mode with nought, but where `mEndsBy`
-    /// names the signal.
+    /// game with a status other than nought, a mode that throws with one, and every other mode with
+    /// nought, but where `mEndsBy` names the signal.
     struct Mode
     {
         std::string_view mName;
@@ -47,6 +47,9 @@ namespace CrashTests
         /// Why the catcher must refuse to start, where it must: the log says so, says no catcher
         /// works, and the game goes on without one.
         std::string_view mRefusal = {};
+
+        /// Whether the application throws, which `wrapApplication` catches and ends with one.
+        bool mThrows = false;
     };
 
     /// How this system names what the modes every system has raise, one of each list.
@@ -81,6 +84,10 @@ namespace CrashTests
 
     /// An instruction the processor refuses.
     void illegalInstruction();
+
+    /// The system's file that reads as empty, every mode's input: no mode then runs at a terminal,
+    /// whatever runs the matrix, as the game a launcher starts does not.
+    std::string_view nullDevice();
 
     /// What a mode the game lives through ends with: the line saying so, and nought. The shared
     /// file's.

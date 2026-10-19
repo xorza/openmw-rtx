@@ -89,6 +89,11 @@ namespace CrashTests
         return std::nullopt;
     }
 
+    std::string_view nullDevice()
+    {
+        return "NUL";
+    }
+
     void illegalInstruction()
     {
         __ud2();

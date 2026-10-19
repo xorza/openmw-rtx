@@ -155,7 +155,10 @@ is not here is held to the rules above.
     which left every later number in the log in hex;
   - `NavMeshDb` committed each tile under a rollback journal at full synchronisation, several fsyncs
     a tile; it now journals into a write-ahead log at normal synchronisation, where a tile a crash
-    loses is generated again.
+    loses is generated again;
+  - `Debug::wrapApplication`'s fatal error box read only whether a terminal started the game, not
+    `OPENMW_CRASH_DIALOG` as the crash dialog does, and showed before the error was logged: a start
+    that failed under a harness waited for a click, with nothing in the log.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
