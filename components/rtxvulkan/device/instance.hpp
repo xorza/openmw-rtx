@@ -32,6 +32,14 @@ namespace Rtx
         /// so a machine without one runs the OpenGL renderer.
         static std::uint32_t getLoaderVersion();
 
+        /// The loader's version, where the system has one this renderer runs on, and `Unsupported`
+        /// where it has none or an older one.
+        static std::uint32_t requireLoader();
+
+        /// Nothing where a driver behind the loader presents to a window, and `Unsupported` where
+        /// none does, as a loader with no driver at all.
+        static void requireSurface();
+
         VkInstance getHandle() const { return mHandle.get(); }
 
         /// Null unless validation was requested and the layer was present. Mutable through a

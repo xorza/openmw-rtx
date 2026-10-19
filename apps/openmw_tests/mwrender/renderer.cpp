@@ -5,6 +5,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -32,6 +33,7 @@
 #include <components/misc/frameclock.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/rtx/common/error.hpp>
 #include <components/sceneutil/unrefqueue.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
@@ -388,6 +390,57 @@ namespace MWRender
             EXPECT_NE(traced.find("enabled = false"), std::string::npos);
 
             EXPECT_EQ(describeStartFailure(RendererKind::OpenGl, "no GL context"), "no GL context");
+        }
+
+        /// **Only a machine that cannot run the ray tracer starts the OpenGL renderer in its place**,
+        /// and says why; a fault of the ray tracer's ends the start as the rasterizer's own does.
+        TEST(MWRenderStartFailureTest, onlyAMachineThatCannotRunTheRayTracerFallsBack)
+        {
+            std::vector<RendererKind> asked;
+            const auto failing = [&asked](const RendererKind failed, auto thrown) {
+                return [&asked, failed, thrown](const RendererKind kind) -> std::unique_ptr<Renderer> {
+                    asked.push_back(kind);
+                    if (kind == failed)
+                        throw thrown;
+                    return std::make_unique<RecordingRenderer>();
+                };
+            };
+            const auto starting = [&asked](const RendererKind kind) -> std::unique_ptr<Renderer> {
+                asked.push_back(kind);
+                return std::make_unique<RecordingRenderer>();
+            };
+
+            StartedRenderer started = startRenderer(
+                RendererKind::RayTraced, failing(RendererKind::RayTraced, Rtx::Unsupported("no ray tracing device")));
+            EXPECT_NE(started.mRenderer, nullptr);
+            EXPECT_EQ(started.mFallbackReason, "no ray tracing device");
+            EXPECT_EQ(asked, (std::vector{ RendererKind::RayTraced, RendererKind::OpenGl }));
+
+            asked.clear();
+            started = startRenderer(RendererKind::RayTraced, starting);
+            EXPECT_NE(started.mRenderer, nullptr);
+            EXPECT_EQ(started.mFallbackReason, "");
+            EXPECT_EQ(asked, std::vector{ RendererKind::RayTraced });
+
+            const auto endsWith = [&](const RendererKind wanted, const RendererFactory& create, std::string_view said) {
+                asked.clear();
+                try
+                {
+                    startRenderer(wanted, create);
+                    ADD_FAILURE() << "started after \"" << said << "\"";
+                }
+                catch (const std::runtime_error& failure)
+                {
+                    EXPECT_EQ(failure.what(), describeStartFailure(wanted, said));
+                }
+                EXPECT_EQ(asked, std::vector{ wanted }) << "no fallback after \"" << said << "\"";
+            };
+            endsWith(RendererKind::RayTraced, failing(RendererKind::RayTraced, Rtx::InputError("no shader module")),
+                "no shader module");
+            endsWith(RendererKind::RayTraced, failing(RendererKind::RayTraced, Rtx::DeviceError("out of memory")),
+                "out of memory");
+            endsWith(RendererKind::OpenGl, failing(RendererKind::OpenGl, std::runtime_error("no GL context")),
+                "no GL context");
         }
     }
 }

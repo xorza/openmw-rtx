@@ -9,7 +9,6 @@
 
 #include <SDL3/SDL.h>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 
 #include <components/misc/rng.hpp>
@@ -663,22 +662,16 @@ void OMW::Engine::go()
 
     // Decided once, before the window exists
     const MWRender::RendererSpec spec{ .mResourceDir = mResDir, .mCachePath = mCfgMgr.getCachePath() };
+    std::string rendererFallback;
     if (mHost != nullptr)
         mRenderer = mHost->createRenderer(spec);
     else
     {
-        const MWRender::RendererKind wanted
-            = Settings::rtx().mEnabled ? MWRender::RendererKind::RayTraced : MWRender::RendererKind::OpenGl;
-        Log(Debug::Info) << "Renderer: " << MWRender::nameOf(wanted);
-        Crash::annotate("renderer", MWRender::nameOf(wanted));
-        try
-        {
-            mRenderer = MWRender::createRenderer(wanted, spec);
-        }
-        catch (const std::exception& failure)
-        {
-            throw std::runtime_error(MWRender::describeStartFailure(wanted, failure.what()));
-        }
+        MWRender::StartedRenderer started = MWRender::startRenderer(
+            Settings::rtx().mEnabled ? MWRender::RendererKind::RayTraced : MWRender::RendererKind::OpenGl,
+            [&spec](MWRender::RendererKind kind) { return MWRender::createRenderer(kind, spec); });
+        mRenderer = std::move(started.mRenderer);
+        rendererFallback = std::move(started.mFallbackReason);
     }
 
     // The clock every frame is measured by, made once here and read by the renderer from now on:
@@ -717,6 +710,15 @@ void OMW::Engine::go()
     {
         mStateManager->newGame(!mNewGame);
     }
+
+    // After the logo, which plays to its end before this, and which a box waiting for a click
+    // would take the keys from. A box the start opened, a save that failed to load, says more
+    // than this one, which the log holds and the next start shows again.
+    if (!rendererFallback.empty() && !mWindowManager->isInteractiveMessageBoxActive())
+        mWindowManager->interactiveMessageBox(
+            mL10nManager->getContext("OMWEngine")
+                ->formatMessage("RayTracingUnsupported", { "reason" }, { L10n::toUnicode(rendererFallback) }),
+            { "#{Interface:OK}" });
 
     if (!mStartupScript.empty() && mStateManager->getState() == MWState::StateManager::State_Running)
     {

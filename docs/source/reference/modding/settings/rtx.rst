@@ -20,7 +20,9 @@ follow the settings window while the game runs.
    :range: true, false
    :default: true
 
-   Use the ray tracing renderer instead of the OpenGL one. Takes effect on the next start.
+   Use the ray tracing renderer instead of the OpenGL one. Takes effect on the next start. It needs a
+   GPU with hardware ray tracing (NVIDIA Turing or AMD RDNA 2, or later): on a machine without one,
+   the game starts with the OpenGL renderer and says why, and the setting stays on.
 
 .. omw-setting::
    :title: distant land cells

@@ -28,6 +28,10 @@ LoadingRequiresOldVersionError: |-
     Laden und speichern Sie den Spielstand mit Version {version}, um das Format anzupassen.
 NewGameConfirmation: "Neues Spiel starten und aktuellen Fortschritt verwerfen?"
 QuitGameConfirmation: "Spiel verlassen?"
+RayTracingUnsupported: |-
+    Raytracing kann auf diesem Rechner nicht laufen: {reason}
+
+    OpenMW zeichnet stattdessen mit dem OpenGL-Renderer. Schalten Sie „Experimenteller Raytracing-Renderer“ in den Einstellungen aus, um ohne diese Meldung zu starten.
 SaveGameDenied: "Das Spiel kann gerade nicht gespeichert werden!"
 SavingInProgress: "Speichere Spiel..."
 ScreenshotFailed: "Speichern des Screenshots fehlgeschlagen!"

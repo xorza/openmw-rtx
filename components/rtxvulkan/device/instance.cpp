@@ -65,12 +65,7 @@ namespace Rtx
     Instance::Instance(const ValidationOptions& options, const std::span<const char* const> surfaceExtensions)
     {
         const Crash::NoteScope noted("making the Vulkan instance");
-        mApiVersion = getLoaderVersion();
-        if (mApiVersion == 0)
-            throw Unsupported("there is no Vulkan loader on this system: the graphics driver installs it");
-        if (mApiVersion < sApiVersion)
-            throw Unsupported("the Vulkan loader offers " + versionString(mApiVersion) + ", and this renderer is written "
-                "against " + versionString(sApiVersion));
+        mApiVersion = requireLoader();
 
         std::vector<const char*> extensions(surfaceExtensions.begin(), surfaceExtensions.end());
         std::vector<const char*> layers;
@@ -270,6 +265,24 @@ namespace Rtx
     std::uint32_t Instance::getLoaderVersion()
     {
         return loadLoader() ? volkGetInstanceVersion() : 0;
+    }
+
+    std::uint32_t Instance::requireLoader()
+    {
+        const std::uint32_t version = getLoaderVersion();
+        if (version == 0)
+            throw Unsupported("there is no Vulkan loader on this system: the graphics driver installs it");
+        if (version < sApiVersion)
+            throw Unsupported("the Vulkan loader offers " + versionString(version) + ", and this renderer is written "
+                "against " + versionString(sApiVersion));
+        return version;
+    }
+
+    void Instance::requireSurface()
+    {
+        requireLoader();
+        if (!offers(loaderExtensions(), VK_KHR_SURFACE_EXTENSION_NAME))
+            throw Unsupported("no Vulkan driver is installed that presents to a window");
     }
 
     bool Instance::hasExtension(const std::string_view name) const

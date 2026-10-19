@@ -28,6 +28,10 @@ LoadingRequiresOldVersionError: |-
     Ouvrez et enregistez cette sauvegarde avec {version} pour la mettre à jour.
 NewGameConfirmation: "Voulez-vous démarrer une nouvelle partie ? Toute progression non sauvegardée sera perdue."
 QuitGameConfirmation: "Quitter la partie ?"
+RayTracingUnsupported: |-
+    Le ray tracing ne peut pas fonctionner sur cette machine : {reason}
+
+    OpenMW utilise à la place le moteur de rendu OpenGL. Désactivez « Moteur de rendu expérimental par ray tracing » dans les options pour démarrer sans ce message.
 SaveGameDenied: "Sauvegarde impossible"
 SavingInProgress: "Sauvegarde en cours..."
 ScreenshotFailed: "Échec de la sauvegarde de la capture d'écran"

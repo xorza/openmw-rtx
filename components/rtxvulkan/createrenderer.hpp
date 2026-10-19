@@ -19,6 +19,7 @@ namespace Rtx
     std::unique_ptr<Renderer> createVulkanRenderer(const RendererOptions& options);
 
     /// What a window this renderer presents to is made with: the backend's own surface, and no GL
-    /// context anywhere near it.
+    /// context anywhere near it. Throws `Unsupported` where this machine has no Vulkan driver to
+    /// present to it with.
     SDL_WindowFlags vulkanWindowFlags();
 }
