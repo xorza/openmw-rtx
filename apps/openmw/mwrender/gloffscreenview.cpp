@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <ios>
 #include <memory>
+#include <utility>
 
 #include <MyGUI_ITexture.h>
 #include <osg/BlendFunc>
@@ -313,7 +314,7 @@ namespace MWRender
             light->setConstantAttenuation(1.f);
             light->setLinearAttenuation(0.f);
             light->setQuadraticAttenuation(0.f);
-            lightManager->setSunlight(light);
+            lightManager->setSunlight(std::move(light));
 
             return lightManager;
         }

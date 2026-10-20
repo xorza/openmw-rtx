@@ -24,11 +24,11 @@
 
 namespace MWInput
 {
-    InputManager::InputManager(MWRender::Renderer& renderer, const std::filesystem::path& userFile, bool userFileExists,
-        const std::filesystem::path& userControllerBindingsFile, const std::filesystem::path& controllerBindingsFile,
-        bool grab)
+    InputManager::InputManager(MWRender::Renderer& renderer, std::unique_ptr<SDLUtil::InputWrapper> inputWrapper,
+        const std::filesystem::path& userFile, bool userFileExists,
+        const std::filesystem::path& userControllerBindingsFile, const std::filesystem::path& controllerBindingsFile)
         : mControlsDisabled(false)
-        , mInputWrapper(std::make_unique<SDLUtil::InputWrapper>(renderer.getWindow(), renderer, grab))
+        , mInputWrapper(std::move(inputWrapper))
         , mBindingsManager(std::make_unique<BindingsManager>(userFile, userFileExists))
         , mControlSwitch(std::make_unique<ControlSwitch>())
         , mActionManager(std::make_unique<ActionManager>(mBindingsManager.get(), renderer))
