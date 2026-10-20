@@ -17,6 +17,7 @@
 #include <components/vfs/registerarchives.hpp>
 
 #include <components/sdlutil/imagetosurface.hpp>
+#include <components/sdlutil/sdlinputwrapper.hpp>
 
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -531,8 +532,9 @@ void OMW::Engine::prepareEngine()
         mWindowManager->setScriptMessageBoxesShown(mHost->showsScriptMessageBoxes());
     mEnvironment.setWindowManager(*mWindowManager);
 
-    mInputManager = std::make_unique<MWInput::InputManager>(
-        *mRenderer, keybinderUser, keybinderUserExists, userGameControllerdb, gameControllerdb, mGrab);
+    mInputManager = std::make_unique<MWInput::InputManager>(*mRenderer,
+        std::make_unique<SDLUtil::InputWrapper>(mRenderer->getWindow(), *mRenderer, mGrab), keybinderUser,
+        keybinderUserExists, userGameControllerdb, gameControllerdb);
     mEnvironment.setInputManager(*mInputManager);
 
     // Create sound system

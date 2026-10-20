@@ -69,11 +69,6 @@ namespace MWRender
         /// Masser and Secunda. An alpha of nothing is a moon that is not drawn.
         Sky::MoonState mMoons[2] = {};
 
-        /// What drives the particle effect: off Red Mountain at the player in an ash or blight
-        /// storm, and due north otherwise. Not the deck's direction, which is the weather's own.
-        /// Read only under a storm, which the same update that writes this declares.
-        osg::Vec3f mStormParticleDirection;
-
     private:
         static void keepName(VFS::Path::NormalizedView& view, VFS::Path::Normalized& owned)
         {
