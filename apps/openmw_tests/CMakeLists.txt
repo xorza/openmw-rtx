@@ -11,6 +11,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testdatetimemanager.cpp
     mwworld/testtimestamp.cpp
     mwworld/testptr.cpp
+    mwworld/testlocalscripts.cpp
     mwworld/testweather.cpp
     mwworld/testpositioncellgrid.cpp
 
@@ -20,6 +21,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwgui/weightedsearch.cpp
 
     mwlua/testobjectcache.cpp
+    mwlua/testmwscriptbindings.cpp
 
     mwscript/testscripts.cpp
     mwscript/visibilitygates.cpp
