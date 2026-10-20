@@ -69,7 +69,9 @@ namespace MyGUIPlatform
         /// it again whenever `osg::Image::getModifiedCount` says it changed — so a caller writes the
         /// image the way it always did and never asks which backend it got.
         ///
-        /// The texture and its image belong to the caller and outlive what comes back.
+        /// The texture and its image are the caller's to write. What comes back holds a reference to
+        /// the texture, so a picture with no other owner — a save's thumbnail, decoded and handed
+        /// over — stands as long as it is drawn.
         virtual std::unique_ptr<MyGUI::ITexture> shareTexture(osg::Texture2D& texture) = 0;
 
         /// The same, for a picture whose painter says where it painted: a backend that mirrors the

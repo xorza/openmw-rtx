@@ -80,6 +80,7 @@
 #include "../mwrender/camera.hpp"
 #include "../mwrender/npcanimation.hpp"
 #include "../mwrender/renderingmanager.hpp"
+#include "../mwrender/skystate.hpp"
 #include "../mwrender/vismask.hpp"
 
 #include "../mwscript/globalscripts.hpp"
@@ -2537,10 +2538,13 @@ namespace MWWorld
 
     osg::Vec3f World::getStormDirection() const
     {
-        if (isCellExterior() || isCellQuasiExterior())
-            return mWeatherManager->getStormDirection();
-        else
-            return osg::Vec3f(0, 1, 0);
+        // Out of the weather the sky state carries, and not out of a renderer: upstream asks its
+        // sky manager, which is the rasterizer's alone, and the direction is the weather's answer
+        // either way. A weather that has not run yet has no direction, so the default stands.
+        const MWRender::SkyState& sky = getSkyState();
+        if (sky.mWeatherRan && (isCellExterior() || isCellQuasiExterior()))
+            return sky.mWeather.mStormParticleDirection;
+        return Weather::defaultDirection();
     }
 
     struct GetContainersOwnedByVisitor

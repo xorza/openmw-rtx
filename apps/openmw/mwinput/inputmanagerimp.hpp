@@ -48,9 +48,10 @@ namespace MWInput
     class InputManager final : public MWBase::InputManager
     {
     public:
-        InputManager(MWRender::Renderer& renderer, const std::filesystem::path& userFile, bool userFileExists,
+        InputManager(MWRender::Renderer& renderer, std::unique_ptr<SDLUtil::InputWrapper> inputWrapper,
+            const std::filesystem::path& userFile, bool userFileExists,
             const std::filesystem::path& userControllerBindingsFile,
-            const std::filesystem::path& controllerBindingsFile, bool grab);
+            const std::filesystem::path& controllerBindingsFile);
 
         ~InputManager() final;
 

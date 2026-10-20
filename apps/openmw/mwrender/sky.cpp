@@ -639,7 +639,7 @@ namespace MWRender
     void Precipitation::setWeather(const SkyState& sky)
     {
         const WeatherResult& weather = sky.mWeather;
-        mStormParticleDirection = sky.mStormParticleDirection;
+        mStormParticleDirection = weather.mStormParticleDirection;
 
         mRainEntranceSpeed = weather.mRainEntranceSpeed;
         mRainMaxRaindrops = weather.mRainMaxRaindrops;
