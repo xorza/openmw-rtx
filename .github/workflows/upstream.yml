@@ -155,7 +155,7 @@ jobs:
     needs: survey
     if: needs.survey.outputs.merge == 'true'
     runs-on: ubuntu-24.04
-    # Six seconds a turn in the runs so far: room for the turns of ninety conflicted files.
+    # Six seconds a turn in the runs so far: room for the turns of seventy conflicted files.
     timeout-minutes: 120
 
     # **Read, and nothing else.** The agent works in this job, so this job can write to nothing: no
@@ -210,10 +210,11 @@ jobs:
       # upstream's and a name with a newline in it writes a line of its own into `GITHUB_OUTPUT`;
       # the next step writes it for the agent. Their count is handed over, as the agent's turns.
       #
-      # **Turns by the work, and not one figure for every merge.** A merge with nothing to resolve
-      # took 31 turns; three runs of 2026-10-02 and 03 met fourteen conflicted files, spent a fixed
-      # sixty on them, and ended mid-resolution with nothing pushed. Forty, and twelve a file: a file
-      # takes a read of its conflicts, of what surrounds them, and an edit or two.
+      # **Turns by the work, and not one figure for every merge.** Three runs of 2026-10-02 and 03
+      # met fourteen conflicted files, spent a fixed sixty on them, and ended mid-resolution with
+      # nothing pushed. Sixty, and sixteen a file: from 2026-09-27 to 10-21 a merge with nothing to
+      # resolve took 16 to 45 turns, and one with three files 39 to 90; at forty and twelve, the
+      # runs of 10-18 and 10-21 finished their merges and failed at 45 of 40 and 90 of 76.
       - name: The merge, as far as git takes it
         id: merge
         env:
@@ -253,7 +254,7 @@ jobs:
 
           conflicted=$(git diff --name-only --diff-filter=U | wc -l)
           echo "files git could not merge: $conflicted"
-          echo "turns=$((40 + 12 * conflicted))" >> "$GITHUB_OUTPUT"
+          echo "turns=$((60 + 16 * conflicted))" >> "$GITHUB_OUTPUT"
 
       # **What the agent reads of git, written out for it, because the agent runs no git.** Claude
       # Code merges the file tools' deny rules into the sandbox's own, so the deny on `.git` below,
@@ -407,7 +408,7 @@ jobs:
             5. Do not edit anything under `.github/`: a merge that changes what CI runs is a merge a
                human reads first, so leave the conflict and say so in the report.
 
-            Your turns are counted from the conflicted files, twelve a file. Resolve one file at a
+            Your turns are counted from the conflicted files, sixteen a file. Resolve one file at a
             time and finish it before you open the next. If a conflict defeats you, leave its markers
             in place and write the report anyway, with what is unresolved in its first line. If your
             turns run out first, the step after you commits the tree as you left it for a human, so
