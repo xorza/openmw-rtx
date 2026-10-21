@@ -49,7 +49,7 @@ namespace Rtx
 
     std::optional<Denoised> DenoisePasses::record(VkCommandBuffer commands, DenoiseHistory& history,
         const GBuffer& buffer, const Shaders::VisibilityConstants& sampled, const bool mapped, const bool lamps,
-        const bool composes, const Reconstruction& reconstruction, GpuTimer* const timer) const
+        const bool composes, const Reconstruction& reconstruction, const Image& composed, GpuTimer* const timer) const
     {
         // **Each field of the shadow denoiser only where its source can light anything**: the sky's
         // where the sun or a moon lights, the lamps' where a lamp does. A room with no lamp has
@@ -80,7 +80,7 @@ namespace Rtx
         runs[Temporal::Specular] = mapped;
         runs[Temporal::Pane] = true;
 
-        const TemporalTurns::Step step = history.turn(runs);
+        const TemporalTurns::Step step = history.turn(runs, sampled.mFrame);
         assert((!step.mFresh[Temporal::Accumulate]
                    || (step.mFresh[Temporal::SkyShadow] && step.mFresh[Temporal::LampShadow]
                        && step.mFresh[Temporal::Specular] && step.mFresh[Temporal::Pane]))
@@ -91,6 +91,7 @@ namespace Rtx
         const DenoiseFrame frame{
             .mSampled = sampled,
             .mFilters = reconstruction.mFilters,
+            .mWrittenBefore = step.mWrittenBefore,
         };
 
         // **Stage by stage, and every family's dispatch of a stage behind one barrier**: the
@@ -170,16 +171,14 @@ namespace Rtx
         accumulated.mFast.addTransition(ready, Use::sComputeWrite, Use::sComputeWrite);
         for (const Image* image : { &accumulated.mColour, &accumulated.mFill })
             image->addTransition(ready, Use::sComputeRead, Use::sComputeWrite);
-        // The frame the last level composes over, where it composes: nothing has read it since the
-        // trace handed it over.
-        if (composes)
-            buffer.get(Channel::Direct).addTransition(ready, Use::sAnyShaderRead, Use::sComputeReadWrite);
-
         ready.flush();
 
-        const AtrousPass::Composing composing{
-            .mSpecular = *specular, .mPane = *pane, .mSkyShadow = skyShadow, .mLampShadow = lampShadow, .mLobed = mapped
-        };
+        const AtrousPass::Composing composing{ .mComposed = composed,
+            .mSpecular = *specular,
+            .mPane = *pane,
+            .mSkyShadow = skyShadow,
+            .mLampShadow = lampShadow,
+            .mLobed = mapped };
         const std::optional<AtrousPass::Filtered> filtered
             = mFilter.record(commands, accumulated, buffer, frame, composes ? &composing : nullptr, timer);
         if (!filtered.has_value())

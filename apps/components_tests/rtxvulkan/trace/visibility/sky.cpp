@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/Math>
+#include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -66,14 +67,17 @@ namespace Rtx::Testing
             constexpr std::uint32_t size = 33;
 
             // Facing straight up, so the centre pixel looks at the zenith and the frame's edge looks
-            // sixty degrees off it. Nothing is placed, so every ray misses.
+            // sixty degrees off it. The one wall stands far under the eye, so every ray misses: the
+            // wall at the origin holds the eye in its plane, and a ray that starts in a triangle's
+            // plane is the driver's to call — AMD's Windows driver met it at a distance of nought.
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 10000.0f);
             camera.mSkyHorizon = osg::Vec3f(1.0f, 0.0f, 0.0f);
             camera.mSkyZenith = osg::Vec3f(0.0f, 0.0f, 1.0f);
             camera.mAmbientFromSky = 1.0f;
 
-            SceneDesc scene = makeWall();
+            SceneDesc scene;
+            addQuad(scene, sWallQuad, std::nullopt, osg::Matrixf::translate(0.0f, 0.0f, -5000.0f));
             const Frame frame = shoot(scene, {}, camera, size);
 
             // The camera looks level, so the middle row's rays are horizontal: z of zero, which is
@@ -810,7 +814,7 @@ namespace Rtx::Testing
             EXPECT_NEAR(lifted.mShown - unlifted.mShown, 0.2 * static_cast<double>(floorByte), 1.0)
                 << "the meter took some of the lift back";
 
-            // The water's two rays, by their shares.
+            // The water's two paths, by their shares.
             const float fresnel = Shaders::WATER_F0
                 + (1.0f - Shaders::WATER_F0) * std::pow(1.0f - std::sin(osg::DegreesToRadians(10.0f)), 5.0f);
             SceneDesc mirrored = makeOpenWater(4000.0f);

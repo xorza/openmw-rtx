@@ -74,7 +74,8 @@ layout(push_constant, scalar) uniform Push
 /// beside it. Clamped to the grid's edge, which is the neighbour the sampler would have read there.
 void gatherLit(ivec2 tap, uvec2 tracedExtent, float near, inout vec3 lit, inout float weight)
 {
-    const vec4 read = imageLoad(puffs, clamp(tap, ivec2(0), ivec2(tracedExtent) - 1));
+    const ivec2 held = clamp(tap, ivec2(0), ivec2(tracedExtent) - 1);
+    const vec4 read = imageLoad(puffs, channelAt(CHANNEL_PUFFS, held, tracedExtent.x, fieldSwapOf(frame.mFrame)));
     const float covered = (1.0 - read.a) * near;
 
     lit += read.rgb * covered;
@@ -123,8 +124,9 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     // **Where a puff is hidden: the traced pixel's depth, along this pixel's own ray** — the header
     // says why not the traced grid's jittered one. Not for the arms, whose ray leaves an eye of its
     // own a few units off and whose depth the trace already has.
-    const float distance = arms ? surfaceDistance(imageLoad(surfaceChannel, ivec2(traced)).y)
-                                : depth / dot(direction, camera.mBasis.mForward);
+    const ivec2 stored = channelAt(CHANNEL_SURFACE, ivec2(traced), tracedExtent.x, fieldSwapOf(frame.mFrame));
+    const float distance
+        = arms ? surfaceDistance(imageLoad(surfaceChannel, stored).y) : depth / dot(direction, camera.mBasis.mForward);
 
     // The sprites' shape, and where they stand, off this pixel's own march.
     PuffLayer layer = spritesAlong(binned, origin, direction, distance, cone, false);
@@ -192,7 +194,7 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
         return;
     }
 
-    // **The air in front of the layer, so that it covers only what is behind it.** `visibility.rgen`
+    // **The air in front of the layer, so that it covers only what is behind it.** `visibility.comp`
     // states the identity this is: the frame holds the whole path's haze over the surface, and a
     // puff a few units out must not take two hundred units of haze away with it. The near half is
     // read again as the whole one's own prefix, and the clamp is what a pair quantised apart by a
@@ -214,7 +216,9 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     // between the eye and a see-through hand is laid down behind it the same way, by `t` and not
     // whole. Selected and not mixed where no arm stands, so the world's own pixel is the composite
     // to the bit.
-    const float armsThrough = arms ? 1.0 : imageLoad(backdrop, ivec2(traced)).a;
+    const float armsThrough = arms
+        ? 1.0
+        : imageLoad(backdrop, channelAt(CHANNEL_BACKDROP, ivec2(traced), tracedExtent.x, fieldSwapOf(frame.mFrame))).a;
     const vec3 laid = armsThrough < 1.0 ? mix(before.rgb, composited, armsThrough) : composited;
 
     RTX_STORE_COUNTED(shown, ivec2(pixel), vec4(laid, layer.mTransmittance))
@@ -228,7 +232,8 @@ void main()
 
     // Which eye the trace cast this pixel's ray from — the arms' where it drew the pixel on an arm,
     // so the march here runs along the same ray the trace lit them on.
-    const bool arms = surfaceOnArms(imageLoad(surfaceChannel, ivec2(traced)).y);
+    const ivec2 stored = channelAt(CHANNEL_SURFACE, ivec2(traced), tracedExtent.x, fieldSwapOf(frame.mFrame));
+    const bool arms = surfaceOnArms(imageLoad(surfaceChannel, stored).y);
 
     // **Nothing to draw and nothing to write.** The curve makes the same test and reads a one
     // where this wrote nothing; `puffsCoverNothing` says what it saves.

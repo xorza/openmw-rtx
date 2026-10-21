@@ -43,6 +43,23 @@ struct SDL_Window;
 
 namespace Rtx
 {
+    /// Which of the trace's kernels a host waits for (`Renderer::awaitKernels`).
+    ///
+    /// **A frame draws on the full kernels until its own tuple is made**, as Godot's ubershaders and
+    /// Dolphin's hybrid mode draw until the specialized shader is compiled
+    /// (`docs/rtx/architecture.md`, "Every driver draws its first frames on the full kernels"): the
+    /// full tuple takes about ten seconds cold, every tuple about a minute.
+    enum class KernelSet : std::uint8_t
+    {
+        /// The kernels a frame draws with: the full tuple's and the ones no tuple changes. What a
+        /// played start waits for.
+        Drawing,
+
+        /// Every tuple's as well, which a run that measures or compares waits for, so two runs
+        /// change kernel at no frame.
+        Every,
+    };
+
     class SceneDesc;
     struct SkyContent;
 
@@ -86,6 +103,12 @@ namespace Rtx
         /// demanded the validation and cannot have it fails naming what is missing, because an empty
         /// log reads as a clean pass; a build that switched it on by default only warns.
         bool mDemanded = false;
+
+        /// Whether every queue submit is logged as it is made, with what the submitting thread was
+        /// doing (`Crash::NoteScope`), and watched to its end before the next: a diagnostic for a
+        /// device that stops answering, or a machine that stops with it, whose log then ends on the
+        /// submit that never finished. Each costs the overlap of the CPU with the GPU.
+        bool mWatchSubmits = false;
     };
 
     /// Whether the graphics API's validation runs without anyone asking: on outside a Release build,
@@ -337,6 +360,9 @@ namespace Rtx
         /// do not count (`ShaderSet::mCensus`).
         NotFinite mNotFinite;
 
+        /// Pixels whose walk the trace cut short: a logic error, logged the first time it happens.
+        std::uint32_t mWalksCut = 0;
+
         /// What the hold's own clock said the hold came to, in milliseconds: what
         /// `RenderProfile::mStressOverlapMs` asked and the tick past it, on a run that holds, and
         /// nought on one that does not. The loop's reading and not the timer's zone around it,
@@ -547,13 +573,13 @@ namespace Rtx
         /// it from a file or a command line refuses anything else first.
         virtual void setGamma(float gamma) = 0;
 
-        /// How many of the kernels a trace needs are made, waiting `patience` at most for the rest,
-        /// and rethrowing what making one threw. The renderer starts making them as it is made, on
+        /// How many of `set`'s kernels are made, waiting `patience` at most for the rest, and
+        /// rethrowing what making one threw. The renderer starts making them as it is made, on
         /// threads of its own, and returns without them — ten seconds on a cold cache — so a host
         /// shows this on a loading screen rather than a window that stopped answering. Every call
-        /// that traces waits for them first, so a host that never asks is right all the same, and
-        /// held on its first trace instead.
-        virtual JobProgress awaitKernels(std::chrono::milliseconds patience) = 0;
+        /// that traces waits for the kernels it draws with first, so a host that never asks is right
+        /// all the same, and held on its first trace instead.
+        virtual JobProgress awaitKernels(KernelSet set, std::chrono::milliseconds patience) = 0;
 
         /// Traces one frame; `setScene` first, which is an assert. Returns before the device has
         /// drawn it, so the caller can place the next one meanwhile, and `finishFrame` reads back

@@ -2,6 +2,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstddef>
+#include <mutex>
+#include <set>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -22,7 +24,8 @@ namespace Rtx
             std::vector<std::atomic<int>> ran(count);
 
             runInParallel(
-                "parallel", count, Platform::StopToken{}, [] { return 0; }, [&](std::size_t at) { ++ran[at]; });
+                "parallel", count, Hands::Every, Platform::StopToken{}, [] { return 0; },
+                [&](std::size_t at) { ++ran[at]; });
 
             for (std::size_t at = 0; at < count; ++at)
                 EXPECT_EQ(ran[at].load(), 1) << "index " << at;
@@ -39,7 +42,7 @@ namespace Rtx
 
             const auto run = [&] {
                 runInParallel(
-                    "parallel", count, Platform::StopToken{}, [] { return 0; },
+                    "parallel", count, Hands::Every, Platform::StopToken{}, [] { return 0; },
                     [&](std::size_t at) {
                         if (at == 0)
                             throw std::runtime_error("nought");
@@ -98,7 +101,7 @@ namespace Rtx
             std::atomic<std::size_t> counted{ 0 };
 
             runInParallel(
-                "parallel", count, Platform::StopToken{}, [] { return 0; }, Counting(counted));
+                "parallel", count, Hands::Every, Platform::StopToken{}, [] { return 0; }, Counting(counted));
 
             EXPECT_EQ(counted.load(), count) << "the hands shared one body and lost what it counted";
         }
@@ -109,7 +112,7 @@ namespace Rtx
             std::atomic<std::size_t> equipped{ 0 };
 
             runInParallel(
-                "parallel", 0, Platform::StopToken{}, [&] { return ++equipped; },
+                "parallel", 0, Hands::Every, Platform::StopToken{}, [&] { return ++equipped; },
                 [](std::size_t) { FAIL() << "a body ran for no index"; });
 
             EXPECT_EQ(equipped.load(), 0u);
@@ -126,7 +129,7 @@ namespace Rtx
 
             Platform::Thread runner("runner", [&](Platform::StopToken stop) {
                 runInParallel(
-                    "parallel", count, stop, [] { return 0; },
+                    "parallel", count, Hands::Every, stop, [] { return 0; },
                     [&](std::size_t) {
                         ++ran;
                         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -153,7 +156,7 @@ namespace Rtx
             std::atomic<std::size_t> byCaller{ 0 };
 
             runInParallel(
-                "parallel", count, Platform::StopToken{}, [] { return 0; },
+                "parallel", count, Hands::Every, Platform::StopToken{}, [] { return 0; },
                 [&](std::size_t) {
                     if (std::this_thread::get_id() == caller)
                         ++byCaller;
@@ -161,6 +164,23 @@ namespace Rtx
                 });
 
             EXPECT_GT(byCaller.load(), 0u);
+
+            // **Half the hands, and at least one**: no more threads than half the processors take
+            // an index, the caller among them.
+            std::mutex held;
+            std::set<std::thread::id> hands;
+            runInParallel(
+                "parallel", count, Hands::Half, Platform::StopToken{}, [] { return 0; },
+                [&](std::size_t) {
+                    {
+                        const std::lock_guard<std::mutex> hold(held);
+                        hands.insert(std::this_thread::get_id());
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                });
+
+            EXPECT_EQ(hands.count(caller), 1u);
+            EXPECT_LE(hands.size(), std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2));
         }
 
         /// **What a hand's equipment throws comes back as a body's would**, and that hand takes no
@@ -176,7 +196,7 @@ namespace Rtx
 
             const auto run = [&] {
                 runInParallel(
-                    "parallel", count, Platform::StopToken{},
+                    "parallel", count, Hands::Every, Platform::StopToken{},
                     [caller] {
                         if (std::this_thread::get_id() == caller)
                             throw std::runtime_error("unequipped");

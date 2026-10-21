@@ -158,11 +158,15 @@ void main()
         // in, which the composite did not run over.
         const float puffs = frame.mPuffs == 0u
                 || puffsCoverNothing(SpriteTileList(frame.mSpriteTileList), SpritePresence(frame.mSpritePresence),
-                    frame.mTracedWidth, traced, surfaceOnArms(imageLoad(surfaceChannel, ivec2(traced)).y))
+                    frame.mTracedWidth, traced,
+                    surfaceOnArms(imageLoad(surfaceChannel,
+                        channelAt(CHANNEL_SURFACE, ivec2(traced), frame.mTracedWidth, fieldSwapOf(frame.mFrame)))
+                            .y))
             ? 1.0
             : lit.a;
 
-        const vec3 shown = imageLoad(backdrop, ivec2(traced)).rgb * puffs;
+        const ivec2 behind = channelAt(CHANNEL_BACKDROP, ivec2(traced), frame.mTracedWidth, fieldSwapOf(frame.mFrame));
+        const vec3 shown = imageLoad(backdrop, behind).rgb * puffs;
 
         // **The sky's own points, drawn where they are shown.** `ToneConstants::mStars` says why
         // they are not the trace's.

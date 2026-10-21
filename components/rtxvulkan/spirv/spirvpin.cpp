@@ -127,6 +127,10 @@ namespace Rtx
 
             /// The fragment stage's interpolation: refused.
             Interpolation,
+
+            /// `fma`, which the specification lets a compile round once or twice, and which only
+            /// `SPV_KHR_fma` rounds once on every device: refused, since not every device has it.
+            Fused,
         };
 
         constexpr Treatment treatmentOf(std::uint32_t instruction)
@@ -205,7 +209,6 @@ namespace Rtx
                 case GLSLstd450Acos:
                 case GLSLstd450FMix:
                 case GLSLstd450SmoothStep:
-                case GLSLstd450Fma:
                 case GLSLstd450Length:
                 case GLSLstd450Distance:
                 case GLSLstd450Cross:
@@ -220,6 +223,9 @@ namespace Rtx
                 case GLSLstd450Determinant:
                 case GLSLstd450MatrixInverse:
                     return Treatment::Unpinned;
+
+                case GLSLstd450Fma:
+                    return Treatment::Fused;
 
                 case GLSLstd450InterpolateAtCentroid:
                 case GLSLstd450InterpolateAtSample:
@@ -291,7 +297,6 @@ namespace Rtx
                 case spv::OpVectorTimesScalar:
                 case spv::OpMatrixTimesScalar:
                 case spv::OpOuterProduct:
-                case spv::OpFmaKHR:
                     return true;
                 default:
                     return false;
@@ -314,71 +319,6 @@ namespace Rtx
                 case spv::OpDecorateId:
                 case spv::OpDecorateString:
                 case spv::OpMemberDecorateString:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        /// Whether operand `at` of an instruction is a literal and not an id, for the instructions a
-        /// shader's functions hold literals in: a literal that happened to equal a multiply's id would
-        /// make the multiply look read twice. Every other operand after the result counts as a read,
-        /// which for an instruction this does not name can only cost a fusion.
-        bool isLiteral(spv::Op op, std::size_t at)
-        {
-            switch (op)
-            {
-                case spv::OpExtInst:
-                case spv::OpExtInstWithForwardRefsKHR:
-                    return at == 3;
-                case spv::OpCompositeExtract:
-                    return at >= 3;
-                case spv::OpCompositeInsert:
-                case spv::OpVectorShuffle:
-                    return at >= 4;
-                // A selector and a default, then a literal and a label in turn.
-                case spv::OpSwitch:
-                    return at >= 2 && at % 2 == 0;
-                case spv::OpSelectionMerge:
-                    return at == 1;
-                case spv::OpLoopMerge:
-                case spv::OpFunction:
-                case spv::OpVariable:
-                    return at == 2;
-                case spv::OpBranchConditional:
-                    return at >= 3;
-                // The memory operands: a mask and an alignment, and at most a scope no product is.
-                case spv::OpLoad:
-                    return at >= 3;
-                case spv::OpStore:
-                    return at >= 2;
-                // The image operands' mask; what follows it is ids, a level of detail among them.
-                case spv::OpImageSampleImplicitLod:
-                case spv::OpImageSampleExplicitLod:
-                case spv::OpImageFetch:
-                case spv::OpImageRead:
-                    return at == 4;
-                case spv::OpImageWrite:
-                    return at == 3;
-                default:
-                    return false;
-            }
-        }
-
-        /// What says nothing about what a module computes: debug names and source, and lines.
-        bool isDebug(spv::Op op)
-        {
-            switch (op)
-            {
-                case spv::OpSourceContinued:
-                case spv::OpSource:
-                case spv::OpSourceExtension:
-                case spv::OpName:
-                case spv::OpMemberName:
-                case spv::OpString:
-                case spv::OpLine:
-                case spv::OpNoLine:
-                case spv::OpModuleProcessed:
                     return true;
                 default:
                     return false;
@@ -408,16 +348,6 @@ namespace Rtx
             std::uint32_t mCount = 0;
         };
 
-        /// A fused multiply-add the fusion pass makes out of an add or a subtract, and what has to be
-        /// made before it — a negation, and a scalar spread across a vector.
-        struct Fusion
-        {
-            /// Where the multiply it takes in stands among the functions' instructions.
-            std::size_t mMultiply;
-            std::vector<Instruction> mBefore;
-            Instruction mFused;
-        };
-
         class Pinner
         {
         public:
@@ -442,10 +372,6 @@ namespace Rtx
 
             /// The results the module decorates `NoContraction` itself: `precise` in the source.
             std::unordered_set<std::uint32_t> mDecorated;
-
-            /// What the fusion pass leaves as it is: the source's `precise` results and every step a
-            /// `precise` operation was rewritten into.
-            std::unordered_set<std::uint32_t> mUnfused;
 
             /// Every float constant, by its type and bits, so a rewrite that needs one reuses it.
             std::map<std::pair<std::uint32_t, std::uint32_t>, std::uint32_t> mConstants;
@@ -472,21 +398,14 @@ namespace Rtx
             /// The functions as the rewrites leave them.
             std::vector<Instruction> mOut;
 
-            bool mFused = false;
-
             void read(std::span<const std::uint32_t> words);
             void survey();
             void rewrite();
             void rewriteOne(const Instruction& instruction);
             void rewriteGlsl(const Instruction& instruction);
-            void foldBeforeFusion();
-            void fuse();
-            void foldAfterFusion();
+            void fold();
             bool foldOne(Instruction& instruction);
             void dropFoldedDecorations();
-            std::optional<Fusion> fusionOf(const Instruction& add,
-                const std::unordered_map<std::uint32_t, std::size_t>& definedAt,
-                const std::unordered_map<std::uint32_t, std::uint32_t>& uses);
 
             [[noreturn]] void refuse(const Instruction& instruction, std::string_view why) const;
 
@@ -519,9 +438,7 @@ namespace Rtx
             read(words);
             survey();
             rewrite();
-            foldBeforeFusion();
-            fuse();
-            foldAfterFusion();
+            fold();
             dropFoldedDecorations();
         }
 
@@ -620,6 +537,10 @@ namespace Rtx
                             && readString(std::span(operands).subspan(2)) == sGuardMark)
                             guarded.insert(operands[0]);
                         break;
+                    case spv::OpCapability:
+                        if (static_cast<spv::Capability>(operandAt(instruction, 0)) == spv::CapabilityFMAKHR)
+                            refuse(instruction, "a module that fuses runs only on a device with SPV_KHR_fma");
+                        break;
                     case spv::OpDecorate:
                         switch (static_cast<spv::Decoration>(operandAt(instruction, 1)))
                         {
@@ -681,8 +602,6 @@ namespace Rtx
                 return (instruction.mOp == spv::OpDecorate && decoration == spv::DecorationNoContraction)
                     || (instruction.mOp == spv::OpDecorateString && decoration == spv::DecorationUserSemantic);
             });
-
-            mUnfused = mDecorated;
         }
 
         void Pinner::rewrite()
@@ -701,16 +620,6 @@ namespace Rtx
                 refuse(instruction,
                     "what it computes is the compile's or the hardware's choice, and nothing here pins it");
 
-            // Steps a `precise` operation is rewritten into keep its promise: none of them is fused.
-            const std::size_t first = mOut.size();
-            const auto keepPrecise = [&] {
-                if (!mUnfused.contains(result()))
-                    return;
-                for (std::size_t at = first; at < mOut.size(); ++at)
-                    if (const std::optional<std::uint32_t> made = resultOf(mOut[at]))
-                        mUnfused.insert(*made);
-            };
-
             switch (instruction.mOp)
             {
                 case spv::OpDot:
@@ -718,7 +627,6 @@ namespace Rtx
                     const std::vector<std::uint32_t> left = split(operandAt(instruction, 2));
                     const std::vector<std::uint32_t> right = split(operandAt(instruction, 3));
                     sumOfProducts(left, right, result());
-                    keepPrecise();
                     return;
                 }
                 case spv::OpMatrixTimesVector:
@@ -733,7 +641,6 @@ namespace Rtx
                                 make(spv::OpCompositeExtract, scalarOf(shape.mPart), { matrix, column, row }));
                         return sumOfProducts(elements, vector, into);
                     });
-                    keepPrecise();
                     return;
                 }
                 case spv::OpVectorTimesMatrix:
@@ -746,7 +653,6 @@ namespace Rtx
                             = split(make(spv::OpCompositeExtract, shape.mPart, { matrix, column }));
                         return sumOfProducts(vector, elements, into);
                     });
-                    keepPrecise();
                     return;
                 }
                 case spv::OpMatrixTimesMatrix:
@@ -773,7 +679,6 @@ namespace Rtx
                         columns.push_back(make(spv::OpCompositeConstruct, product.mPart, rows));
                     }
                     emit(spv::OpCompositeConstruct, type(), result(), columns);
-                    keepPrecise();
                     return;
                 }
                 case spv::OpFMod:
@@ -785,7 +690,6 @@ namespace Rtx
                         = glsl(type(), instruction.mOp == spv::OpFMod ? GLSLstd450Floor : GLSLstd450Trunc,
                             { make(spv::OpFDiv, type(), { x, y }) });
                     emit(spv::OpFSub, type(), result(), { x, make(spv::OpFMul, type(), { y, whole }) });
-                    keepPrecise();
                     return;
                 }
                 case spv::OpExtInst:
@@ -796,7 +700,6 @@ namespace Rtx
                     if (!mGlsl.has_value() || set != *mGlsl)
                         refuse(instruction, "its extended instruction set is neither GLSL.std.450 nor non-semantic");
                     rewriteGlsl(instruction);
-                    keepPrecise();
                     return;
                 }
                 default:
@@ -827,6 +730,10 @@ namespace Rtx
                         "it yet; write it out in the shader or teach Rtx::pinFloatArithmetic its order");
                 case Treatment::Interpolation:
                     refuse(instruction, "interpolation is the rasterizer's and nothing here pins it");
+                case Treatment::Fused:
+                    refuse(instruction,
+                        "a compile may round it once or twice, and only a device with SPV_KHR_fma is bound to once; "
+                        "write the product and the sum, or the exact error of a product the way turns.glsl does");
                 case Treatment::Lowered:
                     break;
             }
@@ -845,13 +752,6 @@ namespace Rtx
                     return;
                 case GLSLstd450FClamp:
                     glsl(type, GLSLstd450NClamp, { argument(0), argument(1), argument(2) }, result);
-                    return;
-                case GLSLstd450Fma:
-                    // The device fuses 32-bit floats and nothing narrower or wider is asked of it.
-                    if (typeNamed(scalar).mWidth != 32)
-                        refuse(instruction, "only a 32-bit fma is one the device is asked to round once");
-                    emit(spv::OpFmaKHR, type, result, { argument(0), argument(1), argument(2) });
-                    mFused = true;
                     return;
                 case GLSLstd450Length:
                 {
@@ -1012,139 +912,6 @@ namespace Rtx
             throw std::logic_error(std::format("GLSL.std.450 instruction {} is lowered and has no rewrite", which));
         }
 
-        void Pinner::fuse()
-        {
-            std::unordered_map<std::uint32_t, std::uint32_t> uses;
-            std::unordered_map<std::uint32_t, std::uint32_t> debugUses;
-            std::unordered_set<std::uint32_t> mentioned;
-            const auto count = [&](const Instruction& instruction) {
-                if (isAnnotation(instruction.mOp) || isDebug(instruction.mOp))
-                {
-                    if (!instruction.mOperands.empty())
-                        mentioned.insert(instruction.mOperands[0]);
-                    return;
-                }
-                const bool debug
-                    = (instruction.mOp == spv::OpExtInst || instruction.mOp == spv::OpExtInstWithForwardRefsKHR)
-                    && mNonSemantic.contains(operandAt(instruction, 2));
-                const Layout layout = layoutOf(instruction.mOp);
-                const std::size_t from
-                    = static_cast<std::size_t>(layout.mType) + static_cast<std::size_t>(layout.mResult);
-                for (std::size_t at = from; at < instruction.mOperands.size(); ++at)
-                    if (!isLiteral(instruction.mOp, at))
-                        ++(debug ? debugUses : uses)[instruction.mOperands[at]];
-            };
-            for (const Instruction& instruction : mGlobal)
-                count(instruction);
-            for (const Instruction& instruction : mOut)
-                count(instruction);
-
-            std::unordered_map<std::uint32_t, std::size_t> definedAt;
-            for (std::size_t at = 0; at < mOut.size(); ++at)
-                if (const std::optional<std::uint32_t> result = resultOf(mOut[at]))
-                    definedAt[*result] = at;
-
-            std::unordered_map<std::size_t, Fusion> fusions;
-            std::unordered_set<std::size_t> dropped;
-            for (std::size_t at = 0; at < mOut.size(); ++at)
-                if (std::optional<Fusion> fusion = fusionOf(mOut[at], definedAt, uses))
-                {
-                    // Kept where a name or a debug instruction still mentions it, which the stripped
-                    // module then holds unread and the driver takes out.
-                    const std::uint32_t multiply = *resultOf(mOut[fusion->mMultiply]);
-                    if (debugUses[multiply] == 0 && !mentioned.contains(multiply))
-                        dropped.insert(fusion->mMultiply);
-                    fusions.emplace(at, std::move(*fusion));
-                }
-
-            if (fusions.empty())
-                return;
-            mFused = true;
-
-            std::vector<Instruction> fused;
-            fused.reserve(mOut.size());
-            for (std::size_t at = 0; at < mOut.size(); ++at)
-            {
-                if (dropped.contains(at))
-                    continue;
-                const auto found = fusions.find(at);
-                if (found == fusions.end())
-                {
-                    fused.push_back(std::move(mOut[at]));
-                    continue;
-                }
-                for (Instruction& before : found->second.mBefore)
-                    fused.push_back(std::move(before));
-                fused.push_back(std::move(found->second.mFused));
-            }
-            mOut = std::move(fused);
-        }
-
-        std::optional<Fusion> Pinner::fusionOf(const Instruction& add,
-            const std::unordered_map<std::uint32_t, std::size_t>& definedAt,
-            const std::unordered_map<std::uint32_t, std::uint32_t>& uses)
-        {
-            if (add.mOp != spv::OpFAdd && add.mOp != spv::OpFSub)
-                return std::nullopt;
-
-            const std::uint32_t type = *resultTypeOf(add);
-            const std::uint32_t result = *resultOf(add);
-            if (mUnfused.contains(result) || typeNamed(scalarOf(type)).mWidth != 32)
-                return std::nullopt;
-
-            // A product this add is the only reader of, and that is no `precise` result itself.
-            const auto product = [&](std::uint32_t value) -> const Instruction* {
-                const auto found = definedAt.find(value);
-                const auto read = uses.find(value);
-                if (found == definedAt.end() || read == uses.end() || read->second != 1 || mUnfused.contains(value))
-                    return nullptr;
-                const Instruction& made = mOut[found->second];
-                return made.mOp == spv::OpFMul || made.mOp == spv::OpVectorTimesScalar ? &made : nullptr;
-            };
-
-            // The right-hand product first, so a running sum stays the sum: `s + a b` is
-            // `fma(a, b, s)` whatever `s` was made of.
-            const std::uint32_t x = operandAt(add, 2);
-            const std::uint32_t y = operandAt(add, 3);
-            const Instruction* multiply = product(y);
-            const bool right = multiply != nullptr;
-            if (!right)
-                multiply = product(x);
-            if (multiply == nullptr)
-                return std::nullopt;
-
-            Fusion fusion{ .mMultiply = definedAt.at(*resultOf(*multiply)), .mBefore = {}, .mFused = {} };
-            std::uint32_t a = operandAt(*multiply, 2);
-            std::uint32_t b = operandAt(*multiply, 3);
-            std::uint32_t c = right ? x : y;
-
-            const auto before = [&](spv::Op op, std::vector<std::uint32_t> operands) {
-                const std::uint32_t made = fresh();
-                Instruction instruction{ op, { type, made } };
-                instruction.mOperands.insert(instruction.mOperands.end(), operands.begin(), operands.end());
-                fusion.mBefore.push_back(std::move(instruction));
-                mTypeOf[made] = type;
-                return made;
-            };
-
-            // A vector scaled by a scalar is the scalar spread across the vector, which `OpFmaKHR`
-            // needs its three operands to be.
-            if (multiply->mOp == spv::OpVectorTimesScalar)
-                b = before(spv::OpCompositeConstruct, std::vector<std::uint32_t>(typeNamed(type).mCount, b));
-
-            // Negation is exact, so `c - a b` is `fma(-a, b, c)` and `a b - c` is `fma(a, b, -c)`.
-            if (add.mOp == spv::OpFSub)
-            {
-                if (right)
-                    a = before(spv::OpFNegate, { a });
-                else
-                    c = before(spv::OpFNegate, { c });
-            }
-
-            fusion.mFused = Instruction{ spv::OpFmaKHR, { type, result, a, b, c } };
-            return fusion;
-        }
-
         std::vector<std::uint32_t> Pinner::assemble()
         {
             // Every rounding step that is left, `NoContraction`, beside whatever the source decorated.
@@ -1161,13 +928,6 @@ namespace Rtx
                         last = at;
                 return last;
             };
-
-            const bool hasCapability = std::any_of(mGlobal.begin(), mGlobal.end(), [](const Instruction& instruction) {
-                return instruction.mOp == spv::OpCapability && instruction.mOperands.at(0) == spv::CapabilityFMAKHR;
-            });
-            const bool hasExtension = std::any_of(mGlobal.begin(), mGlobal.end(), [](const Instruction& instruction) {
-                return instruction.mOp == spv::OpExtension && readString(instruction.mOperands) == "SPV_KHR_fma";
-            });
 
             // **Signed zeros, infinities and NaNs preserved, for each float width the module has, at
             // every entry point.** Vulkan otherwise lets each compile assume there are none and fold
@@ -1190,10 +950,10 @@ namespace Rtx
                   });
 
             std::vector<Instruction> global;
-            global.reserve(mGlobal.size() + mDeclared.size() + decorations.size() + preserved.size() + 4);
+            global.reserve(mGlobal.size() + mDeclared.size() + decorations.size() + preserved.size() + 2);
 
-            // Where each addition goes: a capability among the capabilities, an extension after
-            // them and the other extensions, the decorations among the annotations or before the
+            // Where each addition goes: a capability among the capabilities, an import after the
+            // extensions and the other imports, the decorations among the annotations or before the
             // first type where there are none, and the declarations last before the functions.
             const std::optional<std::size_t> lastCapability
                 = lastOf([](spv::Op op) { return op == spv::OpCapability; });
@@ -1211,8 +971,7 @@ namespace Rtx
                     break;
                 }
 
-            const std::size_t extensionAfter = lastExtension.value_or(lastCapability.value_or(0));
-            const std::size_t importAfter = lastImport.value_or(extensionAfter);
+            const std::size_t importAfter = lastImport.value_or(lastExtension.value_or(lastCapability.value_or(0)));
             for (std::size_t at = 0; at < mGlobal.size(); ++at)
             {
                 if (at == firstType && !lastAnnotation.has_value())
@@ -1220,14 +979,10 @@ namespace Rtx
 
                 global.push_back(std::move(mGlobal[at]));
 
-                if (mFused && !hasCapability && lastCapability == at)
-                    global.push_back(Instruction{ spv::OpCapability, { spv::CapabilityFMAKHR } });
                 if (!preserved.empty() && !hasPreservation && lastCapability == at)
                     global.push_back(Instruction{ spv::OpCapability, { spv::CapabilitySignedZeroInfNanPreserve } });
                 if (lastMode == at)
                     global.insert(global.end(), preserved.begin(), preserved.end());
-                if (mFused && !hasExtension && at == extensionAfter)
-                    global.push_back(Instruction{ spv::OpExtension, spell("SPV_KHR_fma") });
                 if (mImportsGlsl && at == importAfter)
                 {
                     Instruction import{ spv::OpExtInstImport, { *mGlsl } };
@@ -1406,7 +1161,7 @@ namespace Rtx
         {
             const spv::Op op = instruction.mOp;
             if (op != spv::OpFAdd && op != spv::OpFSub && op != spv::OpFMul && op != spv::OpFDiv
-                && op != spv::OpVectorTimesScalar && op != spv::OpFmaKHR)
+                && op != spv::OpVectorTimesScalar)
                 return false;
 
             const std::uint32_t type = operandAt(instruction, 0);
@@ -1414,13 +1169,9 @@ namespace Rtx
             if (!count.has_value())
                 return false;
 
-            const std::size_t operands = op == spv::OpFmaKHR ? 3 : 2;
-            std::vector<std::vector<std::uint32_t>> values;
-            for (std::size_t at = 0; at < operands; ++at)
-                if (std::optional<std::vector<std::uint32_t>> value
-                    = componentsOf(operandAt(instruction, 2 + at), *count))
-                    values.push_back(std::move(*value));
-            if (values.size() != operands)
+            const std::optional<std::vector<std::uint32_t>> left = componentsOf(operandAt(instruction, 2), *count);
+            const std::optional<std::vector<std::uint32_t>> right = componentsOf(operandAt(instruction, 3), *count);
+            if (!left.has_value() || !right.has_value())
                 return false;
 
             // A component the host computes as the device does: nought, a normal float or an
@@ -1434,18 +1185,13 @@ namespace Rtx
             std::vector<std::uint32_t> bits;
             for (std::size_t at = 0; at < *count; ++at)
             {
-                const float a = std::bit_cast<float>(values[0][at]);
-                const float b = std::bit_cast<float>(values[1][at]);
-                const float c = operands == 3 ? std::bit_cast<float>(values[2][at]) : 0.0f;
+                const float a = std::bit_cast<float>((*left)[at]);
+                const float b = std::bit_cast<float>((*right)[at]);
                 const float made = op == spv::OpFAdd ? a + b
                     : op == spv::OpFSub              ? a - b
                     : op == spv::OpFDiv              ? a / b
-                    : op == spv::OpFmaKHR            ? std::fma(a, b, c)
                                                      : a * b;
-                bool sound = foldable(std::bit_cast<std::uint32_t>(made));
-                for (const std::vector<std::uint32_t>& value : values)
-                    sound = sound && foldable(value[at]);
-                if (!sound)
+                if (!foldable(std::bit_cast<std::uint32_t>(made)) || !foldable((*left)[at]) || !foldable((*right)[at]))
                     return false;
                 bits.push_back(std::bit_cast<std::uint32_t>(made));
             }
@@ -1457,30 +1203,22 @@ namespace Rtx
             return true;
         }
 
-        void Pinner::foldBeforeFusion()
+        void Pinner::fold()
         {
-            // **What the fusion cannot change, folded first, so a division sees the constant its
-            // divisor folds to**: an add, a subtract and a division of constants, and a product of
-            // constants that no add or subtract reads. A product one does read is the fusion's, and
-            // folded after it as the one rounding it becomes.
-            std::unordered_set<std::uint32_t> summed;
-            for (const Instruction& instruction : mOut)
-                if (instruction.mOp == spv::OpFAdd || instruction.mOp == spv::OpFSub)
-                    for (std::size_t at = 2; at < instruction.mOperands.size(); ++at)
-                        summed.insert(instruction.mOperands[at]);
-
+            // **Every operand constant: the value, correctly rounded**, of the arithmetic the pinned
+            // module states: what the device owes an add, a subtract and a multiply exactly, and what
+            // a driver handed constants folds its own way. In the functions' order, so a division
+            // sees the constant its divisor folds to.
             for (Instruction& instruction : mOut)
             {
-                const bool product = instruction.mOp == spv::OpFMul || instruction.mOp == spv::OpVectorTimesScalar;
-                if (instruction.mOp == spv::OpFmaKHR || (product && summed.contains(operandAt(instruction, 1)))
-                    || foldOne(instruction))
+                if (foldOne(instruction))
                     continue;
 
                 // **A division by a constant is the multiply by its reciprocal, rounded once here**:
                 // exactly the quotient where the constant is a power of two, and within an ulp and a
                 // half of it elsewhere, where the device owes a division two and a half and each
-                // device rounds its own — so the same answer on every device, from a multiply the
-                // fusion may then take. Only where the constant and its reciprocal are normal floats.
+                // device rounds its own — so the same answer on every device. Only where the
+                // constant and its reciprocal are normal floats.
                 if (instruction.mOp != spv::OpFDiv)
                     continue;
                 const std::uint32_t type = operandAt(instruction, 0);
@@ -1505,16 +1243,6 @@ namespace Rtx
                 instruction.mOp = spv::OpFMul;
                 instruction.mOperands[3] = floatValue(type, reciprocal);
             }
-        }
-
-        void Pinner::foldAfterFusion()
-        {
-            // **Every operand constant: the value, correctly rounded**, of the arithmetic the pinned
-            // module states, a fused multiply-add as its one rounding: what the device owes an add,
-            // a subtract, a multiply and a fused multiply-add exactly, and what a driver handed
-            // constants folds its own way.
-            for (Instruction& instruction : mOut)
-                foldOne(instruction);
         }
 
         void Pinner::dropFoldedDecorations()

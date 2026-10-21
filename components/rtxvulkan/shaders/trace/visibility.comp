@@ -1,0 +1,419 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The frame, composed. Every ray a pixel casts is a ray query against the top-level structure, the
+// eye's among them; what a pixel *shows* is what `lib/eyeshading.glsl` answers for the hit or the
+// sky answers for a miss, and this is the order those answers are put together in — the water
+// under the air, the puffs left in a layer of their own, and each of the G-buffer channels given
+// what its reader was promised.
+//
+// **A compute dispatch of ray queries, and no ray tracing pipeline**: AMD's Windows driver answers
+// no ray query in a pipeline that also calls `traceRayEXT`, and draws this kernel wrong as a ray
+// generation stage alone (`docs/rtx/architecture.md`, "The shaders").
+//
+// **What is here is what belongs to the path rather than to the surface**: the layers the eye
+// looks through, the column of water in front of them, the air, the cloud shells, and the
+// channels.
+
+#include "shared/traceconstants.h"
+#include "camera.h"
+#include "shared/glare.h"
+#include "scene.h"
+#include "visibility.h"
+
+#include "lib/answer.glsl"
+#include "lib/bindings.glsl"
+#include "lib/census.glsl"
+#include "lib/eyeshading.glsl"
+#include "lib/fog.glsl"
+#include "lib/frame.glsl"
+#include "lib/peel.glsl"
+#include "lib/pixels.glsl"
+#include "lib/reproject.glsl"
+#include "lib/shading.glsl"
+#include "lib/sky.glsl"
+#include "lib/sprites.glsl"
+#include "lib/stage.glsl"
+#include "lib/traversal.glsl"
+#include "lib/underwater.glsl"
+#include "lib/variants.glsl"
+#include "lib/water.glsl"
+
+layout(local_size_x = TRACE_WORKGROUP_WIDTH, local_size_y = TRACE_WORKGROUP_HEIGHT) in;
+
+/// Which of the later stages' lists the tile of a traced pixel joins (`STAGE_LIST_*`).
+struct TracedLists
+{
+    /// A column of water on the path is one the media stage marches (`EyeRun::mMarches`).
+    bool mMedia;
+
+    /// A layer stands in front of the surface.
+    bool mPanes;
+};
+
+/// The trace of `pixel`: its channels and what it hands its later stages, and which of their lists
+/// its tile joins.
+TracedLists tracePixel(uvec2 pixel)
+{
+    const uint width = frame.mEyes.mWorld.mWidth;
+    const uint swap = fieldSwapOf(frame.mFrame);
+
+    // **The eye's rays peeled down to the surface the pixel shows, in a loop that carries no
+    // answer.** Each turn asks one ray and keeps what a layer let through, and the turn that meets
+    // the surface, or nothing, leaves the loop with it: the surface is shaded after the loop, once.
+    // Carried around one loop with the shading, as one walk of steps, every record of it stood
+    // live across each traversal, which this kernel spilled (`docs/rtx/architecture.md`, "A stage's
+    // phases are loops of their own"). **The rays are the ones the layers' stage casts**, by the
+    // same steps (`Peel`), so the two meet the same layers.
+    //
+    // **Bounded**, so a walk that never ends — a logic error — is cut short and counted rather than
+    // holding the card until the system resets it (`FrameCounts::mWalksCut`); a peel cut short is
+    // shaded as a ray that met nothing.
+    Peel peel = peelOf(pixel);
+    float panesThrough = 1.0;
+    float armsThrough = 1.0;
+    bool peelCut = true;
+    SceneAnswer met = unansweredScene();
+    Surface surface = noSurface(frame.mOrigin);
+    uint turns = 0u;
+    [[dont_unroll]] while (turns < WALK_TURNS)
+    {
+        ++turns;
+        const RayAsk ask = peelAsk(peel, pixel);
+        const SceneAnswer answered = queryScene(ask.mQuery);
+        if (answered.mCommitted == 0u)
+        {
+            if (peelPastArms(peel, pixel))
+                continue;
+            peelCut = false;
+            break;
+        }
+
+        // **What the turn met leaves the loop only as it ends it**, so neither the hit nor its
+        // surface is carried from turn to turn.
+        const Surface found = resolveAsked(answered, ask.mQuery);
+        if ((answered.mKind == KIND_WATER && HAS_SEA) || !peeled(found, peel.mLayer))
+        {
+            met = answered;
+            surface = found;
+            peelCut = false;
+            break;
+        }
+
+        // **A layer, weighed by its opacity alone**: the layers' stage shades it.
+        if (peel.mArms)
+            armsThrough *= 1.0 - found.mOpacity;
+        else
+            panesThrough *= 1.0 - found.mOpacity;
+        peelPastLayer(peel, answered.mDistance);
+    }
+
+    // The ray the peel ended on, which the rest of the trace is the path of.
+    const bool arms = peel.mArms;
+    const vec3 origin = peel.mOrigin;
+    const vec3 direction = peel.mDirection;
+    const float tmin = peel.mTmin;
+    const uint layer = peel.mLayer;
+
+    // **The surface shaded, or the sky where nothing was met.** A water path walks in a loop of its
+    // own (`EYE_WATER`) from the water the eye met, whose turns come out of the same bound.
+    Answer answer;
+    uint solid = STAGE_NO_SOLID;
+    vec3 pathWeight = vec3(1.0);
+    float guideDistance;
+    bool split = false;
+    bool marches = false;
+    uint waterStep = RUN_IDLE;
+    bool waterCut = false;
+    bool detailed = true;
+
+    // **The solid the later stages light, stored as its hit** (`storeStageSolid`): the eye's, or the
+    // last a water path resolved, which is the one it found.
+    const ivec2 stored = storedAt(ivec2(pixel), width, swap);
+    if (met.mCommitted == 0u)
+    {
+        answer = missedAlong(pixel, origin, direction, !arms);
+        guideDistance = answer.mDistance;
+    }
+    else
+    {
+        const bool water = met.mKind == KIND_WATER && HAS_SEA;
+        const vec3 motion = motionOf(pixel, origin, direction, met.mDistance, met.mInstance, met.mPrimitive, met.mBary,
+            eyeSpread(uint(arms)));
+        EyeRun eye = eyeRunOf(origin, direction, uint(arms), layer, water, motion, met.mDistance);
+
+        // **No layer's visit and no solid's light here**: the layers' stage lights the layers, and the
+        // direct stage the solid (`panes.comp`, `direct.comp`). **No column's walk is started here**:
+        // the trace composes every column in its closed forms, and the media stage marches the ones
+        // whose shafts change them (`media.comp`).
+        VisitRun visit = pathEndRunOf(0u, 0u, 0u, PATH_SEEN);
+        ColumnRun column = columnRunOf(vec3(0.0), vec3(0.0, 0.0, -1.0), 0.0, 0.0);
+        visit.mStep = RUN_IDLE;
+        column.mStep = RUN_IDLE;
+
+        RayAsk ask = noRay();
+        RayAnswer answered = RayAnswer(false, unansweredScene());
+        stepEye(eye, waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR), visit, surface, pixel,
+            PEEL_SHADES_SURFACE);
+        if (!water)
+            storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery);
+        if (eye.mStep == EYE_WATER)
+        {
+            WaterRun water = waterRunOf(eye.mDirection, coneAt(eyeOf(eye.mArms)), waterFieldOf(pixel));
+            stepWater(water, column, surface, answered, ask, WATER_SHADES);
+            [[dont_unroll]] while ((ask.mTraced || water.mStep != RUN_IDLE) && turns < WALK_TURNS)
+            {
+                ++turns;
+                answered = RayAnswer(false, unansweredScene());
+                if (ask.mTraced)
+                {
+                    answered = RayAnswer(true, queryScene(ask.mQuery));
+                    if (ask.mResolved)
+                    {
+                        surface = resolveAsked(answered.mMet, ask.mQuery);
+                        storeStageSolid(stored, answered.mMet, ask.mQuery);
+                        detailed = ask.mQuery.mDetailed != 0u;
+                    }
+                }
+                ask = noRay();
+                stepWater(water, column, surface, answered, ask, WATER_SHADES);
+            }
+            waterStep = water.mStep;
+            waterCut = water.mStep != RUN_IDLE;
+            if (!waterCut)
+                stepEye(eye, water, visit, surface, pixel, PEEL_SHADES_SURFACE);
+        }
+
+        answer = eye.mAnswer;
+        solid = eye.mSolid;
+        pathWeight = eye.mPathWeight;
+        guideDistance = eye.mGuideDistance;
+        split = eye.mSplit;
+        marches = eye.mMarches;
+    }
+
+    // The records' steps as `framering.cpp` names them: the peel, which has no steps, under way at
+    // one, or the eye waiting on its water's walk.
+    if (peelCut || waterCut)
+    {
+        atomicAdd(counts.mWalksCut, 1u);
+        counts.mWalkCutSteps
+            = (peelCut ? 1u : RUN_IDLE) | (waterCut ? EYE_WATER : RUN_IDLE) << WALK_STEP_BITS
+            | waterStep << (2u * WALK_STEP_BITS);
+    }
+
+    // **The medium in front of the surface**, in its closed forms: the air, or the column of water a
+    // ray from under the surface crosses, which the media stage marches where its shafts change it
+    // (`media.comp`). A ray that goes down from under the surface and meets nothing crosses water
+    // all the way (`waterUnbounded`).
+    const WorldRay path = WorldRay(origin, direction);
+    MediumAhead ahead;
+    if (!(waterOver(path.mFrom) > 0.0))
+    {
+        const vec4 fog = fogAlong(pixel, path, answer.mDistance);
+        ahead = MediumAhead(fog.xyz, vec3(fog.w));
+    }
+    else
+    {
+        const float waterDistance
+            = waterUnbounded(answer.mHit, origin, direction) ? WATER_UNBOUNDED_PATH : answer.mDistance;
+        const float under = waterAlong(path.mFrom, path.mAlong, waterDistance);
+        const ColumnStart start = columnStartOf(path.mFrom, path.mAlong, under);
+        ahead = mediumOverColumn(path, under, waterDistance, answer.mDistance, closedColumnOf(start));
+        marches = marches || start.mMarches;
+    }
+
+    // **The eye the pixel's ray ended in**, whose cone the rest of the path is charged through: it
+    // does not move as the ray carries on past a layer, since the cone is the eye's the ray was cast
+    // from.
+    const Cone cone = coneAt(eyeOf(uint(arms)));
+
+    const bool hit = answer.mHit;
+    const float distance = answer.mDistance;
+    vec3 shaded = answer.mRadiance;
+
+    // **What the surface is, kept apart from what the path did to it.** An albedo multiplied by
+    // every transmittance on the way to the eye is what the composite wants back and is not what
+    // the filter demodulates by: a foggy wall reporting an albedo with the fog in it is the light
+    // divided by the wrong number wherever there is weather — which outdoors is nearly everywhere.
+    vec3 transmittance = vec3(1.0);
+
+    // A camera under the surface sees everything through the water in front of it, **the surface
+    // included**. What the water's own shading attenuated is each of its own rays over its own
+    // stretch — the reflection back down into the water, the refraction through the air above — and
+    // the stretch from the eye up to the surface is a different one that nothing else pays. Leaving
+    // it out is what made the same column read one way from above and another from below: a ray
+    // aimed up from a hundred units down found the surface exactly as bright as one aimed up from
+    // ten.
+    //
+    // Which medium stands in front of which is `ahead`'s: the air in front of the water's
+    // own absorption for an eye above it, and the water in front of the air past the plane for an
+    // eye under it.
+    //
+    // Applied to the whole colour rather than to the albedo alone — what the depth took is a
+    // property of the path, so it belongs to the modulation and not to the material.
+    shaded = shaded * ahead.mThrough + ahead.mScattered;
+    transmittance *= ahead.mThrough;
+
+    // **The stacks lay themselves over this in a stage of their own** (`panes.comp`), after the water
+    // and the air, which are measured over the distance to the surface *behind* the glass: what
+    // they let through the trace knows by their opacity alone, and it takes the light down as the
+    // water and the air do.
+    transmittance *= panesThrough * armsThrough;
+
+    // **And a water path's weight**, by which the surface it found replaces the water's: its light
+    // arrives by it as the light of a surface behind the air arrives by what the air let through.
+    transmittance *= pathWeight;
+
+    // **The sprites in front of all of it, lit where they stand and left in a layer of their own.**
+    // Nothing of them is in `shaded`: the frame goes to the denoiser with no puff in it, and
+    // `spritecomposite.rgen` puts the puffs over the reconstructed frame at the answer extent —
+    // their shape marched again there, along the answer pixel's own ray, and their colour taken
+    // from here. What this walk is for is the light: three fetches a covering sprite, which is
+    // worth paying once at the traced extent and not three times over at the answer one.
+    //
+    // **The sprites alone, and no cloud shell.** A shell is gathered along the ray that shows it,
+    // which is the composite's; gathered here as well, it was hidden and let through by this
+    // jittered sample and not by the pixel the picture shows, and a cloud's edge shook the way a
+    // puff's did at a silhouette.
+    //
+    // **Only in a frame a puff can be met in**, a uniform branch: in any other the layer is no puff
+    // at every pixel, which the channel holds already (`GBuffer::begin`).
+    if (frame.mPuffsInFrame != 0u)
+    {
+        const PuffLayer sprites
+            = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
+        RTX_STORE_COUNTED(puffs, channelAt(CHANNEL_PUFFS, ivec2(pixel), width, swap),
+            vec4(sprites.mColour, sprites.mTransmittance))
+    }
+
+    // **The sun glare fader's query, one ray at a time.** The rasterizer draws the sun's quad
+    // against the world's depth and counts the pixels that survived; here every primary ray inside
+    // the quad's disc counts itself, and again where nothing that writes depth stood in front of
+    // the sky — the water writes none, and a pane peeled off the ray does, the arms' as well as the
+    // world's. `glare.h` says whose disc this is and `tone.comp` reads the pair back.
+    //
+    // **Whether a pixel is inside the disc is asked through the world's eye**, because the disc is
+    // the sun's quad on the screen: a pixel on the arms looks along the arms' own eye, and a disc
+    // counted that way held as many of their pixels as a first-person field of view left in it.
+    if (sunUp()
+        && insideCap(arms ? rayAt(frame.mEyes.mWorld, vec2(pixel)).mDirection : direction, frame.mSun.mDirection,
+            capChord(SUN_GLARE_QUERY_RADIUS)))
+    {
+        atomicAdd(sunGlare.mTotal, 1u);
+        if (!(hit && !answer.mWater) && panesThrough * armsThrough >= 1.0)
+            atomicAdd(sunGlare.mSeen, 1u);
+    }
+
+    // Each channel where it keeps the pixel: in its field, or in the frame's own order
+    // (`channelInFields`).
+    const ivec2 at = ivec2(pixel);
+
+    // **What the bounce's stages need of this pixel**, `bounce.comp` and `landing.comp`: which solid
+    // to bounce off, and what the path took off the way to it, which the bounce carries and the albedo
+    // does not — the water and the air belong to the light they attenuated, and the channel left is
+    // the albedo the filter demodulates by. **The layers' share apart**, in its fourth: the direct
+    // stage adds the solid's light under the layers, which the layers' stage lays over it, and the
+    // shadowed sources, the lobe and the bounce take both.
+    RTX_STORE_COUNTED(stageThroughput, stored,
+        vec4(ahead.mThrough * pathWeight, panesThrough * armsThrough))
+
+    // **No shadowed source and no lobe's light**, which the direct stage writes where a solid stands
+    // (`direct.comp`): the nothing every other pixel holds, and the solid's lobe's roughness.
+    const Shadowed sky = noShadowed();
+    const Shadowed lamps = noShadowed();
+    const vec3 lobe = vec3(0.0);
+
+    // **What the upscaler is told its motion vector does not describe**, `CHANNEL_UPSCALE_MASKS`:
+    // the water's light, which its shading measured against the surface, by its share of the pixel,
+    // the layers in front of the water taking theirs off it; and the layers', which `panes.comp`
+    // fills in. Weighed against the whole pixel's light by the bounce's stages (`storeBounced`), which
+    // have the bounce the whole is not whole without.
+    const float waterMisMoved = answer.mMisMoved * panesThrough * armsThrough;
+    RTX_STORE_WORDS(stageRecord, stored,
+        packStageRecord(
+            StageRecord(solid, uint(arms), marches, layer > 0u, detailed, false, tmin, 0.0, 0.0, waterMisMoved)))
+
+    RTX_STORE_COUNTED(direct, channelAt(CHANNEL_DIRECT, at, width, swap), vec4(shaded, 1.0))
+    RTX_STORE_COUNTED(shadowed, channelAt(CHANNEL_SHADOWED, at, width, swap),
+        vec4(sky.mLight, packShadowAlpha(sky.mOpen > 0.0, sky.mPenumbra)))
+    RTX_STORE_COUNTED(lamped, channelAt(CHANNEL_LAMPED, at, width, swap),
+        vec4(lamps.mLight, packShadowAlpha(lamps.mOpen > 0.0, lamps.mPenumbra)))
+    RTX_STORE_COUNTED(albedo, channelAt(CHANNEL_ALBEDO, at, width, swap), vec4(answer.mResponse.mDiffuse, 1.0))
+    RTX_STORE_COUNTED(
+        ambientAlbedo, channelAt(CHANNEL_AMBIENT_ALBEDO, at, width, swap), vec4(answer.mResponse.mAmbient, 1.0))
+
+    // **The lobe's two only where a surface can have one**, which without the maps' code none can:
+    // the channels hold no lobe already (`GBuffer::begin`), sixteen bytes a pixel nothing reads.
+    if (HAS_MAPS)
+    {
+        RTX_STORE_COUNTED(specular, channelAt(CHANNEL_SPECULAR, at, width, swap), vec4(lobe, answer.mRoughness))
+        RTX_STORE_COUNTED(specularAlbedo, channelAt(CHANNEL_SPECULAR_ALBEDO, at, width, swap),
+            vec4(answer.mResponse.mSpecular, 1.0))
+    }
+
+    // **The surface's lift, by what the path let through** — the layers, the water and the air —
+    // and the lift itself handed on, from which `panes.comp` composes the channel where layers stand
+    // in front, the layers' own lift over it, as the rasterizer blends a lit layer over a lit wall.
+    RTX_STORE_COUNTED(lift, channelAt(CHANNEL_LIFT, at, width, swap), vec4(transmittance * answer.mLift, 1.0))
+    RTX_STORE_WORDS(stageLift, stored,
+        uvec4(packHalf2x16(answer.mLift.rg), packHalf2x16(vec2(answer.mLift.b, 0.0)), 0u, 0u))
+
+    // **The vector as the walk worked it out**: where the surface or the sky stood last frame.
+    // `Answer::mMotion` says whose and why there. In its fourth, whether the pixel splits (`splitIn`),
+    // which says as well where its history is.
+    RTX_STORE_COUNTED(
+        motion, channelAt(CHANNEL_MOTION, at, width, swap), vec4(answer.mMotion, split ? 1.0 : 0.0))
+
+    // **What the display pass has to draw the backdrop through**, which is everything this frame
+    // put between it and the eye: the sky's own layers in `mBackdropShown`, and the panes, the arms,
+    // the water and the air in the transmittance the light itself was already taken down by. The
+    // puffs are not here: the composite leaves theirs in the frame's alpha for the same pass.
+    // `backdrop` in `bindings.glsl` says why that pass cannot work any of it out for itself, and
+    // what the arms' share beside it is for.
+    RTX_STORE_COUNTED(backdrop, channelAt(CHANNEL_BACKDROP, at, width, swap),
+        vec4(answer.mBackdropShown * transmittance, armsThrough))
+
+    // A miss is as far away as anything can be, and `missedAlong` answered `mFar` for it. And
+    // which eye this pixel's ray was cast from, in the distance's sign, for every pass that
+    // rebuilds the ray — the world's behind a see-through arm, whose puffs the composite lays
+    // down by what the arms let through.
+    RTX_STORE_COUNTED(surfaceChannel, channelAt(CHANNEL_SURFACE, at, width, swap),
+        vec4(answer.mResponse.mNormal, packSurfaceDistance(guideDistance, arms), 0.0, 0.0))
+
+    // **What a pixel no layer stands in holds in the pane channels**, at every pixel: the layers'
+    // stage stores the layers' own over the tiles where they stand.
+    storePanes(at, width, swap, noPanes(), noPanes(), noNearestPane());
+
+    return TracedLists(marches, layer > 0u);
+}
+
+/// Which lists a pixel of this workgroup's tile joins, a bit a list (`STAGE_LIST_*`), which one lane
+/// appends.
+shared uint gTileLists;
+
+void main()
+{
+    uvec2 pixel;
+    const bool inside = stagePixelOf(pixel);
+
+    if (gl_LocalInvocationIndex == 0u)
+        gTileLists = 0u;
+    barrier();
+
+    if (inside)
+    {
+        const TracedLists lists = tracePixel(pixel);
+        atomicOr(gTileLists, (lists.mMedia ? 1u << STAGE_LIST_MEDIA : 0u) | (lists.mPanes ? 1u << STAGE_LIST_PANES : 0u));
+    }
+
+    // **The tile appended once a list, by one lane, after every lane's pixel**: a workgroup is a tile
+    // of the stored layout, which a later stage runs as one of its own (`stagePixelIn`).
+    barrier();
+    if (gl_LocalInvocationIndex == 0u)
+        for (uint list = 0u; list < STAGE_LISTS; ++list)
+            if ((gTileLists & (1u << list)) != 0u)
+                appendTile(list, gl_WorkGroupID.xy);
+}

@@ -70,12 +70,17 @@ void main()
     if (!outsideOf(pixel, uvec2(push.mWidth, push.mHeight)))
     {
         // A stand-in is one texel, read nowhere: a uniform branch on what the dispatch was told.
+        const uint swap = fieldSwapOf(push.mFrame);
         for (uint slot = 0u; slot < DIGEST_FLOAT_SLOTS; ++slot)
             if (bound(push.mFloats, slot))
-                fold(slot, floatBitsToUint(imageLoad(images[slot], ivec2(pixel))), pixel);
+                fold(slot,
+                    floatBitsToUint(imageLoad(images[slot],
+                        bound(push.mFloatsInFields, slot) ? storedAt(ivec2(pixel), push.mWidth, swap) : ivec2(pixel))),
+                    pixel);
         for (uint slot = 0u; slot < DIGEST_WORD_SLOTS; ++slot)
             if (bound(push.mWords, slot))
-                fold(DIGEST_FLOAT_SLOTS + slot, imageLoad(words[slot], ivec2(pixel)), pixel);
+                fold(DIGEST_FLOAT_SLOTS + slot, imageLoad(words[slot], storedAt(ivec2(pixel), push.mWidth, swap)),
+                    pixel);
     }
     barrier();
 

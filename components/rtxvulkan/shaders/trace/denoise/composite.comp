@@ -12,8 +12,8 @@
 // texture detail a blur would otherwise have smeared — the mortar between bricks is in the albedo,
 // and the light falling on the wall is not.
 //
-// **And only where something stands between the two.** A frame nothing filters was composed by the
-// trace itself (`VisibilityConstants::mComposed`), and runs this only to add it to a sum.
+// **On every frame the cascade does not compose**, filtered or not: the trace's stages hold no
+// pixel's whole light in one place, so its pieces meet here.
 //
 // **In place**, because each invocation reads and writes its own pixel and nothing reads the direct
 // light apart from the frame after this: the frame is one image fewer, and the one an upscaler, the
@@ -29,10 +29,14 @@
 
 layout(local_size_x = COMPOSITE_WORKGROUP, local_size_y = COMPOSITE_WORKGROUP) in;
 
-/// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it,
-/// and the frame once this has run. No format, for the reason the bounce below gives twice over: the
-/// run decides its width too, and a load and a store with no format both convert.
-layout(set = SET_PASS, binding = COMPOSITE_BIND_DIRECT) uniform image2D direct;
+/// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
+/// No format, for the reason the bounce below gives twice over: the run decides its width too, and a
+/// load and a store with no format both convert.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_DIRECT) uniform readonly image2D direct;
+/// The frame in its own order, which the channels are not (`storedAt`): what everything after the
+/// trace reads as the picture. **Written whatever composed the light**, the trace included, since
+/// the frame only returns to its order here.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_COMPOSED) uniform writeonly image2D composed;
 
 /// The one bounce with the albedo divided out, times whatever the water and the air took off it on
 /// the way to the eye — the channel the wavelet filters.
@@ -76,6 +80,9 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_SPECULAR_ALBEDO, GBUFFER_ALBEDO)
 layout(set = SET_PASS, binding = COMPOSITE_BIND_PANE) uniform readonly image2D pane;
 layout(set = SET_PASS, binding = COMPOSITE_BIND_PANE_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D paneAlbedo;
 
+/// Each pixel's `CHANNEL_MOTION`, whose fourth says which pixels split (`splitIn`).
+layout(set = SET_PASS, binding = COMPOSITE_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
+
 /// The running sum, when `mAccumulate` asks for one.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SUM, COMPOSITE_SUM_FORMAT) uniform image2D sum;
 
@@ -87,6 +94,20 @@ layout(push_constant, scalar) uniform Push
 // After the images, which it reads by name.
 #include "lib/resolve.glsl"
 
+/// The picture at `pixel` of the frame, out of its channels where its field keeps them.
+vec3 resolvedAt(ivec2 pixel)
+{
+    const ivec2 stored = storedAt(pixel, frame.mWidth, fieldSwapOf(frame.mFrame));
+    return resolvedLight(stored, imageLoad(direct, stored).rgb, imageLoad(indirect, stored).rgb,
+        imageLoad(fill, stored).rgb, frame.mShadowed, frame.mLobed);
+}
+
+/// Whether `pixel` follows one water path of two (`splitIn`).
+bool splitAt(ivec2 pixel)
+{
+    return splitIn(imageLoad(motion, storedAt(pixel, frame.mWidth, fieldSwapOf(frame.mFrame))));
+}
+
 void main()
 {
     const uvec2 pixel = gl_GlobalInvocationID.xy;
@@ -94,10 +115,28 @@ void main()
         return;
 
     const ivec2 at = ivec2(pixel);
-    vec3 resolved = imageLoad(direct, at).rgb;
-    if (frame.mComposed == 0u)
-        resolved = resolvedLight(
-            at, resolved, imageLoad(indirect, at).rgb, imageLoad(fill, at).rgb, frame.mShadowed, frame.mLobed);
+    vec3 resolved = resolvedAt(at);
+
+    // **A split pixel is half its own path and half the other's**, which its four neighbours in the
+    // other field followed: Quake II RTX's interleave (`checkerboard_interleave.comp`), each path
+    // having carried twice its share. Over the neighbours that split, so a water pixel at the edge of
+    // the water takes nothing of the ground beside it. **The layers in front of it with it**, whose
+    // own light the layers' stage composes into the direct channel over the surface's: kept apart,
+    // it needs an image of its own, 8 bytes a pixel. **Not in a sum**: each frame turns the fields
+    // over, so every pixel's sum takes both paths of its own.
+    if (frame.mAccumulate == 0u && splitAt(at))
+    {
+        vec3 other = vec3(0.0);
+        float taken = 0.0;
+        for (int side = 0; side < 4; ++side)
+        {
+            const ivec2 near = acrossOf(at, side);
+            const bool joins = !outsideOf(near, uvec2(frame.mWidth, frame.mHeight)) && splitAt(near);
+            other += joins ? resolvedAt(near) : vec3(0.0);
+            taken += joins ? 1.0 : 0.0;
+        }
+        resolved = taken > 0.0 ? 0.5 * resolved + 0.5 * (other / taken) : resolved;
+    }
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame
     // would add up rounded numbers and clip every sample past the display's range to the same value
@@ -110,5 +149,5 @@ void main()
     }
 
     // The alpha is the puffs' composite's to write, and the curve's to read only where it did.
-    RTX_STORE_COUNTED(direct, at, vec4(resolved, 1.0))
+    RTX_STORE_COUNTED(composed, at, vec4(resolved, 1.0))
 }

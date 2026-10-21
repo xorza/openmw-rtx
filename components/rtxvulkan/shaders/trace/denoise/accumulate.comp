@@ -118,13 +118,13 @@ struct Held
     float mWeight;
 };
 
-/// Adds the four texels `before` spans to `held`, each by its matched share.
-void gatherHistory(inout Held held, HistoryFootprint before, vec4 shares)
+/// Adds the four texels `before` spans to `held`, each by its matched share, where `fields` reads them.
+void gatherHistory(inout Held held, HistoryFootprint before, vec4 shares, HistoryFields fields)
 {
     for (int i = 0; i < 4; ++i)
     {
         const float bilinear = shares[i];
-        const ivec2 tap = historyTap(before, i);
+        const ivec2 tap = heldStoredAt(historyTap(before, i), frame.mHistory.mEyes.mWorld.mWidth, fields);
         if (!(bilinear > 0.0))
             continue;
 
@@ -148,9 +148,10 @@ vec3 nearerAt(ivec2 tap, float away, float tolerance)
     if (outsideOf(tap, uvec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight)))
         return vec3(0.0);
 
-    const vec2 seen = imageLoad(surfaceChannel, tap).xy;
+    const ivec2 stored = storedAt(tap, frame.mHistory.mEyes.mWorld.mWidth, fieldSwapOf(frame.mHistory.mFrame));
+    const vec2 seen = imageLoad(surfaceChannel, stored).xy;
     const bool nearer = seen.x != SURFACE_NO_NORMAL && surfaceDistance(seen.y) < away - tolerance;
-    return nearer ? vec3(imageLoad(motion, tap).xy, 1.0) : vec3(0.0);
+    return nearer ? vec3(imageLoad(motion, stored).xy, 1.0) : vec3(0.0);
 }
 
 /// The motion of the occluder that hid this pixel's surface last frame, in `xy`, and in `z` one
@@ -198,9 +199,10 @@ void main()
     if (outsideOf(uvec2(at), uvec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight)))
         return;
 
-    const vec3 sampled = imageLoad(indirect, at).rgb;
-    const vec3 sampledFill = imageLoad(fill, at).rgb;
-    const vec2 seen = imageLoad(surfaceChannel, at).xy;
+    const ivec2 stored = storedAt(at, frame.mHistory.mEyes.mWorld.mWidth, fieldSwapOf(frame.mHistory.mFrame));
+    const vec3 sampled = imageLoad(indirect, stored).rgb;
+    const vec3 sampledFill = imageLoad(fill, stored).rgb;
+    const vec2 seen = imageLoad(surfaceChannel, stored).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
     const float away = surfaceDistance(seen.y);
 
@@ -216,10 +218,10 @@ void main()
         vec4 skyBounce = vec4(sampled, 0.0);
         vec4 skyFill = vec4(sampledFill, 0.0);
         roundedToHalves(skyBounce, skyFill, rounding);
-        RTX_STORE_COUNTED(blendedOut, at, skyBounce)
-        RTX_STORE_COUNTED(fillBlendedOut, at, skyFill)
-        RTX_STORE_COUNTED(momentsOut, at, vec4(0.0))
-        RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u))
+        RTX_STORE_COUNTED(blendedOut, stored, skyBounce)
+        RTX_STORE_COUNTED(fillBlendedOut, stored, skyFill)
+        RTX_STORE_COUNTED(momentsOut, stored, vec4(0.0))
+        RTX_STORE_WORDS(fastOut, stored, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u))
 
         return;
     }
@@ -228,7 +230,8 @@ void main()
     // tap is a history that steps a whole pixel at a time, which under any camera motion is a crawl
     // along every edge; weighting the four and dropping the ones that are a different surface is
     // what keeps it smooth without dragging the wall behind into the floor in front.
-    const vec3 moved = imageLoad(motion, at).xyz;
+    const vec4 motionHere = imageLoad(motion, stored);
+    const vec3 moved = motionHere.xyz;
     const HistoryFootprint before = historyFootprint(at, moved);
 
     Held held = Held(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec2(0.0), 0.0, 0.0);
@@ -236,8 +239,10 @@ void main()
     {
         const HistoryPlane plane = historyPlane(frame.mHistory, at, seen, moved);
         const uvec2 extent = uvec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight);
-        RTX_HISTORY_SHARES(shares, before, extent, historySurface, true, plane)
-        gatherHistory(held, before, shares);
+        const HistoryFields fields
+            = historyFieldsOf(at, motionHere, frame.mHistory.mFrame, frame.mHistory.mPreviousFrame);
+        RTX_HISTORY_SHARES(shares, before, extent, fields, historySurface, true, plane)
+        gatherHistory(held, before, shares, fields);
 
         // **Where the surface was hidden and not off the screen**, the history along the occluder's
         // motion (`occluderMotion`). A branch, which only the pixels an occluder uncovered take:
@@ -255,8 +260,8 @@ void main()
             if (dual.z > 0.0)
             {
                 const HistoryFootprint along = historyFootprint(at, vec3(dual.xy, moved.z));
-                RTX_HISTORY_SHARES(alongShares, along, extent, historySurface, true, plane)
-                gatherHistory(held, along, alongShares);
+                RTX_HISTORY_SHARES(alongShares, along, extent, fields, historySurface, true, plane)
+                gatherHistory(held, along, alongShares, fields);
             }
         }
     }
@@ -321,8 +326,8 @@ void main()
     vec4 bounceOut = vec4(blended, 0.0);
     vec4 fillOut = vec4(blendedFill, count);
     roundedToHalves(bounceOut, fillOut, rounding);
-    RTX_STORE_COUNTED(blendedOut, at, bounceOut)
-    RTX_STORE_COUNTED(fillBlendedOut, at, fillOut)
-    RTX_STORE_COUNTED(momentsOut, at, vec4(roundedToHalf(blendedMoments, rounding), 0.0, 0.0))
-    RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u))
+    RTX_STORE_COUNTED(blendedOut, stored, bounceOut)
+    RTX_STORE_COUNTED(fillBlendedOut, stored, fillOut)
+    RTX_STORE_COUNTED(momentsOut, stored, vec4(roundedToHalf(blendedMoments, rounding), 0.0, 0.0))
+    RTX_STORE_WORDS(fastOut, stored, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u))
 }

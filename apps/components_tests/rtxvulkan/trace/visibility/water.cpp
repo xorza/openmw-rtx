@@ -28,6 +28,7 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/shaders/shared/ripple.h>
 
 #include "fixture.hpp"
@@ -288,20 +289,25 @@ namespace Rtx::Testing
         /// milky sheet rather than a channel. Integrating both legs replaces `1 - T` with
         /// `(1 - T^2) / 2` — the same answer in the shallows, half as bright where it settles.
         ///
-        /// Two thousand units down, red's transmittance is `exp(-7.487)`, six parts in ten thousand,
-        /// so what comes back is the scattering term almost alone:
+        /// **The bed sends nothing back**: it is the refracting field's own surface, which takes the
+        /// ambient through its bounce alone, and the bounce escapes to a black sky. So what comes back
+        /// is the scattering term over the two legs, in every channel. The fields split the Fresnel
+        /// shares, each at twice its own, and the composite blends them half and half, which is the
+        /// pixel the shares describe. Two thousand units down, red's `T^2` is `exp(-14.973)`, three
+        /// parts in ten million, and blue's `exp(-1.3716)` = 0.25371:
         ///
-        ///   0.5 * 5.61e-4 + 0.04 * 0.5 * 1.0  = 0.0202807
-        ///   times the 0.98 that is not Fresnel = 0.0198751
-        ///   1.055 * 0.0198751^(1/2.4) - 0.055  = 0.15118, or 39 of 255
+        ///   red    0.04 * 0.5 * (1 - 3.1e-7) = 0.0199999, times the 0.97963 not Fresnel = 0.0195925
+        ///          1.055 * 0.0195925^(1/2.4) - 0.055 = 0.14988, or 38 of 255
+        ///   blue   0.12333 * 0.5 * (1 - 0.25371) = 0.046022, times 0.97963 = 0.045084, or 60
         ///
-        /// Only the return leg would put the same pixel at 56 — the factor of two, made visible.
+        /// Only the return leg would put red at 56 — the factor of two, made visible.
         ///
         /// **And water with no bottom at all settles there outright**, which is the second half of
         /// this. A refraction that finds nothing went *down*, and down from the surface there is
         /// water whether or not this renderer holds the bed for it — so what comes back is the
-        /// scattering term with no bed left in it at all, in every channel rather than in red
-        /// alone. Two thousand units is deep for red and nothing like deep for blue.
+        /// scattering term with no bed to stop the column, `(1 - 0) / 2`. Two thousand units is deep
+        /// for red and nothing like deep for blue, which the bed's water stops at 60 and the
+        /// bottomless water carries to 70.
         ///
         /// Read as sky instead, it came back through 2000 units of water at half of blue, and drew
         /// the edge of the loaded terrain across the sea as a line with brighter water beyond it.
@@ -323,10 +329,19 @@ namespace Rtx::Testing
                 return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
             };
 
-            // `WATER_SCATTER_SHIPPED.r * 0.5` is 0.02, less the two per cent the surface reflects away, and
-            // the display curve puts 0.0199 at 39.
+            // The two legs' scattering over the bed, off the constants, for the reason the expectations
+            // below are: 38 in red and 60 in blue, as the derivation above works out.
             const std::array<int, 3> bedded = look(makeFlooded(4000.0f, depth));
-            EXPECT_EQ(bedded[0], 39) << "red, settled at what the water scatters";
+            EXPECT_EQ(bedded[0], 38) << "red, settled at what the water scatters";
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const float kept = std::exp(-2.0f * Shaders::WATER_EXTINCTION[channel] * depth);
+                EXPECT_NEAR(bedded[channel],
+                    encodeSrgb(
+                        Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f * (1.0f - kept) * (1.0f - Shaders::WATER_F0)),
+                    1)
+                    << "channel " << channel << " over the bed";
+            }
 
             // The same column with the bed taken out from under it, which is the asymptote itself:
             // `WATER_SCATTER_SHIPPED * 0.5`, less Fresnel. Off the constants rather than written out, for
@@ -337,9 +352,9 @@ namespace Rtx::Testing
                     encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f * (1.0f - Shaders::WATER_F0)), 1)
                     << "channel " << channel << " over water with no bottom";
 
-            // And the bed at 2000 units is still there in the two channels it is not deep for, so
-            // this cannot pass by the two scenes rendering the same picture.
-            EXPECT_GT(bedded[2], bottomless[2] + 40) << "blue reaches a bed 2000 units down";
+            // And the bed at 2000 units still stops the column in the channel it is not deep for, 60
+            // against 70, so this cannot pass by the two scenes rendering the same picture.
+            EXPECT_GE(bottomless[2] - bedded[2], 8) << "blue reaches a bed 2000 units down";
         }
 
         /// The same column of water has to look the same from either side of it.
@@ -470,7 +485,7 @@ namespace Rtx::Testing
 
         /// The water *over* an eye dims what the water in front of it scatters.
         ///
-        /// **The half that only a submerged camera can see.** `waterColumn` charges the sun for the
+        /// **The half that only a submerged camera can see.** `ColumnRun` charges the sun for the
         /// water between the surface and where the stretch begins. Charging the ambient for nothing
         /// there would bring the sea's own scattering in at full sky brightness however deep the eye
         /// is. From above that is right, because the stretch begins at the surface and there is no
@@ -723,14 +738,15 @@ namespace Rtx::Testing
         }
 
         /// **The shore is as deep as the water, measured from its surface.** A flat bed a few units
-        /// under calm water, seen straight down: a shore pixel hands the composite the bed's albedo
-        /// times one less the fade, so its albedo channel against the dry bed's is the fade alone,
-        /// and the fade is `smoothstep(0, 35, depth)`. The depth is under the surface the trace
+        /// under calm water, seen straight down under a lit sky: the pixel whose field follows the
+        /// reflection shows the sky by twice the Fresnel share times the fade (`waterSharesOf`), and
+        /// the sky it shows is the same over any depth, so its light against deep water's is the fade
+        /// alone, and the fade is `smoothstep(0, 35, depth)`. The depth is under the surface the trace
         /// shows, which `WATER_TIE_BREAK` stands half a unit under the sea's plane: a bed five units
         /// under the plane is 4.5 under the water, `t = 4.5 / 35 = 0.128571`, `t² (3 - 2t) =
         /// 0.045341`, and one twenty under is 19.5, `0.585341`. The shore ray leaves a unit over the
         /// surface, and measured from there the same beds read 5.5 and 20.5 units down: 0.066321
-        /// and 0.627312.
+        /// and 0.627312. Fifty units down is past the fade, which is one there.
         TEST_F(RtxVisibilityTest, theShoreIsAsDeepAsTheWaterMeasuredFromItsSurface)
         {
             constexpr std::uint32_t size = 16;
@@ -741,25 +757,121 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = constantsFor(
                 makeOrthographicCameraFromView(above, 100.0f, 100.0f, size, size, 5.0f, 20000.0f).value());
             camera.mWaterLevel = 0.0f;
+            camera.mSkyHorizon = osg::Vec3f(1.0f, 1.0f, 1.0f);
+            camera.mSkyZenith = osg::Vec3f(1.0f, 1.0f, 1.0f);
 
-            const auto albedoOver = [&](float depth, bool wet) {
-                SceneDesc scene = wet ? makeOpenWater(extent) : SceneDesc{};
+            // The pixel beside the centre whose field follows the reflection in the camera's frame.
+            const std::uint32_t swap = Shaders::fieldSwapOf(camera.mFrame);
+            const std::uint32_t across = size / 2 + Shaders::fieldOf(Shaders::uvec2(size / 2, size / 2), swap);
+            ASSERT_EQ(Shaders::fieldOf(Shaders::uvec2(across, size / 2), swap), 0u);
+
+            const auto mirrorOver = [&](float depth) {
+                SceneDesc scene = makeOpenWater(extent);
                 addQuad(scene,
                     std::array{ osg::Vec3f(-extent, -extent, -depth), osg::Vec3f(extent, -extent, -depth),
                         osg::Vec3f(extent, extent, -depth), osg::Vec3f(-extent, extent, -depth) },
                     scene.addMaterial(Material{}));
                 shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
-                std::vector<float> albedo;
-                mRenderer.readChannel(Channel::Albedo, albedo);
-                const std::size_t across = albedo.size() / (std::size_t{ size } * size);
-                return albedo[centreOf(size) * across];
+                std::vector<float> direct;
+                mRenderer.readChannel(Channel::Direct, direct);
+                const std::size_t values = direct.size() / (std::size_t{ size } * size);
+                return direct[(std::size_t{ size / 2 } * size + across) * values];
             };
-            const auto fadeAt = [&](float depth) { return 1.0f - albedoOver(depth, true) / albedoOver(depth, false); };
+            const float deep = mirrorOver(50.0f);
+            const auto fadeAt = [&](float depth) { return mirrorOver(depth) / deep; };
 
-            ASSERT_GT(albedoOver(5.0f, false), 0.1f) << "the dry bed shows no albedo";
+            ASSERT_GT(deep, 0.0f) << "deep water reflects no sky";
             ASSERT_EQ(Shaders::WATER_TIE_BREAK, 0.5f) << "the derivation above stands the surface half a unit down";
             EXPECT_NEAR(fadeAt(5.0f), 0.045341f, 2e-4f) << "five units under the plane";
             EXPECT_NEAR(fadeAt(20.0f), 0.585341f, 2e-4f) << "twenty units under the plane";
+        }
+
+        /// **A split pixel blends its light whole with its neighbours', and its lift behind the
+        /// layers alone**, so neither is left in the checkerboard.
+        ///
+        /// Calm water over a black bed, under a black sky with no sun and no ambient, seen straight
+        /// down through a glowing pane over the left half of the frame, which faces the eye and so
+        /// is culled for the reflection rising under it: neither path brings back any light, and
+        /// the picture is the pane's own. The layers' light is blended with the water's, until a
+        /// measurement says it pays to keep them apart, so the pane's last column reads seven
+        /// eighths of its middle, a neighbour of its four being past it, and the first column past
+        /// it an eighth. Their lift is the pixel's own: the last column's is the middle's, and the
+        /// first past it holds none.
+        ///
+        /// **Over a lit bed, the lift of each field's surface is its one path's**: nothing for the
+        /// reflection, which finds the black sky, and the bed's lift by twice its share for the
+        /// refraction, `2 (1 - F0) T`. Blended, both fields read half that, the same number: in blue,
+        /// whose 49.5 units of water under the surface `WATER_TIE_BREAK` stands keep
+        /// `exp(-0.0003429 * 49.5)` = 0.98317 of it, `0.97963 * 0.98317` = 0.96314 of the bed's lift.
+        TEST_F(RtxVisibilityTest, aSplitPixelBlendsItsLightWholeAndItsLiftBehindTheLayers)
+        {
+            constexpr std::uint32_t size = 16;
+            constexpr float extent = 4000.0f;
+            constexpr float depth = 50.0f;
+
+            const osg::Matrixf above = osg::Matrixf::lookAt(
+                osg::Vec3f(0.0f, 0.0f, 500.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f));
+            Shaders::VisibilityConstants camera = constantsFor(
+                makeOrthographicCameraFromView(above, 100.0f, 100.0f, size, size, 5.0f, 20000.0f).value());
+            camera.mWaterLevel = 0.0f;
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbient = osg::Vec3f();
+            camera.mSun.mIrradiance = osg::Vec3f();
+            const Shot calm{ .mSea = SeaState{ .mSignificantHeight = 0.0f } };
+            const std::size_t row = std::size_t{ size / 2 } * size;
+
+            {
+                SceneDesc scene = makeOpenWater(extent);
+                addQuad(scene, sheetAt(extent, -depth),
+                    scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f) }));
+                // x under nought, which is the frame's first eight columns.
+                addQuad(scene,
+                    std::array{ osg::Vec3f(-extent, -extent, 10.0f), osg::Vec3f(0.0f, -extent, 10.0f),
+                        osg::Vec3f(0.0f, extent, 10.0f), osg::Vec3f(-extent, extent, 10.0f) },
+                    scene.addMaterial(Material{
+                        .mEmissiveColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                        .mOpacity = 0.5f,
+                        .mAlphaMode = AlphaMode::Blend,
+                    }));
+                const Frame frame = shoot(scene, {}, camera, size, calm);
+                const auto red = [&](std::size_t column) { return frame.at((row + column) * 4); };
+
+                ASSERT_GT(red(3), 0.01f) << "the pane is not in the frame";
+                EXPECT_FLOAT_EQ(red(7), 0.875f * red(3)) << "the pane's last column, a neighbour of whose is past it";
+                EXPECT_FLOAT_EQ(red(8), 0.125f * red(3)) << "the first column past the pane";
+
+                std::vector<float> paneLift;
+                mRenderer.readChannel(Channel::Lift, paneLift);
+                const std::size_t values = paneLift.size() / (std::size_t{ size } * size);
+                ASSERT_GT(paneLift[(row + 3) * values], 0.0f) << "the pane has no lift";
+                EXPECT_EQ(paneLift[(row + 7) * values], paneLift[(row + 3) * values])
+                    << "the pane's last column's lift";
+                EXPECT_EQ(paneLift[(row + 8) * values], 0.0f) << "the first column past the pane holds no lift";
+            }
+
+            shoot(makeFlooded(extent, depth), {}, camera, size, calm);
+            std::vector<float> lift;
+            mRenderer.readChannel(Channel::Lift, lift);
+            std::vector<float> ambient;
+            mRenderer.readChannel(Channel::AmbientAlbedo, ambient);
+            const std::size_t liftValues = lift.size() / (std::size_t{ size } * size);
+            const std::size_t ambientValues = ambient.size() / (std::size_t{ size } * size);
+
+            // The centre and the pixel beside it, one in each field; the bed's albedo where its
+            // field is the refraction's.
+            const std::uint32_t swap = Shaders::fieldSwapOf(camera.mFrame);
+            const std::size_t centre = row + size / 2;
+            const std::size_t bed
+                = Shaders::fieldOf(Shaders::uvec2(size / 2, size / 2), swap) == 1u ? centre : centre + 1;
+            const float bedLift = Shaders::encodeSrgb(ambient[bed * ambientValues + 2]);
+            ASSERT_GT(bedLift, 0.1f) << "the bed has no lift to blend";
+
+            EXPECT_EQ(lift[centre * liftValues + 2], lift[(centre + 1) * liftValues + 2]) << "the two fields' lifts";
+            EXPECT_NEAR(lift[centre * liftValues + 2],
+                bedLift * (1.0f - Shaders::WATER_F0) * std::exp(-Shaders::WATER_EXTINCTION[2] * (depth - 0.5f)),
+                1.0f / 255.0f)
+                << "half of twice the refraction's share of the bed's lift";
         }
 
         /// The water between an eye and the surface over it is water like any other.
@@ -1023,10 +1135,10 @@ namespace Rtx::Testing
         /// guards against, in the one term that test cannot see: a bounce shades the same bed
         /// identically from either side of the surface, so the two views agree while both are wrong.
         ///
-        /// **From under the water, because only a primary hit bounces.** A bed seen down through the
-        /// surface is the far end of `waterRay`, which terminates it with `pathEnd` — the flat
-        /// ambient — precisely so that a reflection cannot recurse. Put the eye below and the bed is
-        /// what the camera ray found, and it gathers a real hemisphere.
+        /// **From under the water, so that no surface splits the pixel.** A bed seen down through the
+        /// surface is the surface of the field that refracts, and the composite blends it with the
+        /// reflection the other field shows. Put the eye below and the bed is what the camera ray
+        /// found at every pixel, and its hemisphere is the whole of the picture.
         ///
         /// **A sky of one radiance, which makes that hemisphere exact rather than noisy.** Every
         /// direction returns the same number, so the single sample carries no variance and what
@@ -1075,13 +1187,12 @@ namespace Rtx::Testing
             }
         }
 
-        /// **What a water ray finds asks every occlusion ray it draws, because nothing filters it.**
-        /// `sGrazedWall` under `grazingTheWater`'s eye, lit by the ambient alone, with nothing over it
-        /// and nothing under the water: every occlusion ray the wall asks reaches the sky. Drawn at
-        /// `AMBIENT_EXTERIOR_RATE`, a ray answers nought or twice, and one frame of the reflection is
-        /// a speckle of the two. At `AMBIENT_UNFILTERED_RATE` it answers one, and every pixel's rays
-        /// are parallel to every other's, so the frame is one value.
-        TEST_F(RtxVisibilityTest, whatAWaterRayFindsAsksEveryOcclusionRayBecauseNothingFiltersIt)
+        /// **A wall the water reflects, open to the sky, is one value in one frame.** `sGrazedWall`
+        /// under `grazingTheWater`'s eye, lit by the ambient alone, with nothing over it and nothing
+        /// under the water: the mirror's field finds the wall as the pixel's surface, and every ray of
+        /// its fill reaches the sky. A fill that skipped rays at `AMBIENT_EXTERIOR_RATE` would answer
+        /// nought or twice, and the reflection would be a speckle of the two.
+        TEST_F(RtxVisibilityTest, aWallTheWaterReflectsOpenToTheSkyIsOneValueInOneFrame)
         {
             constexpr std::uint32_t size = 32;
 

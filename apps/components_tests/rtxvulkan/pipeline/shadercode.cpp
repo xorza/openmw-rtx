@@ -29,7 +29,7 @@ namespace Rtx
     {
         using RtxShaderCodeTest = Testing::DeviceTest;
 
-        constexpr std::array<std::string_view, 1> sRaygen{ "visibility.rgen.spv" };
+        constexpr std::array<std::string_view, 1> sVisibility{ "visibility.comp.spv" };
 
         /// The code at the end of a stage's chain, past the name where the device names objects.
         const VkShaderModuleCreateInfo& codeOf(const Device& device, const void* stage)
@@ -121,22 +121,23 @@ namespace Rtx
         TEST_F(RtxShaderCodeTest, aFileIsReadOnceAndEveryStageNamingItSharesTheRead)
         {
             const Device& device = *mHarness.mDevice;
-            constexpr std::array<std::string_view, 3> modules{ "visibilityhit.rchit.spv", "visibility.rgen.spv",
-                "visibilityhit.rchit.spv" };
+            constexpr std::array<std::string_view, 3> modules{ "fogscatter.rgen.spv", "visibility.comp.spv",
+                "fogscatter.rgen.spv" };
             const ShaderCode code(device, modules);
-            const ModuleTables hitTables = tablesOf(device, "visibilityhit.rchit.spv");
-            const ModuleTables raygenTables = tablesOf(device, "visibility.rgen.spv");
+            const ModuleTables scatterTables = tablesOf(device, "fogscatter.rgen.spv");
+            const ModuleTables visibilityTables = tablesOf(device, "visibility.comp.spv");
 
-            const void* hit
-                = code.stage("visibilityhit.rchit.spv", named(hitTables), hitTables.mPushBytes, hitTables.mWords);
-            const void* raygen
-                = code.stage("visibility.rgen.spv", named(raygenTables), raygenTables.mPushBytes, raygenTables.mWords);
+            const void* scatter = code.stage(
+                "fogscatter.rgen.spv", named(scatterTables), scatterTables.mPushBytes, scatterTables.mWords);
+            const void* visibility = code.stage(
+                "visibility.comp.spv", named(visibilityTables), visibilityTables.mPushBytes, visibilityTables.mWords);
             EXPECT_EQ(
-                code.stage("visibilityhit.rchit.spv", named(hitTables), hitTables.mPushBytes, hitTables.mWords), hit);
-            EXPECT_NE(raygen, hit);
+                code.stage("fogscatter.rgen.spv", named(scatterTables), scatterTables.mPushBytes, scatterTables.mWords),
+                scatter);
+            EXPECT_NE(visibility, scatter);
 
             for (const auto& [stage, file] :
-                { std::pair{ hit, "visibilityhit.rchit.spv" }, std::pair{ raygen, "visibility.rgen.spv" } })
+                { std::pair{ scatter, "fogscatter.rgen.spv" }, std::pair{ visibility, "visibility.comp.spv" } })
             {
                 const VkShaderModuleCreateInfo& read = codeOf(device, stage);
                 EXPECT_EQ(read.codeSize, std::filesystem::file_size(device.getShaderDirectory() / file)) << file;
@@ -146,7 +147,7 @@ namespace Rtx
             if (device.namesObjects())
             {
                 EXPECT_STREQ(
-                    static_cast<const VkDebugUtilsObjectNameInfoEXT*>(hit)->pObjectName, "visibilityhit.rchit.spv");
+                    static_cast<const VkDebugUtilsObjectNameInfoEXT*>(scatter)->pObjectName, "fogscatter.rgen.spv");
             }
         }
 
@@ -158,7 +159,7 @@ namespace Rtx
             EXPECT_THROW(ShaderCode(*mHarness.mDevice, missing), InputError);
 
             const ShaderCode none(*mHarness.mDevice, {});
-            Testing::expectDies([&] { static_cast<void>(none.stage("visibility.rgen.spv", SetTables{}, 0, {})); },
+            Testing::expectDies([&] { static_cast<void>(none.stage("visibility.comp.spv", SetTables{}, 0, {})); },
                 "a stage of a module its shader code was not made to read");
         }
 
@@ -168,27 +169,27 @@ namespace Rtx
         TEST_F(RtxShaderCodeTest, aStageWhoseModuleDisagreesWithItsLayoutEndsTheProcessNamingIt)
         {
             const Device& device = *mHarness.mDevice;
-            const ModuleTables tables = tablesOf(device, "visibility.rgen.spv");
+            const ModuleTables tables = tablesOf(device, "visibility.comp.spv");
             const BindingTable nothing;
             SetTables sets = named(tables);
             sets[Shaders::SET_PASS] = &nothing;
             Testing::expectDies(
                 [&] {
-                    const ShaderCode code(device, sRaygen);
-                    static_cast<void>(code.stage("visibility.rgen.spv", sets, tables.mPushBytes, tables.mWords));
+                    const ShaderCode code(device, sVisibility);
+                    static_cast<void>(code.stage("visibility.comp.spv", sets, tables.mPushBytes, tables.mWords));
                 },
                 // `.+` for the number: gtest reads its own syntax on Windows, which has no bracket
                 // class, and POSIX's elsewhere, which has no `\d`.
-                "visibility.rgen.spv: binding .+ of set 0 is in the module and not in the layout");
+                "visibility.comp.spv: binding .+ of set 0 is in the module and not in the layout");
 
             // **And a word list cut short**, which left the last constant at its GLSL default.
             const std::span<const std::uint32_t> cut(tables.mWords.data(), tables.mWords.size() - 1);
             Testing::expectDies(
                 [&] {
-                    const ShaderCode code(device, sRaygen);
-                    static_cast<void>(code.stage("visibility.rgen.spv", named(tables), tables.mPushBytes, cut));
+                    const ShaderCode code(device, sVisibility);
+                    static_cast<void>(code.stage("visibility.comp.spv", named(tables), tables.mPushBytes, cut));
                 },
-                "visibility.rgen.spv: specialization constant .+ is past the .+ words the stage is handed");
+                "visibility.comp.spv: specialization constant .+ is past the .+ words the stage is handed");
         }
     }
 }

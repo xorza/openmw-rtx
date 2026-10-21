@@ -96,6 +96,10 @@ namespace Crash
         char mFound[sNoteCapacity];
     };
 
+    /// What the calling thread's note says now — the path `NoteScope`s made, `outer > inner` — or
+    /// nothing where the thread holds no slot. Valid until the thread's next note changes.
+    std::string_view ownNote();
+
     /// Starts a report of `kind` for `reason`, where no report is in progress, and keeps what the
     /// table said before for `endReport` to put back; false, changing nothing, where one is.
     ///

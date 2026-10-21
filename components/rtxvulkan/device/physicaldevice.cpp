@@ -62,23 +62,12 @@ namespace Rtx
             list += item;
         }
 
-        /// @param driver what the device says of its driver: an extension its driver is only too old
-        ///        for is named with the release that has it and the one that does not.
-        std::string listMissingExtensions(
-            std::span<const std::string> offered, const VkPhysicalDeviceVulkan12Properties& driver)
+        std::string listMissingExtensions(std::span<const std::string> offered)
         {
             std::string missing;
-            for (const RequiredExtension& required : getRequiredDeviceExtensions())
-            {
-                if (has(offered, required.mName))
-                    continue;
-
-                appendListed(missing, required.mName);
-                const auto floor = std::ranges::find(required.mFloors, driver.driverID, &DriverFloor::mDriver);
-                if (floor != required.mFloors.end())
-                    missing += std::format(" ({} {} or later; this one is {})", releaseSeriesOf(driver.driverID),
-                        floor->mRelease, driver.driverInfo);
-            }
+            for (const char* const required : getRequiredDeviceExtensions())
+                if (!has(offered, required))
+                    appendListed(missing, required);
 
             return missing;
         }
@@ -271,7 +260,7 @@ namespace Rtx
             return profile;
         }
 
-        if (const std::string missing = listMissingExtensions(extensions, properties.mVulkan12); !missing.empty())
+        if (const std::string missing = listMissingExtensions(extensions); !missing.empty())
         {
             profile.mObstacle = "missing extensions: " + missing;
             return profile;
@@ -312,6 +301,16 @@ namespace Rtx
             || (subgroups.subgroupSupportedStages & VK_SHADER_STAGE_COMPUTE_BIT) == 0)
         {
             profile.mObstacle = "no quad subgroup operations in compute shaders";
+            return profile;
+        }
+
+        // The trace's kernels run at 32 lanes (`SubgroupSize::ThirtyTwo`), which a device has to let a
+        // compute stage ask for: Vulkan 1.3 requires the stage, and not the width.
+        const VkPhysicalDeviceVulkan13Properties& sizes = properties.mVulkan13;
+        if ((sizes.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT) == 0 || sizes.minSubgroupSize > 32
+            || sizes.maxSubgroupSize < 32)
+        {
+            profile.mObstacle = "no compute subgroup of 32 lanes to ask for";
             return profile;
         }
 

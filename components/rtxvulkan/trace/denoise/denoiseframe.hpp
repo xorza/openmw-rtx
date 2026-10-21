@@ -15,6 +15,9 @@ namespace Rtx
         /// `Reconstruction::mFilters`: how the bounce is filtered past the wavelet.
         FilterSwitches mFilters;
 
+        /// The number of the frame the histories were written in (`TemporalTurns::Step`).
+        std::uint32_t mWrittenBefore;
+
         /// What every temporal filter's history is handed this frame, from the one place each
         /// field has: `fresh` where the history holds nothing to reuse.
         Shaders::HistoryConstants history(bool fresh) const
@@ -26,6 +29,7 @@ namespace Rtx
                 .mPrevious = mSampled.mPrevious,
                 .mArmsSpread = mSampled.mArmsSpread,
                 .mFrame = mSampled.mFrame,
+                .mPreviousFrame = mWrittenBefore,
             };
         }
     };

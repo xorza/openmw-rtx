@@ -20,11 +20,13 @@ namespace Rtx
     /// the depth, the motion and the light of every frame after it moved in the last bit.
     ///
     /// **So the module takes the freedoms away.** Each of those operations becomes its own steps in
-    /// one order, stated below. A multiply that nothing reads but one add or subtract becomes one
-    /// `OpFmaKHR` with it, which the specification rounds once, correctly, and so to one value — an
-    /// explicit `fma` in the source included. Every other add, subtract, multiply and divide is
-    /// `NoContraction`, which forbids fusing and reordering it. The build chooses the
-    /// fusions, so the pinned module is as fast as the one the driver fused for itself.
+    /// one order, stated below, and every add, subtract, multiply and divide is `NoContraction`,
+    /// which forbids fusing and reordering it: each rounds once, correctly, and so to one value.
+    ///
+    /// **No fused multiply-add, which costs a module one instruction where a driver would have
+    /// fused.** Only `SPV_KHR_fma` rounds a fusion once on every device, and AMD's Windows driver for
+    /// RDNA 2 does not offer it. An explicit `fma` in the source is refused for the same reason,
+    /// since the specification lets a compile round it once or twice.
     ///
     /// **Left to the device, because no Vulkan instruction computes them exactly:** division, `sqrt`,
     /// `inversesqrt`, the exponentials, logarithms, powers and trigonometry, which the specification
@@ -44,39 +46,35 @@ namespace Rtx
     /// entry point declares `SignedZeroInfNanPreserve` for every float width the module has, and the
     /// device is required to honour it.
     ///
-    /// **A multiply a `precise` variable reads stays a multiply.** `precise` is the source's own
-    /// `NoContraction`, and where two shaders must compute one value to the bit it is what says so:
-    /// a fusion that depended on how each module happened to be optimised could split them.
-    ///
-    /// The orders, over components 0 up and a matrix's columns 0 up; the fusions follow from the
-    /// rule above.
-    /// - `dot(a, b)`: `a0 b0`, then `fma(ai, bi, sum)`.
+    /// The orders, over components 0 up and a matrix's columns 0 up, each product and sum rounded
+    /// in turn.
+    /// - `dot(a, b)`: `a0 b0`, then `sum + ai bi`.
     /// - `M v`: row i is `dot` of the row with `v`; `v M` is `dot(v, column)`; `M N` is `M` times each
     ///   column of `N`.
     /// - `length(v)` is `sqrt(dot(v, v))` and `|v|` of a scalar; `distance(a, b)` is `length(a - b)`;
     ///   `normalize(v)` is `v inversesqrt(dot(v, v))` and `sign(v)` of a scalar.
-    /// - `cross(a, b)`: `fma(-a2, b1, a1 b2)`, `fma(-a0, b2, a2 b0)`, `fma(-a1, b0, a0 b1)`.
-    /// - `mix(x, y, a)`: `fma(y, a, x (1 - a))`.
-    /// - `smoothstep(e0, e1, x)`: `t t fma(-2, t, 3)` for `t = clamp((x - e0) / (e1 - e0), 0, 1)`.
-    /// - `reflect(i, n)`: `fma(-k, n, i)` for `k = 2 dot(n, i)`.
-    /// - `refract(i, n, eta)`: `d = dot(n, i)`, `k = fma(-eta eta, fma(-d, d, 1), 1)`, and nought
-    ///   where `k < 0`, else `fma(-(fma(eta, d, sqrt(k))), n, eta i)`.
+    /// - `cross(a, b)`: `a1 b2 - a2 b1`, `a2 b0 - a0 b2`, `a0 b1 - a1 b0`.
+    /// - `mix(x, y, a)`: `x (1 - a) + y a`.
+    /// - `smoothstep(e0, e1, x)`: `t t (3 - 2 t)` for `t = clamp((x - e0) / (e1 - e0), 0, 1)`.
+    /// - `reflect(i, n)`: `i - k n` for `k = 2 dot(n, i)`.
+    /// - `refract(i, n, eta)`: `d = dot(n, i)`, `k = 1 - eta eta (1 - d d)`, and nought where
+    ///   `k < 0`, else `eta i - (eta d + sqrt(k)) n`.
     /// - `faceforward(n, i, r)`: `n` where `dot(r, i) < 0`, else `-n`.
-    /// - `asin(x)` is `atan2(x, sqrt(fma(-x, x, 1)))`; `acos(x)` is `atan2(sqrt(fma(-x, x, 1)), x)`.
-    /// - `mod(x, y)` is `fma(-y, floor(x / y), x)`, and `rem` the same with `trunc`.
+    /// - `asin(x)` is `atan2(x, sqrt(1 - x x))`; `acos(x)` is `atan2(sqrt(1 - x x), x)`.
+    /// - `mod(x, y)` is `x - y floor(x / y)`, and `rem` the same with `trunc`.
     /// - `round` is `roundEven`, and the float `min`, `max` and `clamp` are `NMin`, `NMax` and
     ///   `NClamp`: where one operand is a NaN, the other, which the F forms leave to the compile.
-    /// - An add, subtract, multiply, divide or fused multiply-add of 32-bit constants, as the fusion
-    ///   leaves them, is its value, correctly rounded here, where a driver folds what it is handed its
-    ///   own way; not where an operand or the value is subnormal or a NaN, which stay the device's.
+    /// - An add, subtract, multiply or divide of 32-bit constants is its value, correctly rounded
+    ///   here, where a driver folds what it is handed its own way; not where an operand or the value
+    ///   is subnormal or a NaN, which stay the device's.
     /// - `x / c` for a constant `c` is `x (1 / c)`, the reciprocal rounded here: the quotient exactly
     ///   where `c` is a power of two and within an ulp and a half elsewhere, against the two and a
     ///   half a division is owed, and one answer on every device. Not where `c` or `1 / c` is not
     ///   a normal float.
     ///
     /// Throws `std::runtime_error` for a module it cannot read and for an operation it cannot pin —
-    /// a derivative or a level of detail worked out from one, a relaxed precision, a rounding mode or
-    /// any other float environment the module sets for itself, an
+    /// a derivative or a level of detail worked out from one, an `fma` or the capability to fuse, a
+    /// relaxed precision, a rounding mode or any other float environment the module sets for itself, an
     /// extended instruction set it does not know, an instruction newer than the SPIR-V headers it
     /// was built with — naming it, so the build stops rather than ships a shader a compile may change.
     std::vector<std::uint32_t> pinFloatArithmetic(std::span<const std::uint32_t> module);
@@ -88,8 +86,8 @@ namespace Rtx
     /// **Because the optimizer's folds reach the module before the pinning holds it.** `glslc -O`
     /// rewrote `floor((m - 0.5) + 0.5)` as `floor(m)`, and `(x c1) c2` as `x (c1 c2)` is the same
     /// rule: arithmetic the source does not state, decided before anything pinned it. A
-    /// `NoContraction` operation is one the optimizer folds no further, and the guard's are none
-    /// the source asked for, so the pinning still fuses them where it would have.
+    /// `NoContraction` operation is one the optimizer folds no further. The pinning takes the
+    /// guard's marks off, so a guarded module pins to the words the module itself pins to.
     ///
     /// **The rounding operations alone**, and not the extended set: the optimizer folds an
     /// exponential of constants on the host, exactly, where left in the module the driver folds it

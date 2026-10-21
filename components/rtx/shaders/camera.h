@@ -216,19 +216,9 @@ namespace Rtx::Shaders
         // over once it has been carried thirty thousand units — a trace that sums left to right and a
         // wavelet that hoists never reconstruct quite the positions that were shaded. This is the
         // trace's association, because the trace is what everything else is judged against.
-        //
-        // **And `precise`, because every shader that recomputes the trace's ray has to land on the
-        // trace's bits.** The wavelet, the sprite composite, the tone pass and the fog each call
-        // `rayAt` for the ray the trace shot, and each is a module of its own. The build fuses a
-        // multiply into the one add that reads it (`Rtx::pinFloatArithmetic`), and whether a multiply
-        // here has one reader is a fact of how each module was optimised and not of this line — fused
-        // in one module and not in another, a direction an ulp away is a hit distance an ulp away on
-        // the surfaces it reaches and another sample on a few hundred pixels. `precise` keeps these
-        // steps apart in every module, so each computes the written sum; the `normalize` under it the
-        // build writes out in one order for all of them.
-        RTX_PRECISE float across = (uv[0] - basis.mCentre[0]) * spread[0];
-        RTX_PRECISE float down = (uv[1] - basis.mCentre[1]) * spread[1];
-        RTX_PRECISE vec3 summed = basis.mForward + basis.mRight * across - basis.mUp * down;
+        const float across = (uv[0] - basis.mCentre[0]) * spread[0];
+        const float down = (uv[1] - basis.mCentre[1]) * spread[1];
+        const vec3 summed = basis.mForward + basis.mRight * across - basis.mUp * down;
         return normalize(summed);
     }
 
@@ -240,11 +230,10 @@ namespace Rtx::Shaders
         Ray ray;
         if (camera.mOrthographic != 0u)
         {
-            // The same pair of multiply-adds `directionAcross` pins, for the same reason. The forward
-            // is unit already, as `Camera` states.
-            RTX_PRECISE float across = uv[0] - camera.mBasis.mCentre[0];
-            RTX_PRECISE float down = uv[1] - camera.mBasis.mCentre[1];
-            RTX_PRECISE vec3 offset = camera.mBasis.mRight * across - camera.mBasis.mUp * down;
+            // The forward is unit already, as `Camera` states.
+            const float across = uv[0] - camera.mBasis.mCentre[0];
+            const float down = uv[1] - camera.mBasis.mCentre[1];
+            const vec3 offset = camera.mBasis.mRight * across - camera.mBasis.mUp * down;
             ray.mOffset = offset;
             ray.mDirection = camera.mBasis.mForward;
 
@@ -276,8 +265,8 @@ RTX_SHADER Ray rayAt(Camera camera, vec2 pixel)
     // or a half number, so the offset of a pixel's centre from the middle is exact and the middle
     // of an odd grid is nought, a level ray; the scale is the host's `2 / extent`, and the multiply
     // is the one rounding.
-    RTX_PRECISE vec2 middle = 0.5 * vec2(float(camera.mWidth), float(camera.mHeight));
-    RTX_PRECISE vec2 uv = (pixel + 0.5 + camera.mJitter - middle) * camera.mPixelScale;
+    const vec2 middle = 0.5 * vec2(float(camera.mWidth), float(camera.mHeight));
+    const vec2 uv = (pixel + 0.5 + camera.mJitter - middle) * camera.mPixelScale;
 
     return rayAcross(camera, uv);
 }

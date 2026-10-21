@@ -51,6 +51,11 @@ namespace Rtx
     {
         RendererOptions asked = options;
         asked.mRun.mValidation.mLevel = askedLevel(options.mRun.mValidation.mLevel);
+
+        // **Asked for by name**, as the finer validation levels are, and for the same reason: a
+        // diagnostic the game has no command line to ask for.
+        asked.mRun.mValidation.mWatchSubmits
+            = options.mRun.mValidation.mWatchSubmits || askedFor("OPENMW_RTX_WATCH_SUBMITS");
         return std::make_unique<VulkanRenderer>(asked);
     }
 

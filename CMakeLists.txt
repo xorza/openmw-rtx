@@ -579,8 +579,9 @@ if(OPENMW_USE_SYSTEM_MYGUI)
     find_package(MyGUI 3.4.3 REQUIRED)
 endif()
 
-# 1.4.329 is the first SDK with `VK_KHR_shader_fma`, which every shader's fusions are
-# (`Rtx::pinFloatArithmetic`); an older one fails here rather than inside `requirements.cpp`.
+# 1.4.329 is the first SDK whose SPIR-V headers name `SPV_KHR_fma`, which the shaders' pinning
+# refuses by name (`Rtx::pinFloatArithmetic`); an older one fails here rather than inside
+# `spirvpin.cpp`.
 find_package(VulkanHeaders 1.4.329 REQUIRED)
 find_package(OpenAL REQUIRED)
 find_package(ZLIB REQUIRED)

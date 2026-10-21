@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace Rtx
 {
@@ -55,13 +56,22 @@ namespace Rtx
             /// run after a construction, a `reset`, or a frame the filter did not run on.
             TemporalFlags mRuns;
             TemporalFlags mFresh;
+
+            /// The number of the frame that wrote the half this one reads, and so the fields it was
+            /// stored in (`fieldSwapOf`); this frame's own where nothing wrote it yet.
+            std::uint32_t mWrittenBefore = 0;
         };
 
-        /// Turns to the other half for the frame being recorded, on which `runs` run.
-        Step next(const TemporalFlags& runs)
+        /// Turns to the other half for the frame being recorded, number `frame`, on which `runs` run.
+        Step next(const TemporalFlags& runs, const std::uint32_t frame)
         {
-            const Step step{ .mBefore = mNow, .mNow = 1 - mNow, .mRuns = runs, .mFresh = mFresh };
+            const Step step{ .mBefore = mNow,
+                .mNow = 1 - mNow,
+                .mRuns = runs,
+                .mFresh = mFresh,
+                .mWrittenBefore = mWritten.value_or(frame) };
             mNow = step.mNow;
+            mWritten = frame;
             for (std::size_t at = 0; at < sTemporals; ++at)
                 mFresh.mFlags[at] = !runs.mFlags[at];
             return step;
@@ -73,5 +83,8 @@ namespace Rtx
     private:
         std::size_t mNow = 0;
         TemporalFlags mFresh;
+
+        /// The number of the last frame turned, nothing before the first.
+        std::optional<std::uint32_t> mWritten;
     };
 }

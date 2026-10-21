@@ -1,18 +1,22 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/job.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -145,8 +149,8 @@ namespace Rtx
         /// @param volumeLayout the same again, for the set a `FogVolume` hands over.
         /// @param counting whether the frame counts for the host — the hits and the values that
         ///        were not finite — a harness facility, specialized away rather than branched on.
-        /// @param specialize whether to make a kernel per tuple, or the full tuple's alone and
-        ///        answer every frame with it — `RenderProfile::mSpecializeLaunches`.
+        /// @param specialize whether to make a kernel per tuple behind the full tuple's, or the full
+        ///        tuple's alone and answer every frame with it — `RenderProfile::mSpecializeKernels`.
         VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
             const SetLayout& volumeLayout, bool counting, bool specialize);
 
@@ -154,10 +158,23 @@ namespace Rtx
         /// and the tone pass's dither draws from.
         VkDeviceAddress getBlueNoise() const { return mBlueNoise.addressFor(); }
 
-        /// Waits `patience` at most for every kernel, and says how many are made; throws what making
-        /// one threw. For a host drawing a loading screen while it waits. Recording needs no wait of
-        /// its own: every launch reads its kernel through `kernels`, which waits.
-        JobProgress awaitKernels(std::chrono::milliseconds patience) const;
+        /// Waits `patience` at most for `set`'s kernels, and says how many are made — every tuple's
+        /// counted as one; throws what making one threw. For a host drawing a loading screen while it
+        /// waits. Recording needs no wait of its own: every launch reads its kernel through
+        /// `kernels`, which waits for the full tuple, and a frame takes its own tuple only once it is
+        /// made (`variantFor`).
+        JobProgress awaitKernels(KernelSet set, std::chrono::milliseconds patience) const;
+
+        /// A kernel the pass made, and which of its kernels it is.
+        struct NamedKernel
+        {
+            std::string_view mName;
+            const Pipeline* mPipeline = nullptr;
+        };
+
+        /// Every kernel the pass made, once the compile is over: for what is asked of a kernel and
+        /// not of a frame, which is what its compiler made of it (`Device::compiledUseOf`).
+        void listKernels(std::vector<NamedKernel>& out) const;
 
         /// Writes the frame's block: `constants` with what only the passes know filled in — the
         /// tiles' widths, the lamps' grid, the froxel grid and where every table is, the bin's
@@ -166,11 +183,8 @@ namespace Rtx
         ///
         /// @param sprites where this trace's sprites and tiles are, off the bin the chain recording
         ///        the trace owns and filled ahead of it.
-        /// @param composed whether nothing filters this trace's bounce, so it composes the frame
-        ///        itself — `VisibilityConstants::mComposed`, which the chain that knows is the one to
-        ///        say.
         void writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteTables& sprites,
-            const Shaders::VisibilityConstants& constants, bool composed) const;
+            const Shaders::VisibilityConstants& constants) const;
 
         /// Zeroes, in the bin's own table, every falling sprite that stands under a roof — one ray
         /// straight up apiece, `spriteshelter.rgen`. After `writeFrame` and the bin's `take`, and
@@ -187,18 +201,25 @@ namespace Rtx
         void recordSpriteEmitters(
             VkCommandBuffer commands, const VisibilityInputs& inputs, std::uint32_t count, GpuTimer* timer) const;
 
-        /// What `record` writes of the channels a trace may leave out, in the kernel it runs for these
-        /// inputs: the lobe's where that kernel holds the maps' code — a scene that wears a map, or
-        /// every scene where nothing is specialised — and the puffs' where a puff can be met,
-        /// `puffs` (`SpriteTables::mPuffs`, which `writeFrame` states as `mPuffsInFrame`).
-        ChannelWrites writesOf(
-            const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants, bool puffs) const;
+        /// The tuple a frame of these inputs runs: the one its constants call for where it is made,
+        /// and the full tuple until then. Asked once a frame, and handed to `writesOf` and `record`,
+        /// so the two agree whichever tuple lands between them. Resolved from the constants this
+        /// frame is about to be traced with, and from nothing kept between frames: a dusk moves the
+        /// tuple and a doorway moves it again.
+        VisibilityVariant variantFor(
+            const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants) const;
 
-        /// Records the trace, in whichever kernel this frame calls for. After `writeFrame`, which
-        /// is what every launch here reads.
+        /// What `record` writes of the channels a trace may leave out, in `run`'s kernels: the
+        /// lobe's where they hold the maps' code — a scene that wears a map, or the full tuple — and
+        /// the puffs' where a puff can be met, `puffs` (`SpriteTables::mPuffs`, which `writeFrame`
+        /// states as `mPuffsInFrame`).
+        static ChannelWrites writesOf(VisibilityVariant run, bool puffs);
+
+        /// Records the trace in `variant`'s kernels, which `variantFor` answered. After `writeFrame`,
+        /// which is what every launch here reads.
         ///
-        /// @param timer where the three zones this records go, or nothing where nobody is counting.
-        void record(VkCommandBuffer commands, const VisibilityInputs& inputs,
+        /// @param timer where the zones this records go, or nothing where nobody is counting.
+        void record(VkCommandBuffer commands, const VisibilityInputs& inputs, VisibilityVariant variant,
             const Shaders::VisibilityConstants& constants, GpuTimer* timer) const;
 
         /// Composites the puffs over `shown`, in place, at the picture's own extent: the
@@ -208,8 +229,8 @@ namespace Rtx
         /// `spritecomposite.rgen` says what an upscaler's overlay costs.
         ///
         /// @param shown the frame as it will be shown, in `GENERAL`.
-        /// @param eyes the frame's eyes as the trace cast them, at the traced extent the launch
-        ///        covers; the composite is handed them on the shown grid.
+        /// @param eyes the frame's eyes as the trace cast them, at the traced extent; the composite
+        ///        is handed them on the shown grid.
         /// @param extent how much of `shown` the picture is, from its corner: the whole of a
         ///        frame's, and a picture's own size inside an image that may be larger. The block is
         ///        the one the trace wrote, so the bin is read from there.
@@ -217,9 +238,16 @@ namespace Rtx
             const Shaders::Eyes& eyes, VkExtent2D extent, GpuTimer* timer) const;
 
     private:
+        /// The trace's stages first, in the order a frame runs them, each its own index into
+        /// `Kernels::mStages`; the launches and the dispatches beside them after.
         enum class Kernel
         {
             Visibility,
+            Direct,
+            Media,
+            Panes,
+            Bounce,
+            Landing,
             Scatter,
             Depth,
             Integrate,
@@ -235,12 +263,12 @@ namespace Rtx
             VisibilityVariant mVariant{};
         };
 
-        /// Starts making every kernel this pass can ever need, on a thread of its own, because the
+        /// Starts making every kernel this pass can ever need, on threads of their own, because the
         /// frame path must not be able to compile: the trace took 2.8 seconds on a cold cache, and
         /// a frame that stopped for one was `Xid 109, CTX SWITCH TIMEOUT` and a device reset. Off
-        /// the caller's thread, because the whole set takes ten seconds cold and the window has to
-        /// go on answering meanwhile. In parallel, because the driver's cache is internally
-        /// synchronised, and `PipelineCache` outlives the process.
+        /// the caller's thread, because the full tuple takes ten seconds cold and every tuple a
+        /// minute, and the window has to go on answering meanwhile. In parallel, because the
+        /// driver's cache is internally synchronised, and `PipelineCache` outlives the process.
         void compileEvery(const SetLayout& textureLayout);
 
         /// Makes the one kernel `wanted` names, into its slot. On a hand of `compileEvery`'s, each
@@ -263,17 +291,27 @@ namespace Rtx
         void pushInputs(VkCommandBuffer commands, const Pipeline& pipeline, const VisibilityInputs& inputs,
             const Image* shown = nullptr) const;
 
-        /// Which slot of the two tables holds `variant`'s kernel: its own, or the full tuple's
-        /// where that one answers for every frame.
-        std::uint32_t slotOf(VisibilityVariant variant) const;
+        /// Whether every kernel of `tuple` is made, by the background compile: never the full
+        /// tuple's, which `kernels` waits for.
+        bool isMade(VisibilityVariant tuple) const;
 
-        /// The kernel for `variant`, which `compileEvery` made.
-        const TracePipeline<NoConstants>& pipelineFor(VisibilityVariant variant) const;
+        /// One stage's kernels, a tuple each.
+        using TupleKernels = std::array<std::unique_ptr<ComputePipeline<NoConstants>>, VisibilityVariant::sCount>;
 
-        /// The same, for the launch that fills the fog volume's froxels. Every tuple has one, a
-        /// room's included: the volume walks the lamps once per froxel where the closed form would
-        /// be a lamp reservoir and a shadow ray per pixel. **The maps are not a question it asks**,
-        /// so a tuple with maps is answered by its twin without them.
+        /// How many of `Kernel` are the trace's stages: `Visibility` to `Landing`.
+        static constexpr std::size_t sStageCount = 6;
+
+        /// `stage`'s kernel for `variant`, which `variantFor` answered.
+        static const ComputePipeline<NoConstants>& kernelOf(const TupleKernels& stage, VisibilityVariant variant);
+
+        /// Whether `variant` runs the media stage: a sun to cast shafts, and a sea to cast them in.
+        static bool hasMedia(VisibilityVariant variant);
+
+        /// The launch that fills the fog volume's froxels for `variant`, a room's included: the
+        /// volume walks the lamps once per froxel where the closed form would be a lamp reservoir
+        /// and a shadow ray per pixel. **The maps are not a question it asks**, so a tuple is
+        /// answered by its twin without them where that one is made, and by the full tuple's until
+        /// then.
         const TracePipeline<NoConstants>& scatterPipelineFor(VisibilityVariant variant) const;
 
         const Device& mDevice;
@@ -291,7 +329,8 @@ namespace Rtx
         /// kernels are specialized with.
         std::uint32_t mCounting = 0;
 
-        /// Whether the tables below hold a kernel per tuple, or the full tuple's alone.
+        /// Whether the tables below fill with a kernel per tuple behind the full tuple's, or hold the
+        /// full tuple's alone.
         bool mSpecialize = true;
 
         /// The second of the two sets bound after the pushed one, which the renderer owns for its
@@ -306,8 +345,9 @@ namespace Rtx
         /// other hand does.
         struct Kernels
         {
-            /// One pipeline per tuple.
-            std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mVisibility;
+            /// Each stage's kernels, by its `Kernel`, a pipeline per tuple: the media stage's for the
+            /// tuples `hasMedia` names alone.
+            std::array<TupleKernels, sStageCount> mStages;
 
             /// The same table for the launch that fills the froxels, made for the tuples without
             /// maps — `scatterPipelineFor` says why. A launch and not a dispatch, and so is the
@@ -345,13 +385,21 @@ namespace Rtx
         /// Every trace module the kernels run, read once with its interface by the compile before its
         /// hands start, and shared by them: on the compile's thread, so a file that cannot be read
         /// is thrown to every ask of the kernels as a kernel that cannot be made is. Before the
-        /// compile, so its hands are joined before the code goes.
+        /// compile, so its hands are joined before the code goes. **Let go by the last compile once
+        /// its hands are joined**: a few megabytes nothing reads again.
         std::optional<ShaderCode> mCode;
 
         Kernels mKernels;
 
-        /// The compile: `compileEvery`'s hands, counted as each kernel lands. Last, so it is stopped
-        /// and joined before the table it fills goes.
+        /// Which tuples the background compile made whole, each set by the hand that made the
+        /// tuple's last kernel after it wrote them, and read by the frame that picks its tuple
+        /// (`variantFor`) before it reads them.
+        std::array<std::atomic<bool>, VisibilityVariant::sCount> mMade{};
+
+        /// The compile: the full tuple's and the singles' hands, counted as each kernel lands; and
+        /// behind it every other tuple's, counted a tuple at a time. Last, so they are stopped and
+        /// joined before the table they fill goes, the tuples' first.
         Job mCompiling;
+        Job mSpecializing;
     };
 }

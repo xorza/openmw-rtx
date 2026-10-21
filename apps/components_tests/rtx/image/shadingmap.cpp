@@ -346,8 +346,8 @@ namespace Rtx
             EXPECT_EQ(encodeShading(ShadingMap::sFloor), 0);
             EXPECT_EQ(encodeShading(ShadingMap::sCeiling), 65535);
 
-            // The two ends decode to the bounds themselves: `fma(ceiling, 0, floor * 1)` and
-            // `fma(ceiling, 1, floor * 0)` each round once, onto a number a float holds.
+            // The two ends decode to the bounds themselves: `floor * 1 + ceiling * 0` and
+            // `floor * 0 + ceiling * 1` are each one bound and a nought, exactly.
             EXPECT_EQ(decodeShading(0), ShadingMap::sFloor);
             EXPECT_EQ(decodeShading(65535), ShadingMap::sCeiling);
             EXPECT_EQ(encodeShading(0.0f), 0);

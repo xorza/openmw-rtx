@@ -10,23 +10,24 @@
 
 #include "compose.glsl"
 
-/// The picture at `at`: `directLight`, `CHANNEL_DIRECT`'s, with the bounce and its fill as the
-/// filter left them multiplied back by their albedos, each shadowed source by what got through —
-/// the shadow denoiser's answer where its field ran (`COMPOSITE_SHADOWED_*` in `shadowedFields`),
-/// the ray's own bit where it did not — the lobe's light where a surface can have one (`lobed`),
-/// and the layers'.
-vec3 resolvedLight(ivec2 at, vec3 directLight, vec3 bounce, vec3 fillShare, uint shadowedFields, uint lobed)
+/// The picture at the pixel stored at `stored`: `directLight`, `CHANNEL_DIRECT`'s, with the bounce
+/// and its fill as the filter left them multiplied back by their albedos, each shadowed source by
+/// what got through — the shadow denoiser's answer where its field ran (`COMPOSITE_SHADOWED_*` in
+/// `shadowedFields`), the ray's own bit where it did not — the lobe's light where a surface can
+/// have one (`lobed`), and the layers'.
+vec3 resolvedLight(ivec2 stored, vec3 directLight, vec3 bounce, vec3 fillShare, uint shadowedFields, uint lobed)
 {
-    const vec4 sky = imageLoad(shadowed, at);
-    const vec4 lamps = imageLoad(lamped, at);
-    const float skySeen = (shadowedFields & COMPOSITE_SHADOWED_SKY) != 0u ? uintBitsToFloat(imageLoad(shadow, at).r)
+    const vec4 sky = imageLoad(shadowed, stored);
+    const vec4 lamps = imageLoad(lamped, stored);
+    const float skySeen = (shadowedFields & COMPOSITE_SHADOWED_SKY) != 0u ? uintBitsToFloat(imageLoad(shadow, stored).r)
                                                                           : float(shadowOpen(sky.a));
     const float lampSeen = (shadowedFields & COMPOSITE_SHADOWED_LAMPS) != 0u
-        ? uintBitsToFloat(imageLoad(lampShadow, at).r)
+        ? uintBitsToFloat(imageLoad(lampShadow, stored).r)
         : float(shadowOpen(lamps.a));
-    const vec3 lobe = lobed != 0u ? imageLoad(specular, at).rgb * imageLoad(specularAlbedo, at).rgb : vec3(0.0);
-    return composedLight(directLight, imageLoad(albedo, at).rgb, bounce, imageLoad(ambientAlbedo, at).rgb, fillShare,
-        sky.rgb, skySeen, lamps.rgb, lampSeen, lobe, imageLoad(paneAlbedo, at).rgb, imageLoad(pane, at).rgb);
+    const vec3 lobe = lobed != 0u ? imageLoad(specular, stored).rgb * imageLoad(specularAlbedo, stored).rgb : vec3(0.0);
+    return composedLight(directLight, imageLoad(albedo, stored).rgb, bounce, imageLoad(ambientAlbedo, stored).rgb,
+        fillShare,
+        sky.rgb, skySeen, lamps.rgb, lampSeen, lobe, imageLoad(paneAlbedo, stored).rgb, imageLoad(pane, stored).rgb);
 }
 
 #endif

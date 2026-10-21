@@ -9,8 +9,8 @@
 //
 // **The probe is the build's pinning put to the device.** `pinning.comp` computes each operation
 // `Rtx::pinFloatArithmetic` rewrites, the host computes the order the rewrite states with one
-// rounding per step and `std::fma` for each fusion, and the two have to agree to the bit — which
-// they do only where the device rounds `OpFmaKHR` once and keeps every `NoContraction` step apart.
+// rounding per step, and the two have to agree to the bit — which they do only where the device
+// keeps every `NoContraction` step apart.
 //
 // **An operation with a core the device computes is checked around that core.** `normalize` has an
 // inverse square root in it, `smoothstep` and `mod` a division, `refract` a square root, and no host

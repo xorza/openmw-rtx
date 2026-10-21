@@ -19,10 +19,18 @@ namespace Rtx
     ///
     /// @param options what the frame asked for over `profile`; a picture's asks nothing.
     /// @param counts what the traced scene holds.
-    /// @param previous the camera the last frame was traced with, to reproject against, or null
+    /// @param previous what `previousOf` kept of the last frame, to reproject against, or null
     ///        where there is no frame before it: a picture, and a frame after a resize, a new scene
     ///        or a reset.
     Shaders::VisibilityConstants sampleFrame(const Shaders::VisibilityConstants& stated, const FrameOptions& options,
         const RenderProfile& profile, const Reconstruction& reconstruction, const InstanceCounts& counts,
         const Shaders::VisibilityConstants* previous);
+
+    /// What the next frame reprojects against, of a frame `stated` and traced as `sampled`: the
+    /// eyes where the caller put them, and the jitter `sampled` drew, which is where inside a pixel
+    /// this frame's rays went and not where an eye stood. The next frame's histories rebuild this
+    /// frame's points along those rays (`heldSurfaceMatches`), and the upscaler takes the jitter as
+    /// the previous dispatch's, as FSR's own context keeps it (`previousFrameJitterOffset`).
+    Shaders::VisibilityConstants previousOf(
+        const Shaders::VisibilityConstants& stated, const Shaders::VisibilityConstants& sampled);
 }

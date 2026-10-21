@@ -10,9 +10,11 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 
 #include "tracepast.hpp"
 
@@ -26,6 +28,20 @@ namespace Rtx
     {
         return width == RadianceWidth::Summed ? toVulkanFormat(GBUFFER_RADIANCE_SUMMED)
                                               : toVulkanFormat(GBUFFER_RADIANCE_SHOWN);
+    }
+
+    /// Whether the trace stores `channel` in the pixel's checkerboard field: `channelInFields`.
+    constexpr bool storedInFields(const Channel channel)
+    {
+        return Shaders::channelInFields(indexOf(channel));
+    }
+
+    /// How wide `channel`'s image is for a frame `width` wide: both fields' halves where it is stored
+    /// in fields (`storedWidth`), and the frame's own width where not, which a pass after the trace
+    /// samples by a coordinate relative to it.
+    constexpr std::uint32_t channelWidth(const Channel channel, const std::uint32_t width)
+    {
+        return storedInFields(channel) ? Shaders::storedWidth(width) : width;
     }
 
     /// What a trace writes of the channels only some traces need, every other channel being written
@@ -50,8 +66,9 @@ namespace Rtx
     ///
     ///     colour = direct + albedo * filter(indirect * transmittance)
     ///
-    /// Where no filter stands between the two, the trace composes it there itself
-    /// (`VisibilityConstants::mComposed`). Either way the direct channel is the frame afterwards.
+    /// The composite writes the frame in its own order into an image of the chain's
+    /// (`TraceChain::getColour`), since the channels the denoiser reads are stored in fields
+    /// (`storedInFields`).
     class GBuffer
     {
     public:
@@ -67,6 +84,11 @@ namespace Rtx
         /// What a G-buffer of this extent and radiance width takes of the device's memory.
         static VkDeviceSize bytesAt(
             const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
+
+        /// What the tile lists of a frame `width` by `height` take of the device's memory
+        /// (`STAGE_TILES`): essential memory and not a frame target, since an indirect dispatch reads
+        /// its arguments out of a buffer, which the frame's targets are never made in.
+        static VkDeviceSize tileBytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
 
         /// The set every `GBuffer` is addressed through, made once and outliving all of them,
         /// because a pipeline layout names every set it will ever be handed, and the trace's
@@ -98,6 +120,15 @@ namespace Rtx
         /// that first leaves it out, and left alone by every trace after that leaves it out too.
         void begin(VkCommandBuffer commands, ChannelWrites writes);
 
+        /// The tile lists the trace appends to (`STAGE_TILES`), whose head is the media stage's
+        /// indirect dispatch.
+        const Buffer& getStageTiles() const { return mStageTiles; }
+
+        /// Orders a stage's writes against the next stage, which reads what it wrote and adds to
+        /// some of it: a dispatch after a dispatch, every image left in `GENERAL`, and a tile list
+        /// read as an indirect dispatch's arguments.
+        static void handToStage(VkCommandBuffer commands);
+
         /// Orders the pass that wrote them against the passes about to read them, as
         /// `Use::sAnyShaderRead`. The composite, which writes the frame over the direct channel,
         /// orders its own write after this.
@@ -113,6 +144,21 @@ namespace Rtx
         /// the frame before wrote, or the one this frame writes, by `mNow`. Empty where the past is
         /// dropped.
         std::array<Image, 2> mOthers;
+
+        /// What the trace hands its later stages (`STAGE_RECORD`, `STAGE_THROUGHPUT`, `STAGE_LIFT`,
+        /// `STAGE_HIT`, `STAGE_RAY_FROM`, `STAGE_RAY_ALONG`, `STAGE_BOUNCE`), bound after the
+        /// channels at the stored width, as the trace writes them.
+        Image mStageRecord;
+        Image mStageThroughput;
+        Image mStageLift;
+        Image mStageHit;
+        Image mStageRayFrom;
+        Image mStageRayAlong;
+        Image mStageBounce;
+
+        /// The tile lists (`STAGE_TILES`), one copy, as the stage images are: every stage of a frame
+        /// runs before the next frame's trace.
+        Buffer mStageTiles;
 
         /// Which of a held channel's two images this frame writes, `mChannels`' or `mOthers`', and
         /// which set binds it: each frame's `begin` turns it.

@@ -2,13 +2,17 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <utility>
 
+#include <components/rtx/shaders/skinning.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
+#include <components/rtxvulkan/shaders/shared/probe.h>
+#include <components/rtxvulkan/shaders/shared/tables.h>
 
 #include "barriers.hpp"
 #include "bufferusage.hpp"
@@ -36,12 +40,22 @@ namespace Rtx
             return 0;
         }
 
+        /// The most any shader's `buffer_reference_align` claims of where a buffer it reads by address
+        /// starts: every claim a shader makes names one of these.
+        constexpr VkDeviceSize sReferenceAlignment
+            = std::max({ Shaders::TABLE_ALIGN_ROWS, Shaders::TABLE_ALIGN_MATERIALS, Shaders::TABLE_ALIGN_BLOCKS,
+                Shaders::TABLE_ALIGN_LAYERS, Shaders::TABLE_ALIGN_INSTANCES, Shaders::BONE_ALIGN,
+                static_cast<std::uint32_t>(Shaders::PROBE_ROW_ALIGN) });
+
         /// The alignment a buffer's memory owes beyond what the driver asks for binding it: the
         /// rules Vulkan states at the use and not at the bind, which a driver's requirement need not
         /// cover. A scratch address must be a multiple of the scratch alignment, a shader binding
         /// table's base of the group base alignment, and a structure's offset of 256 — each written
         /// as an offset inside the buffer elsewhere, which is only enough where the buffer itself
-        /// starts on the boundary. The allocator this fork had placed every range on a kilobyte,
+        /// starts on the boundary. **And a buffer a shader reads by address starts where its
+        /// references claim** (`sReferenceAlignment`): NVIDIA's buffers start on 256 bytes of their
+        /// own accord, and AMD's Windows driver put a pose buffer on less than the sixteen its bone
+        /// references claim. The allocator this fork had placed every range on a kilobyte,
         /// which covered all three by accident; the library places at what it is asked.
         VkDeviceSize alignmentOwedBy(const Device& device, const VkBufferUsageFlags usage)
         {
@@ -53,8 +67,25 @@ namespace Rtx
                     owed, device.getPhysicalDevice().getProperties().mRayTracingPipeline.shaderGroupBaseAlignment);
             if ((usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR) != 0)
                 owed = std::max(owed, sStructureOffsetAlignment);
+            if ((usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0)
+                owed = std::max(owed, sReferenceAlignment);
 
             return owed;
+        }
+
+        /// A buffer of `size` bytes for `usage`, as one is made and as its memory is asked about.
+        VkBufferCreateInfo createInfoOf(const VkDeviceSize size, const VkBufferUsageFlags usage)
+        {
+            return VkBufferCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .size = size,
+                .usage = usage,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                .queueFamilyIndexCount = 0,
+                .pQueueFamilyIndices = nullptr,
+            };
         }
     }
 
@@ -65,16 +96,7 @@ namespace Rtx
         , mKind(kind)
         , mAddressable((usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0)
     {
-        const VkBufferCreateInfo create{
-            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .size = mSize,
-            .usage = usage,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .queueFamilyIndexCount = 0,
-            .pQueueFamilyIndices = nullptr,
-        };
+        const VkBufferCreateInfo create = createInfoOf(mSize, usage);
         mHandle = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
         device.setName(mHandle.get(), name);
     }
@@ -124,6 +146,21 @@ namespace Rtx
     {
         if (!isEmpty())
             mDevice->getGraveyard().bury(std::move(mHandle), std::move(mMemory));
+    }
+
+    VkDeviceSize Buffer::bytesFor(const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage)
+    {
+        const VkBufferCreateInfo create = createInfoOf(std::max(size, VkDeviceSize{ 1 }), usage);
+        const VkDeviceBufferMemoryRequirements asked{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS,
+            .pNext = nullptr,
+            .pCreateInfo = &create,
+        };
+        VkMemoryRequirements2 requirements{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = nullptr, .memoryRequirements = {}
+        };
+        vkGetDeviceBufferMemoryRequirements(device.getHandle(), &asked, &requirements);
+        return requirements.memoryRequirements.size;
     }
 
     Buffer Buffer::make(const Device& device, const BufferKind kind, const VkDeviceSize size,

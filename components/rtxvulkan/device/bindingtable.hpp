@@ -16,9 +16,9 @@ namespace Rtx
     class BindingTable
     {
     public:
-        /// The most bindings any set of this renderer declares, with room: the fog volume's set has
-        /// twenty.
-        static constexpr std::size_t sMost = 24;
+        /// The most bindings any set of this renderer declares, with room: the G-buffer's set has
+        /// twenty-seven (`CHANNEL_SET_BINDINGS`), which `GBuffer` asserts fit.
+        static constexpr std::size_t sMost = 32;
 
         BindingTable() = default;
 

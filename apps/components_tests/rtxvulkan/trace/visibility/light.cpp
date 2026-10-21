@@ -258,7 +258,7 @@ namespace Rtx::Testing
         /// **A person is a stack.** A cuirass over a skirt over a leg is three surfaces on one
         /// pixel, so an actor under Chameleon — or fading out at the edge of `actors processing
         /// range` — showed its nearest layer see-through and every layer under it at full strength.
-        /// `PEEL_LAYERS` is what the launch now peels, and the layer past it is drawn as the solid
+        /// `PEEL_LAYERS` is what the trace peels, and the layer past it is drawn as the solid
         /// it stands in for rather than as a hole through the world.
         ///
         /// Black panes again, for the reason the test above gives: each is lit to nothing, so what
@@ -284,7 +284,7 @@ namespace Rtx::Testing
             EXPECT_EQ(through(4), litThroughStack({}, bright * 0.0625f));
             EXPECT_GT(through(4), 0) << "four layers is what the budget peels, and it is not black";
 
-            // **The budget's own edge.** The fifth surface is past what the launch peels, so it is
+            // **The budget's own edge.** The fifth surface is past what the trace peels, so it is
             // shaded as the solid it stands in for — a black one — rather than left as a hole.
             EXPECT_EQ(through(5), 0);
         }
@@ -362,9 +362,9 @@ namespace Rtx::Testing
 
             EXPECT_EQ(litThroughPane(pane, black, bright, 0.0f), 153) << "an actor faded away entirely";
 
-            // **A fade a hair short of one is peeled like any other.** The launch was handed the
+            // **A fade a hair short of one is peeled like any other.** The trace was once handed the
             // opacity as a half, and `1 - 2^-13` is a half's one: the hit answered a pane, with no
-            // response and no motion, and the launch asked the half again and kept that pane whole,
+            // response and no motion, and the trace asked the half again and kept that pane whole,
             // so the surface channel said there was no surface there. Peeled, the pixel's surface is
             // the wall's behind it, to the bit — the byte is black either way, which is why the
             // surface channel.
@@ -398,7 +398,7 @@ namespace Rtx::Testing
         /// here: the tone curve is not the sRGB encode, so half a radiance is not half a byte. A pane
         /// that lets all or nothing through lands where no pane and a solid one do, to the byte.
         ///
-        /// **Half a pane is drawn into the shadow's bit and not into its light** (`gather`): the
+        /// **Half a pane is drawn into the shadow's bit and not into its light** (`GatherRun`): the
         /// shadowed light under it is the whole sun's, to the bit, and the bit is open on as many of
         /// its draws as the pane lets through, with the drawn reach. Over 64 frames, n >= 64 draws of
         /// a half: the mean's deviation is `0.5 / sqrt(n)`, held at four of it.
@@ -1016,7 +1016,7 @@ namespace Rtx::Testing
 
         /// **A lamp that takes light away takes it off the lamps' exact sum on a surface that draws one
         /// lamp, too.** A white pane half there, which the eye peels and shades with its lamps
-        /// composed (`shadePane`), over a black sky, under a red lamp and a blue one at one place,
+        /// composed (`VisitRun`), over a black sky, under a red lamp and a blue one at one place,
         /// and a white lamp there that takes half of either away. Each alone lights the frame `r` in
         /// its own channel, so the darkened sum is `r / 2` in red and in blue.
         ///
@@ -2074,11 +2074,14 @@ namespace Rtx::Testing
             }
 
             /// Straight on, so the centre column's rays stay in the plane x = 0 and land on the wall
-            /// there, which is what makes one column a run of draws of the same quantity.
+            /// there, which is what makes one column a run of draws of the same quantity. **From
+            /// between the wall and every occluder**, so no eye ray starts in an occluder's plane: a
+            /// ray that does is the driver's to call, and from an eye at -100, in the fill's
+            /// occluder's plane, AMD's Windows driver drew the fill's shadow wrong.
             static Shaders::VisibilityConstants lookAtTheWall()
             {
                 Shaders::VisibilityConstants camera
-                    = Testing::makeCamera(osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(), 60.0f, sSize, sSize, 10000.0f);
+                    = Testing::makeCamera(osg::Vec3f(0.0f, -50.0f, 0.0f), osg::Vec3f(), 60.0f, sSize, sSize, 10000.0f);
                 camera.mSkyHorizon = osg::Vec3f();
                 camera.mSkyZenith = osg::Vec3f();
                 return camera;
@@ -2736,7 +2739,7 @@ namespace Rtx::Testing
             EXPECT_NEAR(floorUnder(0.25f), 0.375f, 0.01f) << "and a quarter a quarter";
         }
 
-        /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`bounceLanding`,
+        /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`SolidRun`,
         /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already.
         ///
         /// A glowing sheet over a grey floor and nothing else, the sheet two-sided so the eye under
@@ -2794,7 +2797,7 @@ namespace Rtx::Testing
             EXPECT_LT(seen(under(true), down), 0.005f) << "a lamp's model lit what its lamp lights";
             EXPECT_NEAR(seen(under(true), up), 1.0f, 0.01f) << "a lamp's model stopped glowing";
 
-            // **And by the lobe, which `gather` reached the lamp with already.** A white metal gives
+            // **And by the lobe, which `GatherRun` reached the lamp with already.** A white metal gives
             // a glow back whole, as it gives the sky back (`aGlossyFloorUnderAnEvenSkyGivesBackWhatItReflects`),
             // and a lamp's model none: its lamp reaches the lobe by its light sample, and the model
             // reflected beside that was the lamp twice.

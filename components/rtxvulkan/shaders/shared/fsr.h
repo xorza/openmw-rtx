@@ -89,6 +89,10 @@ namespace Rtx::Shaders
     {
         Eyes mEyes;
         float mNear;
+
+        /// The frame's number, which says how the surface and motion channels' fields lie
+        /// (`fieldSwapOf`).
+        uint mFrame;
     };
 
     /// Where the three blocks sit in the frame's uniform buffer: each at a multiple of 256 bytes,
@@ -186,7 +190,7 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     static_assert(sizeof(FsrConstants) == 148, "FsrConstants must be scalar-packed on every side");
     static_assert(sizeof(FsrPyramidConstants) == 24, "FsrPyramidConstants must be scalar-packed on every side");
-    static_assert(sizeof(FsrInputConstants) == 156, "FsrInputConstants must be scalar-packed on every side");
+    static_assert(sizeof(FsrInputConstants) == 160, "FsrInputConstants must be scalar-packed on every side");
     static_assert(sizeof(FsrConstants) <= FSR_BLOCK_PYRAMID - FSR_BLOCK_CONSTANTS);
     static_assert(sizeof(FsrPyramidConstants) <= FSR_BLOCK_INPUTS - FSR_BLOCK_PYRAMID);
     static_assert(sizeof(FsrInputConstants) <= FSR_BLOCKS_BYTES - FSR_BLOCK_INPUTS);

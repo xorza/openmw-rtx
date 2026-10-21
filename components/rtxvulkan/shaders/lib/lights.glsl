@@ -50,22 +50,22 @@ SkySource skySourceAt(uint source)
 /// @param step the step off the triangle `position` stands on (`stepOf`), or nought for a point in
 ///        the air.
 /// @param draw one pair in `[0, 1)`, which aims the ray inside the disc's cone.
-/// @param nearest whether the occluder must be the nearest (`passageToward`): a split ray's.
-Passage skyPassage(SkySource sky, vec3 position, vec3 step, vec2 draw, bool nearest)
+/// @param nearest whether the occluder must be the nearest (`passageAsk`): a split ray's.
+RayAsk skyAsk(SkySource sky, vec3 position, vec3 step, vec2 draw, bool nearest)
 {
     // A picture with shadows off is open to the sky everywhere: one answer for the whole frame.
     if (frame.mNoSkyShadows != 0u)
-        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
+        return noRay();
 
     const vec3 towards = coneDirection(sky.mDirection, sky.mLimb, draw);
-    return lightPassage(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
+    return lightAsk(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
 }
 
-/// The same as one number, which is exactly the product `throughToward` makes of its own halves.
+/// The same, traced at once and read as one number: the product `throughAnswered` makes of its
+/// own halves.
 float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 {
-    const Passage passage = skyPassage(sky, position, step, draw, false);
-    return passage.mOpen * passage.mThrough;
+    return throughAnswered(answerAsked(skyAsk(sky, position, step, draw, false)));
 }
 
 /// Which lamps one cell of the grid holds, as a range into the light list.
@@ -470,7 +470,7 @@ LightCandidate airCandidate(vec3 share)
 ///
 /// **Named rather than kept in an array, because a computed index is a spill.** The three were held
 /// in two `float[3]` locals and read back at the one the draw picked, and that index is
-/// not one the compiler can fold: the surface stage of `visibilityhit.rchit.spv` carried six
+/// not one the compiler can fold: the trace's closest-hit module of the time carried six
 /// `float[3]` variables in the function storage class, which is what a local array with a computed
 /// index becomes on this hardware. Three named values cost registers instead.
 ///
@@ -660,7 +660,7 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 ///
 /// @param step the step off the triangle the reservoir's point stands on (`stepOf`), or nought for a
 ///        point in the air.
-Passage lampPassage(Reservoir kept, vec3 step, vec2 draw, bool nearest)
+RayAsk lampAsk(Reservoir kept, vec3 step, vec2 draw, bool nearest)
 {
     // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
     // a caller that moved its origin after weighing — a lifted surface and the air both do — still
@@ -669,7 +669,7 @@ Passage lampPassage(Reservoir kept, vec3 step, vec2 draw, bool nearest)
     const vec3 offset = lamp.mPosition - kept.mFrom;
     const float distance = length(offset);
     if (!(distance > 0.0))
-        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
+        return noRay();
 
     const vec3 axis = offset / distance;
     const vec3 towards = coneDirection(axis, min(lamp.mSourceRadius / distance, 1.0), draw);
@@ -678,7 +678,7 @@ Passage lampPassage(Reservoir kept, vec3 step, vec2 draw, bool nearest)
     // the lamp and so where the clearance has to be measured from.
     const float along = distance * dot(towards, axis);
 
-    return lightPassage(
+    return lightAsk(
         leaveSurface(kept.mFrom, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS), nearest);
 }
 
@@ -695,7 +695,7 @@ float skyPenumbra(SkySource sky, float occluder)
 
 /// The same for the lamp a reservoir held, `radius occluder / (distance - occluder)`.
 ///
-/// **The lamp's row read again and not handed over from `lampPassage`**: with this read and the
+/// **The lamp's row read again and not handed over from `lampAsk`**: with this read and the
 /// caller's for the cosine both taken out, the trace's median moved by nothing on the interiors
 /// suite, three alternated rounds — the guild's 1.62 ms either way.
 float lampPenumbra(Reservoir kept, float occluder)
@@ -707,12 +707,11 @@ float lampPenumbra(Reservoir kept, float occluder)
         : SHADOW_PENUMBRA_CLEAR;
 }
 
-/// `lampPassage`'s two halves as one number, from none of the lamp to all: `throughToward`'s
+/// `lampAsk`'s two halves, now and as one number, from none of the lamp to all: `throughAnswered`'s
 /// product, exact for the reason it gives.
 float lampVisible(Reservoir kept, vec3 step, vec2 draw)
 {
-    const Passage passage = lampPassage(kept, step, draw, false);
-    return passage.mOpen * passage.mThrough;
+    return throughAnswered(answerAsked(lampAsk(kept, step, draw, false)));
 }
 
 /// What the lamp a reservoir held is worth to the estimate of every lamp it stands for: the

@@ -183,10 +183,6 @@ namespace Rtx
         /// Whether an upscaler reconstructed the frame.
         bool upscaled() const { return upscales(mUpscale); }
 
-        /// Whether the trace composes the frame itself (`VisibilityConstants::mComposed`): where
-        /// nothing filters the bounce after it.
-        bool composedByTrace() const { return !mDenoised; }
-
         /// The whole of the rule, and the only copy of it. An upscaler reconstructs the frame the
         /// trace chain composed, so the wavelet runs under one as it runs without.
         ///
@@ -342,12 +338,13 @@ namespace Rtx
         /// the frame's report, which is what the run's `QueueHeld` check reads it back by.
         double mStressOverlapMs = 0.0;
 
-        /// Whether the trace keeps a launch per tuple of the frame's facts — the sun, the moons,
-        /// the sea, `VisibilityVariant` — or one launch that carries every case. The picture is
-        /// the same either way, by the argument `lib/variants.glsl` makes; what differs is the
-        /// trace's time in a room and how many launches the driver compiles, sixteen against two.
-        /// Off is an experiment — the harness's `--variants=false` — and not a setting.
-        bool mSpecializeLaunches = true;
+        /// Whether the trace keeps its kernels — the stages' dispatches and the fog's scatter
+        /// launch — per tuple of the frame's facts — the sun, the moons, the sea, the maps,
+        /// `VisibilityVariant` — or one of each that carries every case. The picture is the same
+        /// either way, by the argument `lib/variants.glsl` makes; what differs is the trace's time
+        /// in a room and how many kernels the driver compiles, a set a tuple against one set. Off
+        /// is the harness's `--variants=false` and not a setting.
+        bool mSpecializeKernels = true;
 
         /// How wide the radiance channels are stored, which `RadianceWidth` says is a question of
         /// whether a run sums its frames or shows them. The reference's width unless a run says

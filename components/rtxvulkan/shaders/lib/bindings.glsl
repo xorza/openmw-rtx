@@ -50,14 +50,15 @@ layout(set = SET_PASS, binding = BIND_SCENE) uniform accelerationStructureEXT sc
 
 // Set two, in the order it is bound.
 
-/// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it
-/// — and the bounce put back in as well where nothing filters it (`mComposed`), which makes it the
-/// frame.
+/// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
 ///
 /// **No format on this or the bounce below**, because a run decides how wide they are —
 /// `gbuffer.h` says which run gets which — and a store with no format converts to whatever the
 /// view holds.
-layout(set = SET_CHANNELS, binding = CHANNEL_DIRECT) uniform writeonly image2D direct;
+///
+/// **Readable, as every channel the bounce's stages weigh the pane mask against is**
+/// (`storeBounced`): they read the pixel's whole light back off what the trace wrote.
+layout(set = SET_CHANNELS, binding = CHANNEL_DIRECT) uniform image2D direct;
 
 /// The lamps and the one bounce with the albedo divided out, times whatever the path took off it on
 /// the way to the eye — the channel the wavelet filters.
@@ -78,7 +79,7 @@ layout(set = SET_CHANNELS, binding = CHANNEL_INDIRECT) uniform writeonly image2D
 /// What the composite multiplies the bounce back in by. Zero where there is no diffuse response at
 /// all — the sky, and the water, which answers a ray with a reflection and a refraction and no
 /// Lambert term.
-layout(set = SET_CHANNELS, binding = CHANNEL_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D albedo;
+layout(set = SET_CHANNELS, binding = CHANNEL_ALBEDO, GBUFFER_ALBEDO) uniform image2D albedo;
 
 /// The shading normal as `packSurfaceNormal`'s code in `r`, and the distance from the eye along the
 /// pixel's ray in `g`.
@@ -119,17 +120,17 @@ layout(set = SET_CHANNELS, binding = CHANNEL_PUFFS, GBUFFER_LAYER) uniform image
 /// path took off it, and in `a` whether the ray got through and its penumbra — `CHANNEL_SHADOWED` — and the same for
 /// the lamps, `CHANNEL_LAMPED`. No format, for the reason `direct` has none: it is radiance, as wide
 /// as the run keeps radiance.
-layout(set = SET_CHANNELS, binding = CHANNEL_SHADOWED) uniform writeonly image2D shadowed;
-layout(set = SET_CHANNELS, binding = CHANNEL_LAMPED) uniform writeonly image2D lamped;
+layout(set = SET_CHANNELS, binding = CHANNEL_SHADOWED) uniform image2D shadowed;
+layout(set = SET_CHANNELS, binding = CHANNEL_LAMPED) uniform image2D lamped;
 
 /// What the lobe reflects of the lamps and the bounce, times what the path took off it —
 /// `CHANNEL_SPECULAR`. No format, as radiance has none here.
-layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR) uniform writeonly image2D specular;
+layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR) uniform image2D specular;
 
 /// The see-through layers' drawn light, demodulated, and what puts it back: `CHANNEL_PANE` and
 /// `CHANNEL_PANE_ALBEDO`. The light has no format, as radiance has none here.
-layout(set = SET_CHANNELS, binding = CHANNEL_PANE) uniform writeonly image2D pane;
-layout(set = SET_CHANNELS, binding = CHANNEL_PANE_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D paneAlbedo;
+layout(set = SET_CHANNELS, binding = CHANNEL_PANE) uniform image2D pane;
+layout(set = SET_CHANNELS, binding = CHANNEL_PANE_ALBEDO, GBUFFER_ALBEDO) uniform image2D paneAlbedo;
 
 /// The nearest layer's own surface and motion — `CHANNEL_PANE_SURFACE` and `CHANNEL_PANE_MOTION`.
 layout(set = SET_CHANNELS, binding = CHANNEL_PANE_SURFACE, GBUFFER_SURFACE) uniform writeonly image2D paneSurface;
@@ -143,15 +144,46 @@ layout(set = SET_CHANNELS, binding = CHANNEL_UPSCALE_MASKS, GBUFFER_UPSCALE_MASK
 /// is, and the ambient albedo that puts it back — `CHANNEL_FILL` and `CHANNEL_AMBIENT_ALBEDO`. The
 /// light has no format, as radiance has none here.
 layout(set = SET_CHANNELS, binding = CHANNEL_FILL) uniform writeonly image2D fill;
-layout(set = SET_CHANNELS, binding = CHANNEL_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D ambientAlbedo;
+layout(set = SET_CHANNELS, binding = CHANNEL_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uniform image2D ambientAlbedo;
 
 /// What Night-Eye's lift is multiplied by — `CHANNEL_LIFT`.
-layout(set = SET_CHANNELS, binding = CHANNEL_LIFT, GBUFFER_LIFT) uniform writeonly image2D lift;
+layout(set = SET_CHANNELS, binding = CHANNEL_LIFT, GBUFFER_LIFT) uniform image2D lift;
 
 /// What the lobe's light is multiplied back by — `CHANNEL_SPECULAR_ALBEDO`.
-layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D specularAlbedo;
+layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR_ALBEDO, GBUFFER_ALBEDO) uniform image2D specularAlbedo;
 
-// The launch's counts, added to one atomic at a time where a ray ends: `countMiss` says why the
+/// What the trace hands its later stages: each pixel's `StageRecord`, and the throughput to its
+/// solid — `STAGE_RECORD` and `STAGE_THROUGHPUT`, what the media in front and a water path let
+/// through in `rgb` and what the layers let through in `a`.
+layout(set = SET_CHANNELS, binding = STAGE_RECORD, GBUFFER_STAGE_RECORD) uniform uimage2D stageRecord;
+layout(set = SET_CHANNELS, binding = STAGE_THROUGHPUT, GBUFFER_STAGE_THROUGHPUT) uniform image2D stageThroughput;
+
+/// The lift of the surface behind the layers, as halves (`STAGE_LIFT`).
+layout(set = SET_CHANNELS, binding = STAGE_LIFT, GBUFFER_STAGE_LIFT) uniform uimage2D stageLift;
+
+/// The solid's hit and the ray that met it (`STAGE_HIT`, `STAGE_RAY_FROM`, `STAGE_RAY_ALONG`):
+/// `storeStageSolid` says what each holds. The bounce's landing in their place once the bounce
+/// stage has read the solid's.
+layout(set = SET_CHANNELS, binding = STAGE_HIT, GBUFFER_STAGE_HIT) uniform uimage2D stageHit;
+layout(set = SET_CHANNELS, binding = STAGE_RAY_FROM, GBUFFER_STAGE_RAY) uniform image2D stageRayFrom;
+layout(set = SET_CHANNELS, binding = STAGE_RAY_ALONG, GBUFFER_STAGE_RAY) uniform image2D stageRayAlong;
+
+/// What the bounce hands its landing (`STAGE_BOUNCE`): `storeBounce` says what it holds.
+layout(set = SET_CHANNELS, binding = STAGE_BOUNCE, GBUFFER_STAGE_BOUNCE) uniform uimage2D stageBounce;
+
+/// The tiles the later stages run over, which the trace appends, and the pixels the landing's stage
+/// runs over, which the bounce's appends (`STAGE_TILES`): each tile list's count in its indirect
+/// dispatch's `x`, which the frame's `GBuffer::begin` sets to nought, and each tile list
+/// `stageTileCapacity` long; the landing's count in its word beside, and its list a pixel of the
+/// frame long.
+layout(set = SET_CHANNELS, binding = STAGE_TILES, std430) buffer StageTiles
+{
+    uvec4 mDispatches[STAGE_DISPATCHES];
+    uint mTiles[];
+}
+stageTiles;
+
+// The trace's counts, added to one atomic at a time where a ray ends: `countMiss` says why the
 // misses and not the hits, which a room of nothing but hits made cost.
 layout(set = SET_PASS, binding = BIND_COUNTS, scalar) buffer Counted
 {
@@ -249,6 +281,13 @@ NormalBlock normalBlockOf(uint vertex)
     return NormalBlock(BlockTable(frame.mTables.mNormalBlocks).at[vertex / VERTEX_BLOCK]);
 }
 
+/// The static meshes' positions, laid out as the colours are: a `NormalBlock` reads one, by the
+/// global vertex id.
+NormalBlock positionBlockOf(uint vertex)
+{
+    return NormalBlock(BlockTable(frame.mTables.mPositionBlocks).at[vertex / VERTEX_BLOCK]);
+}
+
 /// The pose blocks are laid out as the normals are — `SlotBlocks` of `VERTEX_BLOCK` positions —
 /// so a `NormalBlock` reads one; what differs is the id, which is the mesh's bind offset plus
 /// the vertex's index within the mesh, and the table, this frame's copy or the last one's.
@@ -333,6 +372,22 @@ GpuMesh meshAt(uint index)
 GpuInstance instanceAt(uint index)
 {
     return InstanceTable(frame.mTables.mInstances).at[index];
+}
+
+/// Three rows of four as the matrix they are, the mesh's own space to the world or back.
+mat4x3 transformOf(vec4 rows[3])
+{
+    return transpose(mat3x4(rows[0], rows[1], rows[2]));
+}
+
+mat4x3 toWorldOf(GpuInstance instance)
+{
+    return transformOf(instance.mToWorld);
+}
+
+mat4x3 toObjectOf(GpuInstance instance)
+{
+    return transformOf(instance.mToObject);
 }
 
 GpuMaterial materialAt(uint index)

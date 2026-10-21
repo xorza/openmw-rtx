@@ -50,10 +50,11 @@ namespace Rtx
         /// @param lamps `TraceSubject::mLamps`: whether the scene holds a lamp.
         /// @param reconstruction what puts the frame back together, of which this reads the
         ///        accumulator's and the wavelet's switches.
+        /// @param composed where the frame goes where the cascade composes it, writable by compute.
         /// @param timer null where the run is not being timed, which a picture is not.
         std::optional<Denoised> record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
             const Shaders::VisibilityConstants& sampled, bool mapped, bool lamps, bool composes,
-            const Reconstruction& reconstruction, GpuTimer* timer) const;
+            const Reconstruction& reconstruction, const Image& composed, GpuTimer* timer) const;
 
     private:
         AccumulatePass mAccumulate;

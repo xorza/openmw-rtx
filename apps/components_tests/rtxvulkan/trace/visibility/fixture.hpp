@@ -584,6 +584,7 @@ namespace Rtx::Testing
 
                 frame.mHits = finished->mHits;
                 frame.mNotFinite.add(finished->mNotFinite);
+                EXPECT_EQ(finished->mWalksCut, 0u) << "pixels whose walk the trace cut short";
 
                 if (shot.mEachFrame || at + 1 == drawn)
                     readFrame(size, frame);

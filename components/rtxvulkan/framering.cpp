@@ -1,12 +1,15 @@
 #include "framering.hpp"
 
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
 #include <utility>
 
+#include <components/debug/debuglog.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/shaders/digest.h>
@@ -18,6 +21,7 @@
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
+#include <components/rtxvulkan/shaders/shared/traceconstants.h>
 
 namespace Rtx
 {
@@ -35,9 +39,8 @@ namespace Rtx
                 device, NotFiniteCensus::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame not-finite census");
     }
 
-    FrameRing::FrameRing(const Device& device, const bool readsCounts, const bool timing, const double holdTickMs)
+    FrameRing::FrameRing(const Device& device, const bool timing, const double holdTickMs)
         : mDevice(device)
-        , mReadsCounts(readsCounts)
         , mHoldTickMs(holdTickMs)
         , mSlots([&](FrameSlot) {
             return FrameRecord{ device, timing };
@@ -76,8 +79,7 @@ namespace Rtx
         frame.mReadBackBytes = 0;
         frame.mDigest = std::nullopt;
 
-        if (mReadsCounts)
-            frame.mCounts.writable<Shaders::FrameCounts>(0, 1).front() = Shaders::FrameCounts{};
+        frame.mCounts.writable<Shaders::FrameCounts>(0, 1).front() = Shaders::FrameCounts{};
 
         return frame;
     }
@@ -95,13 +97,15 @@ namespace Rtx
     }
 
     void FrameRing::readDigest(FrameRecord& frame, const VkCommandBuffer commands,
-        const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels,
-        const std::array<const Image*, sDenoiserImageCount>& denoiser, const FrameDigest& facts, GpuTimer* const timer)
+        const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels, const std::uint32_t channelsInFields,
+        const std::array<const Image*, sDenoiserImageCount>& denoiser, const VkExtent2D extent,
+        const std::uint32_t frameNumber, const FrameDigest& facts, GpuTimer* const timer)
     {
         frame.mState.expect(FrameState::Begun);
 
         frame.mDigest = facts;
-        frame.mDigest->mDenoiserTaken = mDigest.record(commands, channels, denoiser, frame.mDigestLanes, timer);
+        frame.mDigest->mDenoiserTaken = mDigest.record(
+            commands, channels, channelsInFields, denoiser, extent, frameNumber, frame.mDigestLanes, timer);
     }
 
     VkCommandBuffer FrameRing::takePlaceCommands(FrameRecord& frame)
@@ -122,9 +126,9 @@ namespace Rtx
     {
         assert(world.get() == frame.mTraceCommands[0] && "a frame submitted with another frame's recording");
 
-        // A wait's access scope is the device's, so the counts need a dependency of their own.
-        if (mReadsCounts)
-            frame.mCounts.orderForHostRead(world.get());
+        // A wait's access scope is the device's, so the counts need a dependency of their own. Every
+        // frame and not only a counting one: a cut walk is reported whatever else is counted.
+        frame.mCounts.orderForHostRead(world.get());
 
         if (const NotFiniteCensus* const census = mDevice.getCensus(); census != nullptr)
         {
@@ -173,9 +177,19 @@ namespace Rtx
 
         // Read after the wait and never before: the counts are the device's, and the queries
         // are the device's clock.
-        Shaders::FrameCounts counted{};
-        if (mReadsCounts)
-            counted = *static_cast<const Shaders::FrameCounts*>(frame.mCounts.map());
+        const Shaders::FrameCounts counted = *static_cast<const Shaders::FrameCounts*>(frame.mCounts.map());
+        if (counted.mWalksCut > 0 && !mWalkCutLogged)
+        {
+            mWalkCutLogged = true;
+            constexpr std::array<std::string_view, Shaders::WALK_RECORDS> sRecords{ "peel", "eye", "water" };
+            Log line(Debug::Error);
+            line << "the trace cut " << counted.mWalksCut << " pixels' walks short at " << Shaders::WALK_TURNS
+                 << " turns, the last at the steps";
+            for (std::uint32_t record = 0; record < Shaders::WALK_RECORDS; ++record)
+                line << ' ' << sRecords[record] << ' '
+                     << ((counted.mWalkCutSteps >> (record * Shaders::WALK_STEP_BITS))
+                            & ((1u << Shaders::WALK_STEP_BITS) - 1u));
+        }
 
         if (mReports.size() >= sFrameSlots)
             mReports.erase(mReports.begin());
@@ -197,6 +211,7 @@ namespace Rtx
         FrameResult& report = mReports.emplace_back(FrameResult{
             .mHits = frame.mCountedRays - counted.mMisses,
             .mNotFinite = notFinite,
+            .mWalksCut = counted.mWalksCut,
             .mHeldMs = counted.mHeldTicks * mHoldTickMs,
             .mWaitMs = waited,
             .mInFlight = frame.mInFlight,

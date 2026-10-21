@@ -69,6 +69,30 @@
 #define GBUFFER_UPSCALE_MASKS STORAGE_RG8
 #define GBUFFER_LIFT STORAGE_RGBA8
 
+// **What the trace hands its later stages, beside the channels and not among them**: words that
+// say which ray to cast again (`StageRecord`), and the path's throughput to the solid whole, so a
+// stage's light times it is the product the trace made — a half's three digits would take the
+// bounce's last ones off it in a reference.
+#define GBUFFER_STAGE_RECORD STORAGE_RGBA32UI
+#define GBUFFER_STAGE_THROUGHPUT STORAGE_RGBA32F
+
+// **And the surface's lift as the trace holds it, three halves**, so the layers' stage composes the
+// lift channel's bytes once, in the trace's order: rounded to bytes and added to, a lift over a pane
+// stood a step off.
+#define GBUFFER_STAGE_LIFT STORAGE_RG32UI
+
+// **And the solid's hit with the ray that met it**, so a stage resolves the trace's surface without
+// a traversal: the instance's slot, the triangle and the barycentrics' bits; and the ray's start
+// with the cone's width where it landed, its direction with the distance, whole floats, so the
+// resolve reads what the trace's read.
+#define GBUFFER_STAGE_HIT STORAGE_RGBA32UI
+#define GBUFFER_STAGE_RAY STORAGE_RGBA32F
+
+// **And what the bounce hands its landing**: the bits of three floats, what light along the bounce
+// is worth or what arrived along it, and the lobe's modulation as the shared-exponent word it is
+// made from, so the landing divides by the number the lamps' half did.
+#define GBUFFER_STAGE_BOUNCE STORAGE_RGBA32UI
+
 // Which binding of `SET_CHANNELS` each channel is.
 //
 // **The trace declares them and `GBuffer` writes them, and neither had a name for a single one.**
@@ -81,8 +105,7 @@ namespace Rtx::Shaders
 {
 #endif
 
-    /// What the trace resolved on its own: direct light, emission, the sky, water and the fog. The
-    /// frame, once composed into it (`VisibilityConstants::mComposed`).
+    /// What the trace resolved on its own: direct light, emission, the sky, water and the fog.
     const uint CHANNEL_DIRECT = 0;
 
     /// The one bounce's diffuse light, demodulated — the channel the wavelet filters.
@@ -176,7 +199,7 @@ namespace Rtx::Shaders
     /// whose image moves apart from `CHANNEL_MOTION`, each share times how far apart —
     /// `motionsApart`. In `r` the see-through layers', which move by the nearest layer's own motion:
     /// FSR's reactive mask, which AMD's documentation names for alpha-blended objects. In `g` what
-    /// the water's two rays found, which moves by the parallax of an image the waves bend: its
+    /// a water path found, which moves by the parallax of an image the waves bend: its
     /// transparency and composition mask, named for ray-traced reflections. Nought wherever the eye
     /// and the world stand still, so no still picture is touched.
     ///
@@ -240,11 +263,58 @@ namespace Rtx::Shaders
     /// What every lamp's diffuse half adds to what the eye sees as though their rays got through,
     /// summed, and whether the held lamp's ray did: `CHANNEL_SHADOWED`'s record for the lamps, which
     /// the shadow denoiser filters as a field of its own beside the sky's. The held lamp's bit is
-    /// Heitz et al. 2018's ratio estimator over the reservoir's draw (`gather`).
+    /// Heitz et al. 2018's ratio estimator over the reservoir's draw (`GatherRun`).
     const uint CHANNEL_LAMPED = 18;
 
-    /// How many the set declares, which is the last of them and one more.
+    /// How many channels the set declares, which is the last of them and one more.
     const uint CHANNEL_COUNT = 19;
+
+    /// Where the set binds what the trace hands its later stages, after the channels: the record of
+    /// each pixel's solid (`StageRecord`), the throughput to it, the surface's lift, and the solid's
+    /// hit with the ray's start and direction (`storeStageSolid`), which the bounce's landing takes
+    /// over; and what the bounce hands its landing (`storeBounce`). In fields, as the trace writes
+    /// them; no channel, so nothing reads them back or digests them.
+    const uint STAGE_RECORD = CHANNEL_COUNT;
+    const uint STAGE_THROUGHPUT = CHANNEL_COUNT + 1u;
+    const uint STAGE_LIFT = CHANNEL_COUNT + 2u;
+    const uint STAGE_HIT = CHANNEL_COUNT + 3u;
+    const uint STAGE_RAY_FROM = CHANNEL_COUNT + 4u;
+    const uint STAGE_RAY_ALONG = CHANNEL_COUNT + 5u;
+    const uint STAGE_BOUNCE = CHANNEL_COUNT + 6u;
+
+    /// And the lists the later stages run over (`StageTiles`): a storage buffer, its head each
+    /// list's indirect dispatch, a `VkDispatchIndirectCommand` and a word beside it, the media
+    /// stage's and then the layers' (`STAGE_LIST_*`), and the landing's last
+    /// (`STAGE_DISPATCH_LANDING`), whose word counts its pixels; after it the tile lists one after
+    /// the other, a workgroup of the stored layout each as `x | y << 16`, and then the pixels whose
+    /// bounce landed, a pixel each as `x | y << 16` (`appendLandings`).
+    const uint STAGE_TILES = CHANNEL_COUNT + 7u;
+    const uint STAGE_LIST_MEDIA = 0u;
+    const uint STAGE_LIST_PANES = 1u;
+    const uint STAGE_LISTS = 2u;
+    const uint STAGE_DISPATCH_LANDING = STAGE_LISTS;
+    const uint STAGE_DISPATCHES = STAGE_LISTS + 1u;
+    const uint STAGE_TILES_HEAD_WORDS = 4u * STAGE_DISPATCHES;
+
+    /// How many bindings the set holds: the channels, the stage images and the tile lists.
+    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 8u;
+
+    /// Whether a channel is stored in the pixel's checkerboard field, which every channel the
+    /// denoiser reads is. **The ones only the passes after it read stay in the frame's own order** —
+    /// the lift, the upscaler's masks, the backdrop and the puffs — since those passes sample the
+    /// first two by a coordinate relative to the frame, which a filter over a field would blend from
+    /// pixels that are not neighbours. Said once, for the shaders that write and read the channels
+    /// and the host that makes and reads them back.
+    RTX_CONSTEXPR bool channelInFields(uint channel)
+    {
+        return channel != CHANNEL_LIFT && channel != CHANNEL_UPSCALE_MASKS && channel != CHANNEL_BACKDROP
+            && channel != CHANNEL_PUFFS;
+    }
+
+#ifdef RTX_HOST
+    static_assert(!channelInFields(CHANNEL_LIFT) && !channelInFields(CHANNEL_UPSCALE_MASKS),
+        "the tone pass and the upscaler sample the lift and the masks with a filter, which a field cannot take");
+#endif
 
     /// How far apart, in traced pixels, an image and the motion vector its pixel is handed may move
     /// in one frame before the upscaler is told to trust none of that image's history: half a

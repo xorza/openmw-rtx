@@ -37,9 +37,11 @@ namespace Rtx
         /// What the last level composes the frame from where it composes (`atrouscompose.comp`),
         /// beside the channels and its own answer: the other filters' answers — the lobe's, the
         /// layers', and each shadow field's, or null where the field did not run — and whether a
-        /// surface can have a lobe (`CompositeConstants::mLobed`).
+        /// surface can have a lobe (`CompositeConstants::mLobed`); and where the frame goes, in its
+        /// own order, writable by compute.
         struct Composing
         {
+            const Image& mComposed;
             const Image& mSpecular;
             const Image& mPane;
             const Image* mSkyShadow;

@@ -33,9 +33,7 @@ namespace Rtx
         // The previous frame's easing, which read the counts, is behind the head barrier
         // `CommandPool::begin` recorded; the launch that adds to them is behind the clear.
         mCounts.clear(commands);
-        mCounts.transition(commands, Use::sBufferClearWrite,
-            BufferUse{ VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
-                VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT });
+        mCounts.transition(commands, Use::sBufferClearWrite, Use::sBufferComputeReadWrite);
     }
 
     void SunGlarePass::record(
@@ -46,9 +44,7 @@ namespace Rtx
         // The counts the launch added to. The share this easing moves was last read by the
         // previous frame's curve and written by its easing, both behind the head barrier
         // `CommandPool::begin` recorded.
-        mCounts.transition(commands,
-            BufferUse{ VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT },
-            Use::sBufferComputeRead);
+        mCounts.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
 
         DescriptorWrites writes(mPipeline);
         writes.buffer(Shaders::SUN_GLARE_BIND_COUNT, mCounts.describe());

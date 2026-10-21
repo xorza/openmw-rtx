@@ -40,7 +40,8 @@ void main()
 
     // Hidden by its alpha and not discarded: under the pass's `Over` blend an alpha of nought
     // leaves the pixel as it was, and a `discard` here is a demote the device is not asked for.
-    const float shown = float(length(inOffset) <= surfaceDistance(imageLoad(surfaceChannel, ivec2(traced)).y));
+    const ivec2 stored = channelAt(CHANNEL_SURFACE, ivec2(traced), frame.mTraced.x, fieldSwapOf(frame.mFrame));
+    const float shown = float(length(inOffset) <= surfaceDistance(imageLoad(surfaceChannel, stored).y));
 
     outColour = vec4(displayGamma(inColour.rgb, frame.mInverseGamma), inColour.a * shown);
     countNotFinite(outColour);

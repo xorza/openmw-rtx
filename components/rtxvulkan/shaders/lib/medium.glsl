@@ -198,7 +198,7 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
             continue;
 
-        RTX_READ_CANDIDATE(query, candidate)
+        RTX_READ_CANDIDATE(query, candidate, corners)
 
         // **A class the camera does not draw is not there**, as `candidateStops` says of a medium
         // the shadow ray walks past: the walk's own mask says only medium or additive.

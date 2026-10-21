@@ -43,10 +43,13 @@ namespace Rtx::Shaders
         /// One over the player's gamma, `ToneConstants::mInverseGamma`: the lines are part of the
         /// picture, which the rasterizer raises whole and the curve raises before they are drawn.
         float mInverseGamma;
+
+        /// The frame's number, which says how the surface channel's fields lie (`fieldSwapOf`).
+        uint mFrame;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(LineConstants) == 80, "LineConstants must be scalar-packed on every side");
+    static_assert(sizeof(LineConstants) == 84, "LineConstants must be scalar-packed on every side");
 }
 #endif
 

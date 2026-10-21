@@ -20,7 +20,7 @@ namespace Rtx
     {
         /// @param textureLayout what every scene's texture array is shaped by, which the trace reads.
         /// @param counting `RendererOptions::mCounting`: whether the trace counts what its rays met.
-        /// @param specialize `RenderProfile::mSpecializeLaunches`.
+        /// @param specialize `RenderProfile::mSpecializeKernels`.
         TracePasses(const Device& device, const SetLayout& textureLayout, bool counting, bool specialize);
 
         SetLayout mChannels;

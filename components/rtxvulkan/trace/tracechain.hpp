@@ -88,8 +88,9 @@ namespace Rtx
         }
 
         /// The frame: one picture in linear radiance, before anything upscales it and before the
-        /// display curve. The direct channel, which the trace or the composite composes it into.
-        const Image& getColour() const { return mChannels->get(Channel::Direct); }
+        /// display curve, in its own order, which the channels are not (`storedOf`): what the
+        /// composite or the cascade's last level wrote.
+        const Image& getColour() const { return mComposed; }
 
         /// What the trace writes and the composite reads: one picture's light, still in pieces.
         const GBuffer& getChannels() const { return *mChannels; }
@@ -120,6 +121,9 @@ namespace Rtx
 
         std::unique_ptr<GBuffer> mChannels;
         std::unique_ptr<FogVolume> mFogVolume;
+
+        /// The frame in its own order, `getColour`.
+        Image mComposed;
 
         /// The sprite bins — `VisibilityInputs::mTraceSlot` picks — so the frame behind keeps the
         /// tables its trace reads while this frame's bin writes its own. Made once, at the count the

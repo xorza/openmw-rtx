@@ -1351,7 +1351,7 @@ namespace Rtx::Testing
         }
 
         /// A cutout under a controller is an animated material, so every placement of it reaches
-        /// the any-hit.
+        /// the cutout test.
         TEST_F(RtxSceneExtractorTest, aCutoutUnderAControllerIsAnimated)
         {
             osg::ref_ptr<osg::Group> node = new osg::Group;

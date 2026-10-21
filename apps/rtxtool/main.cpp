@@ -380,6 +380,7 @@ namespace RtxTool
             framed.mSetup.mRun.mValidation
                 = policyOf(command.mVerb).mMeasures ? validationForMeasuring(variables) : validationFrom(variables);
             framed.mSetup.mShaders = command.mShaders;
+            framed.mSetup.mKernels = Rtx::KernelSet::Every;
             if (variables.count("memory-budget") != 0)
                 framed.mSetup.mRun.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
@@ -393,7 +394,7 @@ namespace RtxTool
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
             profile.mExposure = parseExposure(variables["exposure"].as<std::string>());
             profile.mStressOverlapMs = variables["hold"].as<bool>() ? sCheckHoldMs : 0.0;
-            profile.mSpecializeLaunches = variables["variants"].as<bool>();
+            profile.mSpecializeKernels = variables["variants"].as<bool>();
             readReconstruction(variables, profile.mReconstruction);
 
             return framed;

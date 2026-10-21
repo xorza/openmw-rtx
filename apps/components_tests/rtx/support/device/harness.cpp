@@ -241,7 +241,7 @@ namespace Rtx::Testing
 
     void awaitKernels(Renderer& renderer)
     {
-        while (!renderer.awaitKernels(std::chrono::milliseconds(100)).isDone())
+        while (!renderer.awaitKernels(KernelSet::Every, std::chrono::milliseconds(100)).isDone())
         {
         }
     }

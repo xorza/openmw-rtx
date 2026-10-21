@@ -9,9 +9,12 @@
 // three times, a shadow would stop at an edge the bounce under it blurs across.
 
 #include "shared/accumulate.h"
+#include "shared/fields.h"
 #include "camera.h"
 #include "gbuffer.h"
 #include "look.h"
+
+#include "pixels.glsl"
 
 /// Where a pixel's surface stood on the previous frame's screen, as the four texels a bilinear fetch
 /// of it spans: the lower corner, and how far across the four it lies.
@@ -166,10 +169,54 @@ bool heldSurfaceMatches(vec2 was, ivec2 tap, HistoryPlane plane)
         && abs(dot(plane.mNormal, there - plane.mAnchor)) <= plane.mTolerance;
 }
 
+/// Which of the frame before's texels a temporal filter reads for a pixel's history: each tap where
+/// that frame kept it (`mHeldSwap`), or, for a pixel whose field follows one water path of two
+/// (`splitIn`), in its own field's half (`storedInField`), which held the same path — Quake II RTX's
+/// temporal pass, which keeps a checkerboarded pixel to its field. The two taps of a row that share a
+/// texel of the field weigh it twice: a split pixel's history is the field's, half the frame's width
+/// across (`docs/rtx/architecture.md`, "A pixel whose surface is one in both fields reads across
+/// them").
+struct HistoryFields
+{
+    uint mHeldSwap;
+    bool mInField;
+    uint mField;
+};
+
+/// @param motion the pixel's `CHANNEL_MOTION`, whose fourth says whether it splits.
+HistoryFields historyFieldsOf(ivec2 pixel, vec4 motion, uint frameNumber, uint previousFrame)
+{
+    return HistoryFields(fieldSwapOf(previousFrame), splitIn(motion), fieldOf(uvec2(pixel), fieldSwapOf(frameNumber)));
+}
+
+/// What a filter with no split pixels reads: every tap where the frame before kept it.
+HistoryFields acrossFields(uint previousFrame)
+{
+    return HistoryFields(fieldSwapOf(previousFrame), false, 0u);
+}
+
+/// Where the frame before stored what a filter reads for the tap `historyAt` (`HistoryFields`). A tap
+/// off the frame's edge has no place, and is tested with `outsideOf` first.
+ivec2 heldStoredAt(ivec2 historyAt, uint width, HistoryFields fields)
+{
+    return fields.mInField ? ivec2(storedInField(uvec2(historyAt), fields.mField, width))
+                           : storedAt(historyAt, width, fields.mHeldSwap);
+}
+
+/// The pixel of the frame before whose texel `heldStoredAt` read: the tap itself across the fields,
+/// and in a field, the tap or its neighbour along the row. **Past the frame's width at the slot an
+/// odd width leaves empty**, which `outsideOf` refuses.
+ivec2 heldPixelAt(ivec2 stored, uint width, HistoryFields fields)
+{
+    return ivec2(pixelOf(uvec2(stored), fields.mHeldSwap, width));
+}
+
 /// What a history fetch takes of each of the four texels `footprint` spans, into a new `vec4`
 /// named `shares`: its bilinear share where it is on the screen, is the surface of `plane`
-/// (`heldSurfaceMatches` against `heldImage`, the frame before's surface channel) and holds a history (`holds`, an expression that may
-/// name the tap as `historyAt` and its corner as `historyCorner`), and nought where it is refused.
+/// (`heldSurfaceMatches` against `heldImage`, the frame before's surface channel, at the texel
+/// `fields` reads) and holds a history (`holds`, an expression that may name the tap as
+/// `historyAt`, where it is stored as `historyStored`, and its corner as `historyCorner`), and nought
+/// where it is refused.
 /// Their sum, before any kernel divides by it, is how much of the footprint the history covers.
 ///
 /// **A kernel loads the texels it weighs again**, after `holds` loaded them to test them, and the
@@ -184,14 +231,17 @@ bool heldSurfaceMatches(vec2 was, ivec2 tap, HistoryPlane plane)
 /// shadow's lost its test for a texel that held no history. **A macro because an image is not an
 /// argument** these kernels can hand a function, as `RTX_RESOLVE` says of a query; each kernel then
 /// weighs its own payload by the shares.
-#define RTX_HISTORY_SHARES(shares, footprint, extent, heldImage, holds, plane)                    \
+#define RTX_HISTORY_SHARES(shares, footprint, extent, fields, heldImage, holds, plane)             \
     vec4 shares = vec4(0.0);                                                                       \
     for (int historyCorner = 0; historyCorner < 4; ++historyCorner)                                \
     {                                                                                              \
         const float historyBilinear = historyShare(footprint, historyCorner);                      \
         const ivec2 historyAt = historyTap(footprint, historyCorner);                              \
-        if (historyBilinear <= 0.0 || outsideOf(historyAt, extent)                                 \
-            || !heldSurfaceMatches(imageLoad(heldImage, historyAt).rg, historyAt, plane) || !(holds)) \
+        const ivec2 historyStored = heldStoredAt(historyAt, (extent).x, fields);                   \
+        const ivec2 historyPixel = heldPixelAt(historyStored, (extent).x, fields);                 \
+        if (historyBilinear <= 0.0 || outsideOf(historyAt, extent) || outsideOf(historyPixel, extent) \
+            || !heldSurfaceMatches(imageLoad(heldImage, historyStored).rg, historyPixel, plane)    \
+            || !(holds))                                                                           \
             continue;                                                                              \
         shares[historyCorner] = historyBilinear;                                                   \
     }

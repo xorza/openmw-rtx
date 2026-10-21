@@ -42,6 +42,7 @@ namespace Rtx::Shaders
         Rgba16,
         Rgba16f,
         Rgba32f,
+        Rgba32ui,
     };
 
     /// Whether a store into `format` may round a value toward nought: a half's. The specification
@@ -61,7 +62,7 @@ namespace Rtx::Shaders
     /// view cannot read at all.
     constexpr bool holdsWords(const StorageFormat format)
     {
-        return format == StorageFormat::R32ui || format == StorageFormat::Rg32ui;
+        return format == StorageFormat::R32ui || format == StorageFormat::Rg32ui || format == StorageFormat::Rgba32ui;
     }
 }
 
@@ -78,6 +79,7 @@ namespace Rtx::Shaders
 #define STORAGE_RGBA16 ::Rtx::Shaders::StorageFormat::Rgba16
 #define STORAGE_RGBA16F ::Rtx::Shaders::StorageFormat::Rgba16f
 #define STORAGE_RGBA32F ::Rtx::Shaders::StorageFormat::Rgba32f
+#define STORAGE_RGBA32UI ::Rtx::Shaders::StorageFormat::Rgba32ui
 
 #else
 
@@ -94,6 +96,7 @@ namespace Rtx::Shaders
 #define STORAGE_RGBA16 rgba16
 #define STORAGE_RGBA16F rgba16f
 #define STORAGE_RGBA32F rgba32f
+#define STORAGE_RGBA32UI rgba32ui
 
 #endif
 

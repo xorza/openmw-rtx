@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -196,11 +197,26 @@ namespace Rtx
         std::uint64_t submitWithDeferred(VkCommandBuffer commands, std::span<const VkSemaphoreSubmitInfo> waits,
             std::span<const VkSemaphoreSubmitInfo> signals);
 
+        /// Logs the submit of `value` until the queue passes it, `Device::watchesSubmits`: how long
+        /// it ran, and every doubling of a quarter second it is still running. An observer: it reads
+        /// the semaphore and waits for nothing through the device, so what the clock knows of the
+        /// queue (`Timeline`) is what it was.
+        void watch(std::uint64_t value) const;
+
+        /// Submits each deferred batch alone and watches it to its end, ahead of the submit that
+        /// would have carried them all: which batch a stall is in, and what recorded it
+        /// (`mDeferredNotes`). They run where they would have run, ahead of it.
+        void submitDeferredWatched();
+
         const Device& mDevice;
         Owned<VkCommandPool, vkDestroyCommandPool> mHandle;
 
         /// Recorded and ended, waiting for the next submit to carry them first.
         std::vector<VkCommandBuffer> mDeferred;
+
+        /// What the recording thread was doing as each of `mDeferred` was deferred, where submits
+        /// are watched and empty otherwise.
+        std::vector<std::string> mDeferredNotes;
 
         /// The recordings `begin` opened and nothing has closed: a frame's placements' and its
         /// trace's, one or two at a time, kept at its capacity.

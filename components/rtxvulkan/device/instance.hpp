@@ -60,6 +60,9 @@ namespace Rtx
         /// The version the loader reported, which is at least `sApiVersion`.
         std::uint32_t getApiVersion() const { return mApiVersion; }
 
+        /// `ValidationOptions::mWatchSubmits`, which a device made on this instance follows.
+        bool watchesSubmits() const { return mWatchesSubmits; }
+
     private:
         /// Every extension loaded, as names of its own: a surface's are the window library's, which
         /// does not promise its strings outlive the call.
@@ -67,6 +70,8 @@ namespace Rtx
 
         // Held by pointer so the address handed to the debug callback survives everything.
         std::unique_ptr<ValidationLog> mValidationLog;
+
+        bool mWatchesSubmits = false;
 
         /// Before the messenger made on it, which `Root` says why.
         Root<VkInstance, vkDestroyInstance> mHandle;

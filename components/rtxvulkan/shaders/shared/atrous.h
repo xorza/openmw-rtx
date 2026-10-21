@@ -60,7 +60,8 @@ namespace Rtx::Shaders
     const uint ATROUS_COMPOSE_BIND_SPECULAR_ALBEDO = 14;
     const uint ATROUS_COMPOSE_BIND_PANE = 15;
     const uint ATROUS_COMPOSE_BIND_PANE_ALBEDO = 16;
-    const uint ATROUS_COMPOSE_BINDINGS = 17;
+    const uint ATROUS_COMPOSE_BIND_COMPOSED = 17;
+    const uint ATROUS_COMPOSE_BINDINGS = 18;
 
     /// Where `atrous.comp`'s specialization constant sits: `ATROUS_WIDE`, true for the first level
     /// and false for every level after it.

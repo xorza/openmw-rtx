@@ -301,10 +301,10 @@ namespace Rtx
         return mImages[static_cast<std::size_t>(image)][0];
     }
 
-    TemporalTurns::Step DenoiseHistory::turn(const TemporalFlags& runs)
+    TemporalTurns::Step DenoiseHistory::turn(const TemporalFlags& runs, const std::uint32_t frame)
     {
         assert(!mImages[static_cast<std::size_t>(DenoiseImage::Colour)][0].isEmpty() && "a turn before resize");
-        const TemporalTurns::Step step = mTurns.next(runs);
+        const TemporalTurns::Step step = mTurns.next(runs, frame);
         for (std::size_t at = 0; at < sTemporals; ++at)
             assert((mPast == TracePast::Kept || !step.mRuns.mFlags[at] || step.mFresh.mFlags[at])
                 && "a history read where the past is dropped and a pair is one image");

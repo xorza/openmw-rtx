@@ -50,8 +50,8 @@ namespace Rtx
     /// a file, and only until they are made: the driver reads the words during the create call.
     ///
     /// **Every file read where this is made, with its interface**, so nothing after reads again:
-    /// the trace's variants made one of these each and read its 1.5 MB closest-hit module once
-    /// apiece. Read-only once made, so the hands of a parallel compile share one.
+    /// the trace's variants made one of these each and read its largest module once apiece.
+    /// Read-only once made, so the hands of a parallel compile share one.
     class ShaderCode
     {
     public:

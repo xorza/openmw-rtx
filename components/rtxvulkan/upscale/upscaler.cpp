@@ -472,7 +472,9 @@ namespace Rtx
         const FsrFrame::Pyramid& pyramid = targets.mPyramid;
 
         const Buffer& blocks = mBlocks.at(inputs.mSlot);
-        const Shaders::FsrInputConstants inputConstants{ .mEyes = inputs.mEyes, .mNear = FsrFrame::sNear };
+        const Shaders::FsrInputConstants inputConstants{
+            .mEyes = inputs.mEyes, .mNear = FsrFrame::sNear, .mFrame = inputs.mFrame
+        };
         blocks.writeAt(Shaders::FSR_BLOCK_CONSTANTS, std::span(&constants, 1));
         blocks.writeAt(Shaders::FSR_BLOCK_PYRAMID, std::span(&pyramid.mConstants, 1));
         blocks.writeAt(Shaders::FSR_BLOCK_INPUTS, std::span(&inputConstants, 1));

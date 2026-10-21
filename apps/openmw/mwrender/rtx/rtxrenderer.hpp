@@ -348,6 +348,9 @@ namespace MWRender
         /// `RunSetup::mInterface`: read by every frame's `drawGui`.
         bool mInterface;
 
+        /// `RunSetup::mKernels`: what `awaitShaders` waits for.
+        Rtx::KernelSet mKernels;
+
         /// Before the backend, whose surface is on it: the members below die first.
         RtxWindow mWindow;
 

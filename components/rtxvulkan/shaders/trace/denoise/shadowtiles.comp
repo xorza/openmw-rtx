@@ -167,6 +167,7 @@ void main()
     const uvec2 local = gl_LocalInvocationID.xy;
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
     const bool inFrame = !outsideOf(uvec2(at), extent);
+    const ivec2 stored = storedAt(at, extent.x, fieldSwapOf(frame.mFrame));
     const ivec2 corner = ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - int(REACH);
 
     // The draws every store of this pass rounds by, one stream a field.
@@ -249,10 +250,10 @@ void main()
         if (inFrame)
         {
             // Nought or one, and moments of nought or one, which every rounding keeps.
-            RTX_STORE_WORDS(reprojected, at,
+            RTX_STORE_WORDS(reprojected, stored,
                 uvec4(packShadowWord(vec2(value, receiver ? 0.0 : SHADOW_NO_RECEIVER), UNORM16_NEAREST), 0u, 0u, 0u))
             RTX_STORE_WORDS(
-                moments, at, uvec4(packShadowMoments(vec3(value, 0.0, receiver ? 1.0 : 0.0), rounding), 0u, 0u))
+                moments, stored, uvec4(packShadowMoments(vec3(value, 0.0, receiver ? 1.0 : 0.0), rounding), 0u, 0u))
         }
         return;
     }
@@ -288,18 +289,22 @@ void main()
         const float neighbourhood = kernel.x / kernel.y;
         const float current = ((gOpen[square.y] >> square.x) & 1u) != 0u ? 1.0 : 0.0;
 
-        const vec2 seen = imageLoad(surfaceChannel, at).rg;
-        const vec3 moved = imageLoad(motion, at).xyz;
+        const vec2 seen = imageLoad(surfaceChannel, stored).rg;
+        const vec4 motionHere = imageLoad(motion, stored);
+        const vec3 moved = motionHere.xyz;
         const HistoryFootprint before = historyFootprint(at, moved);
         const HistoryPlane plane = historyPlane(frame, at, seen, moved);
+        const HistoryFields fields = historyFieldsOf(at, motionHere, frame.mFrame, frame.mPreviousFrame);
 
         // The moments at the nearest texel, as the SDK fetches them, and none where that texel is
         // another surface: the SDK's disocclusion.
         const ivec2 nearest = before.mLow + ivec2(greaterThanEqual(before.mAcross, vec2(0.5)));
-        const bool held = frame.mReset == 0u && !outsideOf(nearest, extent)
-            && heldSurfaceMatches(imageLoad(heldSurface, nearest).rg, nearest, plane);
+        const ivec2 nearestStored = heldStoredAt(nearest, extent.x, fields);
+        const ivec2 nearestPixel = heldPixelAt(nearestStored, extent.x, fields);
+        const bool held = frame.mReset == 0u && !outsideOf(nearest, extent) && !outsideOf(nearestPixel, extent)
+            && heldSurfaceMatches(imageLoad(heldSurface, nearestStored).rg, nearestPixel, plane);
         const ShadowMoments updated = updatedShadowMoments(
-            held ? unpackShadowMoments(imageLoad(momentsBefore, nearest).rg) : vec3(0.0), current);
+            held ? unpackShadowMoments(imageLoad(momentsBefore, nearestStored).rg) : vec3(0.0), current);
         variance = updated.mVariance;
         momentsNow = updated.mMoments;
 
@@ -319,8 +324,8 @@ void main()
         vec4 shares = vec4(0.0);
         if (frame.mReset == 0u)
         {
-            RTX_HISTORY_SHARES(gathered, before, extent, heldSurface,
-                unpackShadowWord(imageLoad(history, historyAt).r).y != SHADOW_NO_RECEIVER, plane)
+            RTX_HISTORY_SHARES(gathered, before, extent, fields, heldSurface,
+                unpackShadowWord(imageLoad(history, historyStored).r).y != SHADOW_NO_RECEIVER, plane)
             shares = gathered;
         }
 
@@ -328,7 +333,8 @@ void main()
         float sum = 0.0;
         for (int i = 0; i < 4; ++i)
             if (shares[i] > 0.0)
-                sum += unpackShadowWord(imageLoad(history, historyTap(before, i)).r).x * shares[i];
+                sum += unpackShadowWord(imageLoad(history, heldStoredAt(historyTap(before, i), extent.x, fields)).r).x
+                    * shares[i];
         const float weight = historyCovered(shares);
         if (weight > 0.0)
             previous = sum / weight;
@@ -355,8 +361,8 @@ void main()
     // rounds: the shadow zone's median 0.236 ms became 0.232 on the ship, and 0.288 became 0.281
     // in the guild. Every store at random, since the first level filters the mean into the history
     // and the next frame's update reads the moments back.
-    RTX_STORE_WORDS(reprojected, at,
+    RTX_STORE_WORDS(reprojected, stored,
         uvec4(packShadowWord(receiver ? vec2(blended, variance) : vec2(0.0, SHADOW_NO_RECEIVER), randomWord(rounding)),
             0u, 0u, 0u))
-    RTX_STORE_WORDS(moments, at, uvec4(packShadowMoments(receiver ? momentsNow : vec3(0.0), rounding), 0u, 0u))
+    RTX_STORE_WORDS(moments, stored, uvec4(packShadowMoments(receiver ? momentsNow : vec3(0.0), rounding), 0u, 0u))
 }

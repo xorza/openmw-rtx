@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include <osg/Matrixd>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
@@ -22,6 +23,12 @@ namespace Rtx
         /// The motion of something that has not moved, written out rather than built from a matrix.
         constexpr Transform3x4 sStillTransform{ { { 1.0f, 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f, 0.0f },
             { 0.0f, 0.0f, 1.0f, 0.0f } } };
+
+        Transform3x4 inverseOf(const osg::Matrixf& transform)
+        {
+            const osg::Matrixf inverse(osg::Matrixd::inverse(osg::Matrixd(transform)));
+            return isFinite(inverse) ? toTransform3x4(inverse) : Transform3x4{};
+        }
 
         /// `transform` with its translation taken `drop` units down the world's up axis.
         osg::Matrixf loweredBy(const osg::Matrixf& transform, float drop)
@@ -94,6 +101,7 @@ namespace Rtx
 
             return InstanceRecord{
                 .mTransform = toTransform3x4(placement),
+                .mInverse = inverseOf(placement),
                 .mMotion = sStillTransform,
                 .mMesh = instance.mMesh,
                 .mMaterial = instance.mMaterial,

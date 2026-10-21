@@ -48,14 +48,13 @@ namespace Rtx::Shaders
 
     // **The builtins a shared scalar curve spells**, so that a curve a test has to call reads on
     // this side as it does in the shader: GLSL's `abs`, `atan(y_over_x)`, `clamp(x, lo, hi)`,
-    // `exp2`, `floor`, `fma`, `log2`, `max`, `min`, `pow`, `sin` and `sqrt` are the standard library's
+    // `exp2`, `floor`, `log2`, `max`, `min`, `pow`, `sin` and `sqrt` are the standard library's
     // under the same names and the same argument order.
     using std::abs;
     using std::atan;
     using std::clamp;
     using std::exp2;
     using std::floor;
-    using std::fma;
     using std::log2;
     using std::max;
     using std::min;
@@ -77,10 +76,10 @@ namespace Rtx::Shaders
     }
 
     /// GLSL's `mix`, in the order the device's pinning rounds it (`spirvpin.hpp`):
-    /// `fma(y, a, x (1 - a))`.
+    /// `x (1 - a) + y a`.
     inline float mix(float x, float y, float a)
     {
-        return std::fma(y, a, x * (1.0f - a));
+        return x * (1.0f - a) + y * a;
     }
 
     inline vec3 mix(const vec3& x, const vec3& y, float a)

@@ -62,7 +62,7 @@ namespace Rtx
         /// The longest runs this renderer has: the G-buffer's channels, which change state
         /// together twice a frame, and which `GBuffer` asserts fit. A run longer than this emits
         /// what it holds and carries on, so the figures bound the arrays rather than the caller.
-        static constexpr std::size_t sMostImages = 24;
+        static constexpr std::size_t sMostImages = 32;
         static constexpr std::size_t sMostBuffers = 4;
 
         // Read by the tests and by nothing else.

@@ -5,7 +5,7 @@
 // A chunk's whole layer stack, flattened into one texture — the shading LOD — made on the
 // device, in the placement that wrote the chunk's material row.
 //
-// **The same sum the hit shader runs, once a texel instead of once a hit.** `ground.glsl` is the
+// **The same sum the trace's shading runs, once a texel instead of once a hit.** `ground.glsl` is the
 // sum, written once for both, so a flattened chunk cannot disagree with the stack it replaces —
 // the albedo into the composite, and the gloss into a second image where a layer reflects, both
 // out of one pass over the stack:
@@ -60,7 +60,7 @@ void main()
     MaskTable masks = MaskTable(chunk.mMasks);
 
     // The stack in its own order, because a float sum is the order it was added in — and so
-    // the order the hit shader adds it in. The gloss is the hit's too: the share of the weight on
+    // the order the trace's shading adds it in. The gloss is the hit's too: the share of the weight on
     // authored layers, which reflect `DIELECTRIC_F0`, the roughness over every layer, a Lambert
     // one counted at one, and the mean reflectance the classic layers' alpha states.
     GroundSum sum = noGround();

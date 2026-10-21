@@ -73,34 +73,36 @@ void main()
         const uvec2 square = uvec2(i % SPAN, i / SPAN);
         const ivec2 pixel = origin - REACH + ivec2(square);
         const ivec2 inside = clamp(pixel, ivec2(0), last);
-        const uint there = imageLoad(fast, inside).x;
+        const ivec2 insideStored = storedAt(inside, frame.mWidth, fieldSwapOf(frame.mFrame));
+        const uint there = imageLoad(fast, insideStored).x;
         const bool held = pixel == inside && there != HISTORY_CLAMP_EMPTY;
         gFast[square.y][square.x] = held ? vec4(ycocgOf(unpackRgb9e5(there)), 1.0) : vec4(-1.0);
-        gSampled[square.y][square.x] = held ? imageLoad(sampled, inside).rgb : vec3(0.0);
+        gSampled[square.y][square.x] = held ? imageLoad(sampled, insideStored).rgb : vec3(0.0);
     }
     barrier();
 
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
     if (outsideOf(uvec2(at), uvec2(frame.mWidth, frame.mHeight)))
         return;
+    const ivec2 stored = storedAt(at, frame.mWidth, fieldSwapOf(frame.mFrame));
 
     // A pixel that holds no mean is passed on before its slow mean is read, which most of a pane's
     // frame is.
-    const uint fastPacked = imageLoad(fast, at).x;
+    const uint fastPacked = imageLoad(fast, stored).x;
     const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
     if (gFast[centre.y][centre.x].w < 0.0)
     {
-        RTX_STORE_WORDS(fastOut, at, uvec4(fastPacked, 0u, 0u, 0u))
+        RTX_STORE_WORDS(fastOut, stored, uvec4(fastPacked, 0u, 0u, 0u))
         return;
     }
 
     // **A mean of one frame is left as it is**: it is its own fast mean, which the shared exponent
     // stores only to its rounding, and a clamp to the box grown to that rounding moved the frame a
     // history had just started from — or dropped — off the frame the trace composed.
-    const vec4 slow = imageLoad(mean, at);
+    const vec4 slow = imageLoad(mean, stored);
     if (slow.a <= 1.0)
     {
-        RTX_STORE_WORDS(fastOut, at, uvec4(fastPacked, 0u, 0u, 0u))
+        RTX_STORE_WORDS(fastOut, stored, uvec4(fastPacked, 0u, 0u, 0u))
         return;
     }
     const vec3 fastHere = unpackRgb9e5(fastPacked);
@@ -136,6 +138,6 @@ void main()
     const vec3 held = max(mix(slow.rgb, clamped.mHeld, antilag) + pushed * toward, vec3(0.0));
     const uint seed = frame.mLayer == HISTORY_CLAMP_PANE ? SEED_PANE_CLAMP_ROUNDING : SEED_GLOSSY_CLAMP_ROUNDING;
     uint rounding = seededKey(pixelKey(uvec2(at)) + seed, frame.mFrame);
-    RTX_STORE_COUNTED(mean, at, roundedToHalf(vec4(held, slow.a), rounding))
-    RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(fastHere + pushed * toward), 0u, 0u, 0u))
+    RTX_STORE_COUNTED(mean, stored, roundedToHalf(vec4(held, slow.a), rounding))
+    RTX_STORE_WORDS(fastOut, stored, uvec4(packRgb9e5(fastHere + pushed * toward), 0u, 0u, 0u))
 }

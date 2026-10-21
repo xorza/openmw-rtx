@@ -63,7 +63,8 @@ namespace Rtx
         writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
 
         dispatch(commands, mMask, writes,
-            Shaders::ShadowMaskConstants{ .mWidth = camera.mWidth, .mHeight = camera.mHeight },
+            Shaders::ShadowMaskConstants{
+                .mWidth = camera.mWidth, .mHeight = camera.mHeight, .mFrame = frame.mSampled.mFrame },
             Groups::covering(
                 camera.mWidth, camera.mHeight, Shaders::SHADOW_MASK_WIDTH, 2 * Shaders::SHADOW_MASK_HEIGHT));
     }

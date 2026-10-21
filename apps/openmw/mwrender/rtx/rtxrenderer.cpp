@@ -130,6 +130,7 @@ namespace MWRender
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run, const RunSetup& setup)
         : mRun(run != nullptr ? run->mRun : mPlayed)
         , mInterface(setup.mInterface)
+        , mKernels(setup.mKernels)
         , mWindow(setup.mHeadless, setup.mWindowPixels)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
@@ -519,7 +520,7 @@ namespace MWRender
 
     void RtxRenderer::awaitShaders(Loading::Listener& listener)
     {
-        Rtx::JobProgress progress = mRenderer->awaitKernels(std::chrono::milliseconds::zero());
+        Rtx::JobProgress progress = mRenderer->awaitKernels(mKernels, std::chrono::milliseconds::zero());
         if (progress.isDone())
             return;
 
@@ -534,7 +535,7 @@ namespace MWRender
         while (!progress.isDone())
         {
             listener.setProgress(progress.mMade);
-            progress = mRenderer->awaitKernels(patience);
+            progress = mRenderer->awaitKernels(mKernels, patience);
         }
     }
 

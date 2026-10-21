@@ -77,7 +77,7 @@ namespace MyGUIRtx
 
         // **Decoded by the engine's own image manager**, which is where every other picture in this
         // fork comes from: OpenSceneGraph stays as the content loader whatever draws
-        // (`docs/rtx/architecture.md`, section 2), and a second decoder here would be a second set
+        // (`docs/rtx/architecture.md`, "Layers and libraries"), and a second decoder here would be a second set
         // of formats to be wrong about.
         const osg::ref_ptr<osg::Image> image = mImageManager->getImage(VFS::Path::Normalized(fname));
 

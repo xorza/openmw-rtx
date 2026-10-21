@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_VARIANTS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_VARIANTS_GLSL
 
-#include "shared/tracerecords.h"
+#include "shared/traceconstants.h"
 #include "visibility.h"
 
 // What kind of frame this is, told to the compiler rather than to the branch predictor.
@@ -16,7 +16,7 @@
 // three per cent in a daytime exterior — `one-cell-walk` 1.58 against 1.63 ms, `seyda-neen-shore`
 // 2.58 against 2.66 — where the full tuple carries the moons' code the day never runs; nothing
 // measurable in a room, where the legs spread by a quarter either way and the guild's medians
-// came out 3.74 against 3.66. What they cost is launches for the driver to compile on a cold
+// came out 3.74 against 3.66. What they cost is kernels for the driver to compile on a cold
 // start: fourteen more than the full tuple alone was eight seconds of creation and thirteen of its
 // second compile, against 2.3 s and 1.1 s. `HAS_MAPS` doubles the trace's half of the table. Kept
 // for the exteriors' three per cent and for a vanilla frame's own kernel; the switch is what
@@ -43,14 +43,12 @@
 /// rather than branched on a uniform because the branch is what has to go, not just the write: with
 /// this false the constant folds away and the buffer is never touched.
 ///
-/// **Counted as misses, in the miss shader, and turned into hits on the host.** Every lane adding
-/// to one word serialises at that word: a million hits took four tenths of a millisecond of the
-/// trace in a room where every ray hits, which the shading of a street hid and a room's did not — a
-/// harness figure that read the room's frame nine percent slow. The sky's shader runs exactly once
-/// for every primary ray that ends in nothing, so the misses are the same count from the other side,
-/// and a room adds nought. A ballot would add one word a subgroup instead, but the launch calls
-/// `traceRayEXT` between its reads, and what a subgroup holds on either side of a trace is the
-/// driver's to regroup: the miss shader counts the ray where it ends.
+/// **Counted as misses, where the sky is drawn, and turned into hits on the host.** Every lane
+/// adding to one word serialises at that word: a million hits took four tenths of a millisecond of
+/// the trace in a room where every ray hits, which the shading of a street hid and a room's did
+/// not — a harness figure that read the room's frame nine percent slow. The sky is drawn exactly
+/// once for every primary ray that ends in nothing (`missedAlong`), so the misses are the same count
+/// from the other side, and a room adds nought.
 layout(constant_id = SPEC_COUNTING) const bool COUNTING = false;
 
 /// Whether the sun is over the horizon: the constant half of `sunUp`, which says the rest.
@@ -74,8 +72,5 @@ layout(constant_id = SPEC_HAS_SEA) const bool HAS_SEA = true;
 /// traced a different frame by a rounding. Specialized out, the kernel a vanilla scene runs is the
 /// one it ran before the maps existed.
 layout(constant_id = SPEC_HAS_MAPS) const bool HAS_MAPS = true;
-
-// `SPEC_WATER` is the hit module's own — `visibilityhit.rchit` — and stands after these in the one
-// table every stage of a pipeline is handed.
 
 #endif

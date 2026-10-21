@@ -20,6 +20,8 @@
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
+#include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/halfmean.h>
@@ -183,16 +185,19 @@ namespace Rtx
             }
         }
 
-        /// **`packHalf2x16` rounds to nearest on this card, where its image store does not**: the
-        /// same floats (`betweenHalves`) packed in the arithmetic. A quarter of a step lands on the
-        /// base, three quarters on the half above it in size, and a half on the even one of the two,
-        /// which is the base. Nothing may rest on it — the spec leaves this rounding to the device
-        /// as it leaves the store's — and this says what a history that did would have met here.
+        /// **`packHalf2x16` lands on one of the two halves around a value, and which is the driver's**:
+        /// the same floats (`betweenHalves`) packed in the arithmetic. NVIDIA's rounds to nearest,
+        /// where its image store does not — a quarter of a step lands on the base, three quarters on
+        /// the half above it in size, and a half on the even one of the two, which is the base — and
+        /// AMD's Windows driver rounds toward nought, as its store does. Nothing may rest on it — the
+        /// spec leaves this rounding to the device as it leaves the store's — and this says what a
+        /// history that did would meet.
         ///
-        /// **And the shader's own `nearestHalf` rounds each the same, on every device**, which the
+        /// **And the shader's own `nearestHalf` rounds to nearest, on every device**, which the
         /// wavelet's narrow levels rest on: exact steps, a tie to the even one.
-        TEST_F(RtxHalfStoreTest, aPackedHalfRoundsToNearestOnThisCard)
+        TEST_F(RtxHalfStoreTest, aPackedHalfLandsBesideItsValueAndNearestHalfOnTheNearest)
         {
+            const VkDriverId driver = getDevice().getPhysicalDevice().getProperties().mVulkan12.driverID;
             const BetweenHalves between = betweenHalves();
             const Converted converted = convert(between.mValues);
             ASSERT_EQ(converted.mPacked.size(), between.mValues.size());
@@ -201,8 +206,15 @@ namespace Rtx
                 const float base = between.mBases[at];
                 const float above = base + std::copysign(Testing::halfStepAt(std::abs(base)), base);
                 const float nearest = between.mFractions[at] > 0.5f ? above : base;
-                EXPECT_EQ(converted.mPacked[at], nearest)
-                    << between.mValues[at] << " was packed as " << converted.mPacked[at];
+                if (driver == VK_DRIVER_ID_NVIDIA_PROPRIETARY)
+                    EXPECT_EQ(converted.mPacked[at], nearest)
+                        << between.mValues[at] << " was packed as " << converted.mPacked[at];
+                else if (driver == VK_DRIVER_ID_AMD_PROPRIETARY)
+                    EXPECT_EQ(converted.mPacked[at], base)
+                        << between.mValues[at] << " was packed as " << converted.mPacked[at];
+                else
+                    EXPECT_TRUE(converted.mPacked[at] == base || converted.mPacked[at] == above)
+                        << between.mValues[at] << " was packed as " << converted.mPacked[at];
                 EXPECT_EQ(converted.mNearest[at], nearest)
                     << between.mValues[at] << " was rounded by the shader to " << converted.mNearest[at];
             }

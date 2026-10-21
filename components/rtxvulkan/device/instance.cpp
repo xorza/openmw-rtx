@@ -63,6 +63,7 @@ namespace Rtx
     }
 
     Instance::Instance(const ValidationOptions& options, const std::span<const char* const> surfaceExtensions)
+        : mWatchesSubmits(options.mWatchSubmits)
     {
         const Crash::NoteScope noted("making the Vulkan instance");
         mApiVersion = requireLoader();

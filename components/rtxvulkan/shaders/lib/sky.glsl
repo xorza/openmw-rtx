@@ -6,7 +6,7 @@
 //
 // **The sky is a light source and not a backdrop**, so this is split in two: `skyGlow` is
 // what a bounce may gather, and `skyRadiance` is what an eye may see. The difference is the
-// sun's disc, which `gather` already asks about directly.
+// sun's disc, which `GatherRun` already asks about directly.
 
 #include "colour.h"
 #include "look.h"
@@ -20,7 +20,7 @@
 /// The sky's own glow along a direction, with nothing drawn in it.
 ///
 /// **This is the sky as a source of light**, which is not the sky as a thing to look at, and the
-/// two differ both ways. What a bounce gathers must leave out the sun's disc: `gather` asks the sun
+/// two differ both ways. What a bounce gathers must leave out the sun's disc: `GatherRun` asks the sun
 /// directly, so a hemisphere that also picked it up out of the sky would count it twice — and a
 /// bounce cone a radian wide would pick it up over a quarter of the sky at that. It must carry
 /// `mSkyFill`, which is light the weather has and the sky is not painted with. And it takes the
@@ -342,7 +342,7 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
 /// model of its own: it already traces a reflection ray, and this is what that ray finds. Anything
 /// else reflective gets the same sun for nothing, and there is one place where the sun's size lives.
 ///
-/// **Drawn, and lighting nothing.** `gather` asks the sun directly, so a path that also gathered the
+/// **Drawn, and lighting nothing.** `GatherRun` asks the sun directly, so a path that also gathered the
 /// sky as a source would count it twice — this is the sky as a thing to look *at*.
 ///
 /// The disc is widened by the ray's own spread and dimmed by exactly the widening, so what changes
@@ -363,7 +363,7 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
 ///
 /// @param origin where the ray started, which the deck is laid out from.
 /// @param blur how far this ray's cone has spread from its axis, in radians.
-/// @param discs whether the sun and the moons are drawn: not for a surface whose lobe `gather`
+/// @param discs whether the sun and the moons are drawn: not for a surface whose lobe `GatherRun`
 ///        already asks them for, which a disc found again would count twice.
 /// @param shown how much of the star field is still in front of what this returns, from none to all.
 vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float shown)
