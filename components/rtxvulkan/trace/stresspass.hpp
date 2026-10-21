@@ -26,23 +26,24 @@ namespace Rtx
     /// frame's counts, `Shaders::FrameCounts::mHeldTicks`, which the ring reads back once the frame
     /// is waited for — `FrameResult::mHeldMs`.
     ///
-    /// **The clock's tick is the queue's timestamp period.** `GL_EXT_shader_realtime_clock` names
-    /// no unit, and a hold asked in nanoseconds would run ten times as long on RDNA and report a
-    /// tenth of it. Both target vendors read one counter for the two: NVIDIA's
-    /// `%globaltimer` counts nanoseconds and its period is one; RDNA's `s_memrealtime` is the
-    /// 100 MHz reference clock, which RADV states as a period of `1e6 / clock_crystal_freq`
-    /// nanoseconds. Timing the loop against the queue's timestamps instead read stalls of up to
-    /// 2.6 ms around a loop on a card stepping its clock, and moved the rate by four fifths.
+    /// **The clock's tick is the queue's timestamp period**, read as `PhysicalDevice::timestampMs`
+    /// reads the timer's zones. `GL_EXT_shader_realtime_clock` names no unit, and a hold asked in
+    /// nanoseconds would run ten times as long on RDNA and report a tenth of it. Both target
+    /// vendors read one counter for the two: NVIDIA's `%globaltimer` counts nanoseconds and its
+    /// period is one; RDNA's `s_memrealtime` is the 100 MHz reference clock, which RADV states as a
+    /// period of `1e6 / clock_crystal_freq` nanoseconds. Timing the loop against the queue's
+    /// timestamps instead read stalls of up to 2.6 ms around a loop on a card stepping its clock,
+    /// and moved the rate by four fifths.
     class StressPass
     {
     public:
         /// @param milliseconds how long every frame's hold is to be.
         StressPass(const Device& device, double milliseconds);
 
-        /// The milliseconds one tick of the loop's clock is worth.
-        double getTickMs() const { return mTickMs; }
-
-        /// The ticks every hold asks for.
+        /// The ticks every hold asks for: the fewest that `PhysicalDevice::timestampMs` reads as no
+        /// shorter than the milliseconds asked. Rounded to the nearest, a hold of 8 ms at RDNA's
+        /// 10 ns read 7.999999999999999 ms through a tick of `10 * 1.0e-6`, and a period that
+        /// does not divide the time held half a tick short of it.
         std::uint32_t getTicks() const { return mTicks; }
 
         /// Records the hold into `commands`, timed as `FrameZone::Stress`, leaving what the
@@ -53,7 +54,6 @@ namespace Rtx
     private:
         ComputePipeline<Shaders::StressConstants> mPipeline;
 
-        double mTickMs = 0.0;
         std::uint32_t mTicks = 0;
     };
 }

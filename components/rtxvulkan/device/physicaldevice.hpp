@@ -93,6 +93,12 @@ namespace Rtx
         /// where it writes none — `Profile::mTimestampBits`, for the timer that reads the clock.
         std::uint32_t getTimestampBits() const { return mProfile.mTimestampBits; }
 
+        /// The milliseconds `ticks` of the device's clock come to, at the queue's timestamp period:
+        /// the one reading of a tick, so two counts compare as their milliseconds do. The product
+        /// is exact for a period of whole nanoseconds, which every target's is, and the division
+        /// rounds once, so a count that comes to an exact time of the nanosecond reads it.
+        double timestampMs(std::uint64_t ticks) const;
+
         /// The largest side a texture may have — `Profile::mTextureSide`.
         std::uint32_t getTextureSide() const { return mProfile.mTextureSide; }
 

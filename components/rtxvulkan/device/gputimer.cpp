@@ -10,6 +10,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
+#include "physicaldevice.hpp"
 #include "result.hpp"
 
 namespace Rtx
@@ -34,7 +35,6 @@ namespace Rtx
         if (!mTimes)
             return;
 
-        mPeriod = limits.timestampPeriod;
         mMask = bits >= 64 ? ~std::uint64_t{ 0 } : (std::uint64_t{ 1 } << bits) - 1;
 
         const VkQueryPoolCreateInfo info{
@@ -139,7 +139,7 @@ namespace Rtx
             // two landed.
             const std::uint64_t elapsed = (ended - began) & mMask;
 
-            into.add(GpuSpan{ .mZone = zone.mZone, .mMs = static_cast<double>(elapsed) * mPeriod / 1.0e6 });
+            into.add(GpuSpan{ .mZone = zone.mZone, .mMs = mDevice.getPhysicalDevice().timestampMs(elapsed) });
         }
     }
 }

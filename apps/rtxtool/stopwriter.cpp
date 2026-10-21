@@ -785,12 +785,14 @@ namespace RtxTool
                 // the card's — a clock switch, a compositor's slice of the device — and a hold
                 // that ran long is a queue held longer, which weakens nothing the hold is for. The
                 // longest reading is printed so a stall can be seen for what it is, and the zone
-                // beside the loop so its excess is known to be the launch and the drain.
+                // beside the loop so its excess is known to be the launch and the drain. Each in
+                // full: a tick is a hundred thousandth of a millisecond on RDNA's clock, and a
+                // hold a tick short printed as the time asked.
                 const HoldTimes& hold = facts.mHold;
                 const double zoneShortest = zone->mTimes.mBest;
                 found = std::format(
-                    "{:.3f} ms held by the loop at the shortest frame of {:.1f} asked, {:.3f} at the "
-                    "longest, {:.3f} timed around it at the shortest, on {} of {} frames",
+                    "{} ms held by the loop at the shortest frame of {} asked, {} at the "
+                    "longest, {} timed around it at the shortest, on {} of {} frames",
                     hold.mShortestMs, facts.mHoldAskedMs, hold.mLongestMs, zoneShortest, zone->mFrames,
                     zone->mOfFrames);
                 return zone->mFrames == zone->mOfFrames && hold.mFrames == zone->mOfFrames

@@ -18,6 +18,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/notfinitecensus.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
@@ -39,9 +40,8 @@ namespace Rtx
                 device, NotFiniteCensus::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame not-finite census");
     }
 
-    FrameRing::FrameRing(const Device& device, const bool timing, const double holdTickMs)
+    FrameRing::FrameRing(const Device& device, const bool timing)
         : mDevice(device)
-        , mHoldTickMs(holdTickMs)
         , mSlots([&](FrameSlot) {
             return FrameRecord{ device, timing };
         })
@@ -212,7 +212,7 @@ namespace Rtx
             .mHits = frame.mCountedRays - counted.mMisses,
             .mNotFinite = notFinite,
             .mWalksCut = counted.mWalksCut,
-            .mHeldMs = counted.mHeldTicks * mHoldTickMs,
+            .mHeldMs = mDevice.getPhysicalDevice().timestampMs(counted.mHeldTicks),
             .mWaitMs = waited,
             .mInFlight = frame.mInFlight,
             .mReconstruction = frame.mReconstruction,
