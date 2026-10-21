@@ -357,11 +357,18 @@ namespace Rtx
             EXPECT_EQ(once, twice) << "a second trace of one placement pressed its footfall again";
         }
         /// **A field that has decayed is nought, the pass stops stepping it, and a press after is a
-        /// press on still water.** A footfall and two thousand sixtieths, enough for every texel to
-        /// fall under `RIPPLE_STILL`; the report of the last step is read on the next frame, which
-        /// finds the field still and steps nothing. A footfall then leaves, thirty steps on, the
-        /// tiles one footfall on a field just made leaves, to the bit: nothing of the first survived
-        /// to be pressed on, and nothing the skipped frames did not do mattered.
+        /// press on still water.** A footfall and a thousand sixtieths, enough for every texel to
+        /// fall under `RIPPLE_STILL`, which the field does after 842. The report of the last step is
+        /// read on the next frame, which finds the field still and steps nothing. A footfall then
+        /// leaves, thirty steps on, the tiles one footfall on a field just made leaves, to the bit:
+        /// nothing of the first survived to be pressed on, and nothing the skipped frames did not do
+        /// mattered.
+        ///
+        /// **The decay at `RIPPLE_SUBSTEPS_MOST` sixtieths a frame**, each a step of one sixtieth as a
+        /// frame of one takes, under one compose where four frames take four: every step reads and
+        /// writes the whole field, and two thousand frames of one were three seconds of a Radeon
+        /// 680M. The footfall has a frame of one sixtieth to itself, as a press is as deep as the time
+        /// its frame stands for.
         TEST_F(RtxRipplePassTest, aDecayedFieldIsStillAndIsPressedAsStillWater)
         {
             const double sixtieth = 1.0 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
@@ -373,15 +380,23 @@ namespace Rtx
             const std::vector<float> pressedOnce = Testing::readHalves(fresh.getSurface(), 0);
 
             RipplePass ripples(getDevice());
-            run(ripples, getPool(), footfall, 2000);
+            run(ripples, getPool(), footfall, 1);
+            constexpr std::uint32_t substeps = Shaders::RIPPLE_SUBSTEPS_MOST;
+            double clock = sixtieth;
+            getPool().submitAndWait([&](VkCommandBuffer commands) {
+                for (std::uint32_t frame = 0; frame < 1000 / substeps; ++frame)
+                {
+                    clock += substeps * sixtieth;
+                    ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), clock, nullptr);
+                }
+            });
             EXPECT_FALSE(ripples.isStill()) << "the report of a frame was read before its submit was done";
 
-            double clock = 2000.0 * sixtieth;
             getPool().submitAndWait([&](VkCommandBuffer commands) {
                 clock += sixtieth;
                 ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), clock, nullptr);
             });
-            ASSERT_TRUE(ripples.isStill()) << "two thousand sixtieths left the field moving";
+            ASSERT_TRUE(ripples.isStill()) << "a thousand sixtieths left the field moving";
 
             getPool().submitAndWait([&](VkCommandBuffer commands) {
                 for (int step = 1; step <= 30; ++step)

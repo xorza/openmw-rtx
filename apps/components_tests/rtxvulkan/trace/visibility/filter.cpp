@@ -670,17 +670,6 @@ namespace Rtx::Testing
                 << "the frame after a reset threw the reset's sample away";
         }
 
-        /// What the history fix does to a strip the eye turns to: its noise held still, turned to
-        /// without the fix and with it, and the light the whole frame keeps held still. The scene and
-        /// the run are `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`'s.
-        struct StripNoise
-        {
-            double mHeld;
-            double mWithout;
-            double mWith;
-            double mKept;
-        };
-
         /// Stripes of shading normals a texel wide, tilted ten degrees one way and the other about the
         /// tangent space's `y`: across a stripe's edge two normals stand twenty degrees apart.
         TestTexture paintStripes()
@@ -703,42 +692,68 @@ namespace Rtx::Testing
             return painted;
         }
 
+        /// How a run of `RtxHistoryFixTest` is read.
+        struct StripReading
+        {
+            /// Whether the clamp runs, which every run but the fast mean's leaves off.
+            bool mAntilag = false;
+
+            /// How many frames past the turn the strip is read: nought, the turn itself.
+            std::uint32_t mAfter = 0;
+
+            /// How many draws the spread is taken over.
+            std::uint32_t mDraws = 4;
+        };
+
+        /// The floor and the wall of `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`, the eye that
+        /// turns over them, and what a run of it reads off the strip it turns to. **A test traces only
+        /// the runs it reads**: a frame under the layers is milliseconds of the host's, and a run
+        /// is four draws of thirty-three of them.
         class RtxHistoryFixTest : public RtxVisibilityTest
         {
         protected:
-            /// @param bumped whether the floor and the wall wear `paintStripes` as their normal map.
-            ///
-            /// @param antilag whether the clamp runs, which every run but the fast mean's leaves off.
-            /// @param after how many frames past the turn the strip is read: nought, the turn itself.
-            StripNoise stripNoise(bool bumped, bool antilag = false, std::uint32_t after = 0)
-            {
-                constexpr std::uint32_t size = 64;
-                constexpr std::uint32_t still = 32;
-                constexpr std::uint32_t draws = 4;
-                constexpr std::uint32_t strip = 12;
-                constexpr std::uint32_t inset = 14;
-                const float turn = osg::DegreesToRadians(24.0f);
+            static constexpr std::uint32_t sSize = 64;
+            static constexpr std::uint32_t sStill = 32;
+            static constexpr std::uint32_t sStrip = 12;
+            static constexpr std::uint32_t sInset = 14;
+            static inline const float sTurn = osg::DegreesToRadians(24.0f);
 
-                SceneDesc scene;
-                std::vector<TextureData> textures;
-                TestTexture stripes;
+            /// The strip held still, which only says the turn made it noisier, over six times where one
+            /// and a half is asked: two draws read it as four do, 0.2115 of its mean against 0.2119.
+            static constexpr StripReading sHeldStill{ .mDraws = 2 };
+
+            /// Each column's green channel at the last frame of a run of `sStill` frames standing at
+            /// one yaw and the rest at another: its spread over the draws, as a variance summed over
+            /// the rows, and its sum over the rows and the draws.
+            struct Columns
+            {
+                std::vector<double> mVariances;
+                std::vector<double> mSums;
+                std::uint32_t mDraws = 0;
+            };
+
+            /// Hands the floor and the wall over, and the lamp that lights a spot of the wall.
+            ///
+            /// @param bumped whether the floor and the wall wear `paintStripes` as their normal map.
+            void stage(bool bumped)
+            {
                 if (bumped)
                 {
-                    stripes = paintStripes();
-                    stripes.mData.mSlot = 0;
-                    textures.push_back(stripes.mData);
-                    const Index normalMap = scene.textures().add(
+                    mStripes = paintStripes();
+                    mStripes.mData.mSlot = 0;
+                    mTextures.push_back(mStripes.mData);
+                    const Index normalMap = mScene.textures().add(
                         VFS::Path::NormalizedView("stripes_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
-                    const Index material = scene.addMaterial(Material{ .mNormal = normalMap });
+                    const Index material = mScene.addMaterial(Material{ .mNormal = normalMap });
                     const auto bumpy = [&](const std::array<osg::Vec3f, 4>& quad, const osg::Vec3f& normal) {
                         const std::array normals{ normal, normal, normal, normal };
                         const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
                         const std::array tangents{ tangent, tangent, tangent, tangent };
-                        scene.addInstance(MeshInstance{ .mMesh = scene.addMesh(MeshArrays{ .mPositions = quad,
-                                                            .mNormals = normals,
-                                                            .mTexCoords = sQuadUv,
-                                                            .mTangents = tangents,
-                                                            .mIndices = sQuadIndices }),
+                        mScene.addInstance(MeshInstance{ .mMesh = mScene.addMesh(MeshArrays{ .mPositions = quad,
+                                                             .mNormals = normals,
+                                                             .mTexCoords = sQuadUv,
+                                                             .mTangents = tangents,
+                                                             .mIndices = sQuadIndices }),
                             .mMaterial = material });
                     };
                     bumpy(sheetAt(4000.0f, -100.0f), osg::Vec3f(0.0f, 0.0f, 1.0f));
@@ -746,107 +761,102 @@ namespace Rtx::Testing
                 }
                 else
                 {
-                    addQuad(scene, sheetAt(4000.0f, -100.0f));
-                    addQuad(scene, uprightQuadAt(4000.0f, 300.0f));
+                    addQuad(mScene, sheetAt(4000.0f, -100.0f));
+                    addQuad(mScene, uprightQuadAt(4000.0f, 300.0f));
                 }
-                scene.addLight(Light{
+                mScene.addLight(Light{
                     .mPosition = osg::Vec3f(0.0f, 280.0f, -40.0f),
                     .mIntensity = osg::Vec3f(40000.0f, 40000.0f, 40000.0f),
                     .mReach = 150.0f,
                 });
+                prepare(mScene, mTextures, sSize);
+            }
 
+            /// The eye at `yaw`, drawing the sampler's `frame`, under a black sky.
+            static Shaders::VisibilityConstants standing(float yaw, std::uint32_t frame)
+            {
                 const osg::Vec3f eye(0.0f, -200.0f, 50.0f);
                 const osg::Vec3f ahead(0.0f, 500.0f, -150.0f);
-                const auto standing = [&](float yaw, std::uint32_t frame) {
-                    const osg::Vec3f looking(ahead.x() * std::cos(yaw) - ahead.y() * std::sin(yaw),
-                        ahead.x() * std::sin(yaw) + ahead.y() * std::cos(yaw), ahead.z());
-                    Shaders::VisibilityConstants camera
-                        = Testing::makeCamera(eye, eye + looking, 60.0f, size, size, 10000.0f);
-                    camera.mSun.mIrradiance = osg::Vec3f();
-                    camera.mSkyHorizon = osg::Vec3f();
-                    camera.mSkyZenith = osg::Vec3f();
-                    camera.mFrame = frame;
-                    return camera;
-                };
-
-                const std::vector<float> reference
-                    = shoot(scene, textures, standing(turn, 0), size, { .mFrames = 128 }).mRadiance;
-
-                // Each column's green channel at the last frame of a run of `still` frames standing at
-                // `from` and one at `to`: its spread over the draws, as a variance summed over the rows,
-                // and its sum over the rows and the draws.
-                struct Columns
-                {
-                    std::vector<double> mVariances;
-                    std::vector<double> mSums;
-                };
-                std::vector<float> read;
-                std::vector<double> sums(std::size_t{ size } * size);
-                std::vector<double> squares(std::size_t{ size } * size);
-                const auto columnsOf = [&](float from, float to, bool fix) {
-                    std::ranges::fill(sums, 0.0);
-                    std::ranges::fill(squares, 0.0);
-                    for (std::uint32_t draw = 0; draw < draws; ++draw)
-                    {
-                        for (std::uint32_t at = 0; at <= still + after; ++at)
-                        {
-                            mRenderer.renderFrame(standing(at >= still ? to : from, 1000 + 100 * draw + at),
-                                FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                                    .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                        .mFilters
-                                        = { .mAntilag = antilag, .mHistoryFix = fix, .mAntiFirefly = false } },
-                                    .mExposure = FixedExposure{ 1.0f } });
-                            EXPECT_TRUE(mRenderer.finishFrame().has_value());
-                        }
-                        mRenderer.readComposite(read);
-                        for (std::size_t pixel = 0; pixel < sums.size(); ++pixel)
-                        {
-                            const double value = static_cast<double>(read[pixel * 4 + 1]);
-                            sums[pixel] += value;
-                            squares[pixel] += value * value;
-                        }
-                    }
-                    Columns columns{ std::vector<double>(size, 0.0), std::vector<double>(size, 0.0) };
-                    for (std::uint32_t y = 0; y < size; ++y)
-                        for (std::uint32_t x = 0; x < size; ++x)
-                        {
-                            const std::size_t pixel = std::size_t{ y } * size + x;
-                            const double mean = sums[pixel] / draws;
-                            columns.mVariances[x] += (squares[pixel] - draws * mean * mean) / (draws - 1);
-                            columns.mSums[x] += sums[pixel];
-                        }
-                    return columns;
-                };
-                // The strip's mean, and its noise as a deviation over that mean: a strip the brightness
-                // test darkened is quieter by as much as it is darker, and no less noisy for its light.
-                const auto overStrip = [&](const std::vector<double>& column, std::uint32_t per) {
-                    double sum = 0.0;
-                    for (std::uint32_t x = inset; x < inset + strip; ++x)
-                        sum += column[x];
-                    return sum / static_cast<double>(strip * size * per);
-                };
-                const auto meanOf = [&](const Columns& columns) { return overStrip(columns.mSums, draws); };
-                const auto noiseOf = [&](const Columns& columns) {
-                    return std::sqrt(overStrip(columns.mVariances, 1)) / meanOf(columns);
-                };
-
-                // A yaw toward -x turns the eye left, so the new columns are the picture's first.
-                const Columns held = columnsOf(turn, turn, false);
-                const Columns without = columnsOf(0.0f, turn, false);
-                const Columns with = columnsOf(0.0f, turn, true);
-
-                double heldLight = 0.0;
-                for (const double column : held.mSums)
-                    heldLight += column;
-                double truthLight = 0.0;
-                for (std::size_t pixel = 0; pixel < std::size_t{ size } * size; ++pixel)
-                    truthLight += static_cast<double>(reference[pixel * 4 + 1]);
-
-                return StripNoise{ .mHeld = noiseOf(held),
-                    .mWithout = noiseOf(without),
-                    .mWith = noiseOf(with),
-                    .mKept = heldLight / draws / truthLight };
+                const osg::Vec3f looking(ahead.x() * std::cos(yaw) - ahead.y() * std::sin(yaw),
+                    ahead.x() * std::sin(yaw) + ahead.y() * std::cos(yaw), ahead.z());
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(eye, eye + looking, 60.0f, sSize, sSize, 10000.0f);
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mFrame = frame;
+                return camera;
             }
+
+            /// The columns of the reading's draws, each standing at `from` and then at `to`, the
+            /// history fix on where `fix` says.
+            Columns columnsOf(float from, float to, bool fix, const StripReading& reading = {})
+            {
+                std::ranges::fill(mSums, 0.0);
+                std::ranges::fill(mSquares, 0.0);
+                const std::uint32_t draws = reading.mDraws;
+                for (std::uint32_t draw = 0; draw < draws; ++draw)
+                {
+                    for (std::uint32_t at = 0; at <= sStill + reading.mAfter; ++at)
+                    {
+                        mRenderer.renderFrame(standing(at >= sStill ? to : from, 1000 + 100 * draw + at),
+                            FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                                .mReconstruction = ReconstructionRequest{ .mDenoise = true,
+                                    .mFilters
+                                    = { .mAntilag = reading.mAntilag, .mHistoryFix = fix, .mAntiFirefly = false } },
+                                .mExposure = FixedExposure{ 1.0f } });
+
+                        // **Two frames in flight**, for the reason `RtxBounceTrailTest` gives: the
+                        // layers' work on one frame stands beside the device's on the one before.
+                        mRenderer.collectFrame();
+                    }
+                    while (mRenderer.finishFrame().has_value())
+                    {
+                    }
+                    mRenderer.readComposite(mRead);
+                    for (std::size_t pixel = 0; pixel < mSums.size(); ++pixel)
+                    {
+                        const double value = static_cast<double>(mRead[pixel * 4 + 1]);
+                        mSums[pixel] += value;
+                        mSquares[pixel] += value * value;
+                    }
+                }
+                Columns columns{ std::vector<double>(sSize, 0.0), std::vector<double>(sSize, 0.0), draws };
+                for (std::uint32_t y = 0; y < sSize; ++y)
+                    for (std::uint32_t x = 0; x < sSize; ++x)
+                    {
+                        const std::size_t pixel = std::size_t{ y } * sSize + x;
+                        const double mean = mSums[pixel] / draws;
+                        columns.mVariances[x] += (mSquares[pixel] - draws * mean * mean) / (draws - 1);
+                        columns.mSums[x] += mSums[pixel];
+                    }
+                return columns;
+            }
+
+            /// The strip's noise as a deviation over its mean: a strip the brightness test darkened is
+            /// quieter by as much as it is darker, and no less noisy for its light.
+            static double noiseOf(const Columns& columns)
+            {
+                const auto overStrip = [](const std::vector<double>& column, std::uint32_t per) {
+                    double sum = 0.0;
+                    for (std::uint32_t x = sInset; x < sInset + sStrip; ++x)
+                        sum += column[x];
+                    return sum / static_cast<double>(sStrip * sSize * per);
+                };
+                return std::sqrt(overStrip(columns.mVariances, 1)) / overStrip(columns.mSums, columns.mDraws);
+            }
+
+            /// The scene `stage` handed over, and its textures, for a shot of it.
+            const SceneDesc& getScene() const { return mScene; }
+            std::span<const TextureData> getTextures() const { return mTextures; }
+
+        private:
+            SceneDesc mScene;
+            TestTexture mStripes;
+            std::vector<TextureData> mTextures;
+            std::vector<float> mRead;
+            std::vector<double> mSums = std::vector<double>(std::size_t{ sSize } * sSize);
+            std::vector<double> mSquares = std::vector<double>(std::size_t{ sSize } * sSize);
         };
 
         /// **The history fix takes the noise off what the eye turns to.** A floor and a
@@ -868,14 +878,8 @@ namespace Rtx::Testing
         /// not this test's question. So is the ring, which holds the fresh strip down before the fix
         /// borrows, `ACCUMULATE_RING_FRAMES`'s trade.
         ///
-        /// **And a settled history keeps its light under the brightness test**
-        /// (`ATROUS_LUMINANCE_SIGMA`): the whole frame held still, against 128 unfiltered frames where
-        /// the eye ends, which hold the frame's light to two thousandths where they hold a strip's to
-        /// a fifth.
-        ///
-        /// Measured: the strip's noise 1.38 of its mean without the fix and 0.53 with it, and 0.21
-        /// held still; the frame keeps 0.993 of its light, and kept 0.974 under the centre's variance
-        /// alone. **The strip's light is not held to its truth here**: over 32 draws against 1024
+        /// Measured: the strip's noise 1.33 of its mean without the fix and 0.57 with it, and 0.21
+        /// held still. **The strip's light is not held to its truth here**: over 32 draws against 1024
         /// frames it reads 1.00 held still, 0.84 without the fix and 1.22 with it, where it read 0.68,
         /// 0.54 and 1.01 under the centre's variance alone, and four draws and 128 frames place it
         /// anywhere within a fifth of that. The fix's excess is its flat kernel's, ReLAX's
@@ -883,29 +887,55 @@ namespace Rtx::Testing
         /// rises toward the spot faster than in a line.
         TEST_F(RtxHistoryFixTest, theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo)
         {
-            const StripNoise strip = stripNoise(false);
-            ASSERT_GT(strip.mWithout, 1.5 * strip.mHeld)
+            stage(false);
+            const double held = noiseOf(columnsOf(sTurn, sTurn, false, sHeldStill));
+            // A yaw toward -x turns the eye left, so the new columns are the picture's first.
+            const double without = noiseOf(columnsOf(0.0f, sTurn, false));
+            const double with = noiseOf(columnsOf(0.0f, sTurn, true));
+            ASSERT_GT(without, 1.5 * held)
                 << "the strip the eye turned to is no noisier than the same strip held still, so this proves nothing: "
-                << strip.mWithout << " against " << strip.mHeld;
-            EXPECT_LT(strip.mWith, 0.5 * strip.mWithout)
-                << "the history fix left " << strip.mWith << " of the strip's " << strip.mWithout
-                << ", where the strip held still holds " << strip.mHeld;
-            EXPECT_GT(strip.mKept, 0.985) << "the brightness test took light from a settled history: " << strip.mKept;
+                << without << " against " << held;
+            EXPECT_LT(with, 0.5 * without) << "the history fix left " << with << " of the strip's " << without
+                                           << ", where the strip held still holds " << held;
+        }
+
+        /// **A settled history keeps its light under the brightness test** (`ATROUS_LUMINANCE_SIGMA`).
+        /// The scene of `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`, the whole frame held still,
+        /// against 128 unfiltered frames where the eye ends, which hold the frame's light to two
+        /// thousandths where they hold a strip's to a fifth. Measured: the frame keeps 0.993 of its
+        /// light, and kept 0.974 under the centre's variance alone.
+        TEST_F(RtxHistoryFixTest, aSettledHistoryKeepsItsLightUnderTheBrightnessTest)
+        {
+            stage(false);
+            const std::vector<float> reference
+                = shoot(getScene(), getTextures(), standing(sTurn, 0), sSize, { .mFrames = 128, .mSetScene = false })
+                      .mRadiance;
+            const Columns held = columnsOf(sTurn, sTurn, false);
+
+            double heldLight = 0.0;
+            for (const double column : held.mSums)
+                heldLight += column;
+            double truthLight = 0.0;
+            for (std::size_t pixel = 0; pixel < std::size_t{ sSize } * sSize; ++pixel)
+                truthLight += static_cast<double>(reference[pixel * 4 + 1]);
+            const double kept = heldLight / held.mDraws / truthLight;
+            EXPECT_GT(kept, 0.985) << "the brightness test took light from a settled history: " << kept;
         }
 
         /// **The history fix finds its neighbours on a bumpy surface** (`FacingWeights::mFix`).
         /// The floor and the wall above wear stripes of shading normals two pixels wide, ten degrees
         /// one way and the other: most of a fixed pixel's taps stand on a stripe twenty degrees off
         /// it. NRD's power of eight weighs such a tap at 0.6, and the wavelet's 128 at 0.0003. Measured:
-        /// the strip's noise 2.33 of its mean without the fix and 1.18 with it, where at 128 the fix
-        /// left 1.67.
+        /// the strip's noise 2.25 of its mean without the fix and 1.21 with it; at 128, when the fix
+        /// read 1.18, it left 1.67.
         TEST_F(RtxHistoryFixTest, theHistoryFixFindsItsNeighboursOnABumpySurface)
         {
-            const StripNoise strip = stripNoise(true);
-            ASSERT_GT(strip.mWithout, 1.5 * strip.mHeld)
-                << "the strip the eye turned to is no noisier, so this proves nothing";
-            EXPECT_LT(strip.mWith, 0.6 * strip.mWithout)
-                << "the history fix left " << strip.mWith << " of the strip's " << strip.mWithout;
+            stage(true);
+            const double held = noiseOf(columnsOf(sTurn, sTurn, false, sHeldStill));
+            const double without = noiseOf(columnsOf(0.0f, sTurn, false));
+            const double with = noiseOf(columnsOf(0.0f, sTurn, true));
+            ASSERT_GT(without, 1.5 * held) << "the strip the eye turned to is no noisier, so this proves nothing";
+            EXPECT_LT(with, 0.6 * without) << "the history fix left " << with << " of the strip's " << without;
         }
 
         /// **The pixels the history fix rebuilt keep the rebuilt light under the clamp.** The turn of
@@ -913,13 +943,15 @@ namespace Rtx::Testing
         /// frames after it. A fixed pixel's fast mean was its one raw sample, and the next frame's clamp
         /// held the rebuilt slow mean to a box grown by that sample, which pulled the noise back in;
         /// the fix's answer goes into the fast mean too, as ReLAX's clamp leaves its two histories one
-        /// light. Measured: the strip's noise 0.921 of its mean without the fix, and with it 0.619,
-        /// where with the fast mean left raw it was 0.737.
+        /// light. Measured: the strip's noise 0.921 of its mean without the fix, and with it 0.653; with
+        /// the fast mean left raw, when the fix read 0.619, it was 0.737.
         TEST_F(RtxHistoryFixTest, aFixedPixelsFastMeanStartsFromTheFixedLight)
         {
-            const StripNoise strip = stripNoise(false, true, 2);
-            EXPECT_LT(strip.mWith, 0.74 * strip.mWithout)
-                << "the history fix left " << strip.mWith << " of the strip's " << strip.mWithout;
+            stage(false);
+            const StripReading reading{ .mAntilag = true, .mAfter = 2 };
+            const double without = noiseOf(columnsOf(0.0f, sTurn, false, reading));
+            const double with = noiseOf(columnsOf(0.0f, sTurn, true, reading));
+            EXPECT_LT(with, 0.74 * without) << "the history fix left " << with << " of the strip's " << without;
         }
 
         /// **The floor a moving bar uncovers starts with the history beside it** (`occluderMotion`,

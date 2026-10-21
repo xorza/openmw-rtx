@@ -824,14 +824,20 @@ namespace Rtx::Testing
         /// seven and eleven per cent of the lit air at the first three depths**, and the line the
         /// sampler draws through an inverse square is a few per cent from it over a slice at the
         /// lamp's closest approach.
+        ///
+        /// **Eight frames averaged after twenty-four.** The air keeps the froxels' history, the same
+        /// on both paths, so the ratio cancels what is left of it: measured within 0.09% of one at
+        /// every depth, and within 0.0002 of what 48 frames with 16 averaged read. The wall alone
+        /// keeps no history, a frame of it the same to the bit whatever came before, so it draws
+        /// the frames it averages and no more.
         TEST_F(RtxVisibilityTest, theVolumeLightsTheAirUpToASurfaceWhereverInASliceItStands)
         {
             using Fixture = LampInTheAir;
 
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreOf(size);
-            constexpr std::size_t frames = 48;
-            constexpr std::size_t settled = 16;
+            constexpr std::uint32_t frames = 32;
+            constexpr std::uint32_t settled = 8;
 
             // The lamp stands where the fixture puts it relative to the eye, whatever the wall's
             // distance, so the air it lights is the same air in every frame and only where the wall
@@ -858,15 +864,17 @@ namespace Rtx::Testing
                 camera.mSkyZenith = osg::Vec3f();
                 camera.mAmbientFromSky = 0.0f;
 
+                const std::uint32_t drawn = fogged ? frames : settled;
                 std::vector<float> radiance;
                 shoot(scene, {}, camera, size,
-                    Shot{ .mFrames = frames,
+                    Shot{ .mFrames = drawn,
                         .mAverage = false,
+                        .mFirstFrame = frames - drawn,
                         .mLoss = HistoryLoss::Cut,
                         .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre * 4)); } });
 
                 double total = 0.0;
-                for (std::size_t frame = frames - settled; frame < frames; ++frame)
+                for (std::uint32_t frame = drawn - settled; frame < drawn; ++frame)
                     total += double{ radiance[frame] };
                 return total / double{ settled };
             };

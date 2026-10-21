@@ -526,12 +526,10 @@ namespace Rtx::Testing
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(scene, textures));
         }
 
-        /// Draws `scene` at `size` square and returns the last frame of the shot.
-        ///
-        /// **The one render loop over this fixture**, so what a shot means is said once rather than
-        /// once per way of reading the answer.
-        Frame shoot(const SceneDesc& scene, std::span<const TextureData> textures,
-            const Shaders::VisibilityConstants& camera, std::uint32_t size, const Shot& shot = {})
+        /// What `shoot` hands the renderer before its frames: `scene` at `size` square, and the
+        /// shot's sea, anisotropy and gamma. For a test that draws its own frames.
+        void prepare(
+            const SceneDesc& scene, std::span<const TextureData> textures, std::uint32_t size, const Shot& shot = {})
         {
             mRenderer.resize(size, size);
             mRenderer.setSea(shot.mSea);
@@ -541,6 +539,16 @@ namespace Rtx::Testing
                 setWorld(scene, textures);
             else
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+        }
+
+        /// Draws `scene` at `size` square and returns the last frame of the shot.
+        ///
+        /// **The one render loop over this fixture**, so what a shot means is said once rather than
+        /// once per way of reading the answer.
+        Frame shoot(const SceneDesc& scene, std::span<const TextureData> textures,
+            const Shaders::VisibilityConstants& camera, std::uint32_t size, const Shot& shot = {})
+        {
+            prepare(scene, textures, size, shot);
 
             // One frame per sample, each waited out before the next, which orders them — and the
             // renderer's own history barrier is what makes each sum visible to the next.
