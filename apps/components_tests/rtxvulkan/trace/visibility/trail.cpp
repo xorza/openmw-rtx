@@ -46,10 +46,12 @@ namespace Rtx::Testing
         /// Under the sun the bar stands 100 units up and casts a shadow of its own width; under the sky
         /// it stands 20 units up, low enough that the fill it blocks darkens the floor under it, as an
         /// actor darkens the ground at its feet. The bar moves 4 units a frame, about three quarters
-        /// of a pixel, for 40 frames after 32 still ones, from four draws of the sampler; the profile is
-        /// held against 96 still frames of the bar where the run left it. **The placement table is
-        /// advanced after each hand-over**, as `SceneUploader` does, or the bar's motion vector is its
-        /// whole travel since it stood still.
+        /// of a pixel, for 40 frames after 32 still ones, from two draws of the sampler; the profile is
+        /// held against 48 still frames of the bar where the run left it. **Two draws and 48 frames**,
+        /// because a frame under the layers is milliseconds of the host's: one draw's lag stood within
+        /// 0.6 pixels of four draws' mean, and the still edge 0.18 pixels from 96 frames'. **The
+        /// placement table is advanced after each hand-over**, as `SceneUploader` does, or the bar's
+        /// motion vector is its whole travel since it stood still.
         class RtxBounceTrailTest : public RtxVisibilityTest
         {
         protected:
@@ -57,7 +59,7 @@ namespace Rtx::Testing
             {
                 constexpr std::uint32_t still = 32;
                 constexpr std::uint32_t moving = 40;
-                constexpr std::uint32_t draws = 4;
+                constexpr std::uint32_t draws = 2;
                 constexpr float step = 4.0f;
                 constexpr float width = 40.0f;
 
@@ -124,7 +126,7 @@ namespace Rtx::Testing
                 scene.placements().move(bar, osg::Matrixf::translate(step * static_cast<float>(moving), 0.0f, 0.0f));
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
                 scene.placements().advance();
-                const std::vector<float> standing = profile(96, 5000, false);
+                const std::vector<float> standing = profile(48, 5000, false);
 
                 // The bar moves toward the high columns, so its trail is on the low ones: the first
                 // column where a profile falls through the level half-way into the still shadow.
@@ -154,7 +156,7 @@ namespace Rtx::Testing
         };
 
         /// **The sun's shadow follows its caster within a third of a pixel.** It is the shadow
-        /// denoiser's, whose history the bits clamp: measured at 0.05 pixels of lag and no darkness
+        /// denoiser's, whose history the bits clamp: measured at 0.04 pixels of lag and no darkness
         /// left behind.
         TEST_F(RtxBounceTrailTest, theSunsShadowFollowsItsCaster)
         {
@@ -163,13 +165,13 @@ namespace Rtx::Testing
             EXPECT_LT(trail.mTail, 0.25f);
         }
 
-        /// **The clamp shortens the trail the sky's fill leaves**: measured at 15.94 pixels of lag without it and 5.36
-        /// with it (`ACCUMULATE_FAST_FRAMES` gives the sweep), and the darkness left behind at 2.10 and 0.73 columns.
+        /// **The clamp shortens the trail the sky's fill leaves**: measured at 15.95 pixels of lag without it and 5.24
+        /// with it (`ACCUMULATE_FAST_FRAMES` gives the sweep), and the darkness left behind at 2.04 and 0.66 columns.
         ///
         /// **The history fix takes part of what the clamp did.** The floor the bar uncovers behind it
         /// is rebuilt from the floor around it (`ACCUMULATE_FIX_FRAMES`): without the fix the clamp
-        /// took the lag from 18.04 to 5.57 and the darkness from 2.50 to 0.97, so the fix leaves a
-        /// quarter less darkness behind the bar.
+        /// took the lag from 17.84 to 5.35 and the darkness from 2.39 to 0.82, so the fix leaves a
+        /// fifth less darkness behind the bar.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
             const Trail held = trailOf(Blocked::Sky, true);
