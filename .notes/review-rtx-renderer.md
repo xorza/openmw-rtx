@@ -29,8 +29,7 @@ trace against the world's own scene.
    (`BlockedBuffer mPositions` and `BottomLevelStore::mArrived`, staged twice per arrival). Tables
    that only the queue writes or only one frame reads are kept per frame slot (`mPacked`, posed
    normals and tangents, the mesh table). `BlockedBuffer` inside `JoinedBlocks` builds address tables
-   nothing reads. The reader's `PreparedModel` keeps a model's arrays beside `SceneDesc`'s copy. A
-   subject's scene (the doll, the race preview) uploads and prepares again every texture the world
+   nothing reads. A subject's scene (the doll, the race preview) uploads and prepares again every texture the world
    already holds.
 3. **Host-written (BAR) memory has no policy.** Every `SlotTable` copy lives in BAR, sized at the
    world's room, doubled per slot, doubled again on growth with the old copy buried, never shrunk,
@@ -45,7 +44,10 @@ trace against the world's own scene.
    every walk, and the light grid keys lamps by their sorted index, so a change in the count
    rebuilds the grid whole. The sweep scans whole identity maps when one entry is missed. Host tables
    grow by `std::vector` doubling at points of their own, apart from the device tables' room.
-6. **Shader state carried past where it is read.** `GatherRun::mLampRay` (a whole `RayAsk`) and the
+6. **The cell reader forgets what it read.** A cell is dropped at the radius it is asked at, a
+   model or texture no cell holds is cleared at once, and a worldspace change resets the reader, so
+   the resource cache's expiry decides when a file is read again.
+7. **Shader state carried past where it is read.** `GatherRun::mLampRay` (a whole `RayAsk`) and the
    whole `Gloss` live across shadow traversals; `storeBounced` loads nine channels for a mask that is
    nought where no layer stands; the reprojection match runs three to four times a pixel; a
    candidate's cone is computed before the early-outs that discard it.
@@ -109,9 +111,15 @@ Each batch leaves the build and tests green. Verify each by `AGENTS.md`: build t
 `./omw test <binary> --gtest_filter=...` for the covering tests, `./omw repeat --pairs=10` after
 anything a frame reads, and `./omw gate` once at the end. Whoever addresses an item deletes it.
 
-Bugs, by batch: `readComposite`'s sprites (5), the indirect dispatch past 65535 groups (11), shutdown
-waiting out the tuple compile (14), a moved-from `Buffer`'s stale address (1), the picture chain and
+Bugs, by batch: `readComposite`'s sprites (5), the indirect dispatch past 65535 groups (12), shutdown
+waiting out the tuple compile (15), a moved-from `Buffer`'s stale address (1), the picture chain and
 the tile lists outside the reserve (2), a full BAR window ending the renderer (4).
+
+Needless reads, by batch: the cell ring reads a cell again at its band's edge, after the resource
+cache let a given-back model go, and after every interior (9). Nothing else in scope reads or writes a
+file more than once: shader modules are read once a start (`ShaderCode`, the trace's kept until every
+tuple is made), the pipeline cache is read once and written only where it changed, the sky's sheets are
+read once and held, and the logs write nothing per frame.
 
 ### Batch 1 — Device memory API
 
@@ -155,7 +163,7 @@ Files: `trace/gbuffer.{hpp,cpp}`, `trace/denoise/denoisehistory.{hpp,cpp}`, `tra
   batch.
 - [ ] The arena in each `TraceChain`: the images whose pass ranges do not overlap share one allocation,
   laid out from the declarations at `createTargets`, with an aliasing barrier at each alias's first
-  write. Today's ranges put the stage images (but `STAGE_RECORD`, if Batch 10's first item binds it in
+  write. Today's ranges put the stage images (but `STAGE_RECORD`, if Batch 11's first item binds it in
   the composing passes) beside the denoiser's in-loop and scratch images (`Blended`, `Narrow`,
   `FillBlended`, `FillNarrow`, `FastBlended`, the shadow fields' `Scratch`/`Visibility`/`Tiles`/
   `Penumbra`/`Mask`, the glossy and pane `FastBlended`): ~65 B/px, 60 MB at a 720p trace, 238 MB at
@@ -324,17 +332,6 @@ Files: `components/rtx/scene/{scenedesc,lightgrid}.*`, `components/rtx/mirror/ce
   the seam's rule. Hand them through the world mirror's `UnrefQueue` path, and let one helper own the
   sequence (clear placement, clock, eye, extract, retire, release, hand) the world and picture walks
   both repeat.
-- [ ] `mirror/cells/cellring.cpp:187`, `prepared.hpp` — a `PreparedModel` keeps its vertex arrays
-  (~68 B a vertex, 4 B an index) for as long as the reader files it (`CellReader::mModelsByPath`), and
-  `SceneDesc` keeps its own copy. The frame reads the arrays in `CellHolds::adoptParts` (`readingOf`
-  has no other caller) when a model is first adopted, and again when the frame let the model go
-  (`CellHolds::release`) while a cell the reader already read still names it, and adopts it with that
-  cell. **No read or walk again pays for the saving**: the arrays go only when the frame adopts the
-  model and no read cell waits on it, and otherwise stay. A re-adoption that finds them gone is the
-  defect this rule prevents, never a fall back to the file or to the template's walk. If the reader
-  cannot tell the frame's count from its lends without new coupling, drop this item and keep the
-  arrays. `SceneDesc`'s copy and `TextureRow::mLaid` stay, for the `Rebuilt` hand-over and the skin
-  bind staging. `ReaderMemory::mLentBytes` shows the saving.
 - [ ] `sceneextractor.cpp:622-628` — every picture's extractor reserves the world's budgets (65k
   placements, 16k meshes, 16k materials, 8k frozen roots). The caller passes the budget.
 - [ ] `SceneExtractor`, `WorldMirror`, `RtxRenderer` — wired by reference to siblings, non-copyable only
@@ -343,7 +340,43 @@ Files: `components/rtx/scene/{scenedesc,lightgrid}.*`, `components/rtx/mirror/ce
   distant cell a CPU ray crosses; the ring's `GroundReader` built the same positions
   (`HeldGround::mStood.mMesh`). Read the held mesh.
 
-### Batch 9 — Shaders, bit-identical
+### Batch 9 — Reads the cell reader keeps
+
+Files: `components/rtx/mirror/cells/{cellring,cellsupply,cellreader,readermemory}.*`,
+`apps/openmw/mwrender/rtx/rtxsettings.*`. Each: `./omw release bench --frame-times=<dir>` over a walk that crosses a band's edge
+twice and over a door in and out, reading the worst frame, the reader's reads and `ReaderMemory`.
+
+- [ ] `cellring.cpp:497-511` — a held cell is dropped (`dropUnless`), and a handed one given back
+  (`sift`), at the same `band` `ask` reads at, so a player who walks to and fro across a band's edge
+  drops and reads the same cells each time: the template and its images again through the resource
+  system, the template's walk, the preprocessing, the upload and the BLAS builds. Keep a cell until it
+  is one cell past the band it was asked at (streaming hysteresis: a load range and a wider unload
+  range, as `uGridsToLoad` with its buffer and every open-world streamer keep). What stands is still
+  the reach; only what is held is wider. The radii are fixed numbers, so two runs hold the same cells.
+- [ ] `cellreader.cpp:392-447` `giveBack` — a model or texture no cell holds is `reuse`d at once: its
+  arrays cleared and its template's or image's reference dropped. Upstream's resource cache then lets
+  the template go after `[Cells] cache expiry delay` (5 s, and 1 s during a cell change,
+  `mwworld/scene.cpp:730, 796`), so the next cell that names it reads the file again, parses it, and
+  walks and preprocesses it again. Keep a given-back model or texture filed and idle, its reference
+  held, in a least-recently-given-back order under a byte budget; a read finds it filed and lends it
+  again, and only a reader past its budget lets the oldest go. **The budget comes from the machine's
+  RAM**, by the user's decision: a share of the physical memory by default, which a `[RTX]` setting in
+  MB replaces, both resolved once in `RtxSettings::derive`. Physical memory is a fact the systems spell
+  differently, so it is a `Platform::` call in a `…posix.cpp` and `…win32.cpp` pair behind one header
+  (`AGENTS.md`, Conventions). The harness states the budget in MB on its command line, so a run's
+  evictions do not follow the machine it ran on. Pick the default share after the measurement:
+  `ReaderMemory`'s idle bytes after one walk through every place of the suites, vanilla and with a
+  replacer pack. `ReaderMemory` gains the idle count and bytes, and the reads saved. The data a
+  read gives is the same either way, so no picture moves; only when a cell is handed does. An idle
+  model keeps its vertex arrays, which its next adoption reads (`CellHolds::adoptParts`).
+- [ ] `cellsupply.cpp:46-68` `CellSupply::follow` — a worldspace change stops the worker and resets the
+  reader, so every model and texture of the exterior's ring is read again on the way out of a shop. Keep
+  the last exterior's reader, with its filed and idle sets, parked while the game is in an interior
+  (one parked reader, its idle bytes counted in the same budget), and resume it when the game returns to that worldspace.
+  The frame's rows still go with the frame's holds, as `CellRing::forget` says; what is kept is the
+  host's read content, so the return costs uploads and builds but no file.
+
+### Batch 10 — Shaders, bit-identical
 
 Files: `shaders/lib/{shading,traversal,bounced,surfacematch,stage}.glsl`,
 `shaders/trace/{visibility,direct,bounce,landing}.comp`, `shaders/trace/denoise/{accumulate,shadowtiles,specular}.comp`.
@@ -363,7 +396,7 @@ that adds a branch (`AGENTS.md`, "One path through a shader").
   (`:47-48, :86-89`): it writes the nothing there (`SPECULAR_NO_LOBE` as `answer.glsl:86` gives), and
   the visibility stores go. One writer per channel, no new branch, 24 B/px.
 - [ ] `bounced.glsl:47, 60` — `CHANNEL_SPECULAR` is loaded, stored, and loaded again; the sum is in hand.
-  (Gone with Batch 10's first item if that lands first.)
+  (Gone with Batch 11's first item if that lands first.)
 - [ ] `accumulate.comp:235-247`, `shadowtiles.comp:290-322` (twice, one per field),
   `specular.comp:140-146` — the same `RTX_HISTORY_SHARES` geometric match (footprint, plane, four held
   surface fetches, four plane tests) a pixel three to four times. `accumulate` writes the four match
@@ -382,7 +415,7 @@ that adds a branch (`AGENTS.md`, "One path through a shader").
   replace shared `atomicOr` and barriers with `subgroupBallot`/`subgroupBallotExclusiveBitCount`/
   `subgroupElect`; `visibility.comp:305-307` sun-glare counters through `subgroupAdd` first.
 
-### Batch 10 — Shaders that move pictures
+### Batch 11 — Shaders that move pictures
 
 Each: `./omw shot --views=all --map --upscale=off --against=<dir>` and `./omw noise`, with the upscaled
 pictures read where named.
@@ -398,7 +431,7 @@ pictures read where named.
   `record.mPaneApart == 0` (the product is exactly nought there, since `pixelLit` is floored at 1e-6)
   and in a frame with no upscaler, measured as a branch.
 
-### Batch 11 — Dispatch limits and vertex formats
+### Batch 12 — Dispatch limits and vertex formats
 
 Files: `shaders/lib/stage.glsl`, `trace/visibilitypass.cpp`, `device/requirements.cpp`,
 `scene/structurebuild.cpp`, `components/rtx/scene/meshtable.hpp`, the shaders that read colours and
@@ -416,7 +449,7 @@ indices.
   where it fits halves those meshes' index blocks, one select in `committedHit`. Measure the index
   blocks' share of `ContentMemory` first; it is not worth a select if small.
 
-### Batch 12 — Texture encoding
+### Batch 13 — Texture encoding
 
 Files: `texture/{texture,bc7encodepass}.*`, `image/texturedata.hpp`, `shaders/texture/*`.
 
@@ -429,7 +462,7 @@ Files: `texture/{texture,bc7encodepass}.*`, `image/texturedata.hpp`, `shaders/te
 - [ ] Normal maps without height to BC5 rather than BC7 mode 6 (Unreal `TC_Normalmap`, RTX Remix).
   Moves the mapped pictures.
 
-### Batch 13 — Present and barriers
+### Batch 14 — Present and barriers
 
 Files: `vulkanrenderer.cpp`, `present/{presenter,swapchain}.cpp`, `gui/guidrawer.cpp`,
 `display/displaychain.cpp`, `trace/tracechain.cpp`, `framering.*`.
@@ -449,7 +482,7 @@ Files: `vulkanrenderer.cpp`, `present/{presenter,swapchain}.cpp`, `gui/guidrawer
   back-to-back `transition` calls at `displaychain.cpp:105/117/122` and `tracechain.cpp:202/219` into
   one `Barriers` each.
 
-### Batch 14 — The kernel compile and harness-only work
+### Batch 15 — The kernel compile and harness-only work
 
 Files: `trace/visibilitypass.cpp`, `components/rtx/common/parallel.hpp`, `framering.hpp`,
 `pipeline/pipeline.hpp`, `device/device.cpp`.
@@ -484,6 +517,13 @@ Each goes to `docs/rtx/research/`, dated, with the figure that decides it.
   convention costs, not a proposal to change it.
 
 ## Dropped
+
+- Releasing a `PreparedModel`'s vertex arrays (~68 B a vertex) after its first adoption, beside
+  `SceneDesc`'s copy: the frame adopts a model again whenever it let the model go while the reader
+  still files it (`CellHolds::release`, then `adoptParts`), and Batch 9's idle models are that case by
+  design. Without the arrays, that adoption must walk the template or read the file again, which
+  "RAM before the disk" refuses. The user's earlier choice to release the reader's copy gives way to
+  that rule; the arrays stay for as long as the reader files the model.
 
 - `ContentCache` (`preprocess/contentcache.hpp:22`), which holds nothing and reports nought in
   `mHits`, `mKeyMs` and `mKeyBytes`: kept as a staged design, by the user's decision.
