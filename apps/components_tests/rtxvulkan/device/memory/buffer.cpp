@@ -51,7 +51,8 @@ namespace Rtx
             EXPECT_EQ(read[1], 9u);
         }
 
-        /// A buffer moved out of takes its mapping with it, and the husk has none.
+        /// A buffer moved out of takes its mapping, its size, its address and its stamp with it, and
+        /// the husk is a default-made buffer: by construction and by assignment alike.
         ///
         /// **Which is what a table growing does**: `GrowableBuffer::growTo` hands the displaced
         /// buffer to a graveyard, and the new one is moved into the member the old one was in.
@@ -59,12 +60,35 @@ namespace Rtx
         {
             const Device& device = *mHarness.mDevice;
 
-            Buffer first = Buffer::readBack(device, 64, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test");
-
+            Buffer first = Buffer::readBack(
+                device, 64, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "test");
             void* const mapped = first.map();
-            const Buffer second = std::move(first);
+            const VkDeviceAddress address = first.getDeviceAddress();
+            ASSERT_NE(address, 0u);
+            first.nameForNext();
+            const std::uint64_t named = first.getNamedUntil();
+            ASSERT_NE(named, 0u);
 
+            Buffer second = std::move(first);
             EXPECT_EQ(second.map(), mapped) << "the mapping did not come across";
+            EXPECT_EQ(second.getSize(), 64u);
+            EXPECT_EQ(second.getKind(), BufferKind::ReadBack);
+            EXPECT_EQ(second.getDeviceAddress(), address);
+            EXPECT_EQ(second.getNamedUntil(), named);
+            EXPECT_TRUE(first.isEmpty());
+            EXPECT_EQ(first.getSize(), 0u);
+            EXPECT_EQ(first.getKind(), BufferKind::DeviceLocal);
+            EXPECT_EQ(first.getDeviceAddress(), 0u);
+            EXPECT_EQ(first.getNamedUntil(), 0u);
+
+            Buffer third;
+            third = std::move(second);
+            EXPECT_EQ(third.getDeviceAddress(), address);
+            EXPECT_EQ(third.getNamedUntil(), named);
+            EXPECT_TRUE(second.isEmpty());
+            EXPECT_EQ(second.getSize(), 0u);
+            EXPECT_EQ(second.getDeviceAddress(), 0u);
+            EXPECT_EQ(second.getNamedUntil(), 0u);
         }
 
         /// A growable buffer is made in the memory its owner named, is never left holding nothing,
