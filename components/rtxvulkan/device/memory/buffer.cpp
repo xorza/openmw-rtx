@@ -123,20 +123,32 @@ namespace Rtx
         bury();
     }
 
+    Buffer::Buffer(Buffer&& other) noexcept
+        : mDevice(std::exchange(other.mDevice, nullptr))
+        , mHandle(std::move(other.mHandle))
+        , mMemory(std::move(other.mMemory))
+        , mSize(std::exchange(other.mSize, 0))
+        , mKind(std::exchange(other.mKind, BufferKind::DeviceLocal))
+        , mAddressable(std::exchange(other.mAddressable, false))
+        , mAddress(std::exchange(other.mAddress, 0))
+        , mRead(std::exchange(other.mRead, ReadStamp{}))
+    {
+    }
+
     Buffer& Buffer::operator=(Buffer&& other) noexcept
     {
         if (this != &other)
         {
             bury();
 
-            mDevice = other.mDevice;
+            mDevice = std::exchange(other.mDevice, nullptr);
             mHandle = std::move(other.mHandle);
             mMemory = std::move(other.mMemory);
-            mSize = other.mSize;
-            mKind = other.mKind;
-            mAddressable = other.mAddressable;
-            mAddress = other.mAddress;
-            mRead = other.mRead;
+            mSize = std::exchange(other.mSize, 0);
+            mKind = std::exchange(other.mKind, BufferKind::DeviceLocal);
+            mAddressable = std::exchange(other.mAddressable, false);
+            mAddress = std::exchange(other.mAddress, 0);
+            mRead = std::exchange(other.mRead, ReadStamp{});
         }
 
         return *this;

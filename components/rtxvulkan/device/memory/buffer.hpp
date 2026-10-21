@@ -90,9 +90,11 @@ namespace Rtx
         /// buffer reads it to the end: `Graveyard`.
         ~Buffer();
 
-        Buffer(Buffer&&) noexcept = default;
+        /// Leaves `other` as a default-made buffer is — no handle, size, address or stamp — so the
+        /// husk answers nothing about the buffer it no longer holds.
+        Buffer(Buffer&& other) noexcept;
 
-        /// Buries what this held as the destructor does, then takes `other`'s members one by one.
+        /// Buries what this held as the destructor does, then takes `other` as the move does.
         Buffer& operator=(Buffer&& other) noexcept;
 
         VkBuffer getHandle() const { return mHandle.get(); }
