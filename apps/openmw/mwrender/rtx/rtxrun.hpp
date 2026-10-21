@@ -50,7 +50,7 @@ namespace MWRender
         bool mInterface = true;
 
         /// Whether each walk waits for the cell it adopts, or nothing to let the frame clock's stated
-        /// step decide (`Misc::FrameClock::getStatedStep`): a stated step waits. Settled is what makes two processes
+        /// step decide (`Misc::LoopClock::getStatedStep`): a stated step waits. Settled is what makes two processes
         /// draw one picture; a run timing the streaming path says no (`Rtx::CellRing::setSettled`).
         std::optional<bool> mSettled{};
 
