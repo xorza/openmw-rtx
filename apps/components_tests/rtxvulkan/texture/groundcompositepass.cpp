@@ -24,6 +24,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -31,7 +32,6 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
-#include <components/rtxvulkan/scene/sceneroom.hpp>
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/texture/groundcompositepass.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>

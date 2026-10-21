@@ -11,6 +11,7 @@
 
 #include "material.hpp"
 #include "mesh.hpp"
+#include "sceneroom.hpp"
 
 namespace Rtx
 {
@@ -62,6 +63,18 @@ namespace Rtx
     class PlacementTable
     {
     public:
+        /// Room for `room`'s placements in the rows and the sets beside them, and for its meshes and
+        /// materials in the lists keyed on them, so no arrival up to the room moves a row.
+        void reserve(const SceneRoom& room)
+        {
+            mRows.reserve(room.mPlacements);
+            mMoved.reserve(room.mPlacements);
+            mSettled.reserve(room.mPlacements);
+            mPresent.reserve(room.mPlacements);
+            mFirstWearing.reserve(room.mMaterials);
+            mFirstPlacing.reserve(room.mMeshes);
+        }
+
         /// Fades the placement in `slot`. Separate from `move`, because an actor fading on the spot
         /// has not moved; a fade that changed the number joins `getMoved` all the same, as a row to
         /// rewrite that carries no motion. The walk's alone: the ring stands and drops, and never

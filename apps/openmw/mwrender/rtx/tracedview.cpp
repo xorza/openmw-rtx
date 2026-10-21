@@ -157,11 +157,11 @@ namespace MWRender
         mAbandoned = true;
     }
 
-    void TracedView::draw(const osg::FrameStamp& posing)
+    void TracedView::draw(const osg::FrameStamp& posing, Rtx::Released& releasing)
     {
         if (!mTrace.isOfWorld())
         {
-            if (!mTrace.rebuildSubject(posing))
+            if (!mTrace.rebuildSubject(posing, releasing))
                 return;
         }
 

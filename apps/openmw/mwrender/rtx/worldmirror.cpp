@@ -144,7 +144,7 @@ namespace MWRender
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
         , mGroundcoverLampLit(knobs.mGroundcoverLampLit)
-        , mExtractor(mScene, mWalk)
+        , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom)
         , mTraversal(worldTraversal(~0u))
         , mReach(knobs.mReach)
     {
@@ -186,22 +186,18 @@ namespace MWRender
         mReleasing = &released;
     }
 
-    void WorldMirror::handReleased()
+    void WorldMirror::release(Rtx::Released& released)
     {
-        Rtx::Released& released = mExtractor.getReleased();
-
-        // A mirror no world was attached to — a test's — has no queue, and lets go where it stands.
         if (mReleasing == nullptr)
         {
             released.clear();
             return;
         }
 
-        // One handover for the whole batch, so a frame that lets go of many objects allocates once.
-        if (!released.get().empty())
-            mReleasing->push(
-                std::make_shared<std::vector<osg::ref_ptr<const osg::Referenced>>>(std::move(released.get())));
-        released.clear();
+        // One handover for the whole batch, so a frame that lets go of many objects allocates the
+        // batch and its share alone.
+        if (!released.isEmpty())
+            mReleasing->push(std::make_shared<std::vector<osg::ref_ptr<const osg::Referenced>>>(released.take()));
     }
 
     WorldMirror::~WorldMirror()
@@ -222,7 +218,7 @@ namespace MWRender
         if (std::uncaught_exceptions() == 0)
         {
             mExtractor.detach(mRing);
-            handReleased();
+            release(mExtractor.getReleased());
         }
         mReleasing = nullptr;
 
@@ -351,7 +347,7 @@ namespace MWRender
         // After every walk of the frame and never before one, because the sweep bumps the epoch
         // the next walk is measured against.
         mExtractor.retire();
-        handReleased();
+        release(mExtractor.getReleased());
 
         // **Taken once, after every walk of the frame**, and not by a walk: the precipitation and
         // the sea are walks whose counts go nowhere, and the sky's sheets are read between walks,

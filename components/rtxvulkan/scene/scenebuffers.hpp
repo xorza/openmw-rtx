@@ -11,6 +11,7 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
+#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -19,7 +20,6 @@
 #include <components/rtxvulkan/device/memory/joinedblocks.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
 
-#include "sceneroom.hpp"
 #include "spritesource.hpp"
 
 namespace Rtx

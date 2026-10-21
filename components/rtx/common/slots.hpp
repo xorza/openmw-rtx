@@ -59,6 +59,14 @@ namespace Rtx
         /// How many slots stand empty, which a table subtracts from its length to count what lives.
         std::size_t size() const { return mFree.size(); }
 
+        /// Room for `count` slots on the heap and in the bytes, so no free up to `count` goes to the
+        /// allocator.
+        void reserve(std::size_t count)
+        {
+            mFree.reserve(count);
+            mIsFree.reserve(count);
+        }
+
     private:
         /// A min-heap of the slots nothing stands in.
         std::vector<Index> mFree;
@@ -190,6 +198,13 @@ namespace Rtx
             mFreed.grow(count);
         }
 
+        /// `SlotSet::reserve` for both sets.
+        void reserve(std::size_t count)
+        {
+            mArrived.reserve(count);
+            mFreed.reserve(count);
+        }
+
         /// Records `slot` as having arrived or gone. The last word wins and the earlier one is
         /// taken back, because what a reader has to know is where the slot stands at the end of the
         /// frame.
@@ -232,6 +247,14 @@ namespace Rtx
         std::uint64_t getFreedCount() const { return mFreedCount; }
 
         std::span<const Row> getRows() const { return mRows; }
+
+        /// Room for `count` rows, so no take up to `count` moves the rows: a table that grows past
+        /// its room copies every row on the frame that does it.
+        void reserve(std::size_t count)
+        {
+            mRows.reserve(count);
+            mFree.reserve(count);
+        }
 
         /// Whether `slot` holds a row: what an index into this table has to name to mean anything,
         /// and what a placement's mesh or material is checked against. Asked of the free list, which
@@ -314,6 +337,13 @@ namespace Rtx
     protected:
         const Row& rowAt(Index slot) const { return mRows.at(slot); }
         Row& rowAt(Index slot) { return mRows.at(slot); }
+
+        /// `SlotRows::reserve`, and the holds beside the rows.
+        void reserveRows(std::size_t count)
+        {
+            mRows.reserve(count);
+            mHolds.reserve(count);
+        }
 
         /// `SlotRows::take`, the slot arriving with no holds: the caller holds it before anything
         /// can drop it.

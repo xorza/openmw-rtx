@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -35,6 +36,14 @@ namespace Rtx
     class MaterialTable : public HeldRows<Material>
     {
     public:
+        /// Room for `count` materials in the rows and the set of those written, so no arrival up to
+        /// it moves a row.
+        void reserve(std::size_t count)
+        {
+            reserveRows(count);
+            mWritten.reserve(count);
+        }
+
         /// Copies `weights` into the shared mask table and returns where they landed. One float per
         /// weight rather than the byte the source holds: a cell's worth is tens of kilobytes.
         Run addMask(std::span<const float> weights);

@@ -34,6 +34,7 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/fogbuilder.hpp>
@@ -53,7 +54,6 @@
 #include <components/rtxvulkan/present/surface.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/placing.hpp>
-#include <components/rtxvulkan/scene/sceneroom.hpp>
 #include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>

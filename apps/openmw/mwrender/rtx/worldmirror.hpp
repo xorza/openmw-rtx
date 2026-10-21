@@ -20,6 +20,7 @@
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
@@ -78,6 +79,12 @@ namespace MWRender
         /// did not is named here rather than found at the next frame's horizon. Not while an
         /// exception unwinds, where the frame's own message is the one to read.
         ~WorldMirror();
+
+        /// Pinned: its extractor holds its scene and its walk, and its ring its extractor.
+        WorldMirror(const WorldMirror&) = delete;
+        WorldMirror& operator=(const WorldMirror&) = delete;
+        WorldMirror(WorldMirror&&) = delete;
+        WorldMirror& operator=(WorldMirror&&) = delete;
 
         /// The resource system the cell ring's models and the hand-over's pictures are loaded
         /// through, and the queue the game releases its own objects through, which what the mirror
@@ -165,11 +172,13 @@ namespace MWRender
         /// What the world's walk may see. Read by the tests and by nothing else.
         osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
 
-    private:
-        /// Moves what the extractor let go of into `mReleasing`, so the last reference to what the
-        /// world unloaded is dropped on the queue's worker and not on the frame thread.
-        void handReleased();
+        /// Moves what `released` holds into the queue the world was attached with, so the last
+        /// reference to what a walk let go of is dropped on the queue's worker and not on the frame
+        /// thread; with no world attached, a test's mirror, lets go where it stands. The world's
+        /// own walks hand theirs here, and so do the pictures' (`ViewQueue::draw`).
+        void release(Rtx::Released& released);
 
+    private:
         /// The engine's, which outlives every world (`Engine::~Engine` ends it after the world).
         /// Null while no world is attached.
         SceneUtil::UnrefQueue* mReleasing = nullptr;
@@ -177,7 +186,7 @@ namespace MWRender
         /// Shared by every walk on the frame thread: the world's and every traced view's.
         Rtx::WalkContext mWalk;
 
-        Rtx::SceneDesc mScene;
+        Rtx::SceneDesc mScene{ Rtx::sWorldRoom };
 
         /// Where the ring's models and images come from: the game's own. Made where the world is
         /// attached, because that is when there is a scene manager. Before the ring, whose reader

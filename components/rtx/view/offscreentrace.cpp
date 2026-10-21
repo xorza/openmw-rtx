@@ -17,6 +17,7 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/mirror/posecull.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
+#include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -53,7 +54,7 @@ namespace Rtx
         held.mPoseStamp = new osg::FrameStamp;
         held.mSlot = ViewScene(renderer);
 
-        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, context);
+        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, context, sSubjectExtractorRoom);
         held.mExtractor->setTraversalMask(request.mSubjectMask);
         held.mPose->setFrameStamp(held.mPoseStamp);
     }
@@ -98,7 +99,7 @@ namespace Rtx
         return camera;
     }
 
-    bool OffscreenTrace::rebuildSubject(const osg::FrameStamp& posing)
+    bool OffscreenTrace::rebuildSubject(const osg::FrameStamp& posing, Released& releasing)
     {
         if (mSubject == nullptr)
             return true;
@@ -156,8 +157,7 @@ namespace Rtx
         // sound for the world: this walk is the whole of what this picture is of.
         subject.mExtractor->retire();
 
-        // A picture has no queue to hand what it let go of to, and what goes is a picture's few.
-        subject.mExtractor->getReleased().clear();
+        releasing.keepAll(subject.mExtractor->getReleased());
 
         // It consumes the arrivals and ends the placement, so nothing here clears either.
         subject.mUploader.hand(

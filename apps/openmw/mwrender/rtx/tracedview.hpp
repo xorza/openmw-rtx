@@ -21,6 +21,7 @@ namespace osg
 namespace Rtx
 {
     class CellRing;
+    class Released;
     class Renderer;
 }
 
@@ -77,7 +78,8 @@ namespace MWRender
         /// @param posing the renderer's own clock, which advances once per drawn frame whether or
         ///        not the world's does: a doll posed against a stopped clock is a doll frozen the
         ///        first time it was drawn. Asked for per redraw and never stored.
-        void draw(const osg::FrameStamp& posing);
+        /// @param releasing what a subject's sweep lets go of goes into (`OffscreenTrace::rebuildSubject`).
+        void draw(const osg::FrameStamp& posing, Rtx::Released& releasing);
 
         bool isOfWorld() const { return mTrace.isOfWorld(); }
 

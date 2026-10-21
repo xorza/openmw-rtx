@@ -298,7 +298,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context);
+                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -382,7 +382,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context);
+                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -449,7 +449,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context);
+                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
                 return scene.materials().getRows().front();
@@ -573,7 +573,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = layout };
-                SceneExtractor extractor(scene, context);
+                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -881,7 +881,7 @@ namespace Rtx::Testing
             for (const bool onDrawable : { false, true })
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene, mContext);
+                SceneExtractor extractor(scene, mContext, sWorldExtractorRoom);
 
                 osg::ref_ptr<osg::StateSet> shared = shapeState();
 
@@ -943,7 +943,7 @@ namespace Rtx::Testing
             for (const bool onDrawable : { false, true })
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene, mContext);
+                SceneExtractor extractor(scene, mContext, sWorldExtractorRoom);
 
                 const osg::ref_ptr<osg::Group> shape = makeShape(shapeState(), onDrawable);
                 const std::array<osg::ref_ptr<FlipController>, 2> glows{ makeFlip(), new FlipController };
@@ -1017,7 +1017,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context);
+                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
                 extractor.extract(*parent, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.placements().getRows().size(), 1u);
@@ -1111,7 +1111,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context);
+                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -1153,7 +1153,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context);
+                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
                 extractor.extract(*root, osg::Matrixf::identity(), 0);
 
                 const std::span<const Light> lights = scene.lights();
@@ -1184,7 +1184,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context);
+                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -1229,7 +1229,7 @@ namespace Rtx::Testing
             colours(*quad->getOrCreateStateSet());
 
             Rtx::SceneDesc plain;
-            SceneExtractor other(plain, mContext);
+            SceneExtractor other(plain, mContext, sWorldExtractorRoom);
             other.extract(*quad, osg::Matrixf::identity(), 0);
             EXPECT_FALSE(plain.meshes().getRows()[0].mShape.mSheet);
             EXPECT_EQ(plain.meshes().getRows()[0].getTriangleCount(), 2u);
@@ -1266,7 +1266,7 @@ namespace Rtx::Testing
             // an analytic sea of its own instead.
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor silent(scene, mContext);
+                SceneExtractor silent(scene, mContext, sWorldExtractorRoom);
                 silent.extract(*root, osg::Matrixf::identity(), 0);
 
                 ASSERT_EQ(scene.materials().getRows().size(), 3u);

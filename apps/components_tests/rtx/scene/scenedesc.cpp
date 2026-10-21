@@ -36,6 +36,7 @@
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
@@ -738,6 +739,45 @@ namespace Rtx
             EXPECT_EQ(scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.125f } }), materials[0])
                 << "materials";
             scene.drop(std::move(holds[1]));
+        }
+
+        /// **A scene opened at a room fills it without moving a row**, as its backend's tables are
+        /// made at the same room: a host table that outgrows its room copies every row on the frame
+        /// a cell arrives. Four meshes, four materials and four placements against a room of four
+        /// leave each table's rows where they were reserved; the fifth placement is past the room,
+        /// and moves them. A scene opened at nought moves its rows on the second placement already.
+        TEST(RtxSceneDescTest, aSceneOpenedAtARoomFillsItWithoutMovingARow)
+        {
+            constexpr SceneRoom room{ .mPlacements = 4, .mMeshes = 4, .mMaterials = 4 };
+            SceneDesc scene(room);
+
+            const void* const placementRows = scene.placements().getRows().data();
+            const void* const meshRows = scene.meshes().getRows().data();
+            const void* const materialRows = scene.materials().getRows().data();
+
+            std::array<Index, 4> meshes{};
+            for (std::size_t at = 0; at < meshes.size(); ++at)
+            {
+                meshes[at] = Testing::addQuadMesh(scene);
+                scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.125f * static_cast<float>(at + 1) } });
+            }
+            for (const Index mesh : meshes)
+                scene.addInstance(MeshInstance{ .mMesh = mesh });
+
+            ASSERT_EQ(scene.placements().getRows().size(), 4u);
+            EXPECT_EQ(scene.placements().getRows().data(), placementRows);
+            EXPECT_EQ(scene.meshes().getRows().data(), meshRows);
+            EXPECT_EQ(scene.materials().getRows().data(), materialRows);
+
+            scene.addInstance(MeshInstance{ .mMesh = meshes[0] });
+            EXPECT_NE(scene.placements().getRows().data(), placementRows) << "a fifth row fit a room of four";
+
+            SceneDesc unreserved;
+            const Index mesh = Testing::addQuadMesh(unreserved);
+            unreserved.addInstance(MeshInstance{ .mMesh = mesh });
+            const void* const first = unreserved.placements().getRows().data();
+            unreserved.addInstance(MeshInstance{ .mMesh = mesh });
+            EXPECT_NE(unreserved.placements().getRows().data(), first) << "a scene opened at nought reserved rows";
         }
 
         /// A morphed mesh holds its base as its bind pose and its weights as its pose, and the

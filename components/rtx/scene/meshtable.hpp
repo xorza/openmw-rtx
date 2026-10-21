@@ -34,6 +34,15 @@ namespace Rtx
         static constexpr Index sVertexBlock = Shaders::VERTEX_BLOCK;
         static constexpr Index sIndexBlock = Shaders::INDEX_BLOCK;
 
+        /// Room for `count` meshes in the rows and the sets keyed on them, so no arrival up to it
+        /// moves a row. The vertices are in blocks, which never move.
+        void reserve(std::size_t count)
+        {
+            reserveRows(count);
+            mChanges.reserve(count);
+            mDeformed.reserve(count);
+        }
+
         /// Whether `arrays` fits one block, and why not where it is longer: a run that straddled
         /// two would be written across two allocations that are not next to each other. A vertex
         /// count comes out of a content file, so whoever reads one asks this before `add`, which

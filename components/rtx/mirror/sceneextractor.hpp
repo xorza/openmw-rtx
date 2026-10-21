@@ -63,6 +63,49 @@ namespace Rtx
 {
     class CellRing;
 
+    /// What an extractor's identity maps are made with room for (`SceneExtractor`'s constructor).
+    struct ExtractorRoom
+    {
+        std::size_t mPlacements = 0;
+        std::size_t mMeshes = 0;
+        std::size_t mDeformers = 0;
+        std::size_t mMaterials = 0;
+        std::size_t mTextures = 0;
+        std::size_t mAnimated = 0;
+        std::size_t mEmitters = 0;
+
+        /// The reference roots a world walk passes rather than descends; a picture's walk has none.
+        std::size_t mFrozen = 0;
+
+        /// Effects a walk can be handed before its list of glows grows: every bolt in the air,
+        /// every burst and every cast, which a fight of a dozen casters does not reach.
+        std::size_t mEffects = 0;
+    };
+
+    /// The world's: past what a Morrowind exterior reaches at four cells of distance.
+    inline constexpr ExtractorRoom sWorldExtractorRoom{ .mPlacements = 65536,
+        .mMeshes = 16384,
+        .mDeformers = 2048,
+        .mMaterials = 16384,
+        .mTextures = 8192,
+        .mAnimated = 4096,
+        .mEmitters = 2048,
+        .mFrozen = 8192,
+        .mEffects = 256 };
+
+    /// A picture's subject: a doll dressed in every slot with a weapon drawn and a spell held, with
+    /// room to spare, so a change of clothes rehashes nothing either, at a sixty-fourth of the world's
+    /// maps.
+    inline constexpr ExtractorRoom sSubjectExtractorRoom{ .mPlacements = 1024,
+        .mMeshes = 1024,
+        .mDeformers = 256,
+        .mMaterials = 1024,
+        .mTextures = 1024,
+        .mAnimated = 256,
+        .mEmitters = 256,
+        .mFrozen = 0,
+        .mEffects = 64 };
+
     /// Mirrors an OpenSceneGraph subtree into a `SceneDesc`. The identity maps live across calls,
     /// so the same geometry met again resolves to the mesh already uploaded rather than to a copy,
     /// and the mirror is incremental instead of a rebuild per frame.
@@ -71,12 +114,19 @@ namespace Rtx
     public:
         /// @param context what every walk on this thread shares — `WalkContext`. The game hands the
         ///        frame thread's to the world's walk and to every traced view's.
-        SceneExtractor(SceneDesc& scene, WalkContext& context);
+        /// @param room what the identity maps are reserved at, once, so no frame rehashes one.
+        SceneExtractor(SceneDesc& scene, WalkContext& context, const ExtractorRoom& room);
 
         /// Gives back every hold the maps took on the scene — every placement, every row, every
         /// texture — so a scene that outlives this holds nothing of it. The scene outlives it by
         /// the reference this keeps.
         ~SceneExtractor();
+
+        /// Pinned: its resolvers and its keys hold references to its scene, its pass and one another.
+        SceneExtractor(const SceneExtractor&) = delete;
+        SceneExtractor& operator=(const SceneExtractor&) = delete;
+        SceneExtractor(SceneExtractor&&) = delete;
+        SceneExtractor& operator=(SceneExtractor&&) = delete;
 
         /// Which nodes the walks may descend into, as an `osg` traversal mask: what keeps the
         /// mirror out of subtrees the ray tracer answers for itself, such as the sky's mask,
@@ -409,7 +459,7 @@ namespace Rtx
         /// The reference roots the world walk passes rather than descends.
         FrozenRoots mFrozen;
 
-        /// Kept and refilled: grown to the busiest crossing so far, and never shrunk.
+        /// Kept and refilled: `Released::take` keeps its room.
         Released mReleased;
 
         /// The number of the world walk in progress or last made, which a frozen run it met

@@ -29,7 +29,8 @@ namespace MWRender
             mDeferred.push_back(&view);
     }
 
-    void ViewQueue::draw(const std::uint32_t worldViews, const osg::FrameStamp& posing, const Rtx::CellRing& ring)
+    void ViewQueue::draw(const std::uint32_t worldViews, const osg::FrameStamp& posing, const Rtx::CellRing& ring,
+        Rtx::Released& releasing)
     {
         assert(mDrawing.empty() && "a flush inside a flush");
 
@@ -51,7 +52,7 @@ namespace MWRender
             if (view->isOfWorld())
                 ++world;
 
-            view->draw(posing);
+            view->draw(posing, releasing);
         }
 
         mDrawing.clear();

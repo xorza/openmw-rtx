@@ -27,6 +27,7 @@
 #include "refusals.hpp"
 #include "ripple.hpp"
 #include "rowhold.hpp"
+#include "sceneroom.hpp"
 #include "sprite.hpp"
 #include "structurerevision.hpp"
 #include "surface.hpp"
@@ -49,7 +50,12 @@ namespace Rtx
     class SceneDesc
     {
     public:
+        /// A scene opened at nought, which grows as it is filled: a picture's, or a test's.
         SceneDesc();
+
+        /// A scene whose rows are reserved at `room`, as its backend's tables are, so no arrival up to
+        /// the room moves a host table either.
+        explicit SceneDesc(const SceneRoom& room);
 
         /// Moved whole: no table holds a reference to a sibling, so what a moved description's
         /// tables reach is its own. Every fact that crosses two tables is asked of this class,

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iterator>
+#include <span>
 #include <vector>
 
 #include <osg/Referenced>
@@ -22,8 +24,34 @@ namespace Rtx
                 mHeld.emplace_back(object);
         }
 
-        /// What was kept since the last `clear`, for the owner to hand over.
-        std::vector<osg::ref_ptr<const osg::Referenced>>& get() { return mHeld; }
+        /// What was kept since the last `take` or `clear`.
+        std::span<const osg::ref_ptr<const osg::Referenced>> get() const { return mHeld; }
+
+        bool isEmpty() const { return mHeld.empty(); }
+
+        /// Everything kept, moved out whole for the owner to hand over, and the sink left empty with
+        /// room for as many: grown to the busiest frame so far and never shrunk, so a frame that lets
+        /// go allocates the one buffer it hands over. Nothing, and no allocation, where nothing was
+        /// kept.
+        std::vector<osg::ref_ptr<const osg::Referenced>> take()
+        {
+            std::vector<osg::ref_ptr<const osg::Referenced>> taken;
+            if (mHeld.empty())
+                return taken;
+
+            taken.reserve(mHeld.capacity());
+            taken.swap(mHeld);
+            return taken;
+        }
+
+        /// Moves everything `from` kept into this sink, and leaves `from` empty with its room: a
+        /// picture's sweep handed on with the world's.
+        void keepAll(Released& from)
+        {
+            mHeld.insert(
+                mHeld.end(), std::make_move_iterator(from.mHeld.begin()), std::make_move_iterator(from.mHeld.end()));
+            from.mHeld.clear();
+        }
 
         /// Drops every reference kept, where the caller stands: an owner with nothing to hand it to.
         void clear() { mHeld.clear(); }

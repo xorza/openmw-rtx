@@ -359,7 +359,6 @@ set(RTX_VULKAN_FILES
     scene/sceneacceleration.hpp
     scene/scenebuffers.cpp
     scene/scenebuffers.hpp
-    scene/sceneroom.hpp
     scene/scenepasses.hpp
     scene/sceneslots.cpp
     scene/sceneslots.hpp

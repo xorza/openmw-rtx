@@ -59,19 +59,6 @@ namespace Rtx
                 system.setFreezeOnCull(false);
         }
 
-        constexpr std::size_t sPlacementBudget = 65536;
-        constexpr std::size_t sMeshBudget = 16384;
-        constexpr std::size_t sMaterialBudget = 16384;
-        constexpr std::size_t sTextureBudget = 8192;
-        constexpr std::size_t sDeformerBudget = 2048;
-        constexpr std::size_t sAnimatedBudget = 4096;
-        constexpr std::size_t sEmitterBudget = 2048;
-        constexpr std::size_t sFrozenBudget = 8192;
-
-        /// Effects a walk can be handed before its list of glows grows: every bolt in the air,
-        /// every burst and every cast, which a fight of a dozen casters does not reach.
-        constexpr std::size_t sEffectBudget = 256;
-
         /// What identifies one placement from one frame to the next: the anchor a walk starts from
         /// and the node's place under it, folded on the way down so the prefix every sibling shares
         /// is worked out once. The place is structural — which child of which child — from the
@@ -609,7 +596,7 @@ namespace Rtx
 
     /// Every node, until the owner states a mask — `setTraversalMask`, which says why the default
     /// is not the narrower answer it looks like it should be.
-    SceneExtractor::SceneExtractor(SceneDesc& scene, WalkContext& context)
+    SceneExtractor::SceneExtractor(SceneDesc& scene, WalkContext& context, const ExtractorRoom& room)
         : mScene(scene)
         , mWalk(std::make_unique<Traversal>(*this, mKinds))
         , mContext(context)
@@ -617,15 +604,14 @@ namespace Rtx
     {
         // Reserved once, so no frame rehashes a map. A cell's drawables arriving grow every
         // identity map on that frame, and a table that grows past its room moves every entry on the
-        // insert that did it. Budgets past what a Morrowind exterior reaches at four cells of
-        // distance.
-        mPlacements.reserve(sPlacementBudget);
-        mFrozen.reserve(sFrozenBudget);
-        mMeshes.reserve(sMeshBudget, sDeformerBudget);
-        mMaterials.reserve(sMaterialBudget, sTextureBudget, sAnimatedBudget);
-        mChainKeys.reserve(sMaterialBudget);
-        mEmitters.reserve(sEmitterBudget);
-        mGlows.reserve(sEffectBudget);
+        // insert that did it.
+        mPlacements.reserve(room.mPlacements);
+        mFrozen.reserve(room.mFrozen);
+        mMeshes.reserve(room.mMeshes, room.mDeformers);
+        mMaterials.reserve(room.mMaterials, room.mTextures, room.mAnimated);
+        mChainKeys.reserve(room.mMaterials);
+        mEmitters.reserve(room.mEmitters);
+        mGlows.reserve(room.mEffects);
     }
 
     SceneExtractor::~SceneExtractor()
