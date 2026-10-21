@@ -7,33 +7,24 @@ change that keeps the shape does not change this file.
 The tree's own words (walk, stand, hand over, hold, slot, run, ring, epoch) are listed beside the
 field's words in [`components/rtx/GLOSSARY.md`](../../components/rtx/GLOSSARY.md).
 
-## 1. What the fork is
+## What the fork is
 
 Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather,
 GUI logic. A second renderer stands beside the OpenGL rasterizer and replaces the whole picture:
 primary visibility, shadows, direct and indirect light, sky, water and fog are ray traced. The
-rasterizer's picture is upstream's but for three corrections the ray tracer needed, each where
-upstream's was wrong: the optimizer merges in child order, an exterior map tile keeps its land
-where the quad tree has not built the chunk yet, and a groundcover plant stands under its model's
-own transforms. A fourth change is the seam's: the frame is drawn at `[Video] resolution x/y` and shown scaled into the window (§4). Both renderers stand behind one interface, one binary ships both, and
-the one not chosen never starts.
-
-The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan with ray
-tracing pipelines and ray queries. The denoiser is the renderer's own, in three parts: a temporal
-accumulator and a wavelet over the diffuse light, a port of AMD's FidelityFX Shadow Denoiser over
-the shadows of the sun, the moons and the lamps, and a temporal filter over the glossy light. The upscaler is a
-port of AMD's FSR 3.1.4 in compute shaders. At `native` it is the anti-aliasing, and every other
-mode traces fewer pixels than the window shows.
-Vanilla content is read as it is: its textures are pre-lit, so the renderer estimates the painted
-light and divides it out. A PBR replacer's companion maps reach the trace — a normal map read as
-the direction it encodes and not as a colour, with the roughness its levels lose beside it
-(`TextureEncoding::Normal`) — and a vanilla scene draws the same whether or not the renderer can
-read them.
-
-`[RTX] enabled` chooses the renderer, which every build has. The player's settings are in
+rasterizer's picture is upstream's but for the corrections `AGENTS.md` lists under "Accepted diff".
+Both renderers stand behind one interface, one binary ships both, and the one not chosen never
+starts. `[RTX] enabled` chooses; the player's settings are in
 [`rtx.rst`](../source/reference/modding/settings/rtx.rst).
 
-## 2. Layers and libraries
+The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan's ray tracing.
+The denoiser is the renderer's own, and the upscaler is AMD's FSR 3.1.4 ported to compute shaders:
+at `native` it is the anti-aliasing, and every other mode traces fewer pixels than the window
+shows. Vanilla textures are pre-lit, so the renderer estimates the painted light and divides it
+out; a PBR replacer's companion maps reach the trace, and a vanilla scene draws the same whether or
+not the renderer can read them.
+
+## Layers and libraries
 
 Each layer knows the layer below it and never the one above.
 
@@ -59,37 +50,22 @@ the loader, so the game starts on a machine without one and draws with OpenGL th
 create a backend: `RtxRenderer` and the harness. OpenSceneGraph stays the
 content loader whatever draws: the scene arrives as an `osg::Node` graph, and the core reads it.
 
-## 3. The build
+## The build
 
-Every build has the renderer, built as the rest of the tree is. The core is part of `components`,
-listed with `add_component_dir`; the Vulkan backend is a library of its own, because it links
-Vulkan, and the harness stands beside the game in `apps/rtxtool`. The flags are the tree's: the
-top-level `CMakeLists.txt` adds five checks to upstream's, and the presets make every warning an
-error. `omw build` then reads the compile database against `git ls-files`, so a source no list names
-is found (`tools/omw/listing.py`).
-
-Shaders are GLSL, compiled by `glslc` and validated by `spirv-val` in one build step, so an
-invalid module fails the build. Between the two, `Rtx::pinFloatArithmetic`
-(`components/rtxvulkan/spirv/spirvpin.hpp`) fixes the order and fusion of every float operation the
-Vulkan specification leaves open, so every compile of a module, the driver's recompiles
-included, computes the same frame. `glslc` compiles unoptimized and `spirv-opt` optimizes the module
-`Rtx::guardFloatArithmetic` has marked, so the optimizer folds none of the arithmetic the pinning
-then holds. The structures both languages read are headers that compile as
-C++ and as GLSL, beside the C++ that reads them: `components/rtx/shaders/*.h` for what the core
-reads, and `components/rtxvulkan/shaders/shared/*.h` for what only the backend and its shaders read
-(the bindings, the passes' constants, the shader binding table's records).
-
-Each module's interface is read once, in one pass over its words (`readInterface`,
-`components/rtxvulkan/spirv/spirvinterface.hpp`): its bindings, its specialization constants, the
-end of its push block and its vertex inputs. A stage holds them to what the C++ states beside the
-GLSL (`ShaderCode::stage` and `feed`): every set its layout names, the words it is handed, the
-layout's push range and the pipeline's attributes. A disagreement ends the process and names the
-module. The pinning walks a module's words through the same walk (`forEachInstruction`).
-
+Every build has the renderer. The core is part of `components`; the Vulkan backend is a library
+of its own, because it links Vulkan; the harness stands beside the game in `apps/rtxtool`.
 `./omw [flavour] <verb>` is the one command line over the CMake presets, on the desk and in CI.
-`./omw help` lists both.
 
-## 4. The seam: `MWRender::Renderer`
+Shaders are GLSL, compiled and validated in one build step, so an invalid module fails the build.
+Every float operation the Vulkan specification leaves open is pinned and no fusion is allowed
+(`components/rtxvulkan/spirv/spirvpin.hpp`), so every compile of a module, the driver's recompiles
+included, computes the same frame. The structures both languages read are headers that compile as
+C++ and as GLSL: `components/rtx/shaders/*.h` for what the core reads, and
+`components/rtxvulkan/shaders/shared/*.h` for what only the backend reads. Each module's interface
+is read once and held to what the C++ beside it states (`spirvinterface.hpp`); a disagreement ends
+the process and names the module.
+
+## The seam: `MWRender::Renderer`
 
 The one interface the game talks to. Read its header first.
 
@@ -125,7 +101,7 @@ Pictures taken away from the eye (the local map, the inventory doll, the world m
 seam types too (`OffscreenView`, `SubjectView`, `MapOverlay`), and each renderer makes them its
 own way.
 
-## 5. The game-side owner
+## The game-side owner
 
 `apps/openmw/mwrender/rtx/`. `RtxRenderer` is the ray tracer as the game sees it. There is no
 viewer and no cull or draw traversal, because rays go everywhere. It drives each frame itself,
@@ -146,7 +122,7 @@ what to report. A played session installs nothing and gets the played answers.
 `RtxSettings::derive` is the one derivation of the ray tracer's settings, and the harness fills
 it from its command line. The core reads no settings.
 
-## 6. The interface
+## The interface
 
 MyGUI draws the whole interface, as upstream. Only its backend changes.
 `MyGUIPlatform::GuiRenderManager` is the seam into MyGUI, implemented by upstream's OSG manager
@@ -165,7 +141,7 @@ GUI texture from a scene of their own, with no reconstruction and no history. Wi
 hidden, a frame draws the interface only. The settings pages and the launcher take their menu
 orders from the core, and a mode added without a label on each page stops the build.
 
-## 7. The core
+## The core
 
 `components/rtx/`. What is true of Morrowind's content, of light transport, and of what the
 scene is. Written once and read by every backend.
@@ -234,7 +210,7 @@ Content the renderer cannot use is never an assert and never the end of a frame.
 with a `Misc::Result`, and every refusal is reported once to `Rtx::Refusals`. A texture that is
 refused draws as a stand-in, and anything else refused is left out.
 
-## 8. The backend
+## The backend
 
 `components/rtxvulkan/`. `VulkanRenderer` is `Rtx::Renderer` over Vulkan. Members are declared
 in construction order, and everything is built on the device.
@@ -256,23 +232,17 @@ at the top, over all of them.
 | `present/`          | the swapchain and the present                                           |
 | `gui/`              | the interface's pass and textures                                       |
 
-- **The device.** `Device` holds the queue, the command pool, the `Timeline` and the
-  `Graveyard`. The timeline is the one clock: each submit signals it, each wait is the device's,
-  and the host never reads it on the frame path. The graveyard keeps what a submit may still read
-  until the timeline passes it, and every device object buries itself as it goes: an assignment
-  that replaces a buffer and a destructor that lets a scene go are safe with frames in flight. A
-  missing required feature refuses the device, and each optional extension is taken whole or not
-  at all.
-- **The command pool** (`device/commands.hpp`) has one model, and each object owns one thing. A
-  `LentCommands` is the buffers a ring, a drawer or the presenter records into again and again;
-  its end gives them back once a submit after it has run. A `Recording` is one scope's span from
-  `begin` to its submit or its end, and an exception that leaves the scope resets the buffer. A
-  `Batch` is setup work with its staging and holds, and a one-off submit is a batch too. No other
-  submit is made while a recording is open.
-- **The pipeline cache** (`device/pipelinecache.hpp`) is a file in the user's cache folder, named
-  for the driver and the shaders. Its own header ahead of the driver's blob names the device, the
-  driver's version, and the blob's length and digest, so a short or damaged file is refused before
-  the driver sees it. A write goes to a partial file, synced to the disk, and is then renamed.
+- **The device.** `Device` holds the queue, the command pool, the `Timeline` and the `Graveyard`.
+  The timeline is the one clock: each submit signals it, each wait is the device's, and the host
+  never reads it on the frame path. The graveyard keeps what a submit may still read until the
+  timeline passes it, so a buffer replaced or a scene let go is safe with frames in flight. A
+  missing required feature refuses the device; an optional extension is taken whole or not at all.
+- **The command pool** (`device/commands.hpp`): commands recorded again and again are lent
+  (`LentCommands`), one scope's span to its submit is a `Recording`, setup work with its staging is
+  a `Batch`, and no other submit is made while a recording is open.
+- **The pipeline cache** (`device/pipelinecache.hpp`) is a file named for the driver and the
+  shaders, checked by a header of its own before the driver sees it, and written whole or not at
+  all.
 - **Memory.** What a frame cannot go without is essential and never refused. Content (acceleration
   structures, textures) is taken against the driver's budget and can be refused, and a refusal
   leaves the mesh out or draws the texture's stand-in.
@@ -280,89 +250,176 @@ at the top, over all of them.
   instance records, the acceleration structures, the buffers a hit reads, the skinning tables and
   the bindless texture array. Each table has one copy per frame slot, and the copy a frame does
   not trace keeps the previous pose for motion vectors.
-- **`FrameRing`** keeps two frames in flight. The host places frame N+1 while the device traces
-  N.
+- **`FrameRing`** keeps two frames in flight. The host places frame N+1 while the device traces N.
 - **`TraceChain`** is everything one camera's trace writes at one extent: the G-buffer, the fog
-  volume, the sprite bins and the denoiser's history.
-  The world has one, and `PictureTracer` has one for the pictures inside the interface. The passes
-  are shared.
+  volume, the sprite bins and the denoiser's history. The world has one, and `PictureTracer` has
+  one for the pictures inside the interface; the passes are shared.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
-  lines. The tone pass adds the glare fader and Night-Eye's lift in display values after the curve,
-  where the meter never sees them, as the rasterizer adds both, and applies the player's
-  `[Video] gamma` and a triangular blue-noise dither before it stores the picture in eight bits.
-  The GUI draws after it, in display values, at the frame's size, so the gamma does not reach it. The renderer blits the frame to the swapchain,
-  scaled to fit the window with black beside it (`Misc::present`), and never draws into it.
+  lines. The tone pass adds the glare fader and Night-Eye's lift after the curve, where the meter
+  never sees them, as the rasterizer adds both, and applies `[Video] gamma`. The GUI draws after
+  it, at the frame's size, so the gamma does not reach it, and the frame is blitted to the
+  swapchain scaled to fit (`Misc::present`).
 - **`Upscaler`** is FSR 3.1.4's seven passes, from AMD's own headers in `extern/fidelityfx/`, with
-  the renderer's callbacks (`shaders/upscale/fsrcallbacks.glsl`). It needs no extension, so it
-  runs on every device the renderer does. `FsrFrame` holds its per-frame constants, with no
-  device in it. Its reactive and transparency-and-composition masks are the trace's own
-  (`CHANNEL_UPSCALE_MASKS`): the share of a pixel's light whose image moves apart from the pixel's
-  motion vector — the see-through layers', and what the water's rays show.
+  the renderer's callbacks; it needs no extension. Its reactive and composition masks are the
+  trace's own (`CHANNEL_UPSCALE_MASKS`).
 - **No reuse of the bounce.** ReSTIR GI's reservoirs ran here as a temporal and a spatial reuse,
   and were removed: once the denoiser kept a rare bright sample's light, they gained nothing at any
   place and added bias in the room they were kept for (`.notes/reuse.md`).
-- **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
-  the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
-  of it that is fill beside it by the same weights: the composite puts the bounce back by the
-  diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. A
-  clamp holds the accumulator's slow mean to a fast one of a few frames (`accumulateclamp.comp`,
-  ReLAX's), so light that changes on a surface that did not move is followed and not dragged. A
-  mean of `ACCUMULATE_SETTLED` frames or fewer has no variance of its own yet, and the clamp gives
-  it the variance of the moments around it (ReLAX's spatial estimate), so the wavelet's brightness
-  test measures a fresh pixel in its own light and not against a constant. A surface the previous
-  frame did not see because something stood in front of it takes the history beside it, along the
-  occluder's own motion (Zeng et al.'s dual motion vector), held to its plane.
-  Before it, where a run asks for it, a slow mean of `ACCUMULATE_RING_FRAMES` frames or fewer is
-  held under the fast means in the ring of pixels around it (ReBLUR's anti-firefly). Off by
-  default: with a lamp's own model out of the bounce it holds no firefly the count sees, and it took
-  a rare bright bounce's light with it. Where a mean holds `ACCUMULATE_FIX_FRAMES` frames or fewer — what the eye
-  just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix).
-  The wavelet is SVGF's B3 first level, 5×5, then ReLAX's 3×3 levels (`RELAX_Atrous`) that weigh by
-  the centre's variance, a reach of sixteen pixels (`ATROUS_LEVELS`). The
-  shadow denoiser filters two fields, each a bit a pixel and the light its source would add
-  unshadowed: the ray to the sky's source where the sky has one that lights (`CHANNEL_SHADOWED`), and
-  the ray to a lamp where the scene has one (`CHANNEL_LAMPED`). One bit a pixel for both carried a
-  lamp's open ray across an edge into the sun's light beside it. Each field counts in its local mean
-  only the pixels its source lights.
-  Its reach is the penumbra's (the shadow channels' alpha, NVIDIA SIGMA's rule): a
-  bit whose penumbra is under a pixel and whose source was not drawn is handed on as it is, and a
-  filter level runs only where its step fits the penumbra.
-  The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
-  filter averages what was drawn for the see-through layers over time, against a history of the
-  nearest layer's own surface and motion. Each holds its slow mean to a fast one as the accumulator
-  does (`historyclamp.comp`), so a lamp that changes on a still surface is followed in a reflection
-  and a window as in the bounce. Every temporal filter holds its history to the frame before's
-  surface channels, which the G-buffer keeps (`GBuffer::getHeld`), each texel rebuilt through the
-  eye that saw it, the arms' or the world's. Every history is matched from the eye it was measured
-  from: the motion vector carries how much farther the surface stood from the previous eye. The
-  families record stage by stage, a dispatch of each behind one barrier, since none reads what
-  another writes.
+- **The denoiser** (`trace/denoise/`) runs where a run filters the frame, in families recorded
+  stage by stage, a dispatch of each behind one barrier, since none reads what another writes.
+  Every history is held to the frame before's surfaces (`GBuffer::getHeld`) and matched from the
+  eye it was measured from.
+  - The bounce's diffuse light: an accumulator whose slow mean is held to a fast one (ReLAX's
+    clamp), so light that changes on a still surface is followed; a mean too young for a variance
+    of its own takes its neighbours' (ReLAX's spatial estimate); a surface just uncovered takes the
+    occluder's history along its motion (Zeng et al.'s dual motion vector), and a mean of a few
+    frames is rebuilt from the surface around it (NRD's history fix). Then the wavelet, SVGF's
+    5×5 first level and ReLAX's variance-weighted 3×3 levels. The fill is filtered beside it by
+    the same weights, and the composite puts the bounce back by the diffuse albedo and the fill by
+    the ambient one, as the rasterizer has `D × lit + A × ambient`. ReBLUR's anti-firefly is off
+    by default: with a lamp's own model out of the bounce it held no firefly, and took a rare
+    bright bounce's light with it.
+  - The shadows: FidelityFX's Shadow Denoiser over two fields, the sky's source
+    (`CHANNEL_SHADOWED`) and the lamps (`CHANNEL_LAMPED`), since one bit a pixel for both carried a
+    lamp's open ray across an edge into the sun's light. Its reach is the penumbra's (NVIDIA
+    SIGMA's rule).
+  - The glossy light and the see-through layers: temporal filters, each holding its slow mean as
+    the accumulator does (`historyclamp.comp`).
 
   **The denoised frame is not bit-exact on every card, and that is the card's.** On the RTX 4090
-  Laptop (driver 615.71), the first wavelet dispatch after a pipeline drain sometimes computes the
-  last bit of its weights differently from the same dispatch run again on the same input bits and
-  push constants: one half-float step at a few texels, one level of 255 in the picture. It occurs
-  only while the queue keeps the card busy with no idle gap between frames, in stretches where
-  every drain takes about a microsecond longer. The colour history carries a difference into the
-  frames after it. Everything before the wavelet — every channel the trace writes, and the scene —
-  stays exact. The harness holds each part to what it promises: `FrameHashes` reports a difference
-  in the composed frame of a denoised run beside the verdict, and `shot` holds a denoised picture
-  to within `sDenoiserNoiseLevels`. The evidence is in `6b3978a065`
+  Laptop, the first wavelet dispatch after a pipeline drain sometimes computes the last bit of its
+  weights differently on the same input, one half-float step at a few texels, while the queue
+  keeps the card busy with no idle gap. Everything before the wavelet stays exact. `FrameHashes`
+  reports a difference in a denoised composed frame beside the verdict, and `shot` holds a
+  denoised picture to within `sDenoiserNoiseLevels`. The evidence is in `6b3978a065`
   (`.notes/denoiser-nondeterminism.md`).
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
-`shaders/lib/`). One ray generation shader traces one ray per pixel and composes the path.
-Closest-hit shaders are picked by the shader table per material kind. Secondary visibility in a hit
-uses ray queries. The rest are compute passes: the fog, the sprites, the bounce's temporal merge,
-the denoiser, the composite, the display chain, skinning, texture preparation, the sea and the
-ripples. The bounce's validation, pairs and resolve trace, and are ray generation shaders of their
-own. Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
+`shaders/lib/`). The trace is six compute stages in one fixed order: `trace/visibility.comp`
+peels the eye's rays down to the surface a pixel shows, shades it and stores its hit;
+`direct.comp`, `media.comp` and `panes.comp` add its direct light, the shafts in the water and the
+layers in front of it; `bounce.comp` traces its bounce and `landing.comp` visits where the bounce
+landed; and the composite puts the frame together from the channels. Every ray is a ray query, and
+no trace pipeline has a hit, miss or any-hit stage: AMD's Windows driver answers no ray query in a
+pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-faults.md`).
+
+- **Every stage is a compute dispatch, on every device.** As a ray generation stage alone, AMD's
+  Windows driver drew the trace wrong from its second frame on, and the same module as a dispatch
+  draws right (`research/2026-10-19-amd-windows-driver-faults.md`). Refused: a ray generation
+  launch on every other driver and a dispatch on AMD's, two builds of one kernel. On an RTX 4090
+  Laptop the stages drew 23% slower than the launch at the median, and 29% at the p99, where another
+  context's time slices land inside their dispatches (`research/2026-10-21-nvidia-stage-costs.md`).
+- **The fog's and the sprites' traces stay launches**, because a ray query answers repeatably only
+  inside a launch there (`TracePipeline`).
+- **Few places a module starts a ray query** (`queryScene`): each loop of a kernel answers the
+  rays its walks ask at one, a stage's phases a loop each. AMD's Windows compiler writes a whole
+  software traversal at every such place left after inlining, and a stage that held fifty did not
+  compile in 52 GB (`research/2026-10-19-amd-windows-trace-compile-memory.md`).
+  `RtxSpirvInterfaceTest.noModuleStartsARayQueryAtMorePlacesThanItsCeiling` counts them in every
+  module the build ships, each held at what it has. Refused: a callable stage
+  around the traversal, which fixed the compile alone.
+- **What the hit and miss stages did is done in the candidate loop and the kernel.** A
+  see-through surface is met as a solid by the eye's rays (`MEET_AS_SOLID`) and cut at the eye's
+  dither (`softEdgeDither`); which shading a hit takes is its instance's material kind, written as
+  the instance's shader-table offset (`SceneAcceleration::placeRow`) and read back off the
+  committed hit; the sky is a function the kernel calls.
+- **A committed triangle's corners are read off the scene's own vertices** (`committedHit`,
+  `GpuTables::mPositionBlocks`), the numbers its structure was built over, on every driver: AMD's
+  Windows driver fetches a committed triangle's corners wrong
+  (`research/2026-10-19-amd-windows-driver-faults.md`), and passing every triangle through the
+  candidate loop for its candidate's, which read right, cost the bounce a tenth of its time on a
+  Radeon 680M (`research/2026-10-21-amd-680m-stage-times.md`). A candidate's are fetched, for the
+  test that takes it. Refused: the hit cast again over a slab about it for a candidate's corners,
+  which cost near what the whole ray costs; the fetch where the driver reads it right, which draws
+  one picture a driver.
+- **No kernel spills past its ceiling** (`RtxVisibilityKernelsTest.noKernelSpillsPastItsCeiling`):
+  no scratch memory where the driver reports it and a dispatch at 128 registers at most, but the
+  trace's stages at what they spill, and a launch's ray generation stack at what it holds, each
+  ceiling one that only falls: at 128 registers an RDNA SIMD runs eight waves, at 256 four. A
+  spill is a cost measured and cut where it shows in the frame, as NVIDIA cut Indiana Jones' path
+  tracer's; held at nought, it kept the gate red until a redesign and hid a new regression behind
+  the old failure.
+- **A stage a kernel, in one fixed order, the channels between them**: `visibility`, `direct`,
+  `media`, `panes`, `bounce`, `landing`, then the composite, one memory barrier between each. A
+  stage that covers every pixel writes a channel first; one dispatched over some tiles adds to it;
+  the direct channel is a sum of each stage's term times the throughput `visibility` stores
+  (`rgba32f`, the layers' share in its fourth). Quake II RTX traces its stages as passes
+  (`path_tracer.c`), and Laine, Karras and Aila (2013) name the cost of the alternative: one kernel
+  carrying every walk's record spilled 67 KB a lane on the 680M and drew an 80x45 frame in 650 ms
+  (`research/2026-10-21-amd-680m-stage-times.md`). Refused: one kernel under the register file,
+  which cannot reach it without dropping light; the walk's records in a buffer each turn, 16–48 KB
+  of traffic a pixel; every point's light stored for a composing pass, 8.5 GB at a 4K trace; a
+  wavefront with queues (Cycles), which pays for long divergent paths where a frame's are short and
+  fixed; an image a stage for the terms that share a channel.
+- **A stage's phases are loops of their own**: each loop keeps only its own walk's records live
+  across its traversal, as Quake II RTX writes each stage as straight code around a trace helper
+  (`path_tracer_rgen.h`). `visibility` peels one ray a turn and leaves with the hit, shading after
+  the loop, and `panes` lights each layer and marches its column in loops of their own: a 480x270
+  frame at Seyda Neen went from 412 ms to under 46 (`research/2026-10-21-amd-680m-stage-times.md`).
+  Refused: one loop over every walk, whose union of records spilled; the records trimmed inside it,
+  which moved the spill by under 300 bytes of 2 304.
+- **The bounce's landing a stage of its own, over the pixels that landed** (`landing.comp`):
+  `bounce` stores the hit its ray met and lists the pixel (`appendLandings`), and writes what
+  arrived itself where the ray met nothing; `landing` runs over the list. On an RTX 4090 Laptop the
+  one kernel took 255 registers and kept 12 of 32 lanes busy; the two took 1.03 ms against 1.37, the
+  frame 3.7% less at the median, and drew the same pictures
+  (`research/2026-10-21-nvidia-stage-costs.md`). Refused: the visit in the bounce's own loop; the
+  landing over every pixel, 1.15 ms, whose warps waited out the visit for the lanes whose bounce
+  escaped.
+- **The surface a pixel is the hit the trace stored**, resolved again by a stage with no traversal
+  (`storeStageSolid`, `storedSolidOf`): the instance, the triangle and the barycentrics, with the
+  ray's start, direction, footprint and distance, 48 bytes, as Falcor's visibility buffer keeps a
+  hit (`HitInfo.slang`). The transforms come off the instance's row (`GpuInstance::mToWorld`,
+  `mToObject`) and the corners off the scene's vertices, so every stage resolves the trace's surface
+  to the bit. Refused: tracing the eye's ray again, which cost `direct` and `bounce` a quarter of a
+  frame on the 680M; the resolved surface stored, as Quake II RTX keeps it, about 80 bytes a pixel
+  and every picture moved by its packing, for a few milliseconds more. `media` alone traces again,
+  over its tiles, for the water's walk it marches.
+- **Every water pixel splits, on two checkerboard fields that each replace the surface**, as Quake
+  II RTX's first water bounce does (`reflect_refract.rgen`): one field follows the mirror and the
+  other the bed, each path carrying twice its Fresnel share, and the composite blends a split pixel
+  half its own and half its four split neighbours' (`checkerboard_interleave.comp`), the lift as
+  well — by `panes` under the layers where a layer stands and by `bounce` elsewhere. A replaced
+  surface keeps the water's motion and its guides stand where its image does (`WaterImage`); the
+  shore's ground stands in the bed's path. Refused: a Fresnel threshold past which both fields
+  follow one path, whose edge is a seam; the water kept as the surface and the checkerboard filtered
+  as noise; both paths at every pixel, twice the water's work; a random choice a frame.
+- **The frame stored as two dense half-images, one a field** (`shaders/shared/fields.h`, read by the
+  shaders and the host alike), as Quake II RTX's `flat_to_checker`, the halves swapping every frame;
+  a stage's workgroup stays inside one field, so a water wave follows one path. **Fields only where
+  the denoiser reads** (`channelInFields`); the composite returns the frame to its order once.
+  Refused: every channel in fields, which made later passes filter over pixels that are not
+  neighbours; copies in the frame's order, about 40 bytes a pixel.
+- **A pixel whose surface is one in both fields reads across them**: its history and its spatial
+  taps are found in the frame's coordinates, and only a split pixel stays in its own field
+  (`HistoryFields`), as Quake II RTX's temporal pass (`sample_across_fields`).
+- **Work only where there is some**: `visibility` lists the tiles a column the shafts change or a
+  layer stands in (`StageTiles`), and `media` and `panes` dispatch indirectly over their lists,
+  AMD's classify, compact and dispatch (FidelityFX). Refused: a branch per pixel in a full dispatch,
+  which pays every wave of the frame; a mark a tile and a dispatch over every tile.
+- **One copy of each stage buffer**, since every stage of a frame runs before the next frame's
+  first. Quake II RTX keeps its visibility buffer twice for the gradients its denoiser traces from
+  last frame's surfaces; this denoiser takes none.
+- **A trace dispatch runs 8x4 invocations at 32 lanes** (`SubgroupSize::ThirtyTwo`), AMD's advice
+  for ray queries on RDNA; RADV traces at 32 lanes for the same reason, and measured Quake II RTX
+  12% faster for it.
+- **Every driver draws its first frames on the full kernels, and the frame's own tuple compiles
+  behind them and takes over when it is ready**, as Godot's ubershaders and Dolphin's hybrid mode
+  do: the tuples made AMD's stages about 9% faster, and all of them took 61 s at a first start where
+  the full kernels take about 10. Refused: the full kernels alone on AMD; every tuple ahead of the
+  first frame, a minute and about 5 GB at a first start.
+
+The rest are compute passes — the fog's integration, the sprites' bins, the bounce's temporal
+merge, the denoiser, the composite, the display chain, skinning, texture preparation, the sea and
+the ripples — but for the fog's depth and scatter, the sprites' composite, shelter and emitters,
+and the harness's probe, each a launch of a ray generation stage alone (`TracePipeline`).
+Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
 Every store of an image goes through the census (`lib/census.glsl`), as does every float a shader
 writes into a buffer. Every shader is built twice: the game's modules carry no census, and the
 harness's, which every run but a measured one reads (`Rtx::ShaderSet`), count each NaN or infinity
 a module stores against that module. `check` asserts none, and `view` stops at one.
 
-## 9. Ownership
+## Ownership
 
 ```mermaid
 graph TD
@@ -389,11 +446,11 @@ graph TD
     VR --> Ups["Upscaler"]
 ```
 
-Solid arrows own, dashed arrows borrow. `RtxRenderer` outlives the world, which is attached to
-it while `RenderingManager`'s `WorldAttachment` stands (§4). The pictures inside the interface are
-owned by the game's map and preview, and they leave the queue when they go.
+Solid arrows own, dashed arrows borrow. `RtxRenderer` outlives the world, which is attached to it
+while `RenderingManager`'s `WorldAttachment` stands (the seam). The pictures inside the interface
+are owned by the game's map and preview, and they leave the queue when they go.
 
-## 10. A frame
+## A frame
 
 On the host, in order:
 
@@ -422,13 +479,14 @@ clock. The wall is read only to measure. A cut (a teleport, a worldspace change,
 rest, a wait, travel, or a script's write that moves the hour past the frame's step) resets every
 history. A setting that changes the extent or the upscaler takes effect at once.
 
-## 11. Threads
+## Threads
 
 - **The main thread** makes every seam call, every walk, every submit and every wait.
 - **The cell reader** (`CellSupply`) reads cells and lends their models and images to the frame.
-- **The launch compile** (`VisibilityPass`) builds the ray tracing pipelines from construction,
-  over as many hands as there is work for (`Rtx::runInParallel`). Loading waits for it behind a
-  "Compiling Shaders" step.
+- **The kernel compile** (`VisibilityPass`) builds the full tuple over every hand, which a played
+  start waits for behind a "Compiling Shaders" step, then every other tuple over half the hands
+  while the game runs ("Every driver draws its first frames on the full kernels"). A run of the
+  harness waits for every tuple (`Rtx::KernelSet`), so two runs change kernel at no frame.
 - **One-shot batches** (`Rtx::runInParallel`) build what is made once over parallel hands and join
   them before they return: the specular albedo's table (`SpecularAlbedo`), at its first use.
 - **The driver** recompiles launches on its own threads. The pinned arithmetic makes both codes
@@ -437,7 +495,7 @@ history. A setting that changes the extent or the upscaler takes effect at once.
 `OwnedBy` asserts which thread owns a member. A worker that throws ends the process where it
 threw, and the crash report keeps its stack.
 
-## 12. Contracts
+## Contracts
 
 The code asserts the order of its steps (`Rtx::Stepped`, the phase machine), which thread owns
 what, at most two frames in flight, that nothing joins a per-frame list after the hand-over, that
@@ -450,11 +508,11 @@ no device with the features — throws `Rtx::Unsupported`, and the game starts t
 in its place. A device that refuses throws `Rtx::DeviceError`. A lost device or a wait that never
 ends crashes where it was found, so the crash report shows it.
 
-## 13. Harness and tests
+## Harness and tests
 
 `openmw-rtxtool` drives a real game headless: `info`, `scene`, `shot`, `view`, `bench`, `check`,
-`film`, `noise`. `RtxTool::Session` is both the engine's host and the renderer's run. It places the world
-where a stop stands, moves the camera a frame at a time, holds the clock and the weather, and
+`film`, `noise`. `RtxTool::Session` is both the engine's host and the renderer's run. It places the
+world where a stop stands, moves the camera a frame at a time, holds the clock and the weather, and
 measures each frame. What a verb does with a place is one row of `VerbPolicy` (`verbs.hpp`). The
 instruments (`apps/rtxtool/instruments/`) measure frames and know nothing of a world. The model
 (`apps/rtxtool/model/`) is what a run visits and what it recorded, and includes the instruments,
@@ -469,7 +527,7 @@ never the reverse.
 
 Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 
-## 14. Where to look
+## Where to look
 
 | to know                                   | open                                                                                  |
 |-------------------------------------------|---------------------------------------------------------------------------------------|
@@ -484,7 +542,7 @@ Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 | what a frame is on the device             | `components/rtx/shaders/visibility.h`, `scene.h`                                       |
 | the backend's frame                       | `components/rtxvulkan/vulkanrenderer.hpp`, `trace/tracechain.hpp`, `display/displaychain.hpp` |
 | a scene on the device                     | `components/rtxvulkan/scene/devicescene.hpp`                                           |
-| the light transport                       | `components/rtxvulkan/shaders/trace/visibility.rgen`, `lib/`                           |
+| the light transport                       | `components/rtxvulkan/shaders/trace/` (`visibility.comp` and its stages), `lib/`       |
 | the denoiser and the upscaler             | `components/rtx/frame/reconstruction.hpp`, `components/rtxvulkan/trace/tracechain.hpp`, `components/rtxvulkan/upscale/upscaler.hpp` |
 | the GUI                                   | `components/myguirtx/rendermanager.hpp`, `components/rtx/renderer/guirenderer.hpp`     |
 | the two hosts                             | `mwrender/rtx/rtxrun.hpp`, `apps/rtxtool/session.hpp`                                  |
