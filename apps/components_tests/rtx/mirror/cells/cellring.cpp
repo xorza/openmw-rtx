@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <semaphore>
+#include <set>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -1302,13 +1303,15 @@ namespace Rtx::Testing
             around(osg::Vec4i(11, -1, 14, 2));
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 1u) << "and outside it, on the model the ring kept";
 
-            // The sweep takes the ground of the band that left, and nothing else: the tree's mesh
-            // was stamped through, so the scene holds the new band's ground and that one mesh. The
-            // old disc and the new share five cells of column 5, which both eyes stand 4.5 cells
-            // from: `4.5² + ay² < 5²` holds for a row's `ay` of 0, 0.5 and 1.5, which is `|dy| <=
-            // 2`, and fails at 2.5.
-            EXPECT_EQ(mExtractor.retire().mMeshes, sPreparedCells - 5u);
-            EXPECT_EQ(mScene.meshes().getLiveCount(), meshes) << "one tree mesh, held throughout";
+            // The sweep takes the ground of the band that left past what the new eye keeps, and
+            // nothing else: the tree's mesh was stamped through, so the scene holds the new band's
+            // ground, the cells kept a cell past it, and that one mesh. The old disc and the new
+            // share five cells of column 5, which both eyes stand 4.5 cells from: `4.5² + ay² < 5²`
+            // holds for a row's `ay` of 0, 0.5 and 1.5, which is `|dy| <= 2`, and fails at 2.5. The
+            // new eye keeps five more of the old disc, in column 4, 5.5 cells from it: `5.5² + ay² <
+            // 6²` holds for the same rows, and those cells are within five of the old eye.
+            EXPECT_EQ(mExtractor.retire().mMeshes, sPreparedCells - 10u);
+            EXPECT_EQ(mScene.meshes().getLiveCount(), meshes + 5u) << "one tree mesh, held throughout";
 
             // Two more walks, so the thread's give-backs of what was returned have run against
             // the reader's own contract — which a model given back while lent breaks loudly.
@@ -1536,6 +1539,78 @@ namespace Rtx::Testing
             walk(mWalked++);
             EXPECT_EQ(mRing.getCellsToStand(), 0u) << "the exterior's shortfall outlived it";
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(0, 0))) << "a room stands no ground";
+        }
+
+        /// **A cell is read at the band and let go a cell past it**, so an eye that steps across the
+        /// band's edge and back reads nothing again. The band is five cells about the eye, and a cell
+        /// is kept to six. One cell east, the band reads the column it gained and keeps the one it
+        /// lost; a second cell east lets go of what is past six; and one cell back west, every cell of
+        /// the band is still held, because a cell within five of an eye is within six of an eye one
+        /// cell from it, and nothing is read. What is left to stand counts the band's cells alone:
+        /// nought once the band is whole, however many cells the ring keeps beside it.
+        TEST_F(RtxCellRingTest, aCellIsReadAtTheBandAndLetGoACellPastIt)
+        {
+            using Cells = std::set<std::pair<int, int>>;
+
+            // `withinReach`'s disc, as `cellsWithin` draws it, about an eye at the centre of the cell
+            // `eye` columns east of the origin.
+            const auto within = [](const int x, const int y, const int eye, const float reach) {
+                const auto nearest = [](const int away) {
+                    return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f;
+                };
+                const float ax = nearest(x - eye);
+                const float ay = nearest(y);
+                return ax * ax + ay * ay < reach * reach;
+            };
+            const auto band = [&](const int eye) {
+                Cells cells;
+                for (int x = -12; x <= 12; ++x)
+                    for (int y = -12; y <= 12; ++y)
+                        if (within(x, y, eye, 5.0f))
+                            cells.emplace(x, y);
+                return cells;
+            };
+            // What the ring holds once settled at `eye`, having held `held`: the band, and what it
+            // held that is still within six.
+            const auto settled = [&](const Cells& held, const int eye) {
+                Cells cells = band(eye);
+                for (const auto& [x, y] : held)
+                    if (within(x, y, eye, 6.0f))
+                        cells.emplace(x, y);
+                return cells;
+            };
+            const auto standAt = [&](const int eye) {
+                around(osg::Vec3f((static_cast<float>(eye) + 0.5f) * sCellSize, 0.5f * sCellSize, 0.0f),
+                    osg::Vec4i(eye - 1, -1, eye + 2, 2));
+            };
+
+            start();
+            fill();
+            Cells held = band(0);
+            ASSERT_EQ(held.size(), sPreparedCells);
+            ASSERT_EQ(mRing.getHeldCellCount(), sPreparedCells);
+
+            standAt(1);
+            const std::uint32_t gained = static_cast<std::uint32_t>(
+                std::ranges::count_if(band(1), [&](const std::pair<int, int>& cell) { return !held.contains(cell); }));
+            EXPECT_EQ(fill().mMeshesAdded, gained) << "the column the band gained, one ground each";
+            held = settled(held, 1);
+            EXPECT_GT(held.size(), std::size_t{ sPreparedCells }) << "nothing was kept past the band";
+            EXPECT_EQ(mRing.getHeldCellCount(), held.size());
+            EXPECT_EQ(mRing.getCellsToStand(), 0u) << "a kept cell counted against the band";
+
+            standAt(2);
+            fill();
+            const Cells before = held;
+            held = settled(held, 2);
+            EXPECT_LT(held.size(), before.size() + band(2).size()) << "nothing went past six";
+            EXPECT_EQ(mRing.getHeldCellCount(), held.size());
+            EXPECT_EQ(mRing.getCellsToStand(), 0u);
+
+            standAt(1);
+            EXPECT_EQ(fill().mMeshesAdded, 0u) << "a cell the eye came back to was read again";
+            EXPECT_EQ(mRing.getHeldCellCount(), settled(held, 1).size());
+            EXPECT_EQ(mRing.getCellsToStand(), 0u);
         }
 
         /// **Groundcover stands within its reach, the active grid's cells included, and goes whole

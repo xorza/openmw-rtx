@@ -36,7 +36,8 @@ namespace Rtx
     ///
     /// Two rings, and a thread between them. The *prepared* ring is the reach plus one band: each
     /// cell in it has been read by the thread and adopted by the frame into the scene, so its
-    /// meshes stand on the device before anything can see them. The *placed* ring is the reach: a
+    /// meshes stand on the device before anything can see them, and is kept until it is a cell past
+    /// the band (`keptTo`). The *placed* ring is the reach: a
     /// cell in it has its ground in the top level, and outside the active grid its statics too. A
     /// frame adopts at most one prepared cell and moves the placements of the cells that crossed a
     /// boundary. This is the policy; `CellHolds` is the bookkeeping of what the reader lent and
@@ -177,10 +178,22 @@ namespace Rtx
         /// and the prepared band past it, and `grassBand` the grass disc's, nought for none.
         void ask(const osg::Vec3f& eye, float band, float grassBand);
 
-        /// Gives back every handed cell outside the band, and every handed cell's grass outside the
-        /// grass band. Run after every `takeDone`, because what was handed over during the wait was
-        /// asked for from where the eye stood before.
+        /// Gives back every handed cell past what the band keeps (`keptTo`), and every handed cell's
+        /// grass past what the grass band keeps. Run after every `takeDone`, because what was handed
+        /// over during the wait was asked for from where the eye stood before.
         void sift(const osg::Vec3f& eye, float band, float grassBand);
+
+        /// How far out a cell asked for within `band` is kept: one cell past it, nought for a band of
+        /// nought. A cell is read at the band and let go a cell further out, so an eye that walks to
+        /// and fro across the band's edge reads nothing again — a load range and a wider unload
+        /// range, as every open-world streamer keeps. What stands is the reach whatever is held.
+        float keptTo(float band) const;
+
+        /// How many cells of the band the last `ask` walked the ring holds, and the grass's, counted
+        /// off the cells: what the two counts `ask` and `adopt` keep must equal, which the walk
+        /// asserts.
+        std::uint32_t countHeldInBand() const;
+        std::uint32_t countGrassHeldInBand() const;
 
         /// Blocks until the supply has handed over the nearest cell the walk wants, and the nearest
         /// cell's grass, where the last `ask` names one nearer than everything handed already
@@ -273,11 +286,16 @@ namespace Rtx
         std::uint64_t mFollowed = 0;
 
         /// How many cells the band held when `ask` last walked it, the reach and the band past it,
-        /// or nought where the last walk stood nothing — indoors, or with no reader. Every held cell
-        /// of an exterior walk is one of them once it has dropped what left, so what is left to stand
-        /// is this less what is held. The grass band's the same way.
+        /// or nought where the last walk stood nothing — indoors, or with no reader. The grass band's
+        /// the same way.
         std::uint32_t mBandCells = 0;
         std::uint32_t mGrassBandCells = 0;
+
+        /// How many of those the ring holds: counted where `ask` walks the band, and one more for
+        /// each cell adopted inside it after. Not the held count, which takes in the cells kept past
+        /// the band (`keptTo`), so what is left to stand is the band's cells less these.
+        std::uint32_t mBandHeld = 0;
+        std::uint32_t mGrassBandHeld = 0;
 
         /// The frame a cell, and a cell's grass, was last adopted on, so a frame walked twice
         /// adopts once.
