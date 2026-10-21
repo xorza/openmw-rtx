@@ -104,7 +104,10 @@ namespace Rtx
         ///   the waves that hide its memory. A count of a 32-lane wave's, which is what the trace's
         ///   dispatch is pinned to (`SubgroupSize::ThirtyTwo`) and every driver that reports an
         ///   executable says it ran.
-        /// - **A launch's stack at what each holds**, which only falls, every driver answering it.
+        /// - **A launch's stack at what each holds**, which only falls, every driver answering it: the
+        ///   most any driver reports, one ceiling for every card. RADV's, measured on the 680M under
+        ///   Mesa 26.2.4, where NVIDIA's driver reported none for three of the four launches and 48
+        ///   bytes for the sprites' composite.
         ///   AMD's driver reports a launch's registers as a stub of three, whatever it traces; the
         ///   stack is where its spills show, as the 81 KB of the trace when it was a launch did.
         TEST_F(RtxVisibilityKernelsTest, noKernelSpillsPastItsCeiling)
@@ -124,8 +127,11 @@ namespace Rtx
                 { "bounce", 176, 256 },
                 { "landing", 176, 256 },
             } };
-            constexpr std::array<std::pair<std::string_view, std::uint64_t>, 1> sStacks{ {
-                { "sprite composite", 48 },
+            constexpr std::array<std::pair<std::string_view, std::uint64_t>, 4> sStacks{ {
+                { "fog scatter", 320 },
+                { "fog depth", 320 },
+                { "sprite composite", 672 },
+                { "sprite shelter", 320 },
             } };
 
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
