@@ -122,7 +122,7 @@ namespace Rtx
         , mInverseGamma(1.0f / mProfile.mGamma)
         , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
                                                   : nullptr)
-        , mRing(mDevice, options.mTiming, mStress != nullptr ? mStress->getTickMs() : 0.0)
+        , mRing(mDevice, options.mTiming)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels)
         , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, MemoryUse::Frame, TracePast::Kept)

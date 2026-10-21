@@ -13,6 +13,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/trace/stresspass.hpp>
 
@@ -69,13 +70,14 @@ namespace Rtx
         TEST_F(RtxStressPassTest, theHoldIsTheTimeAskedOnEveryFrameWhateverTheCardsClock)
         {
             Device& device = getDevice();
+            const PhysicalDevice& card = device.getPhysicalDevice();
             GpuTimer timer(device, true);
 
             StressPass four(device, 4.0);
             StressPass twentyFour(device, 24.0);
-            if (device.getPhysicalDevice().getProperties().mProperties2.properties.vendorID == 0x10de)
+            if (card.getProperties().mProperties2.properties.vendorID == 0x10de)
             {
-                EXPECT_EQ(four.getTickMs(), 1.0e-6) << "NVIDIA's clock counts nanoseconds";
+                EXPECT_EQ(card.timestampMs(1), 1.0e-6) << "NVIDIA's clock counts nanoseconds";
             }
 
             // Where the loop leaves its reading, as the ring's frame slot holds it.
@@ -88,9 +90,12 @@ namespace Rtx
             {
                 const std::size_t which = hold == &four ? 0 : 1;
                 shortestZoneMs[which] = std::numeric_limits<double>::infinity();
-                // The asked time in ticks, at the pass's own rate: 4 ms and 24 ms.
-                EXPECT_NEAR(hold->getTicks() * hold->getTickMs(), hold == &four ? 4.0 : 24.0, hold->getTickMs());
-                const double tenMicroseconds = 0.01 / hold->getTickMs();
+                // The fewest ticks no shorter than asked, and the time asked exactly: a period of
+                // whole nanoseconds, NVIDIA's 1 and RDNA's 10, divides a whole millisecond.
+                const double asked = hold == &four ? 4.0 : 24.0;
+                EXPECT_EQ(card.timestampMs(hold->getTicks()), asked);
+                EXPECT_LT(card.timestampMs(hold->getTicks() - 1), asked);
+                const double tenMicroseconds = 0.01 / card.timestampMs(1);
 
                 for (std::uint64_t frame = 0; frame < 8; ++frame)
                 {
@@ -98,11 +103,11 @@ namespace Rtx
                     const std::uint32_t held = static_cast<const Shaders::FrameCounts*>(counts.map())->mHeldTicks;
                     EXPECT_GE(held, hold->getTicks()) << "frame " << frame;
                     EXPECT_LE(held, hold->getTicks() + tenMicroseconds) << "frame " << frame;
-                    EXPECT_GE(zoneMs, held * hold->getTickMs()) << "frame " << frame;
+                    EXPECT_GE(zoneMs, card.timestampMs(held)) << "frame " << frame;
                     if (zoneMs < shortestZoneMs[which])
                     {
                         shortestZoneMs[which] = zoneMs;
-                        heldThenMs[which] = held * hold->getTickMs();
+                        heldThenMs[which] = card.timestampMs(held);
                     }
                 }
             }

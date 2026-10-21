@@ -110,9 +110,7 @@ namespace Rtx
     {
     public:
         /// @param timing whether a frame's zones write timestamps — `RendererOptions::mTiming`.
-        /// @param holdTickMs the milliseconds one tick of the hold's clock is worth
-        ///        (`StressPass::getTickMs`), or nought where no hold runs.
-        FrameRing(const Device& device, bool timing, double holdTickMs);
+        FrameRing(const Device& device, bool timing);
 
         FrameRing(const FrameRing&) = delete;
         FrameRing& operator=(const FrameRing&) = delete;
@@ -214,7 +212,6 @@ namespace Rtx
         /// Whether a cut walk was logged: once a run, since a walk that never ends does not end on
         /// any frame after the first either.
         bool mWalkCutLogged = false;
-        double mHoldTickMs = 0.0;
 
         PerSlot<FrameRecord> mSlots;
         std::array<GrowableBuffer, sFrameSlots + 1> mPictures;

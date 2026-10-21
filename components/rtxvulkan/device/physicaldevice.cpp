@@ -439,6 +439,12 @@ namespace Rtx
         return best;
     }
 
+    double PhysicalDevice::timestampMs(const std::uint64_t ticks) const
+    {
+        return static_cast<double>(ticks)
+            * static_cast<double>(mProperties->mProperties2.properties.limits.timestampPeriod) / 1.0e6;
+    }
+
     CardAddress PhysicalDevice::getAddress() const
     {
         CardAddress address{ .mVendor = mProperties->mProperties2.properties.vendorID, .mPci = std::nullopt };

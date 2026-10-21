@@ -56,8 +56,7 @@ namespace Rtx
         const Device& mDevice;
         QueryPool mHandle;
 
-        /// Nanoseconds a tick of the device's clock is worth, and how many of its bits count.
-        double mPeriod = 1.0;
+        /// How many of the bits of the device's clock count.
         std::uint64_t mMask = ~std::uint64_t{ 0 };
 
         /// Whether the zones write timestamps: asked to, on a queue that can.
