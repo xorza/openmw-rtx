@@ -28,22 +28,22 @@ trace against the world's own scene.
 2. **More than one copy of one datum.** Static positions are on the device twice
    (`BlockedBuffer mPositions` and `BottomLevelStore::mArrived`, staged twice per arrival). Tables
    that only the queue writes or only one frame reads are kept per frame slot (`mPacked`, posed
-   normals and tangents, the mesh table). `BlockedBuffer` inside `JoinedBlocks` builds address tables
-   nothing reads. A subject's scene (the doll, the race preview) uploads and prepares again every texture the world
+   normals and tangents, the mesh table). A subject's scene (the doll, the race preview) uploads and prepares again every texture the world
    already holds.
 3. **Host-written (BAR) memory has no policy.** Every `SlotTable` copy lives in BAR, sized at the
    world's room, doubled per slot, doubled again on growth with the old copy buried, never shrunk,
-   never refused, with no other path. The instance rows alone are 160 B × 2^18 = 40 MiB a copy
-   (`sceneroom.hpp` says 16 MiB, which is the row table's); world tables reach 112 MiB of a 246 MiB
-   window on an RTX 20 card without resizable BAR, where a full window ends the renderer.
+   never refused, with no other path. The instance rows alone are 160 B × 2^18 = 40 MiB a copy;
+   world tables reach 112 MiB of a 246 MiB window at the room on an RTX 20 card (no resizable BAR on
+   that series), where a full window ends the renderer. The room is three times the largest place's
+   placements, so only a growth past it, or BAR users outside the tables, reach the window.
 4. **Arrival work has no per-frame budget.** A cell's adoption puts all of its BLAS builds, texture
    uploads, mip chains, BC7 encodes, shading maps, table growths (re-staged whole from the host) and
    VMA block allocations into one frame, and a cell leaving puts every destroy into one collect. The
    project's rule is incremental, never batched behind a threshold.
-5. **Batch rebuilds where bookkeeping can be incremental.** Lights are cleared, re-made and sorted
-   every walk, and the light grid keys lamps by their sorted index, so a change in the count
-   rebuilds the grid whole. The sweep scans whole identity maps when one entry is missed. Host tables
-   grow by `std::vector` doubling at points of their own, apart from the device tables' room.
+5. **Batch rebuilds where bookkeeping can be incremental.** Lights are sorted by position every walk,
+   and the light grid keys lamps by their sorted index, so a moving lamp renumbers others and a change
+   in the count rebuilds the grid whole. Host tables grow by `std::vector` doubling at points of
+   their own, apart from the device tables' room.
 6. **Shader state carried past where it is read.** `GatherRun::mLampRay` (a whole `RayAsk`) and the
    whole `Gloss` live across shadow traversals; `storeBounced` loads nine channels for a mask that is
    nought where no layer stands; the reprojection match runs three to four times a pixel; a
@@ -75,11 +75,10 @@ trace against the world's own scene.
 - **One device copy per datum.** A rule written at `bufferusage.hpp`: a buffer is per frame slot only
   where a frame behind reads a row the host rewrites (poses for motion vectors, rows rewritten each
   frame); what only arrives is written once, on the queue. BLAS inputs read the scene's own buffers.
-- **Where a table lives is decided once, at device creation.** Rows rewritten every frame go in BAR
-  where the window holds every such table at its room; otherwise every table is device-local and
-  written through the staging ring with `SlotTable`'s per-row debt as the copy list (VMA "Advanced data
-  uploading"). Tables written only on arrival are always device-local. No path switches at run time,
-  and a harness switch forces the staged path, so the card here tests the path an RTX 20 card takes.
+- **Tables written only on arrival are device-local, and BAR holds only rows rewritten every frame.**
+  A second, staged path for the per-frame rows (VMA "Advanced data uploading") is made only where
+  Batch 4's measurement puts the window in reach; a path no target device takes is complexity with
+  nothing behind it.
 - **An arrival scheduler with a per-frame budget** in counted units — staged bytes, BLAS triangles,
   encoded texels, never measured time, so two runs schedule alike and `repeat` holds. Geometry goes
   first, and a placement enters the top level only once its BLAS is built; textures draw their
@@ -87,18 +86,18 @@ trace against the world's own scene.
   a worker; the graveyard's released prefix is destroyed off the frame thread, in burial order.
   Practice: nvvk `BlasBuilder::cmdCreateParallelBlas` budget loop, Unreal's texture streaming upload
   budget, VMA/D3D12MA block-creation advice.
-- **Shared textures, one residency manager.** Textures (and static meshes' BLAS) are refcounted assets
-  keyed by what names them, held beside `SceneSlots`; a scene owns its rows, its TLAS and descriptor
-  sets that name shared images. A deforming mesh's BLAS stays its scene's, since it is built over that
-  scene's pose. One residency manager sets every texture's first level by a priority read from
-  deterministic inputs.
+- **Shared textures, one residency manager.** Textures are refcounted assets keyed by what names them,
+  held beside `SceneSlots`; a scene owns its rows, its BLAS, its TLAS and descriptor sets that name
+  shared images. One residency manager sets every texture's first level by a priority read from
+  deterministic inputs, where a budget cuts textures at all.
 - **RAM before the disk.** No memory saving in this plan reads or writes a file again: what a
   re-stand, a rebuild or a re-adoption needs stays in host memory, and an item that can save memory
   only by a second read is dropped. No item makes the reader or the resource system read a file more
   often than they do today, or makes the pipeline cache save more often than its one save a start.
-- **Slotted lights.** A light table keyed by stable identity (`SlotRows`, lowest free slot, so order is
-  deterministic without a sort); per frame only changed intensities are written, and an arrival or
-  departure enters or leaves only its own grid cells — the `PlacementTable` pattern.
+- **Lights ordered by identity.** The light table stays sorted, by a stable identity in place of the
+  position, so its order is a function of which lights stand and a moving lamp renumbers nothing. A
+  slotted table (the `PlacementTable` pattern) only where a profile shows count changes in the worst
+  frame, since its order follows the arrival history.
 - **One room per table, host and device.** A host table reserves the same `SceneRoom` its device table
   is made at, so both grow at the same, logarithmically few points.
 
@@ -109,8 +108,11 @@ Each batch leaves the build and tests green. Verify each by `AGENTS.md`: build t
 anything a frame reads, and `./omw gate` once at the end. Whoever addresses an item deletes it.
 
 Bugs, by batch: `readComposite`'s sprites (5), the indirect dispatch past 65535 groups (12), shutdown
-waiting out the tuple compile (15), a moved-from `Buffer`'s stale address (1), the picture chain and
-the tile lists outside the reserve (2), a full BAR window ending the renderer (4).
+waiting out the tuple compile (15), the picture chain and the tile lists outside the reserve (2), a
+full BAR window ending the renderer (4, where its measurement finds the window in reach).
+
+An item that names a measurement first is held to it: where the figure shows no cost, the item is
+dropped and the figure goes to `docs/rtx/research/`.
 
 No file in scope is read or written more than it needs: shader modules are read once a start
 (`ShaderCode`, the trace's kept until every tuple is made), the pipeline cache is read once and written
@@ -121,16 +123,15 @@ the cell ring keeps a cell a cell past the band it read it at (`CellRing::keptTo
 
 Files: `device/memory/{buffer,image,memory}.*`. First, because Batch 2 adds aliased images through it.
 
-- [ ] `buffer.hpp` / `image.hpp:61-78` — `Buffer` is static factories, `Image` a positional constructor,
-  a description constructor and a positional `tryMake`; `bytesFor` takes size and usage for one and a
-  description for the other. A `BufferDescription` beside `ImageDescription`, `make` and
-  `tryMake(use, device, description, name)` on both, the positional forms gone. An image placed in an
-  arena is made from the same description (`vmaCreateAliasingImage`), so Batch 2 adds no third form.
+- [ ] `image.hpp:61-78` — `Image` is a positional constructor, a description constructor and a
+  positional `tryMake`. The description forms alone, `tryMake(use, device, description, name)`
+  beside the constructor. An image placed in an arena is made from the same description
+  (`vmaCreateAliasingImage`), so Batch 2 adds no third form.
 - [ ] `memory.cpp:29-40, 252-256` — buffer requirements are made by hand for a coarser alignment, so VMA
   treats every buffer as an unknown kind (buffer-image granularity padding, no dedicated preference).
-  `vmaCreateBufferWithAlignment` (VMA 3.4, in tree), adopted into `Owned<VkBuffer>`.
-- [ ] `buffer.cpp:63` `alignmentOwedBy` — every buffer with storage and address usage is treated as
-  scratch and over-aligned. Ask for scratch alignment by its own usage.
+  `vmaCreateBufferWithAlignment` (VMA 3.4, in tree), adopted into `Owned<VkBuffer>`; `requirementsOf`
+  goes. The padding is a kilobyte a neighbour at most, so the gain is the library told the truth and
+  one hand-made function fewer, not memory.
 
 ### Batch 2 — Frame memory: one declaration, a derived reserve, then aliasing
 
@@ -152,9 +153,6 @@ Files: `trace/gbuffer.{hpp,cpp}`, `trace/denoise/denoisehistory.{hpp,cpp}`, `tra
   `tracedview.cpp:43`), is essential memory outside the reserve, and ~219 MB lands over a budget the
   textures already filled the first time the inventory opens. Size it at `createTargets` to the largest
   picture the game asks for, count it in the reserve, keep it.
-- [ ] `fogvolume.cpp:270` — a picture chain's growth builds a `FogVolume` whose constructor calls
-  `submitAndWait`, stalling the host behind both frames in flight. Record the clear into the caller's
-  batch.
 - [ ] The arena in each `TraceChain`: the images whose pass ranges do not overlap share one allocation,
   laid out from the declarations at `createTargets`, with an aliasing barrier at each alias's first
   write. Today's ranges put the stage images (but `STAGE_RECORD`, if Batch 11's first item binds it in
@@ -200,11 +198,6 @@ Files: `scene/bottomlevelstore.*`, `scene/sceneacceleration.*`, `scene/scenebuff
   "the frame behind reads the old row", while layers and masks (`scenebuffers.cpp:290-318`) solve the
   same problem with one copy written on the queue. The mesh table changes only on arrival: one copy,
   device-local, written on the queue.
-- [ ] `blockedbuffer.cpp:75-77` with `joinedblocks.hpp:58-59` — each growth remakes a host-written
-  address table inside `JoinedBlocks`' `mShared` and `mOwn` that nothing reads (only `join()`'s
-  per-slot tables are read). `BlockedBuffer` keeps blocks and addresses; the table becomes a small
-  owner used by a standalone `BlockedBuffer`, `SlotBlocks` and `JoinedBlocks::join`.
-  `JoinedBlocks::getBytes` then counts what exists.
 - [ ] `bufferusage.hpp` — write the rule this batch applies: per slot only where a frame behind reads a
   row the host rewrites.
 
@@ -213,41 +206,44 @@ Files: `scene/bottomlevelstore.*`, `scene/sceneacceleration.*`, `scene/scenebuff
 Files: `device/memory/{memory,slottable,growablebuffer}.*`, `device/physicaldevice.cpp`,
 `scene/scenebuffers.*`. After Batch 3.
 
-- [ ] Measure: read `mHostWrittenLive` at the heaviest place in `files/rtx/views.cfg` and after a long
-  walk, beside the 246 MiB window of a card without resizable BAR.
-- [ ] BUG `memory.cpp:247-260`, `buffer.cpp:31`, `slottable.hpp:269`, `growablebuffer.cpp:75` — a
-  `HostWritten` buffer is never refused and has no other path: a full window is a `DeviceError` that
-  ends the renderer. Decide each table's place at device creation from the window's size and the
-  tables' rooms: BAR where every per-frame table fits at its room, device-local and staged by
-  `SlotTable`'s per-row debt otherwise. Tables written only on arrival are device-local on every
-  device. No switch at run time.
-- [ ] A harness switch that forces the staged path, run by the GPU tests, so the RTX 20 card's path is
-  tested on this card.
+- [ ] Measure: read `mHostWrittenLive` at the heaviest place in `files/rtx/views.cfg`, in the
+  inventory, and after a long walk, beside the 246 MiB window of an RTX 20 card. Name every BAR user
+  beside the scene tables (the GUI's buffers, `mTexels`, the light tables).
+- [ ] BUG, where the measurement puts the window in reach: `memory.cpp:247-260`, `buffer.cpp:31`,
+  `slottable.hpp:269`, `growablebuffer.cpp:75` — a `HostWritten` buffer is never refused and has no
+  other path, so a full window is a `DeviceError` that ends the renderer. Decide each per-frame table's
+  place at device creation from the window's size and the tables' rooms: BAR where every such table
+  fits at its room, device-local and staged by `SlotTable`'s per-row debt otherwise, with a harness
+  switch that forces the staged path so this card tests it. Where the peak stays well under the window,
+  the figure goes to `docs/rtx/research/` and `sceneroom.hpp` states the window it was held to.
 
 ### Batch 5 — Arrival budget and off-frame frees
 
 Files: `vulkanrenderer.cpp:380-386`, `scene/bottomlevelstore.cpp:277-355`, `scene/sceneacceleration.*`,
-`scene/scenebuffers.cpp:299-318`, `scene/skintables.hpp`, `texture/{texture,texturecost,texturearrival}.*`,
-`device/graveyard.cpp`, `device/commands.cpp`, `device/memory/{growablebuffer,blockedbuffer}.cpp`,
-`display/displaychain.cpp`.
+`texture/{texture,texturecost,texturearrival}.*`, `device/graveyard.cpp`, `device/commands.cpp`,
+`device/memory/{growablebuffer,blockedbuffer}.cpp`, `display/displaychain.cpp`.
 
 - [ ] BUG `vulkanrenderer.cpp:925-929` with `displaychain.cpp:115-118` — with upscale off the sprite
   composite writes in place into `TraceChain::mComposed`, so `readComposite` returns smoke drawn in
   under `off` and not under any upscale mode, and disagrees with the digest's composed slot, against
   `bloompass.hpp:24-25`. The sprite composite writes into an image the display owns (declared in
   Batch 2's table).
-- [ ] Measure first: `./omw release bench --frame-times=<dir>` across a region crossing; read the worst
-  frame and the p99 beside the median.
+- [ ] Measure first: `./omw release bench --frame-times=<dir>` across a region crossing, and
+  `./omw profile` of the same leg; read the worst frame and the p99 beside the median, and how much of
+  the worst frame is the arrival's submit, the collect's destroys and `vkAllocateMemory`. Each of the
+  three items below lands only where its share shows in the worst frame.
 - [ ] `vulkanrenderer.cpp:380-386` — a cell's whole arrival rides one submit. An arrival scheduler with a
   per-frame budget in counted units (staged bytes, BLAS triangles, encoded texels): BLAS first, a
   placement into the top level only once its BLAS stands, textures on their stand-in until their turn.
-- [ ] `scenebuffers.cpp:299-318`, `skintables.hpp:21-28` — a grown table is re-staged whole from the
-  host. Copy old→new on the GPU and stage only the new rows.
+  Under a loading screen it drains with no budget, so an interior stands whole when the screen lifts
+  rather than filling in over frames; and a harness view waits until it has drained, so `shot` and
+  `repeat` read whole cells.
 - [ ] `texture.cpp:224-252`, `texturecost.cpp:78-85` — every single-level file past 512 texels holds its
   own loose RGBA8 chain until the batch ends (89 MB for 4096², plus 22 MB of blocks), and `costAt`
   sums them, so a cell with N such files asks for N×111 MB and `chooseSide` holds the whole arrival
   to a smaller side. One loose-chain canvas encoded in groups under a room, priced once a group, as
-  `texturearrival.hpp:169-173` already does for the spread means.
+  `texturearrival.hpp:169-173` already does for the spread means. Stands without the measurement: the
+  chains are device memory taken at once, and the price cuts every texture of the arrival.
 - [ ] `graveyard.cpp:58, 145-154` — every handle the wait released is destroyed on the frame thread
   under `mLock`, which also blocks compile threads burying pipelines. A destroyer thread takes the
   released prefix and destroys it in burial order (views before their image, the top level before its
@@ -255,12 +251,15 @@ Files: `vulkanrenderer.cpp:380-386`, `scene/bottomlevelstore.cpp:277-355`, `scen
   It is joined before `Device::~Device` idles.
 - [ ] `GrowableBuffer::growTo` via `SlotTable::sync`, `blockedbuffer.cpp` reserve, `commands.cpp:347`
   `takeStaging` — a miss in VMA's blocks is a `vkAllocateMemory` on the frame thread. Keep one spare
-  block ahead per pool, made by a worker.
+  block ahead per pool, made by a worker. VMA has no call that makes a block alone (it keeps one emptied
+  block already), so the worker takes and frees a block-sized allocation; that is the cost to weigh
+  against the measured share.
 
 ### Batch 6 — Shared textures across scenes
 
 Files: `scene/{devicescene,sceneslots,bottomlevelstore}.*`, `texture/texture.*`, `picturetracer.*`,
-`vulkanrenderer.*`. After Batch 5, so a shared asset arrives through one scheduler.
+`vulkanrenderer.*`. After Batch 5, so a shared asset arrives through one scheduler where its measurement
+lands one.
 
 - [ ] `devicescene.hpp:181-191` — each `DeviceScene` owns its `TextureArray` and `BottomLevelStore`, so
   opening the inventory uploads, chains, shades and spreads again every texture the wearer shows in the
@@ -268,17 +267,19 @@ Files: `scene/{devicescene,sceneslots,bottomlevelstore}.*`, `texture/texture.*`,
   what names them (path, encoding and wrap; `SceneUtil::EmbeddedImage`'s stamp for an embedded
   image); a scene owns its rows, its TLAS and descriptor sets that name shared images. An asset goes to
   the graveyard when its last scene lets it go.
-- [ ] Static meshes' BLAS shared the same way (a doll's held weapon or shield, a preview's static
-  parts). A deforming mesh's BLAS stays its scene's: it is built over that scene's pose.
 - [ ] The bindless slots then name shared images: one slot space for every scene, or each scene's own
   set written from the shared table. Choose by the descriptor-pool cost at the texture cap.
 
 ### Batch 7 — Texture residency
 
 Files: `texture/{texture,texturecost,texturearrival}.*`, `scene/texturetable.hpp`, `vulkanrenderer.cpp:224-226`.
-After Batch 5, whose scheduler carries the re-stands and whose single canvas prices the transients,
-and Batch 6, so one manager holds every scene's textures.
+After Batch 5, whose single canvas prices the transients and whose scheduler, where it lands, carries
+the re-stands, and Batch 6, so one manager holds every scene's textures.
 
+- [ ] Measure first: at the heaviest places with the PBR packs, under `--memory-budget` at an 8 GB
+  card's room, count the textures stood smaller and read their distances. The manager below lands only
+  where near textures stand smaller than far ones; on a card whose budget holds every texture whole it
+  does nothing.
 - [ ] `texture.cpp:449` — a texture's side is chosen from the room left when its cell arrives, a standing
   texture is never lowered, and a lowered one is restored only on a mode change: far cells loaded first
   keep full size and near cells arriving later are cut. A residency manager: each texture's first level
@@ -292,27 +293,36 @@ and Batch 6, so one manager holds every scene's textures.
   content does not fit in memory; Morrowind's does. Practice: Unreal texture streaming, RTX Remix's
   texture budget. Check with `./omw shot --against` after a walk, and `--frame-times` across a crossing
   for the re-stands' cost.
-- [ ] `texturetable.hpp:109` — a scene holds at most 4095 textures, which diffuse, normal and specular
-  maps and ground composites near in a 9×9 exterior with PBR packs. Raise it; it costs descriptor-pool
-  memory only.
+- [ ] `components/rtx/scene/texturetable.hpp:109` — a scene holds at most 4095 textures, which diffuse,
+  normal and specular maps and ground composites may near in a 9×9 exterior with PBR packs. Read the
+  peak slot count and the refusal count (`TextureTable`) over the suites with the packs first; raise
+  `TEXTURE_SLOTS` only where the peak nears it. It costs descriptor-pool memory only.
 
 ### Batch 8 — Host core: incremental lights and the run tables
 
 Files: `components/rtx/scene/{scenedesc,lightgrid,materialtable,deformertable}.*`,
-`components/rtx/mirror/cells/cellplacer.cpp`, `components/rtx/common/runs.hpp`, `vulkanrenderer.cpp`.
+`components/rtx/mirror/cells/cellplacer.cpp`, `components/rtx/common/runs.hpp`, `vulkanrenderer.cpp`,
+`scene/{scenebuffers.cpp,skintables.*}`.
 The lights move pictures within the noise, so they wait for the card that can read `shot` and `noise`.
 
-- [ ] `scenedesc.cpp:275-298`, `lightgrid.cpp:103`, `cellplacer.cpp:679` — lights cleared, re-made and
-  sorted every walk; the grid keys lamps by sorted index, so a count change (a spell light, a torch
-  bearer entering reach, a ring cell's lamps) rebuilds the grid whole, and a carried torch renumbers
-  every lamp between its old and new rank. A slotted light table keyed by stable identity (the walk's
-  by `LightSource` through a `Kept` map, the ring's by held cell and lamp index), intensity written per
-  frame, grid cells entered and left per lamp. Check with `./omw repeat` and `shot --against`.
-- [ ] `materialtable.hpp:113-114`, `deformertable.hpp:189-194` `RunBuffer` — the material layers and
-  masks and the deformer runs grow by vector doubling, copying the whole host table on a crossing frame,
-  and the backend re-stages the device's whole (`scenebuffers.cpp:304, 313`). `SceneRoom` names no room
-  for them: measure their peak in `ContentMemory` over the suites, then reserve them at a room of their
-  own beside the rows'.
+- [ ] Measure first: `./omw profile` of a walk carrying a torch and of a region crossing; read
+  `SceneDesc::orderLights`, `LightGrid::build` and `LightGrid::rebuild`'s share of the worst frame.
+  Below a share worth a change, the figure goes to `docs/rtx/research/` and the next item is dropped.
+- [ ] `scenedesc.cpp:275-298`, `lightgrid.cpp:103`, `cellplacer.cpp:679` — lights sorted by position
+  every walk, and the grid keys lamps by sorted index: a carried torch renumbers every lamp between its
+  old and new rank, and a count change (a spell light, a torch bearer entering reach, a ring cell's
+  lamps) rebuilds the grid whole. First, sort by a stable identity (the walk's `LightSource`, the
+  ring's held cell and lamp index) in place of the position: the order stays a function of which
+  lights stand, as the sort's comment asks, and a moving lamp renumbers nothing. A slotted table
+  (lowest free slot) only where count changes still show after that: its order is a function of the
+  arrival history, so one place reached by two walks samples its lamps in two orders. Check with
+  `./omw repeat` and `shot --against`.
+- [ ] `materialtable.hpp:113-114`, `deformertable.hpp:189-194` `RunBuffer`, `skintables.hpp:21-28` — the
+  material layers and masks, the deformer runs and the bind poses grow by doubling, copying the whole
+  host table on a crossing frame, and the backend re-stages the device's whole
+  (`scenebuffers.cpp:304, 313`). `SceneRoom` names no room for them: measure their peak in
+  `ContentMemory` over the suites, then reserve host and device at a room of their own beside the
+  rows'. A growth past the room copies old→new on the GPU and stages only the new rows.
 - [ ] `vulkanrenderer.cpp:341` — the backend still chooses a scene's room by its slot (`sWorldRoom` for
   the world's, nought otherwise) while the host reserves the room the scene was opened with
   (`SceneDesc(const SceneRoom&)`): two answers to one question. Let the scene carry its room and the
@@ -386,7 +396,8 @@ indices.
   the lists over a Y dimension.
 - [ ] `meshtable.hpp:126-129` — vertex colours are float3 and written white for every vertex of meshes
   that bring none. A run only where the mesh brings them, `NO_RUN` and a select as
-  `mSecondTexCoordOffset` does. Exact.
+  `mSecondTexCoordOffset` does. Exact. Measure the white vertices' share of `ContentMemory` over the
+  suites first, as for the indices below: vanilla's models mostly bring colours.
 - [ ] `structurebuild.cpp:23` — indices always u32; NIF shapes stay under 65,536 vertices. u16 per mesh
   where it fits halves those meshes' index blocks, one select in `committedHit`. Measure the index
   blocks' share of `ContentMemory` first; it is not worth a select if small.
@@ -400,21 +411,16 @@ Files: `texture/{texture,bc7encodepass}.*`, `image/texturedata.hpp`, `shaders/te
   format), which moves that level by mode 6's shared low bit and doubles a BC1 source (10.7 → 22 MB for
   a 4096² chain). Keep the source's format for the chain: level 0 copied as the file's own blocks, exact,
   and only levels 1 and below encoded, a third of the texels, by a BC1, BC3 (BC1 colour, BC4 alpha) or
-  BC5 kernel beside `Bc7EncodePass`. Vanilla files stand under the side and do not move.
+  BC5 kernel beside `Bc7EncodePass`. Vanilla files stand under the side and do not move. Count such
+  files in the PBR packs first: three new kernels for a handful of files are not worth their upkeep.
 - [ ] Normal maps without height to BC5 rather than BC7 mode 6 (Unreal `TC_Normalmap`, RTX Remix).
   Moves the mapped pictures.
 
 ### Batch 14 — Present and barriers
 
-Files: `vulkanrenderer.cpp`, `present/{presenter,swapchain}.cpp`, `gui/guidrawer.cpp`,
+Files: `vulkanrenderer.cpp`, `present/presenter.cpp`, `gui/guidrawer.cpp`,
 `display/displaychain.cpp`, `trace/tracechain.cpp`, `framering.*`.
 
-- [ ] `vulkanrenderer.cpp:553-556`, `presenter.cpp:182`, `swapchain.cpp:173` — a swapchain remake drains
-  the device twice and destroys the old swapchain before making the new one, so a window resize idles
-  the device at each configure event and a compositor shows a frame with no buffer. Where
-  `VK_EXT_swapchain_maintenance1` is present (`PresentFences`): pass `oldSwapchain`, retire the old
-  set until its present fences and blit values pass, no idle. Keep the idle path without it
-  (Vulkan-Samples `swapchain_recreation`).
 - [ ] `presenter.cpp` `take()`, `framering.cpp` `makeRoom` — under FIFO nothing bounds queued presents:
   `minImageCount + 1` images plus two frames in flight. Where `VK_KHR_present_wait` is offered, wait
   for present N−2 before the frame's input (DXVK's maximum frame latency); read the p99 with it.
@@ -484,6 +490,20 @@ Each goes to `docs/rtx/research/`, dated, with the figure that decides it.
   "RAM before the disk" refuses. The user's earlier choice to release the reader's copy gives way to
   that rule; the arrays stay for as long as the reader files the model.
 
+- `Buffer` made from a `BufferDescription` beside `ImageDescription`: its four named kinds are already
+  one form each, and a description at 109 call sites adds words and no gain. `Image` alone loses its
+  positional forms (Batch 1).
+- Scratch alignment asked by its own usage in `alignmentOwedBy` (`buffer.cpp:63`): no buffer but the
+  three scratch buffers has both storage and address usage, so nothing is over-aligned.
+- `FogVolume`'s `submitAndWait` recorded into the caller's batch: the picture chain no longer grows on a
+  frame (Batch 2), so the wait is left only at `createTargets`, which drains anyway.
+- The address table `BlockedBuffer` builds inside `JoinedBlocks` and nothing reads: a few hundred bytes
+  of BAR remade on a block's growth, against a new owner type split out of `BlockedBuffer`.
+- Static meshes' BLAS shared across scenes: a doll's static parts are a held weapon or a shield, a few
+  meshes, and its armour deforms; the shared textures take the memory that matters.
+- A swapchain remade over `oldSwapchain` with the old set retired by its present fences
+  (`swapchain.cpp:173`): `RtxWindow::fit` waits until the drawable has settled, so a window drag
+  remakes it once and not at each configure event, and a resize is a few times a session.
 - `ContentCache` (`preprocess/contentcache.hpp:22`), which holds nothing and reports nought in
   `mHits`, `mKeyMs` and `mKeyBytes`: kept as a staged design, by the user's decision.
 - A frame graph: see Batch 2's target, which takes its one gain here.
