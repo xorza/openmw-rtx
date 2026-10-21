@@ -13,11 +13,15 @@ namespace Misc
     /// index; a played session is handed the wall, so a stall ages a player's caches and not a
     /// benchmark's. How long since the last *traced* frame is `Rtx::FrameOptions::mSinceLast`, the
     /// difference of two `getNow`s, because a loading screen drives frames that draw no world.
-    class FrameClock
+    ///
+    /// Named for the loop and not for the frame, because `Misc::FrameClock` is the clock the frame
+    /// stats are timed on (`components/misc/framestats.hpp`), which is a different thing: a
+    /// `steady_clock` reading the wall whatever this one was told to say.
+    class LoopClock
     {
     public:
         /// @param step how long every frame stands for, or nothing to follow the wall.
-        explicit FrameClock(std::optional<float> step = std::nullopt)
+        explicit LoopClock(std::optional<float> step = std::nullopt)
             : mFixed(step)
         {
         }

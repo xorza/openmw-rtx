@@ -45,6 +45,11 @@ namespace MWLua
     class Worker;
 }
 
+namespace Misc
+{
+    class FrameStats;
+}
+
 namespace Files
 {
     struct ConfigurationManager;
@@ -122,7 +127,7 @@ namespace OMW
         virtual std::unique_ptr<MWRender::Renderer> createRenderer(const MWRender::RendererSpec& spec) = 0;
 
         /// How long every frame stands for, in seconds, or nothing to follow the wall: what the
-        /// engine's clock is made with (`Misc::FrameClock`).
+        /// engine's clock is made with (`Misc::LoopClock`).
         virtual std::optional<float> getFrameStep() const { return std::nullopt; }
 
         /// The one point in the frame where the world is the calling thread's alone, for a host
@@ -167,6 +172,8 @@ namespace OMW
         std::unique_ptr<MWInput::InputManager> mInputManager;
         std::unique_ptr<MWState::StateManager> mStateManager;
         std::unique_ptr<MWLua::LuaManager> mLuaManager;
+        // Outlives mLuaWorker, which reports into it from its own thread
+        std::unique_ptr<Misc::FrameStats> mFrameStats;
         std::unique_ptr<MWLua::Worker> mLuaWorker;
         std::unique_ptr<L10n::Manager> mL10nManager;
         MWBase::Environment mEnvironment;
@@ -194,7 +201,7 @@ namespace OMW
         // Grab mouse?
         bool mGrab;
         EngineHost* mHost = nullptr;
-        Misc::FrameClock mClock;
+        Misc::LoopClock mClock;
 
         bool mExportFonts;
         unsigned int mRandomSeed;

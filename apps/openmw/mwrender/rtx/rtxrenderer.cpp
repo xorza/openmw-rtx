@@ -265,7 +265,7 @@ namespace MWRender
 
     void RtxRenderer::configureResources(Resource::ResourceSystem& resources) noexcept
     {
-        const std::optional<float> stated = getFrameClock().getStatedStep();
+        const std::optional<float> stated = getLoopClock().getStatedStep();
         setResourceExpiry(resources, stated);
 
         // **The run's stated step decides whether the ground waits, unless the run says otherwise.**
@@ -403,8 +403,8 @@ namespace MWRender
         getFrameStamp().setFrameNumber(getFrameStamp().getFrameNumber() + 1);
 
         // **What OpenMW ages its caches by**, which is why it comes from the host's clock and not
-        // from the wall. `Misc::FrameClock` says what reading the wall here cost.
-        getFrameStamp().setReferenceTime(getFrameClock().getNow());
+        // from the wall. `Misc::LoopClock` says what reading the wall here cost.
+        getFrameStamp().setReferenceTime(getLoopClock().getNow());
         getFrameStamp().setSimulationTime(simulationTime);
     }
 
@@ -420,7 +420,7 @@ namespace MWRender
         // milliseconds, and a hit's red overlay faded by it — so two runs of one build drew the
         // overlay at different strengths on the same frame.
         assert(mGui != nullptr && "a frame before the interface was made");
-        mGui->update(static_cast<float>(getFrameClock().getStep()));
+        mGui->update(static_cast<float>(getLoopClock().getStep()));
 
         mUpdateVisitor->reset();
         mUpdateVisitor->setFrameStamp(&getFrameStamp());
@@ -753,7 +753,7 @@ namespace MWRender
 
         // **Ahead of the trace and not after the present**, so the frame this draws is the one the
         // window's own extent asked for rather than the one behind it.
-        mWindow.fit(*mRenderer, getCamera(), getPresentation(), getFrameClock().getNow());
+        mWindow.fit(*mRenderer, getCamera(), getPresentation(), getLoopClock().getNow());
 
         // **The stop's upscaling, where it asks for one, and the run's otherwise** — beside the fit,
         // because both rebuild the targets, and the camera below is built for the extent they leave.
@@ -996,7 +996,7 @@ namespace MWRender
             frame.mEye.closesAirAt(mMirror.getReach()));
         request.mSky = &mSky.getContent();
 
-        const double now = getFrameClock().getNow();
+        const double now = getLoopClock().getNow();
         const float sinceLast = mTracedAt.has_value() ? static_cast<float>(now - *mTracedAt) : 0.0f;
         mTracedAt = now;
 
