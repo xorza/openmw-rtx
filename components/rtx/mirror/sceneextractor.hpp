@@ -94,8 +94,7 @@ namespace Rtx
         .mEffects = 256 };
 
     /// A picture's subject: a doll dressed in every slot with a weapon drawn and a spell held, with
-    /// room to spare, so a change of clothes rehashes nothing either, at a sixty-fourth of the world's
-    /// maps.
+    /// room to spare, so a change of clothes rehashes nothing either.
     inline constexpr ExtractorRoom sSubjectExtractorRoom{ .mPlacements = 1024,
         .mMeshes = 1024,
         .mDeformers = 256,

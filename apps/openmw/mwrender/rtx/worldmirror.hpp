@@ -174,7 +174,7 @@ namespace MWRender
 
         /// Moves what `released` holds into the queue the world was attached with, so the last
         /// reference to what a walk let go of is dropped on the queue's worker and not on the frame
-        /// thread; with no world attached, a test's mirror, lets go where it stands. The world's
+        /// thread. A mirror no world was attached to, a test's, lets go where it stands. The world's
         /// own walks hand theirs here, and so do the pictures' (`ViewQueue::draw`).
         void release(Rtx::Released& released);
 

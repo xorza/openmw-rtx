@@ -36,20 +36,20 @@ namespace Rtx
     ///
     /// Two rings, and a thread between them. The *prepared* ring is the reach plus one band: each
     /// cell in it has been read by the thread and adopted by the frame into the scene, so its
-    /// meshes stand on the device before anything can see them, and is kept until it is a cell past
-    /// the band (`keptTo`). The *placed* ring is the reach: a
-    /// cell in it has its ground in the top level, and outside the active grid its statics too. A
-    /// frame adopts at most one prepared cell and moves the placements of the cells that crossed a
-    /// boundary. This is the policy; `CellHolds` is the bookkeeping of what the reader lent and
-    /// the holds adoption took; `CellPlacer` is what stands and by what rule. A model's drawable
-    /// is the template's, so a mesh adopted here is the mesh the frame's walk finds under the
-    /// clone when the cell becomes active, and nothing is uploaded twice. The ground's rows are
-    /// the ring's own: no drawable will ever name them, so the placer holds them on the scene. What
-    /// this adopts goes through the extractor's own resolvers inside the walk (`SceneAdopter`),
-    /// which is also the scene everything here stands in and the walk's counts it adds to, and
-    /// holds by `Reach::mHolds` rather than being named again on every walk. Everything the
-    /// thread reads is lent and given back — `Spares` says why an address and not a shared count,
-    /// and `letGo` why a hold is a cell's.
+    /// meshes stand on the device before anything can see them, and is kept until it is a cell
+    /// past the band (`keptTo`). The *placed* ring is the reach: a cell in it has its ground in
+    /// the top level, and outside the active grid its statics too. A frame adopts at most one
+    /// prepared cell and moves the placements of the cells that crossed a boundary. This is the
+    /// policy; `CellHolds` is the bookkeeping of what the reader lent and the holds adoption
+    /// took; `CellPlacer` is what stands and by what rule. A model's drawable is the template's,
+    /// so a mesh adopted here is the mesh the frame's walk finds under the clone when the cell
+    /// becomes active, and nothing is uploaded twice. The ground's rows are the ring's own: no
+    /// drawable will ever name them, so the placer holds them on the scene. What this adopts goes
+    /// through the extractor's own resolvers inside the walk (`SceneAdopter`), which is also the
+    /// scene everything here stands in and the walk's counts it adds to, and holds by
+    /// `Reach::mHolds` rather than being named again on every walk. Everything the thread reads
+    /// is lent and given back — `Spares` says why an address and not a shared count, and `letGo`
+    /// why a hold is a cell's.
     ///
     /// **The lamps of the cells the game has not loaded are the ring's too.** `REC_LIGH` is not a
     /// paged type and must not become one, because both renderers read the paging's type filter;
