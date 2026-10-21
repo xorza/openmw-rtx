@@ -44,10 +44,7 @@ trace against the world's own scene.
    every walk, and the light grid keys lamps by their sorted index, so a change in the count
    rebuilds the grid whole. The sweep scans whole identity maps when one entry is missed. Host tables
    grow by `std::vector` doubling at points of their own, apart from the device tables' room.
-6. **The cell reader forgets what it read.** A cell is dropped at the radius it is asked at, a
-   model or texture no cell holds is cleared at once, and a worldspace change resets the reader, so
-   the resource cache's expiry decides when a file is read again.
-7. **Shader state carried past where it is read.** `GatherRun::mLampRay` (a whole `RayAsk`) and the
+6. **Shader state carried past where it is read.** `GatherRun::mLampRay` (a whole `RayAsk`) and the
    whole `Gloss` live across shadow traversals; `storeBounced` loads nine channels for a mask that is
    nought where no layer stands; the reprojection match runs three to four times a pixel; a
    candidate's cone is computed before the early-outs that discard it.
@@ -115,18 +112,15 @@ Bugs, by batch: `readComposite`'s sprites (5), the indirect dispatch past 65535 
 waiting out the tuple compile (15), a moved-from `Buffer`'s stale address (1), the picture chain and
 the tile lists outside the reserve (2), a full BAR window ending the renderer (4).
 
-Needless reads, by batch: the cell ring reads a cell again at its band's edge, after the resource
-cache let a given-back model go, and after every interior (9). Nothing else in scope reads or writes a
-file more than once: shader modules are read once a start (`ShaderCode`, the trace's kept until every
-tuple is made), the pipeline cache is read once and written only where it changed, the sky's sheets are
-read once and held, and the logs write nothing per frame.
+No file in scope is read or written more than it needs: shader modules are read once a start
+(`ShaderCode`, the trace's kept until every tuple is made), the pipeline cache is read once and written
+only where it changed, the sky's sheets are read once and held, the logs write nothing per frame, and
+the cell ring keeps a cell a cell past the band it read it at (`CellRing::keptTo`).
 
 ### Batch 1 — Device memory API
 
 Files: `device/memory/{buffer,image,memory}.*`. First, because Batch 2 adds aliased images through it.
 
-- [ ] BUG `buffer.hpp:93` — the defaulted move leaves `mSize` and `mAddress` in the source; a moved-from
-  buffer's `getDeviceAddress()` returns a stale address and its assert passes. Reset both.
 - [ ] `buffer.hpp` / `image.hpp:61-78` — `Buffer` is static factories, `Image` a positional constructor,
   a description constructor and a positional `tryMake`; `bytesFor` takes size and usage for one and a
   description for the other. A `BufferDescription` beside `ImageDescription`, `make` and
@@ -217,13 +211,10 @@ Files: `scene/bottomlevelstore.*`, `scene/sceneacceleration.*`, `scene/scenebuff
 ### Batch 4 — Where each table lives
 
 Files: `device/memory/{memory,slottable,growablebuffer}.*`, `device/physicaldevice.cpp`,
-`scene/scenebuffers.*`, `scene/sceneroom.hpp`. After Batch 3.
+`scene/scenebuffers.*`. After Batch 3.
 
 - [ ] Measure: read `mHostWrittenLive` at the heaviest place in `files/rtx/views.cfg` and after a long
   walk, beside the 246 MiB window of a card without resizable BAR.
-- [ ] `sceneroom.hpp:22-28`, `scenebuffers.cpp:147-148` — the comment prices the world's placement room
-  at 16 MiB a copy; the instance rows are 160 B × 2^18 = 40 MiB a copy beside the row table's 16 MiB.
-  State the real figure per table.
 - [ ] BUG `memory.cpp:247-260`, `buffer.cpp:31`, `slottable.hpp:269`, `growablebuffer.cpp:75` — a
   `HostWritten` buffer is never refused and has no other path: a full window is a `DeviceError` that
   ends the renderer. Decide each table's place at device creation from the window's size and the
@@ -305,12 +296,11 @@ and Batch 6, so one manager holds every scene's textures.
   maps and ground composites near in a 9×9 exterior with PBR packs. Raise it; it costs descriptor-pool
   memory only.
 
-### Batch 8 — Host core: incremental lights, sweep and tables
+### Batch 8 — Host core: incremental lights and the run tables
 
-Files: `components/rtx/scene/{scenedesc,lightgrid}.*`, `components/rtx/mirror/cells/{cellplacer,cellring,held,cellreader}.*`,
-`components/rtx/mirror/mirroridentity.hpp`, `components/rtx/common/{runs,slots}.hpp`,
-`components/rtx/mirror/sceneextractor.*`, `components/rtx/view/offscreentrace.cpp`,
-`apps/openmw/mwrender/rtx/{worldmirror,rtxrenderer,tracedterrain}.*`.
+Files: `components/rtx/scene/{scenedesc,lightgrid,materialtable,deformertable}.*`,
+`components/rtx/mirror/cells/cellplacer.cpp`, `components/rtx/common/runs.hpp`, `vulkanrenderer.cpp`.
+The lights move pictures within the noise, so they wait for the card that can read `shot` and `noise`.
 
 - [ ] `scenedesc.cpp:275-298`, `lightgrid.cpp:103`, `cellplacer.cpp:679` — lights cleared, re-made and
   sorted every walk; the grid keys lamps by sorted index, so a count change (a spell light, a torch
@@ -318,63 +308,15 @@ Files: `components/rtx/scene/{scenedesc,lightgrid}.*`, `components/rtx/mirror/ce
   every lamp between its old and new rank. A slotted light table keyed by stable identity (the walk's
   by `LightSource` through a `Kept` map, the ring's by held cell and lamp index), intensity written per
   frame, grid cells entered and left per lamp. Check with `./omw repeat` and `shot --against`.
-- [ ] `mirroridentity.hpp:233` — when `whole()` fails, `retire` iterates every entry of the map
-  (reserved at 65k placements), frozen and ring entries included. Keep held entries out of the sweep
-  domain: an intrusive list ordered by epoch, so a sweep costs what it drops.
-- [ ] `runs.hpp:215` `RunBuffer`, `slots.hpp:265,324` `SlotRows` — host tables grow by vector doubling at
-  points of their own, copying whole tables on a crossing frame (~5.5 MB of placement rows at 32k).
-  Reserve each at the `SceneRoom` its device table is made at, so host and device grow together and
-  logarithmically rarely, and spans over contiguous rows stay as they are.
-- [ ] `worldmirror.cpp:203` — `std::move` into `make_shared` leaves `Released` at zero capacity every
-  frame that releases, against its comment ("grown to the busiest crossing so far"). Reserve the
-  replacement to the last high-water mark.
-- [ ] `offscreentrace.cpp:160` — a picture's sweep drops released objects on the frame thread, against
-  the seam's rule. Hand them through the world mirror's `UnrefQueue` path, and let one helper own the
-  sequence (clear placement, clock, eye, extract, retire, release, hand) the world and picture walks
-  both repeat.
-- [ ] `sceneextractor.cpp:622-628` — every picture's extractor reserves the world's budgets (65k
-  placements, 16k meshes, 16k materials, 8k frozen roots). The caller passes the budget.
-- [ ] `SceneExtractor`, `WorldMirror`, `RtxRenderer` — wired by reference to siblings, non-copyable only
-  because a member is. Delete copy and move explicitly (`AGENTS.md`, Conventions).
-- [ ] `tracedterrain.cpp` `TracedTerrain::meet` refills a 65×65 grid from `fillVertexBuffers` for each
-  distant cell a CPU ray crosses; the ring's `GroundReader` built the same positions
-  (`HeldGround::mStood.mMesh`). Read the held mesh.
-
-### Batch 9 — Reads the cell reader keeps
-
-Files: `components/rtx/mirror/cells/{cellring,cellsupply,cellreader,readermemory}.*`,
-`apps/openmw/mwrender/rtx/rtxsettings.*`. Each: `./omw release bench --frame-times=<dir>` over a walk that crosses a band's edge
-twice and over a door in and out, reading the worst frame, the reader's reads and `ReaderMemory`.
-
-- [ ] `cellring.cpp:497-511` — a held cell is dropped (`dropUnless`), and a handed one given back
-  (`sift`), at the same `band` `ask` reads at, so a player who walks to and fro across a band's edge
-  drops and reads the same cells each time: the template and its images again through the resource
-  system, the template's walk, the preprocessing, the upload and the BLAS builds. Keep a cell until it
-  is one cell past the band it was asked at (streaming hysteresis: a load range and a wider unload
-  range, as `uGridsToLoad` with its buffer and every open-world streamer keep). What stands is still
-  the reach; only what is held is wider. The radii are fixed numbers, so two runs hold the same cells.
-- [ ] `cellreader.cpp:392-447` `giveBack` — a model or texture no cell holds is `reuse`d at once: its
-  arrays cleared and its template's or image's reference dropped. Upstream's resource cache then lets
-  the template go after `[Cells] cache expiry delay` (5 s, and 1 s during a cell change,
-  `mwworld/scene.cpp:730, 796`), so the next cell that names it reads the file again, parses it, and
-  walks and preprocesses it again. Keep a given-back model or texture filed and idle, its reference
-  held, in a least-recently-given-back order under a byte budget; a read finds it filed and lends it
-  again, and only a reader past its budget lets the oldest go. **The budget comes from the machine's
-  RAM**, by the user's decision: a share of the physical memory by default, which a `[RTX]` setting in
-  MB replaces, both resolved once in `RtxSettings::derive`. Physical memory is a fact the systems spell
-  differently, so it is a `Platform::` call in a `…posix.cpp` and `…win32.cpp` pair behind one header
-  (`AGENTS.md`, Conventions). The harness states the budget in MB on its command line, so a run's
-  evictions do not follow the machine it ran on. Pick the default share after the measurement:
-  `ReaderMemory`'s idle bytes after one walk through every place of the suites, vanilla and with a
-  replacer pack. `ReaderMemory` gains the idle count and bytes, and the reads saved. The data a
-  read gives is the same either way, so no picture moves; only when a cell is handed does. An idle
-  model keeps its vertex arrays, which its next adoption reads (`CellHolds::adoptParts`).
-- [ ] `cellsupply.cpp:46-68` `CellSupply::follow` — a worldspace change stops the worker and resets the
-  reader, so every model and texture of the exterior's ring is read again on the way out of a shop. Keep
-  the last exterior's reader, with its filed and idle sets, parked while the game is in an interior
-  (one parked reader, its idle bytes counted in the same budget), and resume it when the game returns to that worldspace.
-  The frame's rows still go with the frame's holds, as `CellRing::forget` says; what is kept is the
-  host's read content, so the return costs uploads and builds but no file.
+- [ ] `materialtable.hpp:113-114`, `deformertable.hpp:189-194` `RunBuffer` — the material layers and
+  masks and the deformer runs grow by vector doubling, copying the whole host table on a crossing frame,
+  and the backend re-stages the device's whole (`scenebuffers.cpp:304, 313`). `SceneRoom` names no room
+  for them: measure their peak in `ContentMemory` over the suites, then reserve them at a room of their
+  own beside the rows'.
+- [ ] `vulkanrenderer.cpp:341` — the backend still chooses a scene's room by its slot (`sWorldRoom` for
+  the world's, nought otherwise) while the host reserves the room the scene was opened with
+  (`SceneDesc(const SceneRoom&)`): two answers to one question. Let the scene carry its room and the
+  backend read it.
 
 ### Batch 10 — Shaders, bit-identical
 
@@ -518,10 +460,27 @@ Each goes to `docs/rtx/research/`, dated, with the figure that decides it.
 
 ## Dropped
 
+- A cache of what the cell reader read and no cell holds (models and ground textures kept idle under a
+  byte budget from the machine's RAM, and a reader parked across a change of worldspace): by the user's
+  decision, it does not earn its complexity and its upkeep. Upstream's resource cache keeps a
+  given-back model for `[Cells] cache expiry delay`, and the ring's hysteresis keeps the cells a walk
+  across a band's edge comes back to.
+
+- The sweep kept to what it drops (`mirroridentity.hpp`, an intrusive list ordered by epoch): the world
+  walk already visits every entry it keeps each frame, the sweep is a scan of one flat array on frames
+  where something left, and an open-addressing table moves its entries as it grows, which no intrusive
+  link survives.
+- One helper owning the sequence the world's and a picture's walks repeat: the picture's poses, steps
+  its own clock and sets its own eye, and the release is now one call for both (`WorldMirror::release`).
+- The traced terrain answering a ray from the ring's held ground (`TracedTerrain::meet`): a CPU ray past
+  the loaded cells is rare, its one-cell cache serves a ray's run, and the held ground is a scene row
+  where the intersection visitor reads an `osg` geometry, which a copy of the row would cost the same as
+  the fill.
+
 - Releasing a `PreparedModel`'s vertex arrays (~68 B a vertex) after its first adoption, beside
   `SceneDesc`'s copy: the frame adopts a model again whenever it let the model go while the reader
-  still files it (`CellHolds::release`, then `adoptParts`), and Batch 9's idle models are that case by
-  design. Without the arrays, that adoption must walk the template or read the file again, which
+  still files it (`CellHolds::release`, then `adoptParts`): a cell read and not yet adopted names it.
+  Without the arrays, that adoption must walk the template or read the file again, which
   "RAM before the disk" refuses. The user's earlier choice to release the reader's copy gives way to
   that rule; the arrays stay for as long as the reader files the model.
 
