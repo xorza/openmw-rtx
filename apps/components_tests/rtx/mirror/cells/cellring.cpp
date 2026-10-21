@@ -1595,7 +1595,12 @@ namespace Rtx::Testing
                 std::ranges::count_if(band(1), [&](const std::pair<int, int>& cell) { return !held.contains(cell); }));
             EXPECT_EQ(fill().mMeshesAdded, gained) << "the column the band gained, one ground each";
             held = settled(held, 1);
-            EXPECT_GT(held.size(), std::size_t{ sPreparedCells }) << "nothing was kept past the band";
+
+            // Kept past the band, by hand: column -5's five, `|dy| <= 2`, 5.5 cells from the new eye
+            // and inside six; column -4's four at `|dy|` 3 and 4, `4.5² + 3.5² = 32.5 < 36` and out
+            // of the band at 4.5² + 2.5² = 26.5; and column -2's two at `|dy| = 5`, `2.5² + 4.5² =
+            // 26.5`, which the old band held at `1.5² + 4.5² = 22.5`.
+            EXPECT_EQ(held.size(), std::size_t{ sPreparedCells } + 11u);
             EXPECT_EQ(mRing.getHeldCellCount(), held.size());
             EXPECT_EQ(mRing.getCellsToStand(), 0u) << "a kept cell counted against the band";
 
@@ -1603,7 +1608,13 @@ namespace Rtx::Testing
             fill();
             const Cells before = held;
             held = settled(held, 2);
-            EXPECT_LT(held.size(), before.size() + band(2).size()) << "nothing went past six";
+
+            // Let go, by hand: column -5's five, 6.5 cells out now, and column -4's four past
+            // `|dy| = 2`, `5.5² + 2.5² = 36.5`; column -3 keeps every row to `|dy| = 4`, `4.5² + 3.5²
+            // = 32.5`.
+            EXPECT_EQ(
+                std::ranges::count_if(before, [&](const std::pair<int, int>& cell) { return !held.contains(cell); }),
+                9);
             EXPECT_EQ(mRing.getHeldCellCount(), held.size());
             EXPECT_EQ(mRing.getCellsToStand(), 0u);
 
