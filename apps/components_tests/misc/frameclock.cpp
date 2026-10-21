@@ -14,7 +14,7 @@ namespace Misc
         ///
         /// **The measurement is handed in and ignored**, which is the whole of what makes a run
         /// repeatable: the clock says the same thing on a fast machine and a slow one.
-        TEST(MiscFrameClockTest, aStatedStepIgnoresWhatTheWallSaid)
+        TEST(MiscLoopClockTest, aStatedStepIgnoresWhatTheWallSaid)
         {
             // **The step is a `float` and the time is a `double`**, because the step is a setting
             // and the time is a sum of thousands of them. So what is expected is the widened float
@@ -22,7 +22,7 @@ namespace Misc
             constexpr float sixtieth = 1.0f / 60.0f;
             constexpr double widened = static_cast<double>(sixtieth);
 
-            FrameClock clock(sixtieth);
+            LoopClock clock(sixtieth);
             EXPECT_EQ(clock.getStep(), 0.0) << "nothing stands for anything before the first frame";
             EXPECT_EQ(clock.getNow(), 0.0);
 
@@ -41,9 +41,9 @@ namespace Misc
         ///
         /// **A stall should age a player's caches**, which is why the time is the wall's rather than
         /// the frames added up: `MWWorld::Scene` expires what it holds against this.
-        TEST(MiscFrameClockTest, withNoStepStatedTheWallDecidesBothAnswers)
+        TEST(MiscLoopClockTest, withNoStepStatedTheWallDecidesBothAnswers)
         {
-            FrameClock clock;
+            LoopClock clock;
             EXPECT_EQ(clock.getStatedStep(), std::nullopt) << "which is what says the run does not repeat itself";
 
             clock.advance(0.25);
@@ -63,10 +63,10 @@ namespace Misc
         }
 
         /// The two modes disagree, which is what makes the choice worth making.
-        TEST(MiscFrameClockTest, aStatedStepAndTheWallGiveDifferentAnswersForOneFrame)
+        TEST(MiscLoopClockTest, aStatedStepAndTheWallGiveDifferentAnswersForOneFrame)
         {
-            FrameClock stated(1.0f / 60.0f);
-            FrameClock walled;
+            LoopClock stated(1.0f / 60.0f);
+            LoopClock walled;
 
             stated.advance(0.5);
             walled.advance(0.5);

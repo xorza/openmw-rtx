@@ -234,15 +234,15 @@ namespace MWRender
             RecordingRenderer renderer;
             renderer.setFrameRateLimit(200.0f);
 
-            Misc::FrameClock wall;
-            renderer.setFrameClock(wall);
+            Misc::LoopClock wall;
+            renderer.setLoopClock(wall);
             renderer.awaitFrame();
             const float step = renderer.openNestedFrame();
             EXPECT_EQ(step, static_cast<float>(wall.getStep()));
             EXPECT_GE(wall.getStep(), 0.005);
 
-            Misc::FrameClock stated(1.0f / 60.0f);
-            renderer.setFrameClock(stated);
+            Misc::LoopClock stated(1.0f / 60.0f);
+            renderer.setLoopClock(stated);
             EXPECT_EQ(renderer.openFrame(), static_cast<double>(1.0f / 60.0f))
                 << "the loop's frame takes the stated step";
             const double now = stated.getNow();

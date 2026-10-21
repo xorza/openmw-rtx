@@ -38,7 +38,7 @@ namespace MWRender
         osg::Vec2i readSize() const;
 
         /// Sizes the trace, the surface and the viewport to `presentation`, `now` being the host's
-        /// clock (`Misc::FrameClock::getNow`): at once where the frame alone moved, and once the
+        /// clock (`Misc::LoopClock::getNow`): at once where the frame alone moved, and once the
         /// window has kept one size for `sSettleSeconds` where the window moved. Asked every frame,
         /// because a surface that stopped matching the window is remade by the call it makes.
         void fit(Rtx::Renderer& renderer, osg::Camera& camera, const Misc::Presentation& presentation, double now);
