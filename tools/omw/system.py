@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import functools
 import os
 import subprocess
 import sys
@@ -36,6 +37,8 @@ FORK = (
 )
 # Set by GitHub Actions, as by every CI service: CI checks what the desk rewrites.
 CI = os.environ.get("CI", "").lower() in ("true", "1")
+# The tree's own C++, which the formatting and the file names are checked over: `extern/` is vendored.
+CXX_SOURCES = (":(exclude)extern/", "*.cpp", "*.hpp", "*.h")
 
 
 class Refusal(Exception):
@@ -165,6 +168,15 @@ def working_tree_files(*pathspecs: str) -> list[str]:
     return [name for name in listed if (ROOT / name).is_file()]
 
 
+def user_and_group() -> str:
+    """This process's user and group as `uid:gid`, the form `chown` and `docker --user` take.
+    POSIX's: Windows has neither, and no step of the driver there asks."""
+    # An `if` and not an `assert`, which mypy does not read a platform through inside a function.
+    if WINDOWS:
+        raise AssertionError("a user and a group are POSIX's, and no step on Windows asks for them")
+    return f"{os.getuid()}:{os.getgid()}"
+
+
 def jobs() -> int:
     return os.cpu_count() or 1
 
@@ -191,14 +203,21 @@ def parse_set_output(text: str) -> dict[str, str]:
     return variables
 
 
-def msvc_environment(env: dict[str, str]) -> dict[str, str]:
-    """**MSVC's environment, the way setuptools takes it.** `cl` finds its headers and libraries
-    through `INCLUDE` and `LIB`, which Ninja does not bake into the build, so every build needs them
-    and not only the configure. `VsDevCmd.bat` sets them for the installation vswhere names, and a
-    `set` in the same `cmd` prints the whole environment it left, as UTF-16 under `/u`. `VSCMD_VER`
-    is the documented sign that a shell has them already. vswhere's directory goes on the PATH,
-    because the batch file looks for it there, and `-startdir=none` keeps it from moving the shell.
-    """
+def msvc_environment() -> dict[str, str]:
+    """**MSVC's environment, the way setuptools takes it**, over the driver's own, a copy the
+    caller may change. `cl` finds its headers and libraries through `INCLUDE` and `LIB`, which Ninja
+    does not bake into the build, so every build needs them and not only the configure.
+    `VsDevCmd.bat` sets them for the installation vswhere names, and a `set` in the same `cmd`
+    prints the whole environment it left, as UTF-16 under `/u`. `VSCMD_VER` is the documented sign
+    that a shell has them already. vswhere's directory goes on the PATH, because the batch file
+    looks for it there, and `-startdir=none` keeps it from moving the shell. **Once a process**:
+    the batch file takes seconds, and the gate's two flavours asked it twice."""
+    return dict(_msvc_activated())
+
+
+@functools.cache
+def _msvc_activated() -> dict[str, str]:
+    env = dict(os.environ)
     if env.get(environment_key("VSCMD_VER")):
         return env
 

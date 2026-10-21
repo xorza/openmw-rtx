@@ -88,9 +88,11 @@ def _build(build: Build, args: list[str]) -> int:
     every build job; after the build, `listing.check`."""
     if not CI and formatting.format_tree([]) != 0:
         return 1
-    without_device = "--without-device" in args
     targets = [arg for arg in args if arg != "--without-device"]
-    build.build(targets or build.default_targets + build.test_targets(without_device))
+    if targets:
+        build.build(targets)
+    else:
+        build.build_default(without_device="--without-device" in args)
     return listing.check(build)
 
 

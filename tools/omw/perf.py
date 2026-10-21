@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import IO
 
 from omw.build import Build
-from omw.system import WINDOWS, Refusal, Switches, on_path, read_text, require, status
+from omw.system import WINDOWS, Refusal, Switches, on_path, read_text, require, status, user_and_group
 
 SAMPLES_A_SECOND = "5999"
 
@@ -83,7 +83,7 @@ def profile(build: Build, args: list[str]) -> int:
                 code = _record_offcpu(build.dir, build.env, [*elevate, *record], bench, log)
                 # Only what root wrote is owned by root.
                 if elevate:
-                    subprocess.run(["sudo", "chown", f"{os.getuid()}:{os.getgid()}", str(data)], check=True)
+                    subprocess.run(["sudo", "chown", user_and_group(), str(data)], check=True)
             else:
                 with subprocess.Popen([*record, "--", *bench], cwd=build.dir, env=build.env,
                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8",

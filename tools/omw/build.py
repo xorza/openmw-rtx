@@ -39,6 +39,11 @@ QT_FLAVOURS = ("package", "full")
 # The file a directory keeps the digest it was last configured from in.
 CONFIGURED_FROM = "omw-preset.sha256"
 
+# 2000-01-02 UTC, the time `build.ninja` takes where it was dated after the clock: before every input
+# a checkout has, and a day past 2000, the epoch Ninja counts its times from on Windows, so the time
+# is not negative there.
+MANIFEST_AGED = 946_771_200.0
+
 
 def manifest_inputs(query: str, directory: Path) -> list[Path]:
     """The inputs `ninja -t query build.ninja` names, explicit, implicit and order-only alike: the
@@ -54,17 +59,58 @@ def manifest_inputs(query: str, directory: Path) -> list[Path]:
     return inputs
 
 
+def deps_inputs(listing: str, directory: Path) -> list[Path]:
+    """The files `ninja -t deps` names, each once: the headers each compile said it read, indented
+    under the line of the output that read them. A relative one is from the build `directory`."""
+    named = dict.fromkeys(line.strip() for line in listing.splitlines() if line.startswith("    "))
+    return [directory / path for path in named]
+
+
+def ninja_outputs(listing: str, directory: Path) -> list[Path]:
+    """The files `ninja -t targets all` names, a line `<output>: <rule>` each, but the phony targets,
+    which name no file. A relative one is from the build `directory`."""
+    named = (line.rsplit(": ", 1) for line in listing.splitlines() if ": " in line)
+    return [directory / path for path, rule in named if rule != "phony"]
+
+
+def dated_after(paths: list[Path], now: float) -> list[Path]:
+    """The files of `paths` dated after `now`, each once: Ninja names a file CMake spelled both ways
+    once relative and once whole."""
+    ahead: dict[Path, Path] = {}
+    for path in paths:
+        if path.is_file() and path.stat().st_mtime > now:
+            ahead.setdefault(path.resolve(), path)
+    return list(ahead.values())
+
+
 def redate_ahead(paths: list[Path], now: float, root: Path = ROOT) -> list[Path]:
     """The files of `paths` dated after `now`, each given the time `now`. **Only inside `root`**: one
     outside it is not the driver's to touch, and is refused before any file is touched."""
-    ahead = [path for path in paths if path.is_file() and path.stat().st_mtime > now]
+    ahead = dated_after(paths, now)
     outside = next((path for path in ahead if not path.resolve().is_relative_to(root.resolve())), None)
     if outside is not None:
-        raise Refusal(f"{outside} is dated after the clock, and build.ninja reads it, so every build.ninja CMake "
-                      "writes is older than it: give it the time now")
+        raise Refusal(f"{outside} is dated after the clock, and the build reads it, so whatever is built from it "
+                      "is older than it and built again on every run: give it the time now")
     for path in ahead:
         os.utime(path, (now, now))
     return ahead
+
+
+def remove_ahead(paths: list[Path], now: float, directory: Path) -> list[Path]:
+    """The files of `paths` inside the build `directory` dated after `now`, each removed, so Ninja
+    builds it again, but `build.ninja`, which takes `MANIFEST_AGED`: Ninja regenerates it from the
+    cache for that, and CMake writes it at every regeneration, where a removed one left the
+    directory to be configured afresh, the cache dropped and every compiler found again. **Only
+    inside it**: an output elsewhere, a translation Qt's rule writes into the tree, is source as
+    well."""
+    within = directory.resolve()
+    inside = [path for path in dated_after(paths, now) if path.resolve().is_relative_to(within)]
+    for path in inside:
+        if path.resolve() == within / "build.ninja":
+            os.utime(path, (MANIFEST_AGED, MANIFEST_AGED))
+        else:
+            path.unlink()
+    return inside
 
 
 def configured_from(directory: Path, digest: str) -> bool:
@@ -109,7 +155,8 @@ class Build:
         self.preset = f"{flavour}-{SYSTEM}"
         self._env: dict[str, str] | None = None
         self._configured = False
-        self._harness_built = False
+        self._built: set[str] = set()
+        self._tests: list[dict] | None = None
 
     @property
     def default_targets(self) -> list[str]:
@@ -125,10 +172,9 @@ class Build:
         sanitizers' options, without which the asan build has no device and a race in the tsan build
         does not fail the run."""
         if self._env is None:
-            env = dict(os.environ)
+            env = msvc_environment() if WINDOWS else dict(os.environ)
             deps.sdk_environment(env)
             if WINDOWS:
-                env = msvc_environment(env)
                 versions = deps.msvc_versions()
                 env["VCPKG_TAG"] = versions["VCPKG_TAG"]
                 env["QT_VER"] = versions["QT_VER"]
@@ -175,6 +221,7 @@ class Build:
         cache edited since is Ninja's to notice, since `build.ninja` depends on it."""
         if self._configured:
             return
+        self._remove_outputs_ahead()
         env = self.env
         digest = presets.digest(env)
         stamp = self.dir / CONFIGURED_FROM
@@ -214,6 +261,40 @@ class Build:
             print(f"omw: {len(ahead)} files build.ninja is made from were dated after the clock, {ahead[0]} among "
                   "them; they carry the time now", file=sys.stderr)
 
+    def _remove_outputs_ahead(self) -> None:
+        """**Nothing Ninja built dated after the clock.** An output built while the clock ran ahead,
+        set right since, is newer than every edit made before the clock passes it again, so no such
+        edit reaches the build. Removed and not given the time now: a command CMake marks `restat` is
+        judged by the time Ninja logged, which a file's own time does not move, and an output and an
+        input both given one time read as built from what the input holds. One outside the build
+        directory is source as well, and takes the time now. Before the configure, which brings
+        `build.ninja` up to date."""
+        if not ((self.dir / "build.ninja").is_file() and (self.dir / "CMakeCache.txt").is_file()):
+            return
+        listing = output([self.cached("CMAKE_MAKE_PROGRAM"), "-C", self.dir, "-t", "targets", "all"], env=self.env)
+        outputs = ninja_outputs(listing, self.dir)
+        now = time.time()
+        removed = remove_ahead(outputs, now, self.dir)
+        redated = redate_ahead(outputs, now)
+        if removed or redated:
+            print(f"omw: {len(removed) + len(redated)} outputs were dated after the clock, "
+                  f"{(removed or redated)[0]} among them; {len(removed)} are built again", file=sys.stderr)
+
+    def _redate_inputs_ahead(self, targets: list[str]) -> None:
+        """**Nothing a build reads dated after the clock**: a checkout written while the clock ran
+        ahead, set right since, leaves files newer than whatever is built from them now, so every
+        build builds it again until the clock passes them. What `targets` read is the inputs their
+        manifest names and the headers the deps log holds, read whole, since it names them under each
+        object and not under a target."""
+        ninja = self.cached("CMAKE_MAKE_PROGRAM")
+        listed = output([ninja, "-C", self.dir, "-t", "inputs", *targets], env=self.env)
+        logged = output([ninja, "-C", self.dir, "-t", "deps"], env=self.env)
+        inputs = [self.dir / line for line in listed.splitlines() if line] + deps_inputs(logged, self.dir)
+        ahead = redate_ahead(inputs, time.time())
+        if ahead:
+            print(f"omw: {len(ahead)} files the build reads were dated after the clock, {ahead[0]} among them; "
+                  "they carry the time now", file=sys.stderr)
+
     def _place_windows_runtime(self, windows_deps: Path) -> None:
         """**What vcpkg's own copy step misses, placed the way upstream's MSVC script places it.**
         The toolchain copies each DLL a binary links beside it and stops there: MyGUI's sits a
@@ -245,17 +326,34 @@ class Build:
     def build(self, targets: list[str], stdout=None) -> None:
         """`-k 0` keeps Ninja going past a failed object, so one run of a build that breaks names
         every object that broke — on a compiler this box does not have, that is the difference
-        between one round trip through CI and five."""
+        between one round trip through CI and five.
+
+        **Each target once a run**: nothing a run does after its first build writes a source, and
+        Ninja read the whole graph again to find a target it had just built up to date — the gate
+        built the harness and every test binary twice, and `omw game` ran Ninja twice."""
+        wanted = [target for target in targets if target not in self._built]
+        if not wanted:
+            return
         self.configure(stdout)
-        run(["cmake", "--build", self.dir, f"-j{jobs()}", "--target", *targets, "--", "-k", "0"], env=self.env,
+        self._redate_inputs_ahead(wanted)
+        run(["cmake", "--build", self.dir, f"-j{jobs()}", "--target", *wanted, "--", "-k", "0"], env=self.env,
             stdout=stdout)
+        self._built.update(wanted)
+
+    def build_default(self, without_device: bool = False) -> None:
+        """What `omw build` and the gate build where nothing is named: `default_targets` and the tests
+        the build has, those a box with no driver runs where `without_device` says so."""
+        self.build(self.default_targets + self.test_targets(without_device))
 
     def tests(self) -> list[dict]:
         """**The tests this build has, asked of its own configuration** through CTest, and not of a
-        binary on disk: a binary on disk is only what some earlier build left there."""
-        self.configure()
-        listing = output(["ctest", "--test-dir", self.dir, "--show-only=json-v1"], env=self.env)
-        return json.loads(listing).get("tests", [])
+        binary on disk: a binary on disk is only what some earlier build left there. Asked once a
+        run, which configures once."""
+        if self._tests is None:
+            self.configure()
+            listing = output(["ctest", "--test-dir", self.dir, "--show-only=json-v1"], env=self.env)
+            self._tests = json.loads(listing).get("tests", [])
+        return self._tests
 
     def test_targets(self, without_device: bool = False) -> list[str]:
         """The targets the tests run, which `cmake/Tests.cmake` names on each: a test whose binary is
@@ -273,11 +371,9 @@ class Build:
         return [self.binary("openmw-rtxtool"), verb, *args]
 
     def build_harness(self) -> None:
-        """`openmw-rtxtool`, built once a run: asked first by a caller that makes a folder for the
-        harness's output, so a build that fails leaves no folder behind."""
-        if not self._harness_built:
-            self.build(["openmw-rtxtool"])
-            self._harness_built = True
+        """`openmw-rtxtool`: asked first by a caller that makes a folder for the harness's output, so
+        a build that fails leaves no folder behind."""
+        self.build(["openmw-rtxtool"])
 
     def harness(self, verb: str, *args: str | Path, **options) -> subprocess.CompletedProcess:
         """The harness's `verb`, from the build directory: the one way the driver starts it."""
