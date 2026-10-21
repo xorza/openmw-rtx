@@ -1,9 +1,11 @@
 #include "vulkanrenderer.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -52,6 +54,7 @@
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/placing.hpp>
 #include <components/rtxvulkan/scene/sceneroom.hpp>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 #include <components/rtxvulkan/trace/tracepast.hpp>
@@ -119,10 +122,9 @@ namespace Rtx
         , mInverseGamma(1.0f / mProfile.mGamma)
         , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
                                                   : nullptr)
-        , mRing(mDevice, mCounting || mStress != nullptr, options.mTiming,
-              mStress != nullptr ? mStress->getTickMs() : 0.0)
+        , mRing(mDevice, options.mTiming, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
-        , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
+        , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels)
         , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, MemoryUse::Frame, TracePast::Kept)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
         , mMedia(mDevice, FogNoise::shared())
@@ -615,14 +617,15 @@ namespace Rtx
         };
     }
 
-    JobProgress VulkanRenderer::awaitKernels(const std::chrono::milliseconds patience)
+    JobProgress VulkanRenderer::awaitKernels(const KernelSet set, const std::chrono::milliseconds patience)
     {
-        const JobProgress progress = mTracePasses.mVisibility.awaitKernels(patience);
+        const JobProgress progress = mTracePasses.mVisibility.awaitKernels(set, patience);
 
         // **The cache is written the moment the start's compile is whole**, under the loading screen
         // that waited for it, and not only as the device goes: a crash or a kill later in the
         // session threw that whole compile away. Once; what compiles after it is written at exit.
-        if (progress.isDone() && !mKernelsSaved)
+        if (!mKernelsSaved
+            && mTracePasses.mVisibility.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero()).isDone())
         {
             mDevice.savePipelineCache();
             mKernelsSaved = true;
@@ -692,7 +695,7 @@ namespace Rtx
             past.mReprojectionLost ? nullptr : &*mPreviousCamera);
         world.measureStars(sampled.mStars);
 
-        // The launch the misses are counted against, which is the traced extent and not the shown one.
+        // The rays the misses are counted against: one a pixel of the traced extent, not the shown one.
         frame.mCountedRays = mCounting ? sampled.mEyes.mWorld.mWidth * sampled.mEyes.mWorld.mHeight : 0u;
 
         const TraceSubject subject
@@ -741,14 +744,22 @@ namespace Rtx
         // rides on. `FrameDigest` says why the picture is not enough.
         if (options.mReadBack)
         {
+            // **The direct channel's slot digests the composed frame**: the picture, in the frame's own
+            // order, which is what two runs of one frame are held to (`FrameDigest`).
             std::array<const Image*, Shaders::DIGEST_IMAGES> digested{};
+            std::uint32_t inFields = 0;
             for (const Channel channel : sEveryChannel)
-                digested[indexOf(channel)] = &channels.get(channel);
+            {
+                const bool composed = channel == Channel::Direct;
+                digested[indexOf(channel)] = composed ? &mFrame.getColour() : &channels.get(channel);
+                inFields |= !composed && storedInFields(channel) ? 1u << indexOf(channel) : 0u;
+            }
 
             std::array<const Image*, sDenoiserImageCount> denoiser{};
             mFrame.denoiserWritten(denoiser);
 
-            mRing.readDigest(frame, commands, digested, denoiser,
+            mRing.readDigest(frame, commands, digested, inFields, denoiser,
+                VkExtent2D{ sampled.mEyes.mWorld.mWidth, sampled.mEyes.mWorld.mHeight }, sampled.mFrame,
                 FrameDigest{
                     .mJitterX = sampled.mEyes.mWorld.mJitter.x(),
                     .mJitterY = sampled.mEyes.mWorld.mJitter.y(),
@@ -773,6 +784,7 @@ namespace Rtx
                     .mMasks = channels.get(Channel::UpscaleMasks),
                     .mEyes = sampled.mEyes,
                     .mPreviousJitter = sampled.mPreviousJitter,
+                    .mFrame = sampled.mFrame,
                     .mJitterPhases = reconstruction.mJitterPhases,
                     .mSeconds = options.mSinceLast,
                     .mSlot = mRing.getRecordingSlot(),
@@ -817,9 +829,7 @@ namespace Rtx
         // report back a frame or two late.
         mRing.submit(frame, std::move(trace));
 
-        // What the next frame reprojects against, and the camera as the caller gave it: a jitter is
-        // where inside a pixel this frame sampled, not where the eye was.
-        mPreviousCamera = camera;
+        mPreviousCamera = previousOf(camera, sampled);
     }
 
     SceneSlot VulkanRenderer::addViewScene()
@@ -909,13 +919,41 @@ namespace Rtx
 
         // One lookup and not a switch of eleven arms. A channel is its binding, and the buffer
         // is indexed by it.
-        mFrame.getChannels().get(channel).readFloats(VK_IMAGE_LAYOUT_GENERAL, values);
+        readFramed(mFrame.getChannels().get(channel), storedInFields(channel), values);
     }
 
     void VulkanRenderer::readComposite(std::vector<float>& values)
     {
         assert(mFrame.isBuilt());
-        mFrame.getColour().readFloats(VK_IMAGE_LAYOUT_GENERAL, values);
+        readFramed(mFrame.getColour(), false, values);
+    }
+
+    void VulkanRenderer::readFramed(const Image& image, const bool fielded, std::vector<float>& values) const
+    {
+        std::vector<float> stored;
+        image.readFloats(VK_IMAGE_LAYOUT_GENERAL, stored);
+
+        // The frame's extent: an image stored in fields is a column wider where it is odd. Its fields
+        // lie as the last frame traced left them, which is the camera the next reprojects against.
+        assert(mPreviousCamera.has_value() && "a channel read back before any frame was traced");
+        const std::uint32_t swap = Shaders::fieldSwapOf(mPreviousCamera->mFrame);
+        const std::uint32_t width = mFrame.getWidth();
+        const std::uint32_t height = mFrame.getHeight();
+        const std::size_t texels = std::size_t{ image.getWidth() } * image.getHeight();
+        assert(stored.size() % texels == 0);
+        const std::size_t components = stored.size() / texels;
+
+        values.resize(std::size_t{ width } * height * components);
+        for (std::uint32_t y = 0; y < height; ++y)
+            for (std::uint32_t x = 0; x < width; ++x)
+            {
+                const Shaders::uvec2 at
+                    = fielded ? Shaders::storedOf(Shaders::uvec2(x, y), swap, width) : Shaders::uvec2(x, y);
+                const std::size_t from = (std::size_t{ at[1] } * image.getWidth() + at[0]) * components;
+                const std::size_t to = (std::size_t{ y } * width + x) * components;
+                std::copy_n(stored.begin() + static_cast<std::ptrdiff_t>(from), components,
+                    values.begin() + static_cast<std::ptrdiff_t>(to));
+            }
     }
 
     void VulkanRenderer::takeValidationErrors(std::vector<std::string>& errors)

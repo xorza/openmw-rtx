@@ -125,7 +125,10 @@ layout(push_constant, scalar) uniform Push
 // The composite's channels and the filters' answers, which the last level reads to compose the frame
 // where the cascade ends, and the frame it composes over — `composite.comp`'s, at bindings of this
 // module's own. No format on the light, for the reasons the composite gives.
-layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_DIRECT) uniform image2D direct;
+layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_DIRECT) uniform readonly image2D direct;
+/// The frame in its own order, which the channels are not (`storedAt`), for everything after the
+/// trace to read as a picture.
+layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_COMPOSED) uniform writeonly image2D composed;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D albedo;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_AMBIENT_ALBEDO, GBUFFER_ALBEDO)
     uniform readonly image2D ambientAlbedo;
@@ -232,12 +235,13 @@ Tapped fetchedTap(ivec2 tap)
     if (outsideOf(tap, uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight)))
         return Tapped(false, vec3(0.0), vec3(0.0), vec4(0.0), vec3(0.0));
 
-    const vec2 there = texelFetch(surfaceChannel, tap, 0).rg;
+    const ivec2 stored = storedAt(tap, level.mEyes.mWorld.mWidth, fieldSwapOf(level.mFrame));
+    const vec2 there = texelFetch(surfaceChannel, stored, 0).rg;
     if (there.x == SURFACE_NO_NORMAL)
         return Tapped(false, vec3(0.0), vec3(0.0), vec4(0.0), vec3(0.0));
 
-    return Tapped(true, unpackSurfaceNormal(there.x), positionAt(tap, there.y), texelFetch(source, tap, 0),
-        texelFetch(fillSource, tap, 0).rgb);
+    return Tapped(true, unpackSurfaceNormal(there.x), positionAt(tap, there.y), texelFetch(source, stored, 0),
+        texelFetch(fillSource, stored, 0).rgb);
 }
 
 Tapped tiledTap(ivec2 local)
@@ -259,10 +263,11 @@ void loadTile(ivec2 origin)
         const uvec2 square = uvec2(i % TILE, i / TILE);
         const ivec2 pixel = origin - TILE_REACH + ivec2(square);
         const ivec2 inside = clamp(pixel, ivec2(0), last);
-        const vec2 there = texelFetch(surfaceChannel, inside, 0).rg;
+        const ivec2 insideStored = storedAt(inside, level.mEyes.mWorld.mWidth, fieldSwapOf(level.mFrame));
+        const vec2 there = texelFetch(surfaceChannel, insideStored, 0).rg;
         const bool surface = pixel == inside && there.x != SURFACE_NO_NORMAL;
-        gLight[square.y][square.x] = texelFetch(source, inside, 0);
-        gFill[square.y][square.x] = texelFetch(fillSource, inside, 0).rgb;
+        gLight[square.y][square.x] = texelFetch(source, insideStored, 0);
+        gFill[square.y][square.x] = texelFetch(fillSource, insideStored, 0).rgb;
         gNormal[square.y][square.x] = surface ? unpackSurfaceNormal(there.x) : vec3(0.0);
         gPosition[square.y][square.x] = vec4(positionAt(inside, there.y), surface ? 1.0 : 0.0);
     }
@@ -279,20 +284,21 @@ void main()
 
     if (outsideOf(uvec2(at), uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight)))
         return;
+    const ivec2 stored = storedAt(at, level.mEyes.mWorld.mWidth, fieldSwapOf(level.mFrame));
 
-    const vec2 seen = texelFetch(surfaceChannel, at, 0).rg;
+    const vec2 seen = texelFetch(surfaceChannel, stored, 0).rg;
 
     // A pixel with no surface under it has nothing to filter and nothing to say to its neighbours.
     if (seen.x == SURFACE_NO_NORMAL)
     {
 #ifdef ATROUS_COMPOSE
-        RTX_STORE_COUNTED(direct, at,
-            vec4(resolvedLight(at, imageLoad(direct, at).rgb, texelFetch(source, at, 0).rgb,
-                     texelFetch(fillSource, at, 0).rgb, level.mShadowed, level.mLobed),
+        RTX_STORE_COUNTED(composed, at,
+            vec4(resolvedLight(stored, imageLoad(direct, stored).rgb, texelFetch(source, stored, 0).rgb,
+                     texelFetch(fillSource, stored, 0).rgb, level.mShadowed, level.mLobed),
                 1.0))
 #else
-        RTX_STORE_COUNTED(filtered, at, texelFetch(source, at, 0))
-        RTX_STORE_COUNTED(fillFiltered, at, texelFetch(fillSource, at, 0))
+        RTX_STORE_COUNTED(filtered, stored, texelFetch(source, stored, 0))
+        RTX_STORE_COUNTED(fillFiltered, stored, texelFetch(fillSource, stored, 0))
 #endif
         return;
     }
@@ -311,7 +317,7 @@ void main()
 
     // Whether this level rebuilds the pixel's history, and how far apart its taps stand. A pixel
     // with a surface holds one frame at least.
-    const vec4 fillCentre = texelFetch(fillSource, at, 0);
+    const vec4 fillCentre = texelFetch(fillSource, stored, 0);
     const float frames = ATROUS_WIDE ? fillCentre.a : 0.0;
     const float held = level.mFixFrames > 0.0 ? frames : 0.0;
     const bool fixing = held > 0.0 && held <= level.mFixFrames;
@@ -335,7 +341,7 @@ void main()
     // brightness test, and pays the prefilter's nine loads all the same: skipping them for a fixed
     // pixel moved the filter zone by nothing on the default suite, three alternated rounds. A narrow
     // level reads the centre's, which the levels before it averaged. Each tap adds its own beside it.
-    const vec4 centre = ATROUS_WIDE ? gLight[local.y][local.x] : texelFetch(source, at, 0);
+    const vec4 centre = ATROUS_WIDE ? gLight[local.y][local.x] : texelFetch(source, stored, 0);
     const float noise = ATROUS_WIDE ? varianceAround(local) : centre.a * centre.a;
     const float here = dot(centre.rgb, LUMINANCE_WEIGHTS);
 
@@ -389,16 +395,16 @@ void main()
 #ifdef ATROUS_COMPOSE
     // **Composed from the halves a stored level would hold**, so the frame is the one the composite
     // made of them: the same light to the bit, and no level written for a pass to read back.
-    RTX_STORE_COUNTED(direct, at,
-        vec4(resolvedLight(at, imageLoad(direct, at).rgb, nearestHalf(answer).rgb, nearestHalf(answerFill).rgb,
+    RTX_STORE_COUNTED(composed, at,
+        vec4(resolvedLight(stored, imageLoad(direct, stored).rgb, nearestHalf(answer).rgb, nearestHalf(answerFill).rgb,
                  level.mShadowed, level.mLobed),
             1.0))
 #else
-    RTX_STORE_COUNTED(filtered, at, ATROUS_WIDE ? answer : nearestHalf(answer))
-    RTX_STORE_COUNTED(fillFiltered, at, ATROUS_WIDE ? answerFill : nearestHalf(answerFill))
+    RTX_STORE_COUNTED(filtered, stored, ATROUS_WIDE ? answer : nearestHalf(answer))
+    RTX_STORE_COUNTED(fillFiltered, stored, ATROUS_WIDE ? answerFill : nearestHalf(answerFill))
 #endif
     if (fixing)
-        RTX_STORE_WORDS(fast, at, uvec4(packRgb9e5(answer.rgb), packRgb9e5(answerFill.rgb), 0u, 0u))
+        RTX_STORE_WORDS(fast, stored, uvec4(packRgb9e5(answer.rgb), packRgb9e5(answerFill.rgb), 0u, 0u))
 }
 
 #endif

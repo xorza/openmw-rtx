@@ -15,6 +15,7 @@
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/spritesource.hpp>
 #include <components/rtxvulkan/shaders/shared/composite.h>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/trace/denoise/denoised.hpp>
 
 #include "tracemedia.hpp"
@@ -27,6 +28,16 @@ namespace Rtx
 {
     namespace
     {
+        /// What the composite writes the frame into, in its own order and at its own width.
+        ImageDescription composedDescription(
+            const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+        {
+            return ImageDescription{ .mWidth = width,
+                .mHeight = height,
+                .mFormat = radianceFormat(radiance),
+                .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
+        }
+
         ImageDescription sumDescription(const std::uint32_t width, const std::uint32_t height)
         {
             return ImageDescription{ .mWidth = width,
@@ -64,9 +75,13 @@ namespace Rtx
         mWidth = width;
         mHeight = height;
 
+        // **The denoiser's images at the width the fields are stored at**, which is the frame's
+        // rounded up to even (`fieldColumns`); each channel at its own (`GBuffer`), and the fog's
+        // froxels at the frame's.
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance, mUse, mPast);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mUse, mPast);
-        mDenoise.resize(mWidth, mHeight);
+        mDenoise.resize(Shaders::storedWidth(mWidth), mHeight);
+        mComposed = Image(mUse, mDevice, composedDescription(mWidth, mHeight, mRadiance), "composed");
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
         // worth it to the reference mode and nothing to a window. The first averaging trace asks.
@@ -80,6 +95,7 @@ namespace Rtx
         mChannels.reset();
         mFogVolume.reset();
         mDenoise.release();
+        mComposed = Image();
         dropSum();
     }
 
@@ -87,7 +103,8 @@ namespace Rtx
         const RadianceWidth radiance, const TracePast past)
     {
         return GBuffer::bytesAt(device, width, height, radiance, past) + FogVolume::bytesAt(device, width, height, past)
-            + DenoiseHistory::bytesAt(device, width, height, past);
+            + DenoiseHistory::bytesAt(device, Shaders::storedWidth(width), height, past)
+            + Image::bytesFor(device, composedDescription(width, height, radiance));
     }
 
     VkDeviceSize TraceChain::sumBytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
@@ -164,9 +181,8 @@ namespace Rtx
         const SpriteTables tables = bin.getTables();
 
         const bool denoised = what.mReconstruction.mDenoised;
-        const bool composed = what.mReconstruction.composedByTrace();
 
-        mPasses.mVisibility.writeFrame(commands, inputs, tables, what.mSampled, composed);
+        mPasses.mVisibility.writeFrame(commands, inputs, tables, what.mSampled);
 
         if (drawsSprites)
         {
@@ -180,8 +196,9 @@ namespace Rtx
                 .mTimer = what.mTimer,
             });
 
-        mChannels->begin(commands, mPasses.mVisibility.writesOf(inputs, what.mSampled, tables.mPuffs));
-        mPasses.mVisibility.record(commands, inputs, what.mSampled, what.mTimer);
+        const VisibilityVariant run = mPasses.mVisibility.variantFor(inputs, what.mSampled);
+        mChannels->begin(commands, VisibilityPass::writesOf(run, tables.mPuffs));
+        mPasses.mVisibility.record(commands, inputs, run, what.mSampled, what.mTimer);
         mChannels->handOver(commands);
 
         // Where the bounce, the lobe's light and the layers' ended up: the filters' answers, or the
@@ -189,51 +206,45 @@ namespace Rtx
         // the histories**, with nothing running, so every filter is fresh at its next run: without
         // the turn, that run would read the history of the frame before this one as last frame's.
         if (!denoised)
-            mDenoise.turn(TemporalFlags{});
+            mDenoise.turn(TemporalFlags{}, what.mSampled.mFrame);
 
         // **A denoised frame nothing sums is composed where the cascade ends**, in its last level,
         // with no level written for the composite to read back (`atrouscompose.comp`). The composite
         // stays for what is left: a frame nothing filtered, and a sum.
-        const bool composesInCascade = denoised && what.mAccumulate == 0;
+        // **Not where water may split a pixel**, whose blend reads its neighbours' light whole,
+        // which the cascade's last level holds of no pixel but its own.
+        const bool composesInCascade = denoised && what.mAccumulate == 0 && !inputs.mSubject.mSea;
+        // Every frame writes it whole, so what the last frame left is discarded; the head barrier
+        // `CommandPool::begin` recorded orders this after the last frame's reads.
+        mComposed.transition(commands, Use::sUndefined, Use::sComputeWrite);
         const std::optional<Denoised> resolved = denoised
             ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
-                inputs.mSubject.mLamps, composesInCascade, what.mReconstruction, what.mTimer)
+                inputs.mSubject.mLamps, composesInCascade, what.mReconstruction, mComposed, what.mTimer)
             : Denoised::unfiltered(*mChannels);
         assert(resolved.has_value() != composesInCascade
             && "the cascade composed where it was not asked, or not where it was");
 
-        // **Only where something is left to do**: a filter to put the albedo back in behind, or a sum
-        // to add the frame to. Anything else was composed by the trace, or by the cascade,
-        // into the channel that is the frame.
-        const Image& frame = mChannels->get(Channel::Direct);
-        const bool written = !composed || what.mAccumulate > 0;
-        assert((!composesInCascade || written) && "a frame the trace composed handed to the cascade to compose");
-        if (written && resolved.has_value())
-        {
-            // Written over, where the hand-over left it to be read: nothing has read it since, and
-            // this is the dependency that keeps it so.
-            frame.transition(commands, Use::sAnyShaderRead, Use::sComputeReadWrite);
-
+        // **On every frame the cascade did not compose**, from the channels, whatever filtered them:
+        // a trace split into stages holds no pixel's whole light in one place, and the frame returns
+        // to its own order here.
+        if (resolved.has_value())
             mPasses.mComposite.record(commands, *mChannels, *resolved, mSum.isEmpty() ? nullptr : &mSum,
                 Shaders::CompositeConstants{
                     .mWidth = what.mSampled.mEyes.mWorld.mWidth,
                     .mHeight = what.mSampled.mEyes.mWorld.mHeight,
                     .mAccumulate = what.mAccumulate,
-                    .mComposed = composed ? 1u : 0u,
                     .mLobed = inputs.mSubject.mMapped ? 1u : 0u,
+                    .mFrame = what.mSampled.mFrame,
                 },
-                what.mTimer);
-        }
+                mComposed, what.mTimer);
 
         // Whatever comes next reads what the composite or the cascade just wrote. The frame's scope
         // is the wider of the two — an upscaler, a lens and a curve against a picture's one curve —
         // and covers both.
-        if (written)
-            frame.transition(commands, Use::sComputeReadWrite, Use::sAnyGeneralRead);
-        const ImageUse leftAs = written ? Use::sAnyGeneralRead : Use::sAnyShaderRead;
+        mComposed.transition(commands, Use::sComputeWrite, Use::sAnyGeneralRead);
 
-        return TraceResult{
-            .mInputs = inputs, .mColour = HandedImage{ .mImage = frame, .mLeftAs = leftAs }, .mSprites = tables
-        };
+        return TraceResult{ .mInputs = inputs,
+            .mColour = HandedImage{ .mImage = mComposed, .mLeftAs = Use::sAnyGeneralRead },
+            .mSprites = tables };
     }
 }

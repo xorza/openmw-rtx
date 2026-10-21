@@ -27,7 +27,7 @@ namespace Rtx
         /// Formats and Vulkan Formats" table, one row per qualifier `storageformat.h` spells.
         TEST(RtxFormatsTest, aStorageFormatIsTheOneTheSpecificationPairsItsQualifierWith)
         {
-            constexpr std::array<std::pair<StorageFormat, VkFormat>, 13> sTable{ {
+            constexpr std::array<std::pair<StorageFormat, VkFormat>, 14> sTable{ {
                 { StorageFormat::Rgba8, VK_FORMAT_R8G8B8A8_UNORM },
                 { StorageFormat::R8, VK_FORMAT_R8_UNORM },
                 { StorageFormat::Rg8, VK_FORMAT_R8G8_UNORM },
@@ -41,6 +41,7 @@ namespace Rtx
                 { StorageFormat::Rgba16, VK_FORMAT_R16G16B16A16_UNORM },
                 { StorageFormat::Rgba16f, VK_FORMAT_R16G16B16A16_SFLOAT },
                 { StorageFormat::Rgba32f, VK_FORMAT_R32G32B32A32_SFLOAT },
+                { StorageFormat::Rgba32ui, VK_FORMAT_R32G32B32A32_UINT },
             } };
 
             for (const auto& [format, expected] : sTable)
@@ -130,10 +131,10 @@ namespace Rtx
 
             // **Every storage layout a pass declares can be read back**, since a channel is one, at
             // the size an image of it is priced at: both read one row.
-            for (const StorageFormat format :
-                { StorageFormat::Rgba8, StorageFormat::R8, StorageFormat::Rg8, StorageFormat::R16, StorageFormat::R16f,
-                    StorageFormat::R32f, StorageFormat::R32ui, StorageFormat::Rg16f, StorageFormat::Rg32f,
-                    StorageFormat::Rg32ui, StorageFormat::Rgba16, StorageFormat::Rgba16f, StorageFormat::Rgba32f })
+            for (const StorageFormat format : { StorageFormat::Rgba8, StorageFormat::R8, StorageFormat::Rg8,
+                     StorageFormat::R16, StorageFormat::R16f, StorageFormat::R32f, StorageFormat::R32ui,
+                     StorageFormat::Rg16f, StorageFormat::Rg32f, StorageFormat::Rg32ui, StorageFormat::Rgba16,
+                     StorageFormat::Rgba16f, StorageFormat::Rgba32f, StorageFormat::Rgba32ui })
                 EXPECT_EQ(formatInfoOf(toVulkanFormat(format)).mTexelBytes, texelBytes(format))
                     << static_cast<int>(format);
 

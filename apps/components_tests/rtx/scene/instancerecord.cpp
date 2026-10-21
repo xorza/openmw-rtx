@@ -163,10 +163,10 @@ namespace Rtx
             EXPECT_EQ(kept[pane].mMask, kept[pane].mClass);
             EXPECT_EQ(kept[water].mClass, Shaders::MASK_WATER);
 
-            // **The kind, which the backend turns into a shader-table record offset.** Traversal
-            // picks the closest-hit shader from it, so a placement carrying the wrong one is shaded
-            // by the wrong program — ground as a plain surface, water as ground — and nothing in the
-            // build or the layers says so. The three are asserted apart rather than each against a
+            // **The kind, which the backend writes as the shader-table record offset.** The
+            // shading reads it back off the hit, so a placement carrying the wrong one is shaded
+            // the wrong way — ground as a plain surface, water as ground — and nothing in the build
+            // or the layers says so. The three are asserted apart rather than each against a
             // constant, because what a record offset has to be is distinct.
             EXPECT_EQ(kept[leaf].mKind, MaterialKind::Surface);
             EXPECT_EQ(kept[pane].mKind, MaterialKind::Surface);

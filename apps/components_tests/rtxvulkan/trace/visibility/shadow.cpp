@@ -3,7 +3,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <utility>
 #include <vector>
 
@@ -27,6 +26,7 @@
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/moon.hpp>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 
 #include "fixture.hpp"
 
@@ -55,8 +55,8 @@ namespace Rtx::Testing
         /// denoiser composes is then the frame the trace composes with the rays' own bits, value for
         /// value. The bits themselves are read off `CHANNEL_SHADOWED`: all one under the open sky, and
         /// all nought under the roof, with the sun's light standing behind both. **And so for a
-        /// flooded floor**, whose bit is what the water's refraction found: the reflection finds
-        /// the black sky and adds no sun, so the bed's bit is the only one to keep.
+        /// flooded floor's field that refracts**, whose bit is what the refraction found; the field
+        /// that reflects finds the black sky and holds no sun at all.
         TEST_F(RtxVisibilityTest, theShadowDenoiserLeavesAFloorWhollyLitOrWhollyShadowedExact)
         {
             constexpr std::uint32_t size = 64;
@@ -77,8 +77,17 @@ namespace Rtx::Testing
                     std::vector<float> sunlit;
                     mRenderer.readChannel(Channel::Shadowed, sunlit);
                     ASSERT_EQ(sunlit.size(), std::size_t{ size } * size * 4);
+                    const std::uint32_t swap = Shaders::fieldSwapOf(camera.mFrame);
                     for (std::size_t value = 0; value < sunlit.size(); value += 4)
                     {
+                        const std::size_t pixel = value / 4;
+                        const Shaders::uvec2 at(
+                            static_cast<std::uint32_t>(pixel % size), static_cast<std::uint32_t>(pixel / size));
+                        if (flooded && Shaders::fieldOf(at, swap) == 0u)
+                        {
+                            ASSERT_EQ(sunlit[value], 0.0f) << "the reflection's pixel " << pixel << " holds sun";
+                            continue;
+                        }
                         ASSERT_GT(sunlit[value], 0.0f) << "the sun lights every pixel of the floor, roofed or not";
                         ASSERT_EQ(Testing::shadowBit(sunlit[value + 3]), roofed ? 0.0f : 1.0f) << "pixel " << value / 4;
                     }
@@ -528,7 +537,8 @@ namespace Rtx::Testing
         class RtxPenumbraDenoiseTest : public RtxVisibilityTest
         {
         protected:
-            void penumbraOn(bool flooded)
+            /// @param kept the share of the raw frame's error the denoised one may keep.
+            void penumbraOn(bool flooded, float kept)
             {
                 constexpr std::uint32_t size = 64;
                 Shaders::VisibilityConstants camera = overheadSun(size);
@@ -552,7 +562,7 @@ namespace Rtx::Testing
                 const float rawError = raw.errorFrom(reference);
                 const float denoisedError = denoised.errorFrom(reference);
                 ASSERT_GT(rawError, 0.01f) << "a penumbra one ray a pixel draws is noisy, or this proves nothing";
-                EXPECT_LT(denoisedError, rawError * 0.1f) << "raw " << rawError << ", denoised " << denoisedError;
+                EXPECT_LT(denoisedError, rawError * kept) << "raw " << rawError << ", denoised " << denoisedError;
 
                 // **The denoiser keeps the penumbra's light to a quarter of a per cent**: measured at
                 // +0.03% dry and +0.10% flooded. Its history is read back into its own blend, so it is
@@ -566,17 +576,20 @@ namespace Rtx::Testing
             }
         };
 
-        /// Measured at a thirty-second: 0.0762 raw against 0.0024 denoised.
+        /// Measured at a thirty-second: 0.0762 raw against 0.0024 denoised. Held under a tenth.
         TEST_F(RtxPenumbraDenoiseTest, theShadowDenoiserTakesTheNoiseOffAPenumbraAndLeavesItsLightWhereItWas)
         {
-            penumbraOn(false);
+            penumbraOn(false, 0.1f);
         }
 
-        /// Measured at a thirteenth: 0.0318 raw against 0.0025 denoised. Before the water split the sun
-        /// off what its rays found, nothing filtered it, and the denoised frame stood at 0.0322.
+        /// Measured at a fifth: 0.0242 raw against 0.0045 denoised, and held under a quarter. **The
+        /// water splits the floor's pixels between its two paths**, and the reflection finds a black
+        /// sky: the composite's blend of each pixel with the four across it takes part of the raw
+        /// frame's noise before any filter runs, and the shadow filter finds half its taps, the other
+        /// field holding no sun, which a measurement at a shore is still to weigh.
         TEST_F(RtxPenumbraDenoiseTest, theShadowDenoiserTakesTheNoiseOffAPenumbraSeenThroughTheWater)
         {
-            penumbraOn(true);
+            penumbraOn(true, 0.25f);
         }
 
         /// **A shadow's history takes nothing from a pixel that receives nothing.** A floor of two
@@ -759,82 +772,6 @@ namespace Rtx::Testing
             }
         }
 
-        /// What two shadowed sources one pixel shows come to: the share of the two lights the second
-        /// adds, in luminance and over every pixel, and the share of frames the pixel kept its bit.
-        struct BitShares
-        {
-            double mShare;
-            double mDrawn;
-        };
-
-        /// **Two of one field's shadowed lights one pixel shows, and one bit between them.** Each alone
-        /// first, read off `CHANNEL_SHADOWED`: the first's ray stopped at every pixel, and the
-        /// second's through at every one. Then both, where the channel holds the sum of the two
-        /// lights, over `sFrames` frames of every pixel: the bit is one — the second's — in the share
-        /// the second's luminance is of the two, and a pixel that kept the brighter one's bit would
-        /// hold the same one every frame.
-        class RtxBitShareTest : public RtxVisibilityTest
-        {
-        protected:
-            static constexpr std::uint32_t sSize = 32;
-            static constexpr std::uint32_t sFrames = 64;
-
-            /// @param shootWith shoots the scene with the first source, the second, or both, as its
-            ///        two flags say, under the shot it is handed.
-            BitShares sharesOf(const std::function<void(bool first, bool second, const Shot& shot)>& shootWith)
-            {
-                constexpr std::size_t pixels = std::size_t{ sSize } * sSize;
-
-                const auto alone = [&](bool first, bool second) {
-                    shootWith(first, second, {});
-                    std::vector<float> read;
-                    mRenderer.readChannel(Channel::Shadowed, read);
-                    return read;
-                };
-
-                const std::vector<float> stopped = alone(true, false);
-                const std::vector<float> open = alone(false, true);
-                for (std::size_t pixel = 0; pixel < pixels; ++pixel)
-                {
-                    EXPECT_FALSE(Testing::shadowOpen(stopped[pixel * 4 + 3]))
-                        << "the first source's ray got through at " << pixel;
-                    EXPECT_TRUE(Testing::shadowOpen(open[pixel * 4 + 3]))
-                        << "the second source's ray was stopped at " << pixel;
-                }
-
-                std::vector<float> both;
-                std::vector<double> kept(pixels, 0.0);
-                shootWith(true, true, { .mFrames = sFrames, .mAverage = false, .mEachFrame = [&](const Frame&) {
-                                           mRenderer.readChannel(Channel::Shadowed, both);
-                                           for (std::size_t pixel = 0; pixel < pixels; ++pixel)
-                                               kept[pixel]
-                                                   += static_cast<double>(Testing::shadowBit(both[pixel * 4 + 3]));
-                                       } });
-
-                BitShares shares{ .mShare = 0.0, .mDrawn = 0.0 };
-                for (std::size_t pixel = 0; pixel < pixels; ++pixel)
-                {
-                    const osg::Vec3f first(stopped[pixel * 4], stopped[pixel * 4 + 1], stopped[pixel * 4 + 2]);
-                    const osg::Vec3f second(open[pixel * 4], open[pixel * 4 + 1], open[pixel * 4 + 2]);
-                    const osg::Vec3f sum(both[pixel * 4], both[pixel * 4 + 1], both[pixel * 4 + 2]);
-                    for (int channel = 0; channel < 3; ++channel)
-                        EXPECT_NEAR(sum[channel], first[channel] + second[channel], 1e-5f * sum[channel])
-                            << "the channel holds both sources' light at pixel " << pixel;
-
-                    const float fromSecond = second * Shaders::LUMINANCE_WEIGHTS;
-                    shares.mShare
-                        += static_cast<double>(fromSecond / (fromSecond + first * Shaders::LUMINANCE_WEIGHTS));
-                    shares.mDrawn += kept[pixel] / sFrames;
-                }
-                shares.mShare /= pixels;
-                shares.mDrawn /= pixels;
-
-                EXPECT_GT(shares.mShare, 0.2) << "the first source outshines the second, or this proves nothing";
-                EXPECT_LT(shares.mShare, 0.8) << "the second source outshines the first, or this proves nothing";
-                return shares;
-            }
-        };
-
         /// **The sun's bit and a lamp's are kept apart, and neither is filtered into the other's
         /// light.** A floor under `overheadSun`, roofed two thousand units up, so the sun's ray is
         /// stopped at every pixel, and a lamp sixty units over its near half, whose material the lamps
@@ -942,41 +879,6 @@ namespace Rtx::Testing
             ASSERT_GE(counted, pixels / 4) << "the far half is in the frame";
             ASSERT_GT(sunLight, 0.0f) << "a sun that lights nothing proves nothing";
             EXPECT_LE(worst, sunLight * 1e-3f) << "the lamp's bit was filtered into the sun's light";
-        }
-
-        /// **A pixel of water keeps the bit of what it reflects or of what it shows, drawn by the light
-        /// each adds.** Water under `grazingTheWater`'s eye, so every pixel's two rays are parallel
-        /// to every other's. The reflection meets `sGrazedWall`, under an overhang 150 deep that
-        /// shades all of it from a sun 45 degrees up behind the eye. The refraction meets a bed fifty
-        /// units down, where the sun reaches: at most `-100 + 1.09 * 50` = -45 along, where the sun's
-        /// path back rises 50 units in the water at 32 degrees off the vertical and 100 more in air,
-        /// 131 units toward the sun, to -176 — short of the overhang, which starts at -150.
-        ///
-        /// Measured: a share of 0.559, and 0.557 drawn.
-        TEST_F(RtxBitShareTest, aPixelOfWaterKeepsTheShadowOfEitherRayByTheLightItAdds)
-        {
-            Shaders::VisibilityConstants camera = grazingTheWater(sSize);
-            litThroughWater(camera, osg::DegreesToRadians(45.0f));
-            camera.mAmbient = osg::Vec3f();
-
-            const BitShares shares = sharesOf([&](bool wall, bool bed, Shot shot) {
-                SceneDesc scene = makeOpenWater(4000.0f);
-                if (wall)
-                {
-                    addQuad(scene, sGrazedWall);
-                    addQuad(scene,
-                        std::array<osg::Vec3f, 4>{ osg::Vec3f(-50.0f, -150.0f, 100.0f),
-                            osg::Vec3f(50.0f, -150.0f, 100.0f), osg::Vec3f(50.0f, 0.0f, 100.0f),
-                            osg::Vec3f(-50.0f, 0.0f, 100.0f) });
-                }
-                if (bed)
-                    addQuad(scene, sheetAt(4000.0f, -50.0f));
-
-                shot.mSea = SeaState{ .mSignificantHeight = 0.0f };
-                shoot(scene, {}, camera, sSize, shot);
-            });
-
-            EXPECT_NEAR(shares.mDrawn, shares.mShare, 0.01) << "the bit kept is not the bed's in the bed's share";
         }
     }
 }

@@ -98,9 +98,10 @@ namespace Rtx
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
 
-        /// Turns to the other half of every pair for the frame being recorded, on which `runs` run:
-        /// which halves each filter reads and writes, and which have nothing to read.
-        TemporalTurns::Step turn(const TemporalFlags& runs);
+        /// Turns to the other half of every pair for the frame being recorded, number `frame`, on
+        /// which `runs` run: which halves each filter reads and writes, which have nothing to read,
+        /// and which frame wrote what they read.
+        TemporalTurns::Step turn(const TemporalFlags& runs, std::uint32_t frame);
 
         /// Discards, in one barrier, what the filters that run this frame write whole, and what the
         /// fresh ones among them would have read. The last frame's accesses to all of it are behind

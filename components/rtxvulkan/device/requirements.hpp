@@ -45,9 +45,7 @@ namespace Rtx
         VkPhysicalDeviceRayTracingPositionFetchFeaturesKHR mPositionFetch{};
         VkPhysicalDeviceRayTracingMaintenance1FeaturesKHR mRayTracingMaintenance1{};
 
-        /// What lets the trace be a launch rather than a dispatch: the eye's ray goes through the
-        /// pipeline to a closest-hit shader traversal picked, and every ray after it is an inline
-        /// query inside that shader.
+        /// What the fog's and the sprites' launches are made with (`TracePipeline`).
         VkPhysicalDeviceRayTracingPipelineFeaturesKHR mRayTracingPipeline{};
 
         /// What lets the driver be asked how it compiled a pipeline: registers a thread, spills,
@@ -57,10 +55,6 @@ namespace Rtx
         /// The device's real-time clock, read from a shader: what `StressPass` holds a queue
         /// against.
         VkPhysicalDeviceShaderClockFeaturesKHR mShaderClock{};
-
-        /// `OpFmaKHR` on 32-bit floats: the fusions `Rtx::pinFloatArithmetic` chooses for every
-        /// shader, each rounded once whichever compile of it runs.
-        VkPhysicalDeviceShaderFmaFeaturesKHR mShaderFma{};
     };
 
     /// The properties worth reporting or budgeting against: one chained query, and the memory
@@ -75,6 +69,10 @@ namespace Rtx
         VkPhysicalDeviceProperties2 mProperties2{};
         VkPhysicalDeviceVulkan11Properties mVulkan11{};
         VkPhysicalDeviceVulkan12Properties mVulkan12{};
+
+        /// The subgroup sizes a pipeline may ask for, and in which stages: what the trace's 32 lanes
+        /// are held to (`SubgroupSize`).
+        VkPhysicalDeviceVulkan13Properties mVulkan13{};
         VkPhysicalDeviceAccelerationStructurePropertiesKHR mAccelerationStructure{};
 
         /// The shader group handle's size and the two alignments a shader binding table is laid out
@@ -121,44 +119,8 @@ namespace Rtx
         std::string mFor;
     };
 
-    /// The first release of one driver that offers an extension, in the driver's own numbering:
-    /// "595" for NVIDIA's, "26.2" for Mesa's. `releaseSeriesOf` names whose numbering it is.
-    struct DriverFloor
-    {
-        VkDriverId mDriver;
-        std::string_view mRelease;
-    };
-
-    /// What a driver's releases are called, as a refusal puts a number after it: "NVIDIA driver",
-    /// "AMD driver", "Mesa". Empty for a driver no floor names.
-    constexpr std::string_view releaseSeriesOf(const VkDriverId driver)
-    {
-        switch (driver)
-        {
-            case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
-                return "NVIDIA driver";
-            case VK_DRIVER_ID_AMD_PROPRIETARY:
-                return "AMD driver";
-            case VK_DRIVER_ID_MESA_RADV:
-            case VK_DRIVER_ID_MESA_NVK:
-            case VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA:
-                return "Mesa";
-            default:
-                return {};
-        }
-    }
-
-    /// An extension the renderer will not start without, and for each driver that came to offer it
-    /// after its first Vulkan 1.4 release, the release that did — empty where every 1.4 release of
-    /// every driver that has it does. A card refused for such an extension is a driver update from
-    /// running, and the refusal says so rather than reading as a limit of the hardware.
-    struct RequiredExtension
-    {
-        const char* mName;
-        std::span<const DriverFloor> mFloors;
-    };
-
-    std::span<const RequiredExtension> getRequiredDeviceExtensions();
+    /// The extensions the renderer will not start without.
+    std::span<const char* const> getRequiredDeviceExtensions();
 
     /// The table itself, in the order `PhysicalDevice::profileOf` reads the device's answers in.
     std::span<const RequiredFormat> getRequiredFormats();

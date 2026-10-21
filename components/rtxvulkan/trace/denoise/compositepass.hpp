@@ -19,15 +19,14 @@ namespace Rtx
     /// modulation term. Also owns the running sum, because a reference converges to the frame as
     /// shown, filter and all. The display curve is `TonePass`, after whatever upscales.
     ///
-    /// Run only where a filter stands between the trace and the frame, or where the frame is
-    /// summed: a frame with neither was composed by the trace (`VisibilityConstants::mComposed`).
+    /// Run on every frame the cascade does not compose (`atrouscompose.comp`): the trace's stages
+    /// hold no pixel's whole light in one place.
     class CompositePass
     {
     public:
         explicit CompositePass(const Device& device);
 
-        /// @param buffer must have been handed over, so its writes are visible to this read, and
-        ///        its direct channel made writable by compute, which is where the frame goes. Its
+        /// @param buffer must have been handed over, so its writes are visible to this read. Its
         ///        indirect, specular and pane channels are read only where `denoised` names them.
         /// @param denoised where the bounce, the lobe's light and the layers' light are, and the
         ///        shadow denoiser's answers, which scale the buffer's shadowed and lamped channels
@@ -36,8 +35,9 @@ namespace Rtx
         ///        the frame and in `VK_IMAGE_LAYOUT_GENERAL`. Null where `mAccumulate` is zero, which
         ///        is every frame that is not building a reference.
         /// @param constants the frame's, less `mShadowed`, which is `denoised`'s to say.
+        /// @param composed where the frame goes, in its own order, writable by compute.
         void record(VkCommandBuffer commands, const GBuffer& buffer, const Denoised& denoised, const Image* sum,
-            Shaders::CompositeConstants constants, GpuTimer* timer) const;
+            Shaders::CompositeConstants constants, const Image& composed, GpuTimer* timer) const;
 
     private:
         ComputePipeline<Shaders::CompositeConstants> mPipeline;

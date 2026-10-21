@@ -92,7 +92,8 @@ namespace MWRender
             mProjectionShift = shift;
         }
 
-        /// What `RenderingManager::update` was handed, for the frame that follows it.
+        /// What `RenderingManager::update` was handed, for the frame that follows it and no other:
+        /// `describe` takes it.
         void setStep(float deltaTime, bool paused)
         {
             mDeltaTime = deltaTime;
@@ -132,7 +133,7 @@ namespace MWRender
         osg::Matrixf mProjection;
         osg::Vec2f mProjectionShift;
         float mDeltaTime = 0.f;
-        bool mPaused = false;
+        bool mPaused = true;
 
         /// Kept across frames and cleared, so a frame allocates none of it once the most jumps any
         /// frame held have been held.

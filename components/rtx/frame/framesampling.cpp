@@ -87,4 +87,12 @@ namespace Rtx
 
         return sampled;
     }
+
+    Shaders::VisibilityConstants previousOf(
+        const Shaders::VisibilityConstants& stated, const Shaders::VisibilityConstants& sampled)
+    {
+        Shaders::VisibilityConstants kept = stated;
+        kept.mEyes.mWorld.mJitter = sampled.mEyes.mWorld.mJitter;
+        return kept;
+    }
 }

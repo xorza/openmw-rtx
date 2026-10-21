@@ -184,8 +184,11 @@ namespace Rtx::Shaders
         vec2 mArmsSpread;
 
         /// The frame's number, which a history kept in halves seeds its store's rounding with
-        /// (`roundedToHalf`).
+        /// (`roundedToHalf`), and the number of the frame the histories were written in,
+        /// `TemporalTurns::Step::mWrittenBefore`: the fields this frame's images and the histories
+        /// are stored in (`fieldSwapOf`).
         uint mFrame;
+        uint mPreviousFrame;
     };
 
     /// What the accumulator is handed: the history's record, and whether a surface the previous
@@ -248,8 +251,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 220, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 224, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 224, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 228, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 160, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

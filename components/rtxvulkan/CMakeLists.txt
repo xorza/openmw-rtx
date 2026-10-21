@@ -9,12 +9,12 @@ find_program(OPENMW_SPIRV_OPT NAMES spirv-opt REQUIRED
     DOC "spirv-opt, from SPIRV-Tools — takes the source out of the modules the driver is handed")
 find_path(OPENMW_SPIRV_HEADERS NAMES spirv/unified1/spirv.hpp HINTS ${Vulkan_INCLUDE_DIRS} REQUIRED
     DOC "SPIRV-Headers, from Khronos — the opcodes every shader's float arithmetic is pinned by")
-# Headers without the fused multiply-add the pinning writes fail here, not in `spirv/spirvpin.cpp`;
-# they carry no version to ask.
-file(STRINGS "${OPENMW_SPIRV_HEADERS}/spirv/unified1/spirv.hpp" _openmw_spirv_fma REGEX "OpFmaKHR = ")
+# Headers without the fused multiply-add the pinning refuses by name fail here, not in
+# `spirv/spirvpin.cpp`; they carry no version to ask.
+file(STRINGS "${OPENMW_SPIRV_HEADERS}/spirv/unified1/spirv.hpp" _openmw_spirv_fma REGEX "CapabilityFMAKHR = ")
 if (NOT _openmw_spirv_fma)
-    message(FATAL_ERROR "${OPENMW_SPIRV_HEADERS}/spirv/unified1/spirv.hpp names no OpFmaKHR: the shaders' "
-                        "float arithmetic is pinned with SPV_KHR_fma, from the Vulkan SDK 1.4.329 on")
+    message(FATAL_ERROR "${OPENMW_SPIRV_HEADERS}/spirv/unified1/spirv.hpp names no CapabilityFMAKHR, which "
+                        "the shaders' pinning refuses by name: SPIRV-Headers from the Vulkan SDK 1.4.329 on")
 endif()
 unset(_openmw_spirv_fma)
 
@@ -78,20 +78,21 @@ set(RTX_SHADERS
     shaders/upscale/fsrinstability.comp
     shaders/upscale/fsrlumapyramid.comp
     shaders/upscale/fsrreactivity.comp
+    shaders/trace/bounce.comp
+    shaders/trace/direct.comp
     shaders/trace/fogdepth.rgen
     shaders/trace/fogintegrate.comp
     shaders/trace/fogscatter.rgen
+    shaders/trace/landing.comp
+    shaders/trace/media.comp
+    shaders/trace/panes.comp
     shaders/trace/ripplecompose.comp
     shaders/trace/ripplestep.comp
     shaders/trace/spritecomposite.rgen
     shaders/trace/spriteemitters.rgen
     shaders/trace/spriteshelter.rgen
     shaders/trace/stress.comp
-    shaders/trace/visibility.rahit
-    shaders/trace/visibility.rgen
-    shaders/trace/visibility.rmiss
-    shaders/trace/visibilityhit.rchit
-    shaders/trace/visibilityunshaded.rmiss
+    shaders/trace/visibility.comp
     shaders/trace/wavecolumns.comp
     shaders/trace/waverows.comp
 )
@@ -120,10 +121,9 @@ set(RTX_SHADER_VENDORED "${OpenMW_SOURCE_DIR}/extern/fidelityfx/gpu")
 # compiling twice, so the two differ in nothing else; both are pinned before validation, so the
 # validator reads what the driver gets.
 #
-# **Unoptimized by glslc, guarded, then optimized**, the same level for every flavour: the pinning
-# fuses a multiply into the add that reads it only where the module is in SSA form, which at `-O0`
-# it is not, and the debug build that runs every test would compute other arithmetic than the release
-# build a figure is quoted from. And the optimizer is handed the module guarded
+# **Unoptimized by glslc, guarded, then optimized**, the same level for every flavour, so the debug
+# build that runs every test computes the arithmetic of the release build a figure is quoted from.
+# And the optimizer is handed the module guarded
 # (`Rtx::guardFloatArithmetic`), because what `glslc -O` optimized it folded first: arithmetic the
 # source does not state, before anything pinned it.
 set(RTX_GLSLC_FLAGS -g -O0)
@@ -182,11 +182,14 @@ endforeach()
 
 # The shaders' includes, named so an IDE lists them; glslc's depfile is what rebuilds on an edit.
 set(RTX_SHADER_LIB
+    shaders/lib/answer.glsl
     shaders/lib/basis.glsl
     shaders/lib/bindings.glsl
     shaders/lib/bloom.glsl
     shaders/lib/bluenoise.glsl
+    shaders/lib/bounced.glsl
     shaders/lib/census.glsl
+    shaders/lib/eyeshading.glsl
     shaders/lib/compose.glsl
     shaders/lib/counts.glsl
     shaders/lib/finite.glsl
@@ -200,11 +203,10 @@ set(RTX_SHADER_LIB
     shaders/lib/halfround.glsl
     shaders/lib/hash.glsl
     shaders/lib/historyclamp.glsl
-    shaders/lib/hitrecord.glsl
     shaders/lib/lights.glsl
     shaders/lib/medium.glsl
     shaders/lib/normaldecode.glsl
-    shaders/lib/payload.glsl
+    shaders/lib/peel.glsl
     shaders/lib/pixels.glsl
     shaders/lib/random.glsl
     shaders/lib/records.glsl
@@ -221,6 +223,7 @@ set(RTX_SHADER_LIB
     shaders/lib/sky.glsl
     shaders/lib/spritelist.glsl
     shaders/lib/sprites.glsl
+    shaders/lib/stage.glsl
     shaders/lib/starfield.glsl
     shaders/lib/surfacematch.glsl
     shaders/lib/texturearray.glsl
@@ -378,6 +381,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/composite.h
     shaders/shared/counts.h
     shaders/shared/exposure.h
+    shaders/shared/fields.h
     shaders/shared/fogvolume.h
     shaders/shared/fsr.h
     shaders/shared/glare.h
@@ -409,7 +413,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/tables.h
     shaders/shared/tone.h
     shaders/shared/toplevelpack.h
-    shaders/shared/tracerecords.h
+    shaders/shared/traceconstants.h
     shaders/shared/unormmean.h
     shaders/shared/unormround.h
     shaders/shared/wavetransform.h

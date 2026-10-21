@@ -101,15 +101,6 @@ namespace Rtx::Shaders
         /// sun. Zero for a frame, and for a frame built by hand.
         uint mNoSkyShadows;
 
-        /// Non-zero where nothing filters the bounce between the trace and the picture: the trace
-        /// then composes the frame into `CHANNEL_DIRECT` itself, `composedLight` of the two
-        /// channels, and no composite reads them back only to add them.
-        ///
-        /// **Every frame nothing filters**: a composite there is a whole pass that reads three
-        /// channels and writes the fourth at the traced extent, to hand on a sum the trace holds in
-        /// its registers. Zero where the wavelet runs, which needs the two apart.
-        uint mComposed;
-
         /// The sun as a light: where it stands, unit; how much of its light arrives on a surface
         /// square to it; and the sine of the cone its shadow rays are drawn from, which is
         /// `SUN_SHADOW_RADIUS`'s and not the disc's own half degree — `SUN_SHADOW_RADIUS` says why.
@@ -426,9 +417,9 @@ namespace Rtx::Shaders
         uint mFrame;
 
         /// Non-zero where this scene holds the player's arms and this camera draws them:
-        /// `visibility.rgen` traces `Eyes::mArms`'s ray on `MASK_FIRST_PERSON` ahead of the world's, and a
-        /// picture with no arms in it — every third-person frame, every picture inside the
-        /// interface — pays no second trace.
+        /// `visibility.comp` traces `Eyes::mArms`'s ray on `MASK_FIRST_PERSON` ahead of the
+        /// world's, and a picture with no arms in it — every third-person frame, every picture
+        /// inside the interface — pays no second trace.
         uint mArmsInFrame;
 
         /// Non-zero where the trace's sprite bin took a sprite, or a medium or additive placement:
@@ -503,11 +494,14 @@ namespace Rtx::Shaders
 
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
+        /// To the eight bytes `mTables` stands on, named so that every byte of the block is a field a
+        /// copy carries and a comparison reads: an implicit pad is what neither does.
+        uint mPadding RTX_ZERO;
+
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
         /// pad the middle of a struct two languages have to agree on, and the offset asserted below
-        /// pins where it landed. Everything above it is four-aligned; where it sums to four short
-        /// of a multiple of eight, four bytes are padded in front of it, on both sides alike, and
-        /// the next four-byte field added above takes them back.
+        /// pins where it landed. Everything above it is four-aligned and sums to a multiple of
+        /// eight, `mPadding` included: a four-byte field added above takes its place.
         GpuTables mTables;
     };
 
@@ -543,7 +537,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
     static_assert(offsetof(VisibilityConstants, mTables) == 1440, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1632, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 1640, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

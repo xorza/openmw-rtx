@@ -100,7 +100,8 @@ namespace Rtx
         /// **What a chain says it takes is what it holds once made**, the running sum aside, which
         /// no trace has averaged into: the allocator counts each range at the size the driver asks
         /// of the image, and `bytesAt` asks the driver of the same descriptions. Counted as the use
-        /// it was made with and no other, and given back whole on `release`, whether it keeps its
+        /// it was made with and no other — the tile lists as essential memory, a buffer, and the
+        /// rest as the frame's — and given back whole on `release`, whether it keeps its
         /// past or drops it. A wider chain takes more, a summed radiance more than a shown one, and
         /// a chain that keeps its past more than one that drops it, which holds one image a pair.
         TEST_F(RtxTraceChainTest, whatAChainSaysItTakesIsWhatItHolds)
@@ -127,7 +128,8 @@ namespace Rtx
                     chain.resize(64, 32);
                     EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - frame,
                         TraceChain::bytesAt(device, 64, 32, radiance, past));
-                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential, bins)
+                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential,
+                        bins + GBuffer::tileBytesAt(device, 64, 32))
                         << "a frame target was counted as essential memory";
 
                     chain.release();

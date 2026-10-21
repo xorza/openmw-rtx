@@ -111,6 +111,18 @@ namespace Rtx
             EXPECT_EQ(sampled.mPrevious.mForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
             EXPECT_EQ(sampled.mPreviousJitter, osg::Vec2f(0.375f, -0.125f)) << "where the frame before sampled";
 
+            // **What the next frame is handed of this one is where it sampled**, and the eyes where the
+            // caller put them: the statement's jitter is nought, this frame's is Halton's fifth.
+            const Shaders::VisibilityConstants kept = previousOf(stated(), sampled);
+            EXPECT_EQ(kept.mEyes.mWorld.mJitter, haltonJitter(4));
+            EXPECT_EQ(kept.mOrigin, stated().mOrigin);
+            EXPECT_EQ(kept.mEyes.mWorld.mBasis.mForward, stated().mEyes.mWorld.mBasis.mForward);
+            Shaders::VisibilityConstants next = stated();
+            next.mFrame = 5;
+            EXPECT_EQ(sampleFrame(next, FrameOptions{}, RenderProfile{}, jittering, counts, &kept).mPreviousJitter,
+                haltonJitter(4))
+                << "the next frame's previous jitter is this frame's";
+
             // What the statement carried passes through untouched.
             EXPECT_EQ(sampled.mOrigin, stated().mOrigin);
             EXPECT_EQ(sampled.mFrame, 4u);

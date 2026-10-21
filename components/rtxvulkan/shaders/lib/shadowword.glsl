@@ -37,8 +37,10 @@ const uint UNORM16_NEAREST = 0x7fffffu;
 /// (`randomWord`), with the chance of that share to its twenty-four bits; and to the nearest, a half
 /// up, by `UNORM16_NEAREST`. Clamped to `[0, 1]`.
 ///
-/// **Exact, in a few floats**: the pinned `fma` gives what rounding `value × 65535` took off it,
-/// so the share is the product's fraction and that loss. Where the product is at least a half, the
+/// **Exact, in a few floats**: `value × 65535` is `value × 65536 - value`, whose first term is
+/// exact and within a factor of two of the rounded product, so what rounding took off the product is
+/// two subtractions, each exact by Sterbenz's lemma, and the share is the product's fraction and that
+/// loss. Where the product is at least a half, the
 /// fraction and the threshold are both whole 2^-24ths under one, and their difference is exact; under
 /// a half, it is exact by Sterbenz's lemma wherever it is near nought, and too far from it elsewhere
 /// for its rounding to cross the loss. A product rounded up onto a whole number stands under it,
@@ -50,7 +52,7 @@ uint roundedToUnorm16(float value, uint word)
     countNotFinite(value);
     const float held = clamp(value, 0.0, 1.0);
     const float scaled = held * 65535.0;
-    const float lost = fma(held, 65535.0, -scaled);
+    const float lost = (held * 65536.0 - scaled) - held;
     const float whole = floor(scaled);
     const float share = scaled - whole;
     const float threshold = float(word + 1u) * (1.0 / 16777216.0);

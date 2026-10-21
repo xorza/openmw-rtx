@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <volk.h>
 
@@ -18,6 +19,30 @@
 
 namespace Rtx
 {
+    /// What a pipeline's compiler made it use: the statistics `VK_KHR_pipeline_executable_properties`
+    /// reports under names each driver picks, of which AMD's own driver's are the ones read, and a
+    /// launch's stack, which every driver answers. A figure the driver does not give is nothing.
+    struct CompiledUse
+    {
+        /// The scratch memory a lane uses, in bytes — what the compiler spilled out of the
+        /// registers, and any array indexed at run time: `scratchMemUsageInBytes`.
+        std::optional<std::uint64_t> mScratchBytes;
+
+        /// The vector registers a lane holds, which is how many waves share a SIMD's register file:
+        /// `numUsedVgprs`.
+        std::optional<std::uint64_t> mRegisters;
+
+        /// A launch's ray generation stack, in bytes a lane, which every driver answers: where a
+        /// launch keeps what does not fit its registers. **What a launch is measured by on AMD's
+        /// own driver**, whose statistics for one describe a stub of three registers whatever the
+        /// launch does. Nothing for a pipeline that is not a launch.
+        std::optional<std::uint64_t> mStackBytes;
+
+        /// The lanes a subgroup of the pipeline holds, the widest of its executables, which every
+        /// driver that reports an executable answers: what a register count is a count of.
+        std::optional<std::uint32_t> mSubgroupSize;
+    };
+
     class BufferMarkers;
     class CommandPool;
     class Graveyard;
@@ -106,6 +131,7 @@ namespace Rtx
         PFN_vkCreateRayTracingPipelinesKHR mCreateRayTracingPipelines = nullptr;
         PFN_vkGetRayTracingShaderGroupHandlesKHR mGetRayTracingShaderGroupHandles = nullptr;
         PFN_vkCmdTraceRaysKHR mCmdTraceRays = nullptr;
+        PFN_vkGetRayTracingShaderGroupStackSizeKHR mGetRayTracingShaderGroupStackSize = nullptr;
 
         PFN_vkGetPipelineExecutablePropertiesKHR mGetPipelineExecutableProperties = nullptr;
         PFN_vkGetPipelineExecutableStatisticsKHR mGetPipelineExecutableStatistics = nullptr;
@@ -190,6 +216,13 @@ namespace Rtx
         void reportPipeline(
             VkPipeline pipeline, std::string_view name, std::optional<double> compileMs = std::nullopt) const;
 
+        /// What the driver's compiler made `pipeline` use, the most of any of its executables, where
+        /// the driver says: nothing of a figure no statistic of its name reports.
+        ///
+        /// @param point which kind of pipeline it is: a ray tracing one is a launch of this
+        ///        renderer's, whose ray generation group is its first (`makeTracePipeline`).
+        CompiledUse compiledUseOf(VkPipeline pipeline, VkPipelineBindPoint point) const;
+
         /// Attaches a name to a Vulkan object so captures and validation messages name it. Compiled
         /// to nothing in release: an unreadable capture is a debugging session that does not
         /// happen, and a released build has no captures.
@@ -206,6 +239,9 @@ namespace Rtx
         /// Whether `setName` reaches the driver, which is what says a name may be chained into a
         /// create info that has no object of its own to name.
         bool namesObjects() const { return sDebugNames && mSetObjectName != nullptr; }
+
+        /// Whether every submit is logged and watched to its end, `ValidationOptions::mWatchSubmits`.
+        bool watchesSubmits() const { return mWatchesSubmits; }
 
         /// Opens a named region in `commands`, so a capture or a profile shows what each stretch of
         /// the frame is. Kept in release, which is the build a profiler reads; `name` arrives
@@ -267,6 +303,11 @@ namespace Rtx
         /// buffers, let go of as far as the clock now reaches.
         void collect() const;
 
+        /// How many executables the driver made `pipeline` of, and what it says of one: the
+        /// statistics a pipeline was made to capture (`PipelineCreation::sFlags`).
+        std::uint32_t executablesOf(VkPipeline pipeline) const;
+        std::vector<VkPipelineExecutableStatisticKHR> statisticsOf(VkPipeline pipeline, std::uint32_t executable) const;
+
         /// The last checkpoint each stage of the queue passed, as lines for the fault report.
         /// Nothing where the driver offers neither checkpoints nor buffer markers.
         std::string describeCheckpoints() const;
@@ -296,6 +337,7 @@ namespace Rtx
         PFN_vkGetQueueCheckpointDataNV mGetQueueCheckpointData = nullptr;
 
         bool mPresentFences = false;
+        bool mWatchesSubmits = false;
 
         std::filesystem::path mShaderDirectory;
 

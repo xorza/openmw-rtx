@@ -21,13 +21,17 @@
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/toplevelpack.h>
-#include <components/rtxvulkan/shaders/shared/tracerecords.h>
+#include <components/rtxvulkan/shaders/shared/traceconstants.h>
 
 #include "placing.hpp"
 #include "toplevelpackpass.hpp"
 
 namespace Rtx
 {
+    static_assert(static_cast<std::uint32_t>(MaterialKind::Surface) == Shaders::KIND_SURFACE);
+    static_assert(static_cast<std::uint32_t>(MaterialKind::Terrain) == Shaders::KIND_TERRAIN);
+    static_assert(static_cast<std::uint32_t>(MaterialKind::Water) == Shaders::KIND_WATER);
+
     namespace
     {
         /// Whether `placed` counts, block by block, exactly the rows that place an instance:
@@ -473,12 +477,11 @@ namespace Rtx
                 .instanceCustomIndex = slot & 0xFFFFFFu,
                 .mask = record.mMask,
 
-                // The kind, so that traversal picks the shader and the trace never asks what it hit:
-                // one closest-hit shader stands behind `HIT_RECORDS_PER_SHADER` records, kinds in the
-                // order `MaterialKind` names them, and the launch adds the eye and the layer it traces
-                // for — `hitRecordOffset`.
-                .instanceShaderBindingTableRecordOffset
-                = static_cast<std::uint32_t>(record.mKind) * Shaders::HIT_RECORDS_PER_SHADER,
+                // The kind, which a query hands back off a committed hit (`KIND_WATER`): no shader
+                // table stands behind it, and it is the one field of the row nothing else takes. A
+                // kind out of step with `KIND_*` would shade every chunk of ground as water, and
+                // nothing would say so.
+                .instanceShaderBindingTableRecordOffset = static_cast<std::uint32_t>(record.mKind),
                 .flags = flags,
                 .accelerationStructureReference = mBottomLevel.getAddress(record.mMesh),
             });

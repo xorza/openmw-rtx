@@ -64,20 +64,19 @@ float waterAlong(vec3 from, vec3 direction, float distance)
 /// handed a bed far enough out to stop the ray. Read as sky instead, everything past the edge of
 /// the loaded terrain came back at the sky's own horizon colour — which is what `skyGradient`
 /// clamps to under the horizontal — through a ray's length of water rather than through the whole
-/// of it, and that drew the terrain's boundary across the sea as a row of dark panels. `waterRay`
-/// answers the same question the same way for a reflection and for a refraction.
+/// of it, and that drew the terrain's boundary across the sea as a row of dark panels. `WaterRun`
+/// answers the same question the same way for a water path.
 ///
-/// **Asked by the miss shader and again by the launch**, which are the two that need it: one to
-/// draw no sky and one to measure the column the pixel is seen through. It is a plane test and a
-/// sign, and a payload word carrying it between them would cost more than asking twice. Here and
-/// not with the water's shading, so the miss shader compiles none of that to ask it.
+/// **Asked where the sky is drawn and again where the column is measured**, by `missedAlong`, by
+/// `tracePixel` and by the media stage: a plane test and a sign, which an answer field carrying it
+/// between them would cost more than.
 bool waterUnbounded(bool found, vec3 origin, vec3 direction)
 {
     return !found && direction.z < 0.0 && waterOver(origin) > 0.0;
 }
 
-/// The eye a ray the launch cast went through: `frame.mEyes.mArms` where `arms` is one, the world's
-/// `frame.mEyes.mWorld` where it is nought. What a hit or miss record's `mArms` names.
+/// The eye a ray the kernel cast went through: `frame.mEyes.mArms` where `arms` is one, the world's
+/// `frame.mEyes.mWorld` where it is nought.
 Camera eyeOf(uint arms)
 {
     return arms != 0u ? frame.mEyes.mArms : frame.mEyes.mWorld;

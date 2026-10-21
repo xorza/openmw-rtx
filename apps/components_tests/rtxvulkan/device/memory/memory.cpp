@@ -22,6 +22,7 @@
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
+#include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
 namespace Rtx
@@ -369,7 +370,10 @@ namespace Rtx
         /// what the process holds outside the allocator among it, once — plus what essential memory
         /// holds, owed once more, plus three blocks and a megabyte: the structures' ceiling is then
         /// three blocks and a megabyte above the heap, which is three whole blocks. The memory
-        /// outside the allocator is more than that megabyte, so counted twice it would leave two. The textures' stands
+        /// outside the allocator is more than that megabyte — eight of it made here, since what a
+        /// driver holds beside the allocator is its own: NVIDIA's holds some, and AMD's Windows driver
+        /// counts a Radeon 680M's heap as the allocator's blocks alone — so counted twice it would
+        /// leave two. The textures' stands
         /// lower by the forty-eight megabytes of structure held here and whatever other structures
         /// the binary's device holds, which the heap's own count says; the megabyte is there so the
         /// division by a block does not land on its edge.
@@ -385,6 +389,26 @@ namespace Rtx
             MemoryAllocator& memory = getDevice().getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
             constexpr VkDeviceSize block = VkDeviceSize{ 64 } << 20;
+
+            const VkPhysicalDeviceMemoryProperties& types = getDevice().getPhysicalDevice().getProperties().mMemory;
+            std::uint32_t type = 0;
+            while (type < types.memoryTypeCount
+                && (types.memoryTypes[type].heapIndex != heap
+                    || (types.memoryTypes[type].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0))
+                ++type;
+            ASSERT_LT(type, types.memoryTypeCount);
+            const VkMemoryAllocateInfo outsideInfo{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                .pNext = nullptr,
+                .allocationSize = VkDeviceSize{ 8 } << 20,
+                .memoryTypeIndex = type,
+            };
+            const Owned<VkDeviceMemory, vkFreeMemory> outside = Owned<VkDeviceMemory, vkFreeMemory>::make(
+                getDevice(), vkAllocateMemory, outsideInfo, "vkAllocateMemory");
+
+            // The library reads the driver's figures again at a frame's start and keeps them until
+            // the next.
+            memory.refreshBudget(0);
 
             const std::optional<Bound> structure = tryBind(
                 getDevice(), VkDeviceSize{ 48 } << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Structure);

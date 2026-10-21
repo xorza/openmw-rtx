@@ -1,0 +1,111 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The one bounce of every pixel's solid, a stage of its own after the trace (`visibility.comp`):
+// the solid the trace found resolved again, its bounce drawn and traced, and what the bounce
+// brought back written where its ray met nothing; where it met a surface, the pixel listed for the
+// landing's stage (`landing.comp`), which visits it and writes what the bounce brought back.
+//
+// **A stage, because the one kernel spilled** (`docs/rtx/architecture.md`, "A stage a kernel, in
+// one fixed order"): it carried every walk's record at once. **And apart from its landing**, whose
+// visit kept this stage's records live through its loop (`BounceRun`).
+//
+// **The trace's hit, resolved again with no traversal** (`storedSolidOf`): the surface the trace
+// shaded, to the bit.
+
+#include "shared/traceconstants.h"
+#include "camera.h"
+#include "scene.h"
+#include "visibility.h"
+
+#include "lib/bindings.glsl"
+#include "lib/bounced.glsl"
+#include "lib/census.glsl"
+#include "lib/frame.glsl"
+#include "lib/pixels.glsl"
+#include "lib/shading.glsl"
+#include "lib/stage.glsl"
+#include "lib/traversal.glsl"
+#include "lib/variants.glsl"
+
+layout(local_size_x = TRACE_WORKGROUP_WIDTH, local_size_y = TRACE_WORKGROUP_HEIGHT) in;
+
+/// Which of the workgroup's pixels landed, a bit a lane (`TRACE_WORKGROUP_LANES`), and the first
+/// slot of the landing's list they take.
+shared uint gLanded;
+shared uint gFirstLanding;
+
+/// Bounces `pixel` off its solid, and answers whether its ray met a surface, which the landing's
+/// stage then visits.
+bool bouncePixel(uvec2 pixel)
+{
+    const uint width = frame.mEyes.mWorld.mWidth;
+    const uint swap = fieldSwapOf(frame.mFrame);
+    const ivec2 at = ivec2(pixel);
+    const ivec2 stored = storedAt(at, width, swap);
+    StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
+
+    // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`).
+    const Surface surface = storedSolidOf(record, stored);
+
+    BounceRun bounce = bounceRunOf();
+    if (surface.mHit)
+        startBounce(bounce, surface, coneAt(eyeOf(record.mArms)), pixel);
+
+    // **A split pixel's lift blended with its split neighbours'** where no layer stands, which the
+    // layers' stage blends where one does (`shownSurfaceLift`): here, where every pixel's halves are
+    // written, and not in the layers' stage, whose registers its tiles paid for the blend alone.
+    if (!record.mLayered && splitIn(imageLoad(motion, channelAt(CHANNEL_MOTION, at, width, swap))))
+        RTX_STORE_COUNTED(lift, channelAt(CHANNEL_LIFT, at, width, swap),
+            vec4(shownSurfaceLift(at, width, swap, true), 1.0))
+
+    record.mBounceLobe = bounce.mDrawn.mSpecular;
+    if (bounce.mBounceTraced)
+    {
+        // **What the ray met, stored in the solid's place** (`storeStageSolid`), which nothing reads
+        // after this stage but the landing's: the landing then resolves it as this walk would have
+        // (`storedLandingOf`).
+        const SceneQuery asked = bounce.mBounceRay.mQuery;
+        const SceneAnswer met = queryScene(asked);
+        if (met.mCommitted != 0u)
+        {
+            storeStageSolid(stored, met, asked);
+            storeBounce(stored, bounce.mWeight, bounce.mModulationWord);
+            RTX_STORE_WORDS(stageRecord, stored, packStageRecord(record))
+            return true;
+        }
+
+        bounce.mEscaped = bounceMissed(bounce);
+    }
+
+    // **What arrived, where this stage knows it**: the escape, or nothing.
+    storeBounced(pixel, record, escapedArriving(bounce.mEscaped), unpackRgb9e5(bounce.mModulationWord));
+    return false;
+}
+
+void main()
+{
+    uvec2 pixel;
+    const bool inside = stagePixelOf(pixel);
+
+    if (gl_LocalInvocationIndex == 0u)
+        gLanded = 0u;
+    barrier();
+
+    const bool landed = inside && bouncePixel(pixel);
+    if (landed)
+        atomicOr(gLanded, 1u << gl_LocalInvocationIndex);
+
+    // **The workgroup's landings listed together, by one atomic, in the tile's order**: a run of the
+    // list holds pixels of one tile as the tile lays them out, so a warp of the landing's stage
+    // visits surfaces near each other.
+    barrier();
+    const uint landedMask = gLanded;
+    if (gl_LocalInvocationIndex == 0u && landedMask != 0u)
+        gFirstLanding = appendLandings(uint(bitCount(landedMask)));
+    barrier();
+    if (landed)
+        listLanding(gFirstLanding + uint(bitCount(landedMask & ((1u << gl_LocalInvocationIndex) - 1u))), pixel);
+}

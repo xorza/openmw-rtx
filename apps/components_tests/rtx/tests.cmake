@@ -122,7 +122,7 @@ set(RTX_TEST_FILES
     rtxvulkan/scene/sceneslots.cpp
     rtxvulkan/shaders/accumulate.cpp
     rtxvulkan/shaders/exposure.cpp
-    rtxvulkan/shaders/hitrecords.cpp
+    rtxvulkan/shaders/fields.cpp
     rtxvulkan/shaders/medium.cpp
     rtxvulkan/shaders/sharedconstants.cpp
     rtxvulkan/shaders/shadow.cpp

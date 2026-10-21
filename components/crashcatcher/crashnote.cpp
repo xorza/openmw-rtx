@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstring>
+#include <string_view>
 #include <thread>
 #include <type_traits>
 
@@ -158,6 +159,16 @@ namespace Crash
             const std::size_t at = mFoundLength == 0 ? 0 : append(into, mFoundLength, " > ");
             return append(into, at, text);
         });
+    }
+
+    std::string_view ownNote()
+    {
+        const Slot* const slot = ownSlot();
+        if (slot == nullptr)
+            return {};
+
+        return std::string_view(slot->mText,
+            static_cast<std::size_t>(std::find(slot->mText, slot->mText + sNoteCapacity - 1, '\0') - slot->mText));
     }
 
     NoteScope::~NoteScope()

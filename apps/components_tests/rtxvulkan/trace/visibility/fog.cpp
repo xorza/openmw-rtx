@@ -664,11 +664,15 @@ namespace Rtx::Testing
         /// twenty units over the ray at 800, with a reach of a hundred, puts nearly all of its light
         /// into the slice from 732 to 886 — which a stretch cut at the post holds none of.
         ///
-        /// **Measured against the same air with no posts**, which holds perfectly still. Cut where
-        /// the jittered ray stopped, the pixel stepped by 20% of itself from one frame to the next
-        /// and settled 12% darker than the open air. Cut where the middle ray stops, it is the open
-        /// air's to 1.5 per cent, and steps by 2.9%: the draws of the shadow rays the posts' edges
-        /// stop, which the froxel's history averages and nothing here can take away.
+        /// **Measured against the same air with no posts**, which holds still to the halves it is read
+        /// through: the froxels' draws move every frame, and a value stored into a half may round
+        /// either way — Vulkan leaves the rounding to the implementation, and AMD's rounds toward
+        /// nought — so a settled froxel may step by one ulp of a half, `2^-10` of itself at most.
+        /// Measured 2.6e-5 on a Radeon 680M, on two frames of the settled forty-eight. Cut where the
+        /// jittered ray stopped, the pixel beside the posts stepped by 20% of itself from one frame
+        /// to the next and settled 12% darker than the open air. Cut where the middle ray stops, it
+        /// is the open air's to 1.5 per cent, and steps by 2.9%: the draws of the shadow rays the
+        /// posts' edges stop, which the froxel's history averages and nothing here can take away.
         TEST_F(RtxVisibilityTest, theLampLightBesideAnEdgeHoldsStillAndAsBrightAsOpenAir)
         {
             constexpr std::uint32_t size = framedInColumns(4);
@@ -735,7 +739,7 @@ namespace Rtx::Testing
             const Settled open = run(false);
             const Settled edged = run(true);
             ASSERT_GT(open.mMean, 0.02) << "the lamp lights the air the pixel looks through";
-            EXPECT_EQ(open.mStep, 0.0) << "the open air holds still, so a step beside the posts is theirs";
+            EXPECT_LT(open.mStep, 0x1p-10) << "the open air holds still, so a step beside the posts is theirs";
             EXPECT_NEAR(edged.mMean / open.mMean, 1.0, 0.02) << "the slit's air is lit as the open air is";
             EXPECT_LT(edged.mStep, 0.1) << "how far the pixel beside the posts moves between frames";
         }

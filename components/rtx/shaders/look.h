@@ -387,7 +387,7 @@ namespace Rtx::Shaders
     /// conventions and not one.
     ///
     /// **A glow has no lamp of its own, and lights only by the bounce that lands on it**
-    /// (`bounceArriving`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
+    /// (`SolidRun`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
     /// and what they buy is the warm ring under a mushroom's cap. **A lamp's own model does not light
     /// even so**: its `LIGH` lamp already lights for it, through its fitting (`INSTANCE_LAMP_BODY`).
     const float EMISSIVE_INTENSITY = 8.0f;
@@ -470,7 +470,7 @@ namespace Rtx::Shaders
     /// one.
     ///
     /// **The bounce is the one ray whose hit is shaded**, so what a skipped lane drops is the
-    /// traversal and the whole of `lightAtPathEnd` behind it: the lamp walk, the sun ray and the
+    /// traversal and the whole of `VisitRun` behind it: the lamp walk, the sun ray and the
     /// ambient ray. Half of them saved four to six per cent of the frame — release, three
     /// alternated rounds, the `trace` zone: 1.97–2.05 ms to 1.77–1.82 at the ship and 1.45–1.47 to
     /// 1.20–1.23 in the guild; at 4K performance 4.33–4.36 to 3.83–3.84 and 3.38–3.41 to 2.76.
@@ -558,14 +558,13 @@ namespace Rtx::Shaders
     /// is what the filter is for — and it is the same trade the moon pick makes. Nothing downstream
     /// clamps it: `pathEnd` and a sprite's fill both multiply, so a doubled sample stays worth double.
     ///
-    /// **Only where a filter takes the answer**: the bounce's far hit, a pane (the pane filter's)
-    /// and the fog's froxels. What the water's rays find goes to the picture as it is, and draws at
-    /// `AMBIENT_UNFILTERED_RATE`.
+    /// **A filter takes every asker's answer**: the bounce's far hit's, a pane's (the pane
+    /// filter's) and the fog's froxels'. What a water path finds is the pixel's surface,
+    /// lit by its stages and filtered as any is.
     ///
-    /// **Hashed rather than blue noise, because two callers must not agree.** The bounce and a water
-    /// reflection each ask this, and the water's two rays already take separate seeds so that a
-    /// reflection and a refraction do not keep one answer between them. A screen-space tile has one
-    /// arrangement per channel and would hand every caller the same one.
+    /// **Hashed rather than blue noise, because two callers must not agree.** The bounce's far hit
+    /// and a pane each ask this at one pixel, with seeds of their own, and a screen-space tile has
+    /// one arrangement per channel and would hand every caller the same one.
     ///
     /// The interior ray keeps every point: it is short, and a room is where this term does its
     /// visible work.
@@ -574,17 +573,6 @@ namespace Rtx::Shaders
     /// pier's and the guild's noise where the half does, to the second decimal, still and strafing
     /// in, which is the argument above for stopping at a half.
     const float AMBIENT_EXTERIOR_RATE = 0.5f;
-
-    /// What share of the occlusion rays out of doors are traced where nothing filters the answer:
-    /// all of them.
-    ///
-    /// **The half is a trade against a filter, and there is no filter here.** What a water ray
-    /// finds reaches the picture as it is traced, so a point open to the sky came back as nought or
-    /// twice its light — a speckle over every reflection, which the shadow denoiser, filtering the
-    /// sun's bit, left standing. At the pond under a canopy that
-    /// `-1,-9` looks at, every ray took the water's error against a reference from 5.3 codes to
-    /// 3.4, where the rock beside it stands at 1.9.
-    const float AMBIENT_UNFILTERED_RATE = 1.0f;
 
     /// How far a ray carries fog before whatever is behind it stops mattering.
     ///
@@ -1036,7 +1024,7 @@ namespace Rtx::Shaders
     ///
     /// **Two of them, because one drew a circle.** A march that begins at a threshold begins with a
     /// pattern already in it, and the ring where that pattern started was the sharpest edge in the
-    /// frame. The pattern fades in across the two instead — and the ratio `waterColumn` takes across
+    /// frame. The pattern fades in across the two instead — and the ratio `ColumnRun` takes across
     /// them is what makes *nothing to show* come out as exactly the closed form rather than nearly it.
     const float WATER_SHAFT_FLOOR = 0.04f;
     const float WATER_SHAFT_SHOWN = 0.15f;
@@ -1049,7 +1037,7 @@ namespace Rtx::Shaders
     ///
     /// **Four, and the beam's body does not depend on it.** The march is a ratio against the same
     /// steps without the lens, so the step count cancels out of everything but the pattern's own
-    /// quadrature — and each step is a shadow ray, on the two rays every water pixel already traces.
+    /// quadrature — and each step is a shadow ray, on the path every water pixel already traces.
     /// Measured against eight at the shore: 0.23 ms off the trace, twelve per cent of it, for a
     /// reference that moved by a hundredth of a per cent of its mean.
     const uint WATER_SHAFT_STEPS = 4u;
@@ -1248,7 +1236,7 @@ namespace Rtx::Shaders
     ///     pier, pond        within 0.02 of each other in every figure
     ///
     /// Less noise everywhere a lamp lights, and more bias, most where paper lanterns glow: the yurt's,
-    /// whose glow the bounce counts beside their lamps (`bounceArriving`), and the reference counts
+    /// whose glow the bounce counts beside their lamps (`SolidRun`), and the reference counts
     /// it too. How much of the bias is that light, and how much is light the ring should have kept,
     /// is for an A/B after the glow is counted once.
     ///

@@ -152,6 +152,11 @@ namespace Rtx
         BlockedBuffer mSecondTexCoords{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec2f) };
         BlockedBuffer mColours{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
 
+        /// The static meshes' positions, which the bottom levels were built over and a committed
+        /// triangle's corners are read from (`GpuTables::mPositionBlocks`); a deforming mesh's run
+        /// is left unwritten, its pose being the acceleration's.
+        BlockedBuffer mPositions{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+
         /// A material's layers and the weights a layer places, one copy each for the same reason.
         /// Plain buffers grown by doubling, because a shader reaches a run by its offset from one
         /// address; the masks are megabytes, which is what a copy per frame in flight cost.

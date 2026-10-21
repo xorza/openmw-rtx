@@ -21,6 +21,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/digestpass.hpp>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 
 namespace Rtx
 {
@@ -93,11 +94,12 @@ namespace Rtx
         struct RtxDigestPassTest : Testing::DeviceTest
         {
             /// Digests `images` and the bound of `denoiser` in one record, from where `from` left
-            /// them. The pass takes the frame's count of channels, so the last one given stands in
-            /// for the rest.
+            /// them, over the first image's extent. The pass takes the frame's count of channels, so
+            /// the last one given stands in for the rest; they are in the frame's order, and the
+            /// denoiser's in fields (`fielded`) as frame number `frame` lays them.
             Digested digest(const std::span<Image* const> images,
                 const std::array<const Image*, sDenoiserImageCount>& denoiser = {},
-                const ImageUse& from = Use::sTextureSample)
+                const ImageUse& from = Use::sTextureSample, const std::uint32_t frame = 0)
             {
                 Device& device = getDevice();
                 const DigestPass pass(device);
@@ -115,7 +117,9 @@ namespace Rtx
                 for (const Image* const image : denoiser)
                     if (image != nullptr && std::ranges::find(images, image) == images.end())
                         image->transition(batch.getCommands(), from, Use::sComputeRead);
-                read.mFrame.mDenoiserTaken = pass.record(batch.getCommands(), digested, denoiser, lanes, nullptr);
+                const VkExtent2D extent{ images.front()->getWidth(), images.front()->getHeight() };
+                read.mFrame.mDenoiserTaken
+                    = pass.record(batch.getCommands(), digested, 0, denoiser, extent, frame, lanes, nullptr);
                 batch.flush();
 
                 const auto* const words = static_cast<const std::uint32_t*>(lanes.map());
@@ -129,6 +133,25 @@ namespace Rtx
 
                 DigestPass::unpack(lanes, read.mFrame);
                 return read;
+            }
+
+            /// `values`, `channels` a texel over a frame `width` wide, each pixel's at its stored
+            /// place (`storedOf`) under `swap`, and nought in the slot an odd width leaves: what
+            /// `upload` takes for an image the denoiser keeps in fields.
+            template <class Value>
+            static std::vector<Value> fielded(const std::uint32_t width, const std::uint32_t height,
+                const std::uint32_t channels, const std::uint32_t swap, const std::vector<Value>& values)
+            {
+                std::vector<Value> stored(std::size_t{ Shaders::storedWidth(width) } * height * channels, Value{});
+                for (std::uint32_t y = 0; y < height; ++y)
+                    for (std::uint32_t x = 0; x < width; ++x)
+                    {
+                        const Shaders::uvec2 at = Shaders::storedOf(Shaders::uvec2(x, y), swap, width);
+                        for (std::uint32_t c = 0; c < channels; ++c)
+                            stored[(std::size_t{ at[1] } * Shaders::storedWidth(width) + at[0]) * channels + c]
+                                = values[(std::size_t{ y } * width + x) * channels + c];
+                    }
+                return stored;
             }
 
             /// An image of `channels` values a texel, uploaded and left where a sampler expects it.
@@ -254,14 +277,24 @@ namespace Rtx
                     wordValues.push_back(word);
                     wordTexels.push_back(Texel{ .mR = word, .mA = 1u });
                 }
-            Image words = upload(width, height, 1, VK_FORMAT_R32_UINT, wordValues, "digest test words");
+            // **The denoiser's in fields, as it stores them**, at five wide with the slot the odd width
+            // leaves, and as an odd frame swaps them: the digest reads each pixel where its field keeps
+            // it in that frame, so it comes to the frame order's. Read as frame nought lays them, each
+            // pixel would be its neighbour's.
+            constexpr std::uint32_t frame = 1;
+            const std::uint32_t swap = Shaders::fieldSwapOf(frame);
+            const std::uint32_t stored = Shaders::storedWidth(width);
+            const Image paneMean = upload(stored, height, 2, VK_FORMAT_R32G32_SFLOAT,
+                fielded(width, height, 2, swap, values), "digest test rg in fields");
+            const Image words = upload(stored, height, 1, VK_FORMAT_R32_UINT,
+                fielded(width, height, 1, swap, wordValues), "digest test words");
 
             std::array<const Image*, sDenoiserImageCount> denoiser{};
-            denoiser[static_cast<std::size_t>(DenoiserImage::PaneMean)] = &image;
+            denoiser[static_cast<std::size_t>(DenoiserImage::PaneMean)] = &paneMean;
             denoiser[static_cast<std::size_t>(DenoiserImage::SkyShadowLevel0)] = &words;
 
             std::array<Image*, 1> once{ &image };
-            const Digested digested = digest(once, denoiser);
+            const Digested digested = digest(once, denoiser, Use::sTextureSample, frame);
             const std::vector<Lanes>& lanes = digested.mChannels;
             ASSERT_EQ(lanes.size(), Shaders::DIGEST_IMAGES);
             EXPECT_EQ(lanes[0], fold(texels, width)) << "blue reads as nought and alpha as one";

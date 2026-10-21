@@ -128,7 +128,7 @@ vec2 reprojected(uvec2 pixel, vec3 was, vec2 spread)
 /// `q_was` where the point stood in the mesh last frame; written out, that is `M · point` plus
 /// `M_lin · toWorld_lin · (q_was − q_now)`. The first term is `movedBy`'s exact delta and the
 /// second is a small vector rotated twice, so the six-figure coordinates never meet a small one.
-vec3 deformedBy(GpuInstance instance, GpuMesh mesh, uint primitive, vec2 bary, mat4x3 toWorld)
+vec3 deformedBy(GpuInstance instance, GpuMesh mesh, uint primitive, vec2 bary)
 {
     // Asked before the corners are looked up: most of the frame is a mesh that stands, and the
     // index block the corners come out of is a dependent load a mesh with no pose has no use for.
@@ -140,7 +140,7 @@ vec3 deformedBy(GpuInstance instance, GpuMesh mesh, uint primitive, vec2 bary, m
     // The step is this frame less the last, and what is wanted is where the point was: the other
     // way round. A step of nought comes out as nought, so a body that did not move adds nothing
     // to the rigid half and no lane leaves early to say so.
-    const vec3 back = mat3(toWorld) * -step;
+    const vec3 back = mat3(toWorldOf(instance)) * -step;
     const vec4 rows[3] = instance.mMotion;
 
     return vec3(dot(rows[0].xyz, back), dot(rows[1].xyz, back), dot(rows[2].xyz, back));
@@ -160,7 +160,7 @@ vec3 deformedBy(GpuInstance instance, GpuMesh mesh, uint primitive, vec2 bary, m
 ///        on it: what a deforming mesh needs to say where that point stood last frame. Read
 ///        only for a mesh that deforms.
 vec3 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint instance, uint primitive, vec2 bary,
-    mat4x3 toWorld, vec2 spread)
+    vec2 spread)
 {
     const vec3 point = origin + direction * distance;
 
@@ -172,20 +172,15 @@ vec3 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
     // adds exact noughts and a moving one rounds its steps against each other and not against a
     // distance thousands of units long.
     const vec3 moved
-        = frame.mCameraMotion + movedBy(placed, point) + deformedBy(placed, mesh, primitive, bary, toWorld);
+        = frame.mCameraMotion + movedBy(placed, point) + deformedBy(placed, mesh, primitive, bary);
 
-    // **One fused step for the offset, and a product of its own.** The hit shader that calls this
-    // has made `point` already, as `origin + direction * distance` fused into one rounding; the same
-    // product written out here would be one value with two readers, which no build fuses, and the
-    // surface's whole shading would take the rounding that leaves. `fma` is its own operation and
-    // shares nothing, and it rounds this sum once where a product and an add round twice.
-    const vec3 was = fma(direction, vec3(distance), moved);
+    const vec3 was = direction * distance + moved;
 
     // **`|a + m| - |a|` as `m · (2a + m) / (|a + m| + |a|)`**, with `a` the offset from this eye and
     // `m` the step: the same number without the cancellation. Subtracted, two distances fifty
     // thousand units long lose the step to their last bit, 0.004 units, and a point that stood still
     // would come out a rounding off nought.
-    const float farther = dot(moved, fma(direction, vec3(2.0 * distance), moved)) / (length(was) + distance);
+    const float farther = dot(moved, direction * (2.0 * distance) + moved) / (length(was) + distance);
 
     return vec3(reprojected(pixel, was, spread), frame.mEyes.mWorld.mOrthographic != 0u ? 0.0 : farther);
 }

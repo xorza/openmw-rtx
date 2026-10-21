@@ -50,6 +50,9 @@ namespace Rtx
         /// Where inside its pixel the previous frame sampled: `VisibilityConstants::mPreviousJitter`.
         Shaders::vec2 mPreviousJitter;
 
+        /// `VisibilityConstants::mFrame`, which says how the channels' fields lie.
+        std::uint32_t mFrame = 0;
+
         /// `Reconstruction::mJitterPhases`: what the jitter the trace sampled with repeats after.
         std::uint32_t mJitterPhases = 0;
 

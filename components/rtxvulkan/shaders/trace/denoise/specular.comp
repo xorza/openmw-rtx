@@ -113,9 +113,10 @@ void main()
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
     if (outsideOf(uvec2(at), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
         return;
+    const ivec2 stored = storedAt(at, frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame));
 
-    const vec4 sampled = imageLoad(specular, at);
-    const vec2 seen = imageLoad(surfaceChannel, at).xy;
+    const vec4 sampled = imageLoad(specular, stored);
+    const vec2 seen = imageLoad(surfaceChannel, stored).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
 
     // A pixel with no surface reflects nothing, and a surface with no lobe has nothing to average.
@@ -134,20 +135,23 @@ void main()
     // is the same gather's.
     if (reflects && previous)
     {
-        const vec3 moved = imageLoad(motion, at).xyz;
+        const vec4 motionHere = imageLoad(motion, stored);
+        const vec3 moved = motionHere.xyz;
         const HistoryFootprint footprint = historyFootprint(at, moved);
         const HistoryPlane plane = historyPlane(frame, at, seen, moved);
 
         // A texel that reflected nothing holds no history, and would pull the mean toward nought.
-        RTX_HISTORY_SHARES(shares, footprint, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight),
-            heldSurface, imageLoad(meanBefore, historyAt).a > 0.0, plane)
+        const HistoryFields fields = historyFieldsOf(at, motionHere, frame.mFrame, frame.mPreviousFrame);
+        RTX_HISTORY_SHARES(shares, footprint, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight), fields,
+            heldSurface, imageLoad(meanBefore, historyStored).a > 0.0, plane)
         vec4 held = vec4(0.0);
         vec3 heldFast = vec3(0.0);
         for (int i = 0; i < 4; ++i)
             if (shares[i] > 0.0)
             {
-                held += imageLoad(meanBefore, historyTap(footprint, i)) * shares[i];
-                heldFast += unpackRgb9e5(imageLoad(fastBefore, historyTap(footprint, i)).x) * shares[i];
+                const ivec2 tap = heldStoredAt(historyTap(footprint, i), frame.mEyes.mWorld.mWidth, fields);
+                held += imageLoad(meanBefore, tap) * shares[i];
+                heldFast += unpackRgb9e5(imageLoad(fastBefore, tap).x) * shares[i];
             }
         const float weight = historyCovered(shares);
         if (weight > 0.0)
@@ -169,6 +173,6 @@ void main()
     // A lane with no lobe stores no frames, where `startedMean` counts one, so no later frame takes
     // its texel for a history; and its fast mean says it holds none, so no clamp takes it into a box.
     uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_GLOSSY_ROUNDING, frame.mFrame);
-    RTX_STORE_COUNTED(mean, at, roundedToHalf(reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0), rounding))
-    RTX_STORE_WORDS(fastBlended, at, uvec4(reflects ? packRgb9e5(blendedFast) : HISTORY_CLAMP_EMPTY, 0u, 0u, 0u))
+    RTX_STORE_COUNTED(mean, stored, roundedToHalf(reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0), rounding))
+    RTX_STORE_WORDS(fastBlended, stored, uvec4(reflects ? packRgb9e5(blendedFast) : HISTORY_CLAMP_EMPTY, 0u, 0u, 0u))
 }

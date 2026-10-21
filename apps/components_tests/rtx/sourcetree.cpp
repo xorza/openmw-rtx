@@ -337,12 +337,19 @@ namespace Rtx
                                        << joined(found);
         }
 
-        /// No compute shader traces a ray.
+        /// No compute shader traces a ray but the trace's stages.
         ///
-        /// **A ray query inside a compute dispatch answers differently from run to run** — a
-        /// candidate counted twice or not at all — while another process shares the card, and never
+        /// **A ray query inside a compute dispatch answered differently from run to run** — a
+        /// candidate counted twice or not at all — while another process shared the card, and never
         /// inside a ray-tracing launch. So what is asked here, of every `.comp` and everything it
         /// includes, is whether it reaches `rayQueryEXT`.
+        ///
+        /// **The trace's stages are dispatches all the same** — `visibility.comp`, `direct.comp`,
+        /// `media.comp`, `panes.comp`, `bounce.comp` and `landing.comp` — because AMD's Windows
+        /// driver draws the trace wrong as a launch (`docs/rtx/architecture.md`, "The shaders"), and
+        /// the finding above was made beside the fix of duplicate candidates
+        /// (`docs/rtx/architecture.md`, "Every stage is a compute dispatch"): what a dispatch costs
+        /// in repeatability is measured with `./omw repeat` and not ruled out here.
         TEST(RtxSourceTreeTest, noComputeShaderTracesARay)
         {
             const std::filesystem::path shaders = sBackend / "shaders";
@@ -350,7 +357,9 @@ namespace Rtx
             std::vector<std::string> found;
             for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(shaders))
             {
-                if (entry.path().extension() != ".comp")
+                const std::filesystem::path name = entry.path().filename();
+                if (entry.path().extension() != ".comp" || name == "visibility.comp" || name == "direct.comp"
+                    || name == "media.comp" || name == "panes.comp" || name == "bounce.comp" || name == "landing.comp")
                     continue;
 
                 std::set<std::filesystem::path> reached;

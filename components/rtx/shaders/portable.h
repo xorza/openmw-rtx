@@ -29,6 +29,13 @@
 #define RTX_SHADER
 #endif
 
+// A shared function the host also asks at compile time, in a `static_assert`.
+#ifdef RTX_HOST
+#define RTX_CONSTEXPR constexpr
+#else
+#define RTX_CONSTEXPR
+#endif
+
 // A constant both sides read is written as a literal where its derivation calls a transcendental —
 // `log2`, `sin`, `atan`. glslang folds such a call on the device side and the C++ library computes it
 // on the host, and the two need not round alike in the last place; on the host it is also not a
@@ -42,15 +49,6 @@
 // literals is then two numbers, one a side, and the literal is the device's: the test computes each
 // in double and rounds once. A step whose operands are exact and whose one rounding is the result's
 // agrees on both sides and stays written as arithmetic.
-//
-// A value whose rounding is load-bearing: GLSL's `precise` forbids fusing its multiplies and adds,
-// so every compile of the shader agrees on it. `rayAt` says what that is for. Nothing on the host,
-// where the arithmetic is written as it is read.
-#ifdef RTX_HOST
-#define RTX_PRECISE
-#else
-#define RTX_PRECISE precise
-#endif
 
 // A member the host leaves zero where an initialiser does not name it, which is what the device
 // reads of a record the host did not fill. C++ says so on the member, so a designated initialiser

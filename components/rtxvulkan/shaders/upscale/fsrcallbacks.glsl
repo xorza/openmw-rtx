@@ -74,6 +74,7 @@
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
+#include "lib/pixels.glsl"
 
 #include "fsr3upscaler/ffx_fsr3upscaler_resources.h"
 
@@ -155,7 +156,8 @@ layout (set = SET_PASS, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInpu
 /// left, `eyeOfPixel`.
 FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 {
-    const vec2 seen = texelFetch(r_input_surface, iPxPos, 0).rg;
+    const ivec2 stored = channelAt(CHANNEL_SURFACE, iPxPos, cbInputs.mEyes.mWorld.mWidth, fieldSwapOf(cbInputs.mFrame));
+    const vec2 seen = texelFetch(r_input_surface, stored, 0).rg;
     const Camera eye = eyeOfPixel(seen.y, cbInputs.mEyes);
     const float along = surfaceDistance(seen.y) * dot(rayAt(eye, vec2(iPxPos)).mDirection, eye.mBasis.mForward);
     return seen.x == SURFACE_NO_NORMAL ? 0.0 : cbInputs.mNear / max(along, cbInputs.mNear);
@@ -169,6 +171,7 @@ layout (set = SET_PASS, binding = FSR_REACTIVITY_BIND_MASKS) uniform texture2D r
 #if defined(FSR3UPSCALER_BIND_SRV_REACTIVE_MASK)
 FfxFloat32 LoadReactiveMask(FfxInt32x2 iPxPos)
 {
+    // In the frame's own order, as `channelInFields` keeps the masks.
     return texelFetch(r_upscale_masks, iPxPos, 0).r;
 }
 #endif
@@ -204,7 +207,10 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_MOTION_VECTORS) un
 
 FfxFloat32x2 LoadInputMotionVector(FfxInt32x2 iPxDilatedMotionVectorPos)
 {
-	const FfxFloat32x2 fSrcMotionVector = texelFetch(r_input_motion_vectors, iPxDilatedMotionVectorPos, 0).xy;
+	const FfxFloat32x2 fSrcMotionVector
+        = texelFetch(r_input_motion_vectors,
+            channelAt(CHANNEL_MOTION, iPxDilatedMotionVectorPos, uint(RenderSize().x), fieldSwapOf(cbInputs.mFrame)), 0)
+              .xy;
 
 	FfxFloat32x2 fUvMotionVector = fSrcMotionVector * MotionVectorScale();
 

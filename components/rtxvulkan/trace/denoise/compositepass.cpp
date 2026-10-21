@@ -31,7 +31,7 @@ namespace Rtx
     }
 
     void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Denoised& denoised,
-        const Image* sum, Shaders::CompositeConstants constants, GpuTimer* timer) const
+        const Image* sum, Shaders::CompositeConstants constants, const Image& composed, GpuTimer* timer) const
     {
         const GpuZone timed(timer, commands, FrameZone::Composite);
 
@@ -48,6 +48,7 @@ namespace Rtx
         assert(fill.getWidth() >= constants.mWidth && fill.getHeight() >= constants.mHeight);
         assert(specular.getWidth() >= constants.mWidth && specular.getHeight() >= constants.mHeight);
         assert(pane.getWidth() >= constants.mWidth && pane.getHeight() >= constants.mHeight);
+        assert(composed.getWidth() >= constants.mWidth && composed.getHeight() >= constants.mHeight);
 
         // A sum has to cover the frame it is a sum of; a stand-in never read does not.
         assert(constants.mAccumulate == 0 || sum != nullptr);
@@ -75,6 +76,8 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_SPECULAR_ALBEDO, buffer.get(Channel::SpecularAlbedo).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_LAMPED, buffer.get(Channel::Lamped).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_LAMP_SHADOW, lampShadow.describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_COMPOSED, composed.describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(constants.mWidth, constants.mHeight, Shaders::COMPOSITE_WORKGROUP));

@@ -16,15 +16,27 @@ namespace Rtx::Shaders
 
     struct FrameCounts
     {
-        /// Primary rays that reached nothing, summed by the sky's miss shader where the trace was
-        /// built to count — `COUNTING`. The host reports the hits, which are the launch less
+        /// Primary rays that reached nothing, summed where the kernel draws the sky and the trace was
+        /// built to count — `COUNTING`. The host reports the hits, which are the pixels traced less
         /// these: `FrameRing::finishOldest`.
         uint mMisses;
 
         /// What the hold's own clock said the hold came to, in its ticks, written by the loop
         /// `check` appends to the frame — `stress.comp`. Left alone by a frame with no hold.
         uint mHeldTicks;
+
+        /// Pixels whose walk a trace stage cut short at `WALK_TURNS` turns of its loops, and the
+        /// steps the visibility stage's last cut walk stood at: three bits a record, in
+        /// `WALK_RECORDS` order from the low bits, and nought where only a later stage cut one.
+        /// Every one is a logic error — a walk that never ends — and the bound is what keeps it
+        /// from holding the card until the system resets it.
+        uint mWalksCut;
+        uint mWalkCutSteps;
     };
+
+    /// The records `FrameCounts::mWalkCutSteps` names, low bits first.
+    const uint WALK_RECORDS = 3u;
+    const uint WALK_STEP_BITS = 3u;
 
     /// How many shader modules the census tells apart: every module the backend builds
     /// (`RtxSourceTreeTest` counts them), and room past them.
@@ -50,7 +62,7 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(FrameCounts) == 8, "FrameCounts must be scalar-packed on every side");
+    static_assert(sizeof(FrameCounts) == 16, "FrameCounts must be scalar-packed on every side");
     static_assert(sizeof(Census) == 4 * CENSUS_KERNELS, "Census must be scalar-packed on every side");
 }
 #endif

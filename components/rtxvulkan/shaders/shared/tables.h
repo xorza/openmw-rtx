@@ -16,8 +16,9 @@ namespace Rtx::Shaders
     ///
     /// **The largest power of two that divides both the buffer's start and every element access.**
     /// A claim larger than the truth is undefined behaviour with no message. A claim smaller than
-    /// the truth costs the compiler a wider load where one was possible. A buffer's start is at
-    /// least sixteen-aligned on this device and the host asserts it, so the stride decides:
+    /// the truth costs the compiler a wider load where one was possible. A buffer's start is
+    /// aligned to the largest of these claims, which the host asks of the allocator, so the stride
+    /// decides:
     /// `GpuLayer` is 64 bytes with two `vec4` at sixteen and thirty-two, the block tables hold
     /// eight-byte addresses, a top level's instance row is 64 bytes moved as four sixteen-byte words
     /// (and sixteen-aligned by Vulkan's own rule for instance data), `GpuMaterial` is 112 bytes so

@@ -341,7 +341,7 @@ namespace Rtx
         /// - **To the nearest**, a blend moves the mean by a twentieth of what it lacks, and the
         ///   rounding drops that once it is under half a step: every mean stops where it lacks under
         ///   ten steps. Exactly where is the host's to say, through the same pinned blend
-        ///   (`fma(mean, kept, target × (1 - kept))`) and the same rounding: at step 32758, 9.4 steps
+        ///   (`target × (1 - kept) + mean × kept`) and the same rounding: at step 32758, 9.4 steps
         ///   and 1.4 × 10^-4 under.
         /// - **At random**, the stored value's mean is the value, so the mean of the means is the
         ///   target. Each store adds noise of half a step at most, 2^-17, so a mean's deviation stands
@@ -356,8 +356,7 @@ namespace Rtx
 
             std::uint32_t stalled = 0;
             for (std::uint32_t frame = 0; frame < frames; ++frame)
-                stalled
-                    = unorm16Of(std::fma(static_cast<float>(stalled) * sStep, kept, target * (1.0f - kept)), sNearest);
+                stalled = unorm16Of(target * (1.0f - kept) + static_cast<float>(stalled) * sStep * kept, sNearest);
             ASSERT_EQ(stalled, 32758u);
 
             for (const std::uint32_t word : settle(target, kept, false, frames, count))

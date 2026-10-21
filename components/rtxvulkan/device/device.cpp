@@ -100,12 +100,12 @@ namespace Rtx
     Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
         const PipelineCacheSpec& cache)
         : mPhysicalDevice(std::move(physicalDevice))
+        , mWatchesSubmits(instance.watchesSubmits())
         , mShaderDirectory(shaders.mDirectory)
     {
         const Crash::NoteScope noted("making the device");
-        std::vector<const char*> extensions;
-        for (const RequiredExtension& required : getRequiredDeviceExtensions())
-            extensions.push_back(required.mName);
+        const std::span<const char* const> required = getRequiredDeviceExtensions();
+        std::vector<const char*> extensions(required.begin(), required.end());
 
         // The swapchain rests on the surface, which the instance loads for a window and never
         // headless: one fact, stated where the instance was made, and read here rather than said
@@ -222,6 +222,7 @@ namespace Rtx
         load(mHandle.get(), mFunctions.mCreateRayTracingPipelines, "vkCreateRayTracingPipelinesKHR");
         load(mHandle.get(), mFunctions.mGetRayTracingShaderGroupHandles, "vkGetRayTracingShaderGroupHandlesKHR");
         load(mHandle.get(), mFunctions.mCmdTraceRays, "vkCmdTraceRaysKHR");
+        load(mHandle.get(), mFunctions.mGetRayTracingShaderGroupStackSize, "vkGetRayTracingShaderGroupStackSizeKHR");
         load(mHandle.get(), mFunctions.mGetPipelineExecutableProperties, "vkGetPipelineExecutablePropertiesKHR");
         load(mHandle.get(), mFunctions.mGetPipelineExecutableStatistics, "vkGetPipelineExecutableStatisticsKHR");
 
@@ -293,11 +294,33 @@ namespace Rtx
         mPipelineCache->save();
     }
 
-    void Device::reportPipeline(VkPipeline pipeline, std::string_view name, const std::optional<double> compileMs) const
+    namespace
     {
-        if (compileMs.has_value())
-            Log(Debug::Verbose) << "pipeline " << name << ": compiled in " << *compileMs << " ms";
+        /// The statistics AMD's own driver reports a lane's scratch memory and registers under.
+        constexpr std::string_view sScratchStatistic = "scratchMemUsageInBytes";
+        constexpr std::string_view sRegisterStatistic = "numUsedVgprs";
 
+        void raise(std::optional<std::uint64_t>& most, const std::uint64_t value)
+        {
+            most = std::max(most.value_or(0), value);
+        }
+
+        std::uint64_t unsignedOf(const VkPipelineExecutableStatisticKHR& statistic)
+        {
+            switch (statistic.format)
+            {
+                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
+                    return statistic.value.i64 > 0 ? static_cast<std::uint64_t>(statistic.value.i64) : 0;
+                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
+                    return statistic.value.u64;
+                default:
+                    return 0;
+            }
+        }
+    }
+
+    std::uint32_t Device::executablesOf(const VkPipeline pipeline) const
+    {
         const VkPipelineInfoKHR asked{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
             .pNext = nullptr,
@@ -307,6 +330,77 @@ namespace Rtx
         std::uint32_t executables = 0;
         checkVk(mFunctions.mGetPipelineExecutableProperties(mHandle.get(), &asked, &executables, nullptr),
             "vkGetPipelineExecutablePropertiesKHR");
+        return executables;
+    }
+
+    std::vector<VkPipelineExecutableStatisticKHR> Device::statisticsOf(
+        const VkPipeline pipeline, const std::uint32_t executable) const
+    {
+        const VkPipelineExecutableInfoKHR which{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
+            .pNext = nullptr,
+            .pipeline = pipeline,
+            .executableIndex = executable,
+        };
+
+        return enumerateVk<VkPipelineExecutableStatisticKHR>(
+            "vkGetPipelineExecutableStatisticsKHR",
+            [&](std::uint32_t* count, VkPipelineExecutableStatisticKHR* into) {
+                return mFunctions.mGetPipelineExecutableStatistics(mHandle.get(), &which, count, into);
+            },
+            VkPipelineExecutableStatisticKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR,
+                .pNext = nullptr,
+                .name = {},
+                .description = {},
+                .format = VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR,
+                .value = {} });
+    }
+
+    CompiledUse Device::compiledUseOf(const VkPipeline pipeline, const VkPipelineBindPoint point) const
+    {
+        CompiledUse use;
+        if (point == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
+            use.mStackBytes = mFunctions.mGetRayTracingShaderGroupStackSize(
+                mHandle.get(), pipeline, 0, VK_SHADER_GROUP_SHADER_GENERAL_KHR);
+
+        const VkPipelineInfoKHR asked{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
+            .pNext = nullptr,
+            .pipeline = pipeline,
+        };
+        const std::vector<VkPipelineExecutablePropertiesKHR> executables
+            = enumerateVk<VkPipelineExecutablePropertiesKHR>(
+                "vkGetPipelineExecutablePropertiesKHR",
+                [&](std::uint32_t* count, VkPipelineExecutablePropertiesKHR* into) {
+                    return mFunctions.mGetPipelineExecutableProperties(mHandle.get(), &asked, count, into);
+                },
+                VkPipelineExecutablePropertiesKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_PROPERTIES_KHR,
+                    .pNext = nullptr,
+                    .stages = 0,
+                    .name = {},
+                    .description = {},
+                    .subgroupSize = 0 });
+        for (std::uint32_t executable = 0; executable < executables.size(); ++executable)
+        {
+            use.mSubgroupSize = std::max(use.mSubgroupSize.value_or(0), executables[executable].subgroupSize);
+            for (const VkPipelineExecutableStatisticKHR& statistic : statisticsOf(pipeline, executable))
+            {
+                const std::string_view name = statistic.name;
+                if (name == sScratchStatistic)
+                    raise(use.mScratchBytes, unsignedOf(statistic));
+                else if (name == sRegisterStatistic)
+                    raise(use.mRegisters, unsignedOf(statistic));
+            }
+        }
+        return use;
+    }
+
+    void Device::reportPipeline(VkPipeline pipeline, std::string_view name, const std::optional<double> compileMs) const
+    {
+        if (compileMs.has_value())
+            Log(Debug::Verbose) << "pipeline " << name << ": compiled in " << *compileMs << " ms";
+
+        const std::uint32_t executables = executablesOf(pipeline);
 
         // Said once per pipeline rather than left as a missing line: NVIDIA's compiler reports no
         // executable at all for a ray tracing pipeline, and no internal representation for any, so
@@ -320,25 +414,7 @@ namespace Rtx
 
         for (std::uint32_t executable = 0; executable < executables; ++executable)
         {
-            const VkPipelineExecutableInfoKHR which{
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
-                .pNext = nullptr,
-                .pipeline = pipeline,
-                .executableIndex = executable,
-            };
-
-            const std::vector<VkPipelineExecutableStatisticKHR> statistics
-                = enumerateVk<VkPipelineExecutableStatisticKHR>(
-                    "vkGetPipelineExecutableStatisticsKHR",
-                    [&](std::uint32_t* count, VkPipelineExecutableStatisticKHR* into) {
-                        return mFunctions.mGetPipelineExecutableStatistics(mHandle.get(), &which, count, into);
-                    },
-                    VkPipelineExecutableStatisticKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR,
-                        .pNext = nullptr,
-                        .name = {},
-                        .description = {},
-                        .format = VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR,
-                        .value = {} });
+            const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
 
             // Whatever the driver chose to say, and not a list this side picked. The names are
             // the compiler's own — NVIDIA reports registers and spills, another vendor reports
@@ -373,6 +449,15 @@ namespace Rtx
             }
 
             Log(Debug::Verbose) << "pipeline " << name << ": " << line;
+
+            // **A spill said where a player's log keeps it**: a kernel that spills runs at the
+            // speed of its scratch memory, which on an integrated card took a frame from
+            // milliseconds to the better part of a second
+            // (`docs/rtx/research/2026-10-21-amd-680m-stage-times.md`).
+            for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
+                if (std::string_view(statistic.name) == sScratchStatistic && unsignedOf(statistic) > 0)
+                    Log(Debug::Warning) << "pipeline " << name << " uses " << unsignedOf(statistic)
+                                        << " bytes of scratch memory a lane";
         }
     }
 

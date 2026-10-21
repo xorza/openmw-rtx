@@ -13,12 +13,19 @@ namespace Rtx
     namespace
     {
         VKAPI_ATTR VkBool32 VKAPI_CALL onMessage(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-            VkDebugUtilsMessageTypeFlagsEXT /*types*/, const VkDebugUtilsMessengerCallbackDataEXT* data, void* userData)
+            VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* data, void* userData)
         {
             ValidationLog& log = *static_cast<ValidationLog*>(userData);
             const char* const id = data->pMessageIdName != nullptr ? data->pMessageIdName : "?";
 
-            if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+            // **Only the layers' own messages are validation errors.** The loader reports through the
+            // same messenger with the general type alone: "Failed to detect any valid GPUs" is an
+            // error there, and aborting on it left a machine with no device short of the answer
+            // `PhysicalDevice::select` gives it.
+            if ((severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0
+                && (types & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) == 0)
+                Log(Debug::Error) << "Vulkan: " << id << ": " << data->pMessage;
+            else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
             {
                 std::string text(id);
                 text += ": ";

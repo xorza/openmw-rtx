@@ -137,17 +137,19 @@ vec2 fieldTile(uint field)
 
 uint sourceWord(uint field, ivec2 pixel)
 {
+    const ivec2 stored = storedAt(pixel, level.mEyes.mWorld.mWidth, fieldSwapOf(level.mFrame));
     if (field == SHADOW_FIELD_SKY)
-        return imageLoad(skySource, pixel).r;
-    return imageLoad(lampSource, pixel).r;
+        return imageLoad(skySource, stored).r;
+    return imageLoad(lampSource, stored).r;
 }
 
 void storeFiltered(uint field, ivec2 pixel, uint word)
 {
+    const ivec2 stored = storedAt(pixel, level.mEyes.mWorld.mWidth, fieldSwapOf(level.mFrame));
     if (field == SHADOW_FIELD_SKY)
-        RTX_STORE_WORDS(skyFiltered, pixel, uvec4(word, 0u, 0u, 0u))
+        RTX_STORE_WORDS(skyFiltered, stored, uvec4(word, 0u, 0u, 0u))
     else
-        RTX_STORE_WORDS(lampFiltered, pixel, uvec4(word, 0u, 0u, 0u))
+        RTX_STORE_WORDS(lampFiltered, stored, uvec4(word, 0u, 0u, 0u))
 }
 
 /// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them:
@@ -165,7 +167,8 @@ void readSquare(ivec2 corner, bvec2 filtering)
         const uvec2 square = uvec2(i % SPAN, i / SPAN);
         const ivec2 pixel = clamp(corner + ivec2(square), ivec2(0), last);
 
-        const vec2 seen = imageLoad(surfaceChannel, pixel).rg;
+        const vec2 seen
+            = imageLoad(surfaceChannel, storedAt(pixel, level.mEyes.mWorld.mWidth, fieldSwapOf(level.mFrame))).rg;
         const bool stands = seen.x != SURFACE_NO_NORMAL;
         gNormal[square.y][square.x] = seen.x;
         gPosition[square.y][square.x]
@@ -305,7 +308,8 @@ void main()
     const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + APRON;
     const vec3 normal = unpackSurfaceNormal(gNormal[centre.y][centre.x]);
     const vec3 position = gPosition[centre.y][centre.x];
-    const float packed = imageLoad(surfaceChannel, at).g;
+    const float packed
+        = imageLoad(surfaceChannel, storedAt(at, level.mEyes.mWorld.mWidth, fieldSwapOf(level.mFrame))).g;
     const float footprint = footprintAlong(eyeOfPixel(packed, level.mEyes), surfaceDistance(packed));
 
     if (filtering[SHADOW_FIELD_SKY])

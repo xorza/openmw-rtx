@@ -1,3 +1,9 @@
 a NIF that carries its texture inside it (NiPixelData) is traced untextured, with no word in the log. I checked the vanilla BSAs: one vanilla mesh does this, meshes\i\tx_crystal_02.nif (an ingredient), so a vanilla object draws wrong today. Older mods do it more often. What must the fix do? → Trace them (Recommended) - tal
 
-obfuscate crash report
+try and reduce vendor specific code
+
+measure the trace's stages on NVIDIA: ./omw release bench against the inline trace's baselines where they exist, and ./omw repeat --pairs=10 while another harness loops a bench on the card (a dispatch's repeatability under load; a pair that differs brings the launch entry for NVIDIA)
+measure the layers in front of split water: the layers' light is blended with the water's in the composite (a glowing pane's edge over the sea reads 7/8 inside, 1/8 past it, aSplitPixelBlendsItsLightWholeAndItsLiftBehindTheLayers); kept apart it needs an rgba16f image, 8 bytes a pixel
+measure the noise of the split water with ./omw noise --walk over water and at seyda-neen-shore
+measure the filters' footprint in a field: the shadow filter over a flooded penumbra finds half its taps and keeps a fifth of the raw error (theShadowDenoiserTakesTheNoiseOffAPenumbraSeenThroughTheWater); ./omw noise at seyda-neen-shore
+measure far water at half the mirror's resolution, at a view over open water, before a Fresnel threshold comes back

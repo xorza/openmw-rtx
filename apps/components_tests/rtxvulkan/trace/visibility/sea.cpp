@@ -79,7 +79,7 @@ namespace Rtx::Testing
 
         /// A shaft is the surface's own lens carried along the ray, and nothing else.
         ///
-        /// **What the closed form cannot have.** `waterColumn` integrates the sun's beam exactly, and
+        /// **What the closed form cannot have.** `ColumnRun` integrates the sun's beam exactly, and
         /// an exact integral of a smooth thing is smooth: the water brightens toward the sun and goes
         /// dark away from it, with no structure anywhere in between. A beam of sunlight in water has
         /// structure because the surface over it is a lens, and carrying that down the ray is what
@@ -139,7 +139,7 @@ namespace Rtx::Testing
         /// A shaft is blocked by what stands over the water, and the gap is where the sun enters.
         ///
         /// **The half the closed form has no way to ask.** A submerged surface is shadowed because
-        /// `gather` traces its own ray, and water carries a mask bit that keeps it out of
+        /// `GatherRun` traces its own ray, and water carries a mask bit that keeps it out of
         /// occlusion — so a rock over the sea darkened the bed under it and left the water in front
         /// of the bed as bright as ever. The march is where the volume gets the same question.
         ///
@@ -251,23 +251,26 @@ namespace Rtx::Testing
         {
             constexpr std::uint32_t size = 256;
             constexpr std::size_t count = std::size_t{ size } * size;
-            constexpr float above = 540.0f;
+            constexpr float span = 1080.0f;
 
-            // A wide look from a fixed height over the bed *whatever the depth is*, so that two
-            // depths see the same patch of water and their caustics can be compared pixel for pixel.
+            // **An orthographic look straight down from just under the surface**, so that every depth
+            // sees the same patch of bed through pixels of one width, and their caustics can be
+            // compared pixel for pixel.
             //
-            // **Wide enough to be an ensemble, and the pixel held where it was.** At ninety degrees
-            // this covers 1080 units of bed — thirty correlation lengths across of the waves that
-            // carry the curvature, and a thousand patches in the frame. A quarter of the width saw
-            // sixty of them, and every mean it reported carried about ten per cent of sampling
-            // error, which is five times what the tolerances below allow. The height and the pixel
-            // count move together so that the footprint stays 4.2 units and the level the caustic
-            // reads does not move with the fix.
+            // **Wide enough to be an ensemble, and the pixel held where it was.** 1080 units of bed
+            // are thirty correlation lengths across of the waves that carry the curvature, and a
+            // thousand patches in the frame. A quarter of the width saw sixty of them, and every mean
+            // it reported carried about ten per cent of sampling error, which is five times what the
+            // tolerances below allow. The span and the pixel count move together so that the
+            // footprint stays 4.2 units and the level the caustic reads does not move with the fix.
             const auto render = [&](float depth, const SeaState& sea, float seconds) {
                 const SceneDesc scene = makeFlooded(4000.0f, depth);
 
-                Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, -1.0f, above - depth),
-                    osg::Vec3f(0.0f, 0.0f, -depth), 90.0f, size, size, 100000.0f);
+                const osg::Matrixf view = osg::Matrixf::lookAt(
+                    osg::Vec3f(0.0f, 0.0f, -1.0f), osg::Vec3f(0.0f, 0.0f, -depth), osg::Vec3f(0.0f, 1.0f, 0.0f));
+                Shaders::VisibilityConstants camera = constantsFor(
+                    makeOrthographicCameraFromView(view, span, span, size, size, 0.5f, 100000.0f).value());
+                camera.mSkyRamp = Testing::sHemisphereRamp;
                 litThroughWater(camera);
                 camera.mWaterTime = splitSeconds(seconds);
 
@@ -305,15 +308,15 @@ namespace Rtx::Testing
             const auto [dimmest, brightest] = std::minmax_element(shallow.begin(), shallow.end());
             const float mean = meanOf(shallow);
 
-            // Measured over this patch: the brightest place on the bed is gathered to 2.75 of what
-            // a flat sea would put there and the dimmest thinned to 0.38, so the pattern is bold
+            // Measured over this patch: the brightest place on the bed is gathered to 1.32 of what
+            // a flat sea would put there and the dimmest thinned to 0.72, so the pattern is bold
             // rather than a wobble.
             EXPECT_GT(*brightest, 1.2f) << "measured 1.32, gathered into lines";
             EXPECT_LT(*dimmest, 0.8f) << "measured 0.72, and thinned between them";
 
             // **And the mean is one**, which is the claim that makes it light and not decoration.
             // A reciprocal of something that fluctuates is worth more than the reciprocal of its
-            // mean, and `causticGain` is that excess divided back out. It comes out at 1.002 here.
+            // mean, and `causticGain` is that excess divided back out. It comes out at 1.001 here.
             //
             // **The estimator it corrects reads 0.95 at two metres and 1.26 at twenty**, before the
             // fade blends either toward one — so what the gain takes out runs to a quarter of the
@@ -322,26 +325,28 @@ namespace Rtx::Testing
 
             // **The pattern peaks in shallow water and fades as the inverse square root of the depth
             // past it**, which is Snyder and Dera's 1970 measurement of the sea and what every field
-            // campaign since has found. Measured here 0.57, 0.53, 0.31, 0.062 and 0.027 at one, two,
-            // six, twenty and forty metres.
+            // campaign since has found. Measured here 0.216, 0.065 and 0.014 at two, six and twenty
+            // metres.
             //
-            // Two metres to six is the law almost exactly — 0.588 against the 0.589 it asks for.
-            // Past that it falls faster, because `WATER_CAUSTIC_SPREAD` is broadening lines that
-            // were coarse to begin with: the transform stops at half a metre of wavelength where a
-            // real sea does not, so there is less fine structure to survive the blur.
+            // **It falls faster than the law, by the fade's choice**: `WATER_CAUSTIC_FADE` is one,
+            // twice the law's half, for the look (`look.h` says so). From two metres to six, 140
+            // units to 400, the fade alone keeps (400 / 140)^-1 = 0.35 of the contrast where the
+            // law keeps 0.58, and the blur and the grain growing with the depth take it to the 0.30
+            // measured; from six to twenty, 400 to 1400, the fade keeps 0.286 and the whole 0.215.
+            // Within 0.02, the contrast's own tolerance above.
             const std::vector<float> deeper = causticField(400.0f);
             const std::vector<float> deepest = causticField(1400.0f);
 
-            EXPECT_LT(contrastOf(deeper), 0.7f * contrastOf(shallow)) << "six metres down, against two";
-            EXPECT_LT(contrastOf(deepest), 0.35f * contrastOf(deeper)) << "and twenty, against six";
+            EXPECT_NEAR(contrastOf(deeper) / contrastOf(shallow), 0.30f, 0.02f) << "six metres down, against two";
+            EXPECT_NEAR(contrastOf(deepest) / contrastOf(deeper), 0.215f, 0.02f) << "and twenty, against six";
 
             // **And the mean holds at every one of them**, which is the half a single coefficient
             // could never do: the fold saturates at a metre of depth and the *read level* keeps
             // coarsening past it, so the estimator's own excess runs from 13 per cent at one metre
             // to 32 at twenty. One curve in the resolved fold follows all of it. The fade moves
             // nothing either way, because it blends toward one rather than scaling.
-            EXPECT_NEAR(meanOf(deeper), 1.0f, 0.02f) << "measured 1.004, six metres down";
-            EXPECT_NEAR(meanOf(deepest), 1.0f, 0.02f) << "and 0.998 at twenty";
+            EXPECT_NEAR(meanOf(deeper), 1.0f, 0.02f) << "measured 1.002, six metres down";
+            EXPECT_NEAR(meanOf(deepest), 1.0f, 0.02f) << "and 0.999 at twenty";
 
             // **How bold the pattern is, and how fast it moves** — M6 asks for both measured rather
             // than eyeballed, and they are the two halves of one choice. The spectrum's short cutoff
@@ -353,7 +358,7 @@ namespace Rtx::Testing
             // few owning the Hessian outright — a handful of plane waves crossing, which focuses
             // into hard repeating lines and reads as a lattice. Tens of thousands of components at
             // the same wavelengths interfere into a mottle instead: the same energy, spread over
-            // every direction rather than four, and no line drawn twice. It measures 0.223 against
+            // every direction rather than four, and no line drawn twice. It measures 0.216 against
             // such a table's 0.277.
             EXPECT_NEAR(contrastOf(shallow), 0.213f, 0.02f) << "the pattern's contrast, as a fraction of its own mean";
 
@@ -366,7 +371,7 @@ namespace Rtx::Testing
             // field translated by a feature width scores near one on the unshifted sum while looking
             // perfectly coherent — so the raw figure counts the sea's own motion as decay. The least
             // over a small sweep of offsets separates them: the pattern travels a pixel here, and
-            // that pixel is worth fourteen points of the 67 per cent the raw sum reports.
+            // that pixel is worth seventeen points of the 66 per cent the raw sum reports.
             //
             // **Over a table of sixty-four sinusoids the same sweep reads otherwise.** 18 units of
             // wavelength reshuffle 73% and read as stripes running across the bottom, 32 come out at
@@ -404,8 +409,8 @@ namespace Rtx::Testing
                 for (int across = -sweep; across <= sweep; ++across)
                     least = std::min(least, newAfter(across, down));
 
-            EXPECT_NEAR(unshifted, 0.671f, 0.03f) << "how much of the pattern is new a twelfth later";
-            EXPECT_NEAR(least, 0.529f, 0.03f) << "and how much of that the sea did not simply carry";
+            EXPECT_NEAR(unshifted, 0.661f, 0.03f) << "how much of the pattern is new a twelfth later";
+            EXPECT_NEAR(least, 0.495f, 0.03f) << "and how much of that the sea did not simply carry";
         }
 
         /// The sun's disc carries exactly its irradiance, however wide the pixel that finds it.

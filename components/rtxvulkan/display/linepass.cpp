@@ -8,6 +8,7 @@
 #include <volk.h>
 
 #include <components/rtx/frame/debuglines.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -15,6 +16,7 @@
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
+#include <components/rtxvulkan/trace/gbuffer.hpp>
 
 #include "tonepass.hpp"
 
@@ -80,8 +82,8 @@ namespace Rtx
 
         assert(constants.mExtent.x() == target.getWidth() && constants.mExtent.y() == target.getHeight()
             && "lines on a grid other than the target's");
-        assert(constants.mTraced.x() == surface.getWidth() && constants.mTraced.y() == surface.getHeight()
-            && "a traced extent other than the surface channel's");
+        assert(channelWidth(Channel::Surface, constants.mTraced.x()) == surface.getWidth()
+            && constants.mTraced.y() == surface.getHeight() && "a traced extent other than the surface channel's");
 
         if (lineCount == 0 && triangleCount == 0)
             return;

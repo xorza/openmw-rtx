@@ -2,11 +2,17 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <exception>
 #include <limits>
 #include <optional>
+#include <string>
+#include <thread>
 #include <utility>
+
+#include <components/crashcatcher/crashnote.hpp>
+#include <components/debug/debuglog.hpp>
 
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -14,11 +20,48 @@
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "device.hpp"
+#include "handles.hpp"
 #include "result.hpp"
 #include "timeline.hpp"
 
 namespace Rtx
 {
+    namespace
+    {
+        /// Waits for what `poll` answers for — `VK_SUCCESS` once it is done, `VK_NOT_READY` while it
+        /// runs, an error where the asking failed — and says in the log how long `what` ran to its
+        /// end or its failure, and how long it had run at every doubling past a quarter of a second
+        /// while it runs, with what `where` says of the queue.
+        template <class Poll, class Where>
+        void watchToItsEnd(const std::string& what, Poll poll, Where where)
+        {
+            using Clock = std::chrono::steady_clock;
+            const Clock::time_point start = Clock::now();
+            std::chrono::milliseconds reportAt(250);
+            while (true)
+            {
+                const VkResult status = poll();
+                const auto ran = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start);
+                if (status == VK_SUCCESS)
+                {
+                    Log(Debug::Info) << what << " ran in " << ran.count() << " ms";
+                    return;
+                }
+                if (status != VK_NOT_READY)
+                {
+                    Log(Debug::Error) << what << ": " << resultName(status) << " after " << ran.count() << " ms";
+                    return;
+                }
+                if (ran >= reportAt)
+                {
+                    Log(Debug::Warning) << what << " still running after " << ran.count() << " ms" << where();
+                    reportAt *= 2;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        }
+    }
+
     CommandPool::CommandPool(const Device& device)
         : mDevice(device)
     {
@@ -37,6 +80,43 @@ namespace Rtx
         close(commands);
         checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
         mDeferred.push_back(commands);
+        if (mDevice.watchesSubmits())
+            mDeferredNotes.emplace_back(Crash::ownNote());
+    }
+
+    void CommandPool::submitDeferredWatched()
+    {
+        const VkFenceCreateInfo fenceInfo{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = nullptr, .flags = 0 };
+        for (std::size_t at = 0; at < mDeferred.size(); ++at)
+        {
+            const std::string_view note = at < mDeferredNotes.size() ? mDeferredNotes[at] : std::string_view();
+            Log(Debug::Info) << "deferred batch " << at + 1 << " of " << mDeferred.size() << ", recorded while "
+                             << note;
+
+            const Fence fence = Fence::make(mDevice, vkCreateFence, fenceInfo, "vkCreateFence");
+            const VkCommandBufferSubmitInfo batch{
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                .pNext = nullptr,
+                .commandBuffer = mDeferred[at],
+                .deviceMask = 0,
+            };
+            const VkSubmitInfo2 submit{
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+                .pNext = nullptr,
+                .flags = 0,
+                .waitSemaphoreInfoCount = 0,
+                .pWaitSemaphoreInfos = nullptr,
+                .commandBufferInfoCount = 1,
+                .pCommandBufferInfos = &batch,
+                .signalSemaphoreInfoCount = 0,
+                .pSignalSemaphoreInfos = nullptr,
+            };
+            checkVk(mDevice, vkQueueSubmit2(mDevice.getQueue(), 1, &submit, fence.get()), "vkQueueSubmit2");
+
+            watchToItsEnd(
+                "deferred batch " + std::to_string(at + 1),
+                [&] { return vkGetFenceStatus(mDevice.getHandle(), fence.get()); }, [] { return std::string(); });
+        }
     }
 
     std::uint64_t CommandPool::submitWithDeferred(VkCommandBuffer commands,
@@ -44,15 +124,21 @@ namespace Rtx
     {
         assert(mOpen.empty() && "a submit while a frame's recording is open, which would take the value it named for");
 
+        // Watched, each deferred batch goes alone ahead of this submit, which then carries none.
+        const bool watched = mDevice.watchesSubmits();
+        if (watched)
+            submitDeferredWatched();
+
         mSubmitScratch.clear();
         mSubmitScratch.reserve(mDeferred.size() + 1);
         for (const VkCommandBuffer deferred : mDeferred)
-            mSubmitScratch.push_back(VkCommandBufferSubmitInfo{
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-                .pNext = nullptr,
-                .commandBuffer = deferred,
-                .deviceMask = 0,
-            });
+            if (!watched)
+                mSubmitScratch.push_back(VkCommandBufferSubmitInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                    .pNext = nullptr,
+                    .commandBuffer = deferred,
+                    .deviceMask = 0,
+                });
         mSubmitScratch.push_back(VkCommandBufferSubmitInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
             .pNext = nullptr,
@@ -82,11 +168,30 @@ namespace Rtx
             .signalSemaphoreInfoCount = static_cast<std::uint32_t>(mSignalScratch.size()),
             .pSignalSemaphoreInfos = mSignalScratch.data(),
         };
+        if (watched)
+            Log(Debug::Info) << "submit " << value << " while " << Crash::ownNote();
+
         checkVk(mDevice, vkQueueSubmit2(mDevice.getQueue(), 1, &submit, VK_NULL_HANDLE), "vkQueueSubmit2");
 
         [[maybe_unused]] const std::uint64_t taken = timeline.next();
         assert(taken == value && "a timeline value taken off the device's thread between the signal and the submit");
+
+        if (watched)
+            watch(value);
         return value;
+    }
+
+    void CommandPool::watch(const std::uint64_t value) const
+    {
+        std::uint64_t reached = 0;
+        watchToItsEnd(
+            "submit " + std::to_string(value),
+            [&] {
+                const VkResult read
+                    = vkGetSemaphoreCounterValue(mDevice.getHandle(), mDevice.getTimeline().getHandle(), &reached);
+                return read != VK_SUCCESS ? read : reached >= value ? VK_SUCCESS : VK_NOT_READY;
+            },
+            [&] { return ", the queue at " + std::to_string(reached); });
     }
 
     void CommandPool::finishDeferred()
@@ -110,6 +215,7 @@ namespace Rtx
         for (VkCommandBuffer deferred : mDeferred)
             mRetiring.hold(value, std::move(deferred));
         mDeferred.clear();
+        mDeferredNotes.clear();
 
         return value;
     }
@@ -416,6 +522,7 @@ namespace Rtx
         recycle(mDeferred);
         recycle(std::span<const VkCommandBuffer>(&commands, 1));
         mDeferred.clear();
+        mDeferredNotes.clear();
     }
 
     Batch::~Batch()

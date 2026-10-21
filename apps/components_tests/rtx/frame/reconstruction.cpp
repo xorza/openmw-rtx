@@ -200,7 +200,6 @@ namespace Rtx
                         ReconstructionRequest{ .mDenoise = denoise }, upscale == Upscale::Off ? sUnscaled : sHalved);
                     const char* const asked = denoise ? "filtered" : "unfiltered";
                     EXPECT_EQ(resolved.mDenoised, denoise) << asked;
-                    EXPECT_EQ(resolved.composedByTrace(), !denoise) << asked;
                 }
 
             EXPECT_TRUE(ReconstructionRequest{}.mFilters.mAntilag);

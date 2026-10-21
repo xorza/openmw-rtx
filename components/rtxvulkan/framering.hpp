@@ -76,9 +76,9 @@ namespace Rtx
         /// after the wait as the counts are. Empty where the device does not count.
         Buffer mNotFinite;
 
-        /// How many primary rays the trace launched, where the frame counts them, and nought
-        /// where it does not: the device sums the misses, and the hits the report carries are
-        /// the launch less those.
+        /// How many primary rays the trace cast, where the frame counts them, and nought where it
+        /// does not: the device sums the misses, and the hits the report carries are the rays less
+        /// those.
         std::uint32_t mCountedRays = 0;
 
         Reconstruction mReconstruction;
@@ -109,13 +109,10 @@ namespace Rtx
     class FrameRing
     {
     public:
-        /// @param readsCounts whether a frame's counts come back to the host at all: where the
-        ///        trace counts its hits, and where a hold leaves its reading. Decided once, and read
-        ///        where the block is cleared, ordered for the host and read back.
         /// @param timing whether a frame's zones write timestamps — `RendererOptions::mTiming`.
         /// @param holdTickMs the milliseconds one tick of the hold's clock is worth
         ///        (`StressPass::getTickMs`), or nought where no hold runs.
-        FrameRing(const Device& device, bool readsCounts, bool timing, double holdTickMs);
+        FrameRing(const Device& device, bool timing, double holdTickMs);
 
         FrameRing(const FrameRing&) = delete;
         FrameRing& operator=(const FrameRing&) = delete;
@@ -145,8 +142,9 @@ namespace Rtx
         /// run, into the frame's digest, and notes `facts` for the report — `FrameResult::mDigest`,
         /// whose words are read once the frame is waited for.
         void readDigest(FrameRecord& frame, VkCommandBuffer commands,
-            const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels,
-            const std::array<const Image*, sDenoiserImageCount>& denoiser, const FrameDigest& facts, GpuTimer* timer);
+            const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels, std::uint32_t channelsInFields,
+            const std::array<const Image*, sDenoiserImageCount>& denoiser, VkExtent2D extent, std::uint32_t frameNumber,
+            const FrameDigest& facts, GpuTimer* timer);
 
         /// The recording of `frame`'s trace, begun on the frame's own buffer. An exception that
         /// leaves it unsubmitted leaves the frame begun, and the next trace begins it again.
@@ -213,10 +211,9 @@ namespace Rtx
 
         const Device& mDevice;
 
-        /// By value, because it is settled at construction and never moves. A reference into the
-        /// renderer's own members would tie this ring's correctness to where a boolean happens to
-        /// live.
-        bool mReadsCounts = false;
+        /// Whether a cut walk was logged: once a run, since a walk that never ends does not end on
+        /// any frame after the first either.
+        bool mWalkCutLogged = false;
         double mHoldTickMs = 0.0;
 
         PerSlot<FrameRecord> mSlots;

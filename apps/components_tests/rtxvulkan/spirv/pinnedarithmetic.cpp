@@ -42,31 +42,26 @@ namespace Rtx
 
         /// **The order `spirvpin.hpp` states, one rounding a step.** A plain operator here is one
         /// rounding: the tree compiles as ISO C++, which leaves `-ffp-contract` off, and targets no
-        /// processor with a fused multiply-add for a compiler to contract into. Each fusion is
-        /// `std::fma`, which rounds once.
+        /// processor with a fused multiply-add for a compiler to contract into.
         struct Pinned
         {
-            static float dot(const Vec3& a, const Vec3& b)
-            {
-                return std::fma(a[2], b[2], std::fma(a[1], b[1], a[0] * b[0]));
-            }
+            static float dot(const Vec3& a, const Vec3& b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
 
             static float dot4(const osg::Vec4f& a, const osg::Vec4f& b)
             {
-                return std::fma(a[3], b[3], std::fma(a[2], b[2], std::fma(a[1], b[1], a[0] * b[0])));
+                return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
             }
 
             static Vec3 cross(const Vec3& a, const Vec3& b)
             {
-                return { std::fma(-a[2], b[1], a[1] * b[2]), std::fma(-a[0], b[2], a[2] * b[0]),
-                    std::fma(-a[1], b[0], a[0] * b[1]) };
+                return { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
             }
 
             static Vec3 mix(const Vec3& x, const Vec3& y, float a)
             {
                 Vec3 mixed{};
                 for (std::size_t at = 0; at < 3; ++at)
-                    mixed[at] = std::fma(y[at], a, x[at] * (1.0f - a));
+                    mixed[at] = x[at] * (1.0f - a) + y[at] * a;
                 return mixed;
             }
 
@@ -75,7 +70,7 @@ namespace Rtx
             {
                 Vec3 turned{};
                 for (std::size_t row = 0; row < 3; ++row)
-                    turned[row] = std::fma(c[row], v[2], std::fma(b[row], v[1], a[row] * v[0]));
+                    turned[row] = a[row] * v[0] + b[row] * v[1] + c[row] * v[2];
                 return turned;
             }
 
@@ -84,7 +79,7 @@ namespace Rtx
                 const float twice = 2.0f * dot(normal, incident);
                 Vec3 reflected{};
                 for (std::size_t at = 0; at < 3; ++at)
-                    reflected[at] = std::fma(-twice, normal[at], incident[at]);
+                    reflected[at] = incident[at] - twice * normal[at];
                 return reflected;
             }
 
@@ -98,25 +93,25 @@ namespace Rtx
             static float smoothstep(float along)
             {
                 const float t = std::clamp(along, 0.0f, 1.0f);
-                return (t * t) * std::fma(-2.0f, t, 3.0f);
+                return (t * t) * (3.0f - 2.0f * t);
             }
 
             /// With the device's own square root of what `k` comes to, held at nought.
             static Vec3 refract(const Vec3& incident, const Vec3& normal, float eta, float root)
             {
                 const float cosine = dot(normal, incident);
-                const float k = std::fma(-(eta * eta), std::fma(-cosine, cosine, 1.0f), 1.0f);
+                const float k = 1.0f - (eta * eta) * (1.0f - cosine * cosine);
                 if (k < 0.0f)
                     return { 0.0f, 0.0f, 0.0f };
-                const float bend = std::fma(eta, cosine, root);
+                const float bend = eta * cosine + root;
                 Vec3 refracted{};
                 for (std::size_t at = 0; at < 3; ++at)
-                    refracted[at] = std::fma(-bend, normal[at], eta * incident[at]);
+                    refracted[at] = eta * incident[at] - bend * normal[at];
                 return refracted;
             }
 
             /// From the device's own `floor(x / y)`.
-            static float mod(float x, float y, float whole) { return std::fma(-y, whole, x); }
+            static float mod(float x, float y, float whole) { return x - y * whole; }
 
             static Vec3 faceforward(const Vec3& normal, const Vec3& incident, const Vec3& reference)
             {
@@ -155,7 +150,7 @@ namespace Rtx
                 results[Shaders::PINNING_REFLECT + axis] = reflected[axis];
                 results[Shaders::PINNING_FACEFORWARD + axis] = facing[axis];
             }
-            results[Shaders::PINNING_PRODUCT_AND_SUM] = std::fma(one.mA.x(), one.mB.x(), one.mC.x());
+            results[Shaders::PINNING_PRODUCT_AND_SUM] = one.mA.x() * one.mB.x() + one.mC.x();
 
             const Vec3 normalized = Pinned::normalize(a, device[Shaders::PINNING_INVERSE_LENGTH]);
             const Vec3 refracted = Pinned::refract(a, b, one.mC.w(), device[Shaders::PINNING_ROOT]);
@@ -175,11 +170,11 @@ namespace Rtx
 
         /// Cases whose every component is a whole number of 2^-18 below 4 in magnitude: exact as a
         /// float, so both sides start from the same bits, and with 21 significant bits, so a
-        /// product has 42 and every order and fusion rounds differently somewhere. Never a denormal,
-        /// which the device may flush and the host keeps. Drawn off a fixed linear congruential
-        /// sequence rather than a distribution, whose algorithm is the standard library's own. A case
-        /// whose `smoothstep` edges or `mod` divisor come out equal to each other or to nought is
-        /// drawn again, because it divides by nothing.
+        /// product has 42 and every order rounds differently somewhere, and so does a fusion. Never
+        /// a denormal, which the device may flush and the host keeps. Drawn off a fixed linear
+        /// congruential sequence rather than a distribution, whose algorithm is the standard
+        /// library's own. A case whose `smoothstep` edges or `mod` divisor come out equal to each
+        /// other or to nought is drawn again, because it divides by nothing.
         std::vector<Shaders::PinningCase> makeCases()
         {
             std::uint64_t state = 0x9E3779B97F4A7C15ull;
@@ -206,14 +201,14 @@ namespace Rtx
         };
 
         /// **What the build pins, the device computes to the bit**: every result of every case the
-        /// same as the host's, which keeps the stated order with one rounding a step and one per
-        /// fusion — around the device's own inverse square root, quotient, root and floor where an
-        /// operation has one (`pinning.h`). A compile that reordered a sum, fused a step the build
-        /// left apart or rounded a fusion twice would differ somewhere in the 106,496 results.
+        /// same as the host's, which keeps the stated order with one rounding a step — around the
+        /// device's own inverse square root, quotient, root and floor where an operation has one
+        /// (`pinning.h`). A compile that reordered a sum or fused a step would differ somewhere in
+        /// the 106,496 results.
         ///
         /// **And the cases can tell those apart.** Summed from the far end, or with each product
-        /// rounded before it is added, the dot product comes out otherwise on some cases — so an
-        /// agreement is the order and the fusions, and not cases too easy to disagree on.
+        /// fused into the sum that reads it, the dot product comes out otherwise on some cases — so
+        /// an agreement is the order and the rounding, and not cases too easy to disagree on.
         TEST_F(RtxPinningTest, theDeviceComputesThePinnedOrderToTheBit)
         {
             const Device& device = getDevice();
@@ -270,7 +265,7 @@ namespace Rtx
             constexpr std::size_t sNamed = 8;
             std::size_t differing = 0;
             std::size_t reversed = 0;
-            std::size_t unfused = 0;
+            std::size_t fused = 0;
             std::size_t bent = 0;
             for (std::uint32_t at = 0; at < sCount; ++at)
             {
@@ -290,18 +285,17 @@ namespace Rtx
 
                 const Vec3 a = xyz(cases[at].mA);
                 const Vec3 b = xyz(cases[at].mB);
-                if (std::fma(a[0], b[0], std::fma(a[1], b[1], a[2] * b[2])) != want[0])
+                if (a[2] * b[2] + a[1] * b[1] + a[0] * b[0] != want[0])
                     ++reversed;
-                const float products[3] = { a[0] * b[0], a[1] * b[1], a[2] * b[2] };
-                if (products[0] + products[1] + products[2] != want[0])
-                    ++unfused;
+                if (std::fma(a[2], b[2], std::fma(a[1], b[1], a[0] * b[0])) != want[0])
+                    ++fused;
                 if (results[static_cast<std::size_t>(at) * Shaders::PINNING_RESULTS + Shaders::PINNING_ROOT] > 0.0f)
                     ++bent;
             }
 
             EXPECT_EQ(differing, 0u) << "results the device computed otherwise than the pinned order";
             EXPECT_GT(reversed, 0u) << "no case tells the far end's order from the pinned one";
-            EXPECT_GT(unfused, 0u) << "no case tells rounded products from fused ones";
+            EXPECT_GT(fused, 0u) << "no case tells rounded products from fused ones";
             EXPECT_GT(bent, 0u) << "no case refracts";
             EXPECT_LT(bent, static_cast<std::size_t>(sCount)) << "no case reflects wholly, which refracts nothing";
         }

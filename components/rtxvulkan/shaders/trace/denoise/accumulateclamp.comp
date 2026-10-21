@@ -140,8 +140,9 @@ void main()
         const uvec2 square = uvec2(i % RING_SPAN, i / RING_SPAN);
         const ivec2 pixel = origin - OUTER + ivec2(square);
         const ivec2 inside = clamp(pixel, ivec2(0), last);
-        const bool held = pixel == inside && imageLoad(surfaceChannel, inside).r != SURFACE_NO_NORMAL;
-        const vec3 there = unpackRgb9e5(imageLoad(fast, inside).x);
+        const ivec2 insideStored = storedAt(inside, frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame));
+        const bool held = pixel == inside && imageLoad(surfaceChannel, insideStored).r != SURFACE_NO_NORMAL;
+        const vec3 there = unpackRgb9e5(imageLoad(fast, insideStored).x);
         gFast[square.y][square.x] = held ? vec4(ycocgOf(there), dot(there, LUMINANCE_WEIGHTS)) : vec4(-1.0);
     }
     barrier();
@@ -150,13 +151,14 @@ void main()
         const uvec2 square = uvec2(i % SPAN, i / SPAN);
         const ivec2 pixel = origin - REACH + ivec2(square);
         const ivec2 inside = clamp(pixel, ivec2(0), last);
+        const ivec2 insideStored = storedAt(inside, frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame));
         const bool held = gFast[square.y + INSET][square.x + INSET].w >= 0.0;
-        gSampled[square.y][square.x] = held ? imageLoad(sampled, inside).rgb : vec3(0.0);
-        gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, inside).rgb : vec3(0.0);
-        const vec2 luminance = imageLoad(moments, inside).rg;
+        gSampled[square.y][square.x] = held ? imageLoad(sampled, insideStored).rgb : vec3(0.0);
+        gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, insideStored).rgb : vec3(0.0);
+        const vec2 luminance = imageLoad(moments, insideStored).rg;
         gMoments[square.y][square.x] = held ? vec2(luminance.x, secondMoment(luminance.x, luminance.y)) : vec2(0.0);
         // No surface is `SURFACE_NO_NORMAL`, whose normal of nought weighs nought in the variance.
-        const vec2 seen = held ? imageLoad(surfaceChannel, inside).rg : vec2(SURFACE_NO_NORMAL, 0.0);
+        const vec2 seen = held ? imageLoad(surfaceChannel, insideStored).rg : vec2(SURFACE_NO_NORMAL, 0.0);
         gNormals[square.y][square.x] = unpackSurfaceNormal(seen.x);
         gPositions[square.y][square.x]
             = positionAlong(eyeOfPixel(seen.y, frame.mEyes), pixel, surfaceDistance(seen.y));
@@ -166,12 +168,13 @@ void main()
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
     if (outsideOf(uvec2(at), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
         return;
+    const ivec2 stored = storedAt(at, frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame));
 
-    const uvec2 fastPacked = imageLoad(fast, at).xy;
+    const uvec2 fastPacked = imageLoad(fast, stored).xy;
     const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + OUTER;
     if (gFast[centre.y][centre.x].w < 0.0)
     {
-        RTX_STORE_WORDS(fastOut, at, uvec4(fastPacked, 0u, 0u))
+        RTX_STORE_WORDS(fastOut, stored, uvec4(fastPacked, 0u, 0u))
         return;
     }
     const vec3 fastHere = unpackRgb9e5(fastPacked.x);
@@ -220,9 +223,9 @@ void main()
                 ringSquares += weight * there * there;
             }
 
-    const vec3 blend = imageLoad(blended, at).rgb;
+    const vec3 blend = imageLoad(blended, stored).rgb;
     const float blendLit = dot(blend, LUMINANCE_WEIGHTS);
-    const vec4 fillBlend = imageLoad(fillBlended, at);
+    const vec4 fillBlend = imageLoad(fillBlended, stored);
     const float frames = fillBlend.a;
     const float young = frames <= ACCUMULATE_RING_FRAMES ? 1.0 : 0.0;
     const float slowHere = mix(
@@ -263,13 +266,13 @@ void main()
     // pixel, the weights cost the clamp 0.02 to 0.04 ms more on the bench, and under the branch 0.01
     // to 0.02; what is left is the square's normals and points, which the workgroup loads either way.
     const ivec2 own = centre - INSET;
-    const float deviation = imageLoad(moments, at).g;
+    const float deviation = imageLoad(moments, stored).g;
     float variance = deviation * deviation;
     if (frames <= ACCUMULATE_SETTLED)
     {
         const vec3 normal = gNormals[own.y][own.x];
         const vec3 position = gPositions[own.y][own.x];
-        const vec2 seenHere = imageLoad(surfaceChannel, at).rg;
+        const vec2 seenHere = imageLoad(surfaceChannel, stored).rg;
         const float footprint
             = footprintAlong(eyeOfPixel(seenHere.y, frame.mEyes), surfaceDistance(seenHere.y));
         vec2 momentSum = vec2(0.0);
@@ -289,7 +292,7 @@ void main()
     vec4 bounceOut = vec4(held, sqrt(variance));
     vec4 fillOut = vec4(heldFill, frames);
     roundedToHalves(bounceOut, fillOut, rounding);
-    RTX_STORE_COUNTED(blended, at, bounceOut)
-    RTX_STORE_COUNTED(fillBlended, at, fillOut)
-    RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u))
+    RTX_STORE_COUNTED(blended, stored, bounceOut)
+    RTX_STORE_COUNTED(fillBlended, stored, fillOut)
+    RTX_STORE_WORDS(fastOut, stored, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u))
 }

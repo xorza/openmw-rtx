@@ -132,11 +132,13 @@ namespace Rtx::Shaders
     /// format's precision.
     const float SHADOW_MOMENT_FRAMES = 128.0f;
 
-    /// What the mask pass reads that is not an image: the frame's extent, past which a bit is nought.
+    /// What the mask pass reads that is not an image: the frame's extent, past which a bit is nought,
+    /// and its number, which says how its fields lie (`fieldSwapOf`).
     struct ShadowMaskConstants
     {
         uint mWidth;
         uint mHeight;
+        uint mFrame;
     };
 
     /// Which field a pass runs over, which its rounding is seeded by: one draw shared by the two
@@ -219,8 +221,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(ShadowMaskConstants) == 8, "ShadowMaskConstants must be scalar-packed on every side");
-    static_assert(sizeof(ShadowTilesConstants) == 224, "ShadowTilesConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowMaskConstants) == 12, "ShadowMaskConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowTilesConstants) == 228, "ShadowTilesConstants must be scalar-packed on every side");
     static_assert(sizeof(ShadowFilterConstants) == 156, "ShadowFilterConstants must be scalar-packed on every side");
 #endif
 

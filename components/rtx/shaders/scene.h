@@ -170,7 +170,7 @@ namespace Rtx::Shaders
     const uint STREAM_FOG_ALONG = 5u;
 
     /// Where on the sky's disc and on the held lamp's sphere the eye's own split hit aims its two
-    /// shadow rays, and which sky source it draws (`gather`).
+    /// shadow rays, and which sky source it draws (`GatherRun`).
     ///
     /// **Blue, because the shadow denoiser filters these rays' bits**, and an error spread blue
     /// across the screen filters away where a white one shimmers (Heitz and Belcour 2019; NRD). The
@@ -447,14 +447,14 @@ namespace Rtx::Shaders
     /// A surface that is nowhere opaque, gathered as a depth along the ray rather than met.
     ///
     /// **Carried instead of the class bit and not beside it.** Only two rays want a medium: the shadow
-    /// and ambient rays, which it dims (`throughToward`), and `mediumAlong`, which gathers it. The
-    /// eye, a bounce and a water ray walked past every shell they crossed after an any-hit test and a
+    /// and ambient rays, which it dims (`passageAsk`), and `mediumAlong`, which gathers it. The
+    /// eye, a bounce and a water ray walked past every shell they crossed after a cutout test and a
     /// row load apiece; under this bit alone traversal hands a shell to its two rays and to no other,
     /// and `GpuInstance::mClass` answers the class test the mask no longer makes.
     const uint MASK_MEDIUM = 0x08u;
 
     /// The placement is the model of a light that gives light — `Rtx::MeshInstance::mLampBody` — so
-    /// a diffuse bounce takes no glow from it (`bounceLanding`): its lamp delivers that light.
+    /// a diffuse bounce takes no glow from it (`SolidRun`): its lamp delivers that light.
     ///
     /// **In `GpuInstance::mClass` above the class bits**, as `GpuLight::mTraits` packs its fill bit
     /// beside its classes. Every reader of the word masks it with a ray mask of eight bits, and the
@@ -682,6 +682,13 @@ namespace Rtx::Shaders
         /// what makes a static surface produce a motion vector of exactly zero rather than one of
         /// rounding. See `Rtx::InstanceRecord::mMotion`.
         vec4 mMotion[3];
+
+        /// The mesh's own space to the world, the top level's row, and back, as three rows of four
+        /// each (`Rtx::InstanceRecord::mInverse`): what a hit is resolved through, here and not off
+        /// the query, so a stage that resolves a hit the trace stored resolves the trace's surface
+        /// (`committedHit`).
+        vec4 mToWorld[3];
+        vec4 mToObject[3];
     };
 
     /// `GpuLight::mTraits`' fill bit, and where the class bits start above it.
@@ -816,7 +823,7 @@ namespace Rtx::Shaders
     /// a class of mistake gone.
     struct GpuTables
     {
-        /// The five tables of block addresses, which a global vertex or index id is resolved
+        /// The six tables of block addresses, which a global vertex or index id is resolved
         /// through. The normals and the tangents are this slot's table, which a deforming mesh's
         /// ids reach past `POSED_FIRST_BLOCK` (`GpuMesh::mNormalShift`).
         uint64 mNormalBlocks;
@@ -824,6 +831,10 @@ namespace Rtx::Shaders
         uint64 mTexCoordBlocks;
         uint64 mColourBlocks;
         uint64 mIndexBlocks;
+
+        /// The static meshes' positions, which a committed triangle's corners are read from
+        /// (`committedHit`); a deforming mesh's are its pose's, `mPoseBlocks`.
+        uint64 mPositionBlocks;
 
         /// The second texture coordinates, in blocks of their own that only the meshes carrying a
         /// second set take from — `GpuMesh::mSecondTexCoordOffset` is where a mesh's run begins.
@@ -1193,8 +1204,8 @@ namespace Rtx::Shaders
         ///
         /// **The count is also what says a hit is ground.** Only terrain is given layers, and
         /// terrain without one is never made, so nothing else in the row has to state the kind —
-        /// what sorts a material otherwise is the instance's shader-table offset, which reaches the
-        /// shader as the closest-hit shader that ran.
+        /// what sorts a material otherwise is the instance's shader-table offset, which a ray query
+        /// hands back with the hit.
         uint mLayerOffset;
         uint mLayerCount;
 
@@ -1250,7 +1261,7 @@ namespace Rtx::Shaders
     // `--scalar-block-layout` the build hands the validator.
 #ifdef RTX_HOST
     static_assert(sizeof(GpuMesh) == 28, "GpuMesh must be scalar-packed on every side");
-    static_assert(sizeof(GpuInstance) == 64, "GpuInstance must be scalar-packed on every side");
+    static_assert(sizeof(GpuInstance) == 160, "GpuInstance must be scalar-packed on every side");
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),
         "the lamp body's bit stands above every ray mask's");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
@@ -1262,7 +1273,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");
     static_assert(sizeof(GpuPresence) == 24, "GpuPresence must be scalar-packed on every side");
-    static_assert(sizeof(GpuTables) == 192, "GpuTables must be scalar-packed on every side");
+    static_assert(sizeof(GpuTables) == 200, "GpuTables must be scalar-packed on every side");
 
 #endif
 

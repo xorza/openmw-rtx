@@ -81,8 +81,8 @@ vec3 cornerLift(vec3 normal, vec3 fromCorner, float weight)
 ///
 /// **Three corners named rather than walked in arrays**, because a local array with a computed index
 /// is a spill on this hardware (`SkyChoice` says so): as arrays, the corners and their weights stood
-/// in `visibilityhit.rchit.spv` as six `vec3[3]` and six `float[3]` of the function storage class,
-/// and named they stand in none.
+/// in the trace's closest-hit module of the time as six `vec3[3]` and six `float[3]` of the function
+/// storage class, and named they stand in none.
 ///
 /// @param edges the triangle's, in the world.
 /// @param normals the three corner normals, in the world, not unit, and turned to the side the ray
@@ -123,6 +123,21 @@ void triangleSecondUvs(GpuMesh mesh, uvec3 corner, out vec2 uv[3])
 bool readsSecondUvs(GpuMesh mesh, uint unit)
 {
     return mesh.mSecondTexCoordOffset != NO_RUN && ((mesh.mUnitStreams >> unit) & 1u) != 0u;
+}
+
+/// The corners of the triangle `corner` names, in the mesh's own space: the numbers its structure was
+/// built over — a deforming mesh's this frame's pose (`poseBlockOf`), by its bind offset, and every
+/// other mesh's its positions (`positionBlockOf`).
+void trianglePositions(GpuMesh mesh, uvec3 corner, out vec3 position[3])
+{
+    const bool posed = mesh.mBindOffset != NO_RUN;
+    const uvec3 id = posed ? corner - mesh.mVertexOffset + mesh.mBindOffset : corner;
+    NormalBlock block = posed ? poseBlockOf(id.x) : positionBlockOf(id.x);
+    const uvec3 at = id % VERTEX_BLOCK;
+
+    position[0] = block.at[at.x];
+    position[1] = block.at[at.y];
+    position[2] = block.at[at.z];
 }
 
 /// The vertex normals of the triangle a hit landed on, in the mesh's own space and not yet unit:

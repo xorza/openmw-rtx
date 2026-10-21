@@ -80,7 +80,7 @@ namespace RtxTool
                                R"("settled": {}, "memoryBudget": {},)",
                 profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, profile.mDelight, profile.mGamma,
                 Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
-                std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeLaunches,
+                std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeKernels,
                 profile.mStressOverlapMs, mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics,
                 asJson(step), asJson(setup.mSettled), asJson(setup.mRun.mMemoryBudget));
         }
@@ -371,7 +371,7 @@ namespace RtxTool
             resolved.mSampling.mShadowFloor, resolved.mSampling.mLampCandidates);
         out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
             profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
-            describeExposure(profile.mExposure), profile.mSpecializeLaunches ? "on" : "off",
+            describeExposure(profile.mExposure), profile.mSpecializeKernels ? "on" : "off",
             profile.mStressOverlapMs > 0.0 ? std::format("{:.1f} ms", profile.mStressOverlapMs) : std::string("none"));
         out += std::format(
             "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, maps {}, step {}, walks {}, "

@@ -1,6 +1,7 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
 #extension GL_EXT_ray_tracing : require
 
 // What the weather's air holds at one froxel, and what lights it there.
@@ -188,7 +189,7 @@ void main()
     // **The sky's draws first, at a fixed place in the sequence**: the ray's pair for the sun, the
     // ray's pair for the moon, and the moon's pick. The walk below steps the same state once a lamp,
     // so drawn after it, a lamp entering the column moved the froxel's sky shadow — the rule
-    // `gather` keeps for a surface.
+    // `GatherRun` keeps for a surface.
     const vec2 sunDraw = vec2(randomNext(lampState), randomNext(lampState));
     const vec2 moonDraw = vec2(randomNext(lampState), randomNext(lampState));
     const float moonPick = randomNext(lampState);
@@ -213,7 +214,7 @@ void main()
     const FogSources sources = fogSourcesFrom(terms, moonPick);
 
     // **Nought where no lamp reaches.** `lampVisible` is asked only of a reservoir that holds a lamp
-    // (`lampPassage`), and what an empty one stores is read by the neighbours the integrate pass
+    // (`lampAsk`), and what an empty one stores is read by the neighbours the integrate pass
     // averages over — a one there handed full sight of a lamp to the froxel beside it, and a lantern
     // behind a lid lit the air in front of it after all.
     const float lampsSeen
@@ -250,8 +251,7 @@ void main()
     // where it was not asked, so a puff that enters a frame of none starts from the open fill and
     // the history takes it to what its froxel sees.
     const float ambientSeen = frame.mPuffsInFrame != 0u
-        ? ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, 0.0, key + SEED_AMBIENT_FOG,
-              AMBIENT_EXTERIOR_RATE)
+        ? ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, 0.0, key + SEED_AMBIENT_FOG)
         : 1.0;
 
     // **Whatever the moons deliver, whether or not they were worth a ray.** `mMoonlit` gates the

@@ -24,18 +24,12 @@ const uint SEED_LAMPS_BOUNCE = SEED_LAMPS_EYE + 1u;
 /// is where the layers under it draw from.
 const uint SEED_LAMPS_PANE = SEED_LAMPS_BOUNCE + 1u;
 
-/// Water shades two surfaces from one hit — what it reflects and what is seen through it — and each
-/// of them opens a reservoir of its own. **Two constants and not one**, because two reservoirs
-/// seeded alike step the same sequence and keep the same lamps.
-const uint SEED_LAMPS_MIRROR = SEED_LAMPS_PANE + 1u;
-const uint SEED_LAMPS_THROUGH = SEED_LAMPS_MIRROR + 1u;
-
 /// And one more for the direction a path's end asks the sky about, which is not a lamp at all.
 ///
 /// **A sequence of its own, because it is drawn beside a reservoir and not out of one.** Stepping
 /// the lamps' would move which lamp a hit chose every time the hemisphere was asked a question, and
 /// the two have nothing to do with each other.
-const uint SEED_AMBIENT_REACHING = SEED_LAMPS_THROUGH + 1u;
+const uint SEED_AMBIENT_REACHING = SEED_LAMPS_PANE + 1u;
 
 /// And one for the lamp a froxel of the air holds out of every lamp reaching it.
 const uint SEED_LAMPS_FOG = SEED_AMBIENT_REACHING + 1u;
@@ -56,7 +50,7 @@ const uint SEED_SHEET_SIDE = SEED_AMBIENT_FOG + 1u;
 ///
 /// **An entry of the pixel's own chain rather than a step of the reservoir's sequence.** The draw is
 /// made before the reservoir opens, and taken as a step of it, it would move every lamp the bounce
-/// hit weighed — which is the ordering `gather` states at the top of itself.
+/// hit weighed — which is the ordering `GatherRun` states at the top of itself.
 const uint SEED_INDIRECT_LIGHT = SEED_SHEET_SIDE + 1u;
 
 /// And one for each layer of the peel under the first: a cuirass over a skirt over a leg shade
@@ -107,23 +101,9 @@ const uint SEED_BOUNCE_LOBE = SEED_BOUNCE_TRACED + 1u;
 /// not by the share of the disc.
 const uint SEED_WATER_SHAFT = SEED_BOUNCE_LOBE + 1u;
 
-/// And the occlusion rays at the far end of the water's two rays, the reflection's and the
-/// refraction's, for the reason `SEED_AMBIENT_REACHING` gives. Entries of the chain and not the
-/// lamp seed plus `SEED_AMBIENT_REACHING`, which is a sum of two entries and so nothing the chain
-/// says is apart from the rest.
-const uint SEED_AMBIENT_MIRROR = SEED_WATER_SHAFT + 1u;
-const uint SEED_AMBIENT_THROUGH = SEED_AMBIENT_MIRROR + 1u;
-
-/// And which ray's shadowed sources a pixel of water keeps the bits of, `mixSplit`'s two draws, the
-/// sky's and the lamps': once between the water's two rays, and once between the water and the bed
-/// under a waterline. **Two sequences**, since a waterline pixel draws both, and one deciding both
-/// would tie which ray the water keeps to whether the bed was kept.
-const uint SEED_SHADOWED_LEGS = SEED_AMBIENT_THROUGH + 1u;
-const uint SEED_SHADOWED_SHORE = SEED_SHADOWED_LEGS + 1u;
-
 /// Which texels under the cut of a soft edge the eye meets (`cutAt`): one draw a candidate, keyed on
 /// its triangle as well, so two soft layers on one pixel are met apart.
-const uint SEED_SOFT_EDGE = SEED_SHADOWED_SHORE + 1u;
+const uint SEED_SOFT_EDGE = SEED_WATER_SHAFT + 1u;
 
 /// And one for whether a ray that commits meets a see-through surface (`MEET_BY_CHANCE`), drawn off
 /// the ray's own key and not a pixel's.
@@ -135,7 +115,7 @@ const uint SEED_SEE_THROUGH = SEED_SOFT_EDGE + 1u;
 const uint SEED_WAVELET_TAPS = SEED_SEE_THROUGH + 1u;
 
 /// And one for whether the eye's split hit keeps its bits open through the translucent surfaces each
-/// ray crossed, the sky's draw and then the lamps' (`gather`): a hash and not a channel of the tile,
+/// ray crossed, the sky's draw and then the lamps' (`GatherRun`): a hash and not a channel of the tile,
 /// so no other draw moves.
 const uint SEED_SHADOW_THROUGH = SEED_WAVELET_TAPS + 1u;
 

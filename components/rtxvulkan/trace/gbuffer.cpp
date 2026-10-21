@@ -9,10 +9,12 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/shaders/gbuffer.h>
+#include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/traceconstants.h>
 
 namespace Rtx
 {
@@ -142,20 +144,56 @@ namespace Rtx
             const Channel channel, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
         {
             const ChannelFormat described = formatOf(channel, radiance);
-            return ImageDescription{
-                .mWidth = width, .mHeight = height, .mFormat = described.mFormat, .mUsage = described.mUsage
-            };
+            return ImageDescription{ .mWidth = channelWidth(channel, width),
+                .mHeight = height,
+                .mFormat = described.mFormat,
+                .mUsage = described.mUsage };
         }
 
+        /// The stage images, in fields as the trace writes them, and storage alone: only the
+        /// trace's stages touch them.
+        ImageDescription stageDescriptionOf(
+            const Shaders::StorageFormat format, const std::uint32_t width, const std::uint32_t height)
+        {
+            return ImageDescription{ .mWidth = Shaders::storedWidth(width),
+                .mHeight = height,
+                .mFormat = toVulkanFormat(format),
+                .mUsage = VK_IMAGE_USAGE_STORAGE_BIT };
+        }
+
+        /// The bytes of the stage lists for a frame `width` by `height`: the head, a word a tile of
+        /// each tile list (`stageTileCount`), and a word a pixel for the landing's.
+        VkDeviceSize stageTilesBytes(const std::uint32_t width, const std::uint32_t height)
+        {
+            return VkDeviceSize{ Shaders::STAGE_TILES_HEAD_WORDS
+                + Shaders::STAGE_LISTS * Shaders::stageTileCount(width, height) + width * height }
+            * sizeof(std::uint32_t);
+        }
+
+        /// What the tile lists are made for: a storage buffer the stages append to, the indirect
+        /// dispatch's arguments, and the head each frame writes inline.
+        constexpr VkBufferUsageFlags sTileUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+        /// Who reads a tile list: the stages, which append to it and read its tiles, and the indirect
+        /// dispatch, which reads its head.
+        constexpr BufferUse sTileReaders{ VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
+                | VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
+            VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT
+                | VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT };
+
         /// Every channel is a storage image the trace writes, and channel `c` binds at binding
-        /// `indexOf(c)`, which is what `gbuffer.h`'s `CHANNEL_*` are. Both stages, because the trace
-        /// is a launch and everything that reads what it left is a dispatch. One table serves the
-        /// layout and the pool that holds a set of it.
-        constexpr std::array<VkDescriptorSetLayoutBinding, sChannelCount> sBindings = [] {
-            std::array<VkDescriptorSetLayoutBinding, sChannelCount> bindings{};
+        /// `indexOf(c)`, which is what `gbuffer.h`'s `CHANNEL_*` are; the stage images after them,
+        /// at `STAGE_*`, and the tile lists, a storage buffer, last. Both stages, because the fog's
+        /// and the sprites' launches share the stages' layout. One table serves the layout and the
+        /// pool that holds a set of it.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::CHANNEL_SET_BINDINGS> sBindings = [] {
+            std::array<VkDescriptorSetLayoutBinding, Shaders::CHANNEL_SET_BINDINGS> bindings{};
             for (std::uint32_t channel = 0; channel < bindings.size(); ++channel)
-                bindings[channel] = VkDescriptorSetLayoutBinding{ channel, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
-                    VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr };
+                bindings[channel] = VkDescriptorSetLayoutBinding{ channel,
+                    channel == Shaders::STAGE_TILES ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+                                                    : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                    1, VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr };
 
             return bindings;
         }();
@@ -163,7 +201,15 @@ namespace Rtx
 
     GBuffer::GBuffer(const Device& device, const SetLayout& layout, const std::uint32_t width,
         const std::uint32_t height, const RadianceWidth radiance, const MemoryUse use, const TracePast past)
-        : mSet(device, sBindings, layout.get(), past == TracePast::Kept ? 2 : 1)
+        : mStageRecord(use, device, stageDescriptionOf(GBUFFER_STAGE_RECORD, width, height), "stage record")
+        , mStageThroughput(use, device, stageDescriptionOf(GBUFFER_STAGE_THROUGHPUT, width, height), "stage throughput")
+        , mStageLift(use, device, stageDescriptionOf(GBUFFER_STAGE_LIFT, width, height), "stage lift")
+        , mStageHit(use, device, stageDescriptionOf(GBUFFER_STAGE_HIT, width, height), "stage hit")
+        , mStageRayFrom(use, device, stageDescriptionOf(GBUFFER_STAGE_RAY, width, height), "stage ray from")
+        , mStageRayAlong(use, device, stageDescriptionOf(GBUFFER_STAGE_RAY, width, height), "stage ray along")
+        , mStageBounce(use, device, stageDescriptionOf(GBUFFER_STAGE_BOUNCE, width, height), "stage bounce")
+        , mStageTiles(Buffer::deviceLocal(device, stageTilesBytes(width, height), sTileUsage, "stage tiles"))
+        , mSet(device, sBindings, layout.get(), past == TracePast::Kept ? 2 : 1)
     {
         static_assert(sHeldChannels.size() == std::tuple_size_v<decltype(mOthers)>, "a held channel with no image");
 
@@ -187,6 +233,14 @@ namespace Rtx
                 const Image& bound = set == 1 && held.has_value() ? mOthers[*held] : mChannels[indexOf(channel)];
                 writes.image(indexOf(channel), bound.describeStorage());
             }
+            writes.image(Shaders::STAGE_RECORD, mStageRecord.describeStorage());
+            writes.image(Shaders::STAGE_THROUGHPUT, mStageThroughput.describeStorage());
+            writes.image(Shaders::STAGE_LIFT, mStageLift.describeStorage());
+            writes.image(Shaders::STAGE_HIT, mStageHit.describeStorage());
+            writes.image(Shaders::STAGE_RAY_FROM, mStageRayFrom.describeStorage());
+            writes.image(Shaders::STAGE_RAY_ALONG, mStageRayAlong.describeStorage());
+            writes.image(Shaders::STAGE_BOUNCE, mStageBounce.describeStorage());
+            writes.buffer(Shaders::STAGE_TILES, mStageTiles.describe());
             updateSets(device, writes.get());
         }
     }
@@ -198,7 +252,18 @@ namespace Rtx
         for (const Channel channel : sEveryChannel)
             bytes += Image::bytesFor(device, descriptionOf(channel, width, height, radiance))
                 * (past == TracePast::Kept && heldIndexOf(channel).has_value() ? 2 : 1);
+        bytes += Image::bytesFor(device, stageDescriptionOf(GBUFFER_STAGE_RECORD, width, height));
+        bytes += Image::bytesFor(device, stageDescriptionOf(GBUFFER_STAGE_THROUGHPUT, width, height));
+        bytes += Image::bytesFor(device, stageDescriptionOf(GBUFFER_STAGE_LIFT, width, height));
+        bytes += Image::bytesFor(device, stageDescriptionOf(GBUFFER_STAGE_HIT, width, height));
+        bytes += 2 * Image::bytesFor(device, stageDescriptionOf(GBUFFER_STAGE_RAY, width, height));
+        bytes += Image::bytesFor(device, stageDescriptionOf(GBUFFER_STAGE_BOUNCE, width, height));
         return bytes;
+    }
+
+    VkDeviceSize GBuffer::tileBytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
+    {
+        return Buffer::bytesFor(device, stageTilesBytes(width, height), sTileUsage);
     }
 
     const Image& GBuffer::get(const Channel channel) const
@@ -218,7 +283,8 @@ namespace Rtx
 
     // One command a hand-over and not two: a run past the batch's room emits what it holds.
     static_assert(
-        Shaders::CHANNEL_COUNT <= Barriers::sMostImages, "the G-buffer's channels overflow one barrier batch");
+        Shaders::CHANNEL_SET_BINDINGS <= Barriers::sMostImages, "the G-buffer's channels overflow one barrier batch");
+    static_assert(Shaders::CHANNEL_SET_BINDINGS <= BindingTable::sMost, "the G-buffer's set overflows a binding table");
 
     bool ChannelWrites::writes(const Channel channel) const
     {
@@ -249,9 +315,16 @@ namespace Rtx
         for (const Channel channel : sEveryChannel)
             if (writes.writes(channel))
             {
-                get(channel).addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
+                get(channel).addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
                 mHoldsNothing[indexOf(channel)] = false;
             }
+        mStageRecord.addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
+        mStageThroughput.addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
+        mStageLift.addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
+        mStageHit.addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
+        mStageRayFrom.addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
+        mStageRayAlong.addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
+        mStageBounce.addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
 
         // **The frame before's laid out where no frame wrote it**, the first: a history that fresh
         // reads none of it, and a binding states it all the same.
@@ -262,15 +335,36 @@ namespace Rtx
 
         barriers.flush();
 
+        // **The lists start empty**: each list's dispatch at no group across, one down and one deep,
+        // which the trace and the bounce count up as they append, and no pixel landed.
+        constexpr std::array<std::uint32_t, Shaders::STAGE_TILES_HEAD_WORDS> sEmpty{ 0u, 1u, 1u, 0u, 0u, 1u, 1u, 0u, 0u,
+            1u, 1u, 0u };
+        mStageTiles.updateInline(commands, sTileReaders, std::as_bytes(std::span(sEmpty)));
+
         // Left as a write of the trace's, so `handOver` orders it for the readers as it orders what
         // the trace wrote. Rare: a scene that wears no map, or a frame no puff is met in, is so for
         // every frame until it changes.
         for (const Channel channel : sEveryChannel)
             if (!writes.writes(channel) && !mHoldsNothing[indexOf(channel)])
             {
-                get(channel).clear(commands, Use::sUndefined, nothingOf(channel), Use::sTraceWrite);
+                get(channel).clear(commands, Use::sUndefined, nothingOf(channel), Use::sComputeWrite);
                 mHoldsNothing[indexOf(channel)] = true;
             }
+    }
+
+    void GBuffer::handToStage(VkCommandBuffer commands)
+    {
+        Barriers barriers(commands);
+        barriers.add(VkMemoryBarrier2{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .pNext = nullptr,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            .srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
+            .dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT
+                | VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT,
+        });
+        barriers.flush();
     }
 
     void GBuffer::handOver(VkCommandBuffer commands) const
@@ -280,7 +374,7 @@ namespace Rtx
         // itself. Sampled as well as loaded, because an upscaler samples what it is handed.
         Barriers barriers(commands);
         for (const Channel channel : sEveryChannel)
-            get(channel).addTransition(barriers, Use::sTraceWrite, Use::sAnyShaderRead);
+            get(channel).addTransition(barriers, Use::sComputeWrite, Use::sAnyShaderRead);
 
         barriers.flush();
     }

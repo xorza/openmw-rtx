@@ -36,6 +36,11 @@ namespace Rtx
     {
         Transform3x4 mTransform;
 
+        /// World space to the mesh's own: `mTransform`'s inverse, taken in double and rounded once,
+        /// which every hit on the instance is resolved through (`GpuInstance::mToObject`). Nought for
+        /// a placement shrunk to a scale of nought, which has no inverse and no area a ray can meet.
+        Transform3x4 mInverse;
+
         /// World space to where the surface this instance shows stood on the previous frame:
         /// `inverse(current) * previous`, so the shader multiplies once. The identity outright
         /// where the surface did not move, so a static world produces motion that is bit-exactly
@@ -55,8 +60,8 @@ namespace Rtx
         float mOpacity = 1.0f;
 
         /// What shading a hit on this instance takes — the material's own kind, carried on the
-        /// placement so that traversal picks the shader through the shader-table record offset
-        /// instead of the shader reading a material row.
+        /// placement so that traversal hands it back with the hit instead of the shading reading a
+        /// material row.
         MaterialKind mKind = MaterialKind::Surface;
 
         /// What the placement is to a camera's cull mask: the class bit `InstanceClass` gives it,
@@ -67,8 +72,8 @@ namespace Rtx
         ///
         /// **Water's own bit** is what lets a shadow ray pass straight through it, or every shallow in
         /// the game goes black. **An additive surface's** is met by no shading ray. **A medium's** is
-        /// met only by the rays that sum it, `throughToward` and `mediumAlong`: every other ray
-        /// walked past it after an any-hit test and a row load apiece, and the sum's own rays ask
+        /// met only by the rays that sum it, `passageAsk` and `mediumAlong`: every other ray
+        /// walked past it after a cutout test and a row load apiece, and the sum's own rays ask
         /// `GpuInstance::mClass` for the class the structure's mask no longer carries. Said in the
         /// mask, because a candidate loop waving rays past costs traversal what the mask costs
         /// nothing.

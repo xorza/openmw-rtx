@@ -25,7 +25,7 @@ namespace Rtx
         ///
         /// **No object, not merely no file**, because the object is shared by every pipeline
         /// created against it, and the pipelines are created in parallel. A stage two of them
-        /// share — the hit and miss shaders under every visibility variant — is compiled by
+        /// share — the hit and miss shaders the visibility variants had, once — is compiled by
         /// whichever asked first and handed back from the object to whichever asked later, and
         /// what is handed back is not the code a compile of the same SPIR-V makes. Which
         /// pipelines got which was the hands' timing: a third of the runs of one scene drew a

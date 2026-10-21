@@ -831,10 +831,10 @@ vec4 fogAlongLeg(vec3 origin, vec3 direction, float span, float before)
 /// whole of the weather's air in front of it and arrives dimmed by exactly that.
 vec4 fogAlong(uvec2 pixel, WorldRay ray, float distance)
 {
-    // **Air only, and an eye under the surface has none of it in front of it.** The water stands
-    // in front, and what air a ray reaches past the plane is behind it — `mediumAhead` charges that
-    // as a leg's air, from where the ray rose through the plane, because the froxels hold none of
-    // it: `MASK_WATER` stops `fogdepth.rgen`'s column at the surface.
+    // **Air only, and an eye under the surface has none of it in front of it.** The water stands in
+    // front, and what air a ray reaches past the plane is behind it — `mediumOverColumn` charges
+    // that as a leg's air, from where the ray rose through the plane, because the froxels hold none
+    // of it: `MASK_WATER` stops `fogdepth.rgen`'s column at the surface.
     //
     // **Here rather than in each element, because only one of the three could tell.**
     // `fogCoverageAt` gives nothing under the surface and `fogColumn` integrates nothing there, so
@@ -856,12 +856,6 @@ vec4 fogAlong(uvec2 pixel, WorldRay ray, float distance)
     const vec4 edge = fogEdgeOver(ray.mAlong, 0.0, distance);
 
     return vec4(weather.xyz + weather.w * edge.xyz, weather.w * edge.w);
-}
-
-/// `radiance` seen through the air `air` holds — `fogAlong`'s form, and `fogAlongLeg`'s.
-vec3 throughAir(vec3 radiance, vec4 air)
-{
-    return radiance * air.w + air.xyz;
 }
 
 #endif

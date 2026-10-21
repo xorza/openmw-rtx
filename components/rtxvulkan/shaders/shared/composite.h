@@ -30,7 +30,9 @@ namespace Rtx::Shaders
     const uint COMPOSITE_BIND_SPECULAR_ALBEDO = 11;
     const uint COMPOSITE_BIND_LAMPED = 12;
     const uint COMPOSITE_BIND_LAMP_SHADOW = 13;
-    const uint COMPOSITE_BINDINGS = 14;
+    const uint COMPOSITE_BIND_COMPOSED = 14;
+    const uint COMPOSITE_BIND_MOTION = 15;
+    const uint COMPOSITE_BINDINGS = 16;
 
     /// `CompositeConstants::mShadowed`'s bits: which of the shadow denoiser's fields ran.
     const uint COMPOSITE_SHADOWED_SKY = 1u;
@@ -63,11 +65,6 @@ namespace Rtx::Shaders
         /// reason the shader gives.
         uint mAccumulate;
 
-        /// Non-zero where the trace already composed the frame into the direct channel —
-        /// `VisibilityConstants::mComposed`, the same frame's answer — so all that is left here is
-        /// the sum. A composite runs on such a frame only to take one.
-        uint mComposed;
-
         /// Which of the shadow denoiser's fields ran (`COMPOSITE_SHADOWED_SKY`,
         /// `COMPOSITE_SHADOWED_LAMPS`): a light whose field ran is scaled by what the denoiser made
         /// of its rays' bits. Where a field did not run, the frame had no source of it to shadow,
@@ -78,6 +75,9 @@ namespace Rtx::Shaders
         /// which is the only way a surface has a lobe: nought, the lobe's channel holds nought light,
         /// and the composite reads neither it nor its albedo for the nought it adds.
         uint mLobed;
+
+        /// The frame's number, which says how its fields lie (`fieldSwapOf`).
+        uint mFrame;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that

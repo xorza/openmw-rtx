@@ -15,6 +15,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 
 namespace Rtx
 {
@@ -91,14 +92,15 @@ namespace Rtx
     }
 
     std::uint32_t DigestPass::record(const VkCommandBuffer commands,
-        const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels,
-        const std::array<const Image*, sDenoiserImageCount>& denoiser, const Buffer& into, GpuTimer* const timer) const
+        const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels, const std::uint32_t channelsInFields,
+        const std::array<const Image*, sDenoiserImageCount>& denoiser, const VkExtent2D extent,
+        const std::uint32_t frame, const Buffer& into, GpuTimer* const timer) const
     {
         assert(into.getSize() >= sBytes && "a digest of more images than the frame has room for");
 
-        const Image& first = *channels.front();
-        [[maybe_unused]] const auto sameExtent = [&](const Image& image) {
-            return image.getWidth() == first.getWidth() && image.getHeight() == first.getHeight();
+        [[maybe_unused]] const auto reaches = [&](const Image& image, const bool inFields) {
+            return image.getWidth() >= (inFields ? Shaders::storedWidth(extent.width) : extent.width)
+                && image.getHeight() >= extent.height;
         };
 
         // Every image of the frame in the order its lanes lie: the floats, the channels first, and
@@ -107,7 +109,7 @@ namespace Rtx
         std::array<const Image*, Shaders::DIGEST_DENOISER_WORDS> words{};
         for (std::size_t at = 0; at < channels.size(); ++at)
         {
-            assert(sameExtent(*channels[at]) && "a digest of images at two extents");
+            assert(reaches(*channels[at], (channelsInFields & (1u << at)) != 0) && "a digest past an image's edge");
             assert(!holdsWords(channels[at]->getFormat()) && "a channel of words bound as floats");
             floats[at] = channels[at];
         }
@@ -117,7 +119,7 @@ namespace Rtx
         {
             const Slot slot = slotOf(static_cast<DenoiserImage>(at));
             const Image* const image = denoiser[at];
-            assert((image == nullptr || sameExtent(*image)) && "a digest of images at two extents");
+            assert((image == nullptr || reaches(*image, true)) && "a digest past an image's edge");
             assert((image == nullptr || holdsWords(image->getFormat()) == slot.mWords)
                 && "a denoiser image bound as the kind of texel it does not hold");
             (slot.mWords ? words[slot.mAt] : floats[Shaders::DIGEST_IMAGES + slot.mAt]) = image;
@@ -146,10 +148,12 @@ namespace Rtx
         {
             std::array<VkDescriptorImageInfo, Shaders::DIGEST_FLOAT_SLOTS> runFloats{};
             std::array<VkDescriptorImageInfo, Shaders::DIGEST_WORD_SLOTS> runWords{};
-            Shaders::DigestConstants constants{ .mWidth = first.getWidth(),
-                .mHeight = first.getHeight(),
+            Shaders::DigestConstants constants{ .mWidth = extent.width,
+                .mHeight = extent.height,
                 .mFloatFirst = run * Shaders::DIGEST_FLOAT_SLOTS,
                 .mFloats = 0,
+                .mFloatsInFields = 0,
+                .mFrame = frame,
                 .mWordFirst = Shaders::DIGEST_FLOAT_IMAGES + run * Shaders::DIGEST_WORD_SLOTS,
                 .mWords = 0 };
 
@@ -159,6 +163,9 @@ namespace Rtx
                 const Image* const image = at < floats.size() ? floats[at] : nullptr;
                 runFloats[slot] = (image != nullptr ? *image : mNoFloats).describeStorage();
                 constants.mFloats |= image != nullptr ? 1u << slot : 0u;
+                // Past the channels, the denoiser's, which are all in fields.
+                const bool inFields = at < channels.size() ? (channelsInFields & (1u << at)) != 0 : true;
+                constants.mFloatsInFields |= image != nullptr && inFields ? 1u << slot : 0u;
             }
             for (std::uint32_t slot = 0; slot < runWords.size(); ++slot)
             {
@@ -173,7 +180,7 @@ namespace Rtx
             writes.images(Shaders::DIGEST_BIND_WORDS, runWords);
             writes.buffer(Shaders::DIGEST_BIND_LANES, mLanes.describe());
             dispatch(commands, mPipeline, writes, constants,
-                Groups::covering(first.getWidth(), first.getHeight(), Shaders::DIGEST_WORKGROUP));
+                Groups::covering(extent.width, extent.height, Shaders::DIGEST_WORKGROUP));
         }
 
         // The host's read of what `into` held before is behind the submit that carries this — a

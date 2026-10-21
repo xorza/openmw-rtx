@@ -72,6 +72,7 @@ namespace Rtx
         StorageFormatRow{ Shaders::StorageFormat::Rgba16, VK_FORMAT_R16G16B16A16_UNORM, { 8, TexelDecode::Bytes } },
         StorageFormatRow{ Shaders::StorageFormat::Rgba16f, VK_FORMAT_R16G16B16A16_SFLOAT, { 8, TexelDecode::Half } },
         StorageFormatRow{ Shaders::StorageFormat::Rgba32f, VK_FORMAT_R32G32B32A32_SFLOAT, { 16, TexelDecode::Float } },
+        StorageFormatRow{ Shaders::StorageFormat::Rgba32ui, VK_FORMAT_R32G32B32A32_UINT, { 16, TexelDecode::Bytes } },
     };
 
     /// `format`'s row of `sStorageFormats`. Constant, so a format a pass names at namespace scope

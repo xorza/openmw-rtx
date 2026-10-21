@@ -97,8 +97,9 @@ void main()
 
     if (!outsideOf(at, uvec2(frame.mWidth, frame.mHeight)))
     {
-        const vec4 light = imageLoad(shadowed, ivec2(at));
-        if (receivesShadowed(imageLoad(surfaceChannel, ivec2(at)).r, dot(light.rgb, LUMINANCE_WEIGHTS)))
+        const ivec2 stored = storedAt(ivec2(at), frame.mWidth, fieldSwapOf(frame.mFrame));
+        const vec4 light = imageLoad(shadowed, stored);
+        if (receivesShadowed(imageLoad(surfaceChannel, stored).r, dot(light.rgb, LUMINANCE_WEIGHTS)))
         {
             const uint bit = 1u << ((local.y % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH + local.x);
             atomicOr(gReceiving[local.y / SHADOW_MASK_HEIGHT], bit);

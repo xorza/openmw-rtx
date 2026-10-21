@@ -4,12 +4,14 @@
 // Traversal, and what a ray found resolved down to the inputs shading needs.
 //
 // **No light here.** That is what lets water shade by tracing again: a reflection's hit is
-// resolved by this same `trace` and shaded by `shadeAtPathEnd`, and neither calls back into
-// water — which a shader with no recursion could not survive.
+// resolved by this same `resolveAsked` and shaded by `VisitRun`, and neither calls back into
+// water — which a walk with no recursion could not survive.
 
-// A candidate's and a committed hit's corners come out of the query itself, which is what a
-// traversal needs to build the plane without a vertex buffer bound for it.
+// A candidate's corners come out of the query itself, which the candidate test builds its plane
+// from in the loop, where a vertex fetch would be a table read for every triangle the ray meets.
 #extension GL_EXT_ray_tracing_position_fetch : require
+
+#include "shared/traceconstants.h"
 
 #include "gbuffer.h"
 #include "look.h"
@@ -40,14 +42,6 @@ const uint CONTINUATION_ULPS = 64u;
 float alongPast(float distance)
 {
     return uintBitsToFloat(floatBitsToUint(distance) + CONTINUATION_ULPS);
-}
-
-/// Just short of `distance`, by the same step, for a ray asked again about what stands at the
-/// distance it met.
-float alongShort(float distance)
-{
-    return distance > 0.0 ? uintBitsToFloat(floatBitsToUint(distance) - min(CONTINUATION_ULPS, floatBitsToUint(distance)))
-                          : 0.0;
 }
 
 /// Where a ray leaving a surface along `direction` starts: `point` pushed off its triangle by
@@ -149,7 +143,7 @@ float surfaceOpacity(GpuInstance instance, GpuMaterial material)
 /// `GL_CULL_FACE` on, so the content states which face of a surface is there, and a ray standing in
 /// for that pass states it the same way. A bounce, which carries light, meets a surface from either
 /// side instead: a wall met from behind that stopped nothing would leak the light behind it. A ray
-/// to a light has a rule of its own, `lightPassage`.
+/// to a light has a rule of its own, `lightAsk`.
 ///
 /// `SceneAcceleration::placeRow` is where a row says it is drawn from both faces, and
 /// `InstanceRecord::mTwoSided` is what the content said.
@@ -295,9 +289,8 @@ vec3 sheetAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec3 shading, vec
     return SUNLIT_WHITE * sampleDiffuse(material.mEnvironment, sheet).rgb * material.mEnvironmentColour;
 }
 
-/// A triangle a ray query or an any-hit shader met, before anything decides whether it stops the
-/// ray: which instance row and primitive, where on the triangle, how far along the ray, and the
-/// triangle's world edges.
+/// A triangle a ray query met, before anything decides whether it stops the ray: which instance row
+/// and primitive, where on the triangle, how far along the ray, and the triangle's world edges.
 struct Candidate
 {
     uint mInstance;
@@ -307,23 +300,21 @@ struct Candidate
     TriangleEdges mEdges;
 };
 
-/// Reads the candidate `query` stands at into a new `candidate`: the one statement of the read,
-/// and a macro because a `rayQueryEXT` cannot be a parameter.
-#define RTX_READ_CANDIDATE(query, candidate)                                                                \
+/// Reads the candidate `query` stands at into a new `candidate`, and its triangle's corners in the
+/// object's space into a new `corners`: the one statement of the read, and a macro because a
+/// `rayQueryEXT` cannot be a parameter.
+#define RTX_READ_CANDIDATE(query, candidate, corners)                                                       \
     Candidate candidate;                                                                                    \
     candidate.mInstance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, false);                      \
     candidate.mPrimitive = rayQueryGetIntersectionPrimitiveIndexEXT(query, false);                          \
     candidate.mBary = rayQueryGetIntersectionBarycentricsEXT(query, false);                                 \
     candidate.mAt = rayQueryGetIntersectionTEXT(query, false);                                              \
-    {                                                                                                       \
-        vec3 candidateCorners[3];                                                                           \
-        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, candidateCorners);                  \
-        candidate.mEdges                                                                                    \
-            = triangleEdges(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false));       \
-    }
+    vec3 corners[3];                                                                                        \
+    rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, corners);                               \
+    candidate.mEdges = triangleEdges(corners, rayQueryGetIntersectionObjectToWorldEXT(query, false));
 
 /// How a ray meets a surface it could see through — a pane, a fading actor, a material's own alpha:
-/// one of three rules, each a literal at its call, so `candidateStops` folds to one.
+/// one of three rules.
 ///
 /// **Walked past, keeping what it let through**: a ray toward a light, whose answer is a product the
 /// order does not change, and an asker of where the picture ends.
@@ -334,9 +325,9 @@ const uint MEET_WALK_PAST = 0u;
 /// through stood solid in each of them; met by chance, their mean is the blend the eye draws.
 const uint MEET_BY_CHANCE = 1u;
 
-/// **Met as any solid is**: by the eye's any-hit shader, whose closest-hit shader peels it
-/// (`visibility.rgen`) and composites the layers itself, and by a falling drop's shelter ray, since
-/// glass keeps rain off as a roof does.
+/// **Met as any solid is**: by the eye's rays, whose kernel peels it and composites the layers
+/// itself (`visibility.comp`), and by a falling drop's shelter ray, since glass keeps rain off as a
+/// roof does.
 const uint MEET_AS_SOLID = 2u;
 
 /// A key a ray draws from, made of the ray itself: where it leaves and which way, so two rays a
@@ -374,11 +365,11 @@ uint rayKeyOf(vec3 origin, vec3 direction)
 /// way the better of the two errors.
 ///
 /// @param blocked raised by what a see-through candidate kept, in `blockedBy`'s terms. Untouched
-///        otherwise, which the compiler folds away with `meet`.
+///        otherwise.
 /// @param meet how a see-through candidate is met — `MEET_WALK_PAST`, `MEET_BY_CHANCE` or
-///        `MEET_AS_SOLID`. **A literal at every call**, so the branches fold.
+///        `MEET_AS_SOLID`.
 /// @param detailed whether the ray draws the picture, so its cutout is read along the footprint the
-///        surface it cuts is read along — `texturePoint`. A literal at every call as well.
+///        surface it cuts is read along — `texturePoint`.
 /// @param dither the eye's draw for a soft edge (`cutAt`), and one for every other ray.
 /// @param rayKey the ray's own key, `rayKeyOf`, which `MEET_BY_CHANCE` draws from. Unread otherwise.
 bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, uint meet, bool detailed, float dither,
@@ -404,7 +395,7 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, uint m
     // **A medium reaches a ray by `MASK_MEDIUM`, and its class is asked here.** The structure's mask
     // carries the medium bit alone (`InstanceRecord::mMask` says why), so the class test the mask
     // made for every other surface is this one. The one ray that walks past a medium and keeps what
-    // it let through is `throughToward`, which casts with the camera's `solidMask`.
+    // it let through is `passageAsk`'s, which casts with the camera's `solidMask`.
     if (walkPast && isMedium(material) && (instance.mClass & solidMask(frame.mRayMask)) == 0u)
         return false;
 
@@ -459,43 +450,169 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, uint m
     return there;
 }
 
-/// The candidate loop, run to completion. It confirms every hit that lands on the material rather
-/// than in one of its holes, and — where the caller asks — walks past a translucent one instead,
-/// keeping what it let through.
+/// The eye's draw for a soft edge (`cutAt`), a pixel, a frame and a triangle apart: one where the
+/// frame does not dither, which cuts every soft edge at its middle.
+float softEdgeDither(uint key, Candidate candidate)
+{
+    if (frame.mSoftEdgeDither == 0u)
+        return 1.0;
+
+    uint draws = randomSeed(key + candidate.mInstance * 0x9E3779B9u + candidate.mPrimitive * 0x85EBCA6Bu);
+    return randomNext(draws);
+}
+
+/// One traversal, of any kind this file asks for — `passageAsk`, `surfaceWithin` and `traceAsk` —
+/// as a request: the flags, mask and limits `rayQueryInitializeEXT` takes, and how its candidate
+/// loop meets a surface (`candidateStops`). The cone at a candidate is `mConeWidth + mConeSpread t`,
+/// which is nought for a ray with none.
+struct SceneQuery
+{
+    vec3 mFrom;
+    float mTmin;
+    vec3 mAlong;
+    float mTmax;
+    uint mFlags;
+    uint mMask;
+    uint mMeet;
+    uint mDetailed;
+    float mConeWidth;
+    float mConeSpread;
+
+    /// One where a soft edge is cut at the eye's draw (`softEdgeDither`) and not at its middle: the
+    /// eye's own rays, which the pixel's draw dithers a frame at a time. `mDitherKey` is the pixel's
+    /// key with `SEED_SOFT_EDGE`.
+    uint mDithered;
+    uint mDitherKey;
+};
+
+/// What a traversal committed, before anything is read off it: whether it committed at all, where,
+/// what a ray that walked past let through, and the geometry `committedHit` takes.
+struct SceneAnswer
+{
+    uint mCommitted;
+    float mDistance;
+    uint mBlocked;
+    uint mInstance;
+    uint mPrimitive;
+    vec2 mBary;
+
+    /// The committed instance's material kind, `KIND_WATER` and the rest: the shader-table offset
+    /// `SceneAcceleration::placeRow` writes, read back.
+    uint mKind;
+};
+
+/// What a step that asked no ray is handed in place of an answer: nothing committed, and nothing
+/// walked past.
+SceneAnswer unansweredScene()
+{
+    return SceneAnswer(0u, 0.0, 0u, 0u, 0u, vec2(0.0), 0u);
+}
+
+/// **The one traversal loop**, which every query in this file runs through: AMD's Windows compiler
+/// writes a whole software traversal at every site that drives one, and a stage that held fifty of
+/// them did not compile in 52 GB
+/// (`docs/rtx/research/2026-10-19-amd-windows-trace-compile-memory.md`).
 ///
-/// **A macro because `glslc` rejects `rayQueryEXT` as an `out` or `inout` parameter**, so a
-/// traversal cannot be handed to a function and this cannot be one. It was written out twice, and
-/// the comment above the second copy said what that costs: any change to the cutout had to be made
-/// in both places. The preprocessor is the one construct that survives the restriction.
+/// **The candidate loop runs to completion.** It confirms every hit that lands on the material
+/// rather than in one of its holes, and — where the request asks — walks past a translucent one
+/// instead, keeping what it let through (`candidateStops`). The cone at a candidate decides how much
+/// of the mask one pixel is looking at; a ray that carries none reads the finest level — every
+/// shadow ray.
 ///
-/// @param query a traversal already initialised, which this drives to completion.
-/// @param along the direction the ray travels, which the cutout resolves its mip against.
-/// @param cone how wide the ray's cone is *at this candidate*, which is what decides how much of the
-///        mask one pixel is looking at. Nought for a ray that carries no cone, which reads the
-///        finest level — every shadow ray. Substituted textually, so it may name the traversal.
-/// @param blocked,meet handed straight to `candidateStops`, which says what each is for. A ray
-///        that walks past cannot commit the surface it walked past, so a caller with no use for
-///        `blocked` meets by chance and gets the surface or what stands behind it. The shadow ray
-///        walks past — it wants a sum, and the sum does not depend on the order they arrived in.
-/// @param detailed handed to `candidateStops` as well: whether the ray draws the picture.
-#define RTX_RESOLVE(query, along, cone, blocked, meet, detailed)                                            \
-    const uint resolveRayKey = (meet) == MEET_BY_CHANCE                                                     \
-        ? rayKeyOf(rayQueryGetWorldRayOriginEXT(query), rayQueryGetWorldRayDirectionEXT(query))            \
-        : 0u;                                                                                               \
-    while (rayQueryProceedEXT(query))                                                                       \
-    {                                                                                                       \
-        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)    \
-            continue;                                                                                       \
-                                                                                                            \
-        RTX_READ_CANDIDATE(query, candidate)                                                                \
-        if (candidateStops(candidate, (along), (cone), (meet), (detailed), 1.0, resolveRayKey, (blocked)))  \
-            rayQueryConfirmIntersectionEXT(query);                                                          \
+/// **The committed triangle's corners are not read here** but off the scene's own vertices
+/// (`committedHit`): AMD's Windows driver fetches a committed triangle's corners wrong.
+SceneAnswer queryScene(SceneQuery asked)
+{
+    rayQueryEXT query;
+    rayQueryInitializeEXT(query, sceneTop, asked.mFlags, asked.mMask, asked.mFrom, asked.mTmin, asked.mAlong, asked.mTmax);
+
+    const uint rayKey = asked.mMeet == MEET_BY_CHANCE
+        ? rayKeyOf(rayQueryGetWorldRayOriginEXT(query), rayQueryGetWorldRayDirectionEXT(query))
+        : 0u;
+
+    uint blocked = 0u;
+    while (rayQueryProceedEXT(query))
+    {
+        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
+            continue;
+
+        RTX_READ_CANDIDATE(query, candidate, corners)
+        const float dither = asked.mDithered != 0u ? softEdgeDither(asked.mDitherKey, candidate) : 1.0;
+        if (candidateStops(candidate, asked.mAlong, asked.mConeWidth + asked.mConeSpread * candidate.mAt,
+                asked.mMeet, asked.mDetailed != 0u, dither, rayKey, blocked))
+            rayQueryConfirmIntersectionEXT(query);
     }
 
-/// What a traversal answered, before anything at all is read off it.
+    SceneAnswer answer = unansweredScene();
+    answer.mDistance = asked.mTmax;
+    answer.mBlocked = blocked;
+    if (rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT)
+    {
+        answer.mCommitted = 1u;
+        answer.mDistance = rayQueryGetIntersectionTEXT(query, true);
+        answer.mInstance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, true);
+        answer.mPrimitive = rayQueryGetIntersectionPrimitiveIndexEXT(query, true);
+        answer.mBary = rayQueryGetIntersectionBarycentricsEXT(query, true);
+        answer.mKind = rayQueryGetIntersectionInstanceShaderBindingTableRecordOffsetEXT(query, true);
+    }
+    return answer;
+}
+
+/// A ray one step of a walk leaves for the traversal that answers it, or none: `mTraced` is false
+/// where the answer is known without one — a light within `SHADOW_BIAS`, a picture with its shadows
+/// off. `mResolved` asks for what the ray met resolved as well, into the walk's surface
+/// (`resolveAsked`).
 ///
-/// **Geometry the query alone can give**: no instance row, no mesh, no vertex and no material.
-/// Everything a hit *leads to* is read by `resolve`, off the tables this names.
+/// **A request and not a call**, so a walk traces every ray it casts at the one `queryScene` of the
+/// loop that steps it: AMD's Windows compiler writes a whole traversal at every such site
+/// (`queryScene`).
+struct RayAsk
+{
+    bool mTraced;
+    bool mResolved;
+    SceneQuery mQuery;
+};
+
+/// What came back for a `RayAsk`: whether it was traced, and what the traversal answered where it
+/// was.
+struct RayAnswer
+{
+    bool mTraced;
+    SceneAnswer mMet;
+};
+
+/// The step every walk's record (`SkyPassageRun`, `GatherRun` and the rest) stands at where none of
+/// it is under way: the record's answer is then what the walk came to.
+const uint RUN_IDLE = 0u;
+
+RayAsk noRay()
+{
+    return RayAsk(false, false, SceneQuery(vec3(0.0), 0.0, vec3(0.0, 0.0, 1.0), 0.0, 0u, 0u, 0u, 0u, 0.0, 0.0, 0u, 0u));
+}
+
+RayAsk rayOf(SceneQuery query)
+{
+    return RayAsk(true, false, query);
+}
+
+/// `query`, with what it meets resolved (`resolveAsked`).
+RayAsk resolvedRayOf(SceneQuery query)
+{
+    return RayAsk(true, true, query);
+}
+
+/// Traces `asked` where it asks a ray, and answers it: a request's synchronous form, for an asker
+/// that waits on its one ray where it stands.
+RayAnswer answerAsked(RayAsk asked)
+{
+    return asked.mTraced ? RayAnswer(true, queryScene(asked.mQuery))
+                         : RayAnswer(false, unansweredScene());
+}
+
+/// The triangle a traversal committed, placed in the world, before any material is read off it.
+///
+/// **Geometry, and no material**: the triangle off the instance's row and the scene's own vertices
+/// (`committedHit`). Everything a hit *leads to* is read by `resolve`, off the tables this names.
 struct Hit
 {
     bool mHit;
@@ -510,7 +627,7 @@ struct Hit
 
     /// Where in the shared vertex buffers this triangle's three corners are, already global.
     ///
-    /// **Resolved inside the query and carried out, rather than the primitive index.** The index
+    /// **Resolved in `committedHit` and carried out, rather than the primitive index.** The index
     /// block has to be read there in any case, to interpolate the shading normal while the
     /// object-to-world matrix is still in scope, and `resolve` would read the same block for the
     /// same three numbers. Two words more in a `Hit` against one block-table address and three
@@ -537,8 +654,8 @@ struct Hit
     /// The triangle's two edges in world space, whose cross product is twice its area along its
     /// plane's normal.
     ///
-    /// **Made here rather than carried as three corners**, because the corners come out of the query
-    /// through position fetch and nothing past the traversal wants them. Two edges and not their
+    /// **Made here rather than carried as three corners**, because nothing past `committedHit`,
+    /// which reads the corners off the scene's vertices, wants them. Two edges and not their
     /// cross, because a footprint is mapped onto the texture through the edges themselves.
     TriangleEdges mEdges;
 
@@ -605,11 +722,11 @@ void placeHit(inout Hit hit, vec3 corners[3], vec2 bary, mat4x3 toWorld, mat4x3 
     const float c1 = 1.788139769587360206060111522674560546875e-7;
     const float c2 = 1.19209317972490680404007434844970703125e-7;
 
-    precise vec3 first = corners[1] - corners[0];
-    precise vec3 second = corners[2] - corners[0];
-    precise vec3 local = corners[0] + (first * bary.x + second * bary.y);
+    const vec3 first = corners[1] - corners[0];
+    const vec3 second = corners[2] - corners[0];
+    const vec3 local = corners[0] + (first * bary.x + second * bary.y);
     const mat3 turn = mat3(toWorld);
-    precise vec3 placed = toWorld[3] + (turn[0] * local.x + (turn[1] * local.y + turn[2] * local.z));
+    const vec3 placed = toWorld[3] + (turn[0] * local.x + (turn[1] * local.y + turn[2] * local.z));
     hit.mPosition = placed;
 
     const vec3 crossed = cross(first, second);
@@ -627,11 +744,26 @@ void placeHit(inout Hit hit, vec3 corners[3], vec2 bary, mat4x3 toWorld, mat4x3 
     hit.mRounding = scale * dot(localError, abs(crossed)) + dot(placedError, abs(normal * scale));
 }
 
+/// How wide `asked`'s cone was where it met what `met` holds.
+float footprintOf(SceneQuery asked, SceneAnswer met)
+{
+    return asked.mConeWidth + asked.mConeSpread * met.mDistance;
+}
+
 /// The committed intersection, read off the query and put into world space.
 ///
-/// @param corners the triangle as position fetch gave it, in the mesh's own space.
-Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float footprint, vec3 corners[3],
-    mat4x3 toWorld, mat4x3 toObject)
+/// **Its corners off the scene's own vertices** (`trianglePositions`), the numbers its structure was
+/// built over, where a query's position fetch would read them: AMD's Windows driver fetches a
+/// committed triangle's corners wrong — another triangle's along the ray, or a confirmed one's
+/// turned (`docs/rtx/research/2026-10-19-amd-windows-driver-faults.md`). Passing every
+/// triangle through the candidate loop for its candidate's corners, which read right, cost the bounce
+/// a tenth of its time on a Radeon 680M (`docs/rtx/research/2026-10-21-amd-680m-stage-times.md`); and
+/// one read for every driver is one picture.
+///
+/// **Its transforms off the instance's row** (`GpuInstance::mToWorld`, `mToObject`), the top level's
+/// own and its inverse, and not off the query: a stage resolves a hit the trace stored with no query
+/// at all (`storedSolidOf`), and the two read the same numbers.
+Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float footprint)
 {
     Hit hit;
     hit.mHit = true;
@@ -639,17 +771,22 @@ Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float
     hit.mBary = bary;
     hit.mDistance = distance;
     hit.mFootprint = footprint;
-    hit.mEdges = triangleEdges(corners, toWorld);
-    placeHit(hit, corners, bary, toWorld, toObject);
 
-    // **The one vertex fetch a traversal does, and it is here so that the transform need not
-    // survive the call.** The test is on the mesh's own normal rather than on the transformed one:
-    // a mesh with no normals stores zeros, and a scale that shrank a real normal past the threshold
-    // would otherwise change which branch it took.
+    // **The vertex fetches a hit takes, here so that the transform need not survive the call.**
+    // The test is on the mesh's own normal rather than on the transformed one: a mesh with no
+    // normals stores zeros, and a scale that shrank a real normal past the threshold would
+    // otherwise change which branch it took.
     const GpuInstance placement = instanceAt(instance);
+    const mat4x3 toWorld = toWorldOf(placement);
+    const mat4x3 toObject = toObjectOf(placement);
     hit.mMesh = placement.mMesh;
     const GpuMesh mesh = meshAt(hit.mMesh);
     hit.mCorner = triangleCorners(mesh, primitive);
+
+    vec3 corners[3];
+    trianglePositions(mesh, hit.mCorner, corners);
+    hit.mEdges = triangleEdges(corners, toWorld);
+    placeHit(hit, corners, bary, toWorld, toObject);
 
     vec3 normals[3];
     triangleNormals(mesh, hit.mCorner, normals);
@@ -697,8 +834,15 @@ struct Passage
     float mOccluder;
 };
 
+/// What a light nothing stands in front of answers.
+Passage openPassage()
+{
+    return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
+}
+
 /// What the ray from `from` to what stands `distance` away along `towards` meets, past the surfaces
-/// whose faces `faces` does not cull — `lightPassage` and `ambientThrough`, which say which.
+/// whose faces `faces` does not cull — `lightAsk` and `ambientAsk`, which say which — as the ray a
+/// walk asks, and `passageAnswered` what it answered.
 ///
 /// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
 /// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
@@ -726,41 +870,44 @@ struct Passage
 /// made of a roof five hundred units on blurred away the contact shadow of a hand two units over a
 /// table; so a ray whose penumbra the shadow denoiser reads runs to the nearest solid.
 ///
-/// @param faces the ray flags that cull one face or none. **A literal at every call**, so each
-///        caller's traversal is compiled for its own.
+/// @param faces the ray flags that cull one face or none.
 /// @param nearest whether `Passage::mOccluder` must be the nearest solid's — a split ray's, whose
-///        penumbra is read. A literal at every call as well.
-Passage passageToward(vec3 from, vec3 towards, float distance, uint faces, bool nearest)
+///        penumbra is read.
+RayAsk passageAsk(vec3 from, vec3 towards, float distance, uint faces, bool nearest)
 {
     if (distance <= SHADOW_BIAS)
-        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
+        return noRay();
 
-    uint blocked = 0u;
-
-    rayQueryEXT query;
     // **And the mediums**, which only this ray and `mediumAlong` meet: a medium dims the light that
     // crosses it, and `candidateStops` asks its class in place of the mask.
-    rayQueryInitializeEXT(query, sceneTop, (nearest ? gl_RayFlagsNoneEXT : gl_RayFlagsTerminateOnFirstHitEXT) | faces,
-        solidMask(frame.mRayMask) | MASK_MEDIUM, from, 0.0, towards, distance);
-    RTX_RESOLVE(query, towards, 0.0, blocked, MEET_WALK_PAST, false)
-
-    const bool stopped = rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
-    return Passage(stopped ? 0.0 : 1.0, stopped ? 1.0 : throughBlocked(blocked),
-        stopped ? rayQueryGetIntersectionTEXT(query, true) : SHADOW_PENUMBRA_CLEAR);
+    return rayOf(SceneQuery(from, 0.0, towards, distance,
+        (nearest ? gl_RayFlagsNoneEXT : gl_RayFlagsTerminateOnFirstHitEXT) | faces,
+        solidMask(frame.mRayMask) | MASK_MEDIUM, MEET_WALK_PAST, 0u, 0.0, 0.0, 0u, 0u));
 }
 
-/// How much of what stands `distance` away along `towards` reaches `from`: `passageToward`'s two
-/// halves as one number. **The product is exact**: the open half is nought or one, so it either
-/// is the other half or is nought, and every caller reads what it read before the two were apart.
-float throughToward(vec3 from, vec3 towards, float distance, uint faces)
+/// What a `passageAsk` met: open where it asked no ray.
+Passage passageAnswered(RayAnswer answered)
 {
-    const Passage passage = passageToward(from, towards, distance, faces, false);
+    if (!answered.mTraced)
+        return openPassage();
+
+    const bool stopped = answered.mMet.mCommitted != 0u;
+    return Passage(stopped ? 0.0 : 1.0, stopped ? 1.0 : throughBlocked(answered.mMet.mBlocked),
+        stopped ? answered.mMet.mDistance : SHADOW_PENUMBRA_CLEAR);
+}
+
+/// `passageAnswered`'s two halves as one number. **The product is exact**: the open half is nought
+/// or one, so it either is the other half or is nought, and every caller reads what it read before
+/// the two were apart.
+float throughAnswered(RayAnswer answered)
+{
+    const Passage passage = passageAnswered(answered);
     return passage.mOpen * passage.mThrough;
 }
 
 /// What the ray from `from` to a light `distance` away along `towards` meets — the sun, a moon or a
 /// lamp — in `Passage`'s two halves, and the nearest solid's distance where `nearest` asks
-/// (`passageToward`).
+/// (`passageAsk`).
 ///
 /// **Only a face turned toward the light casts, which is the rasterizer's rule.** Its shadow map is
 /// drawn from the light with the scene's own back-face culling, so what stops the light there is
@@ -772,21 +919,22 @@ float throughToward(vec3 from, vec3 towards, float distance, uint faces)
 /// eye culls that face and never sees it, so neither does the light. A two-sided placement casts
 /// from either side, since its row turns culling off (`SceneAcceleration::placeRow`), and that
 /// includes every doubled card, which the fold made one.
-Passage lightPassage(vec3 from, vec3 towards, float distance, bool nearest)
+RayAsk lightAsk(vec3 from, vec3 towards, float distance, bool nearest)
 {
-    return passageToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT, nearest);
+    return passageAsk(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT, nearest);
 }
 
-/// How much of the ambient along `towards` reaches `from`, past whatever stands within `distance`.
+/// The ray asking how much of the ambient along `towards` reaches `from`, past whatever stands within
+/// `distance`: `throughAnswered` of it.
 ///
 /// **Every face stops it, the one turned toward `from` included.** What this asks is not a light's
 /// question but whether anything stands over the point — the pillow over the sheet, the floor
 /// under a lid — and the rasterizer, which has no such term, has no rule to follow. A surface met
 /// from the side it faces stands over the point as much as one met from behind, so this culls
-/// neither face where the lights cull one (`lightPassage`).
-float ambientThrough(vec3 from, vec3 towards, float distance)
+/// neither face where the lights cull one (`lightAsk`).
+RayAsk ambientAsk(vec3 from, vec3 towards, float distance)
 {
-    return throughToward(from, towards, distance, gl_RayFlagsNoneEXT);
+    return passageAsk(from, towards, distance, gl_RayFlagsNoneEXT, false);
 }
 
 /// A ray in the world: where it leaves from and which way it goes, unit. `Ray` in `camera.h` is a
@@ -804,10 +952,9 @@ struct RayRule
     uint mMask;
 
     /// How a surface the eye would see through is met: walked past, `MEET_WALK_PAST`, which is the
-    /// eye's own rule — `visibility.rgen` peels those and commits what stands behind them — or by
+    /// eye's own rule — `visibility.comp` peels those and commits what stands behind them — or by
     /// chance, `MEET_BY_CHANCE`. An asker whose question is "where does the picture end" walks past,
-    /// and one asking "what is the nearest thing there" meets by chance. **A literal at every call**,
-    /// so `RTX_RESOLVE`'s branches fold.
+    /// and one asking "what is the nearest thing there" meets by chance.
     uint mMeet;
 
     /// The same division again, and the same two askers — `facingFor`. Where the picture ends is where
@@ -818,42 +965,43 @@ struct RayRule
 /// How far the nearest surface that stops a ray is along it, at most `reach` away.
 ///
 /// **Traversal and the cutout, and no material resolved at all.** An asker that wants a distance
-/// pays for the whole of `trace` otherwise — the plane, the shading normal, the emissive, and for a
-/// piece of ground the entire layer stack with a mask read apiece — to read one float back off it.
+/// pays for the whole of `resolveAsked` otherwise — the plane, the shading normal, the emissive, and
+/// for a piece of ground the entire layer stack with a mask read apiece — to read one float back off
+/// it.
 /// The cutout still runs, or the ray would stop in the holes of a mask.
 ///
 /// **`reach` is the answer as well as the limit**, which is what makes such a ray short: an asker
 /// that only cares whether anything stands within a band hands over the band, and reads a miss as
 /// *no nearer than that*. Nothing here runs to `mReach` unless a caller asks it to.
 ///
-/// @param rule which surfaces stop the ray and how it meets them — `RayRule`. `solidWithin` asks for
-///        solids alone, met as nearest things and from either face.
-float surfaceWithin(WorldRay ray, float tmin, float reach, Cone cone, RayRule rule)
+/// @param rule which surfaces stop the ray and how it meets them — `RayRule`. `solidWithinAsk` asks
+///        for solids alone, met as nearest things and from either face.
+SceneQuery surfaceWithinQuery(WorldRay ray, float tmin, float reach, Cone cone, RayRule rule)
 {
-    rayQueryEXT query;
-    rayQueryInitializeEXT(query, sceneTop, facingFor(rule.mDraws), rule.mMask, ray.mFrom, tmin, ray.mAlong, reach);
-
-    // An lvalue the macro needs and nothing here reads: what a surface walked past let through is
-    // a question for whoever wants the picture, and this ray wants the distance.
-    uint blocked = 0u;
-    RTX_RESOLVE(query, ray.mAlong, cone.mWidth + cone.mSpread * rayQueryGetIntersectionTEXT(query, false), blocked,
-        rule.mMeet, rule.mDraws)
-
-    if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
-        return reach;
-
-    return rayQueryGetIntersectionTEXT(query, true);
+    return SceneQuery(ray.mFrom, tmin, ray.mAlong, reach, facingFor(rule.mDraws), rule.mMask, rule.mMeet,
+        rule.mDraws ? 1u : 0u, cone.mWidth, cone.mSpread, 0u, 0u);
 }
 
-float solidWithin(WorldRay ray, float tmin, float reach, Cone cone)
+/// What a `surfaceWithinQuery` with this `reach` answered.
+float withinOf(SceneAnswer met, float reach)
 {
-    return surfaceWithin(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), MEET_BY_CHANCE, false));
+    return met.mCommitted != 0u ? met.mDistance : reach;
+}
+
+float surfaceWithin(WorldRay ray, float tmin, float reach, Cone cone, RayRule rule)
+{
+    return withinOf(queryScene(surfaceWithinQuery(ray, tmin, reach, cone, rule)), reach);
+}
+
+RayAsk solidWithinAsk(WorldRay ray, float tmin, float reach, Cone cone)
+{
+    return rayOf(surfaceWithinQuery(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), MEET_BY_CHANCE, false)));
 }
 
 /// What a ray found, resolved down to the inputs shading needs.
 ///
 /// Geometry and material only — no light. That is what lets water shade by tracing again: the
-/// reflection's hit is resolved by this same function and shaded by `shadeAtPathEnd`, and neither
+/// reflection's hit is resolved by this same function and shaded by `VisitRun`, and neither
 /// calls back into water, which a shader with no recursion could not survive.
 struct Surface
 {
@@ -1015,7 +1163,7 @@ vec3 stepOf(Surface surface)
 /// under a waterline pixel.
 ///
 /// @param detailed whether the hit is a picture: the eye's own, a reflection's, the bed under a
-///        waterline — `trace`'s `draws`. **A diffuse bounce's far hit is not**, and reads no normal
+///        waterline — `traceAsk`'s `draws`. **A diffuse bounce's far hit is not**, and reads no normal
 ///        map and no parallax: what it sends back is averaged over a hemisphere and then filtered,
 ///        and relief read there moved nothing a 1024-frame reference could tell from its own noise,
 ///        at Balmora or in the census office. The albedo, the reflectance and the roughness are read
@@ -1041,8 +1189,8 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     const GpuMesh mesh = meshAt(hit.mMesh);
     const uvec3 corner = hit.mCorner;
 
-    // The plane the traversal already gave: position fetch has the corners and no buffer has to be
-    // bound for them, where the vertices' own normals are a fetch and are better where they are.
+    // The plane of the corners `committedHit` read, where the vertices' own normals are a fetch and
+    // are better where they are.
     const vec3 crossed = cross(hit.mEdges.mFirst, hit.mEdges.mSecond);
     surface.mGeometric = dot(crossed, crossed) > 0.0 ? normalize(crossed) : vec3(0.0, 0.0, 1.0);
 
@@ -1367,47 +1515,34 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     return surface;
 }
 
-/// Traverses, and answers with what the query committed.
+/// The ray that finds the surface a ray meets, to the reach, resolved (`resolveAsked`).
 ///
 /// @param cone how wide the ray's cone starts — nothing for a primary ray, and for a reflection
 ///        whatever the pixel had already spread to at the water — and how much wider it gets per
 ///        unit travelled.
 /// @param draws whether this ray draws the picture — `facingFor`. A reflection and the bed under a
 ///        waterline pixel do; a bounce carries light and does not.
-Hit traverse(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
+RayAsk traceAsk(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
 {
     // No blanket opaque flag: the per-instance bits the build set from each material are what decide
     // whether traversal stops to ask, and forcing opacity here would override them and put every leaf
     // back inside the card it was painted on.
-    rayQueryEXT query;
-    rayQueryInitializeEXT(query, sceneTop, facingFor(draws), mask, ray.mFrom, tmin, ray.mAlong, frame.mReach);
-
-    // An lvalue the resolve needs and nothing here reads: a ray that keeps what it passed through
-    // cannot commit the surface it passed through, and this one commits.
-    uint blocked = 0u;
-    RTX_RESOLVE(query, ray.mAlong, cone.mWidth + cone.mSpread * rayQueryGetIntersectionTEXT(query, false), blocked,
-        MEET_BY_CHANCE, draws)
-
-    if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
-        return noHit();
-
-    vec3 corners[3];
-    rayQueryGetIntersectionTriangleVertexPositionsEXT(query, true, corners);
-
-    const float distance = rayQueryGetIntersectionTEXT(query, true);
-    return committedHit(rayQueryGetIntersectionInstanceCustomIndexEXT(query, true),
-        rayQueryGetIntersectionPrimitiveIndexEXT(query, true), rayQueryGetIntersectionBarycentricsEXT(query, true),
-        distance, cone.mWidth + cone.mSpread * distance, corners, rayQueryGetIntersectionObjectToWorldEXT(query, true),
-        rayQueryGetIntersectionWorldToObjectEXT(query, true));
+    return resolvedRayOf(SceneQuery(ray.mFrom, tmin, ray.mAlong, frame.mReach, facingFor(draws), mask, MEET_BY_CHANCE,
+        draws ? 1u : 0u, cone.mWidth, cone.mSpread, 0u, 0u));
 }
 
-/// Traverses, and resolves whatever it hit.
+/// What `asked` met, resolved: its committed triangle, its cone opened over the distance it went, at
+/// the detail it asked for, or no surface where it met nothing.
 ///
-/// **The two halves back to back, for every ray but the eye's own.** Only the primary ray has
-/// anything to put between them, and `visibility.rgen` is where it does.
-Surface trace(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
+/// **Once in a walk**, at the traversal that answered: every surface a walk shades is resolved
+/// there, the eye's own among them, so the code that reads a material is in the walk once.
+Surface resolveAsked(SceneAnswer met, SceneQuery asked)
 {
-    return resolve(traverse(ray, tmin, cone, mask, draws), ray.mFrom, ray.mAlong, draws);
+    Hit hit = noHit();
+    if (met.mCommitted != 0u)
+        hit = committedHit(met.mInstance, met.mPrimitive, met.mBary, met.mDistance, footprintOf(asked, met));
+
+    return resolve(hit, asked.mFrom, asked.mAlong, asked.mDetailed != 0u);
 }
 
 #endif

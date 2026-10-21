@@ -29,8 +29,8 @@ namespace Rtx
         std::vector<std::string> everyRequiredExtension()
         {
             std::vector<std::string> names;
-            for (const RequiredExtension& required : getRequiredDeviceExtensions())
-                names.emplace_back(required.mName);
+            for (const char* const required : getRequiredDeviceExtensions())
+                names.emplace_back(required);
 
             return names;
         }
@@ -40,9 +40,8 @@ namespace Rtx
         ///
         /// **A card nobody here owns, described from what it says of itself.** Three heaps — six
         /// gigabytes of video memory, twenty-five of system memory, and a 246 MiB window the host
-        /// writes into. Its driver predates `VK_KHR_shader_fma`, so the card as reported is refused;
-        /// a `Card` lists every required extension, as any driver from 595 does, and
-        /// `aCardShortOfOneThingIsNamedForThatThing` takes that one out again.
+        /// writes into. A `Card` lists every required extension, and
+        /// `aCardShortOfOneThingIsNamedForThatThing` takes one out again.
         void describeTuring(DeviceProperties& properties)
         {
             properties.mProperties2.properties.apiVersion = VK_MAKE_API_VERSION(0, 1, 4, 325);
@@ -88,6 +87,9 @@ namespace Rtx
                 mProperties.mVulkan11.subgroupSupportedOperations
                     = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT;
                 mProperties.mVulkan11.subgroupSupportedStages = VK_SHADER_STAGE_COMPUTE_BIT;
+                mProperties.mVulkan13.minSubgroupSize = 32;
+                mProperties.mVulkan13.maxSubgroupSize = 32;
+                mProperties.mVulkan13.requiredSubgroupSizeStages = VK_SHADER_STAGE_COMPUTE_BIT;
                 mProperties.mProperties2.properties.limits.maxPushConstantsSize = sPushConstantsFloor;
                 mProperties.mVulkan12.shaderSignedZeroInfNanPreserveFloat32 = VK_TRUE;
 
@@ -244,34 +246,7 @@ namespace Rtx
                 Card short_(&describeTuring);
                 short_.mExtensions.erase(short_.mExtensions.begin());
                 EXPECT_EQ(short_.profile().mObstacle,
-                    "missing extensions: " + std::string(getRequiredDeviceExtensions().front().mName));
-            }
-            {
-                // Report 46422's driver: the card is short of a driver and not of hardware, and the
-                // refusal names the release that has the extension beside the one that has not.
-                Card dated(&describeTuring);
-                std::erase(dated.mExtensions, VK_KHR_SHADER_FMA_EXTENSION_NAME);
-                EXPECT_EQ(dated.profile().mObstacle,
-                    "missing extensions: VK_KHR_shader_fma (NVIDIA driver 595 or later; this one is 590.48.01)");
-
-                // Each driver is named with its own floor, and quoted as it describes itself: AMD's
-                // as report 51246 does ("26.7.1 (LLPC)"), Mesa's as a release of it does ("Mesa
-                // 26.2.3"), each a release short of the floor.
-                const auto refusedUnder = [&](VkDriverId driver, std::string_view info) {
-                    dated.mProperties.mVulkan12.driverID = driver;
-                    std::ranges::fill(dated.mProperties.mVulkan12.driverInfo, '\0');
-                    std::ranges::copy(info, dated.mProperties.mVulkan12.driverInfo);
-                    return dated.profile().mObstacle;
-                };
-                EXPECT_EQ(refusedUnder(VK_DRIVER_ID_AMD_PROPRIETARY, "26.2.1 (LLPC)"),
-                    "missing extensions: VK_KHR_shader_fma (AMD driver 26.3.1 or later; this one is 26.2.1 (LLPC))");
-                EXPECT_EQ(refusedUnder(VK_DRIVER_ID_MESA_RADV, "Mesa 26.1.4"),
-                    "missing extensions: VK_KHR_shader_fma (Mesa 26.2 or later; this one is Mesa 26.1.4)");
-                EXPECT_EQ(refusedUnder(VK_DRIVER_ID_MESA_NVK, "Mesa 26.1.4"),
-                    "missing extensions: VK_KHR_shader_fma (Mesa 26.2 or later; this one is Mesa 26.1.4)");
-
-                // A driver the table says nothing of is refused for the extension alone.
-                EXPECT_EQ(refusedUnder(VK_DRIVER_ID_MOLTENVK, "1.4.1"), "missing extensions: VK_KHR_shader_fma");
+                    "missing extensions: " + std::string(getRequiredDeviceExtensions().front()));
             }
             {
                 // What a Radeon lists — its own memory types, AMD's device-coherent ones among them:
@@ -315,6 +290,22 @@ namespace Rtx
                 Card basic(&describeTuring);
                 basic.mProperties.mVulkan11.subgroupSupportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT;
                 EXPECT_EQ(basic.profile().mObstacle, "no quad subgroup operations in compute shaders");
+            }
+            {
+                // Subgroups of eight to sixteen lanes, and of 32 a compute stage cannot ask for.
+                Card narrow(&describeTuring);
+                narrow.mProperties.mVulkan13.minSubgroupSize = 8;
+                narrow.mProperties.mVulkan13.maxSubgroupSize = 16;
+                EXPECT_EQ(narrow.profile().mObstacle, "no compute subgroup of 32 lanes to ask for");
+
+                Card unasked(&describeTuring);
+                unasked.mProperties.mVulkan13.requiredSubgroupSizeStages = VK_SHADER_STAGE_FRAGMENT_BIT;
+                EXPECT_EQ(unasked.profile().mObstacle, "no compute subgroup of 32 lanes to ask for");
+
+                // AMD's 32 to 64 takes 32.
+                Card wide(&describeTuring);
+                wide.mProperties.mVulkan13.maxSubgroupSize = 64;
+                EXPECT_EQ(wide.profile().mObstacle, "");
             }
             {
                 Card folding(&describeTuring);

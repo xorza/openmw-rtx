@@ -73,6 +73,10 @@ namespace Rtx
         static Misc::Result<Buffer, std::string_view> tryMake(MemoryUse use, const Device& device, BufferKind kind,
             VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
 
+        /// What a buffer of `size` bytes for `usage` takes of the memory it is made in: the size the
+        /// driver asks of it, which is what the allocator counts it at.
+        static VkDeviceSize bytesFor(const Device& device, VkDeviceSize size, VkBufferUsageFlags usage);
+
         /// `make`, for each kind by name.
         static Buffer deviceLocal(
             const Device& device, VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);

@@ -11,8 +11,7 @@
 // on and which nothing else in this renderer would notice being wrong: a table whose handle landed
 // at the wrong offset, or a launch whose grid is not the one that was asked for, draws a picture
 // that is missing or garbled rather than one that says what happened. `RtxProbeTest` is the same
-// idea for the buffer reads. The miss and hit records are the trace's own tests': the sky and every
-// surface are drawn through them.
+// idea for the buffer reads.
 
 #include "shared/probe.h"
 #include "shared/sets.h"

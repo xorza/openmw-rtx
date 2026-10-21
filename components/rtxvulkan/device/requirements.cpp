@@ -27,48 +27,23 @@ namespace Rtx
             next = &structure;
         }
 
-        /// Where `VK_KHR_shader_fma` starts. NVIDIA: the Vulkan beta drivers carried it from 580.94;
-        /// of the release drivers, the Vulkan Hardware Database's reports list it from 595.02 on and
-        /// not at 591.86, so the floor names the branch, 595. AMD: Adrenalin 26.3.1's release notes.
-        /// Mesa: 26.2.0's release notes, for RADV, NVK and ANV at once.
-        constexpr std::array sFmaFloors{
-            DriverFloor{ VK_DRIVER_ID_NVIDIA_PROPRIETARY, "595" },
-            DriverFloor{ VK_DRIVER_ID_AMD_PROPRIETARY, "26.3.1" },
-            DriverFloor{ VK_DRIVER_ID_MESA_RADV, "26.2" },
-            DriverFloor{ VK_DRIVER_ID_MESA_NVK, "26.2" },
-            DriverFloor{ VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA, "26.2" },
-        };
-
-        constexpr bool everyFloorsDriverIsNamed()
-        {
-            for (const DriverFloor& floor : sFmaFloors)
-                if (releaseSeriesOf(floor.mDriver).empty())
-                    return false;
-            return true;
-        }
-        static_assert(everyFloorsDriverIsNamed(), "a driver floor whose releases have no name for a refusal");
-
-        constexpr std::array sRequiredDeviceExtensions{
-            RequiredExtension{ VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, {} },
-            RequiredExtension{ VK_KHR_RAY_QUERY_EXTENSION_NAME, {} },
-            RequiredExtension{ VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME, {} },
-            RequiredExtension{ VK_KHR_RAY_TRACING_MAINTENANCE_1_EXTENSION_NAME, {} },
-            RequiredExtension{ VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, {} },
-            // The launch: the eye's ray goes through the pipeline to the closest-hit shader its
-            // instance names, and every ray after it is an inline query inside that shader.
-            RequiredExtension{ VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, {} },
+        constexpr std::array<const char*, 8> sRequiredDeviceExtensions{
+            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+            VK_KHR_RAY_QUERY_EXTENSION_NAME,
+            VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME,
+            VK_KHR_RAY_TRACING_MAINTENANCE_1_EXTENSION_NAME,
+            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+            // The launches the fog and the sprites trace from, a ray generation stage each that
+            // casts its rays as ray queries (`TracePipeline`).
+            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
             // Occupancy is a register count the driver's own compiler owns and no offline tool has.
             // Required, because a renderer that quietly reported nothing would be a fallback path.
-            RequiredExtension{ VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME, {} },
+            VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME,
             // A clock a shader reads that runs at one rate whatever the card is clocked at, which
             // is what `stress.comp` holds a queue against. Required and not optional, because a
             // hold that fell back to a count would be the one that misses on the first frames of
             // every run — the frames the hold is for.
-            RequiredExtension{ VK_KHR_SHADER_CLOCK_EXTENSION_NAME, {} },
-            // The one fused multiply-add the specification rounds once and exactly, which is how the
-            // build fuses what it pins (`Rtx::pinFloatArithmetic`); `fma()` of the GLSL set may be
-            // two roundings or one.
-            RequiredExtension{ VK_KHR_SHADER_FMA_EXTENSION_NAME, sFmaFloors },
+            VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
         };
 
         constexpr std::array sFaultReport{ VK_EXT_DEVICE_FAULT_EXTENSION_NAME };
@@ -226,6 +201,10 @@ namespace Rtx
             RequiredFeature{
                 "synchronization2", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.synchronization2; } },
             RequiredFeature{ "maintenance4", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.maintenance4; } },
+            // What pins the trace's kernels to 32 lanes, the width AMD advises for ray queries on RDNA
+            // (`SubgroupSize`). Vulkan 1.3 makes it mandatory.
+            RequiredFeature{ "subgroupSizeControl",
+                +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.subgroupSizeControl; } },
             // The GUI is the only thing here that rasterises, and it does so without a render pass
             // or a framebuffer object.
             RequiredFeature{
@@ -252,8 +231,6 @@ namespace Rtx
                 +[](DeviceFeatures& f) -> VkBool32& { return f.mPipelineExecutable.pipelineExecutableInfo; } },
             RequiredFeature{
                 "shaderDeviceClock", +[](DeviceFeatures& f) -> VkBool32& { return f.mShaderClock.shaderDeviceClock; } },
-            RequiredFeature{
-                "shaderFmaFloat32", +[](DeviceFeatures& f) -> VkBool32& { return f.mShaderFma.shaderFmaFloat32; } },
         };
     }
 
@@ -314,7 +291,6 @@ namespace Rtx
     DeviceFeatures::DeviceFeatures()
     {
         void* next = nullptr;
-        chain(next, mShaderFma, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FMA_FEATURES_KHR);
         chain(next, mShaderClock, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR);
         chain(next, mPipelineExecutable, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR);
         chain(next, mRayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR);
@@ -343,12 +319,13 @@ namespace Rtx
         void* next = nullptr;
         chain(next, mRayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR);
         chain(next, mAccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR);
+        chain(next, mVulkan13, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES);
         chain(next, mVulkan12, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES);
         chain(next, mVulkan11, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES);
         chain(next, mProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2);
     }
 
-    std::span<const RequiredExtension> getRequiredDeviceExtensions()
+    std::span<const char* const> getRequiredDeviceExtensions()
     {
         return sRequiredDeviceExtensions;
     }

@@ -57,12 +57,10 @@ namespace Rtx
         {
             const Device& device = getDevice();
 
-            const TraceShaders shaders{
-                .mRaygen = "traceprobe.rgen.spv",
-            };
             constexpr std::array<std::string_view, 1> modules{ "traceprobe.rgen.spv" };
             const ShaderCode code(device, modules);
-            const TracePipeline<NoConstants> pipeline(device, sBindings, {}, code, shaders, "trace probe");
+            const TracePipeline<NoConstants> pipeline(
+                device, sBindings, {}, code, "traceprobe.rgen.spv", "trace probe");
             EXPECT_EQ(pipeline.getPushRange().size, 0u) << "a pipeline pushed nothing declared a range";
 
             constexpr std::uint32_t sCount = sWidth * sHeight;

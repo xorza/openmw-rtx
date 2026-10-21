@@ -4,10 +4,9 @@
 // The records that cross the frame and belong to no walk: what a surface is in the filter's and
 // the composite's terms.
 //
-// **Their own file because the payload and the reprojection read them and nothing else of the
-// walks that fill them.** Declared where they were filled, the miss shader compiled the whole of
-// the water and the shading to hold a `VisibilityPayload`, and the reprojection pulled in the
-// water for one struct.
+// **Their own file because the answer and the reprojection read them and nothing else of the
+// walks that fill them.** Declared where they were filled, the reprojection pulled in the water for
+// one struct.
 
 #include "gbuffer.h"
 
@@ -21,7 +20,7 @@ struct SurfaceResponse
 {
     /// The normal the shading used, which for water is the wave's and not the plane's, as the
     /// surface channel's code: `packSurfaceNormal`, once, where the shading has it whole, so the
-    /// payload carries and the launch stores the one rounding the channel holds.
+    /// answer packs and the kernel stores the one rounding the channel holds.
     float mNormal;
 
     /// What the diffuse half is multiplied by, and nothing else: the surface's own albedo, with
@@ -33,7 +32,7 @@ struct SurfaceResponse
     vec3 mAmbient;
 
     /// What the lobe's light is multiplied by: `specularModulation`, the split-sum specular albedo as
-    /// the payload carries it, and one wherever there is no lobe to take apart.
+    /// the answer packs it, and one wherever there is no lobe to take apart.
     vec3 mSpecular;
 };
 

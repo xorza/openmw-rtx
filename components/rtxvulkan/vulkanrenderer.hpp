@@ -90,7 +90,7 @@ namespace Rtx
         void skipFrame() override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
-        JobProgress awaitKernels(std::chrono::milliseconds patience) override;
+        JobProgress awaitKernels(KernelSet set, std::chrono::milliseconds patience) override;
         FrameTraced renderFrame(const FrameRequest& request) override;
         void holdAir(const AirClock& air) override;
         std::uint64_t getFrameCount() const override;
@@ -163,6 +163,10 @@ namespace Rtx
             GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options);
 
     private:
+        /// `image`, a channel or the composed frame, read back in the frame's order at its width:
+        /// each pixel from where its field keeps it where `fielded`, and from its own place otherwise.
+        void readFramed(const Image& image, bool fielded, std::vector<float>& values) const;
+
         /// @param width, height what the frame is presented at. What it is traced at is that over
         ///        the mode's ratio, `extentsFor`.
         void createTargets(std::uint32_t width, std::uint32_t height);

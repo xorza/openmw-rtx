@@ -35,7 +35,7 @@ namespace Rtx
                  next != nullptr; next = next->pNext)
                 linked.insert(next);
 
-            EXPECT_EQ(linked.size(), 12u) << "a member was added to DeviceFeatures without chaining it";
+            EXPECT_EQ(linked.size(), 11u) << "a member was added to DeviceFeatures without chaining it";
             EXPECT_TRUE(linked.contains(&features.mFeatures2));
             EXPECT_TRUE(linked.contains(&features.mVulkan12));
             EXPECT_TRUE(linked.contains(&features.mVulkan13));
@@ -47,7 +47,6 @@ namespace Rtx
             EXPECT_TRUE(linked.contains(&features.mRayTracingPipeline));
             EXPECT_TRUE(linked.contains(&features.mPipelineExecutable));
             EXPECT_TRUE(linked.contains(&features.mShaderClock));
-            EXPECT_TRUE(linked.contains(&features.mShaderFma));
         }
 
         TEST(RtxRequirementsTest, everyPropertyStructIsInTheChain)
@@ -59,9 +58,10 @@ namespace Rtx
                  next != nullptr; next = next->pNext)
                 linked.insert(next);
 
-            EXPECT_EQ(linked.size(), 5u) << "a member was added to DeviceProperties without chaining it";
+            EXPECT_EQ(linked.size(), 6u) << "a member was added to DeviceProperties without chaining it";
             EXPECT_TRUE(linked.contains(&properties.mVulkan11));
             EXPECT_TRUE(linked.contains(&properties.mVulkan12));
+            EXPECT_TRUE(linked.contains(&properties.mVulkan13));
             EXPECT_TRUE(linked.contains(&properties.mAccelerationStructure));
             EXPECT_TRUE(linked.contains(&properties.mRayTracingPipeline));
         }
@@ -114,11 +114,11 @@ namespace Rtx
                 EXPECT_EQ(option.mRead, sDebugNames || !breadcrumb);
             }
 
-            const std::span<const RequiredExtension> required = getRequiredDeviceExtensions();
+            const std::span<const char* const> required = getRequiredDeviceExtensions();
             for (const OptionalExtensions& option : options)
                 for (const char* const name : option.mExtensions)
                     EXPECT_EQ(std::find_if(required.begin(), required.end(),
-                                  [&](const RequiredExtension& held) { return std::string_view(held.mName) == name; }),
+                                  [&](const char* held) { return std::string_view(held) == name; }),
                         required.end())
                         << name << " is both required and optional";
 

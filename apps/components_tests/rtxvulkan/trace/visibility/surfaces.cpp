@@ -793,19 +793,18 @@ namespace Rtx::Testing
             }
         }
 
-        /// What crosses the execute comes back as it went in: the normal the filter reads is the
-        /// surface's own, and so is the albedo, through the code and the halves `payload.glsl`
-        /// carries them in.
+        /// The surface's own normal and albedo reach the channels the filter reads: through the
+        /// normal's code and the albedo channel's halves.
         ///
         /// **An oblique normal, because a cardinal one packs exactly and proves nothing about the
         /// fold.** The wall is turned thirty degrees about z and twenty about x, so its normal has
         /// three non-zero components and lands off every axis of the octahedron's square. The code is
-        /// made once, by the hit shader, and stored as it crossed, so the read-back is held to its
+        /// made once, by the shading, and stored as it was packed, so the read-back is held to its
         /// one rounding: half a step of `1 / 2047` moves the point on the octahedron by at most
         /// `sqrt(1.5) / 2047`, and the projection onto the sphere stretches that by at most
         /// `sqrt(3)`, so `sqrt(4.5) / 2047`, about `1.0363e-3`. The albedo is the ladder texture's finest level, 40 of
         /// 255, which is a byte a half carries exactly.
-        TEST_F(RtxVisibilityTest, theSurfaceChannelCarriesTheNormalAndTheAlbedoAcrossThePackedPayload)
+        TEST_F(RtxVisibilityTest, theSurfaceChannelCarriesTheNormalAndTheAlbedoAsTheSurfaceHasThem)
         {
             constexpr std::uint32_t size = 64;
 
@@ -835,7 +834,7 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
 
             // A level down, because the turned card is seen obliquely and its cone would read a
-            // third of a level into the ladder's next grey; the claim is the packing, not the level.
+            // third of a level into the ladder's next grey; the claim is the channels, not the level.
             const Frame frame = shoot(scene, textures, camera, size, Shot{ .mLevelEpsilon = -1.0f });
             ASSERT_EQ(frame.mHits, size * size) << "the turned card fills the frame";
 

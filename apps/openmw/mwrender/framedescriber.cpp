@@ -102,6 +102,13 @@ namespace MWRender
             .mJumped = mJumped,
         });
 
+        // **A frame no update stepped stood still.** The engine updates the world only while a game
+        // runs, and describes every frame: the main menu's kept the last step it was handed, or
+        // none and "not paused", and the rasterizer's water stepped its ripples for a player with
+        // no cell, which upstream never updates there.
+        mDeltaTime = 0.f;
+        mPaused = true;
+
         mDescribed = true;
         return *mFrame;
     }

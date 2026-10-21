@@ -238,6 +238,7 @@ namespace Rtx
                     .mNear = what.mSampled.mNear,
                     .mTraced = Shaders::uvec2(what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight),
                     .mInverseGamma = look.mInverseGamma,
+                    .mFrame = what.mSampled.mFrame,
                 },
                 .mVertices = look.mDebugVertices.get(),
                 .mLineCount = static_cast<std::uint32_t>(debug.mLines.size()),

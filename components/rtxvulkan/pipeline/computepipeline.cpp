@@ -11,12 +11,30 @@
 namespace Rtx
 {
     Owned<VkPipeline, vkDestroyPipeline> makeComputePipeline(const Device& device, const PipelineLayout& layout,
-        const std::string_view module, const std::string_view name, const std::span<const std::uint32_t> specialization)
+        const std::string_view module, const std::string_view name, const std::span<const std::uint32_t> specialization,
+        const SubgroupSize lanes)
     {
-        PipelineCreation creation(device, name);
         const std::array<std::string_view, 1> modules{ module };
         const ShaderCode code(device, modules);
+        return makeComputePipeline(device, layout, code, module, name, specialization, lanes);
+    }
+
+    Owned<VkPipeline, vkDestroyPipeline> makeComputePipeline(const Device& device, const PipelineLayout& layout,
+        const ShaderCode& code, const std::string_view module, const std::string_view name,
+        const std::span<const std::uint32_t> specialization, const SubgroupSize lanes)
+    {
+        PipelineCreation creation(device, name);
         const Specialization constants(device, module, specialization);
+
+        const void* const moduleChain
+            = code.stage(module, layout.getSetTables(), layout.getPushRange().size, specialization);
+        // Its `pNext` is the one in the stage's chain Vulkan types as writable; nothing writes
+        // through it.
+        const VkPipelineShaderStageRequiredSubgroupSizeCreateInfo thirtyTwo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO,
+            .pNext = const_cast<void*>(moduleChain),
+            .requiredSubgroupSize = 32,
+        };
 
         const VkComputePipelineCreateInfo pipeline{
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -24,7 +42,7 @@ namespace Rtx
             .flags = PipelineCreation::sFlags,
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(module, layout.getSetTables(), layout.getPushRange().size, specialization),
+                .pNext = lanes == SubgroupSize::ThirtyTwo ? &thirtyTwo : moduleChain,
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_COMPUTE_BIT,
                 .module = VK_NULL_HANDLE,

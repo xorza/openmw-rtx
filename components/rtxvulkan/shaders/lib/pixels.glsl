@@ -9,6 +9,8 @@
 // `fogintegrate.comp`.
 
 #include "camera.h"
+#include "gbuffer.h"
+#include "shared/fields.h"
 
 /// Whether this invocation fell off the edge of what the dispatch covers.
 ///
@@ -25,6 +27,37 @@ bool outsideOf(uvec2 pixel, uvec2 extent)
 bool outsideOf(ivec2 pixel, uvec2 extent)
 {
     return any(lessThan(pixel, ivec2(0))) || any(greaterThanEqual(uvec2(pixel), extent));
+}
+
+/// Whether a pixel's field follows one water path of two, out of its `CHANNEL_MOTION`, whose fourth
+/// is one there and nought elsewhere: the pixels the composite blends with the four neighbours across
+/// them that split as well, the layers' stage the lift of, and whose history a temporal filter reads
+/// in their own field (`HistoryFields`).
+bool splitIn(vec4 motion)
+{
+    return motion.w != 0.0;
+}
+
+/// The neighbour across `pixel` on `side` of the four: left, right, above and below.
+ivec2 acrossOf(ivec2 pixel, int side)
+{
+    return pixel + ivec2(side == 0 ? -1 : (side == 1 ? 1 : 0), side == 2 ? -1 : (side == 3 ? 1 : 0));
+}
+
+/// Where an image stored in fields keeps `pixel` of a frame `width` wide: in its checkerboard field's
+/// half (`storedOf`), under the `swap` of the frame that wrote it (`fieldSwapOf`): this frame's for
+/// what it wrote, the previous frame's for a history. A tap off the frame's edge has no place, and is
+/// tested with `outsideOf` first.
+ivec2 storedAt(ivec2 pixel, uint width, uint swap)
+{
+    return ivec2(storedOf(uvec2(pixel), swap, width));
+}
+
+/// Where `channel` keeps `pixel` of a frame `width` wide, traced under `swap`: in its field where the
+/// channel is stored in fields (`channelInFields`), and at the pixel itself where it is not.
+ivec2 channelAt(uint channel, ivec2 pixel, uint width, uint swap)
+{
+    return channelInFields(channel) ? storedAt(pixel, width, swap) : pixel;
 }
 
 /// `tracedPixelUnder` along both axes.

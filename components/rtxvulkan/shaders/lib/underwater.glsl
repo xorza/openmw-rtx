@@ -4,8 +4,8 @@
 // What a column of water does to the light crossing it.
 //
 // **Apart from `water.glsl` because the dependency runs both ways otherwise.** A surface
-// below the waterline is lit through this, so `gather` needs it — and `shadeWater` needs
-// `gather`. The half that answers "what is left of this light" has no opinion about
+// below the waterline is lit through this, so `GatherRun` needs it — and `WaterRun` needs
+// `GatherRun`. The half that answers "what is left of this light" has no opinion about
 // shading and comes first; the half that shades a water surface comes after.
 
 #include "colour.h"
@@ -23,7 +23,7 @@
 /// What a path of water this long leaves of the light crossing it, per channel.
 ///
 /// Beer-Lambert over a length, which is the form every transmittance below takes: the column over a
-/// point, the slant path down from a light, and each step of a shaft. `waterColumn`'s own `gathered`
+/// point, the slant path down from a light, and each step of a shaft. `ColumnRun`'s `gatheredAlong`
 /// is the *integral* of this along a ray rather than a value of it, which is why that one is written
 /// out and why it takes a signed length.
 vec3 waterTransmittance(float path)
@@ -134,29 +134,103 @@ vec3 lightThroughWater(BentPath bent, float footprint, float into)
 ///
 /// **In `Passage`'s two halves**: stopped where either ray was, and what both let through otherwise.
 ///
-/// @param step the step off the triangle `position` stands on (`stepOf`), or nought for a point in
-///        the water. The leg over the water leaves from the surface's level, which no
-///        solid ray can meet.
-/// @param bent `sky`'s path to `position`.
-Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent, vec2 draw, bool nearest)
+/// **A leg a step**, for the loop that answers its rays (`direct.comp` and the rest): the start
+/// asks the leg under the water, or the one leg where the point is dry, and the next step the leg
+/// over it.
+struct SkyPassageRun
 {
-    // **The picture with shadows off is open to the sky under the water too**, as `skyPassage`
-    // answers over it: the leg under the surface asks `lightPassage` itself, and a hull over a
-    // flooded bed shaded a map tile whose dry ground beside it no roof did.
-    if (frame.mNoSkyShadows != 0u)
-        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
+    /// `RUN_IDLE` once `mPassage` holds the answer.
+    uint mStep;
 
-    if (!(bent.mDepth > 0.0))
-        return skyPassage(sky, position, step, draw, nearest);
+    SkySource mSky;
+    vec3 mPosition;
 
-    const vec3 up = -bent.mTravelling;
-    const Passage under = lightPassage(leaveSurface(position, step, up), up, bent.mPath, nearest);
-    const Passage over = skyPassage(sky, vec3(bent.mMet, frame.mWaterLevel), vec3(0.0), draw, nearest);
+    /// The step off the triangle `mPosition` stands on (`stepOf`), or nought for a point in the
+    /// water. The leg over the water leaves from the surface's level, which no solid ray can meet.
+    vec3 mOff;
+
+    /// `mSky`'s path to `mPosition`.
+    BentPath mBent;
+
+    vec2 mDraw;
+    bool mNearest;
+
+    /// What the leg under the water met, while the leg over it is asked.
+    Passage mUnder;
+
+    Passage mPassage;
+};
+
+const uint SKY_PASSAGE_START = 1u;
+const uint SKY_PASSAGE_ALONE = 2u;
+const uint SKY_PASSAGE_UNDER = 3u;
+const uint SKY_PASSAGE_OVER = 4u;
+
+SkyPassageRun skyPassageRunOf(SkySource sky, vec3 position, vec3 off, BentPath bent, vec2 draw, bool nearest)
+{
+    SkyPassageRun run;
+    run.mStep = SKY_PASSAGE_START;
+    run.mSky = sky;
+    run.mPosition = position;
+    run.mOff = off;
+    run.mBent = bent;
+    run.mDraw = draw;
+    run.mNearest = nearest;
+    run.mUnder = openPassage();
+    run.mPassage = openPassage();
+    return run;
+}
+
+void stepSkyPassage(inout SkyPassageRun run, RayAnswer answered, inout RayAsk ask)
+{
+    if (run.mStep == SKY_PASSAGE_START)
+    {
+        // **The picture with shadows off is open to the sky under the water too**, as `skyAsk`
+        // answers over it: the leg under the surface asks `lightAsk` itself, and a hull over a
+        // flooded bed shaded a map tile whose dry ground beside it no roof did.
+        if (frame.mNoSkyShadows != 0u)
+        {
+            run.mPassage = openPassage();
+            run.mStep = RUN_IDLE;
+            return;
+        }
+
+        if (!(run.mBent.mDepth > 0.0))
+        {
+            ask = skyAsk(run.mSky, run.mPosition, run.mOff, run.mDraw, run.mNearest);
+            run.mStep = SKY_PASSAGE_ALONE;
+            return;
+        }
+
+        const vec3 up = -run.mBent.mTravelling;
+        ask = lightAsk(leaveSurface(run.mPosition, run.mOff, up), up, run.mBent.mPath, run.mNearest);
+        run.mStep = SKY_PASSAGE_UNDER;
+        return;
+    }
+
+    if (run.mStep == SKY_PASSAGE_ALONE)
+    {
+        run.mPassage = passageAnswered(answered);
+        run.mStep = RUN_IDLE;
+        return;
+    }
+
+    if (run.mStep == SKY_PASSAGE_UNDER)
+    {
+        run.mUnder = passageAnswered(answered);
+        ask = skyAsk(run.mSky, vec3(run.mBent.mMet, frame.mWaterLevel), vec3(0.0), run.mDraw, run.mNearest);
+        run.mStep = SKY_PASSAGE_OVER;
+        return;
+    }
+
     // The leg under the water is the nearer: what stopped it stands nearer than anything over it. A
     // stopped ray's through is one, as `Passage::mThrough` says, whichever leg stopped it.
+    const Passage under = run.mUnder;
+    const Passage over = passageAnswered(answered);
     const float open = under.mOpen * over.mOpen;
-    return Passage(open, open > 0.0 ? under.mThrough * over.mThrough : 1.0,
-        under.mOpen < 1.0 ? under.mOccluder : min(bent.mPath + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
+    run.mPassage = Passage(open, open > 0.0 ? under.mThrough * over.mThrough : 1.0,
+        under.mOpen < 1.0 ? under.mOccluder : min(run.mBent.mPath + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
+    run.mStep = RUN_IDLE;
 }
 
 /// What one light in the sky sends toward the eye along the stretch, closed form: its irradiance
@@ -210,7 +284,7 @@ vec3 beamAlong(SkySource source, vec3 from, vec3 direction, float path)
 /// the pattern leans down-sun as it descends instead of standing as a column.
 ///
 /// **And it asks whether the sun reaches that point of entry at all**, which the closed form has no
-/// way to. A submerged surface is shadowed because `gather` traces its own ray and water
+/// way to. A submerged surface is shadowed because `GatherRun` traces its own ray and water
 /// carries a mask bit that keeps it out of occlusion — so a rock over the sea darkened the bed under
 /// it and left the water in front of the bed as bright as ever. The ray goes from where the light
 /// met the surface, which the march has already worked out to read the lens at, and it is the
@@ -229,34 +303,39 @@ vec3 beamAlong(SkySource source, vec3 from, vec3 direction, float path)
 ///
 /// **Kept apart rather than applied**, for the reason `fogAlong` gives: the two halves separate
 /// later, because the filter demodulates the bounce by the albedo and what a path took is not part
-/// of one. A caller that wants the single number has `throughWater`.
+/// of one.
 struct WaterColumn
 {
     vec3 mTransmittance;
     vec3 mScattered;
 };
 
-/// @param from where the stretch starts, `direction` the unit direction along it, and `path` how
-///        long it is. All three are below the surface.
-/// @param footprint how wide the ray's cone is, which is the band limit the caustics are read at.
-///        The cone at the far end rather than one per step: the depth's own blur is the larger of
-///        the two everywhere a shaft is visible.
-/// @param pixel which pixel the stretch is seen at, which the march draws from: where in its first
-///        step it starts — without that the samples land on the same shells every frame and the
-///        pattern reads as a set of rings — and where in the sun's disc its shadow rays aim. One
-///        pixel's legs draw alike, since they leave one point.
-WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, uvec2 pixel)
+/// A column's closed forms: what the water lets through, the sky's and the moons' light it scatters
+/// toward the eye, the sun's beam, and whether the sun's shafts are worth a march (`ColumnRun`).
+struct ColumnStart
+{
+    vec3 mTransmittance;
+    vec3 mSkyMoons;
+    vec3 mBeam;
+
+    /// The beam's share of the column's light, which a march under `WATER_SHAFT_FLOOR` is not run
+    /// for.
+    float mShare;
+    bool mMarches;
+};
+
+ColumnStart columnStartOf(vec3 from, vec3 direction, float path)
 {
     // **The sky's closed form at the ray's own angle**, `k` one: the sky arrives from above,
     // through the column over each point. Looking straight down, `g` is two and this is the
     // `(1 - T^2) / 2` it was for every ray; level, it is `1 - T`, and looking up it gathers more.
     const vec3 transmittance = waterTransmittance(path);
-    const vec3 sky = frame.mWaterScatter * gatheredAlong(direction, 1.0, path) * frame.mAmbient
-        * daylightReaching(from);
+    const vec3 sky
+        = frame.mWaterScatter * gatheredAlong(direction, 1.0, path) * frame.mAmbient * daylightReaching(from);
 
-    // **Every light in the sky, as a surface's `gather` walks them**, so the water in front of a bed
-    // a moon lights is lit by the same moon. A moon's beam is the closed form alone: the shaft march
-    // below is the sun's.
+    // **Every light in the sky, as a surface's `GatherRun` walks them**, so the water in front of a
+    // bed a moon lights is lit by the same moon. A moon's beam is the closed form alone: the
+    // shaft march is the sun's.
     vec3 moons = vec3(0.0);
     if (HAS_MOONS)
         for (uint moon = SKY_SOURCE_MASSER; moon <= SKY_SOURCE_SECUNDA; ++moon)
@@ -265,69 +344,178 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
     // The same test `fogAlong` makes before it spends anything on shafts: an interior and a night
     // both answer no, and `mSun.mIrradiance` fades to nought across dusk rather than stepping.
     if (!sunUp())
-        return WaterColumn(transmittance, sky + moons);
+        return ColumnStart(transmittance, sky + moons, vec3(0.0), 0.0, false);
 
-    const SunUnderWater sun = sunUnderWater(frame.mSun.mDirection);
     const vec3 beam = beamAlong(frame.mSun, from, direction, path);
-
     const float share = brightest(beam) / max(brightest(sky + moons + beam), 1.0e-9);
-    if (share < WATER_SHAFT_FLOOR)
-        return WaterColumn(transmittance, sky + moons + beam);
+    return ColumnStart(transmittance, sky + moons, beam, share, !(share < WATER_SHAFT_FLOOR));
+}
 
-    const float show = smoothstep(WATER_SHAFT_FLOOR, WATER_SHAFT_SHOWN, share);
+/// The column the closed forms give: what a march leaves of them where it does not run, and what the
+/// trace composes, the march's change to it being the media stage's (`media.comp`).
+WaterColumn closedColumnOf(ColumnStart start)
+{
+    return WaterColumn(start.mTransmittance, start.mSkyMoons + start.mBeam);
+}
 
-    // **A ratio and not a radiance, which is what makes the march free of its own arithmetic.** The
-    // same integrand twice — the sun's own way down, the way back to the eye, and the extinction
-    // that is what scattered — once with the surface's lens at every step and once without it.
-    // `WATER_SHAFT_STEPS` jittered steps are a poor quadrature of either, and an excellent one of
-    // what separates them: the step count, the jitter and the exponentials all cancel, and what is
-    // left multiplies the closed form above.
+/// `WaterColumn` as a walk a step a shaft ray, for the walk's one traversal (`media.comp`,
+/// `panes.comp`): the closed forms when it starts, and then a step of the march each time the sky's
+/// passage (`SkyPassageRun`) answers.
+struct ColumnRun
+{
+    /// `RUN_IDLE` once `mColumn` holds the answer.
+    uint mStep;
+
+    /// Where the stretch starts, the unit direction along it, and how long it is. All three are
+    /// below the surface.
+    vec3 mFrom;
+    vec3 mDirection;
+    float mPath;
+
+    /// How wide the ray's cone is, which is the band limit the caustics are read at. The cone at the
+    /// far end rather than one per step: the depth's own blur is the larger of the two everywhere a
+    /// shaft is visible.
+    float mFootprint;
+
+    /// The closed forms, and the march's sums so far.
+    vec3 mTransmittance;
+    vec3 mSkyMoons;
+    vec3 mBeam;
+    SunUnderWater mSun;
+    float mShow;
+    vec3 mLit;
+    vec3 mPlain;
+    float mBehind;
+    float mOffset;
+    vec2 mAimed;
+    uint mShaft;
+
+    /// The step's weight with its lens, `weight * mix(1, caustic, show)`, which the step's
+    /// visibility multiplies once its ray answers.
+    vec3 mLensed;
+
+    /// The answer, and what the march changed of the closed forms' scattering in it: the beam by the
+    /// share its shafts gathered or lost, nought where no march ran.
+    WaterColumn mColumn;
+    vec3 mShafts;
+};
+
+const uint COLUMN_START = 1u;
+const uint COLUMN_SHAFT = 2u;
+
+ColumnRun columnRunOf(vec3 from, vec3 direction, float path, float footprint)
+{
+    ColumnRun run;
+    run.mStep = COLUMN_START;
+    run.mFrom = from;
+    run.mDirection = direction;
+    run.mPath = path;
+    run.mFootprint = footprint;
+    run.mTransmittance = vec3(0.0);
+    run.mSkyMoons = vec3(0.0);
+    run.mBeam = vec3(0.0);
+    run.mSun = SunUnderWater(vec3(0.0), 0.0);
+    run.mShow = 0.0;
+    run.mLit = vec3(0.0);
+    run.mPlain = vec3(0.0);
+    run.mBehind = 0.0;
+    run.mOffset = 0.0;
+    run.mAimed = vec2(0.0);
+    run.mShaft = 0u;
+    run.mLensed = vec3(0.0);
+    run.mColumn = WaterColumn(vec3(0.0), vec3(0.0));
+    run.mShafts = vec3(0.0);
+    return run;
+}
+
+/// Starts the shaft march's step `run.mShaft`: its sun ray, under the water and over it.
+void startShaftStep(inout ColumnRun run, inout SkyPassageRun skyPassage)
+{
+    const float ahead = run.mPath * float(run.mShaft) / float(WATER_SHAFT_STEPS);
+    const float along = run.mBehind + run.mOffset * (ahead - run.mBehind);
+
+    const vec3 at = run.mFrom + run.mDirection * along;
+    const BentPath bent = bentPathAt(at, run.mSun);
+
+    const vec3 weight = waterTransmittance(bent.mPath + along) * (ahead - run.mBehind);
+
+    // **Outside the fade, because a shadow is not fine detail.** `show` brings the *pattern* in
+    // across the gate, and a rock's edge has to be there whether or not the filaments are. The
+    // draw is one pair carried along the R2 steps, so each step aims its own way inside the
+    // disc without a second draw a step — `SEED_WATER_SHAFT` says why not the offset's.
     //
-    // So a ray that shows no pattern comes back with exactly `beam`, to the last bit, and a gate
-    // has no ring to draw.
-    vec3 lit = vec3(0.0);
-    vec3 plain = vec3(0.0);
-    float behind = 0.0;
+    // **Asked the way a submerged surface asks it**, `SkyPassageRun`: up the bent line to the
+    // surface as well as on from it, so a hull or a rock under the water shadows the water in front
+    // of it as it shadows the bed. One short ray more a step, and only where a shaft shows.
+    const vec2 draw = fract(run.mAimed + float(run.mShaft) * R2_STEPS);
+    skyPassage = skyPassageRunOf(skySourceAt(SKY_SOURCE_SUN), at, vec3(0.0), bent, draw, false);
 
-    const float offset = randomAt(pixel, STREAM_WATER);
-    uint aim = randomSeed(pixelKey(pixel) + SEED_WATER_SHAFT);
-    const vec2 aimed = vec2(randomNext(aim), randomNext(aim));
+    run.mLensed = weight * mix(1.0, caustic(bent.mMet, bent.mDepth, run.mFootprint), run.mShow);
+    run.mPlain += weight;
+    run.mBehind = ahead;
+}
 
-    for (uint step = 1u; step <= WATER_SHAFT_STEPS; ++step)
+/// @param pixel which pixel the stretch is seen at, which the march draws from: where in its first
+///        step it starts — without that the samples land on the same shells every frame and the
+///        pattern reads as a set of rings — and where in the sun's disc its shadow rays aim. One
+///        pixel's legs draw alike, since they leave one point.
+void stepColumn(inout ColumnRun run, inout SkyPassageRun skyPassage, uvec2 pixel)
+{
+    if (run.mStep == COLUMN_START)
     {
-        const float ahead = path * float(step) / float(WATER_SHAFT_STEPS);
-        const float along = behind + offset * (ahead - behind);
+        const ColumnStart start = columnStartOf(run.mFrom, run.mDirection, run.mPath);
+        if (!start.mMarches)
+        {
+            run.mColumn = closedColumnOf(start);
+            run.mShafts = vec3(0.0);
+            run.mStep = RUN_IDLE;
+            return;
+        }
 
-        const vec3 at = from + direction * along;
-        const BentPath bent = bentPathAt(at, sun);
-
-        const vec3 weight = waterTransmittance(bent.mPath + along) * (ahead - behind);
-
-        // **Outside the fade, because a shadow is not fine detail.** `show` brings the *pattern* in
-        // across the gate, and a rock's edge has to be there whether or not the filaments are. The
-        // draw is one pair carried along the R2 steps, so each step aims its own way inside the
-        // disc without a second draw a step — `SEED_WATER_SHAFT` says why not the offset's.
+        // **A ratio and not a radiance, which is what makes the march free of its own arithmetic.**
+        // The same integrand twice — the sun's own way down, the way back to the eye, and the
+        // extinction that is what scattered — once with the surface's lens at every step and once
+        // without it. `WATER_SHAFT_STEPS` jittered steps are a poor quadrature of either, and an
+        // excellent one of what separates them: the step count, the jitter and the exponentials all
+        // cancel, and what is left multiplies the closed form above.
         //
-        // **Asked the way a submerged surface asks it**, `skyPassageThrough`: up the bent line to
-        // the surface as well as on from it, so a hull or a rock under the water shadows the water
-        // in front of it as it shadows the bed. One short ray more a step, and only where a shaft
-        // shows.
-        const vec2 draw = fract(aimed + float(step) * R2_STEPS);
-        const Passage passage = skyPassageThrough(skySourceAt(SKY_SOURCE_SUN), at, vec3(0.0), bent, draw, false);
-        const float visible = passage.mOpen * passage.mThrough;
+        // So a ray that shows no pattern comes back with exactly `beam`, to the last bit, and a gate
+        // has no ring to draw.
+        run.mTransmittance = start.mTransmittance;
+        run.mSkyMoons = start.mSkyMoons;
+        run.mBeam = start.mBeam;
+        run.mSun = sunUnderWater(frame.mSun.mDirection);
+        run.mShow = smoothstep(WATER_SHAFT_FLOOR, WATER_SHAFT_SHOWN, start.mShare);
+        run.mLit = vec3(0.0);
+        run.mPlain = vec3(0.0);
+        run.mBehind = 0.0;
 
-        lit += weight * mix(1.0, caustic(bent.mMet, bent.mDepth, footprint), show) * visible;
-        plain += weight;
-        behind = ahead;
+        run.mOffset = randomAt(pixel, STREAM_WATER);
+        uint aim = randomSeed(pixelKey(pixel) + SEED_WATER_SHAFT);
+        run.mAimed = vec2(randomNext(aim), randomNext(aim));
+
+        run.mShaft = 1u;
+        startShaftStep(run, skyPassage);
+        run.mStep = COLUMN_SHAFT;
+        return;
     }
 
-    return WaterColumn(transmittance, sky + moons + beam * (lit / max(plain, vec3(1.0e-20))));
+    const Passage passage = skyPassage.mPassage;
+    const float visible = passage.mOpen * passage.mThrough;
+    run.mLit += run.mLensed * visible;
+
+    if (run.mShaft < WATER_SHAFT_STEPS)
+    {
+        ++run.mShaft;
+        startShaftStep(run, skyPassage);
+        return;
+    }
+
+    const vec3 ratio = run.mLit / max(run.mPlain, vec3(1.0e-20));
+    run.mColumn = WaterColumn(run.mTransmittance, run.mSkyMoons + run.mBeam * ratio);
+    run.mShafts = run.mBeam * (ratio - 1.0);
+    run.mStep = RUN_IDLE;
 }
 
-/// What is left of `radiance` after a column of water, plus what that column sent back.
-vec3 throughWater(vec3 radiance, WaterColumn column)
-{
-    return radiance * column.mTransmittance + column.mScattered;
-}
 
 #endif

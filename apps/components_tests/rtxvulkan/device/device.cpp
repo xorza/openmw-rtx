@@ -119,10 +119,19 @@ namespace Rtx
                 physical.hasOptionalExtension(VK_EXT_DEVICE_FAULT_EXTENSION_NAME));
 
             // Which card it is, as the card watch opens it: the vendor the device states, and a PCI
-            // address, which every driver this fork targets lists `VK_EXT_pci_bus_info` for.
+            // address exactly where the driver lists `VK_EXT_pci_bus_info` — which AMD's Windows
+            // driver does not for a Radeon 680M, and the card watch then names none.
             const CardAddress address = physical.getAddress();
             EXPECT_EQ(address.mVendor, physical.getProperties().mProperties2.properties.vendorID);
-            EXPECT_TRUE(address.mPci.has_value());
+            std::uint32_t count = 0;
+            ASSERT_EQ(vkEnumerateDeviceExtensionProperties(physical.getHandle(), nullptr, &count, nullptr), VK_SUCCESS);
+            std::vector<VkExtensionProperties> listed(count);
+            ASSERT_EQ(
+                vkEnumerateDeviceExtensionProperties(physical.getHandle(), nullptr, &count, listed.data()), VK_SUCCESS);
+            const bool listsBus = std::any_of(listed.begin(), listed.end(), [](const VkExtensionProperties& extension) {
+                return std::string_view(extension.extensionName) == VK_EXT_PCI_BUS_INFO_EXTENSION_NAME;
+            });
+            EXPECT_EQ(address.mPci.has_value(), listsBus);
         }
 
         /// The device and the renderer are made without a validation error. What the layers raise

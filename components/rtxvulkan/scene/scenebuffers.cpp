@@ -143,6 +143,7 @@ namespace Rtx
         mTexCoords.open(device, sTableUsage, "uvs");
         mSecondTexCoords.open(device, sTableUsage, "second uvs");
         mColours.open(device, sTableUsage, "vertex colours");
+        mPositions.open(device, sTableUsage, "positions");
         mInstanceTable.open(device, slots, sTableUsage, "instance rows");
         mInstanceTable.reserve(room.mPlacements);
         mMeshTable.open(device, slots, sTableUsage, "meshes");
@@ -189,6 +190,7 @@ namespace Rtx
         mTexCoords.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTexCoords().size()));
         mSecondTexCoords.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getSecondTexCoords().size()));
         mColours.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getColours().size()));
+        mPositions.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getPositions().size()));
         const std::uint32_t posed = scene.deformers().getBindVertexCount();
         mNormals.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getNormals().size()), posed);
         mTangents.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTangents().size()), posed);
@@ -211,6 +213,7 @@ namespace Rtx
             {
                 mNormals.getShared().writeAt(batch, range.mVertices.mOffset, normals);
                 mTangents.getShared().writeAt(batch, range.mVertices.mOffset, tangents);
+                mPositions.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getPositions()));
             }
 
             mTexCoords.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getTexCoords()));
@@ -342,9 +345,16 @@ namespace Rtx
             row.mOpacity = record.mOpacity;
             row.mClass = record.mClass | (record.mLampBody ? Shaders::INSTANCE_LAMP_BODY : 0u);
 
+            const auto rowOf = [](const Transform3x4& transform, int r) {
+                return osg::Vec4f(
+                    transform.mRows[r][0], transform.mRows[r][1], transform.mRows[r][2], transform.mRows[r][3]);
+            };
             for (int r = 0; r < 3; ++r)
-                row.mMotion[r] = osg::Vec4f(record.mMotion.mRows[r][0], record.mMotion.mRows[r][1],
-                    record.mMotion.mRows[r][2], record.mMotion.mRows[r][3]);
+            {
+                row.mMotion[r] = rowOf(record.mMotion, r);
+                row.mToWorld[r] = rowOf(record.mTransform, r);
+                row.mToObject[r] = rowOf(record.mInverse, r);
+            }
         };
 
         // The rows this placement wrote, and whatever the table grew by. A world is tens of
@@ -448,6 +458,7 @@ namespace Rtx
         into.mTangentBlocks = mTangents.getTableAddress(slot);
         into.mTexCoordBlocks = mTexCoords.getTableAddress();
         into.mColourBlocks = mColours.getTableAddress();
+        into.mPositionBlocks = mPositions.getTableAddress();
         into.mSecondTexCoordBlocks = mSecondTexCoords.getTableAddress();
         into.mMeshes = mMeshTable.addressFor(slot);
         into.mInstances = mInstanceTable.addressFor(slot);
@@ -481,8 +492,8 @@ namespace Rtx
         // The indices are not counted here: they are the acceleration's, which counts them
         // (`SceneAcceleration::getIndexBytes`).
         VkDeviceSize total = mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes()
-            + mNormals.getBytes() + mTangents.getBytes() + mMeshTable.getBytes() + mLayers.get().getSize()
-            + mMasks.get().getSize() + mInstanceTable.getBytes() + mMaterialTable.getBytes();
+            + mPositions.getBytes() + mNormals.getBytes() + mTangents.getBytes() + mMeshTable.getBytes()
+            + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes() + mMaterialTable.getBytes();
         for (const Tables& tables : mTables.live())
             total += tables.getBytes();
 

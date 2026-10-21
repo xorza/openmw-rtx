@@ -60,6 +60,11 @@ namespace MWRender
         /// profiler that shows a shader's lines. Never a played session's: the driver's cache is
         /// keyed on the modules, and the game's carry neither.
         std::optional<Rtx::ShaderSet> mShaders{};
+
+        /// Which kernels the start waits for (`Rtx::KernelSet`): the ones a frame draws with for a
+        /// played session, and every tuple's for a run that measures or compares, so two runs change
+        /// kernel at no frame.
+        Rtx::KernelSet mKernels = Rtx::KernelSet::Drawing;
     };
 
     /// A run the harness drives through this renderer, as the renderer sees it per frame: what

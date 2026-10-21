@@ -32,13 +32,16 @@ namespace Rtx
         explicit DigestPass(const Device& device);
 
         /// `channels` and the bound images of `denoiser` into `into`, ordered for a host read last:
-        /// image `i` of the channels fills the `DIGEST_LANES` words from `i * DIGEST_LANES`, and the
-        /// denoiser's images follow (`lanesOf`). Every image is at one extent and readable as a
-        /// storage image in `GENERAL`; the denoiser's, null where the frame wrote none, are ordered
-        /// here behind the passes that wrote them. Hands back which of them it took, a bit at each
-        /// one's index (`FrameDigest::mDenoiserTaken`).
+        /// image `i` of the channels fills the `DIGEST_LANES` words from `i * DIGEST_LANES`, and
+        /// the denoiser's images follow (`lanesOf`). Each is read over the frame's `extent`, at
+        /// each pixel's place: in its field, as frame number `frame` lays them, for the channels
+        /// `channelsInFields` names, a bit at each one's index, and for every image of the
+        /// denoiser's. Each is readable as a storage image in `GENERAL`; the denoiser's, null where
+        /// the frame wrote none, are ordered here behind the passes that wrote them. Hands back
+        /// which of them it took, a bit at each one's index (`FrameDigest::mDenoiserTaken`).
         std::uint32_t record(VkCommandBuffer commands, const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels,
-            const std::array<const Image*, sDenoiserImageCount>& denoiser, const Buffer& into, GpuTimer* timer) const;
+            std::uint32_t channelsInFields, const std::array<const Image*, sDenoiserImageCount>& denoiser,
+            VkExtent2D extent, std::uint32_t frame, const Buffer& into, GpuTimer* timer) const;
 
         /// The words `record` copied into `lanes`, into `into`: the channels', and the denoiser's
         /// where `into.mDenoiserTaken` says it took them.

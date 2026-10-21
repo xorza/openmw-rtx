@@ -102,12 +102,9 @@ namespace Rtx
             return image;
         }
 
-        /// Every stage that resolves a hit, and every dispatch. The trace reads these arrays from
-        /// its closest-hit shaders, from the any-hit shader that tests a cutout and from the miss
-        /// shader that draws the sky; the fog volume, the tone curve and the interface are
-        /// dispatches and read them too.
-        constexpr VkShaderStageFlags sStages = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR
-            | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR;
+        /// Every stage that resolves a hit, and every dispatch. The trace's kernels read these
+        /// arrays; the fog volume, the tone curve and the interface are dispatches and read them too.
+        constexpr VkShaderStageFlags sStages = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
         /// The layout every array declares, sized to the maximum and not to the scene, because a
         /// pipeline outlives a cell and two set layouts are compatible only where they are

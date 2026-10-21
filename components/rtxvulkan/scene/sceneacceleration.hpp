@@ -204,11 +204,12 @@ namespace Rtx
         /// Every deforming mesh's vertices as the frame tracing them sees them: what `SkinPass`
         /// writes into every copy on arrival, and afterwards every frame a body moves. Indexed by
         /// `MeshRange::mBindOffset`, so the table is as long as the bodies rather than the cell — a
-        /// static mesh's vertices are a build input `BottomLevelStore::build` stages. Blocked, so a
-        /// scene that grows keeps the poses it was already given: a pose is on the device and
-        /// nowhere else. A hit gets its vertices out of the structure through position fetch and
-        /// reads these for one thing only: where its triangle stood on the previous frame, out of
-        /// the other copy — `GpuTables::mPreviousPoseBlocks`.
+        /// static mesh's vertices are a build input `BottomLevelStore::build` stages, and kept for
+        /// its hits by `SceneBuffers`. Blocked, so a scene that grows keeps the poses it was already
+        /// given: a pose is on the device and nowhere else. A hit on a body reads its triangle's
+        /// corners out of the copy this frame traces, which its structure was refitted over
+        /// (`trianglePositions`), and where it stood on the previous frame out of the other —
+        /// `GpuTables::mPreviousPoseBlocks`.
         SlotBlocks mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
 
         /// How many placements this has prepared that posed something, which is the clock the

@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <bit>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -247,8 +246,8 @@ namespace Rtx
             }
         }
 
-        /// What `id` computes, spelled out to the inputs and the constants, so an order or a fusion
-        /// is a string to compare: `fma(a.2, b.2, mul(a.0, b.0))`.
+        /// What `id` computes, spelled out to the inputs and the constants, so an order is a string to
+        /// compare: `add(mul(a.0, b.0), mul(a.1, b.1))`.
         std::string describe(const Decoded& module, const std::map<std::uint32_t, std::string>& names, std::uint32_t id)
         {
             if (const auto named = names.find(id); named != names.end())
@@ -281,8 +280,6 @@ namespace Rtx
                     return call("div", 2);
                 case spv::OpFNegate:
                     return call("neg", 2);
-                case spv::OpFmaKHR:
-                    return call("fma", 2);
                 case spv::OpVectorTimesScalar:
                     return call("scale", 2);
                 case spv::OpFOrdLessThan:
@@ -305,7 +302,7 @@ namespace Rtx
             }
         }
 
-        /// **Every order-free operation becomes the steps `spirvpin.hpp` states, fused as it says.**
+        /// **Every order-free operation becomes the steps `spirvpin.hpp` states, none of them fused.**
         /// One module per operation, on inputs named `a`, `b` and `c` for vectors, `s`, `t` and `u` for
         /// scalars and `m` for a matrix, described back from what the pinning wrote.
         TEST(RtxSpirvPinTest, everyOrderFreeOperationBecomesItsStatedSteps)
@@ -322,9 +319,9 @@ namespace Rtx
                     [](Writer& w) {
                         return w.op(spv::OpDot, w.mFloat, { w.input(w.mVec3, "a"), w.input(w.mVec3, "b") });
                     },
-                    "fma(a.2, b.2, fma(a.1, b.1, mul(a.0, b.0)))" },
+                    "add(add(mul(a.0, b.0), mul(a.1, b.1)), mul(a.2, b.2))" },
                 { "length", [](Writer& w) { return w.glsl(w.mFloat, GLSLstd450Length, { w.input(w.mVec2, "a") }); },
-                    "sqrt(fma(a.1, a.1, mul(a.0, a.0)))" },
+                    "sqrt(add(mul(a.0, a.0), mul(a.1, a.1)))" },
                 { "length of a scalar",
                     [](Writer& w) { return w.glsl(w.mFloat, GLSLstd450Length, { w.input(w.mFloat, "s") }); },
                     "abs(s)" },
@@ -332,11 +329,11 @@ namespace Rtx
                     [](Writer& w) {
                         return w.glsl(w.mFloat, GLSLstd450Distance, { w.input(w.mVec2, "a"), w.input(w.mVec2, "b") });
                     },
-                    "sqrt(fma(sub(a.1, b.1), sub(a.1, b.1), mul(sub(a.0, b.0), sub(a.0, b.0))))" },
+                    "sqrt(add(mul(sub(a.0, b.0), sub(a.0, b.0)), mul(sub(a.1, b.1), sub(a.1, b.1))))" },
                 { "normalize",
                     [](Writer& w) { return w.glsl(w.mVec2, GLSLstd450Normalize, { w.input(w.mVec2, "a") }); },
-                    "vec(mul(a.0, inversesqrt(fma(a.1, a.1, mul(a.0, a.0)))), "
-                    "mul(a.1, inversesqrt(fma(a.1, a.1, mul(a.0, a.0)))))" },
+                    "vec(mul(a.0, inversesqrt(add(mul(a.0, a.0), mul(a.1, a.1)))), "
+                    "mul(a.1, inversesqrt(add(mul(a.0, a.0), mul(a.1, a.1)))))" },
                 { "normalize of a scalar",
                     [](Writer& w) { return w.glsl(w.mFloat, GLSLstd450Normalize, { w.input(w.mFloat, "s") }); },
                     "sign(s)" },
@@ -344,36 +341,35 @@ namespace Rtx
                     [](Writer& w) {
                         return w.glsl(w.mVec3, GLSLstd450Cross, { w.input(w.mVec3, "a"), w.input(w.mVec3, "b") });
                     },
-                    "vec(fma(neg(a.2), b.1, mul(a.1, b.2)), fma(neg(a.0), b.2, mul(a.2, b.0)), "
-                    "fma(neg(a.1), b.0, mul(a.0, b.1)))" },
+                    "vec(sub(mul(a.1, b.2), mul(a.2, b.1)), sub(mul(a.2, b.0), mul(a.0, b.2)), "
+                    "sub(mul(a.0, b.1), mul(a.1, b.0)))" },
                 { "mix",
                     [](Writer& w) {
                         return w.glsl(w.mFloat, GLSLstd450FMix,
                             { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
                     },
-                    "fma(t, u, mul(s, sub(1, u)))" },
+                    "add(mul(s, sub(1, u)), mul(t, u))" },
                 { "smoothstep",
                     [](Writer& w) {
                         return w.glsl(w.mFloat, GLSLstd450SmoothStep,
                             { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
                     },
                     "mul(mul(nclamp(div(sub(u, s), sub(t, s)), 0, 1), nclamp(div(sub(u, s), sub(t, s)), 0, 1)), "
-                    "fma(neg(2), nclamp(div(sub(u, s), sub(t, s)), 0, 1), 3))" },
+                    "sub(3, mul(2, nclamp(div(sub(u, s), sub(t, s)), 0, 1))))" },
                 { "reflect",
                     [](Writer& w) {
                         return w.glsl(w.mVec2, GLSLstd450Reflect, { w.input(w.mVec2, "a"), w.input(w.mVec2, "b") });
                     },
-                    "vec(fma(neg(mul(2, fma(b.1, a.1, mul(b.0, a.0)))), b.0, a.0), "
-                    "fma(neg(mul(2, fma(b.1, a.1, mul(b.0, a.0)))), b.1, a.1))" },
+                    "vec(sub(a.0, mul(mul(2, add(mul(b.0, a.0), mul(b.1, a.1))), b.0)), "
+                    "sub(a.1, mul(mul(2, add(mul(b.0, a.0), mul(b.1, a.1))), b.1)))" },
                 { "refract",
                     [](Writer& w) {
                         return w.glsl(w.mFloat, GLSLstd450Refract,
                             { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
                     },
-                    "select(lt(fma(neg(mul(u, u)), fma(neg(mul(t, s)), mul(t, s), 1), 1), 0), 0, "
-                    "fma(neg(fma(u, mul(t, s), sqrt(nmax(fma(neg(mul(u, u)), fma(neg(mul(t, s)), mul(t, s), 1), 1), "
-                    "0)))), "
-                    "t, mul(u, s)))" },
+                    "select(lt(sub(1, mul(mul(u, u), sub(1, mul(mul(t, s), mul(t, s))))), 0), 0, "
+                    "sub(mul(u, s), mul(add(mul(u, mul(t, s)), sqrt(nmax(sub(1, mul(mul(u, u), sub(1, mul(mul(t, s), "
+                    "mul(t, s))))), 0))), t)))" },
                 { "faceforward",
                     [](Writer& w) {
                         return w.glsl(w.mFloat, GLSLstd450FaceForward,
@@ -381,9 +377,9 @@ namespace Rtx
                     },
                     "select(lt(mul(u, t), 0), s, neg(s))" },
                 { "asin", [](Writer& w) { return w.glsl(w.mFloat, GLSLstd450Asin, { w.input(w.mFloat, "s") }); },
-                    "atan2(s, sqrt(fma(neg(s), s, 1)))" },
+                    "atan2(s, sqrt(sub(1, mul(s, s))))" },
                 { "acos", [](Writer& w) { return w.glsl(w.mFloat, GLSLstd450Acos, { w.input(w.mFloat, "s") }); },
-                    "atan2(sqrt(fma(neg(s), s, 1)), s)" },
+                    "atan2(sqrt(sub(1, mul(s, s))), s)" },
                 { "round, whose halves a compile may take either way",
                     [](Writer& w) { return w.glsl(w.mFloat, GLSLstd450Round, { w.input(w.mFloat, "s") }); },
                     "roundeven(s)" },
@@ -403,41 +399,35 @@ namespace Rtx
                             { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
                     },
                     "nclamp(s, t, u)" },
-                { "an explicit fma",
-                    [](Writer& w) {
-                        return w.glsl(w.mFloat, GLSLstd450Fma,
-                            { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
-                    },
-                    "fma(s, t, u)" },
                 { "mod",
                     [](Writer& w) {
                         return w.op(spv::OpFMod, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
                     },
-                    "fma(neg(t), floor(div(s, t)), s)" },
+                    "sub(s, mul(t, floor(div(s, t))))" },
                 { "rem",
                     [](Writer& w) {
                         return w.op(spv::OpFRem, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
                     },
-                    "fma(neg(t), trunc(div(s, t)), s)" },
+                    "sub(s, mul(t, trunc(div(s, t))))" },
                 { "matrix times vector",
                     [](Writer& w) {
                         return w.op(
                             spv::OpMatrixTimesVector, w.mVec2, { w.input(w.mMat2, "m"), w.input(w.mVec2, "a") });
                     },
-                    "vec(fma(m.1.0, a.1, mul(m.0.0, a.0)), fma(m.1.1, a.1, mul(m.0.1, a.0)))" },
+                    "vec(add(mul(m.0.0, a.0), mul(m.1.0, a.1)), add(mul(m.0.1, a.0), mul(m.1.1, a.1)))" },
                 { "vector times matrix",
                     [](Writer& w) {
                         return w.op(
                             spv::OpVectorTimesMatrix, w.mVec2, { w.input(w.mVec2, "a"), w.input(w.mMat2, "m") });
                     },
-                    "vec(fma(a.1, m.0.1, mul(a.0, m.0.0)), fma(a.1, m.1.1, mul(a.0, m.1.0)))" },
+                    "vec(add(mul(a.0, m.0.0), mul(a.1, m.0.1)), add(mul(a.0, m.1.0), mul(a.1, m.1.1)))" },
                 { "matrix times matrix",
                     [](Writer& w) {
                         return w.op(
                             spv::OpMatrixTimesMatrix, w.mMat2, { w.input(w.mMat2, "m"), w.input(w.mMat2, "n") });
                     },
-                    "vec(vec(fma(m.1.0, n.0.1, mul(m.0.0, n.0.0)), fma(m.1.1, n.0.1, mul(m.0.1, n.0.0))), "
-                    "vec(fma(m.1.0, n.1.1, mul(m.0.0, n.1.0)), fma(m.1.1, n.1.1, mul(m.0.1, n.1.0))))" },
+                    "vec(vec(add(mul(m.0.0, n.0.0), mul(m.1.0, n.0.1)), add(mul(m.0.1, n.0.0), mul(m.1.1, n.0.1))), "
+                    "vec(add(mul(m.0.0, n.1.0), mul(m.1.0, n.1.1)), add(mul(m.0.1, n.1.0), mul(m.1.1, n.1.1))))" },
             };
 
             for (const Case& one : cases)
@@ -449,10 +439,9 @@ namespace Rtx
             }
         }
 
-        /// **A multiply read by nothing but one add or subtract is fused into it, and nothing else
-        /// is.** The right-hand product first, so a running sum stays a sum; a negation where a
-        /// subtract needs one, which is exact; a scalar spread across the vector it scales.
-        TEST(RtxSpirvPinTest, aMultiplyIsFusedIntoTheOneAddThatReadsIt)
+        /// **A multiply stays apart from the add or subtract that reads it**, on either side and for a
+        /// vector it scales: a fusion is one rounding where the stated order has two.
+        TEST(RtxSpirvPinTest, aMultiplyStaysApartFromTheAddThatReadsIt)
         {
             struct Case
             {
@@ -469,23 +458,7 @@ namespace Rtx
                         return w.op(
                             spv::OpFAdd, w.mFloat, { w.op(spv::OpFMul, w.mFloat, { s, t }), w.input(w.mFloat, "u") });
                     },
-                    "fma(s, t, u)" },
-                { "the right-hand product of two",
-                    [](Writer& w) {
-                        const std::uint32_t left
-                            = w.op(spv::OpFMul, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
-                        const std::uint32_t right
-                            = w.op(spv::OpFMul, w.mFloat, { w.input(w.mFloat, "u"), w.input(w.mFloat, "v") });
-                        return w.op(spv::OpFAdd, w.mFloat, { left, right });
-                    },
-                    "fma(u, v, mul(s, t))" },
-                { "a product less a value",
-                    [](Writer& w) {
-                        const std::uint32_t product
-                            = w.op(spv::OpFMul, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
-                        return w.op(spv::OpFSub, w.mFloat, { product, w.input(w.mFloat, "u") });
-                    },
-                    "fma(s, t, neg(u))" },
+                    "add(mul(s, t), u)" },
                 { "a value less a product",
                     [](Writer& w) {
                         const std::uint32_t u = w.input(w.mFloat, "u");
@@ -493,54 +466,14 @@ namespace Rtx
                             = w.op(spv::OpFMul, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
                         return w.op(spv::OpFSub, w.mFloat, { u, product });
                     },
-                    "fma(neg(s), t, u)" },
+                    "sub(u, mul(s, t))" },
                 { "a vector scaled and added",
                     [](Writer& w) {
                         const std::uint32_t scaled = w.op(
                             spv::OpVectorTimesScalar, w.mVec2, { w.input(w.mVec2, "a"), w.input(w.mFloat, "s") });
                         return w.op(spv::OpFAdd, w.mVec2, { scaled, w.input(w.mVec2, "b") });
                     },
-                    "fma(a, vec(s, s), b)" },
-                { "a product read twice",
-                    [](Writer& w) {
-                        const std::uint32_t product
-                            = w.op(spv::OpFMul, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
-                        w.op(spv::OpFAdd, w.mFloat, { product, w.input(w.mFloat, "v") });
-                        return w.op(spv::OpFAdd, w.mFloat, { product, w.input(w.mFloat, "u") });
-                    },
-                    "add(mul(s, t), u)" },
-                { "a precise product",
-                    [](Writer& w) {
-                        const std::uint32_t product
-                            = w.op(spv::OpFMul, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
-                        w.decorate(product, spv::DecorationNoContraction);
-                        return w.op(spv::OpFAdd, w.mFloat, { product, w.input(w.mFloat, "u") });
-                    },
-                    "add(mul(s, t), u)" },
-                { "a precise sum",
-                    [](Writer& w) {
-                        const std::uint32_t product
-                            = w.op(spv::OpFMul, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
-                        const std::uint32_t sum = w.op(spv::OpFAdd, w.mFloat, { product, w.input(w.mFloat, "u") });
-                        w.decorate(sum, spv::DecorationNoContraction);
-                        return sum;
-                    },
-                    "add(mul(s, t), u)" },
-                { "a precise dot product, whose steps keep its promise",
-                    [](Writer& w) {
-                        const std::uint32_t dot
-                            = w.op(spv::OpDot, w.mFloat, { w.input(w.mVec3, "a"), w.input(w.mVec3, "b") });
-                        w.decorate(dot, spv::DecorationNoContraction);
-                        return dot;
-                    },
-                    "add(add(mul(a.0, b.0), mul(a.1, b.1)), mul(a.2, b.2))" },
-                { "half floats, which the device is not asked to fuse",
-                    [](Writer& w) {
-                        const std::uint32_t product
-                            = w.op(spv::OpFMul, w.mHalf, { w.input(w.mHalf, "s"), w.input(w.mHalf, "t") });
-                        return w.op(spv::OpFAdd, w.mHalf, { product, w.input(w.mHalf, "u") });
-                    },
-                    "add(mul(s, t), u)" },
+                    "add(scale(a, s), b)" },
             };
 
             for (const Case& one : cases)
@@ -552,43 +485,10 @@ namespace Rtx
             }
         }
 
-        /// A fused multiply goes, unless something that does not compute still names it — a debug
-        /// instruction or an `OpName` — which then reads a value the driver takes out unread.
-        TEST(RtxSpirvPinTest, aFusedMultiplyStaysOnlyWhereSomethingStillNamesIt)
-        {
-            for (const int mention : { 0, 1, 2 })
-            {
-                Writer writer;
-                const std::uint32_t product = writer.op(
-                    spv::OpFMul, writer.mFloat, { writer.input(writer.mFloat, "s"), writer.input(writer.mFloat, "t") });
-                const std::uint32_t sum
-                    = writer.op(spv::OpFAdd, writer.mFloat, { product, writer.input(writer.mFloat, "u") });
-                if (mention == 1)
-                {
-                    const std::uint32_t debug = writer.fresh();
-                    writer.importSet(debug, "NonSemantic.Shader.DebugInfo.100");
-                    writer.op(spv::OpExtInst, writer.mVoid, { debug, 29, product });
-                }
-                if (mention == 2)
-                {
-                    std::vector<std::uint32_t> operands{ product };
-                    const std::vector<std::uint32_t> name = spell("product");
-                    operands.insert(operands.end(), name.begin(), name.end());
-                    writer.mDebug.push_back(static_cast<std::uint32_t>(operands.size() + 1) << spv::WordCountShift
-                        | static_cast<std::uint32_t>(spv::OpName));
-                    writer.mDebug.insert(writer.mDebug.end(), operands.begin(), operands.end());
-                }
-
-                const Decoded pinned = decode(pinFloatArithmetic(writer.finish()));
-                EXPECT_EQ(describe(pinned, writer.names(), sum), "fma(s, t, u)") << "named " << mention;
-                EXPECT_EQ(pinned.mDefinitions.contains(product), mention != 0) << "named " << mention;
-            }
-        }
-
-        /// **Every rounding step that is left is `NoContraction`, once, and a module that fuses asks
-        /// for the instruction it fuses with.** One of every kind of rounding step the pinning keeps,
-        /// one of them decorated already, and a square root beside them that is the device's.
-        TEST(RtxSpirvPinTest, everyRoundingStepIsNoContractionOnceAndAFusedModuleAsksForTheFusion)
+        /// **Every rounding step is `NoContraction`, once, and the module asks for no extension.** One
+        /// of every kind of rounding step the pinning keeps, one of them decorated already, and a
+        /// square root beside them that is the device's.
+        TEST(RtxSpirvPinTest, everyRoundingStepIsNoContractionOnce)
         {
             Writer writer;
             const std::uint32_t s = writer.input(writer.mFloat, "s");
@@ -603,7 +503,6 @@ namespace Rtx
             const std::uint32_t matrix = writer.op(spv::OpMatrixTimesScalar, writer.mMat2, { m, s });
             const std::uint32_t outer = writer.op(spv::OpOuterProduct, writer.mMat2, { a, a });
             const std::uint32_t root = writer.glsl(writer.mFloat, GLSLstd450Sqrt, { s });
-            const std::uint32_t fused = writer.glsl(writer.mFloat, GLSLstd450Fma, { s, t, root });
             writer.decorate(added, spv::DecorationNoContraction);
 
             const std::vector<std::uint32_t> words = pinFloatArithmetic(writer.finish());
@@ -613,7 +512,7 @@ namespace Rtx
                 const auto found = pinned.mNoContraction.find(id);
                 return found == pinned.mNoContraction.end() ? 0 : found->second;
             };
-            for (const std::uint32_t step : { added, taken, product, quotient, scaled, matrix, outer, fused })
+            for (const std::uint32_t step : { added, taken, product, quotient, scaled, matrix, outer })
                 EXPECT_EQ(decorations(step), 1) << describe(pinned, writer.names(), step);
             EXPECT_EQ(decorations(root), 0) << "a square root is the device's and takes no decoration";
             EXPECT_EQ(pinned.mDefinitions.at(root).mOp, spv::OpExtInst);
@@ -641,9 +540,9 @@ namespace Rtx
                     firstType = at;
             }
             EXPECT_EQ(capabilities,
-                (std::vector<std::uint32_t>{ spv::CapabilityShader, spv::CapabilityFloat16, spv::CapabilityFMAKHR,
-                    spv::CapabilitySignedZeroInfNanPreserve }));
-            EXPECT_EQ(extensions, std::vector<std::string>{ "SPV_KHR_fma" });
+                (std::vector<std::uint32_t>{
+                    spv::CapabilityShader, spv::CapabilityFloat16, spv::CapabilitySignedZeroInfNanPreserve }));
+            EXPECT_EQ(extensions, std::vector<std::string>{});
             EXPECT_LT(lastDecoration, firstType) << "a decoration after the first type is out of SPIR-V's layout";
 
             std::uint32_t highest = 0;
@@ -655,9 +554,8 @@ namespace Rtx
         /// **The guard marks what the pinning takes off, and the two together are the pinning.** Every
         /// rounding operation the source left unmarked is `NoContraction` beside the guard's
         /// `UserSemantic`; one the source marked `precise` keeps its own mark and takes no second.
-        /// Pinned, the guarded module is word for word the module pinned unguarded: the multiply the
-        /// guard held is fused into the add that reads it as it would have been, and the `precise`
-        /// one is not. A module older than SPIR-V 1.4, which has no `UserSemantic`, is refused.
+        /// Pinned, the guarded module is word for word the module pinned unguarded. A module older
+        /// than SPIR-V 1.4, which has no `UserSemantic`, is refused.
         TEST(RtxSpirvPinTest, theGuardIsWhatThePinningTakesOffAndNothingElse)
         {
             Writer writer;
@@ -731,8 +629,8 @@ namespace Rtx
             const std::uint32_t subnormal = writer.op(spv::OpFAdd, writer.mFloat, { tiny, tenth });
             const std::uint32_t byTiny = writer.op(spv::OpFDiv, writer.mFloat, { x, tiny });
             const std::uint32_t notANumber = writer.op(spv::OpFMul, writer.mFloat, { nan, tenth });
-            // A constant a rewrite makes is one the folding reads too, and a fused multiply-add is folded
-            // as the one rounding it is: `mix(x, y, a)` is `fma(y, a, x (1 - a))`, its 1 the rewrite's.
+            // A constant a rewrite makes is one the folding reads too: `mix(x, y, a)` is
+            // `x (1 - a) + y a`, its 1 the rewrite's.
             const std::uint32_t mixed = writer.glsl(writer.mFloat, GLSLstd450FMix, { tenth, fifth, three });
 
             const Decoded pinned = decode(pinFloatArithmetic(writer.finish()));
@@ -765,8 +663,8 @@ namespace Rtx
                 EXPECT_EQ(std::bit_cast<std::uint32_t>(pinned.mConstants.at(made.mOperands[3])), reciprocal);
             }
 
-            EXPECT_EQ(copied(mixed), std::vector<float>{ std::fma(0.2f, 3.0f, 0.1f * (1.0f - 3.0f)) })
-                << "a mix of constants is the fused multiply-add the pinning states, folded once";
+            EXPECT_EQ(copied(mixed), std::vector<float>{ 0.1f * (1.0f - 3.0f) + 0.2f * 3.0f })
+                << "a mix of constants is the steps the pinning states, each folded";
 
             EXPECT_EQ(pinned.mDefinitions.at(subnormal).mOp, spv::OpFAdd) << "a subnormal is the device's to flush";
             EXPECT_EQ(pinned.mDefinitions.at(byTiny).mOp, spv::OpFDiv)
@@ -783,7 +681,7 @@ namespace Rtx
                 spv::OpFMod, writer.mFloat, { writer.input(writer.mFloat, "s"), writer.input(writer.mFloat, "t") });
 
             const Decoded pinned = decode(pinFloatArithmetic(writer.finish()));
-            EXPECT_EQ(describe(pinned, writer.names(), result), "fma(neg(t), floor(div(s, t)), s)");
+            EXPECT_EQ(describe(pinned, writer.names(), result), "sub(s, mul(t, floor(div(s, t))))");
 
             std::size_t imports = 0;
             std::size_t memoryModel = 0;
@@ -803,10 +701,10 @@ namespace Rtx
         }
 
         /// **A module with nothing to pin comes back as it was but for its float environment**:
-        /// integer arithmetic, a square root and an exponential are left to the device, and nothing
-        /// asks for a fusion. What it gains is the preservation of signed zeros, infinities and
-        /// NaNs, at its one entry point for both float widths it declares, and the capability for
-        /// it — written by hand here and compared word for word.
+        /// integer arithmetic, a square root and an exponential are left to the device. What it
+        /// gains is the preservation of signed zeros, infinities and NaNs, at its one entry point
+        /// for both float widths it declares, and the capability for it — written by hand here and
+        /// compared word for word.
         TEST(RtxSpirvPinTest, aModuleWithNothingToPinComesBackAsItWasButForItsFloatEnvironment)
         {
             Writer writer;
@@ -904,6 +802,15 @@ namespace Rtx
                         w.op(spv::OpExtInst, w.mFloat, { set, 1, w.input(w.mFloat, "s") });
                     },
                     "neither GLSL.std.450 nor non-semantic" },
+                { "an explicit fma",
+                    [](Writer& w) {
+                        w.glsl(w.mFloat, GLSLstd450Fma,
+                            { w.input(w.mFloat, "s"), w.input(w.mFloat, "t"), w.input(w.mFloat, "u") });
+                    },
+                    "SPV_KHR_fma" },
+                { "the capability to fuse",
+                    [](Writer& w) { w.raw(w.mCapabilities, spv::OpCapability, { spv::CapabilityFMAKHR }); },
+                    "SPV_KHR_fma" },
                 { "a determinant",
                     [](Writer& w) { w.glsl(w.mFloat, GLSLstd450Determinant, { w.input(w.mMat2, "m") }); },
                     "OpExtInst 33" },

@@ -1,14 +1,19 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 
 #include <spirv/unified1/spirv.hpp>
 
+#include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/gui.h>
@@ -52,11 +57,64 @@ namespace Rtx
                     << "binding " << at;
         }
 
+        /// **No module starts a ray query at more places than its ceiling**, counted in every
+        /// module the build ships once the optimizer has inlined it. AMD's Windows compiler writes
+        /// a whole software traversal at each, and a stage that held fifty did not compile in 52 GB
+        /// (`docs/rtx/research/2026-10-19-amd-windows-trace-compile-memory.md`). Read here, a site
+        /// too many fails on every runner and not only on an AMD card.
+        ///
+        /// **One a module, and the few small launches at what they hold**, which only falls: each
+        /// compiles in milliseconds, since the cost of a site is the code inlined around it. **And the
+        /// stages at a site a phase**: the trace's water walk apart from its peel, and each layer's
+        /// light and medium apart from the layers' peel. The bounce's ray and its landing's visit are
+        /// stages of their own, at one each.
+        TEST(RtxSpirvInterfaceTest, noModuleStartsARayQueryAtMorePlacesThanItsCeiling)
+        {
+            constexpr std::array<std::pair<std::string_view, std::size_t>, 5> sHeld{ {
+                { "panes.comp.spv", 3 },
+                { "visibility.comp.spv", 2 },
+                { "fogdepth.rgen.spv", 2 },
+                { "fogscatter.rgen.spv", 4 },
+                { "spritecomposite.rgen.spv", 3 },
+            } };
+
+            std::vector<std::string> found;
+            std::size_t modules = 0;
+            for (const std::filesystem::directory_entry& entry :
+                std::filesystem::directory_iterator(OPENMW_RTX_SHADER_DIR))
+            {
+                if (entry.path().extension() != ".spv")
+                    continue;
+
+                ++modules;
+                const std::vector<std::uint32_t> words = readSpirv(entry.path());
+                std::size_t sites = 0;
+                for (std::size_t at = 5; at < words.size(); at += words[at] >> 16)
+                {
+                    ASSERT_GT(words[at] >> 16, 0u) << "an instruction of no length";
+                    if ((words[at] & 0xffffu) == spv::OpRayQueryInitializeKHR)
+                        ++sites;
+                }
+
+                const std::string name = Files::pathToUnicodeString(entry.path().filename());
+                std::size_t ceiling = 1;
+                for (const auto& [module, held] : sHeld)
+                    if (name == module)
+                        ceiling = held;
+                if (sites > ceiling)
+                    found.push_back(name + ": " + std::to_string(sites) + " over " + std::to_string(ceiling));
+            }
+
+            ASSERT_GT(modules, 0u) << "no module in " << OPENMW_RTX_SHADER_DIR;
+            for (const std::string& module : found)
+                ADD_FAILURE() << module << " places that start a ray query";
+        }
+
         /// **The trace's own kinds read as theirs**: the scene's top-level structure, and the
         /// bindless textures as an array of no stated length, which is a count of nought.
         TEST(RtxSpirvInterfaceTest, aStructureAndAnArrayOfNoLengthAreReadAsWhatTheyAre)
         {
-            const std::vector<ModuleBinding> bindings = bindingsOf("visibility.rgen.spv");
+            const std::vector<ModuleBinding> bindings = bindingsOf("visibility.comp.spv");
             EXPECT_TRUE(std::ranges::any_of(bindings, [](const ModuleBinding& bound) {
                 return bound.mKind == DescriptorKind::AccelerationStructure && bound.mCount == 1;
             })) << "no top-level structure";
@@ -98,7 +156,7 @@ namespace Rtx
 
         /// **The rest of a module's interface reads as its GLSL states it**: the line pass's vertex
         /// stage reads a position of three components and a colour of four, and its push block
-        /// ends where `LineConstants` does, eighty bytes in; the interface's fragment stage
+        /// ends where `LineConstants` does, eighty-four bytes in; the interface's fragment stage
         /// specializes on one `bool` and its vertex stage on nothing, and a module the build counts
         /// in specializes on its census's word as well.
         TEST(RtxSpirvInterfaceTest, inputsThePushBlocksEndAndTheSpecializationConstantsReadAsTheGlslStatesThem)
@@ -107,7 +165,7 @@ namespace Rtx
             EXPECT_EQ(line.mInputs,
                 (std::vector<ModuleInput>{
                     { .mLocation = 0, .mComponents = 3 }, { .mLocation = 1, .mComponents = 4 } }));
-            EXPECT_EQ(line.mPushEnd, std::optional<std::uint32_t>(80u));
+            EXPECT_EQ(line.mPushEnd, std::optional<std::uint32_t>(84u));
 
             const ModuleInterface gui = interfaceOf("gui.vert.spv");
             EXPECT_EQ(gui.mInputs,

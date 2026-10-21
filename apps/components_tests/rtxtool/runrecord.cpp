@@ -69,7 +69,7 @@ namespace RtxTool
             profile.mGamma = 2.2f;
             profile.mShow = Rtx::SurfaceView::Albedo;
             profile.mExposure = Rtx::FixedExposure{ 1.5f };
-            profile.mSpecializeLaunches = false;
+            profile.mSpecializeKernels = false;
             profile.mStressOverlapMs = 8.0;
             request.mSetup.mMirror.mReach = Rtx::LandReach{ .mCells = 4.0f, .mViewingDistance = 7168.0f };
             request.mSetup.mMirror.mDistantStatics = false;

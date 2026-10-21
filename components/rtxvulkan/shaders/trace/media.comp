@@ -1,0 +1,149 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The sun's shafts through the water on each pixel's path, a stage of its own after the trace
+// (`visibility.comp`): the columns the trace composed in their closed forms, marched where it found
+// the shafts change them (`STAGE_MEDIA`), and what the march changed added to the direct channel —
+// the eye's own column under the water, which stands in front of everything, and a water path's leg,
+// by what the medium in front of the water lets through.
+//
+// **Over the tiles the trace listed alone** (`StageTiles`), a workgroup a tile by an indirect
+// dispatch: AMD's classify, compact and dispatch indirectly (FidelityFX's reflections), so a frame
+// with no shaft in it runs no wave of this stage.
+//
+// **Before the layers' stage**, which lays the layers over the direct channel with the medium in
+// front of each (`panes.comp`), so the light behind them is whole when it does.
+//
+// **The trace's rays again, and not its columns stored**: the eye's ray from where the trace cast
+// it, and for water the water's own walk up to the path's leg, which this stage marches.
+
+#include "shared/traceconstants.h"
+#include "camera.h"
+#include "scene.h"
+#include "visibility.h"
+
+#include "lib/bindings.glsl"
+#include "lib/census.glsl"
+#include "lib/fog.glsl"
+#include "lib/frame.glsl"
+#include "lib/peel.glsl"
+#include "lib/pixels.glsl"
+#include "lib/stage.glsl"
+#include "lib/traversal.glsl"
+#include "lib/underwater.glsl"
+#include "lib/variants.glsl"
+#include "lib/water.glsl"
+
+layout(local_size_x = TRACE_WORKGROUP_WIDTH, local_size_y = TRACE_WORKGROUP_HEIGHT) in;
+
+void main()
+{
+    uvec2 pixel;
+    if (!stagePixelIn(listedTile(STAGE_LIST_MEDIA, gl_WorkGroupID.x), pixel))
+        return;
+
+    const uint width = frame.mEyes.mWorld.mWidth;
+    const uint swap = fieldSwapOf(frame.mFrame);
+    const StageRecord record = unpackStageRecord(imageLoad(stageRecord, storedAt(ivec2(pixel), width, swap)));
+    if (!record.mMedia)
+        return;
+
+    // **Innermost first**: a walk is under way only while the one that started it waits on it.
+    SkyPassageRun skyPassage = skyPassageRunOf(
+        frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
+    ColumnRun column = columnRunOf(vec3(0.0), vec3(0.0, 0.0, -1.0), 0.0, 0.0);
+    WaterRun water = waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR);
+    skyPassage.mStep = RUN_IDLE;
+    column.mStep = RUN_IDLE;
+    water.mStep = RUN_IDLE;
+
+    // **The eye's ray, its column, and the water's leg**, in turn: what the eye's ray met, as the
+    // trace met it behind its layers; the column under the water in front of it, where the eye stands
+    // under the water, and the medium in front of that point (`tracePixel`); and a water path's walk.
+    const uint MEDIA_EYE = 0u;
+    const uint MEDIA_COLUMN = 1u;
+    const uint MEDIA_PATH = 2u;
+    const uint MEDIA_DONE = 3u;
+    uint phase = MEDIA_EYE;
+
+    const Ray ray = rayAt(eyeOf(record.mArms), vec2(pixel));
+    const WorldRay eye = WorldRay(frame.mOrigin + ray.mOffset, ray.mDirection);
+    const Cone cone = coneAt(eyeOf(record.mArms));
+    RayAsk ask = eyeAsk(eye.mFrom, eye.mAlong, record.mTmin, record.mArms, pixel);
+
+    Surface surface = noSurface(frame.mOrigin);
+    Surface met = surface;
+    bool metWater = false;
+    bool under = false;
+    float air = 0.0;
+    float reach = 0.0;
+    float underPath = 0.0;
+    vec3 shafts = vec3(0.0);
+    vec3 through = vec3(1.0);
+
+    uint turns = 0u;
+    [[dont_unroll]] while (phase != MEDIA_DONE && turns < WALK_TURNS)
+    {
+        ++turns;
+        RayAnswer answered = RayAnswer(false, unansweredScene());
+        if (ask.mTraced)
+        {
+            answered = RayAnswer(true, queryScene(ask.mQuery));
+            if (ask.mResolved)
+                surface = resolveAsked(answered.mMet, ask.mQuery);
+        }
+        ask = noRay();
+
+        if (skyPassage.mStep != RUN_IDLE)
+            stepSkyPassage(skyPassage, answered, ask);
+        else if (column.mStep != RUN_IDLE)
+            stepColumn(column, skyPassage, pixel);
+        else if (water.mStep != RUN_IDLE)
+            stepWater(water, column, surface, answered, ask, WATER_MARCHES);
+        else if (phase == MEDIA_EYE)
+        {
+            // **The whole path's medium as the trace measured it**: as far as what the ray met, or
+            // the whole column where a ray that went down met nothing (`tracePixel`).
+            met = surface;
+            const bool hit = answered.mMet.mCommitted != 0u;
+            metWater = hit && answered.mMet.mKind == KIND_WATER && HAS_SEA;
+            air = hit ? answered.mMet.mDistance : frame.mFar;
+            reach = waterUnbounded(hit, eye.mFrom, eye.mAlong) ? WATER_UNBOUNDED_PATH : air;
+            under = waterOver(eye.mFrom) > 0.0;
+            if (under)
+            {
+                underPath = waterAlong(eye.mFrom, eye.mAlong, reach);
+                column = columnRunOf(eye.mFrom, eye.mAlong, underPath, cone.mWidth + cone.mSpread * underPath);
+                stepColumn(column, skyPassage, pixel);
+            }
+            phase = MEDIA_COLUMN;
+        }
+        else if (phase == MEDIA_COLUMN)
+        {
+            through = under ? mediumOverColumn(eye, underPath, reach, air, column.mColumn).mThrough
+                            : vec3(fogAlong(pixel, eye, air).w);
+            shafts = under ? column.mShafts : vec3(0.0);
+            phase = metWater ? MEDIA_PATH : MEDIA_DONE;
+            if (metWater)
+            {
+                water = waterRunOf(eye.mAlong, cone, waterFieldOf(pixel));
+                stepWater(water, column, met, answered, ask, WATER_MARCHES);
+            }
+        }
+        else
+        {
+            // **A leg's change by what the medium in front of the water lets through**, as the trace
+            // takes the water's light down by it.
+            shafts += water.mShafts * through;
+            phase = MEDIA_DONE;
+        }
+    }
+
+    if (phase != MEDIA_DONE)
+        atomicAdd(counts.mWalksCut, 1u);
+
+    const ivec2 at = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);
+    RTX_STORE_COUNTED(direct, at, vec4(imageLoad(direct, at).rgb + shafts, 1.0))
+}
