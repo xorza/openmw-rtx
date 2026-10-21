@@ -29,6 +29,13 @@ namespace Rtx
 
     SceneDesc::SceneDesc() = default;
 
+    SceneDesc::SceneDesc(const SceneRoom& room)
+    {
+        mMeshes.reserve(room.mMeshes);
+        mMaterials.reserve(room.mMaterials);
+        mPlacements.reserve(room);
+    }
+
     std::uint64_t SceneDesc::Identity::next() noexcept
     {
         return ++sIdentities;

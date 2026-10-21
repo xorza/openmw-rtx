@@ -24,6 +24,7 @@
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/drawableposer.hpp>
+#include <components/rtx/mirror/released.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sdlutil/graphicslistener.hpp>
@@ -103,6 +104,13 @@ namespace MWRender
         /// played answers.
         explicit RtxRenderer(const RendererSpec& spec, const RtxSetup* run = nullptr);
         ~RtxRenderer() override;
+
+        /// Pinned: its run points at its own played answers where no host installed one, and its
+        /// poser at state inside its mirror.
+        RtxRenderer(const RtxRenderer&) = delete;
+        RtxRenderer& operator=(const RtxRenderer&) = delete;
+        RtxRenderer(RtxRenderer&&) = delete;
+        RtxRenderer& operator=(RtxRenderer&&) = delete;
 
         /// Which card the backend runs on, for the harness's card watch.
         Rtx::CardAddress getCardAddress() const;
@@ -319,6 +327,10 @@ namespace MWRender
         Rtx::Stepped<Phase> mPhase{ Phase::Between };
 
         ViewQueue mViews;
+
+        /// What the pictures' sweeps let go of in a draw of the queue, handed to the mirror's queue
+        /// after it. Kept and refilled: `Released::take` keeps its room.
+        Rtx::Released mPictureReleases;
 
         /// How many pictures of the world one frame draws; the rest wait for the next. Three,
         /// because a cell crossing asks for a row of three map tiles and a fresh load for nine: the

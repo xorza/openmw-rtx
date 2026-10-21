@@ -41,6 +41,7 @@
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/brdf.h>
@@ -51,7 +52,6 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
-#include <components/rtxvulkan/scene/sceneroom.hpp>
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/shaders/shared/tables.h>
 #include <components/rtxvulkan/trace/spritebin.hpp>

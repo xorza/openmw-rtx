@@ -29,6 +29,7 @@ namespace Rtx
 {
     class PoseCull;
     class PoseUpdate;
+    class Released;
     class SceneDesc;
     class SceneExtractor;
 
@@ -126,7 +127,9 @@ namespace Rtx
         /// @param posing what the update traversal runs on — the caller's own drawing clock, because
         ///        a skeleton keeps the last number it saw and a clock that stood still would move the
         ///        doll's bones the first time and never again.
-        bool rebuildSubject(const osg::FrameStamp& posing);
+        /// @param releasing what the sweep lets go of goes into, for the caller to hand to the queue
+        ///        the world's goes to, so a doll's retired parts are not destroyed on the frame thread.
+        bool rebuildSubject(const osg::FrameStamp& posing, Released& releasing);
 
         /// Traces the picture into `texture`, a slot from `Renderer::addGuiTexture`, and leaves a
         /// copy for `takeCopy` where `readBack` asks for one.

@@ -13,6 +13,7 @@
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/scene/structurerevision.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
@@ -21,7 +22,6 @@
 
 #include "sceneacceleration.hpp"
 #include "scenebuffers.hpp"
-#include "sceneroom.hpp"
 #include "skinpass.hpp"
 #include "skintables.hpp"
 

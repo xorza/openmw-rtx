@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <numbers>
@@ -19,6 +20,7 @@
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -158,6 +160,7 @@ namespace Rtx
         {
             WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
+            Released releasing;
 
             osg::ref_ptr<osg::Geometry> body = Testing::makeQuad();
             osg::ref_ptr<osg::Geometry> shirt = Testing::makeQuad();
@@ -175,7 +178,7 @@ namespace Rtx
                 context);
             const SceneDesc& scene = *trace.getScene();
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1)));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
 
             // Two quads of two triangles each: what a scene holding both looks like.
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
@@ -187,7 +190,18 @@ namespace Rtx
             osg::ref_ptr<osg::Geometry> hat = Testing::makeQuad();
             subject->addChild(hat);
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2)));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing));
+
+            // **The shirt goes to the caller's sink and not where the sweep stands**, so its last
+            // reference is dropped on the queue the world's go to: the picture's own sink is empty,
+            // and the caller's holds the shirt the sweep let go of.
+            const auto holds = [&](const osg::Referenced* object) {
+                return std::ranges::any_of(releasing.get(),
+                    [&](const osg::ref_ptr<const osg::Referenced>& kept) { return kept.get() == object; });
+            };
+            EXPECT_TRUE(holds(shirt.get()));
+            EXPECT_FALSE(holds(body.get())) << "a part still worn was let go of";
+            releasing.clear();
 
             // **Still two placements and not three**, which is half the assertion: the hat was
             // placed and the shirt was swept. A mirror that kept what it no longer meets reads
@@ -206,7 +220,7 @@ namespace Rtx
             osg::ref_ptr<osg::Geometry> boots = Testing::makeQuad();
             subject->addChild(boots);
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(3)));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(3), releasing));
 
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
 
@@ -231,7 +245,7 @@ namespace Rtx
                 boots = Testing::makeQuad();
                 subject->addChild(boots);
 
-                ASSERT_TRUE(trace.rebuildSubject(*stampAt(redraw)));
+                ASSERT_TRUE(trace.rebuildSubject(*stampAt(redraw), releasing));
                 ASSERT_TRUE(scene.placements().getMoved().empty()) << "redraw " << redraw;
             }
         }
@@ -259,6 +273,7 @@ namespace Rtx
         {
             WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
+            Released releasing;
 
             const osg::ref_ptr<ClockedController> glow = new ClockedController;
             osg::ref_ptr<osg::Group> subject = new osg::Group;
@@ -272,7 +287,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
                 context);
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(7)));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(7), releasing));
 
             EXPECT_EQ(context.mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 1u)
                 << "the doll's one shape was folded somewhere nobody counts";
@@ -288,6 +303,7 @@ namespace Rtx
         {
             WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
+            Released releasing;
 
             osg::ref_ptr<osg::Group> subject = new osg::Group;
 
@@ -298,7 +314,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
                 context);
-            EXPECT_FALSE(trace.rebuildSubject(*stampAt(1)));
+            EXPECT_FALSE(trace.rebuildSubject(*stampAt(1), releasing));
             EXPECT_EQ(trace.getScene()->placements().getCounts().mPlaced, 0u);
         }
 
@@ -308,6 +324,7 @@ namespace Rtx
         {
             WalkContext context{ .mSpecular = SpecularLayout::Classic };
             Testing::CountingRenderer renderer;
+            Released releasing;
 
             constexpr osg::Node::NodeMask wanted = 1u << 3;
             constexpr osg::Node::NodeMask other = 1u << 4;
@@ -331,7 +348,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = wanted },
                 context);
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1)));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
 
             // One of the two, and the same fixture with `wanted | other` would take both — which is
             // what says the mask is doing the choosing rather than the fixture.
@@ -344,7 +361,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = wanted | other },
                 context);
-            ASSERT_TRUE(both.rebuildSubject(*stampAt(1)));
+            ASSERT_TRUE(both.rebuildSubject(*stampAt(1), releasing));
             EXPECT_EQ(both.getScene()->placements().getCounts().mPlaced, 2u);
         }
     }

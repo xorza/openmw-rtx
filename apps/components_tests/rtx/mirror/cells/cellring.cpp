@@ -560,7 +560,7 @@ namespace Rtx::Testing
 
             WalkContext mContext{ .mSpecular = Layout };
             SceneDesc mScene;
-            SceneExtractor mExtractor{ mScene, mContext };
+            SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom };
             CellRing mRing{ mExtractor };
         };
 
@@ -580,7 +580,7 @@ namespace Rtx::Testing
         {
             WalkContext context{ .mSpecular = SpecularLayout::Classic };
             SceneDesc other;
-            SceneExtractor stranger(other, context);
+            SceneExtractor stranger(other, context, sWorldExtractorRoom);
             expectAssertDies([&] { stranger.extractWorld(*mEmpty, 0, 1, mRing); },
                 "a ring made on another extractor adopts into its scene");
         }

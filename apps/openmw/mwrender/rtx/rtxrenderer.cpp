@@ -476,7 +476,8 @@ namespace MWRender
             return 0.0;
 
         const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
-        mViews.draw(sWorldViewsPerFrame, getFrameStamp(), mMirror.getRing());
+        mViews.draw(sWorldViewsPerFrame, getFrameStamp(), mMirror.getRing(), mPictureReleases);
+        mMirror.release(mPictureReleases);
         return Rtx::since(began, std::chrono::steady_clock::now());
     }
 
@@ -779,7 +780,8 @@ namespace MWRender
         {
             mRipples.dropStrikes();
             mPhase.step(Phase::Views, Phase::Walking);
-            mViews.draw(0, getFrameStamp(), mMirror.getRing());
+            mViews.draw(0, getFrameStamp(), mMirror.getRing(), mPictureReleases);
+            mMirror.release(mPictureReleases);
             renderGui();
             return;
         }

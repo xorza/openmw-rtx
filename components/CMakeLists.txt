@@ -442,7 +442,7 @@ add_component_dir (rtx/renderer
 
 add_component_dir (rtx/scene
     compositequeue deformertable instancerecord light lightgrid material materialtable mesh
-    meshtable placementtable refusal refusals ripple rowhold scenedesc scenetextures specularlayout sprite
+    meshtable placementtable refusal refusals ripple rowhold scenedesc sceneroom scenetextures specularlayout sprite
     surface texturetable
     )
 
