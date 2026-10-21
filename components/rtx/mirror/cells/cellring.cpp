@@ -120,6 +120,8 @@ namespace Rtx
         mHolds.forget();
         mHanded.clear();
         mHandedGrass.clear();
+        mBandHeld = 0;
+        mGrassBandHeld = 0;
     }
 
     void CellRing::setStaticsEnabled(const bool enabled)
@@ -140,10 +142,9 @@ namespace Rtx
         if (mBandCells == 0)
             return 0;
 
-        assert(getHeldCellCount() <= mBandCells && "a cell held outside the band the last walk asked over");
-        assert(getHeldGrassCount() <= mGrassBandCells && "grass held outside the band the last walk asked over");
-        return mBandCells - static_cast<std::uint32_t>(getHeldCellCount()) + mGrassBandCells
-            - static_cast<std::uint32_t>(getHeldGrassCount());
+        assert(mBandHeld <= mBandCells && "more cells held inside the band than the band has");
+        assert(mGrassBandHeld <= mGrassBandCells && "more grass held inside the band than the band has");
+        return mBandCells - mBandHeld + mGrassBandCells - mGrassBandHeld;
     }
 
     bool CellRing::waitsUnder(const osg::Vec2f& low, const osg::Vec2f& high) const
@@ -187,6 +188,29 @@ namespace Rtx
             if (known.mParts.empty())
                 mHolds.adoptParts(known, mAdopter);
         }
+    }
+
+    std::uint32_t CellRing::countHeldInBand() const
+    {
+        std::uint32_t held = 0;
+        if (mBandCells > 0 && mAsked.has_value())
+            mAround.mWorld.mGrid.forEachCellWithin(
+                mAsked->mEye, mAsked->mBand, [&](const osg::Vec2i& cell) { held += mPlacer.holds(cell) ? 1 : 0; });
+        return held;
+    }
+
+    std::uint32_t CellRing::countGrassHeldInBand() const
+    {
+        std::uint32_t held = 0;
+        if (mGrassBandCells > 0 && mAsked.has_value())
+            mAround.mWorld.mGrid.forEachCellWithin(mAsked->mEye, mAsked->mGrassBand,
+                [&](const osg::Vec2i& cell) { held += mPlacer.holdsGrass(cell) ? 1 : 0; });
+        return held;
+    }
+
+    float CellRing::keptTo(const float band) const
+    {
+        return band > 0.0f ? band + mAround.mWorld.mGrid.getCellSize() : 0.0f;
     }
 
     float CellRing::grassBand() const
@@ -263,19 +287,25 @@ namespace Rtx
 
         const CellGrid& grid = mAround.mWorld.mGrid;
         mBandCells = 0;
+        mBandHeld = 0;
         grid.forEachCellWithin(eye, band, [&](const osg::Vec2i& cell) {
             ++mBandCells;
-            if (!mPlacer.holds(cell) && !handed(mHanded, cell))
+            if (mPlacer.holds(cell))
+                ++mBandHeld;
+            else if (!handed(mHanded, cell))
                 mAsking.mCells.push_back(cell);
         });
 
         std::sort(mAsking.mCells.begin(), mAsking.mCells.end(), Nearer{ .mGrid = grid, .mEye = eye });
 
         mGrassBandCells = 0;
+        mGrassBandHeld = 0;
         if (grassBand > 0.0f)
             grid.forEachCellWithin(eye, grassBand, [&](const osg::Vec2i& cell) {
                 ++mGrassBandCells;
-                if (!mPlacer.holdsGrass(cell) && !handed(mHandedGrass, cell))
+                if (mPlacer.holdsGrass(cell))
+                    ++mGrassBandHeld;
+                else if (!handed(mHandedGrass, cell))
                     mAsking.mGrass.push_back(cell);
             });
 
@@ -286,8 +316,10 @@ namespace Rtx
 
     void CellRing::sift(const osg::Vec3f& eye, const float band, const float grassBand)
     {
+        const float kept = keptTo(band);
+        const float grassKept = keptTo(grassBand);
         std::erase_if(mHanded, [&](PreparedCell* cell) {
-            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band))
+            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, kept))
                 return false;
 
             discard(*cell);
@@ -295,7 +327,7 @@ namespace Rtx
         });
 
         std::erase_if(mHandedGrass, [&](PreparedGrass* grass) {
-            if (grassBand > 0.0f && mAround.mWorld.mGrid.withinReach(grass->mCell, eye, grassBand))
+            if (grassKept > 0.0f && mAround.mWorld.mGrid.withinReach(grass->mCell, eye, grassKept))
                 return false;
 
             discard(*grass);
@@ -360,6 +392,8 @@ namespace Rtx
         // left, the ground's layers take the neutral texel and the models keep theirs, as the
         // ground gives way where the device's room runs out (`TextureArray::write`).
         mPlacer.holdCell(cell, mAround, mAdopter.getStats(), mHolds);
+        if (mAsked.has_value() && mAround.mWorld.mGrid.withinReach(cell.mCell, mAsked->mEye, mAsked->mBand))
+            ++mBandHeld;
 
         mSupply.giveBack().mCells.push_back(&cell);
     }
@@ -370,6 +404,9 @@ namespace Rtx
         adoptModels(grass);
 
         mPlacer.holdGrass(grass, mHolds);
+        if (mAsked.has_value() && mAsked->mGrassBand > 0.0f
+            && mAround.mWorld.mGrid.withinReach(grass.mCell, mAsked->mEye, mAsked->mGrassBand))
+            ++mGrassBandHeld;
 
         mSupply.giveBack().mGrass.push_back(&grass);
     }
@@ -454,6 +491,8 @@ namespace Rtx
         // placement went missing, is found on the frame it happened rather than seen at the horizon.
         assert(mPlacer.standsAsHeld(mAround)
             && "the ring stands something its cells do not hold, or holds what it does not stand");
+        assert(mBandHeld == countHeldInBand() && "the band's held cells were miscounted");
+        assert(mGrassBandHeld == countGrassHeldInBand() && "the grass band's held cells were miscounted");
 
         // What stands, counted off the slots and not off a tally: a world with no reader and an
         // interior have both dropped every slot by now, and stand nothing.
@@ -471,6 +510,8 @@ namespace Rtx
         {
             mBandCells = 0;
             mGrassBandCells = 0;
+            mBandHeld = 0;
+            mGrassBandHeld = 0;
             return;
         }
 
@@ -482,6 +523,8 @@ namespace Rtx
         {
             mBandCells = 0;
             mGrassBandCells = 0;
+            mBandHeld = 0;
+            mGrassBandHeld = 0;
             mPlacer.dropSlots();
             mSupply.publish();
             return;
@@ -494,17 +537,20 @@ namespace Rtx
 
         // A cell held with the statics the other way is dropped whole and read again, for the
         // reason `takeDone` gives.
+        const float kept = keptTo(band);
         mPlacer.dropUnless(
             [&](const HeldCell& cell) {
-                return mAround.mWorld.mGrid.withinReach(cell.mCell, eye, band) && cell.mStatics == mStatics;
+                return mAround.mWorld.mGrid.withinReach(cell.mCell, eye, kept) && cell.mStatics == mStatics;
             },
             [&](const HeldCell& cell) { letGo(cell); });
 
-        // A cell's grass past the grass band goes whole, and all of it where the world has none.
+        // A cell's grass past what the grass band keeps goes whole, and all of it where the world
+        // has none.
         const float grass = grassBand();
+        const float grassKept = keptTo(grass);
         mPlacer.dropGrassUnless(
             [&](const HeldGrass& held) {
-                return grass > 0.0f && mAround.mWorld.mGrid.withinReach(held.mCell, eye, grass);
+                return grassKept > 0.0f && mAround.mWorld.mGrid.withinReach(held.mCell, eye, grassKept);
             },
             [&](const HeldGrass& held) { letGo(held.mModels); });
 
