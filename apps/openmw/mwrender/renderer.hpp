@@ -58,7 +58,7 @@ namespace Loading
 
 namespace Misc
 {
-    class FrameClock;
+    class LoopClock;
 }
 
 namespace Resource
@@ -282,7 +282,7 @@ namespace MWRender
         /// over once, before the first frame, and outlives this. The rasterizer's viewer stamps the
         /// wall for itself; the ray tracer stamps what this says, which is what makes a stated step
         /// a run that repeats.
-        void setFrameClock(Misc::FrameClock& clock) { mClock = &clock; }
+        void setLoopClock(Misc::LoopClock& clock) { mClock = &clock; }
 
         /// `[Video] framerate limit`, in frames a second, or nought for none. Once, beside the
         /// clock and before the first frame: the setting is the launcher's and is not offered while
@@ -481,8 +481,8 @@ namespace MWRender
         /// through it. Asserts that it has.
         Resource::ResourceSystem& getResources() const;
 
-        /// What `setFrameClock` handed over. Asserts that it has.
-        const Misc::FrameClock& getFrameClock() const;
+        /// What `setLoopClock` handed over. Asserts that it has.
+        const Misc::LoopClock& getLoopClock() const;
 
         /// How long the last `awaitFrame` held the game in the limiter.
         std::chrono::steady_clock::duration getLastHold() const { return mLastHold; }
@@ -529,7 +529,7 @@ namespace MWRender
         void detachWorld();
 
         Resource::ResourceSystem* mResources = nullptr;
-        Misc::FrameClock* mClock = nullptr;
+        Misc::LoopClock* mClock = nullptr;
         float mFrameRateLimit = 0.0f;
 
         /// What `awaitFrame` sleeps in, made anew by `setFrameRateLimit`.

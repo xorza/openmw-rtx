@@ -27,7 +27,7 @@ namespace Rtx
         std::uint32_t mAccumulate = 0;
 
         /// How long since the frame before this one was traced, in seconds of the host's clock
-        /// (`Misc::FrameClock::getNow`): what the eye adapts over, the glare fades over and the
+        /// (`Misc::LoopClock::getNow`): what the eye adapts over, the glare fades over and the
         /// upscaler tunes itself by. Nought is a frame with nothing before it, which adapts nothing.
         ///
         /// **The host's and never the wall read here**, so a measured run, whose clock counts
