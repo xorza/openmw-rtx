@@ -6,7 +6,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 from omw import deps
-from omw.system import ROOT, WINDOWS, Refusal, jobs, require, working_tree_files
+from omw.system import CXX_SOURCES, ROOT, WINDOWS, Refusal, jobs, require, working_tree_files
 
 
 def format_tree(args: list[str]) -> int:
@@ -25,7 +25,7 @@ def format_tree(args: list[str]) -> int:
     mode = ["--dry-run", "-Werror"] if args else ["-i"]
     clang_format = str(deps.windows_clang_format()) if WINDOWS else require("clang-format-14", "CI pins that version")
 
-    files = working_tree_files(":(exclude)extern/", "*.cpp", "*.hpp", "*.h")
+    files = working_tree_files(*CXX_SOURCES)
     batches = [files[at:at + 64] for at in range(0, len(files), 64)]
 
     def formatted(batch: list[str]) -> int:

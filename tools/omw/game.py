@@ -35,9 +35,11 @@ def game_folders(build: Build) -> GameFolders:
 def game(build: Build, args: list[str]) -> int:
     """The newest quicksave of any character unless the line names a save, so the driver names
     nobody's."""
-    build.build(["openmw"])
+    named = any(arg.startswith("--load-savegame") for arg in args)
+    # In one Ninja run: the harness only where it is asked where the saves are.
+    build.build(["openmw"] if named else ["openmw", "openmw-rtxtool"])
     save: list[str | Path] = []
-    if not any(arg.startswith("--load-savegame") for arg in args):
+    if not named:
         saved = game_folders(build).data / "saves"
         saves = list(saved.rglob("Quicksave.omwsave"))
         if not saves:
@@ -58,11 +60,12 @@ def setup(build: Build, args: list[str]) -> int:
     if install is None or not (install / "Morrowind.ini").is_file() or not (install / "Data Files").is_dir():
         raise Refusal("setup takes the Morrowind directory: the one holding Morrowind.ini and Data Files")
 
+    # In one Ninja run: the harness says where the configuration goes, and the importer writes it.
+    build.build(["openmw-rtxtool", "openmw-iniimporter"])
     cfg = game_folders(build).config / "openmw.cfg"
     if cfg.exists():
         raise Refusal(f"{cfg} is already there; move it away to start over")
 
-    build.build(["openmw-iniimporter"])
     cfg.parent.mkdir(parents=True, exist_ok=True)
     # Beside its name until the import is whole, or a failed one leaves a file the next setup refuses.
     partial = partial_of(cfg)

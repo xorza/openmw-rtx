@@ -16,7 +16,18 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from omw.system import CI, ROOT, Refusal, on_path, read_text, report, require, working_tree_files
+from omw.system import (
+    CI,
+    CXX_SOURCES,
+    ROOT,
+    SYSTEMS,
+    Refusal,
+    on_path,
+    read_text,
+    report,
+    require,
+    working_tree_files,
+)
 
 
 @dataclass(frozen=True)
@@ -77,7 +88,7 @@ def _cmake() -> list[str]:
 
 def _names() -> list[str]:
     """`CI/check_file_names.sh`'s rule."""
-    return misnamed(working_tree_files(":(exclude)extern/", "*.cpp", "*.hpp", "*.h"))
+    return misnamed(working_tree_files(*CXX_SOURCES))
 
 
 # What `CI/check_qt_translations.sh` regenerates: the sources each set of translations is read out of.
@@ -126,11 +137,19 @@ def _ran(command: list[str], env: dict[str, str] | None = None) -> list[str]:
 
 def _driver() -> list[str]:
     """Ruff's default rules at the tree's 120 columns, and mypy, both against the oldest Python `omw`
-    supports."""
+    supports. **Mypy once for each system the driver builds on**, since it reads `os` as the system
+    named has it: checked as the system it ran on, the Windows desk refused `os.getuid`, which CI's
+    Linux passed, and CI never read the driver as Windows runs it. `WINDOWS` is a constant to it, as
+    `sys.platform` is, so a branch only the other system takes is not checked against this one."""
     env = {**os.environ, "MYPYPATH": str(ROOT / "tools")}
-    return (_ran([*command_for(RUFF), "check", "--line-length", "120", "--target-version", "py311",
+    found = _ran([*command_for(RUFF), "check", "--line-length", "120", "--target-version", "py311",
                   "tools/omw", "omw"])
-            + _ran([*command_for(MYPY), "--python-version", "3.11", "-p", "omw"], env))
+    mypy = command_for(MYPY)
+    for platform in SYSTEMS:
+        windows = "true" if platform == "win32" else "false"
+        found += _ran([*mypy, "--python-version", "3.11", "--platform", platform, f"--always-{windows}", "WINDOWS",
+                       "-p", "omw"], env)
+    return found
 
 
 def _workflows() -> list[str]:

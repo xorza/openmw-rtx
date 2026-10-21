@@ -1,10 +1,22 @@
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from omw.build import CONFIGURED_FROM, configured_from, device_free, manifest_inputs, redate_ahead
+from omw.build import (
+    CONFIGURED_FROM,
+    MANIFEST_AGED,
+    configured_from,
+    deps_inputs,
+    device_free,
+    manifest_inputs,
+    ninja_outputs,
+    redate_ahead,
+    remove_ahead,
+)
 from omw.system import Refusal
 from omw.tests.fixtures import temporary_build, write_cache
 
@@ -27,6 +39,37 @@ class ConfiguredFromTest(unittest.TestCase):
                 (folder / missing).unlink()
                 self.assertFalse(configured_from(folder, "abc"))
                 (folder / missing).write_text(content)
+
+
+class BuildOnceTest(unittest.TestCase):
+    def test_a_target_is_built_once_a_run_and_one_whose_build_failed_again(self):
+        build = temporary_build(self, "debug")
+        ran: list[list[str]] = []
+
+        def ninja(command: list, **options) -> None:
+            targets = [str(part) for part in command[command.index("--target") + 1:command.index("--")]]
+            ran.append(targets)
+            if "broken" in targets:
+                raise subprocess.CalledProcessError(1, command)
+
+        with (mock.patch.object(build, "configure"), mock.patch.object(build, "_redate_inputs_ahead"),
+              mock.patch.object(build, "_env", {}), mock.patch("omw.build.run", ninja)):
+            build.build(["openmw", "openmw-rtxtool"])
+            build.build(["openmw-rtxtool", "crash-tests"])
+            build.build(["openmw"])
+            for _ in range(2):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    build.build(["broken", "openmw"])
+        self.assertEqual(ran, [["openmw", "openmw-rtxtool"], ["crash-tests"], ["broken"], ["broken"]])
+
+    def test_the_tests_are_asked_of_ctest_once_a_run(self):
+        build = temporary_build(self, "debug")
+        listing = '{"tests": [{"name": "a", "properties": [{"name": "OPENMW_TARGET", "value": "a-tests"}]}]}'
+        with (mock.patch.object(build, "configure"), mock.patch.object(build, "_env", {}),
+              mock.patch("omw.build.output", return_value=listing) as ctest):
+            self.assertEqual(build.test_targets(), ["a-tests"])
+            self.assertEqual(build.test_targets(without_device=True), ["a-tests"])
+        self.assertEqual(ctest.call_count, 1)
 
 
 class CachedTest(unittest.TestCase):
@@ -70,6 +113,35 @@ class ManifestInputsTest(unittest.TestCase):
         ])
         self.assertEqual(manifest_inputs("build.ninja:\n  outputs:\n    x\n", build), [])
 
+    def test_the_deps_log_names_each_header_once_and_no_output(self):
+        logged = "".join(line + "\n" for line in (
+            "components/a.cpp.obj: #deps 2, deps mtime 8142794389022204 (VALID)",
+            "    ../components/a.cpp",
+            "    /sdk/vulkan.h",
+            "",
+            "components/b.cpp.obj: #deps 2, deps mtime 8142794389022205 (STALE)",
+            "    ../components/b.cpp",
+            "    /sdk/vulkan.h",
+            "",
+        ))
+        build = Path("/checkout/build")
+        self.assertEqual(deps_inputs(logged, build), [
+            build / "../components/a.cpp", Path("/sdk/vulkan.h"), build / "../components/b.cpp",
+        ])
+        self.assertEqual(deps_inputs("", build), [])
+
+    def test_the_targets_listing_names_every_output_but_a_phony_one(self):
+        listed = "".join(line + "\n" for line in (
+            "build.ninja: RERUN_CMAKE",
+            "openmw: phony",
+            "components/a.cpp.obj: CXX_COMPILER__components_unscanned_RelWithDebInfo",
+            "/checkout/files/lang/de.ts: CUSTOM_COMMAND",
+        ))
+        build = Path("/checkout/build")
+        self.assertEqual(ninja_outputs(listed, build), [
+            build / "build.ninja", build / "components" / "a.cpp.obj", Path("/checkout/files/lang/de.ts"),
+        ])
+
 
 class RedateAheadTest(unittest.TestCase):
     def test_a_file_dated_after_the_clock_takes_its_time_and_one_outside_the_tree_is_refused(self):
@@ -85,7 +157,9 @@ class RedateAheadTest(unittest.TestCase):
             path.write_text("")
             os.utime(path, (modified, modified))
 
-        inside = [tree / "ahead.cmake", tree / "behind.cmake", tree / "now.cmake", tree / "missing.cmake"]
+        # A second spelling of one file is the same file.
+        inside = [tree / "ahead.cmake", tree / "behind.cmake", tree / "now.cmake", tree / "missing.cmake",
+                  tree / ".." / "tree" / "ahead.cmake"]
         with self.assertRaises(Refusal):
             redate_ahead([*inside, elsewhere / "ahead.cmake"], now, tree)
         self.assertEqual((tree / "ahead.cmake").stat().st_mtime, now + 23_580, "a file was touched before the refusal")
@@ -95,6 +169,29 @@ class RedateAheadTest(unittest.TestCase):
         self.assertEqual({path.name: path.stat().st_mtime for path in dated if path.parent == tree},
                          {"ahead.cmake": now, "behind.cmake": now - 60, "now.cmake": now})
         self.assertEqual(redate_ahead(inside, now, tree), [])
+
+    def test_an_output_dated_after_the_clock_is_removed_only_inside_the_build_directory(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        build, tree = folder / "build", folder / "tree"
+        build.mkdir()
+        tree.mkdir()
+        now = 1_800_000_000.0
+        dated = {build / "ahead.obj": now + 2_520, build / "behind.obj": now - 60, build / "now.obj": now,
+                 build / "build.ninja": now + 60, tree / "ahead.ts": now + 60, tree / "build.ninja": now + 60}
+        for path, modified in dated.items():
+            path.write_text("")
+            os.utime(path, (modified, modified))
+
+        # A path through `..` that leaves the build directory is judged where it lands, and a second
+        # spelling of a file removed already is the same file.
+        outputs = [*dated, build / "missing.obj", build / ".." / "tree" / "ahead.ts",
+                   build / ".." / "build" / "ahead.obj"]
+        self.assertEqual(remove_ahead(outputs, now, build), [build / "ahead.obj", build / "build.ninja"])
+        self.assertEqual({path.relative_to(folder).as_posix(): path.stat().st_mtime for path in dated if path.exists()},
+                         {"build/behind.obj": now - 60, "build/now.obj": now, "build/build.ninja": MANIFEST_AGED,
+                          "tree/ahead.ts": now + 60, "tree/build.ninja": now + 60})
+        self.assertEqual(remove_ahead(outputs, now, build), [])
 
 
 

@@ -24,7 +24,7 @@ def self_test() -> int:
 
 
 def _build(build: Build) -> int:
-    build.build(build.default_targets + build.test_targets())
+    build.build_default()
     return 0
 
 

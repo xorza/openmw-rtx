@@ -12,7 +12,18 @@ from pathlib import Path
 
 from omw import deps, pins
 from omw.build import Build
-from omw.system import ROOT, SYSTEM, WINDOWS, Refusal, output, prepend_path, read_text, require, run
+from omw.system import (
+    ROOT,
+    SYSTEM,
+    WINDOWS,
+    Refusal,
+    output,
+    prepend_path,
+    read_text,
+    require,
+    run,
+    user_and_group,
+)
 
 DIST = ROOT / "dist"
 
@@ -179,7 +190,7 @@ def _archive_in_container(name: str) -> None:
          "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
     for kept in ("package", "ccache"):
         (CONTAINER_DIR / kept).mkdir(parents=True, exist_ok=True)
-    user = f"{os.getuid()}:{os.getgid()}"
+    user = user_and_group()
     for verb in (["bootstrap"], ["archive", name]):
         run(container_command(docker, verb, user))
 
