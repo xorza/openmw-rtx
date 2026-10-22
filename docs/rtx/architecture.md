@@ -387,6 +387,9 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   no scratch memory where the driver reports it and a dispatch at 128 registers at most, but the
   trace's stages at what they spill, and a launch's ray generation stack at what it holds, each
   ceiling one that only falls: at 128 registers an RDNA SIMD runs eight waves, at 256 four. A
+  register ceiling rises only inside the waves it already allowed, with no scratch: `direct` went
+  from 244 to 256, four waves at either, for the gather that carries the lamp's draw and not its
+  ray (`research/2026-10-22-amd-680m-spill-ceilings.md`). A
   spill is a cost measured and cut where it shows in the frame, as NVIDIA cut Indiana Jones' path
   tracer's; held at nought, it kept the gate red until a redesign and hid a new regression behind
   the old failure.

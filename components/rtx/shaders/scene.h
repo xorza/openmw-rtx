@@ -49,8 +49,10 @@ namespace Rtx::Shaders
     /// How many slots the bindless array holds, which is what the backend's descriptor count and
     /// the scene's table are both bounded by. A PBR pack gives a diffuse texture a normal and a
     /// specular slot beside it, about 3700 at the largest bench place against its 1233 on vanilla,
-    /// so the room is four times that and not the 4096 that would sit at its edge.
-    const uint TEXTURE_SLOTS = 16384u;
+    /// so the room is twice that and not the 4096 that would sit at its edge. **Not 16384**: there
+    /// the layers' kernel spilled 480 bytes a lane on a Radeon 680M, against 192 at 8192 and at
+    /// 4096 (`docs/rtx/research/2026-10-22-amd-680m-spill-ceilings.md`).
+    const uint TEXTURE_SLOTS = 8192u;
 
     /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of
     /// one, stood by the backend when the array is made, under the neutral shading map.

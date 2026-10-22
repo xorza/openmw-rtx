@@ -119,13 +119,14 @@ namespace Rtx
                 std::uint64_t mRegisters;
             };
             constexpr Ceiling sEveryOther{ "", 0, 128 };
-            constexpr std::array<Ceiling, 6> sCeilings{ {
+            // `direct` at 256 and not 244, a rise inside the waves it allowed (`docs/rtx/architecture.md`,
+            // "No kernel spills past its ceiling").
+            constexpr std::array<Ceiling, 5> sCeilings{ {
                 { "visibility", 0, 256 },
-                { "direct", 0, 244 },
+                { "direct", 0, 256 },
                 { "media", 0, 256 },
-                { "panes", 208, 256 },
-                { "bounce", 176, 256 },
-                { "landing", 176, 256 },
+                { "panes", 192, 256 },
+                { "landing", 0, 256 },
             } };
             constexpr std::array<std::pair<std::string_view, std::uint64_t>, 4> sStacks{ {
                 { "fog scatter", 320 },
