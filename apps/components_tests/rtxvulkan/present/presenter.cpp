@@ -150,11 +150,11 @@ namespace Rtx
         /// each present carries the next id, the wait names one the swapchain was given, and a wait
         /// the hidden window never answers runs out once, a tenth of a second, and is not asked
         /// again. Validation is what holds the ids to the swapchain; the clock holds the waits to
-        /// one patience each, and the frame's uses as the blit is handed them.
+        /// one patience each, and the frame's uses as the blit is handed them. A card that cannot wait
+        /// for a present, as a Radeon 680M under AMD's Windows driver 26.8.1 cannot, waits for none,
+        /// and its frames go on.
         TEST_F(RtxPresenterTest, aFrameUnderFifoWaitsForThePresentTwoBeforeIt)
         {
-            ASSERT_TRUE(mDevice->hasPresentWait()) << "this card offers the wait, which the test is about";
-
             const VkExtent2D extent{ 64, 32 };
             PresentTarget target;
             target.resize(*mDevice, extent.width, extent.height);
