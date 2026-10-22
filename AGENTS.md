@@ -190,6 +190,17 @@ and the headers hold the detail.
 flavour comes before the verb and is `debug` unless named; `release` is the build a number is quoted
 from. `./omw exec ./openmw-rtxtool --help` lists the harness's options.
 
+The game installs on this machine, each a different load on the renderer:
+
+- `/home/Games/Morrowind` — vanilla, what the player's `openmw.cfg` names and every suite has been
+  measured on.
+- `/home/Games/M[FR]/` — the Morrowind Fullrest Repack, a large mod list (MWSE, MGE) under
+  `game/Data Files`. Its own OpenMW configuration (`game/OpenMW/OpenMW_Config/openmw.cfg`) names
+  a Windows path, so a run states the data folder itself.
+- `/home/Games/Morrowind-PBR/` — Morrowind with PBR replacers in `mods/` (`1-mvr`, `2-mvr-pbr`,
+  `3-tamrielic-pbr-armors`): the content a measurement of companion maps, texture memory or
+  residency needs.
+
 - Compiling is not verifying. Build the targets you touched and run the covering binary with a
   filter: `./omw test <binary> --gtest_filter=...`. `./omw lint driver` before a push that touches
   `tools/omw`.
