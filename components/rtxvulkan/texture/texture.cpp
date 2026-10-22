@@ -56,9 +56,13 @@ namespace Rtx
             if constexpr (sDebugNames)
                 shadingName = std::string(name) + " shading";
 
-            return Image::tryMake(use, device, Shaders::SHADING_EXTENT, Shaders::SHADING_EXTENT,
-                toVulkanFormat(SHADING_MAP_FORMAT),
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, shadingName);
+            return Image::tryMake(use, device,
+                ImageDescription{ .mWidth = Shaders::SHADING_EXTENT,
+                    .mHeight = Shaders::SHADING_EXTENT,
+                    .mFormat = toVulkanFormat(SHADING_MAP_FORMAT),
+                    .mUsage
+                    = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT },
+                shadingName);
         }
 
         /// A normal map's spread, `NormalSpreadPass`'s: a byte a texel from half the map's `width` by
@@ -72,8 +76,13 @@ namespace Rtx
 
             const std::uint32_t across = std::max(width / 2, 1u);
             const std::uint32_t down = std::max(height / 2, 1u);
-            return Image::tryMake(use, device, across, down, toVulkanFormat(NORMAL_SPREAD_FORMAT),
-                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, spreadName, levelsTo1x1(across, down));
+            return Image::tryMake(use, device,
+                ImageDescription{ .mWidth = across,
+                    .mHeight = down,
+                    .mFormat = toVulkanFormat(NORMAL_SPREAD_FORMAT),
+                    .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                    .mMipLevels = levelsTo1x1(across, down) },
+                spreadName);
         }
 
         ImageShape shapeOf(const Image& image)
@@ -108,7 +117,8 @@ namespace Rtx
 
         /// The layout every array declares, sized to the maximum and not to the scene, because a
         /// pipeline outlives a cell and two set layouts are compatible only where they are
-        /// identically defined. The maximum costs a few hundred kilobytes of pool, paid once.
+        /// identically defined. The maximum is paid once: a combined image sampler is 4 B on NVIDIA
+        /// and 96 B in RADV, so a set's three arrays are 0.2 MB and 4.7 MB of pool.
         constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 Shaders::TEXTURE_SLOTS, sStages, nullptr },
@@ -188,12 +198,17 @@ namespace Rtx
             return Misc::Err{ shading.error() };
 
         std::optional<Image> upload;
-        std::optional<Image> loose;
+        std::optional<ImageDescription> looseChain;
         Image image;
         if (!data.mCompleteChain)
         {
-            Misc::Result<Image, std::string_view> made = Image::tryMake(use, device, top.mWidth, top.mHeight,
-                toVulkanFormat(data.mFormat), sUploadedTextureUsage, name, levels);
+            Misc::Result<Image, std::string_view> made = Image::tryMake(use, device,
+                ImageDescription{ .mWidth = top.mWidth,
+                    .mHeight = top.mHeight,
+                    .mFormat = toVulkanFormat(data.mFormat),
+                    .mUsage = sUploadedTextureUsage,
+                    .mMipLevels = levels },
+                name);
             if (!made.isOk())
                 return Misc::Err{ made.error() };
             image = std::move(made.value());
@@ -205,8 +220,12 @@ namespace Rtx
             // The file's one level, uploaded as the bytes it holds, in a format with no curve under
             // it so that the chain's first dispatch fetches those bytes and not the light behind
             // them; gone with the batch, because the chain is what the trace samples.
-            Misc::Result<Image, std::string_view> uploaded = Image::tryMake(use, device, data.mWidth, data.mHeight,
-                withoutCurve(toVulkanFormat(data.mFormat)), sUploadedTextureUsage, name, 1);
+            Misc::Result<Image, std::string_view> uploaded = Image::tryMake(use, device,
+                ImageDescription{ .mWidth = data.mWidth,
+                    .mHeight = data.mHeight,
+                    .mFormat = withoutCurve(toVulkanFormat(data.mFormat)),
+                    .mUsage = sUploadedTextureUsage },
+                name);
             if (!uploaded.isOk())
                 return Misc::Err{ uploaded.error() };
 
@@ -214,26 +233,36 @@ namespace Rtx
             // read and none over the dispatch's store — `TextureData::wantsCompletedChain` says why the
             // chain is loose.
             const bool encoded = isSrgb(data.mFormat);
-            Misc::Result<Image, std::string_view> chain = Image::tryMake(use, device, data.mWidth, data.mHeight,
-                encoded ? sWrittenEncoded : sWrittenFormat, sWrittenTextureUsage, name,
-                levelsTo1x1(data.mWidth, data.mHeight), 1, encoded ? sWrittenFormat : VK_FORMAT_UNDEFINED);
-            if (!chain.isOk())
-                return Misc::Err{ chain.error() };
+            const ImageDescription chain{ .mWidth = data.mWidth,
+                .mHeight = data.mHeight,
+                .mFormat = encoded ? sWrittenEncoded : sWrittenFormat,
+                .mUsage = sWrittenTextureUsage,
+                .mMipLevels = levelsTo1x1(data.mWidth, data.mHeight),
+                .mStorageFormat = encoded ? sWrittenFormat : VK_FORMAT_UNDEFINED };
 
             upload = std::move(uploaded.value());
             if (!data.encodesChain())
-                image = std::move(chain.value());
+            {
+                Misc::Result<Image, std::string_view> made = Image::tryMake(use, device, chain, name);
+                if (!made.isOk())
+                    return Misc::Err{ made.error() };
+                image = std::move(made.value());
+            }
             else
             {
-                // **Kept as BC7 past the loose side**, encoded off the loose chain, which goes with
-                // the batch as the upload does: `TextureData::encodesChain` says why.
-                Misc::Result<Image, std::string_view> bc7 = Image::tryMake(use, device, data.mWidth, data.mHeight,
-                    encoded ? VK_FORMAT_BC7_SRGB_BLOCK : VK_FORMAT_BC7_UNORM_BLOCK, sUploadedTextureUsage, name,
-                    levelsTo1x1(data.mWidth, data.mHeight));
+                // **Kept as BC7 past the loose side**, encoded off a loose chain the arrival makes in
+                // its canvas: `TextureData::encodesChain` says why.
+                Misc::Result<Image, std::string_view> bc7 = Image::tryMake(use, device,
+                    ImageDescription{ .mWidth = data.mWidth,
+                        .mHeight = data.mHeight,
+                        .mFormat = encoded ? VK_FORMAT_BC7_SRGB_BLOCK : VK_FORMAT_BC7_UNORM_BLOCK,
+                        .mUsage = sUploadedTextureUsage,
+                        .mMipLevels = levelsTo1x1(data.mWidth, data.mHeight) },
+                    name);
                 if (!bc7.isOk())
                     return Misc::Err{ bc7.error() };
 
-                loose = std::move(chain.value());
+                looseChain = chain;
                 image = std::move(bc7.value());
             }
         }
@@ -248,8 +277,8 @@ namespace Rtx
         {
             const Image& held = arrival.hold(std::move(*upload));
             arrival.upload(batch, held, data.mBytes, regions);
-            if (loose.has_value())
-                arrival.chain(held, arrival.hold(std::move(*loose)), isSrgb(data.mFormat), data.mEncoding, &mImage);
+            if (looseChain.has_value())
+                arrival.encode(held, *looseChain, isSrgb(data.mFormat), data.mEncoding, mImage);
             else
                 arrival.chain(held, mImage, isSrgb(data.mFormat), data.mEncoding);
         }
@@ -280,8 +309,14 @@ namespace Rtx
         assert(!source.isEmpty());
 
         const Image& from = source.mImage;
-        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, from.getWidth(),
-            from.getHeight(), writtenAs(format), sWrittenTextureUsage, name, from.getMipLevels(), 1, sWrittenFormat);
+        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
+            ImageDescription{ .mWidth = from.getWidth(),
+                .mHeight = from.getHeight(),
+                .mFormat = writtenAs(format),
+                .mUsage = sWrittenTextureUsage,
+                .mMipLevels = from.getMipLevels(),
+                .mStorageFormat = sWrittenFormat },
+            name);
         if (!image.isOk())
             return Misc::Err{ image.error() };
 
@@ -309,7 +344,10 @@ namespace Rtx
     {
         assert(isEmpty() && "a texture stood over one that stands");
 
-        mImage = Image(device, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, sUploadedTextureUsage, name, 1);
+        mImage = Image(MemoryUse::Essential, device,
+            ImageDescription{
+                .mWidth = 1, .mHeight = 1, .mFormat = VK_FORMAT_R32G32B32A32_SFLOAT, .mUsage = sUploadedTextureUsage },
+            name);
 
         const std::array<float, 4> texel{ colour.x(), colour.y(), colour.z(), colour.w() };
         const std::array<VkBufferImageCopy, 1> regions{ wholeLevel(0, 0, VkExtent3D{ 1, 1, 1 }) };
@@ -329,8 +367,13 @@ namespace Rtx
         Crash::contract(format == TextureFormat::Bc7Srgb || format == TextureFormat::Bc7Unorm,
             "a composite described in a format its encoder does not write");
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
-        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, extent, extent,
-            toVulkanFormat(format), sUploadedTextureUsage, name, levelsTo1x1(extent, extent));
+        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
+            ImageDescription{ .mWidth = extent,
+                .mHeight = extent,
+                .mFormat = toVulkanFormat(format),
+                .mUsage = sUploadedTextureUsage,
+                .mMipLevels = levelsTo1x1(extent, extent) },
+            name);
         if (!image.isOk())
             return Misc::Err{ image.error() };
 
@@ -388,8 +431,8 @@ namespace Rtx
         , mSaidSide(mSideLimit)
         // Allocated at the maximum the layout declares, not at what this scene brought. Sizing the
         // set to the cell is what made a texture arriving mean a new set, a new pool and every
-        // image uploaded again; four thousand descriptors is a few hundred kilobytes of pool and it
-        // is paid once. `write` then only ever owes the slots that are new.
+        // image uploaded again; the maximum's pool is paid once (`sBindings`). `write` then only
+        // ever owes the slots that are new.
         , mSets(device, sBindings, layout.get(), sFrameSlots, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT)
     {
         mArrival.open(2);
@@ -539,6 +582,9 @@ namespace Rtx
         VkDeviceSize cost = 0;
         VkDeviceSize means = 0;
         VkDeviceSize largestMeans = 0;
+        VkDeviceSize loose = 0;
+        VkDeviceSize largestLoose = 0;
+        VkDeviceSize largestBlocks = 0;
         bool blocks = mCanvas.mBlocks.has_value();
         bool albedoCanvas = mCanvas.mAlbedo.has_value();
         bool glossCanvas = mCanvas.mGloss.has_value();
@@ -554,6 +600,10 @@ namespace Rtx
                         const VkDeviceSize itsMeans = spreadMeansBytes(texture, first);
                         means += itsMeans;
                         largestMeans = std::max(largestMeans, itsMeans);
+                        const EncodeCost encode = priceEncode(texture, first);
+                        loose += encode.mLoose;
+                        largestLoose = std::max(largestLoose, encode.mLoose);
+                        largestBlocks = std::max(largestBlocks, encode.mBlocks);
                     }
                     break;
 
@@ -581,11 +631,14 @@ namespace Rtx
             }
         }
 
-        // The means the spreads are built through are the arrival's room, grown once to its largest
-        // group and kept: what this arrival needs past what it holds already.
-        const VkDeviceSize needed = mArrival.meansNeeded(means, largestMeans);
-        const VkDeviceSize held = mArrival.getMeansBytes();
-        return cost + (needed > held ? needed - held : 0);
+        // The means the spreads are built through, the canvas the loose chains are made in and the
+        // blocks the encodes work through are the arrival's rooms, each grown once to its largest
+        // group and kept: what this arrival needs past what each holds already.
+        const auto past
+            = [](const VkDeviceSize needed, const VkDeviceSize held) { return needed > held ? needed - held : 0; };
+        return cost + past(mArrival.meansNeeded(means, largestMeans), mArrival.getMeansBytes())
+            + past(mArrival.looseNeeded(loose, largestLoose), mArrival.getLooseBytes())
+            + past(largestBlocks, mArrival.getBlocksBytes());
     }
 
     Misc::Result<void, std::string_view> TextureArray::make(

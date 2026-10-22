@@ -51,16 +51,25 @@ namespace Rtx
 
                 const bool encoded = isSrgb(file.mFormat);
                 const std::uint32_t levels = levelsTo1x1(file.mWidth, file.mHeight);
-                const Image chain(device, file.mWidth, file.mHeight,
-                    encoded ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                    "mip chain test chain", levels, 1, encoded ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_UNDEFINED);
+                const Image chain(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = file.mWidth,
+                        .mHeight = file.mHeight,
+                        .mFormat = encoded ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM,
+                        .mUsage
+                        = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                        .mMipLevels = levels,
+                        .mStorageFormat = encoded ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_UNDEFINED },
+                    "mip chain test chain");
 
                 Batch upload(getPool());
                 TextureArrival arrival(device);
                 arrival.open(1);
-                const Image source(device, file.mWidth, file.mHeight, stored,
-                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, name, 1);
+                const Image source(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = file.mWidth,
+                        .mHeight = file.mHeight,
+                        .mFormat = stored,
+                        .mUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT },
+                    name);
                 const std::array regions{ wholeLevel(0, 0, VkExtent3D{ file.mWidth, file.mHeight, 1 }) };
                 arrival.upload(upload, source, file.mBytes, regions);
                 arrival.chain(source, chain, encoded, file.mEncoding);

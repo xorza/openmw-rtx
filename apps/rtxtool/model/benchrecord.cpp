@@ -341,10 +341,14 @@ namespace RtxTool
 
         return std::format(
             "  host  vertices {:.2f} M used of {:.2f} M reached   indices {:.2f} M of {:.2f} M   "
-            "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n",
+            "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n"
+            "  runs  layers {}   masks {}   rig runs {}   influences {}   offsets {}   pose words {}   "
+            "bind vertices {}\n",
             content.mVerticesUsed / 1e6, content.mVertexEnd / 1e6, content.mIndicesUsed / 1e6, content.mIndexEnd / 1e6,
             Rtx::megabytes(reader.mLentBytes), reader.mLentModels, Rtx::megabytes(reader.mSpareBytes),
-            reader.mSpareModels, Rtx::megabytes(reader.mFiledBytes), reader.mFiledModels);
+            reader.mSpareModels, Rtx::megabytes(reader.mFiledBytes), reader.mFiledModels, content.mLayerEnd,
+            content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
+            content.mBindVertexEnd);
     }
 
     std::string describeHeader(const BenchHeader& header)

@@ -37,8 +37,8 @@ namespace Rtx
         constexpr VkDeviceSize sCompactionPerPlacement = 8 * 1024 * 1024;
 
         /// After one run of builds and before the next works in the same room: the structures for
-        /// whatever reads them, as `barrierAfterBuild` orders them, and the scratch and the staged
-        /// positions for the next run's build and copies, which write both again.
+        /// whatever reads them, as `barrierAfterBuild` orders them, and the scratch for the next run's
+        /// build, which writes it again.
         void barrierAfterRun(const VkCommandBuffer commands)
         {
             handOver(commands,
@@ -56,8 +56,6 @@ namespace Rtx
     BottomLevelStore::BottomLevelStore(const Device& device, const VkDeviceSize buildRoom)
         : mDevice(device)
         , mBuildRoom(buildRoom)
-        , mArrived(
-              device, BufferKind::DeviceLocal, sBuildInputUsage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "arrived positions")
         , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch")
     {
     }
@@ -96,8 +94,8 @@ namespace Rtx
     }
 
     void BottomLevelStore::build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes,
-        const BlockedBuffer& poses, const BlockedBuffer& indices, const std::uint64_t placement,
-        std::vector<Refusal>& refused)
+        const BlockedBuffer& poses, const BlockedBuffer& positions, const BlockedBuffer& indices,
+        const std::uint64_t placement, std::vector<Refusal>& refused)
     {
         const Crash::NoteScope noted("building bottom-level structures for {} meshes", meshes.size());
         const DeviceFunctions& functions = mDevice.getFunctions();
@@ -137,12 +135,14 @@ namespace Rtx
             // two can be the same run.
             retire(slot);
 
-            // A pose or an arrival's staging, and which one is what the mesh is. A deforming
+            // A pose or the scene's own vertices, and which one is what the mesh is. A deforming
             // mesh is built over what `SkinPass` wrote into the first copy ahead of this, so its
-            // structure carries the pose rather than the bind; a static one is built over the
-            // vertices its run stages, whose address is its run's and is filled in there.
-            const VkDeviceAddress vertices
-                = mesh.deforms() && !mesh.mVertices.empty() ? poses.addressOf(mesh.mBindOffset) : 0;
+            // structure carries the pose rather than the bind; a static one over the positions a
+            // hit reads its corners from, so the structure and the hit hold the same numbers. A run
+            // never straddles a block, so the address of its first vertex covers the run.
+            const VkDeviceAddress vertices = mesh.mVertices.empty()
+                ? 0
+                : (mesh.deforms() ? poses.addressOf(mesh.mBindOffset) : positions.addressOf(mesh.mVertices.mOffset));
 
             // Indices are mesh-local, so each structure is handed the slice of the shared buffers
             // that belongs to it and addresses vertex zero as its own first vertex. The addresses
@@ -156,8 +156,8 @@ namespace Rtx
             // thousands of static meshes around them do not.
             row.mUpdatable = mesh.deforms();
 
-            // ALLOW_DATA_ACCESS is what lets a shader read a hit triangle's vertices back out of
-            // the structure, which is the whole reason nothing here binds a vertex buffer.
+            // ALLOW_DATA_ACCESS is what lets a candidate's corners be fetched off the structure
+            // (`GL_EXT_ray_tracing_position_fetch`), for the test that takes or passes it.
             VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
                 | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR;
             if (mesh.deforms())
@@ -208,8 +208,6 @@ namespace Rtx
 
             mBuilding[at].mSize = sizes.accelerationStructureSize;
             mBuilding[at].mScratch = alignUp(sizes.buildScratchSize, scratchAlignment);
-            if (!mesh.deforms())
-                mBuilding[at].mPositions = VkDeviceSize{ mesh.mVertices.mCount } * sizeof(osg::Vec3f);
             wanted = alignUp(wanted + sizes.accelerationStructureSize, StructureStorage::sAlignment);
 
             // Kept so a refit of this one mesh does not have to ask the driver its size again. The
@@ -229,16 +227,13 @@ namespace Rtx
         // named once.
         mRefittable.compact();
 
-        // **In runs whose scratch and staged positions fit the build room**, each built over the room
-        // the run before used: one run over every mesh held the sum of their scratch and their
-        // positions, which on a world's build is the world's, as essential memory for as long as
-        // the scene stood. A mesh larger than the room is a run of its own, and the room is then
-        // what it needs.
+        // **In runs whose scratch fits the build room**, each built over the room the run before used:
+        // one run over every mesh held the sum of their scratch, which on a world's build is the
+        // world's, as essential memory for as long as the scene stood. A mesh larger than the room
+        // is a run of its own, and the room is then what it needs.
         mRunEnds.clear();
         VkDeviceSize runScratch = 0;
-        VkDeviceSize runPositions = 0;
         VkDeviceSize mostScratch = 0;
-        VkDeviceSize mostPositions = 0;
         bool runHolds = false;
         for (std::size_t at = 0; at < meshes.size(); ++at)
         {
@@ -246,50 +241,28 @@ namespace Rtx
             if (building.mSize == 0)
                 continue;
 
-            if (runHolds
-                && (runScratch + building.mScratch > mBuildRoom || runPositions + building.mPositions > mBuildRoom))
+            if (runHolds && runScratch + building.mScratch > mBuildRoom)
             {
                 mRunEnds.push_back(at);
                 runScratch = 0;
-                runPositions = 0;
             }
 
             building.mScratchOffset = runScratch;
-            building.mArrivedAt = runPositions;
             runScratch += building.mScratch;
-            runPositions += building.mPositions;
             runHolds = true;
             mostScratch = std::max(mostScratch, runScratch);
-            mostPositions = std::max(mostPositions, runPositions);
         }
 
         if (!runHolds)
             return;
         mRunEnds.push_back(meshes.size());
 
-        // A byte where nothing static arrived, because a buffer of nothing cannot be created.
-        mArrived.growTo(mostPositions);
         mScratch.growTo(mostScratch);
-        const VkDeviceAddress arrivedAddress = mArrived.get().addressFor();
         const VkDeviceAddress scratchAddress = mScratch.get().addressFor();
 
         std::size_t begin = 0;
         for (const std::size_t end : mRunEnds)
         {
-            // A static mesh's vertices are a build input and nothing else, so they go with the
-            // submit: a hit reads them back out of the structure through position fetch. Held for
-            // the life of the cell they were a quarter of what a world reserved.
-            bool staged = false;
-            for (std::size_t at = begin; at < end; ++at)
-                if (mBuilding[at].mPositions > 0)
-                {
-                    stageInto(batch, mArrived.get(), mBuilding[at].mArrivedAt,
-                        std::as_bytes(scene.meshes().getMeshPositions(meshes[at])));
-                    staged = true;
-                }
-            if (staged)
-                orderStagedWrites(batch);
-
             mLiveBuilds.clear();
             mBuild.mRangePointers.clear();
             for (std::size_t at = begin; at < end; ++at)
@@ -321,9 +294,6 @@ namespace Rtx
                     = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), mBuilding[at].mSize);
                 wanted -= std::min(wanted, alignUp(mBuilding[at].mSize, StructureStorage::sAlignment));
 
-                if (mBuilding[at].mPositions > 0)
-                    mBuild.mGeometries[at].geometry.triangles.vertexData.deviceAddress
-                        = arrivedAddress + mBuilding[at].mArrivedAt;
                 mBuild.mBuilds[at].dstAccelerationStructure = row.mStructure.getHandle();
                 mBuild.mBuilds[at].scratchData.deviceAddress = scratchAddress + mBuilding[at].mScratchOffset;
 

@@ -11,6 +11,8 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/shaders/shadingmap.h>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -23,14 +25,22 @@
 
 namespace Rtx
 {
-    TextureArrival::TextureArrival(const Device& device, const VkDeviceSize meansRoom)
+    TextureArrival::TextureArrival(const Device& device, const VkDeviceSize meansRoom, const VkDeviceSize looseRoom)
         : mSums(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shading sums")
         , mBlocks(device, BufferKind::DeviceLocal,
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "encoded chain blocks")
         , mMeansRoom(meansRoom)
         , mMeans(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
               "normal spread means")
+        , mDevice(device)
+        , mLooseRoom(looseRoom)
     {
+    }
+
+    TextureArrival::~TextureArrival()
+    {
+        if (mCanvas.getHandle() != VK_NULL_HANDLE)
+            mDevice.getGraveyard().bury(nullptr, 0, std::move(mCanvas));
     }
 
     VkDeviceSize TextureArrival::meansNeeded(const VkDeviceSize total, const VkDeviceSize largest) const
@@ -38,12 +48,18 @@ namespace Rtx
         return std::min(total, std::max(mMeansRoom, largest));
     }
 
+    VkDeviceSize TextureArrival::looseNeeded(const VkDeviceSize total, const VkDeviceSize largest) const
+    {
+        return std::min(total, std::max(mLooseRoom, largest));
+    }
+
     void TextureArrival::open(const std::size_t textures)
     {
-        assert(mUploads.empty() && mClears.empty() && mChains.empty() && mShades.empty() && mSpreads.empty()
-            && mBakes.empty() && mHeld.empty() && "a run opened over one nobody recorded");
+        assert(mUploads.empty() && mClears.empty() && mChains.empty() && mEncodes.empty() && mShades.empty()
+            && mSpreads.empty() && mBakes.empty() && mHeld.empty() && "a run opened over one nobody recorded");
 
-        // An upload a chain is made from, and the chain an encode is made from: two a texture at most.
+        // An upload a chain is made from, and the loose chain an encode is made from: two a texture
+        // at most.
         mHeld.reserve(2 * textures);
     }
 
@@ -79,11 +95,17 @@ namespace Rtx
         mClears.push_back(&map);
     }
 
-    void TextureArrival::chain(const Image& source, const Image& chain, const bool encoded,
-        const TextureEncoding encoding, const Image* const bc7)
+    void TextureArrival::chain(
+        const Image& source, const Image& chain, const bool encoded, const TextureEncoding encoding)
     {
-        mChains.push_back(
-            Chain{ .mSource = &source, .mChain = &chain, .mEncoded = encoded, .mEncoding = encoding, .mBc7 = bc7 });
+        mChains.push_back(Chain{ .mSource = &source, .mChain = &chain, .mEncoded = encoded, .mEncoding = encoding });
+    }
+
+    void TextureArrival::encode(const Image& source, const ImageDescription& loose, const bool encoded,
+        const TextureEncoding encoding, const Image& bc7)
+    {
+        mEncodes.push_back(
+            Encode{ .mSource = &source, .mLoose = loose, .mEncoded = encoded, .mEncoding = encoding, .mBc7 = &bc7 });
     }
 
     void TextureArrival::shade(const Image& source, const Image& map, const TextureWrap wrap)
@@ -103,15 +125,15 @@ namespace Rtx
 
     void TextureArrival::record(Batch& batch, const TexturePasses& passes)
     {
-        const bool any = !mUploads.empty() || !mClears.empty() || !mChains.empty() || !mShades.empty()
-            || !mSpreads.empty() || !mBakes.empty();
+        const bool any = !mUploads.empty() || !mClears.empty() || !mChains.empty() || !mEncodes.empty()
+            || !mShades.empty() || !mSpreads.empty() || !mBakes.empty();
         mRecordedBarriers = 0;
         if (any)
         {
             // Room for the widest barrier of the run, the one after the copies, which holds every
             // image the run writes once.
-            const std::size_t widest
-                = mUploads.size() + mClears.size() + mChains.size() + mShades.size() + mSpreads.size() + mBakes.size();
+            const std::size_t widest = mUploads.size() + mClears.size() + mChains.size() + mEncodes.size()
+                + mShades.size() + mSpreads.size() + mBakes.size();
             mImageBarriers.resize(std::max(widest, mImageBarriers.size()));
 
             const VkCommandBuffer commands = batch.getCommands();
@@ -137,6 +159,7 @@ namespace Rtx
         mUploads.clear();
         mClears.clear();
         mChains.clear();
+        mEncodes.clear();
         mShades.clear();
         mSpreads.clear();
         mBakes.clear();
@@ -202,36 +225,109 @@ namespace Rtx
                         commands, *chain.mSource, *chain.mChain, level, chain.mEncoded, chain.mEncoding);
         }
 
-        // A chain kept as BC7 is read by the encode next, as storage, and never sampled.
         for (const Chain& chain : mChains)
-            chain.mChain->addTransition(
-                barriers, Use::sComputeReadWrite, chain.mBc7 != nullptr ? Use::sComputeRead : Use::sTextureSample);
+            chain.mChain->addTransition(barriers, Use::sComputeReadWrite, Use::sTextureSample);
     }
 
     void TextureArrival::recordEncodes(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)
     {
-        VkDeviceSize largest = 0;
-        for (const Chain& chain : mChains)
-            if (chain.mBc7 != nullptr)
-                largest = std::max(largest,
-                    Bc7Chain::of(chain.mChain->getWidth(), chain.mChain->getHeight(), chain.mChain->getMipLevels())
-                        .mBytes);
-        if (largest == 0)
+        if (mEncodes.empty())
             return;
 
-        mBlocks.outgrow(largest);
-        barriers.flush();
-
-        // One encode after another through one room, each handing it to the next once its copy has
-        // read it, as the ground's composite does: only a file past `sLargestLooseChainSide` with no
-        // levels of its own comes here, which a run holds few of.
-        for (const Chain& chain : mChains)
+        // **In groups whose loose chains fit the room**, each made over the canvas the group before
+        // worked in, in the order the files came, side by side inside a group on each chain's own
+        // alignment. A chain past the room is a group of its own. The canvas is grown to the largest
+        // group and kept, and what an arrival is priced at is `looseNeeded`.
+        mLooseAt.clear();
+        mLooseGroupEnds.clear();
+        VkDeviceSize group = 0;
+        VkDeviceSize largestGroup = 0;
+        VkDeviceSize alignment = 1;
+        std::uint32_t types = ~0u;
+        VkDeviceSize largestBlocks = 0;
+        for (std::size_t at = 0; at < mEncodes.size(); ++at)
         {
-            if (chain.mBc7 == nullptr)
-                continue;
+            const VkMemoryRequirements asked = Image::requirementsFor(mDevice, mEncodes[at].mLoose);
+            alignment = std::max(alignment, asked.alignment);
+            types &= asked.memoryTypeBits;
 
-            passes.mEncode.record(commands, *chain.mChain, mBlocks.get(), *chain.mBc7, true);
-            handOver(commands, Use::sBufferCopyRead, Use::sBufferComputeWrite);
+            VkDeviceSize offset = alignUp(group, asked.alignment);
+            if (group > 0 && offset + asked.size > mLooseRoom)
+            {
+                mLooseGroupEnds.push_back(at);
+                offset = 0;
+            }
+            mLooseAt.push_back(offset);
+            group = offset + asked.size;
+            largestGroup = std::max(largestGroup, group);
+
+            const ImageDescription& loose = mEncodes[at].mLoose;
+            largestBlocks = std::max(largestBlocks, Bc7Chain::of(loose.mWidth, loose.mHeight, loose.mMipLevels).mBytes);
+        }
+        mLooseGroupEnds.push_back(mEncodes.size());
+
+        // Made again only where the groups outgrew it or it cannot hold these chains: the old buried
+        // under the next submit, after every chain made in it, which went with their batches.
+        if (largestGroup > mCanvasBytes || alignment > mCanvasAlignment || (types & mCanvasTypes) != mCanvasTypes)
+        {
+            if (mCanvas.getHandle() != VK_NULL_HANDLE)
+                mDevice.getGraveyard().bury(nullptr, 0, std::move(mCanvas));
+            mCanvasBytes = std::max(largestGroup, mCanvasBytes);
+            mCanvasAlignment = std::max(alignment, mCanvasAlignment);
+            mCanvasTypes = types;
+            mCanvas = mDevice.getMemory().take(
+                VkMemoryRequirements{ .size = mCanvasBytes, .alignment = mCanvasAlignment, .memoryTypeBits = types },
+                MemoryUse::Essential);
+        }
+
+        mBlocks.outgrow(largestBlocks);
+
+        std::size_t begin = 0;
+        for (const std::size_t end : mLooseGroupEnds)
+        {
+            // Every loose chain of the group, made in the canvas and laid out from what any chain
+            // before it wrote there and its encodes read: the group before, or a run recorded into
+            // the same batch before this one.
+            const std::size_t first = mHeld.size();
+            for (std::size_t at = begin; at < end; ++at)
+                hold(Image(mDevice, mEncodes[at].mLoose, mCanvas, mLooseAt[at], "loose chain"));
+            for (std::size_t at = begin; at < end; ++at)
+                mHeld[first + at - begin].addTransition(barriers, Use::sAliased, Use::sComputeReadWrite);
+
+            std::uint32_t deepest = 0;
+            for (std::size_t at = begin; at < end; ++at)
+                deepest = std::max(deepest, mEncodes[at].mLoose.mMipLevels);
+
+            for (std::uint32_t level = 0; level < deepest; ++level)
+            {
+                if (level > 0)
+                    for (std::size_t at = begin; at < end; ++at)
+                        if (level < mEncodes[at].mLoose.mMipLevels)
+                            mHeld[first + at - begin].addTransition(
+                                barriers, Use::sComputeReadWrite, Use::sComputeReadWrite);
+                barriers.flush();
+
+                for (std::size_t at = begin; at < end; ++at)
+                {
+                    const Encode& encode = mEncodes[at];
+                    if (level < encode.mLoose.mMipLevels)
+                        passes.mChain.recordLevel(commands, *encode.mSource, mHeld[first + at - begin], level,
+                            encode.mEncoded, encode.mEncoding);
+                }
+            }
+
+            // Read by the encode, as storage, and never sampled. One encode after another through
+            // one room of blocks, each handing it to the next once its copy has read it, as the
+            // ground's composite does.
+            for (std::size_t at = begin; at < end; ++at)
+                mHeld[first + at - begin].addTransition(barriers, Use::sComputeReadWrite, Use::sComputeRead);
+            barriers.flush();
+            for (std::size_t at = begin; at < end; ++at)
+            {
+                passes.mEncode.record(commands, mHeld[first + at - begin], mBlocks.get(), *mEncodes[at].mBc7, true);
+                handOver(commands, Use::sBufferCopyRead, Use::sBufferComputeWrite);
+            }
+            begin = end;
         }
     }
 

@@ -29,8 +29,8 @@ namespace Rtx
     class SceneDesc;
 
     /// The tables a shader reads at a hit: the attributes, and the mesh, instance and material
-    /// tables to find them through. Position fetch covers a normal; nothing covers a texture
-    /// coordinate.
+    /// tables to find them through, and the static positions a hit reads its corners from, which the
+    /// static structures are built over.
     class SceneBuffers
     {
     public:
@@ -76,13 +76,16 @@ namespace Rtx
         /// there, beside the sea's, and only the lists it made are tables.
         const LightGrid& getLightGrid() const { return mLightGrid; }
 
-        /// A deforming mesh's normals, for the pass that writes its pose into a slot's copy of them.
+        /// The static meshes' positions, which their structures are built over and their hits read.
+        const BlockedBuffer& getPositions() const { return mPositions; }
+
+        /// A deforming mesh's normals, for the pass that writes its pose into them.
         /// Their account is not what drives that pass — the positions' is, and one dispatch writes
         /// both — so nothing here is owed by a pose.
-        SlotBlocks& getPosedNormals() { return mNormals.getOwn(); }
+        BlockedBuffer& getPosedNormals() { return mNormals.getOwn().at(FrameSlot{}); }
 
         /// Its tangents, which the same dispatch poses beside the normals.
-        SlotBlocks& getPosedTangents() { return mTangents.getOwn(); }
+        BlockedBuffer& getPosedTangents() { return mTangents.getOwn().at(FrameSlot{}); }
 
         /// Where every table this owns is, for the frame's block: those of `GpuTables` that are
         /// the scene's, with `slot`'s copy wherever a table has one per frame in flight. Addresses
@@ -132,14 +135,21 @@ namespace Rtx
         };
 
         /// Reserves room for the scene's attributes, copies in the runs `meshes` names — a deforming
-        /// mesh's normals into every posed copy — and writes their rows of the mesh table, which
-        /// every copy then owes.
-        /// Per mesh and not per scene, because that is what an arrival is. Nothing is ordered here.
+        /// mesh's normals into the posed blocks — and stages their rows of the mesh table. Per mesh
+        /// and not per scene, because that is what an arrival is. Nothing is ordered here.
         void writeMeshes(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes);
 
-        /// Stages the layer and mask runs that arrived — or a table whole where it had to be made
-        /// again to hold them. Nothing is ordered here.
-        void writeMaterialRuns(Batch& batch, const SceneDesc& scene);
+        /// Which runs `writeMaterialRuns` stages: every one, for a table a scene is made with, or what
+        /// arrived since the last clear.
+        enum class Runs : std::uint8_t
+        {
+            Whole,
+            Arrived,
+        };
+
+        /// Stages the layer and mask runs `runs` names, a table grown past its room first by a copy of
+        /// what it holds. What it stages is not ordered here.
+        void writeMaterialRuns(Batch& batch, const SceneDesc& scene, Runs runs);
 
         /// Writes the material rows `slot`'s copy owes.
         void shade(const SceneDesc& scene, FrameSlot slot);
@@ -158,16 +168,18 @@ namespace Rtx
         BlockedBuffer mPositions{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
 
         /// A material's layers and the weights a layer places, one copy each for the same reason.
-        /// Plain buffers grown by doubling, because a shader reaches a run by its offset from one
-        /// address; the masks are megabytes, which is what a copy per frame in flight cost.
+        /// Plain buffers made at the scene's room and grown by doubling past it, keeping what they
+        /// hold, because a shader reaches a run by its offset from one address; the masks are
+        /// megabytes, which is what a copy per frame in flight cost.
         GrowableBuffer mLayers;
         GrowableBuffer mMasks;
 
-        /// One row a mesh slot, so a hit can turn its slot into offsets into the tables above. A copy
-        /// per frame in flight with its rows owed, because a slot handed out again holds another
-        /// mesh's offsets in the same row, which the frame behind — still tracing the mesh that was
-        /// there — must not read; and an arrival writes its own rows and no other.
-        SlotTable<Shaders::GpuMesh> mMeshTable;
+        /// One row a mesh slot, so a hit can turn its slot into offsets into the tables above. **One
+        /// copy, written on the queue**, as the layers are: a row changes only where a mesh arrives,
+        /// and a slot handed out again has its row staged behind the frame in flight that still
+        /// traces the mesh that was there. `mMeshRows` is what it is staged from, whole where it grew.
+        GrowableBuffer mMeshTable;
+        std::vector<Shaders::GpuMesh> mMeshRows;
 
         // Host-visible and rewritten from `place`, not uploaded once.
         PerSlot<Tables> mTables;
@@ -189,11 +201,12 @@ namespace Rtx
         /// a row after it — `Shaders::MATERIAL_ROW_FIRST`.
         SlotTable<Shaders::GpuMaterial> mMaterialTable;
 
-        /// A standing mesh's normals in the blocks every slot shares, by its vertex offset, and a
-        /// deforming mesh's in each slot's own, by its bind offset as its pose is
-        /// (`MeshRange::mBindOffset`): `SkinPass` poses them every frame into the copy the frame
-        /// traces, and an arrival writes its bind normals into every copy, so a copy the pass has
-        /// not reached holds what a hit can read.
+        /// A standing mesh's normals in the shared blocks, by its vertex offset, and a deforming
+        /// mesh's in the posed blocks, by its bind offset as its pose is (`MeshRange::mBindOffset`):
+        /// `SkinPass` poses them as it poses the body, and an arrival writes its bind normals first,
+        /// so a body the pass has not reached holds what a hit can read. **One posed copy and not one
+        /// a frame in flight**: no frame reads another's normals, as it reads the poses for motion,
+        /// and the pass writes them on the queue behind every frame that read the last.
         JoinedBlocks mNormals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f), Shaders::POSED_FIRST_BLOCK };
 
         /// `Rtx::packTangent`'s words, kept as the normals are.

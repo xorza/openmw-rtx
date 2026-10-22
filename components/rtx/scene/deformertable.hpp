@@ -12,6 +12,7 @@
 #include <components/rtx/shaders/skinning.h>
 
 #include "mesh.hpp"
+#include "sceneroom.hpp"
 
 namespace Rtx
 {
@@ -131,6 +132,15 @@ namespace Rtx
         Deform kindOf(const MeshRange& mesh) const
         {
             return mesh.deforms() ? rowAt(mesh.mDeformer).mKind : Deform::None;
+        }
+
+        /// Holds the runs' tables at `room`, so no arrival up to it moves them.
+        void reserve(const SceneRoom& room)
+        {
+            mRuns.reserve(room.mRigRuns);
+            mInfluences.reserve(room.mInfluences);
+            mOffsets.reserve(room.mOffsets);
+            mPoses.reserve(room.mPoseWords);
         }
 
         std::span<const std::uint32_t> getRuns() const { return mRuns.getAll(); }

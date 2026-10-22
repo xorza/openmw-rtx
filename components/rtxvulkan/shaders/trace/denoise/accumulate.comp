@@ -100,6 +100,10 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_FILL_BLENDED_OUT, ATROUS_CHANNE
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FAST, ACCUMULATE_FAST) uniform readonly uimage2D historyFast;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_OUT, ACCUMULATE_FAST) uniform writeonly uimage2D fastOut;
 
+/// Which of the pixel's four history taps are its surface (`ACCUMULATE_MATCH`): none where there is
+/// no surface or no history, which no reader of it gathers from.
+layout(set = SET_PASS, binding = ACCUMULATE_BIND_MATCH_OUT, ACCUMULATE_MATCH) uniform writeonly uimage2D matchOut;
+
 layout(push_constant, scalar) uniform Push
 {
     AccumulateConstants frame;
@@ -222,6 +226,7 @@ void main()
         RTX_STORE_COUNTED(fillBlendedOut, stored, skyFill)
         RTX_STORE_COUNTED(momentsOut, stored, vec4(0.0))
         RTX_STORE_WORDS(fastOut, stored, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u))
+        RTX_STORE_WORDS(matchOut, stored, uvec4(0u))
 
         return;
     }
@@ -235,6 +240,7 @@ void main()
     const HistoryFootprint before = historyFootprint(at, moved);
 
     Held held = Held(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec2(0.0), 0.0, 0.0);
+    uint matched = 0u;
     if (frame.mHistory.mReset == 0u)
     {
         const HistoryPlane plane = historyPlane(frame.mHistory, at, seen, moved);
@@ -243,6 +249,7 @@ void main()
             = historyFieldsOf(at, motionHere, frame.mHistory.mFrame, frame.mHistory.mPreviousFrame);
         RTX_HISTORY_SHARES(shares, before, extent, fields, historySurface, true, plane)
         gatherHistory(held, before, shares, fields);
+        matched = historyMatchOf(shares);
 
         // **Where the surface was hidden and not off the screen**, the history along the occluder's
         // motion (`occluderMotion`). A branch, which only the pixels an occluder uncovered take:
@@ -265,6 +272,8 @@ void main()
             }
         }
     }
+
+    RTX_STORE_WORDS(matchOut, stored, uvec4(matched, 0u, 0u, 0u))
 
     vec3 mean = held.mMean;
     vec3 meanFill = held.mMeanFill;

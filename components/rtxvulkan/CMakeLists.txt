@@ -224,6 +224,7 @@ set(RTX_SHADER_LIB
     shaders/lib/spritelist.glsl
     shaders/lib/sprites.glsl
     shaders/lib/stage.glsl
+    shaders/lib/stagerecord.glsl
     shaders/lib/starfield.glsl
     shaders/lib/surfacematch.glsl
     shaders/lib/texturearray.glsl
@@ -281,6 +282,8 @@ set(RTX_VULKAN_FILES
     device/memory/growablebuffer.hpp
     device/memory/image.cpp
     device/memory/image.hpp
+    device/memory/imagearena.cpp
+    device/memory/imagearena.hpp
     device/memory/imageuse.hpp
     device/memory/joinedblocks.cpp
     device/memory/joinedblocks.hpp
@@ -458,6 +461,7 @@ set(RTX_VULKAN_FILES
     trace/denoise/temporalturns.hpp
     trace/fogvolume.cpp
     trace/fogvolume.hpp
+    trace/framestep.hpp
     trace/gbuffer.cpp
     trace/gbuffer.hpp
     trace/ripplepass.cpp
@@ -476,6 +480,8 @@ set(RTX_VULKAN_FILES
     trace/tracepasses.hpp
     trace/tracepast.hpp
     trace/tracerecording.hpp
+    trace/tuplequeue.cpp
+    trace/tuplequeue.hpp
     trace/visibilitypass.cpp
     trace/visibilitypass.hpp
     trace/wavepass.cpp

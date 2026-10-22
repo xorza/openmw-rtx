@@ -51,7 +51,7 @@ namespace Rtx
         /// the queue.
         TEST_F(RtxFrameRingTest, theSlotHandedOutForRecordingIsNotOneAFrameInFlightHolds)
         {
-            FrameRing ring(getDevice(), true);
+            FrameRing ring(getDevice(), true, false);
 
             // Filled to the brim: nothing collects, so every frame stays in flight, exactly as
             // a watched window (`view`) leaves the ring.
@@ -95,7 +95,7 @@ namespace Rtx
             // The device's graveyard is shared with every test before this one and with what the
             // ring made, so it is emptied after both: the counts below are of this test's burials
             // alone.
-            FrameRing ring(getDevice(), true);
+            FrameRing ring(getDevice(), true, false);
             Graveyard& graveyard = getDevice().getGraveyard();
             getDevice().waitIdle();
             getDevice().collectIdle();
@@ -135,7 +135,12 @@ namespace Rtx
 
             // An image is its view, and then its handle with its memory.
             {
-                const Image dropped(getDevice(), 4, 4, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "test");
+                const Image dropped(MemoryUse::Essential, getDevice(),
+                    ImageDescription{ .mWidth = 4,
+                        .mHeight = 4,
+                        .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                        .mUsage = VK_IMAGE_USAGE_SAMPLED_BIT },
+                    "test");
             }
             EXPECT_EQ(graveyard.getHeldCount(), 2u);
             submitEmpty(ring);
@@ -150,7 +155,7 @@ namespace Rtx
         TEST_F(RtxFrameRingTest, aPictureStandsPastTheFrameThatTakesItsSlot)
         {
             const Device& device = getDevice();
-            FrameRing ring(device, true);
+            FrameRing ring(device, true, false);
 
             constexpr std::array<std::uint8_t, 4> picture{ 1, 2, 3, 4 };
             constexpr std::array<std::uint8_t, 4> other{ 5, 6, 7, 8 };
@@ -159,8 +164,12 @@ namespace Rtx
             // picture. Each channel is cleared to `byte / 255`, which the format rounds back to
             // the byte exactly.
             const auto leave = [&](FrameRecord& frame, const std::span<const std::uint8_t> bytes) {
-                const Image target(device, 1, 1, VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                const Image target(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = 1,
+                        .mHeight = 1,
+                        .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                        .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT },
                     "test target");
                 const VkClearColorValue colour{ .float32
                     = { bytes[0] / 255.0f, bytes[1] / 255.0f, bytes[2] / 255.0f, bytes[3] / 255.0f } };
@@ -215,7 +224,7 @@ namespace Rtx
 
             for (const bool traced : { true, false })
             {
-                FrameRing ring(getDevice(), true);
+                FrameRing ring(getDevice(), true, false);
                 FrameRecord& frame = ring.begin();
                 EXPECT_THROW(
                     {
@@ -244,7 +253,7 @@ namespace Rtx
         /// after three of them is the one report, under the number it was submitted with.
         TEST_F(RtxFrameRingTest, aSkippedFrameClosesAndComesBackWithNoReport)
         {
-            FrameRing ring(getDevice(), true);
+            FrameRing ring(getDevice(), true, false);
 
             constexpr std::uint64_t skipped = 3;
             for (std::uint64_t at = 0; at < skipped; ++at)

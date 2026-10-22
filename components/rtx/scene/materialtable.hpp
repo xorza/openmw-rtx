@@ -9,6 +9,7 @@
 #include <components/rtx/common/slots.hpp>
 
 #include "material.hpp"
+#include "sceneroom.hpp"
 #include "texturetable.hpp"
 
 namespace Rtx
@@ -36,12 +37,14 @@ namespace Rtx
     class MaterialTable : public HeldRows<Material>
     {
     public:
-        /// Room for `count` materials in the rows and the set of those written, so no arrival up to
-        /// it moves a row.
-        void reserve(std::size_t count)
+        /// Room for `room`'s materials, in the rows and the set of those written, and for its layers
+        /// and masks, so no arrival up to it moves a row or a run.
+        void reserve(const SceneRoom& room)
         {
-            reserveRows(count);
-            mWritten.reserve(count);
+            reserveRows(room.mMaterials);
+            mWritten.reserve(room.mMaterials);
+            mLayers.reserve(room.mLayers);
+            mMasks.reserve(room.mMasks);
         }
 
         /// Copies `weights` into the shared mask table and returns where they landed. One float per

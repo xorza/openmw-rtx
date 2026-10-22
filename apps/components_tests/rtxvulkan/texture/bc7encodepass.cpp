@@ -88,14 +88,29 @@ namespace Rtx
                 Device& device = getDevice();
                 const Bc7EncodePass pass(device);
 
-                const Image source(device, sWidth, sHeight, VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, "bc7 source", levels);
-                const Image target(device, sWidth, sHeight, VK_FORMAT_BC7_UNORM_BLOCK,
-                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                    "bc7 target", levels);
-                const Image decoded(device, sWidth, sHeight, VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                    "bc7 decoded", levels);
+                const Image source(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = sWidth,
+                        .mHeight = sHeight,
+                        .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                        .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                        .mMipLevels = levels },
+                    "bc7 source");
+                const Image target(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = sWidth,
+                        .mHeight = sHeight,
+                        .mFormat = VK_FORMAT_BC7_UNORM_BLOCK,
+                        .mUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                            | VK_IMAGE_USAGE_SAMPLED_BIT,
+                        .mMipLevels = levels },
+                    "bc7 target");
+                const Image decoded(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = sWidth,
+                        .mHeight = sHeight,
+                        .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                        .mUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                            | VK_IMAGE_USAGE_SAMPLED_BIT,
+                        .mMipLevels = levels },
+                    "bc7 decoded");
 
                 const Bc7Chain chain = Bc7Chain::of(sWidth, sHeight, levels);
                 const Buffer blocks = Buffer::deviceLocal(device, chain.mBytes,

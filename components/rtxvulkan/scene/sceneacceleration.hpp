@@ -59,9 +59,11 @@ namespace Rtx
         /// `scene` must place at least one instance: a top-level structure over nothing has no
         /// instance buffer to be built from. A mesh the device has no room for is left out and
         /// appended to `refused` — `BottomLevelStore::build`. `pack` packs the rows the top level
-        /// is built over, as on every placement.
+        /// is built over, as on every placement. `positions` are the scene's static vertices, which
+        /// `SceneBuffers` staged into the batch ahead of this and a static structure is built over.
         void build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-            std::span<const InstanceRecord> records, const TopLevelPackPass& pack, std::vector<Refusal>& refused);
+            std::span<const InstanceRecord> records, const BlockedBuffer& positions, const TopLevelPackPass& pack,
+            std::vector<Refusal>& refused);
 
         /// Rebuilds what a moved world changed: every deformed mesh's structure, then the top level,
         /// in one command buffer with a barrier between — two `submitAndWait`s were a round trip
@@ -89,14 +91,15 @@ namespace Rtx
         /// holds; `check` under synchronization validation is what says so.
         void extend(Batch& batch, const SceneDesc& scene);
 
-        /// Builds the structures of the meshes that arrived, over the first copy of the positions
-        /// as `extend` and the pass left it. A mesh the device has no room for is left out and
-        /// appended to `refused`, as `build` does.
+        /// Builds the structures of the meshes that arrived: a body's over the first copy of the poses
+        /// as `extend` and the pass left it, a static mesh's over `positions`, as `build` takes them.
+        /// A mesh the device has no room for is left out and appended to `refused`, as `build` does.
         ///
         /// @param timer the frame the arrival lands in, so its builds are one zone of that frame's
         ///        report rather than device time nothing accounts for. Null for a picture inside the
         ///        interface, which is not timed — `VulkanRenderer::placeScene` says why.
-        void buildArrived(Batch& batch, const SceneDesc& scene, GpuTimer* timer, std::vector<Refusal>& refused);
+        void buildArrived(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions, GpuTimer* timer,
+            std::vector<Refusal>& refused);
 
         /// Destroys the structures of `meshes` and gives their storage back.
         void release(std::span<const Index> meshes) { mBottomLevel.release(meshes); }
@@ -204,8 +207,8 @@ namespace Rtx
         /// Every deforming mesh's vertices as the frame tracing them sees them: what `SkinPass`
         /// writes into every copy on arrival, and afterwards every frame a body moves. Indexed by
         /// `MeshRange::mBindOffset`, so the table is as long as the bodies rather than the cell — a
-        /// static mesh's vertices are a build input `BottomLevelStore::build` stages, and kept for
-        /// its hits by `SceneBuffers`. Blocked, so a scene that grows keeps the poses it was already
+        /// static mesh's vertices are `SceneBuffers`', which its structure is built over and its hits
+        /// read. Blocked, so a scene that grows keeps the poses it was already
         /// given: a pose is on the device and nowhere else. A hit on a body reads its triangle's
         /// corners out of the copy this frame traces, which its structure was refitted over
         /// (`trianglePositions`), and where it stood on the previous frame out of the other —
@@ -253,10 +256,15 @@ namespace Rtx
         /// The copy the next `recordTopLevel` packs and builds from, which `prepareTopLevel` paid.
         FrameSlot mPrepared;
 
-        /// One copy per frame in flight, as the rows are: the blocks' first places the host writes
-        /// for a packing, and the packed rows a build reads.
+        /// The blocks' first places the host writes for a packing: one copy per frame in flight, as
+        /// the rows are, since the host writes them while the frame behind may read its own.
         PerSlot<GrowableBuffer> mStarts;
-        PerSlot<GrowableBuffer> mPacked;
+
+        /// The packed rows a build reads: **one copy**, since the pack writes it and the build reads
+        /// it on the queue, in the same command buffer, and the barrier every command buffer opens
+        /// with orders a packing after the last frame's build. A second packing in one buffer waits
+        /// for the build before it (`barrierAfterBuild`). Grown by a replacement the graveyard keeps.
+        GrowableBuffer mPacked;
 
         BottomLevelStore mBottomLevel;
 

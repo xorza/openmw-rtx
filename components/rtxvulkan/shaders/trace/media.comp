@@ -41,7 +41,8 @@ layout(local_size_x = TRACE_WORKGROUP_WIDTH, local_size_y = TRACE_WORKGROUP_HEIG
 void main()
 {
     uvec2 pixel;
-    if (!stagePixelIn(listedTile(STAGE_LIST_MEDIA, gl_WorkGroupID.x), pixel))
+    uvec2 tile;
+    if (!listedTileOf(STAGE_LIST_MEDIA, tile) || !stagePixelIn(tile, pixel))
         return;
 
     const uint width = frame.mEyes.mWorld.mWidth;

@@ -84,8 +84,9 @@ namespace Rtx
                 requestRequiredFeatures(mFeatures);
 
                 // What every card of the targets reports, and a case below takes out again.
-                mProperties.mVulkan11.subgroupSupportedOperations
-                    = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT;
+                mProperties.mVulkan11.subgroupSupportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT
+                    | VK_SUBGROUP_FEATURE_QUAD_BIT | VK_SUBGROUP_FEATURE_BALLOT_BIT
+                    | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
                 mProperties.mVulkan11.subgroupSupportedStages = VK_SHADER_STAGE_COMPUTE_BIT;
                 mProperties.mVulkan13.minSubgroupSize = 32;
                 mProperties.mVulkan13.maxSubgroupSize = 32;
@@ -290,6 +291,17 @@ namespace Rtx
                 Card basic(&describeTuring);
                 basic.mProperties.mVulkan11.subgroupSupportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT;
                 EXPECT_EQ(basic.profile().mObstacle, "no quad subgroup operations in compute shaders");
+
+                // Each of the other two the stages lean on, missing alone.
+                Card noBallot(&describeTuring);
+                noBallot.mProperties.mVulkan11.subgroupSupportedOperations
+                    &= ~VkSubgroupFeatureFlags{ VK_SUBGROUP_FEATURE_BALLOT_BIT };
+                EXPECT_EQ(noBallot.profile().mObstacle, "no ballot subgroup operations in compute shaders");
+
+                Card noArithmetic(&describeTuring);
+                noArithmetic.mProperties.mVulkan11.subgroupSupportedOperations
+                    &= ~VkSubgroupFeatureFlags{ VK_SUBGROUP_FEATURE_ARITHMETIC_BIT };
+                EXPECT_EQ(noArithmetic.profile().mObstacle, "no arithmetic subgroup operations in compute shaders");
             }
             {
                 // Subgroups of eight to sixteen lanes, and of 32 a compute stage cannot ask for.

@@ -43,10 +43,10 @@ namespace Rtx
             DeviceMemory mMemory;
         };
 
-        /// A buffer's room as `use`, in memory that is `properties`, bound — or nothing where the
-        /// allocator had none, which it says in the one way it says it.
-        std::optional<Bound> tryBind(
-            const Device& device, const VkDeviceSize size, const VkMemoryPropertyFlags properties, const MemoryUse use)
+        /// A buffer's room as `use`, in memory that is `properties`, at `alignment` at least, bound —
+        /// or nothing where the allocator had none, which it says in the one way it says it.
+        std::optional<Bound> tryBind(const Device& device, const VkDeviceSize size,
+            const VkMemoryPropertyFlags properties, const MemoryUse use, const VkDeviceSize alignment = 1)
         {
             const VkBufferCreateInfo create{
                 .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -62,7 +62,7 @@ namespace Rtx
             Bound bound;
             bound.mBuffer = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
             Misc::Result<DeviceMemory, std::string_view> memory
-                = device.getMemory().tryTake(bound.mBuffer.get(), properties, 1, use);
+                = device.getMemory().tryTake(bound.mBuffer.get(), properties, alignment, use);
             if (!memory.isOk())
             {
                 EXPECT_EQ(memory.error(), "no device memory is left for it");
@@ -162,6 +162,59 @@ namespace Rtx
             EXPECT_EQ(second.mMemory.getHandle(), handle) << "the range came from a different allocation";
             EXPECT_EQ(second.mMemory.getOffset(), offset) << "the range that was given back was not taken over";
             EXPECT_EQ(memory.getBlockCount(), after) << "taking over a hole made a new allocation";
+        }
+
+        /// A buffer starts where its use owes, past the driver's alignment, out of either path; and
+        /// buffers alone sit closer together than the device's buffer-image granularity.
+        ///
+        /// **The library is told a buffer is a buffer** (`vmaAllocateMemoryForBuffer`), so it keeps
+        /// the granularity only where an image is a neighbour. Asked as a resource of no known kind, it
+        /// kept a kilobyte between every two buffers on this card.
+        TEST_F(RtxMemoryTest, aBufferStartsWhereItsUseOwesAndBuffersPackPastTheGranularity)
+        {
+            const Device& device = getDevice();
+            constexpr VkDeviceSize sOwed = 4096;
+            constexpr VkDeviceSize sSmall = 64;
+
+            for (const MemoryUse use : { MemoryUse::Essential, MemoryUse::Structure })
+            {
+                std::vector<Bound> held;
+                for (int at = 0; at < 16; ++at)
+                {
+                    std::optional<Bound> bound
+                        = tryBind(device, sSmall, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use, sOwed);
+                    ASSERT_TRUE(bound.has_value());
+                    EXPECT_EQ(bound->mMemory.getOffset() % sOwed, 0u)
+                        << "a buffer started off the alignment its use owes, as use " << static_cast<int>(use);
+                    held.push_back(std::move(*bound));
+                }
+            }
+
+            // The other side: at the driver's own alignment, which is finer than a page, sixty-four
+            // small buffers pack. At least two consecutive ones in one block stand closer than the
+            // granularity, where it is coarser than a buffer is long; where it is not, nothing
+            // tells a buffer from a resource of no known kind.
+            const VkDeviceSize granularity
+                = device.getPhysicalDevice().getProperties().mProperties2.properties.limits.bufferImageGranularity;
+            std::vector<Bound> packed;
+            for (int at = 0; at < 64; ++at)
+                packed.push_back(bind(device, sSmall, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
+
+            std::vector<std::pair<VkDeviceMemory, VkDeviceSize>> places;
+            for (const Bound& bound : packed)
+                places.emplace_back(bound.mMemory.getHandle(), bound.mMemory.getOffset());
+            std::sort(places.begin(), places.end());
+
+            VkDeviceSize closest = ~VkDeviceSize{ 0 };
+            for (std::size_t at = 1; at < places.size(); ++at)
+                if (places[at].first == places[at - 1].first)
+                    closest = std::min(closest, places[at].second - places[at - 1].second);
+
+            if (granularity > sSmall)
+            {
+                EXPECT_LT(closest, granularity) << "buffers alone were kept a granularity apart";
+            }
+            EXPECT_GE(closest, sSmall) << "two buffers overlap";
         }
 
         /// Two host-visible ranges are two windows on one mapping, and neither reaches the other.

@@ -35,6 +35,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -792,9 +793,15 @@ namespace Rtx::Testing
         }
 
     private:
+        /// The frame's light as the curve maps it, the puffs over it, where nothing upscales; and the
+        /// trace's own answer where something does, which a test of the upscaler holds the
+        /// reconstruction to.
         void readFrame(std::uint32_t size, Frame& frame)
         {
-            mRenderer.readComposite(frame.mRadiance);
+            if (upscales(mRenderer.getProfile().mUpscale))
+                mRenderer.readComposite(frame.mRadiance);
+            else
+                mRenderer.readShownRadiance(frame.mRadiance);
             requireFrame(frame.mRadiance, size);
         }
 

@@ -74,7 +74,7 @@ struct Crossing
 /// The crossing a candidate names.
 ///
 /// @param coneWidth how wide the ray's cone is at the crossing, which picks the texel's level.
-Crossing crossingOf(Candidate candidate, vec3 direction, float coneWidth)
+Crossing crossingOf(Candidate candidate, TriangleEdges edges, vec3 direction, float coneWidth)
 {
     Crossing crossing;
     crossing.mInstance = instanceAt(candidate.mInstance);
@@ -82,7 +82,7 @@ Crossing crossingOf(Candidate candidate, vec3 direction, float coneWidth)
     const GpuMesh mesh = meshAt(crossing.mInstance.mMesh);
     crossing.mCorner = triangleCorners(mesh, candidate.mPrimitive);
     crossing.mBary = candidate.mBary;
-    crossing.mCone = surfaceConeAt(candidate.mEdges, direction);
+    crossing.mCone = surfaceConeAt(edges, direction);
     crossing.mConeWidth = coneWidth;
 
     const TexturePoint point = candidatePoint(
@@ -198,7 +198,9 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
             continue;
 
-        RTX_READ_CANDIDATE(query, candidate, corners)
+        RTX_READ_CANDIDATE(query, candidate)
+        TriangleEdges edges;
+        RTX_READ_CANDIDATE_EDGES(query, edges)
 
         // **A class the camera does not draw is not there**, as `candidateStops` says of a medium
         // the shadow ray walks past: the walk's own mask says only medium or additive.
@@ -206,9 +208,9 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
             continue;
 
         const float at = candidate.mAt;
-        const vec3 crossed = cross(candidate.mEdges.mFirst, candidate.mEdges.mSecond);
+        const vec3 crossed = cross(edges.mFirst, edges.mSecond);
 
-        const Crossing crossing = crossingOf(candidate, direction, cone.mWidth + cone.mSpread * at);
+        const Crossing crossing = crossingOf(candidate, edges, direction, cone.mWidth + cone.mSpread * at);
         const GpuMaterial material = crossing.mMaterial;
         const vec4 texel = crossing.mTexel;
 

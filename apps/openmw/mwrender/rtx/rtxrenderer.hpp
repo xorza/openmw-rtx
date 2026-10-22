@@ -187,6 +187,7 @@ namespace MWRender
 
         /// A present mode: off is mailbox rather than immediate, and adaptive is relaxed FIFO.
         void setVSync(SDLUtil::VSyncMode mode) noexcept override;
+        void awaitPresented() noexcept override;
         const RenderSupport& support() const noexcept override;
 
         std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(float scalingFactor,

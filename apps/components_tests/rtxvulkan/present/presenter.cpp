@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -14,6 +15,8 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
 #include <components/rtxvulkan/present/presenter.hpp>
@@ -73,7 +76,7 @@ namespace Rtx
                         [&](VkPhysicalDevice physical, std::uint32_t family) {
                             return mSurface->supports(physical, family);
                         }),
-                    Testing::getCensusShaders(), Testing::getPipelineCacheSpec());
+                    Testing::getCensusShaders(), Testing::getPipelineCacheSpec(), PipelineStatistics::Skipped);
             }
 
             void TearDown() override
@@ -108,7 +111,8 @@ namespace Rtx
             PresentTarget target;
             target.resize(*mDevice, extent.width, extent.height);
             Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, SDLUtil::VSyncMode::Disabled);
-            const auto show = [&] { presenter.present(target.getShown(), [](VkCommandBuffer) {}); };
+            const auto show
+                = [&] { presenter.present(target.getShown(), PresentTarget::sResting, [](VkCommandBuffer) {}); };
 
             show();
             show();
@@ -140,6 +144,40 @@ namespace Rtx
             presenter.rebuild(extent);
             Testing::expectDies([&] { presenter.surfaceLost(); },
                 "the window's surface was lost again before a frame was shown on the one made after it");
+        }
+
+        /// **Under FIFO a frame waits for the present two before it** (`Swapchain::awaitLatency`):
+        /// each present carries the next id, the wait names one the swapchain was given, and a wait
+        /// the hidden window never answers runs out once, a tenth of a second, and is not asked
+        /// again. Validation is what holds the ids to the swapchain; the clock holds the waits to
+        /// one patience each, and the frame's uses as the blit is handed them.
+        TEST_F(RtxPresenterTest, aFrameUnderFifoWaitsForThePresentTwoBeforeIt)
+        {
+            ASSERT_TRUE(mDevice->hasPresentWait()) << "this card offers the wait, which the test is about";
+
+            const VkExtent2D extent{ 64, 32 };
+            PresentTarget target;
+            target.resize(*mDevice, extent.width, extent.height);
+            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, SDLUtil::VSyncMode::Enabled);
+
+            constexpr int frames = 4;
+            const auto began = std::chrono::steady_clock::now();
+            // Every other frame left where the blit reads it, as the interface leaves it, which the
+            // blit then takes with no barrier of its own: validation holds both to their uses.
+            for (int frame = 0; frame < frames; ++frame)
+            {
+                presenter.awaitLatency();
+                const Image& shown = target.getShown();
+                if (frame % 2 == 0)
+                    presenter.present(shown, PresentTarget::sResting, [](VkCommandBuffer) {});
+                else
+                    presenter.present(shown, Use::sBlitRead, [&](VkCommandBuffer commands) {
+                        shown.transition(commands, PresentTarget::sResting, Use::sBlitRead);
+                    });
+            }
+            presenter.awaitLatency();
+            EXPECT_LT(std::chrono::steady_clock::now() - began, std::chrono::milliseconds(100) * (frames - 1))
+                << "a wait was asked twice for one present";
         }
     }
 }

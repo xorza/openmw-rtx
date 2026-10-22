@@ -114,6 +114,7 @@ namespace Rtx::Testing
         std::optional<Rtx::FrameResult> finishFrame() override { return std::nullopt; }
         std::optional<Rtx::FrameResult> collectFrame() override { return std::nullopt; }
         void presentFrame() override {}
+        void awaitPresented() override {}
 
         /// Slots go up, what a texture is sent is kept for a test to read, and nothing is drawn.
         Rtx::GuiSlot addGuiTexture(std::uint32_t, std::uint32_t) override { return Rtx::GuiSlot::at(mGuiTextures++); }
@@ -129,6 +130,11 @@ namespace Rtx::Testing
         void traceGuiTexture(Rtx::GuiSlot, const Rtx::Viewpoint& view, const Rtx::GuiTraceOptions& options) override
         {
             mTraced = TracedPicture{ .mView = view, .mOptions = options };
+        }
+        void reservePicture(std::uint32_t width, std::uint32_t height) override
+        {
+            mPictureWidth = std::max(mPictureWidth, width);
+            mPictureHeight = std::max(mPictureHeight, height);
         }
         Rtx::SceneSlot addViewScene() override
         {
@@ -225,6 +231,10 @@ namespace Rtx::Testing
             Rtx::GuiTraceOptions mOptions;
         };
         std::optional<TracedPicture> mTraced;
+
+        /// The room `reservePicture` was asked for, the largest of every side asked.
+        std::uint32_t mPictureWidth = 0;
+        std::uint32_t mPictureHeight = 0;
 
     private:
         Rtx::SceneStats mStats;

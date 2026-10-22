@@ -15,6 +15,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/gui.h>
 #include <components/rtxvulkan/shaders/shared/pane.h>
@@ -108,6 +109,34 @@ namespace Rtx
             ASSERT_GT(modules, 0u) << "no module in " << OPENMW_RTX_SHADER_DIR;
             for (const std::string& module : found)
                 ADD_FAILURE() << module << " places that start a ray query";
+        }
+
+        /// **No module but the trace's stages binds a stage image**, which is what lets the frame's
+        /// arena lay the denoiser's and the upscaler's images over them: `GBuffer::declareStages` spans
+        /// them over the trace alone (`FrameStep::Trace`), and a pass after it that read one would read
+        /// another image's bits. Read in every module the build ships, so a new reader fails here and
+        /// not as a picture that moves.
+        TEST(RtxSpirvInterfaceTest, onlyTheTracesStagesBindItsStageImages)
+        {
+            std::vector<std::string> binding;
+            for (const std::filesystem::directory_entry& entry :
+                std::filesystem::directory_iterator(OPENMW_RTX_SHADER_DIR))
+            {
+                if (entry.path().extension() != ".spv")
+                    continue;
+
+                const ModuleInterface read = readInterface(readSpirv(entry.path()));
+                if (std::ranges::any_of(read.mBindings, [](const ModuleBinding& bound) {
+                        return bound.mSet == Shaders::SET_CHANNELS && bound.mBinding >= Shaders::STAGE_RECORD
+                            && bound.mBinding < Shaders::STAGE_TILES;
+                    }))
+                    binding.push_back(Files::pathToUnicodeString(entry.path().filename()));
+            }
+            std::ranges::sort(binding);
+
+            EXPECT_EQ(binding,
+                (std::vector<std::string>{ "bounce.comp.spv", "direct.comp.spv", "landing.comp.spv", "media.comp.spv",
+                    "panes.comp.spv", "visibility.comp.spv" }));
         }
 
         /// **The trace's own kinds read as theirs**: the scene's top-level structure, and the

@@ -98,10 +98,11 @@ namespace Rtx
     }
 
     Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
-        const PipelineCacheSpec& cache)
+        const PipelineCacheSpec& cache, const PipelineStatistics statistics)
         : mPhysicalDevice(std::move(physicalDevice))
         , mWatchesSubmits(instance.watchesSubmits())
         , mShaderDirectory(shaders.mDirectory)
+        , mStatistics(statistics)
     {
         const Crash::NoteScope noted("making the device");
         const std::span<const char* const> required = getRequiredDeviceExtensions();
@@ -176,6 +177,7 @@ namespace Rtx
 
         const bool describesFault = has(DeviceOption::FaultReport);
         mPresentFences = has(DeviceOption::PresentFences);
+        mPresentWait = has(DeviceOption::PresentIds) && has(DeviceOption::PresentWait);
 
         const float priority = 1.0f;
         const VkDeviceQueueCreateInfo queue{
@@ -362,6 +364,8 @@ namespace Rtx
         if (point == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
             use.mStackBytes = mFunctions.mGetRayTracingShaderGroupStackSize(
                 mHandle.get(), pipeline, 0, VK_SHADER_GROUP_SHADER_GENERAL_KHR);
+        if (mStatistics == PipelineStatistics::Skipped)
+            return use;
 
         const VkPipelineInfoKHR asked{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
@@ -399,6 +403,8 @@ namespace Rtx
     {
         if (compileMs.has_value())
             Log(Debug::Verbose) << "pipeline " << name << ": compiled in " << *compileMs << " ms";
+        if (mStatistics == PipelineStatistics::Skipped)
+            return;
 
         const std::uint32_t executables = executablesOf(pipeline);
 

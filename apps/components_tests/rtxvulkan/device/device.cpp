@@ -148,13 +148,14 @@ namespace Rtx
         }
 
         /// A device with no window takes no option that rests on a swapchain, whatever the driver
-        /// offers: no present fence. The test's device is made on an instance with no surface, as
-        /// every headless run's is.
+        /// offers: no present fence and no wait for a present. The test's device is made on an instance with no
+        /// surface, as every headless run's is.
         TEST_F(RtxDeviceTest, aDeviceWithNoWindowTakesNoOptionThatRestsOnASwapchain)
         {
             ASSERT_FALSE(mHarness.mInstance->hasExtension(VK_KHR_SURFACE_EXTENSION_NAME));
 
             EXPECT_FALSE(mHarness.mDevice->hasPresentFences());
+            EXPECT_FALSE(mHarness.mDevice->hasPresentWait());
         }
 
         /// **A module's census word is its place among the census set's modules, sorted by name**,

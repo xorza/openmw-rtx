@@ -108,6 +108,11 @@ layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MASK, SHADOW_MASK) uniform re
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_PENUMBRA_TILES, SHADOW_PENUMBRA_TILES)
     uniform readonly image2D penumbraTiles;
 
+/// Which of the pixel's history taps are its surface, as the accumulator matched them this frame
+/// (`ACCUMULATE_MATCH`): a fresh accumulator is a fresh field, which gathers nothing
+/// (`DenoisePasses::record`).
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MATCH, ACCUMULATE_MATCH) uniform readonly uimage2D historyMatch;
+
 layout(push_constant, scalar) uniform Push
 {
     ShadowTilesConstants temporal;
@@ -324,8 +329,9 @@ void main()
         vec4 shares = vec4(0.0);
         if (frame.mReset == 0u)
         {
-            RTX_HISTORY_SHARES(gathered, before, extent, fields, heldSurface,
-                unpackShadowWord(imageLoad(history, historyStored).r).y != SHADOW_NO_RECEIVER, plane)
+            const uint matched = imageLoad(historyMatch, stored).r;
+            RTX_MATCHED_SHARES(gathered, before, extent, fields, matched,
+                unpackShadowWord(imageLoad(history, historyStored).r).y != SHADOW_NO_RECEIVER)
             shares = gathered;
         }
 

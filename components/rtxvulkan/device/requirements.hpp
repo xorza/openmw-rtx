@@ -138,6 +138,8 @@ namespace Rtx
         MemoryPriority,
         PageableMemory,
         PresentFences,
+        PresentIds,
+        PresentWait,
         Checkpoints,
         BufferMarkers,
     };
@@ -158,6 +160,8 @@ namespace Rtx
         VkPhysicalDeviceMemoryPriorityFeaturesEXT mPriority{};
         VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT mPageable{};
         VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR mPresentFences{};
+        VkPhysicalDevicePresentIdFeaturesKHR mPresentIds{};
+        VkPhysicalDevicePresentWaitFeaturesKHR mPresentWait{};
     };
 
     /// The one feature an option is no use without, and how to reach its structure and its flag,

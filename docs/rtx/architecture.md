@@ -172,10 +172,14 @@ source-tree test holds the order.
   meshes, materials, textures, placements, deformers, and the per-frame lists (lights, sprites,
   emitters, ripples). It appends and deduplicates. A slot is a name and is never renumbered, so a
   hit reads it back as its index. `shaders/scene.h` states the device layout once for both
-  languages.
+  languages. The lights are ordered by position each walk. Refused: lights ordered by a stable
+  identity, or a slotted light table, since the ordering costs about 17 µs a frame at the
+  lamp-heaviest places (`research/2026-10-22-light-ordering-share.md`).
 - **`Rtx::SceneExtractor`** mirrors an OSG subtree into a `SceneDesc`. Its identity maps live
   across walks, so an object met again resolves to what was already uploaded, and a still frame
-  costs what moved. What a walk did not meet is swept after it.
+  costs what moved. What a walk did not meet is swept after it. Refused: a sweep kept to what it
+  drops (an intrusive list by epoch), since the walk already visits every entry it keeps each frame
+  and an open-addressing table moves its entries as it grows.
 - **The cell ring** (`mirror/cells/`) stands the world past the loaded cells, because rays reach
   it: the ground from the land records, the statics as instances of their templates, the lamps.
   A reader thread prepares cells, and the frame adopts them a little at a time. A reference a
@@ -184,7 +188,11 @@ source-tree test holds the order.
   script has never run. A model's `NightDaySwitch` is read in every branch, and the game's
   day-night mode picks the one that stands, as it picks the one a loaded cell shows. The size rule
   thins what reflects light and never what gives its own: a lit window is a point of light long
-  after it is a pixel.
+  after it is a pixel. A `PreparedModel` keeps its vertex arrays for as long as the reader files the
+  model, since an adoption again without them would walk the template or read the file again.
+  Refused, by the user's decision: a cache of what the reader read and no cell holds, since
+  upstream's resource cache keeps a given-back model for `[Cells] cache expiry delay` and the ring's
+  hysteresis keeps the cells a walk comes back to.
 - **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
   hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
   mean. One lives on each thread that reads content (`Rtx::ThreadContent`): the frame's, which the
@@ -192,7 +200,8 @@ source-tree test holds the order.
   beside the traversal numbers and the specular layout, and the ring's reader's. Every
   pass states everything it reads, which is the key a cache would file its output under; the
   cache (`ContentCache`) holds nothing yet, so no key is made, every pass runs, and what each costs
-  is counted into the walk's stats and the `preprocess` row of a frame.
+  is counted into the walk's stats and the `preprocess` row of a frame. The empty cache stays as a
+  staged design, by the user's decision.
 - **`Rtx::SceneUploader`** hands a scene to the backend once a frame, in the cheapest of three
   ways: place what moved, extend with what arrived, or rebuild.
 - **The world a frame is told** (`world/`) turns a `WorldReading` into the frame's
@@ -240,18 +249,59 @@ at the top, over all of them.
   missing required feature refuses the device; an optional extension is taken whole or not at all.
 - **The command pool** (`device/commands.hpp`): commands recorded again and again are lent
   (`LentCommands`), one scope's span to its submit is a `Recording`, setup work with its staging is
-  a `Batch`, and no other submit is made while a recording is open.
+  a `Batch`, and no other submit is made while a recording is open. Refused: a pool a frame slot,
+  which saves microseconds and would stop a deferred batch from riding any submit.
 - **The pipeline cache** (`device/pipelinecache.hpp`) is a file named for the driver and the
   shaders, checked by a header of its own before the driver sees it, and written whole or not at
   all.
 - **Memory.** What a frame cannot go without is essential and never refused. Content (acceleration
   structures, textures) is taken against the driver's budget and can be refused, and a refusal
-  leaves the mesh out or draws the texture's stand-in.
+  leaves the mesh out or draws the texture's stand-in. Host-written memory holds the tables the
+  host rewrites, at the world's room (`sceneroom.hpp`). Refused: a staged path for those rows, since
+  they hold 123 MiB live in 184 MiB of blocks against an RTX 20's 246 MiB window
+  (`research/2026-10-22-host-written-window.md`); an arrival scheduler with a frame budget, a
+  destroyer thread and blocks made ahead by a worker, since the crossing's worst frames are the
+  engine's update (`research/2026-10-22-crossing-worst-frames.md`); a defragmentation, since the
+  pool holds at its high-water mark and does not creep
+  (`research/2026-10-22-content-pool-after-a-long-walk.md`).
+- **The frame's targets are made at `createTargets` and counted from what makes them.** The
+  reserve sums each owner's `bytesAt`, read off the descriptions it makes its images of, and the
+  pictures' chain is made at the room its views asked (`Renderer::reservePicture`), never on the
+  frame a picture is first traced.
+- **The images a frame uses inside one stretch of it share memory** (`ImageArena`): the stage
+  images, the denoiser's scratch and the upscaler's own, each over its span of the fixed order
+  (`FrameStep`), laid over each other where their spans do not meet. It rests on one queue and the
+  barrier every command buffer opens with; an image whose memory an earlier span used discards
+  from `Use::sAliased`. The world's arena is the renderer's and spans the upscaler; a picture's is
+  its own. Refused: a frame graph (O'Donnell, GDC 2017), whose other gains are scheduling across
+  queues, which was declined, and reordering, which a fixed order has no use for.
 - **`DeviceScene`** is everything one scene is traced against, the world's or a picture's: the
   instance records, the acceleration structures, the buffers a hit reads, the skinning tables and
-  the bindless texture array. Each table has one copy per frame slot, and the copy a frame does
-  not trace keeps the previous pose for motion vectors.
+  the bindless texture array. A table the host rewrites has one copy a frame slot, and the poses
+  one a slot as well, since a frame's motion is measured against the copy it does not trace; what
+  only arrives — the vertices, the mesh table, the posed normals — is one copy written on the queue
+  behind every frame in flight. A static structure is built over the positions its hits read.
+  Each scene owns its textures and structures, and a texture's side is chosen from the room left
+  when it arrives. The top level and its scratch are made at the world's room, tens of MiB against
+  a structure made on a crossing frame. Refused, by the user's decision after a measurement or an
+  estimate:
+  - textures shared across scenes: a doll's 12–17 textures are 0.2 MB and 0.4–1.1 ms on vanilla,
+    and a PBR pack could raise that to an estimated 50–280 MB and 5–25 ms;
+  - a residency manager that moves each texture's side by priority under a budget;
+  - a completed chain past `sLargestLooseChainSide` kept in its file's format, and BC5 for its
+    normal maps, both for files a pack may not hold;
+  - 16-bit indices, about 22 MB on each side against an unpack in the candidate loop;
+  - white vertex colours stored only where a mesh brings colours, about 1 MB live;
+  - one bottom level per template model, whose top-level gain is about 0.17 ms
+    (`research/2026-10-22-instances-per-placed-model.md`);
+  - a static mesh's bottom level shared across scenes, since a doll's static parts are a few meshes.
 - **`FrameRing`** keeps two frames in flight. The host places frame N+1 while the device traces N.
+- **The swapchain is made again once the window's drawable settles** (`RtxWindow::fit`), so a
+  drag makes it once. Refused: a swapchain made over `oldSwapchain`, for a resize that comes a few
+  times a session.
+- **The glossy lobe's images exist on every install**, by the user's decision: 37 MB at a 720p
+  trace. Refused: making them only where the content wears a map, since a scan of the file index
+  cannot see a map a model names in its own file, and a missed map costs a drain or a wrong picture.
 - **`TraceChain`** is everything one camera's trace writes at one extent: the G-buffer, the fog
   volume, the sprite bins and the denoiser's history. The world has one, and `PictureTracer` has
   one for the pictures inside the interface; the passes are shared.
@@ -400,15 +450,24 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   which pays every wave of the frame; a mark a tile and a dispatch over every tile.
 - **One copy of each stage buffer**, since every stage of a frame runs before the next frame's
   first. Quake II RTX keeps its visibility buffer twice for the gradients its denoiser traces from
-  last frame's surfaces; this denoiser takes none.
+  last frame's surfaces; this denoiser takes none. Refused: the bounce's weight folded into
+  `STAGE_THROUGHPUT`, since `bounce.comp` reads its neighbours' throughput in the same dispatch.
+- **Exact numbers over smaller ones.** Refused: f16 arithmetic, which the pinning refuses and which
+  moves every converted value for stages bound by rays and memory; octahedral snorm16 normals
+  (Cigolle et al. 2014), 8 B a vertex less, approximate.
+- **No reuse of direct light.** At a seen pixel only the held lamp's visibility is noisy, which the
+  shadow denoiser filters. Refused: ReSTIR DI; candidates drawn from a power table a cell (RTXDI's
+  local-light PDF), which matters only where candles and braziers mix and moves pictures.
 - **A trace dispatch runs 8x4 invocations at 32 lanes** (`SubgroupSize::ThirtyTwo`), AMD's advice
   for ray queries on RDNA; RADV traces at 32 lanes for the same reason, and measured Quake II RTX
   12% faster for it.
 - **Every driver draws its first frames on the full kernels, and the frame's own tuple compiles
   behind them and takes over when it is ready**, as Godot's ubershaders and Dolphin's hybrid mode
   do: the tuples made AMD's stages about 9% faster, and all of them took 61 s at a first start where
-  the full kernels take about 10. Refused: the full kernels alone on AMD; every tuple ahead of the
-  first frame, a minute and about 5 GB at a first start.
+  the full kernels take about 10. **A kernel a work item, the tuple a frame waits on taken first**
+  (`TupleQueue`), so a stop waits for one compile and the frame's tuple is not behind the others.
+  Refused: the full kernels alone on AMD; every tuple ahead of the first frame, a minute and about
+  5 GB at a first start.
 
 The rest are compute passes — the fog's integration, the sprites' bins, the bounce's temporal
 merge, the denoiser, the composite, the display chain, skinning, texture preparation, the sea and

@@ -36,8 +36,10 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/gui/guitextures.hpp>
+#include <components/rtxvulkan/picturetracer.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -48,6 +50,10 @@ namespace Rtx
         constexpr std::uint32_t sExtent = 8;
 
         constexpr std::array<std::uint8_t, 4> sWhite{ 255, 255, 255, 255 };
+
+        /// The side of every picture a test traces into the interface, which the fixture reserves as
+        /// a view does.
+        constexpr std::uint32_t sPictureSide = 16;
 
         /// The GUI as the renderer offers it: a table of textures and one call that draws with them.
         ///
@@ -61,6 +67,7 @@ namespace Rtx
             {
                 Testing::RendererTest::SetUp();
                 mRenderer.resize(sExtent, sExtent);
+                mRenderer.reservePicture(sPictureSide, sPictureSide);
             }
 
             void TearDown() override
@@ -585,6 +592,52 @@ namespace Rtx
             return { grey, grey, grey, 255 };
         }
 
+        /// **A view's room is made as it is asked and counted with the frame's targets**, so the first
+        /// picture traced into it takes no memory on its frame: the reserve grows by what the pictures'
+        /// chain takes at the new room, and so does what the frame holds. A room asked past the last
+        /// on one side alone grows that side alone, one inside it changes nothing, and a picture
+        /// traced at the room makes nothing. From whatever room the tests before left.
+        TEST_F(RtxGuiDrawTest, aViewsRoomIsMadeAsItIsAskedAndCountedWithTheFrame)
+        {
+            const Device& device = mRenderer.getDevice();
+            MemoryAllocator& memory = device.getMemory();
+            const std::uint32_t heap = memory.getVideoHeap();
+            const RadianceWidth radiance = mRenderer.getProfile().mRadianceWidth;
+            const auto chainAt = [&](std::uint32_t width, std::uint32_t height) {
+                return PictureTracer::bytesAt(device, VkExtent2D{ width, height }, radiance);
+            };
+
+            device.waitIdle();
+            device.collectIdle();
+            const VkExtent2D room = mRenderer.getPictureRoom();
+            const std::uint32_t wider = room.width + 16;
+            const VkDeviceSize reserve = memory.getFrameReserve();
+            const VkDeviceSize held = memory.getHeld(heap, MemoryUse::Frame);
+
+            mRenderer.reservePicture(wider, 1);
+            EXPECT_EQ(mRenderer.getPictureRoom().width, wider);
+            EXPECT_EQ(mRenderer.getPictureRoom().height, room.height) << "a lower view shrank the room";
+            const VkDeviceSize grownBy = chainAt(wider, room.height) - chainAt(room.width, room.height);
+            EXPECT_EQ(memory.getFrameReserve() - reserve, grownBy)
+                << "the reserve did not grow by the chain at the wider room";
+            device.waitIdle();
+            device.collectIdle();
+            EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - held, grownBy)
+                << "the room was counted and not made, or made and not counted";
+
+            const VkDeviceSize grown = memory.getFrameReserve();
+            mRenderer.reservePicture(8, 8);
+            EXPECT_EQ(memory.getFrameReserve(), grown) << "a room inside the last one moved the reserve";
+
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            const GuiSlot texture = mRenderer.addGuiTexture(wider, room.height);
+            mHeld.push_back(texture);
+            const VkDeviceSize before = memory.getHeld(heap, MemoryUse::Frame);
+            mRenderer.traceGuiTexture(texture, makeMapCamera(sPictureSide), GuiTraceOptions{});
+            mRenderer.finishGuiTraces();
+            EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), before) << "a picture at the room made a frame target";
+        }
+
         /// **A picture from a viewpoint is the picture of the block its options lay over it**: the
         /// map camera's sheet under the map camera's sun, with a backdrop that stops where nothing
         /// was hit, traced once from the viewpoint and the options the seam takes and once from the
@@ -592,7 +645,7 @@ namespace Rtx
         /// lit sheet at the middle says the comparison has something in it.
         TEST_F(RtxGuiDrawTest, aPictureFromAViewpointIsThePictureOfTheBlockItsOptionsLayOverIt)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
 
@@ -635,7 +688,7 @@ namespace Rtx
         /// pixel is opaque, and without one the picture says where it stops.
         TEST_F(RtxGuiDrawTest, aTracedPictureFillsAGuiTextureAndSaysWhereItStops)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
 
@@ -713,7 +766,7 @@ namespace Rtx
         /// the first picture shows the second placement. Read only after both are recorded.
         TEST_F(RtxGuiDrawTest, twoPicturesOfOneSubjectSceneEachShowTheirOwnPlacement)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(100.0f), {});
 
@@ -746,7 +799,7 @@ namespace Rtx
         /// asked for.
         TEST_F(RtxGuiDrawTest, aTraceLeavesTheCopyItWasAskedForAndNoOther)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
 
@@ -779,7 +832,7 @@ namespace Rtx
         /// side at the clear colour, which is what a map tile does with the people on it.
         TEST_F(RtxGuiDrawTest, aCameraLeavesOutTheClassesItsMaskDoesNotName)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             SceneDesc scene;
             const Index sheet = Testing::addQuadMesh(scene, Testing::sheetAt(25.0f, 0.0f));
@@ -816,7 +869,7 @@ namespace Rtx
         /// leaves a bin of the puff in the slot's list for the second picture to ignore.
         TEST_F(RtxGuiDrawTest, aCameraWithoutTheParticleBitDrawsNoSprites)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> puff{ Testing::describeTexel(white) };
 
@@ -868,7 +921,7 @@ namespace Rtx
         /// ball, adding.
         TEST_F(RtxGuiDrawTest, aPuffOverNothingIsThereAsMuchAsItIsAnywhere)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> puff{ Testing::describeTexel(white) };
 
@@ -924,7 +977,7 @@ namespace Rtx
         /// 255 and not 254 — there is no encoding between the float and the byte.
         TEST_F(RtxGuiDrawTest, aPictureShorterThanItsTextureLeavesTheRestAtTheClearColour)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
             constexpr std::uint32_t filled = 8;
 
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
@@ -956,7 +1009,7 @@ namespace Rtx
         /// frame may reach the doll's.
         TEST_F(RtxGuiDrawTest, aPictureCanBeOfASceneTheWorldDoesNotHold)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             // Two hundred across is the whole box, so the world's sheet covers every pixel.
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(100.0f), {});
@@ -1001,7 +1054,7 @@ namespace Rtx
         /// it is, which is the other half of the assertion.
         TEST_F(RtxGuiDrawTest, aPlacementIntoAViewSceneReachesThePictureAndLeavesTheWorldAlone)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             const SceneDesc world = makeSheet(100.0f);
             SceneDesc doll = makeSheet(25.0f);
@@ -1059,7 +1112,7 @@ namespace Rtx
         /// it going into a slot rather than coming back to main memory.
         TEST_F(RtxGuiDrawTest, theGuiDrawsWithAPictureTheTraceMade)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
 
@@ -1121,7 +1174,7 @@ namespace Rtx
         /// is a different picture, and one is what a picture writes.
         TEST_F(RtxGuiDrawTest, aPictureInsideTheInterfaceLeavesTheFramesExposureAlone)
         {
-            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t extent = sPictureSide;
 
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
 

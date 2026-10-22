@@ -54,9 +54,12 @@ namespace Rtx::Testing
         // `SAMPLED` because an upscaler samples its inputs and an image it cannot sample reads as
         // zero — no error, no validation message, a black frame. Both transfer bits so a clear can
         // fill it and the result can be read back.
-        return Image(device, extent.width, extent.height, format,
-            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        return Image(MemoryUse::Essential, device,
+            ImageDescription{ .mWidth = extent.width,
+                .mHeight = extent.height,
+                .mFormat = format,
+                .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                    | VK_IMAGE_USAGE_TRANSFER_SRC_BIT },
             name);
     }
 

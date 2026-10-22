@@ -49,6 +49,11 @@
 // a step, at most a part in 512 of its brightest channel, does not move.
 #define ACCUMULATE_FAST STORAGE_RG32UI
 
+// **Which of a pixel's four history taps are its surface**, a bit a corner of `RTX_HISTORY_SHARES`'s
+// footprint, without what a filter asks of its own history: the accumulator's match, which the
+// shadow tiles read for both fields rather than test four held surfaces again apiece.
+#define ACCUMULATE_MATCH STORAGE_R8UI
+
 #ifdef RTX_HOST
 namespace Rtx::Shaders
 {
@@ -70,7 +75,8 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_BIND_FILL_BLENDED_OUT = 10;
     const uint ACCUMULATE_BIND_HISTORY_FAST = 11;
     const uint ACCUMULATE_BIND_FAST_OUT = 12;
-    const uint ACCUMULATE_BINDINGS = 13;
+    const uint ACCUMULATE_BIND_MATCH_OUT = 13;
+    const uint ACCUMULATE_BINDINGS = 14;
 
     /// Threads along each edge of the accumulator's workgroup, and of the clamp's.
     const uint ACCUMULATE_WORKGROUP = 8;

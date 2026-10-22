@@ -9,6 +9,7 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
@@ -18,6 +19,7 @@
 #include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/trace/denoise/denoised.hpp>
 
+#include "framestep.hpp"
 #include "tracemedia.hpp"
 #include "tracepasses.hpp"
 #include "tracerecording.hpp"
@@ -38,6 +40,19 @@ namespace Rtx
                 .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
         }
 
+        /// The frame's shape, which the display copies the composed frame into and lays the puffs
+        /// over: a transfer's target, a storage image and sampled, and read back as the composed
+        /// frame is (`VulkanRenderer::readShownRadiance`).
+        ImageDescription canvasDescription(
+            const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+        {
+            return ImageDescription{ .mWidth = width,
+                .mHeight = height,
+                .mFormat = radianceFormat(radiance),
+                .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                    | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
+        }
+
         ImageDescription sumDescription(const std::uint32_t width, const std::uint32_t height)
         {
             return ImageDescription{ .mWidth = width,
@@ -48,13 +63,12 @@ namespace Rtx
     }
 
     TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins,
-        const RadianceWidth radiance, const MemoryUse use, const TracePast past)
+        const RadianceWidth radiance, const TracePast past)
         : mDevice(device)
         , mPasses(passes)
         , mRadiance(radiance)
-        , mUse(use)
         , mPast(past)
-        , mDenoise(device, use, past)
+        , mDenoise(device, past)
     {
         assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
         mBins.reserve(bins);
@@ -62,15 +76,24 @@ namespace Rtx
             mBins.emplace_back(device, passes.mSpriteShade, passes.mSpriteBin);
     }
 
-    void TraceChain::resize(const std::uint32_t width, const std::uint32_t height)
+    void TraceChain::resize(const std::uint32_t width, const std::uint32_t height, const ArenaRun& shared)
     {
         assert(width > 0 && height > 0);
+        assert(shared.size() == getSharedCount() && "the chain's shared images were not placed as it declared them");
+
+        const ArenaRun stages(shared, 0, GBuffer::sStageImages);
+        const ArenaRun scratch(shared, GBuffer::sStageImages, DenoiseHistory::getScratchCount());
+        mCanvas = ArenaRun(shared, GBuffer::sStageImages + DenoiseHistory::getScratchCount(), 1);
 
         // **The one owner of "is this a new extent"**: an upscaling mode changed between two that
         // trace at one size asks this again, and the G-buffer's channels and the fog's images made
         // anew for it would be made for nothing.
         if (isBuilt() && width == mWidth && height == mHeight)
+        {
+            mChannels->place(mDevice, mPasses.mChannels, stages);
+            mDenoise.place(scratch);
             return;
+        }
 
         mWidth = width;
         mHeight = height;
@@ -78,10 +101,11 @@ namespace Rtx
         // **The denoiser's images at the width the fields are stored at**, which is the frame's
         // rounded up to even (`fieldColumns`); each channel at its own (`GBuffer`), and the fog's
         // froxels at the frame's.
-        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance, mUse, mPast);
-        mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mUse, mPast);
+        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance, mPast, stages);
+        mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mPast);
         mDenoise.resize(Shaders::storedWidth(mWidth), mHeight);
-        mComposed = Image(mUse, mDevice, composedDescription(mWidth, mHeight, mRadiance), "composed");
+        mDenoise.place(scratch);
+        mComposed = Image(MemoryUse::Frame, mDevice, composedDescription(mWidth, mHeight, mRadiance), "composed");
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
         // worth it to the reference mode and nothing to a window. The first averaging trace asks.
@@ -107,17 +131,24 @@ namespace Rtx
             + Image::bytesFor(device, composedDescription(width, height, radiance));
     }
 
+    void TraceChain::declareShared(const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance,
+        std::vector<ArenaImage>& into)
+    {
+        GBuffer::declareStages(width, height, into);
+        DenoiseHistory::declareScratch(Shaders::storedWidth(width), height, into);
+        into.push_back(ArenaImage{ .mDescription = canvasDescription(width, height, radiance),
+            .mSpan = spanOf(FrameStep::Display, FrameStep::Display),
+            .mName = "puff canvas" });
+    }
+
+    std::size_t TraceChain::getSharedCount()
+    {
+        return GBuffer::sStageImages + DenoiseHistory::getScratchCount() + 1;
+    }
+
     VkDeviceSize TraceChain::sumBytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
     {
         return Image::bytesFor(device, sumDescription(width, height));
-    }
-
-    void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
-    {
-        if (holds(width, height))
-            return;
-
-        resize(std::max(mWidth, width), std::max(mHeight, height));
     }
 
     TraceResult TraceChain::record(const VkCommandBuffer commands, const TraceRecording& what)
@@ -141,7 +172,7 @@ namespace Rtx
         // left, which the head barrier `CommandPool::begin` recorded orders and makes visible.
         if (what.mAccumulate > 0 && mSum.isEmpty())
         {
-            mSum = Image(mUse, mDevice, sumDescription(mWidth, mHeight), "sum");
+            mSum = Image(MemoryUse::Frame, mDevice, sumDescription(mWidth, mHeight), "sum");
             mSum.transition(commands, Use::sUndefined, Use::sComputeReadWrite);
         }
 
@@ -240,11 +271,16 @@ namespace Rtx
 
         // Whatever comes next reads what the composite or the cascade just wrote. The frame's scope
         // is the wider of the two — an upscaler, a lens and a curve against a picture's one curve —
-        // and covers both.
-        mComposed.transition(commands, Use::sComputeWrite, Use::sAnyGeneralRead);
+        // and covers both. The upscaler's masks with it, which the same pass wrote and an upscaler
+        // samples.
+        Barriers composed(commands);
+        mComposed.addTransition(composed, Use::sComputeWrite, Use::sAnyGeneralRead);
+        mChannels->get(Channel::UpscaleMasks).addTransition(composed, Use::sComputeWrite, Use::sAnyShaderRead);
+        composed.flush();
 
         return TraceResult{ .mInputs = inputs,
             .mColour = HandedImage{ .mImage = mComposed, .mLeftAs = Use::sAnyGeneralRead },
+            .mCanvas = HandedImage{ .mImage = mCanvas[0], .mLeftAs = mCanvas.firstUseOf(0) },
             .mSprites = tables };
     }
 }

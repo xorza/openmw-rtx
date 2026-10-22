@@ -206,6 +206,9 @@ namespace Rtx
     class RunBuffer
     {
     public:
+        /// Holds room for `count` elements, so no allocation up to it moves the values.
+        void reserve(std::uint32_t count) { mValues.reserve(count); }
+
         /// Room for `count` elements, holding whatever its last tenant left, so a caller writes the
         /// whole of it before anything reads it. `allocateZeroed` is the other answer.
         Run allocate(std::uint32_t count)

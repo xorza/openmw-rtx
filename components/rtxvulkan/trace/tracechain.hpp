@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -13,6 +14,7 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/trace/denoise/denoisehistory.hpp>
 
 #include "fogvolume.hpp"
@@ -30,13 +32,14 @@ namespace Rtx
 
     /// Everything one camera's trace writes, at one extent — one chain however many cameras have
     /// one, so a barrier cannot go missing from a second copy. What differs between two of these
-    /// is what the caller hands in: the extent, and whether the chain is sized exactly or grown to
-    /// fit. What becomes of a finished picture — the frame's presented pair, a picture's byte
+    /// is what the caller hands in: the extent, and whether a trace fills it or a corner of it.
+    /// What becomes of a finished picture — the frame's presented pair, a picture's byte
     /// target — is not here.
     class TraceChain
     {
     public:
-        /// Nothing has an extent until `resize` or `grow` is called.
+        /// Nothing has an extent until `resize` is called. Its images are the frame's targets
+        /// (`MemoryUse::Frame`), made again only once the device drained what read the last.
         ///
         /// @param passes what the chain traces with, which outlives it.
         /// @param bins how many sprite bins the chain keeps, `VisibilityInputs::mTraceSlot` picking
@@ -46,42 +49,50 @@ namespace Rtx
         ///        (`SpriteBin`).
         /// @param radiance how wide the radiance channels and the frame composed from them are
         ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.
-        /// @param use what its images are counted as: the frame's targets for the world's, which a
-        ///        change of mode makes again only once the old are gone, and essential memory for
-        ///        the pictures', which `grow` makes while a picture may still read the old.
         /// @param past whether a trace keeps what it leaves for the next: the world's chain does, and
         ///        the pictures', each traced with its past lost, does not.
         TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance,
-            MemoryUse use, TracePast past);
+            TracePast past);
 
-        /// What a chain at this extent takes of the device's memory, the running sum apart.
+        /// What a chain at this extent takes of the device's memory, the running sum apart, and the
+        /// images its arena holds apart.
         static VkDeviceSize bytesAt(
             const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
+
+        /// The images a chain at this extent uses inside one stretch of a frame, which an arena places
+        /// (`ImageArena`): the trace's stage images, the denoiser's scratch, then the canvas the
+        /// display lays the puffs over, at `radiance`'s format, appended to `into`. `resize` takes
+        /// them in this order.
+        static void declareShared(
+            std::uint32_t width, std::uint32_t height, RadianceWidth radiance, std::vector<ArenaImage>& into);
+
+        /// How many images `declareShared` declares.
+        static std::size_t getSharedCount();
 
         /// What the running sum at this extent takes, which only a trace that averages makes.
         static VkDeviceSize sumBytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
 
         /// Builds the chain at exactly this extent, whatever it was before, and nothing where it
-        /// already stands at it.
-        void resize(std::uint32_t width, std::uint32_t height);
+        /// already stands at it, with the images `declareShared` declared at it as `shared` placed
+        /// them: taken again whether the extent moved or not, since an arena is made again whenever
+        /// anything it holds moves.
+        void resize(std::uint32_t width, std::uint32_t height, const ArenaRun& shared);
 
-        /// Lets every image go, until the next `resize` or `grow`.
+        /// Lets every image go, until the next `resize`.
         void release();
 
-        /// Makes the chain at least this big, keeping whatever extent it already reached on either
-        /// axis. Nothing where it already `holds` the size. Grown and never shrunk, because a
-        /// smaller picture uses a corner of a larger one's images rather than rebuilding them.
-        void grow(std::uint32_t width, std::uint32_t height);
-
         /// The extent the images are at, which is what a dispatch over the whole of one covers.
-        /// Nought until the first `resize` or `grow`.
+        /// Nought until the first `resize`.
         std::uint32_t getWidth() const { return mWidth; }
         std::uint32_t getHeight() const { return mHeight; }
+
+        RadianceWidth getRadiance() const { return mRadiance; }
 
         /// Whether the images exist, which is the same question as whether the extent is set.
         bool isBuilt() const { return mChannels != nullptr; }
 
-        /// Whether a picture this big fits what is built, which is what `grow` would leave alone.
+        /// Whether a picture this big fits what is built: a smaller picture uses a corner of a larger
+        /// one's images.
         bool holds(std::uint32_t width, std::uint32_t height) const
         {
             return isBuilt() && width <= mWidth && height <= mHeight;
@@ -116,7 +127,6 @@ namespace Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
         const RadianceWidth mRadiance;
-        const MemoryUse mUse;
         const TracePast mPast;
 
         std::unique_ptr<GBuffer> mChannels;
@@ -124,6 +134,10 @@ namespace Rtx
 
         /// The frame in its own order, `getColour`.
         Image mComposed;
+
+        /// What the display lays the puffs over in place of `mComposed` (`TraceResult::mCanvas`),
+        /// one image of the chain's arena.
+        ArenaRun mCanvas;
 
         /// The sprite bins — `VisibilityInputs::mTraceSlot` picks — so the frame behind keeps the
         /// tables its trace reads while this frame's bin writes its own. Made once, at the count the

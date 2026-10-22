@@ -31,7 +31,7 @@ namespace Rtx
             static_assert(Shaders::FOG_VOLUME_SCALE == 12u, "the columns below are counted at twelve pixels");
 
             const SetLayout layout = FogVolume::describeLayout(getDevice());
-            const FogVolume volume(getDevice(), layout, 516, 1032, MemoryUse::Essential, TracePast::Dropped);
+            const FogVolume volume(getDevice(), layout, 516, 1032, TracePast::Dropped);
             ASSERT_EQ(volume.getColumns(), 43u);
             ASSERT_EQ(volume.getRows(), 86u);
 

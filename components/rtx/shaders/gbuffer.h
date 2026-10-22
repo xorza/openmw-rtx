@@ -283,18 +283,27 @@ namespace Rtx::Shaders
     const uint STAGE_BOUNCE = CHANNEL_COUNT + 6u;
 
     /// And the lists the later stages run over (`StageTiles`): a storage buffer, its head each
-    /// list's indirect dispatch, a `VkDispatchIndirectCommand` and a word beside it, the media
-    /// stage's and then the layers' (`STAGE_LIST_*`), and the landing's last
-    /// (`STAGE_DISPATCH_LANDING`), whose word counts its pixels; after it the tile lists one after
+    /// list's indirect dispatch, a `VkDispatchIndirectCommand` and a word beside it that counts what
+    /// the list holds, the media stage's and then the layers' (`STAGE_LIST_*`), and the landing's
+    /// last (`STAGE_DISPATCH_LANDING`), whose word counts its pixels; after it the tile lists one after
     /// the other, a workgroup of the stored layout each as `x | y << 16`, and then the pixels whose
-    /// bounce landed, a pixel each as `x | y << 16` (`appendLandings`).
+    /// bounce landed, a pixel each as `x | y << 16` (`appendLandings`). **The landings in two runs**:
+    /// those whose gather runs from the list's start, counted in the landing's word, and those whose
+    /// gather is drawn off (`indirectGatherDrawn`) from its end, counted in a head of their own after
+    /// the dispatches beside the workgroups both runs take — so a warp of the landing's stage holds
+    /// one kind or the other.
+    ///
+    /// **A dispatch in rows of `STAGE_DISPATCH_ROW` workgroups**: a list of a native 1440p trace's
+    /// landings is 115,200 workgroups, and a dispatch is only promised 65,535 along each axis, which a
+    /// driver may report and no more — some on Windows do.
     const uint STAGE_TILES = CHANNEL_COUNT + 7u;
     const uint STAGE_LIST_MEDIA = 0u;
     const uint STAGE_LIST_PANES = 1u;
     const uint STAGE_LISTS = 2u;
     const uint STAGE_DISPATCH_LANDING = STAGE_LISTS;
     const uint STAGE_DISPATCHES = STAGE_LISTS + 1u;
-    const uint STAGE_TILES_HEAD_WORDS = 4u * STAGE_DISPATCHES;
+    const uint STAGE_TILES_HEAD_WORDS = 4u * STAGE_DISPATCHES + 4u;
+    const uint STAGE_DISPATCH_ROW = 1024u;
 
     /// How many bindings the set holds: the channels, the stage images and the tile lists.
     const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 8u;

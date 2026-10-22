@@ -82,29 +82,27 @@ namespace Rtx
         };
     }
 
-    Image::Image(const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format,
-        VkImageUsageFlags usage, std::string_view name, std::uint32_t mipLevels, std::uint32_t depth,
-        VkFormat storageFormat)
-        : Image(MemoryUse::Essential, device,
-            ImageDescription{ .mWidth = width,
-                .mHeight = height,
-                .mFormat = format,
-                .mUsage = usage,
-                .mMipLevels = mipLevels,
-                .mDepth = depth,
-                .mStorageFormat = storageFormat },
-            name)
-    {
-    }
-
     Image::Image(
         const MemoryUse use, const Device& device, const ImageDescription& description, const std::string_view name)
         : Image(Unbound{}, device, description, name)
     {
-        bind(device.getMemory().take(mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use), name);
+        mMemory = device.getMemory().take(mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
+        bind(mMemory.getHandle(), mMemory.getOffset(), name);
+    }
+
+    Image::Image(const Device& device, const ImageDescription& description, const DeviceMemory& memory,
+        const VkDeviceSize offset, const std::string_view name)
+        : Image(Unbound{}, device, description, name)
+    {
+        bind(memory.getHandle(), memory.getOffset() + offset, name);
     }
 
     VkDeviceSize Image::bytesFor(const Device& device, const ImageDescription& description)
+    {
+        return requirementsFor(device, description).size;
+    }
+
+    VkMemoryRequirements Image::requirementsFor(const Device& device, const ImageDescription& description)
     {
         const ImageCreate create(description);
         const VkDeviceImageMemoryRequirements asked{
@@ -117,28 +115,20 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = nullptr, .memoryRequirements = {}
         };
         vkGetDeviceImageMemoryRequirements(device.getHandle(), &asked, &requirements);
-        return requirements.memoryRequirements.size;
+        return requirements.memoryRequirements;
     }
 
-    Misc::Result<Image, std::string_view> Image::tryMake(const MemoryUse use, const Device& device, std::uint32_t width,
-        std::uint32_t height, VkFormat format, VkImageUsageFlags usage, std::string_view name, std::uint32_t mipLevels,
-        std::uint32_t depth, VkFormat storageFormat)
+    Misc::Result<Image, std::string_view> Image::tryMake(
+        const MemoryUse use, const Device& device, const ImageDescription& description, const std::string_view name)
     {
-        Image made(Unbound{}, device,
-            ImageDescription{ .mWidth = width,
-                .mHeight = height,
-                .mFormat = format,
-                .mUsage = usage,
-                .mMipLevels = mipLevels,
-                .mDepth = depth,
-                .mStorageFormat = storageFormat },
-            name);
+        Image made(Unbound{}, device, description, name);
         Misc::Result<DeviceMemory, std::string_view> memory
             = device.getMemory().tryTake(made.mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
         if (!memory.isOk())
             return Misc::Err{ memory.error() };
 
-        made.bind(std::move(memory.value()), name);
+        made.mMemory = std::move(memory.value());
+        made.bind(made.mMemory.getHandle(), made.mMemory.getOffset(), name);
         return made;
     }
 
@@ -157,15 +147,13 @@ namespace Rtx
         device.setName(mHandle.get(), name);
     }
 
-    void Image::bind(DeviceMemory&& memory, std::string_view name)
+    void Image::bind(const VkDeviceMemory memory, const VkDeviceSize offset, std::string_view name)
     {
         const Device& device = *mDevice;
         const bool volume = mDepth > 1;
         const bool twoFormats = mStorageFormat != VK_FORMAT_UNDEFINED && mStorageFormat != mFormat;
 
-        mMemory = std::move(memory);
-        checkVk(vkBindImageMemory(device.getHandle(), mHandle.get(), mMemory.getHandle(), mMemory.getOffset()),
-            "vkBindImageMemory");
+        checkVk(vkBindImageMemory(device.getHandle(), mHandle.get(), memory, offset), "vkBindImageMemory");
 
         const VkImageViewUsageCreateInfo sampledOnly{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
@@ -268,6 +256,15 @@ namespace Rtx
 
     void Image::addTransition(Barriers& barriers, const ImageUse& from, const ImageUse& to) const
     {
+        // Contents nobody keeps, after writes through another resource: the layout's transition
+        // from nothing, and the writes ordered over everything, which no image barrier names.
+        if (from.mLayout == VK_IMAGE_LAYOUT_UNDEFINED && from.mAccess != 0)
+        {
+            barriers.add(describeLevels(0, mMipLevels, ImageUse{ from.mLayout, from.mStage, 0 }, to));
+            barriers.add(memoryBarrier(BufferUse{ from.mStage, from.mAccess }, BufferUse{ to.mStage, to.mAccess }));
+            return;
+        }
+
         if (from.mLayout != to.mLayout)
         {
             barriers.add(describeLevels(0, mMipLevels, from, to));
@@ -305,8 +302,8 @@ namespace Rtx
         vkCmdClearColorImage(commands, mHandle.get(), VK_IMAGE_LAYOUT_GENERAL, &colour, 1, &whole);
     }
 
-    void Image::copyTo(
-        VkCommandBuffer commands, const Image& into, const VkImageLayout intoLayout, const VkExtent2D extent) const
+    void Image::copyTo(VkCommandBuffer commands, const VkImageLayout layout, const Image& into,
+        const VkImageLayout intoLayout, const VkExtent2D extent) const
     {
         assert(!isEmpty() && "a copy out of an image nobody made");
 
@@ -325,8 +322,7 @@ namespace Rtx
             .dstOffset = {},
             .extent = { extent.width, extent.height, 1 },
         };
-        vkCmdCopyImage(
-            commands, mHandle.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, into.getHandle(), intoLayout, 1, &region);
+        vkCmdCopyImage(commands, mHandle.get(), layout, into.getHandle(), intoLayout, 1, &region);
     }
 
     VkImageMemoryBarrier2 Image::describeLevels(
@@ -494,7 +490,8 @@ namespace Rtx
         assert((usage == VK_IMAGE_USAGE_STORAGE_BIT || usage == VK_IMAGE_USAGE_SAMPLED_BIT)
             && "a stand-in is read one way or the other, never both");
 
-        Image made(device, 1, 1, format, usage, name);
+        Image made(MemoryUse::Essential, device,
+            ImageDescription{ .mWidth = 1, .mHeight = 1, .mFormat = format, .mUsage = usage }, name);
 
         const VkAccessFlags2 read = usage == VK_IMAGE_USAGE_STORAGE_BIT ? VK_ACCESS_2_SHADER_STORAGE_READ_BIT
                                                                         : VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;

@@ -190,6 +190,9 @@ namespace Rtx
                 writes.image(
                     Shaders::ATROUS_COMPOSE_BIND_PANE_ALBEDO, buffer.get(Channel::PaneAlbedo).describeStorage());
                 writes.image(Shaders::ATROUS_COMPOSE_BIND_COMPOSED, composing->mComposed.describeStorage());
+                writes.image(Shaders::ATROUS_COMPOSE_BIND_STAGE_RECORD, buffer.getStageRecord().describeStorage());
+                writes.image(
+                    Shaders::ATROUS_COMPOSE_BIND_UPSCALE_MASKS, buffer.get(Channel::UpscaleMasks).describeStorage());
             }
 
             level.mStep = 1u << pass;

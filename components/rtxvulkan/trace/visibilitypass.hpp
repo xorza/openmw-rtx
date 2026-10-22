@@ -396,6 +396,12 @@ namespace Rtx
         /// (`variantFor`) before it reads them.
         std::array<std::atomic<bool>, VisibilityVariant::sCount> mMade{};
 
+        /// The tuple a frame last wanted and found unmade (`variantFor`), whose kernels the
+        /// background compile's hands take first — Dolphin's and Godot's way with the shader a frame
+        /// is waiting on. `VisibilityVariant::sCount` for none. A frame of the game's own wants
+        /// what its sky and its content say, and only the compile's order stood between them.
+        mutable std::atomic<std::uint32_t> mWanted{ VisibilityVariant::sCount };
+
         /// The compile: the full tuple's and the singles' hands, counted as each kernel lands; and
         /// behind it every other tuple's, counted a tuple at a time. Last, so they are stopped and
         /// joined before the table they fill goes, the tuples' first.

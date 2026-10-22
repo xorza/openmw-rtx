@@ -73,11 +73,15 @@ namespace Rtx
         ///
         /// @param poses the first copy of the deforming vertices, which is what a deforming mesh's
         ///        structure is built over — `SkinPass` has written the pose into it.
+        /// @param positions the static vertices `SceneBuffers` keeps for every hit, which a static
+        ///        mesh's structure is built over: the very numbers a hit reads its corners from, and
+        ///        no copy of them staged for the build alone.
         /// @param indices the shared index blocks, which every structure is built through.
         /// @param placement which posed placement brings these, on the clock the rebuild rota reads:
         ///        what `getRebuiltAt` answers for each of `meshes` until the rota comes round.
         void build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes, const BlockedBuffer& poses,
-            const BlockedBuffer& indices, std::uint64_t placement, std::vector<Refusal>& refused);
+            const BlockedBuffer& positions, const BlockedBuffer& indices, std::uint64_t placement,
+            std::vector<Refusal>& refused);
 
         /// Destroys the structures of `meshes` and gives their storage back. Idempotent, because
         /// both the frame that places and the one that appends run it. The last frame's top level
@@ -240,29 +244,23 @@ namespace Rtx
         /// One row per mesh slot, grown with the mesh table.
         std::vector<Row> mRows;
 
-        /// What a run of builds reads: its static meshes' positions, copied in ahead of it, and the
-        /// scratch it works in. Kept across builds rather than made per arrival, settling at the
-        /// largest run — the build room, or one mesh past it — and grown by a replacement that buries
-        /// the old: a build in flight still reads them, and the next build's copies and work are
-        /// ordered after it by the barrier every command buffer opens with.
-        GrowableBuffer mArrived;
+        /// What a run of builds works in. Kept across builds rather than made per arrival, settling at
+        /// the largest run — the build room, or one mesh past it — and grown by a replacement that
+        /// buries the old: a build in flight still reads it, and the next build's work is ordered
+        /// after it by the barrier every command buffer opens with.
         GrowableBuffer mScratch;
 
         /// What one run of `build` describes.
         StructureBuildBatch mBuild;
 
         /// One mesh of the list `build` was handed: how big its structure comes out, how much scratch
-        /// its build works in and how many bytes of positions it stages, and where in its run's
-        /// scratch and staged positions each lands. Filled in passes over the list and read in the
-        /// last, so they are one row. The positions are nought for a mesh that deforms, which is
-        /// built from its pose.
+        /// its build works in, and where in its run's scratch that lands. Filled in passes over the
+        /// list and read in the last, so they are one row.
         struct BuildRow
         {
             VkDeviceSize mSize = 0;
             VkDeviceSize mScratch = 0;
-            VkDeviceSize mPositions = 0;
             VkDeviceSize mScratchOffset = 0;
-            VkDeviceSize mArrivedAt = 0;
         };
 
         /// Refilled per `build`, one row per mesh handed in, in that order.

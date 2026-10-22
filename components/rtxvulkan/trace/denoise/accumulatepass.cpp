@@ -17,7 +17,8 @@ namespace Rtx
     {
         /// The channel being blended, the two the frame describes it with, the three a history
         /// arrives in, the two of those this pass writes back, and the blend the cascade reads; the
-        /// fill's channel, history and blend; and the fast means, read and written. The slow colour
+        /// fill's channel, history and blend; the fast means, read and written; and the match the
+        /// shadow tiles read. The slow colour
         /// histories are read and not written, because the first wavelet level writes the history
         /// this reads next frame — SVGF's feedback.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
@@ -66,6 +67,7 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_FILL_BLENDED_OUT, images.mFillBlended.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST, images.mFast.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFastBlended.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_MATCH_OUT, images.mMatch.describeStorage());
 
         const Shaders::AccumulateConstants constants{
             .mHistory = frame.history(images.mFresh),

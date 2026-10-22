@@ -147,8 +147,9 @@ namespace Rtx
         void loseEye() { mExposureStale = mGlareStale = true; }
 
         /// Records everything from the puffs to the target, and leaves `what.mTarget` as
-        /// `what.mLeftAs`.
-        void record(VkCommandBuffer commands, const Display& what);
+        /// `what.mLeftAs`. Hands back what the curve mapped: the shown frame with the puffs over it,
+        /// in linear radiance, left in `GENERAL` for a read back once the frame has run.
+        const Image& record(VkCommandBuffer commands, const Display& what);
 
     private:
         /// Draws `look.mDebug` over the target after the curve, from the slot's own vertex

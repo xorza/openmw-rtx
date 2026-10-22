@@ -53,6 +53,15 @@ namespace Rtx
     class PipelineCache;
     struct PipelineCacheSpec;
 
+    /// Whether a pipeline is made to say what the driver's compiler made of it — registers, spills,
+    /// shared memory — which only the harness's reports and the spill gate read. Asked for at
+    /// creation, since it cannot be asked for afterwards, and paid in every compile it is asked of.
+    enum class PipelineStatistics : std::uint8_t
+    {
+        Captured,
+        Skipped,
+    };
+
     /// Which `VkObjectType` a handle is, so that `Device::setName` takes the handle and never a
     /// type a caller could get wrong. Every handle this backend names is listed; one that is not is
     /// a compile error rather than a name filed under the wrong kind. The handles are distinct
@@ -162,8 +171,9 @@ namespace Rtx
         ///        they count into (`getCensus`).
         /// @param cache where the pipeline cache is kept. An empty directory keeps none, and every
         ///        pipeline is compiled from source every run.
+        /// @param statistics whether the pipelines are made to report themselves (`reportPipeline`).
         Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
-            const PipelineCacheSpec& cache);
+            const PipelineCacheSpec& cache, PipelineStatistics statistics);
         ~Device();
 
         VkDevice getHandle() const { return mHandle.get(); }
@@ -194,6 +204,9 @@ namespace Rtx
         /// proves the queue is empty and not that the compositor has let go.
         bool hasPresentFences() const { return mPresentFences; }
 
+        /// Whether a present carries an id and a wait for it can be asked (`Swapchain::awaitLatency`).
+        bool hasPresentWait() const { return mPresentWait; }
+
         /// Handed to every `vkCreate*Pipelines` on this device, so that a shader is compiled once
         /// per change rather than once per pipeline.
         VkPipelineCache getPipelineCache() const;
@@ -210,9 +223,17 @@ namespace Rtx
         /// where a pipeline is made and pushed rather than having it handed to every pass.
         const NotFiniteCensus* getCensus() const { return mCensus.get(); }
 
+        /// Whether pipelines are made to say what they are made of (`PipelineStatistics`), the flags
+        /// every create info starts from.
+        VkPipelineCreateFlags getPipelineFlags() const
+        {
+            return mStatistics == PipelineStatistics::Captured ? VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR : 0;
+        }
+
         /// Logs what the driver's compiler made of `pipeline` — registers a thread, spills, shared
-        /// memory a block. The register count exists only inside the driver, which is what lets an
-        /// occupancy figure be had here with no external profiler.
+        /// memory a block — where the device captures it, and its compile time. The register count
+        /// exists only inside the driver, which is what lets an occupancy figure be had here with no
+        /// external profiler.
         void reportPipeline(
             VkPipeline pipeline, std::string_view name, std::optional<double> compileMs = std::nullopt) const;
 
@@ -304,7 +325,7 @@ namespace Rtx
         void collect() const;
 
         /// How many executables the driver made `pipeline` of, and what it says of one: the
-        /// statistics a pipeline was made to capture (`PipelineCreation::sFlags`).
+        /// statistics a pipeline was made to capture (`getPipelineFlags`).
         std::uint32_t executablesOf(VkPipeline pipeline) const;
         std::vector<VkPipelineExecutableStatisticKHR> statisticsOf(VkPipeline pipeline, std::uint32_t executable) const;
 
@@ -337,9 +358,11 @@ namespace Rtx
         PFN_vkGetQueueCheckpointDataNV mGetQueueCheckpointData = nullptr;
 
         bool mPresentFences = false;
+        bool mPresentWait = false;
         bool mWatchesSubmits = false;
 
         std::filesystem::path mShaderDirectory;
+        PipelineStatistics mStatistics;
 
         // Last, so that they are torn down first, and in this order, because a later one dies
         // earlier: everything after the graveyard buries into it as it goes, the graveyard ends

@@ -37,9 +37,14 @@ namespace Rtx
                 const TexturePasses passes(device);
 
                 const auto levels = static_cast<std::uint32_t>(sprite.mLevels.size());
-                const Image bake(device, sprite.mWidth, sprite.mHeight, VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                    "sprite light test bake", levels);
+                const Image bake(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = sprite.mWidth,
+                        .mHeight = sprite.mHeight,
+                        .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                        .mUsage
+                        = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                        .mMipLevels = levels },
+                    "sprite light test bake");
 
                 Batch upload(getPool());
                 TextureArrival arrival(device);

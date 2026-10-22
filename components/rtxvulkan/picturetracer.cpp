@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <vector>
 
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framesampling.hpp>
@@ -31,7 +32,7 @@ namespace Rtx
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes, 1, radiance, MemoryUse::Essential, TracePast::Dropped)
+        , mChain(device, passes, 1, radiance, TracePast::Dropped)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(
@@ -39,11 +40,47 @@ namespace Rtx
     {
     }
 
-    void PictureTracer::grow(const VkExtent2D extent)
+    namespace
     {
-        mChain.grow(extent.width, extent.height);
-        mTarget = Image(mDevice, mChain.getWidth(), mChain.getHeight(), TonePass::sTargetFormat,
-            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "view target");
+        ImageDescription targetDescription(const VkExtent2D room)
+        {
+            return ImageDescription{ .mWidth = room.width,
+                .mHeight = room.height,
+                .mFormat = TonePass::sTargetFormat,
+                .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
+        }
+
+        /// What the chain at `room` declares for its arena, which `resize` makes it of and `bytesAt`
+        /// measures.
+        std::vector<ArenaImage> sharedAt(const VkExtent2D room, const RadianceWidth radiance)
+        {
+            std::vector<ArenaImage> declared;
+            TraceChain::declareShared(room.width, room.height, radiance, declared);
+            return declared;
+        }
+    }
+
+    VkDeviceSize PictureTracer::bytesAt(const Device& device, const VkExtent2D room, const RadianceWidth radiance)
+    {
+        return TraceChain::bytesAt(device, room.width, room.height, radiance, TracePast::Dropped)
+            + ImageArena::bytesFor(device, sharedAt(room, radiance)) + Image::bytesFor(device, targetDescription(room));
+    }
+
+    void PictureTracer::resize(const VkExtent2D room)
+    {
+        if (isAt(room))
+            return;
+
+        mArena = ImageArena(mDevice, sharedAt(room, mChain.getRadiance()));
+        mChain.resize(room.width, room.height, ArenaRun(mArena, 0, mArena.size()));
+        mTarget = Image(MemoryUse::Frame, mDevice, targetDescription(room), "view target");
+    }
+
+    void PictureTracer::release()
+    {
+        mChain.release();
+        mArena = ImageArena();
+        mTarget = Image();
     }
 
     void PictureTracer::trace(const GuiSlot texture, const Shaders::VisibilityConstants& camera,
@@ -126,7 +163,7 @@ namespace Rtx
 
                     assert(layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
                         && "a texture lent in another layout than a copy takes");
-                    mTarget.copyTo(commands, into, layout, extent);
+                    mTarget.copyTo(commands, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, into, layout, extent);
                 });
 
             if (options.mReadBack)

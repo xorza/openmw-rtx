@@ -3,11 +3,13 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/shaders/shared/shadow.h>
 #include <components/rtxvulkan/trace/tracepast.hpp>
 
@@ -50,9 +52,10 @@ namespace Rtx
         PaneMean,
         PaneFast,
         PaneFastBlended,
+        HistoryMatch,
     };
 
-    inline constexpr std::size_t sDenoiseImages = static_cast<std::size_t>(DenoiseImage::PaneFastBlended) + 1;
+    inline constexpr std::size_t sDenoiseImages = static_cast<std::size_t>(DenoiseImage::HistoryMatch) + 1;
 
     /// The shadow denoiser's two fields: the sun's or a moon's rays, `CHANNEL_SHADOWED`, and the
     /// lamps', `CHANNEL_LAMPED`. Each has a history of its own, and the composite scales each light
@@ -80,20 +83,37 @@ namespace Rtx
     class DenoiseHistory
     {
     public:
-        /// `use` is what the images are counted as, as `GBuffer` takes it. Where `past` drops what a
-        /// trace leaves, a pair is one image, which a frame both reads as last frame's and writes,
+        /// The images are the frame's targets, as the chain's are. Where `past` drops what a trace
+        /// leaves, a pair is one image, which a frame both reads as last frame's and writes,
         /// and every frame must be fresh, so that it reads none.
-        DenoiseHistory(const Device& device, MemoryUse use, TracePast past);
+        DenoiseHistory(const Device& device, TracePast past);
 
-        /// What the history of a frame this size takes of the device's memory.
+        /// What the history of a frame this size takes of the device's memory, and not the scratch
+        /// its arena holds.
         static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height, TracePast past);
+
+        /// The images a frame this size writes and reads inside its own denoising and nothing after —
+        /// the steps of a history's loop and the filters' scratch — appended to `into` in the table's
+        /// order: in use from the denoiser's first pass to the digest that reads its answers
+        /// (`FrameStep::Denoise` to `FrameStep::Digest`).
+        static void declareScratch(std::uint32_t width, std::uint32_t height, std::vector<ArenaImage>& into);
+
+        /// How many images `declareScratch` declares.
+        static std::size_t getScratchCount();
 
         /// Makes room for a frame this size, anew: `TraceChain::resize` is what asks whether the size
         /// changed. A resize is a reset.
         void resize(std::uint32_t width, std::uint32_t height);
 
+        /// Takes `scratch`, the images `declareScratch` declared as an arena placed them.
+        void place(const ArenaRun& scratch);
+
         /// Lets every image go, until the next `resize`.
-        void release() { mImages = {}; }
+        void release()
+        {
+            mImages = {};
+            mScratch = {};
+        }
 
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
@@ -145,6 +165,10 @@ namespace Rtx
             const Image& mFast;
             const Image& mFastBlended;
 
+            /// Which of each pixel's history taps are its surface (`ACCUMULATE_MATCH`), which the shadow
+            /// tiles read.
+            const Image& mMatch;
+
             bool mFresh;
         };
 
@@ -169,6 +193,9 @@ namespace Rtx
 
             /// One word an 8×4 tile of the rays' bits.
             const Image& mMask;
+
+            /// The accumulator's match (`AccumulateImages::mMatch`).
+            const Image& mMatch;
 
             /// Which rays' bits these filter.
             ShadowField mField;
@@ -212,7 +239,6 @@ namespace Rtx
 
     private:
         const Device& mDevice;
-        MemoryUse mUse;
         TracePast mPast;
 
         /// The half of a pair the last frame wrote, the half this frame writes, and the one image of
@@ -221,9 +247,16 @@ namespace Rtx
         const Image& now(DenoiseImage image, const TemporalTurns::Step& step) const;
         const Image& only(DenoiseImage image) const;
 
+        /// What `image` discards from at its first use in a frame: as the arena says of scratch, and
+        /// from nothing for an image of its own.
+        const ImageUse& firstUseOf(DenoiseImage image) const;
+
         /// Indexed by `DenoiseImage`: both halves of a pair, the first alone of what is not one or
-        /// where the past is dropped. Empty until `resize`.
+        /// where the past is dropped. Empty until `resize`, and for scratch, which `mScratch` holds.
         std::array<std::array<Image, 2>, sDenoiseImages> mImages;
+
+        /// The images `declareScratch` declared, as the chain's arena placed them.
+        ArenaRun mScratch;
 
         /// Started again by `resize`, so the first frame after one reads no image nothing wrote.
         TemporalTurns mTurns;

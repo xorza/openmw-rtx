@@ -40,7 +40,7 @@ namespace Rtx
         , mEveryMesh(everyMeshOf(scene))
         , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots, room.mPlacements)
         , mBuffers(device, batch, scene, mEveryMesh, mRecords, sFrameSlots, room)
-        , mSkinTables(device, batch, scene, sFrameSlots)
+        , mSkinTables(device, batch, scene, mEveryMesh, sFrameSlots, room)
         , mTextures(device, batch, passes.mTextureLayout, passes.mTextures,
               static_cast<std::uint32_t>(scene.textures().getRows().size()), anisotropy)
     {
@@ -56,7 +56,8 @@ namespace Rtx
         mAcceleration.getPoses().write(mEveryMesh);
         for (std::uint32_t copy = 0; copy < mAcceleration.getPoses().count(); ++copy)
             mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }));
-        mAcceleration.build(batch, scene, mEveryMesh, mRecords, mPasses.mTopLevelPack, mRefusals);
+        mAcceleration.build(
+            batch, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack, mRefusals);
         mTextures.write(batch, mPasses.mTextures, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedFreed = scene.meshes().getFreedCount();
@@ -129,7 +130,7 @@ namespace Rtx
             // the build reads — and only the meshes that arrived, over the rows `SkinTables::extend`
             // staged. `SkinPass::recordArrived` says why it may not be every mesh the copy owes.
             mPasses.mSkin.recordArrived(batch.getCommands(), skinning(scene, FrameSlot{}), scene.meshes().getArrived());
-            mAcceleration.buildArrived(batch, scene, timer, mRefusals);
+            mAcceleration.buildArrived(batch, scene, mBuffers.getPositions(), timer, mRefusals);
             mBuiltMeshes = scene.meshes().getRevision();
         }
 

@@ -111,7 +111,8 @@ namespace Rtx::Shaders
     const uint SHADOW_TILES_BIND_TILES = 7;
     const uint SHADOW_TILES_BIND_MASK = 8;
     const uint SHADOW_TILES_BIND_PENUMBRA_TILES = 9;
-    const uint SHADOW_TILES_BINDINGS = 10;
+    const uint SHADOW_TILES_BIND_MATCH = 10;
+    const uint SHADOW_TILES_BINDINGS = 11;
 
     /// Where `shadowfilter.comp` binds what it reads and writes in set 0, and how many there are:
     /// the surface, and each field's tiles, source and target, the sky's at the binding named and

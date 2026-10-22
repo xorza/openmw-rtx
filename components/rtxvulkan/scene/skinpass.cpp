@@ -130,8 +130,6 @@ namespace Rtx
         // Opened at the first mesh posed, so a frame that poses none records no zone.
         std::optional<GpuZone> timed;
 
-        BlockedBuffer& normalsInto = what.mNormals.at(what.mSlot);
-        BlockedBuffer& tangentsInto = what.mTangents.at(what.mSlot);
         what.mPoses.sync(what.mSlot, [&](const Index index, BlockedBuffer& into) {
             if (!posable(what.mScene.meshes().getRows()[index]))
                 return;
@@ -139,7 +137,7 @@ namespace Rtx
             if (!timed.has_value())
                 timed.emplace(what.mTimer, commands, FrameZone::Skin);
 
-            pose(commands, what, index, Rows::Written, into, normalsInto, tangentsInto, bound);
+            pose(commands, what, index, Rows::Written, into, what.mNormals, what.mTangents, bound);
         });
 
         if (!timed.has_value())
@@ -157,16 +155,18 @@ namespace Rtx
 
         for (std::uint32_t copy = 0; copy < what.mPoses.count(); ++copy)
         {
-            const FrameSlot slot{ copy };
-            BlockedBuffer& into = what.mPoses.at(slot);
-            BlockedBuffer& normalsInto = what.mNormals.at(slot);
-            BlockedBuffer& tangentsInto = what.mTangents.at(slot);
+            // Every copy's dispatch writes the one copy of the normals and tangents, the same values
+            // each time: a write after a write, which the copy before is ordered ahead of.
+            if (recorded)
+                handOver(commands, Use::sBufferComputeWrite, Use::sBufferComputeWrite);
+
+            BlockedBuffer& into = what.mPoses.at(FrameSlot{ copy });
             for (const Index index : arrived)
             {
                 if (!posable(what.mScene.meshes().getRows()[index]))
                     continue;
 
-                pose(commands, what, index, Rows::Staged, into, normalsInto, tangentsInto, bound);
+                pose(commands, what, index, Rows::Staged, into, what.mNormals, what.mTangents, bound);
                 recorded = true;
             }
         }

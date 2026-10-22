@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -17,10 +18,12 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/skinning.h>
 #include <components/rtx/shaders/tangent.h>
@@ -174,11 +177,11 @@ namespace Rtx
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
             SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            SlotBlocks normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            SlotBlocks tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
+            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 2, readable, "posed positions");
-            normals.open(device, 2, readable, "posed normals");
-            tangents.open(device, 2, readable, "posed tangents");
+            normals.open(device, readable, "posed normals");
+            tangents.open(device, readable, "posed tangents");
             // Its own scope, because the blocks are device memory: the fills have to reach the
             // queue before the dispatch below reads what they left.
             {
@@ -189,14 +192,12 @@ namespace Rtx
                 setup.flush();
             }
             for (std::uint32_t slot = 0; slot < 2; ++slot)
-            {
                 poses.settle(FrameSlot{ slot });
-                normals.settle(FrameSlot{ slot });
-                tangents.settle(FrameSlot{ slot });
-            }
 
             Batch tableSetup(pool);
-            SkinTables tables(device, tableSetup, scene, 2);
+            std::vector<Index> everyMesh;
+            SkinTables tables(
+                device, tableSetup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), 2, SceneRoom{});
             tableSetup.flush();
             const SkinPass pass(device);
 
@@ -224,8 +225,8 @@ namespace Rtx
                         BufferUse{ VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT });
 
                     poses.at(slot).getBlock(0).copyTo(commands, readPositions, poseBytes);
-                    normals.at(slot).getBlock(0).copyTo(commands, readNormals, normalBytes);
-                    tangents.at(slot).getBlock(0).copyTo(commands, readTangents, tangentBytes);
+                    normals.getBlock(0).copyTo(commands, readNormals, normalBytes);
+                    tangents.getBlock(0).copyTo(commands, readTangents, tangentBytes);
                 });
 
                 return recorded;
@@ -414,11 +415,11 @@ namespace Rtx
             constexpr VkBufferUsageFlags readable
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            SlotBlocks normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            SlotBlocks tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
+            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 1, readable, "posed positions");
-            normals.open(device, 1, readable, "posed normals");
-            tangents.open(device, 1, readable, "posed tangents");
+            normals.open(device, readable, "posed normals");
+            tangents.open(device, readable, "posed tangents");
             {
                 Batch setup(pool);
                 poses.reserve(setup, posedVertices);
@@ -427,11 +428,11 @@ namespace Rtx
                 setup.flush();
             }
             poses.settle(FrameSlot{ 0 });
-            normals.settle(FrameSlot{ 0 });
-            tangents.settle(FrameSlot{ 0 });
 
             Batch tableSetup(pool);
-            SkinTables tables(device, tableSetup, scene, 1);
+            std::vector<Index> everyMesh;
+            SkinTables tables(
+                device, tableSetup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), 1, SceneRoom{});
             tableSetup.flush();
             const SkinPass pass(device);
 
@@ -449,7 +450,7 @@ namespace Rtx
                 handOver(commands, Use::sBufferComputeWrite,
                     BufferUse{ VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT });
                 poses.at(FrameSlot{ 0 }).getBlock(0).copyTo(commands, readPositions, bytes);
-                normals.at(FrameSlot{ 0 }).getBlock(0).copyTo(commands, readNormals, bytes);
+                normals.getBlock(0).copyTo(commands, readNormals, bytes);
             });
 
             const std::uint32_t bind = scene.meshes().getRows()[mesh].mBindOffset;
@@ -505,11 +506,11 @@ namespace Rtx
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
             SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            SlotBlocks normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            SlotBlocks tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
+            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 2, readable, "posed positions");
-            normals.open(device, 2, readable, "posed normals");
-            tangents.open(device, 2, readable, "posed tangents");
+            normals.open(device, readable, "posed normals");
+            tangents.open(device, readable, "posed tangents");
 
             const SkinPass pass(device);
 
@@ -518,17 +519,17 @@ namespace Rtx
             poses.reserve(load, 4);
             normals.reserve(load, 4);
             tangents.reserve(load, 4);
-            SkinTables tables(device, load, scene, 2);
+            std::vector<Index> everyMesh;
+            SkinTables tables(
+                device, load, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), 2, SceneRoom{});
             load.flush();
             for (std::uint32_t slot = 0; slot < 2; ++slot)
-            {
                 poses.settle(FrameSlot{ slot });
-                normals.settle(FrameSlot{ slot });
-                tangents.settle(FrameSlot{ slot });
-            }
 
             // The arrival: a second quad on the same rig, its rows staged into the first copy and
-            // posed there, in a batch deferred to the next submit — which is held.
+            // posed there, in a batch deferred to the next submit — which is held. The tables were
+            // made at no room, so the arrival grows the bind tables and stages only its own rows:
+            // the first quad's bind pose is the one the growth copied.
             scene.clearArrivals();
             scene.clearPlacement();
             const Index second = scene.addMesh(

@@ -127,6 +127,9 @@ namespace MWRender
         // anywhere else leaves one of them to read as a hang.
         Crash::heartbeat();
 
+        // Ahead of the limiter, which then measures the frame from a screen two presents behind.
+        awaitPresented();
+
         const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
         mLimiter.limit();
         mLastHold = std::chrono::steady_clock::now() - began;

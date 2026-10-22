@@ -178,6 +178,8 @@ namespace Rtx
             return false;
         checkVk(result, "vkCreateSwapchainKHR");
         mHandle = Immediate<VkSwapchainKHR, vkDestroySwapchainKHR>(mDevice.getHandle(), made);
+        mPresents = 0;
+        mAwaited = 0;
 
         mImages = enumerateVk<VkImage>("vkGetSwapchainImagesKHR", [&](std::uint32_t* count, VkImage* into) {
             return vkGetSwapchainImagesKHR(mDevice.getHandle(), mHandle.get(), count, into);
@@ -197,6 +199,8 @@ namespace Rtx
     {
         mHandle.reset();
         mImages.clear();
+        mPresents = 0;
+        mAwaited = 0;
     }
 
     bool Swapchain::recreate(VkExtent2D extent)
@@ -272,10 +276,18 @@ namespace Rtx
             .pFences = &fence,
         };
 
+        const std::uint64_t id = mPresents + 1;
+        const VkPresentIdKHR identified{
+            .sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR,
+            .pNext = presented != nullptr ? &signalled : nullptr,
+            .swapchainCount = 1,
+            .pPresentIds = &id,
+        };
+
         const VkSwapchainKHR presenting = mHandle.get();
         const VkPresentInfoKHR present{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .pNext = presented != nullptr ? &signalled : nullptr,
+            .pNext = mDevice.hasPresentWait() ? static_cast<const void*>(&identified) : identified.pNext,
             .waitSemaphoreCount = 1,
             .pWaitSemaphores = &finished,
             .swapchainCount = 1,
@@ -287,6 +299,8 @@ namespace Rtx
         const VkResult result = vkQueuePresentKHR(mDevice.getQueue(), &present);
         if (presented != nullptr)
             presented->answered(result);
+        if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
+            mPresents = id;
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             return Presented::Stale;
         if (result == VK_ERROR_SURFACE_LOST_KHR)
@@ -294,6 +308,30 @@ namespace Rtx
 
         checkVk(mDevice, result, "vkQueuePresentKHR");
         return Presented::Shown;
+    }
+
+    void Swapchain::awaitLatency()
+    {
+        constexpr std::uint64_t sLatency = 2;
+        constexpr std::uint64_t sPatienceNs = 100'000'000;
+
+        const bool refreshed
+            = mPresentMode == VK_PRESENT_MODE_FIFO_KHR || mPresentMode == VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        if (!mDevice.hasPresentWait() || !refreshed || !isMade() || mPresents < sLatency)
+            return;
+
+        const std::uint64_t awaited = mPresents + 1 - sLatency;
+        if (awaited <= mAwaited)
+            return;
+        mAwaited = awaited;
+
+        // A swapchain the surface outgrew or lost is the next present's to report, which the
+        // presenter rebuilds from; a wait that ran out lets the frame go on.
+        const VkResult result = vkWaitForPresentKHR(mDevice.getHandle(), mHandle.get(), awaited, sPatienceNs);
+        if (result == VK_SUCCESS || result == VK_TIMEOUT || result == VK_SUBOPTIMAL_KHR
+            || result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_ERROR_SURFACE_LOST_KHR)
+            return;
+        checkVk(mDevice, result, "vkWaitForPresentKHR");
     }
 
     SurfaceState Swapchain::getSurfaceState() const

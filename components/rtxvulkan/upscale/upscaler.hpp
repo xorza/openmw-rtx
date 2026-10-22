@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string_view>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
@@ -13,6 +14,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 
@@ -79,10 +81,20 @@ namespace Rtx
         Upscaler(const Upscaler&) = delete;
         Upscaler& operator=(const Upscaler&) = delete;
 
-        /// Builds what the upscaler keeps for one pair of extents and the image it writes, releasing
-        /// the last, and clears all of it: the frame after starts a history of its own. Once per
-        /// resolution, and never per frame.
-        void resize(VkExtent2D render, VkExtent2D output);
+        /// Builds what the upscaler keeps for one pair of extents, releasing the last, and clears all
+        /// of it: the frame after starts a history of its own. Once per resolution, and never per
+        /// frame. Takes `shared`, the images `declareShared` declared at these extents as the frame's
+        /// arena placed them, whether the extents moved or not.
+        void resize(VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
+
+        /// The images a reconstruction at these extents writes whole before it reads them and no
+        /// later frame reads, which the frame's arena places (`ImageArena`), appended to `into`: in
+        /// use over the upscale alone (`FrameStep::Upscale`), and the image it writes until the
+        /// display has read it.
+        static void declareShared(VkExtent2D render, VkExtent2D output, std::vector<ArenaImage>& into);
+
+        /// How many images `declareShared` declares.
+        static std::size_t getSharedCount();
 
         /// Lets what `resize` built go and keeps the pipelines, for a mode turned off that may come back.
         void release();
@@ -93,7 +105,8 @@ namespace Rtx
         /// Whether what `resize` built is for these extents, which a resize to them keeps.
         bool isAt(VkExtent2D render, VkExtent2D output) const;
 
-        /// What `resize` to these extents builds, in the device's memory.
+        /// What `resize` to these extents builds, in the device's memory, and not what the frame's
+        /// arena holds of it.
         static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output);
 
         /// Says the history is worthless, until the next `record`: after a jump no motion vector can

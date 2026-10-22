@@ -58,14 +58,15 @@ namespace Rtx
         /// A slot with nothing in it yet, which is what a table holds before it is first grown.
         Buffer() = default;
 
+        /// @param use the frame's targets or other essential memory, which is never refused.
         /// @param size may be nought: Vulkan has no zero-sized buffer, so a table with nothing in
         ///        it is made one byte long — which is what its descriptor needs and what nothing in
         ///        it has to read. A table asked for nought and never made was an address of nought
         ///        in the frame block, which is a lost device with no message.
         /// @param usage what the device does with it. `TRANSFER_DST` is not added for any kind.
         /// @param name what a capture and a validation message call it.
-        static Buffer make(
-            const Device& device, BufferKind kind, VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
+        static Buffer make(MemoryUse use, const Device& device, BufferKind kind, VkDeviceSize size,
+            VkBufferUsageFlags usage, std::string_view name);
 
         /// `make`, for a buffer something stands in for: why there is none where the device has
         /// no room for it as `use` — `MemoryAllocator::tryTake`. The use first, as
@@ -77,7 +78,7 @@ namespace Rtx
         /// driver asks of it, which is what the allocator counts it at.
         static VkDeviceSize bytesFor(const Device& device, VkDeviceSize size, VkBufferUsageFlags usage);
 
-        /// `make`, for each kind by name.
+        /// `make`, as essential memory, for each kind by name.
         static Buffer deviceLocal(
             const Device& device, VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
         static Buffer hostWritten(

@@ -1,6 +1,7 @@
 #include "physicaldevice.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -293,16 +294,23 @@ namespace Rtx
         }
 
         // **What the shaders lean on that no feature names.** The upscaler's luma pyramid swaps
-        // within quads (`ffx_spd.h`), where Vulkan guarantees basic subgroup operations alone; and
-        // every push block is held to Vulkan 1.4's minimum, which a device reporting 1.4 and less
-        // breaks.
+        // within quads (`ffx_spd.h`), and the trace's stages list their tiles and landings by ballot
+        // and count by sum (`bounce.comp`, `visibility.comp`), where Vulkan guarantees basic subgroup
+        // operations alone; and every push block is held to Vulkan 1.4's minimum, which a device
+        // reporting 1.4 and less breaks.
+        constexpr std::array<std::pair<VkSubgroupFeatureFlagBits, std::string_view>, 3> sOperations{ {
+            { VK_SUBGROUP_FEATURE_QUAD_BIT, "quad" },
+            { VK_SUBGROUP_FEATURE_BALLOT_BIT, "ballot" },
+            { VK_SUBGROUP_FEATURE_ARITHMETIC_BIT, "arithmetic" },
+        } };
         const VkPhysicalDeviceVulkan11Properties& subgroups = properties.mVulkan11;
-        if ((subgroups.subgroupSupportedOperations & VK_SUBGROUP_FEATURE_QUAD_BIT) == 0
-            || (subgroups.subgroupSupportedStages & VK_SHADER_STAGE_COMPUTE_BIT) == 0)
-        {
-            profile.mObstacle = "no quad subgroup operations in compute shaders";
-            return profile;
-        }
+        for (const auto& [operation, kind] : sOperations)
+            if ((subgroups.subgroupSupportedOperations & operation) == 0
+                || (subgroups.subgroupSupportedStages & VK_SHADER_STAGE_COMPUTE_BIT) == 0)
+            {
+                profile.mObstacle = "no " + std::string(kind) + " subgroup operations in compute shaders";
+                return profile;
+            }
 
         // The trace's kernels run at 32 lanes (`SubgroupSize::ThirtyTwo`), which a device has to let a
         // compute stage ask for: Vulkan 1.3 requires the stage, and not the width.

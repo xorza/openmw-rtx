@@ -116,9 +116,14 @@ namespace Rtx
             twiddling.write(std::span<const osg::Vec2f>(twiddles));
 
             constexpr VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-            const Image surface(device, sCount, sCount, toVulkanFormat(WAVE_TILE_FORMAT), usage, "test-wave-surface");
-            const Image curvature(
-                device, sCount, sCount, toVulkanFormat(WAVE_TILE_FORMAT), usage, "test-wave-curvature");
+            const Image surface(MemoryUse::Essential, device,
+                ImageDescription{
+                    .mWidth = sCount, .mHeight = sCount, .mFormat = toVulkanFormat(WAVE_TILE_FORMAT), .mUsage = usage },
+                "test-wave-surface");
+            const Image curvature(MemoryUse::Essential, device,
+                ImageDescription{
+                    .mWidth = sCount, .mHeight = sCount, .mFormat = toVulkanFormat(WAVE_TILE_FORMAT), .mUsage = usage },
+                "test-wave-curvature");
 
             const VkDescriptorBufferInfo whole[]{ { table.getHandle(), 0, VK_WHOLE_SIZE },
                 { turning.getHandle(), 0, VK_WHOLE_SIZE }, { field.getHandle(), 0, VK_WHOLE_SIZE },

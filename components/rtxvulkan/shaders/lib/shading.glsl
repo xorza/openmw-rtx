@@ -181,9 +181,11 @@ struct GatherRun
     /// `RUN_IDLE` once `mLit` holds the answer.
     uint mStep;
 
-    /// The surface's specular half, `glossOf`: made once, at the start, and read by a solid's bounce
-    /// as well (`SolidRun`).
-    Gloss mGloss;
+    /// Whether the surface has a specular half (`Gloss::mGlossy`), the one part of `glossOf` the
+    /// lamp's step reads. **The flag and not the record**: the record is twenty-odd words the stage
+    /// would hold through both shadow traversals, and whoever needs it after makes it again from the
+    /// surface, as `stepSolid` and `startBounce` do.
+    bool mGlossy;
 
     /// The pixel's own key, `pixelKey`, which every sequence here is drawn from with a `SEED_`
     /// added: `mLamps`, and `SEED_INDIRECT_LIGHT` for the bounce's rate.
@@ -226,10 +228,12 @@ struct GatherRun
     float mSkyWeight;
     float mSkyThrough;
 
-    /// The lamp the reservoir held, its ray, what the darkening lamps take off, and how far a
-    /// penumbra on this surface stretches toward the held lamp.
+    /// The lamp the reservoir held, the draw its ray takes on the source (`gatherLampAsk`), what the
+    /// darkening lamps take off, and how far a penumbra on this surface stretches toward the held
+    /// lamp. **The draw and not the ray**: a whole `RayAsk` carried through the sky's traversal is
+    /// registers the stage holds through its loop, and the ray is made again from the draw.
     Reservoir mKept;
-    RayAsk mLampRay;
+    vec2 mLampDraw;
     vec3 mDarkening;
     float mLampStretch;
 
@@ -244,8 +248,7 @@ GatherRun gatherRunOf(uint key, uint lamps, uint path, bool split, bool blue)
 {
     GatherRun run;
     run.mStep = GATHER_START;
-    run.mGloss = Gloss(false, vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), 1.0, vec3(0.0), 0.0, 1.0, vec3(1.0), vec3(0.0),
-        vec3(0.0));
+    run.mGlossy = false;
     run.mKey = key;
     run.mLamps = lamps;
     run.mPath = path;
@@ -264,7 +267,7 @@ GatherRun gatherRunOf(uint key, uint lamps, uint path, bool split, bool blue)
     run.mSkyWeight = 0.0;
     run.mSkyThrough = 1.0;
     run.mKept = noLamps();
-    run.mLampRay = noRay();
+    run.mLampDraw = vec2(0.0);
     run.mDarkening = vec3(0.0);
     run.mLampStretch = 1.0;
     run.mFootprint = 0.0;
@@ -275,9 +278,8 @@ GatherRun gatherRunOf(uint key, uint lamps, uint path, bool split, bool blue)
 /// rays' answers.
 ///
 /// @return whether the sky's ray was asked, `skyPassage` started for it.
-bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface surface, uvec2 pixel)
+bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface surface, Gloss gloss, uvec2 pixel)
 {
-    const Gloss gloss = run.mGloss;
     const bool split = run.mSplit;
     const vec3 position = surface.mPosition;
     const Facing facing = facingOf(surface);
@@ -431,7 +433,7 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
     weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit, split ? 0u : frame.mLampCandidates);
     kept.mFrom = leaving;
     run.mKept = kept;
-    run.mLampRay = kept.mWeight > 0.0 ? lampAsk(kept, stepOf(surface), lampDraw, split) : noRay();
+    run.mLampDraw = lampDraw;
 
     // **The lamps that take light away take it off the lamps' exact sum and no further**, floored at
     // nought as the rasterizer clamps its lighting: the sun, the sky and the bounce stay whole.
@@ -446,13 +448,29 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
     return skyAsked;
 }
 
-/// @param surface the walk's surface, which the start reads and nothing after it does.
+/// The held lamp's shadow ray, or none where no lamp was held.
+RayAsk gatherLampAsk(GatherRun run, Surface surface)
+{
+    return run.mKept.mWeight > 0.0 ? lampAsk(run.mKept, stepOf(surface), run.mLampDraw, run.mSplit) : noRay();
+}
+
+/// Whether a gather a path's far end makes, keyed `key`, is drawn to run where the sky lights
+/// (`INDIRECT_LIGHT_RATE`): asked by the gather and by the bounce that lists its landing
+/// (`appendLandings`).
+bool indirectGatherDrawn(uint key)
+{
+    uint rate = randomSeed(key + SEED_INDIRECT_LIGHT);
+    return randomNext(rate) < INDIRECT_LIGHT_RATE;
+}
+
+/// @param surface the walk's surface, which the start reads, and the lamp's ray after it.
 void stepGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface surface, uvec2 pixel, RayAnswer answered,
     inout RayAsk ask)
 {
     if (run.mStep == GATHER_START)
     {
-        run.mGloss = glossOf(surface);
+        const Gloss gloss = glossOf(surface);
+        run.mGlossy = gloss.mGlossy;
 
         // **Drawn before anything else and out of a sequence of its own**: the ordering below is
         // what keeps a lamp arriving in the next cell from moving the penumbra of the one already
@@ -460,8 +478,7 @@ void stepGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface sur
         run.mRated = 1.0;
         if (run.mPath == PATH_INDIRECT && skyLights())
         {
-            uint rate = randomSeed(run.mKey + SEED_INDIRECT_LIGHT);
-            if (randomNext(rate) >= INDIRECT_LIGHT_RATE)
+            if (!indirectGatherDrawn(run.mKey))
             {
                 run.mLit = DirectLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR,
                     vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR);
@@ -472,13 +489,13 @@ void stepGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface sur
             run.mRated = 1.0 / INDIRECT_LIGHT_RATE;
         }
 
-        if (startGather(run, skyPassage, surface, pixel))
+        if (startGather(run, skyPassage, surface, gloss, pixel))
         {
             run.mStep = GATHER_SKY;
             return;
         }
 
-        ask = run.mLampRay;
+        ask = gatherLampAsk(run, surface);
         run.mStep = GATHER_LAMP;
         return;
     }
@@ -500,7 +517,7 @@ void stepGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface sur
             run.mTaken += run.mSkyEstimate.mTaken * seen;
         }
 
-        ask = run.mLampRay;
+        ask = gatherLampAsk(run, surface);
         run.mStep = GATHER_LAMP;
         return;
     }
@@ -531,7 +548,7 @@ void stepGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface sur
         ? max(lampsArriving - darkening, vec3(0.0))
         : lampsArriving * (1.0 - min(darkening / max(kept.mUnshadowed, vec3(1e-30)), vec3(1.0)));
 
-    if (run.mGloss.mGlossy)
+    if (run.mGlossy)
         run.mSpecular += kept.mSpecular * (held * lampSeen);
 
     if (split)
@@ -565,7 +582,7 @@ void stepGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface sur
     else
     {
         run.mRadiance += lampDiffuse;
-        if (run.mGloss.mGlossy)
+        if (run.mGlossy)
             run.mTaken += lampDiffuse * kept.mFresnel;
     }
 
@@ -1169,7 +1186,7 @@ struct SeenSolid
 /// record at once, and the bounce's landing was a gather and a visit more.
 ///
 /// **A walk of two steps** (`direct.comp`): the gather, and what the gather does not answer,
-/// worked out of the walk's surface once the gather has made its specular half.
+/// worked out of the walk's surface once the gather is done.
 /// What a solid is in the filter's terms beside its light, and its lobe's roughness, out of the
 /// surface and its gloss (`glossOf`) alone: what `stepSolid` makes of it, and what the trace writes
 /// of a solid whose light the direct stage gathers (`direct.comp`).
@@ -1214,15 +1231,15 @@ void stepSolid(inout SolidRun run, inout GatherRun gather, Surface surface, uvec
         return;
     }
 
-    // The gather has read the surface and resolved nothing over it, and its specular half is the
-    // one the bounce draws by. **The lamps' diffuse half goes to the shadow denoiser with the sky's,
+    // The gather resolved nothing over the surface, so its specular half, made again here, is the
+    // one the gather weighed by and the one the bounce draws by. **The lamps' diffuse half goes to the shadow denoiser with the sky's,
     // and not to the wavelet with the bounce**: direct light and indirect apart, as NRD has them. A
     // lamp's shadow is sharp and a bounce is not, and one filter over both blurred the one or left
     // the other noisy. At the guild's planter at night the leaf shadows smeared flat under a long
     // history and the bounce's bright samples stood as speckle under a short one; apart, the bounce
     // takes a longer history (`ACCUMULATE_FRAMES`) and the shadows keep their edge. Split, the
     // gather's specular half holds the lamps' lobe, which the bounce's joins for the glossy filter.
-    const Gloss gloss = gather.mGloss;
+    const Gloss gloss = glossOf(surface);
     const vec3 modulation = specularModulation(gloss);
     const DirectLight lit = gather.mLit;
     run.mSeen.mLight = splitLightOf(surface.mAlbedo, lit, litSurface(surface, vec3(0.0), vec3(0.0)));

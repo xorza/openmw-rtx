@@ -70,11 +70,26 @@ namespace Rtx
 
         const std::uint32_t levels = levelsTo1x1(sGrid, sGrid);
 
-        mFields[0] = Image(device, sGrid, sGrid, sFieldFormat, fieldUsage, "ripple field 0");
-        mFields[1] = Image(device, sGrid, sGrid, sFieldFormat, fieldUsage, "ripple field 1");
-        mSurface = Image(device, sGrid, sGrid, toVulkanFormat(WAVE_TILE_FORMAT), tileUsage, "ripple surface", levels);
-        mCurvature
-            = Image(device, sGrid, sGrid, toVulkanFormat(WAVE_TILE_FORMAT), tileUsage, "ripple curvature", levels);
+        mFields[0] = Image(MemoryUse::Essential, device,
+            ImageDescription{ .mWidth = sGrid, .mHeight = sGrid, .mFormat = sFieldFormat, .mUsage = fieldUsage },
+            "ripple field 0");
+        mFields[1] = Image(MemoryUse::Essential, device,
+            ImageDescription{ .mWidth = sGrid, .mHeight = sGrid, .mFormat = sFieldFormat, .mUsage = fieldUsage },
+            "ripple field 1");
+        mSurface = Image(MemoryUse::Essential, device,
+            ImageDescription{ .mWidth = sGrid,
+                .mHeight = sGrid,
+                .mFormat = toVulkanFormat(WAVE_TILE_FORMAT),
+                .mUsage = tileUsage,
+                .mMipLevels = levels },
+            "ripple surface");
+        mCurvature = Image(MemoryUse::Essential, device,
+            ImageDescription{ .mWidth = sGrid,
+                .mHeight = sGrid,
+                .mFormat = toVulkanFormat(WAVE_TILE_FORMAT),
+                .mUsage = tileUsage,
+                .mMipLevels = levels },
+            "ripple curvature");
 
         mImpulseScratch.reserve(Shaders::RIPPLE_IMPULSES_MOST);
         mCandidates.reserve(Shaders::RIPPLE_IMPULSES_MOST);
