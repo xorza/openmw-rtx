@@ -43,7 +43,9 @@ namespace Rtx
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .pNext = lanes == SubgroupSize::ThirtyTwo ? &thirtyTwo : moduleChain,
-                .flags = 0,
+                .flags = lanes == SubgroupSize::ThirtyTwo
+                    ? VkPipelineShaderStageCreateFlags{ VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT }
+                    : 0,
                 .stage = VK_SHADER_STAGE_COMPUTE_BIT,
                 .module = VK_NULL_HANDLE,
                 .pName = "main",

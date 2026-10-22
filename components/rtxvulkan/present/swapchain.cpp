@@ -178,7 +178,8 @@ namespace Rtx
             return false;
         checkVk(result, "vkCreateSwapchainKHR");
         mHandle = Immediate<VkSwapchainKHR, vkDestroySwapchainKHR>(mDevice.getHandle(), made);
-        mPresents = 0;
+        mPassed = 0;
+        mQueued = {};
         mAwaited = 0;
 
         mImages = enumerateVk<VkImage>("vkGetSwapchainImagesKHR", [&](std::uint32_t* count, VkImage* into) {
@@ -199,7 +200,8 @@ namespace Rtx
     {
         mHandle.reset();
         mImages.clear();
-        mPresents = 0;
+        mPassed = 0;
+        mQueued = {};
         mAwaited = 0;
     }
 
@@ -276,7 +278,10 @@ namespace Rtx
             .pFences = &fence,
         };
 
-        const std::uint64_t id = mPresents + 1;
+        // **Spent whether or not the queue takes it**: an id passed once is never passed again on
+        // the handle (`VUID-VkPresentIdKHR-presentIds-04999`), and a present the surface refused as
+        // out of date may be followed by another before the presenter rebuilds.
+        const std::uint64_t id = ++mPassed;
         const VkPresentIdKHR identified{
             .sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR,
             .pNext = presented != nullptr ? &signalled : nullptr,
@@ -300,7 +305,7 @@ namespace Rtx
         if (presented != nullptr)
             presented->answered(result);
         if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
-            mPresents = id;
+            mQueued = { id, mQueued[0] };
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             return Presented::Stale;
         if (result == VK_ERROR_SURFACE_LOST_KHR)
@@ -312,16 +317,16 @@ namespace Rtx
 
     void Swapchain::awaitLatency()
     {
-        constexpr std::uint64_t sLatency = 2;
         constexpr std::uint64_t sPatienceNs = 100'000'000;
 
         const bool refreshed
             = mPresentMode == VK_PRESENT_MODE_FIFO_KHR || mPresentMode == VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-        if (!mDevice.hasPresentWait() || !refreshed || !isMade() || mPresents < sLatency)
+        if (!mDevice.hasPresentWait() || !refreshed || !isMade())
             return;
 
-        const std::uint64_t awaited = mPresents + 1 - sLatency;
-        if (awaited <= mAwaited)
+        // The present before the last the queue took, which the next makes two behind the screen.
+        const std::uint64_t awaited = mQueued[1];
+        if (awaited == 0 || awaited <= mAwaited)
             return;
         mAwaited = awaited;
 

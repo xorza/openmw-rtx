@@ -234,6 +234,11 @@ namespace Rtx
             // (`SubgroupSize`). Vulkan 1.3 makes it mandatory.
             RequiredFeature{ "subgroupSizeControl",
                 +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.subgroupSizeControl; } },
+            // What makes a trace workgroup of 32 lanes one subgroup and not two partial ones, which
+            // the stages' ballots count it as (`SubgroupSize::ThirtyTwo`). Vulkan 1.3 makes it
+            // mandatory as well.
+            RequiredFeature{ "computeFullSubgroups",
+                +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.computeFullSubgroups; } },
             // The GUI is the only thing here that rasterises, and it does so without a render pass
             // or a framebuffer object.
             RequiredFeature{

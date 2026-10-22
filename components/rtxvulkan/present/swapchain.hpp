@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -137,9 +138,10 @@ namespace Rtx
         VkExtent2D mExtent{};
         std::vector<VkImage> mImages;
 
-        /// The id of the last present this handle took, and of the last `awaitLatency` waited for:
-        /// a handle's own, so both start again with it.
-        std::uint64_t mPresents = 0;
+        /// The last id a present passed, the ids of the last two the queue took, the latest first, and
+        /// the last `awaitLatency` waited for: a handle's own, so all start again with it.
+        std::uint64_t mPassed = 0;
+        std::array<std::uint64_t, 2> mQueued{};
         std::uint64_t mAwaited = 0;
     };
 }

@@ -545,6 +545,11 @@ SceneAnswer queryScene(SceneQuery asked)
 
         RTX_READ_CANDIDATE(query, candidate)
         const float coneWidth = asked.mConeWidth + asked.mConeSpread * candidate.mAt;
+
+        // **A branch, measured**: a shadow ray has no cone and reads no edges. Over seven places the
+        // panes stage went 0.58 to 0.52 ms and the landing 4.97 to 4.91, the direct 3.77 to 3.81,
+        // the frame within its noise. Skipping the read past `candidateStops`'s early answers
+        // instead spilled, and was slower.
         TriangleEdges edges = TriangleEdges(vec3(0.0), vec3(0.0));
         if (coneWidth > 0.0)
             RTX_READ_CANDIDATE_EDGES(query, edges)

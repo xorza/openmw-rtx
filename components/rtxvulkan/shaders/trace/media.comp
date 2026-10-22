@@ -36,7 +36,7 @@
 #include "lib/variants.glsl"
 #include "lib/water.glsl"
 
-layout(local_size_x = TRACE_WORKGROUP_WIDTH, local_size_y = TRACE_WORKGROUP_HEIGHT) in;
+layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 
 void main()
 {

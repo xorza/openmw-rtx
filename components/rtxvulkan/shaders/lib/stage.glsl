@@ -33,8 +33,10 @@ bool stagePixelIn(uvec2 tile, out uvec2 pixel)
     const uint halfColumns = fieldColumns(width);
     const uint halfGroups = fieldGroupsAcross(width, TRACE_WORKGROUP_WIDTH);
     const uint side = tile.x >= halfGroups ? 1u : 0u;
-    const uint across = (tile.x - side * halfGroups) * TRACE_WORKGROUP_WIDTH + gl_LocalInvocationID.x;
-    const uint down = tile.y * TRACE_WORKGROUP_HEIGHT + gl_LocalInvocationID.y;
+    const uvec2 local
+        = uvec2(gl_LocalInvocationIndex % TRACE_WORKGROUP_WIDTH, gl_LocalInvocationIndex / TRACE_WORKGROUP_WIDTH);
+    const uint across = (tile.x - side * halfGroups) * TRACE_WORKGROUP_WIDTH + local.x;
+    const uint down = tile.y * TRACE_WORKGROUP_HEIGHT + local.y;
     pixel = pixelOf(uvec2(side * halfColumns + across, down), fieldSwapOf(frame.mFrame), width);
     return across < halfColumns && down < frame.mEyes.mWorld.mHeight && pixel.x < width;
 }

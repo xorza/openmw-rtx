@@ -280,7 +280,9 @@ namespace Rtx
                 MemoryUse::Essential);
         }
 
-        mBlocks.outgrow(largestBlocks);
+        // To the largest chain and no further, as the means are: `TextureArray::costAt` charges an
+        // arrival what this asks past what the blocks hold, and a doubling would take more.
+        mBlocks.growTo(largestBlocks);
 
         std::size_t begin = 0;
         for (const std::size_t end : mLooseGroupEnds)

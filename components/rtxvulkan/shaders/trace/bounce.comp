@@ -31,7 +31,7 @@
 #include "lib/traversal.glsl"
 #include "lib/variants.glsl"
 
-layout(local_size_x = TRACE_WORKGROUP_WIDTH, local_size_y = TRACE_WORKGROUP_HEIGHT) in;
+layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 
 /// Bounces `pixel` off its solid, and answers whether its ray met a surface, which the landing's
 /// stage then visits.
