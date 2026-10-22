@@ -1075,66 +1075,73 @@ namespace Rtx::Testing
                 << "the dual vector left " << with << " of the strip's noise, against " << without << " without it";
         }
 
-        /// **A rare bright bounce on a history of a few frames is held to the light around it, and a
-        /// settled history keeps it** (`ACCUMULATE_RING_FRAMES`).
-        ///
         /// A floor under an open sky, and 300 units over it a sheet 40 units square glowing at `50 ×
         /// EMISSIVE_INTENSITY`, 400: a bounce off the floor beneath finds it at a chance of about
         /// `40² / 300² / π`, 0.0057, and brings back near two hundred times the floor's mean — the
         /// lanterns' paper over the M[FR] guild's tree, on a surface that holds still.
-        ///
-        /// After a cut every history is fresh, and three frames on a pixel whose bounce found the sheet
-        /// stands far over the truth: counted where the green stands four times over 64 unfiltered
-        /// frames', pooled over four draws. With the ring, a tenth of them at most. Then 160 still
-        /// frames, whose means with and without the ring stand within a hundredth: a mean of more than
-        /// eight frames keeps what it took in, and the first eight frames, a quarter of a mean of 32,
-        /// are `(31/32)^128` of that quarter 128 frames later, under half a hundredth of the mean
-        /// however much of their light the ring took.
-        ///
-        /// Measured: 9319 fireflies without the ring, the history fix having spread each over its
-        /// taps, and 173 with it; the settled means 0.7973 and 0.7928.
-        TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyAndLeavesASettledMeanItsLight)
+        SceneDesc lanternOverAFloor()
         {
-            constexpr std::uint32_t size = 64;
-            constexpr std::uint32_t fresh = 3;
-            constexpr std::uint32_t draws = 4;
-            constexpr std::uint32_t settled = 160;
-
             SceneDesc scene;
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene, sheetAt(20.0f, 300.0f),
                 scene.addMaterial(Material{ .mEmissiveColour = osg::Vec3f(50.0f, 50.0f, 50.0f), .mTwoSided = true }));
+            return scene;
+        }
 
+        Shaders::VisibilityConstants overTheLantern(std::uint32_t size)
+        {
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -200.0f, 150.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
             camera.mSkyHorizon = osg::Vec3f(0.2f, 0.2f, 0.2f);
             camera.mSkyZenith = osg::Vec3f(0.2f, 0.2f, 0.2f);
             camera.mSun.mIrradiance = osg::Vec3f();
             camera.mAmbientFromSky = 1.0f;
+            return camera;
+        }
 
+        /// The composite of `renderer` after `frames` filtered frames from a cut, each its own draw from
+        /// `first` on, with the ring or without it.
+        void drawFromACut(VulkanRenderer& renderer, Shaders::VisibilityConstants camera, bool ring,
+            std::uint32_t frames, std::uint32_t first, std::vector<float>& read)
+        {
+            for (std::uint32_t at = 0; at < frames; ++at)
+            {
+                camera.mFrame = first + at;
+                renderer.renderFrame(camera,
+                    FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                        .mReconstruction = ReconstructionRequest{ .mDenoise = true,
+                            .mFilters = { .mAntilag = false, .mAntiFirefly = ring } },
+                        .mExposure = FixedExposure{ 1.0f } });
+                EXPECT_TRUE(renderer.finishFrame().has_value());
+            }
+            renderer.readComposite(read);
+        }
+
+        /// **A rare bright bounce on a history of a few frames is held to the light around it**
+        /// (`ACCUMULATE_RING_FRAMES`), over the lantern of `lanternOverAFloor`.
+        ///
+        /// After a cut every history is fresh, and three frames on a pixel whose bounce found the sheet
+        /// stands far over the truth: counted where the green stands four times over 64 unfiltered
+        /// frames', pooled over four draws. With the ring, a tenth of them at most.
+        ///
+        /// Measured: 9319 fireflies without the ring, the history fix having spread each over its
+        /// taps, and 173 with it; 9537 and 40 on a Radeon 680M.
+        TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyToTheLightAroundIt)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t fresh = 3;
+            constexpr std::uint32_t draws = 4;
+
+            const SceneDesc scene = lanternOverAFloor();
+            const Shaders::VisibilityConstants camera = overTheLantern(size);
             const std::vector<float> reference = shoot(scene, {}, camera, size, { .mFrames = 64 }).mRadiance;
 
-            // The composite after `frames` frames from a cut, each its own draw from `first` on.
             std::vector<float> read;
-            const auto run = [&](bool ring, std::uint32_t frames, std::uint32_t first) {
-                for (std::uint32_t at = 0; at < frames; ++at)
-                {
-                    camera.mFrame = first + at;
-                    mRenderer.renderFrame(camera,
-                        FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                .mFilters = { .mAntilag = false, .mAntiFirefly = ring } },
-                            .mExposure = FixedExposure{ 1.0f } });
-                    EXPECT_TRUE(mRenderer.finishFrame().has_value());
-                }
-                mRenderer.readComposite(read);
-            };
-
             const auto firefliesOf = [&](bool ring) {
                 std::uint32_t count = 0;
                 for (std::uint32_t draw = 0; draw < draws; ++draw)
                 {
-                    run(ring, fresh, 1000 + 100 * draw);
+                    drawFromACut(mRenderer, camera, ring, fresh, 1000 + 100 * draw, read);
                     for (std::size_t at = 1; at < read.size(); at += 4)
                         count += read[at] > 4.0f * reference[at] ? 1u : 0u;
                 }
@@ -1145,9 +1152,33 @@ namespace Rtx::Testing
                                        "proves nothing";
             const std::uint32_t with = firefliesOf(true);
             EXPECT_LT(10 * with, without) << "the ring left " << with << " of " << without << " fireflies";
+        }
 
+        /// **A settled history keeps the light the ring held from its first frames**, over the lantern
+        /// of `lanternOverAFloor`: 160 still frames from a cut, whose means with and without the ring
+        /// stand within a hundredth. A mean of more than eight frames keeps what it took in, and the
+        /// first eight frames, a quarter of a mean of 32, are `(31/32)^128` of that quarter 128 frames
+        /// later, under half a hundredth of the mean however much of their light the ring took.
+        ///
+        /// **On the unvalidated renderer** (`getUnvalidatedRenderer`), because the claim needs every
+        /// one of its 320 frames — at 112 the means stood 2.6% apart on a Radeon 680M — and the layers
+        /// held each at three times its cost there, past what a test may take; the ring's passes are
+        /// validated by `theRingHoldsAFreshFireflyToTheLightAroundIt`.
+        ///
+        /// Measured: the settled means 0.7973 and 0.7928, and 0.7956 and 0.7909 on a Radeon 680M.
+        TEST_F(RtxVisibilityTest, theRingLeavesASettledMeanItsLight)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t settled = 160;
+
+            VulkanRenderer& renderer = getUnvalidatedRenderer();
+            renderer.resize(size, size);
+            renderer.setScene(Rtx::SceneSlot::world(), lanternOverAFloor(), {});
+            const Shaders::VisibilityConstants camera = overTheLantern(size);
+
+            std::vector<float> read;
             const auto meanOf = [&](bool ring) {
-                run(ring, settled, 5000);
+                drawFromACut(renderer, camera, ring, settled, 5000, read);
                 double sum = 0.0;
                 for (std::size_t at = 1; at < read.size(); at += 4)
                     sum += static_cast<double>(read[at]);

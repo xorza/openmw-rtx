@@ -78,8 +78,8 @@ namespace Rtx::Testing
     /// against a budget of nought. That is not a stricter test but a deleted one. And
     /// `RtxVisibilityKernelsTest` watches seven kernels compile, which the layers held at 1.2 to
     /// 1.4 s against 0.03 without them, kernels the suite's renderer has already made and the
-    /// layers already checked. Everything else is validated, so this second device is only built
-    /// if something asks for it.
+    /// layers already checked. A settled mean's 320 frames (`getUnvalidatedRenderer`) are the third.
+    /// Everything else is validated, so this second device is only built if something asks for it.
     Harness& getUnvalidatedHarness();
 
     /// A device of the caller's own, closed when it lets go: what a test about a device coming and
@@ -146,12 +146,15 @@ namespace Rtx::Testing
     /// `Harness::mMadeWith` gives.
     const std::vector<std::string>& getRendererMadeWith();
 
-    /// The same, with no validation layers loaded, for the one test that counts allocations.
+    /// The same, with no validation layers loaded, for the test that counts allocations and the one
+    /// whose claim needs more frames than the layers leave it time for.
     ///
     /// **A second renderer, for the reason `getUnvalidatedHarness` gives.** The layers allocate and
     /// `getAllocationCount` replaces the global `operator new`, so it cannot tell one of theirs from
     /// the renderer's — a frame measured through the shared renderer reports hundreds of allocations
-    /// that no change to this code could remove. Built only if something asks, and asked by one test.
+    /// that no change to this code could remove. And they cost a frame three times its own on a
+    /// Radeon 680M, where `theRingLeavesASettledMeanItsLight`'s 320 frames took past what a test may.
+    /// Built only if something asks.
     VulkanRenderer& getUnvalidatedRenderer();
 
     /// The base of a test that drives Vulkan directly.

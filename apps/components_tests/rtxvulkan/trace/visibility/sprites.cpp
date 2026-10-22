@@ -878,7 +878,9 @@ namespace Rtx::Testing
                 return sum;
             };
 
-            const float open = boxedAt(0.0f, false, 128);
+            // One frame: with nothing to stand in the way, every draw of the fill reaches the puff,
+            // and the first frame's open fill is the 128th's within a part in ten million.
+            const float open = boxedAt(0.0f, false, 1);
             ASSERT_GT(open, 0.01f) << "the fill did not light the puff at all";
 
             EXPECT_NEAR(boxedAt(70.0f, false, 128) / open, 70.0f / reach, 0.08f) << "half of the sphere is left";

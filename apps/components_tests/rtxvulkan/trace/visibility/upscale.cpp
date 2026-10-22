@@ -71,18 +71,20 @@ namespace Rtx::Testing
         /// **A still picture holds still through every upscale.** A square floor under the sun against
         /// a black sky, from a still eye: its edges are the hardest thing a jittered frame aliases, so
         /// a sample the upscaler places even a fraction of a render pixel out moves them. The shown
-        /// picture's brightness centroid, frame by frame over the last half of 64 frames, may move by a
+        /// picture's brightness centroid, frame by frame over the last half of 32 frames, may move by a
         /// quarter of an output pixel at most, in every mode.
         ///
-        /// Measured: 0.01 to 0.08 of a pixel. With the jitter taken off the motion vector a second
-        /// time (`fsrcallbacks.glsl`), the history followed the jitter and the swing was 0.5 of a
-        /// pixel at native and 2.6 at ultra performance, growing with the ratio. At 96 pixels ultra
-        /// performance traces 32, and its luma pyramid has five levels where the pass declares six:
-        /// what `Upscaler::record` binds in place of the sixth.
+        /// Measured: 0.01 to 0.08 of a pixel over the last 32 of 64 frames, and on a Radeon 680M 0.01
+        /// to 0.05 over the last 16 of 32, where `FFX_HALF` moved it 0.15 to 0.55, as over 64. With
+        /// the jitter taken off the motion vector a second time (`fsrcallbacks.glsl`), the history
+        /// followed the jitter and the swing was 0.5 of a pixel at native and 2.6 at ultra
+        /// performance, growing with the ratio. At 96 pixels ultra performance traces 32, and its luma
+        /// pyramid has five levels where the pass declares six: what `Upscaler::record` binds in place
+        /// of the sixth.
         TEST_F(RtxVisibilityTest, aStillPictureHoldsStillThroughEveryUpscale)
         {
             constexpr std::uint32_t size = 96;
-            constexpr std::uint32_t frames = 64;
+            constexpr std::uint32_t frames = 32;
             SceneDesc scene;
             addQuad(scene, sheetAt(100.0f, 0.0f));
 

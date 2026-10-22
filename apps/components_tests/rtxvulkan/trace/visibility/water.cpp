@@ -1078,7 +1078,7 @@ namespace Rtx::Testing
                 osg::Vec3f(edge, wide, over), osg::Vec3f(-wide, wide, over) };
             addQuad(lidded, lid);
 
-            const auto shafts = [&](const SceneDesc& scene) {
+            const auto shafts = [&](const SceneDesc& scene, std::uint32_t frames) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, 0.0f, -1000.0f),
                     osg::Vec3f(0.0f, -1000.0f, -1000.0f), 60.0f, size, size, 100000.0f);
                 camera.mWaterLevel = 0.0f;
@@ -1088,7 +1088,7 @@ namespace Rtx::Testing
                 camera.mSun.mIrradiance = osg::Vec3f(blazing, blazing, blazing);
 
                 const Frame frame = shoot(
-                    scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFrames = 128 });
+                    scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFrames = frames });
 
                 std::vector<double> green;
                 for (std::uint32_t row = 0; row < size; ++row)
@@ -1096,8 +1096,8 @@ namespace Rtx::Testing
                 return green;
             };
 
-            const std::vector<double> open = shafts(makeOpenWater(4000.0f));
-            const std::vector<double> shaded = shafts(lidded);
+            const std::vector<double> open = shafts(makeOpenWater(4000.0f), 128);
+            const std::vector<double> shaded = shafts(lidded, 128);
 
             double kept = 0.0;
             for (std::uint32_t row = 0; row < size; ++row)
@@ -1114,13 +1114,15 @@ namespace Rtx::Testing
             // units up to it. Asked from where the light met the surface instead, the strip is
             // under that point and hides nothing. Only the rows below the horizon, whose own rays
             // run level or down and never meet the strip; what they keep is the sky's share alone.
+            // Eight frames, because a strip that hides the whole disc leaves no noise to average: the
+            // share comes out nought over eight as over 128, where the fault hides nothing.
             SceneDesc sunken = makeOpenWater(4000.0f);
             constexpr float strip = 50.0f;
             const std::array<osg::Vec3f, 4> under{ osg::Vec3f(-strip, -wide, -over), osg::Vec3f(strip, -wide, -over),
                 osg::Vec3f(strip, wide, -over), osg::Vec3f(-strip, wide, -over) };
             addQuad(sunken, under);
 
-            const std::vector<double> sunk = shafts(sunken);
+            const std::vector<double> sunk = shafts(sunken, 8);
             for (std::uint32_t row = column + 1; row < size; ++row)
                 EXPECT_LT(sunk[row] / open[row], 0.1)
                     << "the water under a sunken strip lit by a full shaft, row " << row;

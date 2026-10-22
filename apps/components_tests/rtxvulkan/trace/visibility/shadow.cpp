@@ -530,10 +530,10 @@ namespace Rtx::Testing
         /// **The noise of a penumbra comes off and its light stays where it was.** A roof over half
         /// the floor, two thousand units up, under a sun whose shadow cone is `SUN_SHADOW_RADIUS`
         /// either way: the penumbra is `2 * 2000 * 0.0349` = 140 units across, a quarter of the
-        /// 346 the frame spans, and one ray a pixel speckles it. Measured against a reference of 256
+        /// 346 the frame spans, and one ray a pixel speckles it. Measured against a reference of 128
         /// unfiltered frames, one frame's error and the denoised frame's after sixty-four frames of
         /// history — on a dry floor, and on a flooded one seen through the water, whose sun is what
-        /// the refraction found. Two tests on one body, since each is 321 frames.
+        /// the refraction found. Two tests on one body, since each is 193 frames.
         class RtxPenumbraDenoiseTest : public RtxVisibilityTest
         {
         protected:
@@ -546,7 +546,7 @@ namespace Rtx::Testing
                 addQuad(scene, roofOver(-4000.0f, 0.0f, 2000.0f));
 
                 const Frame reference = shoot(
-                    scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFrames = 256 });
+                    scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFrames = 128 });
 
                 camera.mFrame = 1000;
                 const Frame raw = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
@@ -576,13 +576,15 @@ namespace Rtx::Testing
             }
         };
 
-        /// Measured at a thirty-second: 0.0762 raw against 0.0024 denoised. Held under a tenth.
+        /// Measured at a thirty-second: 0.0762 raw against 0.0024 denoised, and against a reference of
+        /// 128 frames on a Radeon 680M 0.0772 against 0.0030. Held under a tenth.
         TEST_F(RtxPenumbraDenoiseTest, theShadowDenoiserTakesTheNoiseOffAPenumbraAndLeavesItsLightWhereItWas)
         {
             penumbraOn(false, 0.1f);
         }
 
-        /// Measured at a fifth: 0.0242 raw against 0.0045 denoised, and held under a quarter. **The
+        /// Measured at a fifth: 0.0242 raw against 0.0045 denoised, and against a reference of 128
+        /// frames on a Radeon 680M 0.0242 against 0.0047; held under a quarter. **The
         /// water splits the floor's pixels between its two paths**, and the reflection finds a black
         /// sky: the composite's blend of each pixel with the four across it takes part of the raw
         /// frame's noise before any filter runs, and the shadow filter finds half its taps, the other
