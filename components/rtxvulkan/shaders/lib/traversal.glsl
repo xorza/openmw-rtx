@@ -1443,6 +1443,14 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     // its layers, a flattened chunk from the gloss baked beside its composite — and the tint darkens
     // it for the same reason. A stack with no layer that reflects keeps the Lambert surface's
     // numbers exactly, since no division is taken for it.
+    //
+    // **A specular map is read at its footprint's long axis, and not along the footprint**
+    // (`atLevel`): through `texturesAlong`, AMD's Windows driver hung the trace in the waterfall of
+    // this read wherever a wave resolved a first-person surface while its other lanes went on with
+    // the peel, whether or not the surface had a specular map
+    // (`docs/rtx/research/2026-10-22-amd-680m-footprint-read-hang.md`). What it costs is a gloss read
+    // half a `log2` of the footprint's axes' ratio coarser at a grazing angle; the albedo and the
+    // normal map are read along the footprint still.
     if (HAS_MAPS && (ground.mReflecting > 0.0 || ground.mShining > 0.0))
     {
         const vec3 gloss = groundGloss(ground);
@@ -1451,7 +1459,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     }
     else if (specularMap && surface.mGround)
     {
-        const vec3 gloss = sampleDiffuse(material.mSpecular, point).rgb;
+        const vec3 gloss = sampleDiffuse(material.mSpecular, atLevel(point)).rgb;
         surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x + gloss.z) * tint;
         surface.mRoughness = gloss.y;
     }
@@ -1466,7 +1474,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
         // colour: no metal splits it, the highlight colour is the lobe's whole, and the exponent
         // over 255 is a roughness by `roughnessOfExponent`'s match. Selected, so the two layouts
         // take one path.
-        const vec4 painted = sampleDiffuse(material.mSpecular, point);
+        const vec4 painted = sampleDiffuse(material.mSpecular, atLevel(point));
         const bool classic = (material.mFlags & MATERIAL_SPECULAR_CLASSIC) != 0u;
         const float metal = classic ? 0.0 : painted.x;
         surface.mSpecular = (classic ? painted.rgb : mix(vec3(DIELECTRIC_F0), albedo, metal)) * tint;

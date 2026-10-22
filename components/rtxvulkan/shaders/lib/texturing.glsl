@@ -323,6 +323,15 @@ vec4 sampleDiffuse(uint slot, TexturePoint point)
     return textureLod(textures[nonuniformEXT(slot)], point.mAt, coneLod(slot, point));
 }
 
+/// `point` read at the level of its footprint's long axis, through `textures`, and not along the
+/// footprint.
+TexturePoint atLevel(TexturePoint point)
+{
+    point.mAnisotropic = false;
+    point.mResolved = point.mBase;
+    return point;
+}
+
 /// A tangent-space normal off a normal map, read at the level its cone can resolve and decoded as
 /// `decodeNormal` says, not unit — the frame it is carried through is normalised after.
 vec3 sampleNormalMap(uint slot, TexturePoint point)
