@@ -14,6 +14,11 @@
 #include <osg/Quat>
 #include <osg/ref_ptr>
 
+namespace MyGUI
+{
+    class ITexture;
+}
+
 namespace MWWorld
 {
     class CellStore;
@@ -98,7 +103,8 @@ namespace MWRender
         /// new view.
         std::shared_ptr<OffscreenView> getMapView(int x, int y);
 
-        osg::ref_ptr<SceneUtil::PaintedTexture> getFogOfWarTexture(int x, int y);
+        /// The fog of war over this segment, for a widget to show, or null where it has none.
+        std::unique_ptr<MyGUI::ITexture> makeFogOfWarGuiTexture(int x, int y);
 
         /// The renderer the tiles are drawn by, which the world map's overlay is made by too
         Renderer& getRenderer() { return mRenderer; }

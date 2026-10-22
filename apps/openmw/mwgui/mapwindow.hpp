@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 #include <osg/Vec2f>
 
@@ -142,9 +143,8 @@ namespace MWGui
             MyGUI::ImageBox* mFogWidget;
             // Shared with the local map, so the picture outlives a segment dropped or redrawn under it
             std::shared_ptr<MWRender::OffscreenView> mMapView;
-            std::unique_ptr<MyGUI::ITexture> mFogTexture;
-            // Whether this entry has asked for a fog texture and been told there is none
-            bool mFogAsked = false;
+            // nullopt until asked; nullptr where the local map had no fog for this segment
+            std::optional<std::unique_ptr<MyGUI::ITexture>> mFogTexture;
             int mCellX;
             int mCellY;
         };

@@ -8,7 +8,6 @@
 namespace MWRender
 {
     class RaceSelectionPreview;
-    class Renderer;
 }
 
 namespace ESM
@@ -16,17 +15,13 @@ namespace ESM
     struct NPC;
 }
 
-namespace Resource
-{
-    class ResourceSystem;
-}
-
 namespace MWGui
 {
     class RaceDialog : public WindowModal
     {
     public:
-        RaceDialog(MWRender::Renderer& renderer, Resource::ResourceSystem* resourceSystem);
+        RaceDialog();
+        ~RaceDialog() override;
 
         enum Gender
         {
@@ -87,9 +82,6 @@ namespace MWGui
         void recountParts();
 
         void getBodyParts(int part, std::vector<ESM::RefId>& out);
-
-        MWRender::Renderer& mRenderer;
-        Resource::ResourceSystem* mResourceSystem;
 
         std::vector<ESM::RefId> mAvailableHeads;
         std::vector<ESM::RefId> mAvailableHairs;

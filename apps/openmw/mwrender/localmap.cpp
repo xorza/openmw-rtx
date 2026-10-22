@@ -17,6 +17,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/files/memorystream.hpp>
 #include <components/misc/constants.hpp>
+#include <components/myguiplatform/guirendermanager.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
 #include <components/sceneutil/paintedtexture.hpp>
 #include <components/settings/values.hpp>
@@ -246,14 +247,13 @@ namespace MWRender
         return mRenderer.getGroundReach();
     }
 
-    osg::ref_ptr<SceneUtil::PaintedTexture> LocalMap::getFogOfWarTexture(int x, int y)
+    std::unique_ptr<MyGUI::ITexture> LocalMap::makeFogOfWarGuiTexture(int x, int y)
     {
         auto& segments(mInterior ? mInteriorSegments : mExteriorSegments);
         SegmentMap::iterator found = segments.find(std::make_pair(x, y));
-        if (found == segments.end())
-            return osg::ref_ptr<SceneUtil::PaintedTexture>();
-        else
-            return found->second.mFogOfWarTexture;
+        if (found == segments.end() || !found->second.mFogOfWarTexture)
+            return nullptr;
+        return MyGUIPlatform::shareTexture(*found->second.mFogOfWarTexture);
     }
 
     void LocalMap::requestExteriorMap(const MWWorld::CellStore* cell, MapSegment& segment)

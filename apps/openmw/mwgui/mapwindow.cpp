@@ -1,7 +1,5 @@
 #include "mapwindow.hpp"
 
-#include <osg/Texture2D>
-
 #include <MyGUI_Button.h>
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_Gui.h>
@@ -16,8 +14,6 @@
 
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/globalmap.hpp>
-#include <components/myguiplatform/guirendermanager.hpp>
-#include <components/sceneutil/paintedtexture.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -243,7 +239,6 @@ namespace MWGui
             {
                 entry.mFogWidget->setImageTexture({});
                 entry.mFogTexture.reset();
-                entry.mFogAsked = false;
             }
         }
 
@@ -462,7 +457,6 @@ namespace MWGui
             entry.mFogWidget->setRenderItemTexture(nullptr);
             entry.mMapView.reset();
             entry.mFogTexture.reset();
-            entry.mFogAsked = false;
         };
 
         std::size_t usedEntries = 0;
@@ -635,15 +629,12 @@ namespace MWGui
                     needRedraw = true;
                 }
             }
-            if (!entry.mFogAsked && mFogOfWarToggled && mFogOfWarEnabled)
+            if (!entry.mFogTexture && mFogOfWarToggled && mFogOfWarEnabled)
             {
-                entry.mFogAsked = true;
-                osg::ref_ptr<SceneUtil::PaintedTexture> tex
-                    = mLocalMapRender->getFogOfWarTexture(entry.mCellX, entry.mCellY);
-                if (tex)
+                entry.mFogTexture = mLocalMapRender->makeFogOfWarGuiTexture(entry.mCellX, entry.mCellY);
+                if (*entry.mFogTexture)
                 {
-                    entry.mFogTexture = MyGUIPlatform::shareTexture(*tex);
-                    entry.mFogWidget->setRenderItemTexture(entry.mFogTexture.get());
+                    entry.mFogWidget->setRenderItemTexture(entry.mFogTexture->get());
                     // For inexplicable historical reasons the fog texture is Y-down so this UV is *not* inverted
                     entry.mFogWidget->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 0.f, 1.f, 1.f));
                 }
@@ -1150,7 +1141,7 @@ namespace MWGui
 
     void MapWindow::cellExplored(int x, int y)
     {
-        mGlobalMapRender->exploreCell(x, y, mLocalMapRender->getMapView(x, y));
+        mGlobalMapRender->exploreCell(x, y, *mLocalMapRender);
     }
 
     void MapWindow::onFrame(float dt)
@@ -1328,7 +1319,7 @@ namespace MWGui
             // The generated unexplored map and explored map RTT images are Y-up so the UVs are inverted
             // The unexplored map isn't saved so we *could* consider generating it the "right" way
             // but mixing conventions for map images could make things confusing
-            mGlobalMapTexture = MyGUIPlatform::shareTexture(*mGlobalMapRender->getBaseTexture());
+            mGlobalMapTexture = mGlobalMapRender->makeBaseGuiTexture();
             mGlobalMapImage->setRenderItemTexture(mGlobalMapTexture.get());
             mGlobalMapImage->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 1.f, 1.f, 0.f));
 

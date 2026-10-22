@@ -6,6 +6,7 @@
 #include <osgDB/WriteFile>
 
 #include <components/files/memorystream.hpp>
+#include <components/myguiplatform/guirendermanager.hpp>
 #include <components/settings/values.hpp>
 
 #include <components/debug/debuglog.hpp>
@@ -25,6 +26,7 @@
 
 #include "../mwworld/esmstore.hpp"
 
+#include "localmap.hpp"
 #include "mapoverlay.hpp"
 #include "renderer.hpp"
 
@@ -216,10 +218,11 @@ namespace MWRender
         imageY = (1.f - float(z / float(Constants::CellSizeInUnits) - mMinY) / (mMaxY - mMinY + 1)) * getHeight();
     }
 
-    void GlobalMap::exploreCell(int cellX, int cellY, std::shared_ptr<OffscreenView> tile)
+    void GlobalMap::exploreCell(int cellX, int cellY, LocalMap& localMap)
     {
         ensureLoaded();
 
+        std::shared_ptr<OffscreenView> tile = localMap.getMapView(cellX, cellY);
         if (!tile)
             return;
 
@@ -363,10 +366,10 @@ namespace MWRender
         }
     }
 
-    osg::ref_ptr<osg::Texture2D> GlobalMap::getBaseTexture()
+    std::unique_ptr<MyGUI::ITexture> GlobalMap::makeBaseGuiTexture()
     {
         ensureLoaded();
-        return mBaseTexture;
+        return MyGUIPlatform::shareTexture(*mBaseTexture);
     }
 
     MyGUI::ITexture& GlobalMap::getOverlayTexture()

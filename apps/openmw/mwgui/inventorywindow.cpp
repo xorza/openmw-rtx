@@ -10,8 +10,6 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_Window.h>
 
-#include <osg/Texture2D>
-
 #include <components/misc/strings/algorithm.hpp>
 
 #include <components/settings/values.hpp>
@@ -22,6 +20,9 @@
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
+
+#include "../mwrender/characterpreview.hpp"
+#include "../mwrender/renderingmanager.hpp"
 
 #include "../mwworld/action.hpp"
 #include "../mwworld/class.hpp"
@@ -78,8 +79,7 @@ namespace MWGui
         }
     }
 
-    InventoryWindow::InventoryWindow(DragAndDrop& dragAndDrop, ItemTransfer& itemTransfer, MWRender::Renderer& renderer,
-        Resource::ResourceSystem* resourceSystem)
+    InventoryWindow::InventoryWindow(DragAndDrop& dragAndDrop, ItemTransfer& itemTransfer)
         : WindowPinnableBase("openmw_inventory_window.layout")
         , mDragAndDrop(&dragAndDrop)
         , mItemTransfer(&itemTransfer)
@@ -89,7 +89,8 @@ namespace MWGui
         , mGuiMode(GM_Inventory)
         , mLastXSize(0)
         , mLastYSize(0)
-        , mPreview(std::make_unique<MWRender::InventoryPreview>(renderer, resourceSystem, MWMechanics::getPlayer()))
+        , mPreview(MWBase::Environment::get().getWorld()->getRenderingManager()->createInventoryPreview(
+              MWMechanics::getPlayer()))
         , mTrading(false)
         , mUpdateNextFrame(false)
         , mPendingControllerAction(ControllerAction::None)
@@ -153,6 +154,8 @@ namespace MWGui
 
         adjustPanes();
     }
+
+    InventoryWindow::~InventoryWindow() = default;
 
     void InventoryWindow::adjustPanes()
     {

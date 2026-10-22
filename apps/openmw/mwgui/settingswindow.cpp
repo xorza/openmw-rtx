@@ -347,6 +347,7 @@ namespace MWGui
         getWidget(mPlayerShadowsButton, "PlayerShadowsButton");
         getWidget(mTerrainShadowsButton, "TerrainShadowsButton");
         getWidget(mObjectShadowsButton, "ObjectShadowsButton");
+        getWidget(mShadowPlanesComputationMethod, "ShadowPlanesComputationMethod");
         getWidget(mShadowMapResolution, "ShadowMapResolution");
         getWidget(mRayTracingUpscale, "RayTracingUpscaleList");
 
@@ -387,6 +388,8 @@ namespace MWGui
             += MyGUI::newDelegate(this, &SettingsWindow::onShadowsButtonClicked);
         mObjectShadowsButton->eventMouseButtonClick
             += MyGUI::newDelegate(this, &SettingsWindow::onShadowsButtonClicked);
+        mShadowPlanesComputationMethod->eventComboChangePosition
+            += MyGUI::newDelegate(this, &SettingsWindow::onComputeSceneBoundsChanged);
         mShadowMapResolution->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onShadowMapResolutionChanged);
 
@@ -439,6 +442,14 @@ namespace MWGui
         mWaterRainRippleDetail->setIndexSelected(waterRainRippleDetail);
 
         updateMaxLightsComboBox(mMaxLights);
+
+        const std::string& shadowMethod = Settings::shadows().mComputeSceneBounds;
+        if (shadowMethod == "bounds")
+            mShadowPlanesComputationMethod->setIndexSelected(0);
+        else if (shadowMethod == "primitives")
+            mShadowPlanesComputationMethod->setIndexSelected(1);
+        else
+            mShadowPlanesComputationMethod->setIndexSelected(2);
 
         updateShadowMapResolutionComboBox(mShadowMapResolution);
 
@@ -784,6 +795,38 @@ namespace MWGui
         auto& shadowSettings = Settings::shadows();
         shadowSettings.mEnableShadows.set(shadowSettings.mActorShadows || shadowSettings.mPlayerShadows
             || shadowSettings.mTerrainShadows || shadowSettings.mObjectShadows);
+        apply();
+    }
+
+    void SettingsWindow::onComputeSceneBoundsChanged(MyGUI::ComboBox* sender, size_t pos)
+    {
+        if (pos == MyGUI::ITEM_NONE)
+            return;
+
+        if (pos == 1 && mShowShadowPlanesMethodWarning)
+        {
+            MWBase::Environment::get().getWindowManager()->interactiveMessageBox(
+                "#{OMWEngine:ShadowPlanesComputationMethodWarning}", { "#{Interface:OK}" }, true);
+            mShowShadowPlanesMethodWarning = false;
+        }
+
+        auto& shadowSettings = Settings::shadows();
+        switch (pos)
+        {
+            case 0:
+                shadowSettings.mComputeSceneBounds.set("bounds");
+                break;
+            case 1:
+                shadowSettings.mComputeSceneBounds.set("primitives");
+                break;
+            case 2:
+                shadowSettings.mComputeSceneBounds.set("none");
+                break;
+            default:
+                Log(Debug::Warning) << "Unexpected shadow planes computation method pos " << pos;
+                break;
+        }
+
         apply();
     }
 
@@ -1157,6 +1200,7 @@ namespace MWGui
             { mWaterRainRippleDetail, { "Water", "rain ripple detail" } },
             { mMaxLights, { "Shaders", "max lights" } },
             { mLightsResetButton, { "Shaders", "max lights" } },
+            { mShadowPlanesComputationMethod, { "Shadows", "compute scene bounds" } },
             { mShadowMapResolution, { "Shadows", "shadow map resolution" } },
             { mRayTracingUpscale, { "RTX", "upscale" } },
             { mRayTracingSpecularMaps, { "RTX", "specular map layout" } },

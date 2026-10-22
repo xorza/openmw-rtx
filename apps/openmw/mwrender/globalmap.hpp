@@ -33,8 +33,8 @@ namespace MWRender
 {
 
     class CreateMapWorkItem;
+    class LocalMap;
     class MapOverlay;
-    class OffscreenView;
     class Renderer;
 
     class GlobalMap
@@ -51,9 +51,9 @@ namespace MWRender
 
         void worldPosToImageSpace(float x, float z, float& imageX, float& imageY);
 
-        /// Paints the local map's picture of a cell into the overlay. A null tile is a cell the
-        /// local map has not been asked for, and paints nothing.
-        void exploreCell(int cellX, int cellY, std::shared_ptr<OffscreenView> tile);
+        /// Paints the local map's picture of a cell into the overlay, where the local map has one:
+        /// a cell it has not been asked for paints nothing.
+        void exploreCell(int cellX, int cellY, LocalMap& localMap);
 
         /// Clears the overlay
         void clear();
@@ -61,7 +61,10 @@ namespace MWRender
         void write(ESM::GlobalMap& map);
         void read(ESM::GlobalMap& map);
 
-        osg::ref_ptr<osg::Texture2D> getBaseTexture();
+        /// The base map, for a widget to show.
+        std::unique_ptr<MyGUI::ITexture> makeBaseGuiTexture();
+
+        /// The overlay's picture, which the overlay owns: whichever renderer paints it hands it out.
         MyGUI::ITexture& getOverlayTexture();
 
         void ensureLoaded();

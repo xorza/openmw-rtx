@@ -101,6 +101,9 @@ namespace MWRender
     class ObjectPaging;
     class Groundcover;
     class PostProcessor;
+    class InventoryPreview;
+    class RaceSelectionPreview;
+    class LocalMap;
 
     class RenderingManager : public MWRender::RenderingInterface
     {
@@ -116,6 +119,10 @@ namespace MWRender
         MWRender::Objects& getObjects() override;
 
         Resource::ResourceSystem* getResourceSystem();
+
+        std::unique_ptr<InventoryPreview> createInventoryPreview(const MWWorld::Ptr& character);
+        std::unique_ptr<RaceSelectionPreview> createRaceSelectionPreview();
+        std::unique_ptr<LocalMap> createLocalMap();
 
         const std::shared_ptr<SceneUtil::WorkQueue>& getWorkQueue() const;
         Terrain::World* getTerrain();
@@ -194,6 +201,10 @@ namespace MWRender
 
         /// Get normalized screen coordinates of the bounding box's summit, where (0,0) is the top left corner
         osg::Vec2f getScreenCoords(const osg::BoundingBox& bb);
+
+        /// Get the bounding box of the object's scene graph, leaving out nodes in ignoreMask. Invalid if the object
+        /// is not in the scene.
+        osg::BoundingBox getObjectBounds(const MWWorld::Ptr& ptr, unsigned int ignoreMask) const;
 
         void setSkyEnabled(bool enabled);
 
