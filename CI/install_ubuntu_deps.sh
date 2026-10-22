@@ -9,6 +9,12 @@ set -euo pipefail
 
 here="$(dirname "$(readlink -f "$0")")"
 
+# **A connection silent for thirty seconds is given up**, every fetch the install makes, so a mirror
+# that stops answering is left for the next one sooner: a stalled mirror held one install for 96
+# minutes on 2026-10-22. A mirror that trickles is not caught here; what a stall costs in all is
+# bounded where CI runs this (`.github/actions/openmw-deps`).
+printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' >/etc/apt/apt.conf.d/99-silent-mirror
+
 "$here/install_debian_deps.sh" gcc openmw-deps openmw-deps-dynamic
 
 # A PPA whose index never came is ignored by apt, which then installs Ubuntu's own recastnavigation,

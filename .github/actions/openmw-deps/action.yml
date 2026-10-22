@@ -26,10 +26,20 @@ runs:
         python-version: "3.11"
 
     - name: Linux packages
-      # The one list, which the container a desk builds a release in installs too.
+      # The one list, which the container a desk builds a release in installs too. **Thirty minutes at
+      # most**, and a minute more for the script to end: one install that passed took sixteen, and
+      # one a stalled mirror held ran 110 and took the job past its limit. A job that runs out says
+      # so, and is run again.
       if: runner.os == 'Linux'
       shell: bash
-      run: sudo CI/install_ubuntu_deps.sh
+      run: |
+        sudo timeout --kill-after=1m 30m CI/install_ubuntu_deps.sh || {
+          status=$?
+          if [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
+            echo "::error::the Linux packages took past 30 minutes, a stalled mirror: run the job again"
+          fi
+          exit "$status"
+        }
 
     - name: Vulkan SDK cache
       # On Linux, the SDK alone: the rest of deps/ is small, or fetched by one job only.
