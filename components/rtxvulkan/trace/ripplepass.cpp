@@ -68,28 +68,19 @@ namespace Rtx
         constexpr VkImageUsageFlags tileUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
             | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        const std::uint32_t levels = levelsTo1x1(sGrid, sGrid);
+        const ImageDescription fieldImage{
+            .mWidth = sGrid, .mHeight = sGrid, .mFormat = sFieldFormat, .mUsage = fieldUsage
+        };
+        const ImageDescription tileImage{ .mWidth = sGrid,
+            .mHeight = sGrid,
+            .mFormat = toVulkanFormat(WAVE_TILE_FORMAT),
+            .mUsage = tileUsage,
+            .mMipLevels = levelsTo1x1(sGrid, sGrid) };
 
-        mFields[0] = Image(MemoryUse::Essential, device,
-            ImageDescription{ .mWidth = sGrid, .mHeight = sGrid, .mFormat = sFieldFormat, .mUsage = fieldUsage },
-            "ripple field 0");
-        mFields[1] = Image(MemoryUse::Essential, device,
-            ImageDescription{ .mWidth = sGrid, .mHeight = sGrid, .mFormat = sFieldFormat, .mUsage = fieldUsage },
-            "ripple field 1");
-        mSurface = Image(MemoryUse::Essential, device,
-            ImageDescription{ .mWidth = sGrid,
-                .mHeight = sGrid,
-                .mFormat = toVulkanFormat(WAVE_TILE_FORMAT),
-                .mUsage = tileUsage,
-                .mMipLevels = levels },
-            "ripple surface");
-        mCurvature = Image(MemoryUse::Essential, device,
-            ImageDescription{ .mWidth = sGrid,
-                .mHeight = sGrid,
-                .mFormat = toVulkanFormat(WAVE_TILE_FORMAT),
-                .mUsage = tileUsage,
-                .mMipLevels = levels },
-            "ripple curvature");
+        mFields[0] = Image(MemoryUse::Essential, device, fieldImage, "ripple field 0");
+        mFields[1] = Image(MemoryUse::Essential, device, fieldImage, "ripple field 1");
+        mSurface = Image(MemoryUse::Essential, device, tileImage, "ripple surface");
+        mCurvature = Image(MemoryUse::Essential, device, tileImage, "ripple curvature");
 
         mImpulseScratch.reserve(Shaders::RIPPLE_IMPULSES_MOST);
         mCandidates.reserve(Shaders::RIPPLE_IMPULSES_MOST);

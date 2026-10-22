@@ -27,15 +27,17 @@ namespace Rtx::Shaders
 
     /// The columns and rows of a field one workgroup of a trace stage covers (`stagePixelOf`): 32
     /// lanes, one subgroup (`SubgroupSize::ThirtyTwo`), in AMD's eight by four for ray queries on
-    /// RDNA, which keeps a wave's rays near each other.
+    /// RDNA, which keeps a wave's rays near each other. **Declared as one row of `TRACE_WORKGROUP_LANES`
+    /// and laid out as the tile by the lane's index**, because a pipeline asks for full subgroups only
+    /// of a workgroup whose first side is a multiple of the subgroup's
+    /// (`VUID-VkPipelineShaderStageCreateInfo-flags-02757`), and only full subgroups make the
+    /// workgroup the one subgroup its ballots count (`bounce.comp`, `visibility.comp`).
     const uint TRACE_WORKGROUP_WIDTH = 8u;
     const uint TRACE_WORKGROUP_HEIGHT = 4u;
     const uint TRACE_WORKGROUP_LANES = TRACE_WORKGROUP_WIDTH * TRACE_WORKGROUP_HEIGHT;
 
-    // A word holds a bit a lane of a trace workgroup, which the bounce's stage lists its landings by
-    // (`bounce.comp`).
 #ifdef RTX_HOST
-    static_assert(TRACE_WORKGROUP_LANES <= 32u, "a trace workgroup wider than the bounce's landing mask");
+    static_assert(TRACE_WORKGROUP_LANES == 32u, "a trace workgroup that is not one subgroup of 32 lanes");
 #endif
 
     /// How many tiles each of the stages' lists holds for a frame `width` by `height`: every

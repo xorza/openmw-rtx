@@ -43,6 +43,8 @@ vec3 resolvedLight(ivec2 stored, vec3 directLight, vec3 bounce, vec3 fillShare, 
 void storeUpscaleMasks(ivec2 at, ivec2 stored, vec3 light)
 {
     const StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
+    // Floored only so a black pixel divides by something: any layer's light over it then gives the
+    // ceiling of one, which the `min` holds the share to whatever the floor is.
     const float lit = max(dot(light, LUMINANCE_WEIGHTS), 1e-6);
     const float paneMisMoved = min(record.mPaneOwn / lit, 1.0) * record.mPaneApart;
     RTX_STORE_COUNTED(upscaleMasks, at,
