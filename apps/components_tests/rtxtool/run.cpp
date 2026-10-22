@@ -30,6 +30,7 @@
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories/video.hpp>
 #include <components/settings/values.hpp>
+#include <components/settings/windowmode.hpp>
 #include <components/testing/util.hpp>
 
 #ifndef OPENMW_PROJECT_SOURCE_DIR
@@ -324,28 +325,46 @@ namespace RtxTool
 
     namespace
     {
-        /// **A watched window keeps the player's pacing whole**: the vertical sync and the frame-rate
-        /// limit both. A window that kept the one and not the other drew as fast as the card could
-        /// under a player who had asked for 60.
-        TEST(RtxWindowRequestTest, aWatchedWindowKeepsThePlayersSyncAndLimit)
+        /// **A watched window keeps the player's frame-rate limit**, and an unwatched one none: a
+        /// window that dropped it drew as fast as the card could under a player who had asked for 60.
+        /// **And never the player's vertical sync**, which held a frame between two refreshes to
+        /// one, two or three of them.
+        TEST(RtxWindowRequestTest, aWatchedWindowKeepsThePlayersLimitAndNoVerticalSync)
         {
             const WindowRequest unwatched;
-            EXPECT_EQ(unwatched.mVerticalSync, SDLUtil::VSyncMode::Disabled);
             EXPECT_EQ(unwatched.mFramerateLimit, 0.0f);
 
             Settings::VideoCategory& video = Settings::video();
-            const SDLUtil::VSyncMode sync = video.mVsyncMode;
             const float limit = video.mFramerateLimit;
-            video.mVsyncMode.set(SDLUtil::VSyncMode::Adaptive);
+            const SDLUtil::VSyncMode sync = video.mVsyncMode;
+            const int width = video.mResolutionX;
+            const int height = video.mResolutionY;
+            const Settings::WindowMode mode = video.mWindowMode;
+            const float fieldOfView = Settings::camera().mFieldOfView;
             video.mFramerateLimit.set(72.0f);
+            video.mVsyncMode.set(SDLUtil::VSyncMode::Enabled);
 
             WindowRequest watched;
-            watched.keepPlayersPacing();
-            EXPECT_EQ(watched.mVerticalSync, SDLUtil::VSyncMode::Adaptive);
+            watched.mWidth = 2560;
+            watched.mHeight = 1440;
+            watched.mFieldOfView = 75.0f;
+            watched.keepPlayersLimit();
             EXPECT_EQ(watched.mFramerateLimit, 72.0f);
 
-            video.mVsyncMode.set(sync);
+            watched.writeSettings();
+            EXPECT_EQ(video.mVsyncMode, SDLUtil::VSyncMode::Disabled);
+            EXPECT_EQ(video.mFramerateLimit, 72.0f);
+            EXPECT_EQ(video.mResolutionX, 2560);
+            EXPECT_EQ(video.mResolutionY, 1440);
+            EXPECT_EQ(video.mWindowMode, Settings::WindowMode::Windowed);
+            EXPECT_EQ(Settings::camera().mFieldOfView, 75.0f);
+
             video.mFramerateLimit.set(limit);
+            video.mVsyncMode.set(sync);
+            video.mResolutionX.set(width);
+            video.mResolutionY.set(height);
+            video.mWindowMode.set(mode);
+            Settings::camera().mFieldOfView.set(fieldOfView);
         }
 
         TEST(RtxBenchSuiteTest, aSuiteFileIsSectionsOfViewNames)

@@ -194,12 +194,15 @@ The game installs on this machine, each a different load on the renderer:
 
 - `/home/Games/Morrowind` — vanilla, what the player's `openmw.cfg` names and every suite has been
   measured on.
-- `/home/Games/M[FR]/` — the Morrowind Fullrest Repack, a large mod list (MWSE, MGE) under
-  `game/Data Files`. Its own OpenMW configuration (`game/OpenMW/OpenMW_Config/openmw.cfg`) names
-  a Windows path, so a run states the data folder itself.
+- `/home/Games/M[FR]/` — the Morrowind Fullrest Repack, a large mod list with Tamriel Rebuilt,
+  under `game/Data Files`. Its Linux profile is `~/.config/openmw-mfr`, which a run takes with
+  `--replace=config --config=$HOME/.config/openmw-mfr`.
 - `/home/Games/Morrowind-PBR/` — Morrowind with PBR replacers in `mods/` (`1-mvr`, `2-mvr-pbr`,
-  `3-tamrielic-pbr-armors`): the content a measurement of companion maps, texture memory or
-  residency needs.
+  `3-tamrielic-pbr-armors`), stacked by the profile `~/.config/openmw-pbr`: the content a
+  measurement of companion maps, texture memory or residency needs.
+
+The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw release view
+--size=2560x1440` at a place, one task a profile.
 
 - Compiling is not verifying. Build the targets you touched and run the covering binary with a
   filter: `./omw test <binary> --gtest_filter=...`. `./omw lint driver` before a push that touches

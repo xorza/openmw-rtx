@@ -22,7 +22,6 @@
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 
 namespace Files
 {
@@ -168,15 +167,18 @@ namespace RtxTool
 
         float mFieldOfView = 60.0f;
 
-        /// How the present paces the frame, and the rate the engine's limiter holds it to, nought
-        /// for none. Both off for a run nobody watches, where a frame held back is a frame spent
-        /// waiting and the wait for the refresh lands in `wait ms`.
-        SDLUtil::VSyncMode mVerticalSync = SDLUtil::VSyncMode::Disabled;
+        /// The rate the engine's limiter holds the frame to, nought for none: none for a run nobody
+        /// watches, where a frame held back is a frame spent waiting. The present never waits for
+        /// the refresh (`writeSettings`).
         float mFramerateLimit = 0.0f;
 
-        /// Takes the player's own pacing, which a watched window keeps: it is the played game with
+        /// Takes the player's own limit, which a watched window keeps: it is the played game with
         /// the walls off.
-        void keepPlayersPacing();
+        void keepPlayersLimit();
+
+        /// Writes the window into the settings the engine makes it from, vertical sync off whatever
+        /// the player chose.
+        void writeSettings() const;
     };
 
     /// What a command's frames are traced with, read once off the command line into the two records

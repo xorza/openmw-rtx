@@ -52,7 +52,6 @@
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
 #include <components/version/version.hpp>
@@ -288,7 +287,8 @@ namespace RtxTool
             // so that two runs of it are one run whatever a settings file says — which is what
             // the shipped defaults are for, and not the player's value of the same setting. A
             // window that took them stood four cells of ground under a player who had set eight,
-            // and upscaled at a quality they had not.
+            // and upscaled at a quality they had not. Vertical sync excepted, which no run keeps
+            // (`WindowRequest::writeSettings`).
             const bool watched = command.mVerb == Verbs::View;
             const auto given
                 = [&](const char* name) { return variables.count(name) != 0 && !variables[name].defaulted(); };
@@ -299,7 +299,7 @@ namespace RtxTool
             framed.mWindow.mHeight = size.mHeight;
             framed.mWindow.mFieldOfView = variables["fov"].as<float>();
             if (watched)
-                framed.mWindow.keepPlayersPacing();
+                framed.mWindow.keepPlayersLimit();
             framed.mDay = variables["day"].as<int>();
             if (const Misc::Result<void, std::string_view> checked = checkDay(framed.mDay); !checked.isOk())
                 throw std::runtime_error(std::format("--day={} {}", framed.mDay, checked.error()));
