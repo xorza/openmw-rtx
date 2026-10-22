@@ -107,7 +107,9 @@ namespace Rtx
         /// more than all of them.
         VkDeviceSize meansNeeded(VkDeviceSize total, VkDeviceSize largest) const;
 
-        /// The same for the loose chains of an arrival's encodes, which the canvas is made at.
+        /// The same for the loose chains of an arrival's encodes, which the canvas is made at. **Short
+        /// by the alignment between chains** where every chain fits one group: a chain's alignment is
+        /// the device's to say, and the price is made of the files alone (`priceEncode`).
         VkDeviceSize looseNeeded(VkDeviceSize total, VkDeviceSize largest) const;
 
         /// How many bytes the canvas holds now, and the blocks every encode works through: what an
