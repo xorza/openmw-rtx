@@ -136,6 +136,47 @@ namespace Crash::Client
                 RegDeleteValueW(key, value.c_str());
         }
 
+        /// Whether `root` turns WER off by its `Disabled` value ("WER Settings"): Group Policy's, where
+        /// it holds one, overrides the setting's own, as a policy does.
+        bool disablesWer(HKEY root)
+        {
+            for (const wchar_t* key : { L"Software\\Policies\\Microsoft\\Windows\\Windows Error Reporting",
+                     L"Software\\Microsoft\\Windows\\Windows Error Reporting" })
+            {
+                DWORD disabled = 0;
+                DWORD size = sizeof(disabled);
+                if (RegGetValueW(
+                        root, key, L"Disabled", RRF_RT_REG_DWORD | RRF_SUBKEY_WOW6464KEY, nullptr, &disabled, &size)
+                    == ERROR_SUCCESS)
+                    return disabled != 0;
+            }
+            return false;
+        }
+
+        /// Whether WER's service, which a fail-fast is handed to, cannot start.
+        bool werServiceDisabled()
+        {
+            const SC_HANDLE manager = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
+            if (manager == nullptr)
+                return false;
+            bool disabled = false;
+            if (const SC_HANDLE service = OpenServiceW(manager, L"WerSvc", SERVICE_QUERY_CONFIG); service != nullptr)
+            {
+                DWORD needed = 0;
+                QueryServiceConfigW(service, nullptr, 0, &needed);
+                // In whole records, for the alignment of the strings the configuration carries after one.
+                std::vector<QUERY_SERVICE_CONFIGW> config(
+                    (needed + sizeof(QUERY_SERVICE_CONFIGW) - 1) / sizeof(QUERY_SERVICE_CONFIGW));
+                disabled = !config.empty()
+                    && QueryServiceConfigW(service, config.data(),
+                        static_cast<DWORD>(config.size() * sizeof(QUERY_SERVICE_CONFIGW)), &needed)
+                    && config.front().dwStartType == SERVICE_DISABLED;
+                CloseServiceHandle(service);
+            }
+            CloseServiceHandle(manager);
+            return disabled;
+        }
+
         /// Where the monitor starts a thread of the game's own to ask for a hang report: Windows has
         /// no signal to take it on.
         DWORD WINAPI hangEntry(LPVOID)
@@ -206,6 +247,13 @@ namespace Crash::Client
         // fail-fast's dump. The box shows only where the module could not reach the monitor, as it
         // does for any program, since every other crash is the catcher's own.
         SetErrorMode(GetErrorMode() & ~SEM_NOGPFAULTERRORBOX);
+
+        // **Listed all the same where WER is off**, where the listing costs nothing: off, a fail-fast
+        // ends the process with no module called, and the log says why its dump is missing.
+        if (disablesWer(HKEY_LOCAL_MACHINE) || disablesWer(HKEY_CURRENT_USER))
+            return "a fail-fast's dump: Windows Error Reporting's Disabled setting is on";
+        if (werServiceDisabled())
+            return "a fail-fast's dump: Windows Error Reporting's service is disabled";
         return {};
     }
 
