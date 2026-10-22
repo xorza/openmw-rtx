@@ -22,9 +22,11 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/rtx/world/weather.hpp>
+#include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/parser.hpp>
 #include <components/settings/values.hpp>
+#include <components/settings/windowmode.hpp>
 
 namespace RtxTool
 {
@@ -111,10 +113,23 @@ namespace RtxTool
     template std::string shippedDefault<std::string>(
         const Files::ConfigurationManager&, std::string_view, std::string_view);
 
-    void WindowRequest::keepPlayersPacing()
+    void WindowRequest::keepPlayersLimit()
     {
-        mVerticalSync = Settings::video().mVsyncMode;
         mFramerateLimit = Settings::video().mFramerateLimit;
+    }
+
+    void WindowRequest::writeSettings() const
+    {
+        // The frame at the window's size, which the run states in pixels (`RunSetup::mWindowPixels`).
+        Settings::video().mResolutionX.set(static_cast<int>(mWidth));
+        Settings::video().mResolutionY.set(static_cast<int>(mHeight));
+        Settings::video().mWindowMode.set(Settings::WindowMode::Windowed);
+        // **Never the player's vertical sync**: on a display with a fixed refresh it holds each frame
+        // to whole refreshes, a mix of one, two and three wherever the frame falls between them, and
+        // a run is read for the frame and not for the display's cadence.
+        Settings::video().mVsyncMode.set(SDLUtil::VSyncMode::Disabled);
+        Settings::video().mFramerateLimit.set(mFramerateLimit);
+        Settings::camera().mFieldOfView.set(mFieldOfView);
     }
 
     float bearingOf(const Stand& stand)

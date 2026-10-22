@@ -21,7 +21,6 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/multidircollection.hpp>
 #include <components/settings/values.hpp>
-#include <components/settings/windowmode.hpp>
 #include <components/toutf8/toutf8.hpp>
 
 #include "harnessfolder.hpp"
@@ -51,13 +50,7 @@ namespace RtxTool
         /// never through the registry, which is the player's.
         void applyHostedSettings(const WindowRequest& window)
         {
-            // The frame at the window's size, which the run states in pixels (`RunSetup::mWindowPixels`).
-            Settings::video().mResolutionX.set(static_cast<int>(window.mWidth));
-            Settings::video().mResolutionY.set(static_cast<int>(window.mHeight));
-            Settings::video().mWindowMode.set(Settings::WindowMode::Windowed);
-            Settings::video().mVsyncMode.set(window.mVerticalSync);
-            Settings::video().mFramerateLimit.set(window.mFramerateLimit);
-            Settings::camera().mFieldOfView.set(window.mFieldOfView);
+            window.writeSettings();
 
             // **Physics on the frame's own thread, so a run is the same run twice.** A physics
             // worker refreshes the AI's line-of-sight cache after each step
