@@ -319,6 +319,13 @@ namespace Rtx
         /// because the extension forbids the question of a device that is still answering.
         std::string describeFault() const;
 
+        /// The last checkpoint each stage of the queue passed by AMD's buffer markers, as lines for
+        /// the report of a wait that ran out: words in host memory, which a device still answering
+        /// can be asked, where NVIDIA's checkpoints are asked only of a lost one
+        /// (`VUID-vkGetQueueCheckpointDataNV-queue-02025`). Nothing where the driver offers no
+        /// markers.
+        std::string describeMarkers() const;
+
     private:
         /// What every wait ends with: the graveyard's burials and the pool's finished command
         /// buffers, let go of as far as the clock now reaches.

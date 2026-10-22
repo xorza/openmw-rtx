@@ -142,7 +142,7 @@ namespace Rtx
     void checkVkWait(const Device& device, const VkResult result, const char* what, const std::uint64_t patience)
     {
         if (result == VK_TIMEOUT)
-            deviceFailed(timedOut(what, patience));
+            deviceFailed(timedOut(what, patience) + device.describeMarkers());
 
         checkVk(device, result, what);
     }

@@ -502,14 +502,20 @@ namespace Rtx
         mMarkers->mark(commands, checkpoint);
     }
 
+    std::string Device::describeMarkers() const
+    {
+        if (mMarkers == nullptr)
+            return {};
+
+        const BufferMarkers::Passed passed = mMarkers->read();
+        return describePassed(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, passed.mTop)
+            + describePassed(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, passed.mBottom);
+    }
+
     std::string Device::describeCheckpoints() const
     {
         if (mMarkers != nullptr)
-        {
-            const BufferMarkers::Passed passed = mMarkers->read();
-            return describePassed(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, passed.mTop)
-                + describePassed(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, passed.mBottom);
-        }
+            return describeMarkers();
 
         if (mGetQueueCheckpointData == nullptr)
             return {};
