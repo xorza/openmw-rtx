@@ -356,7 +356,7 @@ namespace RtxTool
             EXPECT_EQ(video.mFramerateLimit, 72.0f);
             EXPECT_EQ(video.mResolutionX, 2560);
             EXPECT_EQ(video.mResolutionY, 1440);
-            EXPECT_EQ(video.mWindowMode, Settings::WindowMode::Windowed);
+            EXPECT_EQ(video.mWindowMode.get(), Settings::WindowMode::Windowed);
             EXPECT_EQ(Settings::camera().mFieldOfView, 75.0f);
 
             video.mFramerateLimit.set(limit);
