@@ -15,6 +15,7 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -52,23 +53,36 @@ namespace Rtx
         /// rather than being a number nobody has ever reached.
         ///
         /// A fence nothing submits against, and a patience short enough that the test does not sit
-        /// out the real one.
+        /// out the real one. **The report says where the queue stands**, from what a device still
+        /// answering can be asked: the buffer markers, which both stages pass at a checkpoint once the
+        /// queue is done with it, where the build marks and the driver offers them
+        /// (`Device::checkpoint`), and nothing anywhere else — NVIDIA's checkpoints are asked only of
+        /// a lost device.
         TEST_F(RtxDeviceTest, aWaitOnADeviceThatNeverAnswersEndsAndNamesItself)
         {
+            const Device& device = *mHarness.mDevice;
+            const Checkpoint checkpoint{ "probe", 9 };
+            getPool().submitAndWait([&](VkCommandBuffer commands) { device.checkpoint(commands, &checkpoint); });
+            const bool marks
+                = sDebugNames && device.getPhysicalDevice().hasOptionalExtension(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
+
             const VkFenceCreateInfo unsignalled{
                 .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = nullptr, .flags = 0
             };
 
             VkFence fence = VK_NULL_HANDLE;
-            ASSERT_EQ(vkCreateFence(mHarness.mDevice->getHandle(), &unsignalled, nullptr, &fence), VK_SUCCESS);
+            ASSERT_EQ(vkCreateFence(device.getHandle(), &unsignalled, nullptr, &fence), VK_SUCCESS);
 
             // Named, because a count says a frame is stuck and nothing about which one. A crash,
             // because nothing goes on from a device that stopped answering, and the report is
             // taken where it was found.
-            Testing::expectDies([&] { awaitVk(*mHarness.mDevice, fence, "a submit nobody made", 1'000'000ull); },
-                "a submit nobody made did not complete within 1 ms; the device has stopped answering");
+            Testing::expectDies([&] { awaitVk(device, fence, "a submit nobody made", 1'000'000ull); },
+                std::string("a submit nobody made did not complete within 1 ms; the device has stopped answering")
+                    + (marks ? "\n  the top of the pipe last passed `probe` of frame 9"
+                               "\n  the bottom of the pipe last passed `probe` of frame 9"
+                             : ""));
 
-            vkDestroyFence(mHarness.mDevice->getHandle(), fence, nullptr);
+            vkDestroyFence(device.getHandle(), fence, nullptr);
         }
 
         /// **A create that fails adopts nothing.** Its output is undefined after a failure, and a
