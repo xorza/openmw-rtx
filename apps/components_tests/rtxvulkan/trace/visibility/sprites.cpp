@@ -583,6 +583,15 @@ namespace Rtx::Testing
             EXPECT_NEAR(both.mGreen / green.mGreen, red.mThrough, 2e-3f)
                 << "the far puff was not seen through the near";
 
+            // **The trace's own answer holds no puff**: the composed frame under them, which a read
+            // back and the digest take as the trace's whether or not anything upscales, is the black
+            // sky where the shown frame holds both puffs (`readComposite`).
+            std::vector<float> composed;
+            mRenderer.readComposite(composed);
+            ASSERT_EQ(composed.size(), std::size_t{ size } * size * 4);
+            EXPECT_EQ(composed[centre], 0.0f) << "the near puff was laid over the trace's own frame";
+            EXPECT_EQ(composed[centre + 1], 0.0f) << "the far puff was laid over the trace's own frame";
+
             // **And past the layers a walk keeps apart**, where the farthest are merged: five green
             // puffs at a half behind the red, held in no order, are the five alone seen through it.
             std::array<Sprite, 5> greens{};

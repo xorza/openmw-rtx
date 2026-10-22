@@ -24,9 +24,14 @@
 namespace Rtx
 {
     FogTile::FogTile(const Device& device, const FogNoise& noise)
-        : mField(device, Shaders::FOG_FIELD_SIZE, Shaders::FOG_FIELD_SIZE, VK_FORMAT_R8G8_UNORM,
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "fog field", Shaders::FOG_FIELD_LEVELS,
-            Shaders::FOG_FIELD_SIZE)
+        : mField(MemoryUse::Essential, device,
+            ImageDescription{ .mWidth = Shaders::FOG_FIELD_SIZE,
+                .mHeight = Shaders::FOG_FIELD_SIZE,
+                .mFormat = VK_FORMAT_R8G8_UNORM,
+                .mUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                .mMipLevels = Shaders::FOG_FIELD_LEVELS,
+                .mDepth = Shaders::FOG_FIELD_SIZE },
+            "fog field")
         , mSampler(makeContentSampler(device, "fog field"))
     {
         describe(device, noise);
@@ -157,10 +162,10 @@ namespace Rtx
                 .mDepth = kind.mSlices };
         }
 
-        Image makeFogImage(const Device& device, const MemoryUse use, const FogImage image, const std::uint32_t columns,
-            const std::uint32_t rows)
+        Image makeFogImage(
+            const Device& device, const FogImage image, const std::uint32_t columns, const std::uint32_t rows)
         {
-            return Image(use, device, descriptionOf(image, columns, rows), kindOf(image).mName);
+            return Image(MemoryUse::Frame, device, descriptionOf(image, columns, rows), kindOf(image).mName);
         }
 
         /// Sampled where a pass reads and storage where it writes. One image is named twice wherever
@@ -205,22 +210,22 @@ namespace Rtx
     }
 
     FogVolume::FogVolume(const Device& device, const SetLayout& layout, const std::uint32_t width,
-        const std::uint32_t height, const MemoryUse use, const TracePast past)
+        const std::uint32_t height, const TracePast past)
         : mColumns(columnsFor(width))
         , mRows(columnsFor(height))
         , mPast(past)
-        , mScatter{ makeFogImage(device, use, FogImage::Scatter0, mColumns, mRows),
-            past == TracePast::Kept ? makeFogImage(device, use, FogImage::Scatter1, mColumns, mRows) : Image() }
-        , mSunward{ makeFogImage(device, use, FogImage::Sunward0, mColumns, mRows),
-            past == TracePast::Kept ? makeFogImage(device, use, FogImage::Sunward1, mColumns, mRows) : Image() }
-        , mLamps(makeFogImage(device, use, FogImage::Lamps, mColumns, mRows))
-        , mAir(makeFogImage(device, use, FogImage::Air, mColumns, mRows))
-        , mAirSunward(makeFogImage(device, use, FogImage::AirSunward, mColumns, mRows))
-        , mSlice(makeFogImage(device, use, FogImage::Slice, mColumns, mRows))
-        , mSliceSunward(makeFogImage(device, use, FogImage::SliceSunward, mColumns, mRows))
-        , mSeeing(makeFogImage(device, use, FogImage::Seeing, mColumns, mRows))
-        , mColumnDepth(makeFogImage(device, use, FogImage::ColumnDepth, mColumns, mRows))
-        , mColumnMoons(makeFogImage(device, use, FogImage::ColumnMoons, mColumns, mRows))
+        , mScatter{ makeFogImage(device, FogImage::Scatter0, mColumns, mRows),
+            past == TracePast::Kept ? makeFogImage(device, FogImage::Scatter1, mColumns, mRows) : Image() }
+        , mSunward{ makeFogImage(device, FogImage::Sunward0, mColumns, mRows),
+            past == TracePast::Kept ? makeFogImage(device, FogImage::Sunward1, mColumns, mRows) : Image() }
+        , mLamps(makeFogImage(device, FogImage::Lamps, mColumns, mRows))
+        , mAir(makeFogImage(device, FogImage::Air, mColumns, mRows))
+        , mAirSunward(makeFogImage(device, FogImage::AirSunward, mColumns, mRows))
+        , mSlice(makeFogImage(device, FogImage::Slice, mColumns, mRows))
+        , mSliceSunward(makeFogImage(device, FogImage::SliceSunward, mColumns, mRows))
+        , mSeeing(makeFogImage(device, FogImage::Seeing, mColumns, mRows))
+        , mColumnDepth(makeFogImage(device, FogImage::ColumnDepth, mColumns, mRows))
+        , mColumnMoons(makeFogImage(device, FogImage::ColumnMoons, mColumns, mRows))
         , mSampler(makeTargetSampler(device, "fog volume"))
         , mSets(device, sLayoutBindings, layout.get(), sParities)
     {

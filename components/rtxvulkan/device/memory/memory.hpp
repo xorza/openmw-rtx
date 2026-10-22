@@ -166,16 +166,21 @@ namespace Rtx
 
         /// Room for `buffer`, in memory that is `properties`, ready to bind, at the coarser of the
         /// driver's alignment for binding it and `alignment` — what the buffer's use owes beyond the
-        /// bind, which `Buffer` reads off its usage. Essential, so never refused here: throws
-        /// `DeviceError` where the device has no room, and `Unsupported` where it offers no memory
-        /// type that is `properties`, which on hardware that meets the requirements means the
-        /// request was wrong.
-        DeviceMemory take(VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment);
+        /// bind, which `Buffer` reads off its usage — as `use`: the frame's targets or other
+        /// essential memory, so never refused here. Throws `DeviceError` where the device has no
+        /// room, and `Unsupported` where it offers no memory type that is `properties`, which on
+        /// hardware that meets the requirements means the request was wrong.
+        DeviceMemory take(VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment, MemoryUse use);
 
         /// The same for an image, at the driver's alignment, which the allocator keeps its
         /// granularity away from a buffer's, as `use`: the frame's targets or other essential
         /// memory.
         DeviceMemory take(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
+
+        /// Video memory that `requirements` asks, which the caller binds resources into at offsets of
+        /// its own — an arena's (`ImageArena`) — as `use`: the frame's targets or other essential
+        /// memory, so never refused here, and throwing as `take` for a buffer does.
+        DeviceMemory take(const VkMemoryRequirements& requirements, MemoryUse use);
 
         /// Room for `buffer` as `use`, or why there is none. Out of the blocks content already
         /// holds wherever it fits there, because that costs the heap nothing; otherwise out of new
@@ -246,12 +251,24 @@ namespace Rtx
     private:
         friend class DeviceMemory;
 
+        /// What a resource needs of an allocation, and whether the driver binds it to nothing but an
+        /// allocation of its own, which the library would otherwise find out only inside a pool that
+        /// makes none.
+        struct Requirements
+        {
+            VkMemoryRequirements mMemory{};
+            bool mOwn = false;
+        };
+
+        /// `Requirements` as `Query`, `vkGetBufferMemoryRequirements2` or its image's, answers `info`.
+        template <auto& Query, class Info>
+        Requirements requirementsOf(const Info& info) const;
+
         /// `tryTake`'s one path for either resource: `allocate` asks the library with the flags it
-        /// is handed, and `size` and `typeBits` are the resource's requirements. `own` for a
-        /// resource the driver will only bind to an allocation of its own.
+        /// is handed, which place the resource at `alignment` at least.
         template <class Allocate>
-        Misc::Result<DeviceMemory, std::string_view> tryAllocate(VkDeviceSize size, std::uint32_t typeBits, bool own,
-            VkMemoryPropertyFlags properties, MemoryUse use, Allocate&& allocate);
+        Misc::Result<DeviceMemory, std::string_view> tryAllocate(const Requirements& requirements,
+            VkDeviceSize alignment, VkMemoryPropertyFlags properties, MemoryUse use, Allocate&& allocate);
 
         /// What the library placed, as a range counted for `use`.
         DeviceMemory hold(VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset, void* mapped,

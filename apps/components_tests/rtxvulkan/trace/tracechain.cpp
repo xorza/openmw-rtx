@@ -1,3 +1,6 @@
+#include <cstdint>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
@@ -6,6 +9,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 #include <components/rtxvulkan/trace/tracechain.hpp>
@@ -19,6 +23,20 @@ namespace Rtx
     {
         using RtxTraceChainTest = Testing::RendererTest;
 
+        /// The arena a chain at this extent takes its shared images from, as a picture's keeps one.
+        ImageArena arenaFor(
+            const Device& device, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+        {
+            std::vector<ArenaImage> declared;
+            TraceChain::declareShared(width, height, radiance, declared);
+            return ImageArena(device, declared);
+        }
+
+        ArenaRun everyOf(const ImageArena& arena)
+        {
+            return ArenaRun(arena, 0, arena.size());
+        }
+
         /// **A chain asked for the extent it stands at keeps what it holds**: an upscaling mode
         /// changed between two that trace at one size asks again, and the channels made anew for it
         /// were fourteen images for nothing. A new width or a new height is a new chain, and every
@@ -27,23 +45,26 @@ namespace Rtx
         {
             for (const RadianceWidth radiance : { RadianceWidth::Summed, RadianceWidth::Shown })
             {
-                TraceChain chain(mRenderer.getDevice(), mRenderer.getTracePasses(), 1, radiance, MemoryUse::Essential,
-                    TracePast::Dropped);
+                const Device& device = mRenderer.getDevice();
+                TraceChain chain(device, mRenderer.getTracePasses(), 1, radiance, TracePast::Dropped);
 
-                chain.resize(64, 32);
+                const ImageArena wide = arenaFor(device, 64, 32, radiance);
+                chain.resize(64, 32, everyOf(wide));
                 const GBuffer* const built = &chain.getChannels();
                 EXPECT_EQ(chain.getColour().getFormat(), radianceFormat(radiance));
-                chain.resize(64, 32);
+                chain.resize(64, 32, everyOf(wide));
                 EXPECT_EQ(&chain.getChannels(), built) << "the same extent made the channels anew";
 
-                chain.resize(48, 32);
+                const ImageArena narrow = arenaFor(device, 48, 32, radiance);
+                chain.resize(48, 32, everyOf(narrow));
                 EXPECT_NE(&chain.getChannels(), built) << "another width kept the channels";
                 EXPECT_EQ(chain.getWidth(), 48u);
                 EXPECT_EQ(chain.getHeight(), 32u);
                 EXPECT_EQ(chain.getColour().getFormat(), radianceFormat(radiance)) << "a resize changed the width";
 
                 const GBuffer* const narrower = &chain.getChannels();
-                chain.resize(48, 16);
+                const ImageArena low = arenaFor(device, 48, 16, radiance);
+                chain.resize(48, 16, everyOf(low));
                 EXPECT_NE(&chain.getChannels(), narrower) << "another height kept the channels";
             }
 
@@ -61,8 +82,11 @@ namespace Rtx
             const Device& device = mRenderer.getDevice();
             for (const TracePast past : { TracePast::Kept, TracePast::Dropped })
             {
-                GBuffer channels(device, mRenderer.getTracePasses().mChannels, 16, 8, RadianceWidth::Shown,
-                    MemoryUse::Essential, past);
+                std::vector<ArenaImage> declared;
+                GBuffer::declareStages(16, 8, declared);
+                const ImageArena stages(device, declared);
+                GBuffer channels(
+                    device, mRenderer.getTracePasses().mChannels, 16, 8, RadianceWidth::Shown, past, everyOf(stages));
                 const auto turn = [&] {
                     Batch batch(device.getPool());
                     channels.begin(batch.getCommands(), ChannelWrites{});
@@ -99,11 +123,11 @@ namespace Rtx
 
         /// **What a chain says it takes is what it holds once made**, the running sum aside, which
         /// no trace has averaged into: the allocator counts each range at the size the driver asks
-        /// of the image, and `bytesAt` asks the driver of the same descriptions. Counted as the use
-        /// it was made with and no other — the tile lists as essential memory, a buffer, and the
-        /// rest as the frame's — and given back whole on `release`, whether it keeps its
-        /// past or drops it. A wider chain takes more, a summed radiance more than a shown one, and
-        /// a chain that keeps its past more than one that drops it, which holds one image a pair.
+        /// of the image, and `bytesAt` asks the driver of the same descriptions, its arena apart.
+        /// Counted as the use it was made with and no other — the tile lists, a buffer, as the images
+        /// are; the sprite bins, made with the chain, as essential memory — and given back whole on
+        /// `release`, whether it keeps its past or drops it. A wider chain takes more, a summed radiance more than a
+        /// shown one, and a chain that keeps its past more than one that drops it, which holds one image a pair.
         TEST_F(RtxTraceChainTest, whatAChainSaysItTakesIsWhatItHolds)
         {
             const Device& device = mRenderer.getDevice();
@@ -123,19 +147,21 @@ namespace Rtx
                     const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
                     const VkDeviceSize essential = memory.getHeld(heap, MemoryUse::Essential);
 
-                    TraceChain chain(device, mRenderer.getTracePasses(), 1, radiance, MemoryUse::Frame, past);
+                    TraceChain chain(device, mRenderer.getTracePasses(), 1, radiance, past);
                     const VkDeviceSize bins = memory.getHeld(heap, MemoryUse::Essential) - essential;
-                    chain.resize(64, 32);
-                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - frame,
+                    const VkDeviceSize arenaHeld = memory.getHeld(heap, MemoryUse::Frame);
+                    const ImageArena arena = arenaFor(device, 64, 32, radiance);
+                    const VkDeviceSize shared = memory.getHeld(heap, MemoryUse::Frame) - arenaHeld;
+                    chain.resize(64, 32, everyOf(arena));
+                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - frame - shared,
                         TraceChain::bytesAt(device, 64, 32, radiance, past));
-                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential,
-                        bins + GBuffer::tileBytesAt(device, 64, 32))
+                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential, bins)
                         << "a frame target was counted as essential memory";
 
                     chain.release();
                     settle();
                     EXPECT_FALSE(chain.isBuilt());
-                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), frame)
+                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), frame + shared)
                         << "a released chain still held its images";
                 }
 

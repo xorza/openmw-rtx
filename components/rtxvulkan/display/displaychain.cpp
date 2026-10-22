@@ -15,6 +15,7 @@
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -90,19 +91,14 @@ namespace Rtx
         mSunGlare.begin(commands);
     }
 
-    void DisplayChain::record(const VkCommandBuffer commands, const Display& what)
+    const Image& DisplayChain::record(const VkCommandBuffer commands, const Display& what)
     {
         const VisibilityInputs& inputs = what.mTrace.mInputs;
-        const Image& shown = what.mShown.mImage;
-        assert(shown.getWidth() >= what.mExtent.width && shown.getHeight() >= what.mExtent.height);
+        assert(what.mShown.mImage.getWidth() >= what.mExtent.width
+            && what.mShown.mImage.getHeight() >= what.mExtent.height);
 
         const FrameLook* const look = what.mFrame.has_value() ? &*what.mFrame : nullptr;
         GpuTimer* const timer = look != nullptr ? &look->mTimer : nullptr;
-
-        // Written whole before anything reads it. The last frame may still be reading it, and the
-        // head barrier `CommandPool::begin` recorded is what orders this image after it, so the
-        // discard itself waits for nothing.
-        what.mTarget.transition(commands, Use::sUndefined, Use::sComputeWrite);
 
         // The puffs over the picture, at its own extent, and then the picture is what the lens
         // spreads and the curve maps. The bloom samples what this leaves, rather than loading it —
@@ -110,16 +106,48 @@ namespace Rtx
         // both reads.
         const GBuffer& channels = inputs.mChannels;
 
+        //
         // **None in a frame no puff can be met in**, where the composite would write every pixel back
-        // as it found it and the curve reads none of its alpha (`ToneConstants::mPuffs`).
-        if (what.mTrace.mSprites.mPuffs)
+        // as it found it and the curve reads none of its alpha (`ToneConstants::mPuffs`). **Never
+        // over the trace's own frame**, which a read back and the digest hold to as the trace's
+        // answer (`readComposite`) whether or not something upscales: over a copy of it in the
+        // chain's canvas, since the composite writes only the pixels a puff covers. The upscaler's
+        // image, which nothing reads back, takes them in place.
+        const Image* shownImage = &what.mShown.mImage;
+        const bool puffs = what.mTrace.mSprites.mPuffs;
+        const bool ontoCanvas = puffs && shownImage == &what.mTrace.mColour.mImage;
+        const Image& canvas = what.mTrace.mCanvas.mImage;
         {
-            shown.transition(commands, what.mShown.mLeftAs, Use::sTraceReadWrite);
-            mPuffs.recordSpriteComposite(commands, inputs, shown, what.mSampled.mEyes, what.mExtent, timer);
-            shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
+            // **One batch for the target and what it is drawn from.** The target is written whole
+            // before anything reads it. The last frame may still be reading it, and the head barrier
+            // `CommandPool::begin` recorded is what orders this image after it, so the discard
+            // itself waits for nothing.
+            Barriers opened(commands);
+            what.mTarget.addTransition(opened, Use::sUndefined, Use::sComputeWrite);
+            if (ontoCanvas)
+            {
+                shownImage->addTransition(opened, what.mShown.mLeftAs, Use::sCopyReadGeneral);
+                canvas.addTransition(opened, what.mTrace.mCanvas.mLeftAs, Use::sCopyWrite);
+            }
+            else
+                shownImage->addTransition(
+                    opened, what.mShown.mLeftAs, puffs ? Use::sTraceReadWrite : Use::sComputeReadOrSample);
+            opened.flush();
         }
-        else
-            shown.transition(commands, what.mShown.mLeftAs, Use::sComputeReadOrSample);
+        if (puffs)
+        {
+            if (ontoCanvas)
+            {
+                shownImage->copyTo(
+                    commands, VK_IMAGE_LAYOUT_GENERAL, canvas, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, what.mExtent);
+                canvas.transition(commands, Use::sCopyWrite, Use::sTraceReadWrite);
+                shownImage = &canvas;
+            }
+
+            mPuffs.recordSpriteComposite(commands, inputs, *shownImage, what.mSampled.mEyes, what.mExtent, timer);
+            shownImage->transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
+        }
+        const Image& shown = *shownImage;
 
         // Measured off the image the curve is about to map, which is the upscaled one wherever
         // something upscales — see `histogram.comp` for what measuring the other one costs. One
@@ -201,6 +229,7 @@ namespace Rtx
             recordDebugLines(commands, what, *look);
 
         what.mTarget.transition(commands, Use::sComputeWrite, what.mLeftAs);
+        return shown;
     }
 
     void DisplayChain::recordDebugLines(const VkCommandBuffer commands, const Display& what, const FrameLook& look)

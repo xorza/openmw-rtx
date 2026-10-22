@@ -55,7 +55,7 @@ namespace Rtx
             // because it costs the frame nothing and is what makes the report appear the day a
             // driver answers. No procedural geometry anywhere in this renderer, so no AABB is ever
             // traversed, which NVIDIA's best-practice list asks to promise "whenever possible".
-            .flags = PipelineCreation::sFlags | VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR,
+            .flags = device.getPipelineFlags() | VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR,
             .stageCount = 1,
             .pStages = &stage,
             .groupCount = 1,

@@ -74,6 +74,10 @@ namespace Rtx
         /// a later description may take over, and no two descriptions share one.
         std::uint64_t getIdentity() const { return mIdentity.mValue; }
 
+        /// The room the scene was opened at, which a backend makes its tables at: one answer, the
+        /// host's, to how far either side grows before a table is made again.
+        const SceneRoom& getRoom() const { return mRoom; }
+
         /// Copies the vertex data into the shared buffers and returns the new mesh's index. Every
         /// attribute but `MeshArrays::mPositions` may be empty; when one is not it must match the
         /// positions in length, `MeshArrays::mIndices` must be a whole number of triangles
@@ -329,5 +333,7 @@ namespace Rtx
         std::vector<RippleImpulse> mRipples;
 
         Refusals mRefusals;
+
+        SceneRoom mRoom;
     };
 }

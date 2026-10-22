@@ -32,9 +32,24 @@ namespace Rtx
         std::uint32_t mHeight = 0;
         VkFormat mFormat = VK_FORMAT_UNDEFINED;
         VkImageUsageFlags mUsage = 0;
+
+        /// How many halvings the image holds, including the full one. Levels past the first hold
+        /// nothing until `Image::buildMips` fills them, and one is an image with no chain at all.
         std::uint32_t mMipLevels = 1;
+
+        /// How many slices it holds. One is a 2D image, which is what everything a camera writes or
+        /// a screen reads is; more makes it a volume, and a chain over one halves the third axis
+        /// with the other two.
         std::uint32_t mDepth = 1;
+
+        /// The format a storage descriptor sees the image in, where that is not `mFormat`: an `SRGB`
+        /// image has no storage view of its own, so a dispatch that writes one stores
+        /// display-encoded bytes through a `UNORM` view of the same bits, and the sampler decodes
+        /// them through the other. `VK_FORMAT_UNDEFINED` is `mFormat` itself, which is every image
+        /// but such a one.
         VkFormat mStorageFormat = VK_FORMAT_UNDEFINED;
+
+        bool operator==(const ImageDescription& other) const = default;
     };
 
     /// An image, its allocation and its view.
@@ -45,37 +60,28 @@ namespace Rtx
         /// what a moved-from image is left as.
         Image() = default;
 
+        /// @param use the frame's targets or other essential memory, which is never refused.
         /// @param name what a capture and a validation message call this image and its view.
         ///        Required, so a report naming one says which it was.
-        /// @param mipLevels how many halvings the image holds, including the full one. Levels
-        ///        past the first hold nothing until `buildMips` fills them, and one is an image
-        ///        with no chain at all.
-        /// @param depth how many slices it holds. One is a 2D image, which is what everything a
-        ///        camera writes or a screen reads is; more makes it a volume, and a chain over one
-        ///        halves the third axis with the other two.
-        /// @param storageFormat the format a storage descriptor sees the image in, where that is
-        ///        not `format`: an `SRGB` image has no storage view of its own, so a dispatch that
-        ///        writes one stores display-encoded bytes through a `UNORM` view of the same bits,
-        ///        and the sampler decodes them through the other. `VK_FORMAT_UNDEFINED` is
-        ///        `format` itself, which is every image but such a one.
-        Image(const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usage,
-            std::string_view name, std::uint32_t mipLevels = 1, std::uint32_t depth = 1,
-            VkFormat storageFormat = VK_FORMAT_UNDEFINED);
-
-        /// The same, as `description` says, as `use`: the frame's targets or other essential
-        /// memory, which is never refused.
         Image(MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
+
+        /// An image bound at `offset` into `memory`, which it does not own and which outlives it: one
+        /// an arena places (`ImageArena`), in memory other images share.
+        Image(const Device& device, const ImageDescription& description, const DeviceMemory& memory,
+            VkDeviceSize offset, std::string_view name);
 
         /// What an image `description` describes takes of the device's memory, without making one:
         /// the size the allocator holds for it once it is made.
         static VkDeviceSize bytesFor(const Device& device, const ImageDescription& description);
 
+        /// The same, whole: the size, the alignment and the memory types an image of `description`
+        /// asks, which an arena places it by.
+        static VkMemoryRequirements requirementsFor(const Device& device, const ImageDescription& description);
+
         /// The same, for an image something stands in for: why there is none where the device has
-        /// no room for it as `use` — `MemoryAllocator::tryTake`. The use first, so the parameters
-        /// the constructor defaults stay last.
-        static Misc::Result<Image, std::string_view> tryMake(MemoryUse use, const Device& device, std::uint32_t width,
-            std::uint32_t height, VkFormat format, VkImageUsageFlags usage, std::string_view name,
-            std::uint32_t mipLevels = 1, std::uint32_t depth = 1, VkFormat storageFormat = VK_FORMAT_UNDEFINED);
+        /// no room for it as `use` — `MemoryAllocator::tryTake`.
+        static Misc::Result<Image, std::string_view> tryMake(
+            MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
 
         /// Buries the views, then the image and the memory bound to it, as a buffer's does.
         ~Image();
@@ -138,7 +144,9 @@ namespace Rtx
 
         /// Adds the dependency between two uses of every level to `barriers`, for a caller
         /// collecting a run of them into one command: an image barrier where the layout moves, and
-        /// where it does not, the two uses merged into the run's one memory barrier. An image
+        /// where it does not, the two uses merged into the run's one memory barrier. From
+        /// `Use::sAliased`, both: the layout's transition, and the writes another image made in this
+        /// one's memory. An image
         /// barrier that moves no layout says nothing a memory barrier does not, and a run of them
         /// over the images of one pass is one memory barrier.
         void addTransition(Barriers& barriers, const ImageUse& from, const ImageUse& to) const;
@@ -156,10 +164,10 @@ namespace Rtx
         /// after it, where one barrier orders several. Needs `TRANSFER_DST`.
         void clearInGeneral(VkCommandBuffer commands, const VkClearColorValue& colour) const;
 
-        /// Copies `extent` texels from this image's corner into `into`'s, this one in
-        /// `TRANSFER_SRC_OPTIMAL` and `into` in `intoLayout`, which is the caller's to arrange
-        /// either side.
-        void copyTo(VkCommandBuffer commands, const Image& into, VkImageLayout intoLayout, VkExtent2D extent) const;
+        /// Copies `extent` texels from this image's corner into `into`'s, this one in `layout` and
+        /// `into` in `intoLayout`, which is the caller's to arrange either side.
+        void copyTo(VkCommandBuffer commands, VkImageLayout layout, const Image& into, VkImageLayout intoLayout,
+            VkExtent2D extent) const;
 
         /// Fills every level below the first of each of `images` by halving the one above it, in
         /// `VK_FILTER_LINEAR` — a box filter, which is what a moment wants: a channel carrying a
@@ -207,8 +215,9 @@ namespace Rtx
         };
         Image(Unbound, const Device& device, const ImageDescription& description, std::string_view name);
 
-        /// Binds `memory` and makes the views, which is the rest of what the constructor does.
-        void bind(DeviceMemory&& memory, std::string_view name);
+        /// Binds the image at `offset` into `memory` and makes the views, which is the rest of what
+        /// a constructor does.
+        void bind(VkDeviceMemory memory, VkDeviceSize offset, std::string_view name);
 
         /// What the destructor and a move over this do with what it holds: the views first, so the
         /// graveyard ends them before the image they view.

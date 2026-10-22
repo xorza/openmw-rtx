@@ -6,6 +6,11 @@ namespace Rtx
 {
     /// What each kind of buffer this renderer makes is created able to do, named once: a usage
     /// re-declared per file is one that drifts where nothing decides.
+    ///
+    /// **One device copy of a datum, and one a frame in flight only where a frame behind reads a
+    /// row the host rewrites**: the rows a placement writes from the host, and the poses a frame's
+    /// motion is measured against. What only arrives, and what the queue alone writes, is one copy
+    /// written on the queue, behind every frame in flight that read what it replaces.
 
     /// A table a shader reaches through an address in the frame block. Addressable and never
     /// bound: no descriptor names one of these.
@@ -17,6 +22,10 @@ namespace Rtx
     /// A table the device fills — the bin's own sprites, copied into, and its list, whose head a
     /// fill zeroes before every bin.
     inline constexpr VkBufferUsageFlags sTableFilledUsage = sTableUsage | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+    /// A table the queue fills and copies into a larger one as it grows
+    /// (`GrowableBuffer::outgrowKeeping`), so a growth stages only what arrived.
+    inline constexpr VkBufferUsageFlags sTableKeptUsage = sTableFilledUsage | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
     /// Addressable as well as build input, because the shader reads the indices back at a hit
     /// through the same address the build read them at, and there is no reason for a second copy

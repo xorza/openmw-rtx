@@ -67,11 +67,18 @@ namespace Rtx
             {
                 Device& device = *mHarness.mDevice;
 
-                Image picture(device, sExtent, sExtent, VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, "gui test picture");
-                Image target(device, sExtent, sExtent, VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                Image picture(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = sExtent,
+                        .mHeight = sExtent,
+                        .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                        .mUsage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT },
+                    "gui test picture");
+                Image target(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = sExtent,
+                        .mHeight = sExtent,
+                        .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                        .mUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT },
                     "gui test target");
 
                 const std::array<GuiVertex, 6> backdrop

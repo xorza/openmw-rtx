@@ -97,6 +97,12 @@ namespace Rtx
                 (std::vector<std::string_view>{
                     VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME }));
 
+            // A present's id rests on a swapchain, and a wait for one on the id as well.
+            EXPECT_EQ(names(options[static_cast<std::size_t>(DeviceOption::PresentIds)].mNeeds),
+                (std::vector<std::string_view>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME }));
+            EXPECT_EQ(names(options[static_cast<std::size_t>(DeviceOption::PresentWait)].mNeeds),
+                (std::vector<std::string_view>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_PRESENT_ID_EXTENSION_NAME }));
+
             // Paging by priority rests on the priority.
             const OptionalExtensions& pageable = options[static_cast<std::size_t>(DeviceOption::PageableMemory)];
             EXPECT_EQ(names(pageable.mNeeds), (std::vector<std::string_view>{ VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME }));
@@ -143,6 +149,10 @@ namespace Rtx
             reaches(DeviceOption::PresentFences, &features.mPresentFences,
                 &features.mPresentFences.swapchainMaintenance1,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR);
+            reaches(DeviceOption::PresentIds, &features.mPresentIds, &features.mPresentIds.presentId,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR);
+            reaches(DeviceOption::PresentWait, &features.mPresentWait, &features.mPresentWait.presentWait,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR);
             for (const DeviceOption bare :
                 { DeviceOption::MemoryBudget, DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
                 EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<int>(bare);
@@ -163,6 +173,8 @@ namespace Rtx
             taken[index(DeviceOption::MemoryPriority)] = false;
             dropUnmetNeeds(options, taken, [](const char*) { return false; });
             EXPECT_FALSE(taken[index(DeviceOption::PresentFences)]);
+            EXPECT_FALSE(taken[index(DeviceOption::PresentIds)]);
+            EXPECT_FALSE(taken[index(DeviceOption::PresentWait)]);
             EXPECT_FALSE(taken[index(DeviceOption::PageableMemory)]);
             for (const OptionalExtensions& option : options)
             {
@@ -177,6 +189,15 @@ namespace Rtx
             });
             EXPECT_TRUE(taken[index(DeviceOption::PresentFences)]);
             EXPECT_TRUE(taken[index(DeviceOption::PageableMemory)]) << "the priority it rests on is taken";
+            EXPECT_TRUE(taken[index(DeviceOption::PresentIds)]) << "the swapchain it rests on is given";
+            EXPECT_TRUE(taken[index(DeviceOption::PresentWait)]) << "and the id, an option still taken";
+
+            // **The wait falls with the id**, which a driver may offer without the wait.
+            taken.fill(true);
+            taken[index(DeviceOption::PresentIds)] = false;
+            dropUnmetNeeds(options, taken,
+                [](const char* name) { return std::string_view(name) == VK_KHR_SWAPCHAIN_EXTENSION_NAME; });
+            EXPECT_FALSE(taken[index(DeviceOption::PresentWait)]);
         }
 
         /// The two directions of the table have to agree: what `requestRequiredFeatures` writes is

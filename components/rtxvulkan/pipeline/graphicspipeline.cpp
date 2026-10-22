@@ -158,7 +158,7 @@ namespace Rtx
         const VkGraphicsPipelineCreateInfo pipeline{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = creation.chain(&rendering),
-            .flags = PipelineCreation::sFlags,
+            .flags = device.getPipelineFlags(),
             .stageCount = static_cast<std::uint32_t>(stages.size()),
             .pStages = stages.data(),
             .pVertexInputState = &vertexInput,

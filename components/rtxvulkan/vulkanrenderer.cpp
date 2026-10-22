@@ -34,7 +34,6 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/fogbuilder.hpp>
@@ -42,6 +41,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -67,20 +67,35 @@ namespace Rtx
 {
     namespace
     {
-        /// What the frame's targets take under `profile` at an output `width` by `height`: what
-        /// `createTargets` makes for it, and the running sum and the deep picture a frame may ask
+        /// What the world's frame uses inside one stretch of it, which its arena places: the chain's
+        /// shared images at `render`, then the upscaler's where `profile` upscales. What
+        /// `createTargets` makes the arena of, and what `frameAt` measures it by.
+        void declareFrame(const VkExtent2D render, const VkExtent2D output, const RenderProfile& profile,
+            std::vector<ArenaImage>& into)
+        {
+            TraceChain::declareShared(render.width, render.height, profile.mRadianceWidth, into);
+            if (upscales(profile.mUpscale))
+                Upscaler::declareShared(render, output, into);
+        }
+
+        /// What the frame's targets take under `profile` at an output `width` by `height` with the
+        /// pictures' chain at `pictures`: what `createTargets` makes for it, the arena of what
+        /// `declareFrame` declared among it, and the running sum and the deep picture a frame may ask
         /// for where the run sums.
-        VkDeviceSize frameAt(
-            const Device& device, const std::uint32_t width, const std::uint32_t height, const RenderProfile& profile)
+        VkDeviceSize frameAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
+            const VkExtent2D pictures, const RenderProfile& profile, const std::span<const ArenaImage> declared)
         {
             const VkExtent2D output{ width, height };
             const FrameExtents extents = extentsFor(width, height, profile.mUpscale);
             const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
             VkDeviceSize bytes = PresentTarget::bytesAt(device, width, height)
                 + DisplayChain::bytesAt(device, width, height)
-                + TraceChain::bytesAt(device, render.width, render.height, profile.mRadianceWidth, TracePast::Kept);
+                + TraceChain::bytesAt(device, render.width, render.height, profile.mRadianceWidth, TracePast::Kept)
+                + ImageArena::bytesFor(device, declared);
             if (upscales(profile.mUpscale))
                 bytes += Upscaler::bytesAt(device, render, output);
+            if (pictures.width > 0)
+                bytes += PictureTracer::bytesAt(device, pictures, profile.mRadianceWidth);
 
             // **Only a run at the reference's width sums**, which `RadianceWidth` argues: a player's
             // run is shown, and room for 8 bytes an output pixel and 16 a traced one would be room
@@ -116,16 +131,17 @@ namespace Rtx
         : mInstance(options.mRun.mValidation, surfaceExtensionsFor(options))
         , mSurface(options.mWindow != nullptr ? std::make_unique<Surface>(mInstance, options.mWindow) : nullptr)
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle(), presentsTo(mSurface.get())),
-              options.mShaders, PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
+              options.mShaders, PipelineCacheSpec{ .mDirectory = options.mCacheDirectory },
+              options.mPipelineStatistics ? PipelineStatistics::Captured : PipelineStatistics::Skipped)
         , mCounting(options.mCounting)
         , mProfile(options.mRun.mProfile)
         , mInverseGamma(1.0f / mProfile.mGamma)
         , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
                                                   : nullptr)
-        , mRing(mDevice, options.mTiming)
+        , mRing(mDevice, options.mTiming, options.mReadingBack)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels)
-        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, MemoryUse::Frame, TracePast::Kept)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, TracePast::Kept)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
         , mMedia(mDevice, FogNoise::shared())
         , mGui(mDevice)
@@ -208,7 +224,10 @@ namespace Rtx
         // **Room for the running mode's targets, and not for the most any mode would take**: the
         // native mode's are about twice the quality mode's, which traces 2.25 times fewer pixels,
         // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
-        const VkDeviceSize reserve = frameAt(mDevice, width, height, mProfile);
+        std::vector<ArenaImage> declared;
+        declareFrame(render, output, mProfile, declared);
+        const bool arenaMoves = declared != mArenaDeclared;
+        const VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, declared);
 
         // **The world is built again where the reserve moving changes what it would stand as**, by the
         // hand-over after this, which finds its slot empty (`SceneUploader`) and stands every texture
@@ -231,7 +250,9 @@ namespace Rtx
         // may wait, as a new world does.
         const bool upscalerMoves = mUpscaler.isBuilt() && !(upscaling() && mUpscaler.isAt(render, output));
         const bool shownMoves = mTarget.isOpen() && outputMoves;
-        if ((mFrame.isBuilt() && traceMoves) || shownMoves || upscalerMoves || rebuildsWorld)
+        const bool picturesMove = mPictures.isBuilt() && !mPictures.isAt(mPictureRoom);
+        if ((mFrame.isBuilt() && traceMoves) || shownMoves || upscalerMoves || picturesMove || rebuildsWorld
+            || (arenaMoves && !mArena.isEmpty()))
         {
             drain();
             if (rebuildsWorld)
@@ -248,21 +269,38 @@ namespace Rtx
             }
             if (upscalerMoves)
                 mUpscaler.release();
+            if (picturesMove)
+                mPictures.release();
+            if (arenaMoves)
+                mArena = ImageArena();
+            if (traceMoves || arenaMoves)
+                mShownRadiance = nullptr;
             mDevice.collectIdle();
         }
 
-        mFrame.resize(render.width, render.height);
+        // **Placed again only where the arena moved**, which the device was drained for: the chain
+        // writes its sets anew, and a set a frame in flight reads is not written.
+        if (arenaMoves)
+        {
+            mArena = ImageArena(mDevice, declared);
+            mArenaDeclared = std::move(declared);
+            mFrame.resize(render.width, render.height, ArenaRun(mArena, 0, TraceChain::getSharedCount()));
+
+            // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
+            // mode, above.
+            if (upscaling())
+                mUpscaler.resize(
+                    render, output, ArenaRun(mArena, TraceChain::getSharedCount(), Upscaler::getSharedCount()));
+        }
 
         mTarget.resize(mDevice, width, height);
-
-        // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
-        // mode, above.
-        if (upscaling())
-            mUpscaler.resize(render, output);
 
         // Over the output extent, which is what the frame is by the time the curve maps it: the
         // upscaler's output where one runs, and the trace itself, at the same size, where none does.
         mDisplay.resize(width, height);
+
+        if (mPictureRoom.width > 0)
+            mPictures.resize(mPictureRoom);
     }
 
     CardAddress VulkanRenderer::getCardAddress() const
@@ -337,8 +375,8 @@ namespace Rtx
 
         Batch setup(mDevice.getPool());
         DeviceScene& held = mScenes.hold(slot,
-            std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, scene, textures, mProfile.mAnisotropy,
-                slot.isWorld() ? sWorldRoom : SceneRoom{}));
+            std::make_unique<DeviceScene>(
+                mDevice, setup, mScenePasses, scene, textures, mProfile.mAnisotropy, scene.getRoom()));
 
         // A picture's scene rides the next submit, as an arrival does: its placement and its trace
         // are deferred behind it, and the barrier every upload and build ends in orders them. The
@@ -602,9 +640,17 @@ namespace Rtx
         if (!mTarget.isShownCurrent())
             mGui.prepare({}, {});
 
-        mPresenter->present(mTarget.getShown(),
-            [&](const VkCommandBuffer commands) { mGui.record(commands, mTarget.getPicture(), mTarget.getShown()); });
+        // **Left where the blit reads it**, so the GUI's last barrier is the one the blit needs.
+        mPresenter->present(mTarget.getShown(), Use::sBlitRead, [&](const VkCommandBuffer commands) {
+            mGui.record(commands, mTarget.getPicture(), mTarget.getShown(), Use::sBlitRead);
+        });
         mTarget.spendShown();
+    }
+
+    void VulkanRenderer::awaitPresented()
+    {
+        if (mPresenter != nullptr)
+            mPresenter->awaitLatency();
     }
 
     FrameExtents VulkanRenderer::getExtents() const
@@ -792,7 +838,7 @@ namespace Rtx
                 &timer);
         }();
 
-        mDisplay.record(commands,
+        mShownRadiance = &mDisplay.record(commands,
             Display{
                 .mTrace = traced,
                 .mShown = shown,
@@ -832,6 +878,20 @@ namespace Rtx
         mPreviousCamera = previousOf(camera, sampled);
     }
 
+    void VulkanRenderer::reservePicture(const std::uint32_t width, const std::uint32_t height)
+    {
+        assert(width > 0 && height > 0);
+        if (width <= mPictureRoom.width && height <= mPictureRoom.height)
+            return;
+
+        // **Made with the frame's targets and counted with them**, so the room content stands in is
+        // what is left beside it: a view is made as the interface is, at the start, and a map tile
+        // larger than every view before is the one that arrives with a cell.
+        mPictureRoom = VkExtent2D{ std::max(mPictureRoom.width, width), std::max(mPictureRoom.height, height) };
+        const VkExtent2D output = mTarget.getExtent();
+        createTargets(output.width, output.height);
+    }
+
     SceneSlot VulkanRenderer::addViewScene()
     {
         return mScenes.add();
@@ -866,9 +926,7 @@ namespace Rtx
         if (extent.width == 0 || extent.height == 0)
             return;
 
-        if (!mPictures.holds(extent))
-            mPictures.grow(extent);
-
+        assert(mPictures.holds(extent) && "a picture past the room its view reserved");
         mPictures.trace(texture, camera, options, mScenes.at(options.mScene), mProfile);
     }
 
@@ -926,6 +984,13 @@ namespace Rtx
     {
         assert(mFrame.isBuilt());
         readFramed(mFrame.getColour(), false, values);
+    }
+
+    void VulkanRenderer::readShownRadiance(std::vector<float>& values)
+    {
+        assert(mShownRadiance != nullptr && "the shown frame read back before any frame was drawn");
+        assert(!upscaling() && "the upscaler's image read back, which is made to be read by nothing but the display");
+        readFramed(*mShownRadiance, false, values);
     }
 
     void VulkanRenderer::readFramed(const Image& image, const bool fielded, std::vector<float>& values) const

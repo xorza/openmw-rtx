@@ -72,6 +72,7 @@ namespace Rtx
         : mDevice(device)
         , mPlacementRoom(placementRoom)
         , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage")
+        , mPacked(device, BufferKind::DeviceLocal, sBuildInputUsage, "instances packed")
         , mBottomLevel(device)
         , mRefitScratch(device, BufferKind::DeviceLocal, sScratchUsage, "refit scratch")
         , mTopLevelScratch(device, BufferKind::DeviceLocal, sScratchUsage, "top level scratch")
@@ -86,29 +87,27 @@ namespace Rtx
         mBlockPlaced.reserve(blocks);
         mBlockStarts.reserve(blocks);
         mStarts.open(slots);
-        mPacked.open(slots);
         for (std::uint32_t slot = 0; slot < slots; ++slot)
         {
             mStarts.at(FrameSlot{ slot })
                 = GrowableBuffer(device, BufferKind::HostWritten, sTableUsage, "instance block starts");
             mStarts.at(FrameSlot{ slot }).growTo(blocks * sizeof(std::uint32_t));
-            mPacked.at(FrameSlot{ slot })
-                = GrowableBuffer(device, BufferKind::DeviceLocal, sBuildInputUsage, "instances packed");
-            mPacked.at(FrameSlot{ slot })
-                .growTo(std::size_t{ placementRoom } * sizeof(VkAccelerationStructureInstanceKHR));
         }
+        mPacked.growTo(std::size_t{ placementRoom } * sizeof(VkAccelerationStructureInstanceKHR));
         mIndices.open(device, sBuildInputUsage, "indices");
 
         writeGeometry(batch, scene, everyMesh);
     }
 
     void SceneAcceleration::build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-        std::span<const InstanceRecord> records, const TopLevelPackPass& pack, std::vector<Refusal>& refused)
+        std::span<const InstanceRecord> records, const BlockedBuffer& positions, const TopLevelPackPass& pack,
+        std::vector<Refusal>& refused)
     {
         assert(mBottomLevel.size() == 0 && mTopLevel.isEmpty() && "a scene built twice");
 
         // The rows after the structures, because a row names the address of the structure it places.
-        mBottomLevel.build(batch, scene, everyMesh, mPoses.at(FrameSlot{}), mIndices, mPlacements + 1, refused);
+        mBottomLevel.build(
+            batch, scene, everyMesh, mPoses.at(FrameSlot{}), positions, mIndices, mPlacements + 1, refused);
         sizeRefitScratch();
         writeRows(records, {});
         prepareTopLevel(scene, FrameSlot{});
@@ -125,8 +124,7 @@ namespace Rtx
 
         // **No pose here**: a body's run in every copy is the skin pass's, which poses whatever
         // arrives into each copy before the build reads the first (`SkinPass::recordArrived`). A
-        // static mesh has no run at all: `buildArrived` stages its vertices for the build and
-        // nothing else.
+        // static mesh has no run here at all: its structure is built over `SceneBuffers`' positions.
         for (const Index mesh : meshes)
         {
             const MeshRange& range = scene.meshes().getRows()[mesh];
@@ -148,8 +146,8 @@ namespace Rtx
         writeGeometry(batch, scene, scene.meshes().getArrived());
     }
 
-    void SceneAcceleration::buildArrived(
-        Batch& batch, const SceneDesc& scene, GpuTimer* timer, std::vector<Refusal>& refused)
+    void SceneAcceleration::buildArrived(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions,
+        GpuTimer* timer, std::vector<Refusal>& refused)
     {
         // The builds a crossing brings, bracketed as one zone. Without it they are device time
         // the frame's fence carries and no zone accounts for, so the frame a player feels is the one
@@ -158,8 +156,8 @@ namespace Rtx
 
         // Noted as built on the next posed placement, which is the one that brings them: built whole
         // here, nothing on it builds them whole again.
-        mBottomLevel.build(
-            batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), mIndices, mPlacements + 1, refused);
+        mBottomLevel.build(batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), positions, mIndices,
+            mPlacements + 1, refused);
         sizeRefitScratch();
 
         // **A structure built is a top level to build, whatever its rows say.** A top level holds
@@ -420,11 +418,11 @@ namespace Rtx
         GrowableBuffer& starts = mStarts.at(slot);
         starts.outgrow(std::max<VkDeviceSize>(mBlockStarts.size() * sizeof(std::uint32_t), sizeof(std::uint32_t)));
         starts.get().writeAt(0, std::span<const std::uint32_t>(mBlockStarts));
-        mPacked.at(slot).outgrow(VkDeviceSize{ count } * sizeof(VkAccelerationStructureInstanceKHR));
+        mPacked.outgrow(VkDeviceSize{ count } * sizeof(VkAccelerationStructureInstanceKHR));
 
-        // The top level is built from this frame's packing, so the address moves with the slot.
+        // Read again, since a growth moved the packing.
         mPrepared = slot;
-        mTopLevelGeometry.geometry.instances.data.deviceAddress = mPacked.at(slot).get().addressFor();
+        mTopLevelGeometry.geometry.instances.data.deviceAddress = mPacked.get().addressFor();
     }
 
     void SceneAcceleration::placeRow(const Index slot, const InstanceRecord& record)
@@ -565,7 +563,7 @@ namespace Rtx
         const GpuZone timed(timer, commands, FrameZone::Tlas);
         pack.record(commands,
             TopLevelPackPass::Packing{ .mRows = mRowTable.addressFor(mPrepared),
-                .mPacked = mPacked.at(mPrepared).get().addressFor(),
+                .mPacked = mPacked.get().addressFor(),
                 .mStarts = mStarts.at(mPrepared).get().addressFor(),
                 .mCount = rows });
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);

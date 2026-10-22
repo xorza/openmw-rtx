@@ -81,19 +81,22 @@ namespace Rtx
         mPrepared = true;
     }
 
-    void GuiDrawer::record(const VkCommandBuffer commands, const Image& picture, const Image& shown)
+    void GuiDrawer::record(
+        const VkCommandBuffer commands, const Image& picture, const Image& shown, const ImageUse& shownAfter)
     {
         assert(mPrepared && "an interface recorded that was never prepared");
         const Slot& slot = current();
 
         mDraws.front().mTexture = picture.getView();
-        picture.transition(commands, PresentTarget::sResting, Use::sFragmentGeneralSample);
-        shown.transition(commands, Use::sUndefined, Use::sColourAttachment);
+        Barriers drawing(commands);
+        picture.addTransition(drawing, PresentTarget::sResting, Use::sFragmentGeneralSample);
+        shown.addTransition(drawing, Use::sUndefined, Use::sColourAttachment);
+        drawing.flush();
         mPass.record(commands, shown, slot.mVertices.get(), mDraws);
 
         Barriers rested(commands);
         picture.addTransition(rested, Use::sFragmentGeneralSample, PresentTarget::sResting);
-        shown.addTransition(rested, Use::sColourAttachment, PresentTarget::sResting);
+        shown.addTransition(rested, Use::sColourAttachment, shownAfter);
         rested.flush();
 
         mPrepared = false;
@@ -103,7 +106,7 @@ namespace Rtx
     void GuiDrawer::submit(const Image& picture, const Image& shown)
     {
         Recording recording = mDevice.getPool().begin(current().mCommands[0]);
-        record(recording.get(), picture, shown);
+        record(recording.get(), picture, shown, PresentTarget::sResting);
         std::move(recording).submit();
     }
 }

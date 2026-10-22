@@ -26,19 +26,6 @@ namespace Rtx
 {
     namespace
     {
-        /// What `buffer` needs of an allocation, at `alignment` at least. By hand and not the
-        /// library's own look at the buffer, because that look takes the driver's alignment and no
-        /// other, and a scratch buffer owes a coarser one. What the library then does not know is
-        /// that this is a buffer, so it keeps the image granularity between this and any neighbour —
-        /// a kilobyte on this hardware, which is what every range paid before it.
-        VkMemoryRequirements requirementsOf(const VkDevice device, const VkBuffer buffer, const VkDeviceSize alignment)
-        {
-            VkMemoryRequirements requirements{};
-            vkGetBufferMemoryRequirements(device, buffer, &requirements);
-            requirements.alignment = std::max(requirements.alignment, alignment);
-            return requirements;
-        }
-
         /// The block a memory type is grown by. Sixty-four megabytes: what this fork's own allocator
         /// settled on before the library took over, against the library's quarter of a gigabyte,
         /// which on a card whose host-visible video memory is a couple of hundred megabytes is the
@@ -244,19 +231,20 @@ namespace Rtx
         assert(getLiveCount() == 0 && "a device allocation was still standing a resource when the device went");
     }
 
-    DeviceMemory MemoryAllocator::take(
-        const VkBuffer buffer, const VkMemoryPropertyFlags properties, const VkDeviceSize alignment)
+    DeviceMemory MemoryAllocator::take(const VkBuffer buffer, const VkMemoryPropertyFlags properties,
+        const VkDeviceSize alignment, const MemoryUse use)
     {
+        assert(isNeverRefused(use) && "content taken as though nothing could stand in for it");
         assert(alignment > 0 && (alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
 
-        const VkMemoryRequirements requirements = requirementsOf(mDevice, buffer, alignment);
-        const VmaAllocationCreateInfo create = askingFor(mMemory, properties, MemoryUse::Essential);
+        VmaAllocationCreateInfo create = askingFor(mMemory, properties, use);
+        create.minAlignment = alignment;
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
-        checkAllocated(vmaAllocateMemory(mLibrary.get(), &requirements, &create, &allocation, &placed), properties);
+        checkAllocated(vmaAllocateMemoryForBuffer(mLibrary.get(), buffer, &create, &allocation, &placed), properties);
 
-        return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
-            MemoryUse::Essential);
+        return hold(
+            allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
     }
 
     DeviceMemory MemoryAllocator::take(const VkImage image, const VkMemoryPropertyFlags properties, const MemoryUse use)
@@ -272,20 +260,35 @@ namespace Rtx
             allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
     }
 
+    DeviceMemory MemoryAllocator::take(const VkMemoryRequirements& requirements, const MemoryUse use)
+    {
+        assert(isNeverRefused(use) && "content taken as though nothing could stand in for it");
+
+        const VmaAllocationCreateInfo create = askingFor(mMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
+        VmaAllocation allocation = nullptr;
+        VmaAllocationInfo placed{};
+        checkAllocated(vmaAllocateMemory(mLibrary.get(), &requirements, &create, &allocation, &placed),
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        return hold(
+            allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
+    }
+
     Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(const VkBuffer buffer,
         const VkMemoryPropertyFlags properties, const VkDeviceSize alignment, const MemoryUse use)
     {
-        assert(use != MemoryUse::Frame && "a frame target in a buffer");
-        if (use == MemoryUse::Essential)
-            return take(buffer, properties, alignment);
+        if (isNeverRefused(use))
+            return take(buffer, properties, alignment, use);
 
         assert(alignment > 0 && (alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
 
-        const VkMemoryRequirements requirements = requirementsOf(mDevice, buffer, alignment);
+        const Requirements requirements
+            = requirementsOf<vkGetBufferMemoryRequirements2>(VkBufferMemoryRequirementsInfo2{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2, .pNext = nullptr, .buffer = buffer });
 
-        return tryAllocate(requirements.size, requirements.memoryTypeBits, false, properties, use,
+        return tryAllocate(requirements, alignment, properties, use,
             [&](const VmaAllocationCreateInfo& create, VmaAllocation* allocation, VmaAllocationInfo* placed) {
-                return vmaAllocateMemory(mLibrary.get(), &requirements, &create, allocation, placed);
+                return vmaAllocateMemoryForBuffer(mLibrary.get(), buffer, &create, allocation, placed);
             });
     }
 
@@ -295,8 +298,19 @@ namespace Rtx
         if (isNeverRefused(use))
             return take(image, properties, use);
 
-        // Whether the driver binds the image to nothing but an allocation of its own, which the
-        // library would otherwise find out only inside a pool that makes none.
+        const Requirements requirements = requirementsOf<vkGetImageMemoryRequirements2>(VkImageMemoryRequirementsInfo2{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2, .pNext = nullptr, .image = image });
+
+        // At the driver's alignment alone, which a minimum of nought leaves it.
+        return tryAllocate(requirements, 0, properties, use,
+            [&](const VmaAllocationCreateInfo& create, VmaAllocation* allocation, VmaAllocationInfo* placed) {
+                return vmaAllocateMemoryForImage(mLibrary.get(), image, &create, allocation, placed);
+            });
+    }
+
+    template <auto& Query, class Info>
+    MemoryAllocator::Requirements MemoryAllocator::requirementsOf(const Info& info) const
+    {
         VkMemoryDedicatedRequirements dedicated{ .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS,
             .pNext = nullptr,
             .prefersDedicatedAllocation = VK_FALSE,
@@ -304,33 +318,26 @@ namespace Rtx
         VkMemoryRequirements2 requirements{
             .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = &dedicated, .memoryRequirements = {}
         };
-        const VkImageMemoryRequirementsInfo2 info{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
-            .pNext = nullptr,
-            .image = image,
-        };
-        vkGetImageMemoryRequirements2(mDevice, &info, &requirements);
-
-        return tryAllocate(requirements.memoryRequirements.size, requirements.memoryRequirements.memoryTypeBits,
-            dedicated.requiresDedicatedAllocation == VK_TRUE, properties, use,
-            [&](const VmaAllocationCreateInfo& create, VmaAllocation* allocation, VmaAllocationInfo* placed) {
-                return vmaAllocateMemoryForImage(mLibrary.get(), image, &create, allocation, placed);
-            });
+        Query(mDevice, &info, &requirements);
+        return Requirements{ .mMemory = requirements.memoryRequirements,
+            .mOwn = dedicated.requiresDedicatedAllocation == VK_TRUE };
     }
 
     template <class Allocate>
-    Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryAllocate(const VkDeviceSize size,
-        const std::uint32_t typeBits, bool own, const VkMemoryPropertyFlags properties, const MemoryUse use,
-        Allocate&& allocate)
+    Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryAllocate(const Requirements& requirements,
+        const VkDeviceSize alignment, const VkMemoryPropertyFlags properties, const MemoryUse use, Allocate&& allocate)
     {
         VmaAllocationCreateInfo create = askingFor(mMemory, properties, use);
+        create.minAlignment = alignment;
         std::uint32_t type = 0;
-        checkAllocated(vmaFindMemoryTypeIndex(mLibrary.get(), typeBits, &create, &type), properties);
+        checkAllocated(
+            vmaFindMemoryTypeIndex(mLibrary.get(), requirements.mMemory.memoryTypeBits, &create, &type), properties);
         assert(mLibrary.poolOf(type) != nullptr && "content asked for memory that is not video memory");
 
         // Larger than half a block, an allocation of its own, as the library gives one outside a
         // pool: a block past half full with one resource is a block the next one does not fit.
-        own |= size > sBlockBytes / 2;
+        const VkDeviceSize size = requirements.mMemory.size;
+        const bool own = requirements.mOwn || size > sBlockBytes / 2;
 
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};

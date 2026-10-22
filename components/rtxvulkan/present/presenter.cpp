@@ -239,15 +239,13 @@ namespace Rtx
         return Taken{ .mRecording = mDevice.getPool().begin(mCommands[index]), .mIndex = index, .mAcquisition = slot };
     }
 
-    void Presenter::hand(Taken held, const Image& frame)
+    void Presenter::hand(Taken held, const Image& frame, const ImageUse& frameAt)
     {
         const std::uint32_t index = held.mIndex;
         Acquisition& acquisition = mAcquiring[held.mAcquisition];
         SwapImage& image = mImages[index];
         Recording& recording = held.mRecording;
         const VkCommandBuffer commands = recording.get();
-
-        frame.transition(commands, PresentTarget::sResting, Use::sBlitRead);
 
         const VkExtent2D extent = mSwapchain.getExtent();
         const osg::Vec2i frameSize(static_cast<int>(frame.getWidth()), static_cast<int>(frame.getHeight()));
@@ -265,9 +263,12 @@ namespace Rtx
         // is ordered against nothing and can run before the image is ours: a first scope of `NONE`
         // chains to no wait. Every transfer stage, because the first write is the clear or the
         // blit, which is narrower than `sUndefined`'s every stage.
+        // The frame's own in the same batch, where it is not already where the blit reads it.
         Barriers taken(commands);
         taken.add(imageBarrier(presented, 0, 1,
             ImageUse{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, 0 }, firstWrite));
+        if (frameAt != Use::sBlitRead)
+            frame.addTransition(taken, frameAt, Use::sBlitRead);
         taken.flush();
 
         if (letterboxed)

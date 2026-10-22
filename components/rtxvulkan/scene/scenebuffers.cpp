@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <span>
+#include <vector>
 
 #include <osg/Vec4f>
 
@@ -135,35 +137,36 @@ namespace Rtx
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
         std::span<const Index> everyMesh, std::span<const InstanceRecord> records, const std::uint32_t slots,
         const SceneRoom& room)
-        : mLayers(device, BufferKind::DeviceLocal, sTableFilledUsage, "layers")
-        , mMasks(device, BufferKind::DeviceLocal, sTableFilledUsage, "masks")
+        : mLayers(device, BufferKind::DeviceLocal, sTableKeptUsage, "layers")
+        , mMasks(device, BufferKind::DeviceLocal, sTableKeptUsage, "masks")
+        , mMeshTable(device, BufferKind::DeviceLocal, sTableFilledUsage, "meshes")
         , mTables([&](FrameSlot) { return Tables(device); })
     {
         mTables.open(slots);
         mTexCoords.open(device, sTableUsage, "uvs");
         mSecondTexCoords.open(device, sTableUsage, "second uvs");
         mColours.open(device, sTableUsage, "vertex colours");
-        mPositions.open(device, sTableUsage, "positions");
+        mPositions.open(device, sBuildInputUsage, "positions");
         mInstanceTable.open(device, slots, sTableUsage, "instance rows");
         mInstanceTable.reserve(room.mPlacements);
-        mMeshTable.open(device, slots, sTableUsage, "meshes");
-        mMeshTable.reserve(room.mMeshes);
+        mMeshTable.growTo(VkDeviceSize{ room.mMeshes } * sizeof(Shaders::GpuMesh));
+        mMeshRows.reserve(room.mMeshes);
         mMaterialTable.open(device, slots, sTableUsage, "materials");
         mMaterialTable.reserve(room.mMaterials);
-        mNormals.open(device, slots, sTableUsage, "normals");
-        mTangents.open(device, slots, sTableUsage, "tangents");
+        mNormals.open(device, 1, sTableUsage, "normals");
+        mTangents.open(device, 1, sTableUsage, "tangents");
 
+        // At the room or what the scene reaches, so the first stage copies nothing.
+        mLayers.growTo(
+            std::max<VkDeviceSize>(room.mLayers, scene.materials().getLayers().size()) * sizeof(Shaders::GpuLayer));
+        mMasks.growTo(std::max<VkDeviceSize>(room.mMasks, scene.materials().getMasks().size()) * sizeof(float));
         writeMeshes(batch, scene, everyMesh);
-        writeMaterialRuns(batch, scene);
+        writeMaterialRuns(batch, scene, Runs::Whole);
         orderStagedWrites(batch);
 
-        // Every posed copy holds every body's bind normals from here, so what a copy owes from now
-        // on is the poses it missed.
-        for (std::uint32_t slot = 0; slot < mNormals.getOwn().count(); ++slot)
-        {
-            mNormals.getOwn().settle(FrameSlot{ slot });
-            mTangents.getOwn().settle(FrameSlot{ slot });
-        }
+        // The posed copy holds every body's bind normals from here.
+        mNormals.getOwn().settle(FrameSlot{});
+        mTangents.getOwn().settle(FrameSlot{});
 
         // The frame tables come from `place`, which is also where they are written when a material
         // changes. Every copy is empty here, so the first write of each makes its buffer and fills
@@ -174,7 +177,7 @@ namespace Rtx
     void SceneBuffers::extend(Batch& batch, const SceneDesc& scene)
     {
         writeMeshes(batch, scene, scene.meshes().getArrived());
-        writeMaterialRuns(batch, scene);
+        writeMaterialRuns(batch, scene, Runs::Arrived);
 
         // What is built out of the blocks was copied a moment ago, and the acceleration structures
         // built from them are recorded into this same command buffer. One dependency for every
@@ -204,11 +207,10 @@ namespace Rtx
             const std::span<const osg::Vec3f> normals = range.mVertices.in(scene.meshes().getNormals());
             const std::span<const std::uint32_t> tangents = range.mVertices.in(scene.meshes().getTangents());
             if (range.deforms())
-                for (std::uint32_t slot = 0; slot < mNormals.getOwn().count(); ++slot)
-                {
-                    mNormals.getOwn().at(FrameSlot{ slot }).writeAt(batch, range.mBindOffset, normals);
-                    mTangents.getOwn().at(FrameSlot{ slot }).writeAt(batch, range.mBindOffset, tangents);
-                }
+            {
+                mNormals.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, normals);
+                mTangents.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, tangents);
+            }
             else
             {
                 mNormals.getShared().writeAt(batch, range.mVertices.mOffset, normals);
@@ -224,11 +226,11 @@ namespace Rtx
                     range.mSecondTexCoords.in(scene.meshes().getSecondTexCoords()));
         }
 
-        mMeshTable.grow(scene.meshes().getRows().size());
+        mMeshRows.resize(scene.meshes().getRows().size());
         for (const Index at : meshes)
         {
             const MeshRange& mesh = scene.meshes().getRows()[at];
-            mMeshTable.write(at) = Shaders::GpuMesh{
+            mMeshRows[at] = Shaders::GpuMesh{
                 .mVertexOffset = mesh.mVertices.mOffset,
                 .mIndexOffset = mesh.mIndices.mOffset,
                 .mShape
@@ -241,6 +243,26 @@ namespace Rtx
                     ? Shaders::POSED_FIRST_BLOCK * Shaders::VERTEX_BLOCK + mesh.mBindOffset - mesh.mVertices.mOffset
                     : 0u,
             };
+        }
+
+        // Whole where the table was made again, and the rows that arrived otherwise, a run of
+        // neighbouring slots one copy: a scene's slots arrive in order where none was freed.
+        if (mMeshTable.outgrow(std::max<std::size_t>(mMeshRows.size(), 1) * sizeof(Shaders::GpuMesh)))
+        {
+            if (!mMeshRows.empty())
+                stageInto(batch, mMeshTable.get(), 0, std::as_bytes(std::span<const Shaders::GpuMesh>(mMeshRows)));
+            return;
+        }
+
+        const std::span<const Shaders::GpuMesh> rows(mMeshRows);
+        for (std::size_t first = 0; first < meshes.size();)
+        {
+            std::size_t last = first;
+            while (last + 1 < meshes.size() && meshes[last + 1] == meshes[last] + 1)
+                ++last;
+            stageInto(batch, mMeshTable.get(), VkDeviceSize{ meshes[first] } * sizeof(Shaders::GpuMesh),
+                std::as_bytes(rows.subspan(meshes[first], last - first + 1)));
+            first = last + 1;
         }
     }
 
@@ -286,36 +308,34 @@ namespace Rtx
             && "layer or mask runs arrived without an extend to stage them");
     }
 
-    void SceneBuffers::writeMaterialRuns(Batch& batch, const SceneDesc& scene)
+    void SceneBuffers::writeMaterialRuns(Batch& batch, const SceneDesc& scene, const Runs runs)
     {
         const std::span<const MaterialLayer> layers = scene.materials().getLayers();
         const std::span<const float> masks = scene.materials().getMasks();
 
-        // A scene with no terrain in it still has to bind something: a descriptor may not be null,
-        // and a zero-length buffer is not a thing Vulkan will make. One unread element each — and
-        // the layer cannot be `constexpr`, because `osg::Vec4f` has no constexpr default.
-        const Shaders::GpuLayer noLayer{};
-        constexpr float noMask = 1.0f;
+        // On the queue, run by run: a run an arrival was given may be one a frame in flight still
+        // reads of the material that held it last, and the copy recorded here runs behind that frame.
+        // **A growth keeps what the table holds**, copied on the queue, so what is staged is what
+        // arrived and not the table whole, megabytes of masks on a crossing frame. What a flipbook
+        // does every frame never touches these tables. A table a scene is made with is staged
+        // whole, since the arrivals since the last clear are not every run a rebuilt world holds.
+        mLayers.outgrowKeeping(batch, layers.size() * sizeof(Shaders::GpuLayer));
+        mMasks.outgrowKeeping(batch, masks.size() * sizeof(float));
 
-        // On the queue, whole where the table was made again and run by run otherwise: a run an
-        // arrival was given may be one a frame in flight still reads of the material that held it
-        // last, and the copy recorded here runs behind that frame. What a flipbook does every frame
-        // never touches these tables.
-        if (mLayers.outgrow(std::max<std::size_t>(layers.size(), 1) * sizeof(Shaders::GpuLayer)))
-            stageInto(batch, mLayers.get(), 0,
-                std::as_bytes(layers.empty() ? std::span<const Shaders::GpuLayer>(&noLayer, 1) : layers));
+        if (runs == Runs::Whole)
+        {
+            if (!layers.empty())
+                stageInto(batch, mLayers.get(), 0, std::as_bytes(layers));
+            if (!masks.empty())
+                stageInto(batch, mMasks.get(), 0, std::as_bytes(masks));
+        }
         else
-            // Each run as the chunk placed it, staged at the run's own offset, so a table of a
-            // thousand layers pays for the five that arrived.
+        {
             for (const Run run : scene.materials().getArrivedRuns().mLayers)
                 stageInto(batch, mLayers.get(), run.mOffset * sizeof(Shaders::GpuLayer), std::as_bytes(run.in(layers)));
-
-        if (mMasks.outgrow(std::max<std::size_t>(masks.size(), 1) * sizeof(float)))
-            stageInto(
-                batch, mMasks.get(), 0, std::as_bytes(masks.empty() ? std::span<const float>(&noMask, 1) : masks));
-        else
             for (const Run run : scene.materials().getArrivedRuns().mMasks)
                 stageInto(batch, mMasks.get(), run.mOffset * sizeof(float), std::as_bytes(run.in(masks)));
+        }
 
         mStagedRuns = scene.materials().getRunRevision();
     }
@@ -368,7 +388,6 @@ namespace Rtx
             placeRow(at);
 
         mInstanceTable.sync(slot);
-        mMeshTable.sync(slot);
 
         mLightGrid.rebuild(scene.lights());
         for (Tables& copy : mTables.live())
@@ -434,7 +453,6 @@ namespace Rtx
     void SceneBuffers::finishReads(const FrameSlot slot) const
     {
         mInstanceTable.finishReads(slot);
-        mMeshTable.finishReads(slot);
         mMaterialTable.finishReads(slot);
 
         const Tables& tables = mTables.at(slot);
@@ -454,13 +472,13 @@ namespace Rtx
         // whether it is a frame's trace or a picture's deferred batch — and `addressFor` is what
         // says so of each. Every host write of any of these then checks the stamp, so a table
         // rewritten under a trace is an assert and not a fault.
-        into.mNormalBlocks = mNormals.getTableAddress(slot);
-        into.mTangentBlocks = mTangents.getTableAddress(slot);
+        into.mNormalBlocks = mNormals.getTableAddress(FrameSlot{});
+        into.mTangentBlocks = mTangents.getTableAddress(FrameSlot{});
         into.mTexCoordBlocks = mTexCoords.getTableAddress();
         into.mColourBlocks = mColours.getTableAddress();
         into.mPositionBlocks = mPositions.getTableAddress();
         into.mSecondTexCoordBlocks = mSecondTexCoords.getTableAddress();
-        into.mMeshes = mMeshTable.addressFor(slot);
+        into.mMeshes = mMeshTable.get().addressFor();
         into.mInstances = mInstanceTable.addressFor(slot);
         into.mMaterials = mMaterialTable.addressFor(slot);
         into.mLayers = mLayers.get().addressFor();
@@ -492,7 +510,7 @@ namespace Rtx
         // The indices are not counted here: they are the acceleration's, which counts them
         // (`SceneAcceleration::getIndexBytes`).
         VkDeviceSize total = mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes()
-            + mPositions.getBytes() + mNormals.getBytes() + mTangents.getBytes() + mMeshTable.getBytes()
+            + mPositions.getBytes() + mNormals.getBytes() + mTangents.getBytes() + mMeshTable.get().getSize()
             + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes() + mMaterialTable.getBytes();
         for (const Tables& tables : mTables.live())
             total += tables.getBytes();

@@ -77,11 +77,6 @@ namespace Rtx
     class PipelineCreation
     {
     public:
-        /// What every create info's `flags` starts from. The cost is to compiling the pipeline and
-        /// not to running it, and every pipeline here is made once; the answer it buys is the only
-        /// way to see a register count, which is what an occupancy figure is made of.
-        static constexpr VkPipelineCreateFlags sFlags = VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR;
-
         PipelineCreation(const Device& device, std::string_view name);
 
         PipelineCreation(const PipelineCreation&) = delete;

@@ -41,6 +41,8 @@ namespace Rtx
         , mExtentWidth(request.mWidth)
         , mExtentHeight(request.mHeight)
     {
+        renderer.reservePicture(request.mWidth, request.mHeight);
+
         if (request.mSubject == nullptr)
             return;
 

@@ -26,27 +26,30 @@
 
 namespace Rtx
 {
-    FrameRecord::FrameRecord(const Device& device, const bool timing)
+    FrameRecord::FrameRecord(const Device& device, const bool timing, const bool readingBack)
         : mPlaceCommands(device.getPool().lend(1))
         , mTraceCommands(device.getPool().lend(1))
         , mTimer(device, timing)
         , mCounts(Buffer::readBack(device, sizeof(Shaders::FrameCounts),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame counts"))
         , mDebugVertices(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "debug vertices")
-        , mDigestLanes(Buffer::readBack(device, DigestPass::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame digest"))
     {
+        if (readingBack)
+            mDigestLanes
+                = Buffer::readBack(device, DigestPass::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame digest");
         if (device.getCensus() != nullptr)
             mNotFinite = Buffer::readBack(
                 device, NotFiniteCensus::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame not-finite census");
     }
 
-    FrameRing::FrameRing(const Device& device, const bool timing)
+    FrameRing::FrameRing(const Device& device, const bool timing, const bool readingBack)
         : mDevice(device)
         , mSlots([&](FrameSlot) {
-            return FrameRecord{ device, timing };
+            return FrameRecord{ device, timing, readingBack };
         })
-        , mDigest(device)
     {
+        if (readingBack)
+            mDigest.emplace(device);
         for (GrowableBuffer& picture : mPictures)
             picture = GrowableBuffer(device, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame readback");
     }
@@ -102,9 +105,10 @@ namespace Rtx
         const std::uint32_t frameNumber, const FrameDigest& facts, GpuTimer* const timer)
     {
         frame.mState.expect(FrameState::Begun);
+        assert(mDigest.has_value() && "a digest asked of a renderer made reading nothing back");
 
         frame.mDigest = facts;
-        frame.mDigest->mDenoiserTaken = mDigest.record(
+        frame.mDigest->mDenoiserTaken = mDigest->record(
             commands, channels, channelsInFields, denoiser, extent, frameNumber, frame.mDigestLanes, timer);
     }
 

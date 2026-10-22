@@ -71,11 +71,20 @@ namespace Rtx
                 {
                     const std::uint32_t across = std::max(map.mWidth / 2, 1u);
                     const std::uint32_t down = std::max(map.mHeight / 2, 1u);
-                    const Image& spread = spreads.emplace_back(device, across, down, VK_FORMAT_R8_UNORM,
-                        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                        "normal spread test spread", levelsTo1x1(across, down));
-                    const Image& image = images.emplace_back(device, map.mWidth, map.mHeight, map.mFormat,
-                        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "normal spread test map", 1);
+                    const Image& spread = spreads.emplace_back(MemoryUse::Essential, device,
+                        ImageDescription{ .mWidth = across,
+                            .mHeight = down,
+                            .mFormat = VK_FORMAT_R8_UNORM,
+                            .mUsage
+                            = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                            .mMipLevels = levelsTo1x1(across, down) },
+                        "normal spread test spread");
+                    const Image& image = images.emplace_back(MemoryUse::Essential, device,
+                        ImageDescription{ .mWidth = map.mWidth,
+                            .mHeight = map.mHeight,
+                            .mFormat = map.mFormat,
+                            .mUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT },
+                        "normal spread test map");
                     const std::array regions{ wholeLevel(0, 0, VkExtent3D{ map.mWidth, map.mHeight, 1 }) };
                     arrival.upload(upload, image, std::as_bytes(map.mTexels), regions);
                     arrival.spread(image, spread);

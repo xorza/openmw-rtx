@@ -141,8 +141,22 @@ layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_SPECULAR_ALBEDO, GBUFFER_AL
     uniform readonly image2D specularAlbedo;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_PANE) uniform readonly image2D pane;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_PANE_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D paneAlbedo;
+layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_STAGE_RECORD, GBUFFER_STAGE_RECORD) uniform readonly uimage2D
+    stageRecord;
+layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_UPSCALE_MASKS, GBUFFER_UPSCALE_MASKS) uniform writeonly image2D
+    upscaleMasks;
 
 #include "lib/resolve.glsl"
+
+/// Writes the frame at `at` composed of the cascade's answer and its fill's, and the upscaler's masks
+/// against it (`storeUpscaleMasks`).
+void storeComposed(ivec2 at, ivec2 stored, vec3 bounce, vec3 fillShare)
+{
+    const vec3 light
+        = resolvedLight(stored, imageLoad(direct, stored).rgb, bounce, fillShare, level.mShadowed, level.mLobed);
+    RTX_STORE_COUNTED(composed, at, vec4(light, 1.0))
+    storeUpscaleMasks(at, stored, light);
+}
 #endif
 
 /// **The first level's taps from a tile in shared memory** (NRD's `RELAX_AtrousSmem`): every texel
@@ -292,10 +306,7 @@ void main()
     if (seen.x == SURFACE_NO_NORMAL)
     {
 #ifdef ATROUS_COMPOSE
-        RTX_STORE_COUNTED(composed, at,
-            vec4(resolvedLight(stored, imageLoad(direct, stored).rgb, texelFetch(source, stored, 0).rgb,
-                     texelFetch(fillSource, stored, 0).rgb, level.mShadowed, level.mLobed),
-                1.0))
+        storeComposed(at, stored, texelFetch(source, stored, 0).rgb, texelFetch(fillSource, stored, 0).rgb);
 #else
         RTX_STORE_COUNTED(filtered, stored, texelFetch(source, stored, 0))
         RTX_STORE_COUNTED(fillFiltered, stored, texelFetch(fillSource, stored, 0))
@@ -395,10 +406,7 @@ void main()
 #ifdef ATROUS_COMPOSE
     // **Composed from the halves a stored level would hold**, so the frame is the one the composite
     // made of them: the same light to the bit, and no level written for a pass to read back.
-    RTX_STORE_COUNTED(composed, at,
-        vec4(resolvedLight(stored, imageLoad(direct, stored).rgb, nearestHalf(answer).rgb, nearestHalf(answerFill).rgb,
-                 level.mShadowed, level.mLobed),
-            1.0))
+    storeComposed(at, stored, nearestHalf(answer).rgb, nearestHalf(answerFill).rgb);
 #else
     RTX_STORE_COUNTED(filtered, stored, ATROUS_WIDE ? answer : nearestHalf(answer))
     RTX_STORE_COUNTED(fillFiltered, stored, ATROUS_WIDE ? answerFill : nearestHalf(answerFill))

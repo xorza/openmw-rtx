@@ -53,13 +53,12 @@ namespace Rtx
     {
     public:
         /// Lays every image out and empties it in one submit it waits for, because nothing times a
-        /// not-a-number is still one. `width` and `height` are the camera's, in pixels, and `use`
-        /// what the images are counted as, as `GBuffer` takes it. Where `past` drops what a trace
-        /// leaves, the point pair is one image, which every trace both writes and names as its
-        /// history, and which none reads as one: the basis of nothing every such trace carries
-        /// reprojects nowhere.
-        FogVolume(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height,
-            MemoryUse use, TracePast past);
+        /// not-a-number is still one. `width` and `height` are the camera's, in pixels; the images
+        /// are the frame's targets, as the chain's are. Where `past` drops what a trace leaves, the point pair is one
+        /// image, which every trace both writes and names as its history, and which none reads as one: the basis of
+        /// nothing every such trace carries reprojects nowhere.
+        FogVolume(
+            const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height, TracePast past);
 
         /// What a volume for a camera this size takes of the device's memory.
         static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height, TracePast past);

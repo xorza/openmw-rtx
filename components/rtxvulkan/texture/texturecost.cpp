@@ -70,20 +70,14 @@ namespace Rtx
         TextureCost cost;
 
         // A completed chain is the device's, made from the file's one level uploaded as it is; one
-        // past the loose side stands as BC7, encoded off a loose chain, which goes with the batch as
-        // the upload does, through blocks the arrival's room holds and is priced as if made for it.
+        // past the loose side stands as BC7, encoded off a loose chain the arrival's canvas holds,
+        // through blocks its room holds, both priced once for the arrival (`priceEncode`).
         if (texture.mCompleteChain)
         {
             const ImageShape shape = shapeOf(texture, first);
             cost.mTransient = texture.mBytes.size();
-            if (!texture.encodesChain())
-                cost.mImage = writtenBytes(shape);
-            else
-            {
-                const VkDeviceSize blocks = Bc7Chain::of(shape.mWidth, shape.mHeight, shape.mLevels).mBytes;
-                cost.mImage = blocks;
-                cost.mTransient += writtenBytes(shape) + blocks;
-            }
+            cost.mImage = texture.encodesChain() ? Bc7Chain::of(shape.mWidth, shape.mHeight, shape.mLevels).mBytes
+                                                 : writtenBytes(shape);
         }
         else
             cost.mImage = texture.bytesFrom(first);
@@ -100,6 +94,16 @@ namespace Rtx
         return texture.getCompanion() == TextureCompanion::Spread
             ? spreadTexels(texture, first) * Shaders::NORMAL_SPREAD_MEAN_BYTES
             : 0;
+    }
+
+    EncodeCost priceEncode(const TextureData& texture, const std::uint32_t first)
+    {
+        if (!texture.mCompleteChain || !texture.encodesChain())
+            return {};
+
+        const ImageShape shape = shapeOf(texture, first);
+        return EncodeCost{ .mLoose = writtenBytes(shape),
+            .mBlocks = Bc7Chain::of(shape.mWidth, shape.mHeight, shape.mLevels).mBytes };
     }
 
     TextureCost priceBake(const ImageShape& source)

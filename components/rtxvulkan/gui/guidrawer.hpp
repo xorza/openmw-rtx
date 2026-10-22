@@ -9,6 +9,7 @@
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 
 #include "guipass.hpp"
 #include "guitextures.hpp"
@@ -38,9 +39,9 @@ namespace Rtx
         bool isPrepared() const { return mPrepared; }
 
         /// Records the draw taken into `commands`: `picture` into `shown` whole, and the batches
-        /// over it. Both are taken from `PresentTarget::sResting` and left there, `shown` rewritten
-        /// whole.
-        void record(VkCommandBuffer commands, const Image& picture, const Image& shown);
+        /// over it. Both are taken from `PresentTarget::sResting`, `shown` rewritten whole; `picture`
+        /// is left there and `shown` in `shownAfter`, the use what comes next reads it in.
+        void record(VkCommandBuffer commands, const Image& picture, const Image& shown, const ImageUse& shownAfter);
 
         /// `record`, into a submit of its own and not waited for, where nothing else is about to
         /// submit it.

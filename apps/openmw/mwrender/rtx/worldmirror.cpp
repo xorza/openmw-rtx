@@ -237,11 +237,20 @@ namespace MWRender
     Rtx::ContentMemory WorldMirror::getContentMemory()
     {
         const Rtx::MeshTable& meshes = mScene.meshes();
+        const Rtx::DeformerTable& deformers = mScene.deformers();
+        const auto count = [](const auto& run) { return static_cast<std::uint32_t>(run.size()); };
         return Rtx::ContentMemory{
             .mVertexEnd = meshes.getVertexRuns().getEnd(),
             .mVerticesUsed = meshes.getVertexRuns().getUsed(),
             .mIndexEnd = meshes.getIndexRuns().getEnd(),
             .mIndicesUsed = meshes.getIndexRuns().getUsed(),
+            .mLayerEnd = count(mScene.materials().getLayers()),
+            .mMaskEnd = count(mScene.materials().getMasks()),
+            .mRigRunEnd = count(deformers.getRuns()),
+            .mInfluenceEnd = count(deformers.getInfluences()),
+            .mOffsetEnd = count(deformers.getMorphOffsets()),
+            .mPoseEnd = count(deformers.getPoses()),
+            .mBindVertexEnd = deformers.getBindVertexCount(),
             .mReader = mRing.getReaderMemory(),
         };
     }

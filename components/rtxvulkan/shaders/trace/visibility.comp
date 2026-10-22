@@ -2,6 +2,8 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_ballot : require
 
 // The frame, composed. Every ray a pixel casts is a ray query against the top-level structure, the
 // eye's among them; what a pixel *shows* is what `lib/eyeshading.glsl` answers for the hit or the
@@ -298,13 +300,20 @@ TracedLists tracePixel(uvec2 pixel)
     // **Whether a pixel is inside the disc is asked through the world's eye**, because the disc is
     // the sun's quad on the screen: a pixel on the arms looks along the arms' own eye, and a disc
     // counted that way held as many of their pixels as a first-person field of view left in it.
-    if (sunUp()
+    //
+    // **Counted a subgroup at a time**, by ballot: one atomic a counter a subgroup where every pixel
+    // in the disc took one, which the whole disc's pixels contended for.
+    const bool inDisc = sunUp()
         && insideCap(arms ? rayAt(frame.mEyes.mWorld, vec2(pixel)).mDirection : direction, frame.mSun.mDirection,
-            capChord(SUN_GLARE_QUERY_RADIUS)))
+            capChord(SUN_GLARE_QUERY_RADIUS));
+    const bool seenInDisc = inDisc && !(hit && !answer.mWater) && panesThrough * armsThrough >= 1.0;
+    const uint discTotal = subgroupBallotBitCount(subgroupBallot(inDisc));
+    const uint discSeen = subgroupBallotBitCount(subgroupBallot(seenInDisc));
+    if (subgroupElect() && discTotal != 0u)
     {
-        atomicAdd(sunGlare.mTotal, 1u);
-        if (!(hit && !answer.mWater) && panesThrough * armsThrough >= 1.0)
-            atomicAdd(sunGlare.mSeen, 1u);
+        atomicAdd(sunGlare.mTotal, discTotal);
+        if (discSeen != 0u)
+            atomicAdd(sunGlare.mSeen, discSeen);
     }
 
     // Each channel where it keeps the pixel: in its field, or in the frame's own order
@@ -320,12 +329,6 @@ TracedLists tracePixel(uvec2 pixel)
     RTX_STORE_COUNTED(stageThroughput, stored,
         vec4(ahead.mThrough * pathWeight, panesThrough * armsThrough))
 
-    // **No shadowed source and no lobe's light**, which the direct stage writes where a solid stands
-    // (`direct.comp`): the nothing every other pixel holds, and the solid's lobe's roughness.
-    const Shadowed sky = noShadowed();
-    const Shadowed lamps = noShadowed();
-    const vec3 lobe = vec3(0.0);
-
     // **What the upscaler is told its motion vector does not describe**, `CHANNEL_UPSCALE_MASKS`:
     // the water's light, which its shading measured against the surface, by its share of the pixel,
     // the layers in front of the water taking theirs off it; and the layers', which `panes.comp`
@@ -337,22 +340,16 @@ TracedLists tracePixel(uvec2 pixel)
             StageRecord(solid, uint(arms), marches, layer > 0u, detailed, false, tmin, 0.0, 0.0, waterMisMoved)))
 
     RTX_STORE_COUNTED(direct, channelAt(CHANNEL_DIRECT, at, width, swap), vec4(shaded, 1.0))
-    RTX_STORE_COUNTED(shadowed, channelAt(CHANNEL_SHADOWED, at, width, swap),
-        vec4(sky.mLight, packShadowAlpha(sky.mOpen > 0.0, sky.mPenumbra)))
-    RTX_STORE_COUNTED(lamped, channelAt(CHANNEL_LAMPED, at, width, swap),
-        vec4(lamps.mLight, packShadowAlpha(lamps.mOpen > 0.0, lamps.mPenumbra)))
     RTX_STORE_COUNTED(albedo, channelAt(CHANNEL_ALBEDO, at, width, swap), vec4(answer.mResponse.mDiffuse, 1.0))
     RTX_STORE_COUNTED(
         ambientAlbedo, channelAt(CHANNEL_AMBIENT_ALBEDO, at, width, swap), vec4(answer.mResponse.mAmbient, 1.0))
 
-    // **The lobe's two only where a surface can have one**, which without the maps' code none can:
-    // the channels hold no lobe already (`GBuffer::begin`), sixteen bytes a pixel nothing reads.
+    // **The lobe's albedo only where a surface can have one**, which without the maps' code none
+    // can: the channel holds no lobe already (`GBuffer::begin`), sixteen bytes a pixel nothing reads.
+    // Its light and roughness are the direct stage's (`direct.comp`), with the shadowed sources.
     if (HAS_MAPS)
-    {
-        RTX_STORE_COUNTED(specular, channelAt(CHANNEL_SPECULAR, at, width, swap), vec4(lobe, answer.mRoughness))
         RTX_STORE_COUNTED(specularAlbedo, channelAt(CHANNEL_SPECULAR_ALBEDO, at, width, swap),
             vec4(answer.mResponse.mSpecular, 1.0))
-    }
 
     // **The surface's lift, by what the path let through** — the layers, the water and the air —
     // and the lift itself handed on, from which `panes.comp` composes the channel where layers stand
@@ -390,30 +387,25 @@ TracedLists tracePixel(uvec2 pixel)
     return TracedLists(marches, layer > 0u);
 }
 
-/// Which lists a pixel of this workgroup's tile joins, a bit a list (`STAGE_LIST_*`), which one lane
-/// appends.
-shared uint gTileLists;
-
 void main()
 {
     uvec2 pixel;
     const bool inside = stagePixelOf(pixel);
 
-    if (gl_LocalInvocationIndex == 0u)
-        gTileLists = 0u;
-    barrier();
-
+    uint joins = 0u;
     if (inside)
     {
         const TracedLists lists = tracePixel(pixel);
-        atomicOr(gTileLists, (lists.mMedia ? 1u << STAGE_LIST_MEDIA : 0u) | (lists.mPanes ? 1u << STAGE_LIST_PANES : 0u));
+        joins = (lists.mMedia ? 1u << STAGE_LIST_MEDIA : 0u) | (lists.mPanes ? 1u << STAGE_LIST_PANES : 0u);
     }
 
     // **The tile appended once a list, by one lane, after every lane's pixel**: a workgroup is a tile
-    // of the stored layout, which a later stage runs as one of its own (`stagePixelIn`).
-    barrier();
-    if (gl_LocalInvocationIndex == 0u)
+    // of the stored layout, which a later stage runs as one of its own (`stagePixelIn`). **By the
+    // subgroup's own sum, with no shared memory and no barrier**: the workgroup is one subgroup, its
+    // 32 lanes held to it (`SubgroupSize::ThirtyTwo`).
+    const uint tileLists = subgroupOr(joins);
+    if (subgroupElect())
         for (uint list = 0u; list < STAGE_LISTS; ++list)
-            if ((gTileLists & (1u << list)) != 0u)
+            if ((tileLists & (1u << list)) != 0u)
                 appendTile(list, gl_WorkGroupID.xy);
 }

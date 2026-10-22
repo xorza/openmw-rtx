@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -17,11 +18,13 @@
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -38,6 +41,7 @@
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 #include <components/sky/skyclock.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace Rtx
 {
@@ -265,6 +269,7 @@ namespace Rtx
         TEST_F(RtxFramesTest, aPictureInsideTheInterfaceIsNotCountedWithTheFrame)
         {
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
+            mRenderer.reservePicture(sSize, sSize);
 
             mRenderer.renderFrame(ahead(), FrameOptions{});
             mRenderer.traceGuiTexture(texture, ahead(), GuiTraceOptions{});
@@ -285,6 +290,7 @@ namespace Rtx
         TEST_F(RtxFramesTest, aPicturesCopyArrivesWithTheFrameThatCarriedIt)
         {
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
+            mRenderer.reservePicture(sSize, sSize);
             std::vector<std::uint8_t> copy(std::size_t{ sSize } * sSize * 4);
 
             mRenderer.traceGuiTexture(texture, ahead(), GuiTraceOptions{ .mReadBack = true });
@@ -556,9 +562,9 @@ namespace Rtx
         /// over a world built where the device had no room for its structures. A change that leaves
         /// the reserve where it was keeps it. A world let go gives back every byte of every use it
         /// took, so a second release leaves what the first did. And a run that sums, as this one may
-        /// (`RadianceWidth::Summed`), fills its reserve to the byte once a frame sums: the running sum
-        /// and the deep picture are the last of what it keeps room for, and nothing is kept that no
-        /// frame makes.
+        /// (`RadianceWidth::Summed`), fills its reserve to the byte once a frame sums, upscaled or not:
+        /// the running sum and the deep picture are the last of what it keeps room for, and nothing
+        /// is kept that no frame makes.
         TEST_F(RtxFramesTest, theReserveIsTheRunningModesAndOnlyAMoveThatChangesTheRoomBuildsTheWorldAgain)
         {
             MemoryAllocator& memory = mRenderer.getDevice().getMemory();
@@ -621,6 +627,59 @@ namespace Rtx
             ASSERT_TRUE(mRenderer.finishFrame().has_value());
             EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), memory.getFrameReserve())
                 << "the reserve and what a summing frame holds differ";
+
+            // **And under the upscaler**, whose images the frame's arena shares with the trace's: the
+            // reserve counts the arena from the declarations it is made of.
+            runAt(Upscale::Native);
+            mRenderer.renderFrame(ahead(), FrameOptions{ .mAccumulate = 1 });
+            ASSERT_TRUE(mRenderer.finishFrame().has_value());
+            EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), memory.getFrameReserve())
+                << "the reserve and what an upscaled summing frame holds differ";
+            runAt(Upscale::Off);
+        }
+
+        /// **A picture's scene let go gives back every allocation it took**, once the queue has run
+        /// what read it: its tables, its structures and its texture, made, placed and traced into a
+        /// picture, then dropped. The allocator's ranges and what each use holds stand where they
+        /// stood before the scene was made, after a first scene grew what holds the scenes.
+        TEST_F(RtxFramesTest, aPicturesSceneLetGoGivesBackEveryAllocation)
+        {
+            const Device& device = mRenderer.getDevice();
+            MemoryAllocator& memory = device.getMemory();
+            const std::uint32_t heap = memory.getVideoHeap();
+            const auto held = [&] {
+                std::array<VkDeviceSize, sMemoryUses> uses{};
+                for (std::size_t use = 0; use < sMemoryUses; ++use)
+                    uses[use] = memory.getHeld(heap, static_cast<MemoryUse>(use));
+                return uses;
+            };
+
+            const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
+            mRenderer.reservePicture(sSize, sSize);
+            const auto cycle = [&] {
+                const SceneSlot doll = mRenderer.addViewScene();
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mMesh = Testing::addQuadMesh(scene, Testing::wallAt(300.0f)) });
+                const Testing::Model model = Testing::addModel(scene, VFS::Path::NormalizedView("textures/grey.dds"));
+                const std::array<std::uint8_t, 4> grey{ 128, 128, 128, 255 };
+                const TextureData described = Testing::describeTexel(grey, model.mTexture);
+                mRenderer.setScene(doll, scene, std::span(&described, 1));
+                mRenderer.traceGuiTexture(texture, ahead(), GuiTraceOptions{ .mScene = doll });
+                const std::size_t taken = memory.getLiveCount();
+                mRenderer.dropViewScene(doll);
+                mRenderer.finishGuiTraces();
+                return taken;
+            };
+
+            // A first scene grows the renderer's own tables of scenes, which stay at their room: the
+            // second is what a release is held to.
+            cycle();
+            const std::size_t live = memory.getLiveCount();
+            const std::array<VkDeviceSize, sMemoryUses> before = held();
+            EXPECT_GT(cycle(), live) << "the scene took nothing, so its release proves nothing";
+            EXPECT_EQ(memory.getLiveCount(), live) << "a range outlived the scene";
+            EXPECT_EQ(held(), before) << "a use held memory past the scene's release";
+            mRenderer.dropGuiTexture(texture);
         }
 
         /// **A world built again stands every body in the pose it held**, though nothing moved since:
@@ -756,6 +815,8 @@ namespace Rtx
             mRenderer.setScene(doll, scene, {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
+
+            mRenderer.reservePicture(sSize, sSize);
             std::vector<std::uint8_t> copy(std::size_t{ sSize } * sSize * 4);
 
             // The picture, of the copy the load wrote, with the wall whole. Over nothing, so a
@@ -796,6 +857,8 @@ namespace Rtx
             EXPECT_EQ(timeline.getNext(), opened) << "opening a picture's scene submitted";
 
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
+
+            mRenderer.reservePicture(sSize, sSize);
             std::vector<std::uint8_t> copy(std::size_t{ sSize } * sSize * 4);
 
             // Over nothing, so a pixel the wall does not cover is the one number that says so.
@@ -836,6 +899,8 @@ namespace Rtx
             mRenderer.setScene(doll, scene, {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
+
+            mRenderer.reservePicture(sSize, sSize);
             std::vector<std::uint8_t> copy(std::size_t{ sSize } * sSize * 4);
 
             Shaders::VisibilityConstants camera = ahead();

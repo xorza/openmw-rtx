@@ -470,14 +470,16 @@ namespace Rtx::Testing
         /// materials: arrived and placed twice, so both copies take them, the tables' bytes stand
         /// where the empty world's stood. One material past the room makes each copy again at
         /// twice its size (`GrowableBuffer::outgrow`), so the two copies add
-        /// `2 · sWorldRoom.mMaterials · sizeof(GpuMaterial)`: 2 · 8192 · 112 = 1,835,008 bytes.
+        /// `2 · sWorldRoom.mMaterials · sizeof(GpuMaterial)`: 2 · 8192 · 112 = 1,835,008 bytes. Opened
+        /// at the world's room as the game's mirror opens its scene: the backend makes its tables at
+        /// the room the scene states (`SceneDesc::getRoom`).
         TEST_F(RtxVisibilityTest, aWorldsMaterialTableHoldsItsRoomAndGrowsPastIt)
         {
             constexpr std::uint32_t size = 8;
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            SceneDesc scene;
+            SceneDesc scene(sWorldRoom);
             Testing::SceneHolds holds(scene);
             const Index mesh = addQuadMesh(scene);
             holds.mesh(mesh);
@@ -506,6 +508,20 @@ namespace Rtx::Testing
 
             EXPECT_EQ(
                 arriveAndPlace(1) - empty, std::uint64_t{ 2 } * sWorldRoom.mMaterials * sizeof(Shaders::GpuMaterial));
+
+            // **The room is the scene's and not the slot's**: the same wall in a world opened at
+            // nought makes its tables at what it holds, under the room's by at least the two copies
+            // of the material room.
+            SceneDesc bare;
+            Testing::SceneHolds bareHolds(bare);
+            const Index bareMesh = addQuadMesh(bare);
+            bareHolds.mesh(bareMesh);
+            bare.addInstance(MeshInstance{ .mMesh = bareMesh });
+            mRenderer.setScene(Rtx::SceneSlot::world(), bare, {});
+            EXPECT_LT(mRenderer.getSceneStats().mTableBytes
+                    + std::uint64_t{ 2 } * sWorldRoom.mMaterials * sizeof(Shaders::GpuMaterial),
+                empty)
+                << "a world opened at nought was made at the world's room";
         }
 
         /// **The pass is built once and kept, because building one compiles a shader** — so the set
@@ -1798,6 +1814,142 @@ namespace Rtx::Testing
             EXPECT_EQ(at(blue, 63)[1], 0);
             EXPECT_EQ(at(green, 63)[1], 255) << "and its near half, half a coordinate back";
             EXPECT_EQ(at(green, 63)[2], 0);
+        }
+
+        /// **A ground that arrives past the runs' room keeps the ground before it.** A world opened at
+        /// no room holds one red chunk, a layer and a weight; a green chunk arrives, and its layer and
+        /// weight grow both tables. The growth copies what the tables held on the queue and stages
+        /// only the arrival, so the red chunk still reads its own run: the corner is red, and the
+        /// green chunk's card, a quarter the size at half the distance, covers the middle half.
+        TEST_F(RtxVisibilityTest, aGroundArrivingPastTheRunsRoomKeepsTheGroundBeforeIt)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr std::size_t corner = 0;
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            // Blue first, so a run read from a table the growth did not copy, all zeros, wears blue.
+            constexpr std::array<std::uint8_t, 4> blueTexel{ 0, 0, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> greenTexel{ 0, 255, 0, 255 };
+            constexpr std::array<float, 1> whole{ 1.0f };
+            const std::array positions = cardAt(0.0f);
+
+            SceneDesc scene;
+            const Index mesh
+                = scene.addMesh(MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            const Index blue = scene.textures().add(VFS::Path::NormalizedView("blue.dds"));
+            const Index red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+            const Index green = scene.textures().add(VFS::Path::NormalizedView("green.dds"));
+            Testing::SceneHolds holds(scene);
+            holds.mesh(mesh);
+
+            const auto addChunk = [&](Index texture) {
+                const std::array layers{ Testing::layerOf(texture, scene.materials().addMask(whole), 1, 1) };
+                Material material;
+                material.mKind = MaterialKind::Terrain;
+                material.mLayers = scene.materials().addLayers(layers);
+                const Index chunk = scene.addMaterial(material);
+                holds.material(chunk);
+                return chunk;
+            };
+            scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = addChunk(red) });
+
+            const std::array<TextureData, 3> textures{ describeTexel(blueTexel, blue), describeTexel(redTexel, red),
+                describeTexel(greenTexel, green) };
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, textures);
+            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            const Frame before = readFrame(size);
+            EXPECT_EQ(before.byte(centre), 255) << "the red chunk, before any arrival";
+            EXPECT_EQ(before.byte(centre + 1), 0);
+
+            // Cleared as the uploader clears them, so what the next extend stages is the green chunk
+            // alone.
+            scene.clearArrivals();
+            scene.placements().advance();
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            scene.placements().advance();
+
+            const std::size_t layersBefore = scene.materials().getLayers().size();
+            const std::size_t masksBefore = scene.materials().getMasks().size();
+            const Index arrived = addChunk(green);
+            ASSERT_EQ(scene.materials().getLayers().size(), layersBefore + 1);
+            ASSERT_EQ(scene.materials().getMasks().size(), masksBefore + 1);
+            // With a mesh of its own, as a chunk arrives: an extend is what stages the runs.
+            std::array<osg::Vec3f, 4> nearer{};
+            for (std::size_t at = 0; at < nearer.size(); ++at)
+                nearer[at] = positions[at] * 0.25f + osg::Vec3f(0.0f, -50.0f, 0.0f);
+            const Index nearMesh
+                = scene.addMesh(MeshArrays{ .mPositions = nearer, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            holds.mesh(nearMesh);
+            scene.addInstance(MeshInstance{ .mMesh = nearMesh, .mMaterial = arrived });
+
+            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            const Frame after = readFrame(size);
+            EXPECT_EQ(after.byte(corner), 255) << "the red chunk's run, copied by the growth";
+            EXPECT_EQ(after.byte(corner + 1), 0);
+            EXPECT_EQ(after.byte(corner + 2), 0);
+            EXPECT_EQ(after.byte(centre), 0) << "the green chunk's run, staged as it arrived";
+            EXPECT_EQ(after.byte(centre + 1), 255);
+        }
+
+        /// **Every landing of a list longer than a row of its dispatch is visited** (`growDispatch`). The
+        /// eye stands inside a closed box, so every pixel's bounce lands: 384 by 384 is 147,456
+        /// landings, 4,608 workgroups of 32 over both runs, four rows of `STAGE_DISPATCH_ROW` and part
+        /// of a fifth. The sun stands up and lights nothing in the box, so both runs hold landings
+        /// (`indirectGatherDrawn`). The walls glow and then go dark: a landing visited brings back
+        /// less once they do, and one left out keeps the glow the frame before brought it.
+        TEST_F(RtxVisibilityTest, everyLandingOfAListLongerThanARowIsVisited)
+        {
+            constexpr std::uint32_t size = 384;
+            constexpr float half = 100.0f;
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.3f, 0.2f, 1.0f), osg::Vec3f(3.0f, 3.0f, 3.0f));
+
+            const auto box = [&](const osg::Vec3f& glow) {
+                SceneDesc scene;
+                const Index walls = scene.addMaterial(Material{
+                    .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mEmissiveColour = glow, .mTwoSided = true });
+                const std::array<std::array<osg::Vec3f, 4>, 6> faces{ {
+                    sheetAt(half, -half),
+                    sheetAt(half, half),
+                    uprightQuadAt(half, -half),
+                    uprightQuadAt(half, half),
+                    { osg::Vec3f(-half, -half, -half), osg::Vec3f(-half, half, -half), osg::Vec3f(-half, half, half),
+                        osg::Vec3f(-half, -half, half) },
+                    { osg::Vec3f(half, -half, -half), osg::Vec3f(half, half, -half), osg::Vec3f(half, half, half),
+                        osg::Vec3f(half, -half, half) },
+                } };
+                for (const std::array<osg::Vec3f, 4>& face : faces)
+                    addQuad(scene, face, walls);
+                return scene;
+            };
+
+            std::vector<float> glowing;
+            EXPECT_EQ(shoot(box(osg::Vec3f(1.0f, 1.0f, 1.0f)), {}, camera, size).mHits, size * size);
+            mRenderer.readChannel(Channel::Indirect, glowing);
+
+            std::vector<float> dark;
+            EXPECT_EQ(shoot(box(osg::Vec3f()), {}, camera, size).mHits, size * size);
+            mRenderer.readChannel(Channel::Indirect, dark);
+
+            ASSERT_EQ(glowing.size(), std::size_t{ size } * size * 4);
+            ASSERT_EQ(dark.size(), glowing.size());
+            std::size_t kept = 0;
+            for (std::size_t pixel = 0; pixel < std::size_t{ size } * size; ++pixel)
+            {
+                const float before = glowing[pixel * 4] + glowing[pixel * 4 + 1] + glowing[pixel * 4 + 2];
+                const float after = dark[pixel * 4] + dark[pixel * 4 + 1] + dark[pixel * 4 + 2];
+                kept += after < before ? 0 : 1;
+            }
+            EXPECT_EQ(kept, 0u) << "landings no workgroup visited";
         }
 
         /// **A footprint is read along its long axis only as far as the setting lets it.** Ground seen

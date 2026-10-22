@@ -175,11 +175,11 @@ namespace Rtx
         return requirements.memoryRequirements.size;
     }
 
-    Buffer Buffer::make(const Device& device, const BufferKind kind, const VkDeviceSize size,
+    Buffer Buffer::make(const MemoryUse use, const Device& device, const BufferKind kind, const VkDeviceSize size,
         const VkBufferUsageFlags usage, const std::string_view name)
     {
         Buffer made(device, kind, size, usage, name);
-        made.bind(device.getMemory().take(made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage)));
+        made.bind(device.getMemory().take(made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use));
         return made;
     }
 
@@ -199,25 +199,25 @@ namespace Rtx
     Buffer Buffer::deviceLocal(
         const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
     {
-        return make(device, BufferKind::DeviceLocal, size, usage, name);
+        return make(MemoryUse::Essential, device, BufferKind::DeviceLocal, size, usage, name);
     }
 
     Buffer Buffer::hostWritten(
         const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
     {
-        return make(device, BufferKind::HostWritten, size, usage, name);
+        return make(MemoryUse::Essential, device, BufferKind::HostWritten, size, usage, name);
     }
 
     Buffer Buffer::staging(
         const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
     {
-        return make(device, BufferKind::Staging, size, usage, name);
+        return make(MemoryUse::Essential, device, BufferKind::Staging, size, usage, name);
     }
 
     Buffer Buffer::readBack(
         const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
     {
-        return make(device, BufferKind::ReadBack, size, usage, name);
+        return make(MemoryUse::Essential, device, BufferKind::ReadBack, size, usage, name);
     }
 
     bool Buffer::isIdle() const

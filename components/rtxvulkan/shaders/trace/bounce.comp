@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
+#extension GL_KHR_shader_subgroup_ballot : require
 
 // The one bounce of every pixel's solid, a stage of its own after the trace (`visibility.comp`):
 // the solid the trace found resolved again, its bounce drawn and traced, and what the bounce
@@ -32,14 +33,13 @@
 
 layout(local_size_x = TRACE_WORKGROUP_WIDTH, local_size_y = TRACE_WORKGROUP_HEIGHT) in;
 
-/// Which of the workgroup's pixels landed, a bit a lane (`TRACE_WORKGROUP_LANES`), and the first
-/// slot of the landing's list they take.
-shared uint gLanded;
-shared uint gFirstLanding;
-
 /// Bounces `pixel` off its solid, and answers whether its ray met a surface, which the landing's
 /// stage then visits.
-bool bouncePixel(uvec2 pixel)
+///
+/// @param gathers whether the landing's gather runs: always for the lobe's bounce, which the landing
+///        visits as seen, and where the sky lights nothing, and otherwise as the gather draws it
+///        (`indirectGatherDrawn`, keyed as `landingVisitOf` keys it).
+bool bouncePixel(uvec2 pixel, out bool gathers)
 {
     const uint width = frame.mEyes.mWorld.mWidth;
     const uint swap = fieldSwapOf(frame.mFrame);
@@ -62,6 +62,7 @@ bool bouncePixel(uvec2 pixel)
             vec4(shownSurfaceLift(at, width, swap, true), 1.0))
 
     record.mBounceLobe = bounce.mDrawn.mSpecular;
+    gathers = record.mBounceLobe || !skyLights() || indirectGatherDrawn(pixelKey(pixel));
     if (bounce.mBounceTraced)
     {
         // **What the ray met, stored in the solid's place** (`storeStageSolid`), which nothing reads
@@ -90,22 +91,32 @@ void main()
     uvec2 pixel;
     const bool inside = stagePixelOf(pixel);
 
-    if (gl_LocalInvocationIndex == 0u)
-        gLanded = 0u;
-    barrier();
+    bool gathers = false;
+    const bool landed = inside && bouncePixel(pixel, gathers);
 
-    const bool landed = inside && bouncePixel(pixel);
+    // **The workgroup's landings listed together, by one atomic a run, in the tile's order**: a run
+    // of the list holds pixels of one tile as the tile lays them out, so a warp of the landing's
+    // stage visits surfaces near each other — and **apart by whether their gather runs**, so a warp
+    // whose lanes skip it does not wait out the lanes that gather. **By ballot, with no shared
+    // memory and no barrier**: the workgroup is one subgroup, its 32 lanes held to it
+    // (`SubgroupSize::ThirtyTwo`).
+    const uvec4 gathering = subgroupBallot(landed && gathers);
+    const uvec4 apart = subgroupBallot(landed && !gathers);
+    const uint gatheringCount = subgroupBallotBitCount(gathering);
+    const uint apartCount = subgroupBallotBitCount(apart);
+    uint firstGathering = 0u;
+    uint firstApart = 0u;
+    if (subgroupElect())
+    {
+        if (gatheringCount != 0u)
+            firstGathering = appendLandings(gatheringCount, true);
+        if (apartCount != 0u)
+            firstApart = appendLandings(apartCount, false);
+    }
+    firstGathering = subgroupBroadcastFirst(firstGathering);
+    firstApart = subgroupBroadcastFirst(firstApart);
     if (landed)
-        atomicOr(gLanded, 1u << gl_LocalInvocationIndex);
-
-    // **The workgroup's landings listed together, by one atomic, in the tile's order**: a run of the
-    // list holds pixels of one tile as the tile lays them out, so a warp of the landing's stage
-    // visits surfaces near each other.
-    barrier();
-    const uint landedMask = gLanded;
-    if (gl_LocalInvocationIndex == 0u && landedMask != 0u)
-        gFirstLanding = appendLandings(uint(bitCount(landedMask)));
-    barrier();
-    if (landed)
-        listLanding(gFirstLanding + uint(bitCount(landedMask & ((1u << gl_LocalInvocationIndex) - 1u))), pixel);
+        listLanding(gathers ? firstGathering + subgroupBallotExclusiveBitCount(gathering)
+                            : firstApart + subgroupBallotExclusiveBitCount(apart),
+            gathers, pixel);
 }

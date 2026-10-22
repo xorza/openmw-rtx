@@ -83,6 +83,13 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_PANE_ALBEDO, GBUFFER_ALBEDO) uni
 /// Each pixel's `CHANNEL_MOTION`, whose fourth says which pixels split (`splitIn`).
 layout(set = SET_PASS, binding = COMPOSITE_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
 
+/// What the trace handed its stages of each pixel (`STAGE_RECORD`), whose masks' halves this
+/// weighs, and the masks it writes (`storeUpscaleMasks`).
+layout(set = SET_PASS, binding = COMPOSITE_BIND_STAGE_RECORD, GBUFFER_STAGE_RECORD) uniform readonly uimage2D
+    stageRecord;
+layout(set = SET_PASS, binding = COMPOSITE_BIND_UPSCALE_MASKS, GBUFFER_UPSCALE_MASKS) uniform writeonly image2D
+    upscaleMasks;
+
 /// The running sum, when `mAccumulate` asks for one.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SUM, COMPOSITE_SUM_FORMAT) uniform image2D sum;
 
@@ -137,6 +144,8 @@ void main()
         }
         resolved = taken > 0.0 ? 0.5 * resolved + 0.5 * (other / taken) : resolved;
     }
+
+    storeUpscaleMasks(at, storedAt(at, frame.mWidth, fieldSwapOf(frame.mFrame)), resolved);
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame
     // would add up rounded numbers and clip every sample past the display's range to the same value

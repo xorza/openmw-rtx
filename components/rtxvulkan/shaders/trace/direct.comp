@@ -44,69 +44,78 @@ void main()
     const uint swap = fieldSwapOf(frame.mFrame);
     const ivec2 stored = storedAt(ivec2(pixel), width, swap);
     const StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
-    if (record.mKind == STAGE_NO_SOLID)
-        return;
 
-    // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`).
-    Surface surface = storedSolidOf(record, stored);
-
-    // **Innermost first**: a walk is under way only while the one that started it waits on it.
-    SkyPassageRun skyPassage = skyPassageRunOf(
-        frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-    GatherRun gather = gatherRunOf(0u, 0u, PATH_SEEN, false, false);
-    SolidRun solid = solidRunOf();
-    skyPassage.mStep = RUN_IDLE;
-    gather.mStep = RUN_IDLE;
-
-    RayAsk ask = noRay();
-    stepSolid(solid, gather, surface, pixel);
-
-    uint turns = 0u;
-    [[dont_unroll]] while ((ask.mTraced || solid.mStep != RUN_IDLE) && turns < WALK_TURNS)
+    // **The one writer of the shadowed sources and the lobe's light**, at every pixel: no shadowed
+    // source and no lobe where no solid stands or its walk was cut, which the trace wrote before
+    // this stage wrote them again over every solid.
+    Shadowed sky = noShadowed();
+    Shadowed lamps = noShadowed();
+    vec4 lobe = vec4(vec3(0.0), SPECULAR_NO_LOBE);
+    if (record.mKind != STAGE_NO_SOLID)
     {
-        ++turns;
-        RayAnswer answered = RayAnswer(false, unansweredScene());
-        if (ask.mTraced)
+        // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`).
+        Surface surface = storedSolidOf(record, stored);
+
+        // **Innermost first**: a walk is under way only while the one that started it waits on it.
+        SkyPassageRun skyPassage = skyPassageRunOf(
+            frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
+        GatherRun gather = gatherRunOf(0u, 0u, PATH_SEEN, false, false);
+        SolidRun solid = solidRunOf();
+        skyPassage.mStep = RUN_IDLE;
+        gather.mStep = RUN_IDLE;
+
+        RayAsk ask = noRay();
+        stepSolid(solid, gather, surface, pixel);
+
+        uint turns = 0u;
+        [[dont_unroll]] while ((ask.mTraced || solid.mStep != RUN_IDLE) && turns < WALK_TURNS)
         {
-            answered = RayAnswer(true, queryScene(ask.mQuery));
-            if (ask.mResolved)
-                surface = resolveAsked(answered.mMet, ask.mQuery);
+            ++turns;
+            RayAnswer answered = RayAnswer(false, unansweredScene());
+            if (ask.mTraced)
+            {
+                answered = RayAnswer(true, queryScene(ask.mQuery));
+                if (ask.mResolved)
+                    surface = resolveAsked(answered.mMet, ask.mQuery);
+            }
+            ask = noRay();
+
+            if (skyPassage.mStep != RUN_IDLE)
+                stepSkyPassage(skyPassage, answered, ask);
+            else if (gather.mStep != RUN_IDLE)
+                stepGather(gather, skyPassage, surface, pixel, answered, ask);
+            else
+                stepSolid(solid, gather, surface, pixel);
         }
-        ask = noRay();
 
-        if (skyPassage.mStep != RUN_IDLE)
-            stepSkyPassage(skyPassage, answered, ask);
-        else if (gather.mStep != RUN_IDLE)
-            stepGather(gather, skyPassage, surface, pixel, answered, ask);
+        if (solid.mStep != RUN_IDLE)
+            atomicAdd(counts.mWalksCut, 1u);
         else
-            stepSolid(solid, gather, surface, pixel);
+        {
+            // **The solid's light under the layers**, by what the media and the path let through, as
+            // the trace took the water's own light down (`visibility.comp`); **its shadowed sources and
+            // its lobe by the layers' share as well**, which no stage lays over them.
+            const vec4 through = imageLoad(stageThroughput, stored);
+            const vec3 transmittance = through.rgb * through.a;
+            const SeenSolid seen = solid.mSeen;
+
+            const ivec2 directAt = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);
+            RTX_STORE_COUNTED(
+                direct, directAt, vec4(imageLoad(direct, directAt).rgb + seen.mLight.mRest * through.rgb, 1.0))
+
+            sky = dimmed(seen.mLight.mSky, transmittance);
+            lamps = dimmed(seen.mLight.mLamps, transmittance);
+            lobe = vec4(seen.mSpecular * transmittance, seen.mRoughness);
+        }
     }
 
-    if (solid.mStep != RUN_IDLE)
-    {
-        atomicAdd(counts.mWalksCut, 1u);
-        return;
-    }
-
-    // **The solid's light under the layers**, by what the media and the path let through, as the
-    // trace took the water's own light down (`visibility.comp`); **its shadowed sources and its lobe
-    // by the layers' share as well**, which no stage lays over them.
-    const vec4 through = imageLoad(stageThroughput, stored);
-    const vec3 transmittance = through.rgb * through.a;
-    const SeenSolid seen = solid.mSeen;
-
-    const ivec2 directAt = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);
-    RTX_STORE_COUNTED(direct, directAt, vec4(imageLoad(direct, directAt).rgb + seen.mLight.mRest * through.rgb, 1.0))
-
-    const Shadowed sky = dimmed(seen.mLight.mSky, transmittance);
-    const Shadowed lamps = dimmed(seen.mLight.mLamps, transmittance);
     RTX_STORE_COUNTED(shadowed, channelAt(CHANNEL_SHADOWED, ivec2(pixel), width, swap),
         vec4(sky.mLight, packShadowAlpha(sky.mOpen > 0.0, sky.mPenumbra)))
     RTX_STORE_COUNTED(lamped, channelAt(CHANNEL_LAMPED, ivec2(pixel), width, swap),
         vec4(lamps.mLight, packShadowAlpha(lamps.mOpen > 0.0, lamps.mPenumbra)))
 
-    // **The lobe's two only where a surface can have one**, as the trace writes them.
+    // **The lobe's light only where a surface can have one**: the channel holds no lobe already
+    // without the maps' code (`GBuffer::begin`).
     if (HAS_MAPS)
-        RTX_STORE_COUNTED(specular, channelAt(CHANNEL_SPECULAR, ivec2(pixel), width, swap),
-            vec4(seen.mSpecular * transmittance, seen.mRoughness))
+        RTX_STORE_COUNTED(specular, channelAt(CHANNEL_SPECULAR, ivec2(pixel), width, swap), lobe)
 }

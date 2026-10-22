@@ -53,7 +53,8 @@ namespace Rtx
         /// **Two kinds, and the constructor is which.** A picture of the world owns no scene, which
         /// is also the answer to what its traversal mask does: nothing, because there is no walk of
         /// its own to mask. The rasterizer's camera cull mask is the only reader of that number,
-        /// which is why `MWRender::LocalMap`'s inclusion mask is not the weather bug again.
+        /// which is why `MWRender::LocalMap`'s inclusion mask is not the weather bug again. Either
+        /// kind reserves room for its picture as it is made (`Renderer::reservePicture`).
         TEST(RtxOffscreenTraceTest, aPictureOfTheWorldOwnsNoSceneAndOneOfASubjectDoes)
         {
             WalkContext context{ .mSpecular = SpecularLayout::Classic };
@@ -66,17 +67,21 @@ namespace Rtx
             EXPECT_TRUE(world.isOfWorld());
             EXPECT_EQ(world.getScene(), nullptr);
             EXPECT_EQ(renderer.mViewScenes, 0u);
+            EXPECT_EQ(renderer.mPictureWidth, 64u);
+            EXPECT_EQ(renderer.mPictureHeight, 64u);
 
             {
                 const OffscreenTrace doll(renderer,
-                    ViewRequest{ .mWidth = 64,
-                        .mHeight = 64,
+                    ViewRequest{ .mWidth = 32,
+                        .mHeight = 128,
                         .mRayMask = Shaders::MASK_EVERY_CLASS,
                         .mSubject = subject.get(),
                         .mSubjectMask = sEveryNode },
                     context);
                 EXPECT_FALSE(doll.isOfWorld());
                 ASSERT_NE(doll.getScene(), nullptr);
+                EXPECT_EQ(renderer.mPictureWidth, 64u) << "a narrower view shrank the room";
+                EXPECT_EQ(renderer.mPictureHeight, 128u) << "a taller view did not grow it";
                 EXPECT_EQ(renderer.mViewScenes, 1u);
                 EXPECT_TRUE(renderer.mViewDropped.empty());
             }

@@ -30,9 +30,11 @@ namespace Rtx
     SceneDesc::SceneDesc() = default;
 
     SceneDesc::SceneDesc(const SceneRoom& room)
+        : mRoom(room)
     {
         mMeshes.reserve(room.mMeshes);
-        mMaterials.reserve(room.mMaterials);
+        mMaterials.reserve(room);
+        mDeformers.reserve(room);
         mPlacements.reserve(room);
     }
 

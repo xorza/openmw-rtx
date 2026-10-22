@@ -85,9 +85,14 @@ namespace Rtx
     {
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
         constexpr VkFormat stored = toVulkanFormat(TEXTURE_WRITTEN_FORMAT);
-        return Image::tryMake(MemoryUse::Texture, device, extent, extent, gloss ? stored : withCurve(stored),
-            sWrittenTextureUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, name,
-            levelsTo1x1(extent, extent), 1, stored);
+        return Image::tryMake(MemoryUse::Texture, device,
+            ImageDescription{ .mWidth = extent,
+                .mHeight = extent,
+                .mFormat = gloss ? stored : withCurve(stored),
+                .mUsage = sWrittenTextureUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                .mMipLevels = levelsTo1x1(extent, extent),
+                .mStorageFormat = stored },
+            name);
     }
 
     Misc::Result<Buffer, std::string_view> GroundCompositePass::makeBlocks(const Device& device, std::string_view name)

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <vector>
 
 #include <osg/Vec3f>
 
@@ -17,60 +18,73 @@
 
 namespace Rtx
 {
-    SkinTables::SkinTables(const Device& device, Batch& batch, const SceneDesc& scene, const std::uint32_t slots)
-        : mBindPositions(device, BufferKind::DeviceLocal, sTableFilledUsage, "bind positions")
-        , mBindNormals(device, BufferKind::DeviceLocal, sTableFilledUsage, "bind normals")
-        , mBindTangents(device, BufferKind::DeviceLocal, sTableFilledUsage, "bind tangents")
-        , mRuns(device, BufferKind::DeviceLocal, sTableFilledUsage, "rig runs")
-        , mInfluences(device, BufferKind::DeviceLocal, sTableFilledUsage, "rig influences")
-        , mMorphOffsets(device, BufferKind::DeviceLocal, sTableFilledUsage, "morph offsets")
+    SkinTables::SkinTables(const Device& device, Batch& batch, const SceneDesc& scene,
+        const std::span<const Index> everyMesh, const std::uint32_t slots, const SceneRoom& room)
+        : mBindPositions(device, BufferKind::DeviceLocal, sTableKeptUsage, "bind positions")
+        , mBindNormals(device, BufferKind::DeviceLocal, sTableKeptUsage, "bind normals")
+        , mBindTangents(device, BufferKind::DeviceLocal, sTableKeptUsage, "bind tangents")
+        , mRuns(device, BufferKind::DeviceLocal, sTableKeptUsage, "rig runs")
+        , mInfluences(device, BufferKind::DeviceLocal, sTableKeptUsage, "rig influences")
+        , mMorphOffsets(device, BufferKind::DeviceLocal, sTableKeptUsage, "morph offsets")
         , mPoses([&](FrameSlot) { return GrowableBuffer(device, BufferKind::HostWritten, sTableFilledUsage, "poses"); })
     {
         mPoses.open(slots);
 
-        // Every table exists from here, whether or not anything has been written to it: `outgrow`
-        // makes a table that is empty whatever it is asked for, so a scene with no actor in it
-        // still has a buffer at every address a dispatch could be handed.
-        extend(batch, scene);
+        // Every table exists from here, whether or not anything is written to it: a table made
+        // empty is a byte, so a scene with no actor in it still has a buffer at every address a
+        // dispatch could be handed. At the room or what the scene reaches, so nothing is copied.
+        const SceneRoom reach = reachOf(scene.deformers());
+        grow(batch,
+            SceneRoom{ .mRigRuns = std::max(room.mRigRuns, reach.mRigRuns),
+                .mInfluences = std::max(room.mInfluences, reach.mInfluences),
+                .mOffsets = std::max(room.mOffsets, reach.mOffsets),
+                .mPoseWords = std::max(room.mPoseWords, reach.mPoseWords),
+                .mBindVertices = std::max(room.mBindVertices, reach.mBindVertices) });
+
+        // Whole: the arrivals since the last clear are not every row a world made again holds.
+        std::vector<Index> everyDeformer;
+        everyIndexBelow(scene.deformers().getRows().size(), everyDeformer);
+        write(batch, scene, everyMesh, everyDeformer, scene.meshes().getArrived());
+        orderStagedWrites(batch);
     }
 
     void SkinTables::extend(Batch& batch, const SceneDesc& scene)
     {
-        const DeformerTable& deformers = scene.deformers();
-
-        // Grown to what the scene reaches, and written whole where a growth moved it. The
-        // arrivals are what a frame with an actor walking in costs; a table made again is what a
-        // cell full of them costs, once per doubling.
-        const VkDeviceSize bind = VkDeviceSize{ deformers.getBindVertexCount() } * sizeof(osg::Vec3f);
-        const VkDeviceSize bindWords = VkDeviceSize{ deformers.getBindVertexCount() } * sizeof(std::uint32_t);
-        // Each grown whether or not another moved, so three calls and not a short-circuit.
-        const bool positionsMoved = mBindPositions.outgrow(bind);
-        const bool normalsMoved = mBindNormals.outgrow(bind);
-        const bool tangentsMoved = mBindTangents.outgrow(bindWords);
-        const bool bindMoved = positionsMoved || normalsMoved || tangentsMoved;
-        writeBind(batch, scene, scene.meshes().getArrived(), bindMoved);
-
-        const Moved moved{
-            .mRuns = mRuns.outgrow(deformers.getRuns().size() * sizeof(std::uint32_t)),
-            .mInfluences = mInfluences.outgrow(deformers.getInfluences().size() * sizeof(Shaders::GpuInfluence)),
-            .mOffsets = mMorphOffsets.outgrow(deformers.getMorphOffsets().size() * sizeof(osg::Vec3f)),
-        };
-        writeDeformers(batch, scene, deformers.getArrived(), moved);
-
-        // The arrivals' poses into the first copy alone. Every other pose of a copy reaches it in
-        // the placement that dispatches over it, and the other copies owe the arrivals theirs.
-        for (GrowableBuffer& poses : mPoses.live())
-            poses.outgrow(deformers.getPoses().size() * sizeof(PoseWord));
-        writePoses(batch, scene, scene.meshes().getArrived());
-
+        grow(batch, reachOf(scene.deformers()));
+        write(batch, scene, scene.meshes().getArrived(), scene.deformers().getArrived(), scene.meshes().getArrived());
         orderStagedWrites(batch);
     }
 
-    void SkinTables::writeBind(
-        Batch& batch, const SceneDesc& scene, const std::span<const Index> meshes, const bool whole)
+    SceneRoom SkinTables::reachOf(const DeformerTable& deformers)
+    {
+        return SceneRoom{ .mRigRuns = static_cast<std::uint32_t>(deformers.getRuns().size()),
+            .mInfluences = static_cast<std::uint32_t>(deformers.getInfluences().size()),
+            .mOffsets = static_cast<std::uint32_t>(deformers.getMorphOffsets().size()),
+            .mPoseWords = static_cast<std::uint32_t>(deformers.getPoses().size()),
+            .mBindVertices = deformers.getBindVertexCount() };
+    }
+
+    void SkinTables::grow(Batch& batch, const SceneRoom& reach)
+    {
+        const VkDeviceSize bindVertices = reach.mBindVertices;
+        mBindPositions.outgrowKeeping(batch, bindVertices * sizeof(osg::Vec3f));
+        mBindNormals.outgrowKeeping(batch, bindVertices * sizeof(osg::Vec3f));
+        mBindTangents.outgrowKeeping(batch, bindVertices * sizeof(std::uint32_t));
+        mRuns.outgrowKeeping(batch, VkDeviceSize{ reach.mRigRuns } * sizeof(std::uint32_t));
+        mInfluences.outgrowKeeping(batch, VkDeviceSize{ reach.mInfluences } * sizeof(Shaders::GpuInfluence));
+        mMorphOffsets.outgrowKeeping(batch, VkDeviceSize{ reach.mOffsets } * sizeof(osg::Vec3f));
+
+        // Every other pose of a copy reaches it in the placement that dispatches over it, so a pose
+        // table is not kept across a growth.
+        for (GrowableBuffer& poses : mPoses.live())
+            poses.outgrow(VkDeviceSize{ reach.mPoseWords } * sizeof(PoseWord));
+    }
+
+    void SkinTables::write(Batch& batch, const SceneDesc& scene, const std::span<const Index> meshes,
+        const std::span<const Index> deformers, const std::span<const Index> posed)
     {
         const std::span<const MeshRange> ranges = scene.meshes().getRows();
-        for (const Index index : whole ? everyIndexBelow(ranges.size(), mEvery) : meshes)
+        for (const Index index : meshes)
         {
             const MeshRange& mesh = ranges[index];
             if (!mesh.deforms() || mesh.mVertices.mCount == 0)
@@ -82,42 +96,28 @@ namespace Rtx
             stageInto(batch, mBindTangents.get(), VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t),
                 std::as_bytes(mesh.mVertices.in(scene.meshes().getTangents())));
         }
-    }
 
-    void SkinTables::writeDeformers(
-        Batch& batch, const SceneDesc& scene, const std::span<const Index> arrived, const Moved moved)
-    {
-        const DeformerTable& deformers = scene.deformers();
-        const std::span<const Deformer> table = deformers.getRows();
-        const bool whole = moved.mRuns || moved.mInfluences || moved.mOffsets;
-
-        for (const Index index : whole ? everyIndexBelow(table.size(), mEvery) : arrived)
+        // A freed slot deforms nothing and holds no run to write.
+        const DeformerTable& table = scene.deformers();
+        const std::span<const Deformer> rows = table.getRows();
+        for (const Index index : deformers)
         {
-            // A freed slot deforms nothing and holds no run to write. An arrival stages every run
-            // it holds; a row walked for a table that moved stages the runs into that table, and
-            // the other tables keep what they hold.
-            const Deformer& deformer = table[index];
-            const bool fresh = !whole || std::find(arrived.begin(), arrived.end(), index) != arrived.end();
-
-            if (!deformer.mRuns.empty() && (fresh || moved.mRuns))
+            const Deformer& deformer = rows[index];
+            if (!deformer.mRuns.empty())
                 stageInto(batch, mRuns.get(), VkDeviceSize{ deformer.mRuns.mOffset } * sizeof(std::uint32_t),
-                    std::as_bytes(deformer.mRuns.in(deformers.getRuns())));
-
-            if (!deformer.mInfluences.empty() && (fresh || moved.mInfluences))
+                    std::as_bytes(deformer.mRuns.in(table.getRuns())));
+            if (!deformer.mInfluences.empty())
                 stageInto(batch, mInfluences.get(),
                     VkDeviceSize{ deformer.mInfluences.mOffset } * sizeof(Shaders::GpuInfluence),
-                    std::as_bytes(deformer.mInfluences.in(deformers.getInfluences())));
-
-            if (!deformer.mOffsets.empty() && (fresh || moved.mOffsets))
+                    std::as_bytes(deformer.mInfluences.in(table.getInfluences())));
+            if (!deformer.mOffsets.empty())
                 stageInto(batch, mMorphOffsets.get(), VkDeviceSize{ deformer.mOffsets.mOffset } * sizeof(osg::Vec3f),
-                    std::as_bytes(deformer.mOffsets.in(deformers.getMorphOffsets())));
+                    std::as_bytes(deformer.mOffsets.in(table.getMorphOffsets())));
         }
-    }
 
-    void SkinTables::writePoses(Batch& batch, const SceneDesc& scene, const std::span<const Index> meshes)
-    {
-        const std::span<const MeshRange> ranges = scene.meshes().getRows();
-        for (const Index index : meshes)
+        // The arrivals' poses into the first copy alone. Every other pose of a copy reaches it in the
+        // placement that dispatches over it, and the other copies owe the arrivals theirs.
+        for (const Index index : posed)
         {
             const MeshRange& mesh = ranges[index];
             if (!mesh.deforms())

@@ -29,6 +29,8 @@ namespace Rtx
 
         VkDescriptorSet get(std::size_t index) const { return mSets[index]; }
 
+        std::size_t getCount() const { return mSets.size(); }
+
     private:
         Owned<VkDescriptorPool, vkDestroyDescriptorPool> mPool;
         std::vector<VkDescriptorSet> mSets;

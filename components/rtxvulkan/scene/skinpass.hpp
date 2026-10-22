@@ -34,10 +34,11 @@ namespace Rtx
         /// What this scene's bodies are posed from.
         SkinTables& mTables;
 
-        /// Where the posed vertices, normals and tangents go, each indexed by `MeshRange::mBindOffset`.
+        /// Where the posed vertices, normals and tangents go, each indexed by `MeshRange::mBindOffset`:
+        /// a copy of the vertices a frame in flight, and one of the normals and tangents.
         SlotBlocks& mPoses;
-        SlotBlocks& mNormals;
-        SlotBlocks& mTangents;
+        BlockedBuffer& mNormals;
+        BlockedBuffer& mTangents;
 
         /// Null where the run is not being timed, and never read by `recordArrived`.
         GpuTimer* mTimer = nullptr;

@@ -223,8 +223,12 @@ namespace Rtx
                 const ComputePipeline<Shaders::UnormMeanConstants> pipeline(
                     device, bindings, {}, "unormmean.comp.spv", "unorm mean");
 
-                const Image history(device, count, 1, toVulkanFormat(STORAGE_R32UI),
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                const Image history(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = count,
+                        .mHeight = 1,
+                        .mFormat = toVulkanFormat(STORAGE_R32UI),
+                        .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT },
                     "unorm mean");
                 DescriptorWrites writes(pipeline);
                 writes.image(Shaders::UNORM_MEAN_BIND_HISTORY, history.describeStorage());

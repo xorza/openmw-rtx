@@ -28,14 +28,19 @@ namespace Rtx
         /// dependencies: the compute write before a compute load, and the trace's write before a
         /// sample by either stage, merge to both writes' stages and access before both reads'.
         /// The same two images leaving `UNDEFINED`, and leaving `GENERAL` for the layout a sampler
-        /// wants, are two image barriers and no memory barrier. Recorded and submitted, so the
-        /// fixture's layers read what was emitted.
+        /// wants, are two image barriers and no memory barrier; leaving another alias's memory, an
+        /// image barrier and a memory barrier. Recorded and submitted, so the fixture's layers read
+        /// what was emitted.
         TEST_F(RtxBarriersTest, aBarrierThatMovesNoLayoutIsMergedIntoOneMemoryBarrier)
         {
             const Device& device = *mHarness.mDevice;
             constexpr VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            const Image first(device, 4, 4, VK_FORMAT_R8G8B8A8_UNORM, usage, "first");
-            const Image second(device, 4, 4, VK_FORMAT_R8G8B8A8_UNORM, usage, "second");
+            const Image first(MemoryUse::Essential, device,
+                ImageDescription{ .mWidth = 4, .mHeight = 4, .mFormat = VK_FORMAT_R8G8B8A8_UNORM, .mUsage = usage },
+                "first");
+            const Image second(MemoryUse::Essential, device,
+                ImageDescription{ .mWidth = 4, .mHeight = 4, .mFormat = VK_FORMAT_R8G8B8A8_UNORM, .mUsage = usage },
+                "second");
 
             getPool().submitAndWait([&](VkCommandBuffer commands) {
                 Barriers moved(commands);
@@ -69,6 +74,21 @@ namespace Rtx
                 EXPECT_EQ(handed.getMemory(), nullptr);
                 handed.flush();
                 EXPECT_EQ(handed.getEmitted(), 1u);
+
+                // **From another alias's writes, both**: the image leaves `UNDEFINED` sourcing no
+                // access of its own, and the writes made through whatever held its memory before
+                // are ordered by a memory barrier, since no image barrier names them.
+                Barriers aliased(commands);
+                first.addTransition(aliased, Use::sAliased, Use::sComputeWrite);
+                EXPECT_EQ(aliased.getImageCount(), 1u);
+                const VkMemoryBarrier2* const before = aliased.getMemory();
+                ASSERT_NE(before, nullptr);
+                EXPECT_EQ(before->srcStageMask, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+                EXPECT_EQ(before->srcAccessMask, VK_ACCESS_2_MEMORY_WRITE_BIT);
+                EXPECT_EQ(before->dstStageMask, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                EXPECT_EQ(before->dstAccessMask, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+                aliased.flush();
+                EXPECT_EQ(aliased.getEmitted(), 1u);
             });
 
             // **And the G-buffer's channels leave `UNDEFINED` as one command**, where a batch of
@@ -76,7 +96,9 @@ namespace Rtx
             std::vector<Image> channels;
             channels.reserve(Shaders::CHANNEL_COUNT);
             for (std::uint32_t at = 0; at < Shaders::CHANNEL_COUNT; ++at)
-                channels.emplace_back(device, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, usage, "channel");
+                channels.emplace_back(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = 1, .mHeight = 1, .mFormat = VK_FORMAT_R8G8B8A8_UNORM, .mUsage = usage },
+                    "channel");
             getPool().submitAndWait([&](VkCommandBuffer commands) {
                 Barriers begun(commands);
                 for (const Image& channel : channels)
@@ -91,7 +113,12 @@ namespace Rtx
         TEST_F(RtxBarriersTest, aBatchDroppedWithADependencyInItDies)
         {
             const Device& device = *mHarness.mDevice;
-            const Image image(device, 4, 4, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT, "dropped");
+            const Image image(MemoryUse::Essential, device,
+                ImageDescription{ .mWidth = 4,
+                    .mHeight = 4,
+                    .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                    .mUsage = VK_IMAGE_USAGE_STORAGE_BIT },
+                "dropped");
 
             getPool().submitAndWait([&](VkCommandBuffer commands) {
                 {
@@ -120,8 +147,12 @@ namespace Rtx
         TEST_F(RtxBarriersTest, aClearInTheGeneralLayoutWritesEveryTexel)
         {
             const Device& device = *mHarness.mDevice;
-            const Image image(device, 4, 3, VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            const Image image(MemoryUse::Essential, device,
+                ImageDescription{ .mWidth = 4,
+                    .mHeight = 3,
+                    .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                    .mUsage
+                    = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT },
                 "cleared");
 
             getPool().submitAndWait([&](VkCommandBuffer commands) {

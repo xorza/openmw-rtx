@@ -17,6 +17,7 @@
 #include "pixels.glsl"
 #include "random.glsl"
 #include "sharedexponent.glsl"
+#include "stagerecord.glsl"
 #include "traversal.glsl"
 
 /// The pixel this invocation of a stage stands for in the workgroup `tile` of the stored layout, or
@@ -50,19 +51,41 @@ uint stageTileCapacity()
     return stageTileCount(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
 }
 
-/// The tile at `slot` of `list` (`STAGE_LIST_*`), which a stage dispatched over the list runs as its
-/// workgroup `slot`.
-uvec2 listedTile(uint list, uint slot)
+/// Grows `dispatch`'s workgroups from `before` by `added`, in rows of `STAGE_DISPATCH_ROW`: as wide as
+/// a row or the workgroups, whichever is fewer, and a row down each row they start. **Exact whatever
+/// order the appends land in**: the width is a maximum, and the rows each append adds sum to the
+/// rows of the whole.
+void growDispatch(uint dispatch, uint before, uint added)
 {
-    const uint word = stageTiles.mTiles[list * stageTileCapacity() + slot];
-    return uvec2(word & 0xffffu, word >> 16u);
+    const uint after = before + added;
+    atomicMax(stageTiles.mDispatches[dispatch].x, min(after, STAGE_DISPATCH_ROW));
+    atomicAdd(stageTiles.mDispatches[dispatch].y,
+        (after + STAGE_DISPATCH_ROW - 1u) / STAGE_DISPATCH_ROW - (before + STAGE_DISPATCH_ROW - 1u) / STAGE_DISPATCH_ROW);
+}
+
+/// Which workgroup of a dispatch over a list this is, counted along its rows (`growDispatch`).
+uint listedGroup()
+{
+    return gl_WorkGroupID.y * STAGE_DISPATCH_ROW + gl_WorkGroupID.x;
+}
+
+/// The tile of `list` (`STAGE_LIST_*`) this workgroup of a stage dispatched over the list runs, or
+/// false past the list's end, where the last row runs out.
+bool listedTileOf(uint list, out uvec2 tile)
+{
+    const uint slot = listedGroup();
+    const bool listed = slot < stageTiles.mDispatches[list].w;
+    const uint word = listed ? stageTiles.mTiles[list * stageTileCapacity() + slot] : 0u;
+    tile = uvec2(word & 0xffffu, word >> 16u);
+    return listed;
 }
 
 /// Appends `tile` to `list`, once a tile.
 void appendTile(uint list, uvec2 tile)
 {
-    stageTiles.mTiles[list * stageTileCapacity() + atomicAdd(stageTiles.mDispatches[list].x, 1u)]
-        = tile.x | tile.y << 16u;
+    const uint slot = atomicAdd(stageTiles.mDispatches[list].w, 1u);
+    stageTiles.mTiles[list * stageTileCapacity() + slot] = tile.x | tile.y << 16u;
+    growDispatch(list, slot, 1u);
 }
 
 /// Where the landing's list starts, after the tile lists.
@@ -71,31 +94,50 @@ uint landingListStart()
     return STAGE_LISTS * stageTileCapacity();
 }
 
-/// Makes room for `count` pixels at the end of the landing's list, and returns the first slot: one
-/// atomic a workgroup. **The list counts up its own dispatch**, a workgroup a full one of pixels,
-/// so the landing's stage runs over the pixels and not over the frame (`STAGE_DISPATCH_LANDING`).
-uint appendLandings(uint count)
+/// How many pixels the landing's list holds room for: every pixel of the frame, which both its runs
+/// share (`STAGE_TILES`).
+uint landingCapacity()
+{
+    return frame.mEyes.mWorld.mWidth * frame.mEyes.mWorld.mHeight;
+}
+
+/// Makes room for `count` pixels in a run of the landing's list — the one from its start where their
+/// gather runs, the one from its end where it is drawn off — and returns the run's first slot: one
+/// atomic a workgroup. **The list counts up its own dispatch**, a workgroup a full one of a run's
+/// pixels, so the landing's stage runs over the pixels and not over the frame
+/// (`STAGE_DISPATCH_LANDING`).
+uint appendLandings(uint count, bool gathers)
 {
     const uint lanes = TRACE_WORKGROUP_LANES;
-    const uint first = atomicAdd(stageTiles.mDispatches[STAGE_DISPATCH_LANDING].w, count);
-    atomicAdd(stageTiles.mDispatches[STAGE_DISPATCH_LANDING].x,
-        (first + count + lanes - 1u) / lanes - (first + lanes - 1u) / lanes);
+    const uint first = gathers ? atomicAdd(stageTiles.mDispatches[STAGE_DISPATCH_LANDING].w, count)
+                               : atomicAdd(stageTiles.mLandedApart.x, count);
+    const uint groups = (first + count + lanes - 1u) / lanes - (first + lanes - 1u) / lanes;
+    if (groups != 0u)
+        growDispatch(STAGE_DISPATCH_LANDING, atomicAdd(stageTiles.mLandedApart.y, groups), groups);
     return first;
 }
 
-/// Writes `pixel` into `slot` of the landing's list (`appendLandings`).
-void listLanding(uint slot, uvec2 pixel)
+/// Writes `pixel` into `slot` of its run of the landing's list (`appendLandings`).
+void listLanding(uint slot, bool gathers, uvec2 pixel)
 {
-    stageTiles.mTiles[landingListStart() + slot] = pixel.x | pixel.y << 16u;
+    const uint at = gathers ? slot : landingCapacity() - 1u - slot;
+    stageTiles.mTiles[landingListStart() + at] = pixel.x | pixel.y << 16u;
 }
 
 /// The pixel this invocation of the landing's stage stands for, or false where it stands for none:
-/// the workgroup's run of the list, one pixel a lane.
+/// the workgroup's part of a run of the list, one pixel a lane — the gathering run's workgroups
+/// first, then the other's.
 bool landingPixelOf(out uvec2 pixel)
 {
-    const uint slot = gl_WorkGroupID.x * TRACE_WORKGROUP_LANES + gl_LocalInvocationIndex;
-    const bool listed = slot < stageTiles.mDispatches[STAGE_DISPATCH_LANDING].w;
-    const uint word = listed ? stageTiles.mTiles[landingListStart() + slot] : 0u;
+    const uint lanes = TRACE_WORKGROUP_LANES;
+    const uint gathering = stageTiles.mDispatches[STAGE_DISPATCH_LANDING].w;
+    const uint gatheringGroups = (gathering + lanes - 1u) / lanes;
+    const uint group = listedGroup();
+    const bool gathers = group < gatheringGroups;
+    const uint slot = (gathers ? group : group - gatheringGroups) * lanes + gl_LocalInvocationIndex;
+    const bool listed = slot < (gathers ? gathering : stageTiles.mLandedApart.x);
+    const uint at = gathers ? slot : landingCapacity() - 1u - slot;
+    const uint word = listed ? stageTiles.mTiles[landingListStart() + at] : 0u;
     pixel = uvec2(word & 0xffffu, word >> 16u);
     return listed;
 }
@@ -115,71 +157,6 @@ RayAsk eyeAsk(vec3 origin, vec3 direction, float tmin, uint arms, uvec2 pixel)
     const Cone cone = coneAt(eyeOf(arms));
     return resolvedRayOf(SceneQuery(origin, tmin, direction, frame.mFar, facingFor(true), mask, MEET_AS_SOLID, 1u,
         cone.mWidth, cone.mSpread, 1u, pixelKey(pixel) + SEED_SOFT_EDGE));
-}
-
-/// Which solid a pixel's stages light, as the trace found it: none, the eye's own behind its layers,
-/// or what the pixel's field's water path found (`WaterRun`), cast again from the water the eye's ray
-/// met.
-const uint STAGE_NO_SOLID = 0u;
-const uint STAGE_EYE_SOLID = 1u;
-const uint STAGE_WATER_PATH = 2u;
-
-/// Where a stage record's flags word holds whether a column of water on the pixel's path is one the
-/// media stage marches (`EyeRun::mMarches`).
-const uint STAGE_MEDIA = 1u << 3u;
-
-/// And whether a see-through layer stands in front of the pixel's surface, whose peel the layers'
-/// stage walks again: a pixel of a tile its list holds that no layer stands in is left as it is.
-const uint STAGE_LAYERED = 1u << 4u;
-
-/// And whether the solid is resolved at the detail of a picture (`SceneQuery::mDetailed`): the eye's
-/// own, and a water path's that draws.
-const uint STAGE_DETAILED = 1u << 5u;
-
-/// And, once the bounce's stage has run (`bounce.comp`), whether the lobe drew the bounce: what it
-/// brings back is the lobe's, and its landing is resolved at a picture's detail and shaded as seen
-/// (`BounceDraw::mSpecular`).
-const uint STAGE_BOUNCE_LOBE = 1u << 6u;
-
-/// What the trace hands its later stages of a pixel, `STAGE_RECORD`: which solid, through which eye
-/// and from where along the eye's last ray, which the media stage casts again (`eyeAsk`,
-/// `WaterRun`); whether the media stage marches a column of its path, whether a layer stands in
-/// front, and the detail the solid is resolved at (`storedSolidOf`); and the two halves of the pane
-/// mask the whole pixel's light divides — the layers' own light and how far apart they move from
-/// the surface — beside the water's share, which the trace measured whole; and what the bounce's
-/// stage adds for its landing's.
-struct StageRecord
-{
-    uint mKind;
-    uint mArms;
-    bool mMedia;
-    bool mLayered;
-    bool mDetailed;
-    bool mBounceLobe;
-    float mTmin;
-    float mPaneOwn;
-    float mPaneApart;
-    float mWaterMisMoved;
-};
-
-/// Four words: the kind, the eye and the flags in the first, the start's bits in the second, the
-/// layers' light's in the third, and the two shares as halves in the fourth — the upscaler's masks
-/// hold them in bytes.
-uvec4 packStageRecord(StageRecord record)
-{
-    return uvec4(record.mKind | record.mArms << 2u | (record.mMedia ? STAGE_MEDIA : 0u)
-            | (record.mLayered ? STAGE_LAYERED : 0u) | (record.mDetailed ? STAGE_DETAILED : 0u)
-            | (record.mBounceLobe ? STAGE_BOUNCE_LOBE : 0u),
-        floatBitsToUint(record.mTmin), floatBitsToUint(record.mPaneOwn),
-        packHalf2x16(vec2(record.mPaneApart, record.mWaterMisMoved)));
-}
-
-StageRecord unpackStageRecord(uvec4 words)
-{
-    const vec2 shares = unpackHalf2x16(words.w);
-    return StageRecord(words.x & 3u, (words.x >> 2u) & 1u, (words.x & STAGE_MEDIA) != 0u,
-        (words.x & STAGE_LAYERED) != 0u, (words.x & STAGE_DETAILED) != 0u, (words.x & STAGE_BOUNCE_LOBE) != 0u,
-        uintBitsToFloat(words.y), uintBitsToFloat(words.z), shares.x, shares.y);
 }
 
 /// Stores the solid `asked` met (`met`) at the stored place `stored`: the instance's slot, the

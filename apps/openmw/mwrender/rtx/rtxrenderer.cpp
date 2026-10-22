@@ -192,6 +192,14 @@ namespace MWRender
         // zones' timestamps, and a played session's report goes nowhere.
         options.mTiming = run != nullptr;
 
+        // **Read back where a run is installed**, which is what asks for a frame's picture and its
+        // digest: a played session makes neither the digest's pass nor its buffers.
+        options.mReadingBack = run != nullptr;
+
+        // **And the pipelines report themselves where a run is installed**, whose log is what reads
+        // what the driver made of them: a played session asks the compiler for nothing it keeps.
+        options.mPipelineStatistics = run != nullptr;
+
         // **Said once, where it is decided.** What reconstructs the frame does not change while the
         // session runs, so it does not belong in the periodic line; what that line carries is the
         // one word a reader of any single line needs, and the rest — at what pair of sizes — is here,
@@ -610,6 +618,11 @@ namespace MWRender
     void RtxRenderer::setVSync(SDLUtil::VSyncMode mode) noexcept
     {
         mRenderer->setVerticalSync(mode);
+    }
+
+    void RtxRenderer::awaitPresented() noexcept
+    {
+        mRenderer->awaitPresented();
     }
 
     const RenderSupport& RtxRenderer::support() const noexcept

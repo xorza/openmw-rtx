@@ -60,6 +60,12 @@ namespace Rtx
     {
         VisibilityInputs mInputs;
         HandedImage mColour;
+
+        /// An image of `mColour`'s shape and format that the display may lay the puffs over, so the
+        /// composed frame stays the trace's own answer (`VulkanRenderer::readComposite`), with what
+        /// it discards from at its first use: the chain's arena holds it over the display alone.
+        HandedImage mCanvas;
+
         SpriteTables mSprites{};
     };
 }

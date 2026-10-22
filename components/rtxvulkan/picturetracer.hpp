@@ -9,6 +9,7 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/trace/tracechain.hpp>
 
 namespace Rtx
@@ -30,12 +31,27 @@ namespace Rtx
         PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media, DisplayChain& display,
             GuiTextures& textures, RadianceWidth radiance);
 
-        /// Whether a picture this big fits what is built, which `grow` would leave alone.
+        /// What the chain and the byte image take at `room`, which `resize` makes them at.
+        static VkDeviceSize bytesAt(const Device& device, VkExtent2D room, RadianceWidth radiance);
+
+        /// Whether the chain stands at exactly `room`, which `resize` to it keeps.
+        bool isAt(VkExtent2D room) const
+        {
+            return isBuilt() && room.width == mChain.getWidth() && room.height == mChain.getHeight();
+        }
+
+        bool isBuilt() const { return mChain.isBuilt(); }
+
+        /// Lets the chain and the byte image go, until the next `resize`.
+        void release();
+
+        /// Whether a picture this big fits what is built.
         bool holds(VkExtent2D extent) const { return mChain.holds(extent.width, extent.height); }
 
-        /// Makes the chain at least this big, and the byte image the texture is copied out of with
-        /// it. What it replaces buries itself, so a picture in flight traces to the end.
-        void grow(VkExtent2D extent);
+        /// Makes the chain and the byte image the texture is copied out of at exactly `room`, and
+        /// nothing where they stand at it. A frame target, made again only once the device drained
+        /// what read the last (`VulkanRenderer::createTargets`).
+        void resize(VkExtent2D room);
 
         /// Records a picture of `traced` under `camera` into `texture`, which `holds` the camera's
         /// extent, on a batch that rides the next submit and that nobody here waits for: the next
@@ -51,10 +67,14 @@ namespace Rtx
         DisplayChain& mDisplay;
         GuiTextures& mTextures;
 
+        /// What the chain uses inside one stretch of a picture, laid over each other: its own and not
+        /// the frame's, so nothing couples the two chains' order.
+        ImageArena mArena;
+
         TraceChain mChain;
 
-        /// The picture as bytes, which is what the texture is copied out of. Empty until something
-        /// asks for a picture, and grown with the chain.
+        /// The picture as bytes, which is what the texture is copied out of. Empty until room is
+        /// reserved, and made with the chain.
         Image mTarget;
 
         /// What the picture sums its census and its view of the sun into, which nothing reads: the

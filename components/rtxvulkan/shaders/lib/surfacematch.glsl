@@ -246,6 +246,27 @@ ivec2 heldPixelAt(ivec2 stored, uint width, HistoryFields fields)
         shares[historyCorner] = historyBilinear;                                                   \
     }
 
+/// Which corners `shares` took, a bit a corner: the match `ACCUMULATE_MATCH` hands on.
+uint historyMatchOf(vec4 shares)
+{
+    return (shares.x > 0.0 ? 1u : 0u) | (shares.y > 0.0 ? 2u : 0u) | (shares.z > 0.0 ? 4u : 0u)
+        | (shares.w > 0.0 ? 8u : 0u);
+}
+
+/// `RTX_HISTORY_SHARES` over the corners `matched` marks, the accumulator's match for the same
+/// footprint (`historyMatchOf`), so a later pass tests its own `holds` and not the surface again.
+/// The same shares to the bit, since the match was made of the same footprint and the same rule.
+#define RTX_MATCHED_SHARES(shares, footprint, extent, fields, matched, holds)                       \
+    vec4 shares = vec4(0.0);                                                                       \
+    for (int historyCorner = 0; historyCorner < 4; ++historyCorner)                                \
+    {                                                                                              \
+        const ivec2 historyStored                                                                  \
+            = heldStoredAt(historyTap(footprint, historyCorner), (extent).x, fields);              \
+        if ((((matched) >> uint(historyCorner)) & 1u) == 0u || !(holds))                           \
+            continue;                                                                              \
+        shares[historyCorner] = historyShare(footprint, historyCorner);                            \
+    }
+
 /// How much of a history's footprint its matched taps cover: the shares' sum.
 float historyCovered(vec4 shares)
 {

@@ -8,6 +8,7 @@
 
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "presentfence.hpp"
@@ -38,23 +39,34 @@ namespace Rtx
         Presenter(const Device& device, Surface& surface, SDL_Window* window, SDLUtil::VSyncMode verticalSync);
         ~Presenter();
 
-        /// Blits `frame`, in `VK_IMAGE_LAYOUT_GENERAL` and left there, onto the next swapchain
-        /// image where `Misc::present` places it, black beside it, and queues it. A surface that no
+        /// Blits `frame` onto the next swapchain image where `Misc::present` places it, black beside
+        /// it, and queues it: taken in `frameAt`, the use `first` leaves it in, and left in
+        /// `PresentTarget::sResting`. A surface that no
         /// longer matches the window is not an error: the swapchain is marked stale, the one record
         /// of it, and `wantsResize` answers yes.
         ///
         /// **`first` records into the blit's own command buffer, ahead of the blit**: what draws
         /// `frame` goes in the one submit with what shows it, and not in a submit and a head barrier
         /// of its own. It is handed the open buffer, and called only where an image was taken.
+        /// `first` may leave `frame` where the blit reads it, `Use::sBlitRead`, which saves the blit
+        /// a barrier of its own: the swapchain image's is the one batch then.
         template <class First>
-        void present(const Image& frame, First&& first)
+        void present(const Image& frame, const ImageUse& frameAt, First&& first)
         {
             std::optional<Taken> taken = take();
             if (!taken.has_value())
                 return;
 
             first(taken->mRecording.get());
-            hand(std::move(*taken), frame);
+            hand(std::move(*taken), frame, frameAt);
+        }
+
+        /// Holds the next frame's input to two presents behind the screen (`Swapchain::awaitLatency`),
+        /// on a swapchain that stands.
+        void awaitLatency()
+        {
+            if (!mLost)
+                mSwapchain.awaitLatency();
         }
 
         /// Whether the swapchain has to be remade to show `extent`, or the surface with it where the
@@ -107,7 +119,7 @@ namespace Rtx
         std::optional<Taken> take();
 
         /// Records the blit of `frame` into what `take` opened, submits it and queues the present.
-        void hand(Taken held, const Image& frame);
+        void hand(Taken held, const Image& frame, const ImageUse& frameAt);
 
         /// Two semaphores and one command buffer per swapchain image, and a present fence where the
         /// device offers one, for the swapchain as it now stands. `releaseImageSync` comes first.

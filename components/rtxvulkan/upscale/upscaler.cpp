@@ -23,8 +23,11 @@
 #include "upscaler.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <cstddef>
 #include <span>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -40,6 +43,7 @@
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/fsr.h>
+#include <components/rtxvulkan/trace/framestep.hpp>
 
 namespace Rtx
 {
@@ -307,12 +311,105 @@ namespace Rtx
         constexpr VkClearColorValue sFreshFrameInfo{ .float32 = { -1.0f, 1e8f, 0.0f, 0.0f } };
     }
 
+    namespace
+    {
+        /// The images a frame writes whole before it reads them and no frame after reads, which the
+        /// frame's arena places (`ImageArena`): those the SDK flags aliasable
+        /// (`FFX_RESOURCE_FLAGS_ALIASABLE`), and the three it has an application make, which the
+        /// first pass writes whole or a frame clears. **Not the new locks**, which the SDK flags
+        /// aliasable too: the accumulation pass clears them for the next frame's reactivity pass,
+        /// which sets only the locks it finds (`ffx_fsr3upscaler_accumulate.h`). In the order
+        /// `declareShared` declares them.
+        enum class Shared : std::uint8_t
+        {
+            Intermediate,
+            ShadingChange,
+            SpdMips,
+            FarthestDepthMip1,
+            DilatedMasks,
+            DilatedDepth,
+            DilatedMotion,
+            PreviousDepth,
+            Output,
+        };
+
+        constexpr std::size_t sSharedCount = static_cast<std::size_t>(Shared::Output) + 1;
+
+        /// Which extent an image is made at: the trace's, half of it, or the output's.
+        enum class Grid : std::uint8_t
+        {
+            Render,
+            Half,
+            Output,
+        };
+
+        struct SharedDeclared
+        {
+            Shared mImage;
+            Grid mGrid;
+            VkFormat mFormat;
+            std::string_view mName;
+
+            /// Whether it holds a chain down to one texel, which the luma pyramid writes.
+            bool mChain = false;
+        };
+
+        constexpr std::array<SharedDeclared, sSharedCount> sShared{ {
+            { Shared::Intermediate, Grid::Render, toVulkanFormat(FSR_INTERMEDIATE_FORMAT), "fsr-intermediate" },
+            { Shared::ShadingChange, Grid::Half, toVulkanFormat(FSR_SHADING_CHANGE_FORMAT), "fsr-shading-change" },
+            { Shared::SpdMips, Grid::Half, toVulkanFormat(FSR_SPD_MIPS_FORMAT), "fsr-spd-mips", true },
+            { Shared::FarthestDepthMip1, Grid::Half, toVulkanFormat(FSR_FARTHEST_DEPTH_MIP1_FORMAT),
+                "fsr-farthest-depth-mip1" },
+            { Shared::DilatedMasks, Grid::Render, toVulkanFormat(FSR_DILATED_MASKS_FORMAT), "fsr-dilated-masks" },
+            { Shared::DilatedDepth, Grid::Render, toVulkanFormat(FSR_DILATED_DEPTH_FORMAT), "fsr-dilated-depth" },
+            { Shared::DilatedMotion, Grid::Render, toVulkanFormat(FSR_DILATED_MOTION_FORMAT), "fsr-dilated-motion" },
+            { Shared::PreviousDepth, Grid::Render, toVulkanFormat(FSR_PREVIOUS_DEPTH_FORMAT), "fsr-previous-depth" },
+            { Shared::Output, Grid::Output, toVulkanFormat(FSR_OUTPUT_FORMAT), "fsr-output" },
+        } };
+
+        constexpr bool sharedInOrder()
+        {
+            for (std::size_t at = 0; at < sShared.size(); ++at)
+                if (static_cast<std::size_t>(sShared[at].mImage) != at)
+                    return false;
+            return true;
+        }
+
+        static_assert(sharedInOrder(), "the shared table is indexed by Shared");
+
+        constexpr VkExtent2D halfOf(const VkExtent2D render)
+        {
+            return VkExtent2D{ std::max(render.width / 2, 1u), std::max(render.height / 2, 1u) };
+        }
+
+        ImageDescription imageOf(const VkExtent2D extent, const VkFormat format, const std::uint32_t levels = 1)
+        {
+            return ImageDescription{ .mWidth = extent.width,
+                .mHeight = extent.height,
+                .mFormat = format,
+                .mUsage = sUsage,
+                .mMipLevels = levels };
+        }
+
+        ImageDescription descriptionOf(const SharedDeclared& declared, const VkExtent2D render, const VkExtent2D output)
+        {
+            const VkExtent2D extent
+                = declared.mGrid == Grid::Render ? render : (declared.mGrid == Grid::Half ? halfOf(render) : output);
+            return imageOf(extent, declared.mFormat, declared.mChain ? levelsTo1x1(extent.width, extent.height) : 1);
+        }
+
+        /// What every pass may do to an image: `sPassWork` in the general layout, which is where the
+        /// shared images are laid out at the start of a frame's reconstruction.
+        constexpr ImageUse sPassImage{ VK_IMAGE_LAYOUT_GENERAL, sPassWork.mStage, sPassWork.mAccess };
+    }
+
     /// Every image the SDK's context creates, at the extents one resize names, in the SDK's formats,
-    /// and the three `ffxFsr3UpscalerGetSharedResourceDescriptions` has an application make.
+    /// and the three `ffxFsr3UpscalerGetSharedResourceDescriptions` has an application make: its own
+    /// for what a frame carries to the next, and the frame arena's for the rest (`Shared`).
     struct Upscaler::Targets
     {
-        /// Each image as `image` makes it from its description and name: the frame's own memory,
-        /// or nothing where `Upscaler::bytesAt` only adds up what each would take, which so
+        /// Each image of its own as `image` makes it from its description and name: the frame's own
+        /// memory, or nothing where `Upscaler::bytesAt` only adds up what each would take, which so
         /// measures the one list this makes.
         template <class MakeImage>
         Targets(const VkExtent2D render, const VkExtent2D output, MakeImage&& image)
@@ -320,46 +417,31 @@ namespace Rtx
             , mOutput(output)
             , mPyramid(FsrFrame::pyramidFor(render))
         {
-            const VkExtent2D half{ std::max(render.width / 2, 1u), std::max(render.height / 2, 1u) };
-            const auto make = [&](VkExtent2D extent, VkFormat format, std::string_view name, std::uint32_t levels = 1) {
-                return image(ImageDescription{ .mWidth = extent.width,
-                                 .mHeight = extent.height,
-                                 .mFormat = format,
-                                 .mUsage = sUsage,
-                                 .mMipLevels = levels },
-                    name);
+            const auto make = [&](VkExtent2D extent, VkFormat format, std::string_view name) {
+                return image(imageOf(extent, format), name);
             };
 
             add(mAccumulation[0], make(render, toVulkanFormat(FSR_ACCUMULATION_FORMAT), "fsr-accumulation-0"));
             add(mAccumulation[1], make(render, toVulkanFormat(FSR_ACCUMULATION_FORMAT), "fsr-accumulation-1"));
             add(mLuma[0], make(render, toVulkanFormat(FSR_LUMA_FORMAT), "fsr-luma-0"));
             add(mLuma[1], make(render, toVulkanFormat(FSR_LUMA_FORMAT), "fsr-luma-1"));
-            add(mIntermediate, make(render, toVulkanFormat(FSR_INTERMEDIATE_FORMAT), "fsr-intermediate"));
-            add(mShadingChange, make(half, toVulkanFormat(FSR_SHADING_CHANGE_FORMAT), "fsr-shading-change"));
             add(mNewLocks, make(output, toVulkanFormat(FSR_NEW_LOCKS_FORMAT), "fsr-new-locks"));
             add(mHistory[0], make(output, toVulkanFormat(FSR_HISTORY_FORMAT), "fsr-history-0"));
             add(mHistory[1], make(output, toVulkanFormat(FSR_HISTORY_FORMAT), "fsr-history-1"));
-            add(mSpdMips,
-                make(half, toVulkanFormat(FSR_SPD_MIPS_FORMAT), "fsr-spd-mips", levelsTo1x1(half.width, half.height)));
-            add(mFarthestDepthMip1,
-                make(half, toVulkanFormat(FSR_FARTHEST_DEPTH_MIP1_FORMAT), "fsr-farthest-depth-mip1"));
             add(mLumaHistory[0], make(render, toVulkanFormat(FSR_LUMA_HISTORY_FORMAT), "fsr-luma-history-0"));
             add(mLumaHistory[1], make(render, toVulkanFormat(FSR_LUMA_HISTORY_FORMAT), "fsr-luma-history-1"));
             add(mSpdAtomic, make(VkExtent2D{ 1, 1 }, toVulkanFormat(FSR_SPD_ATOMIC_FORMAT), "fsr-spd-atomic"));
-            add(mDilatedMasks, make(render, toVulkanFormat(FSR_DILATED_MASKS_FORMAT), "fsr-dilated-masks"));
             add(mFrameInfo, make(VkExtent2D{ 1, 1 }, toVulkanFormat(FSR_FRAME_INFO_FORMAT), "fsr-frame-info"));
-            add(mDilatedDepth, make(render, toVulkanFormat(FSR_DILATED_DEPTH_FORMAT), "fsr-dilated-depth"));
-            add(mDilatedMotion, make(render, toVulkanFormat(FSR_DILATED_MOTION_FORMAT), "fsr-dilated-motion"));
-            add(mPreviousDepth, make(render, toVulkanFormat(FSR_PREVIOUS_DEPTH_FORMAT), "fsr-previous-depth"));
-            add(mOutputImage, make(output, toVulkanFormat(FSR_OUTPUT_FORMAT), "fsr-output"));
         }
 
         Targets(const Targets&) = delete;
         Targets& operator=(const Targets&) = delete;
 
-        /// Every image the constructor made, which is what a resize clears: the one list `add` fills,
-        /// so an image cannot be made and left out of it.
+        /// Every image of its own the constructor made, which is what a resize clears: the one list
+        /// `add` fills, so an image cannot be made and left out of it.
         const std::vector<const Image*>& every() const { return mEvery; }
+
+        const Image& shared(const Shared which) const { return mShared[static_cast<std::size_t>(which)]; }
 
         VkExtent2D mRender;
         VkExtent2D mOutput;
@@ -369,20 +451,14 @@ namespace Rtx
 
         std::array<Image, 2> mAccumulation;
         std::array<Image, 2> mLuma;
-        Image mIntermediate;
-        Image mShadingChange;
         Image mNewLocks;
         std::array<Image, 2> mHistory;
-        Image mSpdMips;
-        Image mFarthestDepthMip1;
         std::array<Image, 2> mLumaHistory;
         Image mSpdAtomic;
-        Image mDilatedMasks;
         Image mFrameInfo;
-        Image mDilatedDepth;
-        Image mDilatedMotion;
-        Image mPreviousDepth;
-        Image mOutputImage;
+
+        /// The images `declareShared` declared, as the frame's arena placed them.
+        ArenaRun mShared;
 
     private:
         std::vector<const Image*> mEvery;
@@ -407,19 +483,38 @@ namespace Rtx
 
     Upscaler::~Upscaler() = default;
 
-    void Upscaler::resize(const VkExtent2D render, const VkExtent2D output)
+    void Upscaler::declareShared(const VkExtent2D render, const VkExtent2D output, std::vector<ArenaImage>& into)
+    {
+        for (const SharedDeclared& declared : sShared)
+            into.push_back(ArenaImage{ .mDescription = descriptionOf(declared, render, output),
+                .mSpan = declared.mImage == Shared::Output ? spanOf(FrameStep::Upscale, FrameStep::Display)
+                                                           : spanOf(FrameStep::Upscale, FrameStep::Upscale),
+                .mName = declared.mName });
+    }
+
+    std::size_t Upscaler::getSharedCount()
+    {
+        return sSharedCount;
+    }
+
+    void Upscaler::resize(const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
     {
         assert(render.width > 0 && render.height > 0 && output.width >= render.width && output.height >= render.height);
+        assert(shared.size() == sSharedCount && "the upscaler's shared images were not placed as it declared them");
 
         // **The one owner of "is this a new extent"**, as `TraceChain::resize` is: a mode changed
         // between two that trace and show at one size keeps the targets and the history in them.
         if (isAt(render, output))
+        {
+            mTargets->mShared = shared;
             return;
+        }
 
         mTargets = std::make_unique<Targets>(
             render, output, [&](const ImageDescription& description, std::string_view name) {
                 return Image(MemoryUse::Frame, mDevice, description, name);
             });
+        mTargets->mShared = shared;
         mFrame.restart();
 
         // Every image defined from the first frame, where the SDK clears the four it reads before
@@ -498,13 +593,13 @@ namespace Rtx
                 case R::Masks:
                     return inputs.mMasks;
                 case R::DilatedMotion:
-                    return targets.mDilatedMotion;
+                    return targets.shared(Shared::DilatedMotion);
                 case R::DilatedDepth:
-                    return targets.mDilatedDepth;
+                    return targets.shared(Shared::DilatedDepth);
                 case R::PreviousDepth:
-                    return targets.mPreviousDepth;
+                    return targets.shared(Shared::PreviousDepth);
                 case R::Intermediate:
-                    return targets.mIntermediate;
+                    return targets.shared(Shared::Intermediate);
                 case R::LumaNow:
                     return targets.mLuma[read];
                 case R::LumaBefore:
@@ -514,17 +609,17 @@ namespace Rtx
                 case R::FrameInfo:
                     return targets.mFrameInfo;
                 case R::SpdMips:
-                    return targets.mSpdMips;
+                    return targets.shared(Shared::SpdMips);
                 case R::FarthestDepthMip1:
-                    return targets.mFarthestDepthMip1;
+                    return targets.shared(Shared::FarthestDepthMip1);
                 case R::ShadingChange:
-                    return targets.mShadingChange;
+                    return targets.shared(Shared::ShadingChange);
                 case R::AccumulationBefore:
                     return targets.mAccumulation[read];
                 case R::AccumulationNow:
                     return targets.mAccumulation[written];
                 case R::DilatedMasks:
-                    return targets.mDilatedMasks;
+                    return targets.shared(Shared::DilatedMasks);
                 case R::NewLocks:
                     return targets.mNewLocks;
                 case R::LumaHistoryBefore:
@@ -536,7 +631,7 @@ namespace Rtx
                 case R::HistoryNow:
                     return targets.mHistory[written];
                 case R::Output:
-                    return targets.mOutputImage;
+                    return targets.shared(Shared::Output);
                 case R::Constants:
                 case R::Pyramid:
                 case R::Inputs:
@@ -609,14 +704,23 @@ namespace Rtx
         // last frame's passes over these images are behind the head barrier the buffer opens with
         // (`CommandPool::begin`), so a transition into a clear's own layout and back out of it was
         // two barriers an image ordering nothing `between` does not.
+        //
+        // **The images the frame's arena holds are laid out first**, from what held their memory
+        // before them in this buffer, if anything did: the SDK clears two of them, and the passes
+        // write the rest whole before reading them.
+        Barriers laid(commands);
+        for (std::size_t at = 0; at < sSharedCount; ++at)
+            targets.mShared[at].addTransition(laid, targets.mShared.firstUseOf(at), sPassImage);
+        laid.flush();
+
         if (reset)
         {
             targets.mAccumulation[read].clearInGeneral(commands, sNought);
             targets.mFrameInfo.clearInGeneral(commands, sFreshFrameInfo);
         }
-        targets.mPreviousDepth.clearInGeneral(commands, sNought);
+        targets.shared(Shared::PreviousDepth).clearInGeneral(commands, sNought);
         targets.mSpdAtomic.clearInGeneral(commands, sNought);
-        targets.mSpdMips.clearInGeneral(commands, sNought);
+        targets.shared(Shared::SpdMips).clearInGeneral(commands, sNought);
         between();
 
         const VkExtent2D render = targets.mRender;
@@ -637,6 +741,6 @@ namespace Rtx
         run(Pass::Instability, overRender);
         between();
         run(Pass::Accumulate, Groups::covering(output.width, output.height, Shaders::FSR_WORKGROUP));
-        return HandedImage{ .mImage = targets.mOutputImage, .mLeftAs = Use::sComputeReadWrite };
+        return HandedImage{ .mImage = targets.shared(Shared::Output), .mLeftAs = Use::sComputeReadWrite };
     }
 }

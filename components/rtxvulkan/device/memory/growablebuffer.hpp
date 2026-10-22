@@ -6,6 +6,7 @@
 
 namespace Rtx
 {
+    class Batch;
     class Device;
 
     /// A buffer made again, larger, as what it holds grows. What memory it is, what the device does
@@ -36,6 +37,12 @@ namespace Rtx
         /// `growTo` for a table that keeps growing: at twice what it holds where that is more, so
         /// the table is made again a logarithmic number of times rather than once per arrival.
         bool outgrow(VkDeviceSize bytes);
+
+        /// `outgrow`, keeping what the table holds: a growth copies the old buffer into the new on
+        /// the queue, through `batch`, and orders the copy ahead of the writes recorded after it, so
+        /// a caller stages only what arrived. Needs `TRANSFER_SRC` and `TRANSFER_DST` in the usage
+        /// (`sTableKeptUsage`).
+        void outgrowKeeping(Batch& batch, VkDeviceSize bytes);
 
         const Buffer& get() const { return mBuffer; }
         Buffer& get() { return mBuffer; }

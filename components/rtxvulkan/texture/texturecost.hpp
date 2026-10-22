@@ -28,8 +28,9 @@ namespace Rtx
         VkDeviceSize mCompanion = 0;
 
         /// What the arrival holds until the texture is made: the one level a completed chain is
-        /// made from. The float means a spread is built through are the arrival's, and priced once
-        /// for it (`spreadMeansBytes`).
+        /// made from. The float means a spread is built through, and the loose chain and the blocks
+        /// a BC7 chain is encoded through, are the arrival's rooms, and priced once for it
+        /// (`spreadMeansBytes`, `priceEncode`).
         VkDeviceSize mTransient = 0;
 
         /// What the texture keeps once its batch has let go of what made it.
@@ -49,6 +50,17 @@ namespace Rtx
     /// The bytes of float means a file's spread is built through, begun at level `first`: every
     /// level of the spread, and nought for a file with none.
     VkDeviceSize spreadMeansBytes(const TextureData& texture, std::uint32_t first);
+
+    /// What a file kept as BC7 is encoded through, begun at level `first`: the loose chain the arrival
+    /// makes in its canvas and the blocks the encode works in, both rooms of the arrival's, and
+    /// nought for a file that is not encoded (`TextureData::encodesChain`).
+    struct EncodeCost
+    {
+        VkDeviceSize mLoose = 0;
+        VkDeviceSize mBlocks = 0;
+    };
+
+    EncodeCost priceEncode(const TextureData& texture, std::uint32_t first);
 
     /// What a bake costs, made at the shape its source stands as.
     TextureCost priceBake(const ImageShape& source);

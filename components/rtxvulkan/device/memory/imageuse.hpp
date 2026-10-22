@@ -14,6 +14,8 @@ namespace Rtx
         VkImageLayout mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         VkPipelineStageFlags2 mStage = VK_PIPELINE_STAGE_2_NONE;
         VkAccessFlags2 mAccess = VK_ACCESS_2_NONE;
+
+        constexpr bool operator==(const ImageUse& other) const = default;
     };
 
     /// One side of a buffer barrier, or of a memory barrier over everything: the stage and access
@@ -38,6 +40,15 @@ namespace Rtx
         /// dependencies chain only where the first's second scope meets the second's first, and a
         /// first scope of `NONE` meets nothing (`Presenter` says the same of the acquire).
         inline constexpr ImageUse sUndefined{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0 };
+
+        /// Nothing the image keeps, in memory another image wrote earlier in the same buffer: the
+        /// first use of an image an arena placed where another's use ended (`ImageArena`). **Every
+        /// write before it as well**, which an image barrier cannot carry — its access scope is its
+        /// own image, and the writes were another's — so `Image::addTransition` adds a memory
+        /// barrier over everything beside the layout's transition. Vulkan's "Memory Aliasing"
+        /// asks both: the dependency between the two aliases, and the new one's contents discarded.
+        inline constexpr ImageUse sAliased{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            VK_ACCESS_2_MEMORY_WRITE_BIT };
 
         inline constexpr ImageUse sComputeWrite{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT };
@@ -85,6 +96,10 @@ namespace Rtx
         inline constexpr ImageUse sCopyWrite{ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_COPY_BIT,
             VK_ACCESS_2_TRANSFER_WRITE_BIT };
         inline constexpr ImageUse sCopyRead{ VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_2_COPY_BIT,
+            VK_ACCESS_2_TRANSFER_READ_BIT };
+        /// Copied out of where it stays in `GENERAL`: the composed frame, which the display copies
+        /// and then leaves for a read back.
+        inline constexpr ImageUse sCopyReadGeneral{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COPY_BIT,
             VK_ACCESS_2_TRANSFER_READ_BIT };
         inline constexpr ImageUse sBlitWrite{ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_BLIT_BIT,
             VK_ACCESS_2_TRANSFER_WRITE_BIT };

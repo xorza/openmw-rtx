@@ -12,6 +12,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 
 namespace Rtx
 {
@@ -23,6 +24,11 @@ namespace Rtx
     /// map needs alone (`TextureArrival::recordSpreads`): a storage block's worth, two normal maps of
     /// two thousand texels a side.
     inline constexpr VkDeviceSize sSpreadMeansRoom = 64 * 1024 * 1024;
+
+    /// How many bytes of loose chains one group of encodes is made in at once, past what one chain
+    /// needs alone (`TextureArrival::recordEncodes`): the spread means' room, two chains of two
+    /// thousand texels a side, and a file of four thousand a group of its own.
+    inline constexpr VkDeviceSize sLooseChainRoom = 64 * 1024 * 1024;
 
     /// What a run of arriving textures leaves the device to do, recorded once for the whole run a
     /// phase at a time: every copy and clear, then each level of every chain, every shading map,
@@ -40,7 +46,13 @@ namespace Rtx
     public:
         /// @param meansRoom what one group of spreads works in: `sSpreadMeansRoom`, and less for a
         ///        test that splits a few maps into groups.
-        explicit TextureArrival(const Device& device, VkDeviceSize meansRoom = sSpreadMeansRoom);
+        /// @param looseRoom what one group of encodes makes its loose chains in: `sLooseChainRoom`,
+        ///        and less for a test that splits a few files into groups.
+        explicit TextureArrival(
+            const Device& device, VkDeviceSize meansRoom = sSpreadMeansRoom, VkDeviceSize looseRoom = sLooseChainRoom);
+
+        /// Buries the canvas, which outlives every chain made in it.
+        ~TextureArrival();
 
         TextureArrival(const TextureArrival&) = delete;
         TextureArrival& operator=(const TextureArrival&) = delete;
@@ -64,8 +76,14 @@ namespace Rtx
         /// `MipChainPass` from `source`, uploaded in this run, into `chain`, met undefined; and where
         /// `bc7` is given, the chain encoded into it, met undefined, which the trace then samples in
         /// the chain's place (`TextureData::encodesChain`). A chain encoded is one `hold` keeps.
-        void chain(const Image& source, const Image& chain, bool encoded, TextureEncoding encoding,
-            const Image* bc7 = nullptr);
+        void chain(const Image& source, const Image& chain, bool encoded, TextureEncoding encoding);
+
+        /// The same for a chain kept as BC7 (`TextureData::encodesChain`): `MipChainPass` from
+        /// `source` into a loose chain of `loose` the run makes in its canvas, and that encoded into
+        /// `bc7`, met undefined, which the trace samples. The loose chain is the canvas's for its
+        /// group alone.
+        void encode(const Image& source, const ImageDescription& loose, bool encoded, TextureEncoding encoding,
+            const Image& bc7);
 
         /// `ShadingPass` of `source` into `map`, met undefined.
         void shade(const Image& source, const Image& map, TextureWrap wrap);
@@ -89,6 +107,14 @@ namespace Rtx
         /// more than all of them.
         VkDeviceSize meansNeeded(VkDeviceSize total, VkDeviceSize largest) const;
 
+        /// The same for the loose chains of an arrival's encodes, which the canvas is made at.
+        VkDeviceSize looseNeeded(VkDeviceSize total, VkDeviceSize largest) const;
+
+        /// How many bytes the canvas holds now, and the blocks every encode works through: what an
+        /// arrival that needs more is priced the rest of.
+        VkDeviceSize getLooseBytes() const { return mCanvasBytes; }
+        VkDeviceSize getBlocksBytes() const { return mBlocks.get().getSize(); }
+
         // Read by the tests and by nothing else.
         /// How many barrier commands the last `record` emitted.
         std::size_t getRecordedBarriers() const { return mRecordedBarriers; }
@@ -109,8 +135,14 @@ namespace Rtx
             const Image* mChain;
             bool mEncoded;
             TextureEncoding mEncoding;
+        };
 
-            /// What the chain is encoded into, or null for a chain the trace samples itself.
+        struct Encode
+        {
+            const Image* mSource;
+            ImageDescription mLoose;
+            bool mEncoded;
+            TextureEncoding mEncoding;
             const Image* mBc7;
         };
 
@@ -139,7 +171,7 @@ namespace Rtx
         /// Each level of every chain, a level of all of them between two barriers.
         void recordChains(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
 
-        /// Every chain that is kept as BC7, encoded into it, after every chain is made.
+        /// Every chain kept as BC7, made in the canvas a group at a time and encoded into it.
         void recordEncodes(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
 
         /// Every sum, one barrier, every map.
@@ -157,6 +189,7 @@ namespace Rtx
         std::vector<Upload> mUploads;
         std::vector<const Image*> mClears;
         std::vector<Chain> mChains;
+        std::vector<Encode> mEncodes;
         std::vector<Shade> mShades;
         std::vector<Spread> mSpreads;
         std::vector<Bake> mBakes;
@@ -185,6 +218,22 @@ namespace Rtx
 
         /// Where each group of `recordSpreads` ends in the spreads, the last at their end.
         std::vector<std::size_t> mGroupEnds;
+
+        const Device& mDevice;
+
+        /// Where the encodes' loose chains are made, a group at a time over the same memory: grown to
+        /// the largest group so far and kept, as the means are. **A room and not a chain apiece**:
+        /// a 4096-square file's chain is 89 MB, and an arrival of several made them at once and was
+        /// priced for all of them.
+        const VkDeviceSize mLooseRoom;
+        DeviceMemory mCanvas;
+        VkDeviceSize mCanvasBytes = 0;
+        VkDeviceSize mCanvasAlignment = 0;
+        std::uint32_t mCanvasTypes = 0;
+
+        /// Each encode's place in the canvas and the group it is made in, refilled per run.
+        std::vector<VkDeviceSize> mLooseAt;
+        std::vector<std::size_t> mLooseGroupEnds;
 
         std::size_t mRecordedBarriers = 0;
     };

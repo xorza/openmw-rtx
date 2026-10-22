@@ -85,6 +85,7 @@ namespace Rtx
         writes.image(Shaders::SHADOW_TILES_BIND_TILES, images.mTiles.describeStorage());
         writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
         writes.image(Shaders::SHADOW_TILES_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
+        writes.image(Shaders::SHADOW_TILES_BIND_MATCH, images.mMatch.describeStorage());
 
         const Shaders::ShadowTilesConstants constants{
             .mHistory = frame.history(images.mFresh),

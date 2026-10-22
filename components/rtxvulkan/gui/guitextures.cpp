@@ -46,8 +46,12 @@ namespace Rtx
             return GuiSlot::none();
         }
 
-        Image image(mDevice, width, height, VK_FORMAT_R8G8B8A8_UNORM,
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        Image image(MemoryUse::Essential, mDevice,
+            ImageDescription{ .mWidth = width,
+                .mHeight = height,
+                .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                .mUsage
+                = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT },
             "gui texture");
 
         // Cleared rather than left undefined. A slot is sampleable from the moment anything can

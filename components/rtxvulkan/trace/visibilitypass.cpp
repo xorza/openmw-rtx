@@ -51,6 +51,7 @@
 #include "ripplepass.hpp"
 #include "spritebin.hpp"
 #include "tracemedia.hpp"
+#include "tuplequeue.hpp"
 #include "wavepass.hpp"
 
 namespace Rtx
@@ -311,38 +312,54 @@ namespace Rtx
         if (!mSpecialize)
             return;
 
-        // **Every other tuple behind it, on half the hands**, a tuple a turn, each made whole before
-        // a frame may take it (`variantFor`): the game runs meanwhile, and half the processors are
-        // its. After the full tuple, whose compile they would slow.
-        std::vector<VisibilityVariant> tuples;
-        tuples.reserve(VisibilityVariant::sCount - 1);
-        for (const bool sun : { false, true })
-            for (const bool moons : { false, true })
-                for (const bool sea : { false, true })
-                    for (const bool maps : { false, true })
-                        if (!(sun && moons && sea && maps))
-                            tuples.push_back(
-                                VisibilityVariant{ .mSun = sun, .mMoons = moons, .mSea = sea, .mMaps = maps });
-
-        const auto tupleCount = static_cast<std::uint32_t>(tuples.size());
-        mSpecializing.start("tuple compile", tupleCount,
-            [this, &textureLayout, caller, tuples = std::move(tuples)](const Platform::StopToken& stop, Job& job) {
+        // **Every other tuple behind it, on half the hands**, each made whole before a frame may take
+        // it (`variantFor`): the game runs meanwhile, and half the processors are its. After the full
+        // tuple, whose compile they would slow. **A kernel a turn**, so a stop waits for one compile
+        // and not a tuple's six or seven, and a tuple made when its last kernel lands.
+        mSpecializing.start("tuple compile", VisibilityVariant::sCount - 1,
+            [this, &textureLayout, caller](const Platform::StopToken& stop, Job& job) {
                 while (!mCompiling.waitFor(std::chrono::milliseconds(100)).isDone())
                     if (stop.stopRequested())
                         throw std::runtime_error("the tuple compile was stopped");
 
+                // The sky's tuples after the dark ones: the order matters less than the tuple a
+                // frame waits on, which the queue takes first.
+                std::vector<Wanted> kernels;
+                std::vector<TupleRun> runs;
+                for (const bool sun : { false, true })
+                    for (const bool moons : { false, true })
+                        for (const bool sea : { false, true })
+                            for (const bool maps : { false, true })
+                            {
+                                const VisibilityVariant tuple{
+                                    .mSun = sun, .mMoons = moons, .mSea = sea, .mMaps = maps
+                                };
+                                if (sun && moons && sea && maps)
+                                    continue;
+
+                                const std::size_t first = kernels.size();
+                                for (std::size_t stage = 0; stage < sStageCount; ++stage)
+                                    if (static_cast<Kernel>(stage) != Kernel::Media || hasMedia(tuple))
+                                        kernels.push_back(
+                                            Wanted{ .mKernel = static_cast<Kernel>(stage), .mVariant = tuple });
+                                if (!tuple.mMaps)
+                                    kernels.push_back(Wanted{ .mKernel = Kernel::Scatter, .mVariant = tuple });
+                                runs.push_back(TupleRun{ .mTuple = tuple.index(),
+                                    .mItems = static_cast<std::uint32_t>(kernels.size() - first) });
+                            }
+                TupleQueue queue(runs, VisibilityVariant::sCount);
+
+                // Each turn claims one kernel and every kernel is one turn's, so no turn finds none.
                 runInParallel(
-                    "tuple hand", tuples.size(), Hands::Half, stop, [caller] { return AdoptedThread(caller); },
-                    [&](const std::size_t at) {
-                        const VisibilityVariant tuple = tuples[at];
-                        for (std::size_t stage = 0; stage < sStageCount; ++stage)
-                            if (static_cast<Kernel>(stage) != Kernel::Media || hasMedia(tuple))
-                                compile(
-                                    Wanted{ .mKernel = static_cast<Kernel>(stage), .mVariant = tuple }, textureLayout);
-                        if (!tuple.mMaps)
-                            compile(Wanted{ .mKernel = Kernel::Scatter, .mVariant = tuple }, textureLayout);
-                        mMade[tuple.index()].store(true, std::memory_order_release);
-                        job.advance();
+                    "tuple hand", queue.getItemCount(), Hands::Half, stop, [caller] { return AdoptedThread(caller); },
+                    [&](std::size_t) {
+                        const Wanted& wanted = kernels[queue.claim(mWanted.load(std::memory_order_relaxed))];
+                        compile(wanted, textureLayout);
+                        if (queue.land(wanted.mVariant.index()))
+                        {
+                            mMade[wanted.mVariant.index()].store(true, std::memory_order_release);
+                            job.advance();
+                        }
                     });
 
                 if (stop.stopRequested())
@@ -469,7 +486,11 @@ namespace Rtx
     {
         const VisibilityVariant wanted
             = VisibilityVariant::resolve(constants, inputs.mSubject.mSea, inputs.mSubject.mMapped);
-        return isMade(wanted) ? wanted : VisibilityVariant{};
+        if (isMade(wanted))
+            return wanted;
+
+        mWanted.store(wanted.index(), std::memory_order_relaxed);
+        return VisibilityVariant{};
     }
 
     ChannelWrites VisibilityPass::writesOf(const VisibilityVariant run, const bool puffs)

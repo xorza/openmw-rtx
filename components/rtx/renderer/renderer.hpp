@@ -180,6 +180,16 @@ namespace Rtx
         /// opened without it, and still name the work a lost device was on (`Device::checkpoint`):
         /// what goes is the timestamps and the read of them.
         bool mTiming = true;
+
+        /// Whether a frame may ask for its picture and its digest back (`FrameOptions::mReadBack`).
+        /// The digest's pass and a buffer a frame in flight are made at the start where it may, and
+        /// not where it may not. On by default, for the reason `mCounting` is; the game clears it.
+        bool mReadingBack = true;
+
+        /// Whether every pipeline is made to say what the driver's compiler made of it, which a
+        /// report logs and nothing in a played session reads. On by default, for the reason
+        /// `mCounting` is; the game clears it.
+        bool mPipelineStatistics = true;
     };
 
     /// What a backend holds in one of its slots, as it says so itself. A slot and a scene are one
@@ -524,6 +534,12 @@ namespace Rtx
 
         virtual void dropViewScene(SceneSlot slot) = 0;
 
+        /// Room for pictures inside the interface up to `width` by `height`, asked as each view that
+        /// will trace one is made: kept for the session and counted with the frame's targets, so no
+        /// picture's first trace takes memory on its frame, over a budget the textures filled. Grown
+        /// where a view is larger than what was asked before, and never shrunk.
+        virtual void reservePicture(std::uint32_t width, std::uint32_t height) = 0;
+
         /// Traces the scene from `camera` into a GUI texture rather than into the frame: a map
         /// tile, the inventory doll. Not the frame's chain — nothing upscales or averages and the
         /// exposure is one, because a still has no previous frame. Recorded and not run: the picture
@@ -623,6 +639,12 @@ namespace Rtx
         /// is remade by the next `showIn`, which the host calls every frame; no answer comes back
         /// here, because the renderer keeps that fact itself. No window is an assert.
         virtual void presentFrame() = 0;
+
+        /// Waits until what was presented stands no more than two frames ahead of the screen, where
+        /// the presents meet the refresh and the device can say when one is shown; returns at once
+        /// otherwise, and on a renderer with no window. Asked before a frame's input, so what the
+        /// player does reaches the screen two refreshes later and not as many as the queue holds.
+        virtual void awaitPresented() = 0;
 
         /// Multi-line report: the device and what it can trace with.
         virtual std::string describeDevice() const = 0;

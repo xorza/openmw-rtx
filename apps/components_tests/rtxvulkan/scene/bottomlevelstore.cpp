@@ -56,11 +56,13 @@ namespace Rtx
         {
             SceneDesc mScene;
             SlotBlocks mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            BlockedBuffer mPositions{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
             bool mOpened = false;
 
-            /// Puts the scene's index runs on the device, which is what a build reads through. Again
-            /// after meshes are added, which writes every run once more.
+            /// Puts the scene's static positions and index runs on the device, as `SceneBuffers` and
+            /// `SceneAcceleration` do, which is what a build reads through. Again after meshes are
+            /// added, which writes every run once more.
             void stage()
             {
                 const Device& device = getDevice();
@@ -69,14 +71,21 @@ namespace Rtx
                 if (!mOpened)
                 {
                     mPoses.open(device, 1, sBuildInputUsage, "poses");
+                    mPositions.open(device, sBuildInputUsage, "positions");
                     mIndices.open(device, sBuildInputUsage, "indices");
                     mOpened = true;
                 }
 
                 Batch setup(getPool());
+                mPositions.reserve(setup, static_cast<std::uint32_t>(tables.meshes().getPositions().size()));
                 mIndices.reserve(setup, static_cast<std::uint32_t>(tables.meshes().getIndices().size()));
                 for (const MeshRange& range : tables.meshes().getRows())
+                {
+                    if (!range.deforms())
+                        mPositions.writeAt(
+                            setup, range.mVertices.mOffset, range.mVertices.in(tables.meshes().getPositions()));
                     mIndices.writeAt(setup, range.mIndices.mOffset, range.mIndices.in(tables.meshes().getIndices()));
+                }
                 orderStagedWrites(setup);
                 setup.flush();
 
@@ -88,7 +97,7 @@ namespace Rtx
             {
                 Batch batch(getPool());
                 std::vector<Refusal> refused;
-                store.build(batch, mScene, meshes, mPoses.at(FrameSlot{}), mIndices, 0, refused);
+                store.build(batch, mScene, meshes, mPoses.at(FrameSlot{}), mPositions, mIndices, 0, refused);
                 EXPECT_TRUE(refused.empty()) << "a device with room refused a structure";
                 batch.flush();
             }
@@ -98,7 +107,7 @@ namespace Rtx
             {
                 Batch batch(getPool());
                 std::vector<Refusal> refused;
-                store.build(batch, mScene, meshes, mPoses.at(FrameSlot{}), mIndices, 0, refused);
+                store.build(batch, mScene, meshes, mPoses.at(FrameSlot{}), mPositions, mIndices, 0, refused);
                 EXPECT_TRUE(refused.empty()) << "a device with room refused a structure";
                 batch.defer();
             }
@@ -250,8 +259,8 @@ namespace Rtx
             {
                 const Testing::NoRoomForContent full(getDevice());
                 Batch batch(getPool());
-                store.build(
-                    batch, mScene, std::span(grids).subspan(1, 1), mPoses.at(FrameSlot{}), mIndices, 0, refused);
+                store.build(batch, mScene, std::span(grids).subspan(1, 1), mPoses.at(FrameSlot{}), mPositions, mIndices,
+                    0, refused);
                 batch.flush();
             }
 

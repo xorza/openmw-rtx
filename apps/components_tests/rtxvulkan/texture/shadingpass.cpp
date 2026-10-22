@@ -39,8 +39,12 @@ namespace Rtx
                 Device& device = getDevice();
                 const TexturePasses passes(device);
 
-                const Image map(device, Shaders::SHADING_EXTENT, Shaders::SHADING_EXTENT, VK_FORMAT_R16_UNORM,
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                const Image map(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = Shaders::SHADING_EXTENT,
+                        .mHeight = Shaders::SHADING_EXTENT,
+                        .mFormat = VK_FORMAT_R16_UNORM,
+                        .mUsage
+                        = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT },
                     "shading test map");
 
                 Batch upload(getPool());

@@ -39,7 +39,7 @@ namespace Rtx
         const VkComputePipelineCreateInfo pipeline{
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
             .pNext = creation.chain(nullptr),
-            .flags = PipelineCreation::sFlags,
+            .flags = device.getPipelineFlags(),
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .pNext = lanes == SubgroupSize::ThirtyTwo ? &thirtyTwo : moduleChain,

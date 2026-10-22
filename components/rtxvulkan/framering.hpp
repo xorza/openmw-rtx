@@ -41,7 +41,8 @@ namespace Rtx
     struct FrameRecord
     {
         /// @param timing whether its zones write timestamps — `RendererOptions::mTiming`.
-        FrameRecord(const Device& device, bool timing);
+        /// @param readingBack whether it may carry a digest — `RendererOptions::mReadingBack`.
+        FrameRecord(const Device& device, bool timing, bool readingBack);
 
         /// The placements' commands and the trace's, submitted apart because a picture inside
         /// the interface is traced between the two. Only the trace's value is waited on: it is
@@ -110,7 +111,9 @@ namespace Rtx
     {
     public:
         /// @param timing whether a frame's zones write timestamps — `RendererOptions::mTiming`.
-        FrameRing(const Device& device, bool timing);
+        /// @param readingBack whether a frame may digest what it traced, `readDigest`, which the
+        ///        digest's pass is made for — `RendererOptions::mReadingBack`.
+        FrameRing(const Device& device, bool timing, bool readingBack);
 
         FrameRing(const FrameRing&) = delete;
         FrameRing& operator=(const FrameRing&) = delete;
@@ -216,8 +219,9 @@ namespace Rtx
         PerSlot<FrameRecord> mSlots;
         std::array<GrowableBuffer, sFrameSlots + 1> mPictures;
 
-        /// What folds a frame's images into its digest, on the frames that ask.
-        DigestPass mDigest;
+        /// What folds a frame's images into its digest, on the frames that ask; none in a ring that
+        /// reads nothing back.
+        std::optional<DigestPass> mDigest;
 
         /// The next frame to record and the next to finish. Everything from `mFinished` to `mFrame`
         /// is in flight, and there are never more of those than there are slots.

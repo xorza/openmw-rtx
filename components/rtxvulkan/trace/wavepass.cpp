@@ -91,10 +91,20 @@ namespace Rtx
             tile.mField = Buffer::deviceLocal(mDevice, fieldOf(sWaveTiles[index].mGrid) * 2 * sizeof(float),
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, tileName("field", index));
 
-            tile.mSurface = Image(
-                mDevice, grid, grid, toVulkanFormat(WAVE_TILE_FORMAT), usage, tileName("surface", index), levels);
-            tile.mCurvature = Image(
-                mDevice, grid, grid, toVulkanFormat(WAVE_TILE_FORMAT), usage, tileName("curvature", index), levels);
+            tile.mSurface = Image(MemoryUse::Essential, mDevice,
+                ImageDescription{ .mWidth = grid,
+                    .mHeight = grid,
+                    .mFormat = toVulkanFormat(WAVE_TILE_FORMAT),
+                    .mUsage = usage,
+                    .mMipLevels = levels },
+                tileName("surface", index));
+            tile.mCurvature = Image(MemoryUse::Essential, mDevice,
+                ImageDescription{ .mWidth = grid,
+                    .mHeight = grid,
+                    .mFormat = toVulkanFormat(WAVE_TILE_FORMAT),
+                    .mUsage = usage,
+                    .mMipLevels = levels },
+                tileName("curvature", index));
         }
 
         describe(mSea);

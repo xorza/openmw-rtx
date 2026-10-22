@@ -67,12 +67,20 @@ namespace Rtx
                 Buffer source = Buffer::hostWritten(
                     device, values.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "half store values");
                 source.write(values);
-                const Image stored(device, count, 1, toVulkanFormat(STORAGE_RGBA16F),
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "half store");
+                const Image stored(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = count,
+                        .mHeight = 1,
+                        .mFormat = toVulkanFormat(STORAGE_RGBA16F),
+                        .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT },
+                    "half store");
                 const Buffer packed = Buffer::readBack(
                     device, count * sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "half store packed");
-                const Image bytes(device, count, 1, toVulkanFormat(STORAGE_RGBA8),
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "half store bytes");
+                const Image bytes(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = count,
+                        .mHeight = 1,
+                        .mFormat = toVulkanFormat(STORAGE_RGBA8),
+                        .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT },
+                    "half store bytes");
                 const Buffer nearest = Buffer::readBack(
                     device, values.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "half store nearest");
 
@@ -274,8 +282,12 @@ namespace Rtx
                 device, bindings, {}, "halfmean.comp.spv", "half mean");
 
             const auto meanOf = [&](bool rounded) {
-                const Image history(device, count, 1, toVulkanFormat(STORAGE_RGBA16F),
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                const Image history(MemoryUse::Essential, device,
+                    ImageDescription{ .mWidth = count,
+                        .mHeight = 1,
+                        .mFormat = toVulkanFormat(STORAGE_RGBA16F),
+                        .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT },
                     "half mean");
                 DescriptorWrites writes(pipeline);
                 writes.image(Shaders::HALF_MEAN_BIND_HISTORY, history.describeStorage());

@@ -273,9 +273,16 @@ namespace Rtx
             large.mData.mCompleteChain = true;
             ASSERT_TRUE(large.mData.encodesChain());
 
+            // The upload alone is the file's own, and the loose chain and the blocks the arrival's,
+            // priced once for it: a chain of 1024 to one texel at four bytes a texel, 5,592,404, and
+            // its BC7, a byte a texel, 1,398,128.
             const TextureCost cost = priceFile(large.mData, 0);
             EXPECT_EQ(cost.mImage, 1398128u);
-            EXPECT_EQ(cost.mTransient, VkDeviceSize{ 1024 } * 1024 * 4 + 5592404 + 1398128);
+            EXPECT_EQ(cost.mTransient, VkDeviceSize{ 1024 } * 1024 * 4);
+            const EncodeCost encode = priceEncode(large.mData, 0);
+            EXPECT_EQ(encode.mLoose, 5592404u);
+            EXPECT_EQ(encode.mBlocks, 1398128u);
+            EXPECT_EQ(priceEncode(vanilla.mData, 0).mLoose, 0u) << "a file that is not encoded priced a canvas";
 
             std::vector<Refusal> refused;
             {

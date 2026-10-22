@@ -113,6 +113,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/buffermarkers.cpp
     rtxvulkan/device/instance.cpp
     rtxvulkan/device/memory/formats.cpp
+    rtxvulkan/device/memory/imagearena.cpp
     rtxvulkan/device/memory/memorypriority.cpp
     rtxvulkan/device/memory/memorytypes.cpp
     rtxvulkan/device/physicaldevice.cpp
@@ -132,6 +133,7 @@ set(RTX_TEST_FILES
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
     rtxvulkan/trace/denoise/temporalturns.cpp
+    rtxvulkan/trace/tuplequeue.cpp
     rtxvulkan/upscale/fsrframe.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp
@@ -187,6 +189,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/gputimer.cpp
     rtxvulkan/device/memory/barriers.cpp
     rtxvulkan/device/memory/buffer.cpp
+    rtxvulkan/device/memory/imagearenadevice.cpp
     rtxvulkan/device/memory/memory.cpp
     rtxvulkan/device/memory/slottable.cpp
     rtxvulkan/device/memory/structurestorage.cpp

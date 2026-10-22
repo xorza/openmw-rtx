@@ -27,7 +27,7 @@ namespace Rtx
         /// Formats and Vulkan Formats" table, one row per qualifier `storageformat.h` spells.
         TEST(RtxFormatsTest, aStorageFormatIsTheOneTheSpecificationPairsItsQualifierWith)
         {
-            constexpr std::array<std::pair<StorageFormat, VkFormat>, 14> sTable{ {
+            constexpr std::array<std::pair<StorageFormat, VkFormat>, 15> sTable{ {
                 { StorageFormat::Rgba8, VK_FORMAT_R8G8B8A8_UNORM },
                 { StorageFormat::R8, VK_FORMAT_R8_UNORM },
                 { StorageFormat::Rg8, VK_FORMAT_R8G8_UNORM },
@@ -42,6 +42,7 @@ namespace Rtx
                 { StorageFormat::Rgba16f, VK_FORMAT_R16G16B16A16_SFLOAT },
                 { StorageFormat::Rgba32f, VK_FORMAT_R32G32B32A32_SFLOAT },
                 { StorageFormat::Rgba32ui, VK_FORMAT_R32G32B32A32_UINT },
+                { StorageFormat::R8ui, VK_FORMAT_R8_UINT },
             } };
 
             for (const auto& [format, expected] : sTable)
@@ -103,8 +104,9 @@ namespace Rtx
                 std::uint32_t mBytes;
                 TexelDecode mDecode;
             };
-            constexpr std::array<Row, 16> sTable{ {
+            constexpr std::array<Row, 17> sTable{ {
                 { VK_FORMAT_R8_UNORM, 1, TexelDecode::Unorm8 },
+                { VK_FORMAT_R8_UINT, 1, TexelDecode::Bytes },
                 { VK_FORMAT_R8G8_UNORM, 2, TexelDecode::Unorm8 },
                 { VK_FORMAT_R16_UNORM, 2, TexelDecode::Bytes },
                 { VK_FORMAT_R16_SFLOAT, 2, TexelDecode::Half },
@@ -134,7 +136,7 @@ namespace Rtx
             for (const StorageFormat format : { StorageFormat::Rgba8, StorageFormat::R8, StorageFormat::Rg8,
                      StorageFormat::R16, StorageFormat::R16f, StorageFormat::R32f, StorageFormat::R32ui,
                      StorageFormat::Rg16f, StorageFormat::Rg32f, StorageFormat::Rg32ui, StorageFormat::Rgba16,
-                     StorageFormat::Rgba16f, StorageFormat::Rgba32f, StorageFormat::Rgba32ui })
+                     StorageFormat::Rgba16f, StorageFormat::Rgba32f, StorageFormat::Rgba32ui, StorageFormat::R8ui })
                 EXPECT_EQ(formatInfoOf(toVulkanFormat(format)).mTexelBytes, texelBytes(format))
                     << static_cast<int>(format);
 

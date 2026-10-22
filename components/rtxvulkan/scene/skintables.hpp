@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <span>
-#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
@@ -10,6 +9,7 @@
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 
@@ -22,18 +22,23 @@ namespace Rtx
     /// and the poses a frame writes. The bind poses live here and not in the shared vertex
     /// blocks, because those blocks are the pose's destination and what it reads from has to be
     /// somewhere the frame never writes — a table of the deforming meshes alone, indexed by
-    /// `MeshRange::mBindOffset`. Plain buffers grown by doubling, because the kernel is handed each
-    /// run's address in its push constants and a growth is an arrival, which buries the table it
-    /// displaced. Device memory, written on the queue and by nothing else. The poses are per
-    /// frame in flight and host-written, because `SkinPass::record` writes and reads them in one
-    /// placement, and never rewritten on growth — one table for both kinds, in the words
-    /// `Rtx::PoseWord` lays either in.
+    /// `MeshRange::mBindOffset`. Plain buffers made at the scene's room and grown by doubling past
+    /// it, because the kernel is handed each run's address in its push constants; a growth copies
+    /// the table on the queue and buries the one it displaced, so an arrival stages only itself.
+    /// Device memory, written on the queue and by nothing else. The poses are per frame in flight
+    /// and host-written, because `SkinPass::record` writes and reads them in one placement, and
+    /// never rewritten on growth — one table for both kinds, in the words `Rtx::PoseWord` lays
+    /// either in.
     class SkinTables
     {
     public:
         /// @param batch what the first arrival rides, which is every deforming mesh the scene holds.
+        /// @param everyMesh every mesh slot the scene holds, `DeviceScene::mEveryMesh`.
         /// @param slots how many frames may be posing this scene at once.
-        SkinTables(const Device& device, Batch& batch, const SceneDesc& scene, std::uint32_t slots);
+        /// @param room the bind vertices, runs, influences, offsets and pose words every table is
+        ///        made with room for.
+        SkinTables(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
+            std::uint32_t slots, const SceneRoom& room);
 
         /// Takes in what the scene says arrived: the bind poses of the deforming meshes, the
         /// deformers, and the arrived meshes' poses into the first copy, which is the one an
@@ -73,25 +78,16 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
-        /// Which of the three source tables a growth made again, and so which runs of every
-        /// deformer have to be staged whether or not the deformer arrived.
-        struct Moved
-        {
-            bool mRuns = false;
-            bool mInfluences = false;
-            bool mOffsets = false;
-        };
+        /// How far the scene's runs reach, in the room's elements.
+        static SceneRoom reachOf(const DeformerTable& deformers);
 
-        /// Writes the bind poses of `meshes` — or of every deforming mesh, where a table was made
-        /// again.
-        void writeBind(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes, bool whole);
+        /// Grows each table to `reach`, the source tables keeping what they hold.
+        void grow(Batch& batch, const SceneRoom& reach);
 
-        /// Stages the runs of the deformers that arrived, and of every deformer where its table
-        /// was made again: each of a row's runs where its table moved or the row arrived.
-        void writeDeformers(Batch& batch, const SceneDesc& scene, std::span<const Index> arrived, Moved moved);
-
-        /// Stages the poses of `meshes` into the first copy.
-        void writePoses(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes);
+        /// Stages the bind poses of `meshes`, the runs of `deformers`, and the poses of `posed` into
+        /// the first copy. Nothing is ordered here.
+        void write(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes,
+            std::span<const Index> deformers, std::span<const Index> posed);
 
         GrowableBuffer mBindPositions;
         GrowableBuffer mBindNormals;
@@ -101,9 +97,5 @@ namespace Rtx
         GrowableBuffer mMorphOffsets;
 
         PerSlot<GrowableBuffer> mPoses;
-
-        /// Every mesh or deformer, for a table written whole. Kept so a growth allocates nothing
-        /// of its own.
-        std::vector<Index> mEvery;
     };
 }

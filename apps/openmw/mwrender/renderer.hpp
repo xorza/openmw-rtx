@@ -432,6 +432,11 @@ namespace MWRender
 
         virtual void setVSync(SDLUtil::VSyncMode mode) = 0;
 
+        /// Waits until what was presented stands no deeper ahead of the screen than the renderer
+        /// holds it to, before a frame's input (`awaitFrame`). Nothing where the renderer leaves the
+        /// queue to its window system, as the rasterizer leaves it to OSG's.
+        virtual void awaitPresented() {}
+
         /// What this renderer honours, and why it declines the rest. Asked wherever the game would
         /// otherwise branch on which renderer it has: the settings window, the console, Lua.
         virtual const RenderSupport& support() const = 0;

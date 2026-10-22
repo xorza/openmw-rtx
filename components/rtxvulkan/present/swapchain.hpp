@@ -76,6 +76,14 @@ namespace Rtx
         ///        told whether this present owes it, or null where the device offers no such fence.
         Presented present(VkSemaphore finished, std::uint32_t index, PresentFence* presented);
 
+        /// Waits until the present two before the next frame's is on the screen, where the device
+        /// offers the wait and the images meet the refresh: DXVK's maximum frame latency of two,
+        /// asked before the frame's input. **Under FIFO nothing else bounds the presents queued**,
+        /// the swapchain's images and the frames in flight together, and each one queued is a frame
+        /// of the player's input the screen shows late. A present the screen never shows — a window
+        /// the compositor hid — is waited a tenth of a second once, and not again.
+        void awaitLatency();
+
         /// Rebuilds at a new size, and answers false where the surface is lost and nothing stands.
         /// The caller must have waited for every frame still in flight.
         [[nodiscard]] bool recreate(VkExtent2D extent);
@@ -128,5 +136,10 @@ namespace Rtx
         SDLUtil::VSyncMode mVerticalSync;
         VkExtent2D mExtent{};
         std::vector<VkImage> mImages;
+
+        /// The id of the last present this handle took, and of the last `awaitLatency` waited for:
+        /// a handle's own, so both start again with it.
+        std::uint64_t mPresents = 0;
+        std::uint64_t mAwaited = 0;
     };
 }

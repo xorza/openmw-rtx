@@ -1,8 +1,10 @@
 #include "denoisehistory.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -16,6 +18,7 @@
 #include <components/rtxvulkan/shaders/shared/pane.h>
 #include <components/rtxvulkan/shaders/shared/shadow.h>
 #include <components/rtxvulkan/shaders/shared/specular.h>
+#include <components/rtxvulkan/trace/framestep.hpp>
 
 namespace Rtx
 {
@@ -159,6 +162,8 @@ namespace Rtx
                 Temporal::Pane },
             { DenoiseImage::PaneFastBlended, "pane-fast-blended", HISTORY_CLAMP_FAST, Role::InLoop, false, Grid::Pixels,
                 sStorage, Temporal::Pane },
+            { DenoiseImage::HistoryMatch, "history-match", ACCUMULATE_MATCH, Role::Scratch, false, Grid::Pixels,
+                sStorage, Temporal::Accumulate },
         } };
 
         constexpr bool inOrder()
@@ -221,6 +226,26 @@ namespace Rtx
 
         static_assert(shadowRowsAreTheirFields(), "a shadow field takes an image whose freshness is another's");
 
+        /// Whether the arena holds `declared`: what no frame reads after the one that wrote it, and
+        /// no pair is.
+        constexpr bool isScratch(const Declared& declared)
+        {
+            return !declared.mPair && (declared.mRole == Role::InLoop || declared.mRole == Role::Scratch);
+        }
+
+        /// Each image's place among the scratch, in the table's order, or none for an image of its own.
+        constexpr std::array<std::optional<std::size_t>, sDenoiseImages> sScratchAt = [] {
+            std::array<std::optional<std::size_t>, sDenoiseImages> at{};
+            std::size_t next = 0;
+            for (const Declared& declared : sDeclared)
+                if (isScratch(declared))
+                    at[static_cast<std::size_t>(declared.mImage)] = next++;
+            return at;
+        }();
+
+        constexpr std::size_t sScratchCount = static_cast<std::size_t>(
+            std::ranges::count_if(sDeclared, [](const Declared& d) { return isScratch(d); }));
+
         /// What `declared` is made of for a frame `width` by `height`: its grid's extent and its
         /// format, which `resize` makes and `bytesAt` measures.
         ImageDescription descriptionOf(const Declared& declared, const std::uint32_t width, const std::uint32_t height)
@@ -245,9 +270,8 @@ namespace Rtx
         }
     }
 
-    DenoiseHistory::DenoiseHistory(const Device& device, const MemoryUse use, const TracePast past)
+    DenoiseHistory::DenoiseHistory(const Device& device, const TracePast past)
         : mDevice(device)
-        , mUse(use)
         , mPast(past)
     {
     }
@@ -257,26 +281,57 @@ namespace Rtx
     {
         VkDeviceSize bytes = 0;
         for (const Declared& declared : sDeclared)
-            bytes += Image::bytesFor(device, descriptionOf(declared, width, height))
-                * (declared.mPair && past == TracePast::Kept ? 2 : 1);
+            if (!isScratch(declared))
+                bytes += Image::bytesFor(device, descriptionOf(declared, width, height))
+                    * (declared.mPair && past == TracePast::Kept ? 2 : 1);
         return bytes;
+    }
+
+    void DenoiseHistory::declareScratch(
+        const std::uint32_t width, const std::uint32_t height, std::vector<ArenaImage>& into)
+    {
+        for (const Declared& declared : sDeclared)
+            if (isScratch(declared))
+                into.push_back(ArenaImage{ .mDescription = descriptionOf(declared, width, height),
+                    .mSpan = spanOf(FrameStep::Denoise, FrameStep::Digest),
+                    .mName = declared.mName });
+    }
+
+    std::size_t DenoiseHistory::getScratchCount()
+    {
+        return sScratchCount;
+    }
+
+    void DenoiseHistory::place(const ArenaRun& scratch)
+    {
+        assert(scratch.size() == sScratchCount && "scratch the arena did not place, or placed twice");
+        mScratch = scratch;
+    }
+
+    const ImageUse& DenoiseHistory::firstUseOf(const DenoiseImage image) const
+    {
+        const std::optional<std::size_t> scratch = sScratchAt[static_cast<std::size_t>(image)];
+        return scratch.has_value() ? mScratch.firstUseOf(*scratch) : Use::sUndefined;
     }
 
     void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height)
     {
         for (const Declared& declared : sDeclared)
         {
+            if (isScratch(declared))
+                continue;
+
             const ImageDescription description = descriptionOf(declared, width, height);
             std::array<Image, 2>& images = mImages[static_cast<std::size_t>(declared.mImage)];
             if (!declared.mPair || mPast == TracePast::Dropped)
             {
-                images[0] = Image(mUse, mDevice, description, declared.mName);
+                images[0] = Image(MemoryUse::Frame, mDevice, description, declared.mName);
                 continue;
             }
 
             for (std::size_t half = 0; half < images.size(); ++half)
-                images[half]
-                    = Image(mUse, mDevice, description, std::string(declared.mName) + "-" + std::to_string(half));
+                images[half] = Image(
+                    MemoryUse::Frame, mDevice, description, std::string(declared.mName) + "-" + std::to_string(half));
         }
 
         mTurns = TemporalTurns{};
@@ -298,7 +353,8 @@ namespace Rtx
     const Image& DenoiseHistory::only(const DenoiseImage image) const
     {
         assert(!declaredOf(image).mPair && "one image of a pair");
-        return mImages[static_cast<std::size_t>(image)][0];
+        const std::optional<std::size_t> scratch = sScratchAt[static_cast<std::size_t>(image)];
+        return scratch.has_value() ? mScratch[*scratch] : mImages[static_cast<std::size_t>(image)][0];
     }
 
     TemporalTurns::Step DenoiseHistory::turn(const TemporalFlags& runs, const std::uint32_t frame)
@@ -386,7 +442,7 @@ namespace Rtx
             else if (declared.mPair)
                 now(declared.mImage, step).addTransition(barriers, Use::sUndefined, Use::sComputeReadWrite);
             else if (declared.mRole == Role::Scratch || declared.mRole == Role::InLoop)
-                only(declared.mImage).addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
+                only(declared.mImage).addTransition(barriers, firstUseOf(declared.mImage), Use::sComputeWrite);
             else if (fresh)
                 only(declared.mImage).addTransition(barriers, Use::sUndefined, Use::sComputeRead);
         }
@@ -400,7 +456,7 @@ namespace Rtx
         for (const ShadowRows& rows : sShadowRows)
             if (shadowRuns && !step.mRuns[rows.mFilter])
                 for (const DenoiseImage image : { rows.mHistory, rows.mScratch, rows.mVisibility, rows.mTiles })
-                    only(image).addTransition(barriers, Use::sUndefined, Use::sComputeRead);
+                    only(image).addTransition(barriers, firstUseOf(image), Use::sComputeRead);
 
         barriers.flush();
     }
@@ -418,6 +474,7 @@ namespace Rtx
             .mFillNarrow = only(DenoiseImage::FillNarrow),
             .mFast = only(DenoiseImage::Fast),
             .mFastBlended = only(DenoiseImage::FastBlended),
+            .mMatch = only(DenoiseImage::HistoryMatch),
             .mFresh = step.mFresh[Temporal::Accumulate],
         };
     }
@@ -434,6 +491,7 @@ namespace Rtx
             .mTiles = only(rows.mTiles),
             .mPenumbra = only(rows.mPenumbra),
             .mMask = only(rows.mMask),
+            .mMatch = only(DenoiseImage::HistoryMatch),
             .mField = field,
             .mFresh = step.mFresh[rows.mFilter],
         };

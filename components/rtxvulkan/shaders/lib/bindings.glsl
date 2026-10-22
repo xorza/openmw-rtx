@@ -179,6 +179,10 @@ layout(set = SET_CHANNELS, binding = STAGE_BOUNCE, GBUFFER_STAGE_BOUNCE) uniform
 layout(set = SET_CHANNELS, binding = STAGE_TILES, std430) buffer StageTiles
 {
     uvec4 mDispatches[STAGE_DISPATCHES];
+
+    /// In `x`, how many landings are listed from the end, and in `y`, how many workgroups both runs
+    /// take (`appendLandings`).
+    uvec4 mLandedApart;
     uint mTiles[];
 }
 stageTiles;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/shaders/shared/fields.h>
 
 #include "tracepast.hpp"
@@ -72,23 +74,31 @@ namespace Rtx
     class GBuffer
     {
     public:
+        /// The first stage image's binding, and how many there are: every binding from the channels'
+        /// end to the tile lists.
+        static constexpr std::uint32_t sFirstStage = Shaders::STAGE_RECORD;
+        static constexpr std::size_t sStageImages = Shaders::STAGE_TILES - Shaders::STAGE_RECORD;
+
         /// @param radiance how wide the radiance channels are stored, which is the run's choice
         ///        and `Rtx::RadianceWidth`'s argument.
-        /// @param use what its channels are counted as: the frame's targets, or essential memory
-        ///        where the chain grows while a frame reads the old one.
         /// @param past whether the frame before's surfaces are kept (`getHeld`): a second image of
         ///        each, or the frame's own where the past is dropped.
+        /// @param stages the stage images `declareStages` declared, placed in the chain's arena.
         GBuffer(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height,
-            RadianceWidth radiance, MemoryUse use, TracePast past);
+            RadianceWidth radiance, TracePast past, const ArenaRun& stages);
 
-        /// What a G-buffer of this extent and radiance width takes of the device's memory.
+        /// What a G-buffer of this extent and radiance width takes of the device's memory: its channels
+        /// and its tile lists, all the frame's targets, and not the stage images its arena holds.
         static VkDeviceSize bytesAt(
             const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
 
-        /// What the tile lists of a frame `width` by `height` take of the device's memory
-        /// (`STAGE_TILES`): essential memory and not a frame target, since an indirect dispatch reads
-        /// its arguments out of a buffer, which the frame's targets are never made in.
-        static VkDeviceSize tileBytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
+        /// The stage images of a frame this size, appended to `into` in binding order: in use from the
+        /// trace's first stage to its last, and by no pass after (`FrameStep::Trace`).
+        static void declareStages(std::uint32_t width, std::uint32_t height, std::vector<ArenaImage>& into);
+
+        /// Binds `stages`, the images `declareStages` declared as an arena placed them, in every set:
+        /// for an arena made again, which a drained device lets the sets be written for.
+        void place(const Device& device, const SetLayout& layout, const ArenaRun& stages);
 
         /// The set every `GBuffer` is addressed through, made once and outliving all of them,
         /// because a pipeline layout names every set it will ever be handed, and the trace's
@@ -120,6 +130,10 @@ namespace Rtx
         /// that first leaves it out, and left alone by every trace after that leaves it out too.
         void begin(VkCommandBuffer commands, ChannelWrites writes);
 
+        /// What the trace hands its stages of each pixel (`STAGE_RECORD`), which the pass that
+        /// composes the frame reads for the upscaler's masks.
+        const Image& getStageRecord() const;
+
         /// The tile lists the trace appends to (`STAGE_TILES`), whose head is the media stage's
         /// indirect dispatch.
         const Buffer& getStageTiles() const { return mStageTiles; }
@@ -145,19 +159,12 @@ namespace Rtx
         /// dropped.
         std::array<Image, 2> mOthers;
 
-        /// What the trace hands its later stages (`STAGE_RECORD`, `STAGE_THROUGHPUT`, `STAGE_LIFT`,
-        /// `STAGE_HIT`, `STAGE_RAY_FROM`, `STAGE_RAY_ALONG`, `STAGE_BOUNCE`), bound after the
-        /// channels at the stored width, as the trace writes them.
-        Image mStageRecord;
-        Image mStageThroughput;
-        Image mStageLift;
-        Image mStageHit;
-        Image mStageRayFrom;
-        Image mStageRayAlong;
-        Image mStageBounce;
+        /// What the trace hands its later stages, at `STAGE_*` less `sFirstStage`: bound after the
+        /// channels at the stored width, as the trace writes them. The chain's arena holds them.
+        ArenaRun mStages;
 
-        /// The tile lists (`STAGE_TILES`), one copy, as the stage images are: every stage of a frame
-        /// runs before the next frame's trace.
+        /// The tile lists (`STAGE_TILES`), one copy and counted as the stage images are: every stage
+        /// of a frame runs before the next frame's trace.
         Buffer mStageTiles;
 
         /// Which of a held channel's two images this frame writes, `mChannels`' or `mOthers`', and

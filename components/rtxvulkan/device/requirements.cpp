@@ -51,6 +51,8 @@ namespace Rtx
         constexpr std::array sMemoryPriority{ VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME };
         constexpr std::array sPageableMemory{ VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME };
         constexpr std::array sPresentFences{ VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME };
+        constexpr std::array sPresentIds{ VK_KHR_PRESENT_ID_EXTENSION_NAME };
+        constexpr std::array sPresentWait{ VK_KHR_PRESENT_WAIT_EXTENSION_NAME };
         constexpr std::array sCheckpoints{ VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME };
         constexpr std::array sBufferMarkers{ VK_AMD_BUFFER_MARKER_EXTENSION_NAME };
 
@@ -61,6 +63,10 @@ namespace Rtx
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME,
         };
+
+        /// What the registry says a present's id rests on, and a wait for one beside it.
+        constexpr std::array sSwapchain{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        constexpr std::array sIdentifiedSwapchain{ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_PRESENT_ID_EXTENSION_NAME };
 
         template <class T>
         VkBaseOutStructure& asBase(T& structure)
@@ -86,6 +92,17 @@ namespace Rtx
             = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentFences); },
             .mField
             = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentFences.swapchainMaintenance1; },
+        };
+
+        constexpr OptionalFeature sPresentIdsFeature{
+            .mStructure
+            = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentIds); },
+            .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentIds.presentId; },
+        };
+        constexpr OptionalFeature sPresentWaitFeature{
+            .mStructure
+            = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentWait); },
+            .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentWait.presentWait; },
         };
 
         constexpr std::array sOptionalExtensions{
@@ -122,6 +139,18 @@ namespace Rtx
                 .mExtensions = sPresentFences,
                 .mNeeds = sMaintainedSwapchain,
                 .mFeature = &sPresentFencesFeature },
+            // An id on each present, which is what a wait for one names. Read only for the wait.
+            OptionalExtensions{ .mOption = DeviceOption::PresentIds,
+                .mExtensions = sPresentIds,
+                .mNeeds = sSwapchain,
+                .mFeature = &sPresentIdsFeature },
+            // A wait until a present is on the screen, which is what holds a frame's input under
+            // FIFO to two frames behind what is shown, as DXVK's maximum frame latency does
+            // (`Swapchain::awaitLatency`). Without it, nothing bounds the presents queued.
+            OptionalExtensions{ .mOption = DeviceOption::PresentWait,
+                .mExtensions = sPresentWait,
+                .mNeeds = sIdentifiedSwapchain,
+                .mFeature = &sPresentWaitFeature },
             // A marker the queue remembers passing, so a device loss names the last zone each
             // stage reached rather than an address: `GpuTimer::open` sets one per zone in a build
             // that names things, and `Device::describeFault` reads them back.
@@ -312,6 +341,8 @@ namespace Rtx
         mPriority.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT;
         mPageable.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT;
         mPresentFences.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR;
+        mPresentIds.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
+        mPresentWait.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
     }
 
     DeviceProperties::DeviceProperties()

@@ -31,6 +31,7 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/display/displaychain.hpp>
 #include <components/rtxvulkan/gui/guidrawer.hpp>
 #include <components/rtxvulkan/present/presenttarget.hpp>
@@ -97,8 +98,10 @@ namespace Rtx
         std::optional<FrameResult> finishFrame() override;
         std::optional<FrameResult> collectFrame() override;
         void presentFrame() override;
+        void awaitPresented() override;
 
         SceneSlot addViewScene() override;
+        void reservePicture(std::uint32_t width, std::uint32_t height) override;
         void dropViewScene(SceneSlot scene) override;
 
         GuiSlot addGuiTexture(std::uint32_t width, std::uint32_t height) override;
@@ -118,6 +121,9 @@ namespace Rtx
         /// The device the renderer made, for a test that holds its memory to a budget of its own.
         const Device& getDevice() const { return mDevice; }
 
+        // Read by the tests and by nothing else.
+        VkExtent2D getPictureRoom() const { return mPictureRoom; }
+
         /// The passes every trace runs, for a test that stands a chain up beside the frame's on
         /// pipelines already made.
         const TracePasses& getTracePasses() const { return mTracePasses; }
@@ -136,8 +142,13 @@ namespace Rtx
         void readChannel(Channel channel, std::vector<float>& values);
 
         /// The same for the composite's own output, which no channel holds: the frame a measurement
-        /// is taken on, where `readPixels` gives the one a display would show.
+        /// is taken on, where `readPixels` gives the one a display would show. The trace's answer,
+        /// whatever upscales it, and so without the puffs the display lays over it.
         void readComposite(std::vector<float>& values);
+
+        /// The frame the curve last mapped, in linear radiance: the composite with the puffs over it,
+        /// for a frame nothing upscales.
+        void readShownRadiance(std::vector<float>& values);
 
         /// What a present would show, the interface over the picture, four bytes a pixel, tightly
         /// packed: where `readPixels` gives the picture alone.
@@ -276,6 +287,19 @@ namespace Rtx
 
         /// After the media, the display and the interface, which it holds by reference.
         PictureTracer mPictures;
+
+        /// What `mFrame` and `mUpscaler` use inside one stretch of a frame, laid over each other
+        /// (`ImageArena`), and the declarations it was made of: made again only where they move.
+        ImageArena mArena;
+        std::vector<ArenaImage> mArenaDeclared;
+
+        /// What the display handed back of the last frame, which `readShownRadiance` reads: the
+        /// composed frame, or the canvas the puffs went over.
+        const Image* mShownRadiance = nullptr;
+
+        /// The room `reservePicture` was asked for, the largest of every side asked, which
+        /// `createTargets` makes the pictures' chain at. Nought until a view asks.
+        VkExtent2D mPictureRoom{ 0, 0 };
 
         /// Null where nothing asked for a window. After `mTarget`, so it is destroyed before it:
         /// its command buffers blit out of the image, and its destructor waits for the device to
