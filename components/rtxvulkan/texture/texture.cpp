@@ -118,7 +118,7 @@ namespace Rtx
         /// The layout every array declares, sized to the maximum and not to the scene, because a
         /// pipeline outlives a cell and two set layouts are compatible only where they are
         /// identically defined. The maximum is paid once: a combined image sampler is 4 B on NVIDIA
-        /// and 96 B in RADV, so a set's three arrays are 0.2 MB and 4.7 MB of pool.
+        /// and 96 B in RADV, so a set's three arrays are 0.1 MB and 2.4 MB of pool.
         constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 Shaders::TEXTURE_SLOTS, sStages, nullptr },
