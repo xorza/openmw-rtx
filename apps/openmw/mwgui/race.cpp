@@ -1,12 +1,13 @@
 #include "race.hpp"
 
 #include <MyGUI_Gui.h>
+#include <MyGUI_ITexture.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ListBox.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_UString.h>
 
-#include <osg/Texture2D>
+#include <osg/Math>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadbody.hpp>
@@ -15,7 +16,9 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
+#include "../mwbase/world.hpp"
 #include "../mwrender/characterpreview.hpp"
+#include "../mwrender/renderingmanager.hpp"
 #include "../mwworld/esmstore.hpp"
 
 #include "tooltips.hpp"
@@ -32,10 +35,8 @@ namespace
 namespace MWGui
 {
 
-    RaceDialog::RaceDialog(MWRender::Renderer& renderer, Resource::ResourceSystem* resourceSystem)
+    RaceDialog::RaceDialog()
         : WindowModal("openmw_chargen_race.layout")
-        , mRenderer(renderer)
-        , mResourceSystem(resourceSystem)
         , mGenderIndex(0)
         , mFaceIndex(0)
         , mHairIndex(0)
@@ -120,6 +121,8 @@ namespace MWGui
         updateSpellPowers();
     }
 
+    RaceDialog::~RaceDialog() = default;
+
     void RaceDialog::setNextButtonShow(bool shown)
     {
         MyGUI::Button* okButton;
@@ -154,7 +157,7 @@ namespace MWGui
 
         mPreview.reset(nullptr);
 
-        mPreview = std::make_unique<MWRender::RaceSelectionPreview>(mRenderer, mResourceSystem);
+        mPreview = MWBase::Environment::get().getWorld()->getRenderingManager()->createRaceSelectionPreview();
         mPreview->rebuild();
         mPreview->setAngle(mCurrentAngle);
 

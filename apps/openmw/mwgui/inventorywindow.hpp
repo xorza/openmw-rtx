@@ -4,19 +4,17 @@
 #include "mode.hpp"
 #include "windowpinnablebase.hpp"
 
-#include "../mwrender/characterpreview.hpp"
 #include "../mwworld/ptr.hpp"
 
 #include <components/misc/notnullptr.hpp>
 
+#include <osg/Vec2i>
+
+#include <memory>
+
 namespace MWRender
 {
-    class Renderer;
-}
-
-namespace Resource
-{
-    class ResourceSystem;
+    class InventoryPreview;
 }
 
 namespace MWGui
@@ -36,8 +34,8 @@ namespace MWGui
     class InventoryWindow : public WindowPinnableBase
     {
     public:
-        explicit InventoryWindow(DragAndDrop& dragAndDrop, ItemTransfer& itemTransfer, MWRender::Renderer& renderer,
-            Resource::ResourceSystem* resourceSystem);
+        explicit InventoryWindow(DragAndDrop& dragAndDrop, ItemTransfer& itemTransfer);
+        ~InventoryWindow() override;
 
         void onOpen() override;
 
