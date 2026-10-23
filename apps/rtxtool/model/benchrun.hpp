@@ -462,6 +462,9 @@ namespace RtxTool
         /// the compass are the played game's.
         bool mHud = false;
 
+        // Capture the selected spell's first-person effects from a saved game.
+        bool mSpellHands = false;
+
         /// Whether the played game's vanity camera may take over — the orbit round the player
         /// after `fVanityDelay` seconds with nobody at the keys. Off by default: a run is idle by
         /// nature, and a window somebody is reading must not start turning on its own.

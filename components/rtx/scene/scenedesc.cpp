@@ -108,8 +108,8 @@ namespace Rtx
         mLights.push_back(light);
     }
 
-    void SceneDesc::addEmitter(
-        std::span<const Sprite> sprites, Index texture, BlendKind blend, float width, Index lighting, bool falls)
+    void SceneDesc::addEmitter(std::span<const Sprite> sprites, Index texture, BlendKind blend, float width,
+        Index lighting, bool falls, bool firstPerson)
     {
         mTurn.expect(Turn::Open, Turn::Walked);
         if (sprites.empty())
@@ -151,7 +151,7 @@ namespace Rtx
             .mTexture = texture,
             .mFlags = (blend != BlendKind::Over ? Shaders::EMITTER_ADDITIVE : 0u)
                 | (blend == BlendKind::AddWhole ? Shaders::EMITTER_ADD_WHOLE : 0u)
-                | (falls ? Shaders::EMITTER_FALLS : 0u),
+                | (falls ? Shaders::EMITTER_FALLS : 0u) | (firstPerson ? Shaders::EMITTER_FIRST_PERSON : 0u),
             .mWidth = width,
             .mLighting = lighting,
         });

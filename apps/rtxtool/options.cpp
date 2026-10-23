@@ -501,6 +501,8 @@ namespace RtxTool
             "frames pay for its residency as well. Every other command waits out its histories "
             "instead, four of the accumulator's lengths");
 
+        option(sFramed, "spell-hands", bpo::bool_switch(),
+            "ready the saved player's selected spell instead of putting their hands away");
         option(sFramed, "hud", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "draw the game's HUD over the picture: the bars, the compass and the cell's name. Off "
             "unless asked for, and a window's F11 toggles it either way. Off, a command that writes "
@@ -958,6 +960,7 @@ namespace RtxTool
 
         line.mSession = ToolLine::Session{
             .mHud = on("hud"),
+            .mSpellHands = on("spell-hands"),
             .mVanity = on("vanity"),
             .mNightEye = variables["night-eye"].as<int>(),
             .mRandomSeed = variables["random-seed"].as<unsigned int>(),

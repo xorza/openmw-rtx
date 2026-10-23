@@ -348,6 +348,7 @@ namespace RtxTool
             request.mMeasures = policy.mMeasures;
             request.mMaps = framed.mMaps;
             request.mHud = line.mHud;
+            request.mSpellHands = line.mSpellHands;
             request.mSetup.mInterface = request.mPlayed || request.mHud;
             request.mVanity = line.mVanity;
             request.mNightEye = line.mNightEye;

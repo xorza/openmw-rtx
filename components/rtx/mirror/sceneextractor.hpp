@@ -352,6 +352,7 @@ namespace Rtx
         /// `osg::Drawable` over a source geometry — the bind pose — beside the rig that poses it.
         ///
         /// @param glow the effect the drawable stands under, where the walk is inside one.
+        /// @param actorGlow the lamp the flames of the actor the drawable stands under share, or nothing outside one.
         /// @param jumped whether the drawable stands under a node `setJumped` named.
         /// @param lampBody whether the drawable is the model of a light that gives light
         ///        (`MeshInstance::mLampBody`).
@@ -360,8 +361,8 @@ namespace Rtx
         /// Answers whether the placement changes between frames on its own — a particle system,
         /// the sea, a mesh that deforms — which keeps a reference root above it walked.
         bool addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
-            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped, bool lampBody,
-            std::span<osg::Node* const> path);
+            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow,
+            std::optional<std::size_t> actorGlow, bool jumped, bool lampBody, std::span<osg::Node* const> path);
 
         /// The state set a controller wrote over a node this frame, or null where none writes one —
         /// `MaterialResolver::animate`, which says why a node under one needs none. Applied here rather

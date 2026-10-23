@@ -170,6 +170,11 @@ namespace RtxTool
             if (const Misc::Result<void, std::string> armed = arm(world, stop.mStand.mArms); !armed.isOk())
                 return armed;
         }
+        else if (request.mSpellHands)
+        {
+            player.getClass().getCreatureStats(player).setDrawState(MWMechanics::DrawState::Spell);
+            world.renderPlayer();
+        }
         else
             disarm(world);
 

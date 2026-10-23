@@ -361,7 +361,7 @@ SpriteCrossing quadCrossing(GpuSprite sprite, vec3 toSprite, vec3 direction, flo
 /// @param across,upward the disc's own axes, unit and square to the ray, which the disc's texture
 ///        is read along: `spritesAlong` says why they are not the screen's.
 SpriteCrossing ballCrossing(
-    GpuSprite sprite, vec3 toSprite, vec3 direction, float limit, vec3 across, vec3 upward, vec2 texels)
+    GpuSprite sprite, vec3 toSprite, vec3 direction, float limit, vec3 across, vec3 upward, vec2 texels, bool planar)
 {
     const float depth = dot(toSprite, direction);
     const vec3 offset = toSprite - direction * depth;
@@ -370,14 +370,23 @@ SpriteCrossing ballCrossing(
         return noCrossing();
 
     const float lift = sqrt(1.0 - radial2);
+    const vec2 at = -vec2(dot(offset, across), dot(offset, upward)) / sprite.mRadius;
+    const float rate = 0.5 * max(texels.x, texels.y) / sprite.mRadius;
+
+    // A hand effect is an authored billboard. Giving it a sphere's near half lets a
+    // particle centred behind the palm shine through the palm's front surface.
+    if (planar)
+    {
+        if (depth <= 0.0 || depth >= limit)
+            return noCrossing();
+        return SpriteCrossing(true, depth, 1.0, at, sqrt(radial2), lift, rate, vec3(0.0));
+    }
     const float halfChord = sprite.mRadius * lift;
     const float from = max(depth - halfChord, 0.0);
     const float until = min(depth + halfChord, limit);
     if (until <= from)
         return noCrossing();
 
-    const vec2 at = -vec2(dot(offset, across), dot(offset, upward)) / sprite.mRadius;
-    const float rate = 0.5 * max(texels.x, texels.y) / sprite.mRadius;
 
     return SpriteCrossing(
         true, 0.5 * (from + until), (until - from) / (2.0 * halfChord), at, sqrt(radial2), lift, rate, vec3(0.0));
@@ -615,7 +624,9 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
         if (oriented)
             crossing = quadCrossing(sprite, toSprite, direction, limit, width, measured.mTexels);
         else
-            crossing = ballCrossing(sprite, toSprite, direction, limit, across, upward, measured.mTexels);
+            crossing = ballCrossing(sprite, toSprite, direction, limit, across, upward, measured.mTexels,
+                (emitter.mFlags & (EMITTER_FIRST_PERSON | EMITTER_ADDITIVE))
+                    == (EMITTER_FIRST_PERSON | EMITTER_ADDITIVE));
 
         if (!crossing.mFound)
             continue;

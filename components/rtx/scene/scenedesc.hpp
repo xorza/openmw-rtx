@@ -182,8 +182,9 @@ namespace Rtx
         ///        an axis where this is set and none where it is not — `SpriteEmitter::mWidth`.
         /// @param lighting the bake of `texture`'s alpha, or `sNoIndex`. `SpriteEmitter::mLighting`.
         /// @param falls whether the sprites fall from the sky. `SpriteEmitter::mFalls`.
+        /// @param firstPerson whether additive billboards retain their centre depth instead of a puff's volume.
         void addEmitter(std::span<const Sprite> sprites, Index texture, BlendKind blend, float width = 0.0f,
-            Index lighting = sNoIndex, bool falls = false);
+            Index lighting = sNoIndex, bool falls = false, bool firstPerson = false);
 
         /// Empties the per-frame lists a walk rebuilds wholesale: lights, deformed meshes, sprites
         /// and emitters. Placements are not among them: they are reconciled in place through

@@ -294,6 +294,37 @@ namespace Rtx::Testing
             EXPECT_LT(step / mean, 0.028) << "how far a settled pixel of a shaded puff moves between frames";
         }
 
+        // A first-person billboard behind a palm must not acquire a puff volume in front of it.
+        TEST_F(RtxVisibilityTest, aHandSpellBehindAnOpaqueSurfaceDoesNotLeakItsVolumeThroughIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            Shaders::VisibilityConstants camera
+                = Testing::makeCameraAlong(osg::Vec3f(), osg::Vec3f(0, 1, 0), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+            camera.mAmbient = osg::Vec3f();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0, 0, 1), osg::Vec3f());
+
+            const auto seen = [&](bool firstPerson, float depth) {
+                SceneDesc scene;
+                const Index texture = scene.textures().add(VFS::Path::NormalizedView("hand_spell.dds"));
+                const std::array<TextureData, 1> textures{ describeTexel(white) };
+                const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0, depth, 0),
+                    .mRadius = 20.0f,
+                    .mColour = osg::Vec3f(1, 1, 1),
+                    .mAlpha = 1.0f } };
+                scene.addEmitter(sprites, texture, BlendKind::Add, 0.0f, sNoIndex, false, firstPerson);
+                addQuad(scene, uprightQuadAt(200.0f, 90.0f));
+                return shoot(scene, textures, camera, size).at(centreValueOf(size));
+            };
+
+            EXPECT_GT(seen(false, 100.0f), 0.1f) << "a world puff's near half stands before the surface";
+            EXPECT_NEAR(seen(true, 100.0f), 0.0f, 1e-4f) << "the hand billboard is entirely behind it";
+            EXPECT_GT(seen(true, 70.0f), 0.1f) << "a spell billboard in front remains visible";
+        }
+
         /// A puff behind a post's edge, and a cloud's shell, are hidden where the pixel's own ray
         /// meets the post, and not where that frame's sample happened to land.
         ///

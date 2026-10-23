@@ -213,6 +213,9 @@ namespace Rtx
         /// stated anywhere under an effect is the outer one's.
         std::optional<std::size_t> mGlow;
 
+        // Built-in creature flames share a lamp without making the actor's ordinary meshes emissive.
+        std::optional<std::size_t> mActorGlow;
+
         osg::Matrixf mRoot;
         std::size_t mFrame = 0;
 
@@ -297,6 +300,7 @@ namespace Rtx
         // them.
         mClass = InstanceClass::Static;
         mGlow.reset();
+        mActorGlow.reset();
         mJumping = false;
         mLampBody = false;
         mFreezes = freezes;
@@ -380,7 +384,8 @@ namespace Rtx
         }
         else if (auto* source = as<SceneUtil::LightSource>(kind, NodeKind::LightSource, node))
         {
-            mExtractor.addLight(*source, placed(), mStamp->getSimulationTime(), mGlow, mClass);
+            mExtractor.addLight(
+                *source, placed(), mStamp->getSimulationTime(), mGlow.has_value() ? mGlow : mActorGlow, mClass);
             mChangeable = true;
         }
         else if (stepParticles(node, kind))
@@ -415,6 +420,7 @@ namespace Rtx
 
         const InstanceClass outerClass = mClass;
         const std::optional<std::size_t> outerGlow = mGlow;
+        const std::optional<std::size_t> outerActorGlow = mActorGlow;
         const bool outerJumping = mJumping;
         const bool outerLampBody = mLampBody;
         mJumping = jumps(node);
@@ -432,6 +438,9 @@ namespace Rtx
         if (stated.has_value() && mClass != InstanceClass::FirstPerson)
             mClass = *stated;
 
+        if (mClass == InstanceClass::Actor && !mActorGlow.has_value() && !mGlow.has_value())
+            mActorGlow = mExtractor.openGlow(mClass);
+
         // The root of a magic effect, whose sheets and flames light the world as one lamp, on the
         // arms as anywhere. Whatever is stated under it is still inside it.
         if ((mClass == InstanceClass::Effect || stated == InstanceClass::Effect) && !mGlow.has_value())
@@ -443,6 +452,7 @@ namespace Rtx
 
         mClass = outerClass;
         mGlow = outerGlow;
+        mActorGlow = outerActorGlow;
         mJumping = outerJumping;
         mLampBody = outerLampBody;
         mPathHash = above;
@@ -592,7 +602,7 @@ namespace Rtx
             pushOwnShading(own, mExtractor.animate(drawable, placement));
 
         mChangeable |= mExtractor.addDrawable(
-            drawable, placement, mShading, placed(), mClass, mGlow, mJumping, mLampBody, getNodePath());
+            drawable, placement, mShading, placed(), mClass, mGlow, mActorGlow, mJumping, mLampBody, getNodePath());
 
         mShading.resize(held);
     }
@@ -861,8 +871,8 @@ namespace Rtx
 
     bool SceneExtractor::addDrawable(const osg::Drawable& drawable, const std::size_t who,
         const std::span<const Shading> shading, const osg::Matrixf& place, const InstanceClass what,
-        const std::optional<std::size_t> glow, const bool jumped, const bool lampBody,
-        const std::span<osg::Node* const> path)
+        const std::optional<std::size_t> glow, const std::optional<std::size_t> actorGlow, const bool jumped,
+        const bool lampBody, const std::span<osg::Node* const> path)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -872,7 +882,8 @@ namespace Rtx
         const NodeKind kind = mKinds.of(drawable);
         if (const auto* particles = as<const osgParticle::ParticleSystem>(kind, NodeKind::ParticleSystem, drawable))
         {
-            mEmitters.add(*particles, shading, place, glow);
+            mEmitters.add(
+                *particles, shading, place, glow.has_value() ? glow : actorGlow, what == InstanceClass::FirstPerson);
             return true;
         }
 

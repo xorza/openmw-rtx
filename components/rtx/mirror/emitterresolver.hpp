@@ -76,7 +76,7 @@ namespace Rtx
         /// @param glow which effect the system stood under, as an index into what `flush` is
         ///        handed, or nothing for a system outside every effect.
         void add(const osgParticle::ParticleSystem& particles, std::span<const Shading> shading,
-            const osg::Matrixf& place, std::optional<std::size_t> glow);
+            const osg::Matrixf& place, std::optional<std::size_t> glow, bool firstPerson = false);
 
         /// Reads every system noted, now that everything in the graph has been stepped, adding
         /// what each one under an effect radiates to that effect's glow in `glows`.
@@ -161,6 +161,8 @@ namespace Rtx
 
             /// What its sprites are faded by, as a placement there is — `Fade::mPlacement`.
             float mFade = 1.0f;
+
+            bool mFirstPerson = false;
         };
 
         /// Reads what `particles` draws with off its chain into `held`, taking the scene's slots for
