@@ -285,6 +285,10 @@ jobs:
           done
           echo "$(wc -l < "$dir/upstream-commits.txt") upstream commits, $(wc -l < "$dir/conflicts.txt") files to resolve"
 
+          # The tree as the agent finds it, outside the checkout, for the bundle to hold it against.
+          { git diff --binary HEAD; git ls-files -z --others --exclude-standard | xargs -0 -r sha256sum --; } \
+            | sha256sum > "$RUNNER_TEMP/tree-before-agent"
+
       # Pinned to a commit like every other action here. This one ships most days, so the
       # version beside it is what says how old the pin has grown.
       - uses: anthropics/claude-code-action@a26b07d8c778b0c43f64618e5fd29fd0f8af72e8 # v1.0.250
@@ -460,6 +464,13 @@ jobs:
       # decides. `publish` decides what becomes of it. A merge is finished where the agent
       # wrote its report; one it left marked is held for a human there.
       #
+      # **A merge the agent never worked on is not held.** It changed no file and wrote no report,
+      # so the branch would hold git's merge alone, which the next run makes again, and pushed it
+      # would stop every run after it. Run 39928025969 met the plan's weekly limit before its first
+      # turn, and its branch stopped the daily merges for three days. The run fails, so the day
+      # shows, and pushes nothing. The tree is held against itself as the agent found it, and not
+      # against the agent's turns: a merge the agent changed is a human's however it stopped.
+      #
       # **Onto master as it stands now.** GitHub refuses a push by an app where the branch's
       # workflow files differ from master's, and run 37120193891 lost a whole resolution so: master's
       # workflows moved while it merged. A merge of master that conflicts is left out, and the push
@@ -473,6 +484,15 @@ jobs:
           out="$RUNNER_TEMP/upstream-merge"
           mkdir -p "$out"
           dir=.upstream-merge
+
+          # `removed.txt` beside the tree, since a deletion the agent names is a change it made.
+          tree=$({ git diff --binary HEAD; git ls-files -z --others --exclude-standard | xargs -0 -r sha256sum --; } \
+            | sha256sum)
+          if [ ! -s UPSTREAM-MERGE.md ] && [ ! -s "$dir/removed.txt" ] \
+            && [ "$tree" = "$(cat "$RUNNER_TEMP/tree-before-agent")" ]; then
+            echo "::error::the agent changed nothing and wrote no report; nothing is pushed, and the next run merges again"
+            exit 1
+          fi
 
           # A path the agent names is deleted only where git could not merge it: the list is the
           # agent's, written after reading upstream, and a deletion is a resolution and nothing else.
