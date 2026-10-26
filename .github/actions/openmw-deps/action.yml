@@ -21,7 +21,7 @@ runs:
   steps:
     - name: Python
       # The oldest Python `omw` supports, so a feature of a later one fails here and not on a desk.
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: "3.11"
 
@@ -73,7 +73,8 @@ runs:
         key: ${{ inputs.ccache-key }}
         max-size: ${{ inputs.ccache-size }}
         # Saved on master alone, and read by every other ref: a branch's own copies would evict
-        # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
-        # gigabytes hold every master cache once only after `gh cache delete` has cleared the older
-        # copies by hand.
+        # master's. Each run saves a new copy and keeps the old ones, which the repository's cache
+        # limit evicts, the least recently used first. **That limit stays at GitHub's free 10 GB**:
+        # storage past it is billed, and once the budget ran out on 2026-10-13, every cache was
+        # read-only and no save took for two weeks.
         save: ${{ github.ref == 'refs/heads/master' }}

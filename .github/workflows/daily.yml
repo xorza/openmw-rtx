@@ -13,9 +13,9 @@ name: Daily
 
 on:
   schedule:
-    # Every day at 04:00 UTC. GitHub runs a schedule from the default branch alone, and late under
-    # load.
-    - cron: "0 4 * * *"
+    # Every day near 04:00 UTC, off the hour for the reason `upstream.yml` gives. GitHub runs a
+    # schedule from the default branch alone.
+    - cron: "43 4 * * *"
   workflow_dispatch:
 
 # Nothing by default, and each job names what it needs.
