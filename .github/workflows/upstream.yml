@@ -39,11 +39,12 @@ name: Upstream merge
 
 on:
   schedule:
-    # Every day at 04:00 UTC. GitHub runs a schedule from the default branch alone, and it is
-    # routinely five to thirty minutes late under load — nothing here depends on the minute. In a
+    # Every day near 04:00 UTC. GitHub runs a schedule from the default branch alone, and delays it
+    # most at the top of the hour, which every schedule asks for: at `0 4`, the runs of October 2026
+    # started four and a half to five and a half hours late. Nothing here depends on the minute. In a
     # public repository the schedule stops after 60 days with no commit, which a tree this active
     # never reaches.
-    - cron: "0 4 * * *"
+    - cron: "17 4 * * *"
   workflow_dispatch:
 
 # Nothing by default, and each job names what it needs.
@@ -291,7 +292,7 @@ jobs:
 
       # Pinned to a commit like every other action here. This one ships most days, so the
       # version beside it is what says how old the pin has grown.
-      - uses: anthropics/claude-code-action@a26b07d8c778b0c43f64618e5fd29fd0f8af72e8 # v1.0.250
+      - uses: anthropics/claude-code-action@925afb53776cf1a2b738c6bdbed37b4d4000ef13 # v1.0.262
         id: agent
         env:
           # **Every credential out of every command the agent runs.** The scrub leaves GitHub tokens
@@ -421,7 +422,7 @@ jobs:
           # The newest Opus, where the account's default is whatever its plan names: a merge that
           # needs judgement gets the strongest model. The alias is resolved by the Claude Code the
           # pinned action carries, so it moves with the pin: under v1.0.231, whose Claude Code was
-          # 2.1.278, it named `claude-opus-5`, since Opus 5.5 needs 2.1.280; v1.0.250 carries 2.1.300.
+          # 2.1.278, it named `claude-opus-5`, since Opus 5.5 needs 2.1.280; v1.0.262 carries 2.1.310.
           #
           # **User settings alone**: the checkout's own `.claude/` and `.mcp.json` are upstream's to
           # write once the merge stands in the tree, and a `-p` run would otherwise load their hooks
