@@ -20,7 +20,6 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
-#include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/finite.hpp>
@@ -44,14 +43,8 @@ namespace Rtx
     {
         osg::Matrixf transformOf(const Terrain::PagedCellRef& ref)
         {
-            const float rotation[3] = { ref.mRotation.x(), ref.mRotation.y(), ref.mRotation.z() };
-
-            osg::Matrixf transform;
-            transform.preMultTranslate(ref.mPosition);
-            transform.preMultRotate(Misc::Convert::makeOsgQuat(rotation));
-            transform.preMultScale(osg::Vec3f(ref.mScale, ref.mScale, ref.mScale));
-
-            return transform;
+            return Rtx::transformOf(
+                ReferencePlace{ .mPosition = ref.mPosition, .mRotation = ref.mRotation, .mScale = ref.mScale });
         }
 
         /// The transform of `ref`, or nothing and a refusal of `model` where it is not finite: a
@@ -268,9 +261,10 @@ namespace Rtx
         // Made once here to be judged, and again every walk to be stood, because a flame is a
         // function of the hour and whether a lamp is refused is not. A record off by default
         // casts nothing wherever it is placed, so it is not carried.
-        const osg::Vec3f position = anchorOf(ref.mRefId) * transformOf(ref);
+        const osg::Vec3f anchor = anchorOf(ref.mRefId);
+        const osg::Matrixf transform = transformOf(ref);
         const Misc::Result<std::optional<Light>, std::string_view> made
-            = makeLight(*record, position, 0.0, static_cast<int>(ref.mRefNum.mIndex));
+            = makeLight(*record, anchor * transform, 0.0, static_cast<int>(ref.mRefNum.mIndex));
         if (!made.isOk())
         {
             prepared.mRefusals.push_back(Refusal{
@@ -281,7 +275,8 @@ namespace Rtx
             return {};
 
         prepared.mLights.push_back(PreparedLight{
-            .mPosition = position,
+            .mAnchor = anchor,
+            .mTransform = transform,
             .mRefNum = ref.mRefNum,
             .mGate = ref.mGate,
             .mRecord = *record,

@@ -455,6 +455,12 @@ namespace Rtx
         mPlacer.blacklistReference(refnum);
     }
 
+    void CellRing::moveReference(const ESM::RefNum refnum, const ReferencePlace& place, const bool away)
+    {
+        mTurn.expect(Turn::Collected);
+        mPlacer.moveReference(refnum, place, away);
+    }
+
     void CellRing::forgetReferences()
     {
         mTurn.expect(Turn::Collected);

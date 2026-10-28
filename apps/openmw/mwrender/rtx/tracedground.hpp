@@ -32,6 +32,9 @@ namespace MWRender
         /// is the paging's, and the seam's default answers the two questions a ring has no cache
         /// and no grid for.
         bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) override;
+
+        /// Where the game holds the reference now, to the ring (`CellPlacer::moveReference`), or
+        /// that it is gone, where the game deleted it.
         void blacklistReference(int type, const MWWorld::ConstPtr& ptr) override;
         void setGate(std::uint32_t gate, Terrain::GateState state) override;
 

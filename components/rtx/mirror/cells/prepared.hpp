@@ -20,6 +20,7 @@
 #include <osg/ref_ptr>
 
 #include <components/esm3/refnum.hpp>
+#include <components/misc/convert.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/mirror/materialresolver.hpp>
@@ -36,6 +37,31 @@
 
 namespace Rtx
 {
+    /// Where a reference stands, as the content places it or the game holds it now: what a clone's
+    /// transform is composed of (`transformOf`).
+    struct ReferencePlace
+    {
+        osg::Vec3f mPosition;
+
+        /// About x, y and z, in radians, as `ESM::Position::rot` holds it.
+        osg::Vec3f mRotation;
+
+        float mScale = 1.0f;
+    };
+
+    /// The reference's own space to the world's, composed as the game composes the transform it
+    /// stands a clone under: translated, rotated, then scaled.
+    inline osg::Matrixf transformOf(const ReferencePlace& place)
+    {
+        const float rotation[3] = { place.mRotation.x(), place.mRotation.y(), place.mRotation.z() };
+
+        osg::Matrixf transform;
+        transform.preMultTranslate(place.mPosition);
+        transform.preMultRotate(Misc::Convert::makeOsgQuat(rotation));
+        transform.preMultScale(osg::Vec3f(place.mScale, place.mScale, place.mScale));
+        return transform;
+    }
+
     /// One image, named where the model that names it was read, so that the frame adopts a layer
     /// by a path built off the frame. Lent by a `Spares`, held once by every lent model and cell
     /// that names it, and given back with the last of them. The reader's count, and the frame
@@ -313,10 +339,11 @@ namespace Rtx
     /// frame builds one from this every walk (`Rtx::makeLight`).
     struct PreparedLight
     {
-        /// The model's `AttachLight` node where the reference stands it, which is where the game
-        /// attaches the light (`SceneUtil::addLight`), and the reference's own origin for a model
-        /// with none.
-        osg::Vec3f mPosition;
+        /// The model's `AttachLight` node in the model's own space, which is where the game attaches
+        /// the light (`SceneUtil::addLight`), and the origin for a model with none; and the
+        /// reference's transform, which stands it in the world.
+        osg::Vec3f mAnchor;
+        osg::Matrixf mTransform;
 
         ESM::RefNum mRefNum;
 

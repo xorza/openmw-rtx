@@ -64,8 +64,9 @@ namespace MWRender
         /// reach.
         virtual bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) = 0;
 
-        /// The game moved, deleted or animates the reference, so the distance must never stand it
-        /// again, whatever a script says of it later.
+        /// The game moved, turned, scaled, deleted or animates the reference, which upstream's
+        /// paging never stands again, whatever a script says of it later. A renderer that stands
+        /// references itself may read where the game holds it now off `ptr` instead.
         virtual void blacklistReference(int type, const MWWorld::ConstPtr& ptr) = 0;
 
         /// The cell grid has moved: what the game told the distance while the grid changed may now
