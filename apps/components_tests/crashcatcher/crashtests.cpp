@@ -130,15 +130,22 @@ namespace CrashTests
             }
         }
 
-        /// After how many milliseconds a mode's monitor answers End, or nothing for one nobody
-        /// answers: long enough that the game has drawn again, or ended, by then; and at once for the
-        /// one that tests an End landing on its report.
-        std::optional<std::string_view> endAfterOf(std::string_view mode)
+        /// How long the modes that answer End late wait before they answer: long enough that the
+        /// game has drawn again, or ended, by then. **In wall time, which the hang dump spends
+        /// too**: Crashpad holds the game while it writes the dump, so a game held past the end of
+        /// its stall draws again only once the dump is written. A loaded runner took two seconds
+        /// over one; a dump slower than this still ends a game that had recovered.
+        constexpr std::chrono::milliseconds sLateEnd{ 5000 };
+
+        /// After how long a mode's monitor answers End, or nothing for one nobody answers: late for
+        /// the modes that recover or end before it, and at once for the one that tests an End
+        /// landing on its report.
+        std::optional<std::chrono::milliseconds> endAfterOf(std::string_view mode)
         {
             if (mode == "recovers-before-end" || mode == "ends-before-end")
-                return "2500";
+                return sLateEnd;
             if (mode == "ended-in-report")
-                return "1";
+                return std::chrono::milliseconds(1);
             return std::nullopt;
         }
 
@@ -302,9 +309,11 @@ namespace CrashTests
             if (mode == "recovers-before-end")
             {
                 // Drawing again well before the monitor answers End, and still drawing when it does:
-                // what the player was asked about is over, and the game goes on.
+                // what the player was asked about is over, and the game goes on. Frames for as long
+                // as the late End waits, past the two seconds of them `stall` ends with, so it still
+                // finds the game drawing.
                 stall(std::chrono::milliseconds(3500));
-                for (int i = 0; i < 20; ++i)
+                for (int i = 0; i < sLateEnd / std::chrono::milliseconds(100); ++i)
                 {
                     Crash::heartbeat();
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -395,10 +404,11 @@ namespace CrashTests
         }
 
         /// Whether the log in `folder` says `text`, read again for a few seconds where it does not yet:
-        /// the monitor goes on writing after the game has ended, and a mode may end first.
+        /// the monitor goes on writing after the game has ended, and a mode may end first. Past the
+        /// late End (`sLateEnd`), which `ends-before-end` logs up to that long after the game is gone.
         bool follows(const std::filesystem::path& folder, std::string_view text)
         {
-            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(6);
+            const auto deadline = std::chrono::steady_clock::now() + sLateEnd + std::chrono::seconds(5);
             for (;;)
             {
                 std::ifstream log(folder / "crash-tests.log");
@@ -727,8 +737,8 @@ int main(int argc, char* argv[])
         // every mode then also proves the catcher makes the whole path before its monitor needs it.
         Platform::Process::setEnvironmentPath("OPENMW_CRASH_REPORTS", folder / "user data" / "crashes");
         Platform::Process::setEnvironment("OPENMW_CRASH_DIALOG", "0");
-        if (const std::optional<std::string_view> after = CrashTests::endAfterOf(mode))
-            Platform::Process::setEnvironment("OPENMW_CRASH_END_AFTER_MS", std::string(*after).c_str());
+        if (const std::optional<std::chrono::milliseconds> after = CrashTests::endAfterOf(mode))
+            Platform::Process::setEnvironment("OPENMW_CRASH_END_AFTER_MS", std::to_string(after->count()).c_str());
         CrashTests::prepareModeOfThisSystem(mode);
 
         const int ended = Debug::wrapApplication(
