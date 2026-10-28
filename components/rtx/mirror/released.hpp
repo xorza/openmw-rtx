@@ -29,18 +29,15 @@ namespace Rtx
 
         bool isEmpty() const { return mHeld.empty(); }
 
-        /// Everything kept, moved out whole for the owner to hand over, and the sink left empty with
-        /// room for as many: grown to the busiest frame so far and never shrunk, so a frame that lets
-        /// go allocates the one buffer it hands over. Nothing, and no allocation, where nothing was
-        /// kept.
+        /// Everything kept, moved out for the owner to hand over in a buffer of exactly its size,
+        /// and the sink left empty with its room: grown to the busiest frame so far and never
+        /// shrunk, so a frame that lets go of one object allocates one slot and not the busiest
+        /// frame's. Nothing, and no allocation, where nothing was kept.
         std::vector<osg::ref_ptr<const osg::Referenced>> take()
         {
-            std::vector<osg::ref_ptr<const osg::Referenced>> taken;
-            if (mHeld.empty())
-                return taken;
-
-            taken.reserve(mHeld.capacity());
-            taken.swap(mHeld);
+            std::vector<osg::ref_ptr<const osg::Referenced>> taken(
+                std::make_move_iterator(mHeld.begin()), std::make_move_iterator(mHeld.end()));
+            mHeld.clear();
             return taken;
         }
 

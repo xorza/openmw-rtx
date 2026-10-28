@@ -53,6 +53,10 @@ namespace Rtx
     {
         Shown,
 
+        /// Shown, and the surface no longer matches the swapchain exactly
+        /// (`VK_SUBOPTIMAL_KHR`): a rebuild would fit it better, and the image is on the screen.
+        Suboptimal,
+
         /// As `Acquired::Stale`.
         Stale,
 

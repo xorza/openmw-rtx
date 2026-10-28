@@ -56,7 +56,7 @@ namespace MWRender
         SDL_SyncWindow(mWindow.get());
         if (readSize() == *pixels)
             return;
-        const float density = SDL_GetWindowPixelDensity(mWindow.get());
+        const float density = SDLUtil::pixelDensity(mWindow.get());
         SDL_SetWindowSize(
             mWindow.get(), SDLUtil::windowPoints(pixels->x(), density), SDLUtil::windowPoints(pixels->y(), density));
         SDL_SyncWindow(mWindow.get());

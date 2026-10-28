@@ -29,6 +29,11 @@ namespace RtxTool
         /// How many meshes the frame's placement brought.
         std::uint32_t mArrivedMeshes = 0;
 
+        /// The cell the player stood in when the frame was drawn, which the window tells a
+        /// crossing by, and whether the frame's placement rebuilt the scene from nothing.
+        const void* mCell = nullptr;
+        bool mRebuilt = false;
+
         /// What the frame spent, `Timing::Frame` being its wall time since the frame before.
         Rtx::FrameSpend mSpend;
     };
@@ -84,6 +89,12 @@ namespace RtxTool
             /// `Frame`, `Update` and `Sleep`, and the meshes the frame before brought.
             Rtx::FrameSpend mClosed;
             std::uint32_t mClosedArrived = 0;
+
+            /// **The frame before stood in another cell than the one before it**: a crossing, and
+            /// whether its placement rebuilt the scene, which `mClosed` is the cost of. The move
+            /// pulls the ring in and the read lands in the first frame drawn in the new cell, so
+            /// that frame's own span is what the crossing cost, closed as every figure is.
+            std::optional<bool> mClosedCrossing;
         };
 
         MeasureWindow() = default;
@@ -133,5 +144,7 @@ namespace RtxTool
 
         Rtx::FrameSpend mPendingSpend;
         std::uint32_t mPendingArrived = 0;
+        std::optional<bool> mPendingCrossing;
+        const void* mLastCell = nullptr;
     };
 }

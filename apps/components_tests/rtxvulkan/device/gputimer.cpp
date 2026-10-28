@@ -15,6 +15,7 @@
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/rendererprobe.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/clock.hpp>
@@ -97,7 +98,7 @@ namespace Rtx
         {
             camera.mWaterTime = splitSeconds(waterSeconds);
             const auto start = std::chrono::steady_clock::now();
-            renderer.renderFrame(camera, FrameOptions{ .mReconstruction = reconstruction },
+            Testing::RendererProbe(renderer).traceFrame(camera, FrameOptions{ .mReconstruction = reconstruction },
                 WorldOptions{ .mWaterSeconds = waterSeconds });
             const std::optional<FrameResult> result = renderer.finishFrame();
             const double wallMs = since(start, std::chrono::steady_clock::now());

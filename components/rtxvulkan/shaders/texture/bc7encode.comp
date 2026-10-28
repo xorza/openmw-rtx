@@ -47,7 +47,13 @@ layout(push_constant, scalar) uniform Push
     Bc7Constants chain;
 };
 
-const uint WEIGHTS[16] = uint[16](0u, 4u, 9u, 13u, 17u, 21u, 26u, 30u, 34u, 38u, 43u, 47u, 51u, 55u, 60u, 64u);
+/// The weight of index `step` of a four-bit index, BC7's table `0, 4, 9, ..., 60, 64` in sixty-fourths,
+/// which is `(64 step + 7) / 15` exactly. A rule and not a table, for the reason `atrouslevel.glsl`
+/// gives: a table indexed by a value that varies across the lanes is a load from scratch.
+uint bc7Weight(uint step)
+{
+    return (64u * step + 7u) / 15u;
+}
 
 /// The block's texels, four bytes to a word, and which of them stand inside the level, a bit each: a
 /// block past a level's edge holds texels no sampler reads, which no fit weighs. Packed, because the
@@ -138,7 +144,7 @@ Attempt attemptWith(Ends ends)
         float least = 1e30;
         for (uint step = max(centre, 1u) - 1u; step <= min(centre + 1u, 15u); ++step)
         {
-            const vec4 apart = interpolated(lowBytes, highBytes, WEIGHTS[step]) - texelAt(texel);
+            const vec4 apart = interpolated(lowBytes, highBytes, bc7Weight(step)) - texelAt(texel);
             const float error = dot(apart * apart, gWeights);
             best = error < least ? step : best;
             least = min(error, least);
@@ -172,7 +178,7 @@ Ends storedNearest(vec4 low, vec4 high)
 /// there, and under two `v, v + 1` or `v - 1, v + 2` does, each within a step of `v / 2`.
 Ends singleColour(vec4 colour)
 {
-    const uint weight = WEIGHTS[BC7_SINGLE_INDEX];
+    const uint weight = bc7Weight(BC7_SINGLE_INDEX);
     uvec4 bestLow = uvec4(0u);
     uvec4 bestHigh = uvec4(0u);
     uint bestBits = 0u;
@@ -227,7 +233,7 @@ bool fittedTo(Attempt chosen, out vec4 low, out vec4 high)
     vec4 towardHigh = vec4(0.0);
     for (uint texel = 0u; texel < 16u; ++texel)
     {
-        const float share = float(WEIGHTS[indexOf(chosen, texel)]) / float(BC7_WEIGHT_TOTAL);
+        const float share = float(bc7Weight(indexOf(chosen, texel))) / float(BC7_WEIGHT_TOTAL);
         const float rest = 1.0 - share;
         const float inside = insideAt(texel);
         lowLow += inside * rest * rest;

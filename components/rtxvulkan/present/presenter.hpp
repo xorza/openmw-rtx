@@ -88,6 +88,11 @@ namespace Rtx
         /// real.
         void surfaceLost();
 
+        /// What a suboptimal present does: the swapchain is rebuilt once at the extent asked, and a
+        /// present suboptimal after that rebuild is shown as it is, said once in the log. Public
+        /// for a test, which cannot make a surface answer suboptimal.
+        void suboptimal();
+
         /// Says how the presented image should meet the refresh, rebuilding only where that changes
         /// the mode the surface will actually run in, and answers whether it rebuilt. A rebuild frees
         /// what `wantsResize` says one frees, so `beforeRebuild` runs first there and nowhere else:
@@ -206,5 +211,10 @@ namespace Rtx
 
         /// Whether the surface was made again and no present showed on it yet.
         bool mRemade = false;
+
+        /// Whether a suboptimal present at the extent asked has rebuilt the swapchain already, and
+        /// whether the log has said one went on after it: `suboptimal`. Cleared by a new extent.
+        bool mSuboptimalRebuilt = false;
+        bool mSuboptimalSaid = false;
     };
 }

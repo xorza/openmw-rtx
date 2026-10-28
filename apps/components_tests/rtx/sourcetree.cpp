@@ -168,17 +168,14 @@ namespace Rtx
         /// reach the device. A loaded destroyer (`mDestroyX`) is matched as well as a declared one.
         ///
         /// The exemptions, each for a reason a match cannot see: `vkDestroyInstance` and
-        /// `vkDestroyDevice` take no parent handle, so `Owned`'s shape does not fit them;
-        /// the surface (`Surface`'s `mDestroySurface`) and the messenger take the instance
-        /// rather than the device, two sites not worth a second template parameter;
-        /// `accelerationstructure.cpp` destroys through a pointer the device loaded, which `Owned`'s
-        /// template argument cannot name, so it is the `Owned` for that handle and buries it the
-        /// same way.
+        /// `vkDestroyDevice` take no parent handle, and `Root` holds them; the surface (`Surface`'s
+        /// `mDestroySurface`) and the messenger take the instance rather than the device, and the
+        /// messenger is a `Handled` that ends through the instance's own entry point.
         TEST(RtxSourceTreeTest, everyDeviceParentedVulkanHandleIsHeldByOwned)
         {
-            const std::set<std::string> exemptFiles{ "owned.hpp", "accelerationstructure.cpp" };
+            const std::set<std::string> exemptFiles{ "owned.hpp" };
             const std::set<std::string> allowed{ "vkDestroyInstance", "vkDestroyDevice", "mDestroySurface",
-                "vkDestroyDebugUtilsMessengerEXT", "mDestroyMessenger" };
+                "vkDestroyDebugUtilsMessengerEXT" };
 
             const std::vector<std::string> found
                 = linesMatching({ sBackend }, exemptFiles, [&](const std::string_view code) {
@@ -222,7 +219,7 @@ namespace Rtx
         /// the pair is spelled, so a picture that wants a scene holds one and cannot get it wrong.
         TEST(RtxSourceTreeTest, everyViewSceneIsHeldByViewScene)
         {
-            const std::set<std::string> allowed{ "viewscene.cpp", "renderer.hpp", "vulkanrenderer.hpp",
+            const std::set<std::string> allowed{ "viewscene.cpp", "sceneholder.hpp", "vulkanrenderer.hpp",
                 "vulkanrenderer.cpp" };
 
             const std::vector<std::string> found
@@ -522,9 +519,16 @@ namespace Rtx
 
                         if (included->mQuoted)
                         {
-                            if (!std::filesystem::exists(file.parent_path() / included->mPath))
+                            if (included->mPath.find('/') != std::string::npos
+                                || !std::filesystem::exists(file.parent_path() / included->mPath))
                                 found.push_back(relative + ": \"" + included->mPath
                                     + "\" is not in its own folder — spell it from the root");
+                            continue;
+                        }
+
+                        if (order.mRoot.starts_with("components/") && included->mPath.starts_with("apps/"))
+                        {
+                            found.push_back(relative + ": <" + included->mPath + "> is the game's or a program's");
                             continue;
                         }
 

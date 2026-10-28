@@ -26,7 +26,7 @@ namespace Rtx
     namespace
     {
         /// Runs one synthesis at `seconds` and hands back the pass that holds it.
-        void synthesise(const WavePass& waves, CommandPool& pool, double seconds)
+        void synthesise(WavePass& waves, CommandPool& pool, double seconds)
         {
             pool.submitAndWait(
                 [&](VkCommandBuffer commands) { waves.record(commands, splitSeconds(seconds), nullptr); });
@@ -47,7 +47,7 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const WavePass waves(device);
+            WavePass waves(device);
 
             synthesise(waves, pool, 0.0);
 
@@ -116,7 +116,7 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const WavePass waves(device);
+            WavePass waves(device);
 
             synthesise(waves, pool, 0.0);
 
@@ -197,7 +197,7 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const WavePass waves(device);
+            WavePass waves(device);
 
             synthesise(waves, pool, 0.0);
 
@@ -257,7 +257,7 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const WavePass waves(device);
+            WavePass waves(device);
 
             const Image& surface = waves.getSurface(0);
 

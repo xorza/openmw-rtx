@@ -68,16 +68,13 @@ namespace Rtx
         /// every image placed in it, each at its index in `declared`.
         ImageArena(const Device& device, std::span<const ArenaImage> declared);
 
-        /// Buries the images and then the memory under them, in the order the graveyard ends them.
-        ~ImageArena();
-
         ImageArena(const ImageArena&) = delete;
         ImageArena& operator=(const ImageArena&) = delete;
 
-        /// Written out, because the memory must go after the images it holds: a defaulted assignment
-        /// would hand the memory back first.
-        ImageArena(ImageArena&& other) noexcept;
-        ImageArena& operator=(ImageArena&& other) noexcept;
+        /// An assignment buries the memory before the images bound to it, which Vulkan allows of
+        /// resources nothing uses after: the graveyard ends both after the same submit.
+        ImageArena(ImageArena&& other) noexcept = default;
+        ImageArena& operator=(ImageArena&& other) noexcept = default;
 
         /// What an arena of `declared` takes of the device's memory: the allocation's size.
         static VkDeviceSize bytesFor(const Device& device, std::span<const ArenaImage> declared);
@@ -108,10 +105,7 @@ namespace Rtx
         }
 
     private:
-        /// Buries what this holds, images first.
-        void bury();
-
-        const Device* mDevice = nullptr;
+        /// Before the images, so they are buried first as the arena goes.
         DeviceMemory mMemory;
         std::vector<Image> mImages;
         std::vector<const ImageUse*> mFirstUses;

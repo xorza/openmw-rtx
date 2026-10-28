@@ -83,13 +83,11 @@ namespace Rtx
         static Misc::Result<Image, std::string_view> tryMake(
             MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
 
-        /// Buries the views, then the image and the memory bound to it, as a buffer's does.
-        ~Image();
-
         /// Movable, because the channels of a g-buffer are built by a loop over a table rather
-        /// than by a member list. `Owned` is what makes the move defaultable; the assignment is
-        /// written out to bury what this held as the destructor does.
-        Image(Image&&) noexcept = default;
+        /// than by a member list. The husk is a default-made image, by construction and by
+        /// assignment alike, as a buffer's is: its size, format and stamp go with the move. The
+        /// assignment buries what this held in the order the destruction does.
+        Image(Image&& other) noexcept;
         Image& operator=(Image&& other) noexcept;
 
         VkImage getHandle() const { return mHandle.get(); }
@@ -219,16 +217,16 @@ namespace Rtx
         /// a constructor does.
         void bind(VkDeviceMemory memory, VkDeviceSize offset, std::string_view name);
 
-        /// What the destructor and a move over this do with what it holds: the views first, so the
-        /// graveyard ends them before the image they view.
-        void bury();
-
         /// Names this image for the next submit — every hand-out to a command or a descriptor
         /// funnels through here, which is what makes `waitIdle` exact.
         void nameForNext() const;
 
         const Device* mDevice = nullptr;
         ReadStamp mRead;
+
+        /// Declared before the handle and the handle before the views, so the views are buried
+        /// first and the memory last as the image goes.
+        DeviceMemory mMemory;
         Owned<VkImage, vkDestroyImage> mHandle;
         Owned<VkImageView, vkDestroyImageView> mView;
 
@@ -241,7 +239,6 @@ namespace Rtx
         /// one. Held in place rather than on the heap, because images arrive while the game runs.
         std::array<Owned<VkImageView, vkDestroyImageView>, sMaxLevels> mLevelViews;
         std::uint32_t mLevelViewCount = 0;
-        DeviceMemory mMemory;
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
         std::uint32_t mDepth = 1;

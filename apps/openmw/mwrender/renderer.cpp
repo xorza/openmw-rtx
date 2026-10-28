@@ -32,9 +32,6 @@
 #include <components/settings/values.hpp>
 #include <components/shader/automaps.hpp>
 
-#include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
-
-#include "glrenderer.hpp"
 #include "vismask.hpp"
 
 namespace MWRender
@@ -342,18 +339,6 @@ namespace MWRender
               "page, or set enabled = false under [RTX] in settings.cfg, to start with the OpenGL renderer.";
     }
 
-    std::unique_ptr<Renderer> createRenderer(const RendererKind kind, const RendererSpec& spec)
-    {
-        switch (kind)
-        {
-            case RendererKind::OpenGl:
-                return std::make_unique<GlRenderer>(spec);
-            case RendererKind::RayTraced:
-                return std::make_unique<RtxRenderer>(spec);
-        }
-        Crash::fatal("a renderer kind past the two");
-    }
-
     StartedRenderer startRenderer(const RendererKind wanted, const RendererFactory& create)
     {
         Log(Debug::Info) << "Renderer: " << nameOf(wanted);
@@ -405,7 +390,7 @@ namespace MWRender
         if (window != nullptr)
         {
             // A run's pixels at the density of the window just made, which a hidden window keeps.
-            const float density = SDL_GetWindowPixelDensity(window);
+            const float density = SDLUtil::pixelDensity(window);
             const osg::Vec2i size = pixels.has_value()
                 ? osg::Vec2i(SDLUtil::windowPoints(pixels->x(), density), SDLUtil::windowPoints(pixels->y(), density))
                 : osg::Vec2i(width, height);

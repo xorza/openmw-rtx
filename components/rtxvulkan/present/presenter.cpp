@@ -140,12 +140,36 @@ namespace Rtx
 
     void Presenter::rebuild(const VkExtent2D extent)
     {
+        if (extent.width != mAsked.width || extent.height != mAsked.height)
+        {
+            mSuboptimalRebuilt = false;
+            mSuboptimalSaid = false;
+        }
         mAsked = extent;
         if (mLost)
             remakeSurface(extent);
         else
             remake(extent);
         mStale = false;
+    }
+
+    void Presenter::suboptimal()
+    {
+        // **One rebuild an extent, and then the image as it is.** A driver that answers suboptimal
+        // after a fresh rebuild at the same extent — Mesa's X11 copy path — would rebuild on every
+        // frame, draining the queue each time, for a picture it shows all the same.
+        if (!mSuboptimalRebuilt)
+        {
+            mSuboptimalRebuilt = true;
+            mStale = true;
+            return;
+        }
+        if (!mSuboptimalSaid)
+        {
+            mSuboptimalSaid = true;
+            Log(Debug::Info) << "Swapchain: the surface answers suboptimal after a rebuild at " << mAsked.width << "x"
+                             << mAsked.height << ", and is shown as it is";
+        }
     }
 
     void Presenter::surfaceLost()
@@ -330,6 +354,10 @@ namespace Rtx
         {
             case Presented::Shown:
                 mRemade = false;
+                break;
+            case Presented::Suboptimal:
+                mRemade = false;
+                suboptimal();
                 break;
             case Presented::Stale:
                 mStale = true;

@@ -147,8 +147,9 @@ Reflection reflectionAt(Gloss gloss, vec3 side, vec3 towards, float sine)
     if (!(toLight > 0.0))
         return Reflection(vec3(0.0), vec3(0.0));
 
+    // Never nought: the alpha is held above `ROUGHNESS_FLOOR`'s square (`ggxAlpha`).
     const float widened = clamp(gloss.mAlpha + sine / 3.0, 0.0, 1.0);
-    const float normalisation = widened > 0.0 ? (gloss.mAlpha / widened) * (gloss.mAlpha / widened) : 1.0;
+    const float normalisation = (gloss.mAlpha / widened) * (gloss.mAlpha / widened);
 
     const vec3 halfway = normalize(gloss.mToEye + nearest);
     const vec3 fresnel = fresnelAt(gloss, halfway);

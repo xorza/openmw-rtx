@@ -6,7 +6,6 @@
 
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 
 namespace Rtx
 {
@@ -49,7 +48,6 @@ namespace Rtx
     }
 
     ImageArena::ImageArena(const Device& device, const std::span<const ArenaImage> declared)
-        : mDevice(&device)
     {
         if (declared.empty())
             return;
@@ -72,42 +70,6 @@ namespace Rtx
                         && begin < laid.mOffsets[other] + laid.mNeeds[other].mSize);
             mFirstUses.push_back(aliases ? &Use::sAliased : &Use::sUndefined);
         }
-    }
-
-    ImageArena::~ImageArena()
-    {
-        bury();
-    }
-
-    ImageArena::ImageArena(ImageArena&& other) noexcept
-        : mDevice(std::exchange(other.mDevice, nullptr))
-        , mMemory(std::move(other.mMemory))
-        , mImages(std::move(other.mImages))
-        , mFirstUses(std::move(other.mFirstUses))
-    {
-    }
-
-    ImageArena& ImageArena::operator=(ImageArena&& other) noexcept
-    {
-        if (this != &other)
-        {
-            bury();
-            mDevice = std::exchange(other.mDevice, nullptr);
-            mMemory = std::move(other.mMemory);
-            mImages = std::move(other.mImages);
-            mFirstUses = std::move(other.mFirstUses);
-        }
-        return *this;
-    }
-
-    void ImageArena::bury()
-    {
-        // Each image buries itself as it goes, and the memory under them after, so the graveyard
-        // ends them in that order.
-        mImages.clear();
-        mFirstUses.clear();
-        if (mDevice != nullptr && mMemory.getHandle() != VK_NULL_HANDLE)
-            mDevice->getGraveyard().bury(nullptr, 0, std::move(mMemory));
     }
 
     VkDeviceSize ImageArena::bytesFor(const Device& device, const std::span<const ArenaImage> declared)

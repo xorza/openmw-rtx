@@ -18,6 +18,7 @@ struct VmaPool_T;
 
 namespace Rtx
 {
+    class Device;
     class MemoryAllocator;
 
     /// `value` rounded up to the next multiple of `alignment`.
@@ -97,6 +98,10 @@ namespace Rtx
     /// A range of one device allocation, and the allocator that hands it back. Not an allocation
     /// of its own: one `vkAllocateMemory` per image was 1554 for the cell the game starts in, most
     /// for a shading map of two kilobytes; sub-allocated, that cell takes a couple of dozen.
+    ///
+    /// **Buried as it goes**, as `Owned` is: a range let go or assigned over goes to the graveyard,
+    /// which gives it back once every submit made so far and the next has run, so no owner frees
+    /// memory under a frame in flight by forgetting to bury it.
     class DeviceMemory
     {
     public:
@@ -120,13 +125,17 @@ namespace Rtx
         void* map() const { return mMapped; }
 
     private:
+        friend class Graveyard;
         friend class MemoryAllocator;
 
         DeviceMemory(MemoryAllocator* owner, VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset,
             void* mapped, VkDeviceSize size, std::uint32_t heap, MemoryUse use);
 
-        /// Gives the range back, where it holds one.
-        void release();
+        /// Hands the range to the graveyard, where it holds one.
+        void bury();
+
+        /// Gives the range back at once, where it holds one: the graveyard's, once nothing reads it.
+        void releaseNow();
 
         MemoryAllocator* mOwner = nullptr;
         VmaAllocation_T* mAllocation = nullptr;
@@ -157,7 +166,8 @@ namespace Rtx
         /// @param priority whether `VK_EXT_memory_priority` was enabled. Content then goes below
         ///        what the frame holds, so a driver moving video memory out under pressure moves
         ///        structures and textures first; without it every allocation is one priority.
-        MemoryAllocator(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device,
+        /// @param device whose graveyard a range goes to as it is let go.
+        MemoryAllocator(const Device& device, VkInstance instance, VkPhysicalDevice physicalDevice,
             const VkPhysicalDeviceMemoryProperties& memory, bool budget, bool priority);
         ~MemoryAllocator();
 
@@ -274,6 +284,9 @@ namespace Rtx
         DeviceMemory hold(VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset, void* mapped,
             VkDeviceSize size, std::uint32_t type, MemoryUse use);
 
+        /// Buries `memory` in the device's graveyard.
+        void retire(DeviceMemory&& memory);
+
         /// Frees what `memory` holds and takes it off what its use holds.
         void give(DeviceMemory& memory);
 
@@ -288,7 +301,7 @@ namespace Rtx
         /// swapchain of three images held two hundred megabytes of content out for nothing.
         VkDeviceSize ceilingOf(std::uint32_t heap, MemoryUse use, VkDeviceSize budget) const;
 
-        VkDevice mDevice = VK_NULL_HANDLE;
+        const Device& mDevice;
         const VkPhysicalDeviceMemoryProperties& mMemory;
 
         /// Whether `report` may ask the driver what this process holds, rather than only counting

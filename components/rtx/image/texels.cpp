@@ -1,6 +1,7 @@
 #include "texels.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -70,37 +71,57 @@ namespace Rtx
         return block.mPalette[block.indexAt(std::size_t{ y % 4 } * 4 + x % 4)];
     }
 
+    namespace
+    {
+        /// `readTexelBand`'s walk, each colour handed through `turn`: a block's palette turned once,
+        /// and every texel of the block reading its entry.
+        template <class Turn>
+        void readBand(const TextureData& texture, const MipLevel& level, const std::uint32_t band,
+            std::vector<osg::Vec3f>& into, Turn turn)
+        {
+            assert(readsColour(texture) && "a band read of a texture with no colour to read");
+            assert(texture.levelsFit() && "a band read of a description short of its bytes");
+            const std::uint32_t first = band * 4;
+            assert(first < level.mHeight && "a band below the level");
+            const std::uint32_t rows = std::min(level.mHeight - first, 4u);
+            const std::uint32_t width = level.mWidth;
+            into.resize(std::size_t{ rows } * width);
+
+            const TexelLayout layout = layoutOf(texture.mFormat);
+            if (!layout.isBlocked())
+            {
+                for (std::uint32_t row = 0; row < rows; ++row)
+                    for (std::uint32_t x = 0; x < width; ++x)
+                        into[std::size_t{ row } * width + x] = turn(looseTexel(texture, level, layout, x, first + row));
+                return;
+            }
+
+            const std::uint32_t columns = (width + 3) / 4;
+            for (std::uint32_t column = 0; column < columns; ++column)
+            {
+                const ColourBlock block = colourBlockAt(texture, level, layout, column, band);
+                const std::array<osg::Vec3f, 4> palette{ turn(block.mPalette[0]), turn(block.mPalette[1]),
+                    turn(block.mPalette[2]), turn(block.mPalette[3]) };
+
+                const std::uint32_t across = std::min(width - column * 4, 4u);
+                for (std::uint32_t row = 0; row < rows; ++row)
+                    for (std::uint32_t x = 0; x < across; ++x)
+                        into[std::size_t{ row } * width + column * 4 + x]
+                            = palette[block.indexAt(std::size_t{ row } * 4 + x)];
+            }
+        }
+    }
+
     void readTexelBand(
         const TextureData& texture, const MipLevel& level, const std::uint32_t band, std::vector<osg::Vec3f>& into)
     {
-        assert(readsColour(texture) && "a band read of a texture with no colour to read");
-        assert(texture.levelsFit() && "a band read of a description short of its bytes");
-        const std::uint32_t first = band * 4;
-        assert(first < level.mHeight && "a band below the level");
-        const std::uint32_t rows = std::min(level.mHeight - first, 4u);
-        const std::uint32_t width = level.mWidth;
-        into.resize(std::size_t{ rows } * width);
+        readBand(texture, level, band, into, [](const osg::Vec3f& stored) { return stored; });
+    }
 
-        const TexelLayout layout = layoutOf(texture.mFormat);
-        if (!layout.isBlocked())
-        {
-            for (std::uint32_t row = 0; row < rows; ++row)
-                for (std::uint32_t x = 0; x < width; ++x)
-                    into[std::size_t{ row } * width + x] = looseTexel(texture, level, layout, x, first + row);
-            return;
-        }
-
-        const std::uint32_t columns = (width + 3) / 4;
-        for (std::uint32_t column = 0; column < columns; ++column)
-        {
-            const ColourBlock block = colourBlockAt(texture, level, layout, column, band);
-
-            const std::uint32_t across = std::min(width - column * 4, 4u);
-            for (std::uint32_t row = 0; row < rows; ++row)
-                for (std::uint32_t x = 0; x < across; ++x)
-                    into[std::size_t{ row } * width + column * 4 + x]
-                        = block.mPalette[block.indexAt(std::size_t{ row } * 4 + x)];
-        }
+    void readLightBand(
+        const TextureData& texture, const MipLevel& level, const std::uint32_t band, std::vector<osg::Vec3f>& into)
+    {
+        readBand(texture, level, band, into, [](const osg::Vec3f& stored) { return toLinear(stored); });
     }
 
     osg::Vec3f MeanTexel::opaque() const
@@ -129,11 +150,11 @@ namespace Rtx
         double covered = 0.0;
         for (std::uint32_t first = 0; first < level.mHeight; first += 4)
         {
-            readTexelBand(finest, level, first / 4, band);
+            readLightBand(finest, level, first / 4, band);
             for (std::uint32_t y = first; y < first + band.size() / level.mWidth; ++y)
                 for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 {
-                    const osg::Vec3d light(toLinear(band[std::size_t{ y - first } * level.mWidth + x]));
+                    const osg::Vec3d light(band[std::size_t{ y - first } * level.mWidth + x]);
                     const double opacity = alpha.at(0, x, y) / 255.0;
 
                     total += light * opacity;

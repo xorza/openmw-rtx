@@ -348,8 +348,10 @@ namespace MWRender
 
         /// The worldspace changed, which is one kind of cut and the one kind that ends what a
         /// renderer keeps of the world itself: the rasterizer's water lets go of its ripples here,
-        /// and on no other cut. Told beside `notifyCut`, never instead of it.
-        virtual void notifyWorldspaceChanged() {}
+        /// and on no other cut. **Told in place of `notifyCut`**, which it holds: a renderer that
+        /// keeps histories across a cut loses them here as surely, so one that overrides only
+        /// `notifyCut` hears it here too.
+        virtual void notifyWorldspaceChanged() { notifyCut(); }
 
         /// A picture made somewhere other than the eye, for the GUI to show. What goes in the
         /// picture arrives in the spec; how it is drawn is the renderer's, which hands back a

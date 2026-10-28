@@ -308,8 +308,8 @@ namespace Rtx
     void SceneAcceleration::recordRefit(VkCommandBuffer commands, GpuTimer* timer)
     {
         const GpuZone timed(timer, commands, FrameZone::Refit);
-        mDevice.getFunctions().mCmdBuildAccelerationStructures(commands,
-            static_cast<std::uint32_t>(mRefit.mBuilds.size()), mRefit.mBuilds.data(), mRefit.mRangePointers.data());
+        vkCmdBuildAccelerationStructuresKHR(commands, static_cast<std::uint32_t>(mRefit.mBuilds.size()),
+            mRefit.mBuilds.data(), mRefit.mRangePointers.data());
 
         // A barrier between the refit and the top level, and not a fence: the top level is built
         // over structures the refit has just rewritten, which is a dependency inside a command
@@ -489,8 +489,6 @@ namespace Rtx
 
     void SceneAcceleration::sizeTopLevel(const std::uint32_t slots)
     {
-        const DeviceFunctions& functions = mDevice.getFunctions();
-
         // The address is the caller's to fill in, because it is a frame's and not the structure's.
         mTopLevelGeometry = VkAccelerationStructureGeometryKHR{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
@@ -526,7 +524,7 @@ namespace Rtx
             .updateScratchSize = 0,
             .buildScratchSize = 0,
         };
-        functions.mGetAccelerationStructureBuildSizes(
+        vkGetAccelerationStructureBuildSizesKHR(
             mDevice.getHandle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mTopLevelBuild, &slots, &sizes);
 
         // The old structure goes before its storage grows, so the graveyard ends the handle before
@@ -566,8 +564,18 @@ namespace Rtx
                 .mPacked = mPacked.get().addressFor(),
                 .mStarts = mStarts.at(mPrepared).get().addressFor(),
                 .mCount = rows });
-        mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);
+        vkCmdBuildAccelerationStructuresKHR(commands, 1, &mTopLevelBuild, &ranges);
         barrierAfterBuild(commands);
         mBuiltOverWrites = mRowTable.getWrites();
+    }
+
+    VkDeviceSize SceneAcceleration::getWorkBytes() const
+    {
+        VkDeviceSize starts = 0;
+        for (const GrowableBuffer& copy : mStarts.live())
+            starts += copy.get().getSize();
+
+        return mRowTable.getBytes() + mPacked.get().getSize() + starts + mPoses.getBytes()
+            + mRefitScratch.get().getSize() + mTopLevelScratch.get().getSize() + mBottomLevel.getScratchBytes();
     }
 }

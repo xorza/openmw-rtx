@@ -37,8 +37,7 @@ namespace Rtx
         if (!mBuffer.isEmpty() && mBuffer.getSize() >= bytes)
             return;
 
-        // The old buried after the copy is recorded, under the submit that carries it.
-        const Buffer old = std::move(mBuffer);
+        Buffer old = std::move(mBuffer);
         growTo(std::max(bytes, old.getSize() * 2));
         if (old.isEmpty())
             return;
@@ -46,5 +45,10 @@ namespace Rtx
         const VkCommandBuffer commands = batch.getCommands();
         old.copyTo(commands, mBuffer, old.getSize());
         handOver(commands, Use::sBufferCopyWrite, Use::sBufferCopyWrite);
+
+        // Kept by the batch, which buries it under the submit that carries the copy: buried here,
+        // at the record, it was stamped for whichever submit came next, which a batch deferred
+        // past is not.
+        batch.keep(std::move(old));
     }
 }

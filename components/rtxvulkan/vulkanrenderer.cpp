@@ -20,7 +20,6 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/framesampling.hpp>
@@ -67,20 +66,9 @@ namespace Rtx
 {
     namespace
     {
-        /// What the world's frame uses inside one stretch of it, which its arena places: the chain's
-        /// shared images at `render`, then the upscaler's where `profile` upscales. What
-        /// `createTargets` makes the arena of, and what `frameAt` measures it by.
-        void declareFrame(const VkExtent2D render, const VkExtent2D output, const RenderProfile& profile,
-            std::vector<ArenaImage>& into)
-        {
-            TraceChain::declareShared(render.width, render.height, profile.mRadianceWidth, into);
-            if (upscales(profile.mUpscale))
-                Upscaler::declareShared(render, output, into);
-        }
-
         /// What the frame's targets take under `profile` at an output `width` by `height` with the
         /// pictures' chain at `pictures`: what `createTargets` makes for it, the arena of what
-        /// `declareFrame` declared among it, and the running sum and the deep picture a frame may ask
+        /// `FrameTracer::declare` declared among it, and the running sum and the deep picture a frame may ask
         /// for where the run sums.
         VkDeviceSize frameAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
             const VkExtent2D pictures, const RenderProfile& profile, const std::span<const ArenaImage> declared)
@@ -90,10 +78,7 @@ namespace Rtx
             const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
             VkDeviceSize bytes = PresentTarget::bytesAt(device, width, height)
                 + DisplayChain::bytesAt(device, width, height)
-                + TraceChain::bytesAt(device, render.width, render.height, profile.mRadianceWidth, TracePast::Kept)
-                + ImageArena::bytesFor(device, declared);
-            if (upscales(profile.mUpscale))
-                bytes += Upscaler::bytesAt(device, render, output);
+                + FrameTracer::bytesAt(device, render, output, profile.mUpscale, profile.mRadianceWidth, declared);
             if (pictures.width > 0)
                 bytes += PictureTracer::bytesAt(device, pictures, profile.mRadianceWidth);
 
@@ -140,13 +125,13 @@ namespace Rtx
                                                   : nullptr)
         , mRing(mDevice, options.mTiming, options.mReadingBack)
         , mScenePasses(mDevice)
+        , mArrival(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels)
-        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, TracePast::Kept)
+        , mFrame(mDevice, mTracePasses, mProfile.mRadianceWidth)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
         , mMedia(mDevice, FogNoise::shared())
         , mGui(mDevice)
-        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth)
-        , mUpscaler(mDevice)
+        , mPictures(mDevice, mTracePasses, mProfile.mRadianceWidth)
     {
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
 
@@ -189,20 +174,6 @@ namespace Rtx
         createTargets(output.width, output.height);
     }
 
-    void VulkanRenderer::setSea(const SeaState& sea)
-    {
-        if (sea == mMedia.getSea())
-            return;
-
-        mMedia.describeSea(sea);
-    }
-
-    void VulkanRenderer::setFogField(const FogNoise& noise)
-    {
-        drain();
-        mMedia.describeFog(mDevice, noise);
-    }
-
     void VulkanRenderer::createTargets(std::uint32_t width, std::uint32_t height)
     {
         assert(width > 0 && height > 0);
@@ -215,18 +186,19 @@ namespace Rtx
 
         // A frame of a different size is not one this one can be reprojected against; a mode that
         // traces and shows at the sizes the last did keeps every history.
-        const bool traceMoves = render.width != mFrame.getWidth() || render.height != mFrame.getHeight();
+        const bool traceMoves
+            = render.width != mFrame.getChain().getWidth() || render.height != mFrame.getChain().getHeight();
         const bool outputMoves = !mTarget.isOpen() || output.width != mTarget.getExtent().width
             || output.height != mTarget.getExtent().height;
         if (traceMoves || outputMoves)
-            mPast |= FramePast::resized();
+            mDescriber.lose(FramePast::resized());
 
         // **Room for the running mode's targets, and not for the most any mode would take**: the
         // native mode's are about twice the quality mode's, which traces 2.25 times fewer pixels,
         // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
         std::vector<ArenaImage> declared;
-        declareFrame(render, output, mProfile, declared);
-        const bool arenaMoves = declared != mArenaDeclared;
+        FrameTracer::declare(render, output, mProfile.mUpscale, mProfile.mRadianceWidth, declared);
+        const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared);
         const VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, declared);
 
         // **The world is built again where the reserve moving changes what it would stand as**, by the
@@ -248,11 +220,9 @@ namespace Rtx
         // holds one set of them and never two: content stops where the set it takes still fits
         // (`MemoryUse::Frame`), which leaves no room for a second beside the first. A change of mode
         // may wait, as a new world does.
-        const bool upscalerMoves = mUpscaler.isBuilt() && !(upscaling() && mUpscaler.isAt(render, output));
         const bool shownMoves = mTarget.isOpen() && outputMoves;
         const bool picturesMove = mPictures.isBuilt() && !mPictures.isAt(mPictureRoom);
-        if ((mFrame.isBuilt() && traceMoves) || shownMoves || upscalerMoves || picturesMove || rebuildsWorld
-            || (arenaMoves && !mArena.isEmpty()))
+        if (mFrame.releases(moves) || shownMoves || picturesMove || rebuildsWorld)
         {
             drain();
             if (rebuildsWorld)
@@ -260,38 +230,21 @@ namespace Rtx
                 mReleasedWorld = world->describe().mIdentity;
                 mScenes.clear(SceneSlot::world());
             }
-            if (traceMoves)
-                mFrame.release();
+            mFrame.release(moves);
             if (shownMoves)
             {
                 mTarget.release();
                 mDisplay.release();
             }
-            if (upscalerMoves)
-                mUpscaler.release();
             if (picturesMove)
                 mPictures.release();
-            if (arenaMoves)
-                mArena = ImageArena();
-            if (traceMoves || arenaMoves)
+            if (traceMoves || moves.mArena)
                 mShownRadiance = nullptr;
             mDevice.collectIdle();
         }
 
-        // **Placed again only where the arena moved**, which the device was drained for: the chain
-        // writes its sets anew, and a set a frame in flight reads is not written.
-        if (arenaMoves)
-        {
-            mArena = ImageArena(mDevice, declared);
-            mArenaDeclared = std::move(declared);
-            mFrame.resize(render.width, render.height, ArenaRun(mArena, 0, TraceChain::getSharedCount()));
-
-            // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
-            // mode, above.
-            if (upscaling())
-                mUpscaler.resize(
-                    render, output, ArenaRun(mArena, TraceChain::getSharedCount(), Upscaler::getSharedCount()));
-        }
+        // **Placed again only where the arena moved**, which the device was drained for.
+        mFrame.resize(render, output, mProfile.mUpscale, std::move(declared));
 
         mTarget.resize(mDevice, width, height);
 
@@ -346,7 +299,7 @@ namespace Rtx
         // moved since the last frame stands where the build found it, in both copies of its poses.
         const bool rebuilt = slot.isWorld() && std::exchange(mReleasedWorld, 0) == scene.getIdentity();
         if (rebuilt)
-            mPast |= FramePast::resized();
+            mDescriber.lose(FramePast::resized());
 
         if (slot.isWorld() && !rebuilt)
         {
@@ -366,8 +319,8 @@ namespace Rtx
             // rather than being carried empty into one it cannot describe. Neither does any history:
             // a motion vector would point at where something stood in a world that is no longer
             // there, and the old world's wake would ring on in the new one's water.
-            mFrame.dropSum();
-            mPast |= FramePast::everything();
+            mFrame.getChain().dropSum();
+            mDescriber.lose(FramePast::everything());
         }
 
         // What the device has room for is decided below, against what it says now.
@@ -376,7 +329,7 @@ namespace Rtx
         Batch setup(mDevice.getPool());
         DeviceScene& held = mScenes.hold(slot,
             std::make_unique<DeviceScene>(
-                mDevice, setup, mScenePasses, scene, textures, mProfile.mAnisotropy, scene.getRoom()));
+                mDevice, setup, mScenePasses, mArrival, scene, textures, mProfile.mAnisotropy, scene.getRoom()));
 
         // A picture's scene rides the next submit, as an arrival does: its placement and its trace
         // are deferred behind it, and the barrier every upload and build ends in orders them. The
@@ -386,6 +339,7 @@ namespace Rtx
         if (!slot.isWorld())
         {
             setup.defer();
+            mHandedOver = true;
             return;
         }
 
@@ -416,7 +370,8 @@ namespace Rtx
         mDevice.getMemory().refreshBudget(mDevice.getTimeline().getNext());
 
         Batch setup(mDevice.getPool());
-        held.extend(setup, scene, arrived, timer);
+        held.extend(setup, mArrival, scene, arrived, timer);
+        mHandedOver = true;
 
         // Deferred to the placement's submit: the `placeScene` the caller owes after this submits
         // it ahead of the refit and the top level, and the barrier every upload and build ends in
@@ -656,8 +611,8 @@ namespace Rtx
     FrameExtents VulkanRenderer::getExtents() const
     {
         return FrameExtents{
-            .mRenderWidth = mFrame.getWidth(),
-            .mRenderHeight = mFrame.getHeight(),
+            .mRenderWidth = mFrame.getChain().getWidth(),
+            .mRenderHeight = mFrame.getChain().getHeight(),
             .mOutputWidth = mTarget.getExtent().width,
             .mOutputHeight = mTarget.getExtent().height,
         };
@@ -681,36 +636,33 @@ namespace Rtx
 
     FrameTraced VulkanRenderer::renderFrame(const FrameRequest& request)
     {
-        assert(request.mSky != nullptr && "a frame described with no sky to read its sheets from");
-
-        FrameTraced traced{ .mConstants = constantsFor(request.mView), .mCarried = {} };
-        Shaders::VisibilityConstants& constants = traced.mConstants;
-        constants.mRayMask = request.mRayMask;
-        constants.mNoLamps = request.mLamps ? 0u : 1u;
-        constants.mFrame = request.mSampleFrame;
-
         WorldOptions described;
-        describeWorld(request.mWorld, *request.mSky, mDrift, constants, described);
-        traced.mCarried = mDrift.get();
-
-        renderFrame(constants, request.mOptions, described);
+        const FrameTraced traced = mDescriber.describe(request, described);
+        traceFrame(traced.mConstants, request.mOptions, described);
         return traced;
     }
 
     void VulkanRenderer::holdAir(const AirClock& air)
     {
-        mDrift.hold(air.mCarried, air.mSky.mSeconds);
+        mDescriber.holdAir(air);
     }
 
-    void VulkanRenderer::renderFrame(
+    void VulkanRenderer::traceFrame(
         const Shaders::VisibilityConstants& camera, const FrameOptions& options, const WorldOptions& described)
     {
+        // A frame that handed nothing over gives the ring a block back, where an arrival grew it
+        // past what it keeps: `CommandPool::shedStaging`.
+        if (!std::exchange(mHandedOver, false))
+            mDevice.getPool().shedStaging(sStagingKept);
+
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
         const DeviceScene& world = *held;
         assert((options.mAccumulate == 0 || mProfile.mRadianceWidth == RadianceWidth::Summed)
             && "a sum of frames in a run that only shows them, whose reserve keeps no room for it");
-        assert(camera.mEyes.mWorld.mWidth == mFrame.getWidth() && camera.mEyes.mWorld.mHeight == mFrame.getHeight()
+        TraceChain& chain = mFrame.getChain();
+        Upscaler& upscaler = mFrame.getUpscaler();
+        assert(camera.mEyes.mWorld.mWidth == chain.getWidth() && camera.mEyes.mWorld.mHeight == chain.getHeight()
             && "the camera has to be built for the render extent; ask getExtents");
 
         // Coverage and an upscaler do not meet: an upscaler writes the upscaled image itself and is
@@ -733,22 +685,19 @@ namespace Rtx
         // Every history is worthless after a jump no motion vector can describe: through a door,
         // with the previous camera kept, a reprojection would fetch one room onto another. Spent
         // here, by the frame it describes, whatever made it.
-        FramePast past = std::exchange(mPast, FramePast{});
-        past |= FramePast::of(options.mLoss);
-        assert((past.mReprojectionLost || mPreviousCamera.has_value()) && "a past with no camera to reproject");
+        const FramePast past = mDescriber.takePast(options.mLoss);
 
-        Shaders::VisibilityConstants sampled = sampleFrame(camera, options, mProfile, reconstruction, world.getCounts(),
-            past.mReprojectionLost ? nullptr : &*mPreviousCamera);
+        Shaders::VisibilityConstants sampled = sampleFrame(
+            camera, options, mProfile, reconstruction, world.getCounts(), mDescriber.reprojectingFrom(past));
         world.measureStars(sampled.mStars);
 
         // The rays the misses are counted against: one a pixel of the traced extent, not the shown one.
         frame.mCountedRays = mCounting ? sampled.mEyes.mWorld.mWidth * sampled.mEyes.mWorld.mHeight : 0u;
 
-        const TraceSubject subject
-            = mMedia.describe(world, camera, frame.mCounts, mDisplay.getGlareCounts(), mRing.getRecordingSlot());
+        const TraceSubject subject = mMedia.describe(world, camera, frame.mCounts, mDisplay.getGlareCounts());
 
         if (past.mReprojectionLost)
-            mUpscaler.reset();
+            upscaler.reset();
         if (past.mEyeLost)
             mDisplay.loseEye();
         if (past.mWaterLost)
@@ -769,14 +718,16 @@ namespace Rtx
             mMedia.stepRipples(commands, mRing.getRecordingSlot(), osg::Vec2f(camera.mOrigin.x(), camera.mOrigin.y()),
                 described.mWaterSeconds, &timer);
             mMedia.placeRipples(sampled);
+            mMedia.synthesiseSea(commands, sampled.mWaterTime, &timer);
         }
 
         Image* const deep = mTarget.beginPicture(mDevice, options.mAccumulate > 0);
         Image& target = mTarget.getPicture();
 
-        const TraceResult traced = mFrame.record(commands,
+        const TraceResult traced = chain.record(commands,
             TraceRecording{
                 .mSubject = subject,
+                .mBinSlot = mRing.getRecordingSlot(),
                 .mAsked = BinCamera::of(camera),
                 .mSampled = sampled,
                 .mReconstruction = reconstruction,
@@ -797,12 +748,12 @@ namespace Rtx
             for (const Channel channel : sEveryChannel)
             {
                 const bool composed = channel == Channel::Direct;
-                digested[indexOf(channel)] = composed ? &mFrame.getColour() : &channels.get(channel);
+                digested[indexOf(channel)] = composed ? &chain.getColour() : &channels.get(channel);
                 inFields |= !composed && storedInFields(channel) ? 1u << indexOf(channel) : 0u;
             }
 
             std::array<const Image*, sDenoiserImageCount> denoiser{};
-            mFrame.denoiserWritten(denoiser);
+            chain.denoiserWritten(denoiser);
 
             mRing.readDigest(frame, commands, digested, inFields, denoiser,
                 VkExtent2D{ sampled.mEyes.mWorld.mWidth, sampled.mEyes.mWorld.mHeight }, sampled.mFrame,
@@ -810,7 +761,7 @@ namespace Rtx
                     .mJitterX = sampled.mEyes.mWorld.mJitter.x(),
                     .mJitterY = sampled.mEyes.mWorld.mJitter.y(),
                     .mFrameDeltaMs = sinceLastMs,
-                    .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
+                    .mReset = reconstruction.upscaled() && upscaler.isFresh() ? 1u : 0u,
                 },
                 &timer);
         }
@@ -822,7 +773,7 @@ namespace Rtx
             if (!reconstruction.upscaled())
                 return traced.mColour;
 
-            return mUpscaler.record(commands,
+            return upscaler.record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour.mImage,
                     .mSurface = channels.get(Channel::Surface),
@@ -875,7 +826,7 @@ namespace Rtx
         // report back a frame or two late.
         mRing.submit(frame, std::move(trace));
 
-        mPreviousCamera = previousOf(camera, sampled);
+        mDescriber.traced(camera, sampled);
     }
 
     void VulkanRenderer::reservePicture(const std::uint32_t width, const std::uint32_t height)
@@ -904,30 +855,25 @@ namespace Rtx
         mScenes.drop(scene);
     }
 
-    void VulkanRenderer::traceGuiTexture(const GuiSlot texture, const Viewpoint& view, const GuiTraceOptions& options)
+    bool VulkanRenderer::traceGuiTexture(
+        const GuiSlot texture, const SceneSlot scene, const Viewpoint& view, const GuiTraceOptions& options)
     {
-        Shaders::VisibilityConstants camera = constantsFor(view);
-        camera.mSun = Shaders::sunSource(options.mLight.mDirection, options.mLight.mIrradiance);
-        camera.mAmbient = options.mLight.mAmbient;
-        camera.mNoSkyShadows = 1;
-        camera.mTransparentBackground = options.mClear[3] < 1.0f ? 1u : 0u;
-        camera.mRayMask = options.mRayMask;
-        camera.mNoLamps = options.mLamps ? 0u : 1u;
-
-        traceGuiTexture(texture, camera, options);
+        return tracePicture(texture, scene, FrameDescriber::describePicture(view, options), options);
     }
 
-    void VulkanRenderer::traceGuiTexture(
-        const GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
+    bool VulkanRenderer::tracePicture(const GuiSlot texture, const SceneSlot scene,
+        const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
     {
         assert(mGui.getTextures().holds(texture) && "a trace into a slot nothing holds");
 
         const VkExtent2D extent{ camera.mEyes.mWorld.mWidth, camera.mEyes.mWorld.mHeight };
         if (extent.width == 0 || extent.height == 0)
-            return;
+            return false;
 
         assert(mPictures.holds(extent) && "a picture past the room its view reserved");
-        mPictures.trace(texture, camera, options, mScenes.at(options.mScene), mProfile);
+        mPictures.trace(texture, scene, camera, options, mScenes.at(scene), mProfile,
+            PictureTracer::Parts{ .mMedia = mMedia, .mDisplay = mDisplay, .mTextures = mGui.getTextures() });
+        return true;
     }
 
     bool VulkanRenderer::takeGuiCopy(const GuiSlot texture, const std::span<std::uint8_t> into)
@@ -938,11 +884,6 @@ namespace Rtx
     void VulkanRenderer::finishGuiTraces()
     {
         drain();
-    }
-
-    void VulkanRenderer::readGuiTexture(const GuiSlot texture, std::vector<std::uint8_t>& pixels)
-    {
-        mGui.getTextures().read(texture, pixels);
     }
 
     void VulkanRenderer::readPixels(std::vector<std::uint8_t>& pixels)
@@ -958,77 +899,5 @@ namespace Rtx
         mTarget.getDeep().read(VK_IMAGE_LAYOUT_GENERAL, bytes);
         samples.resize(bytes.size() / sizeof(std::uint16_t));
         std::memcpy(samples.data(), bytes.data(), samples.size() * sizeof(std::uint16_t));
-    }
-
-    void VulkanRenderer::readShown(std::vector<std::uint8_t>& pixels)
-    {
-        assert(mTarget.isOpen());
-
-        // An interface the present would have recorded, drawn now: what is shown is what is read.
-        if (mGui.isPrepared())
-            mGui.submit(mTarget.getPicture(), mTarget.getShown());
-
-        mTarget.getShown().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
-    }
-
-    void VulkanRenderer::readChannel(const Channel channel, std::vector<float>& values)
-    {
-        assert(mFrame.isBuilt());
-
-        // One lookup and not a switch of eleven arms. A channel is its binding, and the buffer
-        // is indexed by it.
-        readFramed(mFrame.getChannels().get(channel), storedInFields(channel), values);
-    }
-
-    void VulkanRenderer::readComposite(std::vector<float>& values)
-    {
-        assert(mFrame.isBuilt());
-        readFramed(mFrame.getColour(), false, values);
-    }
-
-    void VulkanRenderer::readShownRadiance(std::vector<float>& values)
-    {
-        assert(mShownRadiance != nullptr && "the shown frame read back before any frame was drawn");
-        assert(!upscaling() && "the upscaler's image read back, which is made to be read by nothing but the display");
-        readFramed(*mShownRadiance, false, values);
-    }
-
-    void VulkanRenderer::readFramed(const Image& image, const bool fielded, std::vector<float>& values) const
-    {
-        std::vector<float> stored;
-        image.readFloats(VK_IMAGE_LAYOUT_GENERAL, stored);
-
-        // The frame's extent: an image stored in fields is a column wider where it is odd. Its fields
-        // lie as the last frame traced left them, which is the camera the next reprojects against.
-        assert(mPreviousCamera.has_value() && "a channel read back before any frame was traced");
-        const std::uint32_t swap = Shaders::fieldSwapOf(mPreviousCamera->mFrame);
-        const std::uint32_t width = mFrame.getWidth();
-        const std::uint32_t height = mFrame.getHeight();
-        const std::size_t texels = std::size_t{ image.getWidth() } * image.getHeight();
-        assert(stored.size() % texels == 0);
-        const std::size_t components = stored.size() / texels;
-
-        values.resize(std::size_t{ width } * height * components);
-        for (std::uint32_t y = 0; y < height; ++y)
-            for (std::uint32_t x = 0; x < width; ++x)
-            {
-                const Shaders::uvec2 at
-                    = fielded ? Shaders::storedOf(Shaders::uvec2(x, y), swap, width) : Shaders::uvec2(x, y);
-                const std::size_t from = (std::size_t{ at[1] } * image.getWidth() + at[0]) * components;
-                const std::size_t to = (std::size_t{ y } * width + x) * components;
-                std::copy_n(stored.begin() + static_cast<std::ptrdiff_t>(from), components,
-                    values.begin() + static_cast<std::ptrdiff_t>(to));
-            }
-    }
-
-    void VulkanRenderer::takeValidationErrors(std::vector<std::string>& errors)
-    {
-        errors.clear();
-
-        ValidationLog* log = mInstance.getValidationLog();
-        if (log == nullptr)
-            return;
-
-        log->takeErrorsOnThisThread(errors);
     }
 }

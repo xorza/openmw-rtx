@@ -31,7 +31,13 @@ namespace Rtx
     /// drift apart. Non-copyable because the `pNext` pointers refer to its own members.
     struct DeviceFeatures
     {
+        /// Every structure chained: what a device whose extensions were checked is made with.
         DeviceFeatures();
+
+        /// The core structures, and an extension's only where `offered` names it: what a candidate
+        /// is asked, since a structure of an extension the device does not offer is no valid member
+        /// of the chain, as `VK_EXT_pci_bus_info`'s is not (`PhysicalDevice::choose`).
+        explicit DeviceFeatures(std::span<const std::string> offered);
 
         DeviceFeatures(const DeviceFeatures&) = delete;
         DeviceFeatures& operator=(const DeviceFeatures&) = delete;
@@ -55,13 +61,21 @@ namespace Rtx
         /// The device's real-time clock, read from a shader: what `StressPass` holds a queue
         /// against.
         VkPhysicalDeviceShaderClockFeaturesKHR mShaderClock{};
+
+    private:
+        DeviceFeatures(std::span<const std::string> offered, bool every);
     };
 
     /// The properties worth reporting or budgeting against: one chained query, and the memory
     /// layout beside it. Non-copyable for the same reason as `DeviceFeatures`.
     struct DeviceProperties
     {
+        /// Every structure chained, as `DeviceFeatures()` chains them.
         DeviceProperties();
+
+        /// The core structures, and an extension's only where `offered` names it, as
+        /// `DeviceFeatures(offered)` chains them.
+        explicit DeviceProperties(std::span<const std::string> offered);
 
         DeviceProperties(const DeviceProperties&) = delete;
         DeviceProperties& operator=(const DeviceProperties&) = delete;
@@ -87,6 +101,9 @@ namespace Rtx
         /// device that lists `VK_EXT_pci_bus_info`: a property structure of an extension the device
         /// does not list is invalid usage in any chain.
         std::optional<VkPhysicalDevicePCIBusInfoPropertiesEXT> mPciBus;
+
+    private:
+        DeviceProperties(std::span<const std::string> offered, bool every);
     };
 
     /// A feature the renderer will not start without, and how to reach it in the chain, so one

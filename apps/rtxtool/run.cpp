@@ -75,21 +75,22 @@ namespace RtxTool
         stop.mSchedule.mSpec = BenchSpec{ .mRun = { .mFrames = frames }, .mWarm = { .mFrames = sHistoryFrames } };
     }
 
-    template <class T>
-    T shippedDefault(
-        const Files::ConfigurationManager& config, const std::string_view category, const std::string_view setting)
+    ShippedDefaults::ShippedDefaults(const Files::ConfigurationManager& config)
+        : ShippedDefaults(config.getActiveConfigPaths().front() / "defaults.bin")
     {
-        // Parsed once per process: the file does not change under a run, and every framed verb asks
-        // for three of its values.
-        static Settings::CategorySettingValueMap shipped;
-        if (shipped.empty())
-        {
-            Settings::SettingsFileParser parser;
-            parser.loadSettingsFile(config.getActiveConfigPaths().front() / "defaults.bin", shipped, true, false);
-        }
+    }
 
-        const auto found = shipped.find(Settings::CategorySetting(category, setting));
-        if (found == shipped.end())
+    ShippedDefaults::ShippedDefaults(const std::filesystem::path& file)
+    {
+        Settings::SettingsFileParser parser;
+        parser.loadSettingsFile(file, mShipped, true, false);
+    }
+
+    template <class T>
+    T ShippedDefaults::get(const std::string_view category, const std::string_view setting) const
+    {
+        const auto found = mShipped.find(Settings::CategorySetting(category, setting));
+        if (found == mShipped.end())
             throw std::runtime_error(std::format("defaults.bin names no [{}] {}", category, setting));
 
         const std::string& text = found->second;
@@ -107,11 +108,10 @@ namespace RtxTool
         }
     }
 
-    template float shippedDefault<float>(const Files::ConfigurationManager&, std::string_view, std::string_view);
-    template int shippedDefault<int>(const Files::ConfigurationManager&, std::string_view, std::string_view);
-    template bool shippedDefault<bool>(const Files::ConfigurationManager&, std::string_view, std::string_view);
-    template std::string shippedDefault<std::string>(
-        const Files::ConfigurationManager&, std::string_view, std::string_view);
+    template float ShippedDefaults::get<float>(std::string_view, std::string_view) const;
+    template int ShippedDefaults::get<int>(std::string_view, std::string_view) const;
+    template bool ShippedDefaults::get<bool>(std::string_view, std::string_view) const;
+    template std::string ShippedDefaults::get<std::string>(std::string_view, std::string_view) const;
 
     void WindowRequest::keepPlayersLimit()
     {

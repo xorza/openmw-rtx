@@ -26,10 +26,18 @@ namespace Rtx
     class PictureTracer
     {
     public:
+        /// What a picture is traced through beside its own chain, the renderer's and the frame's
+        /// as well, handed at each `trace`.
+        struct Parts
+        {
+            TraceMedia& mMedia;
+            DisplayChain& mDisplay;
+            GuiTextures& mTextures;
+        };
+
         /// @param passes what the chain traces with, which outlives it.
         /// @param radiance the run's, as the frame's chain has it.
-        PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media, DisplayChain& display,
-            GuiTextures& textures, RadianceWidth radiance);
+        PictureTracer(const Device& device, const TracePasses& passes, RadianceWidth radiance);
 
         /// What the chain and the byte image take at `room`, which `resize` makes them at.
         static VkDeviceSize bytesAt(const Device& device, VkExtent2D room, RadianceWidth radiance);
@@ -58,14 +66,11 @@ namespace Rtx
         /// placement of the scene waits for what its tables say, and what the picture writes
         /// nothing else reads. Not counted and not timed, because the hit count and the report are
         /// the frame's.
-        void trace(GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options,
-            DeviceScene& traced, const RenderProfile& profile);
+        void trace(GuiSlot texture, SceneSlot scene, const Shaders::VisibilityConstants& camera,
+            const GuiTraceOptions& options, DeviceScene& traced, const RenderProfile& profile, const Parts& parts);
 
     private:
         const Device& mDevice;
-        const TraceMedia& mMedia;
-        DisplayChain& mDisplay;
-        GuiTextures& mTextures;
 
         /// What the chain uses inside one stretch of a picture, laid over each other: its own and not
         /// the frame's, so nothing couples the two chains' order.

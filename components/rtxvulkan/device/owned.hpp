@@ -2,6 +2,7 @@
 
 #include <bit>
 #include <cstdint>
+#include <type_traits>
 #include <utility>
 
 #include <vulkan/vulkan_core.h>
@@ -23,6 +24,140 @@ namespace Rtx
     /// far, and the next, has run. `Graveyard::bury`, reached from a header that cannot name it.
     void buryHandle(const Device& device, EndHandle end, std::uint64_t handle);
 
+    /// A Vulkan handle and how it ends, which is all that tells one kind of handle from another:
+    /// `Ending::end` ends it, `Ending::parent` is what a `vkCreateX` takes it from. The one
+    /// statement of an owning handle's moves, so the three kinds below share them.
+    template <class Handle, class Ending>
+    class Handled
+    {
+    public:
+        Handled() = default;
+
+        Handled(Ending ending, Handle handle)
+            : mEnding(ending)
+            , mHandle(handle)
+        {
+        }
+
+        /// For an ending that needs nothing but the handle: `Root`.
+        explicit Handled(Handle handle) requires std::is_empty_v<Ending> : mHandle(handle) {}
+
+        ~Handled() { reset(); }
+
+        Handled(const Handled&) = delete;
+        Handled& operator=(const Handled&) = delete;
+
+        Handled(Handled&& other) noexcept
+            : mEnding(other.mEnding)
+            , mHandle(std::exchange(other.mHandle, VK_NULL_HANDLE))
+        {
+        }
+
+        Handled& operator=(Handled&& other) noexcept
+        {
+            if (this != &other)
+            {
+                reset();
+                mEnding = other.mEnding;
+                mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
+            }
+            return *this;
+        }
+
+        Handle get() const { return mHandle; }
+
+        /// One made by `create(parent, &info, allocator, out)`, which is the shape every
+        /// `vkCreateX` this backend calls has but the pipelines' — checked, and named by `call`
+        /// in the message a failure carries. The string stays: nothing in C++ names a function
+        /// pointer's function.
+        ///
+        /// **Made into a local and adopted only once it succeeded**: a failed create leaves its
+        /// output undefined, and an owner it wrote into would end whatever the driver left there.
+        template <class Create, class Info>
+        static Handled make(const Ending& ending, Create create, const Info& info, const char* call)
+        {
+            Handle made = VK_NULL_HANDLE;
+            checkVk(create(ending.parent(), &info, nullptr, &made), call);
+            return Handled(ending, made);
+        }
+
+        /// Ends the handle, where there is one.
+        void reset()
+        {
+            if (mHandle != VK_NULL_HANDLE)
+                mEnding.end(mHandle);
+            mHandle = VK_NULL_HANDLE;
+        }
+
+    private:
+        [[no_unique_address]] Ending mEnding{};
+        Handle mHandle = VK_NULL_HANDLE;
+    };
+
+    /// Ends a handle of `device`'s through its graveyard.
+    template <class Handle, auto& Destroy>
+    struct Buried
+    {
+        /// Implicit, so an owner is made from the device it belongs to.
+        Buried(const Device& device)
+            : mDevice(&device)
+        {
+        }
+
+        Buried() = default;
+
+        VkDevice parent() const { return vulkanHandleOf(*mDevice); }
+
+        void end(Handle handle) const { buryHandle(*mDevice, &endNow, std::bit_cast<std::uint64_t>(handle)); }
+
+        static void endNow(const Device& device, const std::uint64_t handle)
+        {
+            Destroy(vulkanHandleOf(device), std::bit_cast<Handle>(handle), nullptr);
+        }
+
+        const Device* mDevice = nullptr;
+    };
+
+    /// Ends a handle with `destroy(parent, handle, allocator)` the moment it is let go of.
+    template <class Parent, class Handle, class Destroy>
+    struct EndedWith
+    {
+        EndedWith() = default;
+
+        /// Implicit, so an owner is made from the parent it belongs to.
+        EndedWith(Parent parent, Destroy destroy = {})
+            : mParent(parent)
+            , mDestroy(destroy)
+        {
+        }
+
+        Parent parent() const { return mParent; }
+
+        void end(Handle handle) const { mDestroy(mParent, handle, nullptr); }
+
+        Parent mParent = VK_NULL_HANDLE;
+        Destroy mDestroy{};
+    };
+
+    /// `Destroy`, a volk entry point, read at the call: a reference, because volk fills its pointers
+    /// when the loader is loaded.
+    template <auto& Destroy>
+    struct Entry
+    {
+        template <class... Arguments>
+        void operator()(Arguments... arguments) const
+        {
+            Destroy(arguments...);
+        }
+    };
+
+    /// Ends a handle with no parent with `Destroy(handle, allocator)`.
+    template <class Handle, auto& Destroy>
+    struct EndedAlone
+    {
+        void end(Handle handle) const { Destroy(handle, nullptr); }
+    };
+
     /// A Vulkan handle and the device it belongs to, ended through the device's graveyard: the one
     /// place `vkDestroyX(device, handle, allocator)` is spelled, so the classes holding one default
     /// their moves, and so no owner has to know whether a submit still reads what it lets go of.
@@ -37,138 +172,14 @@ namespace Rtx
     /// @tparam Destroy the function that ends it: a reference, because volk's entry points are
     ///         pointers it fills when the loader is loaded, and are read at the call.
     template <class Handle, auto& Destroy>
-    class Owned
-    {
-    public:
-        Owned() = default;
-
-        Owned(const Device& device, Handle handle)
-            : mDevice(&device)
-            , mHandle(handle)
-        {
-        }
-
-        ~Owned() { reset(); }
-
-        Owned(const Owned&) = delete;
-        Owned& operator=(const Owned&) = delete;
-
-        Owned(Owned&& other) noexcept
-            : mDevice(other.mDevice)
-            , mHandle(std::exchange(other.mHandle, VK_NULL_HANDLE))
-        {
-        }
-
-        Owned& operator=(Owned&& other) noexcept
-        {
-            if (this != &other)
-            {
-                reset();
-                mDevice = other.mDevice;
-                mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
-            }
-            return *this;
-        }
-
-        Handle get() const { return mHandle; }
-
-        /// One made by `create(device, &info, allocator, out)`, which is the shape every
-        /// `vkCreateX` this backend calls has but the pipelines' — checked, and named by `call`
-        /// in the message a failure carries. The string stays: nothing in C++ names a function
-        /// pointer's function.
-        ///
-        /// **Made into a local and adopted only once it succeeded**: a failed create leaves its
-        /// output undefined, and an owner it wrote into would end whatever the driver left there.
-        template <class Create, class Info>
-        static Owned make(const Device& device, Create create, const Info& info, const char* call)
-        {
-            Handle made = VK_NULL_HANDLE;
-            checkVk(create(vulkanHandleOf(device), &info, nullptr, &made), call);
-            return Owned(device, made);
-        }
-
-        /// Buries the handle, where there is one.
-        void reset()
-        {
-            if (mHandle != VK_NULL_HANDLE)
-                buryHandle(*mDevice, &end, std::bit_cast<std::uint64_t>(mHandle));
-            mHandle = VK_NULL_HANDLE;
-        }
-
-        /// Gives the handle up unburied, for an owner that buries it beside the memory bound to it
-        /// — `Graveyard::bury`, which ends it with `end`.
-        Handle release() { return std::exchange(mHandle, VK_NULL_HANDLE); }
-
-        static void end(const Device& device, const std::uint64_t handle)
-        {
-            Destroy(vulkanHandleOf(device), std::bit_cast<Handle>(handle), nullptr);
-        }
-
-    private:
-        const Device* mDevice = nullptr;
-        Handle mHandle = VK_NULL_HANDLE;
-    };
+    using Owned = Handled<Handle, Buried<Handle, Destroy>>;
 
     /// A handle ended the moment it is let go of, for the few the graveyard cannot outlive: the
     /// timeline's own semaphore and the pipeline cache, which the device takes apart after its
     /// graveyard, and the swapchain, whose surface goes before the device does and which is only
     /// ever remade with the device idle.
     template <class Handle, auto& Destroy>
-    class Immediate
-    {
-    public:
-        Immediate() = default;
-
-        Immediate(VkDevice device, Handle handle)
-            : mDevice(device)
-            , mHandle(handle)
-        {
-        }
-
-        ~Immediate() { reset(); }
-
-        Immediate(const Immediate&) = delete;
-        Immediate& operator=(const Immediate&) = delete;
-
-        Immediate(Immediate&& other) noexcept
-            : mDevice(other.mDevice)
-            , mHandle(std::exchange(other.mHandle, VK_NULL_HANDLE))
-        {
-        }
-
-        Immediate& operator=(Immediate&& other) noexcept
-        {
-            if (this != &other)
-            {
-                reset();
-                mDevice = other.mDevice;
-                mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
-            }
-            return *this;
-        }
-
-        Handle get() const { return mHandle; }
-
-        /// `Owned::make`, for a device given as its handle.
-        template <class Create, class Info>
-        static Immediate make(VkDevice device, Create create, const Info& info, const char* call)
-        {
-            Handle made = VK_NULL_HANDLE;
-            checkVk(create(device, &info, nullptr, &made), call);
-            return Immediate(device, made);
-        }
-
-        void reset()
-        {
-            if (mHandle != VK_NULL_HANDLE)
-                Destroy(mDevice, mHandle, nullptr);
-            mHandle = VK_NULL_HANDLE;
-        }
-
-    private:
-        VkDevice mDevice = VK_NULL_HANDLE;
-        Handle mHandle = VK_NULL_HANDLE;
-    };
+    using Immediate = Handled<Handle, EndedWith<VkDevice, Handle, Entry<Destroy>>>;
 
     /// A handle with no parent, ended by `Destroy(handle, allocator)` the moment it is let go of:
     /// the instance and the logical device, which outlive everything made on them and are ended
@@ -176,47 +187,5 @@ namespace Rtx
     /// owner — its destructor or a constructor that throws half way — ends those first and this
     /// last, in the one order.
     template <class Handle, auto& Destroy>
-    class Root
-    {
-    public:
-        Root() = default;
-
-        /// Takes `handle`, made and checked.
-        explicit Root(Handle handle)
-            : mHandle(handle)
-        {
-        }
-
-        ~Root() { reset(); }
-
-        Root(const Root&) = delete;
-        Root& operator=(const Root&) = delete;
-
-        Root(Root&& other) noexcept
-            : mHandle(std::exchange(other.mHandle, VK_NULL_HANDLE))
-        {
-        }
-
-        Root& operator=(Root&& other) noexcept
-        {
-            if (this != &other)
-            {
-                reset();
-                mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
-            }
-            return *this;
-        }
-
-        Handle get() const { return mHandle; }
-
-    private:
-        void reset()
-        {
-            if (mHandle != VK_NULL_HANDLE)
-                Destroy(mHandle, nullptr);
-            mHandle = VK_NULL_HANDLE;
-        }
-
-        Handle mHandle = VK_NULL_HANDLE;
-    };
+    using Root = Handled<Handle, EndedAlone<Handle, Destroy>>;
 }

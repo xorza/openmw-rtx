@@ -13,7 +13,7 @@
 #include "frame.glsl"
 #include "pixels.glsl"
 #include "shading.glsl"
-#include "stage.glsl"
+#include "stagerecord.glsl"
 
 /// Writes what arrived along `pixel`'s bounce into the indirect light, the fill and the lobe's share
 /// of it. The upscaler's masks, which weigh a part of the pixel against the whole of its light, are

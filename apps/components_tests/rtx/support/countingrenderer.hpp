@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string>
@@ -77,10 +78,11 @@ namespace Rtx::Testing
         Rtx::SceneHeld describeHeld(Rtx::SceneSlot slot) const override
         {
             const Built& built = heldAt(slot);
-            return Rtx::SceneHeld{
-                .mIdentity = built.mIdentity, .mStructureRevision = built.mRevision, .mTextureCount = countAt(slot)
-            };
+            return Rtx::SceneHeld{ .mIdentity = built.mIdentity, .mStructureRevision = built.mRevision };
         }
+
+        /// How long `slot`'s texture array stands: the highest slot written, plus one.
+        std::uint32_t textureCountOf(Rtx::SceneSlot slot) const { return countAt(slot); }
 
         /// What the device refused, which a test fills to be what the next hand-over answers.
         std::span<const Rtx::Refusal> getRefusals(Rtx::SceneSlot) const override { return mRefusing; }
@@ -116,8 +118,15 @@ namespace Rtx::Testing
         void presentFrame() override {}
         void awaitPresented() override {}
 
-        /// Slots go up, what a texture is sent is kept for a test to read, and nothing is drawn.
-        Rtx::GuiSlot addGuiTexture(std::uint32_t, std::uint32_t) override { return Rtx::GuiSlot::at(mGuiTextures++); }
+        /// Slots go up, what a texture is sent is kept for a test to read, and nothing is drawn. A
+        /// side past `mGuiSide` is refused, as a device refuses one past its own.
+        Rtx::GuiSlot addGuiTexture(std::uint32_t width, std::uint32_t height) override
+        {
+            ++mGuiAsked;
+            if (width > mGuiSide || height > mGuiSide)
+                return Rtx::GuiSlot::none();
+            return Rtx::GuiSlot::at(mGuiTextures++);
+        }
         std::span<std::uint8_t> lendGuiTexture(Rtx::GuiSlot, const Rtx::GuiRegion& region) override
         {
             mLent.push_back(region);
@@ -127,9 +136,11 @@ namespace Rtx::Testing
         void sendGuiTexture(Rtx::GuiSlot) override { ++mGuiSent; }
         void dropGuiTexture(Rtx::GuiSlot) override {}
         void drawGui(std::span<const Rtx::GuiVertex>, std::span<const Rtx::GuiBatch>) override {}
-        void traceGuiTexture(Rtx::GuiSlot, const Rtx::Viewpoint& view, const Rtx::GuiTraceOptions& options) override
+        bool traceGuiTexture(Rtx::GuiSlot, Rtx::SceneSlot scene, const Rtx::Viewpoint& view,
+            const Rtx::GuiTraceOptions& options) override
         {
-            mTraced = TracedPicture{ .mView = view, .mOptions = options };
+            mTraced = TracedPicture{ .mScene = scene, .mView = view, .mOptions = options };
+            return true;
         }
         void reservePicture(std::uint32_t width, std::uint32_t height) override
         {
@@ -224,9 +235,14 @@ namespace Rtx::Testing
         std::vector<std::uint8_t> mLending;
         std::uint32_t mGuiSent = 0;
 
+        /// The largest side a GUI texture is made at, and how many were asked for, made or not.
+        std::uint32_t mGuiSide = std::numeric_limits<std::uint32_t>::max();
+        std::uint32_t mGuiAsked = 0;
+
         /// What the last picture inside the interface was traced with, or nothing before the first.
         struct TracedPicture
         {
+            Rtx::SceneSlot mScene;
             Rtx::Viewpoint mView;
             Rtx::GuiTraceOptions mOptions;
         };

@@ -43,7 +43,7 @@ namespace Rtx
     /// One refusal, held by what made it until it can be reported: a reader thread hands its own to
     /// the frame with what it read, a describe that a read-only caller also runs hands them to the
     /// one that owns the scene, and a backend hands back what the device could not stand
-    /// (`Renderer::getRefusals`).
+    /// (`SceneHolder::getRefusals`).
     struct Refusal
     {
         Refused mKind = Refused::Mesh;

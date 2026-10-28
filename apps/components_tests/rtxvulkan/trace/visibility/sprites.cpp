@@ -587,7 +587,7 @@ namespace Rtx::Testing
             // back and the digest take as the trace's whether or not anything upscales, is the black
             // sky where the shown frame holds both puffs (`readComposite`).
             std::vector<float> composed;
-            mRenderer.readComposite(composed);
+            mProbe.readComposite(composed);
             ASSERT_EQ(composed.size(), std::size_t{ size } * size * 4);
             EXPECT_EQ(composed[centre], 0.0f) << "the near puff was laid over the trace's own frame";
             EXPECT_EQ(composed[centre + 1], 0.0f) << "the far puff was laid over the trace's own frame";

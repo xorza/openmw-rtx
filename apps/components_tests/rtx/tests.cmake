@@ -2,6 +2,7 @@
 # device and fails where there is none, so a box without a driver cannot pass by skipping.
 # `RTX_TEST_SUPPORT` goes into both binaries, `RTX_GPU_TEST_SUPPORT` into the second.
 set(RTX_TEST_FILES
+    myguirtx/paintedmirror.cpp
     myguirtx/sharedtexture.cpp
     platform/linuxtext.cpp
     rtx/common/hashstate.cpp
@@ -9,6 +10,7 @@ set(RTX_TEST_FILES
     rtx/common/monitor.cpp
     rtx/common/namedenum.cpp
     rtx/common/parallel.cpp
+    rtx/common/radicalinverse.cpp
     rtx/common/result.cpp
     rtx/common/runs.cpp
     rtx/common/slots.cpp
@@ -52,6 +54,7 @@ set(RTX_TEST_FILES
     rtx/mirror/mirroridentity.cpp
     rtx/mirror/nifsurface.cpp
     rtx/mirror/nodekind.cpp
+    rtx/mirror/released.cpp
     rtx/mirror/shading.cpp
     rtx/mirror/statereading.cpp
     rtx/preprocess/contentkey.cpp
@@ -59,6 +62,7 @@ set(RTX_TEST_FILES
     rtx/preprocess/laidimagecache.cpp
     rtx/preprocess/shape/creasesplit.cpp
     rtx/preprocess/shape/shapefold.cpp
+    rtx/renderer/framedescriber.cpp
     rtx/renderer/frameimage.cpp
     rtx/renderer/memoryreport.cpp
     rtx/renderer/notfinite.cpp
@@ -180,6 +184,8 @@ set(RTX_GPU_TEST_SUPPORT
     rtx/support/device/memorylimits.hpp
     rtx/support/device/readback.cpp
     rtx/support/device/readback.hpp
+    rtx/support/device/rendererprobe.cpp
+    rtx/support/device/rendererprobe.hpp
 )
 
 set(RTX_GPU_TEST_FILES
@@ -189,6 +195,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/gputimer.cpp
     rtxvulkan/device/memory/barriers.cpp
     rtxvulkan/device/memory/buffer.cpp
+    rtxvulkan/device/memory/image.cpp
     rtxvulkan/device/memory/imagearenadevice.cpp
     rtxvulkan/device/memory/memory.cpp
     rtxvulkan/device/memory/slottable.cpp
@@ -198,6 +205,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/probe.cpp
     rtxvulkan/device/readstamp.cpp
     rtxvulkan/device/share.cpp
+    rtxvulkan/device/sharedexponent.cpp
     rtxvulkan/device/unormround.cpp
     rtxvulkan/display/bloompass.cpp
     rtxvulkan/display/exposurepass.cpp

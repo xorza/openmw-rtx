@@ -1,10 +1,13 @@
+#include <cstddef>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 
 #include <boost/container/flat_set.hpp>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/scratch.hpp>
@@ -141,6 +144,38 @@ namespace Rtx
             Reading& second = spares.take(valued(3));
             EXPECT_NE(&second, &first);
             EXPECT_EQ(spares.size(), 2u);
+        }
+
+        /// **Making a thousand objects copies the spare list a handful of times, and giving them all
+        /// back allocates nothing**: the list's room follows the list of all's, which doubles,
+        /// where one more each time copied the whole list at every object made. A thousand
+        /// takes make a thousand objects and some ten rooms for each of the two lists, nowhere near
+        /// the two thousand a reserve of one more each made. The same for a value given back to a
+        /// `Recycled` that made it.
+        TEST(RtxSparesTest, aThousandObjectsGrowTheListsByDoublingAndGoBackFree)
+        {
+            Spares<Reading> spares;
+            std::vector<Reading*> taken;
+            taken.reserve(1000);
+            const std::size_t before = Testing::getAllocationCount();
+            for (int at = 0; at < 1000; ++at)
+                taken.push_back(&spares.take(valued(at)));
+            EXPECT_LT(Testing::getAllocationCount() - before, 1000u + 40u) << "a room made for every object made";
+
+            const std::size_t made = Testing::getAllocationCount();
+            for (Reading* reading : taken)
+                spares.give(*reading);
+            EXPECT_EQ(Testing::getAllocationCount(), made) << "a give-back reached the heap";
+
+            Recycled<std::vector<int>> recycled;
+            std::vector<std::vector<int>> out;
+            out.reserve(100);
+            for (int at = 0; at < 100; ++at)
+                out.push_back(recycled.take());
+            const std::size_t recycledMade = Testing::getAllocationCount();
+            for (std::vector<int>& value : out)
+                recycled.give(std::move(value));
+            EXPECT_EQ(Testing::getAllocationCount(), recycledMade) << "a recycled value's give-back reached the heap";
         }
 
         /// **A fill that throws leaves nothing taken.** The pool empties the object and has it

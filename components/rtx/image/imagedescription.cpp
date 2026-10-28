@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <exception>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -260,10 +262,12 @@ namespace Rtx
 
     namespace
     {
-        /// `describeImage` of the first `count` levels, which is no more than the image keeps.
+        /// `describeImage` of the first `count` levels, which is no more than the image keeps. What
+        /// is laid out is laid into `laidInto` where it is given, `laidBytesOf`'s size, and appended
+        /// to `texels` otherwise.
         Misc::Result<TextureData, std::string> describeLevels(const osg::Image& image, const TextureFormat format,
             const TextureEncoding encoding, const std::uint32_t count, std::vector<MipLevel>& levels,
-            std::vector<std::byte>& texels)
+            std::vector<std::byte>& texels, const std::optional<std::span<std::byte>> laidInto = std::nullopt)
         {
             // Every reader of an image's bytes on the processor comes through here first, so a crash
             // in one names the file.
@@ -351,9 +355,11 @@ namespace Rtx
                     + " bytes, past what a level's 32-bit offset reaches" };
             }
 
+            assert((!laidInto.has_value() || laidInto->size() == total) && "laid into room of another size");
             const std::size_t from = texels.size();
-            texels.resize(from + total);
-            const std::span<std::byte> into = std::span(texels).subspan(from);
+            if (!laidInto.has_value())
+                texels.resize(from + total);
+            const std::span<std::byte> into = laidInto.value_or(std::span(texels).subspan(from));
             std::size_t at = 0;
             for (std::uint32_t level = 0; level < count; ++level)
             {
@@ -374,7 +380,7 @@ namespace Rtx
             if (widened)
                 described.mFormat
                     = encoding == TextureEncoding::Colour ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm;
-            described.mBytes = std::span<const std::byte>(texels).subspan(from, total);
+            described.mBytes = into;
             return described;
         }
     }
@@ -392,21 +398,22 @@ namespace Rtx
             return nullptr;
 
         // The encoding names the widened format and lays no byte differently: every widened
-        // format reads alike as a colour and as data (`readFormat`).
+        // format reads alike as a colour and as data (`readFormat`). **Widened straight into the
+        // image handed back**, its bytes allocated first at what the levels lay out to, where
+        // widening into scratch and copying wrote every byte twice.
         levels.clear();
         texels.clear();
-        const Misc::Result<TextureData, std::string> described
-            = describeLevels(image, format, TextureEncoding::Colour, keptLevels(image), levels, texels);
+        const std::size_t bytes = laidBytes(image, format);
+        auto data = std::make_unique_for_overwrite<unsigned char[]>(bytes);
+        const Misc::Result<TextureData, std::string> described = describeLevels(image, format, TextureEncoding::Colour,
+            keptLevels(image), levels, texels, std::span(reinterpret_cast<std::byte*>(data.get()), bytes));
         if (!described.isOk())
             return nullptr;
 
         const TextureData& laid = described.value();
-        auto* const data = new unsigned char[laid.mBytes.size()];
-        std::copy(laid.mBytes.begin(), laid.mBytes.end(), reinterpret_cast<std::byte*>(data));
-
         osg::ref_ptr<osg::Image> made = new osg::Image;
         made->setImage(static_cast<int>(laid.mWidth), static_cast<int>(laid.mHeight), 1, GL_RGBA8, GL_RGBA,
-            GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            GL_UNSIGNED_BYTE, data.release(), osg::Image::USE_NEW_DELETE);
 
         osg::Image::MipmapDataType offsets;
         offsets.reserve(laid.mLevels.size() - 1);

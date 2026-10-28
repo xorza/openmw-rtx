@@ -45,8 +45,8 @@ namespace Rtx
         {
             for (const RadianceWidth radiance : { RadianceWidth::Summed, RadianceWidth::Shown })
             {
-                const Device& device = mRenderer.getDevice();
-                TraceChain chain(device, mRenderer.getTracePasses(), 1, radiance, TracePast::Dropped);
+                const Device& device = mProbe.getDevice();
+                TraceChain chain(device, mProbe.getTracePasses(), 1, radiance, TracePast::Dropped);
 
                 const ImageArena wide = arenaFor(device, 64, 32, radiance);
                 chain.resize(64, 32, everyOf(wide));
@@ -79,14 +79,14 @@ namespace Rtx
         /// each surface channel is one image too, and the frame's own is what it holds.
         TEST_F(RtxTraceChainTest, aFrameHoldsItsHistoriesToTheSurfacesTheFrameBeforeWrote)
         {
-            const Device& device = mRenderer.getDevice();
+            const Device& device = mProbe.getDevice();
             for (const TracePast past : { TracePast::Kept, TracePast::Dropped })
             {
                 std::vector<ArenaImage> declared;
                 GBuffer::declareStages(16, 8, declared);
                 const ImageArena stages(device, declared);
                 GBuffer channels(
-                    device, mRenderer.getTracePasses().mChannels, 16, 8, RadianceWidth::Shown, past, everyOf(stages));
+                    device, mProbe.getTracePasses().mChannels, 16, 8, RadianceWidth::Shown, past, everyOf(stages));
                 const auto turn = [&] {
                     Batch batch(device.getPool());
                     channels.begin(batch.getCommands(), ChannelWrites{});
@@ -130,7 +130,7 @@ namespace Rtx
         /// shown one, and a chain that keeps its past more than one that drops it, which holds one image a pair.
         TEST_F(RtxTraceChainTest, whatAChainSaysItTakesIsWhatItHolds)
         {
-            const Device& device = mRenderer.getDevice();
+            const Device& device = mProbe.getDevice();
             MemoryAllocator& memory = device.getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
             // What the tests before buried is freed at the next wait, which a chain's own submits
@@ -147,7 +147,7 @@ namespace Rtx
                     const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
                     const VkDeviceSize essential = memory.getHeld(heap, MemoryUse::Essential);
 
-                    TraceChain chain(device, mRenderer.getTracePasses(), 1, radiance, past);
+                    TraceChain chain(device, mProbe.getTracePasses(), 1, radiance, past);
                     const VkDeviceSize bins = memory.getHeld(heap, MemoryUse::Essential) - essential;
                     const VkDeviceSize arenaHeld = memory.getHeld(heap, MemoryUse::Frame);
                     const ImageArena arena = arenaFor(device, 64, 32, radiance);

@@ -13,22 +13,17 @@
 #include <vector>
 
 #include <osg/Vec2d>
-#include <osg/Vec3f>
 
 #include <components/rtx/common/cardaddress.hpp>
-#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/mesh.hpp>
-#include <components/rtx/scene/refusal.hpp>
-#include <components/rtx/scene/structurerevision.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -37,6 +32,7 @@
 #include "framesinflight.hpp"
 #include "guirenderer.hpp"
 #include "memoryreport.hpp"
+#include "picturerenderer.hpp"
 #include "slot.hpp"
 
 struct SDL_Window;
@@ -60,7 +56,6 @@ namespace Rtx
         Every,
     };
 
-    class SceneDesc;
     struct SkyContent;
 
     /// How much of the graphics API's own checking a run loads. One level and not three switches,
@@ -192,27 +187,6 @@ namespace Rtx
         bool mPipelineStatistics = true;
     };
 
-    /// What a backend holds in one of its slots, as it says so itself. A slot and a scene are one
-    /// to one, so nothing here has to name which scene.
-    struct SceneHeld
-    {
-        /// `SceneDesc::getIdentity` of the description the slot was built from: an uploader
-        /// handing another description to a slot has to build, because the structures and the
-        /// texture array are the first description's, and appending the second's arrivals onto
-        /// them would begin past the end of its own table. Nought where nothing was built, which
-        /// no description's identity is.
-        std::uint64_t mIdentity = 0;
-
-        /// `SceneDesc::getStructureRevision` as it stood at the last `setScene` or `extendScene`.
-        StructureRevision mStructureRevision;
-
-        /// How long the slot's texture array is: the table's length, holes included, and not the
-        /// tally, which `SceneStats::mTextureCount` is. Every arrival names its own slot, so nothing
-        /// appends by it; it is the one view of the array's length, which an array built short of
-        /// the table would get wrong.
-        std::uint32_t mTextureCount = 0;
-    };
-
     /// What a backend reports about the scene it took. The harness's summary line, as a struct.
     struct SceneStats
     {
@@ -232,6 +206,10 @@ namespace Rtx
         std::uint64_t mStructureLiveBytes = 0;
 
         std::uint64_t mTableBytes = 0;
+
+        /// What the structures are worked in beside the two above: the rows, their packing, the
+        /// poses and the builds' scratch, which the device holds for the scene as surely.
+        std::uint64_t mWorkBytes = 0;
 
         /// What the structures answered for and not yet copied tight would come to, or nought where
         /// the device would not say: the difference from `mStructureBytes` is what compacting gives.
@@ -263,10 +241,11 @@ namespace Rtx
     };
 
     /// The most zones one frame may open: every zone there is, the tone pass of a summed run again,
-    /// and a second placement's five where a caller places the world again before it traces, which
-    /// the game never does. A frame that opens more is a broken contract, which `GpuTimer` asserts.
-    inline constexpr std::uint32_t sMaxGpuZones = 40;
-    static_assert(sFrameZoneCount <= sMaxGpuZones, "a zone a frame opens that the timer cannot hold");
+    /// and a second placement's, `Blas` to `Ground`, where a caller places the world again before it
+    /// traces, which the game never does. A frame that opens more is a broken contract, which
+    /// `GpuTimer` asserts.
+    inline constexpr std::uint32_t sMaxGpuZones = static_cast<std::uint32_t>(sFrameZoneCount) + 1
+        + (static_cast<std::uint32_t>(FrameZone::Ground) - static_cast<std::uint32_t>(FrameZone::Blas) + 1);
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
     /// cannot write timestamps or the renderer was made not to time (`RendererOptions::mTiming`).
@@ -408,43 +387,6 @@ namespace Rtx
         std::optional<FrameDigest> mDigest;
     };
 
-    /// The light a picture inside the interface stands in, which no world describes: a flat sun
-    /// and an ambient, as the rasterizer lights its previews, in the renderer's irradiance. Drawn
-    /// with no sky source's shadow, the doll's and the map's alike, as the rasterizer draws them.
-    struct PictureLight
-    {
-        /// Toward the sun, unit, or nought for none.
-        osg::Vec3f mDirection;
-        osg::Vec3f mIrradiance;
-        osg::Vec3f mAmbient;
-    };
-
-    /// What a picture inside the interface is asked for, beyond where its camera stands. How much
-    /// of the texture the picture fills, from its top-left corner, is the camera's own extent; the
-    /// rest is left at `mClear`, whose alpha below one is a picture over the interface's own. The
-    /// inventory doll's window resizes and the texture behind it does not.
-    struct GuiTraceOptions
-    {
-        /// What the rest of the texture holds, red first: transparent black for a picture the GUI
-        /// composites over what is behind it.
-        std::array<float, 4> mClear{};
-
-        /// What to trace against: a slot `Renderer::addViewScene` gave out, or the world's for the
-        /// one the frame is drawn from. A map tile is a picture of the world; a doll is not.
-        SceneSlot mScene = SceneSlot::world();
-
-        /// Whether to leave a copy of the whole texture where `takeGuiCopy` can hand it to the host,
-        /// which is the one time a picture inside the interface comes back to main memory.
-        bool mReadBack = false;
-
-        /// Which classes the picture draws, `Shaders::MASK_*`, and whether the lamps light it: a map
-        /// tile leaves the actors out, and the rasterizer lights its previews by no lamp.
-        std::uint32_t mRayMask = Shaders::MASK_EVERY_CLASS;
-        bool mLamps = true;
-
-        PictureLight mLight{};
-    };
-
     /// One frame as a host asks for it: where it is seen from and what the eye draws, the world it
     /// stands in, and what it asks over the profile. **The host states and the renderer
     /// describes**: the renderer lays the world over the viewpoint (`describeWorld`) and samples
@@ -480,82 +422,16 @@ namespace Rtx
         osg::Vec2d mCarried;
     };
 
-    /// One traced image, whichever API produced it: what a scene is handed to, what the interface
-    /// is drawn on, what produces a frame, and what a test or a harness reads back. Nothing below
+    /// One traced image, whichever API produced it: what holds the scenes and traces the pictures
+    /// inside the interface (`PictureRenderer`), what the interface is drawn on (`GuiRenderer`),
+    /// what produces a frame, and what a test or a harness reads back. Nothing below
     /// this line is abstracted — buffers, memory, command buffers and pipelines belong to a backend
     /// outright — so a method here is worth a whole scene or a whole frame, and none is reached per
     /// instance or per pixel. `slot` says which scene throughout: the world's, or one
     /// `addViewScene` handed out for a picture inside the interface.
-    class Renderer : public GuiRenderer
+    class Renderer : public PictureRenderer, public GuiRenderer
     {
     public:
-        /// Builds everything a scene needs, replacing whatever was there, and places it. `textures`
-        /// are decoded already, each naming the slot it stands in (`TextureData::mSlot`), and must
-        /// outlive the call.
-        virtual void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) = 0;
-
-        /// The same scene with more in it: geometry and textures appended, nothing renumbered, at
-        /// the cost of a cell and never of `setScene`. `arrived` is the textures the scene gained
-        /// since the last call, each naming the slot it stands in — a slot a departure freed, or
-        /// one past the count this already holds.
-        ///
-        /// **Appends and does not place**: the caller places after it (`placeScene`), as on a frame
-        /// where nothing arrived, because the top level names every instance and an arrival changed
-        /// the list.
-        virtual void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) = 0;
-
-        /// What this slot was last built from, and how far it has been extended since.
-        virtual SceneHeld describeHeld(SceneSlot slot) const = 0;
-
-        /// What the last `setScene` or `extendScene` of `slot` could not stand for the device's
-        /// sake — a texture past the side it takes, a texture or a mesh it had no room for — for
-        /// the scene's owner to report with the rest of what content was refused
-        /// (`SceneDesc::refusals`). A texture refused draws the stand-in, and a mesh refused is
-        /// left out. Valid until the next call of either for `slot`.
-        virtual std::span<const Refusal> getRefusals(SceneSlot slot) const = 0;
-
-        /// Destroys the images of the texture slots a scene gave up. The slots keep their place,
-        /// as they do in the scene's own table, and no live material names a freed one.
-        virtual void dropTextures(SceneSlot slot, std::span<const Index> textures) = 0;
-
-        /// The same scene with its instances and lights somewhere else and its actors in a new
-        /// pose: rebuilds only what says where things are, plus the structure of each mesh
-        /// `getDeformed` names. `scene` must be the scene `setScene` was given, because the
-        /// placements index into structures this already holds. The world's ripples are read here
-        /// too, beside its lights and sprites: what disturbed the water is a per-frame list of the
-        /// scene like the other three, and the next `renderFrame` presses what the last placement
-        /// or `setScene` read.
-        virtual void placeScene(SceneSlot slot, const SceneDesc& scene) = 0;
-
-        /// A scene of its own for a picture inside the interface — the inventory doll, the race
-        /// preview — which a ray the frame sends must not find. Slots given back are taken over
-        /// before the table grows.
-        virtual SceneSlot addViewScene() = 0;
-
-        virtual void dropViewScene(SceneSlot slot) = 0;
-
-        /// Room for pictures inside the interface up to `width` by `height`, asked as each view that
-        /// will trace one is made: kept for the session and counted with the frame's targets, so no
-        /// picture's first trace takes memory on its frame, over a budget the textures filled. Grown
-        /// where a view is larger than what was asked before, and never shrunk.
-        virtual void reservePicture(std::uint32_t width, std::uint32_t height) = 0;
-
-        /// Traces the scene from `camera` into a GUI texture rather than into the frame: a map
-        /// tile, the inventory doll. Not the frame's chain — nothing upscales or averages and the
-        /// exposure is one, because a still has no previous frame. Recorded and not run: the picture
-        /// rides the next submit, reads the copy of the scene its last placement wrote, and the next
-        /// placement of that scene waits for the frame it rode.
-        virtual void traceGuiTexture(GuiSlot texture, const Viewpoint& view, const GuiTraceOptions& options) = 0;
-
-        /// The copy the last `traceGuiTexture` with `mReadBack` left of `texture`, four bytes a
-        /// pixel, tightly packed, row zero first, into `into` as far as it reaches. False until the
-        /// copy arrived, which is two frames on, and never a wait.
-        virtual bool takeGuiCopy(GuiSlot texture, std::span<std::uint8_t> into) = 0;
-
-        /// Submits every picture recorded and not yet carried and waits for them, for a harness or a
-        /// test standing outside any frame. A game never calls it.
-        virtual void finishGuiTraces() = 0;
-
         /// Resizes the frame; what the trace runs at follows from the upscaler, and `getExtents`
         /// says. Where the room the new targets take grows past what the world's content left, or
         /// shrinks where content was held back for want of room, the world goes with the old

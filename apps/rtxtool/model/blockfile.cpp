@@ -96,6 +96,24 @@ namespace RtxTool
         return text;
     }
 
+    std::vector<std::string> splitNames(std::string_view text)
+    {
+        std::vector<std::string> names;
+
+        for (std::size_t at = 0; at <= text.size();)
+        {
+            const std::size_t comma = std::min(text.find(',', at), text.size());
+            const std::string_view name = trimmed(text.substr(at, comma - at));
+
+            if (!name.empty())
+                names.emplace_back(name);
+
+            at = comma + 1;
+        }
+
+        return names;
+    }
+
     BlockFile::BlockFile(std::istream& in, std::string source)
         : mSource(std::move(source))
     {

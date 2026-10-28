@@ -4,9 +4,9 @@
 
 namespace Rtx
 {
-    class Renderer;
+    class SceneHolder;
 
-    /// A scene slot of a renderer's own — `Renderer::addViewScene` — given back when this goes.
+    /// A scene slot of a renderer's own — `SceneHolder::addViewScene` — given back when this goes.
     /// What a picture inside the interface holds instead of an index it has to remember to drop:
     /// a constructor that throws after the slot was taken unwinds it, and nothing can drop it
     /// twice. Move-only, because the slot is one thing; one holding nothing is what a moved-from
@@ -15,7 +15,7 @@ namespace Rtx
     {
     public:
         ViewScene() = default;
-        explicit ViewScene(Renderer& renderer);
+        explicit ViewScene(SceneHolder& scenes);
         ~ViewScene();
 
         ViewScene(const ViewScene&) = delete;
@@ -24,7 +24,7 @@ namespace Rtx
         ViewScene(ViewScene&& other) noexcept;
         ViewScene& operator=(ViewScene&& other) noexcept;
 
-        bool holds() const { return mRenderer != nullptr; }
+        bool holds() const { return mScenes != nullptr; }
 
         SceneSlot get() const;
 
@@ -32,7 +32,7 @@ namespace Rtx
         void drop();
 
         /// Null where this holds no slot.
-        Renderer* mRenderer = nullptr;
+        SceneHolder* mScenes = nullptr;
         SceneSlot mSlot;
     };
 }

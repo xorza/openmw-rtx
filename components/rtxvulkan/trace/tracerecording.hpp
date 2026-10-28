@@ -7,6 +7,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
 
+#include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 
 #include "spritebin.hpp"
@@ -23,9 +24,15 @@ namespace Rtx
     struct TraceRecording
     {
         /// What the rays meet, where the sea and the sprites the trace reads were left, and what
-        /// every launch binds beside them: the census and the chain's slot. The chain's own images
-        /// are the chain's to name (`TraceChain::record`).
+        /// every launch binds beside them: the census. The chain's own images are the chain's to
+        /// name (`TraceChain::record`).
         TraceSubject mSubject;
+
+        /// Which of the chain's sprite bins this trace records into and reads: the frame's own
+        /// slot in the world's chain, so the frame behind keeps its bin, and the first in the
+        /// pictures' chain. Not which copy of the air it writes, which is a turn a trace
+        /// (`FogVolume::turn`) and so stays paired across a frame that traced nothing.
+        FrameSlot mBinSlot;
 
         /// What the sprite bin tiles against, off the camera the caller asked for (`BinCamera`).
         BinCamera mAsked;

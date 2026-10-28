@@ -28,7 +28,8 @@ namespace Rtx
         const Specialization constants(device, raygen, specialization);
         const VkPipelineShaderStageCreateInfo stage{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .pNext = code.stage(raygen, layout.getSetTables(), layout.getPushRange().size, specialization),
+            .pNext = code.stage(
+                raygen, VK_SHADER_STAGE_RAYGEN_BIT_KHR, layout.getSetTables(), layout.getPushRange(), specialization),
             .flags = 0,
             .stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR,
             .module = VK_NULL_HANDLE,
@@ -70,7 +71,7 @@ namespace Rtx
             .basePipelineIndex = 0,
         };
         VkPipeline made = VK_NULL_HANDLE;
-        checkVk(device.getFunctions().mCreateRayTracingPipelines(
+        checkVk(vkCreateRayTracingPipelinesKHR(
                     device.getHandle(), VK_NULL_HANDLE, device.getPipelineCache(), 1, &pipeline, nullptr, &made),
             "vkCreateRayTracingPipelinesKHR");
         Owned<VkPipeline, vkDestroyPipeline> handle(device, made);
@@ -98,8 +99,7 @@ namespace Rtx
         std::memset(table.data(), 0, table.size());
 
         std::vector<std::uint8_t> handle(limits.shaderGroupHandleSize);
-        checkVk(device.getFunctions().mGetRayTracingShaderGroupHandles(
-                    device.getHandle(), pipeline, 0, 1, handle.size(), handle.data()),
+        checkVk(vkGetRayTracingShaderGroupHandlesKHR(device.getHandle(), pipeline, 0, 1, handle.size(), handle.data()),
             "vkGetRayTracingShaderGroupHandlesKHR");
         std::memcpy(table.data(), handle.data(), handle.size());
 
@@ -120,6 +120,6 @@ namespace Rtx
         // The region carries the table by address, taken once at the fill, so the launch is the
         // hand-out that names it: the table then outlives every trace that reads it.
         mTable.nameForNext();
-        mDevice.getFunctions().mCmdTraceRays(commands, &mRaygen, &mNone, &mNone, &mNone, width, height, depth);
+        vkCmdTraceRaysKHR(commands, &mRaygen, &mNone, &mNone, &mNone, width, height, depth);
     }
 }

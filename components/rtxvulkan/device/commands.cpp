@@ -346,6 +346,7 @@ namespace Rtx
 
         Buffer made = Buffer::staging(
             mDevice, std::max(bytes, sStagingBlock), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging block");
+        mStagingBytes += made.getSize();
         if (!mLetGoStaging.empty())
         {
             const std::size_t block = mLetGoStaging.back();
@@ -371,10 +372,27 @@ namespace Rtx
 
         for (std::size_t at = keeping; at < mSpareStaging.size(); ++at)
         {
+            mStagingBytes -= mStaging[mSpareStaging[at]].getSize();
             mStaging[mSpareStaging[at]] = Buffer{};
             mLetGoStaging.push_back(mSpareStaging[at]);
         }
         mSpareStaging.resize(keeping);
+    }
+
+    void CommandPool::shedStaging(const VkDeviceSize keep)
+    {
+        if (mStagingBytes <= keep || mSpareStaging.empty())
+            return;
+
+        const auto largest = std::ranges::max_element(
+            mSpareStaging, {}, [&](const std::size_t block) { return mStaging[block].getSize(); });
+        const std::size_t block = *largest;
+        *largest = mSpareStaging.back();
+        mSpareStaging.pop_back();
+
+        mStagingBytes -= mStaging[block].getSize();
+        mStaging[block] = Buffer{};
+        mLetGoStaging.push_back(block);
     }
 
     VkDeviceSize CommandPool::getStagingSize(const VkBuffer block) const

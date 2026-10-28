@@ -58,7 +58,7 @@ namespace SDLUtil
         if (!mWindow)
             return false;
 
-        const float density = SDL_GetWindowPixelDensity(mWindow);
+        const float density = pixelDensity(mWindow);
         SDL_SetWindowPosition(mWindow, x, y);
         SDL_SetWindowSize(mWindow, windowPoints(width, density), windowPoints(height, density));
         return true;

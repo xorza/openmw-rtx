@@ -224,22 +224,25 @@ namespace Rtx
         // here: a sweep the filesystem refuses, or a read that cannot allocate, starts the cache
         // empty. The sweep before the read and not after it, so that a run which then fails to load
         // its own file has still taken the rest away.
+        std::vector<std::uint8_t> loaded;
         tearDown("the pipeline cache starts empty", [&] {
             sweep();
-            Misc::Result<std::vector<std::uint8_t>, std::string_view> loaded = read(mPath, properties);
-            if (loaded.isOk())
-                mLoaded = std::move(loaded.value());
+            Misc::Result<std::vector<std::uint8_t>, std::string_view> found = read(mPath, properties);
+            if (found.isOk())
+                loaded = std::move(found.value());
             else
                 Log(Debug::Info) << "Rtx: the pipeline cache starts empty: "
-                                 << Files::pathToUnicodeString(mPath.filename()) << ' ' << loaded.error();
+                                 << Files::pathToUnicodeString(mPath.filename()) << ' ' << found.error();
         });
+        mKeptBytes = loaded.size();
+        mKeptDigest = digestOf(loaded);
 
         const VkPipelineCacheCreateInfo describe{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .initialDataSize = mLoaded.size(),
-            .pInitialData = mLoaded.empty() ? nullptr : mLoaded.data(),
+            .initialDataSize = loaded.size(),
+            .pInitialData = loaded.empty() ? nullptr : loaded.data(),
         };
 
         // Into a local, for the reason `Owned::make` gives.
@@ -320,7 +323,8 @@ namespace Rtx
         // `shot` after the first, every test binary after the first. Rewriting a megabyte to record
         // no change is how a cache comes to cost more than it saves.
         data.resize(bytes);
-        if (data == mLoaded)
+        const DigestWords digest = digestOf(data);
+        if (bytes == mKeptBytes && digest == mKeptDigest)
             return;
 
         // Removed rather than written, where one run's own pipelines have outgrown the cap. The
@@ -362,7 +366,10 @@ namespace Rtx
         if (written)
             std::filesystem::rename(partial, mPath, failed);
         if (written && !failed)
-            mLoaded = std::move(data);
+        {
+            mKeptBytes = bytes;
+            mKeptDigest = digest;
+        }
 
         // Whether the write failed or the rename did, what must not be left behind is the temporary:
         // a directory filling with abandoned near-copies of a megabyte is a worse fault than the one

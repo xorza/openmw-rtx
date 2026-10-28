@@ -13,7 +13,7 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
-#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/picturerenderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
@@ -92,7 +92,7 @@ namespace Rtx
         ///        otherwise be run by whichever got there first and frozen for the other; the
         ///        content's caches, so a doll counts into the world's figures; and the layout of the
         ///        `_spec` maps, so a doll wears what the world does.
-        OffscreenTrace(Renderer& renderer, const ViewRequest& request, WalkContext& context);
+        OffscreenTrace(PictureRenderer& renderer, const ViewRequest& request, WalkContext& context);
 
         /// Out of line because `SceneDesc`, `SceneExtractor` and the update visitor are only forward
         /// declared here.
@@ -132,11 +132,12 @@ namespace Rtx
         bool rebuildSubject(const osg::FrameStamp& posing, Released& releasing);
 
         /// Traces the picture into `texture`, a slot from `Renderer::addGuiTexture`, and leaves a
-        /// copy for `takeCopy` where `readBack` asks for one.
-        void traceInto(GuiSlot texture, bool readBack = false);
+        /// copy for `takeCopy` where `readBack` asks for one. Whether it recorded the picture: false
+        /// where the camera could not be described or the renderer recorded nothing.
+        bool traceInto(GuiSlot texture, bool readBack = false);
 
         /// The copy the last `traceInto(texture, true)` left, into `into`, or false while the
-        /// trace that leaves it has not landed — `Renderer::takeGuiCopy`, through the renderer
+        /// trace that leaves it has not landed — `PictureRenderer::takeGuiCopy`, through the renderer
         /// this traces with, so a view reaches no further than its own trace for its picture.
         bool takeCopy(GuiSlot texture, std::span<std::uint8_t> into) const;
 
@@ -155,7 +156,7 @@ namespace Rtx
         /// with no basis, which neither can use.
         std::optional<Viewpoint> describeCamera() const;
 
-        Renderer& mRenderer;
+        PictureRenderer& mRenderer;
 
         /// Everything a picture of its own subject needs, and a picture of the world has none of:
         /// `mSubject` being null is the whole of what "this is a picture of the world" means.

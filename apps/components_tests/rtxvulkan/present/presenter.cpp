@@ -146,6 +146,32 @@ namespace Rtx
                 "the window's surface was lost again before a frame was shown on the one made after it");
         }
 
+        /// **A suboptimal present rebuilds once an extent, and is shown as it is after that**: a
+        /// driver that answers suboptimal on a fresh swapchain would rebuild on every frame. A new
+        /// extent is a new chance, and the rebuild it asks is owed once more.
+        TEST_F(RtxPresenterTest, aSuboptimalPresentRebuildsOnceAnExtent)
+        {
+            const VkExtent2D extent{ 64, 32 };
+            const VkExtent2D wider{ 96, 32 };
+            PresentTarget target;
+            target.resize(*mDevice, extent.width, extent.height);
+            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, SDLUtil::VSyncMode::Disabled);
+            presenter.present(target.getShown(), PresentTarget::sResting, [](VkCommandBuffer) {});
+            EXPECT_FALSE(presenter.wantsResize(extent));
+
+            presenter.suboptimal();
+            EXPECT_TRUE(presenter.wantsResize(extent)) << "the first suboptimal present asks for a rebuild";
+            presenter.rebuild(extent);
+            presenter.suboptimal();
+            EXPECT_FALSE(presenter.wantsResize(extent)) << "a suboptimal present after the rebuild rebuilt again";
+            presenter.suboptimal();
+            EXPECT_FALSE(presenter.wantsResize(extent));
+
+            presenter.rebuild(wider);
+            presenter.suboptimal();
+            EXPECT_TRUE(presenter.wantsResize(wider)) << "a new extent owes its own rebuild";
+        }
+
         /// **Under FIFO a frame waits for the present two before it** (`Swapchain::awaitLatency`):
         /// each present carries the next id, the wait names one the swapchain was given, and a wait
         /// the hidden window never answers runs out once, a tenth of a second, and is not asked

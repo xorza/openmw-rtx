@@ -61,7 +61,7 @@ namespace SDLUtil
 
     void InputWrapper::_setWindowScale()
     {
-        mPixelDensity = SDL_GetWindowPixelDensity(mSDLWindow);
+        mPixelDensity = pixelDensity(mSDLWindow);
     }
 
     void InputWrapper::capture(bool windowEventsOnly)

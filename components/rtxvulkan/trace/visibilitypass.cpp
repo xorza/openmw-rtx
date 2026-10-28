@@ -548,24 +548,6 @@ namespace Rtx
             .accelerationStructureCount = 1,
             .pAccelerationStructures = &scene,
         };
-        const WavePass& waves = inputs.mSubject.mMedia->getWaves();
-        const RipplePass& ripples = inputs.mSubject.mMedia->getRipples();
-        const FogTile& fog = inputs.mSubject.mMedia->getFog();
-
-        // The tiles' widths come off the pass that built them, so what the shader divides by is
-        // what is actually bound rather than a second statement of the same table. Sampled from
-        // `GENERAL` rather than moved to a read-only layout, for the reason `BloomPass` gives:
-        // these are written as storage images and read as sampled ones a few dispatches apart, and
-        // `GENERAL` is the one layout both accesses are legal from.
-        std::array<VkDescriptorImageInfo, Shaders::WAVE_CASCADES> surfaces{};
-        std::array<VkDescriptorImageInfo, Shaders::WAVE_CASCADES> curvatures{};
-        for (std::size_t cascade = 0; cascade < Shaders::WAVE_CASCADES; ++cascade)
-        {
-            const VkSampler sampler = waves.getSampler();
-            surfaces[cascade] = waves.getSurface(cascade).describeSampled(sampler);
-            curvatures[cascade] = waves.getCurvature(cascade).describeSampled(sampler);
-        }
-
         DescriptorWrites writes(pipeline);
         writes.structure(Shaders::BIND_SCENE, sceneWrite);
 
@@ -576,14 +558,7 @@ namespace Rtx
         writes.buffer(Shaders::BIND_COUNTS, counts.describe());
         writes.buffer(Shaders::BIND_FRAME, mConstants.describe());
 
-        writes.images(Shaders::BIND_WAVE_SURFACE, surfaces);
-        writes.images(Shaders::BIND_WAVE_CURVATURE, curvatures);
-
-        writes.image(Shaders::BIND_FOG_FIELD,
-            fog.getField().describeSampled(fog.getSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-
-        writes.image(Shaders::BIND_RIPPLE_SURFACE, ripples.getSurface().describeSampled(ripples.getSampler()));
-        writes.image(Shaders::BIND_RIPPLE_CURVATURE, ripples.getCurvature().describeSampled(ripples.getSampler()));
+        inputs.mSubject.mMedia->bindInto(writes);
 
         assert(inputs.mSubject.mSunGlare != nullptr && !inputs.mSubject.mSunGlare->isEmpty()
             && "a trace with no glare query to count into");
@@ -612,25 +587,11 @@ namespace Rtx
         assert(inputs.mSubject.mScene != nullptr && inputs.mSubject.mMedia != nullptr
             && "a trace of no scene, or in no media");
 
-        const WavePass& waves = inputs.mSubject.mMedia->getWaves();
         Shaders::VisibilityConstants described = constants;
 
         described.mScreen = screenBasisOf(described.mEyes.mWorld.mBasis);
         described.mPreviousScreen = screenBasisOf(described.mPrevious);
-
-        // The tiles' widths come off the pass that built them, so what the shader divides by is
-        // what is actually bound rather than a second statement of the same table.
-        for (std::size_t cascade = 0; cascade < Shaders::WAVE_CASCADES; ++cascade)
-        {
-            described.mWaveExtent[cascade] = waves.getExtent(cascade);
-            described.mWaveTexel[cascade] = waves.getTexel(cascade);
-        }
-
-        described.mWaveSlope = waves.getSlope();
-
-        const WaveCurvature& curvature = waves.getMoments();
-        described.mWaveCurvature = curvature.mWhole;
-        std::copy(curvature.mResolved.begin(), curvature.mResolved.end(), std::begin(described.mWaveResolved));
+        inputs.mSubject.mMedia->describeFrame(described);
 
         // And where the lamps were binned, off the tables the placement built, for the same reason.
         const LightGrid& lamps = inputs.mSubject.mScene->getBuffers().getLightGrid();
@@ -741,10 +702,10 @@ namespace Rtx
 
             inputs.mFogVolume.depthTaken(commands);
 
-            // The set stays pushed across all three launches. Every one of them is addressed
-            // through the same layout at the same bind point, so what was pushed for the first is
-            // still bound for the others — and pushing set zero again would be six descriptor
-            // writes for a pass that reads a handful of images out of another set.
+            // The set stays pushed across both launches. Each is addressed through the same layout
+            // at the same bind point, so what was pushed for the first is still bound for the
+            // second — and pushing set zero again would be six descriptor writes for a pass that
+            // reads a handful of images out of another set.
             bind(commands, scatter);
 
             scatter.traceRays(commands, columns, rows, Shaders::FOG_VOLUME_SLICES);

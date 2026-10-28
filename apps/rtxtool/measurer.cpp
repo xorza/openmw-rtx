@@ -72,7 +72,6 @@ namespace RtxTool
         const float step = worldStep(mRequest.mStep);
         mProgress.mWindow = MeasureWindow(stop.mSchedule.mSpec.getWarmup(step),
             BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step), mRequest.mPlayed);
-        mProgress.mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
         mProgress.mPlace.mView = stop.mName;
         mProgress.mPlace.mCell = stop.mStand.mCell;
         mProgress.mPlace.mNote = stop.mNote;
@@ -101,6 +100,8 @@ namespace RtxTool
             .mPaused = report.mPaused,
             .mCellsToStand = report.mCellsToStand,
             .mArrivedMeshes = report.mUpload.mArrivedMeshes,
+            .mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell(),
+            .mRebuilt = report.mUpload.mKind == Rtx::SceneUpload::Kind::Rebuilt,
             .mSpend = report.mSpend,
         });
         const MeasureWindow& window = mProgress.mWindow;
@@ -179,18 +180,13 @@ namespace RtxTool
             mProgress.mPausedBy = Stager::describePause();
 
         // **Counted here and not where the route moved**, because a crossing is a dropped frame and
-        // this is where what it dropped is known. The move pulls the next ring in and that read
-        // lands in the frame after it — which is the frame that arrives here standing in a cell it
-        // was not drawn in last time, and the frame that paid for it.
+        // this is where what it dropped is known: the window closes the crossing's frame with the
+        // span it worked in, as it closes every figure (`MeasureWindow::Taken::mClosedCrossing`).
         //
         // **The whole frame goes in as the read**, because the game gives no split: the ring
         // arrives on the loading threads, and what a crossing costs here is the frame that dropped.
-        if (const void* cell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
-            mProgress.mCell != nullptr && cell != mProgress.mCell)
-        {
-            mProgress.mPlace.mCrossings.add(report.mUpload.mKind == Rtx::SceneUpload::Kind::Rebuilt, frameMs);
-            mProgress.mCell = cell;
-        }
+        if (taken.mClosedCrossing.has_value())
+            mProgress.mPlace.mCrossings.add(*taken.mClosedCrossing, taken.mClosed.at(Rtx::Timing::Frame));
 
         const std::uint32_t drawn = taken.mDrawn;
 
@@ -366,7 +362,7 @@ namespace RtxTool
             // The same guard over the measured frames, where a pause is no longer the world
             // arriving but the figures of a world standing still.
             const std::string why = std::format("the world stood paused on {} of {} measured frames of {}, held by {}",
-                mProgress.mPausedFrames, stop.mSchedule.mSpec.getMeasured(step), stop.mName, mProgress.mPausedBy);
+                mProgress.mPausedFrames, mProgress.mSamples.size(), stop.mName, mProgress.mPausedBy);
             Log(Debug::Error) << "Ray tracing session: " << why;
             mRecord.note(why + '\n');
             mRecord.fail();

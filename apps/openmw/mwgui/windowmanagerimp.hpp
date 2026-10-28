@@ -587,15 +587,20 @@ namespace MWGui
 
         float mRasterScale;
 
-        /// The window pixels a unit of the interface covered, and the display's scale, when the
-        /// cursors were made.
-        float mCursorScale = 0.f;
-        float mCursorDisplayScale = 0.f;
+        /// What the cursors were made at, and what a change of any of it makes them anew by: the
+        /// window pixels a unit of the interface covered, the window pixels a pixel of the frame
+        /// covered — what a Lua cursor is scaled by, whose size a script states in the pixels
+        /// upstream drew it at, and not in the interface's units — and the display's scale. The
+        /// three apart, because a frame picked smaller moves the second and leaves the first.
+        struct CursorFit
+        {
+            float mInterface = 0.f;
+            float mLua = 0.f;
+            float mDisplay = 0.f;
 
-        /// The window pixels a pixel of the frame covered then: what a Lua cursor is scaled by,
-        /// whose size a script states in the pixels upstream drew it at, and not in the interface's
-        /// units.
-        float mLuaCursorScale = 0.f;
+            bool operator==(const CursorFit& other) const = default;
+        };
+        CursorFit mCursorFit;
 
         struct ScheduledMessageBox
         {
@@ -657,8 +662,8 @@ namespace MWGui
         void createCursors();
 
         /// Makes the cursor `name` from the image at `path`, its size and hotspot in units `scale`
-        /// window pixels across: `mCursorScale` for the interface's own, `mLuaCursorScale` for a
-        /// script's. False where the image did not load.
+        /// window pixels across: `CursorFit::mInterface` for the interface's own, `CursorFit::mLua` for
+        /// a script's. False where the image did not load.
         bool createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, double rotation,
             MyGUI::IntPoint hotspot, MyGUI::IntSize size, float scale);
         void setMenuTransparency(float value);

@@ -57,20 +57,13 @@ namespace MWRender
                 .mSubjectMask = spec.mMask,
             };
         }
-
-        /// MyGUI keys its textures by name, so each view names its own.
-        std::string nextViewName()
-        {
-            static unsigned int next = 0;
-            return "rtx offscreen view " + std::to_string(next++);
-        }
     }
 
-    TracedView::TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::Renderer& backend, ViewQueue& views,
-        MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context)
+    TracedView::TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::PictureRenderer& backend,
+        ViewQueue& views, MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context)
         : mViews(views)
         , mTrace(backend, requestFor(spec, kind), context)
-        , mTexture(gui.takeTexture(nextViewName()))
+        , mTexture(gui.takeTexture(views.nameView()))
     {
         const int width = static_cast<int>(mTrace.getWidth());
         const int height = static_cast<int>(mTrace.getHeight());
@@ -165,9 +158,10 @@ namespace MWRender
                 return;
         }
 
+        // A copy is recorded only with a picture: one refused leaves the copy queued, which is null,
+        // where the backend's copy is still the redraw's before.
         const bool keepCopy = mCopyState != CopyState::NotWanted;
-        mTrace.traceInto(mTexture->getSlot(), keepCopy);
-        if (keepCopy)
+        if (mTrace.traceInto(mTexture->getSlot(), keepCopy) && keepCopy)
             mCopyState = CopyState::Recorded;
     }
 

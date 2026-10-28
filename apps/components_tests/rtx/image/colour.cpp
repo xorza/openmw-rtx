@@ -209,6 +209,24 @@ namespace Rtx
                 << "a greater gamma did not lift the value further";
         }
 
+        /// **The curve's grey, by hand in each of its stretches**, the offset 0.04 and the
+        /// compression starting at 0.76 (`look.h`). Below the ramp's end, 3 × 0.04 = 0.12, the offset
+        /// comes off in proportion: 0.06 loses 0.04 × 0.06 / 0.12 = 0.02, to 0.04. At and past it the
+        /// whole offset comes off: 0.12 goes to 0.08, 0.5 to 0.46, and 0.8 to 0.76, the compression's
+        /// start, where the hyperbola meets the line. Past it, 1.0 is 0.96 lifted, brought to
+        /// 1 − 0.24² / (0.96 + 0.24 − 0.76) = 1 − 0.0576 / 0.44. Black stays black. Within four ulps,
+        /// since 0.04 and 0.76 are not floats.
+        TEST(RtxToneMapTest, aGreyLosesTheRampedOffsetAndIsBroughtUnderOnePastTheCompression)
+        {
+            EXPECT_EQ(Shaders::toneMapGrey(0.0f), 0.0f);
+            EXPECT_FLOAT_EQ(Shaders::toneMapGrey(0.06f), 0.04f);
+            EXPECT_FLOAT_EQ(Shaders::toneMapGrey(0.12f), 0.08f);
+            EXPECT_FLOAT_EQ(Shaders::toneMapGrey(0.5f), 0.46f);
+            EXPECT_FLOAT_EQ(Shaders::toneMapGrey(0.8f), 0.76f);
+            EXPECT_FLOAT_EQ(Shaders::toneMapGrey(1.0f), static_cast<float>(1.0 - 0.0576 / 0.44));
+            EXPECT_LT(Shaders::toneMapGrey(1000.0f), 1.0f) << "the compression reached the display's end";
+        }
+
         /// **YCoCg, by hand, and back.** Red `(1, 0, 0)` is `(1/4, 1/2, -1/4)`, green `(0, 1, 0)` is
         /// `(1/2, 0, 1/2)` and blue `(0, 0, 1)` is `(1/4, -1/2, -1/4)`: luma `(R + 2G + B) / 4` and the
         /// two differences. A grey has no chroma, and its luma is itself. Every coefficient is a power of

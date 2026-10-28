@@ -66,13 +66,12 @@ namespace RtxTool
         /// `MWRender::Renderer::prepareResources` reads from the registry: two machines that differ
         /// only in their `settings.cfg` then bench one scene. Whether to look for the maps is not
         /// the registry's under the ray tracer (`RtxRenderer::setAutoMaps`).
-        void applyShippedMapNames(const Files::ConfigurationManager& config)
+        void applyShippedMapNames(const ShippedDefaults& shipped)
         {
             Settings::ShadersCategory& shaders = Settings::shaders();
-            shaders.mNormalMapPattern.set(shippedDefault<std::string>(config, "Shaders", "normal map pattern"));
-            shaders.mNormalHeightMapPattern.set(
-                shippedDefault<std::string>(config, "Shaders", "normal height map pattern"));
-            shaders.mSpecularMapPattern.set(shippedDefault<std::string>(config, "Shaders", "specular map pattern"));
+            shaders.mNormalMapPattern.set(shipped.get<std::string>("Shaders", "normal map pattern"));
+            shaders.mNormalHeightMapPattern.set(shipped.get<std::string>("Shaders", "normal height map pattern"));
+            shaders.mSpecularMapPattern.set(shipped.get<std::string>("Shaders", "specular map pattern"));
         }
     }
 
@@ -98,7 +97,7 @@ namespace RtxTool
         request.mSetup.mWindowPixels = osg::Vec2i(static_cast<int>(window.mWidth), static_cast<int>(window.mHeight));
         request.mSaves = ownSavesFolder(config);
         if (request.mMaps.has_value())
-            applyShippedMapNames(config);
+            applyShippedMapNames(command.mShipped);
 
         // **Whether the run was meant to end on its own**, which is what says an empty report is a
         // failure. A window somebody closes has finished no stop and owes no numbers.

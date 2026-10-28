@@ -138,7 +138,7 @@ namespace Rtx
                 VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT });
     }
 
-    void WavePass::record(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer) const
+    void WavePass::record(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer)
     {
         const GpuZone timed(timer, commands, FrameZone::Waves);
 

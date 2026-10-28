@@ -46,7 +46,7 @@ namespace Rtx
         /// rebuilds every texture and every level from them, leaving each in
         /// `VK_IMAGE_LAYOUT_GENERAL` ordered against a sampled read. A cell with no water never
         /// samples them, so it need not synthesise them.
-        void record(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer) const;
+        void record(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer);
 
         /// Whether the tiles already hold the sea at `seconds`, which a trace then reads as they
         /// are: **every picture of the world shares its frame's water time**, and a cell crossing
@@ -118,7 +118,7 @@ namespace Rtx
         /// The moment the tiles were last synthesised at, or nothing where they hold no sea of
         /// `mSea`'s. Mutable as the tiles are: `record` writes both, and a record is const because
         /// it changes nothing a caller holds.
-        mutable std::optional<osg::Vec2f> mSynthesised;
+        std::optional<osg::Vec2f> mSynthesised;
 
         float mSlope = 0.0f;
         WaveCurvature mCurvature;

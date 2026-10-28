@@ -198,5 +198,71 @@ namespace RtxTool
             EXPECT_NE(json.find(counted), std::string::npos) << json;
             EXPECT_NE(json.find(uncounted), std::string::npos) << json;
         }
+
+        /// **The record writes the place's memory and its content whole**: every heap the device
+        /// stated, each figure under its own name, the host-written pair and the uses, and every
+        /// count of the mirror's content and its reader. Each a different number, so a field
+        /// written under another's name is told apart.
+        TEST(RtxBenchRecordTest, theRecordWritesThePlacesMemoryAndContentWhole)
+        {
+            BenchPlace place;
+            place.mMemory.mHeapCount = 2;
+            place.mMemory.mHeaps[0] = Rtx::HeapUse{ .mSize = 1,
+                .mBudget = 2,
+                .mHeld = 3,
+                .mReserved = 4,
+                .mLive = 5,
+                .mBlocks = 6,
+                .mDeviceLocal = true,
+                .mHostVisible = false };
+            place.mMemory.mHeaps[1] = Rtx::HeapUse{ .mSize = 7, .mHostVisible = true };
+            place.mMemory.mHostWrittenReserved = 8;
+            place.mMemory.mHostWrittenLive = 9;
+            place.mMemory.mUses = Rtx::MemoryUses{ .mFrame = 10,
+                .mFrameReserve = 11,
+                .mEssential = 12,
+                .mStructures = 13,
+                .mStructureRoom = 14,
+                .mTextures = 15,
+                .mTextureRoom = 16 };
+            place.mContent = Rtx::ContentMemory{ .mVertexEnd = 21,
+                .mVerticesUsed = 22,
+                .mIndexEnd = 23,
+                .mIndicesUsed = 24,
+                .mLayerEnd = 25,
+                .mMaskEnd = 26,
+                .mRigRunEnd = 27,
+                .mInfluenceEnd = 28,
+                .mOffsetEnd = 29,
+                .mPoseEnd = 30,
+                .mBindVertexEnd = 31,
+                .mReader = Rtx::ReaderMemory{ .mLentModels = 32,
+                    .mSpareModels = 33,
+                    .mFiledModels = 34,
+                    .mLentBytes = 35,
+                    .mSpareBytes = 36,
+                    .mFiledBytes = 37 } };
+
+            const std::filesystem::path path = TestingOpenMW::outputFilePath("memory-record.json");
+            ASSERT_TRUE(writeJson(path, BenchHeader{}, std::span(&place, 1)).isOk());
+            std::ostringstream read;
+            read << std::ifstream(path).rdbuf();
+            const std::string json = read.str();
+            std::filesystem::remove(path);
+
+            constexpr std::string_view memory
+                = R"("memory": {"heaps": [{"size": 1, "budget": 2, "held": 3, "reserved": 4, "live": 5, "blocks": 6, )"
+                  R"("deviceLocal": true, "hostVisible": false}, {"size": 7, "budget": 0, "held": 0, "reserved": 0, )"
+                  R"("live": 0, "blocks": 0, "deviceLocal": false, "hostVisible": true}], "hostWrittenReserved": 8, )"
+                  R"("hostWrittenLive": 9, "uses": {"frame": 10, "frameReserve": 11, "essential": 12, )"
+                  R"("structures": 13, "structureRoom": 14, "textures": 15, "textureRoom": 16}})";
+            constexpr std::string_view content
+                = R"("content": {"vertexEnd": 21, "verticesUsed": 22, "indexEnd": 23, "indicesUsed": 24, )"
+                  R"("layerEnd": 25, "maskEnd": 26, "rigRunEnd": 27, "influenceEnd": 28, "offsetEnd": 29, )"
+                  R"("poseEnd": 30, "bindVertexEnd": 31, "reader": {"lentModels": 32, "spareModels": 33, )"
+                  R"("filedModels": 34, "lentBytes": 35, "spareBytes": 36, "filedBytes": 37}})";
+            EXPECT_NE(json.find(memory), std::string::npos) << json;
+            EXPECT_NE(json.find(content), std::string::npos) << json;
+        }
     }
 }

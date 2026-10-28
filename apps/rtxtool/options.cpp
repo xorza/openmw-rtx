@@ -729,6 +729,16 @@ namespace RtxTool
         return FilmLength{ .mSeconds = variables["length"].as<float>(), .mSource = FilmLengthSource::Named };
     }
 
+    BenchSpan benchSpanFrom(const bpo::variables_map& variables)
+    {
+        const std::uint32_t frames = variables["frames"].as<std::uint32_t>();
+        if (frames == 0)
+            return BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
+        if (!variables["seconds"].defaulted())
+            throw std::runtime_error("--frames and --seconds each say how long a stop runs, so only one can be named");
+        return BenchSpan{ .mFrames = frames };
+    }
+
     std::optional<MapRules> mapRulesFrom(const bpo::variables_map& variables, const Verbs verb)
     {
         if (variables.count("maps") != 0)

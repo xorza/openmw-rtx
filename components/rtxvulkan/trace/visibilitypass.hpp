@@ -27,6 +27,7 @@
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
 
 #include "gbuffer.hpp"
+#include "tracesubject.hpp"
 
 namespace Rtx
 {
@@ -37,56 +38,6 @@ namespace Rtx
     class Image;
     struct SpriteTables;
     class TraceMedia;
-
-    /// What one trace is of and where its results go but for the chain's own images: the scene
-    /// and the media, which slot of the chain's state it takes, and the census and glare counts it
-    /// sums into. What `TraceMedia::describe` answers, the same for a frame and a picture inside
-    /// the interface but for the arguments.
-    struct TraceSubject
-    {
-        /// What the rays meet, at the copy of its tables the scene's last placement wrote: the
-        /// structure, the tables a hit reads through the frame block, and the texture array. Read
-        /// where it is used, so no two launches of a trace can be handed two copies of it.
-        const DeviceScene* mScene = nullptr;
-
-        /// What every trace reads beside its scene: the sea, the wake in it and the fog's field. One
-        /// for everything traced.
-        const TraceMedia* mMedia = nullptr;
-
-        /// Which of the chain's sprite bins this trace records into and reads: the frame's own
-        /// slot in the world's chain, so the frame behind keeps its bin, and the first in the
-        /// pictures' chain. Not which copy of the air it writes, which is a turn a trace
-        /// (`FogVolume::turn`) and so stays paired across a frame that traced nothing.
-        FrameSlot mTraceSlot;
-
-        /// What the trace sums its census into: the frame's own, or for a picture inside the
-        /// interface one nothing reads — bound because the shader writes it regardless.
-        const Buffer* mCounts = nullptr;
-
-        /// Whether this camera draws sprites. One that draws none still bins its tiles, with no
-        /// sprite in them, so each learns which media and additive surfaces a ray through it can
-        /// meet (`TraceChain::record`).
-        bool mDrawsSprites = true;
-
-        /// The two counts the eye's launch adds to: the frame's, `SunGlarePass::getCounts`, or
-        /// for a picture inside the interface its own that nothing reads, as with the census.
-        const Buffer* mSunGlare = nullptr;
-
-        /// Whether this trace has a sea: a water surface in the scene the eye can meet, or a level
-        /// the camera can be under, which a cell with no surface can still submerge the eye in.
-        /// The one answer the synthesis, the ripple step and `HAS_SEA` all read, so the kernel
-        /// never samples tiles that nothing wrote this frame.
-        bool mSea = false;
-
-        /// Whether the scene places a material that wears a map (`InstanceCounts::mMapped`), which
-        /// is the only way a surface comes to have a lobe. The one answer `HAS_MAPS` and the glossy
-        /// filter both read, so the filter runs over every frame whose kernel can reflect.
-        bool mMapped = false;
-
-        /// Whether the scene holds a lamp, which the shadow denoiser reads: a lamp's light is one
-        /// of the two it shadows, the sky's source the other.
-        bool mLamps = false;
-    };
 
     /// What every launch of one trace binds: its subject, and the chain's channels and air, which
     /// `TraceChain::record` names as it makes this. Whole from the moment it is made, and one value

@@ -172,9 +172,12 @@ namespace Rtx
         /// @param layout what `describeLayout` made: every array is shaped by the one the renderer
         ///        keeps, which is what lets one pass be handed any scene's set.
         /// @param passes the renderer's, which the stand-in and the neutral texel are made with.
+        /// @param arrival the renderer's, which every array's arrivals are recorded through: its
+        ///        rooms are scratch, grown to the largest group any scene met and kept, and every
+        ///        scene's arrivals record on one queue in order.
         /// @param anisotropy `RenderProfile::mAnisotropy`: what the footprint binding filters by.
         TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
-            std::uint32_t slots, std::uint32_t anisotropy = 1);
+            TextureArrival& arrival, std::uint32_t slots, std::uint32_t anisotropy = 1);
 
         /// The shape of every set an array here holds: three bindless arrays, partially bound and
         /// updated after bind. Made once by whoever owns the passes that name it.
@@ -196,8 +199,9 @@ namespace Rtx
         /// saying why.
         ///
         /// @param passes the renderer's, which every texture is made with as it arrives.
-        void write(Batch& batch, const TexturePasses& passes, std::span<const TextureData> arrived,
-            std::vector<Refusal>& refused);
+        /// @param arrival the renderer's, which the arrival is recorded through.
+        void write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
+            std::span<const TextureData> arrived, std::vector<Refusal>& refused);
 
         /// Writes the descriptors `slot`'s set owes. Before the placement that binds it, after
         /// `finishReads`: the bindings allow an update after a bind, but not of a descriptor a
@@ -271,7 +275,9 @@ namespace Rtx
         /// than the room. Where it fits at no side, the largest at which its files do without the
         /// ground's composites, which no side brings down and which then take what is left — one
         /// texel where not even that fits, and each texture comes down as far as its file goes.
-        std::uint32_t chooseSide(std::span<const TextureData> arrived, VkDeviceSize room) const;
+        /// The rooms of `arrival` are priced past what they hold already.
+        std::uint32_t chooseSide(
+            std::span<const TextureData> arrived, VkDeviceSize room, const TextureArrival& arrival) const;
 
     private:
         /// One slot of the array: the texture standing in it, or the stand-in, which stands once
@@ -306,16 +312,18 @@ namespace Rtx
         /// each texture's `TextureCost::total`, the ground's composites only where `ground` says.
         /// The resources' own bytes, which the allocator rounds up a little, and the reason
         /// `write` still comes down level by level.
-        VkDeviceSize costAt(std::span<const TextureData> arrived, std::uint32_t side, bool ground) const;
+        VkDeviceSize costAt(
+            std::span<const TextureData> arrived, std::uint32_t side, bool ground, const TextureArrival& arrival) const;
 
         /// Stands what `texture` is made as in `into`, held to `side`, or says why the device had no
         /// room for it.
-        Misc::Result<void, std::string_view> make(
-            Batch& batch, Texture& into, const TextureData& texture, std::uint32_t side, std::string_view name);
+        Misc::Result<void, std::string_view> make(Batch& batch, TextureArrival& arrival, Texture& into,
+            const TextureData& texture, std::uint32_t side, std::string_view name);
 
         /// Stands one of `arrived` in its slot: a texture from its bytes, or a bake from its source,
         /// which must stand already — or the stand-in, where the texture cannot stand.
-        void stand(Batch& batch, const TextureData& texture, std::uint32_t side, std::vector<Refusal>& refused);
+        void stand(Batch& batch, TextureArrival& arrival, const TextureData& texture, std::uint32_t side,
+            std::vector<Refusal>& refused);
 
         /// Queues a write of `image` into `set` at `binding[slot]`, behind the image info the write
         /// names by address.
@@ -327,10 +335,6 @@ namespace Rtx
         void reserveSlot(std::uint32_t slot);
 
         const Device& mDevice;
-
-        /// What an arrival's textures leave the device to do, recorded once every one of them
-        /// stands.
-        TextureArrival mArrival;
 
         /// Cleared and refilled by every describe and every write, never freed. Each settles at the
         /// busiest arrival so far, and an arrival is the frame with the least room to grow one.

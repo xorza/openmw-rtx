@@ -137,7 +137,7 @@ namespace Rtx::Testing
             const auto shownAt = [&frames](double seconds) {
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.setSimulationTime(seconds, 0.0);
                 extractor.extract(*frames, osg::Matrixf::identity(), 0);
 
@@ -181,7 +181,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 if (mask.has_value())
                     extractor.setTraversalMask(*mask);
 

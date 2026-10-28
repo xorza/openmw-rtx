@@ -15,7 +15,6 @@
 #include "fog.glsl"
 #include "records.glsl"
 #include "sea.glsl"
-#include "shading.glsl"
 #include "sky.glsl"
 #include "traversal.glsl"
 #include "underwater.glsl"

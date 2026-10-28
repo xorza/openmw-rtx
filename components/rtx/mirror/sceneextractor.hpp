@@ -351,8 +351,8 @@ namespace Rtx
         bool addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
             const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped, bool lampBody);
 
-        /// The state set a node shades with where that is not the one it wears, or null where it
-        /// is — `MaterialResolver::animate`, which says what the two cases are. Applied here rather
+        /// The state set a controller wrote over a node this frame, or null where none writes one —
+        /// `MaterialResolver::animate`, which says why a node under one needs none. Applied here rather
         /// than left to a callback: a `SceneUtil::StateSetUpdater` as a cull callback writes a state
         /// set that exists only inside a cull traversal, and as an update callback alternates the
         /// node's own between two copies, so a material keyed on the address is added and swept
@@ -360,9 +360,7 @@ namespace Rtx
         /// address stable.
         ///
         /// @param placement the identity of the path the walk reached `node` by.
-        /// @param underAnimated whether an animated state set stands above `node` on the chain,
-        ///        which makes a node with a state set of its own animated too.
-        const osg::StateSet* animate(osg::Node& node, std::size_t placement, bool underAnimated);
+        const osg::StateSet* animate(osg::Node& node, std::size_t placement);
 
         /// Whether a drawable carrying `mask` is the world's water.
         bool isWater(osg::Node::NodeMask mask) const;

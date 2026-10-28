@@ -131,11 +131,11 @@ and by `MyGUIRtx::RenderManager`, so `WindowManager` never asks which backend it
 
 `MyGUIRtx::RenderManager` is written once for every backend. It needs the extent, a table of
 textures and one call that draws a list of triangles, which is the whole of `Rtx::GuiRenderer`; a
-picture traced into one of those textures is the renderer's (`Rtx::Renderer::traceGuiTexture`),
-because it is a picture of a scene. Pictures
-the game writes in main memory (the fog of war, the world map, save thumbnails, video frames)
-reach the interface through `shareTexture`: the game marks the image dirty, and the backend
-sends what changed.
+picture traced into one of those textures is the renderer's
+(`Rtx::PictureRenderer::traceGuiTexture`), because it is a picture of a scene. Pictures the game
+writes in main memory (the fog of war, the world map, save thumbnails, video frames) reach the
+interface through `shareTexture`: the game marks the image dirty, and the backend sends what
+changed.
 
 Pictures inside the interface (a map tile, the doll, the race preview) are traced straight into a
 GUI texture from a scene of their own, with no reconstruction and no history. With the world
@@ -167,7 +167,9 @@ source-tree test holds the order.
 
 - **`Rtx::Renderer`** (`renderer/renderer.hpp`) is one traced image, whichever API makes it. Each
   call is worth a whole scene or a whole frame, never an instance or a pixel: build, extend or
-  place a scene; render, collect and present a frame; the reports.
+  place a scene; render, collect and present a frame; the reports. Each consumer takes the part
+  it calls: a scene's owner `Rtx::SceneHolder`, a picture inside the interface
+  `Rtx::PictureRenderer`, MyGUI's backend `Rtx::GuiRenderer`.
 - **`Rtx::SceneDesc`** (`scene/scenedesc.hpp`) is everything a backend needs to know about a world:
   meshes, materials, textures, placements, deformers, and the per-frame lists (lights, sprites,
   emitters, ripples). It appends and deduplicates. A slot is a name and is never renumbered, so a
@@ -266,8 +268,8 @@ at the top, over all of them.
   (`research/2026-10-22-content-pool-after-a-long-walk.md`).
 - **The frame's targets are made at `createTargets` and counted from what makes them.** The
   reserve sums each owner's `bytesAt`, read off the descriptions it makes its images of, and the
-  pictures' chain is made at the room its views asked (`Renderer::reservePicture`), never on the
-  frame a picture is first traced.
+  pictures' chain is made at the room its views asked (`PictureRenderer::reservePicture`), never on
+  the frame a picture is first traced.
 - **The images a frame uses inside one stretch of it share memory** (`ImageArena`): the stage
   images, the denoiser's scratch and the upscaler's own, each over its span of the fixed order
   (`FrameStep`), laid over each other where their spans do not meet. It rests on one queue and the

@@ -54,7 +54,7 @@ namespace Rtx
         /// is also the answer to what its traversal mask does: nothing, because there is no walk of
         /// its own to mask. The rasterizer's camera cull mask is the only reader of that number,
         /// which is why `MWRender::LocalMap`'s inclusion mask is not the weather bug again. Either
-        /// kind reserves room for its picture as it is made (`Renderer::reservePicture`).
+        /// kind reserves room for its picture as it is made (`PictureRenderer::reservePicture`).
         TEST(RtxOffscreenTraceTest, aPictureOfTheWorldOwnsNoSceneAndOneOfASubjectDoes)
         {
             WalkContext context{ .mSpecular = SpecularLayout::Classic };
@@ -109,9 +109,10 @@ namespace Rtx
                         .mAmbient = osg::Vec4f(0.f, 0.f, 0.f, 1.f) },
                     .mClear = osg::Vec4f(0.f, 0.f, 0.f, 0.5f) },
                 context);
-            world.traceInto(GuiSlot::at(0), false);
+            EXPECT_TRUE(world.traceInto(GuiSlot::at(0), false)) << "a picture traced said it recorded nothing";
 
             ASSERT_TRUE(renderer.mTraced.has_value());
+            EXPECT_EQ(renderer.mTraced->mScene, SceneSlot::world()) << "a picture of the world traced another scene";
             const GuiTraceOptions& options = renderer.mTraced->mOptions;
             EXPECT_EQ(options.mRayMask, Shaders::MASK_STATIC);
             EXPECT_FALSE(options.mLamps);
@@ -121,6 +122,17 @@ namespace Rtx
             EXPECT_EQ(options.mLight.mIrradiance, osg::Vec3f(pi, pi, pi));
             EXPECT_EQ(options.mLight.mAmbient, osg::Vec3f());
             EXPECT_EQ(renderer.mTraced->mView.mEyes.mWorld.mWidth, 64u);
+
+            // A field of view of nought is no camera, and nothing is traced or said to be.
+            renderer.mTraced.reset();
+            OffscreenTrace blind(renderer,
+                ViewRequest{ .mWidth = 64,
+                    .mHeight = 64,
+                    .mRayMask = Shaders::MASK_STATIC,
+                    .mFraming = { .mProjection = SceneUtil::Perspective{ .mFieldOfView = 0.f } } },
+                context);
+            EXPECT_FALSE(blind.traceInto(GuiSlot::at(0), true)) << "a camera refused said it recorded";
+            EXPECT_FALSE(renderer.mTraced.has_value());
         }
 
         /// **The slot is the handle's, and one handle gives it back.** Moved, the slot goes with the

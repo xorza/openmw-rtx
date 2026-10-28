@@ -12,7 +12,6 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -35,12 +34,6 @@ namespace Rtx
         , mDevice(device)
         , mLooseRoom(looseRoom)
     {
-    }
-
-    TextureArrival::~TextureArrival()
-    {
-        if (mCanvas.getHandle() != VK_NULL_HANDLE)
-            mDevice.getGraveyard().bury(nullptr, 0, std::move(mCanvas));
     }
 
     VkDeviceSize TextureArrival::meansNeeded(const VkDeviceSize total, const VkDeviceSize largest) const
@@ -270,8 +263,6 @@ namespace Rtx
         // under the next submit, after every chain made in it, which went with their batches.
         if (largestGroup > mCanvasBytes || alignment > mCanvasAlignment || (types & mCanvasTypes) != mCanvasTypes)
         {
-            if (mCanvas.getHandle() != VK_NULL_HANDLE)
-                mDevice.getGraveyard().bury(nullptr, 0, std::move(mCanvas));
             mCanvasBytes = std::max(largestGroup, mCanvasBytes);
             mCanvasAlignment = std::max(alignment, mCanvasAlignment);
             mCanvasTypes = types;

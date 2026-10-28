@@ -15,7 +15,7 @@
 #include "census.glsl"
 #include "frame.glsl"
 #include "pixels.glsl"
-#include "random.glsl"
+#include "hash.glsl"
 #include "sharedexponent.glsl"
 #include "stagerecord.glsl"
 #include "traversal.glsl"

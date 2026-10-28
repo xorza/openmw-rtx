@@ -45,11 +45,6 @@ namespace MWWorld
     class GroundcoverStore;
 }
 
-namespace Rtx
-{
-    class Renderer;
-}
-
 namespace SceneUtil
 {
     class UnrefQueue;
@@ -128,7 +123,7 @@ namespace MWRender
         /// Hands the scene to `renderer`, building only what has to be built, and then ends the
         /// placement: where everything stands is what the next frame measures its motion against,
         /// and the change lists the backend just took start again.
-        Rtx::SceneUpload hand(Rtx::Renderer& renderer, Rtx::FrameSpend& spend);
+        Rtx::SceneUpload hand(Rtx::SceneHolder& scenes, Rtx::FrameSpend& spend);
 
         /// How much world this renderer builds, in units: the ground, the air and the distant
         /// lights are all measured over it. The settings' count of cells, as they stood when the

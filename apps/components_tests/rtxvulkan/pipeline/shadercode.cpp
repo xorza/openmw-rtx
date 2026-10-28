@@ -75,7 +75,7 @@ namespace Rtx
         struct ModuleTables
         {
             std::array<BindingTable, Shaders::SET_COUNT> mTables;
-            std::uint32_t mPushBytes = 0;
+            VkPushConstantRange mPush{ .stageFlags = VK_SHADER_STAGE_ALL, .offset = 0, .size = 0 };
             std::vector<std::uint32_t> mWords;
         };
 
@@ -98,7 +98,7 @@ namespace Rtx
                 std::ranges::sort(declared, {}, &VkDescriptorSetLayoutBinding::binding);
                 tables.mTables[set] = BindingTable(declared);
             }
-            tables.mPushBytes = interface.mPushEnd.value_or(0);
+            tables.mPush.size = interface.mPushEnd.value_or(0);
             for (const ModuleSpecConstant& constant : interface.mSpecConstants)
                 if (constant.mId != Shaders::SPEC_CENSUS_KERNEL)
                     tables.mWords.resize(std::max<std::size_t>(tables.mWords.size(), constant.mId + 1));
@@ -127,12 +127,12 @@ namespace Rtx
             const ModuleTables scatterTables = tablesOf(device, "fogscatter.rgen.spv");
             const ModuleTables visibilityTables = tablesOf(device, "visibility.comp.spv");
 
-            const void* scatter = code.stage(
-                "fogscatter.rgen.spv", named(scatterTables), scatterTables.mPushBytes, scatterTables.mWords);
-            const void* visibility = code.stage(
-                "visibility.comp.spv", named(visibilityTables), visibilityTables.mPushBytes, visibilityTables.mWords);
-            EXPECT_EQ(
-                code.stage("fogscatter.rgen.spv", named(scatterTables), scatterTables.mPushBytes, scatterTables.mWords),
+            const void* scatter = code.stage("fogscatter.rgen.spv", VK_SHADER_STAGE_RAYGEN_BIT_KHR,
+                named(scatterTables), scatterTables.mPush, scatterTables.mWords);
+            const void* visibility = code.stage("visibility.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT,
+                named(visibilityTables), visibilityTables.mPush, visibilityTables.mWords);
+            EXPECT_EQ(code.stage("fogscatter.rgen.spv", VK_SHADER_STAGE_RAYGEN_BIT_KHR, named(scatterTables),
+                          scatterTables.mPush, scatterTables.mWords),
                 scatter);
             EXPECT_NE(visibility, scatter);
 
@@ -159,7 +159,11 @@ namespace Rtx
             EXPECT_THROW(ShaderCode(*mHarness.mDevice, missing), InputError);
 
             const ShaderCode none(*mHarness.mDevice, {});
-            Testing::expectDies([&] { static_cast<void>(none.stage("visibility.comp.spv", SetTables{}, 0, {})); },
+            Testing::expectDies(
+                [&] {
+                    static_cast<void>(none.stage(
+                        "visibility.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT, SetTables{}, VkPushConstantRange{}, {}));
+                },
                 "a stage of a module its shader code was not made to read");
         }
 
@@ -176,7 +180,8 @@ namespace Rtx
             Testing::expectDies(
                 [&] {
                     const ShaderCode code(device, sVisibility);
-                    static_cast<void>(code.stage("visibility.comp.spv", sets, tables.mPushBytes, tables.mWords));
+                    static_cast<void>(code.stage(
+                        "visibility.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT, sets, tables.mPush, tables.mWords));
                 },
                 // `.+` for the number: gtest reads its own syntax on Windows, which has no bracket
                 // class, and POSIX's elsewhere, which has no `\d`.
@@ -187,7 +192,8 @@ namespace Rtx
             Testing::expectDies(
                 [&] {
                     const ShaderCode code(device, sVisibility);
-                    static_cast<void>(code.stage("visibility.comp.spv", named(tables), tables.mPushBytes, cut));
+                    static_cast<void>(code.stage(
+                        "visibility.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT, named(tables), tables.mPush, cut));
                 },
                 "visibility.comp.spv: specialization constant .+ is past the .+ words the stage is handed");
         }

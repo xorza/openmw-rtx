@@ -17,6 +17,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -65,7 +66,8 @@ namespace Rtx
             EXPECT_EQ(texelAt(rgba, levels[0], 0, 0), osg::Vec3f(10 / 255.0f, 20 / 255.0f, 30 / 255.0f));
         }
 
-        /// **A band is `texelAt`'s texels to the bit, a block decoded once for all of them.** Every
+        /// **A band is `texelAt`'s texels to the bit, a block decoded once for all of them**, and a
+        /// band in light is each of them through `toLinear`, a palette turned once for its block. Every
         /// format a whole-level reader meets, at a size that leaves both a partial column and a
         /// partial band of blocks, and at a second level that does not start at nought: random bytes,
         /// because a block's palette and its indices are any bytes at all.
@@ -89,18 +91,25 @@ namespace Rtx
                 };
 
                 std::vector<osg::Vec3f> band;
+                std::vector<osg::Vec3f> light;
                 for (const MipLevel& level : levels)
                     for (std::uint32_t firstRow = 0; firstRow < level.mHeight; firstRow += 4)
                     {
                         readTexelBand(texture, level, firstRow / 4, band);
+                        readLightBand(texture, level, firstRow / 4, light);
                         const std::uint32_t rows = std::min(level.mHeight - firstRow, 4u);
                         ASSERT_EQ(band.size(), std::size_t{ rows } * level.mWidth) << nameOf(format);
+                        ASSERT_EQ(light.size(), band.size()) << nameOf(format);
                         for (std::uint32_t row = 0; row < rows; ++row)
                             for (std::uint32_t x = 0; x < level.mWidth; ++x)
-                                ASSERT_EQ(band[std::size_t{ row } * level.mWidth + x],
-                                    texelAt(texture, level, x, firstRow + row))
-                                    << nameOf(format) << " at " << x << ", " << firstRow + row << " of a level "
-                                    << level.mWidth << " wide";
+                            {
+                                const osg::Vec3f texel = texelAt(texture, level, x, firstRow + row);
+                                const std::size_t at = std::size_t{ row } * level.mWidth + x;
+                                ASSERT_EQ(band[at], texel) << nameOf(format) << " at " << x << ", " << firstRow + row
+                                                           << " of a level " << level.mWidth << " wide";
+                                ASSERT_EQ(light[at], toLinear(texel))
+                                    << nameOf(format) << " in light at " << x << ", " << firstRow + row;
+                            }
                     }
             }
         }
@@ -367,6 +376,7 @@ namespace Rtx
                 EXPECT_EQ(nameOf(format), name);
                 EXPECT_EQ(isSrgb(format), srgb) << name;
                 EXPECT_TRUE(isUploadable(format)) << name;
+                EXPECT_FALSE(traitsOf(format).mColour) << name << ": the host has no decoder for its blocks";
                 met[static_cast<std::size_t>(format)] = true;
             }
 

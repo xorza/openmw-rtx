@@ -1,10 +1,14 @@
 #include "runrecord.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <format>
+#include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
@@ -25,13 +29,51 @@ namespace RtxTool
         mHeader.mSetup = request.mSetup;
         mHeader.mStep = request.mStep;
 
-        // **An earlier run's record goes before this one draws**, as `noise` clears its own: a run
-        // that dies before `finish` left the last run's hashes beside its own pictures, and a later
-        // `--against` compared with what another build drew.
+        // **Everything an earlier run wrote where this one writes goes before this one draws**, as
+        // `noise` clears its own: a run that dies before `finish` left the last run's hashes beside
+        // its own pictures, a later `--against` compared with what another build drew, and a stop
+        // this run never reached read as the last run's picture, the same. Every output the request
+        // names: the record, each stop's files, and the measured frames' pictures, `view-frame.png`.
         std::error_code ignored;
-        for (const std::filesystem::path& earlier : { request.mHashes, request.mJson })
+        const auto removeEarlier = [&](const std::filesystem::path& earlier) {
             if (!earlier.empty())
                 std::filesystem::remove(earlier, ignored);
+        };
+        removeEarlier(request.mHashes);
+        removeEarlier(request.mJson);
+        for (const Stop& stop : request.mStops)
+        {
+            const Actions& actions = stop.mActions;
+            for (const std::filesystem::path& file :
+                { actions.mCapture, actions.mFrameTimes, actions.mSheet, actions.mMapTile })
+                removeEarlier(file);
+            if (actions.mMean.has_value())
+                removeEarlier(actions.mMean->mFile);
+            if (actions.mDoll.has_value())
+                removeEarlier(actions.mDoll->mFile);
+        }
+
+        if (request.mPictures.empty() || !std::filesystem::is_directory(request.mPictures, ignored))
+            return;
+        std::vector<std::filesystem::path> pictured;
+        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(request.mPictures))
+        {
+            const std::string name = Files::pathToUnicodeString(entry.path().filename());
+            const bool ofAStop = std::any_of(request.mStops.begin(), request.mStops.end(), [&](const Stop& stop) {
+                constexpr std::string_view extension = ".png";
+                const std::size_t from = stop.mName.size() + 1;
+                if (name.size() <= from + extension.size() || !name.starts_with(stop.mName) || name[from - 1] != '-'
+                    || !name.ends_with(extension))
+                    return false;
+                const std::string_view frame
+                    = std::string_view(name).substr(from, name.size() - from - extension.size());
+                return std::all_of(frame.begin(), frame.end(), [](char c) { return c >= '0' && c <= '9'; });
+            });
+            if (entry.is_regular_file(ignored) && ofAStop)
+                pictured.push_back(entry.path());
+        }
+        for (const std::filesystem::path& path : pictured)
+            removeEarlier(path);
     }
 
     void RunRecord::add(BenchPlace place)

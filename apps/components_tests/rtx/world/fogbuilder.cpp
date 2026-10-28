@@ -12,6 +12,7 @@
 #include <osg/Vec3f>
 
 #include <components/esm3/loadcell.hpp>
+#include <components/rtx/common/radicalinverse.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/world/fogbuilder.hpp>
@@ -116,22 +117,6 @@ namespace Rtx
             return 0.5f + total / std::sqrt(squares);
         }
 
-        /// Where the `index`-th point of a Halton sequence in `base` falls in `[0, 1)`.
-        double radicalInverse(std::uint32_t index, std::uint32_t base)
-        {
-            double inverse = 0.0;
-            double fraction = 1.0 / static_cast<double>(base);
-
-            while (index > 0)
-            {
-                inverse += static_cast<double>(index % base) * fraction;
-                index /= base;
-                fraction /= static_cast<double>(base);
-            }
-
-            return inverse;
-        }
-
         /// Where to take the `index`-th sample of the field, over a box many tiles across.
         ///
         /// **Low-discrepancy and not a lattice.** The field repeats every `FOG_TILE` units, so a
@@ -146,9 +131,8 @@ namespace Rtx
         {
             const float span = 40.0f * Shaders::FOG_TILE;
 
-            return osg::Vec3f(static_cast<float>(radicalInverse(index, 2)) * span,
-                static_cast<float>(radicalInverse(index, 3)) * span,
-                static_cast<float>(radicalInverse(index, 5)) * span);
+            return osg::Vec3f(
+                radicalInverse(index, 2) * span, radicalInverse(index, 3) * span, radicalInverse(index, 5) * span);
         }
 
         float smoothstep(float from, float to, float value)

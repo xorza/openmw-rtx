@@ -35,6 +35,7 @@
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/texture/groundcompositepass.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -67,6 +68,7 @@ namespace Rtx
             {
                 Device& device = getDevice();
                 const TexturePasses passes(device);
+                TextureArrival rooms(device);
                 const SetLayout layout = TextureArray::describeLayout(device);
                 const GroundCompositePass pass(device, layout);
 
@@ -110,9 +112,9 @@ namespace Rtx
                 };
                 const std::optional<Image> albedo = canvasFor(Shaders::GROUND_COMPOSITE_ALBEDO, false);
                 const std::optional<Image> gloss = canvasFor(Shaders::GROUND_COMPOSITE_GLOSS, true);
-                TextureArray array(device, setup, layout, passes, 2);
+                TextureArray array(device, setup, layout, passes, rooms, 2);
                 std::vector<Refusal> refused;
-                array.write(setup, passes, textures, refused);
+                array.write(setup, passes, rooms, textures, refused);
                 array.sync(FrameSlot{});
                 std::vector<Index> everyMesh;
                 const SceneBuffers buffers(device, setup, scene,

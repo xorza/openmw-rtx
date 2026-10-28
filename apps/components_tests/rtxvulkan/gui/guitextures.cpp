@@ -121,7 +121,7 @@ namespace Rtx
             std::array<std::uint8_t, 4> inTexture(
                 GuiSlot texture, std::uint32_t extent, std::uint32_t x, std::uint32_t y)
             {
-                mRenderer.readGuiTexture(texture, mPixels);
+                mProbe.readGuiTexture(texture, mPixels);
                 EXPECT_EQ(mPixels.size(), std::size_t{ extent } * extent * 4);
 
                 return Testing::rgbaAt(mPixels, extent, x, y);
@@ -130,7 +130,7 @@ namespace Rtx
             /// The four bytes at a pixel of what a present would show, row zero at the top.
             std::array<std::uint8_t, 4> at(std::uint32_t x, std::uint32_t y)
             {
-                mRenderer.readShown(mPixels);
+                mProbe.readShown(mPixels);
                 EXPECT_EQ(mPixels.size(), std::size_t{ sExtent } * sExtent * 4);
 
                 return Testing::rgbaAt(mPixels, sExtent, x, y);
@@ -287,7 +287,7 @@ namespace Rtx
         /// the device's texture side. The side itself is made.
         TEST_F(RtxGuiDrawTest, aSizeNoImageTakesIsRefused)
         {
-            const std::uint32_t side = mRenderer.getDevice().getPhysicalDevice().getTextureSide();
+            const std::uint32_t side = mProbe.getDevice().getPhysicalDevice().getTextureSide();
 
             EXPECT_TRUE(mRenderer.addGuiTexture(0, 4).isNone()) << "no width";
             EXPECT_TRUE(mRenderer.addGuiTexture(4, 0).isNone()) << "no height";
@@ -395,7 +395,7 @@ namespace Rtx
 
             mRenderer.sendGuiTexture(texture);
 
-            mRenderer.readGuiTexture(texture, mPixels);
+            mProbe.readGuiTexture(texture, mPixels);
             ASSERT_EQ(mPixels.size(), std::size_t{ side } * side * 4);
 
             for (std::uint32_t texel = 0; texel < side * side; ++texel)
@@ -537,12 +537,12 @@ namespace Rtx
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, sExtent, sExtent, 1000000.0f);
 
-            mRenderer.renderFrame(camera, FrameOptions{});
+            mProbe.traceFrame(camera, FrameOptions{});
             const std::array<std::uint8_t, 4> traced = inPicture(sExtent - 2, 4);
 
             // The same camera and the same scene, so the same picture — and then the GUI over half
             // of it.
-            mRenderer.renderFrame(camera, FrameOptions{});
+            mProbe.traceFrame(camera, FrameOptions{});
 
             const GuiSlot texture = makeTexel({ 17, 34, 51, 255 });
             drawQuad(texture, -1.0f, 1.0f, 0.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
@@ -599,7 +599,7 @@ namespace Rtx
         /// traced at the room makes nothing. From whatever room the tests before left.
         TEST_F(RtxGuiDrawTest, aViewsRoomIsMadeAsItIsAskedAndCountedWithTheFrame)
         {
-            const Device& device = mRenderer.getDevice();
+            const Device& device = mProbe.getDevice();
             MemoryAllocator& memory = device.getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
             const RadianceWidth radiance = mRenderer.getProfile().mRadianceWidth;
@@ -609,14 +609,14 @@ namespace Rtx
 
             device.waitIdle();
             device.collectIdle();
-            const VkExtent2D room = mRenderer.getPictureRoom();
+            const VkExtent2D room = mProbe.getPictureRoom();
             const std::uint32_t wider = room.width + 16;
             const VkDeviceSize reserve = memory.getFrameReserve();
             const VkDeviceSize held = memory.getHeld(heap, MemoryUse::Frame);
 
             mRenderer.reservePicture(wider, 1);
-            EXPECT_EQ(mRenderer.getPictureRoom().width, wider);
-            EXPECT_EQ(mRenderer.getPictureRoom().height, room.height) << "a lower view shrank the room";
+            EXPECT_EQ(mProbe.getPictureRoom().width, wider);
+            EXPECT_EQ(mProbe.getPictureRoom().height, room.height) << "a lower view shrank the room";
             const VkDeviceSize grownBy = chainAt(wider, room.height) - chainAt(room.width, room.height);
             EXPECT_EQ(memory.getFrameReserve() - reserve, grownBy)
                 << "the reserve did not grow by the chain at the wider room";
@@ -633,7 +633,7 @@ namespace Rtx
             const GuiSlot texture = mRenderer.addGuiTexture(wider, room.height);
             mHeld.push_back(texture);
             const VkDeviceSize before = memory.getHeld(heap, MemoryUse::Frame);
-            mRenderer.traceGuiTexture(texture, makeMapCamera(sPictureSide), GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), makeMapCamera(sPictureSide), GuiTraceOptions{});
             mRenderer.finishGuiTraces();
             EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), before) << "a picture at the room made a frame target";
         }
@@ -658,7 +658,7 @@ namespace Rtx
                 osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f)),
                 200.0f, 200.0f, extent, extent, 1.0f, 10000.0f)
                                        .value();
-            mRenderer.traceGuiTexture(stated, view,
+            mRenderer.traceGuiTexture(stated, SceneSlot::world(), view,
                 GuiTraceOptions{ .mLight = PictureLight{ .mDirection = osg::Vec3f(0.0f, 0.0f, 1.0f),
                                      .mIrradiance = osg::Vec3f(1.0f, 1.0f, 1.0f),
                                      .mAmbient = osg::Vec3f() } });
@@ -666,12 +666,12 @@ namespace Rtx
             Shaders::VisibilityConstants camera = makeMapCamera(extent);
             camera.mTransparentBackground = 1;
             camera.mNoSkyShadows = 1;
-            mRenderer.traceGuiTexture(written, camera, GuiTraceOptions{});
+            mProbe.tracePicture(written, SceneSlot::world(), camera, GuiTraceOptions{});
 
             std::vector<std::uint8_t> fromView;
-            mRenderer.readGuiTexture(stated, fromView);
+            mProbe.readGuiTexture(stated, fromView);
             std::vector<std::uint8_t> fromBlock;
-            mRenderer.readGuiTexture(written, fromBlock);
+            mProbe.readGuiTexture(written, fromBlock);
             EXPECT_EQ(fromView, fromBlock);
             EXPECT_EQ(Testing::rgbaAt(fromView, extent, 8, 8), sheetLit());
             EXPECT_EQ(Testing::rgbaAt(fromView, extent, 1, 1)[3], 0) << "the backdrop stops where nothing was hit";
@@ -698,7 +698,7 @@ namespace Rtx
             Shaders::VisibilityConstants camera = makeMapCamera(extent);
             camera.mTransparentBackground = 1;
 
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
             for (std::uint32_t p : { 6u, 9u })
             {
@@ -721,7 +721,7 @@ namespace Rtx
             // **And at the player's gamma, as it was.** A picture inside the interface keeps the
             // interface's values, and a gamma of two would lift 98 to 158.
             mRenderer.setGamma(2.0f);
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
             EXPECT_EQ(inTexture(texture, extent, 8, 8), sheetLit()) << "the sheet, lit, under a gamma";
             mRenderer.setGamma(1.0f);
 
@@ -735,7 +735,7 @@ namespace Rtx
             // all, which is a question only the synchronization layers answer.
             camera.mTransparentBackground = 0;
             for (int again = 0; again < 2; ++again)
-                mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+                mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
             EXPECT_EQ(inTexture(texture, extent, 5, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 255 }))
                 << "past the sheet, and opaque";
@@ -749,7 +749,7 @@ namespace Rtx
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
             camera.mTransparentBackground = 1;
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
             const std::uint8_t grey = sheetLit()[0];
             EXPECT_EQ(inTexture(texture, extent, 8, 8), (std::array<std::uint8_t, 4>{ grey, grey, grey, 64 }))
@@ -781,13 +781,13 @@ namespace Rtx
 
             Shaders::VisibilityConstants camera = makeMapCamera(extent);
             camera.mTransparentBackground = 1;
-            const GuiTraceOptions options{ .mScene = slot };
+            const GuiTraceOptions options{};
 
-            mRenderer.traceGuiTexture(first, camera, options);
+            mProbe.tracePicture(first, slot, camera, options);
 
             ASSERT_TRUE(doll.placements().move(0, osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
             mRenderer.placeScene(slot, doll);
-            mRenderer.traceGuiTexture(second, camera, options);
+            mProbe.tracePicture(second, slot, camera, options);
 
             EXPECT_EQ(inTexture(first, extent, 8, 8)[3], 255) << "the sheet where it stood when the first was traced";
             EXPECT_EQ(inTexture(second, extent, 8, 8)[3], 0) << "and gone by the second";
@@ -809,15 +809,15 @@ namespace Rtx
             std::vector<std::uint8_t> copy(std::size_t{ extent } * extent * 4, 1);
 
             const Shaders::VisibilityConstants camera = makeMapCamera(extent);
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
             mRenderer.finishGuiTraces();
             EXPECT_FALSE(mRenderer.takeGuiCopy(texture, copy)) << "nothing asked for a copy";
 
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{ .mReadBack = true });
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{ .mReadBack = true });
             mRenderer.finishGuiTraces();
             ASSERT_TRUE(mRenderer.takeGuiCopy(texture, copy));
 
-            mRenderer.readGuiTexture(texture, mPixels);
+            mProbe.readGuiTexture(texture, mPixels);
             EXPECT_EQ(copy, mPixels);
             EXPECT_EQ(Testing::rgbaAt(copy, extent, 8, 8), sheetLit());
         }
@@ -849,12 +849,12 @@ namespace Rtx
             Shaders::VisibilityConstants camera = makeMapCamera(extent);
             camera.mTransparentBackground = 1;
 
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
             EXPECT_EQ(inTexture(texture, extent, 3, 8)[3], 255) << "the static, under every class";
             EXPECT_EQ(inTexture(texture, extent, 12, 8)[3], 255) << "the actor, under every class";
 
             camera.mRayMask = Shaders::MASK_STATIC;
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
             EXPECT_EQ(inTexture(texture, extent, 3, 8)[3], 255) << "the static, under the statics alone";
             EXPECT_EQ(inTexture(texture, extent, 12, 8)[3], 0) << "the actor, left out";
         }
@@ -888,23 +888,23 @@ namespace Rtx
             const Shaders::VisibilityConstants camera = makeMapCamera(extent);
             const std::array<std::uint8_t, 4> lit = sheetLit();
 
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
             EXPECT_NE(inTexture(texture, extent, 8, 8), lit) << "the puff over the sheet";
 
             Shaders::VisibilityConstants frame = camera;
             frame.mEyes.mWorld.mWidth = sExtent;
             frame.mEyes.mWorld.mHeight = sExtent;
-            mRenderer.renderFrame(frame, FrameOptions{});
+            mProbe.traceFrame(frame, FrameOptions{});
 
             Shaders::VisibilityConstants chart = camera;
             chart.mRayMask &= ~Shaders::MASK_PARTICLE;
-            mRenderer.traceGuiTexture(texture, chart, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), chart, GuiTraceOptions{});
             EXPECT_EQ(inTexture(texture, extent, 8, 8), lit) << "the sheet alone";
 
             // The same scene as a subject, binned into its own tables and not the frame's.
             const SceneSlot subject = mRenderer.addViewScene();
             mRenderer.setScene(subject, scene, puff);
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{ .mScene = subject });
+            mProbe.tracePicture(texture, subject, camera, GuiTraceOptions{});
             EXPECT_NE(inTexture(texture, extent, 8, 8), lit) << "the puff over the subject's sheet";
             mRenderer.dropViewScene(subject);
         }
@@ -946,11 +946,11 @@ namespace Rtx
 
                 Shaders::VisibilityConstants camera = makeMapCamera(extent);
                 Laid laid{};
-                mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+                mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
                 laid.mOverBlack = inTexture(texture, extent, 4, 8);
 
                 camera.mTransparentBackground = 1;
-                mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+                mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
                 laid.mOverNothing = inTexture(texture, extent, 4, 8);
 
                 return laid;
@@ -988,7 +988,8 @@ namespace Rtx
             Shaders::VisibilityConstants camera = makeMapCamera(filled);
             camera.mTransparentBackground = 1;
 
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{ .mClear = { 1.0f, 0.0f, 0.0f, 1.0f } });
+            mProbe.tracePicture(
+                texture, SceneSlot::world(), camera, GuiTraceOptions{ .mClear = { 1.0f, 0.0f, 0.0f, 1.0f } });
 
             // The sheet now covers a quarter of eight pixels — `p` in 3..4 — so the middle of the
             // filled corner is on it and the corner past `filled` was never traced at all.
@@ -1024,7 +1025,7 @@ namespace Rtx
             camera.mTransparentBackground = 1;
 
             const auto covered = [&](SceneSlot scene) {
-                mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{ .mScene = scene });
+                mProbe.tracePicture(texture, scene, camera, GuiTraceOptions{});
 
                 std::uint32_t across = 0;
                 for (std::uint32_t x = 0; x < extent; ++x)
@@ -1071,7 +1072,7 @@ namespace Rtx
             camera.mTransparentBackground = 1;
 
             const auto covered = [&](SceneSlot scene) {
-                mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{ .mScene = scene });
+                mProbe.tracePicture(texture, scene, camera, GuiTraceOptions{});
 
                 std::uint32_t across = 0;
                 for (std::uint32_t x = 0; x < extent; ++x)
@@ -1121,7 +1122,7 @@ namespace Rtx
 
             Shaders::VisibilityConstants camera = makeMapCamera(extent);
             camera.mTransparentBackground = 1;
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
             // Blue underneath, then the traced picture over the whole frame. The middle samples the
             // sheet, which is opaque and covers the blue; the corner samples where the trace stopped,
@@ -1142,7 +1143,7 @@ namespace Rtx
             // 12.35 + 111.87 = 124.2, or 124.
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
-            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
             const std::uint8_t g = sheetLit()[0];
             ASSERT_EQ(g, 98);
@@ -1204,8 +1205,7 @@ namespace Rtx
 
             const auto frame = [&](const Shaders::VisibilityConstants& camera, const ExposureRule exposure,
                                    const HistoryLoss loss = HistoryLoss::None) {
-                mRenderer.renderFrame(
-                    camera, FrameOptions{ .mSinceLast = sStep, .mLoss = loss, .mExposure = exposure });
+                mProbe.traceFrame(camera, FrameOptions{ .mSinceLast = sStep, .mLoss = loss, .mExposure = exposure });
                 mRenderer.readPixels(mPixels);
                 return mPixels;
             };
@@ -1216,7 +1216,7 @@ namespace Rtx
             const auto dimFrameAfterBright = [&](bool withPicture) {
                 frame(bright, MeasuredExposure{}, HistoryLoss::Cut);
                 if (withPicture)
-                    mRenderer.traceGuiTexture(texture, picture, GuiTraceOptions{});
+                    mProbe.tracePicture(texture, SceneSlot::world(), picture, GuiTraceOptions{});
 
                 return frame(dim, MeasuredExposure{});
             };

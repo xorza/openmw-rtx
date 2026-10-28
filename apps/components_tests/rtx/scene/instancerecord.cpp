@@ -264,6 +264,34 @@ namespace Rtx
             EXPECT_EQ(kept.size(), std::size_t{ more } + 1);
         }
 
+        /// **A turned placement six figures out moves by its step and nothing else.** Turned by a
+        /// 3-4-5 rotation at x = 150000 and moved a quarter of a unit along x, the motion is that
+        /// quarter back, `inverse(now) * then = translate(then - now)`: the turn cancels exactly in
+        /// double, and its rounding to a float is the step's own. A float inverse puts the turned
+        /// translation `-t R⁻¹` at an ulp of 90000, 0.0078 a component, and the step lost a hundredth.
+        TEST(RtxInstanceRecordTest, aTurnedPlacementFarOutMovesByItsStepAlone)
+        {
+            SceneDesc scene;
+            const Index mesh = Testing::addQuadMesh(scene);
+            osg::Matrixf turn;
+            turn.set(0.6f, 0.8f, 0.0f, 0.0f, -0.8f, 0.6f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+            const Index far = scene.addInstance(MeshInstance{
+                .mTransform = turn * osg::Matrixf::translate(150000.0f, -120000.0f, 30.0f), .mMesh = mesh });
+
+            std::vector<InstanceRecord> kept;
+            std::vector<Index> changed;
+            makeInstanceRecords(scene, kept);
+            scene.placements().advance();
+            scene.placements().move(far, turn * osg::Matrixf::translate(150000.25f, -120000.0f, 30.0f));
+            updateInstanceRecords(scene, kept, changed);
+
+            const Transform3x4 expected = toTransform3x4(osg::Matrixf::translate(-0.25f, 0.0f, 0.0f));
+            for (std::size_t row = 0; row < 3; ++row)
+                for (std::size_t column = 0; column < 4; ++column)
+                    EXPECT_NEAR(kept[far].mMotion.mRows[row][column], expected.mRows[row][column], 1e-6f)
+                        << "row " << row << " column " << column;
+        }
+
         /// Which faces a row is drawn from.
         ///
         /// **Morrowind states both faces two ways.** The content turns `GL_CULL_FACE` off, which is

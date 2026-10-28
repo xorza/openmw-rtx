@@ -11,6 +11,7 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -70,6 +71,10 @@ namespace RtxTool
     /// keys leave it no frame to fill. Throws `std::runtime_error` for both named at once, and for a
     /// length that is none.
     std::optional<FilmLength> filmLengthFrom(const boost::program_options::variables_map& variables);
+
+    /// How long every stop of a run lasts: `--frames` where it is named, and `--seconds` otherwise.
+    /// Throws `std::runtime_error` for both named at once, which are two answers to one question.
+    BenchSpan benchSpanFrom(const boost::program_options::variables_map& variables);
 
     /// Which companion maps `verb`'s models take: `--maps`, or where it is not given, nothing for the
     /// player's own under `view`, which is the played game, and `MapRules::Shipped` under every other

@@ -15,6 +15,7 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
+#include <apps/components_tests/rtx/support/device/rendererprobe.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
@@ -104,7 +105,7 @@ namespace Rtx::Testing
             // itself, and the composite that takes the sum must not add it a second time: frame
             // nought summed once reads back as frame nought, value for value.
             std::vector<float> bounce;
-            mRenderer.readChannel(Channel::Indirect, bounce);
+            mProbe.readChannel(Channel::Indirect, bounce);
             ASSERT_GT(*std::ranges::max_element(bounce), 0.0f)
                 << "a bounce of nothing adds nothing twice, and this would prove nothing";
 
@@ -474,7 +475,7 @@ namespace Rtx::Testing
             // last frame.
             const auto shot = [&](const Shaders::VisibilityConstants& camera, const float since = 1.0f / 60.0f,
                                   const HistoryLoss loss = HistoryLoss::None) {
-                mRenderer.renderFrame(
+                mProbe.traceFrame(
                     camera, FrameOptions{ .mSinceLast = since, .mLoss = loss, .mExposure = ExposureRule{} });
                 mRenderer.readPixels(pixels);
                 return meanByte();
@@ -522,7 +523,7 @@ namespace Rtx::Testing
             // dim eye comes out brighter than it did under its own.
             const auto held
                 = [&](const Shaders::VisibilityConstants& camera, const HistoryLoss loss = HistoryLoss::None) {
-                      mRenderer.renderFrame(camera,
+                      mProbe.traceFrame(camera,
                           FrameOptions{ .mSinceLast = 1.0f / 60.0f, .mLoss = loss, .mExposure = HeldExposure{} });
                       mRenderer.readPixels(pixels);
                       return meanByte();
@@ -538,7 +539,7 @@ namespace Rtx::Testing
             // modes grows the reserve finds content past what it leaves.
             EXPECT_EQ(settle(bright), lit);
             {
-                MemoryAllocator& memory = mRenderer.getDevice().getMemory();
+                MemoryAllocator& memory = mProbe.getDevice().getMemory();
                 const Testing::BudgetLimit tight(memory, Testing::budgetAbove(memory, MemoryUse::Texture, 0) - 1);
                 mRenderer.setUpscale(Upscale::Quality);
                 mRenderer.setUpscale(Upscale::Off);
@@ -596,7 +597,7 @@ namespace Rtx::Testing
             const auto renderOne = [&](std::uint32_t frame, bool filter, HistoryLoss loss = HistoryLoss::None) {
                 Shaders::VisibilityConstants sampled = camera;
                 sampled.mFrame = frame;
-                mRenderer.renderFrame(sampled,
+                mProbe.traceFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
                         .mLoss = loss,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = filter },
@@ -605,7 +606,7 @@ namespace Rtx::Testing
 
             const auto radiance = [&] {
                 std::vector<float> values;
-                mRenderer.readComposite(values);
+                mProbe.readComposite(values);
                 return values;
             };
 
@@ -799,7 +800,7 @@ namespace Rtx::Testing
                 {
                     for (std::uint32_t at = 0; at <= sStill + reading.mAfter; ++at)
                     {
-                        mRenderer.renderFrame(standing(at >= sStill ? to : from, 1000 + 100 * draw + at),
+                        mProbe.traceFrame(standing(at >= sStill ? to : from, 1000 + 100 * draw + at),
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                                     .mFilters
@@ -813,7 +814,7 @@ namespace Rtx::Testing
                     while (mRenderer.finishFrame().has_value())
                     {
                     }
-                    mRenderer.readComposite(mRead);
+                    mProbe.readComposite(mRead);
                     for (std::size_t pixel = 0; pixel < mSums.size(); ++pixel)
                     {
                         const double value = static_cast<double>(mRead[pixel * 4 + 1]);
@@ -1031,14 +1032,14 @@ namespace Rtx::Testing
                         mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
                         scene.placements().advance();
                         camera.mFrame = 3000 + 100 * draw + at;
-                        mRenderer.renderFrame(camera,
+                        mProbe.traceFrame(camera,
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                                     .mFilters = { .mAntilag = false, .mDualMotion = dual, .mAntiFirefly = false } },
                                 .mExposure = FixedExposure{ 1.0f } });
                         EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     }
-                    mRenderer.readComposite(read);
+                    mProbe.readComposite(read);
                     for (std::size_t pixel = 0; pixel < sums.size(); ++pixel)
                     {
                         const double value = static_cast<double>(read[pixel * 4 + 1]);
@@ -1104,17 +1105,18 @@ namespace Rtx::Testing
         void drawFromACut(VulkanRenderer& renderer, Shaders::VisibilityConstants camera, bool ring,
             std::uint32_t frames, std::uint32_t first, std::vector<float>& read)
         {
+            RendererProbe probe(renderer);
             for (std::uint32_t at = 0; at < frames; ++at)
             {
                 camera.mFrame = first + at;
-                renderer.renderFrame(camera,
+                probe.traceFrame(camera,
                     FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                             .mFilters = { .mAntilag = false, .mAntiFirefly = ring } },
                         .mExposure = FixedExposure{ 1.0f } });
                 EXPECT_TRUE(renderer.finishFrame().has_value());
             }
-            renderer.readComposite(read);
+            probe.readComposite(read);
         }
 
         /// **A rare bright bounce on a history of a few frames is held to the light around it**
@@ -1227,7 +1229,7 @@ namespace Rtx::Testing
                 for (std::uint32_t at = 0; at < frames; ++at)
                 {
                     camera.mFrame = 2000 + at;
-                    mRenderer.renderFrame(camera,
+                    mProbe.traceFrame(camera,
                         FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                             .mReconstruction = ReconstructionRequest{ .mDenoise = filter,
                                 .mFilters = { .mAntilag = false, .mAntiFirefly = false } },
@@ -1235,7 +1237,7 @@ namespace Rtx::Testing
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                 }
                 std::vector<float> read;
-                mRenderer.readComposite(read);
+                mProbe.readComposite(read);
                 return read;
             };
 

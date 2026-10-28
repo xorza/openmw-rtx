@@ -19,11 +19,13 @@ namespace Rtx
 
     /// The first binding a module declares that `sets` — its pipeline layout's, each set as its
     /// layout states it, the census left out of `SET_PASS` — states another way, in words: one in a
-    /// set the layout does not name, one its set does not declare, or one declared of another type
-    /// or count. Nothing where they agree. A binding the layout declares and the module does not
-    /// read is no disagreement: a stage reads the part of a set it needs, and a variant that counts
-    /// nothing binds no census.
-    std::optional<std::string> bindingDisagreement(std::span<const ModuleBinding> module, const SetTables& sets);
+    /// set the layout does not name, one its set does not declare, one declared of another type
+    /// or count, or one declared for stages that leave out `stage`, the module's own
+    /// (`VUID-VkComputePipelineCreateInfo-layout-07988`). Nothing where they agree. A binding the
+    /// layout declares and the module does not read is no disagreement: a stage reads the part of
+    /// a set it needs, and a variant that counts nothing binds no census.
+    std::optional<std::string> bindingDisagreement(
+        std::span<const ModuleBinding> module, const SetTables& sets, VkShaderStageFlagBits stage);
 
     /// The first specialization constant a module declares that `words` — the stage's, a word per
     /// `constant_id` (`Specialization`) — do not specialize as its type asks, in words: one past
@@ -33,10 +35,12 @@ namespace Rtx
         std::span<const ModuleSpecConstant> module, std::span<const std::uint32_t> words);
 
     /// How a module's push block, ending at `end` where it has one, disagrees with the range the
-    /// layout declares, `range` bytes, in words: a block past the range, or a range past the block
-    /// by more than the host's rounding of a block that ends in a 64-bit address to a multiple of
-    /// eight (`hosttypes.h`). Nothing where they agree, and nothing for a module that reads no push.
-    std::optional<std::string> pushDisagreement(std::optional<std::uint32_t> end, std::uint32_t range);
+    /// layout declares, `range`, in words: a range declared for stages that leave out `stage`, the
+    /// module's own, a block past the range, or a range past the block by more than the host's
+    /// rounding of a block that ends in a 64-bit address to a multiple of eight (`hosttypes.h`).
+    /// Nothing where they agree, and nothing for a module that reads no push.
+    std::optional<std::string> pushDisagreement(
+        std::optional<std::uint32_t> end, const VkPushConstantRange& range, VkShaderStageFlagBits stage);
 
     /// The first input of a vertex module that `attributes` — the pipeline's description of a
     /// vertex — do not feed, in words: one at a location no attribute names, or one whose
@@ -69,12 +73,13 @@ namespace Rtx
         ///
         /// **And the module's interface held to what the C++ states beside the GLSL**: its bindings
         /// to the layout's `sets` (`bindingDisagreement`), its specialization constants to `words`
-        /// (`specializationDisagreement`), and its push block to the layout's range of `pushBytes`
-        /// (`pushDisagreement`). A disagreement ends the process as a crash naming the module and
-        /// what disagrees, where the device would read a resource as another, a constant would take
-        /// its default, or a push would be read past what was written.
-        const void* stage(std::string_view module, const SetTables& sets, std::uint32_t pushBytes,
-            std::span<const std::uint32_t> words) const;
+        /// (`specializationDisagreement`), and its push block to the layout's `push` range
+        /// (`pushDisagreement`), each for `stage`, the stage the module runs as. A disagreement ends
+        /// the process as a crash naming the module and what disagrees, where the device would read a
+        /// resource as another, a constant would take its default, or a push would be read past what
+        /// was written.
+        const void* stage(std::string_view module, VkShaderStageFlagBits stage, const SetTables& sets,
+            const VkPushConstantRange& push, std::span<const std::uint32_t> words) const;
 
         /// Holds the inputs of `module`, a vertex stage `stage` already read, to `attributes`
         /// (`inputDisagreement`), and ends the process as a crash naming the module where one is

@@ -49,6 +49,33 @@ namespace Rtx
             EXPECT_TRUE(linked.contains(&features.mShaderClock));
         }
 
+        /// **A candidate is asked only the structures of what it offers**: of a device that lists no
+        /// extension, the core structures alone, and with the ray tracing pipeline listed, that one
+        /// beside them. A structure of an extension a device does not list is no valid member of
+        /// the chain.
+        TEST(RtxRequirementsTest, aCandidateIsAskedTheStructuresOfWhatItOffers)
+        {
+            const auto count = [](const void* head) {
+                std::size_t linked = 0;
+                for (const VkBaseInStructure* next = static_cast<const VkBaseInStructure*>(head); next != nullptr;
+                     next = next->pNext)
+                    ++linked;
+                return linked;
+            };
+
+            const DeviceFeatures bare(std::span<const std::string>{});
+            EXPECT_EQ(count(&bare.mFeatures2), 4u) << "the features of 1.0 and 1.2 to 1.4, and nothing else";
+            const DeviceProperties plain(std::span<const std::string>{});
+            EXPECT_EQ(count(&plain.mProperties2), 4u) << "the properties of 1.0 to 1.3, and nothing else";
+
+            const std::array<std::string, 1> pipeline{ VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME };
+            const DeviceFeatures tracing(pipeline);
+            EXPECT_EQ(count(&tracing.mFeatures2), 5u);
+            EXPECT_EQ(tracing.mFeatures2.pNext, &tracing.mVulkan12);
+            const DeviceProperties traced(pipeline);
+            EXPECT_EQ(count(&traced.mProperties2), 5u);
+        }
+
         TEST(RtxRequirementsTest, everyPropertyStructIsInTheChain)
         {
             DeviceProperties properties;

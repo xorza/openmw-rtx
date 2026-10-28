@@ -32,18 +32,6 @@
 const uint PATH_SEEN = 0u;
 const uint PATH_INDIRECT = 1u;
 
-/// Which sources the shading point a ray left evaluated by their light samples, and so which of
-/// their geometry emits nothing to that ray: the sun's and the moons' discs, and every lamp's model
-/// (`INSTANCE_LAMP_BODY`). The sun's rule for every analytic source, **keyed by the ray's parent and
-/// not by the ray**: what a lobe or a bounce that `GatherRun` drew would find of a source, the light
-/// sample at the same point holds already; a surface that evaluated no source — the water's, whose
-/// legs are its whole light — leaves its rays every source's geometry whole.
-const uint EVALUATED_DISCS = 1u;
-const uint EVALUATED_LAMPS = 2u;
-
-/// What `GatherRun` evaluates: every source.
-const uint EVALUATED_GATHERED = EVALUATED_DISCS | EVALUATED_LAMPS;
-
 /// The direct light a surface sends back toward the eye, in its two halves.
 struct DirectLight
 {
@@ -1070,19 +1058,18 @@ struct Arriving
 /// depth. Without it a flooded floor reads brighter than the same floor seen from over the surface.
 ///
 /// **The lobe's escape finds the sky a mirror shows**, `reflectedSky`, because a reflection is a
-/// picture of the world: the deck, the sheets and the stars where they are, and no fill. Its discs
-/// as `evaluated` says. A branch and not a factor, because the halves are the draw's own split and
-/// the reflected sky is a deck's reading the diffuse half never needs.
-///
-/// @param evaluated which sources the point the bounce left evaluated (`EVALUATED_DISCS`).
-vec3 bounceEscape(vec3 position, BounceDraw drawn, vec3 weight, uint evaluated)
+/// picture of the world: the deck, the sheets and the stars where they are, and no fill. **Not its
+/// discs**: every point a bounce leaves evaluated the sun and the moons by their light samples
+/// (`GatherRun`), which hold what a lobe would find of them. A branch and not a factor, because the
+/// halves are the draw's own split and the reflected sky is a deck's reading the diffuse half never
+/// needs.
+vec3 bounceEscape(vec3 position, BounceDraw drawn, vec3 weight)
 {
     if (!skyLights())
         return vec3(0.0);
 
-    const vec3 sky = drawn.mSpecular
-        ? reflectedSky(position, drawn.mTowards, 0.5 * drawn.mSpread, (evaluated & EVALUATED_DISCS) == 0u)
-        : skyGlow(drawn.mTowards);
+    const vec3 sky = drawn.mSpecular ? reflectedSky(position, drawn.mTowards, 0.5 * drawn.mSpread, false)
+                                     : skyGlow(drawn.mTowards);
     const vec3 daylight = daylightReaching(position);
     return weight * sky * daylight;
 }
@@ -1336,7 +1323,7 @@ void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel)
     const vec3 fromEye = surface.mPosition - frame.mOrigin;
     if (skyLights() && surface.mGround && dot(fromEye, fromEye) > BOUNCE_REACH * BOUNCE_REACH)
     {
-        run.mEscaped = bounceEscape(surface.mPosition, drawn, weight, EVALUATED_GATHERED);
+        run.mEscaped = bounceEscape(surface.mPosition, drawn, weight);
         return;
     }
 
@@ -1364,7 +1351,7 @@ void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel)
 /// The escape of a traced bounce that met nothing (`bounceEscape`).
 vec3 bounceMissed(BounceRun run)
 {
-    return bounceEscape(run.mPosition, run.mDrawn, run.mWeight, EVALUATED_GATHERED);
+    return bounceEscape(run.mPosition, run.mDrawn, run.mWeight);
 }
 
 /// The visit of the bounce's `landing`, which the landing's stage steps (`landing.comp`), with the
@@ -1374,8 +1361,8 @@ vec3 bounceMissed(BounceRun run)
 /// surface a lamp of its own — `EMISSIVE_INTENSITY` says what measuring that showed — so a ray that
 /// lands on a mushroom cap is what carries the cap's glow back to whatever sent it.
 ///
-/// **A lamp's own model glows to nothing whose parent evaluated the lamps** (`EVALUATED_LAMPS`,
-/// `INSTANCE_LAMP_BODY`). Its lamp lights every surface around it through the model's fitting
+/// **A lamp's own model glows to nothing**, every point a bounce leaves having evaluated the lamps
+/// (`INSTANCE_LAMP_BODY`). Its lamp lights every surface around it through the model's fitting
 /// (`lampAsk`) and reaches a lobe by the same sample, so a diffuse bounce that also brought back the
 /// paper's glow lit the room twice — and found that glow rarely and brightly, which is a firefly — and
 /// a glossy lobe that reflected the model beside the lamp's highlight showed it twice. A factor and
@@ -1389,7 +1376,7 @@ vec3 bounceMissed(BounceRun run)
 VisitRun landingVisitOf(inout Surface landing, bool lobe, uvec2 pixel)
 {
     const bool lampBody = (instanceAt(landing.mInstance).mClass & INSTANCE_LAMP_BODY) != 0u;
-    const float keep = (EVALUATED_GATHERED & EVALUATED_LAMPS) != 0u && lampBody ? 0.0 : 1.0;
+    const float keep = lampBody ? 0.0 : 1.0;
     landing.mEmissiveColour *= keep;
     landing.mEmitted *= keep;
 

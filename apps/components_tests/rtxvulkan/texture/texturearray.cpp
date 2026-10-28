@@ -25,6 +25,7 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturecost.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
@@ -52,8 +53,9 @@ namespace Rtx
 
             const SetLayout layout = TextureArray::describeLayout(device);
             const TexturePasses passes(device);
+            TextureArrival rooms(device);
             Batch setup(pool);
-            TextureArray textures(device, setup, layout, passes, 1);
+            TextureArray textures(device, setup, layout, passes, rooms, 1);
             setup.flush();
 
             // An arrival, owed to every set and paid before either is bound: a set is handed out
@@ -63,7 +65,7 @@ namespace Rtx
             const TextureData arrived = Testing::describeTexel(white, 0);
             Batch arrival(pool);
             std::vector<Refusal> refused;
-            textures.write(arrival, passes, std::span(&arrived, 1), refused);
+            textures.write(arrival, passes, rooms, std::span(&arrived, 1), refused);
             EXPECT_TRUE(refused.empty());
             arrival.flush();
             Testing::expectAssertDies([&] { static_cast<void>(textures.getSet(FrameSlot{ 0 })); },
@@ -80,7 +82,7 @@ namespace Rtx
             // write once that set is free. Deferred, so it rides ahead of the held submit.
             const TextureData second = Testing::describeTexel(white, 1);
             Batch secondArrival(pool);
-            textures.write(secondArrival, passes, std::span(&second, 1), refused);
+            textures.write(secondArrival, passes, rooms, std::span(&second, 1), refused);
             EXPECT_TRUE(refused.empty());
             secondArrival.defer();
             hold.submit(std::move(binding));
@@ -139,8 +141,9 @@ namespace Rtx
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
             const TexturePasses passes(device);
+            TextureArrival rooms(device);
             Batch setup(getPool());
-            const TextureArray textures(device, setup, layout, passes, 3);
+            const TextureArray textures(device, setup, layout, passes, rooms, 3);
             setup.flush();
 
             const std::uint32_t limit = textures.getSideLimit();
@@ -205,7 +208,7 @@ namespace Rtx
             };
 
             for (const Case& one : cases)
-                EXPECT_EQ(textures.chooseSide(one.mArrived, one.mRoom), one.mSide)
+                EXPECT_EQ(textures.chooseSide(one.mArrived, one.mRoom, rooms), one.mSide)
                     << one.mArrived.size() << " textures in " << one.mRoom << " bytes";
         }
 
@@ -213,14 +216,15 @@ namespace Rtx
         /// `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt` costs 44709 at the top, 21840 of it means,
         /// where the array holds none: a byte short of that and it is held to 32. Once one such map
         /// has arrived, the room holds its 21840 and the next pays none of it: 22869 is the top, and a
-        /// byte short of it 32.
+        /// byte short of it 32, in that array and in any other the room is handed to.
         TEST_F(RtxTextureArrayTest, anArrivalIsPricedWhatItsMeansRoomMustGrowBy)
         {
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
             const TexturePasses passes(device);
+            TextureArrival rooms(device);
             Batch setup(getPool());
-            TextureArray textures(device, setup, layout, passes, 2);
+            TextureArray textures(device, setup, layout, passes, rooms, 2);
             setup.flush();
             const std::uint32_t limit = textures.getSideLimit();
 
@@ -232,18 +236,25 @@ namespace Rtx
             second.mData.mEncoding = TextureEncoding::Normal;
             second.mData.mSlot = 1;
 
-            EXPECT_EQ(textures.chooseSide(std::span(&first.mData, 1), 44709), limit);
-            EXPECT_EQ(textures.chooseSide(std::span(&first.mData, 1), 44708), 32u);
+            EXPECT_EQ(textures.chooseSide(std::span(&first.mData, 1), 44709, rooms), limit);
+            EXPECT_EQ(textures.chooseSide(std::span(&first.mData, 1), 44708, rooms), 32u);
 
             std::vector<Refusal> refused;
             Batch arrival(getPool());
-            textures.write(arrival, passes, std::span(&first.mData, 1), refused);
+            textures.write(arrival, passes, rooms, std::span(&first.mData, 1), refused);
             arrival.flush();
             ASSERT_TRUE(refused.empty());
 
-            EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840), limit)
+            EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840, rooms), limit)
                 << "the means the room holds were priced again";
-            EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840 - 1), 32u);
+            EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840 - 1, rooms), 32u);
+
+            // **And so is another scene's array**: the rooms are the renderer's, one for every scene.
+            Batch other(getPool());
+            const TextureArray elsewhere(device, other, layout, passes, rooms, 2);
+            other.flush();
+            EXPECT_EQ(elsewhere.chooseSide(std::span(&second.mData, 1), 44709 - 21840, rooms), limit)
+                << "a second scene priced the means the shared room holds";
         }
 
         /// **A one-level file past the loose side stands as BC7**, encoded off the loose chain the
@@ -257,8 +268,9 @@ namespace Rtx
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
             const TexturePasses passes(device);
+            TextureArrival rooms(device);
             Batch setup(getPool());
-            TextureArray textures(device, setup, layout, passes, 1);
+            TextureArray textures(device, setup, layout, passes, rooms, 1);
             setup.flush();
 
             Testing::TestTexture vanilla;
@@ -287,7 +299,7 @@ namespace Rtx
             std::vector<Refusal> refused;
             {
                 Batch arrival(getPool());
-                textures.write(arrival, passes, std::array{ large.mData }, refused);
+                textures.write(arrival, passes, rooms, std::array{ large.mData }, refused);
                 arrival.flush();
             }
 
@@ -311,8 +323,9 @@ namespace Rtx
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
             const TexturePasses passes(device);
+            TextureArrival rooms(device);
             Batch setup(getPool());
-            TextureArray textures(device, setup, layout, passes, 2);
+            TextureArray textures(device, setup, layout, passes, rooms, 2);
             setup.flush();
 
             const std::uint32_t limit = textures.getSideLimit();
@@ -330,7 +343,7 @@ namespace Rtx
             const std::array arrived{ wide.mData, single.mData, unread.mData };
             std::vector<Refusal> refused;
             Batch arrival(getPool());
-            textures.write(arrival, passes, arrived, refused);
+            textures.write(arrival, passes, rooms, arrived, refused);
             arrival.flush();
 
             ASSERT_EQ(refused.size(), 1u);
@@ -380,7 +393,7 @@ namespace Rtx
             };
             {
                 Batch again(getPool());
-                textures.write(again, passes, std::array{ completed.mData, bake }, refused);
+                textures.write(again, passes, rooms, std::array{ completed.mData, bake }, refused);
                 again.flush();
             }
             const TexturesHeld bySource = textures.getHeld();
@@ -406,8 +419,9 @@ namespace Rtx
             MemoryAllocator& memory = device.getMemory();
             const SetLayout layout = TextureArray::describeLayout(device);
             const TexturePasses passes(device);
+            TextureArrival rooms(device);
             Batch setup(getPool());
-            TextureArray textures(device, setup, layout, passes, 2);
+            TextureArray textures(device, setup, layout, passes, rooms, 2);
             setup.flush();
 
             Testing::TestTexture ladder;
@@ -425,7 +439,7 @@ namespace Rtx
             std::vector<Refusal> refused;
             {
                 Batch arrival(getPool());
-                textures.write(arrival, passes, std::span(&ladder.mData, 1), refused);
+                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), refused);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty()) << "a texture with a level the device had room for was refused";
@@ -436,7 +450,7 @@ namespace Rtx
 
             {
                 Batch arrival(getPool());
-                textures.write(arrival, passes, std::span(&lone.mData, 1), refused);
+                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), refused);
                 arrival.flush();
             }
             ASSERT_EQ(refused.size(), 1u);
@@ -452,7 +466,7 @@ namespace Rtx
             {
                 const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
                 Batch arrival(getPool());
-                textures.write(arrival, passes, std::span(&lone.mData, 1), refused);
+                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), refused);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty());
@@ -466,7 +480,7 @@ namespace Rtx
             {
                 const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
                 Batch arrival(getPool());
-                textures.write(arrival, passes, std::span(&ladder.mData, 1), refused);
+                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), refused);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty());

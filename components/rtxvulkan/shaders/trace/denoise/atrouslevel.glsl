@@ -164,8 +164,10 @@ void storeComposed(ivec2 at, ivec2 stored, vec3 bounce, vec3 fillShare)
 /// normal decoded and its point rebuilt, where each was fetched, decoded and rebuilt by every one of
 /// the twenty-five pixels whose taps reach it. The values are the ones a tap computed for itself, so
 /// the level's answer is the same to the bit. A pixel the history fix rebuilds steps past the tile
-/// and fetches its own taps (`fetchedTap`); one narrow level's taps stand a step apart that leaves
-/// nothing to share, and the tile is one texel there.
+/// and fetches its own taps (`fetchedTap`). The narrow levels fetch every tap, and the tile is one
+/// texel there, **though their taps are shared too**: a workgroup's pixels reach each texel four
+/// times over at a step of two and 2.25 times at four, and only at eight share none. A tile sized by
+/// the step, as `shadowfilter.comp` sizes its apron, is unmeasured.
 const int TILE_REACH = 2;
 const uint TILE = ATROUS_WIDE ? ATROUS_WORKGROUP + 2u * uint(TILE_REACH) : 1u;
 

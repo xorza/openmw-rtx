@@ -1,9 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include <osg/Vec2f>
+
+#include "viewschedule.hpp"
 
 namespace osg
 {
@@ -30,6 +33,10 @@ namespace MWRender
     class ViewQueue
     {
     public:
+        /// A name no view of this queue has had, for a view's texture: MyGUI keys its textures by
+        /// name, so each view names its own.
+        std::string nameView() { return "rtx offscreen view " + std::to_string(mNamed++); }
+
         /// A view made, from its constructor: kept on the list of the pictures alive, which
         /// `findWorldView` answers from.
         void adopt(TracedView& view);
@@ -50,9 +57,9 @@ namespace MWRender
             Rtx::Released& releasing);
 
         /// Whether a flush is in progress, which a flush inside a flush must not be.
-        bool isDrawing() const { return !mDrawing.empty(); }
+        bool isDrawing() const { return mSchedule.isDrawing(); }
 
-        bool hasDeferred() const { return !mDeferred.empty(); }
+        bool hasDeferred() const { return mSchedule.hasDeferred(); }
 
         /// The game has left the scene every picture of the world asked so far shows: the last of
         /// its cells unloaded, as a door, a teleport or a load does (`notifyWorldspaceChanged`).
@@ -72,15 +79,14 @@ namespace MWRender
         void finishOverlays();
 
     private:
+        /// How many views `nameView` has named.
+        unsigned int mNamed = 0;
+
         /// Every picture alive, in the order made.
         std::vector<TracedView*> mViews;
 
-        /// Pictures asked for and not yet drawn, in the order asked.
-        std::vector<TracedView*> mDeferred;
-
-        /// The list a flush walks, swapped out of `mDeferred` so a redraw cannot grow what is being
-        /// iterated. Kept, because this sits on the frame path.
-        std::vector<TracedView*> mDrawing;
+        /// Which of them are asked for and in what order they are drawn.
+        ViewSchedule<TracedView> mSchedule;
 
         /// Every overlay alive, in the order made. The game makes one.
         std::vector<TracedOverlay*> mOverlays;

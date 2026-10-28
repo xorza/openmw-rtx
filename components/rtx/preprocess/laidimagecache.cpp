@@ -19,16 +19,14 @@ namespace Rtx
         VFS::Path::normalizeFilenameInPlace(mName);
         auto known = mByFile.find(std::string_view(mName));
         if (known == mByFile.end())
-            known = mByFile.emplace(VFS::Path::Normalized(mName), Laid{}).first;
+            known = mByFile.emplace(VFS::Path::Normalized(mName), nullptr).first;
 
-        Laid& laid = known->second;
         osg::ref_ptr<const osg::Image> held;
-        if (laid.mFile.get() == &image && laid.mLaid.lock(held))
+        if (known->second.lock(held))
             return held;
 
         held = layImage(image, format, mLevels, mTexels);
-        laid.mFile = &image;
-        laid.mLaid = held;
+        known->second = held;
         return held;
     }
 }

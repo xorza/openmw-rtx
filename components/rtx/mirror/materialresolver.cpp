@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -96,14 +97,35 @@ namespace Rtx
         return shape;
     }
 
-    const osg::StateSet* MaterialResolver::animate(
-        osg::Node& node, const std::size_t placement, osg::NodeVisitor* visitor, const bool underAnimated)
+    bool MaterialResolver::carriesUpdater(const osg::Node& node)
     {
-        // Asked of every node in the graph every frame, and nearly all of a cell hangs off no
-        // callback at all and stands under nothing animated.
-        const bool chained = node.getCullCallback() != nullptr || node.getUpdateCallback() != nullptr;
-        const bool inherits = underAnimated && node.getStateSet() != nullptr;
-        if (!chained && !inherits)
+        for (const osg::Callback* chain : { node.getUpdateCallback(), node.getCullCallback() })
+            for (const osg::Callback* callback = chain; callback != nullptr; callback = callback->getNestedCallback())
+            {
+                const std::type_info* const type = &typeid(*callback);
+                auto known = mUpdaterClasses.find(type);
+                if (known == mUpdaterClasses.end())
+                {
+                    assert(mUpdaterClasses.size() < sCallbackClasses && "more callback classes than reserved");
+                    known = mUpdaterClasses
+                                .emplace(type, dynamic_cast<const SceneUtil::StateSetUpdater*>(callback) != nullptr)
+                                .first;
+                }
+                if (known->second)
+                    return true;
+            }
+        return false;
+    }
+
+    const osg::StateSet* MaterialResolver::animate(
+        osg::Node& node, const std::size_t placement, osg::NodeVisitor* visitor)
+    {
+        // Asked of every node in the graph every frame. **An entry only where a chain holds a
+        // controller of state sets**: upstream hangs a light list callback on every object root
+        // (`Animation`), so a test for any callback at all made an entry for every reference, past
+        // the reserve on a dense load. A chain is read by the classes of its callbacks, each class
+        // asked once.
+        if (!carriesUpdater(node))
             return nullptr;
 
         // The casts are taken when the chains change, not per frame. The entry remembers what it
@@ -118,7 +140,7 @@ namespace Rtx
             held.mChains.hold(chains);
 
             std::array<SceneUtil::StateSetUpdater*, sMostUpdaters> found{};
-            const std::size_t count = chained ? findUpdaters(node, found) : 0;
+            const std::size_t count = findUpdaters(node, found);
 
             if (count != held.mUpdaterCount
                 || !std::equal(found.begin(), found.begin() + count, held.mUpdaters.begin(),
@@ -135,7 +157,7 @@ namespace Rtx
 
         const std::span<const osg::ref_ptr<SceneUtil::StateSetUpdater>> updaters(
             held.mUpdaters.data(), held.mUpdaterCount);
-        if (updaters.empty() && !inherits)
+        if (updaters.empty())
             return nullptr;
 
         for (std::size_t at = 0; at < updaters.size(); ++at)
@@ -319,31 +341,33 @@ namespace Rtx
         const Shading& own = shading.back();
         const osg::StateSet* const key = own.materialKey();
 
+        // Read each frame where a controller rewrote the state set or one above it, whose sheet
+        // the near state set's material shows.
+        const bool rewritten = own.mAnimatedThrough;
+
         if (const Entry known = reuse(key); known != mMaterials.end())
         {
             // Read again, because a controller rewrote it since the last frame. The state set
             // is the same object — that is what lets the material keep its slot and every placement
             // standing on it stay where it is — and everything inside it is this frame's. What it
             // wears is kept across the frames, for the reason `Worn` gives.
-            if (own.mAnimated)
+            if (rewritten)
             {
                 HeldMaterial& held = known->second;
-                // From a value, since Clang asks whether `Worn` is default-constructible while the
-                // class it is nested in is still incomplete, and keeps the answer no.
-                if (!held.mWorn.has_value())
-                    held.mWorn.emplace(Worn{});
-                mScene.setMaterial(held.mRow.get(), readMaterial(shading, &*held.mWorn));
+                if (held.mWorn == sNoIndex)
+                    held.mWorn = takeWorn();
+                mScene.setMaterial(held.mRow.get(), readMaterial(shading, &mWorns[held.mWorn]));
             }
 
             return Resolved{ .mIndex = known->second.mRow.get(), .mKey = key };
         }
 
         // An arrival under a controller starts wearing what it wears from its first frame.
-        if (!own.mAnimated)
+        if (!rewritten)
             return Resolved{ .mIndex = adopt(key, readMaterial(shading, nullptr))->second.mRow.get(), .mKey = key };
 
-        Worn worn;
-        const Material material = readMaterial(shading, &worn);
+        const Index worn = takeWorn();
+        const Material material = readMaterial(shading, &mWorns[worn]);
         const Entry added = adopt(key, material);
         added->second.mWorn = worn;
 
@@ -436,7 +460,7 @@ namespace Rtx
 
     Material MaterialResolver::readMaterial(std::span<const Shading> shading, Worn* const worn)
     {
-        const bool animated = !shading.empty() && shading.back().mAnimated;
+        const bool animated = animatedThrough(shading);
 
         // Nothing read ahead: the answers about the map are asked of the images here, where the
         // walk is, and kept against the next material that names them.
@@ -587,9 +611,26 @@ namespace Rtx
 
     void MaterialResolver::release(HeldMaterial& held)
     {
-        if (held.mWorn.has_value())
-            releaseWorn(*held.mWorn);
+        if (held.mWorn != sNoIndex)
+        {
+            releaseWorn(mWorns[held.mWorn]);
+            mWorns[held.mWorn] = Worn{};
+            mFreeWorns.push_back(std::exchange(held.mWorn, sNoIndex));
+        }
         mScene.drop(std::move(held.mRow));
+    }
+
+    Index MaterialResolver::takeWorn()
+    {
+        if (mFreeWorns.empty())
+        {
+            mWorns.emplace_back();
+            return static_cast<Index>(mWorns.size() - 1);
+        }
+
+        const Index taken = mFreeWorns.back();
+        mFreeWorns.pop_back();
+        return taken;
     }
 
     void MaterialResolver::release(HeldTexture& held)

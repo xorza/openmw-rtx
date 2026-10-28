@@ -533,7 +533,7 @@ namespace Rtx::Testing
             const SceneDesc& scene, std::span<const TextureData> textures, std::uint32_t size, const Shot& shot = {})
         {
             mRenderer.resize(size, size);
-            mRenderer.setSea(shot.mSea);
+            mProbe.setSea(shot.mSea);
             mRenderer.setAnisotropy(shot.mAnisotropy);
             mRenderer.setGamma(shot.mGamma);
             if (shot.mSetScene)
@@ -564,7 +564,7 @@ namespace Rtx::Testing
                     = static_cast<double>(shot.mFirstFrame + at) * static_cast<double>(shot.mWaterStep);
                 if (shot.mWaterStep > 0.0f)
                     sampled.mWaterTime = splitSeconds(waterSeconds);
-                mRenderer.renderFrame(sampled,
+                mProbe.traceFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
                         .mSinceLast = shot.mSinceLast,
                         .mLoss = at == shot.mLossAt ? shot.mLoss : HistoryLoss::None,
@@ -799,9 +799,9 @@ namespace Rtx::Testing
         void readFrame(std::uint32_t size, Frame& frame)
         {
             if (upscales(mRenderer.getProfile().mUpscale))
-                mRenderer.readComposite(frame.mRadiance);
+                mProbe.readComposite(frame.mRadiance);
             else
-                mRenderer.readShownRadiance(frame.mRadiance);
+                mProbe.readShownRadiance(frame.mRadiance);
             requireFrame(frame.mRadiance, size);
         }
 

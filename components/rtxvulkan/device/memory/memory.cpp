@@ -11,6 +11,8 @@
 #include <volk.h>
 
 #include <components/rtx/common/error.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
@@ -80,7 +82,7 @@ namespace Rtx
 
     DeviceMemory::~DeviceMemory()
     {
-        release();
+        bury();
     }
 
     DeviceMemory::DeviceMemory(DeviceMemory&& other) noexcept
@@ -99,7 +101,7 @@ namespace Rtx
     {
         if (this != &other)
         {
-            release();
+            bury();
 
             mOwner = std::exchange(other.mOwner, nullptr);
             mAllocation = std::exchange(other.mAllocation, nullptr);
@@ -114,7 +116,13 @@ namespace Rtx
         return *this;
     }
 
-    void DeviceMemory::release()
+    void DeviceMemory::bury()
+    {
+        if (mOwner != nullptr)
+            mOwner->retire(std::move(*this));
+    }
+
+    void DeviceMemory::releaseNow()
     {
         if (mOwner != nullptr)
             std::exchange(mOwner, nullptr)->give(*this);
@@ -180,14 +188,15 @@ namespace Rtx
         checkVk(vmaCreatePool(mAllocator, &pool, &mPools[type]), "vmaCreatePool");
     }
 
-    MemoryAllocator::MemoryAllocator(const VkInstance instance, const VkPhysicalDevice physicalDevice,
-        const VkDevice device, const VkPhysicalDeviceMemoryProperties& memory, const bool budget, const bool priority)
+    MemoryAllocator::MemoryAllocator(const Device& device, const VkInstance instance,
+        const VkPhysicalDevice physicalDevice, const VkPhysicalDeviceMemoryProperties& memory, const bool budget,
+        const bool priority)
         : mDevice(device)
         , mMemory(memory)
         , mBudget(budget)
         , mVideoType(videoTypeOf(memory))
         , mVideoHeap(memory.memoryTypes[mVideoType].heapIndex)
-        , mLibrary(instance, physicalDevice, device, budget, priority)
+        , mLibrary(instance, physicalDevice, device.getHandle(), budget, priority)
     {
         // Made now and not when first asked for, so no thread ever makes one: a pool with no block
         // holds nothing. One over each type content may be placed in, which leaves out AMD's
@@ -318,7 +327,7 @@ namespace Rtx
         VkMemoryRequirements2 requirements{
             .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = &dedicated, .memoryRequirements = {}
         };
-        Query(mDevice, &info, &requirements);
+        Query(mDevice.getHandle(), &info, &requirements);
         return Requirements{ .mMemory = requirements.memoryRequirements,
             .mOwn = dedicated.requiresDedicatedAllocation == VK_TRUE };
     }
@@ -387,6 +396,11 @@ namespace Rtx
         mHeld[heap][static_cast<std::size_t>(use)] += size;
 
         return DeviceMemory(this, allocation, handle, offset, mapped, size, heap, use);
+    }
+
+    void MemoryAllocator::retire(DeviceMemory&& memory)
+    {
+        mDevice.getGraveyard().bury(std::move(memory));
     }
 
     void MemoryAllocator::give(DeviceMemory& memory)
@@ -482,6 +496,8 @@ namespace Rtx
     MemoryReport MemoryAllocator::report() const
     {
         MemoryReport out;
+        static_assert(
+            MemoryReport::sMaxHeaps == VK_MAX_MEMORY_HEAPS, "the report's room is every heap a device states");
         out.mHeapCount = std::min<std::uint32_t>(mMemory.memoryHeapCount, MemoryReport::sMaxHeaps);
 
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};

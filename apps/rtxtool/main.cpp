@@ -316,7 +316,7 @@ namespace RtxTool
             // differ only in their `settings.cfg` measure one scene under one line.
             const bool grass = given("grass") ? variables["grass"].as<bool>()
                 : watched                     ? Settings::groundcover().mEnabled.get()
-                                              : shippedDefault<bool>(command.mConfig, "Groundcover", "enabled");
+                                              : command.mShipped.get<bool>("Groundcover", "enabled");
 
             // The world reads the groundcover files only where `[Groundcover] enabled` says
             // (`World::loadGroundcoverFiles`), so the run's answer is written where the world reads
@@ -331,8 +331,7 @@ namespace RtxTool
                 {
                     case MapRules::Shipped:
                         return Rtx::sSpecularLayoutNames.require(
-                            shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout"),
-                            "a specular map layout");
+                            command.mShipped.get<std::string>("RTX", "specular map layout"), "a specular map layout");
                     case MapRules::Classic:
                         return Rtx::SpecularLayout::Classic;
                     case MapRules::MetalRoughness:
@@ -346,33 +345,30 @@ namespace RtxTool
                                              : Settings::rtx().mUpscale.get(),
                 .mDistantLandCells = given("distant-cells") ? variables["distant-cells"].as<float>()
                     : watched                               ? Settings::rtx().mDistantLandCells.get()
-                              : shippedDefault<float>(command.mConfig, "RTX", "distant land cells"),
+                                                            : command.mShipped.get<float>("RTX", "distant land cells"),
                 .mViewingDistance = watched ? Settings::camera().mViewingDistance.get()
-                                            : shippedDefault<float>(command.mConfig, "Camera", "viewing distance"),
+                                            : command.mShipped.get<float>("Camera", "viewing distance"),
                 .mObjectPaging = given("distant-statics") ? variables["distant-statics"].as<bool>()
                     : watched                             ? Settings::terrain().mObjectPaging.get()
-                              : shippedDefault<bool>(command.mConfig, "Terrain", "object paging"),
-                .mObjectPagingMinSize = watched
-                    ? Settings::terrain().mObjectPagingMinSize.get()
-                    : shippedDefault<float>(command.mConfig, "Terrain", "object paging min size"),
+                                                          : command.mShipped.get<bool>("Terrain", "object paging"),
+                .mObjectPagingMinSize = watched ? Settings::terrain().mObjectPagingMinSize.get()
+                                                : command.mShipped.get<float>("Terrain", "object paging min size"),
                 .mGroundcover = grass,
-                .mGroundcoverDistance = watched
-                    ? Settings::groundcover().mRenderingDistance.get()
-                    : shippedDefault<float>(command.mConfig, "Groundcover", "rendering distance"),
+                .mGroundcoverDistance = watched ? Settings::groundcover().mRenderingDistance.get()
+                                                : command.mShipped.get<float>("Groundcover", "rendering distance"),
                 .mGroundcoverDensity = watched ? Settings::groundcover().mDensity.get()
-                                               : shippedDefault<float>(command.mConfig, "Groundcover", "density"),
-                .mGroundcoverPointLighting = watched
-                    ? Settings::groundcover().mPointLighting.get()
-                    : shippedDefault<bool>(command.mConfig, "Groundcover", "point lighting"),
+                                               : command.mShipped.get<float>("Groundcover", "density"),
+                .mGroundcoverPointLighting = watched ? Settings::groundcover().mPointLighting.get()
+                                                     : command.mShipped.get<bool>("Groundcover", "point lighting"),
                 .mSpecularMapLayout = specularLayout,
-                .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
-                                       : shippedDefault<int>(command.mConfig, "General", "anisotropy"),
+                .mAnisotropy
+                = watched ? Settings::general().mAnisotropy.get() : command.mShipped.get<int>("General", "anisotropy"),
                 .mGamma = given("gamma") ? variables["gamma"].as<float>()
                     : watched            ? Settings::video().mGamma.get()
-                                         : shippedDefault<float>(command.mConfig, "Video", "gamma"),
+                                         : command.mShipped.get<float>("Video", "gamma"),
                 .mLitEnvironmentMaps = watched
                     ? Settings::shaders().mApplyLightingToEnvironmentMaps.get()
-                    : shippedDefault<bool>(command.mConfig, "Shaders", "apply lighting to environment maps"),
+                    : command.mShipped.get<bool>("Shaders", "apply lighting to environment maps"),
             });
             framed.mSetup.mMirror = derived.mMirror;
 
@@ -493,15 +489,10 @@ namespace RtxTool
         }
 
         /// How long every stop of a run lasts, from what the command line asked for.
-        ///
-        /// **Frames win over seconds where both were named.** `--frames` is what a run that has to
-        /// be exactly reproducible asks for, and `--seconds` is what a run being read asks for.
         BenchSpec specFrom(const bpo::variables_map& variables)
         {
             BenchSpec spec;
-            spec.mRun = variables["frames"].as<std::uint32_t>() > 0
-                ? BenchSpan{ .mFrames = variables["frames"].as<std::uint32_t>() }
-                : BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
+            spec.mRun = benchSpanFrom(variables);
             spec.mWarm = BenchSpan{ .mSeconds = variables["warmup"].as<float>() };
 
             return spec;
@@ -791,8 +782,6 @@ namespace RtxTool
                 if (variables["textures"].as<bool>())
                     stop.mActions.mSheet = file("-textures", PictureRule::Exact);
             }
-
-            clearPictures(out, written);
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             hashInto(request, out, against);
@@ -1261,7 +1250,9 @@ namespace RtxTool
             driverCache.applyToDriver();
             driverCache.sweep();
 
-            return found->mRun(Command{ variables, options, config, resources, shaders, found->mVerb });
+            // Read once for the run, which every framed verb asks three or more of.
+            const ShippedDefaults shipped(config);
+            return found->mRun(Command{ variables, options, config, resources, shaders, found->mVerb, shipped });
         }
 
         int run(int argc, char* argv[])

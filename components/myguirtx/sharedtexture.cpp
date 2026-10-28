@@ -26,8 +26,9 @@ namespace MyGUIRtx
         mSeen = image;
         mSeenCount = image->getModifiedCount();
 
-        // A picture of another shape is another slot: the table sizes a slot once.
-        if (getSlot().isNone() || image->s() != getWidth() || image->t() != getHeight())
+        // A picture of another shape is another slot: the table sizes a slot once, and a size it
+        // refused is asked again only with another picture of another shape.
+        if (!isSized(image->s(), image->t()))
             take(image->s(), image->t());
 
         sendImage(*image);

@@ -94,7 +94,7 @@ namespace Rtx::Testing
                         }
                         Shaders::VisibilityConstants sampled = camera;
                         sampled.mFrame = first + at;
-                        mRenderer.renderFrame(sampled,
+                        mProbe.traceFrame(sampled,
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction
                                 = ReconstructionRequest{ .mDenoise = true, .mFilters = { .mAntilag = antilag } },
@@ -206,13 +206,13 @@ namespace Rtx::Testing
                 {
                     Shaders::VisibilityConstants sampled = camera;
                     sampled.mFrame = first + at;
-                    mRenderer.renderFrame(sampled,
+                    mProbe.traceFrame(sampled,
                         FrameOptions{ .mLoss = cut && at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                             .mReconstruction
                             = ReconstructionRequest{ .mDenoise = true, .mFilters = { .mAntilag = antilag } },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
-                    mRenderer.readComposite(radiance);
+                    mProbe.readComposite(radiance);
 
                     double sum = 0.0;
                     for (std::size_t value = channel; value < radiance.size(); value += 4)

@@ -98,7 +98,6 @@ namespace Rtx
         const std::uint64_t placement, std::vector<Refusal>& refused)
     {
         const Crash::NoteScope noted("building bottom-level structures for {} meshes", meshes.size());
-        const DeviceFunctions& functions = mDevice.getFunctions();
         const std::size_t held = scene.meshes().getRows().size();
 
         // Grown to what the scene now holds, and the scene never shrinks. Asserted and not guarded,
@@ -203,7 +202,7 @@ namespace Rtx
                 .updateScratchSize = 0,
                 .buildScratchSize = 0,
             };
-            functions.mGetAccelerationStructureBuildSizes(mDevice.getHandle(),
+            vkGetAccelerationStructureBuildSizesKHR(mDevice.getHandle(),
                 VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mBuild.mBuilds[at], &triangles, &sizes);
 
             mBuilding[at].mSize = sizes.accelerationStructureSize;
@@ -319,7 +318,7 @@ namespace Rtx
                 continue;
 
             const VkCommandBuffer commands = batch.getCommands();
-            functions.mCmdBuildAccelerationStructures(commands, static_cast<std::uint32_t>(mLiveBuilds.size()),
+            vkCmdBuildAccelerationStructuresKHR(commands, static_cast<std::uint32_t>(mLiveBuilds.size()),
                 mLiveBuilds.data(), mBuild.mRangePointers.data());
             barrierAfterRun(commands);
         }
@@ -398,7 +397,7 @@ namespace Rtx
 
         const auto count = static_cast<std::uint32_t>(mAskScratch.size());
         vkCmdResetQueryPool(commands, mCompactable.get(), first, count);
-        mDevice.getFunctions().mCmdWriteAccelerationStructuresProperties(commands, count, mAskScratch.data(),
+        vkCmdWriteAccelerationStructuresPropertiesKHR(commands, count, mAskScratch.data(),
             VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, mCompactable.get(), first);
         mAskScratch.clear();
     }
@@ -544,10 +543,8 @@ namespace Rtx
     void BottomLevelStore::recordCompaction(const VkCommandBuffer commands, GpuTimer* const timer)
     {
         const GpuZone timed(timer, commands, FrameZone::Compact);
-
-        const DeviceFunctions& functions = mDevice.getFunctions();
         for (const VkCopyAccelerationStructureInfoKHR& copy : mCompactionCopies)
-            functions.mCmdCopyAccelerationStructure(commands, &copy);
+            vkCmdCopyAccelerationStructureKHR(commands, &copy);
 
         barrierAfterBuild(commands);
     }

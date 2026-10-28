@@ -14,7 +14,7 @@
 #include <components/rtx/scene/texturetable.hpp>
 
 #include "framespend.hpp"
-#include "renderer.hpp"
+#include "sceneholder.hpp"
 #include "slot.hpp"
 
 namespace Rtx
@@ -22,17 +22,17 @@ namespace Rtx
     namespace
     {
         /// Hands over the texture slots the scene has given up, and says how many there were.
-        std::size_t dropFreed(Renderer& renderer, SceneSlot slot, const SceneDesc& scene)
+        std::size_t dropFreed(SceneHolder& scenes, SceneSlot slot, const SceneDesc& scene)
         {
             const std::span<const Index> freed = scene.textures().getFreed();
             if (!freed.empty())
-                renderer.dropTextures(slot, freed);
+                scenes.dropTextures(slot, freed);
 
             return freed.size();
         }
     }
 
-    SceneUpload SceneUploader::hand(Renderer& renderer, const Handing& handing)
+    SceneUpload SceneUploader::hand(SceneHolder& scenes, const Handing& handing)
     {
         const SceneSlot slot = handing.mSlot;
         SceneDesc& scene = handing.mScene;
@@ -46,7 +46,7 @@ namespace Rtx
 
         // Whether the backend holds this scene in this slot: appending onto a slot something else
         // filled would begin the descriptions past the end of this scene's own table.
-        const SceneHeld held = renderer.describeHeld(slot);
+        const SceneHeld held = scenes.describeHeld(slot);
         const bool mine = held.mIdentity == scene.getIdentity();
 
         // Here rather than where a walk ends, because a scene can be walked more than once. The
@@ -85,13 +85,13 @@ namespace Rtx
             // the frame that must not wait for an arrival to give the memory back: walking away from
             // a ring frees its slots and nothing takes them over until the walk reaches the far side
             // of the next one.
-            done.mDropped = dropFreed(renderer, slot, tables);
+            done.mDropped = dropFreed(scenes, slot, tables);
 
             // Placed before the lists are forgotten, because placing is what consumes the meshes
             // that went: their structures are destroyed and their storage given back there. Clearing
             // first would hand the renderer an empty list and hold a departed ring's structures
             // until something arrived to take the slots over.
-            renderer.placeScene(slot, tables);
+            scenes.placeScene(slot, tables);
 
             timed.at(Timing::Upload) = since(told, std::chrono::steady_clock::now());
             done.mKind = SceneUpload::Kind::Placed;
@@ -115,7 +115,7 @@ namespace Rtx
 
             if (!mine)
             {
-                renderer.setScene(slot, tables, mTextures.getDescriptions());
+                scenes.setScene(slot, tables, mTextures.getDescriptions());
                 done.mKind = SceneUpload::Kind::Rebuilt;
             }
             else
@@ -123,15 +123,15 @@ namespace Rtx
                 // Order against the arrivals is free — `SceneDesc` keeps the two lists disjoint —
                 // and first is where the memory is given back soonest. A build from nothing needs
                 // none of this: the array holds no image of what went.
-                done.mDropped = dropFreed(renderer, slot, tables);
-                renderer.extendScene(slot, tables, mTextures.getDescriptions());
-                renderer.placeScene(slot, tables);
+                done.mDropped = dropFreed(scenes, slot, tables);
+                scenes.extendScene(slot, tables, mTextures.getDescriptions());
+                scenes.placeScene(slot, tables);
                 done.mKind = SceneUpload::Kind::Extended;
             }
 
             // What the device could not stand, reported as what the describe could not: the scene
             // is written here, and the backend holds it const.
-            scene.refusals().refuse(renderer.getRefusals(slot));
+            scene.refusals().refuse(scenes.getRefusals(slot));
 
             timed.at(Timing::Upload) = since(described, std::chrono::steady_clock::now());
         }

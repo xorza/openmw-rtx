@@ -11,14 +11,13 @@
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framedescriber.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -33,11 +32,13 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/display/displaychain.hpp>
+#include <components/rtxvulkan/frametracer.hpp>
 #include <components/rtxvulkan/gui/guidrawer.hpp>
 #include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/scene/scenepasses.hpp>
 #include <components/rtxvulkan/scene/sceneslots.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/trace/stresspass.hpp>
 #include <components/rtxvulkan/trace/tracechain.hpp>
 #include <components/rtxvulkan/trace/tracemedia.hpp>
@@ -48,9 +49,13 @@
 #include "framering.hpp"
 #include "picturetracer.hpp"
 
+namespace Rtx::Testing
+{
+    class RendererProbe;
+}
+
 namespace Rtx
 {
-    struct FogNoise;
     class Presenter;
     class Surface;
 
@@ -109,74 +114,28 @@ namespace Rtx
         void sendGuiTexture(GuiSlot texture) override;
         void dropGuiTexture(GuiSlot texture) override;
         void drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches) override;
-        void traceGuiTexture(GuiSlot texture, const Viewpoint& view, const GuiTraceOptions& options) override;
+        bool traceGuiTexture(
+            GuiSlot texture, SceneSlot scene, const Viewpoint& view, const GuiTraceOptions& options) override;
         bool takeGuiCopy(GuiSlot texture, std::span<std::uint8_t> into) override;
         void finishGuiTraces() override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readDeepPixels(std::vector<std::uint16_t>& samples) override;
 
-        /// What a test asks of this backend and a game never does. None is on a frame path: each
-        /// that reads submits a copy and waits for it, so none of those is const.
+    private:
+        /// What a test asks of this backend and a game never does, defined in the test tree, so
+        /// none of it ships.
+        friend class Testing::RendererProbe;
 
-        /// The device the renderer made, for a test that holds its memory to a budget of its own.
-        const Device& getDevice() const { return mDevice; }
-
-        // Read by the tests and by nothing else.
-        VkExtent2D getPictureRoom() const { return mPictureRoom; }
-
-        /// The passes every trace runs, for a test that stands a chain up beside the frame's on
-        /// pipelines already made.
-        const TracePasses& getTracePasses() const { return mTracePasses; }
-
-        /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum, which
-        /// a frame in flight does not feel: the one it replaces goes to the graveyard
-        /// (`WavePass::describe`). Only the tests tell it.
-        void setSea(const SeaState& sea);
-
-        /// The fog's field every trace reads, `FogNoise::shared`'s until told: for a test that states
-        /// where the air is banked. Drains the frames in flight first, since each reads the field.
-        void setFogField(const FogNoise& noise);
-
-        /// Copies one of the last frame's g-buffer channels into `values`, tightly packed, widened
-        /// to floats whatever the channel holds. The frame's, never a view scene's.
-        void readChannel(Channel channel, std::vector<float>& values);
-
-        /// The same for the composite's own output, which no channel holds: the frame a measurement
-        /// is taken on, where `readPixels` gives the one a display would show. The trace's answer,
-        /// whatever upscales it, and so without the puffs the display lays over it.
-        void readComposite(std::vector<float>& values);
-
-        /// The frame the curve last mapped, in linear radiance: the composite with the puffs over it,
-        /// for a frame nothing upscales.
-        void readShownRadiance(std::vector<float>& values);
-
-        /// What a present would show, the interface over the picture, four bytes a pixel, tightly
-        /// packed: where `readPixels` gives the picture alone.
-        void readShown(std::vector<std::uint8_t>& pixels);
-
-        /// The whole of a GUI texture as the device holds it, four bytes a pixel, tightly packed,
-        /// row zero first.
-        void readGuiTexture(GuiSlot texture, std::vector<std::uint8_t>& pixels);
-
-        /// Moves whatever the API has complained about since the last call into `errors`, so that
-        /// clearing before a test and reading after it are the same call.
-        void takeValidationErrors(std::vector<std::string>& errors);
-
-        /// A frame traced from a block written whole, which the request's `renderFrame` describes
-        /// and then hands here: what a test of one field traces, which no world describes the way
-        /// the test needs it. Every field `sampleFrame` writes is left at nought.
-        void renderFrame(const Shaders::VisibilityConstants& constants, const FrameOptions& options,
+        /// A frame traced from a block written whole, which `renderFrame` describes and then hands
+        /// here: what a test of one field traces as well, which no world describes the way the
+        /// test needs it. Every field `sampleFrame` writes is left at nought.
+        void traceFrame(const Shaders::VisibilityConstants& constants, const FrameOptions& options,
             const WorldOptions& described = {});
 
         /// The same, for a picture inside the interface, from a block the viewpoint's
         /// `traceGuiTexture` lays its options over.
-        void traceGuiTexture(
-            GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options);
-
-    private:
-        /// `image`, a channel or the composed frame, read back in the frame's order at its width:
-        /// each pixel from where its field keeps it where `fielded`, and from its own place otherwise.
-        void readFramed(const Image& image, bool fielded, std::vector<float>& values) const;
+        bool tracePicture(GuiSlot texture, SceneSlot scene, const Shaders::VisibilityConstants& camera,
+            const GuiTraceOptions& options);
 
         /// @param width, height what the frame is presented at. What it is traced at is that over
         ///        the mode's ratio, `extentsFor`.
@@ -243,29 +202,28 @@ namespace Rtx
         /// Before the trace's passes and the display, which read the scenes' texture layout.
         ScenePasses mScenePasses;
 
+        /// What every scene's arriving textures are recorded through, handed to each at the call:
+        /// its rooms are scratch grown to the largest group any scene met, where one a scene grew
+        /// them to the largest group it alone met and kept them, a 4096-square map's means and
+        /// canvas a scene that met one.
+        TextureArrival mArrival;
+
+        /// Whether a scene was extended since the last frame was traced, which staged what it
+        /// brought: the frame after keeps the ring as it is.
+        bool mHandedOver = false;
+
         /// The passes every trace runs, whichever camera it is for, before the two chains that
         /// hold them.
         TracePasses mTracePasses;
 
         /// What the frame is traced into, at the render extent — which is the output extent
-        /// wherever nothing upscales.
-        TraceChain mFrame;
+        /// wherever nothing upscales — and the upscaler beside it.
+        FrameTracer mFrame;
 
-        /// The camera the last frame was traced with, for reprojecting this one against, or nothing
-        /// before the first frame. **Nothing, and not a camera of noughts**: one read as a camera
-        /// would leave the step from its origin in the frame's motion, and a door 80000 units from
-        /// the eye would store an infinite distance at every pixel.
-        std::optional<Shaders::VisibilityConstants> mPreviousCamera;
-
-        /// How far the air has been carried since the renderer began: the one fact of a frame's
-        /// world that is an integral over the frames rather than a reading of one, stepped where
-        /// each frame is described (`describeWorld`).
-        FogDrift mDrift;
-
-        /// What this renderer's own events cost the next traced frame — a new extent, a new world,
-        /// the first frame of all — which the frame folds the host's `FrameOptions::mLoss` into and
-        /// spends.
-        FramePast mPast = FramePast::everything();
+        /// What each frame is described with and carries to the next: the air's drift, what this
+        /// renderer's own events cost the next traced frame — a new extent, a new world, the first
+        /// frame of all — and the camera the last frame was traced with.
+        FrameDescriber mDescriber;
 
         SceneStats mStats;
 
@@ -288,13 +246,9 @@ namespace Rtx
         /// After the media, the display and the interface, which it holds by reference.
         PictureTracer mPictures;
 
-        /// What `mFrame` and `mUpscaler` use inside one stretch of a frame, laid over each other
-        /// (`ImageArena`), and the declarations it was made of: made again only where they move.
-        ImageArena mArena;
-        std::vector<ArenaImage> mArenaDeclared;
-
-        /// What the display handed back of the last frame, which `readShownRadiance` reads: the
-        /// composed frame, or the canvas the puffs went over.
+        /// What the display handed back of the last frame, which the tests read
+        /// (`Testing::RendererProbe::readShownRadiance`): the composed frame, or the canvas the puffs
+        /// went over.
         const Image* mShownRadiance = nullptr;
 
         /// The room `reservePicture` was asked for, the largest of every side asked, which
@@ -306,11 +260,5 @@ namespace Rtx
         /// finish them, which `VUID-vkDestroyImage-image-01000` asks of every submitted command that
         /// names an image before the image goes.
         std::unique_ptr<Presenter> mPresenter;
-
-        /// FSR, made with the renderer: seven compute pipelines and nothing it keeps until a mode
-        /// wants it, so a player who never upscales pays their compile once, from the cache. It
-        /// outlives a mode being turned off, so `upscaling` and not this says whether a frame is
-        /// upscaled.
-        Upscaler mUpscaler;
     };
 }

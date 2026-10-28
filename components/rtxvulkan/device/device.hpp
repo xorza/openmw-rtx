@@ -118,34 +118,6 @@ namespace Rtx
         static constexpr VkObjectType value = VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR;
     };
 
-    /// Entry points that come from the required extensions rather than from core Vulkan, resolved
-    /// and checked once at device creation, so a driver that advertises an extension it cannot
-    /// dispatch fails at startup.
-    struct DeviceFunctions
-    {
-        PFN_vkGetAccelerationStructureBuildSizesKHR mGetAccelerationStructureBuildSizes = nullptr;
-        PFN_vkCreateAccelerationStructureKHR mCreateAccelerationStructure = nullptr;
-        PFN_vkDestroyAccelerationStructureKHR mDestroyAccelerationStructure = nullptr;
-        PFN_vkCmdBuildAccelerationStructuresKHR mCmdBuildAccelerationStructures = nullptr;
-
-        /// What a structure would come to if it were copied tight. `SceneAcceleration` writes the
-        /// answers into a query pool after a build and reports their sum.
-        PFN_vkCmdWriteAccelerationStructuresPropertiesKHR mCmdWriteAccelerationStructuresProperties = nullptr;
-
-        /// The copy those answers are for, which is the only way a structure is made tight.
-        PFN_vkCmdCopyAccelerationStructureKHR mCmdCopyAccelerationStructure = nullptr;
-
-        PFN_vkGetAccelerationStructureDeviceAddressKHR mGetAccelerationStructureDeviceAddress = nullptr;
-
-        PFN_vkCreateRayTracingPipelinesKHR mCreateRayTracingPipelines = nullptr;
-        PFN_vkGetRayTracingShaderGroupHandlesKHR mGetRayTracingShaderGroupHandles = nullptr;
-        PFN_vkCmdTraceRaysKHR mCmdTraceRays = nullptr;
-        PFN_vkGetRayTracingShaderGroupStackSizeKHR mGetRayTracingShaderGroupStackSize = nullptr;
-
-        PFN_vkGetPipelineExecutablePropertiesKHR mGetPipelineExecutableProperties = nullptr;
-        PFN_vkGetPipelineExecutableStatisticsKHR mGetPipelineExecutableStatistics = nullptr;
-    };
-
     /// What a checkpoint on the queue points at: the zone the timer opened and the frame it was
     /// opened for, so a device loss can say "frame 83, `tlas`". Owned by the timer that set it
     /// and stable while the timer's slot lives, which is longer than a fault takes to be reported.
@@ -180,7 +152,6 @@ namespace Rtx
         VkQueue getQueue() const { return mQueue; }
         std::uint32_t getQueueFamily() const { return mPhysicalDevice.getQueueFamily(); }
         const PhysicalDevice& getPhysicalDevice() const { return mPhysicalDevice; }
-        const DeviceFunctions& getFunctions() const { return mFunctions; }
 
         /// Where every buffer's and every image's memory comes from: one suballocator for the
         /// device, where an allocation per resource is a kernel call apiece for a cell's several
@@ -309,11 +280,6 @@ namespace Rtx
         /// drain and a teardown — which both assert.
         void collectIdle() const;
 
-        // Read by the tests and by nothing else.
-        /// Whether the driver offers `VK_EXT_device_fault` with its feature, and so whether
-        /// `describeFault` has anything to ask.
-        bool canDescribeFault() const { return mGetDeviceFaultInfo != nullptr; }
-
         /// What the device says about why it was lost, as lines for the message that reports it.
         /// Nothing where the driver offers no `VK_EXT_device_fault`. After a loss and never before,
         /// because the extension forbids the question of a device that is still answering.
@@ -325,6 +291,11 @@ namespace Rtx
         /// (`VUID-vkGetQueueCheckpointDataNV-queue-02025`). Nothing where the driver offers no
         /// markers.
         std::string describeMarkers() const;
+
+        // Read by the tests and by nothing else.
+        /// Whether the driver offers `VK_EXT_device_fault` with its feature, and so whether
+        /// `describeFault` has anything to ask.
+        bool canDescribeFault() const { return mGetDeviceFaultInfo != nullptr; }
 
     private:
         /// What every wait ends with: the graveyard's burials and the pool's finished command
@@ -351,7 +322,6 @@ namespace Rtx
         /// Before every member made on it — `Root` says why.
         Root<VkDevice, vkDestroyDevice> mHandle;
         VkQueue mQueue = VK_NULL_HANDLE;
-        DeviceFunctions mFunctions;
         PFN_vkSetDebugUtilsObjectNameEXT mSetObjectName = nullptr;
         PFN_vkCmdBeginDebugUtilsLabelEXT mBeginLabel = nullptr;
         PFN_vkCmdEndDebugUtilsLabelEXT mEndLabel = nullptr;

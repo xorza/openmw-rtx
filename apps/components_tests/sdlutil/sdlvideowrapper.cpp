@@ -31,6 +31,14 @@ namespace SDLUtil
             EXPECT_EQ(displayPixels(1093, 1.25f), 1366);
         }
 
+        /// **Where SDL cannot say a window's density or scale, it is one**: SDL answers nought for a
+        /// window it does not know, and a density of nought sent every mouse position to the corner.
+        TEST(SDLUtilVideoWrapperTest, aDensityOrScaleSDLCannotSayIsOne)
+        {
+            EXPECT_EQ(pixelDensity(nullptr), 1.f);
+            EXPECT_EQ(displayScale(nullptr), 1.f);
+        }
+
         /// A window shows nothing while any of the three flags stands, whatever else is set.
         TEST(SDLUtilVideoWrapperTest, aWindowHiddenMinimizedOrOccludedShowsNothing)
         {

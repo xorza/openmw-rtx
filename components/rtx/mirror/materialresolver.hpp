@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 #include <span>
+#include <typeinfo>
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -131,17 +132,15 @@ namespace Rtx
         /// identifies it.
         Resolved resolveWater();
 
-        /// The state set `node` shades with where that is not simply the one it wears, or null
-        /// where it is — which is nearly every node in a cell. One per placement of the node,
-        /// rewritten in place, so a material keyed on its address is the same material next frame.
+        /// The state set a controller wrote over `node` this frame, or null where none writes one —
+        /// which is nearly every node in a cell. One per placement of the node, rewritten in place,
+        /// so a material keyed on its address is the same material next frame.
         ///
-        /// **Two nodes need one: the node a controller writes, and a node standing under one.** For
-        /// the first it is what the controller wrote. For the second it is an identity: what a
-        /// material is keyed on has to be unique to the placement, and the state set the content
-        /// gave a shape is shared by every instance of the model. `SceneUtil::addEnchantedGlow`
-        /// hangs its sheet on an instance's root, above the shape the sheet is read into — so keyed
-        /// on the shared state set, one material stands for the enchanted sword and the plain one
-        /// beside it at once, is read once, and never cycles its sheet.
+        /// **A node standing under one needs none of its own**: `ChainKeys` keys a material by
+        /// every state set on its chain that states anything, so the shape under
+        /// `SceneUtil::addEnchantedGlow`'s sheet, whose own state set every instance of the model
+        /// shares, is one material under the glow and another beside it, and `resolve` reads it
+        /// again each frame its chain stands under a controller (`Shading::mAnimatedThrough`).
         ///
         /// **Per placement and not per node**, because `SceneUtil::CopyOp` shares a drawable
         /// between the clones of a model, and a template node stands under every reference walked
@@ -150,10 +149,7 @@ namespace Rtx
         ///
         /// @param placement the identity of the path the walk reached `node` by, which tells its
         ///        placements apart.
-        /// @param underAnimated whether an animated state set is above `node` on the chain —
-        ///        `Shading::mAnimatedThrough`.
-        const osg::StateSet* animate(
-            osg::Node& node, std::size_t placement, osg::NodeVisitor* visitor, bool underAnimated);
+        const osg::StateSet* animate(osg::Node& node, std::size_t placement, osg::NodeVisitor* visitor);
 
         /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
         /// its material and on every image it wore, and then the images and the animated state
@@ -167,6 +163,9 @@ namespace Rtx
             mMaterials.reserve(materials);
             mTextureOf.reserve(textures);
             mAnimated.reserve(animated);
+            mWorns.reserve(animated);
+            mFreeWorns.reserve(animated);
+            mUpdaterClasses.reserve(sCallbackClasses);
         }
 
     private:
@@ -215,12 +214,13 @@ namespace Rtx
         };
 
         /// A material, the entry's hold on it, and, where a controller rewrites it, what it has
-        /// worn.
+        /// worn: a row of `mWorns`, since tens of materials wear anything and a slot of every
+        /// entry holding a `Worn` inline was ten megabytes of the world's map.
         struct HeldMaterial
         {
             MaterialHold mRow;
             Reach mReach{};
-            std::optional<Worn> mWorn{};
+            Index mWorn = sNoIndex;
         };
 
         /// How many controllers one node's chains are applied from: an actor's root carries a glow
@@ -378,6 +378,9 @@ namespace Rtx
         void release(HeldMaterial& held);
         void release(HeldTexture& held);
 
+        /// A row of `mWorns` wearing nothing, a freed one where there is one.
+        Index takeWorn();
+
         /// The scene's slot for one image under one wrap and one encoding, held for as long as this
         /// names it.
         ///
@@ -397,6 +400,11 @@ namespace Rtx
         /// — `resolveWater`. Owning, so that a key cannot go while the entry stands: see `ByAddress`.
         Identity<const osg::StateSet, HeldMaterial> mMaterials{ mPass };
 
+        /// What each animated material has worn, a row each (`HeldMaterial::mWorn`), and the rows
+        /// a material that went gave back.
+        std::vector<Worn> mWorns;
+        std::vector<Index> mFreeWorns;
+
         /// Which slot each image the walk has met stands in, so an animated material re-read every
         /// frame does not build four `VFS::Path::Normalized` strings a frame. The entry is a
         /// reference, because a slot whose last material stops naming it is handed out again at
@@ -406,6 +414,16 @@ namespace Rtx
         /// Owning for the same reason the identity maps are: a node freed and replaced at the same
         /// address would otherwise be handed the state set the first one's controllers were writing.
         Kept<boost::unordered_flat_map<Placed, Animated, ByPlacement, ByPlacement>> mAnimated{ mPass };
+
+        /// Whether a callback class is a state set's controller (`SceneUtil::StateSetUpdater`), by its
+        /// dynamic type, asked of each class once: `carriesUpdater`. By the type's identity, since
+        /// a class answers alike for every object of it.
+        static constexpr std::size_t sCallbackClasses = 64;
+        boost::unordered_flat_map<const std::type_info*, bool> mUpdaterClasses;
+
+        /// Whether either of `node`'s chains holds a state set's controller, by the classes of its
+        /// callbacks (`mUpdaterClasses`).
+        bool carriesUpdater(const osg::Node& node);
 
         /// The extractor's. The ring's reader has its own and hands its answers over in the reading.
         ThreadContent& mThread;

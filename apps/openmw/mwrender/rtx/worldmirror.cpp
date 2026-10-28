@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstddef>
 #include <exception>
+#include <iterator>
 #include <memory>
 #include <span>
 #include <string>
@@ -38,14 +39,15 @@
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
-#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/sceneutil/unrefqueue.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp>
 
 #include "classmasks.hpp"
 #include "mirrorknobs.hpp"
@@ -184,6 +186,14 @@ namespace MWRender
     {
         mContent = std::make_unique<SceneContent>(*resources.getSceneManager());
         mReleasing = &released;
+
+        // Every texture the content holds, so the frame's cache of their facts never rehashes on
+        // the frame that meets one more: one walk of the directory, at load.
+        std::size_t textures = 0;
+        for ([[maybe_unused]] const VFS::Path::Normalized& file :
+            resources.getVFS()->getRecursiveDirectoryIterator(VFS::Path::NormalizedView("textures/")))
+            ++textures;
+        mWalk.mContent.mFacts.reserve(textures);
     }
 
     void WorldMirror::release(Rtx::Released& released)
@@ -372,9 +382,9 @@ namespace MWRender
             mScene.addRipple(impulse);
     }
 
-    Rtx::SceneUpload WorldMirror::hand(Rtx::Renderer& renderer, Rtx::FrameSpend& spend)
+    Rtx::SceneUpload WorldMirror::hand(Rtx::SceneHolder& scenes, Rtx::FrameSpend& spend)
     {
-        return mUploader.hand(renderer,
+        return mUploader.hand(scenes,
             Rtx::SceneUploader::Handing{
                 .mSlot = Rtx::SceneSlot::world(), .mScene = mScene, .mComposites = &mComposites, .mSpend = &spend });
     }

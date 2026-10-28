@@ -13,7 +13,7 @@ namespace Rtx
 {
     void buryHandle(const Device& device, const EndHandle end, const std::uint64_t handle)
     {
-        device.getGraveyard().bury(end, handle, DeviceMemory());
+        device.getGraveyard().bury(end, handle);
     }
 
     Graveyard::Graveyard(const Device& device)
@@ -28,13 +28,20 @@ namespace Rtx
         collectIdle();
     }
 
-    void Graveyard::bury(const EndHandle end, const std::uint64_t handle, DeviceMemory&& memory)
+    void Graveyard::bury(const EndHandle end, const std::uint64_t handle)
     {
         // The stamp is read under the lock, so the queue holds its burials in stamp order whatever
         // thread made them.
         const std::lock_guard<std::mutex> lock(mLock);
         mHeld.hold(mDevice.getTimeline().getNext(),
-            Burial{ .mEnd = handle != 0 ? end : nullptr, .mHandle = handle, .mMemory = std::move(memory) });
+            Burial{ .mEnd = handle != 0 ? end : nullptr, .mHandle = handle, .mMemory = {} });
+    }
+
+    void Graveyard::bury(DeviceMemory&& memory)
+    {
+        const std::lock_guard<std::mutex> lock(mLock);
+        mHeld.hold(
+            mDevice.getTimeline().getNext(), Burial{ .mEnd = nullptr, .mHandle = 0, .mMemory = std::move(memory) });
     }
 
     void Graveyard::collect()
@@ -59,10 +66,10 @@ namespace Rtx
     {
         const std::lock_guard<std::mutex> lock(mLock);
 
-        // The handle before its memory: the entry's own memory goes as the entry is erased.
         mHeld.releaseThrough(finished, [&](Burial& burial) {
             if (burial.mEnd != nullptr)
                 burial.mEnd(mDevice, burial.mHandle);
+            burial.mMemory.releaseNow();
         });
     }
 }

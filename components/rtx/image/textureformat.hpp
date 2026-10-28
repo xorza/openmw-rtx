@@ -196,7 +196,8 @@ namespace Rtx
         bool mBgr = false;
 
         /// Whether the host reads a colour out of it: an RGBA8 texel or a BC1, BC2 or BC3 block. Not
-        /// BC4 or BC5, whose blocks hold one or two channels of data.
+        /// BC4 or BC5, whose blocks hold one or two channels of data, and not BC7, which the host
+        /// encodes and never decodes: read as BC1, a block's last eight bytes are no colour.
         bool mColour = false;
 
         Widening mWidening = Widening::None;
@@ -285,8 +286,8 @@ namespace Rtx
         FormatRows::rgba8(TextureFormat::Bgra8Unorm, "BGRA8 (linear)", false, true),
         FormatRows::block(TextureFormat::Bc5Unorm, "BC5 (ATI2, linear)", 16, false, false),
         FormatRows::block(TextureFormat::Bc4Unorm, "BC4 (ATI1, linear)", 8, false, false),
-        FormatRows::block(TextureFormat::Bc7Srgb, "BC7", 16, true, true),
-        FormatRows::block(TextureFormat::Bc7Unorm, "BC7 (linear)", 16, false, true),
+        FormatRows::block(TextureFormat::Bc7Srgb, "BC7", 16, true, false),
+        FormatRows::block(TextureFormat::Bc7Unorm, "BC7 (linear)", 16, false, false),
         FormatRows::packed(TextureFormat::Rgb565, "R5G6B5", ChannelBits{ .mRed = 5, .mGreen = 6, .mBlue = 5 }),
         FormatRows::packed(
             TextureFormat::Argb1555, "A1R5G5B5", ChannelBits{ .mAlpha = 1, .mRed = 5, .mGreen = 5, .mBlue = 5 }),

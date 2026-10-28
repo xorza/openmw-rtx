@@ -118,15 +118,10 @@ namespace Rtx
         }
     }
 
-    Buffer::~Buffer()
-    {
-        bury();
-    }
-
     Buffer::Buffer(Buffer&& other) noexcept
         : mDevice(std::exchange(other.mDevice, nullptr))
-        , mHandle(std::move(other.mHandle))
         , mMemory(std::move(other.mMemory))
+        , mHandle(std::move(other.mHandle))
         , mSize(std::exchange(other.mSize, 0))
         , mKind(std::exchange(other.mKind, BufferKind::DeviceLocal))
         , mAddressable(std::exchange(other.mAddressable, false))
@@ -139,8 +134,6 @@ namespace Rtx
     {
         if (this != &other)
         {
-            bury();
-
             mDevice = std::exchange(other.mDevice, nullptr);
             mHandle = std::move(other.mHandle);
             mMemory = std::move(other.mMemory);
@@ -152,12 +145,6 @@ namespace Rtx
         }
 
         return *this;
-    }
-
-    void Buffer::bury()
-    {
-        if (!isEmpty())
-            mDevice->getGraveyard().bury(std::move(mHandle), std::move(mMemory));
     }
 
     VkDeviceSize Buffer::bytesFor(const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage)

@@ -10,6 +10,7 @@
 #include <volk.h>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/common/digestwords.hpp>
 
 #include "owned.hpp"
 
@@ -106,8 +107,10 @@ namespace Rtx
         Immediate<VkPipelineCache, vkDestroyPipelineCache> mHandle;
         std::filesystem::path mPath;
 
-        /// What was loaded or last written, kept so that a run which compiled nothing new since
-        /// rewrites nothing.
-        std::vector<std::uint8_t> mLoaded;
+        /// What was loaded or last written, by its length and its digest, so that a run which
+        /// compiled nothing new since rewrites nothing. Not the blob: tens of megabytes held all
+        /// session for one comparison at the end.
+        std::size_t mKeptBytes = 0;
+        DigestWords mKeptDigest{};
     };
 }

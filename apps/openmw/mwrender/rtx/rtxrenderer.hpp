@@ -174,8 +174,8 @@ namespace MWRender
         /// has been presented, which is the very first load.
         MyGUI::ITexture& freezeFrame() noexcept override;
 
-        /// The interface over whatever was last traced, and the frame onto the screen. Every frame
-        /// this renderer draws ends here, with a world in it or not.
+        /// The interface over whatever was last traced, and the frame onto the screen, between two
+        /// frames: a loading screen's present. A frame presents through `present` itself.
         void renderGui() noexcept override;
 
         /// A step of its own on the loading screen, where the kernels are not all made by the time
@@ -242,8 +242,16 @@ namespace MWRender
 
         /// The walk is told the world's view mask, and the trace reads it off the seam. A cover is
         /// asked at the frame, which neither walks nor traces under one.
-        void applyViewMask() noexcept override { mMirror.setViewMask(worldViewMask()); }
-        void applyWorldShown() noexcept override { mMirror.setViewMask(worldViewMask()); }
+        void applyViewMask() noexcept override
+        {
+            mPhase.expect(Phase::Between, Phase::Run);
+            mMirror.setViewMask(worldViewMask());
+        }
+        void applyWorldShown() noexcept override
+        {
+            mPhase.expect(Phase::Between, Phase::Run);
+            mMirror.setViewMask(worldViewMask());
+        }
 
         void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
 
@@ -277,8 +285,9 @@ namespace MWRender
             /// The world's own trace is being recorded.
             Tracing,
 
-            /// The run's hook has the frame: it may draw pictures and read the backend, and
-            /// nothing else.
+            /// The run's hook has the frame: it may draw pictures, read the backend and act on the
+            /// game as its update would — a stop's doll placed in the world, which adds its ripple
+            /// emitter — but not present or open another frame.
             Run,
 
             /// The interface is being drawn and the frame presented.
@@ -319,6 +328,11 @@ namespace MWRender
 
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
+
+        /// Draws the interface over the frame as it stands and presents it: the one end of a
+        /// frame, from `Phase::Gui` back to `Phase::Between`. `renderFrame`'s every exit and the
+        /// public `renderGui` step into `Gui` first, each from the phases it may leave.
+        void present();
 
         /// The frame as it stands, as an image `width` by `height` — the frame's own size at nought
         /// — or null before anything was presented. Bottom row first, because every reader here

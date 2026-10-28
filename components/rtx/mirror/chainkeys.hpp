@@ -98,7 +98,9 @@ namespace Rtx
 
         boost::unordered_flat_map<Pair, Held, PairHash> mKeys;
 
-        /// What `retire` counts the sink's holds by, sorted: kept and refilled.
+        /// What `retire` counts the sink's holds by, a sorted run a pass, and where each run ends:
+        /// kept and refilled.
         std::vector<const osg::Referenced*> mReleasedScratch;
+        std::vector<std::size_t> mReleasedRuns;
     };
 }

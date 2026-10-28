@@ -5,7 +5,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include <volk.h>
@@ -76,52 +75,12 @@ namespace Rtx
         /// Before the messenger made on it, which `Root` says why.
         Root<VkInstance, vkDestroyInstance> mHandle;
 
-        /// The debug messenger, ended before the instance it was made on.
-        class Messenger
-        {
-        public:
-            Messenger() = default;
-
-            /// Takes `handle`, made on `instance` and checked, to end with `destroy`: resolved with
-            /// the create half, once, so the end does not ask the loader again.
-            Messenger(VkInstance instance, PFN_vkDestroyDebugUtilsMessengerEXT destroy, VkDebugUtilsMessengerEXT handle)
-                : mInstance(instance)
-                , mDestroyMessenger(destroy)
-                , mHandle(handle)
-            {
-            }
-
-            ~Messenger() { end(); }
-
-            Messenger(const Messenger&) = delete;
-            Messenger& operator=(const Messenger&) = delete;
-
-            Messenger& operator=(Messenger&& other) noexcept
-            {
-                if (this != &other)
-                {
-                    end();
-                    mInstance = other.mInstance;
-                    mDestroyMessenger = other.mDestroyMessenger;
-                    mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
-                }
-                return *this;
-            }
-
-        private:
-            void end()
-            {
-                if (mHandle != VK_NULL_HANDLE)
-                    mDestroyMessenger(mInstance, mHandle, nullptr);
-                mHandle = VK_NULL_HANDLE;
-            }
-
-            VkInstance mInstance = VK_NULL_HANDLE;
-            PFN_vkDestroyDebugUtilsMessengerEXT mDestroyMessenger = nullptr;
-            VkDebugUtilsMessengerEXT mHandle = VK_NULL_HANDLE;
-        };
-
-        Messenger mMessenger;
+        /// The debug messenger, ended before the instance it was made on, through the function
+        /// the instance answered for it: a layer's entry points are the instance's own, not the
+        /// one load's.
+        Handled<VkDebugUtilsMessengerEXT,
+            EndedWith<VkInstance, VkDebugUtilsMessengerEXT, PFN_vkDestroyDebugUtilsMessengerEXT>>
+            mMessenger;
         std::uint32_t mApiVersion = 0;
     };
 }
