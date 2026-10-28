@@ -56,6 +56,30 @@ namespace Rtx
         changeReference(refnum, [](ReferenceState& state) { state.mBlacklisted = true; });
     }
 
+    void CellPlacer::moveReference(const ESM::RefNum refnum, const ReferencePlace& place, const bool away)
+    {
+        auto at = std::lower_bound(mMoved.begin(), mMoved.end(), refnum,
+            [](const Moved& known, ESM::RefNum asked) { return known.mRefNum < asked; });
+        if (at == mMoved.end() || at->mRefNum != refnum)
+            at = mMoved.insert(at, Moved{ .mRefNum = refnum, .mTransform = {}, .mAway = away, .mHome = std::nullopt });
+        at->mTransform = transformOf(place);
+        at->mAway = away;
+
+        // **The one cell that holds it, once found**: a script swings a lantern on every frame its
+        // cell is loaded, and a search of every cell held for each swing was a search of hundreds.
+        if (at->mHome.has_value())
+        {
+            const auto home = mCells.find(*at->mHome);
+            if (home != mCells.end())
+                standAt(*home, refnum, &at->mTransform, away);
+            return;
+        }
+
+        for (HeldCell& held : mCells)
+            if (standAt(held, refnum, &at->mTransform, away))
+                at->mHome = held.mCell;
+    }
+
     void CellPlacer::setGate(const std::uint32_t gate, const Terrain::GateState state)
     {
         assert(gate != Terrain::sNoGate && "a gate told of that is none");
@@ -136,6 +160,12 @@ namespace Rtx
 
     void CellPlacer::forgetReferences()
     {
+        for (const Moved& moved : mMoved)
+            if (moved.mHome.has_value())
+                if (const auto home = mCells.find(*moved.mHome); home != mCells.end())
+                    standAt(*home, moved.mRefNum, nullptr, false);
+        mMoved.clear();
+
         mDisabled.clear();
         mBlacklisted.clear();
 
@@ -153,7 +183,7 @@ namespace Rtx
 
     bool CellPlacer::standsBy(const ReferenceState& reference) const
     {
-        if (reference.mBlacklisted)
+        if (reference.mBlacklisted || reference.mAway)
             return false;
         if (reference.mGate == Terrain::sNoGate)
             return !reference.mDisabled;
@@ -351,7 +381,8 @@ namespace Rtx
     }
 
     void CellPlacer::appendPlacements(const PreparedModel& model, const CellHolds::HeldModel& adopted,
-        const PreparedRef& ref, const ReferenceState& state, std::vector<Placement>& into)
+        const PreparedRef& ref, const std::uint32_t reference, const ReferenceState& state,
+        std::vector<Placement>& into)
     {
         for (std::size_t at = 0; at < adopted.mParts.size(); ++at)
             into.push_back(Placement{
@@ -364,6 +395,8 @@ namespace Rtx
                 .mRadius = ref.mRadius,
                 .mModes = model.mParts[at].mModes,
                 .mDrawable = model.mParts[at].mDrawable.get(),
+                .mLocal = &model.mParts[at].mLocal,
+                .mReference = reference,
                 .mState = state,
             });
     }
@@ -371,12 +404,15 @@ namespace Rtx
     void CellPlacer::adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds)
     {
         held.mPlacements.clear();
+        held.mPlaces.clear();
         held.mShown = 0;
 
         for (const PreparedRef& ref : cell.mRefs)
         {
             const PreparedModel& model = *cell.mModels[ref.mModel];
-            appendPlacements(model, holds.knownOf(model), ref, heard(ref.mRefNum, ref.mGate), held.mPlacements);
+            appendPlacements(model, holds.knownOf(model), ref, static_cast<std::uint32_t>(held.mPlaces.size()),
+                heard(ref.mRefNum, ref.mGate), held.mPlacements);
+            held.mPlaces.push_back(ref.mTransform);
         }
 
         // Largest first, once, so the size rule's answer is a prefix on every walk after this.
@@ -388,7 +424,9 @@ namespace Rtx
         held.mLights.clear();
         for (const PreparedLight& lamp : cell.mLights)
             held.mLights.push_back(HeldLight{
-                .mPosition = lamp.mPosition,
+                .mPosition = lamp.mAnchor * lamp.mTransform,
+                .mAnchor = lamp.mAnchor,
+                .mContent = lamp.mTransform,
                 .mRecord = lamp.mRecord,
                 .mState = heard(lamp.mRefNum, lamp.mGate),
             });
@@ -410,6 +448,38 @@ namespace Rtx
         std::ranges::sort(held.mByReference, [](const ReferenceSpot& left, const ReferenceSpot& right) {
             return left.mRefNum < right.mRefNum || (left.mRefNum == right.mRefNum && left.mAt < right.mAt);
         });
+
+        // Where the game moved one before this cell was held. Nothing stands yet, so this only
+        // places it.
+        for (Moved& moved : mMoved)
+            if (standAt(held, moved.mRefNum, &moved.mTransform, moved.mAway))
+                moved.mHome = held.mCell;
+    }
+
+    bool CellPlacer::standAt(
+        HeldCell& cell, const ESM::RefNum refnum, const osg::Matrixf* const transform, const bool away)
+    {
+        const auto [first, last]
+            = std::ranges::equal_range(cell.mByReference, refnum, std::less<>{}, &ReferenceSpot::mRefNum);
+        for (const ReferenceSpot& spot : std::ranges::subrange(first, last))
+        {
+            if (spot.mAt >= cell.mPlacements.size())
+            {
+                HeldLight& lamp = cell.mLights[spot.mAt - cell.mPlacements.size()];
+                lamp.mPosition = lamp.mAnchor * (transform != nullptr ? *transform : lamp.mContent);
+                lamp.mState.mAway = away;
+                continue;
+            }
+
+            // Out of the top level and in again, because an instance stands where it was added.
+            Placement& placement = cell.mPlacements[spot.mAt];
+            drop(placement.mStood, mPlaced);
+            placement.mStood.mTransform
+                = *placement.mLocal * (transform != nullptr ? *transform : cell.mPlaces[placement.mReference]);
+            placement.mState.mAway = away;
+            restand(placement, spot.mAt < cell.mShown, mPlaced);
+        }
+        return first != last;
     }
 
     ReferenceState CellPlacer::heard(const ESM::RefNum refnum, const std::uint32_t gate) const
@@ -467,10 +537,11 @@ namespace Rtx
 
         for (const PreparedRef& ref : grass.mRefs)
         {
-            // A grass reference is no lamp and has no radius: the reader reads it with neither.
+            // A grass reference is no lamp and has no radius: the reader reads it with neither. No
+            // script names one, so the game never moves one and none is named by its place.
             const PreparedModel& model = *grass.mModels[ref.mModel];
             appendPlacements(
-                model, holds.knownOf(model), ref, ReferenceState{ .mRefNum = ref.mRefNum }, held.mPlacements);
+                model, holds.knownOf(model), ref, 0, ReferenceState{ .mRefNum = ref.mRefNum }, held.mPlacements);
         }
         held.mModels.assign(grass.mModels.begin(), grass.mModels.end());
 

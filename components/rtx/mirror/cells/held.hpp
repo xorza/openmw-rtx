@@ -65,9 +65,12 @@ namespace Rtx
         /// Behind a gate that decided, the gate's answer stands in for it.
         bool mDisabled = false;
 
-        /// The game moved, deleted or animates the reference: nothing of it stands, whatever a
-        /// script or a gate says.
+        /// The game deleted the reference: nothing of it stands, whatever a script or a gate says.
         bool mBlacklisted = false;
+
+        /// The game moved the reference out of the cell the content stands it in. The cell it
+        /// stands in now is the game's to show once loaded, and the ring holds it in no other.
+        bool mAway = false;
     };
 
     /// One placement the ring may stand: a part of a model at a reference.
@@ -87,6 +90,12 @@ namespace Rtx
         /// `HeldCell::mModels`, for as long as the cell is.
         const osg::Drawable* mDrawable = nullptr;
 
+        /// Where the part stands in its model (`PreparedPart::mLocal`), held as the drawable is, and
+        /// which of the cell's references it is a part of (`HeldCell::mPlaces`): what the transform
+        /// is made again from where the game moves the reference.
+        const osg::Matrixf* mLocal = nullptr;
+        std::uint32_t mReference = 0;
+
         ReferenceState mState;
     };
 
@@ -102,7 +111,15 @@ namespace Rtx
     /// walk, and what the game says of the lamp.
     struct HeldLight
     {
+        /// Where the light stands now: `mAnchor` through the content's transform, or through the
+        /// game's where it moved the lamp.
         osg::Vec3f mPosition;
+
+        /// Where the model attaches the light in its own space (`PreparedLight::mAnchor`), and the
+        /// lamp's transform as the content places it.
+        osg::Vec3f mAnchor;
+        osg::Matrixf mContent;
+
         SceneUtil::LightCommon mRecord;
         ReferenceState mState;
     };
@@ -144,6 +161,11 @@ namespace Rtx
         /// Largest radius first, which `CellPlacer::adoptPlacements` sorts once.
         std::vector<Placement> mPlacements;
 
+        /// Each reference's transform as the content places it (`PreparedRef::mTransform`), which
+        /// `Placement::mReference` names: what a placement stands back at once the game forgets
+        /// where it moved the reference.
+        std::vector<osg::Matrixf> mPlaces;
+
         /// How many of `mPlacements` the size rule admitted on the last `CellPlacer::place`: every
         /// placement before this stands unless a script disabled it, and none after it does. What a
         /// walk touches is the two ends of this and not the vector.
@@ -171,8 +193,8 @@ namespace Rtx
                        [](const Placement& placement) { return placement.mStood.isStanding(); })
                 && !mGround.mStood.isStanding() && "a cell reused with something still standing");
 
-            reuseKeeping(*this, &HeldCell::mPlacements, &HeldCell::mModels, &HeldCell::mLights, &HeldCell::mByReference,
-                &HeldCell::mGround);
+            reuseKeeping(*this, &HeldCell::mPlacements, &HeldCell::mPlaces, &HeldCell::mModels, &HeldCell::mLights,
+                &HeldCell::mByReference, &HeldCell::mGround);
         }
     };
 

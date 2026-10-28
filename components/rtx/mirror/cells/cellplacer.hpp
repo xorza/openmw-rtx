@@ -2,12 +2,14 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 #include <boost/container/flat_set.hpp>
+#include <osg/Matrixf>
 #include <osg/Vec2i>
 #include <osg/Vec4i>
 
@@ -22,6 +24,7 @@
 #include "cellworld.hpp"
 #include "held.hpp"
 #include "nightday.hpp"
+#include "prepared.hpp"
 
 namespace Rtx
 {
@@ -65,11 +68,21 @@ namespace Rtx
         /// frame. Remembered for the cells not yet held, which arrive with the flag set.
         void setReferenceEnabled(ESM::RefNum refnum, bool enabled);
 
-        /// The game moved, deleted or animates the reference, so it is never stood again whatever
-        /// a script says of it afterwards: upstream's paging keeps the same list beside its
-        /// disabled one, and a `setReferenceEnabled(refnum, true)` does not undo it. Dropped from
-        /// the cells held at once, and kept out of the cells not yet held.
+        /// The game deleted the reference, so it is never stood again whatever a script says of it
+        /// afterwards, and a `setReferenceEnabled(refnum, true)` does not undo it. Dropped from the
+        /// cells held at once, and kept out of the cells not yet held.
         void blacklistReference(ESM::RefNum refnum);
+
+        /// The game holds the reference at `place` now: moved, turned or scaled, as a script swings a
+        /// street lantern in the wind every frame its cell is loaded and a save keeps where it swung
+        /// to. Its placements and its lamp's light stand there from now on, in the cells held at once
+        /// and in the cells not yet held as they are, and nowhere where `away`, moved into another
+        /// cell than the content's, which is the game's to show once loaded.
+        /// Upstream's paging leaves such a reference out of the distance altogether, and a town
+        /// whose lanterns a visit had swung stood dark from afar.
+        ///
+        /// The size rule keeps reading the content's scale, which the radius was sorted by.
+        void moveReference(ESM::RefNum refnum, const ReferencePlace& place, bool away);
 
         /// What a visibility gate says of the references behind it, for the cells no one has
         /// loaded: stand, stand not, or stand by what the game says of each. Applied to the cells
@@ -82,10 +95,10 @@ namespace Rtx
         /// remembered for the cells not yet held.
         void setNightDay(NightDayMode mode);
 
-        /// Forgets everything a script said and everything the game blacklisted: the world is
-        /// cleared for a new game or a saved one, and what was kept out of the old one stands in
-        /// the new. Every reference kept out of the cells held stands again at once, as
-        /// `setReferenceEnabled` would stand each.
+        /// Forgets everything a script said and everything the game blacklisted or moved: the world
+        /// is cleared for a new game or a saved one, and what was kept out of the old one stands in
+        /// the new, where the content places it. Every reference kept out of the cells held stands
+        /// again at once, as `setReferenceEnabled` would stand each.
         void forgetReferences();
 
         /// Holds `cell` from now on: its ground adopted into the scene on rows held on the scene,
@@ -187,9 +200,10 @@ namespace Rtx
         std::size_t dropHeldUnless(HeldSet<Held>& held, Recycled<Held>& spares, Keep keep, LetGo letGo);
 
         /// Appends to `into` one placement for each part of `model` as `adopted` stands it, where
-        /// `ref` stands the model, in `state`: what a cell's references and a cell's grass share.
+        /// `ref`, the cell's `reference`th, stands the model, in `state`: what a cell's references
+        /// and a cell's grass share.
         static void appendPlacements(const PreparedModel& model, const CellHolds::HeldModel& adopted,
-            const PreparedRef& ref, const ReferenceState& state, std::vector<Placement>& into);
+            const PreparedRef& ref, std::uint32_t reference, const ReferenceState& state, std::vector<Placement>& into);
 
         /// Fills `held.mPlacements` from the cell's references, one per part of each model as
         /// `holds` adopted it, disabled where a script said so, and sorted for `place`; and
@@ -261,6 +275,11 @@ namespace Rtx
         /// What the game has said of `refnum` so far, for a reference of a cell being adopted.
         ReferenceState heard(ESM::RefNum refnum, std::uint32_t gate) const;
 
+        /// Stands every placement and the light of `refnum` in `cell` through `transform`, or
+        /// through the content's own where it is null, and away where `away` says, restanding what
+        /// stood. Whether `cell` holds any of it.
+        bool standAt(HeldCell& cell, ESM::RefNum refnum, const osg::Matrixf* transform, bool away);
+
         /// Stands or drops the placement by `stands`, where the size rule or the groundcover's reach
         /// has it `shown`, counting it in `standing`.
         void restand(Placement& placement, bool shown, std::uint32_t& standing);
@@ -286,6 +305,18 @@ namespace Rtx
         /// References the game blacklisted, sorted. Apart from the disabled, because a script may
         /// enable one of those again and never one of these.
         std::vector<ESM::RefNum> mBlacklisted;
+
+        /// Where the game holds each reference it moved, sorted by the reference: `moveReference`.
+        /// The content stands a reference in one cell, which is the one cell that holds any of it,
+        /// found once it is held.
+        struct Moved
+        {
+            ESM::RefNum mRefNum;
+            osg::Matrixf mTransform;
+            bool mAway = false;
+            std::optional<osg::Vec2i> mHome;
+        };
+        std::vector<Moved> mMoved;
 
         /// What each gate said last, `Unknown` past the last one told.
         std::vector<Terrain::GateState> mGates;

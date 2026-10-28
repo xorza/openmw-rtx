@@ -105,11 +105,13 @@ namespace Rtx
         /// `CellSupply::getReaderMemory`.
         ReaderMemory getReaderMemory() { return mSupply.getReaderMemory(); }
 
-        /// `CellPlacer::setReferenceEnabled`, `blacklistReference` and `forgetReferences`, over the
-        /// cells held. Between frames, which the ring's own turn asserts: a reference changed
-        /// between `follow` and the end of `collect` would land on cells the frame is placing.
+        /// `CellPlacer::setReferenceEnabled`, `blacklistReference`, `moveReference` and
+        /// `forgetReferences`, over the cells held. Between frames, which the ring's own turn
+        /// asserts: a reference changed between `follow` and the end of `collect` would land on
+        /// cells the frame is placing.
         void setReferenceEnabled(ESM::RefNum refnum, bool enabled);
         void blacklistReference(ESM::RefNum refnum);
+        void moveReference(ESM::RefNum refnum, const ReferencePlace& place, bool away);
         void forgetReferences();
 
         /// `CellPlacer::setGate`, over the cells held, between frames as the three above are.

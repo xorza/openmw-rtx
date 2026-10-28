@@ -23,6 +23,7 @@
 #include <osg/Group>
 #include <osg/Image>
 #include <osg/Material>
+#include <osg/Math>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
@@ -933,6 +934,44 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.lights().size(), std::size_t{ 1 });
         }
 
+        /// **A lamp the game moved before its cell was held stands where the game holds it**, its
+        /// light and its model alike: a save keeps where a script swung a street lantern, and the
+        /// ring reads the lantern's cell after the load. Turned a quarter about z and moved a
+        /// hundred units, the anchor stands at its own length from the lamp, thirty above it, and
+        /// not where the content puts it. Moved out of its cell it stands nowhere, and a cleared
+        /// world stands it where the content does.
+        TEST_F(RtxCellRingTest, aLampTheGameMovedStandsWhereTheGameHoldsIt)
+        {
+            const osg::Vec3f far(4.5f * sCellSize, 0.5f * sCellSize, 40.0f);
+            mStorage.mLit = { Lit{
+                .mCell = osg::Vec2i(4, 0), .mRecord = "flame", .mRefNum = ESM::RefNum{ 7, 0 }, .mPosition = far } };
+            const ReferencePlace swung{ .mPosition = far + osg::Vec3f(0.0f, 100.0f, 0.0f),
+                .mRotation = osg::Vec3f(0.0f, 0.0f, osg::PI_2f),
+                .mScale = 1.0f };
+            mRing.moveReference(ESM::RefNum{ 7, 0 }, swung, false);
+            start();
+
+            const ExtractionStats filled = fill();
+            EXPECT_EQ(filled.mLights, 1u);
+            EXPECT_EQ(filled.mDistantStatics, 1u) << "the lantern's model";
+            ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 });
+            const osg::Vec3f stood = mScene.lights().front().mPosition;
+            EXPECT_EQ(stood, sLanternAnchor * transformOf(swung)) << "the anchor through the game's transform";
+            EXPECT_NEAR((stood - swung.mPosition).length(), sLanternAnchor.length(), 1e-3f);
+            EXPECT_NEAR(stood.z(), swung.mPosition.z() + sLanternAnchor.z(), 1e-3f);
+            EXPECT_GT((stood - (far + sLanternAnchor)).length(), 50.0f) << "where the content puts it";
+
+            mRing.moveReference(ESM::RefNum{ 7, 0 }, swung, true);
+            const ExtractionStats away = walk(mWalked++);
+            EXPECT_EQ(away.mLights, 0u) << "moved into another cell";
+            EXPECT_EQ(away.mDistantStatics, 0u) << "and its model with it";
+
+            mRing.forgetReferences();
+            EXPECT_EQ(walk(mWalked++).mLights, 1u) << "a cleared world";
+            ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 });
+            EXPECT_EQ(mScene.lights().front().mPosition, far + sLanternAnchor);
+        }
+
         /// **What the reader cannot take is refused where its cell is adopted**, on the frame's
         /// thread, which is the one that reports: a model its walk refused, a reference and a lamp
         /// standing where no number says. The model is walked once however many references name it,
@@ -1138,21 +1177,38 @@ namespace Rtx::Testing
             mRing.setReferenceEnabled(ESM::RefNum{ 6, 0 }, true);
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 6u);
 
-            // The game moved the tree at scale three, so it is blacklisted: down at once, and a
-            // script's word does not raise it — upstream's paging keeps a moved object out of the
-            // distance whatever a script says, because where it stands now is the game's.
+            // The game deleted the tree at scale three, so it is blacklisted: down at once, and a
+            // script's word does not raise it.
             mRing.blacklistReference(ESM::RefNum{ 3, 0 });
             EXPECT_EQ(heights(standing()), trees({ 1, 2, 4, 5 }));
             mRing.setReferenceEnabled(ESM::RefNum{ 3, 0 }, true);
             EXPECT_EQ(heights(standing()), trees({ 1, 2, 4, 5 })) << "enabled, and still blacklisted";
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 5u) << "and the walk keeps it down";
 
-            // The world is cleared: what two scripts kept out and what the game blacklisted stand
-            // again at once, and the walk keeps it — a list carried into the next game would be
-            // the first game's holes in the second one's distance.
+            // The game lifts the tree at scale four inside its cell, as a script swings a street
+            // lantern: it stands where the game holds it, at once and on the walk after, the
+            // template's lift scaled on top, `1000 + 5 * 4`.
+            const osg::Vec3f lifted(3.5f * sCellSize, 0.5f * sCellSize, 1000.0f);
+            mRing.moveReference(
+                ESM::RefNum{ 4, 0 }, ReferencePlace{ .mPosition = lifted, .mRotation = {}, .mScale = 4.0f }, false);
+            EXPECT_EQ(heights(standing()), (std::vector<float>{ 105.0f, 210.0f, 525.0f, 1020.0f }));
+            EXPECT_EQ(walk(mWalked++).mDistantStatics, 5u) << "moved, and still standing";
+            EXPECT_EQ(heights(standing()), (std::vector<float>{ 105.0f, 210.0f, 525.0f, 1020.0f }));
+
+            // Into the next cell, which the game shows once it loads it: the ring stands it nowhere.
+            mRing.moveReference(ESM::RefNum{ 4, 0 },
+                ReferencePlace{
+                    .mPosition = lifted + osg::Vec3f(sCellSize, 0.0f, 0.0f), .mRotation = {}, .mScale = 4.0f },
+                true);
+            EXPECT_EQ(heights(standing()), trees({ 1, 2, 5 }));
+
+            // The world is cleared: what two scripts kept out and what the game blacklisted or moved
+            // stand again at once, where the content places them, and the walk keeps it — a list
+            // carried into the next game would be the first game's holes in the second one's
+            // distance.
             mRing.setReferenceEnabled(ESM::RefNum{ 2, 0 }, false);
             mRing.setReferenceEnabled(ESM::RefNum{ 6, 0 }, false);
-            EXPECT_EQ(heights(standing()), trees({ 1, 4, 5 }));
+            EXPECT_EQ(heights(standing()), trees({ 1, 5 }));
             mRing.forgetReferences();
             EXPECT_EQ(heights(standing()), trees({ 1, 2, 3, 4, 5 }));
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 6u);
