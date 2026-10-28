@@ -12,6 +12,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/rendererprobe.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/index.hpp>
@@ -31,6 +32,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -151,7 +153,7 @@ namespace Rtx::Testing
                     change();
 
                     camera.mFrame = index++;
-                    renderer.renderFrame(camera, options);
+                    RendererProbe(renderer).traceFrame(camera, options);
                     renderer.finishFrame();
                 };
 
@@ -186,7 +188,7 @@ namespace Rtx::Testing
             const auto rise = [&] {
                 rain(++rising);
                 camera.mFrame = index++;
-                renderer.renderFrame(camera, FrameOptions{});
+                RendererProbe(renderer).traceFrame(camera, FrameOptions{});
                 renderer.finishFrame();
             };
             for (int i = 0; i < 32; ++i)
@@ -254,8 +256,9 @@ namespace Rtx::Testing
 
             const SetLayout layout = TextureArray::describeLayout(device);
             const TexturePasses passes(device);
+            TextureArrival rooms(device);
             Batch setup(pool);
-            TextureArray array(device, setup, layout, passes, slots);
+            TextureArray array(device, setup, layout, passes, rooms, slots);
             setup.flush();
 
             // Held across the arrivals as a scene holds its own, and never written to: a device
@@ -263,7 +266,7 @@ namespace Rtx::Testing
             std::vector<Refusal> refused;
             const auto arrive = [&](Batch& batch, std::uint32_t slot) {
                 const TextureData described = describe(slot);
-                array.write(batch, passes, std::span(&described, 1), refused);
+                array.write(batch, passes, rooms, std::span(&described, 1), refused);
             };
 
             {

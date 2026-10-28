@@ -1,10 +1,8 @@
 #pragma once
 
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
-#include <utility>
 
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
@@ -17,7 +15,7 @@ namespace Rtx
 
     /// Where every device object ends: each handle and each range of memory a submit may still
     /// read is held here until the timeline says that submit has run. Nobody calls this to be safe —
-    /// `Owned`, `Buffer`, `Image` and `AccelerationStructure` bury themselves as they go, so an
+    /// `Owned`, `DeviceMemory` and `AccelerationStructure` bury themselves as they go, so an
     /// assignment that replaces a table and a destructor that lets a scene go are both safe while
     /// a frame in flight reads what they replace.
     ///
@@ -40,16 +38,12 @@ namespace Rtx
         explicit Graveyard(const Device& device);
         ~Graveyard();
 
-        /// Ends `handle` with `end`, and then gives `memory` back, once every submit made so far
-        /// and the next has run.
-        void bury(EndHandle end, std::uint64_t handle, DeviceMemory&& memory);
+        /// Ends `handle` with `end` once every submit made so far and the next has run.
+        void bury(EndHandle end, std::uint64_t handle);
 
-        /// The same for the handle `owned` gives up and the memory bound to it.
-        template <class Handle, auto& Destroy>
-        void bury(Owned<Handle, Destroy>&& owned, DeviceMemory&& memory)
-        {
-            bury(&Owned<Handle, Destroy>::end, std::bit_cast<std::uint64_t>(owned.release()), std::move(memory));
-        }
+        /// Gives `memory` back once every submit made so far and the next has run: what a
+        /// `DeviceMemory` does as it goes.
+        void bury(DeviceMemory&& memory);
 
         /// Ends what the timeline has been seen to pass. Asked by the device after every wait,
         /// which is where what the timeline knows changes, and by nothing else.
@@ -66,7 +60,7 @@ namespace Rtx
         std::size_t getHeldCount() const;
 
     private:
-        /// One handle and the memory bound to it, either of which may be empty.
+        /// A handle or a range of memory: whichever was buried, the other empty.
         struct Burial
         {
             EndHandle mEnd = nullptr;

@@ -17,7 +17,7 @@
 #include "wave.h"
 #include "bindings.glsl"
 #include "footprint.glsl"
-#include "random.glsl"
+#include "hash.glsl"
 #include "turns.glsl"
 
 /// How far refraction deflects a ray, per unit of surface slope.
@@ -114,6 +114,20 @@ vec2 seaWorld(vec2 slope)
     const vec2 heading = frame.mSeaHeading;
 
     return vec2(heading.x * slope.x - heading.y * slope.y, heading.y * slope.x + heading.x * slope.y);
+}
+
+/// A curvature read in the sea's own frame, `(xx, yy, xy)`, turned into the world's: `R H Rᵀ` for
+/// the turn `seaWorld` makes.
+vec3 seaWorldHessian(vec3 hessian)
+{
+    const vec2 heading = frame.mSeaHeading;
+    const float cc = heading.x * heading.x;
+    const float ss = heading.y * heading.y;
+    const float cs = heading.x * heading.y;
+    const float twice = 2.0 * cs * hessian.z;
+
+    return vec3(cc * hessian.x + ss * hessian.y - twice, ss * hessian.x + cc * hessian.y + twice,
+        cs * (hessian.x - hessian.y) + (cc - ss) * hessian.z);
 }
 
 /// Where on a tile a world position falls. Wrapped by the sampler, because a tile repeats.
@@ -325,10 +339,11 @@ float caustic(vec2 at, float depth, float footprint)
         resolved += resolvedShare(cascade, level);
     }
 
-    // A wake's rings are a Hessian like any swell's, read at the same width. Its share of the
+    // A wake's rings are a Hessian like any swell's, read at the same width, but laid in the
+    // world's frame: the tiles' sum is turned into it first, as their slope is. Its share of the
     // fold is not added to `resolved`: that is the spectrum's own ensemble figure, which a
     // deterministic ring standing on it perturbs rather than joins.
-    hessian += rippleHessian(at, widened);
+    hessian = seaWorldHessian(hessian) + rippleHessian(at, widened);
 
     // One determinant and not a ratio of two, because this surface is not displaced: the quad stays
     // flat and only its normal moves, so the patch of surface the light left is the patch of

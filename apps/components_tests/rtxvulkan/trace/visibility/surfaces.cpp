@@ -229,7 +229,7 @@ namespace Rtx::Testing
             TextureData second = describeTexel(blueTexel, scene.materials().getRows()[blue].mDiffuse);
             second.mName = "blue";
             {
-                const Testing::NoRoomForContent full(mRenderer.getDevice());
+                const Testing::NoRoomForContent full(mProbe.getDevice());
                 mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
             }
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
@@ -246,7 +246,7 @@ namespace Rtx::Testing
 
             Testing::poseByOneBone(scene, body.mMesh, osg::Matrixf::translate(0.0f, 0.0f, 2.0f));
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             std::vector<std::uint8_t> shown;
             mRenderer.readPixels(shown);
@@ -290,7 +290,7 @@ namespace Rtx::Testing
             mRenderer.resize(size, size);
             const TextureData first = describeTexel(redTexel, 0);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&first, 1));
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             // **A hue rather than a pair of exact bytes.** The tone curve rolls a saturated colour
             // off short of the display's end and carries it toward white as it goes, so a full-red
@@ -302,7 +302,7 @@ namespace Rtx::Testing
 
             mRenderer.readPixels(shown);
             ASSERT_TRUE(wearsRed(centre)) << "the wall did not start out red";
-            ASSERT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mTextureCount, 1u);
+            ASSERT_EQ(mProbe.getTextureCount(Rtx::SceneSlot::world()), 1u);
 
             // A second texture and a second material, on a wall nearer the eye. The mesh table is
             // untouched, so this is the append path and not a rebuild.
@@ -318,9 +318,9 @@ namespace Rtx::Testing
             const TextureData second = describeTexel(blueTexel, blueTexture);
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
-            EXPECT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mTextureCount, 2u);
+            EXPECT_EQ(mProbe.getTextureCount(Rtx::SceneSlot::world()), 2u);
 
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
 
             // The nearer wall wears the texture that was appended, which is only true if its
@@ -332,7 +332,7 @@ namespace Rtx::Testing
             // one behind it has to be red again, sampled from a descriptor nothing rewrote.
             scene.dropInstance(1, Stander::Walk);
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
 
             EXPECT_TRUE(wearsRed(centre)) << "the texture already uploaded was disturbed by the append";
@@ -340,16 +340,14 @@ namespace Rtx::Testing
             // **And a table with a hole at the end of it.** Letting the near wall's material go
             // frees the texture it wore, and the slot stays in the scene's table until something
             // takes it over — so an array built from what is left has to be as long as the table
-            // rather than as long as the descriptions. Stopping at the last one written also stops
-            // `SceneUploader` recognising its own scene, and every frame after this would build the
-            // world again from nothing.
+            // rather than as long as the descriptions.
             holds.dropMaterial(blue);
             ASSERT_FALSE(scene.textures().isLive(blueTexture));
             ASSERT_EQ(scene.textures().getRows().size(), 2u) << "the table does not shrink";
 
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&first, 1));
 
-            EXPECT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mTextureCount, 2u)
+            EXPECT_EQ(mProbe.getTextureCount(Rtx::SceneSlot::world()), 2u)
                 << "the array stopped at the last texture it was handed rather than at the table";
 
             // **And what the report says is what is stood, not how long the table is.** The two are
@@ -359,7 +357,7 @@ namespace Rtx::Testing
             EXPECT_EQ(mRenderer.getSceneStats().mTextureCount, 1u);
             EXPECT_EQ(mRenderer.getSceneStats().mTextureBytes, redTexel.size() + map);
 
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
 
             EXPECT_TRUE(wearsRed(centre)) << "the texture that survived lost its slot";
@@ -381,7 +379,7 @@ namespace Rtx::Testing
             ASSERT_FALSE(scene.textures().isLive(0u));
 
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
 
             EXPECT_TRUE(wearsBlue(centre)) << "the description landed at its position rather than its slot";
@@ -436,7 +434,7 @@ namespace Rtx::Testing
 
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             std::vector<std::uint8_t> untextured;
             mRenderer.readPixels(untextured);
@@ -456,7 +454,7 @@ namespace Rtx::Testing
             const TextureData arrived = describeTexel(redTexel, scene.materials().getRows()[red].mDiffuse);
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&arrived, 1));
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             std::vector<std::uint8_t> after;
             mRenderer.readPixels(after);
@@ -496,7 +494,7 @@ namespace Rtx::Testing
                 for (int frame = 0; frame < 2; ++frame)
                 {
                     mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
-                    mRenderer.renderFrame(camera, FrameOptions{});
+                    mProbe.traceFrame(camera, FrameOptions{});
                 }
                 return mRenderer.getSceneStats().mTableBytes;
             };
@@ -522,6 +520,13 @@ namespace Rtx::Testing
                     + std::uint64_t{ 2 } * sWorldRoom.mMaterials * sizeof(Shaders::GpuMaterial),
                 empty)
                 << "a world opened at nought was made at the world's room";
+
+            // **What the structures work in is counted beside the tables**: at the least the rows
+            // by slot, a row of `VkAccelerationStructureInstanceKHR` a slot in each of the two
+            // copies, and nought where nothing is placed is no scene at all.
+            const Rtx::SceneStats& held = mRenderer.getSceneStats();
+            EXPECT_GE(
+                held.mWorkBytes, std::uint64_t{ 2 } * held.mInstanceSlots * sizeof(VkAccelerationStructureInstanceKHR));
         }
 
         /// **The pass is built once and kept, because building one compiles a shader** — so the set
@@ -855,14 +860,14 @@ namespace Rtx::Testing
             ASSERT_EQ(frame.mHits, size * size) << "the turned card fills the frame";
 
             std::vector<float> surface;
-            mRenderer.readChannel(Channel::Surface, surface);
+            mProbe.readChannel(Channel::Surface, surface);
             const osg::Vec3f normal = Shaders::unpackSurfaceNormal(surface[centreOf(size) * 2]);
             const float bound = std::sqrt(4.5f) / 2047.0f + 1e-6f;
             EXPECT_LE((normal - expected).length(), bound) << normal.x() << ' ' << normal.y() << ' ' << normal.z();
 
             const std::size_t at = centreValueOf(size);
             std::vector<float> albedo;
-            mRenderer.readChannel(Channel::Albedo, albedo);
+            mProbe.readChannel(Channel::Albedo, albedo);
             EXPECT_NEAR(albedo[at], 40.0f / 255.0f, 1e-3f);
             EXPECT_NEAR(albedo[at + 1], 40.0f / 255.0f, 1e-3f);
             EXPECT_NEAR(albedo[at + 2], 40.0f / 255.0f, 1e-3f);
@@ -906,7 +911,7 @@ namespace Rtx::Testing
                 EXPECT_EQ(frame.mHits, size * size);
 
                 std::vector<float> ambient;
-                mRenderer.readChannel(Channel::AmbientAlbedo, ambient);
+                mProbe.readChannel(Channel::AmbientAlbedo, ambient);
                 return std::array<int, 6>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2),
                     encodeSrgb(ambient[centre]), encodeSrgb(ambient[centre + 1]), encodeSrgb(ambient[centre + 2]) };
             };
@@ -1397,13 +1402,13 @@ namespace Rtx::Testing
             std::vector<std::uint8_t> withoutShown;
 
             EXPECT_EQ(shoot(build(0.5f), textures, camera, size).mHits, size * size);
-            mRenderer.readChannel(Channel::Surface, withSurface);
-            mRenderer.readChannel(Channel::Indirect, withBounce);
+            mProbe.readChannel(Channel::Surface, withSurface);
+            mProbe.readChannel(Channel::Indirect, withBounce);
             mRenderer.readPixels(withShown);
 
             EXPECT_EQ(shoot(build(std::nullopt), textures, camera, size).mHits, size * size);
-            mRenderer.readChannel(Channel::Surface, withoutSurface);
-            mRenderer.readChannel(Channel::Indirect, withoutBounce);
+            mProbe.readChannel(Channel::Surface, withoutSurface);
+            mProbe.readChannel(Channel::Indirect, withoutBounce);
             mRenderer.readPixels(withoutShown);
 
             requireFrame(withShown, size);
@@ -1619,7 +1624,7 @@ namespace Rtx::Testing
                 EXPECT_EQ(shoot(scene, {}, camera, size).mHits, size * size);
 
                 std::vector<float> depth;
-                mRenderer.readChannel(Channel::Surface, depth);
+                mProbe.readChannel(Channel::Surface, depth);
                 EXPECT_EQ(depth.size(), std::size_t{ size } * size * 2);
 
                 return depth[centreOf(size) * 2 + 1];
@@ -1861,7 +1866,7 @@ namespace Rtx::Testing
                 describeTexel(greenTexel, green) };
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, textures);
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             const Frame before = readFrame(size);
             EXPECT_EQ(before.byte(centre), 255) << "the red chunk, before any arrival";
             EXPECT_EQ(before.byte(centre + 1), 0);
@@ -1889,7 +1894,7 @@ namespace Rtx::Testing
 
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             const Frame after = readFrame(size);
             EXPECT_EQ(after.byte(corner), 255) << "the red chunk's run, copied by the growth";
             EXPECT_EQ(after.byte(corner + 1), 0);
@@ -1934,11 +1939,11 @@ namespace Rtx::Testing
 
             std::vector<float> glowing;
             EXPECT_EQ(shoot(box(osg::Vec3f(1.0f, 1.0f, 1.0f)), {}, camera, size).mHits, size * size);
-            mRenderer.readChannel(Channel::Indirect, glowing);
+            mProbe.readChannel(Channel::Indirect, glowing);
 
             std::vector<float> dark;
             EXPECT_EQ(shoot(box(osg::Vec3f()), {}, camera, size).mHits, size * size);
-            mRenderer.readChannel(Channel::Indirect, dark);
+            mProbe.readChannel(Channel::Indirect, dark);
 
             ASSERT_EQ(glowing.size(), std::size_t{ size } * size * 4);
             ASSERT_EQ(dark.size(), glowing.size());
@@ -2138,12 +2143,12 @@ namespace Rtx::Testing
         /// normal `(0.498039, 0.003922, 0.733333)`. Layer one is authored: a `_diffusespec` whose
         /// alpha paints a roughness of 64 of 255, 0.250980, and no normal map.
         ///
-        /// **The frame is `terrain.vert`'s**: the tangent x, the bitangent `cross(N, x)` — for N of
-        /// `(0, -1, 0)` that is `(0, 0, 1)` — and N. Column 0 is layer zero alone, so its normal is
-        /// `normalize(0.498039 x + 0.003922 z - 0.733333 y)`, and it has no lobe: a roughness of one
-        /// and no reflectance. Column 63 is layer one alone: N, its roughness, and `DIELECTRIC_F0`.
-        /// Column 31 weighs layer one 0.484375 (the ramp above), so it reflects 0.484375 of 0.04 at
-        /// a roughness of `0.515625 + 0.484375 × 0.250980`, under the blend of the two normals.
+        /// **The frame is the layers' one**: the tangent x less its part along N, the bitangent
+        /// `cross(N, T)` — for N of `(0, -1, 0)` that is `(0, 0, 1)` — and N. Column 0 is layer zero alone, so its
+        /// normal is `normalize(0.498039 x + 0.003922 z - 0.733333 y)`, and it has no lobe: a roughness of one and no
+        /// reflectance. Column 63 is layer one alone: N, its roughness, and `DIELECTRIC_F0`. Column 31 weighs layer one
+        /// 0.484375 (the ramp above), so it reflects 0.484375 of 0.04 at a roughness of `0.515625 + 0.484375 ×
+        /// 0.250980`, under the blend of the two normals.
         ///
         /// **Flattened, the chunk reads its gloss**: a reflectance of `DIELECTRIC_F0` times its red and
         /// a roughness of its green, under the card's own normal. The game's `CompositeQueue` bakes
@@ -2310,6 +2315,52 @@ namespace Rtx::Testing
                 EXPECT_NEAR(classicFlat[at].x(), 128.0f / 255.0f, 1e-7f) << "flattened classic column " << at;
         }
 
+        /// **On a slope the layers' frame stays unit**: a map tilts the normal as far across the
+        /// slope as along it. The card's normals lean to `N = (0.6, -0.8, 0)`, a slope down x, so
+        /// the tangent is x less its part along N, `(0.64, 0.48, 0) / 0.8 = (0.8, 0.6, 0)`, and the
+        /// bitangent `cross(N, T) = (0, 0, 1)`. A map of `(128, 191, 221)` leans across the slope,
+        /// the tangent-space `(0.003922, 0.498039, 0.733333)`. With `terrain.vert`'s bitangent
+        /// `cross(N, x) = (0, 0, 0.8)` the lean came out four fifths as far.
+        TEST_F(RtxVisibilityTest, onASlopeTheLayersFrameStaysUnit)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::array<std::uint8_t, 4> sRed{ 255, 0, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> sAcross{ 128, 191, 221, 255 };
+            const std::array<TextureData, 2> textures{ describeTexel(sRed, 0), describeTexel(sAcross, 1) };
+
+            const osg::Vec3f leaning(0.6f, -0.8f, 0.0f);
+            const std::array normals{ leaning, leaning, leaning, leaning };
+            constexpr std::array<float, 2> everywhere{ 1.0f, 1.0f };
+
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(MeshArrays{
+                .mPositions = cardAt(0.0f), .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+            scene.textures().add(VFS::Path::NormalizedView("red_nh.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+            std::array layers{ Testing::layerOf(0, scene.materials().addMask(everywhere), 2, 1) };
+            layers[0].mNormal = 1;
+            Material material;
+            material.mKind = MaterialKind::Terrain;
+            material.mLayers = scene.materials().addLayers(layers);
+            material.mLayersMapped = true;
+            scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = scene.addMaterial(material) });
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = SurfaceView::Normal });
+            const std::size_t value = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            const osg::Vec3f shown(frame.at(value), frame.at(value + 1), frame.at(value + 2));
+
+            const osg::Vec3f painted(
+                2.0f * 128.0f / 255.0f - 1.0f, 2.0f * 191.0f / 255.0f - 1.0f, 2.0f * 221.0f / 255.0f - 1.0f);
+            osg::Vec3f mapped = osg::Vec3f(0.8f, 0.6f, 0.0f) * painted.x() + osg::Vec3f(0.0f, 0.0f, 1.0f) * painted.y()
+                + leaning * painted.z();
+            mapped.normalize();
+            const osg::Vec3f wanted = mapped * 0.5f + osg::Vec3f(0.5f, 0.5f, 0.5f);
+            for (int axis = 0; axis < 3; ++axis)
+                EXPECT_NEAR(shown[axis], wanted[axis], 1e-5f) << "axis " << axis;
+        }
+
         /// **Parallax shifts the sheet toward the eye by the height the normal map carries**, as the
         /// rasterizer's `parallax.glsl` does, for a surface and for a ground layer alike: `eye.xy *
         /// (height * 0.04 - 0.02)`, the eye in the tangent frame.
@@ -2473,7 +2524,7 @@ namespace Rtx::Testing
             {
                 scene.placements().advance();
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
-                mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+                mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
                 ASSERT_TRUE(mRenderer.finishFrame().has_value());
             }
             scene.placements().advance();
@@ -2496,7 +2547,7 @@ namespace Rtx::Testing
             // after it bakes it.
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&composite, 1));
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
-            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+            mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             ASSERT_TRUE(mRenderer.finishFrame().has_value());
             frame = readFrame(size);
             everyPixelIs(frame, "arrived into a standing world");

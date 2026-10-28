@@ -26,12 +26,8 @@
 
 namespace Rtx
 {
-    PictureTracer::PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media,
-        DisplayChain& display, GuiTextures& textures, const RadianceWidth radiance)
+    PictureTracer::PictureTracer(const Device& device, const TracePasses& passes, const RadianceWidth radiance)
         : mDevice(device)
-        , mMedia(media)
-        , mDisplay(display)
-        , mTextures(textures)
         , mChain(device, passes, 1, radiance, TracePast::Dropped)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
@@ -83,8 +79,8 @@ namespace Rtx
         mTarget = Image();
     }
 
-    void PictureTracer::trace(const GuiSlot texture, const Shaders::VisibilityConstants& camera,
-        const GuiTraceOptions& options, DeviceScene& traced, const RenderProfile& profile)
+    void PictureTracer::trace(const GuiSlot texture, const SceneSlot scene, const Shaders::VisibilityConstants& camera,
+        const GuiTraceOptions& options, DeviceScene& traced, const RenderProfile& profile, const Parts& parts)
     {
         // The camera's own extent is how much of the texture the picture fills.
         const VkExtent2D extent{ camera.mEyes.mWorld.mWidth, camera.mEyes.mWorld.mHeight };
@@ -96,7 +92,7 @@ namespace Rtx
                    || (camera.mFogExtinction == 0.0f && !(camera.mFogEdge > 0.0f) && std::isinf(camera.mWaterLevel)))
             && "a picture laid over the interface that stands in air or water");
 
-        const TraceSubject subject = mMedia.describe(traced, camera, mCounts, mGlareCounts, FrameSlot{});
+        const TraceSubject subject = parts.mMedia.describe(traced, camera, mCounts, mGlareCounts);
 
         // Nothing puts a picture together across frames, so nothing jitters it, and it has no frame
         // before it.
@@ -107,12 +103,14 @@ namespace Rtx
 
         // The world's ripple field where the picture is of the world, which is the one place it
         // could have a wake in it; a subject of its own stands in no sea.
-        if (options.mScene.isWorld())
-            mMedia.placeRipples(sampled);
+        if (scene.isWorld())
+            parts.mMedia.placeRipples(sampled);
 
         Batch trace(mDevice.getPool());
         {
             const VkCommandBuffer commands = trace.getCommands();
+            if (subject.mSea)
+                parts.mMedia.synthesiseSea(commands, sampled.mWaterTime, nullptr);
 
             // A doll and a map tile are one frame with no frame before them, so every history says
             // so: the accumulator becomes a pass-through handing on the largest variance there is,
@@ -120,6 +118,7 @@ namespace Rtx
             const TraceResult picture = mChain.record(commands,
                 TraceRecording{
                     .mSubject = subject,
+                    .mBinSlot = FrameSlot{},
                     .mAsked = BinCamera::of(camera),
                     .mSampled = sampled,
                     .mReconstruction = reconstruction,
@@ -130,7 +129,7 @@ namespace Rtx
             // curve, and nothing else: a picture is measured off nothing, mapped with no share and
             // spread by no lens, because a map tile is a diagram and the same armour must be the
             // same brightness in two windows.
-            mDisplay.record(commands,
+            parts.mDisplay.record(commands,
                 Display{
                     .mTrace = picture,
                     .mShown = picture.mColour,
@@ -145,7 +144,7 @@ namespace Rtx
             // `GuiTextures`' to say, and a caller that said it here had to keep a barrier's scope in
             // step with the commands below — which it did not. Premultiplied, which is what the
             // curve writes a picture as: `ToneConstants::mBackdrop` says why.
-            mTextures.writeWith(
+            parts.mTextures.writeWith(
                 texture, AlphaForm::Premultiplied, commands, [&](const Image& into, VkImageLayout layout) {
                     assert(extent.width <= into.getWidth() && extent.height <= into.getHeight());
 
@@ -167,7 +166,7 @@ namespace Rtx
                 });
 
             if (options.mReadBack)
-                mTextures.readBackWith(texture, commands);
+                parts.mTextures.readBackWith(texture, commands);
         }
         trace.defer();
 

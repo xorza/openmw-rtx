@@ -13,10 +13,9 @@
 // the variance it produces on the way is what finally lets the cascade stop at an edge in the
 // *light* rather than only at an edge in the geometry.
 //
-// **The history is this pass's own and not the G-buffer's.** What it has to answer is "does the
-// history at that pixel belong to this surface", which is a question about what was accumulated
-// rather than about what the frame drew — so the normal and the distance the history belongs to are
-// carried beside the history itself.
+// **The surface a history belongs to is the one the trace held for it**, the previous frame's
+// `CHANNEL_SURFACE`: what it has to answer is "does the history at that pixel belong to this
+// surface", and the normal and the distance the frame before traced there are that answer.
 //
 // **What an occluder uncovered takes the history beside it** (`occluderMotion`, Zeng et al. 2021's
 // dual motion vector, which ReSTIR PT Enhanced applies to its temporal reuse): a surface the

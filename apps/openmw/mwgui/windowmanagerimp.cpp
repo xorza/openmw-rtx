@@ -135,15 +135,6 @@ namespace MWGui
 {
     namespace
     {
-        /// The window pixels the desktop gives a point of its own interface in `window`: its
-        /// display's density and content scale together. One where SDL cannot say, which answers
-        /// nought.
-        float displayScale(SDL_Window* window)
-        {
-            const float asked = SDL_GetWindowDisplayScale(window);
-            return asked > 0.f ? asked : 1.f;
-        }
-
         Settings::SettingValue<bool>* findHiddenSetting(GuiWindow window)
         {
             switch (window)
@@ -232,7 +223,8 @@ namespace MWGui
 
         // The window's pixels a unit covers, and this frame's: any frame up to the window's own
         // resolution, or this one where it is finer, shows the fonts no softer than they were made.
-        mRasterScale = std::max(mScalingFactor, Settings::gui().mScalingFactor * displayScale(mRenderer.getWindow()));
+        mRasterScale
+            = std::max(mScalingFactor, Settings::gui().mScalingFactor * SDLUtil::displayScale(mRenderer.getWindow()));
         mFontLoader = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), mRasterScale, exportFonts);
 
         // Register own widgets with MyGUI
@@ -1331,7 +1323,7 @@ namespace MWGui
     float WindowManager::scaleNow() const
     {
         return mRenderer.getPresentation().interfaceScale(
-            Settings::gui().mScalingFactor, displayScale(mRenderer.getWindow()));
+            Settings::gui().mScalingFactor, SDLUtil::displayScale(mRenderer.getWindow()));
     }
 
     void WindowManager::layOut()
@@ -1343,16 +1335,19 @@ namespace MWGui
     void WindowManager::fitCursors()
     {
         const float shown = mRenderer.getPresentation().shownScale();
-        const float scale = mScalingFactor * shown;
-        const float display = displayScale(mRenderer.getWindow());
-        if (scale == mCursorScale && display == mCursorDisplayScale)
+        const CursorFit fit{ .mInterface = mScalingFactor * shown,
+            .mLua = shown,
+            .mDisplay = SDLUtil::displayScale(mRenderer.getWindow()) };
+        if (fit == mCursorFit)
             return;
 
-        mCursorScale = scale;
-        mCursorDisplayScale = display;
-        mLuaCursorScale = shown;
+        mCursorFit = fit;
         mCursorManager->dropCursors();
         createCursors();
+
+        // Shown again by its name, which a cursor made anew under that name alone would leave on
+        // SDL's default where the name resolves to the fallback.
+        mCursorManager->cursorChanged(getCurrentCursorName());
     }
 
     void WindowManager::layOutInterface()
@@ -1877,9 +1872,13 @@ namespace MWGui
                                               .mHotspot = MyGUI::IntPoint(hotspotX, hotspotY),
                                               .mRotation = rotation })
                                       .first->second;
+
+        // A name registered again is its new image: the cursor made under it goes first.
+        mCursorManager->removeCursor(name);
         if (!createScaledCursor(name, VFS::Path::Normalized(cursor.mPath), cursor.mRotation, cursor.mHotspot,
-                cursor.mSize, mLuaCursorScale))
+                cursor.mSize, mCursorFit.mLua))
             Log(Debug::Warning) << "Failed to load Lua cursor texture: " << path;
+        mCursorManager->cursorChanged(getCurrentCursorName());
     }
 
     void WindowManager::removeLuaCursor(const std::string& name)
@@ -2521,12 +2520,12 @@ namespace MWGui
 
             const VFS::Path::Normalized path(imgSetPointer->getImageSet()->getIndexInfo(0, 0).texture);
             createScaledCursor(imgSetPointer->getResourceName(), path, imgSetPointer->getRotation(),
-                imgSetPointer->getHotSpot(), imgSetPointer->getSize(), mCursorScale);
+                imgSetPointer->getHotSpot(), imgSetPointer->getSize(), mCursorFit.mInterface);
         }
 
         for (const auto& [name, cursor] : mLuaCursors)
             createScaledCursor(name, VFS::Path::Normalized(cursor.mPath), cursor.mRotation, cursor.mHotspot,
-                cursor.mSize, mLuaCursorScale);
+                cursor.mSize, mCursorFit.mLua);
     }
 
     bool WindowManager::createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, double rotation,
@@ -2539,7 +2538,7 @@ namespace MWGui
         const auto pixels
             = [scale](int units) { return static_cast<int>(std::lround(static_cast<float>(units) * scale)); };
         mCursorManager->createCursor(name, rotation, image, pixels(hotspot.left), pixels(hotspot.top),
-            std::max(1, pixels(size.width)), std::max(1, pixels(size.height)), mCursorDisplayScale);
+            std::max(1, pixels(size.width)), std::max(1, pixels(size.height)), mCursorFit.mDisplay);
         return true;
     }
 

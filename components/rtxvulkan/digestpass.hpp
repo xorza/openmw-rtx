@@ -25,9 +25,12 @@ namespace Rtx
     class DigestPass
     {
     public:
+        /// How many images a frame digests: every channel, then every image of the denoiser
+        /// (`Rtx::DenoiserImage`), the ones held in floats before the ones held in words.
+        static constexpr std::size_t sImages = Shaders::DIGEST_IMAGES + sDenoiserImageCount;
+
         /// What `record` copies into its buffer, which is what that buffer has to have room for.
-        static constexpr VkDeviceSize sBytes
-            = sizeof(std::uint32_t) * Shaders::DIGEST_ALL_IMAGES * Shaders::DIGEST_LANES;
+        static constexpr VkDeviceSize sBytes = sizeof(std::uint32_t) * sImages * Shaders::DIGEST_LANES;
 
         explicit DigestPass(const Device& device);
 

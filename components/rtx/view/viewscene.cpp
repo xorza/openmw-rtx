@@ -3,13 +3,13 @@
 #include <cassert>
 #include <utility>
 
-#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/sceneholder.hpp>
 
 namespace Rtx
 {
-    ViewScene::ViewScene(Renderer& renderer)
-        : mRenderer(&renderer)
-        , mSlot(renderer.addViewScene())
+    ViewScene::ViewScene(SceneHolder& scenes)
+        : mScenes(&scenes)
+        , mSlot(scenes.addViewScene())
     {
     }
 
@@ -19,7 +19,7 @@ namespace Rtx
     }
 
     ViewScene::ViewScene(ViewScene&& other) noexcept
-        : mRenderer(std::exchange(other.mRenderer, nullptr))
+        : mScenes(std::exchange(other.mScenes, nullptr))
         , mSlot(other.mSlot)
     {
     }
@@ -29,7 +29,7 @@ namespace Rtx
         if (this != &other)
         {
             drop();
-            mRenderer = std::exchange(other.mRenderer, nullptr);
+            mScenes = std::exchange(other.mScenes, nullptr);
             mSlot = other.mSlot;
         }
 
@@ -44,8 +44,8 @@ namespace Rtx
 
     void ViewScene::drop()
     {
-        if (mRenderer != nullptr)
-            mRenderer->dropViewScene(mSlot);
-        mRenderer = nullptr;
+        if (mScenes != nullptr)
+            mScenes->dropViewScene(mSlot);
+        mScenes = nullptr;
     }
 }

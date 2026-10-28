@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -210,21 +211,48 @@ namespace RtxTool
             std::filesystem::remove(hashes);
         }
 
-        /// **A run that begins removes the last run's record**, its hashes and its JSON, so a run
-        /// that dies before it writes its own leaves nothing another build wrote beside its pictures.
-        TEST(RtxRunRecordTest, aRunThatBeginsRemovesTheLastRunsRecord)
+        /// **A run that begins removes everything the last run wrote where it writes**: its hashes,
+        /// its JSON, each stop's capture, frame times, sheet, map tile, doll and mean, and the
+        /// measured frames' pictures of its stops, `view-frame.png`. So a run that dies before it
+        /// writes its own leaves nothing another build wrote beside its pictures. What the run
+        /// does not name stays: another view's pictures, and a file of the stop's name that is no
+        /// frame's.
+        TEST(RtxRunRecordTest, aRunThatBeginsRemovesTheLastRunsOutputs)
         {
+            const std::filesystem::path folder = TestingOpenMW::outputFilePath("begun");
+            std::filesystem::remove_all(folder);
+            std::filesystem::create_directories(folder);
+
+            Stop stop;
+            stop.mName = "pier";
+            stop.mActions.mCapture = folder / "pier.png";
+            stop.mActions.mFrameTimes = folder / "pier.txt";
+            stop.mActions.mSheet = folder / "pier-textures.png";
+            stop.mActions.mMapTile = folder / "pier-map.png";
+            stop.mActions.mDoll = Actions::Doll{ .mWho = "someone", .mFile = folder / "pier-doll.png" };
+            stop.mActions.mMean = Actions::Mean{ .mFile = folder / "mean.png", .mOf = 2 };
+
             SessionRequest request;
-            request.mHashes = TestingOpenMW::outputFilePath("begun-hashes.csv");
-            request.mJson = TestingOpenMW::outputFilePath("begun.json");
-            for (const std::filesystem::path& earlier : { request.mHashes, request.mJson })
-                std::ofstream(earlier) << "the run before\n";
+            request.mStops = { stop };
+            request.mHashes = folder / "hashes.csv";
+            request.mJson = folder / "begun.json";
+            request.mPictures = folder;
+
+            const std::vector<std::string> earlier{ "hashes.csv", "begun.json", "pier.png", "pier.txt",
+                "pier-textures.png", "pier-map.png", "pier-doll.png", "mean.png", "pier-1.png", "pier-24.png" };
+            const std::vector<std::string> kept{ "deck-1.png", "pier-notes.png", "pier-1.txt" };
+            for (const std::vector<std::string>* names : { &earlier, &kept })
+                for (const std::string& name : *names)
+                    std::ofstream(folder / name) << "the run before\n";
 
             RunRecord record;
             record.begin(request);
 
-            EXPECT_FALSE(std::filesystem::exists(request.mHashes)) << "the last run's hashes stood";
-            EXPECT_FALSE(std::filesystem::exists(request.mJson)) << "the last run's record stood";
+            for (const std::string& name : earlier)
+                EXPECT_FALSE(std::filesystem::exists(folder / name)) << "the last run's " << name << " stood";
+            for (const std::string& name : kept)
+                EXPECT_TRUE(std::filesystem::exists(folder / name)) << name << " is no output of this run";
+            std::filesystem::remove_all(folder);
         }
     }
 }

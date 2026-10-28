@@ -3,7 +3,9 @@
 #include <cstdint>
 #include <string_view>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
+
+#include <components/rtxvulkan/device/owned.hpp>
 
 #include "structurestorage.hpp"
 
@@ -12,13 +14,11 @@ namespace Rtx
     class Buffer;
     class Device;
 
-    /// A `VkAccelerationStructureKHR`, its device address, and the room it stands in: the one
-    /// device handle `Owned` cannot hold, because its destroyer is a pointer the device loaded
-    /// and not a function the header declares. Made once with its address asked once — a handle
-    /// lasts until the mesh it belongs to is released, and the alternative was the same question
-    /// per instance per frame. Destroying one buries the handle and cools the room under the same
-    /// stamp, so a frame still tracing it traces it to the end, and two structures never stand
-    /// in one place.
+    /// A `VkAccelerationStructureKHR`, its device address, and the room it stands in. Made once
+    /// with its address asked once — a handle lasts until the mesh it belongs to is released, and
+    /// the alternative was the same question per instance per frame. Destroying one buries the
+    /// handle and cools the room under the same stamp, so a frame still tracing it traces it to
+    /// the end, and two structures never stand in one place.
     class AccelerationStructure
     {
     public:
@@ -42,11 +42,11 @@ namespace Rtx
         AccelerationStructure& operator=(AccelerationStructure&& other) noexcept;
 
         /// Null for an empty slot.
-        VkAccelerationStructureKHR getHandle() const { return mHandle; }
+        VkAccelerationStructureKHR getHandle() const { return mHandle.get(); }
 
         VkDeviceAddress getAddress() const { return mAddress; }
 
-        bool isEmpty() const { return mHandle == VK_NULL_HANDLE; }
+        bool isEmpty() const { return mHandle.get() == VK_NULL_HANDLE; }
 
     private:
         AccelerationStructure(const Device& device, VkAccelerationStructureTypeKHR type, VkBuffer buffer,
@@ -55,11 +55,8 @@ namespace Rtx
         /// Buries the handle and cools the room, where there is a handle.
         void reset();
 
-        /// What the graveyard ends a buried handle with: the destroyer the device loaded.
-        static void end(const Device& device, std::uint64_t handle);
-
         const Device* mDevice = nullptr;
-        VkAccelerationStructureKHR mHandle = VK_NULL_HANDLE;
+        Owned<VkAccelerationStructureKHR, vkDestroyAccelerationStructureKHR> mHandle;
         VkDeviceAddress mAddress = 0;
 
         /// Null for a top level, whose storage is a buffer of its own.

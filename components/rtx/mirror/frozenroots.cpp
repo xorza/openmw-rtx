@@ -7,12 +7,13 @@
 
 namespace Rtx
 {
-    FrozenRoots::Face FrozenRoots::Face::of(const osg::Node& root, const osg::Matrix& world)
+    FrozenRoots::Face FrozenRoots::Face::of(const osg::Node& root, const osg::Matrix& world, const std::size_t identity)
     {
         const osg::Group* group = root.asGroup();
         const unsigned int children = group != nullptr ? group->getNumChildren() : 0;
         return Face{
             .mWorld = world,
+            .mIdentity = identity,
             .mStateSet = root.getStateSet(),
             .mFirstChild = children > 0 ? group->getChild(0) : nullptr,
             .mChildren = children,
@@ -35,8 +36,8 @@ namespace Rtx
         }
     }
 
-    bool FrozenRoots::pass(const osg::Node& root, const osg::Matrix& world, const unsigned int walk,
-        const Holders holders, ExtractionStats& stats)
+    bool FrozenRoots::pass(
+        const osg::Node& root, const Face& face, const unsigned int walk, const Holders holders, ExtractionStats& stats)
     {
         const auto known = mFrozen.find(&root);
         if (known == mFrozen.end())
@@ -47,7 +48,6 @@ namespace Rtx
         // the one the game hangs — or a controller anywhere in it, which `Face` says how it sees.
         Frozen& frozen = known->second;
         meet(frozen, walk);
-        const Face face = Face::of(root, world);
         if (frozen.mFace != face)
         {
             if (frozen.mHolding)
@@ -73,11 +73,11 @@ namespace Rtx
         mRecorded.clear();
     }
 
-    void FrozenRoots::end(const osg::Node& root, const osg::Matrix& world, const bool changeable,
-        const unsigned int walk, const Holders holders, const std::uint32_t instances)
+    void FrozenRoots::end(const osg::Node& root, const Face& face, const bool changeable, const unsigned int walk,
+        const Holders holders, const std::uint32_t instances)
     {
         mRecording = false;
-        if (changeable || mRecorded.empty())
+        if (changeable || face.mUpdating > 0 || mRecorded.empty())
             return;
 
         // A root that moved on this walk is not frozen where it stands yet: the next walk that
@@ -97,7 +97,7 @@ namespace Rtx
         }
 
         const Frozen frozen{
-            .mFace = Face::of(root, world),
+            .mFace = face,
             .mKeys = mKeys.allocate(std::span<const Key>(mRecorded)),
             .mInstances = instances - mRecordedFrom,
             .mMet = known != mFrozen.end() ? known->second.mMet : 0,

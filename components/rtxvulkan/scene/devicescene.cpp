@@ -33,15 +33,16 @@ namespace Rtx
         }
     }
 
-    DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
-        std::span<const TextureData> textures, const std::uint32_t anisotropy, const SceneRoom& room)
+    DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, TextureArrival& arrival,
+        const SceneDesc& scene, std::span<const TextureData> textures, const std::uint32_t anisotropy,
+        const SceneRoom& room)
         : mPasses(passes)
         , mRecords(recordsOf(scene))
         , mEveryMesh(everyMeshOf(scene))
         , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots, room.mPlacements)
         , mBuffers(device, batch, scene, mEveryMesh, mRecords, sFrameSlots, room)
         , mSkinTables(device, batch, scene, mEveryMesh, sFrameSlots, room)
-        , mTextures(device, batch, passes.mTextureLayout, passes.mTextures,
+        , mTextures(device, batch, passes.mTextureLayout, passes.mTextures, arrival,
               static_cast<std::uint32_t>(scene.textures().getRows().size()), anisotropy)
     {
         // Posed before it is built. The structures are built over the first copy of the
@@ -58,7 +59,7 @@ namespace Rtx
             mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }));
         mAcceleration.build(
             batch, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack, mRefusals);
-        mTextures.write(batch, mPasses.mTextures, textures, mRefusals);
+        mTextures.write(batch, mPasses.mTextures, arrival, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedFreed = scene.meshes().getFreedCount();
         mBuiltStructure = scene.getStructureRevision();
@@ -112,8 +113,8 @@ namespace Rtx
         return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables, timer);
     }
 
-    void DeviceScene::extend(
-        Batch& batch, const SceneDesc& scene, std::span<const TextureData> arrived, GpuTimer* const timer)
+    void DeviceScene::extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene,
+        std::span<const TextureData> arrived, GpuTimer* const timer)
     {
         assert(scene.getIdentity() == mBuiltFrom && "an extension of a scene this slot was not built from");
 
@@ -134,7 +135,7 @@ namespace Rtx
             mBuiltMeshes = scene.meshes().getRevision();
         }
 
-        mTextures.write(batch, mPasses.mTextures, arrived, mRefusals);
+        mTextures.write(batch, mPasses.mTextures, arrival, arrived, mRefusals);
 
         mBuiltStructure = scene.getStructureRevision();
     }
@@ -195,7 +196,6 @@ namespace Rtx
         return SceneHeld{
             .mIdentity = mBuiltFrom,
             .mStructureRevision = mBuiltStructure,
-            .mTextureCount = mTextures.getCount(),
         };
     }
 
@@ -204,6 +204,7 @@ namespace Rtx
         stats.mInstances = mCounts;
         stats.mInstanceSlots = mAcceleration.getInstanceSlots();
         stats.mTableBytes = mBuffers.getBytes() + mSkinTables.getBytes() + mAcceleration.getIndexBytes();
+        stats.mWorkBytes = mAcceleration.getWorkBytes();
 
         // Read every placement and not with the rest of the report, because a placement is
         // where the answer lands: the queries a build wrote are read some placements later, so a

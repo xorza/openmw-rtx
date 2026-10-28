@@ -15,6 +15,7 @@
 
 #include <components/files/configurationmanager.hpp>
 #include <components/rtx/common/jobprogress.hpp>
+#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -102,7 +103,7 @@ namespace Rtx::Testing
             auto renderer = std::make_unique<VulkanRenderer>(describeRenderer(1, 1, validation));
             awaitKernels(*renderer);
             if (validation)
-                renderer->takeValidationErrors(rendererMadeWith());
+                RendererProbe(*renderer).takeValidationErrors(rendererMadeWith());
             return renderer;
         }
 
@@ -307,8 +308,15 @@ namespace Rtx::Testing
         // costs every history, as it does the game.
         mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
 
-        // And no gamma a previous test asked for, which every picture after it would be raised by.
+        // And none of what a previous test told the renderer: its gamma, which every picture after
+        // it would be raised by, its upscaler and its filtering, as the renderer was made with them,
+        // and its sea. The fog's field is put back by the one test that states another, since a
+        // field told drains the frames.
+        const RenderProfile made = describeRenderer(1, 1, true).mRun.mProfile;
         mRenderer.setGamma(1.0f);
+        mRenderer.setUpscale(made.mUpscale);
+        mRenderer.setAnisotropy(made.mAnisotropy);
+        mProbe.setSea(SeaState{});
     }
 
     void RendererTest::TearDown()
@@ -318,12 +326,12 @@ namespace Rtx::Testing
 
     void RendererTest::forgetErrors(VulkanRenderer& renderer)
     {
-        renderer.takeValidationErrors(mErrors);
+        RendererProbe(renderer).takeValidationErrors(mErrors);
     }
 
     void RendererTest::reportErrors(VulkanRenderer& renderer, std::string_view what)
     {
-        renderer.takeValidationErrors(mErrors);
+        RendererProbe(renderer).takeValidationErrors(mErrors);
         for (const std::string& error : mErrors)
             ADD_FAILURE() << what << ": " << error;
     }

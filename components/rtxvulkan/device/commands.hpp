@@ -90,6 +90,13 @@ namespace Rtx
         /// it, held in main memory until exit. The arrivals after grow it again to their own.
         void trimStaging(VkDeviceSize keep);
 
+        /// Lets go of the largest free staging block where the ring holds more than `keep` bytes,
+        /// and of nothing else: what a frame that hands nothing over calls, so a crossing that
+        /// staged hundreds of megabytes gives them back a block a frame once they retire, and no
+        /// one frame pays for the whole of it. Free blocks only, so an arrival in flight keeps its
+        /// own.
+        void shedStaging(VkDeviceSize keep);
+
         // Read by the tests and by nothing else.
         std::size_t getStagingBlockCount() const { return mStaging.size() - mLetGoStaging.size(); }
         VkDeviceSize getStagingSize(VkBuffer block) const;
@@ -236,6 +243,10 @@ namespace Rtx
         std::vector<Buffer> mStaging;
         Retiring<std::size_t> mRetiringStaging;
         std::vector<std::size_t> mSpareStaging;
+
+        /// What the blocks in `mStaging` hold together, free and in use: what `shedStaging` keeps
+        /// to.
+        VkDeviceSize mStagingBytes = 0;
 
         /// The places in `mStaging` `trimStaging` emptied, which the next block made takes, so an
         /// index a batch holds never moves.

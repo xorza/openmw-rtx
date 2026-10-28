@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <concepts>
 #include <cstddef>
@@ -18,22 +19,32 @@ namespace Rtx
     {
     public:
         /// A value nobody holds, empty and carrying whatever room its last holder grew — or a fresh
-        /// one where none is spare.
+        /// one where none is spare, with room made for it on the spare list, so a give-back never
+        /// reaches the heap: the frame gives back what a placement let go of.
         T take()
         {
             if (mSpare.empty())
+            {
+                ++mMade;
+                if (mSpare.capacity() < mMade)
+                    mSpare.reserve(std::max(mMade, 2 * mSpare.capacity()));
                 return T{};
+            }
 
             T taken = std::move(mSpare.back());
             mSpare.pop_back();
             return taken;
         }
 
-        /// Gives `value` back for the next `take`. The caller has already emptied it.
+        /// Gives `value` back for the next `take`. The caller has already emptied it. Allocates
+        /// nothing for a value `take` made.
         void give(T&& value) { mSpare.push_back(std::move(value)); }
 
     private:
         std::vector<T> mSpare;
+
+        /// How many values `take` made, every one of which may be given back at once.
+        std::size_t mMade = 0;
     };
 
     /// What `Spares` counts on every object it lends: how many hold it, and whether the pool has
@@ -118,8 +129,10 @@ namespace Rtx
                 mAll.push_back(std::make_unique<T>());
 
                 // Room for every object to be spare at once, so that a give-back never reaches the
-                // heap: the thread gives back while the frame counts what a walk allocated.
-                mSpare.reserve(mAll.size());
+                // heap: the thread gives back while the frame counts what a walk allocated. To the
+                // list of all's own room, which grows by doubling, where a reserve of one more each
+                // time copied the whole list at every object made.
+                mSpare.reserve(mAll.capacity());
                 return *mAll.back();
             }
 

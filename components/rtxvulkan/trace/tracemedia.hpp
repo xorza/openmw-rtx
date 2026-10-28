@@ -17,6 +17,7 @@
 
 namespace Rtx
 {
+    class DescriptorWrites;
     class Device;
     class DeviceScene;
     struct FogNoise;
@@ -41,9 +42,19 @@ namespace Rtx
         /// @param counts the census the launches sum into.
         /// @param sunGlare the counts the eye's launch adds to: the fader's for a frame,
         ///        `DisplayChain::getGlareCounts`.
-        /// @param traceSlot which of the chain's slots the trace takes.
         TraceSubject describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera, const Buffer& counts,
-            const Buffer& sunGlare, FrameSlot traceSlot) const;
+            const Buffer& sunGlare) const;
+
+        /// Writes the media's bindings into a trace's push, in the table's order: the sea's tiles
+        /// and their curvature, the fog's field, and the wake and its curvature. Sampled from
+        /// `GENERAL` rather than moved to a read-only layout, for the reason `BloomPass` gives:
+        /// written as storage images and read as sampled ones a few dispatches apart.
+        void bindInto(DescriptorWrites& writes) const;
+
+        /// Tells the frame block what the shaders divide the media's images by, off the passes that
+        /// built them rather than a second statement of the same table: each tile's width and
+        /// texel, the sea's slope and its curvature, whole and as each level resolves it.
+        void describeFrame(Shaders::VisibilityConstants& described) const;
 
         const WavePass& getWaves() const { return mWaves; }
         const RipplePass& getRipples() const { return mRipples; }
@@ -73,6 +84,15 @@ namespace Rtx
         /// @param timer null where the run is not being timed.
         void stepRipples(
             VkCommandBuffer commands, FrameSlot slot, const osg::Vec2f& eye, double waterSeconds, GpuTimer* timer);
+
+        /// Synthesises the sea's tiles at `seconds`, where they stand at another moment
+        /// (`WavePass::holds`): one synthesis serves every ray, and every trace at the same moment.
+        /// Before any chain that reads them records, and only for a trace with a sea: none is most
+        /// interiors, and a fifth of a millisecond of device time in each of them. Outside the
+        /// trace's zone, because the sea is a function of the clock and of nothing the camera does.
+        ///
+        /// @param timer null where the run is not being timed.
+        void synthesiseSea(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer);
 
         /// Tells `sampled` where the wake's field lies, as the last step left it.
         void placeRipples(Shaders::VisibilityConstants& sampled) const;

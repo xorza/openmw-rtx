@@ -105,35 +105,40 @@ namespace Rtx
             const EndHandle note = [](const Device&, const std::uint64_t handle) { ended.push_back(handle); };
 
             // One frame on the queue, and a buffer let go of while it is: its handle and its memory
-            // are one burial.
+            // each bury themselves, and the memory stays counted as held until it is given back.
+            const MemoryAllocator& memory = getDevice().getMemory();
+            const std::uint32_t heap = memory.getVideoHeap();
+            const VkDeviceSize heldBefore = memory.getHeld(heap, MemoryUse::Essential);
             submitEmpty(ring);
             {
                 const Buffer dropped = Buffer::hostWritten(getDevice(), 16, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test");
             }
-            EXPECT_EQ(graveyard.getHeldCount(), 1u) << "a buffer is its handle and its memory, buried together";
+            EXPECT_EQ(graveyard.getHeldCount(), 2u) << "a buffer is its handle and its memory, each buried";
+            EXPECT_GT(memory.getHeld(heap, MemoryUse::Essential), heldBefore) << "memory given back as it was let go";
 
             // That frame done is not enough: the burial is stamped with the value of the submit
             // after it, which nothing has made.
             ring.finishAll();
-            EXPECT_EQ(graveyard.getHeldCount(), 1u) << "freed before a submit made after the burial had run";
+            EXPECT_EQ(graveyard.getHeldCount(), 2u) << "freed before a submit made after the burial had run";
 
-            graveyard.bury(note, 1, DeviceMemory());
-            graveyard.bury(note, 2, DeviceMemory());
+            graveyard.bury(note, 1);
+            graveyard.bury(note, 2);
             submitEmpty(ring);
-            graveyard.bury(note, 3, DeviceMemory());
-            EXPECT_EQ(graveyard.getHeldCount(), 4u);
+            graveyard.bury(note, 3);
+            EXPECT_EQ(graveyard.getHeldCount(), 5u);
 
             // The submit that carries 1 and 2 run, and the buffer with them; 3 waits for the next.
             ring.finishAll();
             EXPECT_EQ(ended, (std::vector<std::uint64_t>{ 1, 2 }));
             EXPECT_EQ(graveyard.getHeldCount(), 1u) << "held past the submit that retired it";
+            EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential), heldBefore) << "the buffer's memory kept";
 
             submitEmpty(ring);
             ring.finishAll();
             EXPECT_EQ(ended, (std::vector<std::uint64_t>{ 1, 2, 3 }));
             EXPECT_EQ(graveyard.getHeldCount(), 0u);
 
-            // An image is its view, and then its handle with its memory.
+            // An image is its view, its handle and its memory.
             {
                 const Image dropped(MemoryUse::Essential, getDevice(),
                     ImageDescription{ .mWidth = 4,
@@ -142,7 +147,7 @@ namespace Rtx
                         .mUsage = VK_IMAGE_USAGE_SAMPLED_BIT },
                     "test");
             }
-            EXPECT_EQ(graveyard.getHeldCount(), 2u);
+            EXPECT_EQ(graveyard.getHeldCount(), 3u);
             submitEmpty(ring);
             ring.finishAll();
             EXPECT_EQ(graveyard.getHeldCount(), 0u);
@@ -195,8 +200,6 @@ namespace Rtx
             FrameRecord& third = ring.begin();
             EXPECT_EQ(third.mReadBackBytes, 0u);
             leave(third, other);
-            EXPECT_TRUE(std::equal(came->mPixels.begin(), came->mPixels.end(), picture.begin()))
-                << "the frame that took the slot wrote over the picture";
 
             const std::optional<FrameResult> next = ring.finishFrame();
             ASSERT_TRUE(next.has_value());
@@ -208,6 +211,11 @@ namespace Rtx
             EXPECT_EQ(after->mFrame, 2u);
             ASSERT_EQ(after->mPixels.size(), other.size());
             EXPECT_TRUE(std::equal(after->mPixels.begin(), after->mPixels.end(), other.begin()));
+
+            // Once the frame that took the slot has run, and its copy with it: read before, the
+            // picture stood whatever the copy would do.
+            EXPECT_TRUE(std::equal(came->mPixels.begin(), came->mPixels.end(), picture.begin()))
+                << "the frame that took the slot wrote over the picture";
         }
 
         /// **An exception inside a frame's recordings reaches the caller, and leaves the pool no

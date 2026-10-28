@@ -55,22 +55,35 @@ namespace Rtx
         // be held by this table alone. A chain is a handful of pairs deep.
         //
         // **What the sink holds of a key is no hold on it**: the sink is what the frame let go of,
-        // a material's key among it, waiting for its owner to hand it over. Counted again each
-        // pass, because a pair that goes puts its own into it.
+        // a material's key among it, waiting for its owner to hand it over. Each pass sorts only
+        // what the pairs that went before it put into the sink, a run of its own beside the runs
+        // before, and a key is counted in each: copied and sorted whole each pass, a crossing's
+        // sink of ten thousand was sorted three to five times. Runs and not a merge, which takes a
+        // buffer from the heap.
+        mReleasedScratch.clear();
+        mReleasedRuns.clear();
         for (std::size_t gone = 1; gone != 0;)
         {
-            mReleasedScratch.clear();
-            for (const osg::ref_ptr<const osg::Referenced>& object : released.get())
+            const std::size_t sorted = mReleasedScratch.size();
+            for (const osg::ref_ptr<const osg::Referenced>& object : released.get().subspan(sorted))
                 mReleasedScratch.push_back(object.get());
-            std::ranges::sort(mReleasedScratch);
+            std::sort(mReleasedScratch.begin() + static_cast<std::ptrdiff_t>(sorted), mReleasedScratch.end());
+            mReleasedRuns.push_back(mReleasedScratch.size());
 
             gone = boost::unordered::erase_if(mKeys, [&](const auto& entry) {
                 const Held& held = entry.second;
                 if (held.mMet == mPass.mEpoch)
                     return false;
-                const auto inSink
-                    = std::ranges::equal_range(mReleasedScratch, static_cast<const osg::Referenced*>(held.mKey.get()));
-                if (held.mKey->referenceCount() - static_cast<int>(inSink.size()) != 1)
+                const auto* const key = static_cast<const osg::Referenced*>(held.mKey.get());
+                std::size_t inSink = 0;
+                std::size_t from = 0;
+                for (const std::size_t to : mReleasedRuns)
+                {
+                    const auto run = std::span(mReleasedScratch).subspan(from, to - from);
+                    inSink += std::ranges::equal_range(run, key).size();
+                    from = to;
+                }
+                if (held.mKey->referenceCount() - static_cast<int>(inSink) != 1)
                     return false;
 
                 released.keep(held.mAbove);

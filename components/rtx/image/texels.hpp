@@ -45,6 +45,12 @@ namespace Rtx
     void readTexelBand(
         const TextureData& texture, const MipLevel& level, std::uint32_t band, std::vector<osg::Vec3f>& into);
 
+    /// The same band in light, `Rtx::toLinear` of each texel: a block's four palette entries are
+    /// turned once, where a texel at a time turned up to sixteen, and an interpolated entry is
+    /// never a stored byte the table answers.
+    void readLightBand(
+        const TextureData& texture, const MipLevel& level, std::uint32_t band, std::vector<osg::Vec3f>& into);
+
     /// What one texel of an image is worth on average.
     struct MeanTexel
     {

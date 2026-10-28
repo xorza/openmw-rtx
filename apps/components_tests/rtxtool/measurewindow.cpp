@@ -159,5 +159,38 @@ namespace RtxTool
             EXPECT_EQ(second.mClosed.at(Rtx::Timing::Trace), 7.0) << "the frame before's trace";
             EXPECT_EQ(second.mClosedArrived, 4u);
         }
+
+        /// **A crossing is closed with the span of the frame that first stood in the new cell**, as
+        /// the worst frames are: that frame's placement is the one the read landed in. Cells A, A,
+        /// B, B: the third frame crossed and rebuilt, so the fourth closes its span, 30 ms of wall
+        /// and its own walk, with a rebuild. No crossing before it, and the first frame crossed
+        /// nothing, having no cell before it. A crossing that appended closes as no rebuild.
+        TEST(RtxMeasureWindowTest, aCrossingClosesWithTheSpanOfTheFrameThatCrossed)
+        {
+            const int cells[2]{};
+            MeasureWindow window(0, 30, false);
+            const auto at = [&](const void* cell, double frameMs, bool rebuilt, double walkMs = 0.0) {
+                WindowFrame frame = standing(0, frameMs);
+                frame.mCell = cell;
+                frame.mRebuilt = rebuilt;
+                frame.mSpend.at(Rtx::Timing::Walk) = walkMs;
+                return window.take(frame);
+            };
+
+            EXPECT_FALSE(at(&cells[0], 10.0, false).mClosedCrossing.has_value()) << "the first frame";
+            EXPECT_FALSE(at(&cells[0], 10.0, false).mClosedCrossing.has_value());
+            EXPECT_FALSE(at(&cells[1], 12.0, true, 8.0).mClosedCrossing.has_value())
+                << "the crossing is closed by the frame after it";
+            const MeasureWindow::Taken closed = at(&cells[1], 30.0, false);
+            ASSERT_TRUE(closed.mClosedCrossing.has_value());
+            EXPECT_TRUE(*closed.mClosedCrossing) << "the crossing's own placement rebuilt";
+            EXPECT_EQ(closed.mClosed.at(Rtx::Timing::Frame), 30.0) << "the wall the crossing's work stood in";
+            EXPECT_EQ(closed.mClosed.at(Rtx::Timing::Walk), 8.0) << "the crossing's own walk";
+
+            EXPECT_FALSE(at(&cells[0], 10.0, false).mClosedCrossing.has_value());
+            const MeasureWindow::Taken appended = at(&cells[0], 10.0, true);
+            ASSERT_TRUE(appended.mClosedCrossing.has_value());
+            EXPECT_FALSE(*appended.mClosedCrossing) << "the rebuild of the frame after is not the crossing's";
+        }
     }
 }

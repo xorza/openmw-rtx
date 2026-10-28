@@ -47,6 +47,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/pendingpaints.cpp
     mwrender/tracedgroundcover.cpp
     mwrender/tracedterrain.cpp
+    mwrender/viewschedule.cpp
     mwrender/waterstate.cpp
     mwrender/worldmirror.cpp
 

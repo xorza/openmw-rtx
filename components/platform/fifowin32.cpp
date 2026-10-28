@@ -3,7 +3,6 @@
 #include <string>
 #include <system_error>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 
 namespace Platform::Fifo
@@ -17,6 +16,7 @@ namespace Platform::Fifo
 
     void write(File::Handle, const void*, std::size_t)
     {
-        Crash::fatal("a write to a fifo on Windows, where `openForWriting` hands out no handle");
+        throw std::system_error(std::make_error_code(std::errc::not_supported),
+            "a write to a fifo on Windows, where `openForWriting` hands out no handle");
     }
 }

@@ -47,6 +47,12 @@
 // - **Formats the SDK's host creates**: the luma history is `R16G16B16A16_FLOAT` there and was
 //   declared `rgba8` here, a view whose format is not the declared one; and the output is the
 //   renderer's `rgba16f`.
+// - **A pixel off the frame reads as nothing**: depth nought, no motion, black (`InputPixelOf`).
+//   The SDK's passes load their inputs where they did not make the coordinate, the taps around a
+//   pixel and the threads of the last workgroup past the edge, and lean on D3D answering nought
+//   there. A channel stored in fields answers with a real pixel of the frame instead: at an even
+//   width, column `W` is column 0 or 1 of its row. `ReconstructPrevDepth` then scattered that
+//   pixel's depth onto the right edge, and a turn lost the history of the band there.
 // - The passes the renderer does not run (the reactive generators, RCAS, the debug view) are gone.
 //
 // **The SDK's configuration, stated here for every pass rather than on a command line**: GLSL, full
@@ -112,6 +118,19 @@ FfxFloat32 VelocityFactor() { return cbFSR3Upscaler.mVelocityFactor; }
 FfxFloat32 AccumulationAddedPerFrame() { return cbFSR3Upscaler.mAccumulationAddedPerFrame; }
 FfxFloat32 MinDisocclusionAccumulation() { return cbFSR3Upscaler.mMinDisocclusionAccumulation; }
 
+/// Where the inputs keep `iPxPos`, which stands off the frame where `mOnFrame` is false: the nearest
+/// pixel of the frame, a place every image holds, which the caller reads and then answers nothing for.
+struct InputPixel
+{
+    FfxInt32x2 mStored;
+    bool mOnFrame;
+};
+
+InputPixel InputPixelOf(FfxInt32x2 iPxPos)
+{
+    return InputPixel(clamp(iPxPos, FfxInt32x2(0), RenderSize() - 1), !outsideOf(iPxPos, uvec2(RenderSize())));
+}
+
 #endif // #if defined(FSR3UPSCALER_BIND_CB_FSR3UPSCALER)
 
 #if defined(FSR3UPSCALER_BIND_CB_SPD)
@@ -156,11 +175,12 @@ layout (set = SET_PASS, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInpu
 /// left, `eyeOfPixel`.
 FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 {
-    const ivec2 stored = channelAt(CHANNEL_SURFACE, iPxPos, cbInputs.mEyes.mWorld.mWidth, fieldSwapOf(cbInputs.mFrame));
+    const InputPixel at = InputPixelOf(iPxPos);
+    const ivec2 stored = channelAt(CHANNEL_SURFACE, at.mStored, uint(RenderSize().x), fieldSwapOf(cbInputs.mFrame));
     const vec2 seen = texelFetch(r_input_surface, stored, 0).rg;
     const Camera eye = eyeOfPixel(seen.y, cbInputs.mEyes);
-    const float along = surfaceDistance(seen.y) * dot(rayAt(eye, vec2(iPxPos)).mDirection, eye.mBasis.mForward);
-    return seen.x == SURFACE_NO_NORMAL ? 0.0 : cbInputs.mNear / max(along, cbInputs.mNear);
+    const float along = surfaceDistance(seen.y) * dot(rayAt(eye, vec2(at.mStored)).mDirection, eye.mBasis.mForward);
+    return !at.mOnFrame || seen.x == SURFACE_NO_NORMAL ? 0.0 : cbInputs.mNear / max(along, cbInputs.mNear);
 }
 #endif
 
@@ -193,7 +213,8 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_COLOR) uniform tex
 
 FfxFloat32x3 LoadInputColor(FfxInt32x2 iPxPos)
 {
-	return texelFetch(r_input_color_jittered, iPxPos, 0).rgb;
+    const InputPixel at = InputPixelOf(iPxPos);
+    return texelFetch(r_input_color_jittered, at.mStored, 0).rgb * float(at.mOnFrame);
 }
 
 FfxFloat32x3 SampleInputColor(FfxFloat32x2 fUV)
@@ -207,10 +228,12 @@ layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_MOTION_VECTORS) un
 
 FfxFloat32x2 LoadInputMotionVector(FfxInt32x2 iPxDilatedMotionVectorPos)
 {
-	const FfxFloat32x2 fSrcMotionVector
+    const InputPixel at = InputPixelOf(iPxDilatedMotionVectorPos);
+    const FfxFloat32x2 fSrcMotionVector
         = texelFetch(r_input_motion_vectors,
-            channelAt(CHANNEL_MOTION, iPxDilatedMotionVectorPos, uint(RenderSize().x), fieldSwapOf(cbInputs.mFrame)), 0)
-              .xy;
+              channelAt(CHANNEL_MOTION, at.mStored, uint(RenderSize().x), fieldSwapOf(cbInputs.mFrame)), 0)
+              .xy
+        * float(at.mOnFrame);
 
 	FfxFloat32x2 fUvMotionVector = fSrcMotionVector * MotionVectorScale();
 

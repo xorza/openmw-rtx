@@ -903,7 +903,6 @@ namespace MWRender
     {
         mEffectManager->clear();
         mRenderer.notifyWorldspaceChanged();
-        mRenderer.notifyCut();
     }
 
     void RenderingManager::notifyCut()

@@ -15,7 +15,6 @@
 #include "bindings.glsl"
 #include "gloss.glsl"
 #include "random.glsl"
-#include "sky.glsl"
 #include "traversal.glsl"
 #include "variants.glsl"
 

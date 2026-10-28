@@ -25,7 +25,6 @@ import re
 import struct
 import subprocess
 import sys
-import tempfile
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -236,13 +235,11 @@ def kernels(build: Build, args: list[str]) -> int:
         label = setting.label or "-"
         at = f"{module.name} at {label}"
         specialize = ["--set-spec-const-default-value", setting.constants] if setting.constants else []
-        with tempfile.TemporaryDirectory() as scratch:
-            specialized = Path(scratch) / "specialized.spv"
-            _produced([optimizer, "--target-env=vulkan1.4", "--scalar-block-layout", *specialize,
-                       "--freeze-spec-const", "--fold-spec-const-op-composite", "-O", "--eliminate-dead-const",
-                       "--strip-debug", "--strip-nonsemantic", module, "-o", specialized], f"spirv-opt refused {at}")
-            disassembly = _produced([disassembler, "--raw-id", "--no-header", specialized],
-                                    f"spirv-dis refused {at}")
+        # Through a pipe and not a file: the specialized module is read once, by the disassembler.
+        specialized = _produced([optimizer, "--target-env=vulkan1.4", "--scalar-block-layout", *specialize,
+                                 "--freeze-spec-const", "--fold-spec-const-op-composite", "-O", "--eliminate-dead-const",
+                                 "--strip-debug", "--strip-nonsemantic", module, "-o", "-"], f"spirv-opt refused {at}")
+        disassembly = _produced([disassembler, "--raw-id", "--no-header", "-"], f"spirv-dis refused {at}", specialized)
         hashed = _produced([program_digest], f"{at} could not be digested", disassembly)
         return f"{module.name.removesuffix('.spv')} {label} {hashed.decode().strip()}"
 

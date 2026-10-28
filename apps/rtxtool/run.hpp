@@ -22,6 +22,7 @@
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
+#include <components/settings/categories.hpp>
 
 namespace Files
 {
@@ -206,6 +207,31 @@ namespace RtxTool
         std::optional<MapRules> mMaps = MapRules::Shipped;
     };
 
+    /// What a setting is where nobody has set it: the shipped defaults, out of the `defaults.bin`
+    /// beside the first configuration file the run's configuration found, read once for the run
+    /// and never the player's own values. A measured run reads these so that two runs of it are
+    /// one run whatever a settings file says. Not `Settings::Manager::mDefaultSettings`, which
+    /// layers every configuration directory but the last over the shipped file — and the harness's
+    /// own directory is the last.
+    class ShippedDefaults
+    {
+    public:
+        explicit ShippedDefaults(const Files::ConfigurationManager& config);
+
+        /// Out of `file`, a `defaults.bin`: what a test reads its own of.
+        explicit ShippedDefaults(const std::filesystem::path& file);
+
+        /// One setting, read as the game reads its text: a number through
+        /// `Misc::StringUtils::toNumeric`, which refuses one that is not finite, and a switch as
+        /// `true` in any case. Throws naming the setting where the file names none, or the text is
+        /// no number. For `float`, `int`, `bool` and `std::string`, the text itself.
+        template <class T>
+        T get(std::string_view category, std::string_view setting) const;
+
+    private:
+        Settings::CategorySettingValueMap mShipped;
+    };
+
     /// What every command is handed: the line it was given, the configuration that line was
     /// read against, where the resources are, and which of their shader sets a renderer reads —
     /// the one the driver's cache was pointed at.
@@ -217,20 +243,8 @@ namespace RtxTool
         const std::filesystem::path& mResources;
         const Rtx::ShaderSet& mShaders;
         Verbs mVerb;
+        const ShippedDefaults& mShipped;
     };
-
-    /// What a setting is where nobody has set it: the shipped default, out of the `defaults.bin`
-    /// beside the first configuration file `config` found, and never the player's own value. A
-    /// measured run reads these so that two runs of it are one run whatever a settings file says.
-    /// Not `Settings::Manager::mDefaultSettings`, which layers every configuration directory but
-    /// the last over the shipped file — and the harness's own directory is the last.
-    ///
-    /// Read as the game reads the setting's text: a number through `Misc::StringUtils::toNumeric`,
-    /// which refuses one that is not finite, and a switch as `true` in any case. Throws naming the
-    /// setting where the text is no number. For `float`, `int`, `bool` and `std::string`, the text
-    /// itself.
-    template <class T>
-    T shippedDefault(const Files::ConfigurationManager& config, std::string_view category, std::string_view setting);
 
     /// Runs `request` against a real game, presented as `window` asks, and gives back a process exit
     /// status. The game and not a world of this tool's own, because a staged world never pays for

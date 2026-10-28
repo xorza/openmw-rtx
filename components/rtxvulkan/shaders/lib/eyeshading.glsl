@@ -21,9 +21,10 @@
 #include "lib/frame.glsl"
 #include "lib/answer.glsl"
 #include "lib/hash.glsl"
+#include "lib/pixels.glsl"
 #include "lib/reproject.glsl"
 #include "lib/shading.glsl"
-#include "lib/stage.glsl"
+#include "lib/stagerecord.glsl"
 #include "lib/traversal.glsl"
 #include "lib/variants.glsl"
 #include "lib/water.glsl"
@@ -171,7 +172,6 @@ void stepEye(inout EyeRun run, WaterRun water, inout VisitRun visit, Surface sur
 {
     const bool layers = shades == PEEL_SHADES_LAYERS;
 
-    bool shaded = false;
     if (run.mStep == EYE_START)
     {
         if (!layers && run.mWater)
@@ -207,7 +207,6 @@ void stepEye(inout EyeRun run, WaterRun water, inout VisitRun visit, Surface sur
                 run.mAnswer.mRadiance = surface.mSpecular;
 
             run.mAnswer.mResponse = responseOf(surface, vec3(1.0));
-            shaded = true;
         }
         else
         {
@@ -215,7 +214,6 @@ void stepEye(inout EyeRun run, WaterRun water, inout VisitRun visit, Surface sur
             run.mAnswer.mResponse = look.mResponse;
             run.mAnswer.mRoughness = look.mRoughness;
             run.mSolid = STAGE_EYE_SOLID;
-            shaded = true;
         }
     }
     else if (run.mStep == EYE_PANE)
@@ -225,7 +223,6 @@ void stepEye(inout EyeRun run, WaterRun water, inout VisitRun visit, Surface sur
         run.mAnswer.mBounced = seen.mDrawn;
         run.mAnswer.mSpecular = seen.mSpecular;
         run.mAnswer.mResponse = seen.mResponse;
-        shaded = true;
     }
     else
     {
@@ -257,11 +254,7 @@ void stepEye(inout EyeRun run, WaterRun water, inout VisitRun visit, Surface sur
             run.mGuideDistance = run.mImage.mAway;
             run.mSolid = STAGE_WATER_PATH;
         }
-        shaded = true;
     }
-
-    if (!shaded)
-        return;
 
     run.mAnswer.mMotion = run.mMotion;
     if (run.mWater)

@@ -45,7 +45,8 @@ namespace Rtx
         }
     }
 
-    std::optional<std::string> bindingDisagreement(const std::span<const ModuleBinding> module, const SetTables& sets)
+    std::optional<std::string> bindingDisagreement(
+        const std::span<const ModuleBinding> module, const SetTables& sets, const VkShaderStageFlagBits stage)
     {
         for (const ModuleBinding& bound : module)
         {
@@ -62,6 +63,10 @@ namespace Rtx
             if (!bindsAs(bound.mKind, stated->descriptorType))
                 return std::format("binding {} of set {} is descriptor type {} in the layout and another in the module",
                     bound.mBinding, bound.mSet, static_cast<int>(stated->descriptorType));
+            if ((stated->stageFlags & stage) == 0)
+                return std::format(
+                    "binding {} of set {} is declared for stages {:#x}, which leave out the module's {:#x}",
+                    bound.mBinding, bound.mSet, stated->stageFlags, static_cast<std::uint32_t>(stage));
             // An array of no stated length takes whatever the layout gives it.
             if (bound.mCount != 0 && bound.mCount != stated->descriptorCount)
                 return std::format("binding {} of set {} is {} in the layout and {} in the module", bound.mBinding,
@@ -89,10 +94,15 @@ namespace Rtx
         return std::nullopt;
     }
 
-    std::optional<std::string> pushDisagreement(const std::optional<std::uint32_t> end, const std::uint32_t range)
+    std::optional<std::string> pushDisagreement(
+        const std::optional<std::uint32_t> end, const VkPushConstantRange& declared, const VkShaderStageFlagBits stage)
     {
         if (!end.has_value())
             return std::nullopt;
+        if ((declared.stageFlags & stage) == 0)
+            return std::format("the push range is declared for stages {:#x}, which leave out the module's {:#x}",
+                declared.stageFlags, static_cast<std::uint32_t>(stage));
+        const std::uint32_t range = declared.size;
         if (*end > range)
             return std::format("the push block ends at {} bytes, past the {} the layout declares", *end, range);
         if (*end < range && (range % 8 != 0 || range - *end >= 8))
@@ -162,14 +172,14 @@ namespace Rtx
         return *known;
     }
 
-    const void* ShaderCode::stage(const std::string_view module, const SetTables& sets, const std::uint32_t pushBytes,
-        const std::span<const std::uint32_t> words) const
+    const void* ShaderCode::stage(const std::string_view module, const VkShaderStageFlagBits stage,
+        const SetTables& sets, const VkPushConstantRange& push, const std::span<const std::uint32_t> words) const
     {
         const Read& known = readOf(module);
         const ModuleInterface& interface = known.mInterface;
-        for (const std::optional<std::string>& disagreement : { bindingDisagreement(interface.mBindings, sets),
+        for (const std::optional<std::string>& disagreement : { bindingDisagreement(interface.mBindings, sets, stage),
                  specializationDisagreement(interface.mSpecConstants, words),
-                 pushDisagreement(interface.mPushEnd, pushBytes) })
+                 pushDisagreement(interface.mPushEnd, push, stage) })
             if (disagreement.has_value())
                 Crash::fatal(std::format("{}: {}", module, *disagreement));
 

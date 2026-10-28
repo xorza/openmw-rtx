@@ -42,6 +42,18 @@ namespace SDLUtil
         return static_cast<int>(std::lround(static_cast<double>(pixels) / static_cast<double>(density)));
     }
 
+    float pixelDensity(SDL_Window* window)
+    {
+        const float density = SDL_GetWindowPixelDensity(window);
+        return density > 0.f ? density : 1.f;
+    }
+
+    float displayScale(SDL_Window* window)
+    {
+        const float scale = SDL_GetWindowDisplayScale(window);
+        return scale > 0.f ? scale : 1.f;
+    }
+
     int displayPixels(int points, float density)
     {
         return static_cast<int>(std::lround(static_cast<double>(points) * static_cast<double>(density)));

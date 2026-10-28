@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -101,11 +102,11 @@ namespace MyGUIRtx
     {
         assert(image.s() == mWidth && image.t() == mHeight && "an image sent into a slot of another size");
 
-        // A size the renderer refused, which it said in the log: the texture draws as nothing.
-        if (mSlot.isNone())
-            return;
+        write(whole(), [&](const std::span<std::uint8_t> lent) { fillWith(image, lent.data()); });
+    }
 
-        std::uint8_t* into = mRenderer.lendGuiTexture(mSlot, whole()).data();
+    void SlotTexture::fillWith(const osg::Image& image, std::uint8_t* into) const
+    {
         const std::size_t bytes = static_cast<std::size_t>(mWidth) * mHeight * 4;
         const Rtx::TextureFormat format = Rtx::readFormat(image, Rtx::TextureEncoding::Colour);
         if (format == Rtx::TextureFormat::Rgba8Srgb && image.isDataContiguous() && image.getTotalSizeInBytes() == bytes)
@@ -153,8 +154,6 @@ namespace MyGUIRtx
                     into[3] = static_cast<std::uint8_t>(std::clamp(colour.a(), 0.f, 1.f) * 255.f + 0.5f);
                 }
         }
-
-        mRenderer.sendGuiTexture(mSlot);
     }
 
     void SlotTexture::saveToFile(const std::string& fname)

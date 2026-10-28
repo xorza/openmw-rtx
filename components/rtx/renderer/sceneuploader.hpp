@@ -6,7 +6,7 @@
 #include <components/rtx/scene/scenetextures.hpp>
 
 #include "framespend.hpp"
-#include "renderer.hpp"
+#include "sceneholder.hpp"
 #include "slot.hpp"
 
 namespace Rtx
@@ -47,7 +47,7 @@ namespace Rtx
     /// once for the game and the harness: a place is under a millisecond, an extend a few, a
     /// rebuild a fifth of a second, and choosing wrongly is fatal rather than slow. Stateless
     /// against the backend, which says what it holds and which description it holds it from
-    /// through `Renderer::describeHeld`.
+    /// through `SceneHolder::describeHeld`.
     class SceneUploader
     {
     public:
@@ -72,12 +72,12 @@ namespace Rtx
             FrameSpend* mSpend = nullptr;
         };
 
-        /// Hands the scene to `renderer`, building only what has to be built, and ends the
+        /// Hands the scene to `scenes`, building only what has to be built, and ends the
         /// placement it handed over — `PlacementTable::advance`, so what moved becomes where
         /// things were. Here and nowhere else, because the hand-over is the one thing that reads
         /// the change lists through a backend, and a slot that left the lists unread would stand
         /// on the device as it stood before.
-        SceneUpload hand(Renderer& renderer, const Handing& handing);
+        SceneUpload hand(SceneHolder& scenes, const Handing& handing);
 
     private:
         /// What an arrival is described into, and the storage the descriptions point at. Held, so

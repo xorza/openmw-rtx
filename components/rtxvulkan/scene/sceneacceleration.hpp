@@ -137,6 +137,10 @@ namespace Rtx
         /// triangle's corners through: a table of the scene's as the vertex attributes are.
         VkDeviceSize getIndexBytes() const { return mIndices.getBytes(); }
 
+        /// What the structures are worked in beside what they occupy: the rows by slot and the
+        /// packed rows, the blocks' first places, the poses, and every build's and refit's scratch.
+        VkDeviceSize getWorkBytes() const;
+
         /// `BottomLevelStore::wasRefusedRoom`.
         bool wasRefusedRoom() const { return mBottomLevel.wasRefusedRoom(); }
 

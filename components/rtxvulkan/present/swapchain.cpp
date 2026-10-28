@@ -22,6 +22,12 @@ namespace Rtx
 {
     namespace
     {
+        /// How long a wait on the presentation engine stands before the frame goes on without it:
+        /// an image to acquire, or a present to land. A tenth of a second, six refreshes at sixty,
+        /// and not the lost device's `sPatience`: an engine that withholds images from a window it
+        /// shows is normal (`Acquired::NotYet`), and ten seconds a frame was a frozen game.
+        constexpr std::uint64_t sPresentPatienceNs = 100'000'000;
+
         bool hasNoExtent(const VkExtent2D extent)
         {
             return extent.width == 0 || extent.height == 0;
@@ -245,8 +251,8 @@ namespace Rtx
         // Bounded, and the bound is no image this frame rather than a failure: a compositor that
         // stops handing images back is indistinguishable from one that is merely slow, and both
         // `VK_TIMEOUT` and `VK_NOT_READY` are success codes of an acquire.
-        const VkResult result
-            = vkAcquireNextImageKHR(mDevice.getHandle(), mHandle.get(), sPatience, ready, VK_NULL_HANDLE, &index);
+        const VkResult result = vkAcquireNextImageKHR(
+            mDevice.getHandle(), mHandle.get(), sPresentPatienceNs, ready, VK_NULL_HANDLE, &index);
 
         switch (result)
         {
@@ -306,7 +312,9 @@ namespace Rtx
             presented->answered(result);
         if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
             mQueued = { id, mQueued[0] };
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        if (result == VK_SUBOPTIMAL_KHR)
+            return Presented::Suboptimal;
+        if (result == VK_ERROR_OUT_OF_DATE_KHR)
             return Presented::Stale;
         if (result == VK_ERROR_SURFACE_LOST_KHR)
             return Presented::Lost;
@@ -317,8 +325,6 @@ namespace Rtx
 
     void Swapchain::awaitLatency()
     {
-        constexpr std::uint64_t sPatienceNs = 100'000'000;
-
         const bool refreshed
             = mPresentMode == VK_PRESENT_MODE_FIFO_KHR || mPresentMode == VK_PRESENT_MODE_FIFO_RELAXED_KHR;
         if (!mDevice.hasPresentWait() || !refreshed || !isMade())
@@ -332,7 +338,7 @@ namespace Rtx
 
         // A swapchain the surface outgrew or lost is the next present's to report, which the
         // presenter rebuilds from; a wait that ran out lets the frame go on.
-        const VkResult result = vkWaitForPresentKHR(mDevice.getHandle(), mHandle.get(), awaited, sPatienceNs);
+        const VkResult result = vkWaitForPresentKHR(mDevice.getHandle(), mHandle.get(), awaited, sPresentPatienceNs);
         if (result == VK_SUCCESS || result == VK_TIMEOUT || result == VK_SUBOPTIMAL_KHR
             || result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_ERROR_SURFACE_LOST_KHR)
             return;

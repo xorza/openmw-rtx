@@ -8,7 +8,7 @@ that owns each. Read this once and the headers read as the field's.
 | walk, mirror | traversal, extraction | `SceneExtractor`, `SceneExtractor::Traversal` |
 | stand, stood, standing | an instance is live, is placed | `PlacementTable`, `CellPlacer` |
 | re-stood | re-instanced under a new slot | `ExtractionStats::mRestood` |
-| place, placement | instance, per-frame instance update | `SceneDesc::addInstance`, `Renderer::placeScene` |
+| place, placement | instance, per-frame instance update | `SceneDesc::addInstance`, `SceneHolder::placeScene` |
 | hand over, hand, handing | upload, submit | `SceneUploader::hand`, `WorldMirror::hand` |
 | hold, holds, drop | reference count, pin, unpin; a row goes with its last hold | `Hold`, `SceneDesc::holdMesh`, `SlotRows::hold`, `Kept::hold` |
 | lend, lent, give back | borrow from a pool, return to it | `Spares`, `CellSupply` |

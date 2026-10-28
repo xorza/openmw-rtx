@@ -83,6 +83,13 @@ namespace Rtx
             const std::vector<Testing::PngText> texts = Testing::readPngTexts(deep);
             ASSERT_EQ(texts.size(), 1u);
             EXPECT_EQ(texts[0].mText, "a mean");
+
+            // **Stored most significant byte first**, as PNG states it, which a round trip through
+            // one plugin cannot see. Two pixels of four samples, a filter byte before the row. The
+            // first pixel's bytes are its own under every filter, which predicts it from nought:
+            // 0, 1, 32768 and 65535 are `00 00`, `00 01`, `80 00` and `FF FF`.
+            const std::string rows = Testing::readPngRows(deep, 1 + samples.size() * 2);
+            EXPECT_EQ(rows.substr(1, 8), std::string("\x00\x00\x00\x01\x80\x00\xff\xff", 8));
         }
 
         /// What could not be written or read says which file and what was wrong with it, each of the

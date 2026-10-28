@@ -33,7 +33,6 @@
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/mapoverlay.hpp>
 #include <apps/openmw/mwrender/offscreenview.hpp>
-#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <apps/openmw/mwrender/sceneframe.hpp>
 #include <apps/openmw/mwrender/skystate.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
@@ -274,6 +273,7 @@ namespace MWRender
 
     void RtxRenderer::configureResources(Resource::ResourceSystem& resources) noexcept
     {
+        mPhase.expect(Phase::Between);
         const std::optional<float> stated = getLoopClock().getStatedStep();
         setResourceExpiry(resources, stated);
 
@@ -314,12 +314,14 @@ namespace MWRender
 
     osg::ref_ptr<osg::Group> RtxRenderer::createSceneRoot() noexcept
     {
+        mPhase.expect(Phase::Between);
         mSceneRoot = new osg::Group;
         return mSceneRoot;
     }
 
     std::unique_ptr<Ground> RtxRenderer::createGround(const GroundSpec& spec) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         if (spec.mWorldspace == ESM::Cell::sDefaultWorldspaceId)
             mMirror.growGroundcover(spec.mGroundcoverStore);
 
@@ -340,32 +342,38 @@ namespace MWRender
 
     void RtxRenderer::addWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         mRipples.add(ptr);
     }
 
     void RtxRenderer::removeWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         mRipples.remove(ptr);
     }
 
     void RtxRenderer::emitWaterRipple(const osg::Vec3f& position) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         mRipples.splash(position);
     }
 
     void RtxRenderer::poseForIntersection(osg::Drawable& drawable) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         mPoser.pose(drawable, getFrameStamp());
     }
 
     void RtxRenderer::listAssetsToPreload(
         std::vector<VFS::Path::Normalized>& models, std::vector<VFS::Path::Normalized>& textures) noexcept
     {
+        mPhase.expect(Phase::Between);
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
     }
 
     void RtxRenderer::functionKey(const int index, const SDLUtil::KeyChange change)
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         // F3 and F4: the indices count from F1.
         if (change != SDLUtil::KeyChange::Pressed || (index != 2 && index != 3))
             return;
@@ -376,6 +384,7 @@ namespace MWRender
 
     void RtxRenderer::windowResized(int, int, const int width, const int height) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         presentIn(osg::Vec2i(width, height));
     }
 
@@ -489,6 +498,14 @@ namespace MWRender
         return Rtx::since(began, std::chrono::steady_clock::now());
     }
 
+    void RtxRenderer::renderGui() noexcept
+    {
+        // From between two frames alone, which is a loading screen presenting: a frame presents
+        // through its own exits, and a hook that presented from inside one presented it twice.
+        mPhase.step(Phase::Gui, Phase::Between);
+        present();
+    }
+
     /// **The frame the trace made, on the screen, before the call that made it returns.** No
     /// composite, no interop and no rasterized frame underneath, which is what takes an interop
     /// path's frame of latency out.
@@ -499,12 +516,9 @@ namespace MWRender
     /// surface, and a window that stops answering is one the compositor eventually says so about.
     /// What the GUI goes over is then the last frame traced, or black where nothing has been — a
     /// main menu, or the moment before the first cell finishes loading.
-    void RtxRenderer::renderGui() noexcept
+    void RtxRenderer::present()
     {
-        // From between two frames, which is a loading screen presenting; from the walk of a frame
-        // with nothing placed; from the pictures of a frame with the world hidden; or from the
-        // frame's own trace and the run's hook after it.
-        mPhase.step(Phase::Gui, Phase::Between, Phase::Walking, Phase::Views, Phase::Tracing, Phase::Run);
+        mPhase.expect(Phase::Gui);
         const Crash::NoteScope noted("drawing the interface and presenting");
 
         const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
@@ -529,6 +543,7 @@ namespace MWRender
 
     void RtxRenderer::awaitShaders(Loading::Listener& listener)
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         Rtx::JobProgress progress = mRenderer->awaitKernels(mKernels, std::chrono::milliseconds::zero());
         if (progress.isDone())
             return;
@@ -572,6 +587,7 @@ namespace MWRender
 
     void RtxRenderer::capture(osg::Image& image, int width, int height) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         const osg::ref_ptr<osg::Image> taken = readFrame(width, height, Rtx::Channels::Rgb);
         if (taken == nullptr)
             return;
@@ -581,6 +597,7 @@ namespace MWRender
 
     void RtxRenderer::saveScreenshot() noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         // Three channels, as the rasterizer reads its screenshots: the JPEG writer `screenshot
         // format` may name refuses four (`Rtx::Channels::Rgb`).
         const osg::ref_ptr<osg::Image> taken = readFrame(0, 0, Rtx::Channels::Rgb);
@@ -601,27 +618,32 @@ namespace MWRender
 
     std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         return traceView(spec, ViewKind::World);
     }
 
     std::unique_ptr<SubjectView> RtxRenderer::createSubjectView(const OffscreenViewSpec& spec) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         return traceView(spec, ViewKind::Subject);
     }
 
     std::unique_ptr<MapOverlay> RtxRenderer::createMapOverlay(const MapOverlaySpec& spec) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         assert(mGui != nullptr && "an overlay before the interface was made");
         return std::make_unique<TracedOverlay>(spec, mViews, *mGui);
     }
 
     void RtxRenderer::setVSync(SDLUtil::VSyncMode mode) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         mRenderer->setVerticalSync(mode);
     }
 
     void RtxRenderer::awaitPresented() noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         mRenderer->awaitPresented();
     }
 
@@ -632,6 +654,7 @@ namespace MWRender
 
     void RtxRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         const bool upscale = changed.contains({ "RTX", "upscale" });
         const bool reach
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
@@ -671,6 +694,7 @@ namespace MWRender
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept
     {
+        mPhase.expect(Phase::Between, Phase::Run);
         const osg::ref_ptr<osg::Image> taken = readFrame();
 
         if (mFrozenFrame == nullptr)
@@ -795,7 +819,8 @@ namespace MWRender
             mPhase.step(Phase::Views, Phase::Walking);
             mViews.draw(0, getFrameStamp(), mMirror.getRing(), mPictureReleases);
             mMirror.release(mPictureReleases);
-            renderGui();
+            mPhase.step(Phase::Gui, Phase::Views);
+            present();
             return;
         }
 
@@ -834,8 +859,10 @@ namespace MWRender
         traceWorld(frame, view, report, since);
 
         // Where the frame is stamped as left, which is why no path out of here stamps it again:
-        // the world-hidden return above ends in this same call.
-        renderGui();
+        // the world-hidden return above ends in this same call. From the walk of a frame with
+        // nothing placed, from a trace the eye refused, or from the run's hook after the trace.
+        mPhase.step(Phase::Gui, Phase::Walking, Phase::Tracing, Phase::Run);
+        present();
     }
 
     void RtxRenderer::traceWorld(
@@ -1046,21 +1073,19 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Trace) = Rtx::since(tracing, std::chrono::steady_clock::now());
         report.mSpend.at(Rtx::Timing::Present) = mTimer.takePresent();
 
+        report.mWalked = mWalked;
         if (since.has_value())
-        {
             report.mSpend.at(Rtx::Timing::Frame) = *since;
-            report.mWalked = mWalked;
 
-            // Every traced frame, whether or not the device has answered for one yet: the run
-            // counts the frames it traced, and `RtxRun::frame` says why a count of answers is not
-            // that.
-            mPhase.step(Phase::Run, Phase::Tracing);
-            mRun.frame(describeContext(), report);
+        // Every traced frame, whether or not the device has answered for one yet, and the first
+        // too, which a save or a skipped menu traces: the run counts the frames it traced, and
+        // `RtxRun::frame` says why a count of answers is not that.
+        mPhase.step(Phase::Run, Phase::Tracing);
+        mRun.frame(describeContext(), report);
 
-            // Once a second, which is how often `FrameTimer::addFrame` closes one — and the window is
-            // asked then whether anybody can see it, rather than a copy of that being kept here.
-            if (mTimer.addFrame(*since))
-                mWindow.setTitle(mTimer.writeTitle(mRun.describeTitle()).data());
-        }
+        // Once a second, which is how often `FrameTimer::addFrame` closes one — and the window is
+        // asked then whether anybody can see it, rather than a copy of that being kept here.
+        if (since.has_value() && mTimer.addFrame(*since))
+            mWindow.setTitle(mTimer.writeTitle(mRun.describeTitle()).data());
     }
 }

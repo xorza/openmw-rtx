@@ -19,6 +19,16 @@ namespace SDLUtil
     /// truncated fell a pixel short wherever the float did.
     int displayPixels(int points, float density);
 
+    /// The window pixels a point of `window` covers, `SDL_GetWindowPixelDensity`'s, and one where SDL
+    /// cannot say, which it answers with nought: a density of nought sent every mouse position to
+    /// the corner and every size through a division by it.
+    float pixelDensity(SDL_Window* window);
+
+    /// The window pixels the desktop gives a point of its own interface in `window`: its display's
+    /// density and content scale together, `SDL_GetWindowDisplayScale`'s, and one where SDL cannot
+    /// say.
+    float displayScale(SDL_Window* window);
+
     /// False for a hidden, minimized or occluded window.
     bool isWindowShown(SDL_WindowFlags flags);
 

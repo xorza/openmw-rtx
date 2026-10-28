@@ -13,7 +13,6 @@
 #include "bindings.glsl"
 #include "census.glsl"
 #include "counts.glsl"
-#include "eyeshading.glsl"
 #include "fog.glsl"
 #include "frame.glsl"
 #include "halfround.glsl"
@@ -24,7 +23,6 @@
 #include "traversal.glsl"
 #include "underwater.glsl"
 #include "variants.glsl"
-#include "water.glsl"
 
 /// What the media in front of a point along the ray scattered in, and what they let through.
 struct MediumAhead

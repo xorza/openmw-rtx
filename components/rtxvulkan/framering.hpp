@@ -147,8 +147,12 @@ namespace Rtx
             const std::array<const Image*, sDenoiserImageCount>& denoiser, VkExtent2D extent, std::uint32_t frameNumber,
             const FrameDigest& facts, GpuTimer* timer);
 
-        /// The recording of `frame`'s trace, begun on the frame's own buffer. An exception that
-        /// leaves it unsubmitted leaves the frame begun, and the next trace begins it again.
+        /// The recording of `frame`'s trace, begun on the frame's own buffer. **An exception that
+        /// leaves it unsubmitted ends the renderer**: the passes recorded into it took their turns
+        /// already — the g-buffer begun, the fog and the denoiser's histories turned, the ripples,
+        /// the waves, the sprites and the previous camera stepped — and a trace after it would bind
+        /// held surfaces as this frame left them, never written. Nothing catches one, and the
+        /// renderer is taken apart on the way out.
         Recording recordWorld(FrameRecord& frame);
 
         /// Submits what a frame recorded into `world`, `recordWorld`'s, and counts it as in flight,
@@ -170,8 +174,9 @@ namespace Rtx
         /// — `Renderer::collectFrame`.
         std::optional<FrameResult> collectFrame();
 
-        /// Waits for every frame in flight. What an arrival, a rebuild, a resize and a picture
-        /// inside the interface do first.
+        /// Waits for every frame in flight. What a rebuild, a resize and a wait on the pictures
+        /// inside the interface do first. Not an arrival, which is written behind the frames in
+        /// flight (`VulkanRenderer::extendScene`).
         void finishAll();
 
         /// Drops what nothing has collected, for a caller whose world has gone.

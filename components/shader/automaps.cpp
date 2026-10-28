@@ -30,6 +30,13 @@ namespace Shader
 {
     namespace
     {
+        /// The unit past both what the state set the caller read lists and what the one written to
+        /// does: the same object, or a copy of it that the maps added before were written into.
+        int nextFreeUnit(const osg::StateSet::TextureAttributeList& units, const osg::StateSet& writable)
+        {
+            return static_cast<int>(std::max(units.size(), writable.getTextureAttributeList().size()));
+        }
+
         /// The texture a companion map is bound as: the diffuse map's addressing and filtering over
         /// the companion's image.
         osg::ref_ptr<osg::Texture2D> companionTexture(osg::Image& image, const osg::Texture& diffuseMap)
@@ -116,9 +123,9 @@ namespace Shader
             {
                 osg::ref_ptr<osg::Texture2D> texture = companionTexture(*image, diffuseMap);
 
-                const int unit = static_cast<int>(units.size());
                 if (!writable)
                     writable = getWritableStateSet(node);
+                const int unit = nextFreeUnit(units, *writable);
                 writable->setTextureAttribute(unit, texture, osg::StateAttribute::ON);
                 writable->setTextureAttribute(unit,
                     new SceneUtil::TextureType(normalHeight ? "normalHeightMap" : "normalMap"),
@@ -139,11 +146,10 @@ namespace Shader
                 osg::ref_ptr<osg::Image> image(images.getImage(specularPath));
                 osg::ref_ptr<osg::Texture2D> texture = companionTexture(*image, diffuseMap);
 
-                // After the normal map, which the units counted where the state set added to is the
-                // one they list.
-                const int unit = static_cast<int>(units.size());
+                // After the normal map, which the state set written to now lists.
                 if (!writable)
                     writable = getWritableStateSet(node);
+                const int unit = nextFreeUnit(units, *writable);
                 writable->setTextureAttribute(unit, texture, osg::StateAttribute::ON);
                 writable->setTextureAttribute(unit, new SceneUtil::TextureType("specularMap"), osg::StateAttribute::ON);
 

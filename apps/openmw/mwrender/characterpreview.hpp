@@ -14,14 +14,14 @@
 
 #include "offscreenview.hpp"
 
-namespace MyGUI
-{
-    class ITexture;
-}
-
 namespace osg
 {
     class Group;
+}
+
+namespace MyGUI
+{
+    class ITexture;
 }
 
 namespace MWRender

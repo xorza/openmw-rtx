@@ -26,12 +26,14 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
+#include <components/rtxvulkan/shaders/shared/ripple.h>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -620,6 +622,65 @@ namespace Rtx::Testing
 
             EXPECT_GT(agreeing, std::size_t{ size } * size * 99 / 100) << "the north sea is the east sea turned";
             EXPECT_LT(turnedAway, std::size_t{ size } * size * 9 / 10) << "and not the east sea as it was";
+        }
+
+        /// **A wake's caustic turns with the sea it rides on.** The sea's curvature is read in the
+        /// tiles' frame and a wake's in the world's, and the caustic adds the two: the tiles' turns
+        /// into the world's first, as their slope does. A footfall at the origin spreads a round
+        /// ring, which a quarter turn about the origin maps onto itself. So the bed under a north
+        /// wind and the ring is the bed under an east wind and the ring turned a quarter, pixel
+        /// `(i, j)` against `(N - 1 - j, i)`, as `theSeaRunsTheWayTheWindBlows` has it. Looked at
+        /// from under the surface, under a sun at the zenith, the bed shows the caustic alone.
+        /// Measured at the worst pixel, against the bed's mean: 0.4 per cent apart turned, where
+        /// the ring's own texels are not quite round, and 35 per cent with the tiles' curvature
+        /// added unturned. Without the ring, 0.002 per cent.
+        TEST_F(RtxVisibilityTest, aWakesCausticTurnsWithTheSeaItRidesOn)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float across = 240.0f;
+            constexpr float depth = 140.0f;
+
+            const auto looking = [&](const osg::Vec2f& heading) {
+                SceneDesc scene = makeFlooded(4000.0f, depth);
+                const osg::Matrixf view = osg::Matrixf::lookAt(
+                    osg::Vec3f(0.0f, 0.0f, -1.0f), osg::Vec3f(0.0f, 0.0f, -depth), osg::Vec3f(0.0f, 1.0f, 0.0f));
+                Shaders::VisibilityConstants camera = constantsFor(
+                    makeOrthographicCameraFromView(view, across, across, size, size, 0.5f, 100000.0f).value());
+                litThroughWater(camera, 0.0f);
+                camera.mSeaHeading = heading;
+
+                const Shot stand{ .mFrames = 1, .mAverage = false, .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE };
+                const Shot run{ .mFrames = 30,
+                    .mAverage = false,
+                    .mFirstFrame = 1,
+                    .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE,
+                    .mSetScene = false };
+                shoot(scene, {}, camera, size, stand);
+                scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
+                const Frame frame = shoot(scene, {}, camera, size, run);
+                std::vector<float> green;
+                for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
+                    green.push_back(frame.at(i * 4 + 1));
+                return green;
+            };
+
+            const std::vector<float> east = looking(osg::Vec2f(1.0f, 0.0f));
+            const std::vector<float> north = looking(osg::Vec2f(0.0f, 1.0f));
+            const float mean = meanOf(east);
+            ASSERT_GT(mean, 0.0f) << "a bed that shows nothing proves nothing";
+
+            float turned = 0.0f;
+            float unturned = 0.0f;
+            for (std::uint32_t j = 0; j < size; ++j)
+                for (std::uint32_t i = 0; i < size; ++i)
+                {
+                    const std::size_t here = std::size_t{ j } * size + i;
+                    const std::size_t there = std::size_t{ i } * size + (size - 1 - j);
+                    turned = std::max(turned, std::abs(north[here] - east[there]) / mean);
+                    unturned = std::max(unturned, std::abs(north[here] - east[here]) / mean);
+                }
+            EXPECT_LT(turned, 0.01f) << "the north bed is the east bed turned";
+            EXPECT_GT(unturned, 0.1f) << "and not the east bed as it was";
         }
 
         /// Rain rings the still water under the eye, moves the rings on, and far off roughens it.

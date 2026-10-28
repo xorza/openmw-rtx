@@ -42,7 +42,7 @@ namespace Rtx
 
         /// The frame's shape, which the display copies the composed frame into and lays the puffs
         /// over: a transfer's target, a storage image and sampled, and read back as the composed
-        /// frame is (`VulkanRenderer::readShownRadiance`).
+        /// frame is (`Testing::RendererProbe::readShownRadiance`).
         ImageDescription canvasDescription(
             const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
         {
@@ -176,15 +176,8 @@ namespace Rtx
             mSum.transition(commands, Use::sUndefined, Use::sComputeReadWrite);
         }
 
-        // Before the trace and outside its zone, because the sea is a function of the clock and of
-        // nothing the camera does — one synthesis serves every ray, and every trace at the same
-        // moment (`WavePass::holds`). None where there is no sea, which is most interiors, and a
-        // fifth of a millisecond of device time in each of them.
-        const WavePass& waves = inputs.mSubject.mMedia->getWaves();
-        if (inputs.mSubject.mSea && !waves.holds(what.mSampled.mWaterTime))
-        {
-            waves.record(commands, what.mSampled.mWaterTime, what.mTimer);
-        }
+        assert((!inputs.mSubject.mSea || inputs.mSubject.mMedia->getWaves().holds(what.mSampled.mWaterTime))
+            && "a trace of a sea its owner did not synthesise first (`TraceMedia::synthesiseSea`)");
 
         // The sprite tiles are screen space, so they belong to the camera and not to the scene.
         // Binned on the device into this trace's own bin, ahead of the trace that reads it. **For a
@@ -196,8 +189,8 @@ namespace Rtx
         // table by address, which it has once the table is taken; the shelter launch reads the
         // block and zeroes the drops under a roof in that table; and the shade and the bin read
         // what is left. Every launch after reads the same block, and the emitters' rows beside it.
-        assert(inputs.mSubject.mTraceSlot.get() < mBins.size() && "a trace slot this chain keeps no bin for");
-        SpriteBin& bin = mBins[inputs.mSubject.mTraceSlot.get()];
+        assert(what.mBinSlot.get() < mBins.size() && "a trace slot this chain keeps no bin for");
+        SpriteBin& bin = mBins[what.mBinSlot.get()];
         const bool drawsSprites = inputs.mSubject.mDrawsSprites;
         SpriteSource sprites = inputs.mSubject.mScene->getBuffers().describeSprites(inputs.mSubject.mScene->getSlot());
         if (!drawsSprites)

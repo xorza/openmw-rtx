@@ -87,12 +87,14 @@ namespace Rtx
             EXPECT_EQ(low.at(0, 1, 0), 255);
 
             // Entry two is where the two palettes part: descending divides the span into sevenths and
-            // ascending into fifths, so (6*255)/7 = 218 against (1*255)/5 = 51.
-            EXPECT_EQ(high.at(0, 2, 0), 218);
+            // ascending into fifths, each rounded to the nearest byte, so 6*255/7 = 218.57 is 219
+            // against 1*255/5 = 51.
+            EXPECT_EQ(high.at(0, 2, 0), 219);
             EXPECT_EQ(low.at(0, 2, 0), 51);
 
-            // And entry four, further along the same two ramps: (4*255)/7 = 145 against (3*255)/5 = 153.
-            EXPECT_EQ(high.at(0, 3, 0), 145);
+            // And entry four, further along the same two ramps: 4*255/7 = 145.71 is 146, against
+            // 3*255/5 = 153.
+            EXPECT_EQ(high.at(0, 3, 0), 146);
             EXPECT_EQ(low.at(0, 3, 0), 153);
 
             // **The last two entries are what the ascending spelling is for**, and the case a cutout
@@ -110,8 +112,9 @@ namespace Rtx
 
             // The same indices under the descending spelling are ordinary steps of the ramp, which is
             // what says the two palettes really are different tables and not one with a flag on it.
+            // 2*255/7 = 72.86 rounds up to 73, and 1*255/7 = 36.43 down to 36.
             const AlphaImage stepped(ramp.mData);
-            EXPECT_EQ(stepped.at(0, 0, 0), 72);
+            EXPECT_EQ(stepped.at(0, 0, 0), 73);
             EXPECT_EQ(stepped.at(0, 1, 0), 36);
         }
 

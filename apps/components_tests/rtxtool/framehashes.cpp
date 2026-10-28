@@ -168,6 +168,19 @@ namespace RtxTool
             draw(run, "a", 1);
             draw(run, "c", 1);
 
+            // A view this run drew in two stretches is one entry, its frames counted once.
+            FrameHashes twice;
+            draw(twice, "b", 1);
+            draw(twice, "a", 1);
+            draw(twice, "b", 2);
+            draw(twice, "c", 1);
+            draw(twice, "b", 3);
+            const std::vector<FrameHashes::ViewDifference> again = twice.against(reference);
+            ASSERT_EQ(again.size(), 3u);
+            EXPECT_EQ(again[0].mView, "b");
+            EXPECT_EQ(again[0].mFrames, 3u);
+            EXPECT_TRUE(again[0].same()) << again[0].mUnmatched << " unmatched";
+
             const std::vector<FrameHashes::ViewDifference> came = run.against(reference);
             ASSERT_EQ(came.size(), 3u);
             EXPECT_EQ(came[0].mView, "a");
@@ -537,8 +550,18 @@ namespace RtxTool
             EXPECT_EQ(reordered.front().mView, "somewhere");
             EXPECT_EQ(reordered.front().mFrames, 3u);
             EXPECT_EQ(reordered.front().mDiffering, std::vector<std::uint32_t>{ 2u });
-            EXPECT_EQ(reordered.front().mUnmatched, 1u) << "frame 4 the reference lacks; frame 3 the run lacks "
-                                                           "is covered by the count of 3 against 3";
+            EXPECT_EQ(reordered.front().mUnmatched, 2u) << "frame 4, which the reference lacks, and frame 3, which "
+                                                           "the run lacks: a count of 3 against 3 shares two";
+
+            // **Shifted, a view shares only its middle**: a reference of frames 1 to 10 against a run
+            // of 5 to 14 shares six, and each side has four the other lacks.
+            FrameHashes early;
+            FrameHashes late;
+            for (std::uint32_t frame = 1; frame <= 10; ++frame)
+                add(early, frame, sPixels, partsOf(100));
+            for (std::uint32_t frame = 5; frame <= 14; ++frame)
+                add(late, frame, sPixels, partsOf(100));
+            EXPECT_EQ(onlyView(late.against(early)).mUnmatched, 8u);
 
             FrameHashes half;
             half.note("somewhere", 1, 7, partsOf(100));

@@ -35,7 +35,7 @@ namespace Rtx
         }
     }
 
-    OffscreenTrace::OffscreenTrace(Renderer& renderer, const ViewRequest& request, WalkContext& context)
+    OffscreenTrace::OffscreenTrace(PictureRenderer& renderer, const ViewRequest& request, WalkContext& context)
         : mRenderer(renderer)
         , mRequest(request)
         , mExtentWidth(request.mWidth)
@@ -168,11 +168,11 @@ namespace Rtx
         return subject.mScene->placements().getCounts().mPlaced > 0;
     }
 
-    void OffscreenTrace::traceInto(const GuiSlot texture, const bool readBack)
+    bool OffscreenTrace::traceInto(const GuiSlot texture, const bool readBack)
     {
         const std::optional<Viewpoint> camera = describeCamera();
         if (!camera.has_value())
-            return;
+            return false;
 
         // Where the light stands, unit, in the sense `ViewRequest::mLight` states it and the
         // trace takes it.
@@ -181,10 +181,10 @@ namespace Rtx
             sun.normalize();
 
         const osg::Vec4f& clear = mRequest.mClear;
-        mRenderer.traceGuiTexture(texture, *camera,
+        return mRenderer.traceGuiTexture(texture, mSubject != nullptr ? mSubject->mSlot.get() : SceneSlot::world(),
+            *camera,
             GuiTraceOptions{
                 .mClear = { clear.r(), clear.g(), clear.b(), clear.a() },
-                .mScene = mSubject != nullptr ? mSubject->mSlot.get() : SceneSlot::world(),
                 .mReadBack = readBack,
                 .mRayMask = mRequest.mRayMask,
                 .mLamps = mRequest.mLamps,

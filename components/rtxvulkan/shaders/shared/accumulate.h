@@ -12,17 +12,10 @@
 // What the wavelet's temporal half needs. Included verbatim by both sides, for the reason
 // `visibility.h` is.
 
-// What each of the three histories is made of, said once for both sides that have to agree.
-//
-// **The pass's own, and not the G-buffer's.** A channel the trace writes and a history the denoiser
-// keeps share nothing but a number of bits, and a history built from a radiance channel's width or
-// `GBUFFER_SURFACE` is narrowed silently whenever a channel is narrowed for the trace's sake — with
-// the evidence for the history's width lying somewhere else entirely. The paragraph below is that
-// evidence.
-//
-// **Half floats for the surface, because it builds no reference.** What holds the radiance channels
-// at full width is an argument about rounding a term before adding it to a thousand others, and a
-// normal is compared against a neighbour's.
+// What the pass's two histories are made of, said once for both sides that have to agree: the mean
+// and its moments. **Not the surface a history belongs to**, which is the held `CHANNEL_SURFACE`,
+// `STORAGE_RG32F`, that the trace keeps beside its own channel and every temporal filter reads its
+// match against.
 //
 // **Halves for the mean**, which is the cascade's first level's (`atrous.h` says why), rounded at
 // random at every store; the fill's alpha holds how many frames it is of.

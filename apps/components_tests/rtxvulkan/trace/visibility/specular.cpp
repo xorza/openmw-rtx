@@ -81,9 +81,7 @@ namespace Rtx::Testing
         {
             Shaders::VisibilityConstants camera
                 = Testing::makeCamera(eye, osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, sSize, sSize, 100000.0f);
-            camera.mSkyHorizon = osg::Vec3f();
-            camera.mSkyZenith = osg::Vec3f();
-            camera.mSun.mIrradiance = osg::Vec3f();
+            Testing::unlit(camera);
             return camera;
         }
 
@@ -138,7 +136,7 @@ namespace Rtx::Testing
                 camera.mFrame = frame;
                 shoot(floor.mScene, floor.mTextures, camera, sSize);
                 std::vector<float> read;
-                mRenderer.readChannel(Channel::Lamped, read);
+                mProbe.readChannel(Channel::Lamped, read);
                 return read;
             };
 

@@ -22,9 +22,10 @@
 namespace Rtx
 {
     /// The reference roots whose walk met nothing that changes between frames on its own —
-    /// `SceneExtractor::Traversal::enter` says what does — and which the world walk passes rather
-    /// than descends while their face stands. A frozen root's entries are held, so every sweep it
-    /// is not walked in keeps them, and nothing in it is read again until it thaws.
+    /// `SceneExtractor::Traversal::enter` says what does — and under which nothing asks the update
+    /// traversal for a visit, and which the world walk passes rather than descends while their face
+    /// stands. A frozen root's entries are held, so every sweep it is not walked in keeps them, and
+    /// nothing in it is read again until it thaws.
     ///
     /// **A root whose face changed stays thawed until a walk after that finds it standing still**,
     /// its run kept with no keys and the face it was last met at. A door the game turns a step a
@@ -34,6 +35,37 @@ namespace Rtx
     class FrozenRoots
     {
     public:
+        /// What can change a frozen subtree from outside it, as its root stands: where the root is
+        /// in the world, the identity the walk gave it, its state set, its children, by their count
+        /// and the first of them, and the update callbacks on it and under it.
+        ///
+        /// **The identity because an unstamped root's is its place among its siblings**: one taken
+        /// away before it moves it, and the root after it into the place, whose drawables would
+        /// key as the frozen root's held ones.
+        ///
+        /// **The callbacks because the game hangs a controller deep inside a still root**, a
+        /// `PlayGroup` on an activator with no idle group among others, and OpenSceneGraph counts
+        /// it up the parent chain to the root. A root freezes only where that count is nought, as a
+        /// controller under a node the walk's mask rejects is one the walk never met: a
+        /// `VisController` hides its node from the walk and shows it again. So any controller
+        /// hung after the freeze moves the count. A cull callback has no count, and is met only by
+        /// a walk: the one the game hangs, `Animation::setAlpha`'s, goes on an actor, whose
+        /// skeleton keeps it walked.
+        struct Face
+        {
+            osg::Matrix mWorld;
+            std::size_t mIdentity = 0;
+            const osg::StateSet* mStateSet = nullptr;
+            const osg::Node* mFirstChild = nullptr;
+            unsigned int mChildren = 0;
+            const osg::Callback* mUpdate = nullptr;
+            unsigned int mUpdating = 0;
+
+            static Face of(const osg::Node& root, const osg::Matrix& world, std::size_t identity);
+
+            bool operator==(const Face& other) const = default;
+        };
+
         /// One placement of a frozen subtree, by what the walk resolved it under: the placement's
         /// identity, the drawable its mesh is keyed on and its material's key, each held until the
         /// subtree thaws. A drawable the mesh resolver refused stands nothing, and only its refusal
@@ -58,12 +90,11 @@ namespace Rtx
         /// Room for `budget` roots, made once.
         void reserve(std::size_t budget) { mFrozen.reserve(budget); }
 
-        /// Whether `root`, standing at `world`, is frozen and still what it froze as: counted into
+        /// Whether `root`, met as `face`, is frozen and still what it froze as: counted into
         /// `stats` as walked and passed where it is, and thawed where it is not, for the walk to
         /// descend into it as any other. `walk` is the world walk's number, which the run is
         /// stamped as met by. A thawed root is walked, and its face kept.
-        bool pass(const osg::Node& root, const osg::Matrix& world, unsigned int walk, Holders holders,
-            ExtractionStats& stats);
+        bool pass(const osg::Node& root, const Face& face, unsigned int walk, Holders holders, ExtractionStats& stats);
 
         /// Starts recording what the world walk resolves under the root it is about to descend into,
         /// from `instances`, the walk's count of them so far.
@@ -76,10 +107,11 @@ namespace Rtx
                 mRecorded.push_back(key);
         }
 
-        /// Freezes the root being recorded with what it resolved, where `changeable` is false and
-        /// its face did not change on this walk: held from here on, through `holders`. `instances`
-        /// is the walk's count so far, which the root's own count is taken from.
-        void end(const osg::Node& root, const osg::Matrix& world, bool changeable, unsigned int walk, Holders holders,
+        /// Freezes the root being recorded with what it resolved, where `changeable` is false, its
+        /// face asks for no update and did not change on this walk: held from here on, through
+        /// `holders`. `instances` is the walk's count so far, which the root's own count is taken
+        /// from.
+        void end(const osg::Node& root, const Face& face, bool changeable, unsigned int walk, Holders holders,
             std::uint32_t instances);
 
         /// Ends a recording a throw left open, so the next walk's root is not recorded inside it.
@@ -94,25 +126,6 @@ namespace Rtx
         void thawAll(Holders holders, Released& released);
 
     private:
-        /// What can change a frozen subtree from outside it, as its root stands: where the root is
-        /// in the world, its state set, its children, by their count and the first of them, and
-        /// the update callbacks on it and under it. **The last because the game hangs a controller
-        /// deep inside a still root**, a `PlayGroup` on an activator with no idle group among
-        /// others, and OpenSceneGraph counts it up the parent chain to the root.
-        struct Face
-        {
-            osg::Matrix mWorld;
-            const osg::StateSet* mStateSet = nullptr;
-            const osg::Node* mFirstChild = nullptr;
-            unsigned int mChildren = 0;
-            const osg::Callback* mUpdate = nullptr;
-            unsigned int mUpdating = 0;
-
-            static Face of(const osg::Node& root, const osg::Matrix& world);
-
-            bool operator==(const Face& other) const = default;
-        };
-
         /// One root's run of keys and what it was frozen as.
         struct Frozen
         {

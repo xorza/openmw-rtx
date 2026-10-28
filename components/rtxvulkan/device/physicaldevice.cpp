@@ -150,7 +150,6 @@ namespace Rtx
         Candidate examine(VkPhysicalDevice handle, const PhysicalDevice::PresentQuery& presentsTo)
         {
             Candidate found;
-            found.mProperties = std::make_unique<DeviceProperties>();
 
             // **The version before anything else is asked**: the structures the questions below
             // chain are Vulkan 1.2's and later, and their image flags 1.1's, which a device below
@@ -160,16 +159,23 @@ namespace Rtx
             vkGetPhysicalDeviceProperties(handle, &plain);
             if (plain.apiVersion < sApiVersion)
             {
+                found.mProperties = std::make_unique<DeviceProperties>(std::span<const std::string>());
                 found.mProperties->mProperties2.properties = plain;
-                DeviceFeatures none;
+                DeviceFeatures none(std::span<const std::string>{});
                 found.mProfile = PhysicalDevice::profileOf(*found.mProperties, none, {}, {}, {}, {}, {});
                 return found;
             }
 
+            // **The extensions before any structure of theirs is asked**: a structure of an extension
+            // the device does not list is no valid member of a query's chain, which a candidate
+            // with no ray tracing — an integrated card, lavapipe — is asked as surely as one with.
+            const std::vector<std::string> extensions = getDeviceExtensions(handle);
+
+            found.mProperties = std::make_unique<DeviceProperties>(extensions);
             vkGetPhysicalDeviceProperties2(handle, &found.mProperties->mProperties2);
             vkGetPhysicalDeviceMemoryProperties(handle, &found.mProperties->mMemory);
 
-            DeviceFeatures supported;
+            DeviceFeatures supported(extensions);
             vkGetPhysicalDeviceFeatures2(handle, &supported.mFeatures2);
 
             // Through the two-call enumeration every other list query goes through, with the
@@ -206,7 +212,6 @@ namespace Rtx
                 for (std::uint32_t family = 0; family < queues.size(); ++family)
                     presents.push_back(presentsTo(handle, family) ? VK_TRUE : VK_FALSE);
 
-            const std::vector<std::string> extensions = getDeviceExtensions(handle);
             if (std::find(extensions.begin(), extensions.end(), VK_EXT_PCI_BUS_INFO_EXTENSION_NAME) != extensions.end())
             {
                 VkPhysicalDevicePCIBusInfoPropertiesEXT bus{};

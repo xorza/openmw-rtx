@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -265,6 +266,55 @@ namespace Rtx::Testing
             EXPECT_EQ(frame().mMeshesReused, 1u) << "it froze on a frame it moved";
             EXPECT_EQ(frame().mMeshesReused, 0u) << "standing still, it did not freeze";
             EXPECT_EQ(standing(), osg::Vec3f(4.0f, 0.0f, 0.0f));
+        }
+
+        /// **A controller under a node the walk does not see keeps its reference walked**, and what
+        /// it shows stands on the frame it shows it: a `VisController` hides its node from the walk
+        /// with a mask and keeps running under it. Frozen, the root would have kept the part hidden
+        /// for good, since nothing its face reads changes when the mask does.
+        TEST_F(RtxFrozenSubtreeTest, aControllerUnderAHiddenNodeKeepsItsReferenceWalked)
+        {
+            const osg::ref_ptr<osg::MatrixTransform> reference = addReference(osg::Vec3f());
+            osg::ref_ptr<osg::Group> hidden = new osg::Group;
+            hidden->setNodeMask(0);
+            hidden->setUpdateCallback(new osg::Callback);
+            hidden->addChild(makeQuad());
+            reference->addChild(hidden);
+
+            frame();
+            for (int again = 0; again < 2; ++again)
+            {
+                EXPECT_EQ(frame().mMeshesReused, 1u) << "a root with a hidden controller under it froze";
+                EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u) << "the hidden part stood";
+            }
+
+            hidden->setNodeMask(~0u);
+            EXPECT_EQ(frame().mInstances, 2u) << "the part its controller showed did not stand";
+            EXPECT_EQ(mScene.placements().getCounts().mPlaced, 2u);
+        }
+
+        /// **A frozen root that an unstamped sibling's going moves to another place is walked again
+        /// there**, and the root that moves into its old place stands beside it. An unstamped root's
+        /// identity is its place among its siblings, so the root after it, walked, would key its
+        /// drawable as the frozen root's held one, and the two would stand as one placement.
+        TEST_F(RtxFrozenSubtreeTest, aFrozenRootWhosePlaceMovesIsWalkedAgain)
+        {
+            const osg::ref_ptr<osg::MatrixTransform> before = addReference(osg::Vec3f(0.0f, 0.0f, 0.0f));
+            addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
+            const osg::ref_ptr<osg::MatrixTransform> after = addReference(osg::Vec3f(20.0f, 0.0f, 0.0f));
+            after->setUpdateCallback(new osg::Callback);
+
+            frame();
+            EXPECT_EQ(frame().mPassedFrozen, 2u) << "the two still references did not freeze";
+
+            mCell->removeChild(before);
+            frame();
+            std::vector<float> standingAt;
+            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                standingAt.push_back((osg::Vec3f() * row.mInstance.mTransform).x());
+            });
+            std::sort(standingAt.begin(), standingAt.end());
+            EXPECT_EQ(standingAt, (std::vector<float>{ 10.0f, 20.0f })) << "the two that stayed did not both stand";
         }
 
         /// A node a walk cannot read, which throws where the walk reaches it.

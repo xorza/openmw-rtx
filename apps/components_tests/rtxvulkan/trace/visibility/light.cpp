@@ -247,7 +247,7 @@ namespace Rtx::Testing
             Testing::paintFlat(faintTexture, 2, faint, "faint glass");
             render(false, std::span<const TextureData>(&faintTexture.mData, 1));
             std::vector<float> bits;
-            mRenderer.readChannel(Channel::Shadowed, bits);
+            mProbe.readChannel(Channel::Shadowed, bits);
             for (std::size_t value = 3; value < bits.size(); value += 4)
                 ASSERT_TRUE(Testing::shadowOpen(bits[value]))
                     << "a light ray stopped on a texel under the cut at " << value / 4;
@@ -377,7 +377,7 @@ namespace Rtx::Testing
                 shoot(scene, {}, wallCamera(size, bright), size);
 
                 std::vector<float> surface;
-                mRenderer.readChannel(Channel::Surface, surface);
+                mProbe.readChannel(Channel::Surface, surface);
                 const std::size_t at = centreOf(size) * 2;
                 return osg::Vec2f(surface[at], surface[at + 1]);
             };
@@ -424,7 +424,7 @@ namespace Rtx::Testing
             std::vector<float> shadowed;
             std::vector<float> penumbrae;
             shoot(makeWall(), {}, wallCamera(size, bright), size);
-            mRenderer.readChannel(Channel::Shadowed, shadowed);
+            mProbe.readChannel(Channel::Shadowed, shadowed);
             const float whole = shadowed[centre * 4];
             ASSERT_GT(whole, 0.0f) << "the sun on the wall, split off";
 
@@ -440,7 +440,7 @@ namespace Rtx::Testing
                 Drawn drawn;
                 shoot(scene, textures, wallCamera(size, bright), size,
                     { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
-                         mRenderer.readChannel(Channel::Shadowed, shadowed);
+                         mProbe.readChannel(Channel::Shadowed, shadowed);
                          Testing::penumbraeOf(shadowed, penumbrae);
                          EXPECT_EQ(shadowed[centre * 4], whole) << "the light under the pane, as though it got through";
                          EXPECT_EQ(penumbrae[centre], Shaders::SHADOW_PENUMBRA_DRAWN);
@@ -1250,7 +1250,7 @@ namespace Rtx::Testing
             {
                 lit(0, false, SurfaceView::Shaded, tint);
                 std::vector<float> modulation;
-                mRenderer.readChannel(Channel::SpecularAlbedo, modulation);
+                mProbe.readChannel(Channel::SpecularAlbedo, modulation);
                 for (std::size_t channel = 0; channel < 3; ++channel)
                     EXPECT_NEAR(modulation[centre + channel], wanted, wanted * (0x1p-9f + 1e-4f))
                         << "a tint of " << tint << ", channel " << channel;
@@ -1267,9 +1267,9 @@ namespace Rtx::Testing
                 shoot(plain, {}, camera, size);
 
                 std::vector<float> modulation;
-                mRenderer.readChannel(Channel::SpecularAlbedo, modulation);
+                mProbe.readChannel(Channel::SpecularAlbedo, modulation);
                 std::vector<float> lobe;
-                mRenderer.readChannel(Channel::Specular, lobe);
+                mProbe.readChannel(Channel::Specular, lobe);
                 ASSERT_EQ(lobe.size(), modulation.size());
                 for (std::size_t value = 0; value < lobe.size(); value += 4)
                 {
@@ -2430,10 +2430,10 @@ namespace Rtx::Testing
 
                 Shaded shaded{ .mFrame = shoot(scene, {}, camera, size, { .mFilter = filter }) };
                 EXPECT_EQ(shaded.mFrame.mHits, size * size);
-                mRenderer.readChannel(Channel::Indirect, shaded.mIndirect);
-                mRenderer.readChannel(Channel::Fill, shaded.mFill);
-                mRenderer.readChannel(Channel::Albedo, shaded.mAlbedo);
-                mRenderer.readChannel(Channel::AmbientAlbedo, shaded.mAmbientAlbedo);
+                mProbe.readChannel(Channel::Indirect, shaded.mIndirect);
+                mProbe.readChannel(Channel::Fill, shaded.mFill);
+                mProbe.readChannel(Channel::Albedo, shaded.mAlbedo);
+                mProbe.readChannel(Channel::AmbientAlbedo, shaded.mAmbientAlbedo);
                 return shaded;
             };
 

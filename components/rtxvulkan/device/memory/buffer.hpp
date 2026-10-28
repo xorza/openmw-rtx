@@ -87,15 +87,11 @@ namespace Rtx
         static Buffer readBack(
             const Device& device, VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
 
-        /// Buries the handle and the memory bound to it together, so a submit still reading the
-        /// buffer reads it to the end: `Graveyard`.
-        ~Buffer();
-
         /// Leaves `other` as a default-made buffer is — no handle, size, address or stamp — so the
         /// husk answers nothing about the buffer it no longer holds.
         Buffer(Buffer&& other) noexcept;
 
-        /// Buries what this held as the destructor does, then takes `other` as the move does.
+        /// Buries what this held, as its members do as they go, then takes `other` as the move does.
         Buffer& operator=(Buffer&& other) noexcept;
 
         VkBuffer getHandle() const { return mHandle.get(); }
@@ -238,9 +234,6 @@ namespace Rtx
         /// Binds `memory`, and takes the address where the buffer has one.
         void bind(DeviceMemory&& memory);
 
-        /// What the destructor and a move over this do with what it holds.
-        void bury();
-
         /// `count` elements at `offset`, with nothing said about who is reading.
         template <class T>
         std::span<T> reach(VkDeviceSize offset, VkDeviceSize count) const
@@ -255,11 +248,12 @@ namespace Rtx
         /// Whose timeline the stamp is read against. Null for an empty buffer.
         const Device* mDevice = nullptr;
 
-        Owned<VkBuffer, vkDestroyBuffer> mHandle;
-
         /// Which holds the mapping: a table is rewritten every frame and mapping is not free, so the
-        /// allocation takes its pointer once and hands it out.
+        /// allocation takes its pointer once and hands it out. Before the handle, so the handle is
+        /// buried first as the buffer goes.
         DeviceMemory mMemory;
+
+        Owned<VkBuffer, vkDestroyBuffer> mHandle;
 
         VkDeviceSize mSize = 0;
         BufferKind mKind = BufferKind::DeviceLocal;

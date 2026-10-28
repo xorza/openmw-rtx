@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <chrono>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
@@ -12,7 +12,6 @@
 #include <span>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <utility>
 #include <vector>
 
@@ -155,6 +154,8 @@ namespace Rtx::Testing
             void collect(float, const osg::Vec2i& startCell, ESM::RefId, Terrain::RefKinds kinds,
                 Terrain::RefCollector&, std::vector<Terrain::PagedCellRef>& into) const override
             {
+                mCollected.fetch_add(1);
+                mCollected.notify_all();
                 if (mThrows)
                     throw std::runtime_error("a storage that cannot be read");
 
@@ -198,6 +199,10 @@ namespace Rtx::Testing
 
             /// How many times `getModel` was asked, which a reader asks once a record.
             mutable int mModelsAsked = 0;
+
+            /// How many walks of a cell the reading thread began, which it begins once the cell
+            /// before is handed over.
+            mutable std::atomic<std::size_t> mCollected{ 0 };
         };
 
         /// One plant a groundcover file places, a `grass` each.
@@ -1333,14 +1338,19 @@ namespace Rtx::Testing
             start();
 
             // A hundred and one cells to prepare, one adopted a frame: the tree stands somewhere
-            // inside the first hundred and one frames, and never before its cell arrived.
+            // inside the first hundred and one frames, and never before its cell arrived. After each
+            // frame, which asks the thread for what the ring lacks, the next waits until the thread
+            // began the walk of the cell after its own, so it handed over as many as it adopts.
             std::size_t frame = 1;
             std::uint32_t statics = 0;
-            for (; frame <= 400 && statics == 0; ++frame)
+            for (; frame <= sPreparedCells && statics == 0; ++frame)
             {
                 statics = walk(frame).mDistantStatics;
                 walk(frame);
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                const std::size_t wanted = std::min<std::size_t>(frame + 1, sPreparedCells - 1);
+                for (std::size_t begun = mStorage.mCollected.load(); begun <= wanted;
+                     begun = mStorage.mCollected.load())
+                    mStorage.mCollected.wait(begun);
             }
 
             EXPECT_EQ(statics, 1u);

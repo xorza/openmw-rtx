@@ -161,8 +161,11 @@ namespace Rtx
             }
 
             // A part shrunk to a scale of nought has no inverse, and no motion to report: what OSG's
-            // inverse gives it is NaN, which is a history fetched from nowhere.
-            const osg::Matrixf motion = osg::Matrixf::inverse(instance.mTransform) * previous;
+            // inverse gives it is NaN, which is a history fetched from nowhere. In double and rounded
+            // once, as `inverseOf` inverts: at six figures a float inverse misplaces the step by a
+            // hundredth of a unit, which is a fraction of a pixel of an actor a few metres off.
+            const osg::Matrixf motion(
+                osg::Matrixd::inverse(osg::Matrixd(instance.mTransform)) * osg::Matrixd(previous));
             if (isFinite(motion))
                 record.mMotion = toTransform3x4(motion);
         }

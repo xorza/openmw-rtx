@@ -331,16 +331,18 @@ namespace Rtx
         // recorded as it is walked otherwise: `FrozenRoots`. A root the game moved in
         // one step is walked, for its placements' jump.
         const bool root = mFreezes && mDepth == mStampDepth;
+        FrozenRoots::Face face;
         if (root)
         {
             // A stamped one is a reference the game stood in a cell, as the ring stands one.
             assert((SceneUtil::StableIdentity::find(node) == nullptr || keyInForce() == mKeyUnderRoot)
                 && "a reference under state the cell ring's reader does not read");
 
+            face = FrozenRoots::Face::of(node, mHere, identity);
             const bool jumped = jumps(node);
             if (!jumped
                 && mExtractor.mFrozen.pass(
-                    node, mHere, mExtractor.mWorldWalk, mExtractor.frozenHolders(), mExtractor.mPass.getStats()))
+                    node, face, mExtractor.mWorldWalk, mExtractor.frozenHolders(), mExtractor.mPass.getStats()))
                 return;
 
             mExtractor.mFrozen.record(mExtractor.mPass.getStats().mInstances);
@@ -350,7 +352,7 @@ namespace Rtx
         enterWalked(node, identity, kind);
 
         if (root)
-            mExtractor.mFrozen.end(node, mHere, mChangeable, mExtractor.mWorldWalk, mExtractor.frozenHolders(),
+            mExtractor.mFrozen.end(node, face, mChangeable, mExtractor.mWorldWalk, mExtractor.frozenHolders(),
                 mExtractor.mPass.getStats().mInstances);
     }
 
@@ -403,7 +405,7 @@ namespace Rtx
 
         // Above the node's own, which is where a rasterizing cull would push it too: what a
         // controller decided this frame overrides what the model was authored with.
-        if (const osg::StateSet* animated = mExtractor.animate(node, identity, animatedThrough(mShading)))
+        if (const osg::StateSet* animated = mExtractor.animate(node, identity))
         {
             pushShading(*animated, true);
             mChangeable = true;
@@ -579,9 +581,8 @@ namespace Rtx
         {
             pushShading(*own, false);
 
-            // A drawable carries no controller of its own, so what this asks is the other half of
-            // `animate`: a state set of its own under an animated one.
-            if (const osg::StateSet* animated = mExtractor.animate(drawable, placement, animatedThrough(mShading)))
+            // A drawable whose own chains carry a controller, as a node's may.
+            if (const osg::StateSet* animated = mExtractor.animate(drawable, placement))
             {
                 pushShading(*animated, true);
                 mChangeable = true;
@@ -809,9 +810,9 @@ namespace Rtx
         return MaterialResolver::Resolved{ .mIndex = mMaterials.adopt(key, reading), .mKey = key };
     }
 
-    const osg::StateSet* SceneExtractor::animate(osg::Node& node, const std::size_t placement, const bool underAnimated)
+    const osg::StateSet* SceneExtractor::animate(osg::Node& node, const std::size_t placement)
     {
-        return mMaterials.animate(node, placement, mWalk.get(), underAnimated);
+        return mMaterials.animate(node, placement, mWalk.get());
     }
 
     void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place,

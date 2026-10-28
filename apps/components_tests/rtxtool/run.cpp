@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 
+#include <Base64.h>
 #include <sol/sol.hpp>
 
 #include <osg/Vec2d>
@@ -329,6 +330,28 @@ namespace RtxTool
         /// window that dropped it drew as fast as the card could under a player who had asked for 60.
         /// **And never the player's vertical sync**, which held a frame between two refreshes to
         /// one, two or three of them.
+        /// **The shipped defaults are read once and asked as the game reads them**: a number through
+        /// the finite reader, a switch as `true` in any case, text as it is; a setting the file
+        /// names not, and a number that is not finite, are refused naming the setting. Read from
+        /// the file when made, so a file gone after says the same.
+        TEST(RtxShippedDefaultsTest, theShippedFileIsReadOnceAndAskedAsTheGameReadsIt)
+        {
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("shipped-defaults.bin");
+            std::ofstream(file, std::ios::binary) << Base64::Base64::Encode(
+                "[Camera]\nviewing distance = 7168.5\n[Terrain]\nobject paging = TRUE\n"
+                "[General]\nanisotropy = 4\n[Shaders]\nnormal map pattern = _n\n"
+                "[RTX]\nbroken = inf\n");
+            const ShippedDefaults shipped(file);
+            std::filesystem::remove(file);
+
+            EXPECT_EQ(shipped.get<float>("Camera", "viewing distance"), 7168.5f);
+            EXPECT_TRUE(shipped.get<bool>("Terrain", "object paging"));
+            EXPECT_EQ(shipped.get<int>("General", "anisotropy"), 4);
+            EXPECT_EQ(shipped.get<std::string>("Shaders", "normal map pattern"), "_n");
+            EXPECT_THROW(shipped.get<float>("Camera", "field of view"), std::runtime_error);
+            EXPECT_THROW(shipped.get<float>("RTX", "broken"), std::runtime_error);
+        }
+
         TEST(RtxWindowRequestTest, aWatchedWindowKeepsThePlayersLimitAndNoVerticalSync)
         {
             const WindowRequest unwatched;

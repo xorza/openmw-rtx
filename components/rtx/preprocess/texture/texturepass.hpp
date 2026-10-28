@@ -36,12 +36,14 @@ namespace Rtx
     /// the image it was handed. A key the cache answers runs nothing, and leaves its image held
     /// until the pass is next asked: one image a pass, on a loader's thread.
     ///
-    /// **The scratch is its own**, so nothing outside it can redescribe what it holds between the
-    /// key and the run. Not copyable: the description spans the scratch's buffers.
+    /// **The scratch is the preprocessor's, one for both texture passes**: a finest level widened
+    /// to four bytes a texel is 16 MiB for a 2048-square picture, and a pass at a time runs on a
+    /// preprocessor's thread, from its key to its run, and lets go of its description as it
+    /// answers. Not copyable: the description spans the scratch's buffers.
     class FinestTexels
     {
     public:
-        FinestTexels();
+        explicit FinestTexels(TexelScratch& scratch);
         ~FinestTexels();
 
         FinestTexels(const FinestTexels&) = delete;
@@ -66,7 +68,7 @@ namespace Rtx
         void clear();
 
     private:
-        TexelScratch mScratch;
+        TexelScratch& mScratch;
         osg::ref_ptr<const osg::Image> mImage;
         std::optional<TextureData> mFinest;
     };
@@ -102,9 +104,13 @@ namespace Rtx
         }
 
     private:
-        /// Made by a `ContentPreprocessor` and by nothing else — `ShapeFold` says why.
+        /// Made by a `ContentPreprocessor` and by nothing else — `ShapeFold` says why — over the
+        /// scratch it holds for both texture passes.
         friend class ContentPreprocessor;
-        TexturePass() = default;
+        explicit TexturePass(TexelScratch& scratch)
+            : mFinest(scratch)
+        {
+        }
 
         FinestTexels mFinest;
     };

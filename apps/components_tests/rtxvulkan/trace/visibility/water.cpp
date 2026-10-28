@@ -773,7 +773,7 @@ namespace Rtx::Testing
                     scene.addMaterial(Material{}));
                 shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
                 std::vector<float> direct;
-                mRenderer.readChannel(Channel::Direct, direct);
+                mProbe.readChannel(Channel::Direct, direct);
                 const std::size_t values = direct.size() / (std::size_t{ size } * size);
                 return direct[(std::size_t{ size / 2 } * size + across) * values];
             };
@@ -842,7 +842,7 @@ namespace Rtx::Testing
                 EXPECT_FLOAT_EQ(red(8), 0.125f * red(3)) << "the first column past the pane";
 
                 std::vector<float> paneLift;
-                mRenderer.readChannel(Channel::Lift, paneLift);
+                mProbe.readChannel(Channel::Lift, paneLift);
                 const std::size_t values = paneLift.size() / (std::size_t{ size } * size);
                 ASSERT_GT(paneLift[(row + 3) * values], 0.0f) << "the pane has no lift";
                 EXPECT_EQ(paneLift[(row + 7) * values], paneLift[(row + 3) * values])
@@ -852,9 +852,9 @@ namespace Rtx::Testing
 
             shoot(makeFlooded(extent, depth), {}, camera, size, calm);
             std::vector<float> lift;
-            mRenderer.readChannel(Channel::Lift, lift);
+            mProbe.readChannel(Channel::Lift, lift);
             std::vector<float> ambient;
-            mRenderer.readChannel(Channel::AmbientAlbedo, ambient);
+            mProbe.readChannel(Channel::AmbientAlbedo, ambient);
             const std::size_t liftValues = lift.size() / (std::size_t{ size } * size);
             const std::size_t ambientValues = ambient.size() / (std::size_t{ size } * size);
 
@@ -1263,15 +1263,15 @@ namespace Rtx::Testing
             // Jittered, as every frame an upscaler takes is: the jitter is no motion, and must mark
             // nothing.
             shoot(scene, {}, eyeAt(0.0f), size, { .mSea = flat, .mFrames = 8, .mAverage = false, .mJitter = true });
-            mRenderer.readChannel(Channel::UpscaleMasks, masks);
+            mProbe.readChannel(Channel::UpscaleMasks, masks);
             EXPECT_EQ(*std::max_element(masks.begin(), masks.end()), 0.0f)
                 << "an eye standing still moves nothing apart";
 
             const Frame stepped
                 = shoot(scene, {}, eyeAt(4.0f), size, { .mSea = flat, .mJitter = true, .mSetScene = false });
             ASSERT_GT(stepped.at(centre * 4 + 1), 0.0f) << "a water that shows nothing proves nothing";
-            mRenderer.readChannel(Channel::UpscaleMasks, masks);
-            mRenderer.readChannel(Channel::Motion, motion);
+            mProbe.readChannel(Channel::UpscaleMasks, masks);
+            mProbe.readChannel(Channel::Motion, motion);
             EXPECT_NEAR(motion[centre * 4], 0.3910f, 0.01f) << "the surface's own step";
             EXPECT_NEAR(masks[centre * 2 + 1], 0.560f, 0.02f) << "the reflection's image, apart from it";
             EXPECT_EQ(masks[centre * 2], 0.0f) << "no pane stands anywhere";

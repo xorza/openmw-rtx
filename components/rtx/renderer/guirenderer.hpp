@@ -62,8 +62,8 @@ namespace Rtx
 
     /// What the interface is drawn on and with: its extent, its textures and its draw. The part of
     /// `Renderer` the GUI's backend consumes, as an interface of its own, so it depends on neither
-    /// the scene nor the frame halves; the pictures traced into its textures are the renderer's,
-    /// because a picture is of a scene.
+    /// the scene nor the frame halves; the pictures traced into its textures are
+    /// `PictureRenderer`'s, because a picture is of a scene.
     class GuiRenderer
     {
     public:

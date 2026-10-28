@@ -42,7 +42,7 @@ namespace Rtx
         /// (`MemoryUse::Frame`), made again only once the device drained what read the last.
         ///
         /// @param passes what the chain traces with, which outlives it.
-        /// @param bins how many sprite bins the chain keeps, `VisibilityInputs::mTraceSlot` picking
+        /// @param bins how many sprite bins the chain keeps, `TraceRecording::mBinSlot` picking
         ///        one: one per frame in flight for the world's, and one for the pictures'. One is
         ///        enough there though nothing waits for a picture, because the pictures' batches
         ///        stand in queue order and a bin's tables are written on the device alone
@@ -139,7 +139,7 @@ namespace Rtx
         /// one image of the chain's arena.
         ArenaRun mCanvas;
 
-        /// The sprite bins — `VisibilityInputs::mTraceSlot` picks — so the frame behind keeps the
+        /// The sprite bins — `TraceRecording::mBinSlot` picks — so the frame behind keeps the
         /// tables its trace reads while this frame's bin writes its own. Made once, at the count the
         /// chain was made with.
         std::vector<SpriteBin> mBins;

@@ -418,9 +418,8 @@ namespace Rtx
     }
 
     TextureArray::TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
-        const std::uint32_t slots, const std::uint32_t anisotropy)
+        TextureArrival& arrival, const std::uint32_t slots, const std::uint32_t anisotropy)
         : mDevice(device)
-        , mArrival(device)
         , mSamplers{ makeContentSampler(device, "textures repeating", TextureWrap::Repeat),
             makeContentSampler(device, "textures clamped along s", TextureWrap::ClampS),
             makeContentSampler(device, "textures clamped along t", TextureWrap::ClampT),
@@ -435,17 +434,17 @@ namespace Rtx
         // ever owes the slots that are new.
         , mSets(device, sBindings, layout.get(), sFrameSlots, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT)
     {
-        mArrival.open(2);
-        mNeutral.standColour(device, batch, mArrival, "neutral texel",
+        arrival.open(2);
+        mNeutral.standColour(device, batch, arrival, "neutral texel",
             osg::Vec4f(
                 Shaders::UNTEXTURED_ALBEDO.x(), Shaders::UNTEXTURED_ALBEDO.y(), Shaders::UNTEXTURED_ALBEDO.z(), 1.0f));
 
         // Essential, and the one texture made that way: it is what stands where the device had no
         // room for the texture itself.
         [[maybe_unused]] const Misc::Result<void, std::string_view> stood = mStandIn.standFile(
-            device, batch, mArrival, describeStandIn(), 0, "stand-in", mRegionScratch, MemoryUse::Essential);
+            device, batch, arrival, describeStandIn(), 0, "stand-in", mRegionScratch, MemoryUse::Essential);
         assert(stood.isOk() && "essential memory refused rather than thrown");
-        mArrival.record(batch, passes);
+        arrival.record(batch, passes);
 
         // The last slot is the neutral texel's. `TextureTable` refuses a slot past it, so a scene
         // that reaches it is a table that broke that rule.
@@ -477,8 +476,8 @@ namespace Rtx
             mSlots.resize(slot + 1);
     }
 
-    void TextureArray::write(
-        Batch& batch, const TexturePasses& passes, std::span<const TextureData> arrived, std::vector<Refusal>& refused)
+    void TextureArray::write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
+        std::span<const TextureData> arrived, std::vector<Refusal>& refused)
     {
         if (arrived.empty())
             return;
@@ -487,9 +486,9 @@ namespace Rtx
         // work names before it records.
         for (const TextureData& texture : arrived)
             reserveSlot(texture.mSlot);
-        mArrival.open(arrived.size());
+        arrival.open(arrived.size());
 
-        const std::uint32_t side = chooseSide(arrived, mDevice.getMemory().getRoom(MemoryUse::Texture));
+        const std::uint32_t side = chooseSide(arrived, mDevice.getMemory().getRoom(MemoryUse::Texture), arrival);
 
         // Said for a side smaller than any said before, and not per arrival: a device short of room
         // holds every arrival to about the same side, and the log would say it at every crossing.
@@ -507,20 +506,21 @@ namespace Rtx
         // `arrived` is what one cell brought.
         for (const TextureData& texture : arrived)
             if (texture.mSource == TextureSource::File || texture.mSource == TextureSource::StandIn)
-                stand(batch, texture, side, refused);
+                stand(batch, arrival, texture, side, refused);
 
         for (const TextureData& texture : arrived)
             if (texture.mSource == TextureSource::SpriteBake)
-                stand(batch, texture, side, refused);
+                stand(batch, arrival, texture, side, refused);
 
         for (const TextureData& texture : arrived)
             if (texture.mSource == TextureSource::GroundComposite || texture.mSource == TextureSource::GroundGloss)
-                stand(batch, texture, side, refused);
+                stand(batch, arrival, texture, side, refused);
 
-        mArrival.record(batch, passes);
+        arrival.record(batch, passes);
     }
 
-    std::uint32_t TextureArray::chooseSide(std::span<const TextureData> arrived, const VkDeviceSize room) const
+    std::uint32_t TextureArray::chooseSide(
+        std::span<const TextureData> arrived, const VkDeviceSize room, const TextureArrival& arrival) const
     {
         // What every `costAt` below asks of a bake's source, found once for the arrival.
         mArrivingAt.clear();
@@ -534,7 +534,7 @@ namespace Rtx
 
         const auto largestAt = [&](const bool ground) {
             std::uint32_t side = mSideLimit;
-            while (side > 1 && costAt(arrived, side, ground) > room)
+            while (side > 1 && costAt(arrived, side, ground, arrival) > room)
                 side = sideBelow(side);
 
             return side;
@@ -546,14 +546,14 @@ namespace Rtx
         // at alone, and the ground, stood last, takes what they leave. What is nearest the eye
         // keeps its detail, and what gives way is the distance.
         const std::uint32_t whole = largestAt(true);
-        if (costAt(arrived, whole, true) <= room)
+        if (costAt(arrived, whole, true, arrival) <= room)
             return whole;
 
         return largestAt(false);
     }
 
-    VkDeviceSize TextureArray::costAt(
-        std::span<const TextureData> arrived, const std::uint32_t side, const bool ground) const
+    VkDeviceSize TextureArray::costAt(std::span<const TextureData> arrived, const std::uint32_t side, const bool ground,
+        const TextureArrival& arrival) const
     {
         // A bake is shaped like its source as the source is held to `side`: from its first level
         // within the side where it arrives beside the bake, as the stand-in where it arrives as one,
@@ -636,13 +636,13 @@ namespace Rtx
         // group and kept: what this arrival needs past what each holds already.
         const auto past
             = [](const VkDeviceSize needed, const VkDeviceSize held) { return needed > held ? needed - held : 0; };
-        return cost + past(mArrival.meansNeeded(means, largestMeans), mArrival.getMeansBytes())
-            + past(mArrival.looseNeeded(loose, largestLoose), mArrival.getLooseBytes())
-            + past(largestBlocks, mArrival.getBlocksBytes());
+        return cost + past(arrival.meansNeeded(means, largestMeans), arrival.getMeansBytes())
+            + past(arrival.looseNeeded(loose, largestLoose), arrival.getLooseBytes())
+            + past(largestBlocks, arrival.getBlocksBytes());
     }
 
-    Misc::Result<void, std::string_view> TextureArray::make(
-        Batch& batch, Texture& into, const TextureData& texture, const std::uint32_t side, std::string_view name)
+    Misc::Result<void, std::string_view> TextureArray::make(Batch& batch, TextureArrival& arrival, Texture& into,
+        const TextureData& texture, const std::uint32_t side, std::string_view name)
     {
         switch (texture.mSource)
         {
@@ -652,7 +652,7 @@ namespace Rtx
                 const Misc::Result<void, std::string_view> canvas = makeCanvas(texture.mSource);
                 if (!canvas.isOk())
                     return canvas;
-                return into.standComposite(mDevice, mArrival, texture.mFormat, name);
+                return into.standComposite(mDevice, arrival, texture.mFormat, name);
             }
 
             case TextureSource::SpriteBake:
@@ -664,7 +664,7 @@ namespace Rtx
                 // baked as the stand-in, as it is drawn.
                 Crash::contract(texture.mFrom < mSlots.size() && !mSlots[texture.mFrom].isEmpty(),
                     "a sprite light bake names a source that does not stand");
-                return into.standBake(mDevice, mArrival, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);
+                return into.standBake(mDevice, arrival, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);
             }
 
             case TextureSource::File:
@@ -674,11 +674,11 @@ namespace Rtx
                 // completes has the one.
                 const auto last = static_cast<std::uint32_t>(texture.mLevels.size()) - 1;
                 std::uint32_t first = firstLevelAt(texture, side);
-                Misc::Result<void, std::string_view> stood = into.standFile(
-                    mDevice, batch, mArrival, texture, first, name, mRegionScratch, MemoryUse::Texture);
+                Misc::Result<void, std::string_view> stood
+                    = into.standFile(mDevice, batch, arrival, texture, first, name, mRegionScratch, MemoryUse::Texture);
                 while (!stood.isOk() && first < last)
                     stood = into.standFile(
-                        mDevice, batch, mArrival, texture, ++first, name, mRegionScratch, MemoryUse::Texture);
+                        mDevice, batch, arrival, texture, ++first, name, mRegionScratch, MemoryUse::Texture);
 
                 return stood;
             }
@@ -690,8 +690,8 @@ namespace Rtx
         Crash::fatal("a stand-in made rather than drawn as the one the array holds");
     }
 
-    void TextureArray::stand(
-        Batch& batch, const TextureData& texture, const std::uint32_t side, std::vector<Refusal>& refused)
+    void TextureArray::stand(Batch& batch, TextureArrival& arrival, const TextureData& texture,
+        const std::uint32_t side, std::vector<Refusal>& refused)
     {
         assert(texture.mSlot < mSlots.size() && "a texture stood in a slot `write` did not reserve");
         Slot& slot = mSlots[texture.mSlot];
@@ -719,7 +719,7 @@ namespace Rtx
         {
             // Every refusal `make` answers is the device's room: a file past the side is the one
             // that is not, and it is known above.
-            const Misc::Result<void, std::string_view> stood = make(batch, slot.mTexture, texture, side, name);
+            const Misc::Result<void, std::string_view> stood = make(batch, arrival, slot.mTexture, texture, side, name);
             if (!stood.isOk())
             {
                 why = stood.error();

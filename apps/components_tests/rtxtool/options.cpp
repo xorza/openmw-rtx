@@ -115,6 +115,28 @@ namespace RtxTool
                 << "a floor over a quarter, which can leave a pixel nothing to draw";
         }
 
+        /// **A stop runs `--frames` where it is named and `--seconds` otherwise**, and never both:
+        /// each says how long a stop runs. The seconds nobody named are twenty.
+        TEST(RtxToolOptionsTest, aStopRunsItsFramesOrItsSecondsAndNeverBoth)
+        {
+            const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
+            const auto span = [&](const std::vector<std::string>& line) {
+                bpo::variables_map variables;
+                bpo::store(parse(options, line), variables);
+                bpo::notify(variables);
+                return benchSpanFrom(variables);
+            };
+
+            const BenchSpan plain = span({});
+            EXPECT_EQ(plain.mFrames, 0u);
+            EXPECT_EQ(plain.mSeconds, 20.0f);
+            const BenchSpan counted = span({ "--frames=300" });
+            EXPECT_EQ(counted.mFrames, 300u);
+            EXPECT_EQ(counted.mSeconds, 0.0f);
+            EXPECT_EQ(span({ "--seconds=5" }).mSeconds, 5.0f);
+            EXPECT_THROW(span({ "--frames=300", "--seconds=5" }), std::runtime_error);
+        }
+
         /// **A film is twenty seconds unless its length or its speed is named**, and never both: the
         /// length sets the speed, so two named would be two answers to one question. The twenty are
         /// nobody's, which is what lets them stand aside where they cannot be filled.

@@ -11,7 +11,6 @@
 
 #include "bindings.glsl"
 #include "geometry.glsl"
-#include "records.glsl"
 
 /// How far a point moved between the last frame and this one, in world units.
 ///

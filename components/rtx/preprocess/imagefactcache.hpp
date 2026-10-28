@@ -49,6 +49,11 @@ namespace Rtx
 
         std::size_t size() const { return mByFile.size(); }
 
+        /// Room for `files` entries, so meeting them rehashes nothing: what the frame's thread asks
+        /// at attach for every texture the content holds, where a cache grown by what a frame met
+        /// rehashed thousands of entries on the frame that crossed its bound.
+        void reserve(std::size_t files) { mByFile.reserve(files); }
+
     private:
         std::unordered_map<VFS::Path::Normalized, ImageFacts, VFS::Path::Hash, std::equal_to<>> mByFile;
 

@@ -16,6 +16,8 @@
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/pipelinecache.hpp>
 
+#include "rendererprobe.hpp"
+
 namespace Rtx
 {
     class VulkanRenderer;
@@ -138,7 +140,7 @@ namespace Rtx::Testing
     /// the trace can need costs three seconds, and every `resize`, `setScene`, `renderFrame` and
     /// `readPixels` after that costs between one and fifteen milliseconds. So a test that traces
     /// through this one is free and a test that stands up its own costs the suite three seconds.
-    /// Only an upscaler needs its own, because the mode is fixed when the renderer is built. Made
+    /// A test that upscales sets the mode on this one, which `RendererTest::SetUp` puts back. Made
     /// before any test runs, by the environment that makes the device.
     VulkanRenderer& getRenderer();
 
@@ -191,8 +193,8 @@ namespace Rtx::Testing
     ///
     /// **The validation errors are drained before the test and reported after it**, so a hazard the
     /// layers caught fails the test that caused it: whatever a previous test left behind is not this
-    /// one's to report. **And the renderer's histories are reset before it**, so it draws nothing a
-    /// previous test's frames left either.
+    /// one's to report. **And the renderer's histories and what a test told it are reset before
+    /// it** (`SetUp`), so it draws nothing a previous test's frames or settings left either.
     class RendererTest : public ::testing::Test
     {
     protected:
@@ -202,14 +204,15 @@ namespace Rtx::Testing
 
         /// Drops whatever `renderer` is holding, so a test starts with nothing against it.
         ///
-        /// **For a fixture with a renderer of its own**, which a renderer that upscales has to be:
-        /// each one owns its instance and so its own log, and `mRenderer` is already done here.
+        /// **For a fixture with a renderer of its own**: each one owns its instance and so its own
+        /// log, and `mRenderer` is already done here.
         void forgetErrors(VulkanRenderer& renderer);
 
         /// Reports what `renderer` raised since `forgetErrors`, each failure headed by `what`.
         void reportErrors(VulkanRenderer& renderer, std::string_view what);
 
         VulkanRenderer& mRenderer = getRenderer();
+        RendererProbe mProbe{ mRenderer };
 
     private:
         std::vector<std::string> mErrors;

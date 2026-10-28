@@ -31,16 +31,20 @@ namespace Rtx::Testing
     /// `h0(k) e^{iwt} + conj(h0(-k)) e^{-iwt}` and the two draws are independent — and a derivative
     /// multiplies that by a power of the wavenumber. So the same sum with `power` at 0, 2 and 4 is
     /// the mean square of the elevation, of the slope and of the curvature's trace.
+    ///
+    /// **Summed in double**, as the code it checks sums: a quarter of a million terms in float lose
+    /// the last of each to the total's rounding.
     inline float momentOf(const WaveCascade& cascade, int power)
     {
-        float total = 0.0f;
+        double total = 0.0;
         for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)
         {
-            const float squared = waveVectorAt(cascade, at).length2();
-            total += 2.0f * cascade.mAmplitudes[at].length2() * std::pow(squared, 0.5f * static_cast<float>(power));
+            const double squared = double{ waveVectorAt(cascade, at).length2() };
+            total += 2.0 * double{ cascade.mAmplitudes[at].length2() }
+                * std::pow(squared, 0.5 * static_cast<double>(power));
         }
 
-        return total;
+        return static_cast<float>(total);
     }
 
     /// How much of the slope a mip chain read at `footprint` has averaged away.
@@ -79,15 +83,16 @@ namespace Rtx::Testing
         const float coarse = std::exp2(std::floor(level));
         const float finer = std::exp2(std::floor(level) + 1.0f);
 
-        float lost = 0.0f;
+        double lost = 0.0;
         for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)
         {
             const osg::Vec2f wavevector = waveVectorAt(cascade, at);
             const float carried = (1.0f - share) * passed(coarse, wavevector) + share * passed(finer, wavevector);
 
-            lost += 2.0f * cascade.mAmplitudes[at].length2() * wavevector.length2() * (1.0f - carried * carried);
+            lost += 2.0 * double{ cascade.mAmplitudes[at].length2() } * double{ wavevector.length2() }
+                * (1.0 - double{ carried } * double{ carried });
         }
 
-        return lost;
+        return static_cast<float>(lost);
     }
 }

@@ -24,7 +24,6 @@
 #include "lights.glsl"
 #include "random.glsl"
 #include "traversal.glsl"
-#include "underwater.glsl"
 #include "variants.glsl"
 
 /// The turns `FOG_TURN_MIDDLE` and `FOG_TURN_FINE` state, as the matrices a scale's read is turned
@@ -582,10 +581,15 @@ float fogColumnOver(FogRay ray, float span)
     const float leaving = exp(-leaves / scale);
     const float climb = (leaves - enters) / scale;
 
-    // The mean of the falloff over that stretch. A level ray makes that 0/0, and one that climbs
-    // less than a ten-thousandth of a scale height loses more of the difference of two exponentials
-    // to cancellation than the midpoint of them costs.
-    const float mean = abs(climb) < 1.0e-4 ? 0.5 * (entering + leaving) : (entering - leaving) / climb;
+    // The mean of the falloff over that stretch, `(E - L) / c`, which is the two ends' geometric
+    // mean times `sinh(c/2) / (c/2)`. A level ray makes the quotient 0/0, and a shallow climb loses
+    // `ε/|c|` of it to cancellation, where the series to `c⁴` leaves out `c⁶/322560`: the two cross
+    // near half a scale height, and the shallower climb takes the series. The ends' mean, which
+    // stood here once below a climb of 1e-4, is off by `c²/12`, a thousand times the quotient's
+    // error at a climb of a hundredth.
+    const float squared = climb * climb;
+    const float shallow = sqrt(entering * leaving) * (1.0 + squared * (1.0 / 24.0 + squared * (1.0 / 1920.0)));
+    const float mean = abs(climb) < 0.5 ? shallow : (entering - leaving) / climb;
 
     return frame.mFogExtinction * (above * mean + under * (span - above));
 }

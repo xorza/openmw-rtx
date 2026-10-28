@@ -21,6 +21,8 @@ namespace RtxTool
             taken.mOpened = true;
         }
 
+        const bool crossed = mSeen > 0 && frame.mCell != mLastCell;
+        mLastCell = frame.mCell;
         ++mSeen;
 
         taken.mClosed = mPendingSpend;
@@ -28,8 +30,10 @@ namespace RtxTool
         taken.mClosed.at(Rtx::Timing::Update) = frame.mSpend.at(Rtx::Timing::Update);
         taken.mClosed.at(Rtx::Timing::Sleep) = frame.mSpend.at(Rtx::Timing::Sleep);
         taken.mClosedArrived = mPendingArrived;
+        taken.mClosedCrossing = mPendingCrossing;
         mPendingSpend = frame.mSpend;
         mPendingArrived = frame.mArrivedMeshes;
+        mPendingCrossing = crossed ? std::optional<bool>(frame.mRebuilt) : std::nullopt;
 
         if (mMeasuredFrom.has_value())
         {

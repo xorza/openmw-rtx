@@ -1,12 +1,10 @@
 #include "accelerationstructure.hpp"
 
-#include <bit>
 #include <cassert>
 #include <cstdint>
 #include <utility>
 
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
@@ -22,8 +20,6 @@ namespace Rtx
         , mStorage(storage)
         , mRoom(room)
     {
-        const DeviceFunctions& functions = device.getFunctions();
-
         const VkAccelerationStructureCreateInfoKHR create{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
             .pNext = nullptr,
@@ -34,17 +30,17 @@ namespace Rtx
             .type = type,
             .deviceAddress = 0,
         };
-        checkVk(functions.mCreateAccelerationStructure(device.getHandle(), &create, nullptr, &mHandle),
-            "vkCreateAccelerationStructureKHR");
+        mHandle = Owned<VkAccelerationStructureKHR, vkDestroyAccelerationStructureKHR>::make(
+            device, vkCreateAccelerationStructureKHR, create, "vkCreateAccelerationStructureKHR");
 
         // Asked before anything is built into it: an address belongs to the structure from the
         // moment it is created, and what a barrier orders is the contents arriving.
         const VkAccelerationStructureDeviceAddressInfoKHR address{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
             .pNext = nullptr,
-            .accelerationStructure = mHandle,
+            .accelerationStructure = mHandle.get(),
         };
-        mAddress = functions.mGetAccelerationStructureDeviceAddress(device.getHandle(), &address);
+        mAddress = vkGetAccelerationStructureDeviceAddressKHR(device.getHandle(), &address);
     }
 
     AccelerationStructure AccelerationStructure::bottomLevel(
@@ -59,7 +55,7 @@ namespace Rtx
     {
         AccelerationStructure made(
             device, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, storage.getHandle(), 0, size, nullptr, {});
-        device.setName(made.mHandle, name);
+        device.setName(made.mHandle.get(), name);
         return made;
     }
 
@@ -70,7 +66,7 @@ namespace Rtx
 
     AccelerationStructure::AccelerationStructure(AccelerationStructure&& other) noexcept
         : mDevice(other.mDevice)
-        , mHandle(std::exchange(other.mHandle, VK_NULL_HANDLE))
+        , mHandle(std::move(other.mHandle))
         , mAddress(std::exchange(other.mAddress, 0))
         , mStorage(other.mStorage)
         , mRoom(std::exchange(other.mRoom, StructureRoom{}))
@@ -83,7 +79,7 @@ namespace Rtx
         {
             reset();
             mDevice = other.mDevice;
-            mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
+            mHandle = std::move(other.mHandle);
             mAddress = std::exchange(other.mAddress, 0);
             mStorage = other.mStorage;
             mRoom = std::exchange(other.mRoom, StructureRoom{});
@@ -94,24 +90,17 @@ namespace Rtx
 
     void AccelerationStructure::reset()
     {
-        if (mHandle != VK_NULL_HANDLE)
+        if (!isEmpty())
         {
             // Under one stamp, the handle ended first: the room is the next structure's once the
             // timeline passes it, and one handed out under a structure still standing would be two
             // of them in one place.
-            mDevice->getGraveyard().bury(&end, std::bit_cast<std::uint64_t>(mHandle), DeviceMemory());
+            mHandle.reset();
             if (mStorage != nullptr)
                 mStorage->retire(mRoom, mDevice->getTimeline().getNext());
         }
 
-        mHandle = VK_NULL_HANDLE;
         mAddress = 0;
         mRoom = StructureRoom{};
-    }
-
-    void AccelerationStructure::end(const Device& device, const std::uint64_t handle)
-    {
-        device.getFunctions().mDestroyAccelerationStructure(
-            device.getHandle(), std::bit_cast<VkAccelerationStructureKHR>(handle), nullptr);
     }
 }

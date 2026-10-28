@@ -87,13 +87,18 @@ namespace Rtx
             }
         }
 
+        void requireDispatch(VkDevice device, const char* name)
+        {
+            if (vkGetDeviceProcAddr(device, name) == nullptr)
+                throw Unsupported(
+                    std::string("the driver advertises the extension providing ") + name + " but does not dispatch it");
+        }
+
         template <class T>
         void load(VkDevice device, T& out, const char* name)
         {
+            requireDispatch(device, name);
             out = reinterpret_cast<T>(vkGetDeviceProcAddr(device, name));
-            if (out == nullptr)
-                throw Unsupported(
-                    std::string("the driver advertises the extension providing ") + name + " but does not dispatch it");
         }
     }
 
@@ -212,21 +217,16 @@ namespace Rtx
         // own handle last of all, which is what `LogicalDevice` is for.
         vkGetDeviceQueue(mHandle.get(), mPhysicalDevice.getQueueFamily(), 0, &mQueue);
 
-        load(mHandle.get(), mFunctions.mGetAccelerationStructureBuildSizes, "vkGetAccelerationStructureBuildSizesKHR");
-        load(mHandle.get(), mFunctions.mCreateAccelerationStructure, "vkCreateAccelerationStructureKHR");
-        load(mHandle.get(), mFunctions.mDestroyAccelerationStructure, "vkDestroyAccelerationStructureKHR");
-        load(mHandle.get(), mFunctions.mCmdBuildAccelerationStructures, "vkCmdBuildAccelerationStructuresKHR");
-        load(mHandle.get(), mFunctions.mCmdWriteAccelerationStructuresProperties,
-            "vkCmdWriteAccelerationStructuresPropertiesKHR");
-        load(mHandle.get(), mFunctions.mCmdCopyAccelerationStructure, "vkCmdCopyAccelerationStructureKHR");
-        load(mHandle.get(), mFunctions.mGetAccelerationStructureDeviceAddress,
-            "vkGetAccelerationStructureDeviceAddressKHR");
-        load(mHandle.get(), mFunctions.mCreateRayTracingPipelines, "vkCreateRayTracingPipelinesKHR");
-        load(mHandle.get(), mFunctions.mGetRayTracingShaderGroupHandles, "vkGetRayTracingShaderGroupHandlesKHR");
-        load(mHandle.get(), mFunctions.mCmdTraceRays, "vkCmdTraceRaysKHR");
-        load(mHandle.get(), mFunctions.mGetRayTracingShaderGroupStackSize, "vkGetRayTracingShaderGroupStackSizeKHR");
-        load(mHandle.get(), mFunctions.mGetPipelineExecutableProperties, "vkGetPipelineExecutablePropertiesKHR");
-        load(mHandle.get(), mFunctions.mGetPipelineExecutableStatistics, "vkGetPipelineExecutableStatisticsKHR");
+        // The required extensions' entry points are volk's, as every other call is, and asked of
+        // the device once here, so a driver that advertises an extension it cannot dispatch fails
+        // at start-up and not at its first structure.
+        for (const char* const name : { "vkGetAccelerationStructureBuildSizesKHR", "vkCreateAccelerationStructureKHR",
+                 "vkDestroyAccelerationStructureKHR", "vkCmdBuildAccelerationStructuresKHR",
+                 "vkCmdWriteAccelerationStructuresPropertiesKHR", "vkCmdCopyAccelerationStructureKHR",
+                 "vkGetAccelerationStructureDeviceAddressKHR", "vkCreateRayTracingPipelinesKHR",
+                 "vkGetRayTracingShaderGroupHandlesKHR", "vkCmdTraceRaysKHR", "vkGetRayTracingShaderGroupStackSizeKHR",
+                 "vkGetPipelineExecutablePropertiesKHR", "vkGetPipelineExecutableStatisticsKHR" })
+            requireDispatch(mHandle.get(), name);
 
         if (describesFault)
             load(mHandle.get(), mGetDeviceFaultInfo, "vkGetDeviceFaultInfoEXT");
@@ -253,7 +253,7 @@ namespace Rtx
 
         mPipelineCache = std::make_unique<PipelineCache>(
             mHandle.get(), mPhysicalDevice.getProperties().mProperties2.properties, cache, mShaderDirectory);
-        mMemory = std::make_unique<MemoryAllocator>(instance.getHandle(), mPhysicalDevice.getHandle(), mHandle.get(),
+        mMemory = std::make_unique<MemoryAllocator>(*this, instance.getHandle(), mPhysicalDevice.getHandle(),
             mPhysicalDevice.getProperties().mMemory, has(DeviceOption::MemoryBudget),
             has(DeviceOption::MemoryPriority));
         mTimeline = std::make_unique<Timeline>(*this);
@@ -330,7 +330,7 @@ namespace Rtx
         };
 
         std::uint32_t executables = 0;
-        checkVk(mFunctions.mGetPipelineExecutableProperties(mHandle.get(), &asked, &executables, nullptr),
+        checkVk(vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, &executables, nullptr),
             "vkGetPipelineExecutablePropertiesKHR");
         return executables;
     }
@@ -348,7 +348,7 @@ namespace Rtx
         return enumerateVk<VkPipelineExecutableStatisticKHR>(
             "vkGetPipelineExecutableStatisticsKHR",
             [&](std::uint32_t* count, VkPipelineExecutableStatisticKHR* into) {
-                return mFunctions.mGetPipelineExecutableStatistics(mHandle.get(), &which, count, into);
+                return vkGetPipelineExecutableStatisticsKHR(mHandle.get(), &which, count, into);
             },
             VkPipelineExecutableStatisticKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR,
                 .pNext = nullptr,
@@ -362,7 +362,7 @@ namespace Rtx
     {
         CompiledUse use;
         if (point == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
-            use.mStackBytes = mFunctions.mGetRayTracingShaderGroupStackSize(
+            use.mStackBytes = vkGetRayTracingShaderGroupStackSizeKHR(
                 mHandle.get(), pipeline, 0, VK_SHADER_GROUP_SHADER_GENERAL_KHR);
         if (mStatistics == PipelineStatistics::Skipped)
             return use;
@@ -376,7 +376,7 @@ namespace Rtx
             = enumerateVk<VkPipelineExecutablePropertiesKHR>(
                 "vkGetPipelineExecutablePropertiesKHR",
                 [&](std::uint32_t* count, VkPipelineExecutablePropertiesKHR* into) {
-                    return mFunctions.mGetPipelineExecutableProperties(mHandle.get(), &asked, count, into);
+                    return vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, count, into);
                 },
                 VkPipelineExecutablePropertiesKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_PROPERTIES_KHR,
                     .pNext = nullptr,

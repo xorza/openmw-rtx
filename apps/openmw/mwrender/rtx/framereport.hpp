@@ -54,7 +54,7 @@ namespace MWRender
         /// What this fork owns of the frame, by phase. `Rtx::Timing` says which figure is a share
         /// of which. `Timing::Frame` is the whole frame, measured from one trace to the next:
         /// everything the game does between them, which is the number a player feels and the one
-        /// `FrameResult::mWaitMs` cannot see.
+        /// `FrameResult::mWaitMs` cannot see. Nought on the first frame, which has none before it.
         Rtx::FrameSpend mSpend{};
 
         /// What the hand-over did — rebuilt the scene from nothing, which a crossing is counted by,

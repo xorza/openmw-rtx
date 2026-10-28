@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -22,6 +23,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/shaders/shared/fsr.h>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -107,7 +109,7 @@ namespace Rtx::Testing
                 {
                     Shaders::VisibilityConstants sampled = camera;
                     sampled.mFrame = at;
-                    mRenderer.renderFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
+                    mProbe.traceFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
                     ASSERT_TRUE(mRenderer.finishFrame().has_value());
                     if (at < frames / 2)
                         continue;
@@ -155,7 +157,7 @@ namespace Rtx::Testing
                 {
                     Shaders::VisibilityConstants sampled = camera;
                     sampled.mFrame = at;
-                    mRenderer.renderFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
+                    mProbe.traceFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
                     ASSERT_TRUE(mRenderer.finishFrame().has_value());
                 }
 
@@ -223,7 +225,7 @@ namespace Rtx::Testing
             {
                 Shaders::VisibilityConstants sampled = camera;
                 sampled.mFrame = at;
-                mRenderer.renderFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
+                mProbe.traceFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
                 ASSERT_TRUE(mRenderer.finishFrame().has_value());
                 if (at < frames / 2)
                     continue;
@@ -265,6 +267,78 @@ namespace Rtx::Testing
                 if (at % 4 != 3)
                     worst = std::max(worst, std::abs(int{ upscaled[at] } - int{ plain[at] }));
             EXPECT_LE(worst, 1) << "an even floor came out of the upscaler uneven";
+        }
+
+        /// **What enters at the left edge leaves the right edge's history alone.** A 60-pixel frame at
+        /// native size runs four threads a row past its edge, the last workgroup's. Each loads the
+        /// depth and the motion at a pixel off the frame, which the surface channel's fields would
+        /// place at the left edge of the row. Such a thread then scattered the left edge's depth
+        /// along the left edge's motion onto the right edge, and the band there lost its history.
+        /// The eye moves left beside a far comb of strips, whose aliased edges only an accumulated
+        /// history smooths. Over the last six frames a near post sweeps in from the left. Its motion
+        /// is `51.96 * 5.8 / 50 = 6` pixels a frame, enough to carry a scatter from past the edge
+        /// back onto the frame. The right band, ten columns that the post never reaches, must come
+        /// out as it does with no post at all.
+        TEST_F(RtxVisibilityTest, whatEntersAtTheLeftEdgeLeavesTheRightEdgesHistoryAlone)
+        {
+            constexpr std::uint32_t size = 60;
+            constexpr std::uint32_t frames = 24;
+            constexpr std::uint32_t band = 10;
+            constexpr float step = 5.8f;
+            static_assert(size % Shaders::FSR_WORKGROUP != 0, "a frame of whole workgroups has no thread past it");
+
+            const auto sceneOf = [&](bool withPost) {
+                SceneDesc scene;
+                for (float left = -2000.0f; left < 2000.0f; left += 100.0f)
+                    addQuad(scene,
+                        std::array{ osg::Vec3f(left, 2000.0f, -2000.0f), osg::Vec3f(left + 50.0f, 2000.0f, -2000.0f),
+                            osg::Vec3f(left + 50.0f, 2000.0f, 2000.0f), osg::Vec3f(left, 2000.0f, 2000.0f) });
+                const float postEdge = -step * static_cast<float>(frames - 1);
+                if (withPost)
+                    addQuad(scene,
+                        std::array{ osg::Vec3f(-3000.0f, 50.0f, -500.0f), osg::Vec3f(postEdge, 50.0f, -500.0f),
+                            osg::Vec3f(postEdge, 50.0f, 500.0f), osg::Vec3f(-3000.0f, 50.0f, 500.0f) });
+                return scene;
+            };
+
+            mRenderer.resize(size, size);
+            const UpscaleFor native(mRenderer, Upscale::Native);
+            const auto run = [&](const SceneDesc& scene) {
+                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                for (std::uint32_t at = 0; at < frames; ++at)
+                {
+                    Shaders::VisibilityConstants camera
+                        = Testing::makeCameraAlong(osg::Vec3f(-step * static_cast<float>(at), 0.0f, 0.0f),
+                            osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                    camera.mSkyHorizon = osg::Vec3f();
+                    camera.mSkyZenith = osg::Vec3f();
+                    camera.mAmbientFromSky = 0.0f;
+                    camera.mAmbient = osg::Vec3f();
+                    camera.mSun = Shaders::sunSource(
+                        osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
+                    camera.mFrame = at;
+                    mProbe.traceFrame(camera,
+                        FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                            .mExposure = FixedExposure{ 1.0f } });
+                    EXPECT_TRUE(mRenderer.finishFrame().has_value());
+                }
+                std::vector<std::uint8_t> pixels;
+                mRenderer.readPixels(pixels);
+                return pixels;
+            };
+
+            const std::vector<std::uint8_t> bare = run(sceneOf(false));
+            const std::vector<std::uint8_t> withPost = run(sceneOf(true));
+            ASSERT_EQ(withPost.size(), bare.size());
+            int worst = 0;
+            for (std::uint32_t y = 0; y < size; ++y)
+                for (std::uint32_t x = size - band; x < size; ++x)
+                    for (std::uint32_t c = 0; c < 3; ++c)
+                    {
+                        const std::size_t at = (y * size + x) * 4 + c;
+                        worst = std::max(worst, std::abs(int{ withPost[at] } - int{ bare[at] }));
+                    }
+            EXPECT_LE(worst, 1) << "the post at the left edge moved the right edge's picture";
         }
 
         /// **The same frames reconstruct to the same picture.** Two runs of 24 upscaled frames from a

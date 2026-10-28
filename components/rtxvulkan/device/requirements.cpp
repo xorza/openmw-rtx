@@ -323,15 +323,36 @@ namespace Rtx
     }
 
     DeviceFeatures::DeviceFeatures()
+        : DeviceFeatures(std::span<const std::string>(), true)
     {
+    }
+
+    DeviceFeatures::DeviceFeatures(const std::span<const std::string> offered)
+        : DeviceFeatures(offered, false)
+    {
+    }
+
+    DeviceFeatures::DeviceFeatures(const std::span<const std::string> offered, const bool every)
+    {
+        const auto has
+            = [&](const char* extension) { return every || std::ranges::find(offered, extension) != offered.end(); };
         void* next = nullptr;
-        chain(next, mShaderClock, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR);
-        chain(next, mPipelineExecutable, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR);
-        chain(next, mRayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR);
-        chain(next, mRayTracingMaintenance1, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_MAINTENANCE_1_FEATURES_KHR);
-        chain(next, mPositionFetch, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR);
-        chain(next, mRayQuery, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR);
-        chain(next, mAccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR);
+        if (has(VK_KHR_SHADER_CLOCK_EXTENSION_NAME))
+            chain(next, mShaderClock, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR);
+        if (has(VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME))
+            chain(next, mPipelineExecutable,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR);
+        if (has(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME))
+            chain(next, mRayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR);
+        if (has(VK_KHR_RAY_TRACING_MAINTENANCE_1_EXTENSION_NAME))
+            chain(next, mRayTracingMaintenance1,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_MAINTENANCE_1_FEATURES_KHR);
+        if (has(VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME))
+            chain(next, mPositionFetch, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR);
+        if (has(VK_KHR_RAY_QUERY_EXTENSION_NAME))
+            chain(next, mRayQuery, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR);
+        if (has(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME))
+            chain(next, mAccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR);
         chain(next, mVulkan14, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES);
         chain(next, mVulkan13, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES);
         chain(next, mVulkan12, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
@@ -351,10 +372,25 @@ namespace Rtx
     }
 
     DeviceProperties::DeviceProperties()
+        : DeviceProperties(std::span<const std::string>(), true)
     {
+    }
+
+    DeviceProperties::DeviceProperties(const std::span<const std::string> offered)
+        : DeviceProperties(offered, false)
+    {
+    }
+
+    DeviceProperties::DeviceProperties(const std::span<const std::string> offered, const bool every)
+    {
+        const auto has
+            = [&](const char* extension) { return every || std::ranges::find(offered, extension) != offered.end(); };
         void* next = nullptr;
-        chain(next, mRayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR);
-        chain(next, mAccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR);
+        if (has(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME))
+            chain(next, mRayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR);
+        if (has(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME))
+            chain(
+                next, mAccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR);
         chain(next, mVulkan13, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES);
         chain(next, mVulkan12, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES);
         chain(next, mVulkan11, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES);

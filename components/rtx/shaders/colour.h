@@ -110,6 +110,30 @@ namespace Rtx::Shaders
         return vec3(ycocg[0] + ycocg[1] - ycocg[2], ycocg[0] + ycocg[2], ycocg[0] - ycocg[1] - ycocg[2]);
     }
 
+    /// How much `toneMap` takes off a colour whose darkest channel is `darkest`: the shadow offset,
+    /// ramped in over the first three times it, for the reason `toneMap` gives.
+    RTX_SHADER float toneShadowOf(float darkest)
+    {
+        return TONE_SHADOW_OFFSET * clamp(darkest / (3.0f * TONE_SHADOW_OFFSET), 0.0f, 1.0f);
+    }
+
+    /// Where `toneMap` brings a colour whose brightest channel is `peak`, at or past
+    /// `TONE_COMPRESSION_START`: a hyperbola through the compression point, asymptotic to one, so
+    /// the whole range above it is brought inside the display's without ever reaching the end of it.
+    RTX_SHADER float toneBrought(float peak)
+    {
+        const float span = 1.0f - TONE_COMPRESSION_START;
+        return 1.0f - span * span / (peak + span - TONE_COMPRESSION_START);
+    }
+
+    /// `toneMap` of a grey at `level`, whose channels it moves alike and does not desaturate: the
+    /// offset ramped off, then the compression past its start.
+    RTX_SHADER float toneMapGrey(float level)
+    {
+        const float lifted = level - toneShadowOf(level);
+        return lifted < TONE_COMPRESSION_START ? lifted : toneBrought(lifted);
+    }
+
 #ifdef RTX_HOST
 }
 #endif
@@ -168,17 +192,13 @@ RTX_SHADER vec3 graded(vec3 colour, float contrast, float saturation)
 /// offset this is the published curve bit for bit.
 RTX_SHADER vec3 toneMap(vec3 colour)
 {
-    const float darkest = min(colour.x, min(colour.y, colour.z));
-    colour -= TONE_SHADOW_OFFSET * clamp(darkest / (3.0 * TONE_SHADOW_OFFSET), 0.0, 1.0);
+    colour -= toneShadowOf(min(colour.x, min(colour.y, colour.z)));
 
     const float peak = max(colour.x, max(colour.y, colour.z));
     if (peak < TONE_COMPRESSION_START)
         return colour;
 
-    // A hyperbola through the compression point, asymptotic to one: the whole range above it is
-    // brought inside the display's without ever reaching the end of it.
-    const float span = 1.0 - TONE_COMPRESSION_START;
-    const float brought = 1.0 - span * span / (peak + span - TONE_COMPRESSION_START);
+    const float brought = toneBrought(peak);
     colour *= brought / peak;
 
     const float toward = 1.0 - 1.0 / (TONE_DESATURATION * (peak - brought) + 1.0);

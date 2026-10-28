@@ -151,7 +151,9 @@ namespace Rtx
 
     void FrameRing::close(FrameRecord& frame, const bool traced, Recording&& world)
     {
-        // The submit first, so one that throws leaves the slot begun and the ring where it stood.
+        // The submit first, so one that throws leaves the slot begun and the ring where it stood for
+        // the teardown that follows, which waits out only what was submitted: `recordWorld` says
+        // why nothing goes on from a frame that threw.
         const std::uint64_t submitted = std::move(world).submit();
         frame.mState.step(FrameState::Submitted, FrameState::Begun);
         frame.mTraced = traced;

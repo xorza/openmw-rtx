@@ -3,10 +3,10 @@
 
 // What a column of water does to the light crossing it.
 //
-// **Apart from `water.glsl` because the dependency runs both ways otherwise.** A surface
-// below the waterline is lit through this, so `GatherRun` needs it — and `WaterRun` needs
-// `GatherRun`. The half that answers "what is left of this light" has no opinion about
-// shading and comes first; the half that shades a water surface comes after.
+// **Apart from `water.glsl`, so what lights a surface below the waterline does not take the
+// water surface with it.** `shading.glsl`, `sprites.glsl` and the direct, landing and panes
+// kernels ask what is left of a light after a column; only the kernels that meet the surface
+// itself shade it, through `water.glsl`, which reads its column from here.
 
 #include "colour.h"
 #include "gbuffer.h"

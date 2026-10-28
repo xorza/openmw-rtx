@@ -57,10 +57,13 @@ namespace Rtx
         /// @param passes what poses this scene's bodies, at the build and at every placement, what
         ///        every texture is made with as it arrives, and what flattens every chunk's stack
         ///        in the placement after it arrives.
+        /// @param arrival what every texture's arrival is recorded through, the renderer's one
+        ///        for every scene: `TextureArray`'s constructor says why one.
         /// @param anisotropy `RenderProfile::mAnisotropy`, which the textures are read along a
         ///        footprint by.
-        DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
-            std::span<const TextureData> textures, std::uint32_t anisotropy, const SceneRoom& room);
+        DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, TextureArrival& arrival,
+            const SceneDesc& scene, std::span<const TextureData> textures, std::uint32_t anisotropy,
+            const SceneRoom& room);
 
         /// `TextureArray::setAnisotropy`.
         void setAnisotropy(std::uint32_t anisotropy) { mTextures.setAnisotropy(anisotropy); }
@@ -71,8 +74,10 @@ namespace Rtx
         /// gives. The revision and not the count, because a freed slot taken over holds different
         /// geometry at the same size. Into `batch`, which the caller defers or flushes.
         ///
+        /// @param arrival the textures' arrival, as the constructor takes it.
         /// @param timer where the arrived meshes' build is timed, or null for a picture's scene.
-        void extend(Batch& batch, const SceneDesc& scene, std::span<const TextureData> arrived, GpuTimer* timer);
+        void extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene, std::span<const TextureData> arrived,
+            GpuTimer* timer);
 
         /// Everything a placement of this scene is, recorded and written where `placing` says. True
         /// where anything was recorded, which is whether its command buffer is worth submitting.
@@ -102,7 +107,7 @@ namespace Rtx
         bool pictureRides(FrameSlot slot, std::uint64_t next) const { return mPictureRides[slot.get()] == next; }
         void notePictureRide(FrameSlot slot, std::uint64_t value) { mPictureRides[slot.get()] = value; }
 
-        /// What this scene holds, as `Renderer::describeHeld` answers it.
+        /// What this scene holds, as `SceneHolder::describeHeld` answers it.
         SceneHeld describe() const;
 
         /// Whether the room the scene was built and extended in held any of it back: a texture stood
@@ -111,7 +116,7 @@ namespace Rtx
         bool wasHeldBack() const { return mTextures.wasHeldBack() || mAcceleration.wasRefusedRoom(); }
 
         /// What the build or the last `extend` left out for want of room on the device, or for a
-        /// side the device does not take — `Renderer::getRefusals`.
+        /// side the device does not take — `SceneHolder::getRefusals`.
         std::span<const Refusal> getRefusals() const { return mRefusals; }
 
         /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
@@ -126,6 +131,10 @@ namespace Rtx
 
         /// The set the trace binds: the copy the last placement wrote, brought up to date by it.
         VkDescriptorSet getTextures() const { return mTextures.getSet(mSlot); }
+
+        /// How long the texture array is: the scene table's length, holes included, and not the
+        /// tally `SceneStats::mTextureCount` is.
+        std::uint32_t getTextureCount() const { return mTextures.getCount(); }
         VkDeviceAddress getTextureTexels() const { return mTextures.getTexelsAddress(mSlot); }
 
         /// Writes into `stars` how large its sheet stands in this scene's array, which the scene

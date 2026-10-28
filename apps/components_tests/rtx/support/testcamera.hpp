@@ -47,4 +47,15 @@ namespace Rtx::Testing
     {
         return makeCameraAlong(origin, target - origin, verticalFovDegrees, width, height, far);
     }
+
+    /// `camera` lit by nothing the frame block carries: no sky, no sun and no ambient, the moons
+    /// being down in every camera `makeCamera` makes. What a test whose light is its own lamps,
+    /// or nothing, starts from.
+    inline void unlit(Shaders::VisibilityConstants& camera)
+    {
+        camera.mSkyHorizon = osg::Vec3f();
+        camera.mSkyZenith = osg::Vec3f();
+        camera.mSun.mIrradiance = osg::Vec3f();
+        camera.mAmbient = osg::Vec3f();
+    }
 }

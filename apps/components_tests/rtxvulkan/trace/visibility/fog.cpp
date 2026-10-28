@@ -13,6 +13,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/components_tests/rtx/support/device/rendererprobe.hpp>
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/halfstep.hpp>
@@ -1330,13 +1331,13 @@ namespace Rtx::Testing
 
             struct Restored
             {
-                VulkanRenderer& mRenderer;
-                ~Restored() { mRenderer.setFogField(FogNoise::shared()); }
-            } restored{ mRenderer };
+                RendererProbe& mProbe;
+                ~Restored() { mProbe.setFogField(FogNoise::shared()); }
+            } restored{ mProbe };
 
             const osg::Vec3f towards(0.6f, 0.0f, 0.8f);
             const auto look = [&](bool banked) {
-                mRenderer.setFogField(fieldOf(banked));
+                mProbe.setFogField(fieldOf(banked));
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, 0.0f, eye), osg::Vec3f(0.0f, 1000.0f, eye), 10.0f, size, size, 100000.0f);

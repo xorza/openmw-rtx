@@ -1,0 +1,44 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// Each colour packed into one word with a shared exponent and unpacked again, for
+// `RtxSharedExponentTest` to hold against what it computes by hand.
+
+#include "shared/sets.h"
+#include "shared/sharedexponent.h"
+
+#include "lib/sharedexponent.glsl"
+
+layout(local_size_x = SHARED_EXPONENT_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = SHARED_EXPONENT_BIND_COLOURS, scalar) readonly buffer Colours
+{
+    vec3 colours[];
+};
+
+layout(set = SET_PASS, binding = SHARED_EXPONENT_BIND_PACKED, scalar) writeonly buffer Packed
+{
+    uint packed[];
+};
+
+layout(set = SET_PASS, binding = SHARED_EXPONENT_BIND_UNPACKED, scalar) writeonly buffer Unpacked
+{
+    vec3 unpacked[];
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    SharedExponentConstants probe;
+};
+
+void main()
+{
+    const uint at = gl_GlobalInvocationID.x;
+    if (at >= probe.mCount)
+        return;
+
+    const uint word = packRgb9e5(colours[at]);
+    packed[at] = word;
+    unpacked[at] = unpackRgb9e5(word);
+}

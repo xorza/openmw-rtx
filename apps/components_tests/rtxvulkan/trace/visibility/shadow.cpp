@@ -75,7 +75,7 @@ namespace Rtx::Testing
                         = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
 
                     std::vector<float> sunlit;
-                    mRenderer.readChannel(Channel::Shadowed, sunlit);
+                    mProbe.readChannel(Channel::Shadowed, sunlit);
                     ASSERT_EQ(sunlit.size(), std::size_t{ size } * size * 4);
                     const std::uint32_t swap = Shaders::fieldSwapOf(camera.mFrame);
                     for (std::size_t value = 0; value < sunlit.size(); value += 4)
@@ -115,7 +115,7 @@ namespace Rtx::Testing
                     camera.mNoSkyShadows = noShadows;
                     shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
                     std::vector<float> sunlit;
-                    mRenderer.readChannel(Channel::Shadowed, sunlit);
+                    mProbe.readChannel(Channel::Shadowed, sunlit);
                     std::size_t shadowed = 0;
                     for (std::size_t value = 0; value < sunlit.size(); value += 4)
                         shadowed += Testing::shadowOpen(sunlit[value + 3]) ? 0 : 1;
@@ -156,7 +156,7 @@ namespace Rtx::Testing
             const Frame raw = shoot(scene, {}, camera, size, {});
 
             std::vector<float> sunlit;
-            mRenderer.readChannel(Channel::Shadowed, sunlit);
+            mProbe.readChannel(Channel::Shadowed, sunlit);
             std::size_t floor = 0;
             std::size_t wall = 0;
             for (std::size_t value = 0; value < sunlit.size(); value += 4)
@@ -204,7 +204,7 @@ namespace Rtx::Testing
             shoot(scene, {}, camera, size, {});
 
             std::vector<float> sunlit;
-            mRenderer.readChannel(Channel::Shadowed, sunlit);
+            mProbe.readChannel(Channel::Shadowed, sunlit);
             ASSERT_EQ(sunlit.size(), std::size_t{ size } * size * 4);
             std::size_t floor = 0;
             for (std::size_t value = 0; value < sunlit.size(); value += 4)
@@ -256,7 +256,7 @@ namespace Rtx::Testing
 
                 std::vector<float> shadowed;
                 std::vector<float> penumbra;
-                mRenderer.readChannel(Channel::Shadowed, shadowed);
+                mProbe.readChannel(Channel::Shadowed, shadowed);
                 Testing::penumbraeOf(shadowed, penumbra);
                 EXPECT_EQ(shadowed.size(), std::size_t{ size } * size * 4);
 
@@ -312,7 +312,7 @@ namespace Rtx::Testing
 
             std::vector<float> bits;
             std::vector<float> widths;
-            mRenderer.readChannel(Channel::Shadowed, bits);
+            mProbe.readChannel(Channel::Shadowed, bits);
             Testing::penumbraeOf(bits, widths);
 
             const auto sine = static_cast<double>(Shaders::SUN_SHADOW_RADIUS);
@@ -393,7 +393,7 @@ namespace Rtx::Testing
                 shoot(scene, {}, tilted, size, {});
 
                 std::vector<float> shadowed;
-                mRenderer.readChannel(Channel::Shadowed, shadowed);
+                mProbe.readChannel(Channel::Shadowed, shadowed);
                 std::vector<float> widths;
                 Testing::penumbraeOf(shadowed, widths);
                 return widths;
@@ -448,7 +448,7 @@ namespace Rtx::Testing
             std::size_t opened = 0;
             std::size_t roofed = 0;
             shoot(scene, {}, between, size, { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
-                                                 mRenderer.readChannel(Channel::Shadowed, shadowed);
+                                                 mProbe.readChannel(Channel::Shadowed, shadowed);
                                                  Testing::penumbraeOf(shadowed, penumbrae);
                                                  for (std::size_t pixel = 0; pixel < penumbrae.size(); ++pixel)
                                                  {
@@ -491,7 +491,7 @@ namespace Rtx::Testing
             std::vector<float> bits;
             shoot(scene, {}, camera, size,
                 { .mFrames = 256, .mAverage = false, .mEachFrame = [&](const Frame&) {
-                     mRenderer.readChannel(Channel::Shadowed, bits);
+                     mProbe.readChannel(Channel::Shadowed, bits);
                      for (std::size_t pixel = 0; pixel < mean.size(); ++pixel)
                          mean[pixel] += static_cast<double>(Testing::shadowBit(bits[pixel * 4 + 3])) / 256.0;
                  } });
@@ -499,7 +499,7 @@ namespace Rtx::Testing
             const auto blurredError = [&](NoiseSource noise) {
                 camera.mFrame = 1000;
                 shoot(scene, {}, camera, size, { .mNoise = noise });
-                mRenderer.readChannel(Channel::Shadowed, bits);
+                mProbe.readChannel(Channel::Shadowed, bits);
                 double squares = 0.0;
                 std::size_t counted = 0;
                 for (int y = 2; y < static_cast<int>(size) - 2; ++y)
@@ -653,7 +653,7 @@ namespace Rtx::Testing
                             .mSetScene = at == 0 });
                 }
                 if (unshadowed != nullptr)
-                    mRenderer.readChannel(Channel::Lamped, *unshadowed);
+                    mProbe.readChannel(Channel::Lamped, *unshadowed);
                 return last;
             };
 
@@ -766,7 +766,7 @@ namespace Rtx::Testing
 
                 // A floor with no specular map has no lobe, and the lobe's channel holds nought light.
                 std::vector<float> lobe;
-                mRenderer.readChannel(Channel::Specular, lobe);
+                mProbe.readChannel(Channel::Specular, lobe);
                 ASSERT_EQ(lobe.size(), std::size_t{ size } * size * 4);
                 for (std::size_t value = 0; value < lobe.size(); value += 4)
                     ASSERT_EQ(osg::Vec3f(lobe[value], lobe[value + 1], lobe[value + 2]), osg::Vec3f())
@@ -821,9 +821,9 @@ namespace Rtx::Testing
             std::vector<float> sunAlone;
             std::vector<float> lampAlone;
             shoot(unlit, {}, camera, size);
-            mRenderer.readChannel(Channel::Shadowed, sunAlone);
+            mProbe.readChannel(Channel::Shadowed, sunAlone);
             shoot(lit, {}, sunless, size);
-            mRenderer.readChannel(Channel::Lamped, lampAlone);
+            mProbe.readChannel(Channel::Lamped, lampAlone);
             ASSERT_EQ(sunAlone.size(), pixels * 4);
             ASSERT_EQ(lampAlone.size(), pixels * 4);
 
@@ -831,8 +831,8 @@ namespace Rtx::Testing
             std::vector<float> lamps;
             std::size_t frame = 0;
             shoot(lit, {}, camera, size, { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
-                                              mRenderer.readChannel(Channel::Shadowed, sky);
-                                              mRenderer.readChannel(Channel::Lamped, lamps);
+                                              mProbe.readChannel(Channel::Shadowed, sky);
+                                              mProbe.readChannel(Channel::Lamped, lamps);
                                               for (std::size_t value = 0; value < pixels * 4; ++value)
                                               {
                                                   if (value % 4 == 3)
@@ -858,8 +858,8 @@ namespace Rtx::Testing
                 .mFrames = frames, .mAverage = false, .mFirstFrame = 1000, .mFilter = true, .mLoss = HistoryLoss::Cut
             };
             const Frame withLamp = shoot(lit, {}, camera, size, filtered);
-            mRenderer.readChannel(Channel::Shadowed, sky);
-            mRenderer.readChannel(Channel::Lamped, lamps);
+            mProbe.readChannel(Channel::Shadowed, sky);
+            mProbe.readChannel(Channel::Lamped, lamps);
             const Frame withoutLamp = shoot(unlit, {}, camera, size, filtered);
 
             // The far half: the sun's light under its stopped ray, and nothing of the lamp's.

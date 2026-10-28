@@ -39,6 +39,11 @@ namespace RtxTool
     /// `text` without the spaces, tabs and carriage returns around it.
     std::string_view trimmed(std::string_view text);
 
+    /// Splits a comma-separated list, dropping the space around each name and any empty entry. One
+    /// splitter for every list this fork writes down, so a command line and a file cannot disagree
+    /// about a trailing comma.
+    std::vector<std::string> splitNames(std::string_view text);
+
     /// One `field = value` line of a block, and the line it was written on.
     struct BlockField
     {

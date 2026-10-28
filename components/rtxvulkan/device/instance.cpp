@@ -98,7 +98,7 @@ namespace Rtx
             const std::string missing = std::string(sValidationLayer) + " or " + VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 
             // A run that asked for validation and cannot have it fails rather than reporting
-            // nothing, or a gate reads an empty `takeValidationErrors` as a clean pass. A build
+            // nothing, or a gate reads an empty validation log as a clean pass. A build
             // that merely switched the layers on by default still warns.
             if (options.mDemanded)
                 throw Unsupported("Vulkan validation was asked for and " + missing + " is missing");
@@ -259,7 +259,7 @@ namespace Rtx
 
             VkDebugUtilsMessengerEXT messenger = VK_NULL_HANDLE;
             checkVk(create(mHandle.get(), &messengerInfo, nullptr, &messenger), "vkCreateDebugUtilsMessengerEXT");
-            mMessenger = Messenger(mHandle.get(), destroy, messenger);
+            mMessenger = decltype(mMessenger)({ mHandle.get(), destroy }, messenger);
         }
     }
 

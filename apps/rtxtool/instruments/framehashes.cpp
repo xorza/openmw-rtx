@@ -360,9 +360,9 @@ namespace RtxTool
     {
         // **Each view of the reference as the stretch of rows it drew**, in frame order: `note`
         // writes a stop's rows as it draws them and `read` refuses a file laid out otherwise, so a
-        // frame is found by its view's stretch and a search inside it, and not by a walk over
-        // every row of the reference for every row of the run. A view a run drew twice is
-        // compared against its first stretch, which is the row the walk found as well.
+        // frame is found by its view's stretches and a search inside each, and not by a walk over
+        // every row of the reference for every row of the run. A view drawn twice has two, and
+        // the first that holds the frame's number answers.
         struct Stretch
         {
             std::string_view mView;
@@ -383,32 +383,44 @@ namespace RtxTool
                 && "a reference's view out of frame order, which `note` never writes and `read` refuses");
         }
 
+        // One entry a view, however many stretches this run drew it in, and beside each how many of
+        // its frames the reference holds: what the reference drew of the view and this run did not
+        // is the reference's count less those.
         std::vector<ViewDifference> differences;
-        const Stretch* stretch = nullptr;
+        std::vector<std::uint32_t> matched;
+        std::size_t current = 0;
 
         for (const Frame& held : mFrames)
         {
-            if (differences.empty() || differences.back().mView != held.mView)
+            if (differences.empty() || differences[current].mView != held.mView)
             {
-                differences.push_back(ViewDifference{ .mView = held.mView });
-
-                const auto named = std::find_if(stretches.begin(), stretches.end(),
-                    [&](const Stretch& candidate) { return candidate.mView == held.mView; });
-                stretch = named == stretches.end() ? nullptr : &*named;
+                const auto known = std::find_if(differences.begin(), differences.end(),
+                    [&](const ViewDifference& difference) { return difference.mView == held.mView; });
+                current = static_cast<std::size_t>(known - differences.begin());
+                if (known == differences.end())
+                {
+                    differences.push_back(ViewDifference{ .mView = held.mView });
+                    matched.push_back(0);
+                }
             }
 
-            ViewDifference& difference = differences.back();
+            ViewDifference& difference = differences[current];
             ++difference.mFrames;
 
             auto found = reference.mFrames.end();
-            if (stretch != nullptr)
+            for (const Stretch& stretch : stretches)
             {
-                const auto from = reference.mFrames.begin() + static_cast<std::ptrdiff_t>(stretch->mFrom);
-                const auto to = reference.mFrames.begin() + static_cast<std::ptrdiff_t>(stretch->mTo);
+                if (stretch.mView != held.mView)
+                    continue;
+                const auto from = reference.mFrames.begin() + static_cast<std::ptrdiff_t>(stretch.mFrom);
+                const auto to = reference.mFrames.begin() + static_cast<std::ptrdiff_t>(stretch.mTo);
                 const auto at = std::lower_bound(from, to, held.mFrame,
                     [](const Frame& was, const std::uint32_t frame) { return was.mFrame < frame; });
                 if (at != to && at->mFrame == held.mFrame)
+                {
                     found = at;
+                    break;
+                }
             }
 
             if (found == reference.mFrames.end())
@@ -416,6 +428,7 @@ namespace RtxTool
                 ++difference.mUnmatched;
                 continue;
             }
+            ++matched[current];
 
             if (found->mUpscale != held.mUpscale || found->mDenoised != held.mDenoised)
                 ++difference.mConfigurationDiffering;
@@ -480,13 +493,13 @@ namespace RtxTool
 
         // **What the reference drew and this run did not**, which is a schedule that changed rather
         // than a picture that did: a run of fewer frames matches every frame it drew.
-        for (ViewDifference& difference : differences)
+        for (std::size_t at = 0; at < differences.size(); ++at)
         {
-            const auto missing = std::count_if(reference.mFrames.begin(), reference.mFrames.end(),
+            ViewDifference& difference = differences[at];
+            const auto drawnThere = std::count_if(reference.mFrames.begin(), reference.mFrames.end(),
                 [&](const Frame& was) { return was.mView == difference.mView; });
-
-            if (static_cast<std::uint32_t>(missing) > difference.mFrames)
-                difference.mUnmatched += static_cast<std::uint32_t>(missing) - difference.mFrames;
+            const auto there = static_cast<std::uint32_t>(drawnThere);
+            difference.mUnmatched += there > matched[at] ? there - matched[at] : 0;
         }
 
         // **And a view the reference drew and this run did not draw at all**, which no frame of

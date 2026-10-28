@@ -64,8 +64,8 @@ namespace Shader
     };
 
     /// Adds the maps `diffuseMap`'s file name leads to under `rules`, where the state set has none of
-    /// that kind: each at the next free unit of `units`, with its `SceneUtil::TextureType`, and
-    /// addressed and filtered as the diffuse map is.
+    /// that kind: each at the next free unit past what `units` and the state set written to list,
+    /// with its `SceneUtil::TextureType`, and addressed and filtered as the diffuse map is.
     ///
     /// @param normalMap,specularMap what the state set already binds, which an added map would
     ///        replace, so none is added in their place.

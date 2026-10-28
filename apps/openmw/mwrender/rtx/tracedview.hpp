@@ -21,8 +21,8 @@ namespace osg
 namespace Rtx
 {
     class CellRing;
+    class PictureRenderer;
     class Released;
-    class Renderer;
 }
 
 namespace MWRender
@@ -62,7 +62,7 @@ namespace MWRender
         /// @param backend what the trace is recorded into.
         /// @param views the list this joins and asks to be drawn on, which outlives it.
         /// @param gui whose texture the trace writes into, and which draws it.
-        TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::Renderer& backend, ViewQueue& views,
+        TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::PictureRenderer& backend, ViewQueue& views,
             MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context);
         ~TracedView() override;
 

@@ -40,9 +40,4 @@ namespace RtxTool
         std::uint32_t getMeasured(float step) const { return mRun.getFrames(step); }
         std::uint32_t getWarmup(float step) const { return mWarm.getFrames(step); }
     };
-
-    /// Splits a comma-separated list, dropping the space around each name and any empty entry. One
-    /// splitter for every list this fork writes down, so a command line and a file cannot disagree
-    /// about a trailing comma.
-    std::vector<std::string> splitNames(std::string_view text);
 }

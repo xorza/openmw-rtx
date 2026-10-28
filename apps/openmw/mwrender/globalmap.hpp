@@ -8,15 +8,15 @@
 
 #include <osg/ref_ptr>
 
-namespace MyGUI
-{
-    class ITexture;
-}
-
 namespace osg
 {
     class Texture2D;
     class Image;
+}
+
+namespace MyGUI
+{
+    class ITexture;
 }
 
 namespace ESM

@@ -12,6 +12,7 @@
 #include <string_view>
 #include <system_error>
 #include <type_traits>
+#include <version>
 
 namespace Misc::StringUtils
 {
@@ -56,16 +57,14 @@ namespace Misc::StringUtils
         return { str.begin(), str.end() }; // Undefined behavior if the contents of "char" aren't UTF8 or ASCII.
     }
 
-    // support for std::from_chars as of 2023-02-27
-    // - Visual Studio 2019 version 16.4 (1924)
-    // - GCC 11
-    // - Clang does not support floating points yet
-    // - Apples Clang does not support floating points yet
-#if !(defined(_MSC_VER) && (_MSC_VER >= 1924)) && !(defined(__GNUC__) && __GNUC__ >= 11) || defined(__clang__)         \
-    || defined(__apple_build_version__)
-    inline constexpr bool sFromCharsReadsFloats = false;
-#else
+    // Whether `std::from_chars` reads floating point: what the standard library says of itself,
+    // `__cpp_lib_to_chars`, which a library defines once the whole of `<charconv>` is there. Not
+    // the compiler's macros: Clang over libstdc++ has it, and Clang over libc++ has had it only
+    // lately.
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
     inline constexpr bool sFromCharsReadsFloats = true;
+#else
+    inline constexpr bool sFromCharsReadsFloats = false;
 #endif
 
     /// How much of `s` the floating-point number it begins with takes, by `std::from_chars`'s

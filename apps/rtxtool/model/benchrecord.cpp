@@ -129,15 +129,52 @@ namespace RtxTool
                 R"("waterInstances": {}, "mediumInstances": {}, )"
                 R"("structureBytes": {}, "structureLiveBytes": {}, )"
                 R"("compactableBytes": {}, "compactableNowBytes": {}, "rebuilt": {}, )"
-                R"("tableBytes": {}, "textureCount": {}, "textureBytes": {}, )"
+                R"("tableBytes": {}, "workBytes": {}, "textureCount": {}, "textureBytes": {}, )"
                 R"("reducedTextureCount": {}, "textureBytesBySource": {{"files": {}, )"
                 R"("completedFiles": {}, "spriteBakes": {}, "groundComposites": {}, "groundGloss": {}}}}})",
                 scene.mInstances.mPlaced, scene.mInstanceSlots, scene.mInstances.mCutout, scene.mInstances.mWater,
                 scene.mInstances.mMedium, scene.mStructureBytes, scene.mStructureLiveBytes, scene.mCompactableBytes,
-                scene.mCompactableNowBytes, scene.mRebuilt, scene.mTableBytes, scene.mTextureCount, scene.mTextureBytes,
-                scene.mReducedTextureCount, scene.mTextureBytesBySource.mFiles,
+                scene.mCompactableNowBytes, scene.mRebuilt, scene.mTableBytes, scene.mWorkBytes, scene.mTextureCount,
+                scene.mTextureBytes, scene.mReducedTextureCount, scene.mTextureBytesBySource.mFiles,
                 scene.mTextureBytesBySource.mCompletedFiles, scene.mTextureBytesBySource.mSpriteBakes,
                 scene.mTextureBytesBySource.mGroundComposites, scene.mTextureBytesBySource.mGroundGloss);
+        }
+
+        /// Every heap the device stated and every use, as the report's memory lines read them.
+        std::string asJson(const Rtx::MemoryReport& memory)
+        {
+            std::string heaps = "[";
+            for (std::uint32_t at = 0; at < memory.mHeapCount; ++at)
+            {
+                const Rtx::HeapUse& heap = memory.mHeaps[at];
+                heaps += std::format(R"({}{{"size": {}, "budget": {}, "held": {}, "reserved": {}, "live": {}, )"
+                                     R"("blocks": {}, "deviceLocal": {}, "hostVisible": {}}})",
+                    at == 0 ? "" : ", ", heap.mSize, heap.mBudget, heap.mHeld, heap.mReserved, heap.mLive, heap.mBlocks,
+                    heap.mDeviceLocal, heap.mHostVisible);
+            }
+            heaps += ']';
+
+            const Rtx::MemoryUses& uses = memory.mUses;
+            return std::format(R"({{"heaps": {}, "hostWrittenReserved": {}, "hostWrittenLive": {}, )"
+                               R"("uses": {{"frame": {}, "frameReserve": {}, "essential": {}, "structures": {}, )"
+                               R"("structureRoom": {}, "textures": {}, "textureRoom": {}}}}})",
+                heaps, memory.mHostWrittenReserved, memory.mHostWrittenLive, uses.mFrame, uses.mFrameReserve,
+                uses.mEssential, uses.mStructures, uses.mStructureRoom, uses.mTextures, uses.mTextureRoom);
+        }
+
+        /// What the mirror's content holds, every count the report's host line reads.
+        std::string asJson(const Rtx::ContentMemory& content)
+        {
+            const Rtx::ReaderMemory& reader = content.mReader;
+            return std::format(R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
+                               R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
+                               R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
+                               R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
+                               R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}}}}})",
+                content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed, content.mLayerEnd,
+                content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
+                content.mBindVertexEnd, reader.mLentModels, reader.mSpareModels, reader.mFiledModels, reader.mLentBytes,
+                reader.mSpareBytes, reader.mFiledBytes);
         }
 
         std::string asJson(const Arrivals& arrivals)
@@ -319,11 +356,13 @@ namespace RtxTool
     std::string describeSceneHeld(const Rtx::SceneStats& scene)
     {
         return std::format(
-            "{} instances ({} cutouts) in {} slots   {:.1f} MiB structures in {:.1f} reserved{}   {} textures, "
+            "{} instances ({} cutouts) in {} slots   {:.1f} MiB structures in {:.1f} reserved{}, {:.1f} MiB "
+            "tables, {:.1f} MiB working   {} textures, "
             "{:.1f} MiB{}: files {:.1f}, completed {:.1f}, bakes {:.1f}, ground {:.1f}, gloss {:.1f}",
             scene.mInstances.mPlaced, scene.mInstances.mCutout, scene.mInstanceSlots,
             Rtx::megabytes(scene.mStructureLiveBytes), Rtx::megabytes(scene.mStructureBytes), describeCompaction(scene),
-            scene.mTextureCount, Rtx::megabytes(scene.mTextureBytes), describeReduced(scene),
+            Rtx::megabytes(scene.mTableBytes), Rtx::megabytes(scene.mWorkBytes), scene.mTextureCount,
+            Rtx::megabytes(scene.mTextureBytes), describeReduced(scene),
             Rtx::megabytes(scene.mTextureBytesBySource.mFiles),
             Rtx::megabytes(scene.mTextureBytesBySource.mCompletedFiles),
             Rtx::megabytes(scene.mTextureBytesBySource.mSpriteBakes),
@@ -533,7 +572,8 @@ namespace RtxTool
             const BenchPlace& place = places[at];
             file << std::format(R"(    {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
                 asJson(place.mCell), place.mHour, asJson(place.mWeather))
-                 << R"("scene": )" << asJson(place.mScene)
+                 << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
+                 << R"(, "content": )" << asJson(place.mContent)
                  << std::format(R"(, "frames": {}, "wallSeconds": {:.4f}, "hitPercent": {:.2f}, )", place.mFrames,
                         place.mWallSeconds, place.mHitPercent)
                  << R"("crossings": )" << asJson(place.mCrossings) << R"(, "arrivals": )" << asJson(place.mArrivals)

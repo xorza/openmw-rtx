@@ -26,8 +26,8 @@ namespace Rtx
         PipelineCreation creation(device, name);
         const Specialization constants(device, module, specialization);
 
-        const void* const moduleChain
-            = code.stage(module, layout.getSetTables(), layout.getPushRange().size, specialization);
+        const void* const moduleChain = code.stage(
+            module, VK_SHADER_STAGE_COMPUTE_BIT, layout.getSetTables(), layout.getPushRange(), specialization);
         // Its `pNext` is the one in the stage's chain Vulkan types as writable; nothing writes
         // through it.
         const VkPipelineShaderStageRequiredSubgroupSizeCreateInfo thirtyTwo{

@@ -13,6 +13,7 @@
 #include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -126,6 +127,34 @@ namespace Rtx
                 EXPECT_EQ(grown.get().getSize(), step.mSize) << "asked " << step.mAsked;
                 EXPECT_EQ(grown.get().getKind(), BufferKind::ReadBack);
             }
+        }
+
+        /// **A table grown on the queue keeps what it held, and what is staged after lands in the
+        /// new buffer**: four words written, the table grown to eight in one batch — the copy, and
+        /// then two words staged at its old end — and once the batch has run, all six read back in
+        /// place. The old buffer is the batch's to keep until then.
+        TEST_F(RtxBufferTest, aTableGrownOnTheQueueKeepsWhatItHeld)
+        {
+            const Device& device = *mHarness.mDevice;
+            GrowableBuffer table(device, BufferKind::ReadBack,
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "kept");
+            ASSERT_TRUE(table.growTo(4 * sizeof(std::uint32_t)));
+            const std::array<std::uint32_t, 4> held{ 1, 2, 3, 4 };
+            table.get().write(std::span<const std::uint32_t>(held));
+
+            // The old buffer is the copy's source, so the batch holds it unburied until it ends.
+            const std::size_t buried = device.getGraveyard().getHeldCount();
+            Batch batch(getPool());
+            table.outgrowKeeping(batch, 8 * sizeof(std::uint32_t));
+            EXPECT_EQ(device.getGraveyard().getHeldCount(), buried) << "the old buffer buried before its copy rode";
+            const std::array<std::uint32_t, 2> staged{ 5, 6 };
+            stageInto(batch, table.get(), 4 * sizeof(std::uint32_t), std::as_bytes(std::span(staged)));
+            batch.flush();
+            table.get().waitIdle("the growth read back");
+
+            const auto* read = static_cast<const std::uint32_t*>(table.get().map());
+            for (std::uint32_t at = 0; at < 6; ++at)
+                EXPECT_EQ(read[at], at + 1) << "word " << at;
         }
 
         /// A copy names both of its ends for the submit it rides, and a host write of either waits

@@ -22,7 +22,7 @@ namespace Rtx
     /// key is made, every pass runs, and what each cost is counted.
     ///
     /// **One a thread**, as the passes' scratch is: the frame's walk has one and the cell ring's
-    /// reader another. Not copyable: each texture pass's description spans its own scratch.
+    /// reader another. Pinned: the texture passes describe into the one scratch it holds for both.
     class ContentPreprocessor
     {
     public:
@@ -30,6 +30,8 @@ namespace Rtx
 
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;
+        ContentPreprocessor(ContentPreprocessor&&) = delete;
+        ContentPreprocessor& operator=(ContentPreprocessor&&) = delete;
 
         /// `ShapePass`: what a drawable's triangles come to, and its normals where they split.
         void shape(const ShapePass::Input& input, ShapePass::Output& output);
@@ -48,8 +50,9 @@ namespace Rtx
         void run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output);
 
         ShapePass mShape;
-        SolidReach mSolid;
-        TexelMean mMean;
+        TexelScratch mTexels;
+        SolidReach mSolid{ mTexels };
+        TexelMean mMean{ mTexels };
 
         ContentCache mCache;
         ContentStats mStats;

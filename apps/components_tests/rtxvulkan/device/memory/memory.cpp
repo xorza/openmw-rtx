@@ -93,8 +93,8 @@ namespace Rtx
             for (std::uint32_t type = 0; type < none.memoryTypeCount; ++type)
                 none.memoryTypes[type].propertyFlags &= ~VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-            EXPECT_THROW(MemoryAllocator(mHarness.mInstance->getHandle(), device.getPhysicalDevice().getHandle(),
-                             device.getHandle(), none, false, false),
+            EXPECT_THROW(MemoryAllocator(device, mHarness.mInstance->getHandle(),
+                             device.getPhysicalDevice().getHandle(), none, false, false),
                 Unsupported);
         }
 
@@ -148,6 +148,11 @@ namespace Rtx
         {
             MemoryAllocator& memory = getDevice().getMemory();
 
+            // What tests before this one buried, given back first: the hole it leaves is only the
+            // next resource's where no other hole opens between the two.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+
             VkDeviceMemory handle = VK_NULL_HANDLE;
             VkDeviceSize offset = 0;
             {
@@ -155,6 +160,8 @@ namespace Rtx
                 handle = first.mMemory.getHandle();
                 offset = first.mMemory.getOffset();
             }
+            getDevice().waitIdle();
+            getDevice().collectIdle();
 
             const std::size_t after = memory.getBlockCount();
             const Bound second = bind(getDevice(), 2048, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -354,6 +361,8 @@ namespace Rtx
             ASSERT_EQ(grown, before + 3) << "three ranges too large to share did not make three blocks";
 
             held.clear();
+            getDevice().waitIdle();
+            getDevice().collectIdle();
 
             EXPECT_LT(memory.getBlockCount(), grown) << "emptied blocks were kept";
         }
@@ -412,7 +421,11 @@ namespace Rtx
             ASSERT_TRUE(structure.has_value());
             EXPECT_EQ(held()[1] - before[1], requirements.size);
 
+            // Let go, the range is buried and stays counted until the graveyard gives it back.
             texture.reset();
+            EXPECT_EQ(held()[2] - before[2], requirements.size) << "a range given back before any submit ran";
+            getDevice().waitIdle();
+            getDevice().collectIdle();
             EXPECT_EQ(held()[2], before[2]) << "a range given back was still counted";
         }
 

@@ -191,9 +191,10 @@ namespace Rtx
         /// can read it.
         bool mLayersMapped = false;
 
-        /// Whether a controller rewrites this material's state set every frame. Constant for the
-        /// material's whole life, because `SceneExtractor::animate` gives a node with a controller
-        /// a state set of its own. It is what refuses such a material to the replay, which reuses
+        /// Whether a controller rewrites this material's state set, or one above it, every frame.
+        /// Constant for the material's whole life, because `SceneExtractor::animate` gives a node
+        /// with a controller a state set of its own, and a material is keyed by every state set of
+        /// its chain (`ChainKeys`). It is what refuses such a material to the replay, which reuses
         /// what it read last frame.
         bool mAnimated = false;
 

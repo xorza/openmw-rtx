@@ -634,29 +634,28 @@ namespace Rtx::Testing
 
             /// The centre pixel's motion after the camera moves from `somewhere`, looking along +y,
             /// to `somewhere + eye` looking at `somewhere + at`.
-            const auto motionFrom
-                = [&](const osg::Vec3f& somewhere, float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
-                      SceneDesc scene;
-                      std::array<osg::Vec3f, 4> wall = wallAt(away);
-                      for (osg::Vec3f& corner : wall)
-                          corner += somewhere;
+            const auto motionFrom = [&](const osg::Vec3f& somewhere, float away, const osg::Vec3f& eye,
+                                        const osg::Vec3f& at) {
+                SceneDesc scene;
+                std::array<osg::Vec3f, 4> wall = wallAt(away);
+                for (osg::Vec3f& corner : wall)
+                    corner += somewhere;
 
-                      addQuad(scene, wall);
+                addQuad(scene, wall);
 
-                      const Shaders::VisibilityConstants first = Testing::makeCamera(
-                          somewhere, somewhere + osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+                const Shaders::VisibilityConstants first = Testing::makeCamera(
+                    somewhere, somewhere + osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
 
-                      const Frame frame = shoot(scene, {}, first, size);
-                      EXPECT_EQ(frame.mHits, size * size) << "at " << away;
+                const Frame frame = shoot(scene, {}, first, size);
+                EXPECT_EQ(frame.mHits, size * size) << "at " << away;
 
-                      mRenderer.renderFrame(
-                          Testing::makeCamera(somewhere + eye, somewhere + at, 60.0f, size, size, 1000000.0f),
-                          FrameOptions{});
+                mProbe.traceFrame(Testing::makeCamera(somewhere + eye, somewhere + at, 60.0f, size, size, 1000000.0f),
+                    FrameOptions{});
 
-                      std::vector<float> motion;
-                      mRenderer.readChannel(Channel::Motion, motion);
-                      return osg::Vec3f(motion[centre * 4], motion[centre * 4 + 1], motion[centre * 4 + 2]);
-                  };
+                std::vector<float> motion;
+                mProbe.readChannel(Channel::Motion, motion);
+                return osg::Vec3f(motion[centre * 4], motion[centre * 4 + 1], motion[centre * 4 + 2]);
+            };
 
             /// The same, at the origin, where a formulation that subtracts world points still works.
             const auto motionAt = [&](float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
@@ -696,12 +695,12 @@ namespace Rtx::Testing
                 {
                     Shaders::VisibilityConstants sampled = camera;
                     sampled.mFrame = frame;
-                    mRenderer.renderFrame(
+                    mProbe.traceFrame(
                         sampled, FrameOptions{ .mReconstruction = ReconstructionRequest{ .mJitter = true } });
                 }
 
                 std::vector<float> motion;
-                mRenderer.readChannel(Channel::Motion, motion);
+                mProbe.readChannel(Channel::Motion, motion);
 
                 // A quarter pixel and better than a third: the second and third Halton terms, which
                 // is what a reprojection that carried the jitter would report here.
@@ -716,10 +715,10 @@ namespace Rtx::Testing
                 for (const std::uint32_t frame : { 1u, 2u })
                 {
                     shifted.mFrame = frame;
-                    mRenderer.renderFrame(shifted, FrameOptions{});
+                    mProbe.traceFrame(shifted, FrameOptions{});
                 }
 
-                mRenderer.readChannel(Channel::Motion, motion);
+                mProbe.readChannel(Channel::Motion, motion);
                 EXPECT_NEAR(motion[centre * 4], 0.0f, 1e-3f) << "a shifted frame that did not move";
                 EXPECT_NEAR(motion[centre * 4 + 1], 0.0f, 1e-3f);
             }
@@ -784,12 +783,12 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants stepped = Testing::makeCamera(
                     osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
                 stepped.mEyes.mArms = cameraAtFieldOfView(stepped.mEyes.mWorld, 90.0f).value();
-                mRenderer.renderFrame(stepped, FrameOptions{});
+                mProbe.traceFrame(stepped, FrameOptions{});
 
                 std::vector<float> motion;
-                mRenderer.readChannel(Channel::Motion, motion);
+                mProbe.readChannel(Channel::Motion, motion);
                 std::vector<float> surface;
-                mRenderer.readChannel(Channel::Surface, surface);
+                mProbe.readChannel(Channel::Surface, surface);
 
                 // The centre pixel's ray leans `0.5 / 32` of the half width off the axis either way,
                 // which at ninety degrees is `200 sqrt(1 + 2 (1 / 64)^2)` = 200.0488 units.
@@ -817,12 +816,12 @@ namespace Rtx::Testing
                     = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
                 still.mEyes.mArms = cameraAtFieldOfView(still.mEyes.mWorld, 90.0f).value();
                 shoot(scene, {}, still, size);
-                mRenderer.renderFrame(still, FrameOptions{});
+                mProbe.traceFrame(still, FrameOptions{});
 
                 std::vector<float> motion;
-                mRenderer.readChannel(Channel::Motion, motion);
+                mProbe.readChannel(Channel::Motion, motion);
                 std::vector<float> surface;
-                mRenderer.readChannel(Channel::Surface, surface);
+                mProbe.readChannel(Channel::Surface, surface);
 
                 EXPECT_EQ(surface[centre * 2], Shaders::SURFACE_NO_NORMAL)
                     << "the ray peeled the arm and found nothing behind it";
@@ -880,10 +879,10 @@ namespace Rtx::Testing
                 const std::uint32_t hit = frame.mHits;
                 EXPECT_EQ(hit, away > 0.0f ? size * size : 0u) << "the frame is all wall or all sky";
 
-                mRenderer.renderFrame(Testing::makeCamera(eye, at, 60.0f, size, size, 1000000.0f), FrameOptions{});
+                mProbe.traceFrame(Testing::makeCamera(eye, at, 60.0f, size, size, 1000000.0f), FrameOptions{});
 
                 std::vector<float> moved;
-                mRenderer.readChannel(Channel::Motion, moved);
+                mProbe.readChannel(Channel::Motion, moved);
                 return osg::Vec2f(moved[centre * 4], moved[centre * 4 + 1]);
             };
 
@@ -951,7 +950,7 @@ namespace Rtx::Testing
                 EXPECT_EQ(frame.mHits, size * size);
 
                 std::vector<float> surface;
-                mRenderer.readChannel(Channel::Surface, surface);
+                mProbe.readChannel(Channel::Surface, surface);
                 return surface;
             };
 
@@ -982,7 +981,7 @@ namespace Rtx::Testing
                 EXPECT_EQ(frame.mHits, 0u);
 
                 std::vector<float> surface;
-                mRenderer.readChannel(Channel::Surface, surface);
+                mProbe.readChannel(Channel::Surface, surface);
                 for (std::size_t i = 0; i < surface.size(); i += stride)
                 {
                     ASSERT_EQ(surface[i], Shaders::SURFACE_NO_NORMAL) << "normal at " << i / stride;
@@ -1025,7 +1024,7 @@ namespace Rtx::Testing
             ASSERT_EQ(frame.mHits, size * size);
 
             std::vector<float> surface;
-            mRenderer.readChannel(Channel::Surface, surface);
+            mProbe.readChannel(Channel::Surface, surface);
             ASSERT_NEAR(surface[centre], 200.0f * centreCosine, 0.2f) << "where it was built";
 
             /// Moves the wall's bone `away` units off its bind pose and replaces the scene's
@@ -1038,15 +1037,15 @@ namespace Rtx::Testing
             };
 
             deformTo(400.0f);
-            mRenderer.renderFrame(camera, FrameOptions{});
+            mProbe.traceFrame(camera, FrameOptions{});
             EXPECT_EQ(mRenderer.finishFrame().value().mHits, size * size);
 
-            mRenderer.readChannel(Channel::Surface, surface);
+            mProbe.readChannel(Channel::Surface, surface);
             EXPECT_NEAR(surface[centre], 400.0f * centreCosine, 0.4f) << "and the structure followed its vertices";
 
             // Behind the eye, where a wall that was never rebuilt would still be filling the frame.
             deformTo(-1000.0f);
-            mRenderer.renderFrame(camera, FrameOptions{});
+            mProbe.traceFrame(camera, FrameOptions{});
             EXPECT_EQ(mRenderer.finishFrame().value().mHits, 0u);
         }
 
@@ -1203,7 +1202,7 @@ namespace Rtx::Testing
                     .mArm = { frame.byte(arm * 4), frame.byte(arm * 4 + 1), frame.byte(arm * 4 + 2) },
                     .mMiddle = { frame.byte(centre * 4), frame.byte(centre * 4 + 1), frame.byte(centre * 4 + 2) },
                 };
-                mRenderer.readChannel(Channel::Surface, seen.mSurface);
+                mProbe.readChannel(Channel::Surface, seen.mSurface);
                 seen.mArmDistance = Shaders::surfaceDistance(seen.mSurface[arm * 2 + 1]);
                 seen.mMiddleDistance = Shaders::surfaceDistance(seen.mSurface[centre * 2 + 1]);
                 seen.mArmOnArms = std::signbit(seen.mSurface[arm * 2 + 1]);

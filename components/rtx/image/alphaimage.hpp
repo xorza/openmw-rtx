@@ -69,7 +69,7 @@ namespace Rtx
         std::vector<std::byte> mTexels;
         AlphaImage mAlpha;
 
-        /// A band of colours, `readTexelBand`'s, for a reader that takes the colour beside the
+        /// A band of colours, `readLightBand`'s, for a reader that takes the colour beside the
         /// alpha (`meanTexel`).
         std::vector<osg::Vec3f> mColours;
     };

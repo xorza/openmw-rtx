@@ -347,8 +347,8 @@ namespace Rtx
                 SceneUpload::Kind::Rebuilt);
 
             // Each table is its own length, and building the doll did not append onto the world's.
-            EXPECT_EQ(renderer.describeHeld(Rtx::SceneSlot::world()).mTextureCount, 2u);
-            EXPECT_EQ(renderer.describeHeld(slot).mTextureCount, 1u);
+            EXPECT_EQ(renderer.textureCountOf(Rtx::SceneSlot::world()), 2u);
+            EXPECT_EQ(renderer.textureCountOf(slot), 1u);
             EXPECT_FALSE(renderer.mAppendedToWrongEnd);
 
             // The drag: the placements are thrown away and the same body walked back in, which is
@@ -373,8 +373,8 @@ namespace Rtx
                     .hand(renderer, Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = world })
                     .mKind,
                 SceneUpload::Kind::Placed);
-            EXPECT_EQ(renderer.describeHeld(Rtx::SceneSlot::world()).mTextureCount, 2u);
-            EXPECT_EQ(renderer.describeHeld(slot).mTextureCount, 1u);
+            EXPECT_EQ(renderer.textureCountOf(Rtx::SceneSlot::world()), 2u);
+            EXPECT_EQ(renderer.textureCountOf(slot), 1u);
         }
 
     }

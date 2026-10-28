@@ -195,44 +195,47 @@ namespace Rtx
         device.setName(mView.get(), name);
     }
 
-    Image::~Image()
+    Image::Image(Image&& other) noexcept
+        : mDevice(std::exchange(other.mDevice, nullptr))
+        , mRead(std::exchange(other.mRead, ReadStamp{}))
+        , mMemory(std::move(other.mMemory))
+        , mHandle(std::move(other.mHandle))
+        , mView(std::move(other.mView))
+        , mLevelViews(std::move(other.mLevelViews))
+        , mLevelViewCount(std::exchange(other.mLevelViewCount, 0))
+        , mWidth(std::exchange(other.mWidth, 0))
+        , mHeight(std::exchange(other.mHeight, 0))
+        , mDepth(std::exchange(other.mDepth, 1))
+        , mFormat(std::exchange(other.mFormat, VK_FORMAT_UNDEFINED))
+        , mUsage(std::exchange(other.mUsage, 0))
+        , mMipLevels(std::exchange(other.mMipLevels, 1))
+        , mStorageFormat(std::exchange(other.mStorageFormat, VK_FORMAT_UNDEFINED))
     {
-        bury();
     }
 
     Image& Image::operator=(Image&& other) noexcept
     {
         if (this != &other)
         {
-            bury();
-
-            mDevice = other.mDevice;
-            mRead = other.mRead;
-            mHandle = std::move(other.mHandle);
-            mView = std::move(other.mView);
+            // The views first, then the image, then its memory: the order the graveyard ends them
+            // in, as the destructor buries them.
             mLevelViews = std::move(other.mLevelViews);
             mLevelViewCount = std::exchange(other.mLevelViewCount, 0);
+            mView = std::move(other.mView);
+            mHandle = std::move(other.mHandle);
             mMemory = std::move(other.mMemory);
-            mWidth = other.mWidth;
-            mHeight = other.mHeight;
-            mDepth = other.mDepth;
-            mFormat = other.mFormat;
-            mUsage = other.mUsage;
-            mMipLevels = other.mMipLevels;
-            mStorageFormat = other.mStorageFormat;
+            mDevice = std::exchange(other.mDevice, nullptr);
+            mRead = std::exchange(other.mRead, ReadStamp{});
+            mWidth = std::exchange(other.mWidth, 0);
+            mHeight = std::exchange(other.mHeight, 0);
+            mDepth = std::exchange(other.mDepth, 1);
+            mFormat = std::exchange(other.mFormat, VK_FORMAT_UNDEFINED);
+            mUsage = std::exchange(other.mUsage, 0);
+            mMipLevels = std::exchange(other.mMipLevels, 1);
+            mStorageFormat = std::exchange(other.mStorageFormat, VK_FORMAT_UNDEFINED);
         }
 
         return *this;
-    }
-
-    void Image::bury()
-    {
-        mView.reset();
-        for (std::uint32_t level = 0; level < mLevelViewCount; ++level)
-            mLevelViews[level].reset();
-        mLevelViewCount = 0;
-        if (!isEmpty())
-            mDevice->getGraveyard().bury(std::move(mHandle), std::move(mMemory));
     }
 
     void Image::waitIdle(const char* const what) const

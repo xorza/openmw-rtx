@@ -298,7 +298,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -382,7 +382,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -449,7 +449,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
                 return scene.materials().getRows().front();
@@ -573,7 +573,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = layout };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -881,7 +881,7 @@ namespace Rtx::Testing
             for (const bool onDrawable : { false, true })
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene, mContext, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
 
                 osg::ref_ptr<osg::StateSet> shared = shapeState();
 
@@ -932,6 +932,52 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A shape under a glow wears the state set the game puts on it now.** The material is
+        /// read each frame its chain stands under a controller, so a shape whose state set the game
+        /// replaces (an item's model swapped under its enchantment) wears the new one from the frame
+        /// it is put on, and still shows the glow's sheet of that frame.
+        TEST_F(RtxSceneExtractorTest, aShapeUnderAGlowWearsTheStateSetTheGameReplacedItWith)
+        {
+            osg::ref_ptr<FlipController> controller = makeFlip();
+            osg::ref_ptr<osg::Group> shape = makeShape(shapeState());
+            osg::ref_ptr<osg::Group> enchanted = new osg::Group;
+            enchanted->addChild(shape);
+            enchanted->addUpdateCallback(controller);
+
+            osg::ref_ptr<osg::StateSet> replaced = new osg::StateSet;
+            paint(*replaced, "textures/w_axe.dds");
+            replaced->setAttribute(new SceneUtil::Material, osg::StateAttribute::ON);
+
+            osgUtil::UpdateVisitor update;
+            for (unsigned int frame = 1; frame <= 6; ++frame)
+            {
+                if (frame == 4)
+                    shape->setStateSet(replaced);
+
+                controller->mShown = frame - 1;
+                update.setTraversalNumber(frame);
+                enchanted->accept(update);
+
+                mScene.clearPlacement();
+                walk(*enchanted, 0, frame);
+
+                ASSERT_EQ(mScene.placements().getRows().size(), 1u) << "on frame " << frame;
+                const Rtx::Material& worn
+                    = mScene.materials().getRows()[mScene.placements().getRows()[0].mInstance.mMaterial];
+                EXPECT_EQ(mScene.textures().getRows()[worn.mDiffuse].mPath,
+                    VFS::Path::NormalizedView(frame < 4 ? "textures/w_sword.dds" : "textures/w_axe.dds"))
+                    << "on frame " << frame;
+                ASSERT_NE(worn.mEnvironment, Rtx::sNoIndex) << "on frame " << frame;
+                EXPECT_EQ(mScene.textures().getRows()[worn.mEnvironment].mPath.value(),
+                    "textures/magicitem/caust" + std::to_string(frame - 1) + ".dds")
+                    << "the sheet shown on frame " << frame;
+                EXPECT_TRUE(worn.mAnimated) << "on frame " << frame;
+
+                mExtractor.retire();
+                mScene.clearArrivals();
+            }
+        }
+
         /// **Two glows over one shared shape each show their own sheet.** `SceneUtil::CopyOp` shares
         /// a drawable between the clones of a model, and a template node stands under every
         /// reference walked from it: here one shape stands under two enchanted roots whose glows
@@ -943,7 +989,7 @@ namespace Rtx::Testing
             for (const bool onDrawable : { false, true })
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene, mContext, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
 
                 const osg::ref_ptr<osg::Group> shape = makeShape(shapeState(), onDrawable);
                 const std::array<osg::ref_ptr<FlipController>, 2> glows{ makeFlip(), new FlipController };
@@ -1017,7 +1063,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*parent, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.placements().getRows().size(), 1u);
@@ -1111,7 +1157,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -1153,7 +1199,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*root, osg::Matrixf::identity(), 0);
 
                 const std::span<const Light> lights = scene.lights();
@@ -1184,7 +1230,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene;
                 WalkContext context{ .mSpecular = SpecularLayout::Classic };
-                SceneExtractor extractor(scene, context, sWorldExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -1229,7 +1275,7 @@ namespace Rtx::Testing
             colours(*quad->getOrCreateStateSet());
 
             Rtx::SceneDesc plain;
-            SceneExtractor other(plain, mContext, sWorldExtractorRoom);
+            SceneExtractor other(plain, mContext, sSubjectExtractorRoom);
             other.extract(*quad, osg::Matrixf::identity(), 0);
             EXPECT_FALSE(plain.meshes().getRows()[0].mShape.mSheet);
             EXPECT_EQ(plain.meshes().getRows()[0].getTriangleCount(), 2u);
@@ -1266,7 +1312,7 @@ namespace Rtx::Testing
             // an analytic sea of its own instead.
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor silent(scene, mContext, sWorldExtractorRoom);
+                SceneExtractor silent(scene, mContext, sSubjectExtractorRoom);
                 silent.extract(*root, osg::Matrixf::identity(), 0);
 
                 ASSERT_EQ(scene.materials().getRows().size(), 3u);

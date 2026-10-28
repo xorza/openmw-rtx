@@ -95,8 +95,8 @@ namespace Rtx::Testing
 
             std::vector<float> diffuse;
             std::vector<float> surface;
-            mRenderer.readChannel(Channel::Albedo, diffuse);
-            mRenderer.readChannel(Channel::Surface, surface);
+            mProbe.readChannel(Channel::Albedo, diffuse);
+            mProbe.readChannel(Channel::Surface, surface);
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_EQ(diffuse[middle + channel], 0.0f) << "no albedo, channel " << channel;
             EXPECT_EQ(surface[centreOf(size) * 2], Shaders::SURFACE_NO_NORMAL) << "no normal";
@@ -778,7 +778,7 @@ namespace Rtx::Testing
                 shoot(scene, {}, camera, size, shot);
 
                 std::vector<float> lifted;
-                mRenderer.readChannel(Channel::Lift, lifted);
+                mProbe.readChannel(Channel::Lift, lifted);
                 std::vector<std::uint8_t> pixels;
                 mRenderer.readPixels(pixels);
                 requireFrame(pixels, size);
@@ -824,11 +824,11 @@ namespace Rtx::Testing
 
             shoot(mirrored, {}, grazing, size, flat);
             std::vector<float> water;
-            mRenderer.readChannel(Channel::Lift, water);
+            mProbe.readChannel(Channel::Lift, water);
             EXPECT_NEAR(water[centre], fresnel * Shaders::encodeSrgb(0.5f), 1.0f / 255.0f) << "the wall it reflects";
 
             shoot(makeOpenWater(4000.0f), {}, grazing, size, flat);
-            mRenderer.readChannel(Channel::Lift, water);
+            mProbe.readChannel(Channel::Lift, water);
             EXPECT_EQ(water[centre], 0.0f) << "and the sky lit by no ambient";
         }
 

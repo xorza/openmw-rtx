@@ -51,9 +51,6 @@ namespace Rtx
         explicit TextureArrival(
             const Device& device, VkDeviceSize meansRoom = sSpreadMeansRoom, VkDeviceSize looseRoom = sLooseChainRoom);
 
-        /// Buries the canvas, which outlives every chain made in it.
-        ~TextureArrival();
-
         TextureArrival(const TextureArrival&) = delete;
         TextureArrival& operator=(const TextureArrival&) = delete;
 

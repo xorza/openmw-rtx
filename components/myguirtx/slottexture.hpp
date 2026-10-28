@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <span>
 #include <string>
 
 #include <MyGUI_IRenderTarget.h>
@@ -49,8 +51,24 @@ namespace MyGUIRtx
     protected:
         SlotTexture(std::string name, Rtx::GuiRenderer& renderer);
 
-        /// A slot of this size, replacing whatever was held.
+        /// A slot of this size, replacing whatever was held. The renderer may refuse it — a side past
+        /// the device's — and the size is held all the same, so the refusal is asked once a size
+        /// (`isSized`) and every write after it does nothing (`write`): the texture draws as nothing.
         void take(int width, int height);
+
+        /// Whether the size held is `width` by `height`, its slot taken or refused.
+        bool isSized(int width, int height) const { return mWidth == width && mHeight == height; }
+
+        /// Lends `region` of the slot, hands its bytes to `fill`, and sends them; nothing at all
+        /// where the renderer refused the slot.
+        template <class Fill>
+        void write(const Rtx::GuiRegion& region, Fill&& fill)
+        {
+            if (mSlot.isNone())
+                return;
+            fill(mRenderer.lendGuiTexture(mSlot, region));
+            mRenderer.sendGuiTexture(mSlot);
+        }
 
         /// Takes the slot back and forgets the size, so the next `take` starts clean.
         void drop();
@@ -67,6 +85,9 @@ namespace MyGUIRtx
         Rtx::GuiRenderer& mRenderer;
 
     private:
+        /// `image` into `into`, the slot's size at four bytes a pixel: `sendImage`'s reading.
+        void fillWith(const osg::Image& image, std::uint8_t* into) const;
+
         std::string mName;
         Rtx::GuiSlot mSlot;
         int mWidth = 0;

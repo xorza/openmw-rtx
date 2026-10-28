@@ -152,10 +152,6 @@ namespace RtxTool
             std::uint32_t mPausedFrames = 0;
             std::string mPausedBy;
 
-            /// The cell the last measured frame was drawn in, so a change of it is a boundary
-            /// crossed. Compared as an address and never read, which is all an identity needs.
-            const void* mCell = nullptr;
-
             FrameSamples mSamples;
 
             GpuBreakdown mGpu;

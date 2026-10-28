@@ -43,6 +43,9 @@ namespace Rtx
         /// colour does: descending gives eight interpolated values, ascending gives six and spends
         /// the last two entries on nought and full. A decoder that assumed one of them reads every
         /// texel of half the blocks wrong.
+        ///
+        /// **Each interpolated entry rounded to the nearest byte**, as a device samples it: the
+        /// format states the mean in exact arithmetic, and `widenChannel` rounds the same way.
         void bc3Alpha(std::span<const std::byte, 8> bytes, BlockAlpha& into)
         {
             const auto first = static_cast<std::uint8_t>(bytes[0]);
@@ -51,11 +54,11 @@ namespace Rtx
             std::array<std::uint8_t, 8> palette{ first, second };
             if (first > second)
                 for (std::size_t i = 1; i < 7; ++i)
-                    palette[i + 1] = static_cast<std::uint8_t>(((7 - i) * first + i * second) / 7);
+                    palette[i + 1] = static_cast<std::uint8_t>(((7 - i) * first + i * second + 3) / 7);
             else
             {
                 for (std::size_t i = 1; i < 5; ++i)
-                    palette[i + 1] = static_cast<std::uint8_t>(((5 - i) * first + i * second) / 5);
+                    palette[i + 1] = static_cast<std::uint8_t>(((5 - i) * first + i * second + 2) / 5);
 
                 palette[6] = 0;
                 palette[7] = 255;

@@ -31,8 +31,9 @@ namespace Rtx
         /// **A file is laid once while anything holds what it laid, and again once nothing does.**
         /// An RGB8 file asked twice is one laid image, under two spellings of its name too; dropped,
         /// it is watched and not held, so the next ask lays it again. Another image opened under the
-        /// same name is laid for itself. RGBA8, uploaded as it is, and a file with no name are not
-        /// laid at all, and an entry is kept only for a file that was.
+        /// same name is the same file, answered with what is laid of it while that is held, and laid
+        /// from its own bytes once nothing is. RGBA8, uploaded as it is, and a file with no name are
+        /// not laid at all, and an entry is kept only for a file that was.
         TEST(RtxLaidImageCacheTest, aFileIsLaidOnceWhileHeldAndAgainOnceLetGo)
         {
             LaidImageCache cache;
@@ -56,16 +57,21 @@ namespace Rtx
             const osg::observer_ptr<const osg::Image> watched = laid;
             laid = nullptr;
             EXPECT_FALSE(watched.valid()) << "the cache held a laid image nothing else did";
-            const osg::ref_ptr<const osg::Image> again = cache.of(*rgb);
+            osg::ref_ptr<const osg::Image> again = cache.of(*rgb);
             ASSERT_NE(again, nullptr) << "a file let go of was answered with nothing";
             EXPECT_EQ(again->data()[4], 3u);
 
+            // Byte 3 differs only so the test can tell whose bytes a laid image is.
             const osg::ref_ptr<osg::Image> reopened = makeImage(GL_RGB, 3, "textures/tx_rgb.tga");
             reopened->data()[3] = 99;
+            EXPECT_EQ(cache.of(*reopened), again) << "the file opened again was laid a second time";
+
+            const osg::observer_ptr<const osg::Image> first = again;
+            again = nullptr;
+            ASSERT_FALSE(first.valid());
             const osg::ref_ptr<const osg::Image> other = cache.of(*reopened);
             ASSERT_NE(other, nullptr);
-            EXPECT_NE(other, again) << "another image under the name was answered with what the first laid";
-            EXPECT_EQ(other->data()[4], 99u);
+            EXPECT_EQ(other->data()[4], 99u) << "laid from another image's bytes";
 
             EXPECT_EQ(cache.of(*makeImage(GL_RGBA, 4, "textures/tx_rgba.tga")), nullptr)
                 << "a format uploaded as it is was laid";

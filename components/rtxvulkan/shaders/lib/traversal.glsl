@@ -1351,10 +1351,13 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
         // layers over each other with additive blending and one pass apiece.
         const vec2 chunkUv = acrossTriangle(uv[0], uv[1], uv[2], hit.mBary);
 
-        // The frame `terrain.vert` gives every layer: the chunk's x, which is the world's, the
-        // bitangent `cross(N, x)`, and the tangent x less its part along N. A heightfield's normal
-        // leans up, so x is never along it. The eye in it is what a layer with a height is shifted
-        // by, the frame being one for every layer.
+        // The frame every layer shares: the tangent the chunk's x, which is the world's, less its
+        // part along N, and the bitangent `cross(N, T)`. A heightfield's normal leans up, so x is
+        // never along it. The eye in it is what a layer with a height is shifted by.
+        //
+        // **Not `terrain.vert`'s frame**, whose bitangent is `cross(N, x)`: that is `sqrt(1 - Nx²)`
+        // long, so on a slope down x a replacer's map tilted the normal less across the slope than
+        // along it, 0.71 as far at 45 degrees. Here the frame is orthonormal on every slope.
         //
         // **Filled behind `HAS_MAPS` and not declared with it**: the optimizer the kernels are
         // compared through keeps arithmetic nothing reads, so a frame computed outside the branch
@@ -1366,7 +1369,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
         {
             const vec3 across = vec3(1.0, 0.0, 0.0);
             layerTangent = normalize(across - normal * dot(normal, across));
-            layerBitangent = cross(normal, across);
+            layerBitangent = cross(normal, layerTangent);
             layerEye = vec3(dot(layerTangent, -direction), dot(layerBitangent, -direction), dot(normal, -direction));
         }
 

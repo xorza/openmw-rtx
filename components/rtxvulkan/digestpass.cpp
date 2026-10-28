@@ -53,9 +53,10 @@ namespace Rtx
         static_assert(
             Shaders::DIGEST_SLOTS <= DescriptorWrites::sMostImages, "a run of more images than a push carries");
 
-        static_assert(countHeldInWords() == Shaders::DIGEST_DENOISER_WORDS
-                && sDenoiserImageCount - countHeldInWords() == Shaders::DIGEST_DENOISER_FLOATS,
-            "the digest's bindings and the denoiser's images count them differently");
+        /// How many of the denoiser's images are held in words, and so how many images of the frame
+        /// a float view reads: the channels and the rest of the denoiser's.
+        constexpr auto sDenoiserWords = static_cast<std::uint32_t>(countHeldInWords());
+        constexpr std::uint32_t sFloatImages = static_cast<std::uint32_t>(DigestPass::sImages) - sDenoiserWords;
 
         DigestWords wordsAt(const std::uint32_t* words, const std::size_t image)
         {
@@ -78,7 +79,7 @@ namespace Rtx
     std::size_t DigestPass::lanesOf(const DenoiserImage image)
     {
         const Slot slot = slotOf(image);
-        return slot.mWords ? Shaders::DIGEST_FLOAT_IMAGES + slot.mAt : Shaders::DIGEST_IMAGES + slot.mAt;
+        return slot.mWords ? sFloatImages + slot.mAt : Shaders::DIGEST_IMAGES + slot.mAt;
     }
 
     DigestPass::DigestPass(const Device& device)
@@ -105,8 +106,8 @@ namespace Rtx
 
         // Every image of the frame in the order its lanes lie: the floats, the channels first, and
         // then the words. Null where the denoiser wrote none.
-        std::array<const Image*, Shaders::DIGEST_FLOAT_IMAGES> floats{};
-        std::array<const Image*, Shaders::DIGEST_DENOISER_WORDS> words{};
+        std::array<const Image*, sFloatImages> floats{};
+        std::array<const Image*, sDenoiserWords> words{};
         for (std::size_t at = 0; at < channels.size(); ++at)
         {
             assert(reaches(*channels[at], (channelsInFields & (1u << at)) != 0) && "a digest past an image's edge");
@@ -142,8 +143,8 @@ namespace Rtx
 
         // A run of each kind a dispatch, as many dispatches as the longer kind needs. Each lands in lanes of
         // their own and the folds commute, so nothing orders one dispatch against the next.
-        constexpr std::size_t sRuns = std::max(groupsFor(Shaders::DIGEST_FLOAT_IMAGES, Shaders::DIGEST_FLOAT_SLOTS),
-            groupsFor(Shaders::DIGEST_DENOISER_WORDS, Shaders::DIGEST_WORD_SLOTS));
+        constexpr std::size_t sRuns = std::max(groupsFor(sFloatImages, Shaders::DIGEST_FLOAT_SLOTS),
+            groupsFor(sDenoiserWords, Shaders::DIGEST_WORD_SLOTS));
         for (std::uint32_t run = 0; run < sRuns; ++run)
         {
             std::array<VkDescriptorImageInfo, Shaders::DIGEST_FLOAT_SLOTS> runFloats{};
@@ -154,7 +155,7 @@ namespace Rtx
                 .mFloats = 0,
                 .mFloatsInFields = 0,
                 .mFrame = frame,
-                .mWordFirst = Shaders::DIGEST_FLOAT_IMAGES + run * Shaders::DIGEST_WORD_SLOTS,
+                .mWordFirst = sFloatImages + run * Shaders::DIGEST_WORD_SLOTS,
                 .mWords = 0 };
 
             for (std::uint32_t slot = 0; slot < runFloats.size(); ++slot)

@@ -25,6 +25,12 @@ namespace Rtx
                 .pImmutableSamplers = nullptr };
         }
 
+        /// A push range of `size` bytes the compute stage reads.
+        VkPushConstantRange compute(std::uint32_t size)
+        {
+            return VkPushConstantRange{ .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT, .offset = 0, .size = size };
+        }
+
         ModuleBinding bound(
             std::uint32_t binding, DescriptorKind kind, std::uint32_t count = 1, std::uint32_t set = Shaders::SET_PASS)
         {
@@ -54,37 +60,43 @@ namespace Rtx
                 bound(1, DescriptorKind::SampledImage, 4), bound(2, DescriptorKind::StorageBuffer),
                 bound(Shaders::BIND_CENSUS, DescriptorKind::StorageBuffer),
                 bound(0, DescriptorKind::CombinedImageSampler, 0, Shaders::SET_TEXTURES) };
-            EXPECT_EQ(bindingDisagreement(agreeing, layout), std::nullopt);
+            EXPECT_EQ(bindingDisagreement(agreeing, layout, VK_SHADER_STAGE_COMPUTE_BIT), std::nullopt);
 
             const std::array unbounded{ bound(1, DescriptorKind::SampledImage, 0) };
-            EXPECT_EQ(bindingDisagreement(unbounded, layout), std::nullopt);
+            EXPECT_EQ(bindingDisagreement(unbounded, layout, VK_SHADER_STAGE_COMPUTE_BIT), std::nullopt);
 
             const std::array missing{ bound(5, DescriptorKind::StorageImage) };
-            EXPECT_EQ(
-                bindingDisagreement(missing, layout), "binding 5 of set 0 is in the module and not in the layout");
+            EXPECT_EQ(bindingDisagreement(missing, layout, VK_SHADER_STAGE_COMPUTE_BIT),
+                "binding 5 of set 0 is in the module and not in the layout");
 
             const std::array retyped{ bound(0, DescriptorKind::SampledImage) };
-            EXPECT_EQ(bindingDisagreement(retyped, layout),
+            EXPECT_EQ(bindingDisagreement(retyped, layout, VK_SHADER_STAGE_COMPUTE_BIT),
                 "binding 0 of set 0 is descriptor type " + std::to_string(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
                     + " in the layout and another in the module");
 
             const std::array recounted{ bound(1, DescriptorKind::SampledImage, 2) };
-            EXPECT_EQ(
-                bindingDisagreement(recounted, layout), "binding 1 of set 0 is 4 in the layout and 2 in the module");
+            EXPECT_EQ(bindingDisagreement(recounted, layout, VK_SHADER_STAGE_COMPUTE_BIT),
+                "binding 1 of set 0 is 4 in the layout and 2 in the module");
 
             // **The shared sets are held as the pass's is**: a storage image where the textures'
             // set samples, and a count the layout does not give, each named with its set.
             const std::array sharedRetyped{ bound(0, DescriptorKind::StorageImage, 1, Shaders::SET_TEXTURES) };
-            EXPECT_EQ(bindingDisagreement(sharedRetyped, layout),
+            EXPECT_EQ(bindingDisagreement(sharedRetyped, layout, VK_SHADER_STAGE_COMPUTE_BIT),
                 "binding 0 of set 1 is descriptor type " + std::to_string(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                     + " in the layout and another in the module");
             const std::array sharedRecounted{ bound(
                 0, DescriptorKind::CombinedImageSampler, 2, Shaders::SET_TEXTURES) };
-            EXPECT_EQ(bindingDisagreement(sharedRecounted, layout),
+            EXPECT_EQ(bindingDisagreement(sharedRecounted, layout, VK_SHADER_STAGE_COMPUTE_BIT),
                 "binding 0 of set 1 is 8 in the layout and 2 in the module");
 
             const std::array unnamed{ bound(0, DescriptorKind::StorageImage, 1, Shaders::SET_VOLUME) };
-            EXPECT_EQ(bindingDisagreement(unnamed, layout), "the module reads set 3, which the layout does not name");
+            EXPECT_EQ(bindingDisagreement(unnamed, layout, VK_SHADER_STAGE_COMPUTE_BIT),
+                "the module reads set 3, which the layout does not name");
+
+            // **And for the module's own stage**: the same bindings, declared for the compute stage
+            // alone, refused to a fragment module, which reads them in none.
+            EXPECT_EQ(bindingDisagreement(agreeing, layout, VK_SHADER_STAGE_FRAGMENT_BIT),
+                "binding 0 of set 0 is declared for stages 0x20, which leave out the module's 0x10");
         }
 
         /// **A module's constants are held to the words its stage is handed, and its push block to
@@ -103,18 +115,25 @@ namespace Rtx
             EXPECT_EQ(specializationDisagreement(constants, std::array{ 2u, 0u, 0u, 7u }),
                 "specialization constant 0 is a bool and is handed 2");
 
-            EXPECT_EQ(pushDisagreement(std::nullopt, 0), std::nullopt) << "a module that reads no push";
-            EXPECT_EQ(pushDisagreement(80u, 80), std::nullopt);
-            EXPECT_EQ(pushDisagreement(76u, 80), std::nullopt) << "the host's rounding to eight";
-            EXPECT_EQ(pushDisagreement(84u, 80), "the push block ends at 84 bytes, past the 80 the layout declares");
-            EXPECT_EQ(pushDisagreement(72u, 80),
+            EXPECT_EQ(pushDisagreement(std::nullopt, compute(0), VK_SHADER_STAGE_COMPUTE_BIT), std::nullopt)
+                << "a module that reads no push";
+            EXPECT_EQ(pushDisagreement(80u, compute(80), VK_SHADER_STAGE_COMPUTE_BIT), std::nullopt);
+            EXPECT_EQ(pushDisagreement(76u, compute(80), VK_SHADER_STAGE_COMPUTE_BIT), std::nullopt)
+                << "the host's rounding to eight";
+            EXPECT_EQ(pushDisagreement(84u, compute(80), VK_SHADER_STAGE_COMPUTE_BIT),
+                "the push block ends at 84 bytes, past the 80 the layout declares");
+            EXPECT_EQ(pushDisagreement(72u, compute(80), VK_SHADER_STAGE_COMPUTE_BIT),
                 "the push block ends at 72 bytes, short of the 80 the layout declares by more than a rounding to "
                 "eight");
-            EXPECT_EQ(pushDisagreement(12u, 20),
+            EXPECT_EQ(pushDisagreement(12u, compute(20), VK_SHADER_STAGE_COMPUTE_BIT),
                 "the push block ends at 12 bytes, short of the 20 the layout declares by more than a rounding to "
                 "eight");
-            EXPECT_EQ(pushDisagreement(4u, 0), "the push block ends at 4 bytes, past the 0 the layout declares")
+            EXPECT_EQ(pushDisagreement(4u, compute(0), VK_SHADER_STAGE_COMPUTE_BIT),
+                "the push block ends at 4 bytes, past the 0 the layout declares")
                 << "a block a layout declares no range for";
+            EXPECT_EQ(pushDisagreement(80u, compute(80), VK_SHADER_STAGE_RAYGEN_BIT_KHR),
+                "the push range is declared for stages 0x20, which leave out the module's 0x100")
+                << "a range declared for another stage";
         }
 
         /// **A vertex module's inputs are held to the pipeline's attributes**: each input at a

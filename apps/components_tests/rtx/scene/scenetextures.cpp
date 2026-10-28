@@ -401,6 +401,7 @@ namespace Rtx
             const osg::ref_ptr<const osg::Image> laid
                 = layImage(*sixteen, Rtx::readFormat(*sixteen), layLevels, layTexels);
             ASSERT_NE(laid, nullptr);
+            EXPECT_TRUE(layTexels.empty()) << "laid into scratch and copied, where it is widened straight in";
             EXPECT_EQ(laid->r(), 1);
             const Rtx::TextureData flatLaid
                 = describeImage(*laid, Rtx::TextureEncoding::Colour, levels, texels).value();

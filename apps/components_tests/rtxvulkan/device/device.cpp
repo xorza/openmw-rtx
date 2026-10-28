@@ -119,12 +119,15 @@ namespace Rtx
             EXPECT_NE(mHarness.mDevice->getHandle(), VK_NULL_HANDLE);
             EXPECT_NE(mHarness.mDevice->getQueue(), VK_NULL_HANDLE);
 
-            // Device construction throws when any of these is missing, so reaching here already
-            // proves it; asserting names the contract for anyone reading the failure.
-            const DeviceFunctions& functions = mHarness.mDevice->getFunctions();
-            EXPECT_NE(functions.mCmdBuildAccelerationStructures, nullptr);
-            EXPECT_NE(functions.mGetAccelerationStructureDeviceAddress, nullptr);
-            EXPECT_NE(functions.mGetAccelerationStructureBuildSizes, nullptr);
+            // Device construction throws when the device dispatches none of these, so reaching here
+            // already proves it; asserting names the contract for anyone reading the failure. The
+            // calls go through volk's pointers, which the device answered as well.
+            for (const char* const name : { "vkCmdBuildAccelerationStructuresKHR",
+                     "vkGetAccelerationStructureDeviceAddressKHR", "vkGetAccelerationStructureBuildSizesKHR" })
+                EXPECT_NE(vkGetDeviceProcAddr(mHarness.mDevice->getHandle(), name), nullptr) << name;
+            EXPECT_NE(vkCmdBuildAccelerationStructuresKHR, nullptr);
+            EXPECT_NE(vkGetAccelerationStructureDeviceAddressKHR, nullptr);
+            EXPECT_NE(vkGetAccelerationStructureBuildSizesKHR, nullptr);
 
             // The one optional entry point, present exactly where the driver offers its extension.
             // An extension enabled and never read is what this proves gone.

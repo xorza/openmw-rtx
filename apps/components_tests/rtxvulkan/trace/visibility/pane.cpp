@@ -93,10 +93,7 @@ namespace Rtx::Testing
         {
             Shaders::VisibilityConstants camera
                 = Testing::makeCamera(eye, eye + osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, sSize, sSize, 100000.0f);
-            camera.mSkyHorizon = osg::Vec3f();
-            camera.mSkyZenith = osg::Vec3f();
-            camera.mSun.mIrradiance = osg::Vec3f();
-            camera.mAmbient = osg::Vec3f();
+            Testing::unlit(camera);
             return camera;
         }
 
@@ -299,7 +296,7 @@ namespace Rtx::Testing
             const Frame filtered = shoot(scene, {}, after, sSize, { .mFilter = true, .mSetScene = false });
 
             std::vector<float> paneMotion;
-            mRenderer.readChannel(Channel::PaneMotion, paneMotion);
+            mProbe.readChannel(Channel::PaneMotion, paneMotion);
             EXPECT_NEAR(paneMotion[centreOf(sSize) * 4 + 2], 9.9992f, 0.01f) << "the pane came ten units nearer";
 
             for (std::size_t channel = 0; channel < 3; ++channel)
@@ -337,7 +334,7 @@ namespace Rtx::Testing
             const Frame filtered = shoot(scene, textures, camera, sSize, filteredRun(16, 2000));
 
             std::vector<float> pane;
-            mRenderer.readChannel(Channel::Pane, pane);
+            mProbe.readChannel(Channel::Pane, pane);
             for (std::size_t value = 0; value < pane.size(); ++value)
                 ASSERT_EQ(value % 4 == 3 ? 0.0f : pane[value], 0.0f)
                     << "value " << value << " of a pane with no diffuse half";
@@ -345,7 +342,7 @@ namespace Rtx::Testing
             // Nor is that nought divided by one: what puts it back is held at `PANE_ALBEDO_FLOOR`
             // from below, as a half rounds it, `2^-11` of the value.
             std::vector<float> paneAlbedo;
-            mRenderer.readChannel(Channel::PaneAlbedo, paneAlbedo);
+            mProbe.readChannel(Channel::PaneAlbedo, paneAlbedo);
             for (std::size_t value = 0; value < paneAlbedo.size(); ++value)
             {
                 if (value % 4 == 3)
@@ -382,7 +379,7 @@ namespace Rtx::Testing
                 shoot(scene, {}, camera, sSize);
 
                 std::vector<float> surface;
-                mRenderer.readChannel(Channel::PaneSurface, surface);
+                mProbe.readChannel(Channel::PaneSurface, surface);
                 const float distance = surface[centreOf(sSize) * 2 + 1];
                 const bool arms = kind == InstanceClass::FirstPerson;
                 EXPECT_NEAR(distance, arms ? -100.0081f : 100.0081f, 0.001f) << "arms " << arms;
@@ -483,19 +480,19 @@ namespace Rtx::Testing
             shoot(scene, {}, before, sSize, still);
             const std::size_t centre = centreOf(sSize);
             std::vector<float> masks;
-            mRenderer.readChannel(Channel::UpscaleMasks, masks);
+            mProbe.readChannel(Channel::UpscaleMasks, masks);
             EXPECT_EQ(*std::max_element(masks.begin(), masks.end()), 0.0f)
                 << "an eye standing still moves nothing apart";
 
             const Frame filtered = shoot(scene, {}, after, sSize, { .mFilter = true, .mSetScene = false });
-            mRenderer.readChannel(Channel::UpscaleMasks, masks);
+            mProbe.readChannel(Channel::UpscaleMasks, masks);
             EXPECT_EQ(masks[centre * 2], 229.0f / 255.0f) << "the pane moved a pixel apart from the sky behind it";
             EXPECT_EQ(masks[centre * 2 + 1], 0.0f) << "no water stands anywhere";
 
             std::vector<float> paneMotion;
-            mRenderer.readChannel(Channel::PaneMotion, paneMotion);
+            mProbe.readChannel(Channel::PaneMotion, paneMotion);
             std::vector<float> motion;
-            mRenderer.readChannel(Channel::Motion, motion);
+            mProbe.readChannel(Channel::Motion, motion);
             EXPECT_NEAR(paneMotion[centre * 4], 1.1085f, 0.02f) << "the pane's own step";
             EXPECT_NEAR(paneMotion[centre * 4 + 1], 0.0f, 0.02f);
             EXPECT_NEAR(motion[centre * 4], 0.0f, 0.02f) << "the sky behind it";
