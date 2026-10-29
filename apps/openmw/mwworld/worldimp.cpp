@@ -117,12 +117,14 @@ namespace MWWorld
                 { Globals::sWerewolfClawMult, ESM::Variant(25.f) },
                 { Globals::sPCKnownWerewolf, ESM::Variant(0) },
                 // following should exist in all versions of MW, but not necessarily in TCs
-                { Globals::sGameHour, ESM::Variant(0) },
+                { Globals::sGameHour, ESM::Variant(0.f) },
                 { Globals::sTimeScale, ESM::Variant(30.f) },
                 { Globals::sDay, ESM::Variant(1) },
+                { Globals::sMonth, ESM::Variant(1) },
                 { Globals::sYear, ESM::Variant(1) },
                 { Globals::sPCRace, ESM::Variant(0) },
                 { Globals::sPCHasCrimeGold, ESM::Variant(0) },
+                { Globals::sPCHasGoldDiscount, ESM::Variant(0) },
                 { Globals::sCrimeGoldDiscount, ESM::Variant(0) },
                 { Globals::sCrimeGoldTurnIn, ESM::Variant(0) },
                 { Globals::sPCHasTurnIn, ESM::Variant(0) },
@@ -200,6 +202,7 @@ namespace MWWorld
         : mResourceSystem(resourceSystem)
         , mLocalScripts(mStore)
         , mWorldModel(mStore, mReaders)
+        , mWeatherStore(std::make_unique<MWWorld::WeatherStore>())
         , mTimeManager(std::make_unique<DateTimeManager>())
         , mSky(true)
         , mGodMode(false)
@@ -260,10 +263,9 @@ namespace MWWorld
             renderer, rootNode, mResourceSystem, workQueue, *mNavigator, mGroundcoverStore, unrefQueue);
         mProjectileManager = std::make_unique<ProjectileManager>(
             mRendering->getSceneRoot(), mResourceSystem, mRendering.get(), mPhysics.get());
-        mRendering->preloadCommonAssets();
 
-        mWeatherStore = std::make_unique<MWWorld::WeatherStore>();
         mWeatherManager = std::make_unique<MWWorld::WeatherManager>(*mRendering, mStore, *mWeatherStore);
+        mRendering->preloadCommonAssets(*mWeatherStore.get());
 
         mWorldScene = std::make_unique<Scene>(*this, *mRendering.get(), mPhysics.get(), *mNavigator);
     }
@@ -292,8 +294,7 @@ namespace MWWorld
 
         // we don't want old weather to persist on a new game
         // Note that if reset later, the initial ChangeWeather that the chargen script calls will be lost.
-        mWeatherManager.reset();
-        mWeatherManager = std::make_unique<MWWorld::WeatherManager>(*mRendering.get(), mStore, *mWeatherStore);
+        mWeatherManager->clear();
 
         if (!bypass)
         {
@@ -1815,7 +1816,7 @@ namespace MWWorld
         return ESM::Cell::sDefaultWorldspaceId;
     }
 
-    const MWWorld::WeatherStore& World::getAllWeather() const
+    MWWorld::WeatherStore& World::getAllWeather() const
     {
         return *mWeatherStore;
     }

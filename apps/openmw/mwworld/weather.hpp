@@ -71,15 +71,23 @@ namespace MWWorld
     class Weather
     {
     public:
+        static std::string_view getRecordType() { return "Weather"; }
+
         static osg::Vec3f defaultDirection();
 
-        Weather(const ESM::RefId id, const int scriptId, const std::string& name, float stormWindSpeed, float dlFactor,
-            float dlOffset, VFS::Path::NormalizedView particleEffect);
-
         ESM::RefId mId;
-        int mScriptId;
         std::string mName;
         VFS::Path::Normalized mCloudTexture;
+        VFS::Path::Normalized mParticleEffect;
+        VFS::Path::Normalized mRainEffect;
+
+        // Sound effects
+        // This is used for Blight, Ashstorm and Blizzard (Bloodmoon)
+        ESM::RefId mAmbientLoopSoundID;
+        // This is used for Rain and Thunderstorm
+        ESM::RefId mRainLoopSoundID;
+
+        std::array<ESM::RefId, 4> mThunderSoundID;
 
         // Sky (atmosphere) color
         TimeOfDayInterpolator<osg::Vec4f> mSkyColor;
@@ -95,6 +103,10 @@ namespace MWWorld
 
         // Color modulation for the sun itself during sunset
         osg::Vec4f mSunDiscSunsetColor;
+
+        osg::Vec3f mStormDirection;
+        osg::Vec3f mStormParticleRotation;
+        int mScriptId;
 
         // Used by scripts to animate signs, etc based on the wind (GetWindSpeed)
         float mWindSpeed;
@@ -112,21 +124,6 @@ namespace MWWorld
             float FogFactor;
             float FogOffset;
         } mDL;
-
-        // Sound effects
-        // This is used for Blight, Ashstorm and Blizzard (Bloodmoon)
-        ESM::RefId mAmbientLoopSoundID;
-        // This is used for Rain and Thunderstorm
-        ESM::RefId mRainLoopSoundID;
-
-        std::array<ESM::RefId, 4> mThunderSoundID;
-
-        // Is this an ash storm / blight storm? If so, the following will happen:
-        // - The particles and clouds will be oriented so they appear to come from the Red Mountain.
-        // - Characters will animate their hand to protect eyes from the storm when looking in its direction (idlestorm
-        // animation)
-        // - Slower movement when walking against the storm (fStromWalkMult)
-        bool mIsStorm;
 
         // How fast does rain travel down?
         // In Morrowind.ini this is set globally, but we may want to change it per weather later.
@@ -148,23 +145,7 @@ namespace MWWorld
         float mRainMinHeight;
         float mRainMaxHeight;
 
-        VFS::Path::Normalized mParticleEffect;
-
-        VFS::Path::Normalized mRainEffect;
-
-        osg::Vec3f mStormDirection;
-
         float mCloudsMaximumPercent;
-
-        // Note: For Weather Blight, there is a "Disease Chance" (=0.1) setting. But according to MWSFD this feature
-        // is broken in the vanilla game and was disabled.
-
-        float transitionDelta() const;
-        float cloudBlendFactor(const float transitionRatio) const;
-
-        float calculateThunder(const float transitionRatio, const float elapsedSeconds, const bool isPaused);
-
-    private:
         float mTransitionDelta;
 
         // Note: In MW, only thunderstorms support these attributes, but in the interest of making weather more
@@ -174,11 +155,33 @@ namespace MWWorld
         float mThunderThreshold;
         float mFlashDecrement;
 
+        // Note: For Weather Blight, there is a "Disease Chance" (=0.1) setting. But according to MWSFD this feature
+        // is broken in the vanilla game and was disabled.
+
+        float transitionDelta() const;
+        float cloudBlendFactor(const float transitionRatio) const;
+
+        float calculateThunder(const float transitionRatio, const float elapsedSeconds, const bool isPaused);
+
+        void blank();
+
+    private:
         float mFlashBrightness;
 
         void flashDecrement(const float elapsedSeconds);
         float thunderChance(const float transitionRatio, const float elapsedSeconds) const;
         void lightningAndThunder(void);
+
+    public:
+        // Is this an ash storm / blight storm? If so, the following will happen:
+        // - The particles and clouds will be oriented so they appear to come from the Red Mountain.
+        // - Characters will animate their hand to protect eyes from the storm when looking in its direction (idlestorm
+        // animation)
+        // - Slower movement when walking against the storm (fStromWalkMult)
+        bool mIsStorm;
+        bool mRipplesEnabled;
+        bool mUseTorches;
+        bool mOcclusionEnabled;
     };
 
     class WeatherStore;
@@ -276,6 +279,7 @@ namespace MWWorld
 
     class WeatherStore
     {
+        std::vector<Weather> mInitial;
         std::unordered_map<ESM::RefId, Weather> mStatic;
         std::vector<Weather*> mShared;
 
@@ -284,7 +288,7 @@ namespace MWWorld
         WeatherStore(const WeatherStore&) = delete;
         WeatherStore& operator=(const WeatherStore&) = delete;
 
-        void reset(const MWWorld::ESMStore& store);
+        void reset();
 
         size_t getSize() const { return mShared.size(); }
         const Weather* at(size_t index) const { return mShared.at(index); }
@@ -293,7 +297,7 @@ namespace MWWorld
         const Weather* find(ESM::RefId id) const;
         Weather* search(ESM::RefId id);
 
-        Weather* insertStatic(Weather&& item);
+        Weather* insertStatic(const Weather& item);
         void eraseStatic(ESM::RefId id);
 
         auto begin() const { return mShared.begin(); }
@@ -386,6 +390,11 @@ namespace MWWorld
         MWRender::SkyState mSky;
         TimeOfDaySettings& mTimeSettings = mSky.mTimes;
 
+        /// The record `mSky.mWeather` names, copied at each update and named in its place: the
+        /// renderers read it while the Lua worker runs, and a global script writes a record's
+        /// fields, its paths among them, where they stand (`SkyState::keepNames`).
+        Weather mShownWeather;
+
         // fading of night skydome
         TimeOfDayInterpolator<float> mNightFade;
 
@@ -402,7 +411,7 @@ namespace MWWorld
         float mCurrentWindSpeed;
         float mNextWindSpeed;
         bool mIsStorm;
-        bool mPrecipitation;
+        bool mUseTorches;
 
         ESM::RefId mCurrentRegion;
         float mTimePassed;
