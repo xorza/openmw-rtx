@@ -116,6 +116,8 @@ namespace MWRender
         // remember some settings so we don't have to apply them again if they didn't change
         VFS::Path::Normalized mClouds;
         VFS::Path::Normalized mNextClouds;
+        VFS::Path::Normalized mCurrentParticleEffect;
+        VFS::Path::Normalized mRainEffect;
         float mCloudBlendFactor;
         float mCloudSpeed;
         float mStarsOpacity;
@@ -229,19 +231,20 @@ namespace MWRender
         float mRainMaxHeight;
         float mRainEntranceSpeed;
         int mRainMaxRaindrops;
-        bool mRainRipplesEnabled;
-        bool mSnowRipplesEnabled;
         float mWindSpeed;
 
-        bool mEnabled;
-
         float mPrecipitationAlpha;
-        bool mDirtyParticlesEffect;
 
         /// `weather particle occlusion`, read once: the rasterizer compiles the rain's shaders by it.
         bool mShelters;
         bool mOccluded = false;
         osg::Vec3f mOcclusionRange;
+
+        /// The current weather's own `isOccluded`, which the driven effect was built by.
+        bool mParticleOcclusion = false;
+        bool mRipplesEnabled = false;
+        bool mEnabled = true;
+        bool mDirtyParticlesEffect = false;
     };
 }
 

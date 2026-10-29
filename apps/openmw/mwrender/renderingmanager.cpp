@@ -63,6 +63,7 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/groundcoverstore.hpp"
 #include "../mwworld/scene.hpp"
+#include "../mwworld/weather.hpp"
 
 #include "../mwgui/postprocessorhud.hpp"
 
@@ -254,9 +255,14 @@ namespace MWRender
         return mTerrain;
     }
 
-    void RenderingManager::preloadCommonAssets()
+    void RenderingManager::preloadCommonAssets(const MWWorld::WeatherStore& weathers)
     {
         auto workItem = std::make_shared<PreloadCommonAssetsWorkItem>(mResourceSystem);
+        for (const MWWorld::Weather* weather : weathers)
+        {
+            if (!weather->mParticleEffect.empty())
+                workItem->mModels.push_back(weather->mParticleEffect);
+        }
         mPrecipitation->listAssetsToPreload(workItem->mModels, workItem->mTextures);
         mRenderer.listAssetsToPreload(workItem->mModels, workItem->mTextures);
 

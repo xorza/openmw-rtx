@@ -14,6 +14,7 @@
 #include <apps/openmw/mwrender/sceneframe.hpp>
 #include <apps/openmw/mwrender/sky.hpp>
 #include <apps/openmw/mwrender/skystate.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/constants.hpp>
@@ -50,8 +51,8 @@ namespace MWRender
         /// straight overhead, the weather run wherever there is a sky over the player.
         Standing standingIn(const Location where)
         {
-            // Value-initialised: upstream's `WeatherResult` leaves its scalars unset, and the reader
-            // reads every one of them.
+            // Value-initialised: the reader reads every scalar of both records, and not every one
+            // of them is given a default.
             Standing standing{};
             SkyState& sky = standing.mSky;
             WorldState& world = standing.mWorld;
@@ -377,14 +378,18 @@ namespace MWRender
             const Standing standing = standingIn(Location::Exterior);
             const SkyReader reader;
 
+            MWWorld::Weather record;
+            record.blank();
+            record.mRainEffect = VFS::Path::Normalized("meshes/raindrop.nif");
+            record.mRainDiameter = 600.0f;
+            record.mRainMinHeight = 200.0f;
+            record.mRainMaxHeight = 700.0f;
+            record.mRainSpeed = 200.0f;
+            record.mRainEntranceSpeed = 1.0f;
+            record.mRainMaxRaindrops = 650;
+
             SkyState rain = standing.mSky;
-            rain.mWeather.mRainEffect = VFS::Path::NormalizedView("meshes/raindrop.nif");
-            rain.mWeather.mRainDiameter = 600.0f;
-            rain.mWeather.mRainMinHeight = 200.0f;
-            rain.mWeather.mRainMaxHeight = 700.0f;
-            rain.mWeather.mRainSpeed = 200.0f;
-            rain.mWeather.mRainEntranceSpeed = 1.0f;
-            rain.mWeather.mRainMaxRaindrops = 650;
+            rain.mWeather.mWeather = &record;
             rain.mWeather.mPrecipitationAlpha = 1.0f;
 
             // `weather particle occlusion` decides for both renderers, and defaults to off: the
