@@ -66,6 +66,14 @@ namespace Sky
     class TimeOfDayInterpolator
     {
     public:
+        explicit TimeOfDayInterpolator()
+            : mSunriseValue()
+            , mDayValue()
+            , mSunsetValue()
+            , mNightValue()
+        {
+        }
+
         TimeOfDayInterpolator(const T& sunrise, const T& day, const T& sunset, const T& night)
             : mSunriseValue(sunrise)
             , mDayValue(day)
@@ -85,6 +93,14 @@ namespace Sky
         void setDayValue(const T& dayValue) { mDayValue = dayValue; }
         void setSunsetValue(const T& sunsetValue) { mSunsetValue = sunsetValue; }
         void setNightValue(const T& nightValue) { mNightValue = nightValue; }
+
+        void blank()
+        {
+            mSunriseValue = {};
+            mDayValue = {};
+            mSunsetValue = {};
+            mNightValue = {};
+        }
 
     private:
         T mSunriseValue, mDayValue, mSunsetValue, mNightValue;

@@ -80,6 +80,7 @@ namespace MWWorld
 {
     class GroundcoverStore;
     class Cell;
+    class WeatherStore;
 }
 
 namespace MWRender
@@ -127,7 +128,7 @@ namespace MWRender
         const std::shared_ptr<SceneUtil::WorkQueue>& getWorkQueue() const;
         Terrain::World* getTerrain();
 
-        void preloadCommonAssets();
+        void preloadCommonAssets(const MWWorld::WeatherStore&);
 
         double getReferenceTime() const;
 
