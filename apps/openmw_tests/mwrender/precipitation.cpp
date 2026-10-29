@@ -8,6 +8,7 @@
 #include <apps/openmw/mwrender/sky.hpp>
 #include <apps/openmw/mwrender/skystate.hpp>
 #include <apps/openmw/mwrender/skyutil.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
@@ -21,18 +22,26 @@ namespace MWRender
     {
         /// A weather that rains, with the numbers `Precipitation::createRain` sizes the box by and
         /// divides by. Morrowind's own for Rain.
-        SkyState rain()
+        MWWorld::Weather rainRecord()
+        {
+            MWWorld::Weather record;
+            record.blank();
+            record.mRainEffect = VFS::Path::Normalized("meshes/raindrop.nif");
+            record.mRainDiameter = 600.0f;
+            record.mRainMinHeight = 200.0f;
+            record.mRainMaxHeight = 700.0f;
+            record.mRainSpeed = 200.0f;
+            record.mRainEntranceSpeed = 1.0f;
+            record.mRainMaxRaindrops = 650;
+            return record;
+        }
+
+        /// The sky `record` settled, which names the record and so must not outlive it.
+        SkyState rain(const MWWorld::Weather& record)
         {
             SkyState sky;
-            WeatherResult& weather = sky.mWeather;
-            weather.mRainEffect = VFS::Path::NormalizedView("meshes/raindrop.nif");
-            weather.mRainDiameter = 600.0f;
-            weather.mRainMinHeight = 200.0f;
-            weather.mRainMaxHeight = 700.0f;
-            weather.mRainSpeed = 200.0f;
-            weather.mRainEntranceSpeed = 1.0f;
-            weather.mRainMaxRaindrops = 650;
-            weather.mPrecipitationAlpha = 1.0f;
+            sky.mWeather.mWeather = &record;
+            sky.mWeather.mPrecipitationAlpha = 1.0f;
             return sky;
         }
 
@@ -56,7 +65,8 @@ namespace MWRender
             osg::ref_ptr<osg::Camera> camera = new osg::Camera;
             Precipitation precipitation(root, camera, &scenes);
 
-            precipitation.setWeather(rain());
+            const MWWorld::Weather record = rainRecord();
+            precipitation.setWeather(rain(record));
             ASSERT_NE(precipitation.getRainNode(), nullptr) << "a weather that rains makes the box";
             EXPECT_EQ(precipitation.getParticleNode(), nullptr) << "and drives nothing else";
 
