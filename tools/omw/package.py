@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from omw import deps, pins
@@ -113,15 +114,47 @@ def on_release_base(text: str) -> bool:
     return all(fields.get(key) == value for key, value in RELEASE_BASE.items())
 
 
-def container_command(docker: str, verb: list[str], user: str) -> list[str]:
-    """`omw <verb>` in the release-base container, run by `docker`, as `user`, `uid:gid`: the tree
-    where it stands on the desk, so every path is the same inside, with the container's package build
-    and compiler cache from `CONTAINER_DIR` in place of the desk's own."""
+def container_command(docker: str, command: list[str], user: str, flavour: str) -> list[str]:
+    """`command` in the release-base container, run by `docker`, as `user`, `uid:gid`: the tree
+    where it stands on the desk, so every path is the same inside, with the container's own build of
+    `flavour` and its compiler cache from `CONTAINER_DIR` in place of the desk's."""
     return [docker, "run", "--rm", "--user", user, "--env", "HOME=/tmp",
             "--env", f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}",
             "--volume", f"{ROOT}:{ROOT}",
-            "--volume", f"{CONTAINER_DIR / 'package'}:{ROOT / 'build-package'}",
-            "--workdir", str(ROOT), RELEASE_IMAGE, "python3", "omw", *verb]
+            "--volume", f"{CONTAINER_DIR / flavour}:{ROOT / f'build-{flavour}'}",
+            "--workdir", str(ROOT), RELEASE_IMAGE, *command]
+
+
+def needs_container() -> bool:
+    """Whether a build that runs on the release base is made in its container: on every Linux
+    desk but the release base itself, whose own build already is one."""
+    return not on_release_base(read_text(Path("/etc/os-release")))
+
+
+@dataclass(frozen=True)
+class Container:
+    """The release-base container, ready to run commands over the container's build of `flavour`."""
+    docker: str
+    user: str
+    flavour: str
+
+    def command(self, command: list[str]) -> list[str]:
+        return container_command(self.docker, command, self.user, self.flavour)
+
+
+def prepare_container(flavour: str) -> Container:
+    """The release-base image made, which the layers it keeps make a moment's work after the first,
+    the SDK `omw bootstrap` fetches into deps/, which the desk shares, and the container's build of
+    `flavour` given a folder."""
+    docker = require("docker", "a release is built on Ubuntu 24.04, and on another system in a container: docker")
+    run([docker, "build", "--tag", RELEASE_IMAGE,
+         "--build-arg", f"CMAKE_URL={pins.CMAKE_LINUX.url}", "--build-arg", f"CMAKE_SHA256={pins.CMAKE_LINUX.sha256}",
+         "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
+    for kept in (flavour, "ccache"):
+        (CONTAINER_DIR / kept).mkdir(parents=True, exist_ok=True)
+    container = Container(docker, user_and_group(), flavour)
+    run(container.command(["python3", "omw", "bootstrap"]))
+    return container
 
 
 def harness_files(installed: Path) -> list[str]:
@@ -162,8 +195,8 @@ def archive(build: Build, args: list[str]) -> int:
     if len(args) > 1:
         raise Refusal("archive takes one name at most")
     name = args[0] if args else output(["git", "-C", ROOT, "describe", "--tags", "--always"]).strip()
-    if not WINDOWS and not on_release_base(read_text(Path("/etc/os-release"))):
-        _archive_in_container(name)
+    if not WINDOWS and needs_container():
+        run(prepare_container("package").command(["python3", "omw", "archive", name]))
         return 0
 
     build.build(build.default_targets)
@@ -178,21 +211,6 @@ def archive(build: Build, args: list[str]) -> int:
         files = [item] if item.is_file() else [file for file in item.rglob("*") if file.is_file()]
         print(f"{sum(file.stat().st_size for file in files):>12} {item.name}")
     return 0
-
-
-def _archive_in_container(name: str) -> None:
-    """The archive `name` built in the release-base container, made first, which the layers it keeps
-    make a moment's work after the first: the SDK `omw bootstrap` fetches into deps/, which the desk
-    shares, and then the archive, into the desk's dist/."""
-    docker = require("docker", "a release is built on Ubuntu 24.04, and on another system in a container: docker")
-    run([docker, "build", "--tag", RELEASE_IMAGE,
-         "--build-arg", f"CMAKE_URL={pins.CMAKE_LINUX.url}", "--build-arg", f"CMAKE_SHA256={pins.CMAKE_LINUX.sha256}",
-         "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
-    for kept in ("package", "ccache"):
-        (CONTAINER_DIR / kept).mkdir(parents=True, exist_ok=True)
-    user = user_and_group()
-    for verb in (["bootstrap"], ["archive", name]):
-        run(container_command(docker, verb, user))
 
 
 def _archive_linux(build: Build, name: str) -> None:

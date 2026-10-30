@@ -475,8 +475,9 @@ namespace RtxTool
             "also read the device's own counters around every zone — instructions run, how busy the "
             "vector and scalar units were, how the caches hit — and report each zone's median under its "
             "times: what a profiler shows of a dispatch, where none reads the device. As many as one "
-            "pass reads, which the log names. The queries add work to every zone, so a run with them "
-            "is not the run its times are quoted from. Where the driver offers none, nothing is read");
+            "pass reads, which the log names. The queries add work to every zone, and RADV holds the "
+            "card at the kernel's profiling clock while it reads them, so a run with them is not the run "
+            "its times are quoted from. Where the driver offers none, nothing is read");
 
         option(Verbs::Bench, "json", bpo::value<std::string>()->default_value(""),
             "also write the run to this file as one record, for comparing against the "

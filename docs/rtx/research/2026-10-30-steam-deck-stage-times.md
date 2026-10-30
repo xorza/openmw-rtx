@@ -134,7 +134,10 @@ the frame.
 `bench --counters --validation=on --seconds=3`, Arch's validation layer 1.4.363 beside the build,
 which reported nothing. RADV offers 17 counters for the queue's family and reads 15 in one pass;
 `VRAM write size` and `L2 cache hit ratio` were left out. The core clock read 1300 MHz through
-this run, not 1600: the manual clock no longer held. Each the median over the zone's runs, eight
+this run, not 1600, and not because the manual clock let go: RADV puts the card in amdgpu's profiling
+state while it reads counters, `profile_standard` by default, and `RADV_PROFILE_PSTATE=peak` gave
+`profile_peak` at 1300 MHz as well (2026-10-31). A counters run is at 1300 MHz whatever is held.
+Each the median over the zone's runs, eight
 zones by share.
 
 | Counter | landing | bounce | direct | trace | upscale | filter0 | clamp | panes |
@@ -166,3 +169,21 @@ RTX 4090 Laptop, driver 615.78.08. The driver offers no `VK_KHR_performance_quer
 answers that the ICD does not support enumerating its counters), and gives no internal
 representation of any pipeline: a `--counters --pipeline-code` bench reads no counter, writes no
 file, and logs the first.
+
+## What `landing`'s rays cost (2026-10-31)
+
+`omw release remote deck@192.168.0.31 bench --views=balmora-mages-guild,seyda-neen-ship --seconds=8
+--size=1280x800`, the clock held at 1600 MHz. Each leg drops one of the landing's two rays in
+`landing.comp` (its answer then reads as open), a change for the measurement alone.
+
+| Leg | balmora frame | balmora landing | seyda frame | seyda landing |
+|---|---|---|---|---|
+| as built | 59.64 | 18.86 | 100.23 | 19.53 |
+| no ambient ray (`VISIT_AMBIENT`) | 53.22 | 12.51 | 91.97 | 11.42 |
+| no lamp ray (`GATHER_LAMP`) | 50.84 | 10.05 | 96.72 | 16.04 |
+
+- **The two rays are four fifths of an interior's `landing`**: the ambient ray 6.35 ms and the lamp's
+  8.81 of 18.86, which leaves about 3.7 ms for resolving the landing and gathering its light.
+- **Out of doors the ambient ray is the larger**, 8.11 ms against 3.49, though it is drawn at
+  `AMBIENT_EXTERIOR_RATE` there; a room traces it at every landing to `ROOM_FILL_REACH`, 140 units.
+- **Every other zone stayed to the hundredth**, so the legs moved `landing` alone.

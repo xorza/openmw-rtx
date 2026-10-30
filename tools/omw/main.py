@@ -6,7 +6,22 @@ import textwrap
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from omw import crash, deps, formatting, game, gate, kernels, lint, listing, noise, package, perf, repeat, testing
+from omw import (
+    crash,
+    deps,
+    formatting,
+    game,
+    gate,
+    kernels,
+    lint,
+    listing,
+    noise,
+    package,
+    perf,
+    remote,
+    repeat,
+    testing,
+)
 from omw.build import FLAVOURS, Build
 from omw.system import CI, Refusal, refuse_unsupported, status
 
@@ -34,6 +49,10 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   archive [name]               the release archive into dist/, with its symbols: the package flavour,
                                on Linux in an Ubuntu 24.04 container where the system is another
   profile [args]               the harness's CPU side under perf: the release flavour
+  remote <host> <verb> [args]  openmw-rtxtool's verb on another Linux machine over SSH: built where
+                               a release is, copied to this tree's path there with the libraries it
+                               lacks, run headless, and the files the line names brought back; a
+                               bench or noise run holds a SteamOS GPU clock at its top
   info, scene, shot, view, bench, check, film, noise [args]
                                openmw-rtxtool's own verbs, from the build directory
   noise --ab=<switch>[=<a>,<b>] [--still] [--cut=N] [noise args]
@@ -83,6 +102,10 @@ def _exec(build: Build, args: list[str]) -> int:
     return status(build.run_here(args).returncode)
 
 
+def _remote(build: Build, args: list[str]) -> int:
+    return remote.remote(build, args, HARNESS_VERBS)
+
+
 def _build(build: Build, args: list[str]) -> int:
     """The tree formatted first, except on CI, whose checks job runs `omw format --check` once for
     every build job; after the build, `listing.check`."""
@@ -114,6 +137,7 @@ BUILD_VERBS = {
     "exec": Verb(_exec),
     "archive": Verb(package.archive, flavour="package"),
     "profile": Verb(perf.profile, flavour="release"),
+    "remote": Verb(_remote),
 }
 
 
