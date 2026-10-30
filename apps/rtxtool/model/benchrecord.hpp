@@ -163,6 +163,10 @@ namespace RtxTool
         /// where the device cannot write timestamps.
         std::vector<GpuZone> mGpu;
 
+        /// What the device called each counter its zones read (`GpuZone::mCounters`), or nothing
+        /// where the run read none (`--counters`).
+        std::vector<std::string> mCounterNames;
+
         /// What the card was clocked at through the place's measured frames: the range and the mean
         /// `CardWatch` sampled. Every GPU figure above is at that clock, and two runs taken at
         /// different ones are not an A/B.

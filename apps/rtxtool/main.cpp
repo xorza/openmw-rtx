@@ -379,6 +379,7 @@ namespace RtxTool
             framed.mSetup.mKernels = Rtx::KernelSet::Every;
             if (variables.count("memory-budget") != 0)
                 framed.mSetup.mRun.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
+            framed.mSetup.mRun.mPipelineCode = variables["pipeline-code"].as<std::string>();
 
             Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
             profile.mRadianceWidth = policyOf(command.mVerb).radianceWidth();
@@ -799,6 +800,7 @@ namespace RtxTool
             Framed framed = frameFrom(command);
 
             framed.mSetup.mHeadless = !variables["window"].as<bool>();
+            framed.mSetup.mRun.mZoneCounters = variables["counters"].as<bool>();
 
             const SuiteRun run = chooseBenchViews(variables, "default");
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);

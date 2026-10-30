@@ -21,6 +21,16 @@ unless named. Zones are medians in ms.
   views and suites are compiled-in absolute paths (`apps/rtxtool/harnessfolder.cpp`).
 - **`SDL_VIDEO_DRIVER=offscreen` over SSH.** `--window=false` still initializes SDL's video, which
   fails with no display ("No available video device"); `dummy` has no Vulkan.
+- **`umr` cannot read a wave here.** SteamOS's `umr` 1.0.10 has no register of Van Gogh's graphics
+  block ("Cannot find a 'gfx' IP block in this ASIC", `mmSQ_CMD` not found), so `--profiler` and
+  `--waves` halt nothing and read no shader; `--profiler` then wrote 2.7 GB of those errors a
+  minute.
+- **What the driver compiled, as text**: `--pipeline-code=<dir>` writes RADV's NIR, ACO IR and
+  final code of every pipeline (160 compiled, 182 MB, from cold in a 2 s bench; the first writing
+  kept one file a name, so the shadow filter's nine wrote one, which `PipelineCodeFolder` now numbers). This RADV has no LLVM,
+  so the final code is ACO's own listing with registers assigned, not a disassembly. The `landing`
+  with no sun, moons, sea or maps (`landing.txt`) is 5 312 instructions in 417 blocks: 3 513 vector, 1 667 scalar,
+  105 global loads, 4 LDS operations and one `image_bvh64_intersect_ray`.
 - **An RGP capture of one whole frame needs a present**: a window on the Deck's desktop
   (`WAYLAND_DISPLAY=wayland-0`, `SDL_VIDEO_DRIVER=wayland`, `--window=true`) with
   `MESA_VK_TRACE=rgp MESA_VK_TRACE_FRAME=300 RADV_THREAD_TRACE_BUFFER_SIZE=268435456`. Headless,
@@ -98,3 +108,61 @@ the frame.
   translucent and additive rows force it otherwise (`SceneAcceleration::placeRow`), and a shadow
   ray terminates on its first hit unless its penumbra reads the nearest occluder
   (`passageAsk`). The interior holds 131 cutouts.
+
+## What the gather's candidates and the pixel count cost
+
+`balmora-mages-guild`, 10 s a leg, back to back after a 3 s leg that compiled the pipelines.
+
+| Leg | frame median | p99 | landing | bounce | direct | trace |
+|---|---|---|---|---|---|---|
+| `--lamp-candidates=8` (default) | 60.23 | 120.52 | 18.91 | 9.51 | 5.30 | 5.08 |
+| `--lamp-candidates=4` | 58.37 | 116.73 | 17.15 | 9.51 | 5.30 | 5.07 |
+| `--lamp-candidates=1` | 55.37 | 110.76 | 14.29 | 9.51 | 5.30 | 5.07 |
+| `--upscale=performance` (640x400 traced) | 36.22 | 71.97 | 10.65 | 5.36 | 3.13 | 2.97 |
+| `--lamp-candidates=8`, again | 60.24 | 120.47 | 18.90 | 9.51 | 5.30 | 5.07 |
+
+- **The run repeats to 0.01 ms** in every zone, so a difference of a tenth is a change.
+- **The candidates cost `landing` alone, and less each as they grow**: from 1 to 4 they add 0.95 ms
+  a candidate, from 4 to 8 0.44. 14.29 ms of `landing` stays at one candidate. `direct` does not
+  move with the switch.
+- **The ray stages follow the pixel count**: 640x400 is 0.563 of 853x533, and `landing` went to
+  0.563 of itself, `bounce` 0.564, `trace` 0.585, `direct` 0.591. `upscale` went only to 0.84.
+- **The p99 stays twice the median** in every leg.
+
+## The device's counters a zone, `balmora-mages-guild`
+
+`bench --counters --validation=on --seconds=3`, Arch's validation layer 1.4.363 beside the build,
+which reported nothing. RADV offers 17 counters for the queue's family and reads 15 in one pass;
+`VRAM write size` and `L2 cache hit ratio` were left out. The core clock read 1300 MHz through
+this run, not 1600: the manual clock no longer held. Each the median over the zone's runs, eight
+zones by share.
+
+| Counter | landing | bounce | direct | trace | upscale | filter0 | clamp | panes |
+|---|---|---|---|---|---|---|---|---|
+| GPU active cycles | 28.89M | 14.18M | 8.15M | 7.88M | 5.04M | 4.64M | 4.27M | 2.92M |
+| Waves | 14.34k | 14.47k | 14.47k | 14.47k | 42.77k | 7169 | 21.51k | 1023 |
+| Instructions | 350.74M | 236.06M | 133.69M | 121.23M | 42.01M | 42.40M | 31.41M | 29.66M |
+| VALU instructions | 175.07M | 126.08M | 71.69M | 66.43M | 33.71M | 28.94M | 22.74M | 15.71M |
+| SALU instructions | 88.43M | 47.95M | 29.84M | 23.60M | 3.63M | 6.23M | 2.95M | 6.48M |
+| VMEM load instructions | 2.58M | 1.84M | 916.04k | 981.50k | 937.91k | 314.90k | 295.10k | 237.73k |
+| LDS instructions | 4.61M | 3.50M | 1.29M | 1.23M | 15.67k | 1.72M | 1.82M | 268.75k |
+| VALU busy | 45.97 | 69.16 | 65.53 | 63.79 | 100.18 | 91.56 | 70.01 | 40.54 |
+| SALU busy | 38.27 | 42.31 | 45.79 | 37.44 | 9.00 | 16.77 | 8.62 | 27.77 |
+| VRAM read size | 144.07M | 70.49M | 47.08M | 7.68M | 52.82M | 11.62M | 41.08M | 2.30M |
+| L0 cache hit ratio | 58.85 | 58.29 | 85.60 | 89.16 | 77.56 | 29.24 | 30.52 | 95.27 |
+| L1 cache hit ratio | 53.77 | 62.52 | 66.91 | 47.80 | 42.32 | 55.20 | 54.39 | 68.74 |
+
+- **`landing` waits, where the other three ray stages compute**: its VALU is busy 46 % of its
+  cycles against 64–69 % for `bounce`, `direct` and `trace`, while it reads 144 MB from memory a
+  run — twice `bounce`'s, nineteen times `trace`'s — at the lowest L0 and L1 hit ratios of the four.
+  With six waves a SIMD (160 VGPRs), too few are resident to cover those misses.
+- **A wave of `landing` runs 24 459 instructions**, 12 209 of them vector, against 16 314 and
+  8 713 for `bounce`.
+- **RADV's busy figures pass 100**: `upscale` read 100.18.
+
+## On the desk's NVIDIA card
+
+RTX 4090 Laptop, driver 615.78.08. The driver offers no `VK_KHR_performance_query` (the loader
+answers that the ICD does not support enumerating its counters), and gives no internal
+representation of any pipeline: a `--counters --pipeline-code` bench reads no counter, writes no
+file, and logs the first.

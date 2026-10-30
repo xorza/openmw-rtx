@@ -189,7 +189,7 @@ namespace Rtx
         {
             const Instance& instance = *mHarness.mInstance;
             const Device empty(instance, PhysicalDevice::select(instance.getHandle(), {}),
-                ShaderSet{ .mDirectory = "no-such-directory" }, PipelineCacheSpec{}, PipelineStatistics::Skipped);
+                ShaderSet{ .mDirectory = "no-such-directory" }, PipelineCacheSpec{}, DeviceReport{});
             const SetLayout textures = TextureArray::describeLayout(empty);
             const SetLayout channels = GBuffer::describeLayout(empty);
             const SetLayout volume = FogVolume::describeLayout(empty);

@@ -76,7 +76,7 @@ namespace Rtx
                         [&](VkPhysicalDevice physical, std::uint32_t family) {
                             return mSurface->supports(physical, family);
                         }),
-                    Testing::getCensusShaders(), Testing::getPipelineCacheSpec(), PipelineStatistics::Skipped);
+                    Testing::getCensusShaders(), Testing::getPipelineCacheSpec(), DeviceReport{});
             }
 
             void TearDown() override

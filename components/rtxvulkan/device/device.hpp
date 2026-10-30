@@ -51,6 +51,8 @@ namespace Rtx
     class NotFiniteCensus;
     class Timeline;
     class PipelineCache;
+    class PipelineCodeFolder;
+    class ZoneCounters;
     struct PipelineCacheSpec;
 
     /// Whether a pipeline is made to say what the driver's compiler made of it — registers, spills,
@@ -60,6 +62,23 @@ namespace Rtx
     {
         Captured,
         Skipped,
+    };
+
+    /// What a device is made to say of the work on it: every pipeline of itself
+    /// (`Device::reportPipeline`), and every zone of a frame what its counters read.
+    struct DeviceReport
+    {
+        PipelineStatistics mStatistics = PipelineStatistics::Skipped;
+
+        /// Where the driver's own code of each pipeline is written as text, a file a pipeline
+        /// (`PipelineCodeFolder`), or empty for none: the instructions a profiler's view shows, for
+        /// a device no profiler there reads. Asked for at creation, as the statistics are, and
+        /// RADV then compiles every pipeline past its cache.
+        std::filesystem::path mCodeFolder{};
+
+        /// Whether the zones read the device's counters (`Device::getZoneCounters`), where the
+        /// driver offers them: `RunProfile::mZoneCounters`.
+        bool mCounters = false;
     };
 
     /// Which `VkObjectType` a handle is, so that `Device::setName` takes the handle and never a
@@ -143,9 +162,9 @@ namespace Rtx
         ///        they count into (`getCensus`).
         /// @param cache where the pipeline cache is kept. An empty directory keeps none, and every
         ///        pipeline is compiled from source every run.
-        /// @param statistics whether the pipelines are made to report themselves (`reportPipeline`).
+        /// @param report what the pipelines are made to say of themselves (`reportPipeline`).
         Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
-            const PipelineCacheSpec& cache, PipelineStatistics statistics);
+            const PipelineCacheSpec& cache, const DeviceReport& report);
         ~Device();
 
         VkDevice getHandle() const { return mHandle.get(); }
@@ -194,17 +213,26 @@ namespace Rtx
         /// where a pipeline is made and pushed rather than having it handed to every pass.
         const NotFiniteCensus* getCensus() const { return mCensus.get(); }
 
-        /// Whether pipelines are made to say what they are made of (`PipelineStatistics`), the flags
+        /// The counters every zone of a frame reads (`GpuTimer`), or null where the run did not ask
+        /// for them or the driver offers none. The device's, because the profiling lock they hold is.
+        const ZoneCounters* getZoneCounters() const { return mZoneCounters.get(); }
+
+        /// Whether pipelines are made to say what they are made of (`DeviceReport`), the flags
         /// every create info starts from.
         VkPipelineCreateFlags getPipelineFlags() const
         {
-            return mStatistics == PipelineStatistics::Captured ? VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR : 0;
+            VkPipelineCreateFlags flags = 0;
+            if (mReport.mStatistics == PipelineStatistics::Captured)
+                flags |= VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR;
+            if (!mReport.mCodeFolder.empty())
+                flags |= VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR;
+            return flags;
         }
 
         /// Logs what the driver's compiler made of `pipeline` — registers a thread, spills, shared
         /// memory a block — where the device captures it, and its compile time. The register count
         /// exists only inside the driver, which is what lets an occupancy figure be had here with no
-        /// external profiler.
+        /// external profiler. Where the device is asked for its code, writes it (`writeCode`).
         void reportPipeline(
             VkPipeline pipeline, std::string_view name, std::optional<double> compileMs = std::nullopt) const;
 
@@ -307,6 +335,12 @@ namespace Rtx
         std::uint32_t executablesOf(VkPipeline pipeline) const;
         std::vector<VkPipelineExecutableStatisticKHR> statisticsOf(VkPipeline pipeline, std::uint32_t executable) const;
 
+        /// Writes the text forms the driver gives the executable `executable` of `pipeline`'s
+        /// `executables` in, the `copy`th of its name (`PipelineCodeFolder::claim`), to `mCode`.
+        /// Nothing where the driver gives none, as NVIDIA's does.
+        void writeCode(VkPipeline pipeline, std::string_view name, std::uint32_t copy, std::uint32_t executable,
+            std::uint32_t executables) const;
+
         /// The last checkpoint each stage of the queue passed, as lines for the fault report.
         /// Nothing where the driver offers neither checkpoints nor buffer markers.
         std::string describeCheckpoints() const;
@@ -339,7 +373,10 @@ namespace Rtx
         bool mWatchesSubmits = false;
 
         std::filesystem::path mShaderDirectory;
-        PipelineStatistics mStatistics;
+        DeviceReport mReport;
+
+        /// Where the pipelines' code goes, null where `mReport` asks for none.
+        std::unique_ptr<PipelineCodeFolder> mCode;
 
         // Last, so that they are torn down first, and in this order, because a later one dies
         // earlier: everything after the graveyard buries into it as it goes, the graveyard ends
@@ -358,5 +395,8 @@ namespace Rtx
 
         /// Made on the allocator, so torn down before it.
         std::unique_ptr<NotFiniteCensus> mCensus;
+
+        /// Holds the profiling lock, which goes before the device does.
+        std::unique_ptr<ZoneCounters> mZoneCounters;
     };
 }

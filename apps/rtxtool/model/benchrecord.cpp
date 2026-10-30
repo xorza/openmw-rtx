@@ -476,6 +476,7 @@ namespace RtxTool
         // the average frame, so the row sums to the device's part of it and a pass that only runs
         // at a crossing says so beside its own share.
         out += describeZones(place.mGpu);
+        out += describeCounters(place.mGpu, place.mCounterNames);
         out += describeClock(place.mClock);
 
         // Under the clock, because it is the other premise every figure above rests on: a place
@@ -589,6 +590,22 @@ namespace RtxTool
             for (std::size_t zone = 0; zone < place.mGpu.size(); ++zone)
                 file << std::format(R"({}{}: {})", zone == 0 ? "" : ", ",
                     asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)), asJson(place.mGpu[zone]));
+
+            // Beside the times and not inside them, so a record read for its times reads as it did.
+            file << R"(}, "gpuCounters": {)";
+            for (std::size_t zone = 0; zone < place.mGpu.size() && !place.mCounterNames.empty(); ++zone)
+            {
+                file << std::format(
+                    R"({}{}: {{)", zone == 0 ? "" : ", ", asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)));
+                for (std::size_t counter = 0; counter < place.mCounterNames.size(); ++counter)
+                {
+                    // A counter no run read a number for is null, which JSON has and NaN it has not.
+                    const double value = place.mGpu[zone].mCounters[counter];
+                    file << std::format(R"({}{}: {})", counter == 0 ? "" : ", ", asJson(place.mCounterNames[counter]),
+                        std::isfinite(value) ? std::format("{:.6g}", value) : std::string("null"));
+                }
+                file << '}';
+            }
 
             file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard)
                  << ", \"thread\": " << asJson(place.mThread) << "}" << (at + 1 < places.size() ? "," : "") << '\n';

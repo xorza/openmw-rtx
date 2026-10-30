@@ -163,6 +163,15 @@ namespace RtxTool
         /// frame that ever happened — `blas 7.51` was printed above a frame median of 6.73.
         double mShareMs = 0.0;
 
+        /// The median of each of the device's counters over every run of the zone, in the order
+        /// `GpuBreakdown::counterNames` names them, and nought past those. A NaN where no run read
+        /// a number: RADV answers a hit ratio of a zone that touched no cache as NaN, nought over
+        /// nought, and such a run is left out of the median rather than sorted.
+        ///
+        /// **Over each run and not each frame**, because a pass recorded in batches opens its zone
+        /// once a batch, and a busy percentage summed over two batches is no percentage at all.
+        std::array<double, Rtx::sMaxZoneCounters> mCounters{};
+
         /// Whether every measured frame ran it, which is what says the share above is also what
         /// the zone costs on a frame.
         bool isEveryFrame() const { return mFrames == mOfFrames; }
@@ -184,7 +193,16 @@ namespace RtxTool
         /// **One call per measured frame, whether or not that frame reported a zone.** The count
         /// it keeps is the denominator every share below is taken over, so a frame handed to the
         /// report and not to this would make each of them larger than the frame it describes.
-        void add(std::span<const Rtx::GpuSpan> spans);
+        ///
+        /// @param counterNames what the device calls each counter, copied the first time there are
+        ///        any, as the zones' names are.
+        /// @param counters what they read, `counterNames.size()` a span in the order of `spans`
+        ///        (`Rtx::GpuZones::counters`).
+        void add(std::span<const Rtx::GpuSpan> spans, std::span<const std::string_view> counterNames = {},
+            std::span<const double> counters = {});
+
+        /// What the device called each counter the zones read, or nothing where they read none.
+        std::span<const std::string> counterNames() const { return mCounterNames; }
 
         /// Summarises what was gathered, the largest share of a frame first — which is the order
         /// the question "where did the frame go" wants read. Empty where no frame reported a zone.
@@ -221,6 +239,9 @@ namespace RtxTool
             /// Which frame this was last given a sample on, so the spans of one frame land in one
             /// of them. Nought for a zone nothing has reported yet, which is an index no frame has.
             std::uint32_t mSeen = 0;
+
+            /// What the counters read, `counterNames().size()` a run of the zone, run after run.
+            std::vector<double> mCounters{};
         };
 
         std::vector<ZoneRow> mRows;
@@ -232,6 +253,11 @@ namespace RtxTool
         std::uint32_t mReserved = 0;
 
         std::vector<GpuZone> mZones;
+
+        std::vector<std::string> mCounterNames;
+
+        /// One counter's readings over a zone's runs, gathered to be summarised.
+        std::vector<double> mColumn;
     };
 
     /// The column headings the rows below line up under.
@@ -249,4 +275,12 @@ namespace RtxTool
     /// **Six distributions would be a wall**; what this row answers is which stretch of the frame is
     /// the expensive one, and the rows above it already say how much the whole frame varies.
     std::string describeZones(std::span<const GpuZone> zones);
+
+    /// The device's counters of the zones that cost the most, a counter a row and one of
+    /// `sCounterZones` zones a column, largest first: each the median over the zone's runs. Nothing
+    /// where no counter was read.
+    std::string describeCounters(std::span<const GpuZone> zones, std::span<const std::string> names);
+
+    /// How many zones `describeCounters` shows, so its table stays a screen wide.
+    inline constexpr std::size_t sCounterZones = 8;
 }

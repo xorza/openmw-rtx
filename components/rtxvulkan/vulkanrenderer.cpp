@@ -117,7 +117,10 @@ namespace Rtx
         , mSurface(options.mWindow != nullptr ? std::make_unique<Surface>(mInstance, options.mWindow) : nullptr)
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle(), presentsTo(mSurface.get())),
               options.mShaders, PipelineCacheSpec{ .mDirectory = options.mCacheDirectory },
-              options.mPipelineStatistics ? PipelineStatistics::Captured : PipelineStatistics::Skipped)
+              DeviceReport{ .mStatistics
+                  = options.mPipelineStatistics ? PipelineStatistics::Captured : PipelineStatistics::Skipped,
+                  .mCodeFolder = options.mRun.mPipelineCode,
+                  .mCounters = options.mRun.mZoneCounters })
         , mCounting(options.mCounting)
         , mProfile(options.mRun.mProfile)
         , mInverseGamma(1.0f / mProfile.mGamma)

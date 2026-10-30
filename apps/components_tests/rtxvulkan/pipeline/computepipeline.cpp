@@ -58,7 +58,7 @@ namespace Rtx
             const Instance& instance = *mHarness.mInstance;
             auto device = std::make_unique<Device>(instance, PhysicalDevice::select(instance.getHandle(), {}),
                 ShaderSet{ .mDirectory = Testing::getShaderDirectory() }, PipelineCacheSpec{},
-                PipelineStatistics::Captured);
+                DeviceReport{ .mStatistics = PipelineStatistics::Captured });
 
             ValidationLog* log = instance.getValidationLog();
             ASSERT_NE(log, nullptr) << "the layers are what this test reads its answer from";
