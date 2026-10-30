@@ -90,7 +90,7 @@ class ReleaseBaseTest(unittest.TestCase):
                 self.assertFalse(on_release_base(other))
 
     def test_the_container_runs_omw_on_the_tree_with_its_own_build_and_cache(self):
-        command = container_command("/usr/bin/docker", ["archive", "v1"], "1000:1000")
+        command = container_command("/usr/bin/docker", ["python3", "omw", "archive", "v1"], "1000:1000", "package")
         self.assertEqual(command[:4], ["/usr/bin/docker", "run", "--rm", "--user"])
         self.assertEqual(command[command.index("--user") + 1], "1000:1000")
         volumes = [command[at + 1] for at, word in enumerate(command) if word == "--volume"]
