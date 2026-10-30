@@ -1,10 +1,14 @@
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <span>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -276,6 +280,55 @@ namespace RtxTool
 
             EXPECT_EQ(zones[1].mZone, Rtx::FrameZone::Trace);
             EXPECT_DOUBLE_EQ(zones[1].mShareMs, 2.0);
+            EXPECT_TRUE(breakdown.counterNames().empty()) << "frames that named no counter read none";
+        }
+
+        /// **A counter is summarised over each run of a zone, and not summed over a frame's**, since
+        /// a busy percentage of two batches added up is no percentage; a run the driver answered NaN
+        /// for — RADV's hit ratio of a zone that touched no cache — is left out of the median, and a
+        /// zone with no other run has no median at all; and the table under the times shows each
+        /// zone's median, a counter a row, the costliest zone first.
+        TEST(RtxGpuBreakdownTest, aZonesCountersAreTheMedianOfItsRuns)
+        {
+            GpuBreakdown breakdown;
+            const std::array<std::string_view, 3> names{ "VALU Busy", "Waves", "L0 cache hit ratio" };
+            constexpr double sNaN = std::numeric_limits<double>::quiet_NaN();
+
+            // Two frames. `tlas` runs three times, reading (10, 50, NaN), (30, 70, 40) and
+            // (20, 60000, 60); `trace` twice, (5, 14336, NaN) and (7, 15000, NaN).
+            const std::vector<Rtx::GpuSpan> batched{ { .mZone = Rtx::FrameZone::Tlas, .mMs = 3.0 },
+                { .mZone = Rtx::FrameZone::Trace, .mMs = 2.0 }, { .mZone = Rtx::FrameZone::Tlas, .mMs = 5.0 } };
+            const std::array<double, 9> batchedRead{ 10.0, 50.0, sNaN, 5.0, 14336.0, sNaN, 30.0, 70.0, 40.0 };
+            const std::vector<Rtx::GpuSpan> once{ { .mZone = Rtx::FrameZone::Tlas, .mMs = 4.0 },
+                { .mZone = Rtx::FrameZone::Trace, .mMs = 2.0 } };
+            const std::array<double, 6> onceRead{ 20.0, 60000.0, 60.0, 7.0, 15000.0, sNaN };
+            breakdown.add(batched, names, batchedRead);
+            breakdown.add(once, names, onceRead);
+
+            ASSERT_EQ(breakdown.counterNames().size(), 3u);
+            EXPECT_EQ(breakdown.counterNames()[1], "Waves");
+
+            const std::span<const GpuZone> zones = breakdown.summariseZones();
+            ASSERT_EQ(zones.size(), 2u);
+
+            // Nearest rank: of three runs the second shortest, ceil(0.5 x 3) = 2; of two the
+            // shorter, ceil(0.5 x 2) = 1.
+            EXPECT_EQ(zones[0].mZone, Rtx::FrameZone::Tlas);
+            EXPECT_DOUBLE_EQ(zones[0].mCounters[0], 20.0) << "10, 20, 30";
+            EXPECT_DOUBLE_EQ(zones[0].mCounters[1], 70.0) << "50, 70, 60000";
+            EXPECT_DOUBLE_EQ(zones[0].mCounters[2], 40.0) << "40 and 60, the NaN left out";
+            EXPECT_DOUBLE_EQ(zones[1].mCounters[0], 5.0);
+            EXPECT_DOUBLE_EQ(zones[1].mCounters[1], 14336.0);
+            EXPECT_TRUE(std::isnan(zones[1].mCounters[2])) << "no run read a number";
+            EXPECT_DOUBLE_EQ(zones[1].mCounters[3], 0.0) << "past the counters read";
+
+            const std::vector<std::string> named(breakdown.counterNames().begin(), breakdown.counterNames().end());
+            EXPECT_EQ(describeCounters(zones, named),
+                "  counters, median a run        tlas      trace\n"
+                "  VALU Busy                    20.00       5.00\n"
+                "  Waves                        70.00     14.34k\n"
+                "  L0 cache hit ratio           40.00          -\n");
+            EXPECT_EQ(describeCounters(zones, {}), "") << "a run that read no counter prints no table";
         }
 
         /// A frame that reported no zone at all still counts against every share.

@@ -55,6 +55,7 @@ namespace Rtx
         constexpr std::array sPresentWait{ VK_KHR_PRESENT_WAIT_EXTENSION_NAME };
         constexpr std::array sCheckpoints{ VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME };
         constexpr std::array sBufferMarkers{ VK_AMD_BUFFER_MARKER_EXTENSION_NAME };
+        constexpr std::array sPerformanceQuery{ VK_KHR_PERFORMANCE_QUERY_EXTENSION_NAME };
 
         /// What the registry says a present fence rests on beside core 1.4: the swapchain, which a
         /// device takes only where its instance has a surface, and the instance's half of swapchain
@@ -103,6 +104,13 @@ namespace Rtx
             .mStructure
             = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentWait); },
             .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentWait.presentWait; },
+        };
+        constexpr OptionalFeature sPerformanceQueryFeature{
+            .mStructure
+            = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPerformanceQuery); },
+            .mField = [](OptionalFeatures& features) -> VkBool32& {
+                return features.mPerformanceQuery.performanceCounterQueryPools;
+            },
         };
 
         constexpr std::array sOptionalExtensions{
@@ -159,6 +167,13 @@ namespace Rtx
             // written at a stage and not a pointer, so the host keeps what each number names
             // (`MarkerRing`).
             OptionalExtensions{ DeviceOption::BufferMarkers, sBufferMarkers, {}, sDebugNames },
+            // The device's own counters of a stretch of work, which `ZoneCounters` reads around each
+            // zone. Taken only where the run asks (`DeviceReport::mCounters`): the profiling lock
+            // it holds is the whole device's.
+            OptionalExtensions{ .mOption = DeviceOption::PerformanceQuery,
+                .mExtensions = sPerformanceQuery,
+                .mNeeds = {},
+                .mFeature = &sPerformanceQueryFeature },
         };
 
         /// A table out of `DeviceOption`'s order is an option read as another.
@@ -369,6 +384,7 @@ namespace Rtx
         mPresentFences.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR;
         mPresentIds.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
         mPresentWait.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
+        mPerformanceQuery.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PERFORMANCE_QUERY_FEATURES_KHR;
     }
 
     DeviceProperties::DeviceProperties()

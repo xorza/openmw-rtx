@@ -224,7 +224,7 @@ namespace RtxTool
 
         mProgress.mReconstruction = finished.mReconstruction;
         mProgress.mPlace.mOverlap.add(finished.mInFlight);
-        mProgress.mGpu.add(finished.mGpu.spans());
+        mProgress.mGpu.add(finished.mGpu.spans(), finished.mGpu.counterNames(), finished.mGpu.counters());
         mProgress.mNotFinite.add(finished.mNotFinite);
 
         // A frame that held, and no other: a run with no hold has no reading to summarise, and a
@@ -415,6 +415,7 @@ namespace RtxTool
         place.mMemory = renderer.getMemoryReport();
         place.mContent = context.mMirror.getContentMemory();
         place.mGpu.assign(zones.begin(), zones.end());
+        place.mCounterNames.assign(mProgress.mGpu.counterNames().begin(), mProgress.mGpu.counterNames().end());
 
         return std::move(place);
     }

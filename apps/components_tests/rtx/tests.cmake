@@ -121,8 +121,10 @@ set(RTX_TEST_FILES
     rtxvulkan/device/memory/memorypriority.cpp
     rtxvulkan/device/memory/memorytypes.cpp
     rtxvulkan/device/physicaldevice.cpp
+    rtxvulkan/device/pipelinecode.cpp
     rtxvulkan/device/requirements.cpp
     rtxvulkan/device/stagingfit.cpp
+    rtxvulkan/device/zonecounters.cpp
     rtxvulkan/pipeline/dispatch.cpp
     rtxvulkan/scene/sceneslots.cpp
     rtxvulkan/shaders/accumulate.cpp

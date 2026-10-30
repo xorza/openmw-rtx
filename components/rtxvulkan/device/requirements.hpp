@@ -159,9 +159,10 @@ namespace Rtx
         PresentWait,
         Checkpoints,
         BufferMarkers,
+        PerformanceQuery,
     };
 
-    inline constexpr std::size_t sDeviceOptions = static_cast<std::size_t>(DeviceOption::BufferMarkers) + 1;
+    inline constexpr std::size_t sDeviceOptions = static_cast<std::size_t>(DeviceOption::PerformanceQuery) + 1;
 
     /// The features the options bring, each in its own structure: what a device that took an option
     /// is asked for, and enabled with where it has it. Outside `DeviceFeatures`, which is what the
@@ -179,6 +180,7 @@ namespace Rtx
         VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR mPresentFences{};
         VkPhysicalDevicePresentIdFeaturesKHR mPresentIds{};
         VkPhysicalDevicePresentWaitFeaturesKHR mPresentWait{};
+        VkPhysicalDevicePerformanceQueryFeaturesKHR mPerformanceQuery{};
     };
 
     /// The one feature an option is no use without, and how to reach its structure and its flag,

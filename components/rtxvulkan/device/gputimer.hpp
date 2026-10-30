@@ -15,13 +15,15 @@ namespace Rtx
 {
     class GpuZone;
     class GpuZones;
+    class ZoneCounters;
 
     /// Timestamps written into the command stream, so a frame can say where its device time went,
     /// where a wall clock around a submit measures one number for eight pieces of work. Both ends
     /// wait for every stage, so a zone cannot overlap its neighbours — which would distort a
     /// renderer whose passes overlap, and this one puts a full barrier between every pass already.
     /// Zones may span several command buffers, because each reserves and resets only the pair of
-    /// queries it writes.
+    /// queries it writes. Where the device reads its counters (`Device::getZoneCounters`), each zone
+    /// is also one query of them, begun and ended in the command buffer that opens and closes it.
     class GpuTimer
     {
     public:
@@ -55,6 +57,14 @@ namespace Rtx
 
         const Device& mDevice;
         QueryPool mHandle;
+
+        /// The counters each zone reads, one query a zone in the order they were opened, what they
+        /// read and its values, made room for at the start: null and empty where the zones read
+        /// none. The values are what `GpuZones::counters` hands out, which only `resolve` writes.
+        const ZoneCounters* mCounters = nullptr;
+        QueryPool mCounterQueries;
+        std::vector<VkPerformanceCounterResultKHR> mCounterResults;
+        std::vector<double> mCounterValues;
 
         /// How many of the bits of the device's clock count.
         std::uint64_t mMask = ~std::uint64_t{ 0 };

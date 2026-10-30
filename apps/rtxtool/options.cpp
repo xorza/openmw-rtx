@@ -384,6 +384,13 @@ namespace RtxTool
             "not fit is refused and reported as the card would refuse it. What the frame itself "
             "holds is never refused. Not given, the card's own budget");
 
+        option(sFramed, "pipeline-code", bpo::value<std::string>()->default_value(""),
+            "write what the driver compiled each pipeline to, as text, to <dir>/<pipeline>.txt, "
+            "numbered where pipelines share a name: on "
+            "RADV its NIR, its compiler's IR and the instructions the card runs, which a profiler's "
+            "instruction view shows. Every pipeline is then compiled past the driver's cache. "
+            "NVIDIA's driver gives no such text, and nothing is written");
+
         option(Verbs::Bench, "window", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "show the run while it happens. The swapchain is mailbox, so it does not "
             "pace the loop; --window=false is one fewer thing between the trace and the number");
@@ -463,6 +470,13 @@ namespace RtxTool
                         "one that read the clock does not. One hold and not a number: nothing holds the card longer "
                         "than a frame, and a hold of seconds is the desktop frozen for every one of them",
                 sCheckHoldMs));
+
+        option(Verbs::Bench, "counters", bpo::value<bool>()->default_value(false)->implicit_value(true),
+            "also read the device's own counters around every zone — instructions run, how busy the "
+            "vector and scalar units were, how the caches hit — and report each zone's median under its "
+            "times: what a profiler shows of a dispatch, where none reads the device. As many as one "
+            "pass reads, which the log names. The queries add work to every zone, so a run with them "
+            "is not the run its times are quoted from. Where the driver offers none, nothing is read");
 
         option(Verbs::Bench, "json", bpo::value<std::string>()->default_value(""),
             "also write the run to this file as one record, for comparing against the "

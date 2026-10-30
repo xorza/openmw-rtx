@@ -134,8 +134,9 @@ namespace Rtx
             const OptionalExtensions& pageable = options[static_cast<std::size_t>(DeviceOption::PageableMemory)];
             EXPECT_EQ(names(pageable.mNeeds), (std::vector<std::string_view>{ VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME }));
 
-            for (const DeviceOption alone : { DeviceOption::FaultReport, DeviceOption::MemoryBudget,
-                     DeviceOption::MemoryPriority, DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
+            for (const DeviceOption alone :
+                { DeviceOption::FaultReport, DeviceOption::MemoryBudget, DeviceOption::MemoryPriority,
+                    DeviceOption::Checkpoints, DeviceOption::BufferMarkers, DeviceOption::PerformanceQuery })
                 EXPECT_TRUE(options[static_cast<std::size_t>(alone)].mNeeds.empty())
                     << "an option core 1.4 carries alone names a need";
 
@@ -180,6 +181,9 @@ namespace Rtx
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR);
             reaches(DeviceOption::PresentWait, &features.mPresentWait, &features.mPresentWait.presentWait,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR);
+            reaches(DeviceOption::PerformanceQuery, &features.mPerformanceQuery,
+                &features.mPerformanceQuery.performanceCounterQueryPools,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PERFORMANCE_QUERY_FEATURES_KHR);
             for (const DeviceOption bare :
                 { DeviceOption::MemoryBudget, DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
                 EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<int>(bare);

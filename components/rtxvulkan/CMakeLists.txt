@@ -297,6 +297,8 @@ set(RTX_VULKAN_FILES
     device/physicaldevice.hpp
     device/pipelinecache.cpp
     device/pipelinecache.hpp
+    device/pipelinecode.cpp
+    device/pipelinecode.hpp
     device/readstamp.hpp
     device/requirements.cpp
     device/requirements.hpp
@@ -305,6 +307,8 @@ set(RTX_VULKAN_FILES
     device/retiring.hpp
     device/timeline.cpp
     device/timeline.hpp
+    device/zonecounters.cpp
+    device/zonecounters.hpp
     device/validation.cpp
     device/validation.hpp
     digestpass.cpp

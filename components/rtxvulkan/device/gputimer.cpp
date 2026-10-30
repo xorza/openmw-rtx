@@ -2,7 +2,9 @@
 
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <format>
+#include <span>
 #include <string_view>
 
 #include <volk.h>
@@ -12,6 +14,7 @@
 
 #include "physicaldevice.hpp"
 #include "result.hpp"
+#include "zonecounters.hpp"
 
 namespace Rtx
 {
@@ -48,6 +51,32 @@ namespace Rtx
 
         mHandle = QueryPool::make(device, vkCreateQueryPool, info, "vkCreateQueryPool");
         device.setName(mHandle.get(), "frame timestamps");
+
+        const ZoneCounters* const counters = device.getZoneCounters();
+        if (counters == nullptr || counters->getIndices().empty())
+            return;
+
+        mCounters = counters;
+        const std::span<const std::uint32_t> indices = counters->getIndices();
+        const VkQueryPoolPerformanceCreateInfoKHR read{
+            .sType = VK_STRUCTURE_TYPE_QUERY_POOL_PERFORMANCE_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .queueFamilyIndex = device.getPhysicalDevice().getQueueFamily(),
+            .counterIndexCount = static_cast<std::uint32_t>(indices.size()),
+            .pCounterIndices = indices.data(),
+        };
+        const VkQueryPoolCreateInfo counted{
+            .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+            .pNext = &read,
+            .flags = 0,
+            .queryType = VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR,
+            .queryCount = sMaxGpuZones,
+            .pipelineStatistics = 0,
+        };
+        mCounterQueries = QueryPool::make(device, vkCreateQueryPool, counted, "vkCreateQueryPool");
+        device.setName(mCounterQueries.get(), "frame zone counters");
+        mCounterResults.resize(static_cast<std::size_t>(sMaxGpuZones) * indices.size());
+        mCounterValues.resize(mCounterResults.size());
     }
 
     void GpuTimer::beginFrame(const std::uint64_t frame)
@@ -55,6 +84,12 @@ namespace Rtx
         mZones.clear();
         mOpen = 0;
         mFrame = frame;
+
+        // **From the host, because a command buffer that begins a performance query may not also
+        // reset it**, as the timestamps are reset at each open. The slot's last frame was waited for
+        // before this one began, so no query here is still the device's.
+        if (mCounters != nullptr)
+            vkResetQueryPool(mDevice.getHandle(), mCounterQueries.get(), 0, sMaxGpuZones);
     }
 
     void GpuTimer::open(VkCommandBuffer commands, const FrameZone zone)
@@ -85,6 +120,8 @@ namespace Rtx
         // about to be written, in the buffer about to write it, is correct wherever it lands.
         vkCmdResetQueryPool(commands, mHandle.get(), first, 2);
         vkCmdWriteTimestamp2(commands, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, mHandle.get(), first);
+        if (mCounters != nullptr)
+            vkCmdBeginQuery(commands, mCounterQueries.get(), first / 2, 0);
     }
 
     void GpuTimer::close(VkCommandBuffer commands)
@@ -94,6 +131,8 @@ namespace Rtx
         if (mOpen == mZones.size())
             return;
 
+        if (mCounters != nullptr)
+            vkCmdEndQuery(commands, mCounterQueries.get(), mZones[mOpen].mFirstQuery / 2);
         if (mTimes)
             vkCmdWriteTimestamp2(
                 commands, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, mHandle.get(), mZones[mOpen].mFirstQuery + 1);
@@ -123,6 +162,21 @@ namespace Rtx
         if (read != VK_NOT_READY)
             checkVk(mDevice, read, "vkGetQueryPoolResults");
 
+        // The same reasoning for the counters, which a performance query cannot be asked the
+        // availability of: every zone's query ran, so a result not ready is this code's fault.
+        const std::size_t counters = mCounters != nullptr ? mCounters->getIndices().size() : 0;
+        if (counters > 0)
+        {
+            const std::size_t stride = counters * sizeof(VkPerformanceCounterResultKHR);
+            const VkResult counted = vkGetQueryPoolResults(mDevice.getHandle(), mCounterQueries.get(), 0,
+                static_cast<std::uint32_t>(mZones.size()), mZones.size() * stride, mCounterResults.data(), stride, 0);
+            if (counted == VK_NOT_READY)
+                Crash::fatal("the GPU timer's zone counters were resolved before a submit wrote them");
+            checkVk(mDevice, counted, "vkGetQueryPoolResults");
+            for (std::size_t at = 0; at < mZones.size() * counters; ++at)
+                mCounterValues[at] = mCounters->valueOf(at % counters, mCounterResults[at]);
+        }
+
         for (const Zone& zone : mZones)
         {
             const std::uint32_t opened = zone.mFirstQuery * 2;
@@ -141,5 +195,9 @@ namespace Rtx
 
             into.add(GpuSpan{ .mZone = zone.mZone, .mMs = mDevice.getPhysicalDevice().timestampMs(elapsed) });
         }
+
+        if (counters > 0)
+            into.setCounters(
+                mCounters->getNames(), std::span<const double>(mCounterValues).first(mZones.size() * counters));
     }
 }

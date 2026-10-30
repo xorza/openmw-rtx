@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <limits>
 #include <numeric>
 #include <string>
 #include <string_view>
@@ -148,7 +149,11 @@ namespace RtxTool
     {
         mReserved = frames;
         for (ZoneRow& row : mRows)
+        {
             row.mTimes.reserve(frames);
+            row.mCounters.reserve(static_cast<std::size_t>(frames) * mCounterNames.size());
+        }
+        mColumn.reserve(frames);
     }
 
     void GpuBreakdown::clear()
@@ -156,6 +161,7 @@ namespace RtxTool
         for (ZoneRow& row : mRows)
         {
             row.mTimes.clear();
+            row.mCounters.clear();
             row.mSeen = 0;
         }
 
@@ -163,12 +169,26 @@ namespace RtxTool
         mZones.clear();
     }
 
-    void GpuBreakdown::add(std::span<const Rtx::GpuSpan> spans)
+    void GpuBreakdown::add(std::span<const Rtx::GpuSpan> spans, const std::span<const std::string_view> counterNames,
+        const std::span<const double> counters)
     {
         ++mFrames;
 
-        for (const Rtx::GpuSpan& span : spans)
+        // Taken on the first frame that names any, which is the first measured frame: the device
+        // reads the same counters for as long as it stands.
+        if (mCounterNames.empty() && !counterNames.empty())
         {
+            mCounterNames.assign(counterNames.begin(), counterNames.end());
+            for (ZoneRow& row : mRows)
+                row.mCounters.reserve(static_cast<std::size_t>(mReserved) * mCounterNames.size());
+        }
+        assert((counterNames.empty() || counterNames.size() == mCounterNames.size())
+            && "the device read other counters in one run");
+        assert(counters.size() == counterNames.size() * spans.size() && "not one reading of each counter a span");
+
+        for (std::size_t spanAt = 0; spanAt < spans.size(); ++spanAt)
+        {
+            const Rtx::GpuSpan& span = spans[spanAt];
             // The index and not the iterator: adding a row invalidates whatever `find_if` returned,
             // and the row about to be pushed to is the one that name is at.
             const auto at = static_cast<std::size_t>(std::find_if(mRows.begin(), mRows.end(), [&](const ZoneRow& row) {
@@ -183,9 +203,12 @@ namespace RtxTool
                 // does it inside a frame it is timing, and what a growth costs is a copy of every
                 // sample taken so far — landing on one frame of the run and reported as its worst.
                 mRows.back().mTimes.reserve(mReserved);
+                mRows.back().mCounters.reserve(static_cast<std::size_t>(mReserved) * mCounterNames.size());
             }
 
             ZoneRow& row = mRows[at];
+            const std::span<const double> read = counters.subspan(spanAt * counterNames.size(), counterNames.size());
+            row.mCounters.insert(row.mCounters.end(), read.begin(), read.end());
 
             // **One sample a frame, whatever a frame opened the zone.** A pass recorded in
             // batches — the structure builds are — opens its zone several times over one frame, and
@@ -215,13 +238,24 @@ namespace RtxTool
 
             const double spent = std::accumulate(row.mTimes.begin(), row.mTimes.end(), 0.0);
 
-            mZones.push_back(GpuZone{
+            GpuZone& zone = mZones.emplace_back(GpuZone{
                 .mZone = row.mZone,
                 .mTimes = summarise(row.mTimes),
                 .mFrames = static_cast<std::uint32_t>(row.mTimes.size()),
                 .mOfFrames = mFrames,
                 .mShareMs = spent / static_cast<double>(mFrames),
             });
+
+            const std::size_t counters = mCounterNames.size();
+            for (std::size_t counter = 0; counter < counters && !row.mCounters.empty(); ++counter)
+            {
+                mColumn.clear();
+                for (std::size_t run = counter; run < row.mCounters.size(); run += counters)
+                    if (std::isfinite(row.mCounters[run]))
+                        mColumn.push_back(row.mCounters[run]);
+                zone.mCounters[counter]
+                    = mColumn.empty() ? std::numeric_limits<double>::quiet_NaN() : summarise(mColumn).mMedian;
+            }
         }
 
         // **By what each cost the run and not by what it cost a frame that ran it**, which is the
@@ -268,5 +302,50 @@ namespace RtxTool
             row += "  " + describeZone(zone);
 
         return row + "\n";
+    }
+
+    namespace
+    {
+        /// A counter's reading in a column of eleven: a count of waves or instructions runs to
+        /// hundreds of millions, which a fixed point would print at eleven digits before its own.
+        std::string compactCounter(const double value)
+        {
+            if (!std::isfinite(value))
+                return "-";
+            const double size = std::abs(value);
+            if (size >= 1e9)
+                return std::format("{:.2f}G", value / 1e9);
+            if (size >= 1e6)
+                return std::format("{:.2f}M", value / 1e6);
+            if (size >= 1e4)
+                return std::format("{:.2f}k", value / 1e3);
+            return std::format("{:.2f}", value);
+        }
+    }
+
+    std::string describeCounters(const std::span<const GpuZone> zones, const std::span<const std::string> names)
+    {
+        if (names.empty() || zones.empty())
+            return {};
+
+        constexpr std::string_view sHeading = "counters, median a run";
+        std::size_t width = sHeading.size();
+        for (const std::string& name : names)
+            width = std::max(width, name.size());
+
+        const std::span<const GpuZone> shown = zones.first(std::min(zones.size(), sCounterZones));
+        std::string table = std::format("  {:<{}}", sHeading, width + 1);
+        for (const GpuZone& zone : shown)
+            table += std::format("{:>11}", Rtx::sFrameZoneNames.name(zone.mZone));
+        table += '\n';
+
+        for (std::size_t counter = 0; counter < names.size(); ++counter)
+        {
+            table += std::format("  {:<{}}", names[counter], width + 1);
+            for (const GpuZone& zone : shown)
+                table += std::format("{:>11}", compactCounter(zone.mCounters[counter]));
+            table += '\n';
+        }
+        return table;
     }
 }

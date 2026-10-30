@@ -133,6 +133,17 @@ namespace Rtx
         /// first — and what still does not fit is refused as it would be. What the frame itself
         /// holds is never refused, whatever this says. The harness's, and never a played session's.
         std::optional<std::uint64_t> mMemoryBudget{};
+
+        /// Where the driver's own code of every pipeline is written as text, a file a pipeline, or
+        /// empty for none: what a profiler's instruction view shows, on a device no profiler there
+        /// reads. The harness's, and never a played session's.
+        std::filesystem::path mPipelineCode{};
+
+        /// Whether each zone of a frame also reads the device's own counters — the instructions it
+        /// ran, how busy its units were, how its caches hit (`GpuZones::counters`) — where the device
+        /// has them: what a profiler shows of a dispatch, on a device no profiler there reads. The
+        /// harness's, and never a played session's: the queries add work to every zone.
+        bool mZoneCounters = false;
     };
 
     struct RendererOptions
@@ -240,6 +251,9 @@ namespace Rtx
         double mMs = 0.0;
     };
 
+    /// The most of the device's counters one zone reads (`RunProfile::mZoneCounters`).
+    inline constexpr std::uint32_t sMaxZoneCounters = 16;
+
     /// The most zones one frame may open: every zone there is, the tone pass of a summed run again,
     /// and a second placement's, `Blas` to `Ground`, where a caller places the world again before it
     /// traces, which the game never does. A frame that opens more is a broken contract, which
@@ -255,7 +269,12 @@ namespace Rtx
     class GpuZones
     {
     public:
-        void clear() { mCount = 0; }
+        void clear()
+        {
+            mCount = 0;
+            mCounterNames = {};
+            mCounters = {};
+        }
 
         void add(const GpuSpan& span)
         {
@@ -265,9 +284,33 @@ namespace Rtx
 
         std::span<const GpuSpan> spans() const { return { mSpans.data(), mCount }; }
 
+        /// What the device calls each counter the zones read, or nothing where they read none: the
+        /// backend's names, which stand for as long as it does.
+        std::span<const std::string_view> counterNames() const { return mCounterNames; }
+
+        /// What the counters read over each span, `counterNames().size()` a span in the order of
+        /// `spans`, or nothing where they read none.
+        ///
+        /// **The renderer's memory and not the report's**, unlike the spans, so a played session's
+        /// report, copied a few times a frame, carries no room for what it never reads. The timer
+        /// writes it only when it resolves its slot's next frame, so it stands as
+        /// `FrameResult::mPixels` does: until the `renderFrame` after the one the report was
+        /// collected before.
+        std::span<const double> counters() const { return mCounters; }
+
+        void setCounters(std::span<const std::string_view> names, std::span<const double> values)
+        {
+            assert(names.size() <= sMaxZoneCounters && "more counters than a zone reads");
+            assert(values.size() == names.size() * mCount && "not one reading of each counter a span");
+            mCounterNames = names;
+            mCounters = values;
+        }
+
     private:
         std::array<GpuSpan, sMaxGpuZones> mSpans{};
         std::uint32_t mCount = 0;
+        std::span<const std::string_view> mCounterNames;
+        std::span<const double> mCounters;
     };
 
     /// The most shader modules one census tells apart: `Shaders::CENSUS_KERNELS`, which the backend

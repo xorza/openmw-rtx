@@ -22,9 +22,11 @@
 #include "instance.hpp"
 #include "notfinitecensus.hpp"
 #include "pipelinecache.hpp"
+#include "pipelinecode.hpp"
 #include "requirements.hpp"
 #include "result.hpp"
 #include "timeline.hpp"
+#include "zonecounters.hpp"
 
 namespace Rtx
 {
@@ -103,13 +105,15 @@ namespace Rtx
     }
 
     Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
-        const PipelineCacheSpec& cache, const PipelineStatistics statistics)
+        const PipelineCacheSpec& cache, const DeviceReport& report)
         : mPhysicalDevice(std::move(physicalDevice))
         , mWatchesSubmits(instance.watchesSubmits())
         , mShaderDirectory(shaders.mDirectory)
-        , mStatistics(statistics)
+        , mReport(report)
     {
         const Crash::NoteScope noted("making the device");
+        if (!mReport.mCodeFolder.empty())
+            mCode = std::make_unique<PipelineCodeFolder>(mReport.mCodeFolder);
         const std::span<const char* const> required = getRequiredDeviceExtensions();
         std::vector<const char*> extensions(required.begin(), required.end());
 
@@ -131,6 +135,7 @@ namespace Rtx
             taken[static_cast<std::size_t>(option.mOption)] = option.mRead
                 && std::all_of(option.mExtensions.begin(), option.mExtensions.end(),
                     [&](const char* const name) { return mPhysicalDevice.hasOptionalExtension(name); });
+        taken[static_cast<std::size_t>(DeviceOption::PerformanceQuery)] &= mReport.mCounters;
         const auto has = [&](const DeviceOption option) { return taken[static_cast<std::size_t>(option)]; };
 
         // Only what is still taken is chained, into the query and into the creation alike.
@@ -173,6 +178,12 @@ namespace Rtx
 
         DeviceFeatures features;
         requestRequiredFeatures(features);
+
+        // **A query reset from the host, for the counters alone**, which a command buffer that begins
+        // a performance query may not reset (`GpuTimer::beginFrame`). Every 1.2 device has it, so
+        // asking needs no check; asked only here, so a device that reads no counter is made as before.
+        if (has(DeviceOption::PerformanceQuery))
+            features.mVulkan12.hostQueryReset = VK_TRUE;
 
         // The same chain again, of what was taken, in front of the features the renderer requires.
         asked = reinterpret_cast<VkBaseOutStructure*>(&features.mFeatures2);
@@ -225,7 +236,8 @@ namespace Rtx
                  "vkCmdWriteAccelerationStructuresPropertiesKHR", "vkCmdCopyAccelerationStructureKHR",
                  "vkGetAccelerationStructureDeviceAddressKHR", "vkCreateRayTracingPipelinesKHR",
                  "vkGetRayTracingShaderGroupHandlesKHR", "vkCmdTraceRaysKHR", "vkGetRayTracingShaderGroupStackSizeKHR",
-                 "vkGetPipelineExecutablePropertiesKHR", "vkGetPipelineExecutableStatisticsKHR" })
+                 "vkGetPipelineExecutablePropertiesKHR", "vkGetPipelineExecutableStatisticsKHR",
+                 "vkGetPipelineExecutableInternalRepresentationsKHR" })
             requireDispatch(mHandle.get(), name);
 
         if (describesFault)
@@ -266,6 +278,11 @@ namespace Rtx
 
         if (shaders.mCensus)
             mCensus = std::make_unique<NotFiniteCensus>(*this, mShaderDirectory);
+
+        if (has(DeviceOption::PerformanceQuery))
+            mZoneCounters = std::make_unique<ZoneCounters>(*this);
+        else if (mReport.mCounters)
+            Log(Debug::Warning) << "zone counters: the driver offers no VK_KHR_performance_query";
     }
 
     VkDevice vulkanHandleOf(const Device& device)
@@ -364,7 +381,7 @@ namespace Rtx
         if (point == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
             use.mStackBytes = vkGetRayTracingShaderGroupStackSizeKHR(
                 mHandle.get(), pipeline, 0, VK_SHADER_GROUP_SHADER_GENERAL_KHR);
-        if (mStatistics == PipelineStatistics::Skipped)
+        if (mReport.mStatistics == PipelineStatistics::Skipped)
             return use;
 
         const VkPipelineInfoKHR asked{
@@ -403,10 +420,11 @@ namespace Rtx
     {
         if (compileMs.has_value())
             Log(Debug::Verbose) << "pipeline " << name << ": compiled in " << *compileMs << " ms";
-        if (mStatistics == PipelineStatistics::Skipped)
+        if (mReport.mStatistics == PipelineStatistics::Skipped && mCode == nullptr)
             return;
 
         const std::uint32_t executables = executablesOf(pipeline);
+        const std::uint32_t copy = mCode != nullptr ? mCode->claim(name) : 0;
 
         // Said once per pipeline rather than left as a missing line: NVIDIA's compiler reports no
         // executable at all for a ray tracing pipeline, and no internal representation for any, so
@@ -420,6 +438,11 @@ namespace Rtx
 
         for (std::uint32_t executable = 0; executable < executables; ++executable)
         {
+            if (mCode != nullptr)
+                writeCode(pipeline, name, copy, executable, executables);
+            if (mReport.mStatistics == PipelineStatistics::Skipped)
+                continue;
+
             const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
 
             // Whatever the driver chose to say, and not a list this side picked. The names are
@@ -465,6 +488,58 @@ namespace Rtx
                     Log(Debug::Warning) << "pipeline " << name << " uses " << unsignedOf(statistic)
                                         << " bytes of scratch memory a lane";
         }
+    }
+
+    void Device::writeCode(const VkPipeline pipeline, const std::string_view name, const std::uint32_t copy,
+        const std::uint32_t executable, const std::uint32_t executables) const
+    {
+        const VkPipelineExecutableInfoKHR which{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
+            .pNext = nullptr,
+            .pipeline = pipeline,
+            .executableIndex = executable,
+        };
+        const auto represent = [&](std::uint32_t* count, VkPipelineExecutableInternalRepresentationKHR* into) {
+            return vkGetPipelineExecutableInternalRepresentationsKHR(mHandle.get(), &which, count, into);
+        };
+
+        // Asked twice: once for the forms and the size of each, and again with room for their
+        // bodies, which the first answer is what sizes.
+        std::vector<VkPipelineExecutableInternalRepresentationKHR> forms
+            = enumerateVk<VkPipelineExecutableInternalRepresentationKHR>(
+                "vkGetPipelineExecutableInternalRepresentationsKHR", represent,
+                VkPipelineExecutableInternalRepresentationKHR{
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INTERNAL_REPRESENTATION_KHR,
+                    .pNext = nullptr,
+                    .name = {},
+                    .description = {},
+                    .isText = VK_FALSE,
+                    .dataSize = 0,
+                    .pData = nullptr });
+        std::vector<std::string> bodies(forms.size());
+        for (std::size_t form = 0; form < forms.size(); ++form)
+        {
+            bodies[form].resize(forms[form].dataSize);
+            forms[form].pData = bodies[form].data();
+        }
+        auto count = static_cast<std::uint32_t>(forms.size());
+        checkVk(represent(&count, forms.data()), "vkGetPipelineExecutableInternalRepresentationsKHR");
+
+        std::vector<PipelineCodeForm> text;
+        for (std::size_t form = 0; form < forms.size(); ++form)
+        {
+            if (forms[form].isText == VK_FALSE)
+                continue;
+
+            // A text form's size counts its terminator.
+            std::string_view body(bodies[form].data(), forms[form].dataSize);
+            while (!body.empty() && body.back() == '\0')
+                body.remove_suffix(1);
+            text.push_back(
+                PipelineCodeForm{ .mName = forms[form].name, .mDescription = forms[form].description, .mText = body });
+        }
+        if (!text.empty())
+            mCode->write(name, copy, executable, executables, text);
     }
 
     void Device::waitFor(const std::uint64_t value, const char* const what) const
