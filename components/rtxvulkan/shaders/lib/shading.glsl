@@ -75,6 +75,18 @@ float penumbraIn(bool drawn, float radius, float footprint)
                                          : SHADOW_PENUMBRA_CLEAR;
 }
 
+/// Whether a shadow bit whose source carries `carried` of its field's `total` is drawn among sources:
+/// one that carries less than all but `mShadowFloor` of the field's light is noise however hard its
+/// shadow, and `penumbraIn` gives it the whole reach.
+///
+/// **Asked before its ray as well as after**, because a drawn bit's penumbra is the same whatever
+/// stopped the ray: its ray needs no nearest occluder, and stops at the first (`passageAsk`). At dawn,
+/// with the moons up beside the sun, every sky bit is drawn.
+bool drawnAmong(float carried, float total)
+{
+    return carried < (1.0 - frame.mShadowFloor) * total;
+}
+
 /// What a penumbra measured square to its light is on a receiver the light meets at `cosine`: `1 /
 /// cosine` longer along the light's azimuth, held to `SHADOW_PENUMBRA_STRETCH`. Square to the light, a
 /// grazing penumbra at Morrowind's long dawn read three to six times narrower than it lay, under a
@@ -364,7 +376,8 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
         // The shadow rays leave from where every ray off the surface leaves, and the light arrives
         // where the surface is: one refraction, a bent path to each.
         const SunUnderWater bent = sunUnderWater(picked.mSky.mDirection);
-        skyPassage = skyPassageRunOf(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw, split);
+        skyPassage = skyPassageRunOf(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw,
+            split && !drawnAmong(picked.mLight.mWeight, skyWeight));
 
         // **Each source's term whole, as the lamps' unshadowed sum is**: split, every source
         // with a weight is in the light the bit multiplies, so a pixel's hue is the sources' and
@@ -439,7 +452,9 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
 /// The held lamp's shadow ray, or none where no lamp was held.
 RayAsk gatherLampAsk(GatherRun run, Surface surface)
 {
-    return run.mKept.mWeight > 0.0 ? lampAsk(run.mKept, stepOf(surface), run.mLampDraw, run.mSplit) : noRay();
+    return run.mKept.mWeight > 0.0
+        ? lampAsk(run.mKept, stepOf(surface), run.mLampDraw, run.mSplit && !drawnAmong(run.mKept.mWeight, run.mKept.mTotal))
+        : noRay();
 }
 
 /// Whether a gather a path's far end makes, keyed `key`, is drawn to run where the sky lights
@@ -559,9 +574,8 @@ void stepGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface sur
         // floor of its field's light, since that bit is noise however hard its shadow. As products,
         // for the reason `pickByWeight` compares against weights and not quotients. A bit the
         // translucency was drawn into is noise as well.
-        const float whole = 1.0 - frame.mShadowFloor;
-        const bool skyDrawn = run.mSkyCarried < whole * run.mSkyWeight || run.mSkyThrough < 1.0;
-        const bool lampDrawn = kept.mWeight < whole * kept.mTotal || lampPass.mThrough < 1.0;
+        const bool skyDrawn = drawnAmong(run.mSkyCarried, run.mSkyWeight) || run.mSkyThrough < 1.0;
+        const bool lampDrawn = drawnAmong(kept.mWeight, kept.mTotal) || lampPass.mThrough < 1.0;
         const float lampRadius = kept.mWeight > 0.0 ? lampPenumbra(kept, lampPass.mOccluder) * run.mLampStretch
                                                      : SHADOW_PENUMBRA_CLEAR;
         run.mLit.mSkyPenumbra = penumbraIn(skyDrawn, run.mLit.mSkyPenumbra, run.mFootprint);
