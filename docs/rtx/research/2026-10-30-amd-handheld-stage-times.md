@@ -187,3 +187,21 @@ file, and logs the first.
 - **Out of doors the ambient ray is the larger**, 8.11 ms against 3.49, though it is drawn at
   `AMBIENT_EXTERIOR_RATE` there; a room traces it at every landing to `ROOM_FILL_REACH`, 140 units.
 - **Every other zone stayed to the hundredth**, so the legs moved `landing` alone.
+
+## What coherent landings would save (2026-10-31)
+
+The same two places, the clock held at 1600 MHz, with one change for the measurement alone: the
+bounce's direction drawn once an 8x4 tile (`bounceDraw` keyed by the tile's corner) and not once a
+pixel, so a wave's 32 landings stand near each other, as landings sorted by where they hit would.
+
+| | balmora landing | bounce | seyda landing | bounce |
+|---|---|---|---|---|
+| as built | 18.86 | 9.44 | 19.53 | 15.36 |
+| a direction a tile | 15.43 | 6.61 | 16.65 | 10.09 |
+
+- **Coherent landings save `landing` 3.4 and 2.9 ms**, 18 % and 15 %, every other zone but `bounce`
+  standing still. A sort of the landings would reach that or less, and pay for itself out of it.
+- **The bounce's saving is no sort's**: its rays leave neighbouring pixels in one direction here, which
+  a sort after the bounce cannot give it.
+- **What changed with it**, at 1300 MHz under `--counters`: `landing` read 104.62 MB against 144.07,
+  at an L0 hit ratio of 72.49 against 58.85, and its VALU stayed near half busy (47.61 against 45.97).

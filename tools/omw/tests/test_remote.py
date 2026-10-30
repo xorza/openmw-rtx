@@ -71,7 +71,7 @@ class RemoteScriptTest(unittest.TestCase):
         self.assertEqual(lines[-1], "./openmw-rtxtool bench '--views=a b'")
         self.assertIn("GpuPerformanceLevel s manual", script)
         # Put back on the way out, which an exec would never reach.
-        self.assertIn("trap 'gpu set-property ManualGpuClock", script)
+        self.assertIn("trap 'gpu set-property GpuPerformanceLevel s \"$level\"; [ \"$level\" = manual ]", script)
         self.assertNotIn("exec ", script)
 
         unmeasured = remote_script(folder, "shot", [], measured=False)
