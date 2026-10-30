@@ -11,8 +11,9 @@ linker names; everything it does have is its own.
 its views and its shaders at the paths the build compiled in. The machine's user owns the tree's
 parent folder, made once by hand.
 
-**Headless**: SDL's offscreen driver, since the session is SSH's and has no display, and a bench is
-told `--window=false` unless the line says otherwise. A run that measures (`bench`, `noise`) holds a
+**Headless**: a hidden window on the machine's own Wayland session where it has one, and SDL's
+offscreen driver where it has none (`SESSION` says why the session first), and a bench is told
+`--window=false` unless the line says otherwise. A run that measures (`bench`, `noise`) holds a
 SteamOS GPU clock at its top through `steamos-manager` for its frames, and puts it back after: the
 Deck otherwise moves its clock with its power, and two runs at two clocks are no A/B. Not a run with
 `--counters`, which holds nothing: RADV puts the card in a profiling state of the kernel's while it
@@ -62,8 +63,15 @@ MEASURED = ("bench", "noise")
 
 SSH = ("-o", "BatchMode=yes")
 
-# SDL's driver with no display and Vulkan all the same: `dummy` has none.
-HEADLESS = "SDL_VIDEO_DRIVER=offscreen"
+# **The machine's own Wayland session where it has one, and SDL's offscreen driver where it has
+# none** — `dummy` has no Vulkan. Under the offscreen driver Mesa's headless swapchain blocks one
+# present in 31 for a whole frame on the Deck, which doubled every place's p99 and took 3 % off its
+# rate; a hidden window on the session's compositor presents as the desk's does, 0 such presents in
+# 480 frames (2026-10-31).
+SESSION = ('runtime=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}; '
+           'if [ -S "$runtime/wayland-0" ]; then '
+           'export XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=wayland-0 SDL_VIDEO_DRIVER=wayland; '
+           'else export SDL_VIDEO_DRIVER=offscreen; fi')
 
 # Where `steamos-manager` keeps the GPU's performance level and its manual clock, which it writes to
 # the card again and again: a level written to sysfs past it did not hold.
@@ -141,7 +149,8 @@ def remote_script(folder: Path, verb: str, args: list[str], measured: bool) -> s
     lines = [
         "set -u",
         f"cd {shlex.quote(str(folder))}",
-        f"export LD_LIBRARY_PATH={libraries} OSG_LIBRARY_PATH={libraries} OPENMW_CRASH_DIALOG=0 {HEADLESS}",
+        f"export LD_LIBRARY_PATH={libraries} OSG_LIBRARY_PATH={libraries} OPENMW_CRASH_DIALOG=0",
+        SESSION,
         "trap 'exit 130' INT TERM",
     ]
     if measured:

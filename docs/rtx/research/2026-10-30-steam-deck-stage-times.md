@@ -205,3 +205,19 @@ pixel, so a wave's 32 landings stand near each other, as landings sorted by wher
   a sort after the bounce cannot give it.
 - **What changed with it**, at 1300 MHz under `--counters`: `landing` read 104.62 MB against 144.07,
   at an L0 hit ratio of 72.49 against 58.85, and its VALU stayed near half busy (47.61 against 45.97).
+
+## The p99 that was the offscreen driver's (2026-10-31)
+
+Every place's p99 on the Deck was twice its median because one frame in 31 waited a whole frame
+in `present`: under SDL's offscreen driver Mesa's headless swapchain blocked `vkQueuePresentKHR`
+for 58–60 ms, timed around the call. Moving the presenter's wait for an image's last blit to a
+fence per acquire slot only moved the stall into `vkQueuePresentKHR`, so it is not the presenter's.
+A hidden window on the Deck's own Wayland session presented 480 frames with no such wait.
+
+| balmora-mages-guild | frame median | p99 | 1 % low fps |
+|---|---|---|---|
+| offscreen driver | 59.62 | 120.53 | 8.3 |
+| hidden window on the session | 59.63 | 66.84 | 15.0 |
+
+`omw remote` runs on the session where the machine has one. The tables above this section that
+quote a Deck p99 carry the offscreen driver's stall.
