@@ -15,8 +15,9 @@ parent folder, made once by hand.
 told `--window=false` unless the line says otherwise. A run that measures (`bench`, `noise`) holds a
 SteamOS GPU clock at its top through `steamos-manager` for its frames, and puts it back after: the
 Deck otherwise moves its clock with its power, and two runs at two clocks are no A/B. Not a run with
-`--counters`: RADV puts the card in a profiling state of the kernel's while it reads them, which on
-the Deck holds 1300 MHz, `standard` and `peak` alike, and the report's clock line says so.
+`--counters`, which holds nothing: RADV puts the card in a profiling state of the kernel's while it
+reads them, which on the Deck holds 1300 MHz, `standard` and `peak` alike, and the report's clock
+line says so.
 
 **The files a run names come back**: `--json`, `--frame-times`, `--out` and `--pipeline-code` are
 written there at the same absolute path and copied here after it, and what `--against` and `--keys`
@@ -150,7 +151,9 @@ def remote_script(folder: Path, verb: str, args: list[str], measured: bool) -> s
             "  level=${level#s }; level=${level//\\\"/}",
             "  clock=$(gpu get-property ManualGpuClock); clock=${clock#u }",
             "  top=$(gpu get-property ManualGpuClockMax); top=${top#u }",
-            "  trap 'gpu set-property ManualGpuClock u \"$clock\"; gpu set-property GpuPerformanceLevel s \"$level\"' EXIT",
+            # The clock a level other than manual neither holds nor takes: steamos-manager refuses it.
+            ("  trap 'gpu set-property GpuPerformanceLevel s \"$level\"; [ \"$level\" = manual ] "
+             "&& gpu set-property ManualGpuClock u \"$clock\"' EXIT"),
             "  gpu set-property GpuPerformanceLevel s manual && gpu set-property ManualGpuClock u \"$top\"",
             "  echo \"remote: the GPU clock held at $top MHz through steamos-manager, $level before and after\"",
             "fi",
@@ -202,7 +205,9 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
     for path in line.outputs:
         run([ssh, *SSH, host, f"mkdir -p {shlex.quote(str(path.parent))}"])
 
-    script = remote_script(folder, verb, line.args, verb in MEASURED)
+    # Not a counters run: RADV holds the kernel's profiling clock under it whatever is set.
+    held = verb in MEASURED and not any(word == "--counters" or word.startswith("--counters=") for word in rest)
+    script = remote_script(folder, verb, line.args, held)
     encoded = base64.b64encode(script.encode()).decode()
     # A terminal where this one has one, so Ctrl-C stops the run there and not only the connection.
     terminal = ["-tt"] if sys.stdin.isatty() else []
