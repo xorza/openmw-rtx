@@ -105,7 +105,7 @@ namespace Rtx::Shaders
     /// something near zero and hand back an exposure that turns the next frame's noise into a
     /// snowstorm. `MAX_SUN_RADIANCE` is sized against the floor, and the floor against the day: a
     /// day lifted by `DAYLIGHT_GAIN` meters that much lower.
-    const float EXPOSURE_MIN = 0.04f / DAYLIGHT_GAIN;
+    const float EXPOSURE_MIN = 0.6f / DAYLIGHT_GAIN;
 
     /// **And how far the eye opens at most, which is the look of a dark room**, as Unreal's
     /// `MaxEV100` is. A room lit by its lamps alone meters thousands of times under the key, and

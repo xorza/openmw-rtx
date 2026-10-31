@@ -1401,12 +1401,14 @@ namespace Rtx::Testing
             std::vector<std::uint8_t> withShown;
             std::vector<std::uint8_t> withoutShown;
 
-            EXPECT_EQ(shoot(build(0.5f), textures, camera, size).mHits, size * size);
+            const Frame with = shoot(build(0.5f), textures, camera, size);
+            EXPECT_EQ(with.mHits, size * size);
             mProbe.readChannel(Channel::Surface, withSurface);
             mProbe.readChannel(Channel::Indirect, withBounce);
             mRenderer.readPixels(withShown);
 
-            EXPECT_EQ(shoot(build(std::nullopt), textures, camera, size).mHits, size * size);
+            const Frame without = shoot(build(std::nullopt), textures, camera, size);
+            EXPECT_EQ(without.mHits, size * size);
             mProbe.readChannel(Channel::Surface, withoutSurface);
             mProbe.readChannel(Channel::Indirect, withoutBounce);
             mRenderer.readPixels(withoutShown);
@@ -1422,7 +1424,12 @@ namespace Rtx::Testing
             EXPECT_EQ(withBounce, withoutBounce) << "a bounce met the additive quad";
 
             EXPECT_GT(int{ withShown[centre] }, int{ withoutShown[centre] }) << "the quad added nothing red";
-            EXPECT_EQ(int{ withShown[centre + 1] }, int{ withoutShown[centre + 1] }) << "and nothing green";
+
+            // The other channels in radiance and not in the picture: the tone pass grades a colour
+            // by its luminance (`contrastScale`, `saturatedChannel`), so the red the quad adds
+            // moves the shown green and blue by a step wherever the grade's rounding falls.
+            EXPECT_EQ(with.at(centre + 1), without.at(centre + 1)) << "the quad added green";
+            EXPECT_EQ(with.at(centre + 2), without.at(centre + 2)) << "the quad added blue";
 
             const std::size_t corner = 4;
             EXPECT_EQ(withShown[corner], withoutShown[corner]) << "the quad reached a pixel it does not cover";
