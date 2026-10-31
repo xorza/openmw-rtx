@@ -57,7 +57,7 @@ RayAsk skyAsk(SkySource sky, vec3 position, vec3 step, vec2 draw, bool nearest)
         return noRay();
 
     const vec3 towards = coneDirection(sky.mDirection, sky.mLimb, draw);
-    return lightAsk(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
+    return skyLightAsk(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
 }
 
 /// The same, traced at once and read as one number: the product `throughAnswered` makes of its
@@ -677,7 +677,7 @@ RayAsk lampAsk(Reservoir kept, vec3 step, vec2 draw, bool nearest)
     // the lamp and so where the clearance has to be measured from.
     const float along = distance * dot(towards, axis);
 
-    return lightAsk(
+    return lampLightAsk(
         leaveSurface(kept.mFrom, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS), nearest);
 }
 

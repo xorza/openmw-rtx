@@ -178,7 +178,10 @@ namespace Rtx::Testing
         /// fifth of a unit of floor. A shadow ray from the floor `d` short of the wall meets it after
         /// `d / cos 14°` = `1.031 d`, so every floor point within a unit of the wall asks about an
         /// occluder nearer than a unit — which a ray that skipped its first unit never met, and lit.
-        /// The wall is two-sided, so it casts toward a ray that meets it from either face.
+        ///
+        /// **Drawn from both faces and from the one facing the floor**, which is Mournhold's city wall:
+        /// a quasi-exterior's shell faces in, and a sun ray that culled the face it met went through
+        /// it and lit the plaza at its foot (`skyLightAsk`).
         ///
         /// Every pixel the sun adds light to is floor in front of the wall, and its bit is nought.
         TEST_F(RtxVisibilityTest, theFloorAtAWallsFootIsShadowedByTheWallNoMatterHowNear)
@@ -192,30 +195,35 @@ namespace Rtx::Testing
             camera.mSun = Shaders::sunSource(
                 osg::Vec3f(0.0f, std::cos(elevation), std::sin(elevation)), osg::Vec3f(2.0f, 2.0f, 2.0f));
 
-            SceneDesc scene;
-            addQuad(scene, sheetAt(4000.0f, 0.0f));
-            const Index wall
-                = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
-            addQuad(scene,
-                std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
-                    osg::Vec3f(4000.0f, 0.0f, 400.0f), osg::Vec3f(-4000.0f, 0.0f, 400.0f) },
-                wall);
-
-            shoot(scene, {}, camera, size, {});
-
-            std::vector<float> sunlit;
-            mProbe.readChannel(Channel::Shadowed, sunlit);
-            ASSERT_EQ(sunlit.size(), std::size_t{ size } * size * 4);
-            std::size_t floor = 0;
-            for (std::size_t value = 0; value < sunlit.size(); value += 4)
+            // As built, the wall faces -Y: toward the floor and the eye, away from the sun.
+            for (const bool twoSided : { true, false })
             {
-                if (!(sunlit[value] > 0.0f))
-                    continue;
-                ++floor;
-                EXPECT_FALSE(Testing::shadowOpen(sunlit[value + 3]))
-                    << "pixel " << value / 4 << " lit through the wall";
+                SceneDesc scene;
+                addQuad(scene, sheetAt(4000.0f, 0.0f));
+                const Index wall = scene.addMaterial(
+                    Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = twoSided });
+                addQuad(scene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                        osg::Vec3f(4000.0f, 0.0f, 400.0f), osg::Vec3f(-4000.0f, 0.0f, 400.0f) },
+                    wall);
+
+                shoot(scene, {}, camera, size, {});
+
+                std::vector<float> sunlit;
+                mProbe.readChannel(Channel::Shadowed, sunlit);
+                ASSERT_EQ(sunlit.size(), std::size_t{ size } * size * 4);
+                std::size_t floor = 0;
+                for (std::size_t value = 0; value < sunlit.size(); value += 4)
+                {
+                    if (!(sunlit[value] > 0.0f))
+                        continue;
+                    ++floor;
+                    EXPECT_FALSE(Testing::shadowOpen(sunlit[value + 3]))
+                        << "pixel " << value / 4 << " lit through the wall, two-sided " << twoSided;
+                }
+                ASSERT_GT(floor, std::size_t{ 8 * size })
+                    << "no floor before the wall, or this proves nothing, two-sided " << twoSided;
             }
-            ASSERT_GT(floor, std::size_t{ 8 * size }) << "no floor before the wall, or this proves nothing";
         }
 
         /// **The sky's shadowed light is every source's, and a source under a floor draws no bit.**

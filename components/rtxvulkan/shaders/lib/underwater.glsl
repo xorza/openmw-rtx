@@ -192,7 +192,7 @@ bool skyPassageBent(SkyPassageRun run)
 /// is not. None for a picture with shadows off.
 ///
 /// **The picture with shadows off is open to the sky under the water too**, as `skyAsk` answers over
-/// it: the leg under the surface asks `lightAsk` itself, and a hull over a flooded bed shaded a map
+/// it: the leg under the surface asks `skyLightAsk` itself, and a hull over a flooded bed shaded a map
 /// tile whose dry ground beside it no roof did.
 RayAsk skyPassageFirstAsk(SkyPassageRun run)
 {
@@ -203,7 +203,7 @@ RayAsk skyPassageFirstAsk(SkyPassageRun run)
         return skyAsk(run.mSky, run.mPosition, run.mOff, run.mDraw, run.mNearest);
 
     const vec3 up = -run.mBent.mTravelling;
-    return lightAsk(leaveSurface(run.mPosition, run.mOff, up), up, run.mBent.mPath, run.mNearest);
+    return skyLightAsk(leaveSurface(run.mPosition, run.mOff, up), up, run.mBent.mPath, run.mNearest);
 }
 
 /// The leg over the water, from where the bent path meets the surface: asked whatever the leg under
