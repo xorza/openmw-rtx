@@ -1343,7 +1343,15 @@ namespace MWGui
 
     void WindowManager::fitFonts()
     {
+        const float raster = mFonts->getFit().mRaster;
         mFonts->fit(fontFitNow());
+
+        // The map's tiles are drawn at the raster (`LocalMap::mapResolution`), and those around the
+        // player are drawn again at the new one, as a cell change would have them drawn.
+        if (mFonts->getFit().mRaster != raster
+            && MWBase::Environment::get().getStateManager()->getState() != MWBase::StateManager::State_NoGame)
+            if (const MWWorld::CellStore* const cell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell())
+                mMap->requestMapRender(cell);
     }
 
     void WindowManager::fitCursors()
@@ -1394,15 +1402,19 @@ namespace MWGui
         }
 
         for (const auto& window : mWindows)
+        {
             window->onResChange(x, y);
+
+            // Every window, tracked or not, held inside the view it is now laid out in.
+            if (auto* const framed = window->mMainWidget->castType<MyGUI::Window>(false))
+                WindowBase::clampWindowCoordinates(framed);
+        }
 
         LuaUi::updateAllElementCoords();
 
         reapplyActiveControllerWindow();
 
         MWBase::Environment::get().getLuaManager()->viewportResized(x, y);
-
-        // TODO: check if any windows are now off-screen and move them back if so
     }
 
     bool WindowManager::isWindowVisible() const

@@ -73,13 +73,17 @@ namespace MWRender
         : mRenderer(renderer)
         , mSceneRoot(&sceneRoot)
         , mStorage(storage)
-        , mMapResolution(static_cast<int>(
-              Settings::map().mLocalMapResolution * MWBase::Environment::get().getWindowManager()->getRasterScale()))
         , mMapWorldSize(Constants::CellSizeInUnits)
         , mCellDistance(Constants::CellGridRadius)
         , mAngle(0.f)
         , mInterior(false)
     {
+    }
+
+    int LocalMap::mapResolution() const
+    {
+        return static_cast<int>(
+            Settings::map().mLocalMapResolution * MWBase::Environment::get().getWindowManager()->getRasterScale());
     }
 
     LocalMap::~LocalMap() = default;
@@ -160,15 +164,17 @@ namespace MWRender
         MapSegment& segment = mInterior ? mInteriorSegments[std::make_pair(segmentX, segmentY)]
                                         : mExteriorSegments[std::make_pair(segmentX, segmentY)];
 
-        // Rebuilt where the depth range moved, because the range is in the projection and a view is described once
-        if (segment.mView && segment.mRange != range)
+        // Rebuilt where the depth range or the resolution moved, because both are in the view's
+        // description and a view is described once
+        const int resolution = mapResolution();
+        if (segment.mView && (segment.mRange != range || segment.mResolution != resolution))
             segment.mView.reset();
 
         if (!segment.mView)
         {
             OffscreenViewSpec spec{ *mSceneRoot };
-            spec.mWidth = mMapResolution;
-            spec.mHeight = mMapResolution;
+            spec.mWidth = resolution;
+            spec.mHeight = resolution;
             // An inclusion mask: the ground and the buildings, not the people or the smoke over them
             spec.mMask = Mask_Scene | Mask_SimpleWater | Mask_Terrain | Mask_Object | Mask_Static;
             spec.mFraming.mProjection = SceneUtil::Orthographic{ .mWidth = static_cast<float>(mMapWorldSize),
@@ -182,6 +188,7 @@ namespace MWRender
 
             segment.mView = mRenderer.createWorldView(spec);
             segment.mRange = range;
+            segment.mResolution = resolution;
         }
 
         segment.mView->setView(osg::Matrixd::lookAt(

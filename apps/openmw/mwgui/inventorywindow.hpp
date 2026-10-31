@@ -66,6 +66,11 @@ namespace MWGui
 
         void setGuiMode(GuiMode mode);
 
+        /// Placed again where its mode's place falls in the view the interface is now laid out in,
+        /// and its preview sized to the frame's pixels the image now covers: both move with the
+        /// view and the scale, and only a drag of the window told it of either.
+        void onResChange(int width, int height) override;
+
         void onInventoryUpdate(const MWWorld::Ptr& ptr) override;
 
         /// Cycle to previous/next weapon
@@ -151,6 +156,9 @@ namespace MWGui
         void notifyContentChanged();
         void dirtyPreview();
         void updatePreviewSize();
+
+        /// Places the window at its mode's place in the view, and answers whether its size moved.
+        bool placeForMode();
         void updateArmorRating();
 
         MyGUI::IntSize getPreviewViewportSize() const;

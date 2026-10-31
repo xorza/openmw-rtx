@@ -85,16 +85,19 @@ latent faults on the build as it stands:
   re-measured after a rebind all the same, because hinting at another raster moves an advance by
   a pixel; `TrackedText` tells its owning widget, and `Gui::AutoSizedWidget` re-notifies its size.
 - **The pointer is kept in frame pixels.** `MouseManager` stores the GUI cursor in the frame's
-  pixels and divides by the scale where it hands it to MyGUI, and `layOut` injects it again after
-  a fit, so what the pointer hovers is where it is drawn. Refused: rescaling the stored position
-  at each fit, which is a second copy of the scale to keep in step.
+  pixels and divides by the scale of the moment where it hands it to MyGUI or to Lua, so a press
+  after a layout lands where the pointer is drawn: MyGUI moves its pointer to a press's place before
+  it presses. Refused: rescaling the stored position at each fit, which is a second copy of the
+  scale to keep in step; and injecting the pointer after a layout, which needs a way in from the
+  window manager to the input manager for a hover that the next movement of the mouse puts right.
 - **Every window is held on screen after a layout, not only the tracked ones.** `layOutInterface`
   clamps each window it lays out, which the `TODO` at its end asks for; a larger scale otherwise
   leaves an untracked window partly off the frame.
-- **The map follows the raster.** `LocalMap` reads the current raster scale where it asks for a
-  tile rather than once in its constructor, and a fit that changes the raster re-requests the
-  current cells' tiles, which `LocalMap::requestMap` already draws frames later. Refused: keeping
-  the old tiles, which leaves the map at one sharpness and the text beside it at another.
+- **The map follows the raster.** `LocalMap` reads the current raster scale where it describes a
+  tile rather than once in its constructor, and a tile is described again where its resolution
+  moved, as one is where its depth range did; a fit that moves the raster has the player's cell
+  drawn again, as a cell change does (`WindowManager::fitFonts`). Refused: keeping the old tiles,
+  which leaves the map at one sharpness and the text beside it at another.
 - **The slider applies when it settles.** A `Gui::ScrollBar` subclass raises `eventScrollSettled`
   on a release over its thumb, its buttons or its track, and on each wheel step; a slider with the
   user string `SettingApply="Settled"` writes its setting there and only its label while it drags.
@@ -110,7 +113,7 @@ latent faults on the build as it stands:
 
 ## The stages
 
-Done: 1 to 5. Next: 6.
+Done: 1 to 6. Next: 7.
 
 Each is a commit, verified by `./omw test` on the binaries it touches and by `./omw gate` at the
 end. Each stage's change to upstream code joins `AGENTS.md`'s "Accepted diff" in the same commit.
@@ -188,13 +191,18 @@ without the drop the owner was never asked; an owner of two pages is asked once 
 not at all; a book shown with no callback asserts. Not tested: the two owners' callbacks, which no
 fixture stands up a dialogue or a journal for.
 
-### 6 — What else holds the scale
+### 6 — What else holds the scale — done
 
-`MouseManager` in frame pixels and the injection after a fit; every window clamped in
-`layOutInterface`; `LocalMap` at the current raster and its tiles re-requested; the inventory
-preview's viewport recomputed on a layout. Tests: the cursor hovers the same widget through a fit
-with the mouse still; a window placed at the right edge stays inside the frame after a fit to
-twice the scale; a tile asked after a fit is the new resolution.
+Done. `MouseManager` keeps the cursor in the frame's pixels (`mGuiCursor`, and the last warp as
+an `std::optional`), and hands MyGUI, Lua and a warp what the scale of the moment makes of it;
+its callers still speak the interface's units. `layOutInterface` holds every window inside the
+view, tracked or not, and its `TODO` went. `LocalMap::mapResolution` reads the raster at each
+tile, and a segment records the resolution its view was described at, rebuilding where it moved;
+`WindowManager::fitFonts` has the player's cell drawn again where the raster moved. The inventory
+places itself again at its mode's place and sizes its preview on a layout
+(`InventoryWindow::onResChange`), which only a drag of the window did before. Not tested: each of
+these is a member of a window or a manager that no fixture stands up; the gate's runs build and
+start them.
 
 ### 7 — The setting, live
 

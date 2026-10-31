@@ -181,7 +181,10 @@ is not here is held to the rules above.
   the journal through what it now keeps of how each book on its stack was typeset.
   `Gui::InterfaceFonts` owns the fonts and both registries and refits them as one, which
   `WindowManager::layOut` asks of it at every layout (`WindowManager::fitFonts`), in place of the
-  raster the constructor fixed.
+  raster the constructor fixed. What else held the scale follows it: `MouseManager` keeps the
+  cursor in the frame's pixels, every window is held inside the view after a layout, the local
+  map describes a tile at the raster of the moment and draws the player's cell again where it
+  moved, and the inventory places itself and sizes its preview on a layout.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
