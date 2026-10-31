@@ -204,7 +204,11 @@ namespace Rtx
         if (mSubject == nullptr)
             return false;
 
+        // Nothing is picked off a picture not yet taken.
         Subject& subject = *mSubject;
+        if (!subject.mPosedAt.has_value())
+            return false;
+
         const std::optional<Viewpoint> camera = describeCamera();
         if (!camera.has_value())
             return false;
@@ -229,8 +233,18 @@ namespace Rtx
         // device computed, so without this the click would land on the bind pose. A number from the
         // shared sequence, because both deforming geometries refuse to move for one they have seen.
         const unsigned int posed = subject.mExtractor->getContext().mTraversals.next();
-        subject.mPose->setTraversalNumber(posed);
         subject.mPoseStamp->setFrameNumber(posed);
+
+        // **Updated before it is posed, as a frame is**: a part `NpcAnimation::updateParts` attached
+        // since the last redraw binds its skeleton in an update traversal, and culled before one it
+        // found none and logged so. At the picture's own clock, so what the picture showed stands
+        // where it stood.
+        subject.mUpdate->reset();
+        subject.mUpdate->setFrameStamp(subject.mPoseStamp.get());
+        subject.mUpdate->setTraversalNumber(posed);
+        subject.mNode->accept(*subject.mUpdate);
+
+        subject.mPose->setTraversalNumber(posed);
         subject.mNode->accept(*subject.mPose);
 
         osgUtil::IntersectionVisitor visitor(intersector);
