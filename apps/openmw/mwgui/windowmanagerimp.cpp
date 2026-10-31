@@ -1279,7 +1279,7 @@ namespace MWGui
         {
             if (setting.first == "GUI" && setting.second == "menu transparency")
                 setMenuTransparency(Settings::gui().mMenuTransparency);
-            else if (setting.first == "GUI" && setting.second == "scaling factor")
+            else if (setting.first == "GUI" && (setting.second == "scaling factor" || setting.second == "font size"))
                 layOut();
             // The renderer has the new frame already: `World` hears of a change before this does.
             else if (setting.first == "Video" && (setting.second == "resolution x" || setting.second == "resolution y"))
@@ -1356,6 +1356,7 @@ namespace MWGui
                 window->refitText();
             if (mCharGen != nullptr)
                 mCharGen->refitText();
+            MWBase::Environment::get().getLuaManager()->fontSizeChanged(mFonts->getFontSize());
         }
 
         // The map's tiles are drawn at the raster (`LocalMap::mapResolution`), and those around the

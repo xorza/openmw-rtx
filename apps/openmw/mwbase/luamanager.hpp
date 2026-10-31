@@ -109,6 +109,9 @@ namespace MWBase
         // `arg` is either forwarded from MWGui::pushGuiMode or empty
         virtual void uiModeChanged(const MWWorld::Ptr& arg) = 0;
         virtual void viewportResized(int width, int height) = 0;
+        /// The interface's font size moved (`MWBase::WindowManager::getFontSize`): `omw/mwui`'s templates
+        /// take it.
+        virtual void fontSizeChanged(int size) = 0;
         virtual void savePermanentStorage(const std::filesystem::path& userConfigPath) = 0;
         virtual void applyMagicEffects(ESM::RefId id, const MWWorld::Ptr& caster, ESM::RefNum item,
             const MWWorld::Ptr& target, const std::vector<ESM::IndexedENAMstruct>& effects, bool ignoreReflect,

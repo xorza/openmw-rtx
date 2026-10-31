@@ -92,6 +92,32 @@ namespace MWGui
             EXPECT_EQ(gui.drawnAgainst(), std::set<std::uint32_t>{ bookAtlas() });
         }
 
+        /// **A fit to another font size has the owner typeset its book again at it**: a one-line book
+        /// typeset at 16 points stands 16 high; after a fit to 18 the owner, asked once, typesets it
+        /// at 18, where it stands 18 high, and the page shows that one.
+        TEST(BookPageTest, aFitToAnotherFontSizeHasTheOwnerTypesetItsBookAgainAtIt)
+        {
+            BookPageGui gui;
+            BookPage* const page = gui.makePage(10);
+            std::shared_ptr<TypesetBook> shown = gui.typeset();
+            int asked = 0;
+            page->adviseRetypeset([&] {
+                ++asked;
+                shown = gui.typeset();
+                page->showPage(shown, 0);
+            });
+            page->showPage(shown, 0);
+            ASSERT_EQ(shown->getSize().second, 16u);
+
+            Gui::FontFit larger = gui.mGui.getFonts().getFit();
+            larger.mFontSize = 18;
+            gui.mGui.getFonts().fit(larger);
+
+            EXPECT_EQ(asked, 1);
+            EXPECT_EQ(shown->getSize().second, 18u);
+            EXPECT_EQ(gui.drawnAgainst(), std::set<std::uint32_t>{ bookAtlas() });
+        }
+
         /// **An owner of two pages is asked once, and a page with no book not at all**: the owner
         /// shows a book on both of its pages from the first page's ask, which leaves the second
         /// nothing to ask for; a third page, empty, is not refitted into a book.
