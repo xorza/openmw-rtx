@@ -72,6 +72,10 @@ namespace Gui
         {
             MyGUI::ResourceTrueTypeFont* mFont = nullptr;
             int mResolution = 0;
+
+            /// In points, as the load sizes it.
+            int mSize = 0;
+
             bool mBook = false;
 
             /// Whether its file states a tab's width, which MyGUI otherwise derives from a space's

@@ -26,6 +26,7 @@
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/pathutil.hpp>
+#include <components/widgets/textregistry.hpp>
 
 #include "charactercreation.hpp"
 #include "draganddrop.hpp"
@@ -434,6 +435,9 @@ namespace MWGui
         MWRender::Renderer& mRenderer;
 
         std::unique_ptr<Gui::FontLoader> mFontLoader;
+
+        /// Every text the interface draws, for the fonts' rasterizations to reach.
+        Gui::TextRegistry mTexts;
         std::unique_ptr<StatsWatcher> mStatsWatcher;
 
         bool mConsoleOnlyScripts;
