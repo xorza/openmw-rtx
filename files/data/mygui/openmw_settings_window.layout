@@ -483,7 +483,7 @@
                         </Widget>
                     </Widget>
 
-                    <Widget name="ScriptBox" type="Widget" align="Stretch" name="ScriptBox">
+                    <Widget name="ScriptBox" type="Widget" align="Stretch">
                         <UserString key="HStretch" value="true"/>
                         <UserString key="VStretch" value="true"/>
 

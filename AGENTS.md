@@ -102,7 +102,9 @@ is not here is held to the rules above.
   rasterizer never reads it.
 - The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): a
   skinned body answers a CPU ray with the pose its last cull left, and the ray tracer culls no
-  world, so the crosshair met every actor in its bind pose.
+  world, so the crosshair met every actor in its bind pose. And `SceneUtil::RigGeometry::hasSkeleton`, which the
+  hook asks: a part attached in a frame's logic binds its skeleton in that frame's update, and
+  posed before it the rig logged that it had none.
 - `components/sky/vertexrules.hpp`, which `ModVertexAlphaVisitor` reads: both renderers fade the
   cloud shell and the star dome by one rule each.
 - `SceneUtil::StateSetUpdater::getGeneration`, which `reset` bumps: the mirror applies an updater to
@@ -161,6 +163,8 @@ is not here is held to the rules above.
   - `NavMeshDb` committed each tile under a rollback journal at full synchronisation, several fsyncs
     a tile; it now journals into a write-ahead log at normal synchronisation, where a tile a crash
     loses is generated again;
+  - `openmw_settings_window.layout` gave the `ScriptBox` widget its `name` attribute twice, which an
+    XML parser refuses;
   - `Debug::wrapApplication`'s fatal error box read only whether a terminal started the game, not
     `OPENMW_CRASH_DIALOG` as the crash dialog does, and showed before the error was logged: a start
     that failed under a harness waited for a click, with nothing in the log.

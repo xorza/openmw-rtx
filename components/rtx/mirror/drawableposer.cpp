@@ -2,6 +2,8 @@
 
 #include <osg/Drawable>
 
+#include <components/sceneutil/riggeometry.hpp>
+
 #include "mirrorpass.hpp"
 
 namespace Rtx
@@ -14,6 +16,10 @@ namespace Rtx
 
     void DrawablePoser::pose(osg::Drawable& drawable, const osg::FrameStamp& frame)
     {
+        if (const auto* rig = as<const SceneUtil::RigGeometry>(mKinds.of(drawable), NodeKind::RigGeometry, drawable);
+            rig != nullptr && !rig->hasSkeleton())
+            return;
+
         if (mFrame != frame.getFrameNumber())
         {
             mFrame = frame.getFrameNumber();

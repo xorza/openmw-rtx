@@ -29,8 +29,17 @@ namespace Rtx
 {
     namespace
     {
+        /// **Each test starts with the graveyard empty**: a range an earlier test let go stays counted
+        /// until a collection gives it back, and a test that reads what a use holds before and after
+        /// its own collection would count the earlier test's range in the first figure alone.
         struct RtxMemoryTest : Testing::DeviceTest
         {
+            void SetUp() override
+            {
+                DeviceTest::SetUp();
+                getDevice().waitIdle();
+                getDevice().collectIdle();
+            }
         };
 
         /// A buffer of `size` bytes and the room the allocator gave it, held together so the room
