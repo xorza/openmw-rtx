@@ -1016,7 +1016,7 @@ namespace Rtx::Testing
 
         /// **A lamp that takes light away takes it off the lamps' exact sum on a surface that draws one
         /// lamp, too.** A white pane half there, which the eye peels and shades with its lamps
-        /// composed (`VisitRun`), over a black sky, under a red lamp and a blue one at one place,
+        /// composed (`PathEndLight`), over a black sky, under a red lamp and a blue one at one place,
         /// and a white lamp there that takes half of either away. Each alone lights the frame `r` in
         /// its own channel, so the darkened sum is `r / 2` in red and in blue.
         ///
@@ -2739,7 +2739,7 @@ namespace Rtx::Testing
             EXPECT_NEAR(floorUnder(0.25f), 0.375f, 0.01f) << "and a quarter a quarter";
         }
 
-        /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`SolidRun`,
+        /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`landingLightOf`,
         /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already.
         ///
         /// A glowing sheet over a grey floor and nothing else, the sheet two-sided so the eye under

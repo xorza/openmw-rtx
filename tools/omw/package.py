@@ -121,8 +121,16 @@ def container_command(docker: str, command: list[str], user: str, flavour: str) 
     return [docker, "run", "--rm", "--user", user, "--env", "HOME=/tmp",
             "--env", f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}",
             "--volume", f"{ROOT}:{ROOT}",
+            *(word for repository in _repository_beside() for word in ("--volume", f"{repository}:{repository}")),
             "--volume", f"{CONTAINER_DIR / flavour}:{ROOT / f'build-{flavour}'}",
             "--workdir", str(ROOT), RELEASE_IMAGE, *command]
+
+
+def _repository_beside() -> list[Path]:
+    """The repository a worktree of it keeps outside the tree, which git inside the container reads
+    through the tree's `.git` file: nothing for a tree that holds its own."""
+    common = Path(output(["git", "-C", ROOT, "rev-parse", "--path-format=absolute", "--git-common-dir"]).strip())
+    return [] if common.is_relative_to(ROOT) else [common]
 
 
 def needs_container() -> bool:

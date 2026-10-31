@@ -4,9 +4,13 @@
 #extension GL_EXT_shader_image_load_formatted : require
 
 // The direct light of every pixel's solid, a stage of its own after the trace (`visibility.comp`):
-// the sun's and the moons' passages, the lamps and the solid's own glow, which `SolidRun` gathers,
-// added to the direct channel by what the media in front and a water path let through, and the
-// shadowed sources and the lobe's light written by what the layers let through as well.
+// the sun's and the moons' passages, the lamps and the solid's own glow (`SolidLight`), added to
+// the direct channel by what the media in front and a water path let through, and the shadowed
+// sources and the lobe's light written by what the layers let through as well.
+//
+// **The rays in a fixed order, a turn each, at one traversal site**: the sky's two legs and the
+// lamp's, none of which waits on another's answer. The turn is the same in every lane, so which
+// ray a turn traces is a branch the whole warp takes.
 //
 // **Before the layers' stage**, which lays the layers over the direct channel (`panes.comp`), so the
 // solid's light stands behind them when it does: what the layers let through is the throughput's
@@ -34,6 +38,11 @@
 
 layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 
+const uint DIRECT_SKY = 0u;
+const uint DIRECT_SKY_OVER = 1u;
+const uint DIRECT_LAMP = 2u;
+const uint DIRECT_RAYS = 3u;
+
 void main()
 {
     uvec2 pixel;
@@ -46,67 +55,53 @@ void main()
     const StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
 
     // **The one writer of the shadowed sources and the lobe's light**, at every pixel: no shadowed
-    // source and no lobe where no solid stands or its walk was cut, which the trace wrote before
-    // this stage wrote them again over every solid.
+    // source and no lobe where no solid stands, which the trace wrote before this stage wrote them
+    // again over every solid.
     Shadowed sky = noShadowed();
     Shadowed lamps = noShadowed();
     vec4 lobe = vec4(vec3(0.0), SPECULAR_NO_LOBE);
     if (record.mKind != STAGE_NO_SOLID)
     {
-        // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`).
-        Surface surface = storedSolidOf(record, stored);
+        // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`), and its
+        // light worked out whole but for what its rays answer (`solidLightOf`).
+        const SolidLight light = solidLightOf(storedSolidOf(record, stored), pixel);
 
-        // **Innermost first**: a walk is under way only while the one that started it waits on it.
-        SkyPassageRun skyPassage = skyPassageRunOf(
-            frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-        GatherRun gather = gatherRunOf(0u, 0u, PATH_SEEN, false, false);
-        SolidRun solid = solidRunOf();
-        skyPassage.mStep = RUN_IDLE;
-        gather.mStep = RUN_IDLE;
-
-        RayAsk ask = noRay();
-        stepSolid(solid, gather, surface, pixel);
-
-        uint turns = 0u;
-        [[dont_unroll]] while ((ask.mTraced || solid.mStep != RUN_IDLE) && turns < WALK_TURNS)
+        Passage skyFirst = openPassage();
+        Passage skyOver = openPassage();
+        Passage lampPassage = openPassage();
+        [[dont_unroll]] for (uint turn = 0u; turn < DIRECT_RAYS; ++turn)
         {
-            ++turns;
-            RayAnswer answered = RayAnswer(false, unansweredScene());
-            if (ask.mTraced)
-            {
-                answered = RayAnswer(true, queryScene(ask.mQuery));
-                if (ask.mResolved)
-                    surface = resolveAsked(answered.mMet, ask.mQuery);
-            }
-            ask = noRay();
+            RayAsk ask = light.mLampRay;
+            if (turn == DIRECT_SKY)
+                ask = light.mSkyRay;
+            else if (turn == DIRECT_SKY_OVER)
+                ask = light.mSkyOverRay;
 
-            if (skyPassage.mStep != RUN_IDLE)
-                stepSkyPassage(skyPassage, answered, ask);
-            else if (gather.mStep != RUN_IDLE)
-                stepGather(gather, skyPassage, surface, pixel, answered, ask);
+            const Passage passage = passageAnswered(answerAsked(ask));
+            if (turn == DIRECT_SKY)
+                skyFirst = passage;
+            else if (turn == DIRECT_SKY_OVER)
+                skyOver = passage;
             else
-                stepSolid(solid, gather, surface, pixel);
+                lampPassage = passage;
         }
 
-        if (solid.mStep != RUN_IDLE)
-            atomicAdd(counts.mWalksCut, 1u);
-        else
-        {
-            // **The solid's light under the layers**, by what the media and the path let through, as
-            // the trace took the water's own light down (`visibility.comp`); **its shadowed sources and
-            // its lobe by the layers' share as well**, which no stage lays over them.
-            const vec4 through = imageLoad(stageThroughput, stored);
-            const vec3 transmittance = through.rgb * through.a;
-            const SeenSolid seen = solid.mSeen;
+        const SeenSolid seen = seenSolidOf(light,
+            light.mSkyBent ? joinedPassage(skyFirst, skyOver, light.mSkyPath) : skyFirst, lampPassage);
 
-            const ivec2 directAt = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);
-            RTX_STORE_COUNTED(
-                direct, directAt, vec4(imageLoad(direct, directAt).rgb + seen.mLight.mRest * through.rgb, 1.0))
+        // **The solid's light under the layers**, by what the media and the path let through, as
+        // the trace took the water's own light down (`visibility.comp`); **its shadowed sources and
+        // its lobe by the layers' share as well**, which no stage lays over them.
+        const vec4 through = imageLoad(stageThroughput, stored);
+        const vec3 transmittance = through.rgb * through.a;
 
-            sky = dimmed(seen.mLight.mSky, transmittance);
-            lamps = dimmed(seen.mLight.mLamps, transmittance);
-            lobe = vec4(seen.mSpecular * transmittance, seen.mRoughness);
-        }
+        const ivec2 directAt = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);
+        RTX_STORE_COUNTED(
+            direct, directAt, vec4(imageLoad(direct, directAt).rgb + seen.mLight.mRest * through.rgb, 1.0))
+
+        sky = dimmed(seen.mLight.mSky, transmittance);
+        lamps = dimmed(seen.mLight.mLamps, transmittance);
+        lobe = vec4(seen.mSpecular * transmittance, seen.mRoughness);
     }
 
     RTX_STORE_COUNTED(shadowed, channelAt(CHANNEL_SHADOWED, ivec2(pixel), width, swap),

@@ -134,9 +134,10 @@ vec3 lightThroughWater(BentPath bent, float footprint, float into)
 ///
 /// **In `Passage`'s two halves**: stopped where either ray was, and what both let through otherwise.
 ///
-/// **A leg a step**, for the loop that answers its rays (`direct.comp` and the rest): the start
-/// asks the leg under the water, or the one leg where the point is dry, and the next step the leg
-/// over it.
+/// **A leg a step**, for a loop that answers its rays (`stepColumn`'s): the start asks the leg
+/// under the water, or the one leg where the point is dry, and the next step the leg over it. **Both
+/// legs asked at once** where nothing waits on the passage (`skyPassageFirstAsk`,
+/// `skyPassageOverAsk`, `joinedPassage`).
 struct SkyPassageRun
 {
     /// `RUN_IDLE` once `mPassage` holds the answer.
@@ -181,13 +182,55 @@ SkyPassageRun skyPassageRunOf(SkySource sky, vec3 position, vec3 off, BentPath b
     return run;
 }
 
+/// Whether the passage crosses the water: two legs, the one under the surface asked first.
+bool skyPassageBent(SkyPassageRun run)
+{
+    return run.mBent.mDepth > 0.0;
+}
+
+/// The passage's first leg: the one leg where the point is dry, and the leg under the water where it
+/// is not. None for a picture with shadows off.
+///
+/// **The picture with shadows off is open to the sky under the water too**, as `skyAsk` answers over
+/// it: the leg under the surface asks `lightAsk` itself, and a hull over a flooded bed shaded a map
+/// tile whose dry ground beside it no roof did.
+RayAsk skyPassageFirstAsk(SkyPassageRun run)
+{
+    if (frame.mNoSkyShadows != 0u)
+        return noRay();
+
+    if (!skyPassageBent(run))
+        return skyAsk(run.mSky, run.mPosition, run.mOff, run.mDraw, run.mNearest);
+
+    const vec3 up = -run.mBent.mTravelling;
+    return lightAsk(leaveSurface(run.mPosition, run.mOff, up), up, run.mBent.mPath, run.mNearest);
+}
+
+/// The leg over the water, from where the bent path meets the surface: asked whatever the leg under
+/// it met, so it is known before either is answered. None where the passage is one leg.
+RayAsk skyPassageOverAsk(SkyPassageRun run)
+{
+    return skyPassageBent(run)
+        ? skyAsk(run.mSky, vec3(run.mBent.mMet, frame.mWaterLevel), vec3(0.0), run.mDraw, run.mNearest)
+        : noRay();
+}
+
+/// The passage of a bent path whose leg under the water answered `under` and whose leg over it,
+/// leaving the surface `path` along the bent line, answered `over`.
+///
+/// The leg under the water is the nearer: what stopped it stands nearer than anything over it. A
+/// stopped ray's through is one, as `Passage::mThrough` says, whichever leg stopped it.
+Passage joinedPassage(Passage under, Passage over, float path)
+{
+    const float open = under.mOpen * over.mOpen;
+    return Passage(open, open > 0.0 ? under.mThrough * over.mThrough : 1.0,
+        under.mOpen < 1.0 ? under.mOccluder : min(path + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
+}
+
 void stepSkyPassage(inout SkyPassageRun run, RayAnswer answered, inout RayAsk ask)
 {
     if (run.mStep == SKY_PASSAGE_START)
     {
-        // **The picture with shadows off is open to the sky under the water too**, as `skyAsk`
-        // answers over it: the leg under the surface asks `lightAsk` itself, and a hull over a
-        // flooded bed shaded a map tile whose dry ground beside it no roof did.
         if (frame.mNoSkyShadows != 0u)
         {
             run.mPassage = openPassage();
@@ -195,16 +238,8 @@ void stepSkyPassage(inout SkyPassageRun run, RayAnswer answered, inout RayAsk as
             return;
         }
 
-        if (!(run.mBent.mDepth > 0.0))
-        {
-            ask = skyAsk(run.mSky, run.mPosition, run.mOff, run.mDraw, run.mNearest);
-            run.mStep = SKY_PASSAGE_ALONE;
-            return;
-        }
-
-        const vec3 up = -run.mBent.mTravelling;
-        ask = lightAsk(leaveSurface(run.mPosition, run.mOff, up), up, run.mBent.mPath, run.mNearest);
-        run.mStep = SKY_PASSAGE_UNDER;
+        ask = skyPassageFirstAsk(run);
+        run.mStep = skyPassageBent(run) ? SKY_PASSAGE_UNDER : SKY_PASSAGE_ALONE;
         return;
     }
 
@@ -218,18 +253,12 @@ void stepSkyPassage(inout SkyPassageRun run, RayAnswer answered, inout RayAsk as
     if (run.mStep == SKY_PASSAGE_UNDER)
     {
         run.mUnder = passageAnswered(answered);
-        ask = skyAsk(run.mSky, vec3(run.mBent.mMet, frame.mWaterLevel), vec3(0.0), run.mDraw, run.mNearest);
+        ask = skyPassageOverAsk(run);
         run.mStep = SKY_PASSAGE_OVER;
         return;
     }
 
-    // The leg under the water is the nearer: what stopped it stands nearer than anything over it. A
-    // stopped ray's through is one, as `Passage::mThrough` says, whichever leg stopped it.
-    const Passage under = run.mUnder;
-    const Passage over = passageAnswered(answered);
-    const float open = under.mOpen * over.mOpen;
-    run.mPassage = Passage(open, open > 0.0 ? under.mThrough * over.mThrough : 1.0,
-        under.mOpen < 1.0 ? under.mOccluder : min(run.mBent.mPath + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
+    run.mPassage = joinedPassage(run.mUnder, passageAnswered(answered), run.mBent.mPath);
     run.mStep = RUN_IDLE;
 }
 

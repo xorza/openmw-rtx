@@ -332,7 +332,7 @@ namespace Rtx
         // Whether the rows moved since the top level was last built, and not what this copy owes:
         // there is one top level, so a row the copy before was synced with is in it already, and
         // building it again on the frame after every change was a pack and a build for nothing. A
-        // refit alone still rebuilds it, because a top level caches the bounds of what it names.
+        // refit alone still updates it, because a top level caches the bounds of what it names.
         if (!compacting && mRowTable.getWrites() == mBuiltOverWrites && mRefit.mBuilds.empty())
             return false;
 
@@ -439,6 +439,8 @@ namespace Rtx
         // packing leaves out of what the build reads.
         if (!record.mPlaced)
         {
+            if (changesShape(mRowTable.getRows()[slot], VkAccelerationStructureInstanceKHR{}))
+                ++mShapes;
             mRowTable.writeChanged(slot, VkAccelerationStructureInstanceKHR{});
             return;
         }
@@ -468,23 +470,35 @@ namespace Rtx
             flags |= VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR;
 
         // Compared, because a placement settling where it moved to is written again as it stands.
-        mRowTable.writeChanged(slot,
-            VkAccelerationStructureInstanceKHR{
-                .transform = toVulkanTransform(record.mTransform),
-                // A row's position is the custom index the shader reads back at a hit.
-                .instanceCustomIndex = slot & 0xFFFFFFu,
-                .mask = record.mMask,
+        const VkAccelerationStructureInstanceKHR row{
+            .transform = toVulkanTransform(record.mTransform),
+            // A row's position is the custom index the shader reads back at a hit.
+            .instanceCustomIndex = slot & 0xFFFFFFu,
+            .mask = record.mMask,
 
-                // The kind, which a query hands back off a committed hit (`KIND_WATER`): no shader
-                // table stands behind it, and it is the one field of the row nothing else takes. A
-                // kind out of step with `KIND_*` would shade every chunk of ground as water, and
-                // nothing would say so.
-                .instanceShaderBindingTableRecordOffset = static_cast<std::uint32_t>(record.mKind),
-                .flags = flags,
-                .accelerationStructureReference = mBottomLevel.getAddress(record.mMesh),
-            });
+            // The kind, which a query hands back off a committed hit (`KIND_WATER`): no shader
+            // table stands behind it, and it is the one field of the row nothing else takes. A
+            // kind out of step with `KIND_*` would shade every chunk of ground as water, and
+            // nothing would say so.
+            .instanceShaderBindingTableRecordOffset = static_cast<std::uint32_t>(record.mKind),
+            .flags = flags,
+            .accelerationStructureReference = mBottomLevel.getAddress(record.mMesh),
+        };
+
+        if (changesShape(mRowTable.getRows()[slot], row))
+            ++mShapes;
+        mRowTable.writeChanged(slot, row);
         if (mRowTable.getRows()[slot].accelerationStructureReference != 0)
             ++placed;
+    }
+
+    bool SceneAcceleration::changesShape(
+        const VkAccelerationStructureInstanceKHR& was, const VkAccelerationStructureInstanceKHR& row)
+    {
+        return was.accelerationStructureReference != row.accelerationStructureReference
+            || was.instanceCustomIndex != row.instanceCustomIndex || was.mask != row.mask
+            || was.instanceShaderBindingTableRecordOffset != row.instanceShaderBindingTableRecordOffset
+            || was.flags != row.flags;
     }
 
     void SceneAcceleration::sizeTopLevel(const std::uint32_t slots)
@@ -507,7 +521,8 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
             .pNext = nullptr,
             .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-            .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+            .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
+                | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
             .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
             .srcAccelerationStructure = VK_NULL_HANDLE,
             .dstAccelerationStructure = VK_NULL_HANDLE,
@@ -537,7 +552,8 @@ namespace Rtx
         // Grown to the high-water mark and kept, both of them. A structure is created at offset zero
         // of whatever this holds and asks only that it be large enough.
         mTopLevelStorage.growTo(sizes.accelerationStructureSize);
-        mTopLevelScratch.growTo(sizes.buildScratchSize);
+        mTopLevelScratch.growTo(std::max(sizes.buildScratchSize, sizes.updateScratchSize));
+        mBuiltShapes.reset();
 
         mTopLevel = AccelerationStructure::topLevel(
             mDevice, mTopLevelStorage.get(), sizes.accelerationStructureSize, "scene");
@@ -557,6 +573,17 @@ namespace Rtx
             .primitiveCount = mPlacedRows, .primitiveOffset = 0, .firstVertex = 0, .transformOffset = 0
         };
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
+
+        // **Updated where only the instances' places moved**, and built whole where its shape did:
+        // a placement that walks, or a structure a refit rewrote, keeps every instance and its place
+        // in the packing, which is what an update needs. A build of the whole was 3.45 ms of every
+        // exterior frame on the Deck.
+        const bool updated = mBuiltShapes == mShapes && mBuiltPlaced == mPlacedRows;
+        mTopLevelBuild.mode = updated ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
+                                      : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+        mTopLevelBuild.srcAccelerationStructure = updated ? mTopLevel.getHandle() : VK_NULL_HANDLE;
+        mBuiltShapes = mShapes;
+        mBuiltPlaced = mPlacedRows;
 
         const GpuZone timed(timer, commands, FrameZone::Tlas);
         pack.record(commands,

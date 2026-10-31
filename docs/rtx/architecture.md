@@ -414,6 +414,17 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   frame at Seyda Neen went from 412 ms to under 46 (`research/2026-10-21-amd-680m-stage-times.md`).
   Refused: one loop over every walk, whose union of records spilled; the records trimmed inside it,
   which moved the spill by under 300 bytes of 2 304.
+- **A stage whose rays wait on no other's answer works out its light before the first one**
+  (`landing.comp`, `direct.comp`, each layer `panes.comp` lights): the terms each ray's answer
+  multiplies (`PathEndLight`, `SolidLight`), then the rays in a fixed
+  order a turn each at one traversal site, so only the terms and the rays stay live through the
+  traversals — NVIDIA's advice to keep live state across a trace small
+  ([Best Practices: Using NVIDIA RTX Ray Tracing](https://developer.nvidia.com/blog/best-practices-using-nvidia-rtx-ray-tracing/)).
+  On the Deck the landing went from 160–256 registers to 128–144 and its zone 21–34 % down, the
+  direct stage 9–28 % and the layers' 17 % in the guild
+  (`research/2026-10-30-steam-deck-stage-times.md`). Refused: the walk of steps there, which kept
+  the surface and every record through each ray. A path end's light is a sum in another order, so
+  it moves by its rounding; the direct stage's is the walk's to the bit.
 - **The bounce's landing a stage of its own, over the pixels that landed** (`landing.comp`):
   `bounce` stores the hit its ray met and lists the pixel (`appendLandings`), and writes what
   arrived itself where the ray met nothing; `landing` runs over the list. On an RTX 4090 Laptop the

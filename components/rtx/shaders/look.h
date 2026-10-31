@@ -387,7 +387,7 @@ namespace Rtx::Shaders
     /// conventions and not one.
     ///
     /// **A glow has no lamp of its own, and lights only by the bounce that lands on it**
-    /// (`SolidRun`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
+    /// (`landingLightOf`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
     /// and what they buy is the warm ring under a mushroom's cap. **A lamp's own model does not light
     /// even so**: its `LIGH` lamp already lights for it, through its fitting (`INSTANCE_LAMP_BODY`).
     const float EMISSIVE_INTENSITY = 8.0f;
@@ -470,7 +470,7 @@ namespace Rtx::Shaders
     /// one.
     ///
     /// **The bounce is the one ray whose hit is shaded**, so what a skipped lane drops is the
-    /// traversal and the whole of `VisitRun` behind it: the lamp walk, the sun ray and the
+    /// traversal and the whole of `PathEndLight` behind it: the lamp walk, the sun ray and the
     /// ambient ray. Half of them saved four to six per cent of the frame — release, three
     /// alternated rounds, the `trace` zone: 1.97–2.05 ms to 1.77–1.82 at the ship and 1.45–1.47 to
     /// 1.20–1.23 in the guild; at 4K performance 4.33–4.36 to 3.83–3.84 and 3.38–3.41 to 2.76.
@@ -1236,7 +1236,7 @@ namespace Rtx::Shaders
     ///     pier, pond        within 0.02 of each other in every figure
     ///
     /// Less noise everywhere a lamp lights, and more bias, most where paper lanterns glow: the yurt's,
-    /// whose glow the bounce counts beside their lamps (`SolidRun`), and the reference counts
+    /// whose glow the bounce counts beside their lamps (`landingLightOf`), and the reference counts
     /// it too. How much of the bias is that light, and how much is light the ring should have kept,
     /// is for an A/B after the glow is counted once.
     ///
