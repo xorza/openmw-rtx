@@ -19,22 +19,8 @@ SYSTEMS = {"linux": "linux", "win32": "windows"}
 WINDOWS = sys.platform == "win32"
 SYSTEM = SYSTEMS.get(sys.platform, "")
 EXE = ".exe" if WINDOWS else ""
-# The fork's own folders, which the fork's checks hold: upstream's code is upstream's to change.
-FORK = (
-    "components/rtx/",
-    "components/rtxvulkan/",
-    "components/myguirtx/",
-    "components/crashcatcher/",
-    "apps/rtxtool/",
-    "apps/openmw/mwrender/rtx/",
-    "apps/openmw_tests/mwrender/",
-    "apps/components_tests/rtx/",
-    "apps/components_tests/rtxvulkan/",
-    "apps/components_tests/rtxtool/",
-    "apps/components_tests/crashcatcher/",
-    "apps/components_tests/myguirtx/",
-    "apps/components_tests/platform/",
-)
+# Upstream's branch, which the fork merges: what its tree has at the merge base is upstream's code.
+UPSTREAM = "upstream/master"
 # Set by GitHub Actions, as by every CI service: CI checks what the desk rewrites.
 CI = os.environ.get("CI", "").lower() in ("true", "1")
 # The tree's own C++, which the formatting and the file names are checked over: `extern/` is vendored.
@@ -159,13 +145,28 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def working_tree_files(*pathspecs: str) -> list[str]:
+def working_tree_files(*pathspecs: str, root: Path = ROOT) -> list[str]:
     """The files `pathspecs` name in the working tree, from the root, `/`-separated: tracked or new and
     not ignored. **The working tree's, and not the index's**: a file a move or a delete has taken
     still stands in the index, and one a move has made is not in it yet."""
-    listed = output(["git", "-C", ROOT, "ls-files", "--cached", "--others", "--exclude-standard", "--",
+    listed = output(["git", "-C", root, "ls-files", "--cached", "--others", "--exclude-standard", "--",
                      *pathspecs]).splitlines()
-    return [name for name in listed if (ROOT / name).is_file()]
+    return [name for name in listed if (root / name).is_file()]
+
+
+@functools.cache
+def fork_files(root: Path = ROOT) -> frozenset[str]:
+    """**The fork's own files, which the fork's checks hold**: the working tree's that upstream's tree lacks
+    at its merge base with `HEAD`, from the root, `/`-separated, the vendored `extern/` aside. Upstream's
+    are upstream's to change. Derived and not listed: a list by folder missed every file the fork adds
+    beside upstream's, and a file the fork adds anywhere is its own the moment it exists."""
+    try:
+        base = output(["git", "-C", root, "merge-base", "HEAD", UPSTREAM]).strip()
+    except subprocess.CalledProcessError as error:
+        raise Refusal(f"no `{UPSTREAM}` to tell the fork's files from upstream's: "
+                      "`git remote add upstream https://github.com/OpenMW/openmw.git` and `git fetch upstream`") from error
+    upstream = set(output(["git", "-C", root, "ls-tree", "-r", "-z", "--name-only", base]).split("\0"))
+    return frozenset(name for name in working_tree_files(":(exclude)extern/", root=root) if name not in upstream)
 
 
 def user_and_group() -> str:

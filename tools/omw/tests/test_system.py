@@ -1,6 +1,7 @@
 import contextlib
 import io
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,10 +9,10 @@ from unittest import mock
 
 from omw.system import (
     EXE,
-    FORK,
-    ROOT,
+    UPSTREAM,
     Refusal,
     environment_key,
+    fork_files,
     on_path,
     parse_set_output,
     refuse_unsupported,
@@ -28,10 +29,40 @@ class SystemTest(unittest.TestCase):
             self.assertEqual(report(["a.cpp:1: one", "b.cpp:2: two"]), 1)
         self.assertEqual(said.getvalue(), "a.cpp:1: one\nb.cpp:2: two\n")
 
-    def test_every_fork_folder_is_a_folder(self):
-        for folder in FORK:
-            with self.subTest(folder=folder):
-                self.assertTrue((ROOT / folder).is_dir())
+    def test_the_forks_files_are_the_working_trees_that_upstreams_tree_lacks_at_the_merge_base(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+
+            # Away from the user's and the system's configuration, whose signing or hooks would fail a commit.
+            alone = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+
+            def git(*args: str) -> None:
+                subprocess.run(["git", "-C", root, "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                               check=True, capture_output=True, env=alone)
+
+            git("init", "-q", "-b", "master")
+            (root / "upstream.cpp").write_text("")
+            (root / "extern").mkdir()
+            (root / "extern" / "vendored.cpp").write_text("")
+            git("add", ".")
+            git("commit", "-q", "-m", "upstream")
+            git("update-ref", f"refs/remotes/{UPSTREAM}", "HEAD")
+            (root / "committed.cpp").write_text("")
+            git("add", "committed.cpp")
+            git("commit", "-q", "-m", "fork")
+            (root / "new.cpp").write_text("")
+            (root / "extern" / "added.cpp").write_text("")
+            (root / "upstream.cpp").write_text("changed")
+
+            self.assertEqual(fork_files(root), {"committed.cpp", "new.cpp"})
+
+    def test_a_tree_without_upstream_is_refused_with_how_to_fetch_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            subprocess.run(["git", "-C", root, "init", "-q"], check=True, capture_output=True)
+            with self.assertRaises(Refusal) as refused:
+                fork_files(root)
+            self.assertIn("git fetch upstream", str(refused.exception))
 
     def test_linux_and_windows_are_taken_and_any_other_system_is_refused_before_any_verb(self):
         refuse_unsupported("linux")
