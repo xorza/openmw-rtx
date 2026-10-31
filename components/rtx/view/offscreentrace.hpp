@@ -142,12 +142,12 @@ namespace Rtx
         bool takeCopy(GuiSlot texture, std::span<std::uint8_t> into) const;
 
         /// What is at this point of the picture, in normalised device coordinates, as the path
-        /// through the subject to whatever was hit. Nothing for a picture of the world. On the
-        /// processor and against the graph, because the caller wants a node path to ask the
-        /// animation which equipment slot that was; the ray is the one the trace would have sent
-        /// through that point. The one place a skinned body is still posed on the processor: the
-        /// drawable's own copy holds the bind pose, so the subject is put through a cull of its own
-        /// once per pick.
+        /// through the subject to whatever was hit. Nothing for a picture of the world, or before
+        /// the first `rebuildSubject`. On the processor and against the graph, because the caller
+        /// wants a node path to ask the animation which equipment slot that was; the ray is the one
+        /// the trace would have sent through that point. The one place a skinned body is still posed
+        /// on the processor: the drawable's own copy holds the bind pose, so the subject is put
+        /// through an update and a cull of its own once per pick, at the last redraw's clock.
         bool pick(float x, float y, osg::NodePath& hit);
 
     private:
@@ -181,9 +181,10 @@ namespace Rtx
             /// frames has to run one.
             std::unique_ptr<PoseUpdate> mUpdate;
 
-            /// The cull traversal `pick` poses the subject with, and the clock it reads. Made once,
-            /// because a cull carries a state graph and a render stage; the stamp is a copy of the
-            /// last `rebuildSubject`'s, so a pick poses at the time the picture was taken.
+            /// The cull traversal `pick` poses the subject with, and the clock it and the update
+            /// before it read. Made once, because a cull carries a state graph and a render stage;
+            /// the stamp is a copy of the last `rebuildSubject`'s, so a pick poses at the time the
+            /// picture was taken.
             std::unique_ptr<PoseCull> mPose;
             osg::ref_ptr<osg::FrameStamp> mPoseStamp;
 

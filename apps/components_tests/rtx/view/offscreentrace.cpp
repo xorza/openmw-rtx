@@ -7,13 +7,16 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/BoundingSphere>
 #include <osg/FrameStamp>
 #include <osg/Geometry>
 #include <osg/Group>
+#include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osg/StateSet>
+#include <osg/Vec3d>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
@@ -30,6 +33,8 @@
 #include <components/rtx/view/offscreentrace.hpp>
 #include <components/rtx/view/viewscene.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
+#include <components/sceneutil/riggeometry.hpp>
+#include <components/sceneutil/skeleton.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 
 namespace Rtx
@@ -380,6 +385,72 @@ namespace Rtx
                 context);
             ASSERT_TRUE(both.rebuildSubject(*stampAt(1), releasing));
             EXPECT_EQ(both.getScene()->placements().getCounts().mPlaced, 2u);
+        }
+
+        /// A unit quad bound rigidly to the one bone of `skeleton`, as a body part is.
+        osg::ref_ptr<SceneUtil::RigGeometry> makePart()
+        {
+            osg::ref_ptr<SceneUtil::RigGeometry> rig = new SceneUtil::RigGeometry;
+            rig->setBoneInfo({ SceneUtil::RigGeometry::BoneInfo{ .mName = "bone",
+                .mBoundSphere = osg::BoundingSpheref(osg::Vec3f(0.5f, 0.5f, 0.0f), 1.0f),
+                .mInvBindMatrix = osg::Matrixf::identity() } });
+            rig->setInfluences(std::vector<SceneUtil::RigGeometry::BoneWeights>(
+                4, SceneUtil::RigGeometry::BoneWeights{ { 0, 1.0f } }));
+            rig->setSourceGeometry(Testing::makeQuad());
+            return rig;
+        }
+
+        /// **A pick meets a part the doll put on since its last redraw, and logs nothing.** The
+        /// inventory's preview attaches the new parts in `NpcAnimation::updateParts` and redraws on
+        /// the next frame, and a click before then culled a part no update had bound to its
+        /// skeleton: it found none and logged so. Updated first, at the picture's clock, the part is
+        /// posed as every other. Before the first redraw there is no picture to pick from.
+        TEST(RtxOffscreenTraceTest, aPickMeetsAPartPutOnSinceTheLastRedrawAndLogsNothing)
+        {
+            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            Testing::CountingRenderer renderer;
+            Released releasing;
+
+            osg::ref_ptr<SceneUtil::Skeleton> skeleton = new SceneUtil::Skeleton;
+            osg::ref_ptr<osg::MatrixTransform> bone = new osg::MatrixTransform;
+            bone->setName("bone");
+            skeleton->addChild(bone);
+
+            // Under a node of its own, as a part stands under its shape's transform: the rig reads
+            // its skin's root off the node above it.
+            osg::ref_ptr<osg::Group> worn = new osg::Group;
+            worn->addChild(makePart());
+            skeleton->addChild(worn);
+
+            OffscreenTrace trace(renderer,
+                ViewRequest{ .mWidth = 64,
+                    .mHeight = 64,
+                    .mRayMask = Shaders::MASK_EVERY_CLASS,
+                    .mFraming = SceneUtil::Framing{ .mProjection = SceneUtil::Perspective{ 60.0f },
+                        .mNear = 1.0f,
+                        .mFar = 100.0f },
+                    .mSubject = skeleton.get(),
+                    .mSubjectMask = sEveryNode },
+                context);
+            trace.setView(
+                osg::Matrixd::lookAt(osg::Vec3d(0.5, 0.5, 10.0), osg::Vec3d(0.5, 0.5, 0.0), osg::Vec3d(0.0, 1.0, 0.0)));
+
+            osg::NodePath hit;
+            EXPECT_FALSE(trace.pick(0.0f, 0.0f, hit)) << "picked before there was a picture";
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
+            ASSERT_TRUE(trace.pick(0.0f, 0.0f, hit)) << "the part the redraw drew";
+
+            // Put on in front of the first, so the nearest hit is the new part.
+            osg::ref_ptr<osg::MatrixTransform> front = new osg::MatrixTransform(osg::Matrix::translate(0.0, 0.0, 1.0));
+            const osg::ref_ptr<SceneUtil::RigGeometry> putOn = makePart();
+            front->addChild(putOn);
+            skeleton->addChild(front);
+
+            testing::internal::CaptureStdout();
+            const bool picked = trace.pick(0.0f, 0.0f, hit);
+            EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
+            ASSERT_TRUE(picked);
+            EXPECT_EQ(hit.back(), putOn.get()) << "the new part, posed where it stands";
         }
     }
 }
