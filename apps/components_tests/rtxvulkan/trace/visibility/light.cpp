@@ -2739,7 +2739,7 @@ namespace Rtx::Testing
             EXPECT_NEAR(floorUnder(0.25f), 0.375f, 0.01f) << "and a quarter a quarter";
         }
 
-        /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`SolidRun`,
+        /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`landingLightOf`,
         /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already.
         ///
         /// A glowing sheet over a grey floor and nothing else, the sheet two-sided so the eye under

@@ -387,7 +387,7 @@ namespace Rtx::Shaders
     /// conventions and not one.
     ///
     /// **A glow has no lamp of its own, and lights only by the bounce that lands on it**
-    /// (`SolidRun`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
+    /// (`landingLightOf`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
     /// and what they buy is the warm ring under a mushroom's cap. **A lamp's own model does not light
     /// even so**: its `LIGH` lamp already lights for it, through its fitting (`INSTANCE_LAMP_BODY`).
     const float EMISSIVE_INTENSITY = 8.0f;
@@ -1236,7 +1236,7 @@ namespace Rtx::Shaders
     ///     pier, pond        within 0.02 of each other in every figure
     ///
     /// Less noise everywhere a lamp lights, and more bias, most where paper lanterns glow: the yurt's,
-    /// whose glow the bounce counts beside their lamps (`SolidRun`), and the reference counts
+    /// whose glow the bounce counts beside their lamps (`landingLightOf`), and the reference counts
     /// it too. How much of the bias is that light, and how much is light the ring should have kept,
     /// is for an A/B after the glow is counted once.
     ///

@@ -153,7 +153,7 @@ SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
 ///
 /// **Sources that can be asked where they are, and nothing else.** The sun and the lamps are each a
 /// known direction and a shadow ray; everything that arrives by having bounced off something is
-/// the bounce's (`SolidRun`), and adding a fill here as well would count that half twice.
+/// the bounce's (`BounceRun`), and adding a fill here as well would count that half twice.
 ///
 /// One shadow ray per light that could reach at all, and none for a light the surface faces away
 /// from — the two tests before it are what keep a cell's worth of lamps affordable.
@@ -184,7 +184,7 @@ struct GatherRun
     /// Whether the surface has a specular half (`Gloss::mGlossy`), the one part of `glossOf` the
     /// lamp's step reads. **The flag and not the record**: the record is twenty-odd words the stage
     /// would hold through both shadow traversals, and whoever needs it after makes it again from the
-    /// surface, as `stepSolid` and `startBounce` do.
+    /// surface, as `solidLightOf` and `startBounce` do.
     bool mGlossy;
 
     /// The pixel's own key, `pixelKey`, which every sequence here is drawn from with a `SEED_`
@@ -1001,7 +1001,7 @@ void stepVisit(inout VisitRun run, inout GatherRun gather, Surface surface, RayA
     run.mStep = RUN_IDLE;
 }
 
-/// What one bounce brings back, in the two halves `SolidRun` hands on apart.
+/// What one bounce brings back, in the two halves `storeBounced` writes apart.
 struct Bounce
 {
     /// Per unit albedo, as the direct light's diffuse half is: the composite multiplies it by the
@@ -1164,10 +1164,7 @@ struct SeenSolid
     /// `CHANNEL_LAMPED`.
     SplitLight mLight;
 
-    /// What the solid is in the filter's terms.
-    SurfaceResponse mResponse;
-
-    /// What the lobe reflects of the lamps, per unit of `mResponse.mSpecular`, and the perceptual
+    /// What the lobe reflects of the lamps, per unit of `SurfaceResponse::mSpecular`, and the perceptual
     /// roughness of the lobe that reflects it, or `SPECULAR_NO_LOBE`: `CHANNEL_SPECULAR`, to which
     /// the bounce adds its own. Not multiplied by the diffuse albedo, for the reason
     /// `Bounce::mSpecular` gives.
@@ -1175,21 +1172,8 @@ struct SeenSolid
     float mRoughness;
 };
 
-/// What a solid the eye found is: its direct light, the shadowed sources apart for the shadow
-/// denoiser, the lobe's light apart for the glossy filter, and what it is in the filter's terms.
-///
-/// **One statement of what a ground pixel is, used twice** — for the hit itself, and for the bed
-/// under a waterline pixel, which is that ground and has to be shaded exactly as it. Written twice
-/// is how the two would come to disagree.
-///
-/// **What reaches it from everything that is not a light is its bounce, `BounceRun`'s**, which stages
-/// of their own trace and visit (`bounce.comp`, `landing.comp`): the one kernel carried every walk's
-/// record at once, and the bounce's landing was a gather and a visit more.
-///
-/// **A walk of two steps** (`direct.comp`): the gather, and what the gather does not answer,
-/// worked out of the walk's surface once the gather is done.
 /// What a solid is in the filter's terms beside its light, and its lobe's roughness, out of the
-/// surface and its gloss (`glossOf`) alone: what `stepSolid` makes of it, and what the trace writes
+/// surface and its gloss (`glossOf`) alone: what `solidLightOf` makes of it, and what the trace writes
 /// of a solid whose light the direct stage gathers (`direct.comp`).
 struct SolidLook
 {
@@ -1203,52 +1187,154 @@ SolidLook solidLookOf(Surface surface, Gloss gloss)
         responseOf(surface, specularModulation(gloss)), gloss.mGlossy ? surface.mRoughness : SPECULAR_NO_LOBE);
 }
 
-struct SolidRun
+/// What a solid the eye found sends back before its shadow rays are answered, and the rays: what
+/// `seenSolidOf` makes a `SeenSolid` of once they are (`direct.comp`).
+///
+/// **What reaches it from everything that is not a light is its bounce, `BounceRun`'s**, which stages
+/// of their own trace and visit (`bounce.comp`, `landing.comp`): the one kernel carried every walk's
+/// record at once, and the bounce's landing was a gather and a visit more.
+///
+/// **Everything but the rays' answers worked out first**, the gather's start and the solid's look,
+/// so only these and the rays stay live through the traversals: a walk of steps kept the surface
+/// and the gather's record through each of them, and the stage held 128 to 192 registers on RDNA 2.
+/// The arithmetic is the walk's, in its order, so the light is the light it was, to the bit.
+///
+/// **The gather is split** (`GatherRun::mSplit`), at the eye's own blue noise: the sky's source and
+/// the lamps go to the shadow denoiser apart, and not to the wavelet with the bounce — direct light
+/// and indirect apart, as NRD has them. A lamp's shadow is sharp and a bounce is not, and one filter
+/// over both blurred the one or left the other noisy. At the guild's planter at night the leaf
+/// shadows smeared flat under a long history and the bounce's bright samples stood as speckle under
+/// a short one; apart, the bounce takes a longer history (`ACCUMULATE_FRAMES`) and the shadows keep
+/// their edge. The gather's specular half holds the lamps' lobe, which the bounce's joins for the
+/// glossy filter.
+struct SolidLight
 {
-    /// `RUN_IDLE` once `mSeen` holds the answer.
-    uint mStep;
+    /// The glow, `SplitLight::mRest`, and each shadowed source's light as though its ray got
+    /// through, `Shadowed::mLight`.
+    vec3 mRest;
+    vec3 mSky;
+    vec3 mLamps;
 
-    SeenSolid mSeen;
+    /// What the lobe reflects of the held lamp before what its share and its ray let through, the
+    /// share, and what the lobe's light is divided by (`specularModulation`): nought where the
+    /// surface has no lobe. And the lobe's roughness, `SolidLook::mRoughness`.
+    vec3 mLampSpecular;
+    float mHeld;
+    vec3 mModulation;
+    float mRoughness;
+
+    /// What each bit's penumbra is made of, as `stepGather` makes it of its ray's occluder: the sky's
+    /// source and how far a penumbra on this surface stretches toward it; the held lamp's radius,
+    /// distance and stretch, and whether a lamp was held; whether each bit is drawn among its
+    /// field's sources (`drawnAmong`); and the surface's footprint they are counted in.
+    SkySource mSkySource;
+    float mSkyStretch;
+    bool mSkyDrawn;
+    bool mLampHeld;
+    float mLampRadius;
+    float mLampDistance;
+    float mLampStretch;
+    bool mLampDrawn;
+    float mFootprint;
+
+    /// The two draws that decide whether each bit passes what its ray's translucent surfaces let
+    /// through (`SEED_SHADOW_THROUGH`).
+    vec2 mPassing;
+
+    /// The sky's passage, `SkyPassageRun`'s legs and whether it is bent, which joins them
+    /// (`joinedPassage`), and the held lamp's ray: any of them none, which `passageAnswered`
+    /// answers open.
+    RayAsk mSkyRay;
+    RayAsk mSkyOverRay;
+    bool mSkyBent;
+    float mSkyPath;
+    RayAsk mLampRay;
 };
 
-const uint SOLID_START = 1u;
-const uint SOLID_GATHER = 2u;
-
-SolidRun solidRunOf()
+/// `surface`'s light before its rays, the solid the eye found at `pixel`.
+SolidLight solidLightOf(Surface surface, uvec2 pixel)
 {
-    SolidRun run;
-    run.mStep = SOLID_START;
-    run.mSeen = SeenSolid(SplitLight(vec3(0.0), noShadowed(), noShadowed()), noResponse(), vec3(0.0), SPECULAR_NO_LOBE);
-    return run;
+    // The gather's start, as `stepGather` makes it of a path the eye sees: rated at one.
+    GatherRun gather = gatherRunOf(pixelKey(pixel), SEED_LAMPS_EYE, PATH_SEEN, true, true);
+    const Gloss gloss = glossOf(surface);
+    SkyPassageRun sky = skyPassageRunOf(
+        frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
+    const bool skyAsked = startGather(gather, sky, surface, gloss, pixel);
+
+    SolidLight light;
+    light.mSkyRay = skyAsked ? skyPassageFirstAsk(sky) : noRay();
+    light.mSkyOverRay = skyAsked ? skyPassageOverAsk(sky) : noRay();
+    light.mSkyBent = skyAsked && skyPassageBent(sky);
+    light.mSkyPath = sky.mBent.mPath;
+    light.mLampRay = gatherLampAsk(gather, surface);
+
+    // **Split, every lamp's light as though its ray got through, and the held lamp's bit**: Heitz
+    // et al. 2018's ratio estimator, the unshadowed light exact and only its visibility drawn. The
+    // bit is the held lamp's, which the reservoir drew in proportion to its weight. The darkening
+    // comes off the sum the bit multiplies.
+    const Reservoir kept = gather.mKept;
+    const DirectLight lit = gather.mLit;
+    light.mRest = litSurface(surface, vec3(0.0), vec3(0.0));
+    light.mSky = surface.mAlbedo * lit.mSkyDiffuse + lit.mSkySpecular;
+    light.mLamps = surface.mAlbedo * max(kept.mUnshadowed - gather.mDarkening, vec3(0.0));
+
+    light.mLampSpecular = gloss.mGlossy ? kept.mSpecular : vec3(0.0);
+    light.mHeld = heldShare(kept);
+    light.mModulation = specularModulation(gloss);
+    light.mRoughness = solidLookOf(surface, gloss).mRoughness;
+
+    light.mSkySource = gather.mSky;
+    light.mSkyStretch = gather.mSkyStretch;
+    light.mSkyDrawn = drawnAmong(gather.mSkyCarried, gather.mSkyWeight);
+    // The held lamp's row, read only where one was held: a picture no lamp lights may have no row.
+    light.mLampHeld = kept.mWeight > 0.0;
+    light.mLampRadius = 0.0;
+    light.mLampDistance = 0.0;
+    if (light.mLampHeld)
+    {
+        const GpuLight lamp = lightAt(kept.mLamp);
+        light.mLampRadius = lamp.mSourceRadius;
+        light.mLampDistance = length(lamp.mPosition - kept.mFrom);
+    }
+    light.mLampStretch = gather.mLampStretch;
+    light.mLampDrawn = drawnAmong(kept.mWeight, kept.mTotal);
+    light.mFootprint = gather.mFootprint;
+
+    uint passing = randomSeed(gather.mKey + SEED_SHADOW_THROUGH);
+    light.mPassing.x = randomNext(passing);
+    light.mPassing.y = randomNext(passing);
+    return light;
 }
 
-/// @param surface the walk's surface: the solid, which nothing between the two steps resolves over.
-void stepSolid(inout SolidRun run, inout GatherRun gather, Surface surface, uvec2 pixel)
+/// What a solid sends back once its sky's passage answered `sky` and its lamp's ray `lamp`.
+///
+/// **What the translucent surfaces let through is drawn into each bit**, open where its ray got
+/// through and a draw falls under it: the bit's mean is then the open half times the through, and
+/// the shadow denoiser filters a pane's shadow as it filters a penumbra. In the sum, one ray's
+/// through was a speckle under every pane and leaf that nothing filtered.
+///
+/// **Each penumbra in the surface's own footprints**, which is what the denoiser's reach is counted
+/// in; and the whole reach where the bit was drawn — where its own source carries less than all but
+/// the floor of its field's light, since that bit is noise however hard its shadow. A bit the
+/// translucency was drawn into is noise as well.
+SeenSolid seenSolidOf(SolidLight light, Passage sky, Passage lamp)
 {
-    if (run.mStep == SOLID_START)
-    {
-        gather = gatherRunOf(pixelKey(pixel), SEED_LAMPS_EYE, PATH_SEEN, true, true);
-        run.mStep = SOLID_GATHER;
-        return;
-    }
+    const bool skyPassed = light.mPassing.x < sky.mThrough;
+    const bool lampPassed = light.mPassing.y < lamp.mThrough;
+    const float skyRadius = skyPenumbra(light.mSkySource, sky.mOccluder) * light.mSkyStretch;
+    const float lampRadius = light.mLampHeld
+        ? lampPenumbraAt(light.mLampRadius, light.mLampDistance, lamp.mOccluder) * light.mLampStretch
+        : SHADOW_PENUMBRA_CLEAR;
 
-    // The gather resolved nothing over the surface, so its specular half, made again here, is the
-    // one the gather weighed by and the one the bounce draws by. **The lamps' diffuse half goes to the shadow denoiser with the sky's,
-    // and not to the wavelet with the bounce**: direct light and indirect apart, as NRD has them. A
-    // lamp's shadow is sharp and a bounce is not, and one filter over both blurred the one or left
-    // the other noisy. At the guild's planter at night the leaf shadows smeared flat under a long
-    // history and the bounce's bright samples stood as speckle under a short one; apart, the bounce
-    // takes a longer history (`ACCUMULATE_FRAMES`) and the shadows keep their edge. Split, the
-    // gather's specular half holds the lamps' lobe, which the bounce's joins for the glossy filter.
-    const Gloss gloss = glossOf(surface);
-    const vec3 modulation = specularModulation(gloss);
-    const DirectLight lit = gather.mLit;
-    run.mSeen.mLight = splitLightOf(surface.mAlbedo, lit, litSurface(surface, vec3(0.0), vec3(0.0)));
-    const SolidLook look = solidLookOf(surface, gloss);
-    run.mSeen.mSpecular = lit.mSpecular / modulation;
-    run.mSeen.mRoughness = look.mRoughness;
-    run.mSeen.mResponse = look.mResponse;
-    run.mStep = RUN_IDLE;
+    SeenSolid seen;
+    seen.mLight = SplitLight(light.mRest,
+        Shadowed(light.mSky, sky.mOpen * (skyPassed ? 1.0 : 0.0),
+            penumbraIn(light.mSkyDrawn || sky.mThrough < 1.0, skyRadius, light.mFootprint)),
+        Shadowed(light.mLamps, lamp.mOpen * (lampPassed ? 1.0 : 0.0),
+            penumbraIn(light.mLampDrawn || lamp.mThrough < 1.0, lampRadius, light.mFootprint)));
+    seen.mSpecular = light.mLampSpecular * (light.mHeld * (lamp.mOpen * lamp.mThrough)) / light.mModulation;
+    seen.mRoughness = light.mRoughness;
+    return seen;
 }
 
 /// What a solid's one bounce brings back, off the half `bounceDraw` chose, in the pieces the channels
@@ -1264,7 +1350,7 @@ void stepSolid(inout SolidRun run, inout GatherRun gather, Surface surface, uvec
 /// be lit by it.
 ///
 /// **Two stages, the bounce and its landing** (`bounce.comp`, `landing.comp`): the draw and the ray
-/// here, whose landing the landing's stage resolves and visits (`landingVisitOf`). As one kernel, the
+/// here, whose landing the landing's stage resolves and visits (`landingLightOf`). As one kernel, the
 /// landing's visit kept every record of the bounce live through its loop, and the walks' steps a
 /// warp's lanes stood at apart ran one after the other: on an RTX 4090 Laptop the stage took 255
 /// registers and kept 12 of 32 lanes busy (`docs/rtx/research/2026-10-21-nvidia-stage-costs.md`).
@@ -1368,8 +1454,18 @@ vec3 bounceMissed(BounceRun run)
     return bounceEscape(run.mPosition, run.mDrawn, run.mWeight);
 }
 
-/// The visit of the bounce's `landing`, which the landing's stage steps (`landing.comp`), with the
-/// glow `landing` sends back taken down where a lamp's own model is what it is.
+/// What a bounce's landing sends back along it, by the bounce's `weight`, before any of its rays is
+/// answered: what arrives whatever they find, what each one's answer multiplies, and the rays. The
+/// landing's stage traces them and sums (`landing.comp`).
+///
+/// **Linear in what each ray lets through.** The landing ends a path (`VisitRun`, `GatherRun`
+/// unsplit): its light is the glow, the fill times what its ambient ray let through
+/// (`ambientAnswered`), and each source's unshadowed term times what its shadow ray did. So every
+/// term is worked out before anything is traced, and only the three terms and the rays stay live
+/// through the traversals, where the walk kept the surface, the gather's and the visit's records
+/// and the sky's passage through each of them: the stage held 160 to 256 registers on RDNA 2 and
+/// ran at four to six waves a SIMD. Summed in this order and not the walk's, the landing's light
+/// moves by its rounding.
 ///
 /// **Its glow is counted here, because this is the only path it takes.** Nothing gives a glowing
 /// surface a lamp of its own — `EMISSIVE_INTENSITY` says what measuring that showed — so a ray that
@@ -1385,24 +1481,91 @@ vec3 bounceMissed(BounceRun run)
 /// **One visit with the path chosen, and not one per half.** A warp whose lanes drew both halves
 /// would run them one after the other. Chosen at run time, the diffuse half's hit asks the moons and
 /// finds they weigh nought.
-///
+struct LandingLight
+{
+    /// What arrives whatever the rays find: the glow.
+    vec3 mGlow;
+
+    /// What arrives per unit of what each ray let through (`throughAnswered`): the fill, whole and
+    /// as the fill alike, by the ambient ray's; the sky's source by the product of its legs'
+    /// (`SkyPassageRun`); and the held lamp by its ray's. Nought where the ray is not asked.
+    vec3 mFill;
+    vec3 mSky;
+    vec3 mLamp;
+
+    /// The rays, any of them none: an untraced ray lets everything through, as `passageAnswered`
+    /// answers one.
+    RayAsk mAmbientRay;
+    RayAsk mSkyRay;
+    RayAsk mSkyOverRay;
+    RayAsk mLampRay;
+};
+
+/// @param landing the bounce's landing (`storedLandingOf`).
 /// @param lobe whether the lobe drew the bounce (`BounceDraw::mSpecular`).
-VisitRun landingVisitOf(inout Surface landing, bool lobe, uvec2 pixel)
+/// @param weight what light arriving along the bounce is worth (`StoredBounce::mWeight`).
+LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight)
 {
     const bool lampBody = (instanceAt(landing.mInstance).mClass & INSTANCE_LAMP_BODY) != 0u;
     const float keep = lampBody ? 0.0 : 1.0;
     landing.mEmissiveColour *= keep;
     landing.mEmitted *= keep;
 
-    return pathEndRunOf(pixelKey(pixel), SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE, lobe ? PATH_SEEN : PATH_INDIRECT);
-}
+    const uint key = pixelKey(pixel);
+    const uint path = lobe ? PATH_SEEN : PATH_INDIRECT;
 
-/// What arrives along the bounce from the end of its landing's visit, by `weight`, what light along
-/// it is worth.
-Arriving landedArriving(PathEnd end, vec3 weight)
-{
-    const Arriving left = Arriving(composed(joinedLight(end)), fillOf(end));
-    return Arriving(weight * left.mWhole, weight * left.mFill);
+    LandingLight light;
+    light.mGlow = weight * (landing.mAlbedo * (landing.mEmissiveColour * EMISSIVE_INTENSITY) + landing.mEmitted);
+
+    // The visit's occlusion ray, and `pathEnd`'s fill per unit of what it lets through.
+    const AmbientRay ambient = ambientRayOf(landing.mPosition, landing.mNormal, landing.mGeometric,
+        landing.mRounding, landing.mTransmission, key + SEED_AMBIENT_REACHING);
+    const float reaching = ambient.mReaches
+        ? (ambient.mRated ? ambient.mWeight / AMBIENT_EXTERIOR_RATE : ambient.mWeight)
+        : 0.0;
+    light.mAmbientRay = ambient.mRay;
+    light.mFill = weight * (landing.mAmbientAlbedo * pathEnd(landing.mPosition, reaching));
+
+    light.mSky = vec3(0.0);
+    light.mLamp = vec3(0.0);
+    light.mSkyRay = noRay();
+    light.mSkyOverRay = noRay();
+    light.mLampRay = noRay();
+
+    // The gather's start, as `stepGather` makes it: drawn first, out of a sequence of its own.
+    GatherRun gather = gatherRunOf(key, SEED_LAMPS_BOUNCE, path, false, false);
+    float rated = 1.0;
+    if (path == PATH_INDIRECT && skyLights())
+    {
+        if (!indirectGatherDrawn(key))
+            return light;
+
+        rated = 1.0 / INDIRECT_LIGHT_RATE;
+    }
+
+    const Gloss gloss = glossOf(landing);
+    SkyPassageRun sky = skyPassageRunOf(
+        frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
+    if (startGather(gather, sky, landing, gloss, pixel))
+    {
+        light.mSkyRay = skyPassageFirstAsk(sky);
+        light.mSkyOverRay = skyPassageOverAsk(sky);
+        const SkyTerm estimate = gather.mSkyEstimate;
+        light.mSky = weight * (landing.mAlbedo * ((estimate.mDiffuse - estimate.mTaken) * rated)
+                                  + estimate.mSpecular * rated);
+    }
+
+    // The held lamp's term unsplit, as `stepGather` finishes it: the darkening taken off the exact
+    // sum by the held lamp's estimate of it, and the lobe's share off the diffuse half.
+    const Reservoir kept = gather.mKept;
+    const float held = heldShare(kept);
+    const vec3 lampDiffuse = kept.mRadiance * held
+        * (1.0 - min(gather.mDarkening / max(kept.mUnshadowed, vec3(1e-30)), vec3(1.0)));
+    const vec3 lampTaken = gloss.mGlossy ? lampDiffuse * kept.mFresnel : vec3(0.0);
+    const vec3 lampSpecular = gloss.mGlossy ? kept.mSpecular * held : vec3(0.0);
+    light.mLamp = weight * (landing.mAlbedo * ((lampDiffuse - lampTaken) * rated) + lampSpecular * rated);
+    light.mLampRay = gatherLampAsk(gather, landing);
+    return light;
 }
 
 /// What arrived, in the halves the channels keep. **The lobe takes the whole of it**: a reflection

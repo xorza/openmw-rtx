@@ -692,6 +692,14 @@ float skyPenumbra(SkySource sky, float occluder)
                                             : SHADOW_PENUMBRA_CLEAR;
 }
 
+/// `lampPenumbra` of a lamp `radius` across at `distance`, for a caller that read the two before
+/// its ray was answered.
+float lampPenumbraAt(float radius, float distance, float occluder)
+{
+    return occluder < SHADOW_PENUMBRA_CLEAR ? radius * occluder / max(distance - occluder, SHADOW_BIAS)
+                                            : SHADOW_PENUMBRA_CLEAR;
+}
+
 /// The same for the lamp a reservoir held, `radius occluder / (distance - occluder)`.
 ///
 /// **The lamp's row read again and not handed over from `lampAsk`**: with this read and the
@@ -700,10 +708,7 @@ float skyPenumbra(SkySource sky, float occluder)
 float lampPenumbra(Reservoir kept, float occluder)
 {
     const GpuLight lamp = lightAt(kept.mLamp);
-    const float distance = length(lamp.mPosition - kept.mFrom);
-    return occluder < SHADOW_PENUMBRA_CLEAR
-        ? lamp.mSourceRadius * occluder / max(distance - occluder, SHADOW_BIAS)
-        : SHADOW_PENUMBRA_CLEAR;
+    return lampPenumbraAt(lamp.mSourceRadius, length(lamp.mPosition - kept.mFrom), occluder);
 }
 
 /// `lampAsk`'s two halves, now and as one number, from none of the lamp to all: `throughAnswered`'s

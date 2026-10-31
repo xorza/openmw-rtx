@@ -221,3 +221,32 @@ A hidden window on the Deck's own Wayland session presented 480 frames with no s
 
 `omw remote` runs on the session where the machine has one. The tables above this section that
 quote a Deck p99 carry the offscreen driver's stall.
+
+## What `landing` and `direct` hold through their traversals (2026-10-31)
+
+Both stages walked their rays as steps of records (`VisitRun`, `GatherRun`, `SkyPassageRun`,
+`SolidRun`), so the surface and every record stood live across each traversal. Rewritten to work
+out every term before the first ray and trace the rays in a fixed order (`landingLightOf`,
+`solidLightOf`), RADV's statistics for the variants the default suite runs:
+
+| Kernel | VGPRs before | after | waves a SIMD before | after |
+|---|---|---|---|---|
+| `landing` | 160 (57 SGPRs spilled) | 128 | 6 | 8 |
+| `landing sun sea` | 192 (39 spilled) | 128 | 5 | 8 |
+| `landing sun moons sea maps` | 256 | 144 | 4 | 7 |
+| `direct` | 128 | 112 | 8 | 9 |
+| `direct sun sea` | 160 | 112 | 6 | 9 |
+| `direct sun moons sea maps` | 192 | 128 | 5 | 8 |
+
+The default suite, one run each (`deck0`, `deck-c2`), the clock held at 1600 MHz:
+
+| Place | frame | p99 | landing | direct |
+|---|---|---|---|---|
+| `seyda-neen-ship` | 98.60 → 88.50 | 109.30 → 98.71 | 19.47 → 12.88 | 12.54 → 9.05 |
+| `seyda-neen-ship-dawn` | 118.07 → 102.94 | 133.33 → 116.17 | 22.97 → 15.06 | 25.59 → 18.44 |
+| `balmora-mages-guild` | 59.45 → 55.01 | 66.24 → 62.02 | 18.87 → 14.94 | 5.04 → 4.56 |
+
+- **Every other zone stayed within 0.2 %.**
+- **On the desk's RTX 4090 Laptop**, three interleaved rounds: `landing` −8.7 %, −24.8 % and
+  −30.3 % at the ship, at dawn and in the guild; `direct` −17.3 %, −11.5 % and −14.9 %; the frame
+  −2.2 %, −4.8 % and −6.8 %.

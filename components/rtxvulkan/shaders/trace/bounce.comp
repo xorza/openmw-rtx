@@ -38,7 +38,7 @@ layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 ///
 /// @param gathers whether the landing's gather runs: always for the lobe's bounce, which the landing
 ///        visits as seen, and where the sky lights nothing, and otherwise as the gather draws it
-///        (`indirectGatherDrawn`, keyed as `landingVisitOf` keys it).
+///        (`indirectGatherDrawn`, keyed as `landingLightOf` keys it).
 bool bouncePixel(uvec2 pixel, out bool gathers)
 {
     const uint width = frame.mEyes.mWorld.mWidth;

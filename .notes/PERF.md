@@ -57,6 +57,8 @@ repeats to 0.01 ms.
 | RADV's wave64 for the ray tracing launches (`RADV_PERFTEST=rtwave64`) | the fog's two launches are the only `vkCmdTraceRaysKHR` work | rejected: Deck dawn air 13.29 → 16.75 ms |
 | `FFX_HALF` for the upscaler | RDNA 2 runs packed halves | not retried: `fsrcallbacks.glsl` records it moved a still picture 0.30–0.58 px |
 | The wavelet's per-tap divisions as multiplies by a reciprocal | the first level is ALU-bound (VALU 91 %) | not tried: the taps are already tiled in shared memory with the facing power as squarings; what is left per tap is two `exp`, a `sqrt` and two divisions, a few per cent of a 2.9 ms zone at most, and a reciprocal rounds differently |
+| The landing's and the direct stage's light worked out before their rays, the rays at one site in a fixed order (live state across the traversal) | RADV: landing 160–256 VGPRs, 4–6 waves, VALU 46 % busy and the lowest cache hit ratios: latency-bound; direct 128–192 | kept: Deck landing −34 % ship, −34 % dawn, −21 % guild, direct −28 / −28 / −9 %, frame −10.3 / −12.8 / −7.5 %; desk landing −9 / −25 / −30 %, direct −17 / −12 / −15 %, frame −2.2 / −4.8 / −6.8 %. VGPRs: landing 128–144, direct 112–128. No picture moved (`shots/c2`), repeat 10 pairs identical, 472 GPU tests |
+| The bounce's escape worked out before its ray, so the miss keeps 3 numbers and not 10 | bounce 96 VGPRs, pre-scheduling 80; 88 would give 11 waves | rejected: RADV still allocates 96 (pre-scheduling 80 again), so only the hits' extra work is left |
 
 ## Decisions
 
