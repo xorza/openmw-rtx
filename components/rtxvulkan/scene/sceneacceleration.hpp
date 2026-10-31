@@ -155,6 +155,13 @@ namespace Rtx
         /// out, which the top level's packing reads and its build does not.
         std::uint32_t getInstanceSlots() const { return static_cast<std::uint32_t>(mRowTable.size()); }
 
+        /// Whether `row` in place of `was` changes the top level's shape, which an update of it cannot
+        /// follow: an instance that came, went or names another structure, index, mask, kind or
+        /// facing. Where it stands alone is no shape, which is what lets a placement that walks and a
+        /// structure a refit rewrote update the top level rather than build it whole.
+        static bool changesShape(
+            const VkAccelerationStructureInstanceKHR& was, const VkAccelerationStructureInstanceKHR& row);
+
     private:
         /// Reserves room for the scene's geometry and copies in the runs `meshes` names. Per mesh
         /// and not per scene, because that is what an arrival is: the blocks already hold
@@ -256,6 +263,13 @@ namespace Rtx
 
         /// What the build ranges over: the rows that place an instance, which `prepareTopLevel` sums.
         std::uint32_t mPlacedRows = 0;
+
+        /// How many times a row changed anything but where its instance stands (`placeRow`), and that
+        /// count and the rows placed when the top level was last built or updated: none before the
+        /// first build and after a new structure, which an update cannot start from.
+        std::uint64_t mShapes = 0;
+        std::optional<std::uint64_t> mBuiltShapes;
+        std::uint32_t mBuiltPlaced = 0;
 
         /// The copy the next `recordTopLevel` packs and builds from, which `prepareTopLevel` paid.
         FrameSlot mPrepared;

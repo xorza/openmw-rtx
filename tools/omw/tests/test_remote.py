@@ -67,7 +67,8 @@ class RemoteScriptTest(unittest.TestCase):
         lines = script.splitlines()
         self.assertEqual(lines[1], "cd /home/me/tree/build-release")
         self.assertIn("LD_LIBRARY_PATH=/home/me/tree/build-release/remote-lib", lines[2])
-        self.assertIn("SDL_VIDEO_DRIVER=offscreen", lines[2])
+        self.assertIn("WAYLAND_DISPLAY=wayland-0 SDL_VIDEO_DRIVER=wayland", lines[3])
+        self.assertIn("else export SDL_VIDEO_DRIVER=offscreen", lines[3])
         self.assertEqual(lines[-1], "./openmw-rtxtool bench '--views=a b'")
         self.assertIn("GpuPerformanceLevel s manual", script)
         # Put back on the way out, which an exec would never reach.

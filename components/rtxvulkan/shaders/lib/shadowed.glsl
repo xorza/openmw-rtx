@@ -22,12 +22,6 @@ Shadowed noShadowed()
     return Shadowed(vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR);
 }
 
-/// The light as its ray found it.
-vec3 seenLight(Shadowed part)
-{
-    return part.mLight * part.mOpen;
-}
-
 /// The same light seen through what took `transmittance` off it on the way to the eye: the bit and
 /// the penumbra are the light's own, and what the path takes is the light's alone.
 Shadowed dimmed(Shadowed part, vec3 transmittance)

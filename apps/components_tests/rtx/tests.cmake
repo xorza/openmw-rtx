@@ -126,6 +126,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/stagingfit.cpp
     rtxvulkan/device/zonecounters.cpp
     rtxvulkan/pipeline/dispatch.cpp
+    rtxvulkan/scene/sceneacceleration.cpp
     rtxvulkan/scene/sceneslots.cpp
     rtxvulkan/shaders/accumulate.cpp
     rtxvulkan/shaders/exposure.cpp

@@ -458,7 +458,7 @@ namespace Rtx::Shaders
     const uint MASK_MEDIUM = 0x08u;
 
     /// The placement is the model of a light that gives light — `Rtx::MeshInstance::mLampBody` — so
-    /// a diffuse bounce takes no glow from it (`SolidRun`): its lamp delivers that light.
+    /// a diffuse bounce takes no glow from it (`landingLightOf`): its lamp delivers that light.
     ///
     /// **In `GpuInstance::mClass` above the class bits**, as `GpuLight::mTraits` packs its fill bit
     /// beside its classes. Every reader of the word masks it with a ray mask of eight bits, and the

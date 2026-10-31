@@ -5,13 +5,12 @@
 
 // The landing of every pixel's bounce that met a surface, the last of the trace's stages
 // (`bounce.comp` traced it and listed the pixel): the landing resolved off the hit the bounce
-// stored, its visit — the gather and the sky's passage under it — and what the bounce brought back
-// (`storeBounced`).
+// stored, its light worked out whole before any ray (`landingLightOf`), its rays traced
+// (`pathEndSeenOf`), and what the bounce brought back written (`storeBounced`).
 //
-// **A stage apart from the bounce** (`BounceRun`): the visit's loop alone keeps its records live, so
-// the kernel holds fewer registers and its lanes step one walk's turns. **Over the pixels that
-// landed alone** (`STAGE_DISPATCH_LANDING`), so no lane of a warp waits out the visit with no
-// landing of its own.
+// **A stage apart from the bounce** (`BounceRun`), so no record of the bounce's is live through the
+// landing's traversals. **Over the pixels that landed alone** (`STAGE_DISPATCH_LANDING`), so no
+// lane of a warp waits out the rays with no landing of its own.
 
 #include "shared/traceconstants.h"
 #include "camera.h"
@@ -41,44 +40,12 @@ void main()
     const StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
     const StoredBounce handed = storedBounceAt(stored);
 
-    // **The landing, resolved off the hit the bounce stored** (`storedLandingOf`), and its visit in
-    // the one loop that answers its rays: the gather and the sky's passage under it.
-    Surface surface = storedLandingOf(record, stored);
-    VisitRun visit = landingVisitOf(surface, record.mBounceLobe, pixel);
-    GatherRun gather = gatherRunOf(0u, 0u, PATH_SEEN, false, false);
-    SkyPassageRun skyPassage = skyPassageRunOf(
-        frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-    gather.mStep = RUN_IDLE;
-    skyPassage.mStep = RUN_IDLE;
+    const LandingLight light
+        = landingLightOf(storedLandingOf(record, stored), record.mBounceLobe, pixel, handed.mWeight);
 
-    RayAsk ask = noRay();
-    uint turns = 0u;
-    [[dont_unroll]] while ((ask.mTraced || visit.mStep != RUN_IDLE) && turns < WALK_TURNS)
-    {
-        ++turns;
-        RayAnswer answered = RayAnswer(false, unansweredScene());
-        if (ask.mTraced)
-        {
-            answered = RayAnswer(true, queryScene(ask.mQuery));
-            if (ask.mResolved)
-                surface = resolveAsked(answered.mMet, ask.mQuery);
-        }
-        ask = noRay();
+    const PathEndSeen seen = pathEndSeenOf(light.mRays);
+    const vec3 fill = light.mFill * seen.mAmbient;
+    const vec3 whole = light.mGlow + fill + light.mSky * seen.mSky + light.mLamp * seen.mLamp;
 
-        if (skyPassage.mStep != RUN_IDLE)
-            stepSkyPassage(skyPassage, answered, ask);
-        else if (gather.mStep != RUN_IDLE)
-            stepGather(gather, skyPassage, surface, pixel, answered, ask);
-        else
-            stepVisit(visit, gather, surface, answered, ask);
-    }
-
-    // A walk cut short at `WALK_TURNS` brings nothing back, and is counted.
-    Arriving arriving = Arriving(vec3(0.0), vec3(0.0));
-    if (visit.mStep == RUN_IDLE)
-        arriving = landedArriving(visit.mEnd, handed.mWeight);
-    else
-        atomicAdd(counts.mWalksCut, 1u);
-
-    storeBounced(pixel, record, arriving, handed.mModulation);
+    storeBounced(pixel, record, Arriving(whole, fill), handed.mModulation);
 }

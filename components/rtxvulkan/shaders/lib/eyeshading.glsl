@@ -69,7 +69,7 @@ float apartFrom(WaterImage image, vec2 surfaceMotion, uvec2 pixel, vec3 directio
 
 /// What the eye's ray found, shaded: the answer the kernel stacks and composes.
 ///
-/// **A pane** is lit as the end of a path, `VisitRun`, with what was drawn for it as the bounce and
+/// **A pane** is lit as the end of a path, `PathEndLight`, with what was drawn for it as the bounce and
 /// the lobe's light, and its own response — `SeenPane`, which the kernel stacks into `CHANNEL_PANE`
 /// for the pane filter. **Direct light, the path's end for everything else, and a lamp sequence of
 /// its own.** The bounce draws from the pixel and nothing else, so a pane and the wall behind it
@@ -134,7 +134,6 @@ struct EyeRun
 };
 
 const uint EYE_START = 1u;
-const uint EYE_PANE = 2u;
 const uint EYE_WATER = 3u;
 
 /// @param motion where what the ray met stood last frame, `motionOf`: worked out where the eye's
@@ -168,7 +167,9 @@ EyeRun eyeRunOf(vec3 origin, vec3 direction, uint arms, uint layer, bool water, 
 ///        `PEEL_SHADES_LAYERS` for a layer the layers' stage peels (`Peel`).
 /// @param water the water's walk, whole, for `EYE_WATER`: what the kernel ran for the eye where it
 ///        stopped at water.
-void stepEye(inout EyeRun run, WaterRun water, inout VisitRun visit, Surface surface, uvec2 pixel, uint shades)
+/// @param pane the layer's light, for `PEEL_SHADES_LAYERS`: what the layers' stage lit it with
+///        (`seenPaneOf`).
+void stepEye(inout EyeRun run, WaterRun water, SeenPane pane, Surface surface, uvec2 pixel, uint shades)
 {
     const bool layers = shades == PEEL_SHADES_LAYERS;
 
@@ -186,16 +187,16 @@ void stepEye(inout EyeRun run, WaterRun water, inout VisitRun visit, Surface sur
         if (layers)
         {
             run.mAnswer.mPane = true;
-            visit = paneRunOf(pixelKey(pixel), paneAmbientSeed(run.mLayer), paneSeed(run.mLayer));
-            run.mStep = EYE_PANE;
-            return;
+            run.mAnswer.mRadiance = pane.mGlow;
+            run.mAnswer.mBounced = pane.mDrawn;
+            run.mAnswer.mSpecular = pane.mSpecular;
+            run.mAnswer.mResponse = pane.mResponse;
         }
-
         // **The colour is replaced and the surface is not.** What these views change is what a pixel
         // is painted with; the guides still describe a surface there, and saying otherwise hands every
         // reader of them a frame with no normals in it — which the wavelet reads as "no surface
         // anywhere".
-        if (frame.mShow != SHOW_SHADED)
+        else if (frame.mShow != SHOW_SHADED)
         {
             if (frame.mShow == SHOW_ALBEDO)
                 run.mAnswer.mRadiance = surface.mAlbedo;
@@ -215,14 +216,6 @@ void stepEye(inout EyeRun run, WaterRun water, inout VisitRun visit, Surface sur
             run.mAnswer.mRoughness = look.mRoughness;
             run.mSolid = STAGE_EYE_SOLID;
         }
-    }
-    else if (run.mStep == EYE_PANE)
-    {
-        const SeenPane seen = visit.mPane;
-        run.mAnswer.mRadiance = seen.mGlow;
-        run.mAnswer.mBounced = seen.mDrawn;
-        run.mAnswer.mSpecular = seen.mSpecular;
-        run.mAnswer.mResponse = seen.mResponse;
     }
     else
     {

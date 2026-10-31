@@ -150,43 +150,14 @@ void main()
             break;
         }
 
-        // **The layer lit as the end of a path** (`stepEye`), its visit — the gather and the sky's
-        // passage under it — in the loop that answers their rays.
+        // **The layer lit as the end of a path** (`paneLightOf`), its rays traced before the eye's
+        // walk reads it (`stepEye`).
+        const PathEndLight light = paneLightOf(surface, pixel, peel.mLayer);
+        const SeenPane pane = seenPaneOf(surface, light, pathEndSeenOf(light.mRays));
         EyeRun eye = eyeRunOf(peel.mOrigin, peel.mDirection, uint(peel.mArms), peel.mLayer, false, motion,
             met.mDistance);
-        const WaterRun noWater = waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR);
-        VisitRun visit = pathEndRunOf(0u, 0u, 0u, PATH_SEEN);
-        GatherRun gather = gatherRunOf(0u, 0u, PATH_SEEN, false, false);
-        SkyPassageRun skyPassage = skyPassageRunOf(
-            frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-        visit.mStep = RUN_IDLE;
-        gather.mStep = RUN_IDLE;
-        skyPassage.mStep = RUN_IDLE;
-        stepEye(eye, noWater, visit, surface, pixel, PEEL_SHADES_LAYERS);
-
-        RayAsk ask = noRay();
-        [[dont_unroll]] while ((ask.mTraced || visit.mStep != RUN_IDLE) && turns < WALK_TURNS)
-        {
-            ++turns;
-            RayAnswer answered = RayAnswer(false, unansweredScene());
-            if (ask.mTraced)
-            {
-                answered = RayAnswer(true, queryScene(ask.mQuery));
-                if (ask.mResolved)
-                    surface = resolveAsked(answered.mMet, ask.mQuery);
-            }
-            ask = noRay();
-
-            if (skyPassage.mStep != RUN_IDLE)
-                stepSkyPassage(skyPassage, answered, ask);
-            else if (gather.mStep != RUN_IDLE)
-                stepGather(gather, skyPassage, surface, pixel, answered, ask);
-            else
-                stepVisit(visit, gather, surface, answered, ask);
-        }
-        if (visit.mStep != RUN_IDLE)
-            break;
-        stepEye(eye, noWater, visit, surface, pixel, PEEL_SHADES_LAYERS);
+        stepEye(eye, waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR), pane, surface, pixel,
+            PEEL_SHADES_LAYERS);
         const Answer layer = eye.mAnswer;
 
         // The water in front of a point and the air over the whole of it, put together, in front of
@@ -219,6 +190,10 @@ void main()
             const float under = waterAlong(ray.mFrom, ray.mAlong, air);
             const Cone cone = coneAt(eyeOf(uint(peel.mArms)));
             ColumnRun column = columnRunOf(ray.mFrom, ray.mAlong, under, cone.mWidth + cone.mSpread * under);
+            SkyPassageRun skyPassage = skyPassageRunOf(
+                frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
+            skyPassage.mStep = RUN_IDLE;
+            RayAsk ask = noRay();
             [[dont_unroll]] while ((ask.mTraced || column.mStep != RUN_IDLE) && turns < WALK_TURNS)
             {
                 ++turns;
