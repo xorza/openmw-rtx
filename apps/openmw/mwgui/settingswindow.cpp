@@ -36,6 +36,7 @@
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
+#include <components/widgets/settlingscrollbar.hpp>
 #include <components/widgets/sharedstatebutton.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -205,8 +206,12 @@ namespace MWGui
                     scroll->setScrollPosition(value);
                 }
                 if (init)
+                {
                     scroll->eventScrollChangePosition
                         += MyGUI::newDelegate(this, &SettingsWindow::onSliderChangePosition);
+                    if (auto* const settling = scroll->castType<Gui::SettlingScrollBar>(false))
+                        settling->eventScrollSettled += MyGUI::newDelegate(this, &SettingsWindow::onSliderSettled);
+                }
                 if (scroll->getVisible())
                     updateSliderLabel(scroll, getSliderLabel(scroll), argNames, args);
             }
@@ -590,52 +595,67 @@ namespace MWGui
 
     void SettingsWindow::onSliderChangePosition(MyGUI::ScrollBar* scroller, size_t pos)
     {
-        if (getSettingType(scroller) == "Slider")
+        if (getSettingType(scroller) != "Slider")
+            return;
+
+        // A bar that settles writes its setting where it is left, and shows the value while it moves.
+        const bool settles = scroller->castType<Gui::SettlingScrollBar>(false) != nullptr;
+        takeSliderPosition(scroller, pos, !settles);
+        if (!settles)
+            apply();
+    }
+
+    void SettingsWindow::onSliderSettled(MyGUI::ScrollBar* scroller, size_t pos)
+    {
+        takeSliderPosition(scroller, pos, true);
+        apply();
+    }
+
+    void SettingsWindow::takeSliderPosition(MyGUI::ScrollBar* scroller, size_t pos, bool write)
+    {
+        std::vector<icu::UnicodeString> argNames;
+        std::vector<icu::Formattable> args;
+        std::string_view valueType = getSettingValueType(scroller);
+        if (valueType == "Float" || valueType == "Cell")
         {
-            std::vector<icu::UnicodeString> argNames;
-            std::vector<icu::Formattable> args;
-            std::string_view valueType = getSettingValueType(scroller);
-            if (valueType == "Float" || valueType == "Cell")
-            {
-                float value = pos / float(scroller->getScrollRange() - 1);
+            float value = pos / float(scroller->getScrollRange() - 1);
 
-                float min, max;
-                getSettingMinMax(scroller, min, max);
-                value = min + (max - min) * value;
+            float min, max;
+            getSettingMinMax(scroller, min, max);
+            value = min + (max - min) * value;
 
-                if (valueType == "Cell")
-                {
-                    Settings::get<float>(getSettingCategory(scroller), getSettingName(scroller)).set(value);
-                    argNames.emplace_back("cells");
-                    args.emplace_back(value / Constants::CellSizeInUnits);
-                }
-                else
-                {
-                    Settings::get<float>(getSettingCategory(scroller), getSettingName(scroller)).set(value);
-                    argNames.emplace_back("value");
-                    args.emplace_back(value);
-                }
-            }
-            else if (valueType == "Integer")
+            if (write)
+                Settings::get<float>(getSettingCategory(scroller), getSettingName(scroller)).set(value);
+            if (valueType == "Cell")
             {
-                int min, max;
-                getSettingMinMax(scroller, min, max);
-                const int value = min + static_cast<int>(pos);
-                Settings::get<int>(getSettingCategory(scroller), getSettingName(scroller)).set(value);
-                argNames.emplace_back("value");
-                args.emplace_back(value);
+                argNames.emplace_back("cells");
+                args.emplace_back(value / Constants::CellSizeInUnits);
             }
             else
             {
-                int intValue = static_cast<int>(pos);
-                Settings::get<int>(getSettingCategory(scroller), getSettingName(scroller)).set(intValue);
                 argNames.emplace_back("value");
-                args.emplace_back(intValue);
+                args.emplace_back(value);
             }
-            updateSliderLabel(scroller, getSliderLabel(scroller), argNames, args);
-
-            apply();
         }
+        else if (valueType == "Integer")
+        {
+            int min, max;
+            getSettingMinMax(scroller, min, max);
+            const int value = min + static_cast<int>(pos);
+            if (write)
+                Settings::get<int>(getSettingCategory(scroller), getSettingName(scroller)).set(value);
+            argNames.emplace_back("value");
+            args.emplace_back(value);
+        }
+        else
+        {
+            int intValue = static_cast<int>(pos);
+            if (write)
+                Settings::get<int>(getSettingCategory(scroller), getSettingName(scroller)).set(intValue);
+            argNames.emplace_back("value");
+            args.emplace_back(intValue);
+        }
+        updateSliderLabel(scroller, getSliderLabel(scroller), argNames, args);
     }
 
     void SettingsWindow::apply()

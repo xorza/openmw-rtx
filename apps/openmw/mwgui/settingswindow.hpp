@@ -67,6 +67,11 @@ namespace MWGui
         void onOkButtonClicked(MyGUI::Widget* sender);
         void onAnisotropyChanged(MyGUI::ComboBox* sender, size_t pos);
         void onSliderChangePosition(MyGUI::ScrollBar* scroller, size_t pos);
+        void onSliderSettled(MyGUI::ScrollBar* scroller, size_t pos);
+
+        /// Shows the value a slider's position stands for on its label, and `write`s it to its
+        /// setting.
+        void takeSliderPosition(MyGUI::ScrollBar* scroller, size_t pos, bool write);
         void onButtonToggled(MyGUI::Widget* sender);
         void onResolutionSelected(MyGUI::ListBox* sender, size_t index);
         void onResolutionAccept();

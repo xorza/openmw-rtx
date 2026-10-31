@@ -184,7 +184,9 @@ is not here is held to the rules above.
   raster the constructor fixed. What else held the scale follows it: `MouseManager` keeps the
   cursor in the frame's pixels, every window is held inside the view after a layout, the local
   map describes a tile at the raster of the moment and draws the player's cell again where it
-  moved, and the inventory places itself and sizes its preview on a layout.
+  moved, and the inventory places itself and sizes its preview on a layout. `[GUI] scaling factor`
+  applies live, from a slider in the Video page that writes it where the player leaves it
+  (`Gui::SettlingScrollBar`).
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
