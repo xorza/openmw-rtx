@@ -125,7 +125,8 @@ namespace Rtx
         {
             mRenderer.resize(sSize, sSize);
 
-            SceneDesc scene = wall();
+            SceneDesc scene;
+            const Index wallPlaced = Testing::addQuad(scene, sWallCorners);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
             const Shaders::VisibilityConstants camera
@@ -181,6 +182,10 @@ namespace Rtx
             EXPECT_FALSE(reports(drawn.mGpu.spans(), FrameZone::Puffs))
                 << "a frame no puff can be met in composited puffs over every pixel as it found it";
 
+            // Moved, because a placement builds the top level only over rows that changed, and a
+            // compaction changes them only on a driver whose tight copy is smaller: RADV's copy of
+            // this wall is the 448 bytes it was built in.
+            ASSERT_TRUE(scene.placements().move(wallPlaced, osg::Matrixf::translate(0.0f, 50.0f, 0.0f)));
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             const Drawn placed = draw(mRenderer, camera);
 

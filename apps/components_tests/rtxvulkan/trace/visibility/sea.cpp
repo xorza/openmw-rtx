@@ -631,9 +631,14 @@ namespace Rtx::Testing
         /// wind and the ring is the bed under an east wind and the ring turned a quarter, pixel
         /// `(i, j)` against `(N - 1 - j, i)`, as `theSeaRunsTheWayTheWindBlows` has it. Looked at
         /// from under the surface, under a sun at the zenith, the bed shows the caustic alone.
-        /// Measured at the worst pixel, against the bed's mean: 0.4 per cent apart turned, where
-        /// the ring's own texels are not quite round, and 35 per cent with the tiles' curvature
-        /// added unturned. Without the ring, 0.002 per cent.
+        /// Measured at the worst pixel, against the bed's mean, on RADV: 0.003 per cent apart
+        /// turned, 0.002 without the ring, and 35 with the tiles' curvature added unturned.
+        ///
+        /// **The bed is 256 across, just past the 240 the eye sees**, because a hit is placed from
+        /// its triangle's barycentrics (`placeHit`), whose rounding grows with the triangle. On a
+        /// bed 4000 across a pixel and its turned partner were placed 1e-4 apart, which tipped the
+        /// second cascade's 8-bit bilinear weight on the lines where it sat at its rounding point:
+        /// 1.4 per cent on RADV.
         TEST_F(RtxVisibilityTest, aWakesCausticTurnsWithTheSeaItRidesOn)
         {
             constexpr std::uint32_t size = 64;
@@ -641,7 +646,7 @@ namespace Rtx::Testing
             constexpr float depth = 140.0f;
 
             const auto looking = [&](const osg::Vec2f& heading) {
-                SceneDesc scene = makeFlooded(4000.0f, depth);
+                SceneDesc scene = makeFlooded(256.0f, depth);
                 const osg::Matrixf view = osg::Matrixf::lookAt(
                     osg::Vec3f(0.0f, 0.0f, -1.0f), osg::Vec3f(0.0f, 0.0f, -depth), osg::Vec3f(0.0f, 1.0f, 0.0f));
                 Shaders::VisibilityConstants camera = constantsFor(
