@@ -359,7 +359,7 @@ add_component_dir (myguiplatform
     )
 
 add_component_dir (widgets
-    box fontwrapper imagebutton tags list numericeditbox sharedstatebutton fontusers trackedtext windowcaption
+    box fontwrapper imagebutton tags list numericeditbox settlingscrollbar sharedstatebutton fontusers trackedtext windowcaption
     widgets
     )
 

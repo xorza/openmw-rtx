@@ -146,6 +146,7 @@ set(RTX_TEST_FILES
     rtxvulkan/upscale/fsrframe.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp
+    widgets/settlingscrollbar.cpp
     widgets/trackedtext.cpp
 )
 

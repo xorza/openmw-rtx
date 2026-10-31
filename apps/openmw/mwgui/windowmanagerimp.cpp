@@ -1279,6 +1279,8 @@ namespace MWGui
         {
             if (setting.first == "GUI" && setting.second == "menu transparency")
                 setMenuTransparency(Settings::gui().mMenuTransparency);
+            else if (setting.first == "GUI" && setting.second == "scaling factor")
+                layOut();
             // The renderer has the new frame already: `World` hears of a change before this does.
             else if (setting.first == "Video" && (setting.second == "resolution x" || setting.second == "resolution y"))
                 layOut();

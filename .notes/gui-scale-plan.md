@@ -98,11 +98,14 @@ latent faults on the build as it stands:
   moved, as one is where its depth range did; a fit that moves the raster has the player's cell
   drawn again, as a cell change does (`WindowManager::fitFonts`). Refused: keeping the old tiles,
   which leaves the map at one sharpness and the text beside it at another.
-- **The slider applies when it settles.** A `Gui::ScrollBar` subclass raises `eventScrollSettled`
-  on a release over its thumb, its buttons or its track, and on each wheel step; a slider with the
-  user string `SettingApply="Settled"` writes its setting there and only its label while it drags.
-  Refused: applying on every move, which rescales the window under the pointer while it drags and
-  feeds the drag its own movement; and a list of fixed steps, which is not the slider asked for.
+- **The slider applies when it settles.** `Gui::SettlingScrollBar`, a widget type of its own,
+  raises `eventScrollSettled` on a release over its thumb, its buttons or its track, and on each
+  wheel step over it; the settings window writes a settling slider's setting there and only its
+  label while it moves, so the type the layout names is what says so. Refused: applying on every
+  move, which rescales the window under the pointer while it drags and feeds the drag its own
+  movement; a user string beside the type, a second statement of one fact; standing the type in
+  MyGUI's `ScrollBar` name, which every list's bar would take; and a list of fixed steps, which is
+  not the slider asked for.
 - **Placed in Video, under Window Border.** The setting is defined against the desktop's scale and
   the frame's resolution (`settings-default.cfg`), which is what that page holds, and the page's
   right column has the room. Refused: Preferences, the launcher's "Interface" counterpart, whose
@@ -113,7 +116,7 @@ latent faults on the build as it stands:
 
 ## The stages
 
-Done: 1 to 6. Next: 7.
+Done: 1 to 7. Next: 8, which is optional.
 
 Each is a commit, verified by `./omw test` on the binaries it touches and by `./omw gate` at the
 end. Each stage's change to upstream code joins `AGENTS.md`'s "Accepted diff" in the same commit.
@@ -204,12 +207,18 @@ places itself again at its mode's place and sizes its preview on a layout
 these is a member of a window or a manager that no fixture stands up; the gate's runs build and
 start them.
 
-### 7 — The setting, live
+### 7 — The setting, live — done
 
-`processChangedSettings` refits on `[GUI] scaling factor`; the settled scroll bar and
-`SettingApply`; the slider in the Video page, its label `InterfaceScaleValue` in all six
-`OMWEngine` languages. Tests: a settled slider writes the setting once and a drag writes nothing;
-`RtxSupportTest` finds the new control honoured.
+Done. `WindowManager::processChangedSettings` lays the interface out again on `[GUI] scaling
+factor`, which refits everything stages 4 to 6 follow. `Gui::SettlingScrollBar`
+(`components/widgets/settlingscrollbar.hpp`), registered with the fork's widgets; the settings
+window's sliders take their position in one place (`SettingsWindow::takeSliderPosition`), which a
+settling slider asks to write only from `onSliderSettled`. The slider stands in the Video page under
+Window Border, 50 % to 300 % in 51 positions, labelled `InterfaceScaleValue` in all six `OMWEngine`
+languages, as ICU's percent. Tests (`apps/components_tests/widgets/settlingscrollbar.cpp`): a drag
+moves the bar at every step and settles it once at the release, where it was left; each step of the
+wheel over the thumb settles it. Not tested: the window's write on settling, which no fixture stands
+the settings window up for; `RtxSupportTest` finds the new control honoured.
 
 ### 8 — Then the font size, on the same path (optional)
 
