@@ -71,6 +71,8 @@ namespace MWGui
         /// view and the scale, and only a drag of the window told it of either.
         void onResChange(int width, int height) override;
 
+        void refitText() override;
+
         void onInventoryUpdate(const MWWorld::Ptr& ptr) override;
 
         /// Cycle to previous/next weapon

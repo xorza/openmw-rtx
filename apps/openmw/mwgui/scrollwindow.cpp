@@ -4,6 +4,7 @@
 
 #include <components/esm3/loadbook.hpp>
 #include <components/esm4/loadbook.hpp>
+#include <components/settings/values.hpp>
 #include <components/widgets/imagebutton.hpp>
 
 #include "../mwbase/environment.hpp"

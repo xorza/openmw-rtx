@@ -52,6 +52,9 @@ namespace Rtx::Testing
         std::uint32_t mWidth = 1024;
         std::uint32_t mHeight = 768;
 
+        /// The size the fonts are set at, in points: `[GUI] font size`'s default.
+        int mFontSize = 16;
+
         /// Files that stand over `files/data`'s under their paths, which the test owns.
         VFS::FileMap mOverrides = {};
     };

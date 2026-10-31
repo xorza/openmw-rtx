@@ -44,6 +44,8 @@ namespace MWGui
 
         void onOpen() override;
 
+        void refitText() override { updateSkillArea(); }
+
         void onFrame(float duration) override;
 
         // Events

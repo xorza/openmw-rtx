@@ -18,6 +18,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwdialogue/testkeywordsearch.cpp
 
     mwgui/bookpage.cpp
+    mwgui/fontsize.cpp
     mwgui/tooltips.cpp
     mwgui/weightedsearch.cpp
 

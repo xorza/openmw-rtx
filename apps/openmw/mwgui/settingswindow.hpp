@@ -28,6 +28,8 @@ namespace MWGui
 
         void onResChange(int, int) override;
 
+        void refitText() override { layoutControlsBox(); }
+
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     protected:

@@ -260,6 +260,11 @@ namespace MWGui
         return needUpdate;
     }
 
+    void InventoryWindow::refitText()
+    {
+        mItemView->update();
+    }
+
     void InventoryWindow::onResChange(int /*width*/, int /*height*/)
     {
         placeForMode();

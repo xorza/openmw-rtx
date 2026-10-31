@@ -82,7 +82,7 @@ namespace MWGui
         price = std::max(1, price);
         price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
-        const int lineHeight = Settings::gui().mFontSize + 2;
+        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
         MyGUI::Button* toAdd = mDestinationsView->createWidget<MyGUI::Button>(
             "SandTextButton", 0, mCurrentY, 200, lineHeight, MyGUI::Align::Default);
@@ -296,7 +296,7 @@ namespace MWGui
             mDestinationsView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
         {
-            const int lineHeight = Settings::gui().mFontSize + 2;
+            const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
             mDestinationsView->setViewOffset(MyGUI::IntPoint(0, -lineHeight * static_cast<int>(mControllerFocus - 5)));
         }
 

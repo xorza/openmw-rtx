@@ -113,7 +113,10 @@ namespace Rtx::Testing
         MyGUI::LanguageManager::getInstance().eventRequestTag = MyGUI::newDelegate(this, &GuiInstance::onRetrieveTag);
 
         mFonts = std::make_unique<Gui::InterfaceFonts>(ToUTF8::WINDOWS_1252, &mVfs, *mPlatform->getDataManagerPtr(),
-            Gui::FontFit{ .mRaster = setup.mScale, .mView = MyGUI::RenderManager::getInstance().getViewSize() }, false);
+            Gui::FontFit{ .mRaster = setup.mScale,
+                .mView = MyGUI::RenderManager::getInstance().getViewSize(),
+                .mFontSize = setup.mFontSize },
+            false);
 
         mPlatform->getRenderManagerPtr()->registerFactories();
         MyGUI::FactoryManager::getInstance().registerFactory<MyGUIPlatform::ScalingLayer>("Layer");

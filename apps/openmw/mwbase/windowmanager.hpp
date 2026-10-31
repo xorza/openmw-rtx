@@ -205,6 +205,10 @@ namespace MWBase
         /// (`Gui::FontFit`). A picture sized by the interface's scale is made at this one.
         virtual float getRasterScale() const = 0;
 
+        /// The interface's font size, in its layout units: the height a line of its text takes,
+        /// which a row or a list sized to a line of text sizes by (`Gui::InterfaceFonts::getFontSize`).
+        virtual int getFontSize() const = 0;
+
         virtual bool toggleFogOfWar() = 0;
 
         virtual bool toggleFullHelp() = 0;

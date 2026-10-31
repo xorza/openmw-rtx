@@ -71,6 +71,12 @@ namespace MWGui
         /// Called when GUI viewport changes size
         virtual void onResChange(int width, int height) {}
 
+        /// Lays out again what it sized by the interface's font size and keeps
+        /// (`MWBase::WindowManager::getFontSize`): after a fit to another size, before the next frame
+        /// draws. A window that sizes its rows as it opens, and is closed whenever the size can change,
+        /// as every service window is, needs none.
+        virtual void refitText() {}
+
         virtual void onDeleteCustomData(const MWWorld::Ptr& ptr) {}
 
         virtual void onInventoryUpdate(const MWWorld::Ptr& ptr) {}

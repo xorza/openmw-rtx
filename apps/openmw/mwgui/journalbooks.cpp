@@ -4,7 +4,6 @@
 #include "../mwbase/windowmanager.hpp"
 
 #include <components/misc/utf8stream.hpp>
-#include <components/settings/values.hpp>
 
 #include "textcolours.hpp"
 
@@ -152,7 +151,7 @@ namespace MWGui
     {
         // For small font size split alphabet to two columns (2x15 characers), for big font size split it to three
         // colums (3x10 characters).
-        return Settings::gui().mFontSize < 18 ? 2 : 3;
+        return MWBase::Environment::get().getWindowManager()->getFontSize() < 18 ? 2 : 3;
     }
 
     JournalBooks::JournalBooks(std::shared_ptr<JournalViewModel> model, ToUTF8::FromType encoding)
@@ -231,7 +230,8 @@ namespace MWGui
 
     std::shared_ptr<BookTypesetter> JournalBooks::createLatinJournalIndex()
     {
-        std::shared_ptr<BookTypesetter> typesetter = BookTypesetter::create(92, 260);
+        std::shared_ptr<BookTypesetter> typesetter
+            = BookTypesetter::create(92, 260, MWBase::Environment::get().getWindowManager()->getFontSize());
 
         typesetter->setSectionAlignment(BookTypesetter::AlignCenter);
 
@@ -266,7 +266,8 @@ namespace MWGui
 
     std::shared_ptr<BookTypesetter> JournalBooks::createCyrillicJournalIndex()
     {
-        std::shared_ptr<BookTypesetter> typesetter = BookTypesetter::create(92, 260);
+        std::shared_ptr<BookTypesetter> typesetter
+            = BookTypesetter::create(92, 260, MWBase::Environment::get().getWindowManager()->getFontSize());
 
         typesetter->setSectionAlignment(BookTypesetter::AlignCenter);
 
@@ -314,7 +315,7 @@ namespace MWGui
     std::shared_ptr<BookTypesetter> JournalBooks::createTypesetter()
     {
         // TODO: determine page size from layout...
-        return BookTypesetter::create(240, 320);
+        return BookTypesetter::create(240, 320, MWBase::Environment::get().getWindowManager()->getFontSize());
     }
 
 }

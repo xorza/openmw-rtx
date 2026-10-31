@@ -38,6 +38,8 @@ namespace MWGui
 
         void setNextButtonShow(bool shown);
         void onOpen() override;
+
+        void refitText() override;
         void onClose() override;
 
         bool exit() override { return false; }

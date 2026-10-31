@@ -42,6 +42,9 @@ namespace MWGui
 
         void onFrame(float duration);
 
+        /// `WindowBase::refitText` for each dialog it has made.
+        void refitText();
+
     private:
         std::vector<ESM::RefId> mPlayerMajorSkills, mPlayerMinorSkills;
         std::map<ESM::RefId, MWMechanics::AttributeValue> mPlayerAttributes;

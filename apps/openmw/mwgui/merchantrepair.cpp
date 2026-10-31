@@ -47,7 +47,7 @@ namespace MWGui
             MyGUI::Gui::getInstance().destroyWidget(mList->getChildAt(0));
         mButtons.clear();
 
-        const int lineHeight = Settings::gui().mFontSize + 2;
+        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         int currentY = 0;
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
@@ -212,7 +212,7 @@ namespace MWGui
                 mList->setViewOffset(MyGUI::IntPoint(0, 0));
             else
             {
-                const int lineHeight = Settings::gui().mFontSize + 2;
+                const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
                 mList->setViewOffset(MyGUI::IntPoint(0, -lineHeight * static_cast<int>(line - 5)));
             }
         }

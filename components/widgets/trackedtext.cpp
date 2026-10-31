@@ -3,8 +3,6 @@
 #include <MyGUI_IFont.h>
 #include <MyGUI_Widget.h>
 
-#include <components/settings/values.hpp>
-
 #include "box.hpp"
 
 namespace Gui
@@ -31,8 +29,8 @@ namespace Gui
             return;
         setFontName(this->mFont->getResourceName());
 
-        // Hinting at another raster moves an advance by a pixel, and a widget sized to its text
-        // follows it.
+        // A text at another height, or hinted at another raster, which moves an advance by a pixel,
+        // measures another size, and a widget sized to its text follows it.
         if (auto* const widget = dynamic_cast<MyGUI::Widget*>(this->mCroppedParent))
             if (auto* const sized = dynamic_cast<AutoSizedWidget*>(widget))
                 sized->remeasure(*widget);
@@ -42,7 +40,7 @@ namespace Gui
     void Tracked<Text>::keepInterfaceHeight()
     {
         if (this->mCustomFontHeight == 0)
-            this->mFontHeight = Settings::gui().mFontSize;
+            this->mFontHeight = this->getUsers().getTextHeight();
     }
 
     template class Tracked<MyGUI::EditText>;

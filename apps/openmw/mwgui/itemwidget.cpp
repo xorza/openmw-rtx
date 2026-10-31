@@ -12,6 +12,7 @@
 #include <components/vfs/manager.hpp>
 
 #include "../mwbase/environment.hpp"
+#include "../mwbase/windowmanager.hpp"
 
 #include "../mwworld/class.hpp"
 
@@ -23,7 +24,7 @@ namespace
             return {};
 
         // With small text size we can use up to 4 characters, while with large ones - only up to 3.
-        if (Settings::gui().mFontSize > 16)
+        if (MWBase::Environment::get().getWindowManager()->getFontSize() > 16)
         {
             if (count > 999999999)
                 return MyGUI::utility::toString(count / 1000000000) + "b";

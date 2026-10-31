@@ -36,7 +36,21 @@ namespace MWGui
             }
 
             /// Moves the view alone, which rasterizes every book font again and no other.
-            void refit() { mGui.getFonts().fit({ .mRaster = 1.0f, .mView = MyGUI::IntSize(2048, 1536) }); }
+            void refit()
+            {
+                mGui.getFonts().fit({ .mRaster = 1.0f,
+                    .mView = MyGUI::IntSize(2048, 1536),
+                    .mFontSize = mGui.getFonts().getFontSize() });
+            }
+
+            /// "Abc", typeset at the size the fonts are set at, as every owner of a page typesets.
+            std::shared_ptr<TypesetBook> typeset()
+            {
+                const std::shared_ptr<BookTypesetter> typesetter
+                    = BookTypesetter::create(240, 320, mGui.getFonts().getFontSize());
+                typesetter->write(typesetter->createStyle({}, MyGUI::Colour::Black), "Abc");
+                return typesetter->complete();
+            }
 
             std::set<std::uint32_t> drawnAgainst()
             {
@@ -46,13 +60,6 @@ namespace MWGui
                 return slots;
             }
         };
-
-        std::shared_ptr<TypesetBook> typeset()
-        {
-            const std::shared_ptr<BookTypesetter> typesetter = BookTypesetter::create(240, 320);
-            typesetter->write(typesetter->createStyle({}, MyGUI::Colour::Black), "Abc");
-            return typesetter->complete();
-        }
 
         std::uint32_t bookAtlas()
         {
@@ -72,9 +79,9 @@ namespace MWGui
             int asked = 0;
             page->adviseRetypeset([&] {
                 ++asked;
-                page->showPage(typeset(), 0);
+                page->showPage(gui.typeset(), 0);
             });
-            page->showPage(typeset(), 0);
+            page->showPage(gui.typeset(), 0);
             const std::uint32_t replaced = bookAtlas();
             ASSERT_EQ(gui.drawnAgainst(), std::set<std::uint32_t>{ replaced });
 
@@ -96,7 +103,7 @@ namespace MWGui
             BookPage* const empty = gui.makePage(510);
             int asked = 0;
             const auto showBoth = [&] {
-                const std::shared_ptr<TypesetBook> book = typeset();
+                const std::shared_ptr<TypesetBook> book = gui.typeset();
                 left->showPage(book, 0);
                 right->showPage(book, 1);
             };
@@ -125,7 +132,7 @@ namespace MWGui
             Rtx::Testing::expectAssertDies(
                 [] {
                     BookPageGui gui;
-                    gui.makePage(10)->showPage(typeset(), 0);
+                    gui.makePage(10)->showPage(gui.typeset(), 0);
                 },
                 "a book shown on a page with no way to typeset it again");
         }

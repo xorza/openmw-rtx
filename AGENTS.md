@@ -187,6 +187,17 @@ is not here is held to the rules above.
   moved, and the inventory places itself and sizes its preview on a layout. `[GUI] scaling factor`
   applies live, from a slider in the Video page that writes it where the player leaves it
   (`Gui::SettlingScrollBar`).
+- `[GUI] font size` held by the fonts' owner and read from it alone (`.notes/font-size-plan.md`
+  while that work lasts): the fit is the setting's one reader (`FontFit::mFontSize`), and every
+  size the interface computes from it asks `MWBase::WindowManager::getFontSize`, which a source scan
+  holds to. A fit to another size sets the fonts at it in place and has every text, list and page
+  follow: a text with no height of its own takes its registry's (`FontUsers::getTextHeight`), so
+  `FontWrapper`, which stamped the size into each widget as a height of its own, is gone, and four
+  files that took `Settings` through it include it; every list is the fork's (`Gui::ListBox`),
+  standing in MyGUI's factory, whose lines stand a line of text high and follow, in place of the line
+  height the font loader wrote into every skin as it loaded; a book is typeset at a stated size and
+  drawn at it (`BookTypesetter::create`); and a window that keeps rows sized by it lays them out
+  again (`WindowBase::refitText`), the character creation's dialogs included.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.

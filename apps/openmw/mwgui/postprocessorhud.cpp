@@ -23,6 +23,7 @@
 
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/utf8stream.hpp>
+#include <components/settings/settings.hpp>
 
 #include <components/widgets/box.hpp>
 

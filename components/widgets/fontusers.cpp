@@ -4,6 +4,7 @@
 
 #include <MyGUI_FactoryManager.h>
 
+#include "listbox.hpp"
 #include "trackedtext.hpp"
 
 namespace Gui
@@ -43,8 +44,18 @@ namespace Gui
         factories.registerFactory("BasisSkin", "SimpleText", MyGUI::newDelegate(this, &FontUsers::makeSimpleText));
     }
 
-    void FontUsers::refit()
+    void FontUsers::registerListFactory()
     {
+        // The category and the name `MyGUI::WidgetManager` registers MyGUI's own under.
+        MyGUI::FactoryManager& factories = MyGUI::FactoryManager::getInstance();
+        factories.unregisterFactory("Widget", "ListBox");
+        factories.registerFactory("Widget", "ListBox", MyGUI::newDelegate(this, &FontUsers::makeList));
+    }
+
+    void FontUsers::refit(const int textHeight)
+    {
+        assert(textHeight > 0 && "a text laid out at no height");
+        mTextHeight = textHeight;
         mRefitting = true;
         for (Entry* const entry : mEntries)
             entry->drop();
@@ -61,5 +72,10 @@ namespace Gui
     void FontUsers::makeSimpleText(MyGUI::IObject*& made)
     {
         made = new TrackedSimpleText(*this);
+    }
+
+    void FontUsers::makeList(MyGUI::IObject*& made)
+    {
+        made = new ListBox(*this);
     }
 }

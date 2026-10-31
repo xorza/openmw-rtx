@@ -218,6 +218,7 @@ namespace MWGui
 
         float getScalingFactor() const override;
         float getRasterScale() const override;
+        int getFontSize() const override;
 
         bool toggleFogOfWar() override;
         bool toggleFullHelp() override; ///< show extra info in item tooltips (owner, script)
@@ -657,11 +658,12 @@ namespace MWGui
 
         /// What the fonts are rasterized for now: the frame's pixels a unit of the interface takes,
         /// or the window's where they are finer, so a frame up to the window's own resolution, or a
-        /// finer one, shows the text no softer than it was made; and the view the interface is
-        /// laid out in.
+        /// finer one, shows the text no softer than it was made; the view the interface is laid out
+        /// in; and the font size, of which this is the one reader.
         Gui::FontFit fontFitNow() const;
 
-        /// Rasterizes the fonts again where `fontFitNow` moved: a scale, a display, or a frame.
+        /// Rasterizes the fonts again where `fontFitNow` moved: a scale, a display, a frame, or the
+        /// font size.
         void fitFonts();
 
         void onClipboardChanged(std::string_view type, std::string_view data);

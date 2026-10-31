@@ -22,6 +22,7 @@
 #include <MyGUI_ResourceManager.h>
 #include <MyGUI_ResourceManualFont.h>
 #include <MyGUI_ResourceTrueTypeFont.h>
+#include <MyGUI_Version.h>
 #include <MyGUI_XmlDocument.h>
 
 #include <components/debug/debuglog.hpp>
@@ -33,8 +34,6 @@
 #include <components/misc/strings/algorithm.hpp>
 
 #include <components/myguiplatform/scalinglayer.hpp>
-
-#include <components/settings/values.hpp>
 
 namespace
 {
@@ -252,10 +251,6 @@ namespace Gui
         else
             mEncoding = encoding;
 
-        MyGUI::ResourceManager::getInstance().unregisterLoadXmlDelegate("Resource");
-        MyGUI::ResourceManager::getInstance().registerLoadXmlDelegate("Resource")
-            = MyGUI::newDelegate(this, &FontLoader::overrideLineHeight);
-
         loadFonts();
     }
 
@@ -368,17 +363,14 @@ namespace Gui
             resolution = MyGUI::utility::parseInt(resolutionNode->findAttribute("value"));
 
         const bool tabWidthStated = getProperty(resourceNode.current(), "TabWidth") != nullptr;
-        const int size = Settings::gui().mFontSize;
-        TrueTypeFace face{ .mFont = nullptr,
-            .mResolution = resolution,
-            .mSize = size,
-            .mBook = false,
-            .mTabWidthStated = tabWidthStated };
+        TrueTypeFace face{
+            .mFont = nullptr, .mResolution = resolution, .mBook = false, .mTabWidthStated = tabWidthStated
+        };
         resolutionNode->setAttribute("value", std::to_string(resolutionOf(face, mFit)));
 
         MyGUI::xml::ElementPtr sizeNode = resourceNode->createChild("Property");
         sizeNode->addAttribute("key", "Size");
-        sizeNode->addAttribute("value", std::to_string(size));
+        sizeNode->addAttribute("value", std::to_string(mFit.mFontSize));
 
         MyGUI::ResourceTrueTypeFont* font = static_cast<MyGUI::ResourceTrueTypeFont*>(
             MyGUI::FactoryManager::getInstance().createObject("Resource", "ResourceTrueTypeFont"));
@@ -386,11 +378,11 @@ namespace Gui
         font->setResourceName(fontId.mValue);
         MyGUI::ResourceManager::getInstance().addResource(font);
         face.mFont = font;
-        rasterize(face, resolutionOf(face, mFit));
+        rasterize(face, mFit.mFontSize, resolutionOf(face, mFit));
         mFaces.push_back(face);
 
         TrueTypeFace bookFace{
-            .mFont = nullptr, .mResolution = resolution, .mSize = size, .mBook = true, .mTabWidthStated = tabWidthStated
+            .mFont = nullptr, .mResolution = resolution, .mBook = true, .mTabWidthStated = tabWidthStated
         };
         resolutionNode->setAttribute("value", std::to_string(resolutionOf(bookFace, mFit)));
 
@@ -400,7 +392,7 @@ namespace Gui
         bookFont->setResourceName(std::format("Journalbook {}", fontId.mValue));
         MyGUI::ResourceManager::getInstance().addResource(bookFont);
         bookFace.mFont = bookFont;
-        rasterize(bookFace, resolutionOf(bookFace, mFit));
+        rasterize(bookFace, mFit.mFontSize, resolutionOf(bookFace, mFit));
         mFaces.push_back(bookFace);
 
         if (resourceNode.next("Resource"))
@@ -722,34 +714,6 @@ namespace Gui
         MyGUI::ResourceManager::getInstance().addResource(bookFont);
     }
 
-    void FontLoader::overrideLineHeight(MyGUI::xml::ElementPtr node, std::string_view file, MyGUI::Version version)
-    {
-        // We should adjust line height for MyGUI widgets depending on font size
-        MyGUI::xml::ElementEnumerator resourceNode = node->getElementEnumerator();
-        while (resourceNode.next("Resource"))
-        {
-            auto type = resourceNode->findAttribute("type");
-
-            if (Misc::StringUtils::ciEqual(type, "ResourceLayout"))
-            {
-                MyGUI::xml::ElementEnumerator resourceRootNode = resourceNode->getElementEnumerator();
-                while (resourceRootNode.next("Widget"))
-                {
-                    if (resourceRootNode->findAttribute("name") != "Root")
-                        continue;
-
-                    MyGUI::xml::ElementPtr heightNode = resourceRootNode->createChild("UserString");
-                    heightNode->addAttribute("key", "HeightLine");
-                    heightNode->addAttribute("value", std::to_string(Settings::gui().mFontSize + 2));
-
-                    break;
-                }
-            }
-        }
-
-        MyGUI::ResourceManager::getInstance().loadFromXmlNode(node, file, version);
-    }
-
     bool FontLoader::fit(const FontFit& fit)
     {
         if (fit == mFit)
@@ -760,17 +724,18 @@ namespace Gui
         for (const TrueTypeFace& face : mFaces)
         {
             const unsigned int resolution = resolutionOf(face, mFit);
-            if (resolution == resolutionOf(face, was))
+            if (mFit.mFontSize == was.mFontSize && resolution == resolutionOf(face, was))
                 continue;
 
-            rasterize(face, resolution);
+            rasterize(face, mFit.mFontSize, resolution);
             rasterized = true;
         }
         return rasterized;
     }
 
-    void FontLoader::rasterize(const TrueTypeFace& face, const unsigned int resolution)
+    void FontLoader::rasterize(const TrueTypeFace& face, const int size, const unsigned int resolution)
     {
+        face.mFont->setSize(static_cast<float>(size));
         face.mFont->setResolution(resolution);
 
         // A tab's width MyGUI derived from a space's at the last rasterization is derived again.
@@ -801,8 +766,8 @@ namespace Gui
 
         // **At least a pixel an em, however small a view is**: FreeType refuses a face sized under
         // one, and MyGUI throws where it is refused. A point is a 72nd of an inch.
-        assert(face.mSize > 0 && "a font sized at nothing");
-        const auto fewest = static_cast<unsigned int>((72 + face.mSize - 1) / face.mSize);
+        assert(fit.mFontSize > 0 && "a font sized at nothing");
+        const auto fewest = static_cast<unsigned int>((72 + fit.mFontSize - 1) / fit.mFontSize);
         return std::max(fewest, static_cast<unsigned int>(wanted));
     }
 

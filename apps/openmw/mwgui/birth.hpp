@@ -23,6 +23,8 @@ namespace MWGui
         void setNextButtonShow(bool shown);
         void onOpen() override;
 
+        void refitText() override { updateSpells(); }
+
         bool exit() override { return false; }
 
         // Events

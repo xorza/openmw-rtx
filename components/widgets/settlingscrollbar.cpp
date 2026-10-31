@@ -1,6 +1,6 @@
 #include "settlingscrollbar.hpp"
 
-#include <initializer_list>
+#include <array>
 
 #include <MyGUI_Button.h>
 
@@ -11,9 +11,9 @@ namespace Gui
         ScrollBar::initialiseOverride();
 
         // After MyGUI's own handlers, which the base subscribed first: the position is moved by then.
-        for (MyGUI::Widget* const part :
-            { static_cast<MyGUI::Widget*>(mWidgetStart), static_cast<MyGUI::Widget*>(mWidgetEnd),
-                static_cast<MyGUI::Widget*>(mWidgetTrack), mWidgetFirstPart, mWidgetSecondPart })
+        const std::array<MyGUI::Widget*, 5> parts{ mWidgetStart, mWidgetEnd, mWidgetTrack, mWidgetFirstPart,
+            mWidgetSecondPart };
+        for (MyGUI::Widget* const part : parts)
             if (part != nullptr)
                 part->eventMouseButtonReleased += MyGUI::newDelegate(this, &SettlingScrollBar::notifyReleased);
 
