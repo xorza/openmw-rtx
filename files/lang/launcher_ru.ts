@@ -239,6 +239,10 @@
         <translation>Насколько ниже разрешения кадра выполняется трассировка лучей. «Отключено» трассирует каждый пиксель без масштабировщика; любой другой режим запускает масштабировщик, который восстанавливает кадр по нескольким кадрам, и каждый режим, кроме «Отключено» и «Нативное», трассирует меньше пикселей, чем показывает.</translation>
     </message>
     <message>
+        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Off</source>
         <translation>Отключено</translation>
     </message>
@@ -265,10 +269,6 @@
     <message>
         <source>Ray Tracing Distant Land</source>
         <translation>Удалённый ландшафт при трассировке лучей</translation>
-    </message>
-    <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracing renderer builds what rays can reach, which is a different question from how far the rasterizer can see.</source>
-        <translation>Насколько далеко от глаза строится мир, в ячейках. Рендерер с трассировкой лучей строит то, до чего могут добраться лучи, — это другой вопрос, чем то, как далеко видит растеризатор.</translation>
     </message>
     <message>
         <source> cells</source>

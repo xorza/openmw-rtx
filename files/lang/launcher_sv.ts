@@ -203,10 +203,6 @@
         <translation>Avlägsen terräng vid strålspårning</translation>
     </message>
     <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracing renderer builds what rays can reach, which is a different question from how far the rasterizer can see.</source>
-        <translation>Hur långt från ögat världen byggs, i celler. Strålspårningsrenderaren bygger det som strålar kan nå, vilket är en annan fråga än hur långt rasteriseraren kan se.</translation>
-    </message>
-    <message>
         <source> cells</source>
         <translation> celler</translation>
     </message>
@@ -245,6 +241,10 @@
     <message>
         <source>Windowed</source>
         <translation>Fönster</translation>
+    </message>
+    <message>
+        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Disabled</source>

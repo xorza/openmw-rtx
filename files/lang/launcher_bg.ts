@@ -239,6 +239,10 @@
         <translation>Колко под разделителната способност на кадъра трасира трасирането на лъчи. Изключено трасира всеки пиксел без мащабиращ; всеки друг режим пуска мащабиращия, който реконструира кадъра от няколко кадъра, и всеки режим освен Изключено и Естествена трасира по-малко пиксели, отколкото показва.</translation>
     </message>
     <message>
+        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Off</source>
         <translation>Изключено</translation>
     </message>
@@ -265,10 +269,6 @@
     <message>
         <source>Ray Tracing Distant Land</source>
         <translation>Далечна земя при трасиране на лъчи</translation>
-    </message>
-    <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracing renderer builds what rays can reach, which is a different question from how far the rasterizer can see.</source>
-        <translation>Докъде от окото се изгражда светът, в клетки. Визуализаторът с трасиране на лъчи изгражда това, до което лъчите достигат, което е различен въпрос от това докъде вижда растеризаторът.</translation>
     </message>
     <message>
         <source> cells</source>

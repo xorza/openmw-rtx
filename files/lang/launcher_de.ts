@@ -203,10 +203,6 @@
         <translation>Raytracing-Fernsicht</translation>
     </message>
     <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracing renderer builds what rays can reach, which is a different question from how far the rasterizer can see.</source>
-        <translation>Wie weit vom Auge entfernt die Welt aufgebaut wird, in Zellen. Der Raytracing-Renderer baut auf, was Strahlen erreichen können — eine andere Frage als die, wie weit der Rasterizer sehen kann.</translation>
-    </message>
-    <message>
         <source> cells</source>
         <translation> Zellen</translation>
     </message>
@@ -244,6 +240,10 @@
     </message>
     <message>
         <source>Windowed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

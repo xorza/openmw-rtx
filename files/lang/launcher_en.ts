@@ -239,6 +239,10 @@
         <translation></translation>
     </message>
     <message>
+        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Off</source>
         <translation></translation>
     </message>
@@ -264,10 +268,6 @@
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracing renderer builds what rays can reach, which is a different question from how far the rasterizer can see.</source>
         <translation></translation>
     </message>
     <message>
