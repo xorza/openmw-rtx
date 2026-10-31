@@ -239,6 +239,10 @@
         <translation>Jak bardzo poniżej rozdzielczości klatki odbywa się śledzenie promieni. Wyłączone śledzi każdy piksel bez skalera; każdy inny tryb uruchamia skaler, który odtwarza obraz z wielu klatek, a każdy tryb poza Wyłączone i Natywna śledzi mniej pikseli, niż pokazuje.</translation>
     </message>
     <message>
+        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Off</source>
         <translation>Wyłączone</translation>
     </message>
@@ -265,10 +269,6 @@
     <message>
         <source>Ray Tracing Distant Land</source>
         <translation>Odległy teren przy śledzeniu promieni</translation>
-    </message>
-    <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracing renderer builds what rays can reach, which is a different question from how far the rasterizer can see.</source>
-        <translation>Jak daleko od oka budowany jest świat, w komórkach. Renderer ze śledzeniem promieni buduje to, co mogą osiągnąć promienie, co jest innym pytaniem niż to, jak daleko widzi rasteryzator.</translation>
     </message>
     <message>
         <source> cells</source>
