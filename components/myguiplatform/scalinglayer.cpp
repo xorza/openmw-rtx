@@ -76,7 +76,11 @@ namespace MyGUIPlatform
 
     float ScalingLayer::getScaleFactor(const MyGUI::IntSize& layerViewSize)
     {
-        MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
+        return getScaleFactor(MyGUI::RenderManager::getInstance().getViewSize(), layerViewSize);
+    }
+
+    float ScalingLayer::getScaleFactor(const MyGUI::IntSize& viewSize, const MyGUI::IntSize& layerViewSize)
+    {
         float w = static_cast<float>(viewSize.width);
         float h = static_cast<float>(viewSize.height);
 

@@ -168,6 +168,12 @@ is not here is held to the rules above.
   - `Debug::wrapApplication`'s fatal error box read only whether a terminal started the game, not
     `OPENMW_CRASH_DIALOG` as the crash dialog does, and showed before the error was logged: a start
     that failed under a harness waited for a click, with nothing in the log.
+- The interface's fonts rasterized again while the game runs (`.notes/gui-scale-plan.md` while that
+  work lasts): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in place
+  (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks draws
+  the font's stated substitute after the load as after a fit; each font file's bytes are held in
+  `MyGUIPlatform::DataManager::hold`, so a rasterization reads nothing and sets no resource path;
+  and `ScalingLayer::getScaleFactor` takes a stated view.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.

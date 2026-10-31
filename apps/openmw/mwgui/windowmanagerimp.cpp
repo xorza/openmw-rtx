@@ -16,6 +16,7 @@
 #include <MyGUI_LanguageManager.h>
 #include <MyGUI_LayerManager.h>
 #include <MyGUI_PointerManager.h>
+#include <MyGUI_RenderManager.h>
 #include <MyGUI_UString.h>
 
 // For BT_NO_PROFILE
@@ -225,7 +226,10 @@ namespace MWGui
         // resolution, or this one where it is finer, shows the fonts no softer than they were made.
         mRasterScale
             = std::max(mScalingFactor, Settings::gui().mScalingFactor * SDLUtil::displayScale(mRenderer.getWindow()));
-        mFontLoader = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), mRasterScale, exportFonts);
+        mFontLoader
+            = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), *mGuiPlatform->getDataManagerPtr(),
+                Gui::FontFit{ .mRaster = mRasterScale, .mView = MyGUI::RenderManager::getInstance().getViewSize() },
+                exportFonts);
 
         // Register own widgets with MyGUI
         MyGUI::FactoryManager::getInstance().registerFactory<MWGui::Widgets::MWSkill>("Widget");

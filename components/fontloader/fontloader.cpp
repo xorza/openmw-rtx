@@ -1,9 +1,17 @@
 #include "fontloader.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <format>
+#include <iterator>
+#include <memory>
 #include <stdexcept>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include <osg/Image>
 
@@ -66,7 +74,7 @@ namespace
             }
         }
 
-        return MyGUI::RenderManager::getInstance().getViewSize();
+        return {};
     }
 
     unsigned long utf8ToUnicode(std::string_view utf8)
@@ -227,11 +235,18 @@ namespace
 namespace Gui
 {
 
-    FontLoader::FontLoader(ToUTF8::FromType encoding, const VFS::Manager* vfs, float scalingFactor, bool exportFonts)
+    FontLoader::FontLoader(ToUTF8::FromType encoding, const VFS::Manager* vfs, MyGUIPlatform::DataManager& data,
+        const FontFit& fit, bool exportFonts)
         : mVFS(vfs)
-        , mScalingFactor(scalingFactor)
+        , mData(data)
         , mExportFonts(exportFonts)
+        , mFit(fit)
     {
+        {
+            const std::unique_ptr<MyGUI::IDataStream> layers(mData.getData("openmw_layers.xml"));
+            mBookSize = getBookSize(layers.get());
+        }
+
         if (encoding == ToUTF8::WINDOWS_1252)
             mEncoding = ToUTF8::CP437;
         else
@@ -297,37 +312,6 @@ namespace Gui
     {
         Log(Debug::Info) << "Loading TrueType font file " << path;
 
-        MyGUIPlatform::DataManager* const dataManager
-            = dynamic_cast<MyGUIPlatform::DataManager*>(&MyGUIPlatform::DataManager::getInstance());
-        if (dataManager == nullptr)
-        {
-            Log(Debug::Error) << "Can not load TrueType font " << fontId.mValue
-                              << ": osgMyGUI::DataManager is not available.";
-            return;
-        }
-
-        // TODO: it may be worth to take in account resolution change, but it is not safe to replace used assets
-        std::unique_ptr<MyGUI::IDataStream> layersStream(dataManager->getData("openmw_layers.xml"));
-        MyGUI::IntSize bookSize = getBookSize(layersStream.get());
-        float bookScale = MyGUIPlatform::ScalingLayer::getScaleFactor(bookSize);
-        const VFS::Path::Normalized oldDataPath(dataManager->getResourcePath());
-
-        struct SetOldResourcePath
-        {
-            VFS::Path::NormalizedView mOldDataPath;
-
-            void operator()(MyGUIPlatform::DataManager* dataManager) const
-            {
-                dataManager->setResourcePath(mOldDataPath);
-            }
-        };
-
-        std::unique_ptr<MyGUIPlatform::DataManager, SetOldResourcePath> dataManagerPtr(
-            dataManager, SetOldResourcePath{ oldDataPath });
-
-        constexpr VFS::Path::NormalizedView fonts("fonts");
-        dataManager->setResourcePath(fonts);
-
         std::unique_ptr<MyGUI::IDataStream> dataStream = std::make_unique<MyGUI::DataStream>(&stream);
 
         MyGUI::xml::Document xmlDocument;
@@ -347,6 +331,32 @@ namespace Gui
             return;
         }
 
+        // **The font's file is held, and read from there at every rasterization**: under its path
+        // in the VFS, which the source is spelt as from here on, so a fit after the load reads
+        // nothing and needs no resource path set around it.
+        MyGUI::xml::ElementPtr sourceNode = getProperty(resourceNode.current(), "Source");
+        if (sourceNode == nullptr)
+        {
+            Log(Debug::Error) << "Can not load TrueType font " << fontId.mValue << ": " << path << " names no source.";
+            return;
+        }
+        constexpr VFS::Path::NormalizedView fonts("fonts");
+        VFS::Path::Normalized source(fonts);
+        source /= sourceNode->findAttribute("value");
+        if (!mData.holds(source.value()))
+        {
+            // A font a mod names and does not ship is the content's fault, and not one to stop on.
+            if (!mVFS->exists(source))
+            {
+                Log(Debug::Error) << "Can not load TrueType font " << fontId.mValue << ": " << path << " names "
+                                  << source << ", which is not found.";
+                return;
+            }
+            const Files::IStreamPtr file = mVFS->get(source);
+            mData.hold(source.value(), std::vector<char>(std::istreambuf_iterator<char>(*file), {}));
+        }
+        sourceNode->setAttribute("value", source.value());
+
         int resolution = 70;
         MyGUI::xml::ElementPtr resolutionNode = getProperty(resourceNode.current(), "Resolution");
         if (resolutionNode == nullptr)
@@ -357,7 +367,11 @@ namespace Gui
         else
             resolution = MyGUI::utility::parseInt(resolutionNode->findAttribute("value"));
 
-        resolutionNode->setAttribute("value", MyGUI::utility::toString(resolution * std::ceil(mScalingFactor)));
+        const bool tabWidthStated = getProperty(resourceNode.current(), "TabWidth") != nullptr;
+        TrueTypeFace face{
+            .mFont = nullptr, .mResolution = resolution, .mBook = false, .mTabWidthStated = tabWidthStated
+        };
+        resolutionNode->setAttribute("value", std::to_string(resolutionOf(face, mFit)));
 
         MyGUI::xml::ElementPtr sizeNode = resourceNode->createChild("Property");
         sizeNode->addAttribute("key", "Size");
@@ -368,17 +382,23 @@ namespace Gui
         font->deserialization(resourceNode.current(), MyGUI::Version(3, 2, 0));
         font->setResourceName(fontId.mValue);
         MyGUI::ResourceManager::getInstance().addResource(font);
+        face.mFont = font;
+        rasterize(face, resolutionOf(face, mFit));
+        mFaces.push_back(face);
 
-        resolutionNode->setAttribute(
-            "value", MyGUI::utility::toString(static_cast<int>(resolution * bookScale * mScalingFactor)));
+        TrueTypeFace bookFace{
+            .mFont = nullptr, .mResolution = resolution, .mBook = true, .mTabWidthStated = tabWidthStated
+        };
+        resolutionNode->setAttribute("value", std::to_string(resolutionOf(bookFace, mFit)));
 
         MyGUI::ResourceTrueTypeFont* bookFont = static_cast<MyGUI::ResourceTrueTypeFont*>(
             MyGUI::FactoryManager::getInstance().createObject("Resource", "ResourceTrueTypeFont"));
         bookFont->deserialization(resourceNode.current(), MyGUI::Version(3, 2, 0));
         bookFont->setResourceName(std::format("Journalbook {}", fontId.mValue));
         MyGUI::ResourceManager::getInstance().addResource(bookFont);
-
-        dataManagerPtr.reset();
+        bookFace.mFont = bookFont;
+        rasterize(bookFace, resolutionOf(bookFace, mFit));
+        mFaces.push_back(bookFace);
 
         if (resourceNode.next("Resource"))
             Log(Debug::Warning) << "Font file " << path
@@ -725,6 +745,55 @@ namespace Gui
         }
 
         MyGUI::ResourceManager::getInstance().loadFromXmlNode(node, file, version);
+    }
+
+    void FontLoader::fit(const FontFit& fit)
+    {
+        if (fit == mFit)
+            return;
+
+        const FontFit was = std::exchange(mFit, fit);
+        for (const TrueTypeFace& face : mFaces)
+        {
+            const unsigned int resolution = resolutionOf(face, mFit);
+            if (resolution == resolutionOf(face, was))
+                continue;
+
+            rasterize(face, resolution);
+        }
+    }
+
+    void FontLoader::rasterize(const TrueTypeFace& face, const unsigned int resolution)
+    {
+        face.mFont->setResolution(resolution);
+
+        // A tab's width MyGUI derived from a space's at the last rasterization is derived again.
+        if (!face.mTabWidthStated)
+            face.mFont->setTabWidth(0.0f);
+
+        // **MyGUI's own rebuild of a font whose texture was lost**, and the one call that clears the
+        // glyph table before it builds: `initialise` alone keeps every old glyph's metrics. Run once
+        // more after the load as well, because the load's build leaves a glyph for each code point
+        // the face lacks, which every later build gives the font's substitute instead: one way, so
+        // a font reads the same before a fit and after it.
+        face.mFont->textureInvalidate(face.mFont->getTextureFont());
+    }
+
+    unsigned int FontLoader::resolutionOf(const TrueTypeFace& face, const FontFit& fit) const
+    {
+        assert(fit.mRaster > 0.0f && "an interface no pixel draws");
+
+        // A font at a whole multiple, so the interface's text stays sharp at every scale up to the
+        // next; a book font at the book layer's own scale, which is what its pages are drawn at. At
+        // least one dot an inch however small a view is, because FreeType reads nought as 72.
+        if (!face.mBook)
+            return std::max(1u, static_cast<unsigned int>(static_cast<float>(face.mResolution) * std::ceil(fit.mRaster)));
+
+        const float bookScale = mBookSize.width > 0 && mBookSize.height > 0
+            ? MyGUIPlatform::ScalingLayer::getScaleFactor(fit.mView, mBookSize)
+            : 1.0f;
+        return std::max(
+            1u, static_cast<unsigned int>(static_cast<float>(face.mResolution) * bookScale * fit.mRaster));
     }
 
     std::string_view FontLoader::getFontForFace(std::string_view face)

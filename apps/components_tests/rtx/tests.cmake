@@ -2,6 +2,8 @@
 # device and fails where there is none, so a box without a driver cannot pass by skipping.
 # `RTX_TEST_SUPPORT` goes into both binaries, `RTX_GPU_TEST_SUPPORT` into the second.
 set(RTX_TEST_FILES
+    fontloader/fontfit.cpp
+    myguirtx/guiinstance.cpp
     myguirtx/paintedmirror.cpp
     myguirtx/sharedtexture.cpp
     platform/linuxtext.cpp
@@ -156,6 +158,8 @@ set(RTX_TEST_SUPPORT
     rtx/support/geometry.hpp
     rtx/support/graph.hpp
     rtx/support/graphlight.hpp
+    rtx/support/guiinstance.cpp
+    rtx/support/guiinstance.hpp
     rtx/support/guiquad.hpp
     rtx/support/halfstep.hpp
     rtx/support/heldimages.hpp
