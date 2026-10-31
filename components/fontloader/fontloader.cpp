@@ -750,12 +750,13 @@ namespace Gui
         MyGUI::ResourceManager::getInstance().loadFromXmlNode(node, file, version);
     }
 
-    void FontLoader::fit(const FontFit& fit)
+    bool FontLoader::fit(const FontFit& fit)
     {
         if (fit == mFit)
-            return;
+            return false;
 
         const FontFit was = std::exchange(mFit, fit);
+        bool rasterized = false;
         for (const TrueTypeFace& face : mFaces)
         {
             const unsigned int resolution = resolutionOf(face, mFit);
@@ -763,7 +764,9 @@ namespace Gui
                 continue;
 
             rasterize(face, resolution);
+            rasterized = true;
         }
+        return rasterized;
     }
 
     void FontLoader::rasterize(const TrueTypeFace& face, const unsigned int resolution)

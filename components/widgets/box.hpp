@@ -38,6 +38,11 @@ namespace Gui
 
         virtual ~AutoSizedWidget() = default;
 
+        /// Sizes `self`, the widget this is, to what it asks for now, and the boxes it stands in
+        /// around it: for a text whose font was rasterized again, whose glyphs may be a pixel
+        /// wider or narrower.
+        void remeasure(MyGUI::Widget& self) { notifySizeChange(&self); }
+
     protected:
         void notifySizeChange(MyGUI::Widget* w);
 

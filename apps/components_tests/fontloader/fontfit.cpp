@@ -12,7 +12,7 @@
 #include <MyGUI_ResourceManager.h>
 
 #include <apps/components_tests/rtx/support/guiinstance.hpp>
-#include <components/fontloader/fontloader.hpp>
+#include <components/fontloader/interfacefonts.hpp>
 #include <components/myguirtx/slottexture.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/pathutil.hpp>

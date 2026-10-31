@@ -176,7 +176,9 @@ is not here is held to the rules above.
   `ScalingLayer::getScaleFactor` takes a stated view; and every text sub-widget is the fork's
   (`Gui::TextRegistry`, `Gui::TrackedText`), standing in MyGUI's factories, which the window
   manager registers, so a rasterization reaches every text, and a text with no height of its own
-  takes `[GUI] font size` rather than its font's raster height.
+  takes `[GUI] font size` rather than its font's raster height. `Gui::InterfaceFonts` owns both
+  and refits them as one, which `WindowManager::layOut` asks of it at every layout
+  (`WindowManager::fitFonts`), in place of the raster the constructor fixed.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.

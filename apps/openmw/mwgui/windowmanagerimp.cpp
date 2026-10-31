@@ -31,7 +31,7 @@
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 
-#include <components/fontloader/fontloader.hpp>
+#include <components/fontloader/interfacefonts.hpp>
 
 #include <components/misc/presentation.hpp>
 
@@ -222,14 +222,8 @@ namespace MWGui
 
         MyGUI::LanguageManager::getInstance().eventRequestTag = MyGUI::newDelegate(this, &WindowManager::onRetrieveTag);
 
-        // The window's pixels a unit covers, and this frame's: any frame up to the window's own
-        // resolution, or this one where it is finer, shows the fonts no softer than they were made.
-        mRasterScale
-            = std::max(mScalingFactor, Settings::gui().mScalingFactor * SDLUtil::displayScale(mRenderer.getWindow()));
-        mFontLoader
-            = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), *mGuiPlatform->getDataManagerPtr(),
-                Gui::FontFit{ .mRaster = mRasterScale, .mView = MyGUI::RenderManager::getInstance().getViewSize() },
-                exportFonts);
+        mFonts = std::make_unique<Gui::InterfaceFonts>(
+            encoding, resourceSystem->getVFS(), *mGuiPlatform->getDataManagerPtr(), fontFitNow(), exportFonts);
 
         // Register own widgets with MyGUI
         MyGUI::FactoryManager::getInstance().registerFactory<MWGui::Widgets::MWSkill>("Widget");
@@ -250,7 +244,6 @@ namespace MWGui
         ItemWidget::registerComponents();
         SpellView::registerComponents();
         Gui::registerAllWidgets();
-        mTexts.registerFactories();
         LuaUi::registerAllWidgets();
 
         MyGUI::FactoryManager::getInstance().registerFactory<MWGui::Controllers::ControllerFollowMouse>("Controller");
@@ -588,9 +581,10 @@ namespace MWGui
 
             cleanupGarbage();
 
-            mFontLoader.reset();
-
             mGui->shutdown();
+
+            // After MyGUI's shutdown, which destroys the texts that leave its registry.
+            mFonts.reset();
 
             mGuiPlatform->shutdown();
         }
@@ -1334,7 +1328,22 @@ namespace MWGui
     void WindowManager::layOut()
     {
         layOutInterface();
+        fitFonts();
         fitCursors();
+    }
+
+    Gui::FontFit WindowManager::fontFitNow() const
+    {
+        return Gui::FontFit{
+            .mRaster
+            = std::max(scaleNow(), Settings::gui().mScalingFactor * SDLUtil::displayScale(mRenderer.getWindow())),
+            .mView = MyGUI::RenderManager::getInstance().getViewSize(),
+        };
+    }
+
+    void WindowManager::fitFonts()
+    {
+        mFonts->fit(fontFitNow());
     }
 
     void WindowManager::fitCursors()
@@ -1652,6 +1661,11 @@ namespace MWGui
     bool WindowManager::getWorldMouseOver()
     {
         return mHud->getWorldMouseOver();
+    }
+
+    float WindowManager::getRasterScale() const
+    {
+        return mFonts->getFit().mRaster;
     }
 
     float WindowManager::getScalingFactor() const

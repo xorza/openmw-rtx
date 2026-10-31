@@ -364,7 +364,7 @@ add_component_dir (widgets
     )
 
 add_component_dir (fontloader
-    fontloader
+    fontloader interfacefonts
     )
 
 add_component_dir (sdlutil

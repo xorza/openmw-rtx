@@ -200,9 +200,9 @@ namespace MWBase
 
         virtual float getScalingFactor() const = 0;
 
-        /// The scale what the interface draws from was made at, once: the finer of the scales the
-        /// interface takes at its display's own resolution and at the frame the game started with.
-        /// A picture sized by the interface's scale is made at this one.
+        /// The scale the interface's fonts are rasterized at now: the finer of the scales the
+        /// interface takes in the frame and on the window's display, refitted at every layout
+        /// (`Gui::FontFit`). A picture sized by the interface's scale is made at this one.
         virtual float getRasterScale() const = 0;
 
         virtual bool toggleFogOfWar() = 0;

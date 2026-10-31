@@ -13,7 +13,7 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_ResourceManager.h>
 
-#include <components/fontloader/fontloader.hpp>
+#include <components/fontloader/interfacefonts.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguiplatform/scalinglayer.hpp>
 #include <components/myguirtx/rendermanager.hpp>
@@ -112,13 +112,12 @@ namespace Rtx::Testing
 
         MyGUI::LanguageManager::getInstance().eventRequestTag = MyGUI::newDelegate(this, &GuiInstance::onRetrieveTag);
 
-        mFonts = std::make_unique<Gui::FontLoader>(ToUTF8::WINDOWS_1252, &mVfs, *mPlatform->getDataManagerPtr(),
+        mFonts = std::make_unique<Gui::InterfaceFonts>(ToUTF8::WINDOWS_1252, &mVfs, *mPlatform->getDataManagerPtr(),
             Gui::FontFit{ .mRaster = setup.mScale, .mView = MyGUI::RenderManager::getInstance().getViewSize() }, false);
 
         mPlatform->getRenderManagerPtr()->registerFactories();
         MyGUI::FactoryManager::getInstance().registerFactory<MyGUIPlatform::ScalingLayer>("Layer");
         Gui::registerAllWidgets();
-        mTexts.registerFactories();
 
         // The default font's name, the layers and the text skins: what a text needs, and none of
         // the game's own resource types, which this binary does not have.
@@ -129,8 +128,8 @@ namespace Rtx::Testing
     GuiInstance::~GuiInstance()
     {
         MyGUI::LanguageManager::getInstance().eventRequestTag.clear();
-        mFonts.reset();
         mGui->shutdown();
+        mFonts.reset();
         mPlatform->shutdown();
     }
 
