@@ -73,3 +73,21 @@ repeats to 0.01 ms.
   for a pass, a list and a vendor switch. Reordering secondary rays by origin is the established
   approach (Pharr and Hanrahan's coherence work, extended to GPUs; Garanzha and Loop's
   compress-sort-decompress; the overhead such a sort carries ([Generate Coherent Rays Directly](https://arxiv.org/pdf/2310.07182))).
+- **Cutouts stay tested in the shader; no opacity micromaps (asked again 2026-10-31, refused again).**
+  Spiked on `spike/opacity-micromap` (local): 4-state micromaps baked on the host from the finest
+  alpha level, conservative over every texel a bilinear read inside a microtriangle can take
+  (`uv * size - 0.5`), one microtriangle about 8 texels (level ≤ 6) or 2 texels (level ≤ 9), special
+  indices for whole triangles, `DISABLE_OPACITY_MICROMAPS` on a placement not wearing the baked
+  material. At the ship 901 micromaps over 4 987 triangles, 1.0 MiB (2.8 MiB at level 9), baked in
+  0.27 s at load (0.58 s); 20 % clear, 33 % opaque, 47 % unknown microtriangles (36 % at level 9).
+  Desk, the same build on and off, three interleaved rounds: bounce −2.0 to −3.3 %, air −2 to −4 %,
+  landing −1 to −2.6 %, but trace +1.7 to +4.5 % and, at dawn, direct +10 % and the shadow filter
+  +8 %; frame +0.3 % ship, +3.3 % dawn, +0.6 % guild, −0.2 % vivec, +0.7 % pond — no gain past the
+  noise, and a loss at dawn. Pictures: a slight move where a coned ray reads a coarser level than the
+  bake (sparse dots in far canopies and water glints, 0.03 % of the pixels past 2/255), which the
+  OMM SDK's guide names ("do not use dynamic mip level"). The Deck gains nothing: RADV (Mesa 26.2)
+  offers no `VK_EXT_opacity_micromap`; the desk's driver offers it and `VK_KHR_opacity_micromap`.
+  Refused: the gain is not there on the desk and the Deck cannot have it. Sources: the Vulkan
+  specification's ray traversal chapter (micromap states against the instance flags),
+  [NVIDIA OMM SDK](https://github.com/NVIDIA-RTX/OMM) and its integration guide.
+
