@@ -6,7 +6,7 @@ namespace Gui
         const FontFit& fit, bool exportFonts)
         : mLoader(encoding, vfs, data, fit, exportFonts)
     {
-        mTexts.registerFactories();
+        mTexts.registerTextFactories();
     }
 
     void InterfaceFonts::fit(const FontFit& fit)
@@ -14,6 +14,7 @@ namespace Gui
         if (!mLoader.fit(fit))
             return;
 
-        mTexts.rebind();
+        mTexts.refit();
+        mPages.refit();
     }
 }

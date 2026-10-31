@@ -1,9 +1,16 @@
 #include "journalwindow.hpp"
 
+#include <cassert>
+#include <cstddef>
+#include <functional>
+#include <initializer_list>
+#include <memory>
 #include <set>
 #include <stack>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_InputManager.h>
@@ -47,9 +54,11 @@ namespace
 
     struct JournalWindowImpl : MWGui::JournalBooks, MWGui::JournalWindow
     {
+        /// A book on the stack, and what typesets it: again where the fonts were rasterized again.
         struct DisplayState
         {
             size_t mPage;
+            std::function<std::shared_ptr<MWGui::TypesetBook>()> mTypeset;
             std::shared_ptr<MWGui::TypesetBook> mBook;
         };
 
@@ -144,6 +153,10 @@ namespace
                 getPage(CenterTopicIndex)->adviseLinkClicked(callback);
                 getPage(RightTopicIndex)->adviseLinkClicked(std::move(callback));
             }
+
+            for (const std::string_view page :
+                { LeftBookPage, RightBookPage, LeftTopicIndex, CenterTopicIndex, RightTopicIndex })
+                getPage(page)->adviseRetypeset([this] { retypeset(); });
 
             adjustButton(PrevPageBTN);
             float nextButtonScale = adjustButton(NextPageBTN);
@@ -242,13 +255,7 @@ namespace
 
             setBookMode();
 
-            std::shared_ptr<MWGui::TypesetBook> journalBook;
-            if (mModel->isEmpty())
-                journalBook = createEmptyJournalBook();
-            else
-                journalBook = createJournalBook();
-
-            pushBook(journalBook);
+            pushBook([this] { return mModel->isEmpty() ? createEmptyJournalBook() : createJournalBook(); });
 
             // fast forward to the last page
             if (!mStates.empty())
@@ -328,22 +335,51 @@ namespace
             MWBase::Environment::get().getWindowManager()->updateControllerButtonsOverlay();
         }
 
-        void pushBook(std::shared_ptr<MWGui::TypesetBook>& book)
+        void pushBook(std::function<std::shared_ptr<MWGui::TypesetBook>()> typeset)
         {
-            DisplayState bs;
-            bs.mPage = 0;
-            bs.mBook = book;
-            mStates.push(bs);
+            std::shared_ptr<MWGui::TypesetBook> book = typeset();
+            mStates.push(DisplayState{ .mPage = 0, .mTypeset = std::move(typeset), .mBook = std::move(book) });
             updateShowingPages();
             updateCloseJournalButton();
         }
 
-        void replaceBook(std::shared_ptr<MWGui::TypesetBook>& book)
+        void replaceBook(std::function<std::shared_ptr<MWGui::TypesetBook>()> typeset)
         {
             assert(!mStates.empty());
-            mStates.top().mBook = book;
+            mStates.top().mBook = typeset();
+            mStates.top().mTypeset = std::move(typeset);
             mStates.top().mPage = 0;
             updateShowingPages();
+        }
+
+        /// Every book on the stack typeset again in the fonts as they now are, each at the spread it
+        /// was open at or the last one it still has, and the topic index where it shows.
+        void retypeset()
+        {
+            // A closed journal shows nothing, and its model is unloaded: the topic index pages, which
+            // closing leaves holding their book, were emptied by the refit and stay so.
+            mTopicIndexBook.reset();
+            if (mStates.empty())
+                return;
+
+            std::vector<DisplayState> states;
+            for (; !mStates.empty(); mStates.pop())
+                states.push_back(std::move(mStates.top()));
+            for (auto state = states.rbegin(); state != states.rend(); ++state)
+            {
+                state->mBook = state->mTypeset();
+                const size_t pages = state->mBook->pageCount();
+                if (state->mPage >= pages)
+                    state->mPage = pages == 0 ? 0 : (pages - 1) & ~size_t{ 1 };
+                mStates.push(std::move(*state));
+            }
+
+            updateShowingPages();
+            if (mOptionsMode)
+            {
+                getPage(RightBookPage)->showPage({}, 0);
+                showTopicIndex();
+            }
         }
 
         void popBook()
@@ -422,12 +458,13 @@ namespace
 
         void notifyTopicClicked(const MWDialogue::Topic& topic)
         {
-            std::shared_ptr<MWGui::TypesetBook> topicBook = createTopicBook(topic);
-
+            // The journal's topic, which stands as long as the journal does, and the stack is
+            // emptied when the window closes.
+            auto typeset = [this, topic = &topic] { return createTopicBook(*topic); };
             if (mStates.size() > 1)
-                replaceBook(topicBook);
+                replaceBook(std::move(typeset));
             else
-                pushBook(topicBook);
+                pushBook(std::move(typeset));
 
             setVisible(OptionsOverlay, false);
             setVisible(OptionsBTN, true);
@@ -451,12 +488,11 @@ namespace
 
         void notifyQuestClicked(const std::string& name, int id)
         {
-            std::shared_ptr<MWGui::TypesetBook> book = createQuestBook(name);
-
+            auto typeset = [this, name = std::string(name)] { return createQuestBook(name); };
             if (mStates.size() > 1)
-                replaceBook(book);
+                replaceBook(std::move(typeset));
             else
-                pushBook(book);
+                pushBook(std::move(typeset));
 
             setVisible(OptionsOverlay, false);
             setVisible(OptionsBTN, true);
@@ -468,10 +504,8 @@ namespace
             MWBase::Environment::get().getWindowManager()->updateControllerButtonsOverlay();
         }
 
-        void notifyOptions(MyGUI::Widget* /*sender*/)
+        void showTopicIndex()
         {
-            setOptionsMode();
-
             if (!mTopicIndexBook)
                 mTopicIndexBook = createTopicIndexBook();
 
@@ -486,6 +520,12 @@ namespace
                 getPage(LeftTopicIndex)->showPage(mTopicIndexBook, 0);
                 getPage(RightTopicIndex)->showPage(mTopicIndexBook, 1);
             }
+        }
+
+        void notifyOptions(MyGUI::Widget* /*sender*/)
+        {
+            setOptionsMode();
+            showTopicIndex();
 
             if (Settings::gui().mControllerMenus)
                 setIndexControllerFocus(true);

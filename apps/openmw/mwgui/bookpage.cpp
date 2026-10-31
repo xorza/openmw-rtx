@@ -1,6 +1,8 @@
 #include "bookpage.hpp"
 
+#include <cassert>
 #include <optional>
+#include <utility>
 
 #include "MyGUI_FactoryManager.h"
 #include "MyGUI_FontManager.h"
@@ -11,6 +13,7 @@
 #include <components/misc/utf8stream.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/settings/values.hpp>
+#include <components/widgets/fontusers.hpp>
 
 namespace
 {
@@ -914,7 +917,7 @@ namespace MWGui
         };
     }
 
-    class PageDisplay final : public MyGUI::ISubWidgetText
+    class PageDisplay final : public MyGUI::ISubWidgetText, public Gui::FontUsers::Entry
     {
         MYGUI_RTTI_DERIVED(PageDisplay)
     protected:
@@ -1008,12 +1011,17 @@ namespace MWGui
         MyGUI::MouseButton mLastDown;
         std::function<void(TypesetBook::InteractiveId)> mLinkClicked;
 
+        /// `BookPage::adviseRetypeset`'s, and whether a refit took a book this has to ask it for.
+        std::function<void()> mRetypeset;
+        bool mDropped = false;
+
         std::shared_ptr<TypesetBookImpl> mBook;
 
         MyGUI::ILayerNode* mNode;
         ActiveTextFormats mActiveTextFormats;
 
-        PageDisplay()
+        explicit PageDisplay(Gui::FontUsers& pages)
+            : Gui::FontUsers::Entry(pages)
         {
             resetPage();
             mViewTop = 0;
@@ -1119,9 +1127,28 @@ namespace MWGui
             }
         }
 
+        /// A book typeset in the fonts' old metrics, drawn against their old textures, goes: the
+        /// draw items with their textures, and the book.
+        void drop() override
+        {
+            mDropped = mBook != nullptr;
+            showPage({}, 0);
+        }
+
+        /// The owner typesets the book again, and shows it here and on every page of its own, which
+        /// it does once: a page it showed a book already asks for none.
+        void refit() override
+        {
+            if (std::exchange(mDropped, false) && mRetypeset)
+                mRetypeset();
+        }
+
         void showPage(std::shared_ptr<TypesetBook> book, size_t newPage)
         {
             std::shared_ptr<TypesetBookImpl> newBook = std::dynamic_pointer_cast<TypesetBookImpl>(book);
+            assert((newBook == nullptr || mRetypeset) && "a book shown on a page with no way to typeset it again");
+            if (newBook != nullptr)
+                mDropped = false;
 
             if (mBook != newBook)
             {
@@ -1372,6 +1399,11 @@ namespace MWGui
             mPageDisplay->mLinkClicked = std::function<void(TypesetBook::InteractiveId)>();
         }
 
+        void adviseRetypeset(std::function<void()> retypeset) override
+        {
+            mPageDisplay->mRetypeset = std::move(retypeset);
+        }
+
         void setFocusItem(BookTypesetter::Style* itemStyle) override
         {
             mPageDisplay->mFocusItem = static_cast<TypesetBookImpl::StyleImpl*>(itemStyle);
@@ -1415,11 +1447,12 @@ namespace MWGui
         PageDisplay* mPageDisplay;
     };
 
-    void BookPage::registerMyGUIComponents()
+    void BookPage::registerMyGUIComponents(Gui::FontUsers& pages)
     {
         MyGUI::FactoryManager& factory = MyGUI::FactoryManager::getInstance();
 
         factory.registerFactory<BookPageImpl>("Widget");
-        factory.registerFactory<PageDisplay>("BasisSkin");
+        factory.registerFactory("BasisSkin", PageDisplay::getClassTypeName(),
+            MyGUI::newDelegate([&pages](MyGUI::IObject*& made) { made = new PageDisplay(pages); }, 0));
     }
 }

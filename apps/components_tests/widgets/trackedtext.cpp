@@ -23,7 +23,7 @@
 #include <components/myguirtx/slottexture.hpp>
 #include <components/settings/values.hpp>
 #include <components/widgets/box.hpp>
-#include <components/widgets/textregistry.hpp>
+#include <components/widgets/fontusers.hpp>
 #include <components/widgets/trackedtext.hpp>
 
 namespace Gui
@@ -49,7 +49,7 @@ namespace Gui
 
         /// **The registry holds exactly the texts there are**: a text box's skin makes one, three
         /// make three, and each one destroyed leaves, the one in the middle included.
-        TEST(TextRegistryTest, theRegistryHoldsExactlyTheTextsThereAre)
+        TEST(FontUsersTest, theRegistryHoldsExactlyTheTextsThereAre)
         {
             Rtx::Testing::GuiInstance gui;
             const std::size_t before = gui.getFonts().getTexts().size();
@@ -67,13 +67,13 @@ namespace Gui
             EXPECT_EQ(gui.getFonts().getTexts().size(), before);
         }
 
-        /// **After a fit and a rebind every text draws against its font's new atlas, where its glyphs
+        /// **After a fit every text draws against its font's new atlas, where its glyphs
         /// now are**: texts in two fonts, drawn once and then fitted to a raster of 3, draw two
         /// batches, one against each font's atlas as it now is and neither against one the fit
         /// replaced, and the first letter's corners are the letter's place in the new atlas. A
         /// replaced atlas's address may be its replacement's, so the corners are what tell a text
-        /// that was rebound from one that was not.
-        TEST(TextRegistryTest, afterAFitAndARebindEveryTextDrawsAgainstItsFontsNewAtlas)
+        /// that was refitted from one that was not.
+        TEST(FontUsersTest, afterAFitEveryTextDrawsAgainstItsFontsNewAtlas)
         {
             Rtx::Testing::GuiInstance gui;
             makeText("DefaultFont", 10);
@@ -110,9 +110,9 @@ namespace Gui
 
         /// **Every text a shipped skin makes is the registry's**: a text box made with each skin
         /// MyGUI has loaded, whichever basis its text is, draws through a tracked text, so none of
-        /// them can miss a rebind. A skin with a child of the game's own widget types is left out,
+        /// them can miss a refit. A skin with a child of the game's own widget types is left out,
         /// which `components-tests` cannot make.
-        TEST(TextRegistryTest, everyTextAShippedSkinMakesIsTheRegistrys)
+        TEST(FontUsersTest, everyTextAShippedSkinMakesIsTheRegistrys)
         {
             Rtx::Testing::GuiInstance gui;
             std::size_t skins = 0;
@@ -147,7 +147,7 @@ namespace Gui
         /// **A widget sized to its text sizes itself again after a fit**: a label that asks for its
         /// text's size has it before the fit and after it, and the fit moved it, since hinting at
         /// three times the raster lays the letters out a pixel apart where they were not.
-        TEST(TextRegistryTest, aWidgetSizedToItsTextSizesItselfAgainAfterAFit)
+        TEST(FontUsersTest, aWidgetSizedToItsTextSizesItselfAgainAfterAFit)
         {
             Rtx::Testing::GuiInstance gui;
             // In a parent, as every label stands: a widget with none is not sized to its text.
@@ -169,7 +169,7 @@ namespace Gui
         /// given, 16, before and after a fit to a raster of 2; and a text with no height of its own
         /// takes the interface's font size too, after a fit to 2 and in an interface loaded at 2,
         /// where MyGUI's would take the font's own height, 32 raster pixels there.
-        TEST(TextRegistryTest, aTextsHeightNeverReadsTheRaster)
+        TEST(FontUsersTest, aTextsHeightNeverReadsTheRaster)
         {
             const int size = Settings::gui().mFontSize;
             {

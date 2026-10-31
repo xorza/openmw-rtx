@@ -24,7 +24,7 @@ namespace Gui
     }
 
     template <class Text>
-    void Tracked<Text>::rebind()
+    void Tracked<Text>::refit()
     {
         // The font object stays through a rasterization, so its own name is the one to ask by.
         if (this->mFont == nullptr)

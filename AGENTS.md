@@ -174,11 +174,14 @@ is not here is held to the rules above.
   the font's stated substitute after the load as after a fit; each font file's bytes are held in
   `MyGUIPlatform::DataManager::hold`, so a rasterization reads nothing and sets no resource path;
   `ScalingLayer::getScaleFactor` takes a stated view; and every text sub-widget is the fork's
-  (`Gui::TextRegistry`, `Gui::TrackedText`), standing in MyGUI's factories, which the window
-  manager registers, so a rasterization reaches every text, and a text with no height of its own
-  takes `[GUI] font size` rather than its font's raster height. `Gui::InterfaceFonts` owns both
-  and refits them as one, which `WindowManager::layOut` asks of it at every layout
-  (`WindowManager::fitFonts`), in place of the raster the constructor fixed.
+  (`Gui::FontUsers`, `Gui::TrackedText`), standing in MyGUI's factories, so a rasterization reaches
+  every text, and a text with no height of its own takes `[GUI] font size` rather than its font's
+  raster height. A book page is a font user too, which drops its book on a refit and has its owner
+  typeset it again (`BookPage::adviseRetypeset`): the dialogue history through `updateHistory`, and
+  the journal through what it now keeps of how each book on its stack was typeset.
+  `Gui::InterfaceFonts` owns the fonts and both registries and refits them as one, which
+  `WindowManager::layOut` asks of it at every layout (`WindowManager::fitFonts`), in place of the
+  raster the constructor fixed.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.

@@ -64,17 +64,19 @@ latent faults on the build as it stands:
   the widget tree, which misses skin children, popups, tooltips and widgets not attached to a
   layer — exactly the texts a missed rebind would crash on.
 - **No text can miss a rebind, and a test holds every shipped skin to it.** The factory is the one
-  maker of a text, and `TextRegistryTest` makes a text box of every text skin MyGUI loads and finds
+  maker of a text, and `FontUsersTest` makes a text box of every text skin MyGUI loads and finds
   a tracked text in each. Refused: an assert at the draw that a text's texture is its font's, which
   cannot see a missed text: a text whose glyphs are laid out is drawn from its render item's
   vertices without being asked, and a replaced atlas's address may be the new one's.
-- **A book cannot outlive its fonts.** `BookPage` registers with `InterfaceFonts` too, and takes a
-  re-typeset callback when it is made, which its two owners — `DialogueWindow`'s history and
-  `JournalWindow` — supply: on a fit the page drops its draw items at once and asks for a new book
-  at the same page. A typeset book records the fit it was made under, and `PageDisplay` asserts
-  it is current when it draws. Refused: re-typesetting from each window's `onResChange`, which
-  `layOutInterface` calls for a resolution change as well and which a new owner of a book page
-  could forget.
+- **A book cannot outlive its fonts.** Every book page is a font user of a registry of its own,
+  refitted after the texts': each page drops its book and the draw items holding its fonts'
+  textures, then a page that dropped one asks its owner, through the callback the owner gave it
+  (`BookPage::adviseRetypeset`), to typeset its books again — `DialogueWindow`'s history and
+  `JournalWindow`'s stack and topic index. A page an owner already showed a new book asks nothing,
+  so an owner of several pages typesets once. A page shown a book with no callback asserts, as a
+  page from a layout cannot take one at construction. Refused: re-typesetting from each window's
+  `onResChange`, which a new owner of a book page could forget; and a record in each book of the
+  fit it was typeset under, which the typesetter has no way to know but a global.
 - **A text's size never reads the raster.** A glyph is drawn at the text's height over the font's
   default height (the note), so a text whose height is set keeps its size in layout units through
   a fit; `TrackedText` gives a text with no height of its own the interface's font size rather than
@@ -108,7 +110,7 @@ latent faults on the build as it stands:
 
 ## The stages
 
-Done: 1 to 4. Next: 5.
+Done: 1 to 5. Next: 6.
 
 Each is a commit, verified by `./omw test` on the binaries it touches and by `./omw gate` at the
 end. Each stage's change to upstream code joins `AGENTS.md`'s "Accepted diff" in the same commit.
@@ -141,7 +143,7 @@ a font whose file is missing is logged and left out, where the VFS's throw ended
 
 ### 3 — Every text is registered — done
 
-Done. `Gui::TextRegistry` (`components/widgets/textregistry.hpp`) and `Gui::TrackedText` /
+Done. `Gui::FontUsers` (`components/widgets/fontusers.hpp`; `TextRegistry` until stage 5) and `Gui::TrackedText` /
 `TrackedSimpleText` (`trackedtext.hpp`), which stand in MyGUI's `EditText` and `SimpleText`
 factories; each text enters the registry as it is made and leaves as it is destroyed, by an index
 it keeps, with no search. A rebind sets the text's own font again, which takes its texture and
@@ -166,16 +168,25 @@ label sized to its text follows a fit to 3, where without the remeasure it kept 
 Not tested: `fontFitNow`, a line of the window manager, and the layouts that call it, which no
 fixture stands up; the harness's runs in the gate run the game's interface through them.
 
-**Not to be committed without stage 5.** A layout now refits while the game runs, and a display
-or resolution change rasterizes the book fonts again; a `BookPage` keeps each font's texture in
-its `TextFormat` and in the render items made from it, so a journal or a dialogue history shown
-after such a change draws a texture its font replaced, until stage 5 has it re-typeset.
+A layout refits while the game runs, so stage 4 is committed with stage 5, which has the book
+pages typeset again: without it a journal or a dialogue history shown after a display or
+resolution change drew a texture its font replaced.
 
-### 5 — Books re-typeset by their owners
+### 5 — Books re-typeset by their owners — done
 
-The `BookPage` callback, the fit a typeset book records, and the assert; the dialogue history and
-the journal supply the callback. Tests: a fit asks each live page once for a new book at the same
-page, and a page shown a book from an older fit asserts.
+Done. `Gui::TextRegistry` became `Gui::FontUsers`, a registry of anything drawn with the fonts,
+whose refit has every user drop and then every user refit; `Gui::InterfaceFonts` keeps one for the
+texts and one for the book pages, refitted in that order, and a registry asserts that no user of
+it is made or destroyed while it refits. `PageDisplay` is a user of the pages' registry, made by a
+factory `BookPage::registerMyGUIComponents` is handed it for; it drops its book and its draw items,
+then asks its owner. The dialogue history typesets again by `updateHistory`, as a resize does; the
+journal keeps what typesets each book on its stack (`DisplayState::mTypeset`) and typesets each
+again at the spread it was open at or its last, and its topic index where it shows. Tests
+(`apps/openmw_tests/mwgui/bookpage.cpp`, `openmw-tests` now builds `Rtx::Testing::GuiInstance`):
+a fit has a page's owner typeset its book again and the page draws against the new atlas, where
+without the drop the owner was never asked; an owner of two pages is asked once and an empty page
+not at all; a book shown with no callback asserts. Not tested: the two owners' callbacks, which no
+fixture stands up a dialogue or a journal for.
 
 ### 6 — What else holds the scale
 
