@@ -17,6 +17,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwdialogue/testkeywordsearch.cpp
 
+    mwgui/bookpage.cpp
     mwgui/tooltips.cpp
     mwgui/weightedsearch.cpp
 
@@ -53,6 +54,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/allocations.cpp
     ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/fallbackseed.cpp
+    ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/guiinstance.cpp
 )
 
 if (MSVC)

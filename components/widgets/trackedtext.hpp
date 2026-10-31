@@ -5,7 +5,7 @@
 #include <MyGUI_EditText.h>
 #include <MyGUI_SimpleText.h>
 
-#include "textregistry.hpp"
+#include "fontusers.hpp"
 
 namespace Gui
 {
@@ -16,11 +16,11 @@ namespace Gui
     /// rasterized at; a text with none of its own takes the interface's font size, `[GUI] font
     /// size`, where MyGUI's would take the font's height in raster pixels and grow with the raster.
     template <class Text>
-    class Tracked : public Text, public TextRegistry::Entry
+    class Tracked : public Text, public FontUsers::Entry
     {
     public:
-        explicit Tracked(TextRegistry& registry)
-            : TextRegistry::Entry(registry)
+        explicit Tracked(FontUsers& users)
+            : FontUsers::Entry(users)
         {
         }
 
@@ -28,7 +28,7 @@ namespace Gui
         void setFontHeight(int height) override;
 
         /// Takes its font again, and has a widget sized to its text size itself again.
-        void rebind() override;
+        void refit() override;
 
     private:
         void keepInterfaceHeight();

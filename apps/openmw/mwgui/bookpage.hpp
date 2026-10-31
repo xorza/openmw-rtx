@@ -12,6 +12,11 @@
 
 #include <components/settings/values.hpp>
 
+namespace Gui
+{
+    class FontUsers;
+}
+
 namespace MWGui
 {
     /// A formatted and paginated document to be used with
@@ -120,9 +125,15 @@ namespace MWGui
         /// Clear the hyper-link click callback.
         virtual void unadviseLinkClicked() = 0;
 
-        /// Register the widget and associated sub-widget with MyGUI. Should be
-        /// called once near the beginning of the program.
-        static void registerMyGUIComponents();
+        /// What typesets the page's book again, and shows it, once the interface's fonts were
+        /// rasterized again: a book holds its fonts' metrics and its page their textures, and the
+        /// page drops both. Required before a book is shown, which asserts.
+        virtual void adviseRetypeset(std::function<void()> retypeset) = 0;
+
+        /// Register the widget and associated sub-widget with MyGUI, each page entering `pages`
+        /// (`Gui::InterfaceFonts::getPages`). Should be called once near the beginning of the
+        /// program.
+        static void registerMyGUIComponents(Gui::FontUsers& pages);
 
         virtual void setFocusItem(BookTypesetter::Style* itemStyle) = 0;
     };

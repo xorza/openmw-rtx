@@ -237,7 +237,7 @@ namespace MWGui
         MyGUI::FactoryManager::getInstance().registerFactory<BackgroundImage>("Widget");
         mGuiPlatform->getRenderManagerPtr()->registerFactories();
         MyGUI::FactoryManager::getInstance().registerFactory<MyGUIPlatform::ScalingLayer>("Layer");
-        BookPage::registerMyGUIComponents();
+        BookPage::registerMyGUIComponents(mFonts->getPages());
         PostProcessorHud::registerMyGUIComponents();
         ItemView::registerComponents();
         ItemChargeView::registerComponents();
