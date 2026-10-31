@@ -186,7 +186,7 @@ namespace Rtx::Shaders
     /// lights and leaves the level of the picture alone. The whole colour is scaled by what its
     /// luminance moved, so the grade changes no hue and no saturation — that is `TONE_SATURATION`'s.
     /// Before `TONE_SATURATION` and the curve, like it.
-    const float TONE_CONTRAST = 0.80f;
+    const float TONE_CONTRAST = 0.95f;
 
     /// How much of each coarser level survives into the one above it.
     ///
