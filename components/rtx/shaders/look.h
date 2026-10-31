@@ -105,8 +105,16 @@ namespace Rtx::Shaders
     /// something near zero and hand back an exposure that turns the next frame's noise into a
     /// snowstorm. `MAX_SUN_RADIANCE` is sized against the floor, and the floor against the day: a
     /// day lifted by `DAYLIGHT_GAIN` meters that much lower.
-    const float EXPOSURE_MIN = 0.05f / DAYLIGHT_GAIN;
-    const float EXPOSURE_MAX = 200.0f;
+    const float EXPOSURE_MIN = 0.04f / DAYLIGHT_GAIN;
+
+    /// **And how far the eye opens at most, which is the look of a dark room**, as Unreal's
+    /// `MaxEV100` is. A room lit by its lamps alone meters thousands of times under the key, and
+    /// `EXPOSURE_ADAPTATION` alone opened every interior measured to between 58 and 100 — Arrille's
+    /// Tradehouse to 86, twelve times a night street in Balmora — so a candlelit room stood brighter
+    /// than the night outside it. Held here, an interior shows its lamps' own light at one exposure,
+    /// and a dim room is dimmer than a bright one by all of the difference. What it costs: the eye
+    /// adapts no further inside, so a dark corridor off a lit room stays dark.
+    const float EXPOSURE_MAX = 13.0f;
 
     /// Where the eye starts once it has no past: a bright day's exposure, which the eye then
     /// opens from toward what the frame measures.
@@ -178,7 +186,7 @@ namespace Rtx::Shaders
     /// lights and leaves the level of the picture alone. The whole colour is scaled by what its
     /// luminance moved, so the grade changes no hue and no saturation — that is `TONE_SATURATION`'s.
     /// Before `TONE_SATURATION` and the curve, like it.
-    const float TONE_CONTRAST = 0.85f;
+    const float TONE_CONTRAST = 0.80f;
 
     /// How much of each coarser level survives into the one above it.
     ///
