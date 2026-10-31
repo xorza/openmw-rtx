@@ -1,7 +1,7 @@
 # What MyGUI 3.4.3 caches of a font, and what a rebuild leaves stale — 2026-10-31
 
 Read from the MyGUI 3.4.3 sources (tag `MyGUI3.4.3`, the version `CMakeLists.txt` requires) and
-the fork at `5234767c33`. What `.notes/gui-scale-plan.md` builds on.
+the fork at `5234767c33`. What `architecture.md`'s "A live scale and font size" builds on.
 
 ## A TrueType font rebuilds itself in place only through `textureInvalidate`
 

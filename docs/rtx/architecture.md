@@ -141,6 +141,54 @@ GUI texture from a scene of their own, with no reconstruction and no history. Wi
 hidden, a frame draws the interface only. The settings pages and the launcher take their menu
 orders from the core, and a mode added without a label on each page stops the build.
 
+### A live scale and font size
+
+`[GUI] scaling factor` and `[GUI] font size` apply while the game runs. The facts are in
+`research/2026-10-31-mygui-font-lifetimes.md` and `research/2026-10-31-mygui-list-line-height.md`.
+
+- **Derived, not cached.** `Gui::FontFit` (the raster, the view, the font size) is computed in
+  `WindowManager::layOut` and compared with the last one. Refused: one raster for the largest scale
+  at start, which costs its atlas always and is wrong after a resolution change; and a restart.
+- **One owner, one call.** `Gui::InterfaceFonts::fit` rasterizes the fonts and refits the texts,
+  the lists and the pages, in that order. Refused: separate calls, which let a caller do one step
+  and not the rest, and leave a text drawing a destroyed atlas.
+- **A font is rebuilt in place.** Its `IFont*` stays, and `textureInvalidate` rebuilds it, at load
+  as after; its file's bytes are held. Refused: loading the fonts again by name, which leaves every
+  text holding a deleted font; a TrueType font of the fork's own; and a resource path set around
+  each rebuild.
+- **Every font user is known by construction.** The texts and the lists stand in MyGUI's factories
+  under MyGUI's names, and each enters a `Gui::FontUsers` registry as it is made. Refused: a walk
+  of the widget tree, which misses skin children, popups and widgets on no layer; and an assert at
+  the draw, which cannot see a text drawn from vertices laid out before.
+- **A book cannot outlive its fonts.** A page drops its book at a refit and asks its owner to
+  typeset again (`BookPage::adviseRetypeset`); a book is typeset and drawn at one stated size.
+  Refused: typesetting again from each window's `onResChange`, which a new owner could forget.
+- **A size never reads the raster, and the font size has one reader.** A text with no height of
+  its own takes its registry's, and every size computed from the font size asks
+  `WindowManager::getFontSize`, which `InterfaceFontSizeTest` holds file by file. Refused:
+  `FontWrapper`'s stamped heights, a second record of one number.
+- **A list's line height is MyGUI master's `setItemHeight`, ported.** MyGUI 3.4.3 fixes it as the
+  list is made, in private members; `Gui::ListBox` reaches them through an explicit instantiation
+  and a `static_assert` holds it to 3.4.3. Refused: vendoring unreleased MyGUI; and lists that
+  follow at the next start.
+- **A window that keeps sized rows lays them out again** (`WindowBase::refitText`), run over every
+  window and the character creation's dialogs; a service window lays its rows out as it opens.
+  Refused: one rebuild of the whole interface, which loses every window's state and every Lua
+  element.
+- **Lua follows through `omw/mwui`.** An internal handler, `_onFontSizeChanged`, has its templates
+  still at the old size take the new one. Refused: a public handler, which raises the Lua API
+  revision against upstream's at every merge.
+- **The pointer is kept in frame pixels**, so a press after a layout lands where it is drawn.
+  Refused: rescaling a stored position at each fit, a second copy of the scale.
+- **Every window is held inside the view after a layout**, not only the tracked ones: a larger
+  scale otherwise leaves a window partly off the frame.
+- **The local map follows the raster.** A tile is described again where its resolution moved, and a
+  fit that moves the raster draws the player's cell again. Refused: keeping the old tiles, which
+  leaves the map at one sharpness and the text beside it at another.
+- **The sliders apply when they settle** (`Gui::SettlingScrollBar`), in the Video page under Window
+  Border. Refused: applying on every move, which rescales the window under a drag; and a user
+  string beside the type, a second statement of one fact.
+
 ## The core
 
 `components/rtx/`. What is true of Morrowind's content, of light transport, and of what the

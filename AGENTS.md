@@ -168,11 +168,11 @@ is not here is held to the rules above.
   - `Debug::wrapApplication`'s fatal error box read only whether a terminal started the game, not
     `OPENMW_CRASH_DIALOG` as the crash dialog does, and showed before the error was logged: a start
     that failed under a harness waited for a click, with nothing in the log.
-- The interface's fonts rasterized again while the game runs (`.notes/gui-scale-plan.md` while that
-  work lasts): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in place
-  (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks draws
-  the font's stated substitute after the load as after a fit; each font file's bytes are held in
-  `MyGUIPlatform::DataManager::hold`, so a rasterization reads nothing and sets no resource path;
+- The interface's fonts rasterized again while the game runs (`docs/rtx/architecture.md`, "A live
+  scale and font size"): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in
+  place (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks
+  draws the font's stated substitute after the load as after a fit; each font file's bytes are held
+  in `MyGUIPlatform::DataManager::hold`, so a rasterization reads nothing and sets no resource path;
   `ScalingLayer::getScaleFactor` takes a stated view; and every text sub-widget is the fork's
   (`Gui::FontUsers`, `Gui::TrackedText`), standing in MyGUI's factories, so a rasterization reaches
   every text, and a text with no height of its own takes `[GUI] font size` rather than its font's
@@ -181,23 +181,25 @@ is not here is held to the rules above.
   the journal through what it now keeps of how each book on its stack was typeset.
   `Gui::InterfaceFonts` owns the fonts and both registries and refits them as one, which
   `WindowManager::layOut` asks of it at every layout (`WindowManager::fitFonts`), in place of the
-  raster the constructor fixed. What else held the scale follows it: `MouseManager` keeps the
-  cursor in the frame's pixels, every window is held inside the view after a layout, the local
-  map describes a tile at the raster of the moment and draws the player's cell again where it
-  moved, and the inventory places itself and sizes its preview on a layout. `[GUI] scaling factor`
-  applies live, from a slider in the Video page that writes it where the player leaves it
+  raster the constructor fixed. What else held the scale follows it: `MouseManager` keeps the cursor
+  in the frame's pixels, every window is held inside the view after a layout, the local map
+  describes a tile at the raster of the moment and draws the player's cell again where it moved, and
+  the inventory places itself and sizes its preview on a layout. `[GUI] scaling factor` applies
+  live, from a slider in the Video page that writes it where the player leaves it
   (`Gui::SettlingScrollBar`).
-- `[GUI] font size` held by the fonts' owner and read from it alone (`.notes/font-size-plan.md`
-  while that work lasts): the fit is the setting's one reader (`FontFit::mFontSize`), and every
-  size the interface computes from it asks `MWBase::WindowManager::getFontSize`, which a source scan
-  holds to. A fit to another size sets the fonts at it in place and has every text, list and page
-  follow: a text with no height of its own takes its registry's (`FontUsers::getTextHeight`), so
-  `FontWrapper`, which stamped the size into each widget as a height of its own, is gone, and four
-  files that took `Settings` through it include it; every list is the fork's (`Gui::ListBox`),
-  standing in MyGUI's factory, whose lines stand a line of text high and follow, in place of the line
-  height the font loader wrote into every skin as it loaded; a book is typeset at a stated size and
-  drawn at it (`BookTypesetter::create`); and a window that keeps rows sized by it lays them out
-  again (`WindowBase::refitText`), the character creation's dialogs included.
+- `[GUI] font size` held by the fonts' owner and read from it alone (the same section): the fit is
+  the setting's one reader (`FontFit::mFontSize`), and every size the interface computes from it
+  asks `MWBase::WindowManager::getFontSize`, which a source scan holds to. A fit to another size
+  sets the fonts at it in place and has every text, list and page follow: a text with no height of
+  its own takes its registry's (`FontUsers::getTextHeight`), so `FontWrapper`, which stamped the
+  size into each widget as a height of its own, is gone, and four files that took `Settings` through
+  it include it; every list is the fork's (`Gui::ListBox`), standing in MyGUI's factory, whose lines
+  stand a line of text high and follow, in place of the line height the font loader wrote into every
+  skin as it loaded; a book is typeset at a stated size and drawn at it (`BookTypesetter::create`);
+  and a window that keeps rows sized by it lays them out again (`WindowBase::refitText`), the
+  character creation's dialogs included. `omw/mwui`'s templates follow through an internal handler
+  (`_onFontSizeChanged`), and the setting applies live, from a settling slider in the Video page
+  under the interface scale.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.

@@ -21,7 +21,7 @@ namespace MWLua
             , mInputProcessor(this)
         {
             registerEngineHandlers({ &mConsoleCommandHandlers, &mOnFrameHandlers, &mQuestUpdate,
-                &mViewportResizedHandlers, &mUiModeChanged });
+                &mViewportResizedHandlers, &mFontSizeChanged, &mUiModeChanged });
         }
 
         void processInputEvent(const MWBase::LuaManager::InputEvent& event)
@@ -41,6 +41,8 @@ namespace MWLua
 
         void onViewportResized(int width, int height) { callEngineHandlers(mViewportResizedHandlers, width, height); }
 
+        void onFontSizeChanged(int size) { callEngineHandlers(mFontSizeChanged, size); }
+
         // `arg` is either forwarded from MWGui::pushGuiMode or empty
         void uiModeChanged(ObjectId arg, bool byLuaAction)
         {
@@ -57,6 +59,7 @@ namespace MWLua
         EngineHandlerList mOnFrameHandlers{ "onFrame" };
         EngineHandlerList mQuestUpdate{ "onQuestUpdate" };
         EngineHandlerList mViewportResizedHandlers{ "onViewportResized" };
+        EngineHandlerList mFontSizeChanged{ "_onFontSizeChanged" };
         EngineHandlerList mUiModeChanged{ "_onUiModeChanged" };
     };
 

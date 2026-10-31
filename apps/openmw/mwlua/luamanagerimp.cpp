@@ -536,6 +536,18 @@ namespace MWLua
         mMenuScripts.onViewportResized(width, height);
     }
 
+    void LuaManager::fontSizeChanged(int size)
+    {
+        if (!mPlayer.isEmpty())
+        {
+            PlayerScripts* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
+            if (playerScripts)
+                playerScripts->onFontSizeChanged(size);
+        }
+
+        mMenuScripts.onFontSizeChanged(size);
+    }
+
     void LuaManager::actorDied(const MWWorld::Ptr& actor)
     {
         if (actor.isEmpty())

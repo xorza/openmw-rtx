@@ -19,6 +19,14 @@ namespace MWGui
             return std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR };
         }
 
+        /// `path`, under the source root, spelled with `/` in UTF-8: `generic_string` would narrow it
+        /// through Windows' code page, which throws for a name outside it.
+        std::string nameOf(const std::filesystem::path& path)
+        {
+            const std::u8string name = path.lexically_relative(sourceRoot()).generic_u8string();
+            return std::string(name.begin(), name.end());
+        }
+
         std::string contentsOf(const std::filesystem::path& path)
         {
             std::ifstream file(path, std::ios::binary);
@@ -80,7 +88,7 @@ namespace MWGui
                         continue;
                     ++scanned;
                     if (readsFontSize(contentsOf(entry.path())))
-                        readers.insert(entry.path().lexically_relative(sourceRoot()).generic_string());
+                        readers.insert(nameOf(entry.path()));
                 }
             }
             ASSERT_GT(scanned, 1000u) << "the scan found next to no source";
@@ -122,7 +130,7 @@ namespace MWGui
                 for (const auto& entry : std::filesystem::recursive_directory_iterator(sourceRoot() / tree))
                     if (entry.path().extension() == ".cpp"
                         && contentsOf(entry.path()).find("getFontSize()") != std::string::npos)
-                        askers.insert(entry.path().lexically_relative(sourceRoot()).generic_string());
+                        askers.insert(nameOf(entry.path()));
             EXPECT_EQ(askers, expected);
         }
     }

@@ -6,7 +6,7 @@ GUI Settings
    :type: float32
    :range: 0.5 to 8.0
    :default: 1.0
-   :location: :bdg-success:`Launcher > Settings > Interface`
+   :location: :bdg-success:`Launcher > Settings > Interface` :bdg-info:`In Game > Options > Video`
 
    This setting scales GUI windows.
    A value of 1.0 results in normal scale.
@@ -17,7 +17,7 @@ GUI Settings
    :type: int
    :range: 12 to 18
    :default: 16
-   :location: :bdg-success:`Launcher > Settings > Interface`
+   :location: :bdg-success:`Launcher > Settings > Interface` :bdg-info:`In Game > Options > Video`
 
    Specifies glyph size for in-game fonts.
    Default bitmap fonts work best at 16px; others may be blurry.

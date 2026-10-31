@@ -341,6 +341,21 @@
                             <UserString key="SettingLabelWidget" value="InterfaceScaleText"/>
                             <UserString key="SettingLabelCaption" value="InterfaceScaleValue"/>
                         </Widget>
+                        <Widget type="TextBox" skin="NormalText" position="207 194 145 18" align="Left Top" name="FontSizeText">
+                        </Widget>
+                        <Widget type="SettlingScrollBar" skin="MW_HScroll" position="207 216 145 18" align="Left Top">
+                            <Property key="Range" value="7"/>
+                            <Property key="Page" value="1"/>
+                            <Property key="WheelPage" value="1"/>
+                            <UserString key="SettingType" value="Slider"/>
+                            <UserString key="SettingCategory" value="GUI"/>
+                            <UserString key="SettingName" value="font size"/>
+                            <UserString key="SettingValueType" value="Integer"/>
+                            <UserString key="SettingMin" value="12"/>
+                            <UserString key="SettingMax" value="18"/>
+                            <UserString key="SettingLabelWidget" value="FontSizeText"/>
+                            <UserString key="SettingLabelCaption" value="FontSizeValue"/>
+                        </Widget>
                         <Widget type="TextBox" skin="NormalText" position="0 238 352 18" align="Left Top" name="FovText">
                         </Widget>
                         <Widget type="ScrollBar" skin="MW_HScroll" position="0 262 352 18" align="HStretch Top">
