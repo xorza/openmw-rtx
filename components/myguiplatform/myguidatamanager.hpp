@@ -3,7 +3,11 @@
 
 #include <MyGUI_DataManager.h>
 
+#include <functional>
+#include <map>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include <components/vfs/pathutil.hpp>
 
@@ -22,6 +26,14 @@ namespace MyGUIPlatform
 
         void setResourcePath(VFS::Path::NormalizedView path);
         VFS::Path::NormalizedView getResourcePath() const;
+
+        /// Keeps `bytes` and answers `name` with them from now on, as it is spelt and whatever the
+        /// resource path: what a font's source is read from each time it is rasterized, so a
+        /// rasterization after the load reads nothing from the VFS and depends on no path set
+        /// around it. A name held twice is a logic error.
+        void hold(std::string name, std::vector<char> bytes);
+
+        bool holds(std::string_view name) const { return mHeld.contains(name); }
 
         /** Get data stream from specified resource name.
             @param name Resource name (usually file name).
@@ -53,6 +65,8 @@ namespace MyGUIPlatform
         VFS::Path::Normalized mResourcePath;
 
         const VFS::Manager* mVfs;
+
+        std::map<std::string, std::vector<char>, std::less<>> mHeld;
     };
 
 }

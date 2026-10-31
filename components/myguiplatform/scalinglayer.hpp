@@ -25,6 +25,10 @@ namespace MyGUIPlatform
 
         static float getScaleFactor(const MyGUI::IntSize& layerViewSize);
 
+        /// How much a layer laid out at `layerViewSize` is scaled to fit `viewSize`, the
+        /// interface's view: the smaller of the two ratios, so the whole layer shows.
+        static float getScaleFactor(const MyGUI::IntSize& viewSize, const MyGUI::IntSize& layerViewSize);
+
     private:
         void screenToLayerCoords(int& left, int& top) const;
     };

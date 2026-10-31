@@ -104,7 +104,7 @@ namespace Rtx::Testing
         void setAnisotropy(std::uint32_t) override {}
         void setGamma(float) override {}
         Rtx::JobProgress awaitKernels(Rtx::KernelSet, std::chrono::milliseconds) override { return {}; }
-        Rtx::FrameExtents getExtents() const override { return {}; }
+        Rtx::FrameExtents getExtents() const override { return mExtents; }
         Rtx::FrameTraced renderFrame(const Rtx::FrameRequest&) override
         {
             ++mFrames;
@@ -135,7 +135,11 @@ namespace Rtx::Testing
         }
         void sendGuiTexture(Rtx::GuiSlot) override { ++mGuiSent; }
         void dropGuiTexture(Rtx::GuiSlot) override {}
-        void drawGui(std::span<const Rtx::GuiVertex>, std::span<const Rtx::GuiBatch>) override {}
+        void drawGui(std::span<const Rtx::GuiVertex> vertices, std::span<const Rtx::GuiBatch> batches) override
+        {
+            mGuiVertices.assign(vertices.begin(), vertices.end());
+            mGuiBatches.assign(batches.begin(), batches.end());
+        }
         bool traceGuiTexture(Rtx::GuiSlot, Rtx::SceneSlot scene, const Rtx::Viewpoint& view,
             const Rtx::GuiTraceOptions& options) override
         {
@@ -234,6 +238,13 @@ namespace Rtx::Testing
         std::vector<Rtx::GuiRegion> mLent;
         std::vector<std::uint8_t> mLending;
         std::uint32_t mGuiSent = 0;
+
+        /// The last frame of interface `drawGui` was handed.
+        std::vector<Rtx::GuiVertex> mGuiVertices;
+        std::vector<Rtx::GuiBatch> mGuiBatches;
+
+        /// What `getExtents` answers: the size the interface is laid out over.
+        Rtx::FrameExtents mExtents;
 
         /// The largest side a GUI texture is made at, and how many were asked for, made or not.
         std::uint32_t mGuiSide = std::numeric_limits<std::uint32_t>::max();

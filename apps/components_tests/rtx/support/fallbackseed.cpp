@@ -15,7 +15,7 @@ namespace TestingOpenMW
         /// stops the order the suite runs in from deciding what a test sees. A test that opens the real
         /// installation merges its whole map in afterwards, so these keys are pinned and every other
         /// key is the installation's. Not what a test asserts against: an expectation is written
-        /// against what the code says. Morrowind's own numbers throughout, with one exception marked.
+        /// against what the code says. Morrowind's own numbers throughout, with two exceptions marked.
         std::map<std::string, std::string> fallbackSeed()
         {
             return {
@@ -84,7 +84,7 @@ namespace TestingOpenMW
                 { "Weather_Clear_Sun_Disc_Sunset_Color", "255,189,157" },
                 { "Weather_Clear_Cloud_Texture", "Tx_Sky_Clear.dds" },
 
-                // **The one exception.** The game ships `.69` for both of Clear's depths, and a night
+                // **The first exception.** The game ships `.69` for both of Clear's depths, and a night
                 // that is foggier than a day is something a test can only ask about where the two differ.
                 { "Weather_Clear_Land_Fog_Day_Depth", "0.4" },
                 { "Weather_Clear_Land_Fog_Night_Depth", "0.8" },
@@ -158,6 +158,12 @@ namespace TestingOpenMW
                 { "Moons_Secunda_Fade_Start_Angle", "50" },
                 { "Moons_Secunda_Fade_End_Angle", "40" },
                 { "Moons_Secunda_Moon_Shadow_Early_Fade_Angle", "0.5" },
+
+                // **The other exception.** The game names its bitmap fonts, `magic_cards_regular` and
+                // `daedric_font`, which are Morrowind's own data; a test of the interface loads the
+                // TrueType fonts `files/data` ships in their place, as the font loader falls back to.
+                { "Fonts_Font_0", "MysticCards" },
+                { "Fonts_Font_2", "DemonicLetters" },
             };
         }
 
