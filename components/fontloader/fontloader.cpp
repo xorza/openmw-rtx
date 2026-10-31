@@ -368,14 +368,17 @@ namespace Gui
             resolution = MyGUI::utility::parseInt(resolutionNode->findAttribute("value"));
 
         const bool tabWidthStated = getProperty(resourceNode.current(), "TabWidth") != nullptr;
-        TrueTypeFace face{
-            .mFont = nullptr, .mResolution = resolution, .mBook = false, .mTabWidthStated = tabWidthStated
-        };
+        const int size = Settings::gui().mFontSize;
+        TrueTypeFace face{ .mFont = nullptr,
+            .mResolution = resolution,
+            .mSize = size,
+            .mBook = false,
+            .mTabWidthStated = tabWidthStated };
         resolutionNode->setAttribute("value", std::to_string(resolutionOf(face, mFit)));
 
         MyGUI::xml::ElementPtr sizeNode = resourceNode->createChild("Property");
         sizeNode->addAttribute("key", "Size");
-        sizeNode->addAttribute("value", std::to_string(Settings::gui().mFontSize));
+        sizeNode->addAttribute("value", std::to_string(size));
 
         MyGUI::ResourceTrueTypeFont* font = static_cast<MyGUI::ResourceTrueTypeFont*>(
             MyGUI::FactoryManager::getInstance().createObject("Resource", "ResourceTrueTypeFont"));
@@ -387,7 +390,7 @@ namespace Gui
         mFaces.push_back(face);
 
         TrueTypeFace bookFace{
-            .mFont = nullptr, .mResolution = resolution, .mBook = true, .mTabWidthStated = tabWidthStated
+            .mFont = nullptr, .mResolution = resolution, .mSize = size, .mBook = true, .mTabWidthStated = tabWidthStated
         };
         resolutionNode->setAttribute("value", std::to_string(resolutionOf(bookFace, mFit)));
 
@@ -784,16 +787,20 @@ namespace Gui
         assert(fit.mRaster > 0.0f && "an interface no pixel draws");
 
         // A font at a whole multiple, so the interface's text stays sharp at every scale up to the
-        // next; a book font at the book layer's own scale, which is what its pages are drawn at. At
-        // least one dot an inch however small a view is, because FreeType reads nought as 72.
-        if (!face.mBook)
-            return std::max(1u, static_cast<unsigned int>(static_cast<float>(face.mResolution) * std::ceil(fit.mRaster)));
-
+        // next; a book font at the book layer's own scale, which is what its pages are drawn at.
+        // Multiplied in the order the load always multiplied them, so a resolution on an integer's
+        // edge rounds as it did.
         const float bookScale = mBookSize.width > 0 && mBookSize.height > 0
             ? MyGUIPlatform::ScalingLayer::getScaleFactor(fit.mView, mBookSize)
             : 1.0f;
-        return std::max(
-            1u, static_cast<unsigned int>(static_cast<float>(face.mResolution) * bookScale * fit.mRaster));
+        const float wanted = face.mBook ? static_cast<float>(face.mResolution) * bookScale * fit.mRaster
+                                        : static_cast<float>(face.mResolution) * std::ceil(fit.mRaster);
+
+        // **At least a pixel an em, however small a view is**: FreeType refuses a face sized under
+        // one, and MyGUI throws where it is refused. A point is a 72nd of an inch.
+        assert(face.mSize > 0 && "a font sized at nothing");
+        const auto fewest = static_cast<unsigned int>((72 + face.mSize - 1) / face.mSize);
+        return std::max(fewest, static_cast<unsigned int>(wanted));
     }
 
     std::string_view FontLoader::getFontForFace(std::string_view face)

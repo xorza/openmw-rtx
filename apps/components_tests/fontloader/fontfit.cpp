@@ -111,8 +111,8 @@ namespace Gui
         /// **A font is rasterized again only where its resolution moves**: a fit to the fit the fonts
         /// are at makes no texture, and a fit that moves the view alone moves the book fonts alone,
         /// which follow the book layer's scale into the view where a font follows the raster. A view
-        /// of one pixel rasterizes a book font at one dot an inch and not at nought, which FreeType
-        /// would read as 72 and draw near the size the load gave it.
+        /// of a pixel or two puts a book font at the fewest dots an inch that make a pixel an em of
+        /// the font size, 72 over 16 rounded up to 5, where MyGUI threw: the two read the same.
         TEST(FontFitTest, aFontIsRasterizedAgainOnlyWhereItsResolutionMoves)
         {
             Rtx::Testing::GuiInstance gui({ .mScale = 1.0f });
@@ -131,9 +131,11 @@ namespace Gui
                 EXPECT_EQ(slotOf(fontNamed(sFonts[at])) != slots[at], book) << sFonts[at];
             }
 
-            const int loaded = fontNamed("Journalbook DefaultFont").getDefaultHeight();
             gui.getFonts().fit(FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(1, 1) });
-            EXPECT_LT(fontNamed("Journalbook DefaultFont").getDefaultHeight(), loaded / 4);
+            const Raster onePixel = rasterOf(fontNamed("Journalbook DefaultFont"));
+            gui.getFonts().fit(FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(1024, 768) });
+            gui.getFonts().fit(FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(2, 2) });
+            EXPECT_TRUE(rasterOf(fontNamed("Journalbook DefaultFont")) == onePixel);
         }
 
         /// **A font whose file is missing is logged and left out, and the load goes on**: what a mod's

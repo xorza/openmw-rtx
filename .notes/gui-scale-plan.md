@@ -63,9 +63,11 @@ latent faults on the build as it stands:
   no global. A rebind calls `setFontName` with the name the text kept itself. Refused: a walk of
   the widget tree, which misses skin children, popups, tooltips and widgets not attached to a
   layer — exactly the texts a missed rebind would crash on.
-- **A missed rebind is loud.** `TrackedText::doRender` debug-asserts that its texture is its font's
-  current one, so a text that escaped the registry fails the first frame after a fit, and the
-  test that fits, rather than drawing a destroyed texture somewhere else later.
+- **No text can miss a rebind, and a test holds every shipped skin to it.** The factory is the one
+  maker of a text, and `TextRegistryTest` makes a text box of every text skin MyGUI loads and finds
+  a tracked text in each. Refused: an assert at the draw that a text's texture is its font's, which
+  cannot see a missed text: a text whose glyphs are laid out is drawn from its render item's
+  vertices without being asked, and a replaced atlas's address may be the new one's.
 - **A book cannot outlive its fonts.** `BookPage` registers with `InterfaceFonts` too, and takes a
   re-typeset callback when it is made, which its two owners — `DialogueWindow`'s history and
   `JournalWindow` — supply: on a fit the page drops its draw items at once and asks for a new book
@@ -106,7 +108,7 @@ latent faults on the build as it stands:
 
 ## The stages
 
-Done: 1 and 2. Next: 3.
+Done: 1, 2 and 3. Next: 4.
 
 Each is a commit, verified by `./omw test` on the binaries it touches and by `./omw gate` at the
 end. Each stage's change to upstream code joins `AGENTS.md`'s "Accepted diff" in the same commit.
@@ -137,13 +139,19 @@ load at 2 makes it, in place, and leaves the book fonts alone at one frame; a fi
 makes no texture, and a view alone moves the book fonts alone; a fit reads nothing from the VFS;
 a font whose file is missing is logged and left out, where the VFS's throw ended the start.
 
-### 3 — Every text is registered
+### 3 — Every text is registered — done
 
-`TrackedText` and `TrackedSimpleText`, their factories, the registry and the rebind, and the
-debug assert. Tests: the registry holds exactly the texts of a layout made and then destroyed;
-after a fit and a rebind every text draws against its font's new texture, and a text kept out of
-the registry trips the assert (`Testing::expectAssertDies`); a text's size in layout units is the
-same before and after a fit to twice the raster.
+Done. `Gui::TextRegistry` (`components/widgets/textregistry.hpp`) and `Gui::TrackedText` /
+`TrackedSimpleText` (`trackedtext.hpp`), which stand in MyGUI's `EditText` and `SimpleText`
+factories; each text enters the registry as it is made and leaves as it is destroyed, by an index
+it keeps, with no search. A rebind sets the text's own font again, which takes its texture and
+lays its glyphs out again. A text with no height of its own takes `[GUI] font size`. The window
+manager owns a registry and registers its factories; nothing calls its rebind yet, which stage 4
+does. Tests (`apps/components_tests/widgets/trackedtext.cpp`): the registry holds exactly the
+texts there are; every shipped text skin makes a tracked text; after a fit to 3 and a rebind, texts
+in two fonts draw against the new atlases with the letter A's new corners, where without the
+rebind the draw used a destroyed texture; a text's height is the font size before and after a fit,
+and in an interface loaded at 2.
 
 ### 4 — One owner and one fit
 

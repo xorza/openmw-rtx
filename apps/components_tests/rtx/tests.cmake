@@ -146,6 +146,7 @@ set(RTX_TEST_FILES
     rtxvulkan/upscale/fsrframe.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp
+    widgets/trackedtext.cpp
 )
 
 set(RTX_TEST_SUPPORT

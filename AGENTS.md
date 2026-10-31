@@ -173,7 +173,10 @@ is not here is held to the rules above.
   (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks draws
   the font's stated substitute after the load as after a fit; each font file's bytes are held in
   `MyGUIPlatform::DataManager::hold`, so a rasterization reads nothing and sets no resource path;
-  and `ScalingLayer::getScaleFactor` takes a stated view.
+  `ScalingLayer::getScaleFactor` takes a stated view; and every text sub-widget is the fork's
+  (`Gui::TextRegistry`, `Gui::TrackedText`), standing in MyGUI's factories, which the window
+  manager registers, so a rasterization reaches every text, and a text with no height of its own
+  takes `[GUI] font size` rather than its font's raster height.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.

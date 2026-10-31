@@ -113,12 +113,12 @@ namespace Rtx::Testing
         MyGUI::LanguageManager::getInstance().eventRequestTag = MyGUI::newDelegate(this, &GuiInstance::onRetrieveTag);
 
         mFonts = std::make_unique<Gui::FontLoader>(ToUTF8::WINDOWS_1252, &mVfs, *mPlatform->getDataManagerPtr(),
-            Gui::FontFit{ .mRaster = setup.mScale, .mView = MyGUI::RenderManager::getInstance().getViewSize() },
-            false);
+            Gui::FontFit{ .mRaster = setup.mScale, .mView = MyGUI::RenderManager::getInstance().getViewSize() }, false);
 
         mPlatform->getRenderManagerPtr()->registerFactories();
         MyGUI::FactoryManager::getInstance().registerFactory<MyGUIPlatform::ScalingLayer>("Layer");
         Gui::registerAllWidgets();
+        mTexts.registerFactories();
 
         // The default font's name, the layers and the text skins: what a text needs, and none of
         // the game's own resource types, which this binary does not have.
