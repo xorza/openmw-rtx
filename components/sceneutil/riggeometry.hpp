@@ -64,6 +64,9 @@ namespace SceneUtil
 
         osg::ref_ptr<osg::Geometry> getSourceGeometry() const;
 
+        /// Whether an update traversal bound it to its skeleton yet, which a cull needs to pose it.
+        bool hasSkeleton() const { return mSkeleton != nullptr; }
+
         void accept(osg::NodeVisitor& nv) override;
         bool supports(const osg::PrimitiveFunctor&) const override { return true; }
         void accept(osg::PrimitiveFunctor&) const override;

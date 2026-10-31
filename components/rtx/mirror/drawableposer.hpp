@@ -5,6 +5,7 @@
 #include <osg/FrameStamp>
 #include <osg/ref_ptr>
 
+#include "nodekind.hpp"
 #include "posecull.hpp"
 
 namespace osg
@@ -31,12 +32,16 @@ namespace Rtx
         explicit DrawablePoser(Traversals& traversals);
 
         /// Poses `drawable` as the world stands at `frame`. A drawable that does not deform hears
-        /// nothing.
+        /// nothing, and neither does a rig no update traversal bound to its skeleton yet: a part
+        /// attached in this frame's logic binds in the frame's update, and posed before it the rig
+        /// searches a path that holds itself alone. Its ray meets the bind pose, as the rasterizer's
+        /// does.
         void pose(osg::Drawable& drawable, const osg::FrameStamp& frame);
 
     private:
         Traversals& mTraversals;
         PoseCull mCull;
+        NodeKinds mKinds;
 
         /// What `SceneUtil::FrameTimeSource` reads off the cull: the frame's simulation time, under
         /// the traversal number the frame is posed at.

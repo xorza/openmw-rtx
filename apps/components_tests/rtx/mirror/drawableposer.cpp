@@ -97,5 +97,30 @@ namespace Rtx
             poser.pose(*rig.mRig, *frame);
             EXPECT_TRUE(rig.hitAt(20.0f)) << "and posed again on the next";
         }
+
+        /// **A body no update reached yet is left in its bind pose, as the rasterizer leaves it**: a
+        /// part the game attached in this frame's logic binds its skeleton in the frame's update
+        /// traversal, and a ray cast before that meets the copy it was made with. Posed then, the rig
+        /// searched a path that holds itself alone, found no skeleton, and logged two errors.
+        TEST(RtxDrawablePoserTest, aBodyNoUpdateReachedIsLeftInItsBindPoseAndNothingIsLogged)
+        {
+            Rig rig;
+            rig.mBone->setMatrix(osg::Matrix::translate(10.0, 0.0, 0.0));
+
+            Traversals traversals;
+            DrawablePoser poser(traversals);
+            osg::ref_ptr<osg::FrameStamp> frame = new osg::FrameStamp;
+            frame->setFrameNumber(1);
+
+            testing::internal::CaptureStdout();
+            poser.pose(*rig.mRig, *frame);
+            EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
+            EXPECT_FALSE(rig.hitAt(10.0f)) << "posed with no update to bind it";
+
+            rig.moveTo(10.0f, 1);
+            frame->setFrameNumber(2);
+            poser.pose(*rig.mRig, *frame);
+            EXPECT_TRUE(rig.hitAt(10.0f)) << "posed once an update bound it";
+        }
     }
 }
