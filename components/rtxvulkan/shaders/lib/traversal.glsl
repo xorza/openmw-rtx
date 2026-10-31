@@ -4,7 +4,7 @@
 // Traversal, and what a ray found resolved down to the inputs shading needs.
 //
 // **No light here.** That is what lets water shade by tracing again: a reflection's hit is
-// resolved by this same `resolveAsked` and shaded by `VisitRun`, and neither calls back into
+// resolved by this same `resolveAsked` and shaded as a solid (`solidLightOf`), and neither calls back into
 // water — which a walk with no recursion could not survive.
 
 // A candidate's corners come out of the query itself, which the candidate test builds its plane
@@ -1017,7 +1017,7 @@ RayAsk solidWithinAsk(WorldRay ray, float tmin, float reach, Cone cone)
 /// What a ray found, resolved down to the inputs shading needs.
 ///
 /// Geometry and material only — no light. That is what lets water shade by tracing again: the
-/// reflection's hit is resolved by this same function and shaded by `VisitRun`, and neither
+/// reflection's hit is resolved by this same function and shaded as a solid (`solidLightOf`), and neither
 /// calls back into water, which a shader with no recursion could not survive.
 struct Surface
 {

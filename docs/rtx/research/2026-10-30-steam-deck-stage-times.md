@@ -250,3 +250,6 @@ The default suite, one run each (`deck0`, `deck-c2`), the clock held at 1600 MHz
 - **On the desk's RTX 4090 Laptop**, three interleaved rounds: `landing` −8.7 %, −24.8 % and
   −30.3 % at the ship, at dawn and in the guild; `direct` −17.3 %, −11.5 % and −14.9 %; the frame
   −2.2 %, −4.8 % and −6.8 %.
+- **A layer's light the same way** (`paneLightOf`, the landing's and the layer's terms one
+  `PathEndLight`): `panes` 256 → 192 registers in the variants without the sea, and its zone
+  1.78 → 1.47 ms in the guild on the Deck, −4 to −8 % on the desk; every other zone within 0.6 %.

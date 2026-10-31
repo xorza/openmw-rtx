@@ -5,17 +5,12 @@
 
 // The landing of every pixel's bounce that met a surface, the last of the trace's stages
 // (`bounce.comp` traced it and listed the pixel): the landing resolved off the hit the bounce
-// stored, its light worked out whole before any ray (`landingLightOf`), its rays traced, and what
-// the bounce brought back written (`storeBounced`).
+// stored, its light worked out whole before any ray (`landingLightOf`), its rays traced
+// (`pathEndSeenOf`), and what the bounce brought back written (`storeBounced`).
 //
 // **A stage apart from the bounce** (`BounceRun`), so no record of the bounce's is live through the
 // landing's traversals. **Over the pixels that landed alone** (`STAGE_DISPATCH_LANDING`), so no
 // lane of a warp waits out the rays with no landing of its own.
-//
-// **The rays in a fixed order, a turn each, at one traversal site**: the ambient ray, the sky's
-// two legs and the lamp's, none of which waits on another's answer. The turn is the same in every
-// lane, so which ray a turn traces is a branch the whole warp takes, and a lane with no such ray
-// waits out that one traversal.
 
 #include "shared/traceconstants.h"
 #include "camera.h"
@@ -35,12 +30,6 @@
 
 layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 
-const uint LANDING_AMBIENT = 0u;
-const uint LANDING_SKY = 1u;
-const uint LANDING_SKY_OVER = 2u;
-const uint LANDING_LAMP = 3u;
-const uint LANDING_RAYS = 4u;
-
 void main()
 {
     uvec2 pixel;
@@ -54,31 +43,9 @@ void main()
     const LandingLight light
         = landingLightOf(storedLandingOf(record, stored), record.mBounceLobe, pixel, handed.mWeight);
 
-    vec3 whole = light.mGlow;
-    vec3 fill = vec3(0.0);
-    float skySeen = 1.0;
-    [[dont_unroll]] for (uint turn = 0u; turn < LANDING_RAYS; ++turn)
-    {
-        RayAsk ask = light.mLampRay;
-        if (turn == LANDING_AMBIENT)
-            ask = light.mAmbientRay;
-        else if (turn == LANDING_SKY)
-            ask = light.mSkyRay;
-        else if (turn == LANDING_SKY_OVER)
-            ask = light.mSkyOverRay;
-
-        const float seen = throughAnswered(answerAsked(ask));
-        if (turn == LANDING_AMBIENT)
-        {
-            whole += light.mFill * seen;
-            fill += light.mFill * seen;
-        }
-        else if (turn == LANDING_LAMP)
-            whole += light.mLamp * seen;
-        else
-            skySeen *= seen;
-    }
-    whole += light.mSky * skySeen;
+    const PathEndSeen seen = pathEndSeenOf(light.mRays);
+    const vec3 fill = light.mFill * seen.mAmbient;
+    const vec3 whole = light.mGlow + fill + light.mSky * seen.mSky + light.mLamp * seen.mLamp;
 
     storeBounced(pixel, record, Arriving(whole, fill), handed.mModulation);
 }

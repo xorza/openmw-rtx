@@ -1016,7 +1016,7 @@ namespace Rtx::Testing
 
         /// **A lamp that takes light away takes it off the lamps' exact sum on a surface that draws one
         /// lamp, too.** A white pane half there, which the eye peels and shades with its lamps
-        /// composed (`VisitRun`), over a black sky, under a red lamp and a blue one at one place,
+        /// composed (`PathEndLight`), over a black sky, under a red lamp and a blue one at one place,
         /// and a white lamp there that takes half of either away. Each alone lights the frame `r` in
         /// its own channel, so the darkened sum is `r / 2` in red and in blue.
         ///
