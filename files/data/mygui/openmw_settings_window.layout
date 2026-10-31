@@ -406,81 +406,42 @@
                     <Widget type="TabItem">
                         <Property key="Caption" value=" #{OMWEngine:RayTracing} "/>
 
-                        <Widget type="VBox" position_real="0 0 1 1" align="Stretch">
+                        <Widget type="TextBox" skin="NormalText" position="0 4 420 18" align="Left Top" name="RayTracingUpscaleText">
+                            <Property key="Caption" value="#{OMWEngine:RayTracingUpscale}"/>
+                        </Widget>
+                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 24 420 24" align="Left Top" name="RayTracingUpscaleList"/>
 
-                            <Widget type="AutoSizedTextBox" skin="SandText" name="RayTracingUpscaleText">
-                                <Property key="Caption" value="#{OMWEngine:RayTracingUpscale}"/>
-                            </Widget>
+                        <Widget type="TextBox" skin="NormalText" position="0 54 420 18" align="Left Top" name="RayTracingSpecularMapsText">
+                            <Property key="Caption" value="#{OMWEngine:RayTracingSpecularMaps}"/>
+                        </Widget>
+                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 74 420 24" align="Left Top" name="RayTracingSpecularMapsList"/>
+                        <Widget type="TextBox" skin="SandText" position="0 100 420 18" align="Left Top" name="RayTracingSpecularMapsHint">
+                            <Property key="Caption" value="#{OMWEngine:RayTracingSpecularMapsHint}"/>
+                        </Widget>
 
-                            <Widget type="HBox" align="Stretch">
-                                <UserString key="HStretch" value="true"/>
-                                <UserString key="VStretch" value="false"/>
-                                <Widget type="ComboBox" skin="MW_ComboBox" position="0 0 200 24" name="RayTracingUpscaleList"/>
-                                <Widget type="Spacer"/>
-                            </Widget>
+                        <Widget type="TextBox" skin="NormalText" position="0 124 420 18" align="Left Top" name="RayTracingDistantLandText">
+                            <Property key="Caption" value="#{OMWEngine:RayTracingDistantLand}"/>
+                        </Widget>
+                        <Widget type="ScrollBar" skin="MW_HScroll" position="0 146 420 18" align="Left Top" name="RayTracingDistantLandSlider">
+                            <Property key="Page" value="1"/>
+                            <Property key="WheelPage" value="1"/>
+                            <UserString key="SettingType" value="Slider"/>
+                            <UserString key="SettingCategory" value="RTX"/>
+                            <UserString key="SettingName" value="distant land cells"/>
+                            <UserString key="SettingValueType" value="Float"/>
+                            <UserString key="SettingLabelWidget" value="RayTracingDistantLandText"/>
+                            <UserString key="SettingLabelCaption" value="RayTracingDistantLandValue"/>
+                        </Widget>
 
-                            <Widget type="Widget" position="0 0 0 8" align="Top HStretch">
-                                <UserString key="HStretch" value="true"/>
-                            </Widget>
-
-                            <Widget type="AutoSizedTextBox" skin="SandText" name="RayTracingSpecularMapsText">
-                                <Property key="Caption" value="#{OMWEngine:RayTracingSpecularMaps}"/>
-                            </Widget>
-
-                            <Widget type="HBox" align="Stretch">
-                                <UserString key="HStretch" value="true"/>
-                                <UserString key="VStretch" value="false"/>
-                                <Widget type="ComboBox" skin="MW_ComboBox" position="0 0 300 24" name="RayTracingSpecularMapsList"/>
-                                <Widget type="Spacer"/>
-                            </Widget>
-
-                            <Widget type="AutoSizedTextBox" skin="SandText" name="RayTracingSpecularMapsHint">
-                                <Property key="Caption" value="#{OMWEngine:RayTracingSpecularMapsHint}"/>
-                            </Widget>
-
-                            <Widget type="Widget" position="0 0 0 8" align="Top HStretch">
-                                <UserString key="HStretch" value="true"/>
-                            </Widget>
-
-                            <Widget type="AutoSizedTextBox" skin="SandText" name="RayTracingDistantLandText">
-                                <Property key="Caption" value="#{OMWEngine:RayTracingDistantLand}"/>
-                            </Widget>
-
-                            <Widget type="ScrollBar" skin="MW_HScroll" position="0 0 352 14" align="Top HStretch" name="RayTracingDistantLandSlider">
-                                <UserString key="HStretch" value="true"/>
-                                <UserString key="VStretch" value="false"/>
-                                <Property key="Page" value="1"/>
-                                <Property key="WheelPage" value="1"/>
-                                <UserString key="SettingType" value="Slider"/>
-                                <UserString key="SettingCategory" value="RTX"/>
-                                <UserString key="SettingName" value="distant land cells"/>
-                                <UserString key="SettingValueType" value="Float"/>
-                                <UserString key="SettingLabelWidget" value="RayTracingDistantLandText"/>
-                                <UserString key="SettingLabelCaption" value="RayTracingDistantLandValue"/>
-                            </Widget>
-
-                            <Widget type="Widget" position="0 0 0 8" align="Top HStretch">
-                                <UserString key="HStretch" value="true"/>
-                            </Widget>
-
-                            <Widget type="AutoSizedTextBox" skin="SandText">
-                                <Property key="Caption" value="#{OMWEngine:Anisotropy}"/>
-                            </Widget>
-
-                            <Widget type="HBox" align="Stretch">
-                                <UserString key="HStretch" value="true"/>
-                                <UserString key="VStretch" value="false"/>
-                                <Widget type="ComboBox" skin="MW_ComboBox" position="0 0 200 24" name="Anisotropy">
-                                    <Property key="AddItem" value="#{Interface:Off}"/>
-                                    <Property key="AddItem" value="2x"/>
-                                    <Property key="AddItem" value="4x"/>
-                                    <Property key="AddItem" value="8x"/>
-                                    <Property key="AddItem" value="16x"/>
-                                </Widget>
-                                <Widget type="Spacer"/>
-                            </Widget>
-
-                            <Widget type="Spacer"/>
+                        <Widget type="TextBox" skin="NormalText" position="0 170 420 18" align="Left Top">
+                            <Property key="Caption" value="#{OMWEngine:Anisotropy}"/>
+                        </Widget>
+                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 190 420 24" align="Left Top" name="Anisotropy">
+                            <Property key="AddItem" value="#{Interface:Off}"/>
+                            <Property key="AddItem" value="2x"/>
+                            <Property key="AddItem" value="4x"/>
+                            <Property key="AddItem" value="8x"/>
+                            <Property key="AddItem" value="16x"/>
                         </Widget>
                     </Widget>
                 </Widget>
