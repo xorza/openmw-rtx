@@ -12,17 +12,17 @@
 
 #include <components/misc/utf8stream.hpp>
 #include <components/sceneutil/depth.hpp>
-#include <components/settings/values.hpp>
 #include <components/widgets/fontusers.hpp>
 
 namespace
 {
-    std::optional<MyGUI::GlyphInfo> getGlyphInfo(MyGUI::IFont* font, MyGUI::Char ch)
+    /// A glyph's metrics in the layout units of a book typeset at `fontSize`, which its font is set at.
+    std::optional<MyGUI::GlyphInfo> getGlyphInfo(MyGUI::IFont* font, MyGUI::Char ch, int fontSize)
     {
         const MyGUI::GlyphInfo* gi = font->getGlyphInfo(ch);
         if (!gi)
             return {};
-        const float scale = font->getDefaultHeight() / static_cast<float>(Settings::gui().mFontSize);
+        const float scale = font->getDefaultHeight() / static_cast<float>(fontSize);
         MyGUI::GlyphInfo info = *gi;
         info.bearingX /= scale;
         info.bearingY /= scale;
@@ -180,6 +180,16 @@ namespace MWGui
         std::list<Content> mContents;
         std::list<StyleImpl> mStyles;
         MyGUI::IntRect mRect;
+
+        /// The interface's font size it is typeset at, and drawn at: a page that shows it after a
+        /// fit to another size has dropped it (`PageDisplay::drop`).
+        const int mFontSize;
+
+        explicit TypesetBookImpl(int fontSize)
+            : mFontSize(fontSize)
+        {
+            assert(fontSize > 0 && "a book typeset at no size");
+        }
 
         void setColour(size_t section, size_t line, size_t run, const MyGUI::Colour& colour) const override
         {
@@ -339,7 +349,7 @@ namespace MWGui
         TypesetBookImpl::Content const* mCurrentContent;
         Alignment mCurrentAlignment;
 
-        Typesetter(int width, int height)
+        Typesetter(int width, int height, int fontSize)
             : mPageWidth(width)
             , mPageHeight(height)
             , mSection(nullptr)
@@ -348,7 +358,7 @@ namespace MWGui
             , mCurrentContent(nullptr)
             , mCurrentAlignment(AlignLeft)
         {
-            mBook = std::make_shared<TypesetBookImpl>();
+            mBook = std::make_shared<TypesetBookImpl>(fontSize);
         }
 
         virtual ~Typesetter() = default;
@@ -601,7 +611,7 @@ namespace MWGui
 
                 while (!stream.eof() && !ucsLineBreak(stream.peek()) && ucsBreakingSpace(stream.peek()))
                 {
-                    std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek());
+                    std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek(), mBook->mFontSize);
                     if (info)
                         spaceWidth += static_cast<int>(info->advance + info->bearingX);
                     stream.consume();
@@ -611,7 +621,7 @@ namespace MWGui
 
                 while (!stream.eof() && !ucsLineBreak(stream.peek()) && !ucsBreakingSpace(stream.peek()))
                 {
-                    std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek());
+                    std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek(), mBook->mFontSize);
                     if (info)
                         wordWidth += static_cast<int>(info->advance + info->bearingX);
                     stream.consume();
@@ -634,7 +644,7 @@ namespace MWGui
             if (mPartialWhitespace.empty() && mPartialWord.empty())
                 return;
 
-            const int fontHeight = Settings::gui().mFontSize;
+            const int fontHeight = mBook->mFontSize;
             int spaceWidth = 0;
             int wordWidth = 0;
 
@@ -736,9 +746,9 @@ namespace MWGui
         }
     };
 
-    std::shared_ptr<BookTypesetter> BookTypesetter::create(int pageWidth, int pageHeight)
+    std::shared_ptr<BookTypesetter> BookTypesetter::create(int pageWidth, int pageHeight, int fontSize)
     {
-        return std::make_shared<TypesetBookImpl::Typesetter>(pageWidth, pageHeight);
+        return std::make_shared<TypesetBookImpl::Typesetter>(pageWidth, pageHeight, fontSize);
     }
 
     namespace
@@ -828,17 +838,19 @@ namespace MWGui
             float mZ;
             uint32_t mC;
             MyGUI::IFont* mFont;
+            int mFontSize;
             MyGUI::FloatPoint mOrigin;
             MyGUI::FloatPoint mCursor;
             MyGUI::Vertex* mVertices;
             RenderXform mRenderXform;
             MyGUI::VertexColourType mVertexColourType;
 
-            explicit GlyphStream(MyGUI::IFont* font, float left, float top, float z, MyGUI::Vertex* vertices,
-                RenderXform const& renderXform)
+            explicit GlyphStream(MyGUI::IFont* font, int fontSize, float left, float top, float z,
+                MyGUI::Vertex* vertices, RenderXform const& renderXform)
                 : mZ(z)
                 , mC(0)
                 , mFont(font)
+                , mFontSize(fontSize)
                 , mOrigin(left, top)
                 , mVertices(vertices)
                 , mRenderXform(renderXform)
@@ -862,7 +874,7 @@ namespace MWGui
 
             void emitGlyph(MyGUI::Char ch)
             {
-                std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch);
+                std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch, mFontSize);
 
                 if (!info)
                     return;
@@ -884,7 +896,7 @@ namespace MWGui
 
             void emitSpace(MyGUI::Char ch)
             {
-                std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch);
+                std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch, mFontSize);
 
                 if (info)
                     mCursor.left += static_cast<int>(info->bearingX + info->advance);
@@ -1333,7 +1345,7 @@ namespace MWGui
 
             float z = SceneUtil::AutoDepth::isReversed() ? 1.f : -1.f;
 
-            GlyphStream glyphStream(textFormat.mFont, static_cast<float>(mCoord.left),
+            GlyphStream glyphStream(textFormat.mFont, mBook->mFontSize, static_cast<float>(mCoord.left),
                 static_cast<float>(mCoord.top - mViewTop), z /*mNode->getNodeDepth()*/, vertices, renderXform);
 
             const int visitTop = std::max(mViewTop, mViewTop + static_cast<int>(renderXform.clipTop));

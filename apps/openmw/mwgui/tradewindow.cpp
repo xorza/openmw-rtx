@@ -8,6 +8,7 @@
 
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/format.hpp>
+#include <components/settings/values.hpp>
 #include <components/widgets/numericeditbox.hpp>
 
 #include "../mwbase/dialoguemanager.hpp"

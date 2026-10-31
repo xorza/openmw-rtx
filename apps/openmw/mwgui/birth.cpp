@@ -204,7 +204,7 @@ namespace MWGui
             return;
 
         Widgets::MWSpellPtr spellWidget;
-        const int lineHeight = Settings::gui().mFontSize + 2;
+        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         MyGUI::IntCoord coord(0, 0, mSpellArea->getWidth(), lineHeight);
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();

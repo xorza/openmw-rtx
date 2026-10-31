@@ -1109,7 +1109,7 @@ namespace MWGui
             mAvailableEffectsList->setViewOffset(0);
         else
         {
-            const int lineHeight = Settings::gui().mFontSize + 3;
+            const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 3;
             mAvailableEffectsList->setViewOffset(-lineHeight * static_cast<int>(mAvailableFocus - 5));
         }
 

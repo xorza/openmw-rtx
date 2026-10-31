@@ -7,21 +7,19 @@
 #include <MyGUI_TextBox.h>
 #include <MyGUI_Widget.h>
 
-#include "fontwrapper.hpp"
-
 namespace Gui
 {
-    class Button : public FontWrapper<MyGUI::Button>
+    class Button : public MyGUI::Button
     {
         MYGUI_RTTI_DERIVED(Button)
     };
 
-    class TextBox : public FontWrapper<MyGUI::TextBox>
+    class TextBox : public MyGUI::TextBox
     {
         MYGUI_RTTI_DERIVED(TextBox)
     };
 
-    class EditBox : public FontWrapper<MyGUI::EditBox>
+    class EditBox : public MyGUI::EditBox
     {
         MYGUI_RTTI_DERIVED(EditBox)
     };

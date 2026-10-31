@@ -116,7 +116,7 @@ latent faults on the build as it stands:
 
 ## The stages
 
-Done: 1 to 7. Next: 8, which is optional.
+Done: 1 to 7. Stage 8 is planned in `.notes/font-size-plan.md`, and its stages 1 to 4 are done.
 
 Each is a commit, verified by `./omw test` on the binaries it touches and by `./omw gate` at the
 end. Each stage's change to upstream code joins `AGENTS.md`'s "Accepted diff" in the same commit.
@@ -220,13 +220,26 @@ moves the bar at every step and settles it once at the release, where it was lef
 wheel over the thumb settles it. Not tested: the window's write on settling, which no fixture stands
 the settings window up for; `RtxSupportTest` finds the new control honoured.
 
-### 8 — Then the font size, on the same path (optional)
+### 8 — Then the font size — planned in `.notes/font-size-plan.md`
 
-`[GUI] font size` is already an input of `FontFit`, and `TrackedText`'s default height is the font
-size: the setting can go live with a `processChangedSettings` case and a slider of its own, and
-`FontWrapper` goes, since every text takes the font size by default. Its own risk is the layouts
-whose rows were sized for one text height; it is worth its own read of the windows before it is
-started.
+The read of the windows the stage asked for, at this tree. `[GUI] font size` reaches far past the
+fonts and the texts, each read once where something is made:
+
+- the TrueType fonts are sized at it at the load (`FontLoader`), which a fit could follow;
+- every skin's layout is given a line height of it plus two as the skins load
+  (`FontLoader::overrideLineHeight`, MyGUI's `HeightLine`), which a list reads once it is made;
+- twenty files of `apps/openmw/mwgui` size their rows by it as they build them (the stats, the
+  spells, the travel and training lists, the review and the race windows, the console's history,
+  the dialogue's topics, the settings window's bindings, among them), most once;
+- the book typesetter scales and lays out by it (`bookpage.cpp`), and the journal picks its index
+  columns by it (`journalbooks.cpp`);
+- Lua's interface templates take it once, as their scripts load (`omw/mwui/constants.lua`,
+  `ui._getDefaultFontSize`);
+- `FontWrapper` gives each wrapped widget it as a height of its own as the widget's font is set.
+
+A font size that follows a change has each of these follow it, or one rebuild of the whole interface
+stand in for them all; neither is the fit the scale goes through, which leaves every size in layout
+units where it was. Live, with each consumer following: `.notes/font-size-plan.md`.
 
 ## Measurements to take
 

@@ -22,6 +22,8 @@ namespace MWGui
         /// automatically updates all the data in the stats window, but only if it has changed.
         void onFrame(float dt) override;
 
+        void refitText() override { mChanged = true; }
+
         void setBar(const std::string& name, const std::string& tname, int val, int max);
         void setPlayerName(const std::string& playerName);
 

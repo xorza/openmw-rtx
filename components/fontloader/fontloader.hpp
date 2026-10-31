@@ -4,8 +4,6 @@
 #include <vector>
 
 #include <MyGUI_Types.h>
-#include <MyGUI_Version.h>
-#include <MyGUI_XmlDocument.h>
 
 #include <components/myguiplatform/myguidatamanager.hpp>
 #include <components/toutf8/toutf8.hpp>
@@ -25,12 +23,17 @@ namespace MyGUI
 namespace Gui
 {
     /// What the TrueType fonts are rasterized for: how many frame pixels a unit of the interface
-    /// takes, which a font is rasterized at rounded up to a whole multiple, and the interface's view
-    /// in its own units, which the journal's book layer is scaled into and its book font follows.
+    /// takes, which a font is rasterized at rounded up to a whole multiple, the interface's view
+    /// in its own units, which the journal's book layer is scaled into and its book font follows,
+    /// and the size every font is set at.
     struct FontFit
     {
         float mRaster = 1.0f;
         MyGUI::IntSize mView;
+
+        /// In points, which a unit of the interface is: the height a line of its text takes,
+        /// `[GUI] font size`. Stated by every fit, so none is made at a size its maker did not name.
+        int mFontSize;
 
         bool operator==(const FontFit& other) const = default;
     };
@@ -49,7 +52,7 @@ namespace Gui
         FontLoader(const FontLoader&) = delete;
         FontLoader& operator=(const FontLoader&) = delete;
 
-        /// Rasterizes each TrueType font whose resolution `fit` changes again, in place: its
+        /// Rasterizes each TrueType font whose size or resolution `fit` changes again, in place: its
         /// `IFont*` stays and its texture is replaced, so every text drawn with it has to take the
         /// font's texture again before the next frame draws
         /// (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`). Reads nothing from the VFS.
@@ -57,8 +60,6 @@ namespace Gui
         bool fit(const FontFit& fit);
 
         const FontFit& getFit() const { return mFit; }
-
-        void overrideLineHeight(MyGUI::xml::ElementPtr node, std::string_view file, MyGUI::Version version);
 
         static std::string_view getFontForFace(std::string_view face);
 
@@ -74,9 +75,6 @@ namespace Gui
             MyGUI::ResourceTrueTypeFont* mFont = nullptr;
             int mResolution = 0;
 
-            /// In points, as the load sizes it.
-            int mSize = 0;
-
             bool mBook = false;
 
             /// Whether its file states a tab's width, which MyGUI otherwise derives from a space's
@@ -86,8 +84,9 @@ namespace Gui
 
         unsigned int resolutionOf(const TrueTypeFace& face, const FontFit& fit) const;
 
-        /// Rasterizes `face` at `resolution` the one way every rasterization goes, the load's included.
-        static void rasterize(const TrueTypeFace& face, unsigned int resolution);
+        /// Rasterizes `face` at `size` and `resolution` the one way every rasterization goes, the
+        /// load's included.
+        static void rasterize(const TrueTypeFace& face, int size, unsigned int resolution);
 
         ToUTF8::FromType mEncoding;
         const VFS::Manager* mVFS;

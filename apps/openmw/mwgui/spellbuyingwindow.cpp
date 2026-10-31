@@ -63,7 +63,7 @@ namespace MWGui
 
         // TODO: refactor to use MyGUI::ListBox
 
-        const int lineHeight = Settings::gui().mFontSize + 2;
+        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
         MyGUI::Button* toAdd = mSpellsView->createWidget<MyGUI::Button>(price <= playerGold
                 ? "SandTextButton"
@@ -280,7 +280,7 @@ namespace MWGui
                 mSpellsView->setViewOffset(MyGUI::IntPoint(0, 0));
             else
             {
-                const int lineHeight = Settings::gui().mFontSize + 2;
+                const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
                 mSpellsView->setViewOffset(MyGUI::IntPoint(0, -lineHeight * static_cast<int>(line - 5)));
             }
 

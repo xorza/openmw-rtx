@@ -161,6 +161,16 @@ namespace MWGui
             mReviewDialog->onFrame(duration);
     }
 
+    void CharacterCreation::refitText()
+    {
+        const std::array<WindowBase*, 9> dialogs{ mNameDialog.get(), mRaceDialog.get(), mClassChoiceDialog.get(),
+            mGenerateClassQuestionDialog.get(), mGenerateClassResultDialog.get(), mPickClassDialog.get(),
+            mCreateClassDialog.get(), mBirthSignDialog.get(), mReviewDialog.get() };
+        for (WindowBase* const dialog : dialogs)
+            if (dialog != nullptr)
+                dialog->refitText();
+    }
+
     void CharacterCreation::spawnDialog(const GuiMode id)
     {
         try

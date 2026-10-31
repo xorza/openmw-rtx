@@ -110,6 +110,11 @@ namespace MWGui
             mSpellIcons->updateWidgets(mEffectBox, false);
     }
 
+    void SpellWindow::refitText()
+    {
+        mSpellView->update();
+    }
+
     void SpellWindow::updateSpells()
     {
         mSpellIcons->updateWidgets(mEffectBox, false);

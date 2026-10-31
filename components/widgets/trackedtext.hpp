@@ -13,8 +13,9 @@ namespace Gui
     ///
     /// **Its size never reads a font's raster.** A glyph is drawn at the text's height over the
     /// font's own, so a text with a height keeps its size in layout units whatever the font was
-    /// rasterized at; a text with none of its own takes the interface's font size, `[GUI] font
-    /// size`, where MyGUI's would take the font's height in raster pixels and grow with the raster.
+    /// rasterized at; a text with none of its own takes the size its registry's fonts are set at
+    /// (`FontUsers::getTextHeight`), where MyGUI's would take the font's height in raster pixels and
+    /// grow with the raster.
     template <class Text>
     class Tracked : public Text, public FontUsers::Entry
     {
@@ -27,7 +28,8 @@ namespace Gui
         void setFontName(std::string_view name) override;
         void setFontHeight(int height) override;
 
-        /// Takes its font again, and has a widget sized to its text size itself again.
+        /// Takes its font again, and its registry's text height where it has none of its own, and
+        /// has a widget sized to its text size itself again.
         void refit() override;
 
     private:

@@ -1340,13 +1340,23 @@ namespace MWGui
             .mRaster
             = std::max(scaleNow(), Settings::gui().mScalingFactor * SDLUtil::displayScale(mRenderer.getWindow())),
             .mView = MyGUI::RenderManager::getInstance().getViewSize(),
+            .mFontSize = Settings::gui().mFontSize,
         };
     }
 
     void WindowManager::fitFonts()
     {
         const float raster = mFonts->getFit().mRaster;
+        const int fontSize = mFonts->getFontSize();
         mFonts->fit(fontFitNow());
+
+        if (mFonts->getFontSize() != fontSize)
+        {
+            for (const std::unique_ptr<WindowBase>& window : mWindows)
+                window->refitText();
+            if (mCharGen != nullptr)
+                mCharGen->refitText();
+        }
 
         // The map's tiles are drawn at the raster (`LocalMap::mapResolution`), and those around the
         // player are drawn again at the new one, as a cell change would have them drawn.
@@ -1680,6 +1690,11 @@ namespace MWGui
     float WindowManager::getRasterScale() const
     {
         return mFonts->getFit().mRaster;
+    }
+
+    int WindowManager::getFontSize() const
+    {
+        return mFonts->getFontSize();
     }
 
     float WindowManager::getScalingFactor() const

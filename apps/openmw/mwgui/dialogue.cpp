@@ -96,7 +96,7 @@ namespace MWGui
 
     void PersuasionDialog::adjustAction(MyGUI::Widget* action, int& totalHeight)
     {
-        const int lineHeight = Settings::gui().mFontSize + 2;
+        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         auto currentCoords = action->getCoord();
         action->setCoord(currentCoords.left, totalHeight, currentCoords.width, lineHeight);
         totalHeight += lineHeight;
@@ -660,8 +660,8 @@ namespace MWGui
             mScrollBar->setVisible(true);
         }
 
-        std::shared_ptr<BookTypesetter> typesetter
-            = BookTypesetter::create(mHistory->getWidth(), std::numeric_limits<int>::max());
+        std::shared_ptr<BookTypesetter> typesetter = BookTypesetter::create(mHistory->getWidth(),
+            std::numeric_limits<int>::max(), MWBase::Environment::get().getWindowManager()->getFontSize());
 
         for (const auto& text : mHistoryContents)
             text->write(typesetter, mKeywordSearch, mTopicLinks);

@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <MyGUI_Button.h>
 #include <MyGUI_ChildSkinInfo.h>
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_FontManager.h>
@@ -21,7 +22,6 @@
 #include <apps/components_tests/rtx/support/guiinstance.hpp>
 #include <components/fontloader/interfacefonts.hpp>
 #include <components/myguirtx/slottexture.hpp>
-#include <components/settings/values.hpp>
 #include <components/widgets/box.hpp>
 #include <components/widgets/fontusers.hpp>
 #include <components/widgets/trackedtext.hpp>
@@ -83,7 +83,8 @@ namespace Gui
 
             // To 3 and not 2: a default font's atlas twice the side with every glyph twice the size
             // puts each glyph at the same fraction of it, and would draw old corners as new ones.
-            gui.getFonts().fit(FontFit{ .mRaster = 3.0f, .mView = MyGUI::IntSize(341, 256) });
+            gui.getFonts().fit(FontFit{
+                .mRaster = 3.0f, .mView = MyGUI::IntSize(341, 256), .mFontSize = gui.getFonts().getFontSize() });
 
             const Rtx::Testing::DrawnGui drawn = gui.draw();
             std::set<std::uint32_t> drawnAgainst;
@@ -146,7 +147,8 @@ namespace Gui
 
         /// **A widget sized to its text sizes itself again after a fit**: a label that asks for its
         /// text's size has it before the fit and after it, and the fit moved it, since hinting at
-        /// three times the raster lays the letters out a pixel apart where they were not.
+        /// three times the raster lays the letters out a pixel apart where they were not; and after
+        /// a fit to 18 points it stands a line of 18 high.
         TEST(FontUsersTest, aWidgetSizedToItsTextSizesItselfAgainAfterAFit)
         {
             Rtx::Testing::GuiInstance gui;
@@ -159,39 +161,77 @@ namespace Gui
             const MyGUI::IntSize before = label->getSize();
             ASSERT_EQ(before, label->getRequestedSize());
 
-            gui.getFonts().fit(FontFit{ .mRaster = 3.0f, .mView = MyGUI::IntSize(341, 256) });
+            gui.getFonts().fit(FontFit{
+                .mRaster = 3.0f, .mView = MyGUI::IntSize(341, 256), .mFontSize = gui.getFonts().getFontSize() });
 
             EXPECT_EQ(label->getSize(), label->getRequestedSize());
             EXPECT_NE(label->getSize(), before) << "the fit moved no letter, so the label proves nothing";
+
+            ASSERT_EQ(label->getHeight(), 16);
+            FontFit larger = gui.getFonts().getFit();
+            larger.mFontSize = 18;
+            gui.getFonts().fit(larger);
+
+            EXPECT_EQ(label->getSize(), label->getRequestedSize());
+            EXPECT_EQ(label->getHeight(), 18);
         }
 
-        /// **A text's height never reads the raster.** A text box's height is the font size it is
-        /// given, 16, before and after a fit to a raster of 2; and a text with no height of its own
-        /// takes the interface's font size too, after a fit to 2 and in an interface loaded at 2,
-        /// where MyGUI's would take the font's own height, 32 raster pixels there.
-        TEST(FontUsersTest, aTextsHeightNeverReadsTheRaster)
+        /// **A text's height is its own or the fonts' size, and never the raster.** A text box given
+        /// a height of 20 keeps it, and one given none takes the size the fonts are set at, 16,
+        /// before and after a fit to a raster of 2 and in an interface loaded at 2, where MyGUI's
+        /// would take the font's own height, 32 raster pixels there. A fit to 18 points has the
+        /// second take 18, and the first keep its 20.
+        TEST(FontUsersTest, aTextsHeightIsItsOwnOrTheFontsSizeAndNeverTheRaster)
         {
-            const int size = Settings::gui().mFontSize;
             {
-                Rtx::Testing::GuiInstance gui;
+                Rtx::Testing::GuiInstance gui({ .mFontSize = 16 });
                 MyGUI::TextBox* const sized = makeText("DefaultFont", 10);
                 MyGUI::TextBox* const unsized = makeText("DefaultFont", 50);
-                unsized->setFontHeight(0);
-                ASSERT_EQ(sized->getTextSize().height, size);
-                ASSERT_EQ(unsized->getTextSize().height, size);
+                sized->setFontHeight(20);
+                ASSERT_EQ(sized->getTextSize().height, 20);
+                ASSERT_EQ(unsized->getTextSize().height, 16);
 
-                gui.getFonts().fit(FontFit{ .mRaster = 2.0f, .mView = MyGUI::IntSize(512, 384) });
+                gui.getFonts().fit(FontFit{ .mRaster = 2.0f, .mView = MyGUI::IntSize(512, 384), .mFontSize = 16 });
 
                 EXPECT_EQ(MyGUI::FontManager::getInstance().getByName("DefaultFont")->getDefaultHeight(), 32);
-                EXPECT_EQ(sized->getTextSize().height, size);
-                EXPECT_EQ(unsized->getTextSize().height, size) << "after a fit to 2";
+                EXPECT_EQ(sized->getTextSize().height, 20);
+                EXPECT_EQ(unsized->getTextSize().height, 16) << "after a fit to 2";
+
+                gui.getFonts().fit(FontFit{ .mRaster = 2.0f, .mView = MyGUI::IntSize(512, 384), .mFontSize = 18 });
+
+                EXPECT_EQ(sized->getTextSize().height, 20) << "after a fit to 18 points";
+                EXPECT_EQ(unsized->getTextSize().height, 18) << "after a fit to 18 points";
             }
 
-            Rtx::Testing::GuiInstance gui({ .mScale = 2.0f });
+            Rtx::Testing::GuiInstance gui({ .mScale = 2.0f, .mFontSize = 16 });
             MyGUI::TextBox* const unsized = makeText("DefaultFont", 10);
-            unsized->setFontHeight(0);
             EXPECT_EQ(MyGUI::FontManager::getInstance().getByName("DefaultFont")->getDefaultHeight(), 32);
-            EXPECT_EQ(unsized->getTextSize().height, size) << "in an interface loaded at 2";
+            EXPECT_EQ(unsized->getTextSize().height, 16) << "in an interface loaded at 2";
+        }
+
+        /// **The game's text widgets give their text no height of their own**: a text box and a
+        /// button, made under MyGUI's names, are the fork's (`Gui::TextBox`, `Gui::Button`), and
+        /// each draws its text at the fonts' size, 16, and at 18 after a fit to it. A height they
+        /// stated as their font was set would keep its 16.
+        TEST(FontUsersTest, theGamesTextWidgetsGiveTheirTextNoHeightOfTheirOwn)
+        {
+            Rtx::Testing::GuiInstance gui({ .mFontSize = 16 });
+            MyGUI::TextBox* const box = makeText("DefaultFont", 10);
+            auto* const button = MyGUI::Gui::getInstance().createWidget<MyGUI::Button>(
+                "SandText", MyGUI::IntCoord(10, 50, 300, 30), MyGUI::Align::Default, "Windows");
+            button->setFontName("DefaultFont");
+            button->setCaption("Abc");
+            ASSERT_NE(box->castType<TextBox>(false), nullptr);
+            ASSERT_NE(button->castType<Button>(false), nullptr);
+            ASSERT_EQ(box->getTextSize().height, 16);
+            ASSERT_EQ(button->getTextSize().height, 16);
+
+            FontFit larger = gui.getFonts().getFit();
+            larger.mFontSize = 18;
+            gui.getFonts().fit(larger);
+
+            EXPECT_EQ(box->getTextSize().height, 18);
+            EXPECT_EQ(button->getTextSize().height, 18);
         }
     }
 }

@@ -44,6 +44,8 @@ namespace Gui
             explicit Entry(FontUsers& users);
             virtual ~Entry();
 
+            const FontUsers& getUsers() const { return mUsers; }
+
         private:
             friend class FontUsers;
 
@@ -53,7 +55,11 @@ namespace Gui
             std::size_t mIndex;
         };
 
-        FontUsers() = default;
+        explicit FontUsers(int textHeight)
+            : mTextHeight(textHeight)
+        {
+        }
+
         ~FontUsers();
 
         FontUsers(const FontUsers&) = delete;
@@ -65,18 +71,31 @@ namespace Gui
         /// entering this as it is made: once the factory manager exists, and before a skin is loaded.
         void registerTextFactories();
 
-        /// Every user drops, then every user is refitted: after a font is rasterized again, and
-        /// before the next frame draws. No user of this registry is made or destroyed meanwhile,
-        /// which an assert holds to; a refit may make users of another.
-        void refit();
+        /// Stands the fork's list (`Gui::ListBox`) in MyGUI's widget factory, in place of MyGUI's
+        /// own, each entering this as it is made: once the factory manager exists, and before a
+        /// layout is loaded. A list's refit makes lines, and so texts: the lists' registry is not
+        /// the texts'.
+        void registerListFactory();
+
+        /// Every user drops, then every user is refitted at `textHeight`: after a font is rasterized
+        /// again or set at another size, and before the next frame draws. No user of this registry
+        /// is made or destroyed meanwhile, which an assert holds to; a refit may make users of
+        /// another.
+        void refit(int textHeight);
+
+        /// The height a user with none of its own lays its text out at, in layout units: the size
+        /// the fonts are set at (`FontFit::mFontSize`).
+        int getTextHeight() const { return mTextHeight; }
 
         std::size_t size() const { return mEntries.size(); }
 
     private:
         void makeText(MyGUI::IObject*& made);
         void makeSimpleText(MyGUI::IObject*& made);
+        void makeList(MyGUI::IObject*& made);
 
         std::vector<Entry*> mEntries;
+        int mTextHeight;
         bool mRefitting = false;
     };
 }

@@ -81,7 +81,7 @@ namespace MWGui
 
         int curType = -1;
 
-        const int spellHeight = Settings::gui().mFontSize + 2;
+        const int spellHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
         mLines.clear();
         mButtons.clear();

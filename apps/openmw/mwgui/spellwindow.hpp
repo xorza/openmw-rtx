@@ -20,6 +20,8 @@ namespace MWGui
 
         void onFrame(float dt) override;
 
+        void refitText() override;
+
         /// Cycle to next/previous spell
         void cycle(bool next);
 

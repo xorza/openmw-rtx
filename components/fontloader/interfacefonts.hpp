@@ -23,13 +23,14 @@ namespace Gui
     /// (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`); `fit` is the one call that changes
     /// a font, so no caller can do the first without the second.
     ///
-    /// The texts and the pages are two registries, refitted in that order: a page's refit has its
-    /// owner typeset its book again, which may make texts — a journal's lists — and a registry
-    /// makes no user of itself while it refits.
+    /// The texts, the lists and the pages are three registries, refitted in that order: a list's
+    /// refit lays its lines out again, which may make texts, and a page's refit has its owner
+    /// typeset its book again, which may make texts and lists — a journal's — and a registry makes
+    /// no user of itself while it refits.
     ///
     /// Made once MyGUI's factory manager exists and before a skin is loaded, because it stands its
-    /// texts in MyGUI's factories; destroyed after MyGUI shuts down, because every text leaves its
-    /// registry as it is destroyed.
+    /// texts and its lists in MyGUI's factories; destroyed after MyGUI shuts down, because every
+    /// text and every list leaves its registry as it is destroyed.
     class InterfaceFonts
     {
     public:
@@ -40,12 +41,19 @@ namespace Gui
         InterfaceFonts(const InterfaceFonts&) = delete;
         InterfaceFonts& operator=(const InterfaceFonts&) = delete;
 
-        /// Rasterizes each font `fit` moves again, and has every text take its font again and every
-        /// widget sized to its text size itself again, then every book page typeset again. Nothing
-        /// where no font moves.
+        /// Rasterizes each font `fit` moves again, and has every text take its font and the text
+        /// height again and every widget sized to its text size itself again, then every list
+        /// stand its lines at the new line height, then every book page typeset again. Nothing
+        /// where neither a font nor the font size moves.
         void fit(const FontFit& fit);
 
         const FontFit& getFit() const { return mLoader.getFit(); }
+
+        /// **The interface's font size**: what every line of its text is laid out at, in layout
+        /// units, and what a row or a list sized to a line of text sizes by. `[GUI] font size` as
+        /// the fonts were last fitted to: the fit is the setting's one reader, and each registry
+        /// holds the size its users were last refitted at, which `fit` alone sets.
+        int getFontSize() const { return getFit().mFontSize; }
 
         const FontUsers& getTexts() const { return mTexts; }
 
@@ -54,6 +62,7 @@ namespace Gui
 
     private:
         FontUsers mTexts;
+        FontUsers mLists;
         FontUsers mPages;
         FontLoader mLoader;
     };

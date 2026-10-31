@@ -401,6 +401,12 @@ namespace MWGui
         }
     }
 
+    void RaceDialog::refitText()
+    {
+        updateSkills();
+        updateSpellPowers();
+    }
+
     void RaceDialog::updateSkills()
     {
         for (MyGUI::Widget* widget : mSkillItems)
@@ -413,7 +419,7 @@ namespace MWGui
             return;
 
         Widgets::MWSkillPtr skillWidget;
-        const int lineHeight = Settings::gui().mFontSize + 2;
+        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         MyGUI::IntCoord coord1(0, 0, mSkillList->getWidth(), 18);
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
@@ -445,7 +451,7 @@ namespace MWGui
         if (mCurrentRaceId.empty())
             return;
 
-        const int lineHeight = Settings::gui().mFontSize + 2;
+        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         MyGUI::IntCoord coord(0, 0, mSpellPowerList->getWidth(), lineHeight);
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();

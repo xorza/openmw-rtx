@@ -109,7 +109,7 @@ namespace MWGui
 
         MWMechanics::NpcStats& pcStats = player.getClass().getNpcStats(player);
 
-        const int lineHeight = Settings::gui().mFontSize + 2;
+        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
         mTrainingButtons.clear();
         for (size_t i = 0; i < skills.size(); ++i)

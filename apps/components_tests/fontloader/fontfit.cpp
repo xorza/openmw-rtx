@@ -95,7 +95,8 @@ namespace Gui
             }
             const std::array<Raster, sFonts.size()> loadedAtOne = rastersNow();
 
-            gui.getFonts().fit(FontFit{ .mRaster = 2.0f, .mView = MyGUI::IntSize(512, 384) });
+            gui.getFonts().fit(FontFit{
+                .mRaster = 2.0f, .mView = MyGUI::IntSize(512, 384), .mFontSize = gui.getFonts().getFontSize() });
 
             const std::array<Raster, sFonts.size()> fitted = rastersNow();
             for (std::size_t at = 0; at < sFonts.size(); ++at)
@@ -105,6 +106,44 @@ namespace Gui
                 EXPECT_TRUE(fitted[at] == loadedAtTwo[at]) << sFonts[at] << " is not what a load at 2 makes";
                 EXPECT_EQ(slotOf(*fonts[at]) != slots[at], !book) << sFonts[at];
                 EXPECT_EQ(loadedAtOne[at].mHeight != loadedAtTwo[at].mHeight, !book) << sFonts[at];
+            }
+        }
+
+        /// **A fit to another font size sets each font at it in place, as a load at that size has
+        /// it**: an interface loaded at 16 points and fitted to 18 over the same view holds the same
+        /// font objects, each rasterized anew into a texture of its own, and every font reads as the
+        /// one a load at 18 makes, the book fonts included, whose resolution stays where their size
+        /// moves. A load at 16 and one at 18 differ in every font's height.
+        TEST(FontFitTest, aFitToAnotherFontSizeSetsEachFontAtItAsALoadAtThatSizeHasIt)
+        {
+            std::array<Raster, sFonts.size()> loadedAtEighteen;
+            {
+                const Rtx::Testing::GuiInstance gui({ .mFontSize = 18 });
+                loadedAtEighteen = rastersNow();
+            }
+
+            Rtx::Testing::GuiInstance gui({ .mFontSize = 16 });
+            std::array<MyGUI::IFont*, sFonts.size()> fonts{};
+            std::array<Rtx::GuiSlot, sFonts.size()> slots;
+            for (std::size_t at = 0; at < sFonts.size(); ++at)
+            {
+                fonts[at] = &fontNamed(sFonts[at]);
+                slots[at] = slotOf(*fonts[at]);
+            }
+            const std::array<Raster, sFonts.size()> loadedAtSixteen = rastersNow();
+
+            FontFit fit = gui.getFonts().getFit();
+            fit.mFontSize = 18;
+            gui.getFonts().fit(fit);
+
+            EXPECT_EQ(gui.getFonts().getFontSize(), 18);
+            const std::array<Raster, sFonts.size()> fitted = rastersNow();
+            for (std::size_t at = 0; at < sFonts.size(); ++at)
+            {
+                EXPECT_EQ(&fontNamed(sFonts[at]), fonts[at]) << sFonts[at] << " is another object";
+                EXPECT_TRUE(fitted[at] == loadedAtEighteen[at]) << sFonts[at] << " is not what a load at 18 makes";
+                EXPECT_NE(slotOf(*fonts[at]), slots[at]) << sFonts[at];
+                EXPECT_NE(loadedAtSixteen[at].mHeight, loadedAtEighteen[at].mHeight) << sFonts[at];
             }
         }
 
@@ -124,17 +163,21 @@ namespace Gui
             gui.getFonts().fit(gui.getFonts().getFit());
             EXPECT_EQ(gui.getRenderer().mGuiAsked, asked) << "a fit to the same fit made a texture";
 
-            gui.getFonts().fit(FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(2048, 1536) });
+            gui.getFonts().fit(FontFit{
+                .mRaster = 1.0f, .mView = MyGUI::IntSize(2048, 1536), .mFontSize = gui.getFonts().getFontSize() });
             for (std::size_t at = 0; at < sFonts.size(); ++at)
             {
                 const bool book = sFonts[at].starts_with("Journalbook");
                 EXPECT_EQ(slotOf(fontNamed(sFonts[at])) != slots[at], book) << sFonts[at];
             }
 
-            gui.getFonts().fit(FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(1, 1) });
+            gui.getFonts().fit(
+                FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(1, 1), .mFontSize = gui.getFonts().getFontSize() });
             const Raster onePixel = rasterOf(fontNamed("Journalbook DefaultFont"));
-            gui.getFonts().fit(FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(1024, 768) });
-            gui.getFonts().fit(FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(2, 2) });
+            gui.getFonts().fit(FontFit{
+                .mRaster = 1.0f, .mView = MyGUI::IntSize(1024, 768), .mFontSize = gui.getFonts().getFontSize() });
+            gui.getFonts().fit(
+                FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(2, 2), .mFontSize = gui.getFonts().getFontSize() });
             EXPECT_TRUE(rasterOf(fontNamed("Journalbook DefaultFont")) == onePixel);
         }
 
@@ -166,7 +209,8 @@ namespace Gui
             Rtx::Testing::GuiInstance gui({ .mScale = 1.0f });
             const std::uint32_t reads = gui.getVfsReads();
 
-            gui.getFonts().fit(FontFit{ .mRaster = 3.0f, .mView = MyGUI::IntSize(341, 256) });
+            gui.getFonts().fit(FontFit{
+                .mRaster = 3.0f, .mView = MyGUI::IntSize(341, 256), .mFontSize = gui.getFonts().getFontSize() });
 
             EXPECT_EQ(gui.getVfsReads(), reads);
             EXPECT_FALSE(slotOf(fontNamed("DefaultFont")).isNone()) << "the font did not rasterize";
