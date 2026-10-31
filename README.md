@@ -60,15 +60,15 @@ Requirements
   tested for. An AMD card, RDNA 2 (RX 6000 series) or later, starts too and draws right on a
   Radeon 680M, but far too slowly there to play yet.
 * Vulkan 1.4 with ray tracing pipelines, ray queries and position fetch. On a machine without them
-  the ray tracer does not start: the game draws with the OpenGL renderer and says why.
+  the game does not start, and its error box says what is missing and where the log is.
 
 Tested on one machine so far: a laptop RTX 4090 at 150 W, which is about a desktop RTX 4070.
 
 Building and running
 --------------------
 
-Every build has the renderer, and it is on by default. `[RTX] enabled = false` in `settings.cfg`
-starts the OpenGL renderer.
+The ray tracer is the one renderer the game starts. Upstream's OpenGL renderer stays in the build,
+so upstream's code merges as it stands, and nothing starts it.
 
 * [Architecture](docs/rtx/architecture.md) — the seam, the layers, who owns whom, the order a
   frame is computed in

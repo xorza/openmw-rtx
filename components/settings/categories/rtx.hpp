@@ -7,13 +7,10 @@
 
 namespace Settings
 {
-    /// The experimental ray tracing renderer. Which renderer draws is read once, before the window
-    /// exists; the rest are read as they are wanted.
+    /// The ray tracing renderer's own settings, read as they are wanted.
     struct RTXCategory : WithIndex
     {
         using WithIndex::WithIndex;
-
-        SettingValue<bool> mEnabled{ mIndex, "RTX", "enabled" };
 
         /// The most cells `distant land cells` takes: a bound on how much world a frame is asked to
         /// stand, and so on what the ring's ask costs. Nought stays nought, which hands the reach

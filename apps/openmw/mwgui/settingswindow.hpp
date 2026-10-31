@@ -6,17 +6,12 @@
 
 #include "windowbase.hpp"
 
-namespace MWRender
-{
-    class RenderSupport;
-}
-
 namespace MWGui
 {
     class SettingsWindow : public WindowBase
     {
     public:
-        SettingsWindow(Files::ConfigurationManager& cfgMgr, const MWRender::RenderSupport& support);
+        SettingsWindow(Files::ConfigurationManager& cfgMgr);
 
         void onOpen() override;
 
@@ -25,8 +20,6 @@ namespace MWGui
         void onFrame(float duration) override;
 
         void updateControlsBox();
-
-        void updateLightSettings();
 
         void updateVSyncModeSettings();
         void updateRayTracingSettings();
@@ -46,28 +39,7 @@ namespace MWGui
         MyGUI::ComboBox* mWindowModeList;
         MyGUI::ComboBox* mVSyncModeList;
         MyGUI::Button* mWindowBorderButton;
-        MyGUI::ComboBox* mTextureFilteringButton;
         MyGUI::ComboBox* mAnisotropy;
-
-        MyGUI::Button* mWaterRefractionButton;
-        MyGUI::ComboBox* mWaterTextureSize;
-        MyGUI::ComboBox* mWaterReflectionDetail;
-        MyGUI::ComboBox* mWaterRainRippleDetail;
-
-        MyGUI::ComboBox* mMaxLights;
-        MyGUI::Button* mClusteredLightingButton;
-        MyGUI::Widget* mClassicFalloffWidget;
-        MyGUI::Button* mLightsResetButton;
-        MyGUI::Widget* mMinimumBrightnessText;
-        MyGUI::Widget* mMinimumBrightnessScroll;
-
-        MyGUI::Button* mActorShadowsButton;
-        MyGUI::Button* mPlayerShadowsButton;
-        MyGUI::Button* mTerrainShadowsButton;
-        MyGUI::Button* mObjectShadowsButton;
-        MyGUI::ComboBox* mShadowPlanesComputationMethod;
-        MyGUI::ComboBox* mShadowMapResolution;
-        bool mShowShadowPlanesMethodWarning{ true };
 
         MyGUI::ComboBox* mPrimaryLanguage;
         MyGUI::ComboBox* mSecondaryLanguage;
@@ -93,24 +65,13 @@ namespace MWGui
 
         void onTabChanged(MyGUI::TabControl* sender, size_t index);
         void onOkButtonClicked(MyGUI::Widget* sender);
-        void onTextureFilteringChanged(MyGUI::ComboBox* sender, size_t pos);
         void onAnisotropyChanged(MyGUI::ComboBox* sender, size_t pos);
-        void onShadowsButtonClicked(MyGUI::Widget* sender);
-        void onComputeSceneBoundsChanged(MyGUI::ComboBox* sender, size_t pos);
-        void onShadowMapResolutionChanged(MyGUI::ComboBox* sender, size_t pos);
         void onSliderChangePosition(MyGUI::ScrollBar* scroller, size_t pos);
         void onButtonToggled(MyGUI::Widget* sender);
         void onResolutionSelected(MyGUI::ListBox* sender, size_t index);
         void onResolutionAccept();
         void onResolutionCancel();
         void highlightCurrentResolution();
-
-        void onWaterTextureSizeChanged(MyGUI::ComboBox* sender, size_t pos);
-        void onWaterReflectionDetailChanged(MyGUI::ComboBox* sender, size_t pos);
-        void onWaterRainRippleDetailChanged(MyGUI::ComboBox* sender, size_t pos);
-
-        void onLightsResetButtonClicked(MyGUI::Widget* sender);
-        void onMaxLightsChanged(MyGUI::ComboBox* sender, size_t pos);
 
         void onPrimaryLanguageChanged(MyGUI::ComboBox* sender, size_t pos) { onLanguageChanged(0, sender, pos); }
         void onSecondaryLanguageChanged(MyGUI::ComboBox* sender, size_t pos) { onLanguageChanged(1, sender, pos); }
@@ -147,19 +108,6 @@ namespace MWGui
     private:
         void resetScrollbars();
         Files::ConfigurationManager& mCfgMgr;
-
-        /// What the renderer the game runs honours: a control it declines is greyed out, with the
-        /// reason as its tooltip.
-        const MWRender::RenderSupport& mSupport;
-
-        /// Greys out every control whose setting the renderer declines. Last when the window
-        /// opens, because the window's own updates enable controls by rules of their own.
-        void declineUnsupported();
-
-        /// Greys `control` out, and shows `declined` where the pointer over it finds a tooltip:
-        /// on the row it stands in with its label, or on the label a slider names. A greyed widget
-        /// takes no pointer, so the tooltip system starts from the widget behind it.
-        void decline(MyGUI::Widget& control, std::string_view declined);
     };
 }
 

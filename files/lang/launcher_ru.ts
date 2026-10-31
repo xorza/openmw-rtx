@@ -163,26 +163,6 @@
 <context>
     <name>GraphicsPage</name>
     <message>
-        <source>0</source>
-        <translation>0</translation>
-    </message>
-    <message>
-        <source>2</source>
-        <translation>2</translation>
-    </message>
-    <message>
-        <source>4</source>
-        <translation>4</translation>
-    </message>
-    <message>
-        <source>8</source>
-        <translation>8</translation>
-    </message>
-    <message>
-        <source>16</source>
-        <translation>16</translation>
-    </message>
-    <message>
         <source>Custom:</source>
         <translation>Особое:</translation>
     </message>
@@ -247,20 +227,8 @@
         <translation>Разрешение экрана</translation>
     </message>
     <message>
-        <source>Anti-Aliasing</source>
-        <translation>Сглаживание</translation>
-    </message>
-    <message>
         <source>Vertical Synchronization</source>
         <translation>Вертикальная синхронизация</translation>
-    </message>
-    <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
-        <translation>Заменяет рендерер OpenGL экспериментальным рендерером Vulkan с трассировкой лучей. Требуется видеокарта с аппаратной трассировкой лучей: NVIDIA Turing или AMD RDNA 2, либо новее.</translation>
-    </message>
-    <message>
-        <source>Experimental Ray Tracing</source>
-        <translation>Экспериментальная трассировка лучей</translation>
     </message>
     <message>
         <source>Upscaling</source>
@@ -937,40 +905,12 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>Шейдеры</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, normal maps are automatically recognized and used if they are named appropriately
-                  (see &apos;normal map pattern&apos;, e.g. for a base texture foo.dds, the normal map texture would have to be named foo_n.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file (.nif or .osg file). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Когда эта настройка включена, карты нормалей автоматически распознаются и используются, если у них правильное название
-                  (см. настройку &apos;normal map pattern&apos;, например, для базовой текстуры foo.dds, карта нормалей должна иметь название foo_n.dds).
-                  Когда настройка отключена, карты используются, только если они явно заданы в модели (.nif или .osg). Влияет на объекты.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Use Object Normal Maps</source>
-        <translation>Карты нормалей объектов</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;See &apos;auto use object normal maps&apos;. Affects terrain.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;См. &apos;Карты нормалей объектов&apos;. Влияет на ландшафт.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Auto Use Terrain Normal Maps</source>
         <translation>Карты нормалей ландшафта</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, specular maps are automatically recognized and used if they are named appropriately
-                  (see &apos;specular map pattern&apos;, e.g. for a base texture foo.dds,
-                  the specular map texture would have to be named foo_spec.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file
-                  (.osg file, not supported in .nif files). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Когда эта настройка включена, спекулярные карты автоматически распознаются и используются, если у них правильное название
-                  (см. настройку &apos;specular map pattern&apos;, например, для базовой текстуры foo.dds,
-                  спекулярная карта должна иметь название foo_spec.dds).
-                  Когда настройка отключена, карты используются, только если они явно заданы в модели
-                  (.osg-моделях, они не поддерживаются в .nif-моделях). Влияет на объекты.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Use Object Specular Maps</source>
-        <translation>Спекулярные карты объектов</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If a file with pattern &apos;terrain specular map pattern&apos; exists, use that file as a &apos;diffuse specular&apos; map. The texture must contain the layer colour in the RGB channel (as usual), and a specular multiplier in the alpha channel.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
@@ -993,74 +933,12 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>Локальное освещение карт отражений</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allows MSAA to work with alpha-tested meshes, producing better-looking edges without pixelation. Can negatively impact performance.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Позволяет MSAA работать с моделями с альфа-тестированием, что позволяет улучшить отображение граней и избежать их пикселизации. Может снизить производительность.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Use Anti-Aliased Alpha Testing</source>
-        <translation>Сглаживание альфа-тестирования</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enables soft particles for particle effects. This technique softens the intersection between individual particles and other opaque geometry by blending between them.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Смягчение систем частиц. Эта техника смягчает пересечения между отдельными частицами и непрозрачными объектами с помощью их смешения.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Simulate coverage-preserving mipmaps to prevent alpha-tested meshes shrinking as they get further away. Will cause meshes whose textures have coverage-preserving mipmaps to grow, though, so refer to mod installation instructions for how to set this.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Эмуляция сохранения покрытия в MIP-картах, чтобы модели с альфа-тестированием не усыхали по мере удаления от камеры. Однако если MIP-карты на уровне самих текстур уже созданы с сохранением покрытия, покрытие будет расти по мере удаления от камеры, так что читайте инструкции к вашим модам.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Adjust Coverage for Alpha Test</source>
-        <translation>Покрытие альфа-тестирования</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;EXPERIMENTAL: Stop rain and snow from falling through overhangs and roofs.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;ЭКСПЕРИМЕНТАЛЬНАЯ НАСТРОЙКА: Предотвращает отображение падающих капель дождя и снежинок под крышами.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source>Fog</source>
-        <translation>Туман</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;By default, the fog becomes thicker proportionally to your distance from the clipping plane set at the clipping distance, which causes distortion at the edges of the screen.
-                    This setting makes the fog use the actual eye point distance (or so called Euclidean distance) to calculate the fog, which makes the fog look less artificial, especially if you have a wide FOV.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;По умолчанию туман становится плотнее по мере удаления от плоскости отсечения (которая находится на расстоянии дистанции обзора от камеры), из-за чего могут быть графические артефакты возле края экрана.
-                    С этой настройкой плотность тумана для объекта зависит от расстояния от камеры до объекта (т.н. евклидово расстояние), благодаря чему туман выглядит не так искусственно, особенно при большом поле зрения.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Radial Fog</source>
-        <translation>Радиальный туман</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use exponential fog formula. By default, linear fog is used.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Использование экспоненциальной формулы для тумана. По умолчанию используется линейный туман.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Exponential Fog</source>
-        <translation>Экспоненциальный туман</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Reduce visibility of clipping plane by blending objects with the sky.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Снизить видимость плоскости отсечения с помощью смешения объектов с небом.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Sky Blending</source>
-        <translation>Смешивать с небом</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The fraction of the maximum distance at which blending with the sky starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>Множитель расстояния обзора, определяющий начало смешения.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Sky Blending Start</source>
-        <translation>Минимальное расстояние смешения</translation>
-    </message>
-    <message>
         <source>Terrain</source>
         <translation>Ландшафт</translation>
-    </message>
-    <message>
-        <source>Viewing Distance</source>
-        <translation>Расстояние обзора</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Controls how large an object must be to be visible in the scene. The object’s size is divided by its distance to the camera and the result of the division is compared with this value. The smaller this value is, the more objects you will see in the scene.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
@@ -1071,56 +949,12 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>Минимальный размер склеиваемых объектов</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, use paging and LOD algorithms to display the entire terrain. If false, only display terrain of the loaded cells.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Когда включено, на удаленном ландшафте будут отображаться объекты, склеенные вместе с помощью специального алгоритма. Когда выключено, будет отображаться только сам ландшафт.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Distant Land</source>
-        <translation>Удаленный ландшафт</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use object paging for active cells grid.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Склеивать объекты в активных ячейках.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Active Grid Object Paging</source>
-        <translation>Склеивание в активных ячейках</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this setting is true, supporting models will make use of day night switch nodes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Если эта настройка включена, модели с поддержкой переключения в зависимости от времени суток будут ее использовать.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Day Night Switch Nodes</source>
         <translation>Переключение узлов дня и ночи</translation>
-    </message>
-    <message>
-        <source>Post Processing</source>
-        <translation>Постобработка</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this setting is true, post processing will be enabled.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Если эта настройка включена, то будет включена постобработка графики.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Enable Post Processing</source>
-        <translation>Включить постобработку</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Re-render transparent objects with forced alpha clipping.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Отрисовывать прозрачные объекты заново - со строгой границей прозрачности.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Transparent Postpass</source>
-        <translation>Дополнительный проход для прозрачных объектов</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Controls how much eye adaptation can change from frame to frame. Smaller values makes for slower transitions.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Определяет, насколько быстро может меняться эффект аккомодации глаза от кадра к кадру. Более низкие значения означают более медленные преобразования.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Exposure Speed</source>
-        <translation>Скорость автоматической экспозиции</translation>
     </message>
     <message>
         <source>Audio</source>
@@ -1251,6 +1085,14 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Учителя выбирают навыки, которым учат, по базовым значениям навыка, благодаря чему моды могут использовать эффекты на усиление навыка торговли, не делая его предлагаемым навыком.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distant Objects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Miscellaneous</source>
         <translation>Разное</translation>
     </message>
@@ -1375,16 +1217,8 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>Форма объекта столкновений для персонажей</translation>
     </message>
     <message>
-        <source>Soft Particles</source>
-        <translation>Мягкие частицы</translation>
-    </message>
-    <message>
         <source>Weather Particle Occlusion</source>
         <translation>Окклюзия погодных частиц</translation>
-    </message>
-    <message>
-        <source> cells</source>
-        <translation> ячеек</translation>
     </message>
     <message>
         <source>Audio Device</source>

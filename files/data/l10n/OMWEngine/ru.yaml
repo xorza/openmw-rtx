@@ -28,10 +28,6 @@ LoadingRequiresOldVersionError: |-
     Загрузите и сохраните этот файл в {version}, чтобы обновить его.
 NewGameConfirmation: "Вы хотите начать новую игру? Текущая игра будет потеряна."
 QuitGameConfirmation: "Выйти из игры?"
-RayTracingUnsupported: |-
-    Трассировка лучей не может работать на этом компьютере: {reason}
-
-    Вместо неё OpenMW использует рендерер OpenGL. Отключите «Экспериментальный рендерер с трассировкой лучей» в настройках, чтобы это сообщение больше не появлялось.
 SaveGameDenied: "В данный момент игру нельзя сохранить."
 SavingInProgress: "Сохранение..."
 ScreenshotFailed: "Не удалось создать снимок экрана"
@@ -84,21 +80,6 @@ CameraSensitivity: "Чувствительность камеры"
 CameraZoomIn: "Приблизить камеру"
 CameraZoomOut: "Отдалить камеру"
 ChangeRequiresRestart: "Чтобы это изменение вступило в силу, нужно перезапустить приложение."
-ClampLighting: "Ограничить яркость"
-ClampLightingTooltip: |-
-    Ограничить яркость освещения значением (1, 1, 1) для соответствия рендерингу Morrowind.
-    Это предотвращает пересветы и искажение цветов, но может сделать освещение более тусклым.
-ClassicFalloff: "Классическое угасание"
-ClassicFalloffTooltip: |-
-    По умолчанию: выкл
-    Использовать традиционную формулу угасания точечных источников света, в которой полного угасания не происходит.
-
-    Изъян традиционной формулы заключается в том, что влияние света на сцену никогда не достигает нуля.
-    Это корректно с физической точки зрения, но приводит к швам, потому что источник света не может влиять на всю сцену сразу.
-    Полное угасание позволяет сильно уменьшить количество таких швов ценой того, что сцена становится темнее.
-
-    Morrowind использует традиционную формулу, поэтому вы можете решить включить эту настройку, если изменения освещенности вам не по душе.
-    Кроме того, вместо включения этой настройки вы также можете попробовать изменить минимальный уровень освещения в интерьерах.
 ConfirmResetBindings: "Сбросить все настройки управления?"
 ConfirmResolution: "Разрешение будет изменено немедленно. Продолжить?"
 Controller: "Геймпад"
@@ -106,7 +87,6 @@ Controls: "Управление"
 Crosshair: "Прицел"
 DelayLow: "Маленькая"
 DelayHigh: "Большая"
-DetailLevel: "Уровень детализации"
 Difficulty: "Сложность"
 DifficultyValue: "Сложность ({value})"
 DifficultyEasy: "Легко"
@@ -118,14 +98,6 @@ FieldOfView: "Поле зрения"
 FieldOfViewValue: "Поле зрения ({value, number, ::.00})"
 FieldOfViewLow: "Маленькое"
 FieldOfViewHigh: "Большое"
-ForcePerPixelLighting: "Попиксельное освещение"
-ForcePerPixelLightingTooltip: |-
-    Использовать попиксельное освещение принудительно. По умолчанию его используют только объекты, использующие карты бампа и карты нормалей.
-
-    Включение попиксельного освещения приводит к визуальным отличиям по сравнению с оригинальным движком, так как некоторые источники света в Morrowind полагаются на повершинное освещение для того, чтобы выглядеть, как задумывалось.
-
-    Обратите внимание, что шейдеры растительности и системы частиц игнорируют эту настройку.
-FrameRateHint: "Подсказка: нажмите F3, чтобы показать\nтекущую частоту смены кадров."
 GammaCorrection: "Гамма-коррекция"
 GammaCorrectionValue: "Гамма-коррекция ({value, number, ::.00})"
 GammaDark: "Темно"
@@ -135,63 +107,23 @@ InvertXAxis: "Инвертировать ось X"
 InvertYAxis: "Инвертировать ось Y"
 Language: "Язык"
 LanguageNote: "Примечание: эти настройки не затрагивают строки из ESM-файлов."
-LightsClusteredLighting: "Кластерное освещение"
-LightingResetToDefaults: "Обнулить настройки освещения?"
-Lights: "Освещение"
 LightRadiusMultiplier: "Множитель радиуса"
-LightRadiusMultiplierValue: "Множитель радиуса ({value, number, ::.00})"
-LightRadiusMultiplierTooltip: "Значение по умолчанию: 1.75\nМножитель радиуса точечных источников света. Большие значения увеличат дальность освещения."
 LightsFadeStartMultiplier: "Множитель начала затухания"
 LightsFadeStartMultiplierValue: "Множитель начала затухания ({value, number, ::.00})"
 LightsFadeStartMultiplierTooltip: "Значение по умолчанию: 0.85\nДоля расстояния (относительно дальности отображения источников света), на которой свет начинает затухать.\n\nНизкие значения ведут к плавному затуханию, высокие - к резкому."
-LightsClusteredLightingTooltip:  |-
-  Включить кластерное освещение.
-  Делит экран на области для назначения источников света, снимая ограничение на их количество на один объект.
-
-  Настройки классического угасания и максимума источников света в этом режиме не применяются.
-
-  Включает блики от точечных источников света на поверхности воды, когда включен шейдер воды.
-
-  Крайне рекомендуется использовать вместе с включенным попиксельным освещением, т.к. вершинное освещение может вызвать резкое появление света на краях экрана.
 LightsMaximumDistance: "Дальность отображения источников света"
-LightsMaximumDistanceValue: "Дальность отображения источников света ({value, number, :: group-off})"
-LightsMaximumDistanceTooltip: "Значение по умолчанию: 8192\nМаксимальное расстояние, на котором будут отображаться источники света (во внутриигровых единицах измерения).\n\nЕсли 0, то расстояние не ограничено."
 LightsMinimumInteriorBrightness: "Минимальный уровень освещения в помещениях"
-LightsMinimumInteriorBrightnessValue: "Минимальный уровень освещения в помещениях ({value, number, ::.00})"
-LightsMinimumInteriorBrightnessTooltip: "Значение по умолчанию: 0.08\nМинимальный уровень фонового освещения в помещениях.\n\nУвеличьте значение, если помещения в игре кажутся слишком темными. Эта настройка не имеет эффекта, если используется классическое угасание."
-MatchSunlightToSun: "Свет солнца идет от солнца"
-MatchSunlightToSunTooltip: |-
-    В Morrowind по загадочным причинам видимое положение солнца не соответствует направлению его света.
-    Мы копируем это нереалистичное поведение ради совместимости.
-
-    Настройка делает так, чтобы направление света от солнца соответствовало его положению.
-MaxLights: "Макс. источников света"
-MaxLightsValue: "Макс. источников света ({value, number, :: group-off})"
-MaxLightsTooltip: "Значение по умолчанию: 16\nМаксимальное количество источников света для каждого объекта.\n\nНизкие числа (близкие к значению по умолчанию) приводят к резким перепадам освещения, как в Morrowind."
 MenuHelpDelay: "Задержка всплывающих подсказок"
 MenuTransparency: "Прозрачность меню"
 MouseAndKeyboard: "Мышь/Клавиатура"
 MouseEmulationCursor: "Эмуляция курсора мыши"
-ParticlePointLighting: "Точечное освещение частиц"
-ParticlePointLightingTooltip: "Позволяет системам частиц быть освещенными точечными источниками света."
-PostProcessing: "Постобработка"
 PostProcessingIsNotEnabled: "Постобработка не активна"
-PostProcessingTooltip: "Настраивается через меню настроек постобработки, см. привязки клавиш."
 Preferences: "Настройки"
 PrimaryLanguage: "Основной язык"
 PrimaryLanguageTooltip: "Язык, строки на котором будут использоваться в первую очередь."
-QualityHigh: "Высокое"
-QualityLow: "Низкое"
-QualityMedium: "Среднее"
-RainRippleDetail: "Капли дождя на воде"
-RainRippleDetailDense: "Плотные"
-RainRippleDetailSimple: "Упрощенные"
-RainRippleDetailSparse: "Редкие"
 RayTracing: "Трассировка лучей"
 RayTracingDistantLand: "Удалённый ландшафт"
 RayTracingDistantLandValue: "Удалённый ландшафт ({value} ячеек)"
-RayTracingEnabled: "Экспериментальный рендерер с трассировкой лучей"
-RayTracingRestart: "Включение рендерера вступит в силу при следующем запуске OpenMW."
 RayTracingSpecularMaps: "Карты бликов"
 RayTracingSpecularMapsClassic: "Классические (цвет блика и глянцевость)"
 RayTracingSpecularMapsHint: "Изменение вступит в силу при следующем запуске OpenMW."
@@ -204,15 +136,6 @@ RayTracingUpscalePerformance: "Производительность"
 RayTracingUpscaleQuality: "Качество"
 RayTracingUpscaleUltraPerformance: "Ультрапроизводительность"
 RebindAction: "Нажмите клавишу, которую нужно назначить на это действие."
-ReflectionShaderDetail: "Детализация отражений"
-ReflectionShaderDetailActors: "Персонажи"
-ReflectionShaderDetailGroundcover: "Трава"
-ReflectionShaderDetailObjects: "Предметы"
-ReflectionShaderDetailSky: "Небо"
-ReflectionShaderDetailTerrain: "Ландшафт"
-ReflectionShaderDetailWorld: "Мир"
-Refraction: "Рефракция"
-RendererDeclines: "Недоступно в этом рендерере."
 ResetControls: "Сбросить"
 ResolutionNative: "Нативное"
 Screenshot: "Снимок экрана"
@@ -224,59 +147,20 @@ SensitivityHigh: "Высокая"
 SensitivityLow: "Низкая"
 SettingsWindow: "Настройки"
 Subtitles: "Субтитры"
-SunlightScattering: "Рассеяние солнечного света"
 TestingExteriorCells: "Проверка наружных ячеек"
 TestingInteriorCells: "Проверка ячеек-помещений"
-TextureFiltering: "Фильтрация текстур"
-TextureFilteringBilinear: "Билинейная"
-TextureFilteringNearest: "Ступенчатая"
-TextureFilteringDisabled: "Отключена"
-TextureFilteringOther: "Другая"
-TextureFilteringTrilinear: "Трилинейная"
 ToggleHUD: "Переключить HUD"
 TogglePostProcessorHUD: "Меню настроек постобработки"
 TransparencyFull: "Прозрачное"
 TransparencyNone: "Непрозрачное"
-ViewDistance: "Дальность обзора"
-ViewDistanceValue: "Дальность обзора ({value, number, ::.00})"
-ViewDistanceValueCells: "Дальность обзора (×{cells, number, ::.00})"
 Video: "Видео"
 VSync: "Вертикальная синхронизация"
 VSyncAdaptive: "Адаптивная"
-Water: "Вода"
-WaterShader: "Шейдер воды"
-WaterShaderTextureQuality: "Качество текстуры воды"
 WindowBorder: "Рамка окна"
 WindowMode: "Режим окна"
 WindowModeFullscreen: "Полный экран"
 WindowModeWindowed: "Оконный"
 WindowModeWindowedFullscreen: "Оконный без полей"
-WobblyShores: "Колеблющиеся берега"
-
-# Shadow settings
-
-Shadows: "Тени"
-ActorShadows: "Включить тени от персонажей"
-ActorShadowsTooltip: "Включить тени от NPC и существ, кроме персонажа игрока. Может незначительно снизить производительность."
-PlayerShadows: "Включить тени от персонажа игрока"
-PlayerShadowsTooltip: "Включить тени от персонажа игрока. Может очень незначительно снизить производительность."
-TerrainShadows: "Включить тени от ландшафта"
-TerrainShadowsTooltip: "Включить тени от ландшафта (включая удаленный ландшафт). Может значительно снизить производительность и качество теней."
-ObjectShadows: "Включить тени от объектов"
-ObjectShadowsTooltip: "Включить тени от объектов. Может значительно снизить производительность."
-IndoorShadows: "Включить тени в интерьерах"
-IndoorShadowsTooltip: "Из-за ограничений в файлах Morrowind, только персонажи могут отбрасывать тени в интерьерах, что может раздражать. Не имеет эффекта, если тени от персонажей отключены."
-ShadowPlanesComputationMethod: "Метод определения границ для теней"
-ShadowPlanesComputationMethodTooltip: |-
-    Определяет используемый тип вычисления границ сцены. Вычисление по границам объектов (по умолчанию) дает хороший баланс между производительностью и качеством теней, вычисление по примитивам улучшает качество теней, а еще можно полностью отключить вычисление.
-ShadowPlanesComputationMethodBounds: "По границам объектов"
-ShadowPlanesComputationMethodPrimitives: "По примитивам"
-ShadowPlanesComputationMethodNone: "Отключено"
-ShadowPlanesComputationMethodWarning: "Использование метода вычисления по примитивам серьезно повлияет на производительность и не рекомендуется для обычного игрового процесса."
-ShadowMapResolution: "Разрешение теневой карты"
-ShadowMapResolutionTooltip: "Разрешение отдельных теневых карт. Увеличение значения улучшает качество теней, но может незначительно снизить производительность."
-ShadowsMaxDistanceValue: "Максимальная дистанция теней ({value, number, :: group-off})"
-ShadowsMaxDistanceTooltip: "Расстояние от камеры, при достижении которого тени полностью исчезают. Установите на 0, чтобы отключить."
 
 # Controller button names
 

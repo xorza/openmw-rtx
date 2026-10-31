@@ -193,7 +193,7 @@ namespace RtxTool
             engine.setGrabMouse(played);
 
             // The session is the host: it makes the renderer, states the step and runs the
-            // schedule, so the engine never reads `[RTX] enabled` and never sees the run.
+            // schedule, so the engine starts no renderer of its own and never sees the run.
             engine.setHost(session);
 
             engine.go();

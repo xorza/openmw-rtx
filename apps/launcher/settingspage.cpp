@@ -202,21 +202,6 @@ void Launcher::SettingsPage::on_runScriptAfterStartupBrowseButton_clicked()
     runScriptAfterStartupField->setText(path);
 }
 
-namespace
-{
-    constexpr double cellSizeInUnits = 8192;
-
-    double convertToCells(double unitRadius)
-    {
-        return unitRadius / cellSizeInUnits;
-    }
-
-    int convertToUnits(double cellGridRadius)
-    {
-        return static_cast<int>(cellSizeInUnits * cellGridRadius);
-    }
-}
-
 bool Launcher::SettingsPage::loadSettings()
 {
     // Game mechanics
@@ -246,16 +231,9 @@ bool Launcher::SettingsPage::loadSettings()
 
     // Visuals
     {
-        loadSettingBool(Settings::shaders().mAutoUseObjectNormalMaps, *autoUseObjectNormalMapsCheckBox);
-        loadSettingBool(Settings::shaders().mAutoUseObjectSpecularMaps, *autoUseObjectSpecularMapsCheckBox);
         loadSettingBool(Settings::shaders().mAutoUseTerrainNormalMaps, *autoUseTerrainNormalMapsCheckBox);
         loadSettingBool(Settings::shaders().mAutoUseTerrainSpecularMaps, *autoUseTerrainSpecularMapsCheckBox);
         loadSettingBool(Settings::shaders().mApplyLightingToEnvironmentMaps, *bumpMapLocalLightingCheckBox);
-        loadSettingBool(Settings::shaders().mSoftParticles, *softParticlesCheckBox);
-        loadSettingBool(Settings::shaders().mAntialiasAlphaTest, *antialiasAlphaTestCheckBox);
-        if (Settings::shaders().mAntialiasAlphaTest == 0)
-            antialiasAlphaTestCheckBox->setCheckState(Qt::Unchecked);
-        loadSettingBool(Settings::shaders().mAdjustCoverageForAlphaTest, *adjustCoverageForAlphaTestCheckBox);
         loadSettingBool(Settings::shaders().mWeatherParticleOcclusion, *weatherParticleOcclusionCheckBox);
         loadSettingBool(Settings::game().mUseMagicItemAnimations, *magicItemAnimationsCheckBox);
         connect(animSourcesCheckBox, &QCheckBox::toggled, this, &SettingsPage::slotAnimSourcesToggled);
@@ -270,27 +248,12 @@ bool Launcher::SettingsPage::loadSettings()
         loadSettingBool(Settings::game().mSmoothMovement, *smoothMovementCheckBox);
         loadSettingBool(Settings::game().mPlayerMovementIgnoresAnimation, *playerMovementIgnoresAnimationCheckBox);
 
-        connect(distantLandCheckBox, &QCheckBox::toggled, this, &SettingsPage::slotDistantLandToggled);
-        bool distantLandEnabled = Settings::terrain().mDistantTerrain && Settings::terrain().mObjectPaging;
-        distantLandCheckBox->setCheckState(distantLandEnabled ? Qt::Checked : Qt::Unchecked);
-        slotDistantLandToggled(distantLandEnabled);
-
-        loadSettingBool(Settings::terrain().mObjectPagingActiveGrid, *activeGridObjectPagingCheckBox);
-        viewingDistanceComboBox->setValue(convertToCells(Settings::camera().mViewingDistance));
+        connect(objectPagingCheckBox, &QCheckBox::toggled, this, &SettingsPage::slotObjectPagingToggled);
+        loadSettingBool(Settings::terrain().mObjectPaging, *objectPagingCheckBox);
+        slotObjectPagingToggled(Settings::terrain().mObjectPaging);
         objectPagingMinSizeComboBox->setValue(Settings::terrain().mObjectPagingMinSize);
 
         loadSettingBool(Settings::game().mDayNightSwitches, *nightDaySwitchesCheckBox);
-
-        connect(postprocessEnabledCheckBox, &QCheckBox::toggled, this, &SettingsPage::slotPostProcessToggled);
-        loadSettingBool(Settings::postProcessing().mEnabled, *postprocessEnabledCheckBox);
-        loadSettingBool(Settings::postProcessing().mTransparentPostpass, *postprocessTransparentPostpassCheckBox);
-        postprocessHDRTimeComboBox->setValue(Settings::postProcessing().mAutoExposureSpeed);
-
-        connect(skyBlendingCheckBox, &QCheckBox::toggled, this, &SettingsPage::slotSkyBlendingToggled);
-        loadSettingBool(Settings::fog().mRadialFog, *radialFogCheckBox);
-        loadSettingBool(Settings::fog().mExponentialFog, *exponentialFogCheckBox);
-        loadSettingBool(Settings::fog().mSkyBlending, *skyBlendingCheckBox);
-        skyBlendingStartComboBox->setValue(Settings::fog().mSkyBlendingStart);
     }
 
     // Audio
@@ -495,15 +458,9 @@ void Launcher::SettingsPage::saveSettings()
 
     // Visuals
     {
-        saveSettingBool(*autoUseObjectNormalMapsCheckBox, Settings::shaders().mAutoUseObjectNormalMaps);
-        saveSettingBool(*autoUseObjectSpecularMapsCheckBox, Settings::shaders().mAutoUseObjectSpecularMaps);
         saveSettingBool(*autoUseTerrainNormalMapsCheckBox, Settings::shaders().mAutoUseTerrainNormalMaps);
         saveSettingBool(*autoUseTerrainSpecularMapsCheckBox, Settings::shaders().mAutoUseTerrainSpecularMaps);
         saveSettingBool(*bumpMapLocalLightingCheckBox, Settings::shaders().mApplyLightingToEnvironmentMaps);
-        saveSettingBool(*radialFogCheckBox, Settings::fog().mRadialFog);
-        saveSettingBool(*softParticlesCheckBox, Settings::shaders().mSoftParticles);
-        saveSettingBool(*antialiasAlphaTestCheckBox, Settings::shaders().mAntialiasAlphaTest);
-        saveSettingBool(*adjustCoverageForAlphaTestCheckBox, Settings::shaders().mAdjustCoverageForAlphaTest);
         saveSettingBool(*weatherParticleOcclusionCheckBox, Settings::shaders().mWeatherParticleOcclusion);
         saveSettingBool(*magicItemAnimationsCheckBox, Settings::game().mUseMagicItemAnimations);
         saveSettingBool(*animSourcesCheckBox, Settings::game().mUseAdditionalAnimSources);
@@ -514,24 +471,9 @@ void Launcher::SettingsPage::saveSettings()
         saveSettingBool(*smoothMovementCheckBox, Settings::game().mSmoothMovement);
         saveSettingBool(*playerMovementIgnoresAnimationCheckBox, Settings::game().mPlayerMovementIgnoresAnimation);
 
-        const bool wantDistantLand = distantLandCheckBox->checkState() == Qt::Checked;
-        if (wantDistantLand != (Settings::terrain().mDistantTerrain && Settings::terrain().mObjectPaging))
-        {
-            Settings::terrain().mDistantTerrain.set(wantDistantLand);
-            Settings::terrain().mObjectPaging.set(wantDistantLand);
-        }
-
-        saveSettingBool(*activeGridObjectPagingCheckBox, Settings::terrain().mObjectPagingActiveGrid);
-        Settings::camera().mViewingDistance.set(convertToUnits(viewingDistanceComboBox->value()));
+        saveSettingBool(*objectPagingCheckBox, Settings::terrain().mObjectPaging);
         Settings::terrain().mObjectPagingMinSize.set(objectPagingMinSizeComboBox->value());
         saveSettingBool(*nightDaySwitchesCheckBox, Settings::game().mDayNightSwitches);
-        saveSettingBool(*postprocessEnabledCheckBox, Settings::postProcessing().mEnabled);
-        saveSettingBool(*postprocessTransparentPostpassCheckBox, Settings::postProcessing().mTransparentPostpass);
-        Settings::postProcessing().mAutoExposureSpeed.set(postprocessHDRTimeComboBox->value());
-        saveSettingBool(*radialFogCheckBox, Settings::fog().mRadialFog);
-        saveSettingBool(*exponentialFogCheckBox, Settings::fog().mExponentialFog);
-        saveSettingBool(*skyBlendingCheckBox, Settings::fog().mSkyBlending);
-        Settings::fog().mSkyBlendingStart.set(skyBlendingStartComboBox->value());
     }
 
     // Audio
@@ -633,22 +575,8 @@ void Launcher::SettingsPage::slotControllerMenusToggled(bool checked)
     controllerMenuTooltipsCheckBox->setEnabled(checked);
 }
 
-void Launcher::SettingsPage::slotPostProcessToggled(bool checked)
+void Launcher::SettingsPage::slotObjectPagingToggled(bool checked)
 {
-    postprocessTransparentPostpassCheckBox->setEnabled(checked);
-    postprocessHDRTimeComboBox->setEnabled(checked);
-    postprocessHDRTimeLabel->setEnabled(checked);
-}
-
-void Launcher::SettingsPage::slotSkyBlendingToggled(bool checked)
-{
-    skyBlendingStartComboBox->setEnabled(checked);
-    skyBlendingStartLabel->setEnabled(checked);
-}
-
-void Launcher::SettingsPage::slotDistantLandToggled(bool checked)
-{
-    activeGridObjectPagingCheckBox->setEnabled(checked);
     objectPagingMinSizeComboBox->setEnabled(checked);
 }
 

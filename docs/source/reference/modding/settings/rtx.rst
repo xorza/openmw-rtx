@@ -1,27 +1,16 @@
 RTX Settings
 ############
 
-The experimental Vulkan ray tracing renderer. It replaces primary visibility, shadows, direct and
-indirect light, sky, water and fog; the OpenGL renderer is what you get with :code:`enabled = false`,
-and is upstream's but for the changes this fork's :code:`AGENTS.md` names: five to its picture, the
-frame shown scaled into the window, and the gamma it applies in its last draw.
+The Vulkan ray tracing renderer, the one renderer the game starts. It draws primary visibility,
+shadows, direct and indirect light, sky, water and fog. Upstream's OpenGL renderer stays in the build
+and nothing starts it, so the settings only it reads have no effect.
 
-Every build carries both renderers. The ray tracer needs a GPU with hardware ray tracing, NVIDIA
-Turing or AMD RDNA 2 or later: acceleration structures, ray query, ray tracing pipelines and position
-fetch are all required, and a device missing any of them refuses to start rather than falling back.
+The ray tracer needs a GPU with hardware ray tracing, NVIDIA Turing or AMD RDNA 2 or later:
+acceleration structures, ray query, ray tracing pipelines and position fetch are all required. On a
+device missing any of them the game does not start, and its error box says what is missing.
 
 Most settings here are read once, at startup. :code:`upscale` and :code:`distant land cells` also
 follow the settings window while the game runs.
-
-.. omw-setting::
-   :title: enabled
-   :type: boolean
-   :range: true, false
-   :default: true
-
-   Use the ray tracing renderer instead of the OpenGL one. Takes effect on the next start. It needs a
-   GPU with hardware ray tracing (NVIDIA Turing or AMD RDNA 2, or later): on a machine without one,
-   the game starts with the OpenGL renderer and says why, and the setting stays on.
 
 .. omw-setting::
    :title: distant land cells
@@ -80,9 +69,9 @@ follow the settings window while the game runs.
 What the ray tracer declines
 ****************************
 
-The settings window greys these out under the ray tracer and shows the reason as the tooltip, and
-the console and Lua answer the requests below with "not available under this renderer" and the
-reason.
+Only the OpenGL renderer reads these, and the game never starts it: the settings window and the
+launcher do not offer them, and a value in :code:`settings.cfg` changes nothing. The console and Lua
+answer the requests below with "not available under this renderer" and the reason.
 
 Settings
 ========

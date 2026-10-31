@@ -28,10 +28,6 @@ LoadingRequiresOldVersionError: |-
     Load and save this file using {version} to upgrade it.
 NewGameConfirmation: "Do you want to start a new game and lose the current one?"
 QuitGameConfirmation: "Quit the game?"
-RayTracingUnsupported: |-
-    Ray tracing cannot run on this machine: {reason}
-
-    OpenMW draws with the OpenGL renderer instead. Turn off "Experimental ray tracing renderer" in the settings to start without this message.
 SaveGameDenied: "The game cannot be saved right now."
 SavingInProgress: "Saving..."
 ScreenshotFailed: "Failed to save screenshot"
@@ -84,21 +80,6 @@ CameraSensitivity: "Camera Sensitivity"
 CameraZoomIn: "Zoom Camera In"
 CameraZoomOut: "Zoom Camera Out"
 ChangeRequiresRestart: "This change requires a restart to take effect."
-ClampLighting: "Clamp Lighting"
-ClampLightingTooltip: |-
-    Cap lighting brightness at (1, 1, 1) to replicate Morrowind's rendering.
-    Prevents overly bright or shifted colors but can dull lighting.
-ClassicFalloff: "Classic Falloff"
-ClassicFalloffTooltip: |-
-    Default: off
-    Use the traditional point light attenuation formula which lacks an early fade out.
-
-    A flaw of the traditional formula is that light influence never quite reaches zero.
-    This is physically accurate, but can cause lighting seams because lights do not affect the entire scene.
-    Early fade out helps diminish these seams at the cost of darkening the scene.
-
-    Morrowind uses the traditional formula, so you may want to enable this if you dislike the brightness differences.
-    Alternatively, try changing the minimum interior brightness.
 ConfirmResetBindings: "Reset all controls to the default?"
 ConfirmResolution: "New resolution will be applied immediately. Do you want to continue?"
 Controller: "Controller"
@@ -106,7 +87,6 @@ Controls: "Controls"
 Crosshair: "Crosshair"
 DelayLow: "Fast"
 DelayHigh: "Slow"
-DetailLevel: "Detail Level"
 Difficulty: "Difficulty"
 DifficultyValue: "Difficulty ({value})"
 DifficultyEasy: "Easy"
@@ -118,14 +98,6 @@ FieldOfView: "Field of View"
 FieldOfViewValue: "Field of View ({value, number, ::.00})"
 FieldOfViewHigh: "High"
 FieldOfViewLow: "Low"
-ForcePerPixelLighting: "Per-Pixel Lighting"
-ForcePerPixelLightingTooltip: |-
-    Force the use of per-pixel lighting. By default, only bump- and normal-mapped objects use per-pixel lighting.
-
-    Enabling per-pixel lighting results in visual differences to the original engine as certain lights in Morrowind rely on vertex lighting to look as intended.
-
-    Note that groundcover shaders and particle effects ignore this setting.
-FrameRateHint: "Hint: press F3 to show\nthe current frame rate."
 GammaCorrection: "Gamma Correction"
 GammaCorrectionValue: "Gamma Correction ({value, number, ::.00})"
 GammaDark: "Dark"
@@ -135,63 +107,23 @@ InvertXAxis: "Invert X Axis"
 InvertYAxis: "Invert Y Axis"
 Language: "Language"
 LanguageNote: "Note: these settings do not affect strings from ESM files."
-LightsClusteredLighting: "Clustered Lighting"
-LightingResetToDefaults: "Resets to default values, would you like to continue?"
-Lights: "Lights"
 LightRadiusMultiplier: "Radius Multiplier"
-LightRadiusMultiplierValue: "Radius Multiplier ({value, number, ::.00})"
-LightRadiusMultiplierTooltip: "Default: 1.75\nMultiplier for point light radius. Larger values will increase the range of lights."
 LightsFadeStartMultiplier: "Fade Start Multiplier"
 LightsFadeStartMultiplierValue: "Fade Start Multiplier ({value, number, ::.00})"
 LightsFadeStartMultiplierTooltip: "Default: 0.85\nFraction of maximum distance at which lights will start to fade.\n\nSet this to a low value for slower transitions or a high value for quicker transitions."
-LightsClusteredLightingTooltip:  |-
-    Enable clustered lighting.
-    Divides the screen into regions to assign lights, removing per-object light limits.
-
-    Classic falloff and max light options do not apply in this mode.
-
-    Enables point light specular highlights on the water plane when the water shader is enabled.
-
-    It is highly recommended to use this with per-pixel lighting enabled, as vertex lighting can cause light pop at screen edges.
 LightsMaximumDistance: "Maximum Light Distance"
-LightsMaximumDistanceValue: "Maximum Light Distance ({value, number, :: group-off})"
-LightsMaximumDistanceTooltip: "Default: 8192\nMaximum distance at which lights will appear (measured in units).\n\nSet this to 0 to use an unlimited distance."
 LightsMinimumInteriorBrightness: "Minimum Interior Brightness"
-LightsMinimumInteriorBrightnessValue: "Minimum Interior Brightness ({value, number, ::.00})"
-LightsMinimumInteriorBrightnessTooltip: "Default: 0.08\nMinimum ambient interior brightness.\n\nIncrease this if you feel interiors are too dark.\n\nThis has no effect if classic falloff is used."
-MatchSunlightToSun: "Match Sunlight to Sun"
-MatchSunlightToSunTooltip: |-
-    In Morrowind, the apparent sun position does not match its light direction due to mysterious reasons.
-    We preserve this unrealistic behavior for compatibility.
-
-    This option makes the sun light source's position match the sun's position.
-MaxLights: "Max Lights"
-MaxLightsValue: "Max Lights ({value, number, :: group-off})"
-MaxLightsTooltip: "Default: 16\nMaximum number of lights per object.\n\nA low number near default will cause light popping similar to what you would see in Morrowind."
 MenuHelpDelay: "Menu Help Delay"
 MenuTransparency: "Menu Transparency"
 MouseAndKeyboard: "Mouse/Keyboard"
 MouseEmulationCursor: "Mouse Emulation Cursor"
-ParticlePointLighting: "Particle Point Lighting"
-ParticlePointLightingTooltip: "Allows particle systems to be lit by point lights."
-PostProcessing: "Post Processing"
 PostProcessingIsNotEnabled: "Postprocessor is not enabled"
-PostProcessingTooltip: "Tweaked via Post Processor HUD, see input bindings."
 Preferences: "Prefs"
 PrimaryLanguage: "Primary Language"
 PrimaryLanguageTooltip: "Localization files for this language have the highest priority."
-QualityHigh: "High"
-QualityLow: "Low"
-QualityMedium: "Medium"
-RainRippleDetail: "Rain Ripple Detail"
-RainRippleDetailDense: "Dense"
-RainRippleDetailSimple: "Simple"
-RainRippleDetailSparse: "Sparse"
 RayTracing: "Ray Tracing"
 RayTracingDistantLand: "Distant land"
 RayTracingDistantLandValue: "Distant land ({value} cells)"
-RayTracingEnabled: "Experimental ray tracing renderer"
-RayTracingRestart: "Enabling the renderer takes effect the next time OpenMW starts."
 RayTracingSpecularMaps: "Specular maps"
 RayTracingSpecularMapsClassic: "Classic (highlight colour and glossiness)"
 RayTracingSpecularMapsHint: "A change takes effect the next time OpenMW starts."
@@ -204,15 +136,6 @@ RayTracingUpscalePerformance: "Performance"
 RayTracingUpscaleQuality: "Quality"
 RayTracingUpscaleUltraPerformance: "Ultra Performance"
 RebindAction: "Press a key or button to rebind this control."
-ReflectionShaderDetail: "Reflection Shader Detail"
-ReflectionShaderDetailActors: "Actors"
-ReflectionShaderDetailGroundcover: "Groundcover"
-ReflectionShaderDetailObjects: "Objects"
-ReflectionShaderDetailSky: "Sky"
-ReflectionShaderDetailTerrain: "Terrain"
-ReflectionShaderDetailWorld: "World"
-Refraction: "Refraction"
-RendererDeclines: "Not available under this renderer."
 ResetControls: "Reset Controls"
 ResolutionNative: "Native"
 Screenshot: "Screenshot"
@@ -224,59 +147,20 @@ SensitivityHigh: "High"
 SensitivityLow: "Low"
 SettingsWindow: "Options"
 Subtitles: "Subtitles"
-SunlightScattering: "Sunlight Scattering"
 TestingExteriorCells: "Testing Exterior Cells"
 TestingInteriorCells: "Testing Interior Cells"
-TextureFiltering: "Texture Filtering"
-TextureFilteringBilinear: "Bilinear"
-TextureFilteringNearest: "Nearest"
-TextureFilteringDisabled: "None"
-TextureFilteringOther: "Other"
-TextureFilteringTrilinear: "Trilinear"
 ToggleHUD: "Toggle HUD"
 TogglePostProcessorHUD: "Toggle Post Processor HUD"
 TransparencyFull: "Full"
 TransparencyNone: "None"
 Video: "Video"
-ViewDistance: "View Distance"
-ViewDistanceValue: "View Distance ({value, number, ::.00})"
-ViewDistanceValueCells: "View Distance (×{cells, number, ::.00})"
 VSync: "VSync"
 VSyncAdaptive: "Adaptive"
-Water: "Water"
-WaterShader: "Water Shader"
-WaterShaderTextureQuality: "Texture Quality"
 WindowBorder: "Window Border"
 WindowMode: "Window Mode"
 WindowModeFullscreen: "Fullscreen"
 WindowModeWindowed: "Windowed"
 WindowModeWindowedFullscreen: "Windowed Fullscreen"
-WobblyShores: "Wobbly Shores"
-
-# Shadow settings
-
-Shadows: "Shadows"
-ActorShadows: "Enable Actor Shadows"
-ActorShadowsTooltip: "Enable shadows for NPCs and creatures besides the player character. May have a minor performance impact."
-PlayerShadows: "Enable Player Shadows"
-PlayerShadowsTooltip: "Enable shadows exclusively for the player character. May have a very minor performance impact."
-TerrainShadows: "Enable Terrain Shadows"
-TerrainShadowsTooltip: "Enable shadows for the terrain including distant terrain. May have a significant performance and shadow quality impact."
-ObjectShadows: "Enable Object Shadows"
-ObjectShadowsTooltip: "Enable shadows for primarily inanimate objects. May have a significant performance impact."
-IndoorShadows: "Enable Indoor Shadows"
-IndoorShadowsTooltip: "Due to limitations with Morrowind's data, only actors can cast shadows indoors, which some might feel is distracting. Has no effect if actor/player shadows are not enabled."
-ShadowPlanesComputationMethod: "Shadow Planes Computation Method"
-ShadowPlanesComputationMethodTooltip: |-
-    Type of "compute scene bounds" computation method to be used. Bounds (default) for a good balance between performance and shadow quality, primitives for better-looking shadows or none for no computation.
-ShadowPlanesComputationMethodBounds: "Bounds"
-ShadowPlanesComputationMethodPrimitives: "Primitives"
-ShadowPlanesComputationMethodNone: "None"
-ShadowPlanesComputationMethodWarning: "Using the primitives method will severely impact performance and is not recommended for normal gameplay."
-ShadowMapResolution: "Shadow Map Resolution"
-ShadowMapResolutionTooltip: "The resolution of each individual shadow map. Increasing it significantly improves shadow quality but may have a minor performance impact."
-ShadowsMaxDistanceValue: "Shadow Distance Limit ({value, number, :: group-off})"
-ShadowsMaxDistanceTooltip: "The distance from the camera at which shadows completely disappear. Set to 0 to disable."
 
 # Controller button names
 

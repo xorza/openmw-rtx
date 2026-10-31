@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -440,7 +441,7 @@ namespace MWRender
         virtual void awaitPresented() {}
 
         /// What this renderer honours, and why it declines the rest. Asked wherever the game would
-        /// otherwise branch on which renderer it has: the settings window, the console, Lua.
+        /// otherwise branch on which renderer it has: the console, Lua, the changed settings.
         virtual const RenderSupport& support() const = 0;
 
         /// Settings the player changed in the menu, as `Settings::Manager` reports them, of which
@@ -566,8 +567,8 @@ namespace MWRender
         bool mWorldAttached = false;
     };
 
-    /// Which of the two renderers a build ships draws the game: both are in every build, and the
-    /// one not chosen never starts.
+    /// The two renderers every build holds. The game starts the ray tracer alone (`startRenderer`);
+    /// the OpenGL renderer stays, built and unstarted, so upstream's code merges as it stands.
     enum class RendererKind
     {
         OpenGl,
@@ -581,32 +582,20 @@ namespace MWRender
     /// makes it itself, as the engine's host (`OMW::EngineHost::createRenderer`).
     std::unique_ptr<Renderer> createRenderer(RendererKind kind, const RendererSpec& spec);
 
-    /// What a player is told where the renderer `kind` could not start for `reason`: for the ray
-    /// tracer, also that `[RTX] enabled` chose it and where to turn it off. **The setting stays as
-    /// the player left it**, so every start until then ends here, and the box is the one place that
-    /// can say how to start the game again.
-    std::string describeStartFailure(RendererKind kind, std::string_view reason);
+    /// What a player is told where the ray tracer could not start: what failed, the folder whose
+    /// log says the rest, and, where the machine cannot run it (`Rtx::Unsupported`), the hardware
+    /// the build needs. A fault of the renderer's own does not name the card, which is not its
+    /// cause.
+    std::string describeStartFailure(const std::exception& failure, const std::filesystem::path& logFolder);
 
-    /// Makes the renderer of a kind: `createRenderer` in the game, a renderer of its own in a test.
-    using RendererFactory = std::function<std::unique_ptr<Renderer>(RendererKind kind)>;
+    /// Makes the ray tracer: `createRenderer` in the game, a renderer of its own in a test.
+    using RendererFactory = std::function<std::unique_ptr<Renderer>()>;
 
-    /// The renderer the game draws with, and why it is not the one asked for where it is not.
-    struct StartedRenderer
-    {
-        std::unique_ptr<Renderer> mRenderer;
-
-        /// Why the ray tracer gave way to the OpenGL renderer, for the player to read; empty where
-        /// the renderer asked for started.
-        std::string mFallbackReason;
-    };
-
-    /// **The ray tracer gives way to the OpenGL renderer where this machine cannot run it**
-    /// (`Rtx::Unsupported`: no Vulkan loader, no device with ray tracing), as an engine takes the
-    /// next graphics API on its list. The setting stays as the player left it, so a new card or
-    /// driver takes the ray tracer up again. Any other failure ends the start with
-    /// `describeStartFailure`'s words: a fault hidden behind the OpenGL picture would never be
-    /// reported.
-    StartedRenderer startRenderer(RendererKind wanted, const RendererFactory& create);
+    /// **The ray tracer or nothing.** The game starts no other renderer: the OpenGL renderer stays
+    /// in the build, where upstream's code keeps it, and is never chosen. A failure of any kind,
+    /// a machine that cannot run the ray tracer (`Rtx::Unsupported`) among them, ends the start
+    /// with `describeStartFailure`'s words, which the fatal error box shows.
+    std::unique_ptr<Renderer> startRenderer(const RendererFactory& create, const std::filesystem::path& logFolder);
 
     /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
     /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Windowed, it

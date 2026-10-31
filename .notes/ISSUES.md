@@ -9,3 +9,6 @@
   2026-10-31 and again under `--gtest_filter='RtxTextureArray*:RtxMemory*'`, it failed at
   `memory.cpp:429` ("a range given back was still counted"): `before[2]` read 51200 texture bytes
   held, and after `collectIdle` the use held 0. Alone it passes.
+- **`openmw_settings_window.layout` gives the `ScriptBox` widget its `name` attribute twice**
+  (`<Widget name="ScriptBox" type="Widget" align="Stretch" name="ScriptBox">`): `xmllint` refuses the
+  file with "Attribute name redefined".

@@ -28,10 +28,6 @@ LoadingRequiresOldVersionError: |-
     Laden und speichern Sie den Spielstand mit Version {version}, um das Format anzupassen.
 NewGameConfirmation: "Neues Spiel starten und aktuellen Fortschritt verwerfen?"
 QuitGameConfirmation: "Spiel verlassen?"
-RayTracingUnsupported: |-
-    Raytracing kann auf diesem Rechner nicht laufen: {reason}
-
-    OpenMW zeichnet stattdessen mit dem OpenGL-Renderer. Schalten Sie „Experimenteller Raytracing-Renderer“ in den Einstellungen aus, um ohne diese Meldung zu starten.
 SaveGameDenied: "Das Spiel kann gerade nicht gespeichert werden!"
 SavingInProgress: "Speichere Spiel..."
 ScreenshotFailed: "Speichern des Screenshots fehlgeschlagen!"
@@ -84,21 +80,6 @@ CameraSensitivity: "Kameraempfindlichkeit"
 CameraZoomIn: "Kamera hineinzoomen"
 CameraZoomOut: "Kamera herauszoomen"
 ChangeRequiresRestart: "Diese Änderung erfordert einen Neustart, um wirksam zu werden."
-ClampLighting: "Beleuchtung begrenzen"
-ClampLightingTooltip: |-
-    Begrenzt die Beleuchtungshelligkeit auf (1, 1, 1), um Morrowinds Darstellung nachzubilden.
-    Verhindert übermäßig helle oder verfälschte Farben, kann die Beleuchtung aber abschwächen.
-ClassicFalloff: "Klassischer Lichtabfall"
-ClassicFalloffTooltip: |-
-    Standard: aus
-    Verwendet die traditionelle Formel für die Abschwächung von Punktlichtquellen, die kein frühzeitiges Ausblenden aufweist.
-
-    Ein Nachteil der traditionellen Formel ist, dass der Lichteinfluss nie ganz Null erreicht.
-    Dies ist physikalisch korrekt, kann aber zu Beleuchtungsnähten führen, da Lichter nicht die gesamte Szene beeinflussen.
-    Frühzeitiges Ausblenden hilft, diese Nähte zu verringern, allerdings auf Kosten einer dunkleren Szene.
-
-    Morrowind verwendet die traditionelle Formel, daher möchten Sie dies möglicherweise aktivieren, wenn Ihnen die Helligkeitsunterschiede nicht gefallen.
-    Alternativ können Sie versuchen, die minimale Innenraumhelligkeit zu ändern.
 ConfirmResetBindings: "Alle Tastenbelegungen zurücksetzen?"
 ConfirmResolution: "Neue Auflösung wird sofort angewendet. Fortsetzen?"
 Controller: "Controller"
@@ -106,7 +87,6 @@ Controls: "Steuerung"
 Crosshair: "Fadenkreuz"
 DelayLow: "Schnell"
 DelayHigh: "Langsam"
-DetailLevel: "Detailgrad"
 Difficulty: "Schwierigkeitsgrad"
 DifficultyValue: "Schwierigkeitsgrad ({value})"
 DifficultyEasy: "Leicht"
@@ -118,14 +98,6 @@ FieldOfView: "Sichtfeld"
 FieldOfViewValue: "Sichtfeld ({value, number, ::.00})"
 FieldOfViewLow: "Niedrig"
 FieldOfViewHigh: "Hoch"
-ForcePerPixelLighting: "Beleuchtung pro Pixel"
-ForcePerPixelLightingTooltip: |-
-    Erzwingt die Verwendung der Beleuchtung pro Pixel. Standardmäßig verwenden nur Bump- und Normal-mapped-Objekte eine Beleuchtung pro Pixel.
-
-    Die Aktivierung der Per-Pixel-Beleuchtung führt zu visuellen Unterschieden zur ursprünglichen Engine, da bestimmte Lichter in Morrowind auf Vertex-Beleuchtung angewiesen sind, um wie beabsichtigt auszusehen.
-
-    Beachten Sie, dass Bodendecker-Shader und Partikeleffekte diese Einstellung ignorieren.
-FrameRateHint: "Hinweis: Drücken Sie F3,\num die aktuelle Bildrate anzuzeigen."
 GammaCorrection: "Gamma-Korrektur"
 GammaCorrectionValue: "Gamma-Korrektur ({value, number, ::.00})"
 GammaDark: "Dunkel"
@@ -135,62 +107,22 @@ InvertXAxis: "X-Achse invertieren"
 InvertYAxis: "Y-Achse invertieren"
 Language: "Sprache"
 LanguageNote: "Hinweis: Diese Einstellungen wirken sich nicht auf Texte aus ESM-Dateien aus."
-LightsClusteredLighting: "Cluster-Beleuchtung"
-LightingResetToDefaults: "Einstellungen wirklich zurücksetzen?"
-Lights: "Beleuchtung"
 LightRadiusMultiplier: "Multiplikator für den Punktlichtradius"
-LightRadiusMultiplierValue: "Multiplikator für den Punktlichtradius ({value, number, ::.00})"
-LightRadiusMultiplierTooltip: "Standard: 1,75\nMultiplikator für den Punktlichtradius. Größere Werte erhöhen die Reichweite der Lichter."
 LightsFadeStartMultiplier: "Multiplikator für Startwert der Lichtabblendung"
 LightsFadeStartMultiplierValue: "Multiplikator für Startwert der Lichtabblendung ({value, number, ::.00})"
 LightsFadeStartMultiplierTooltip: "Standard: 0,85\nBruchteil der maximalen Lichtreichweite, bei der Lichtquellen langsam zu verblassen beginnen.\n\nKleinere Werte führen zu einem sanfteren Übergang, der allerdings bereits bei geringerer Entfernung startet; größere Werte machen den Übergang abrupter, betreffen aber nur weiter entfernte Lichtquellen."
-LightsClusteredLightingTooltip: |-
- Aktiviert Cluster-Beleuchtung.
- Unterteilt den Bildschirm in Bereiche, um Lichtquellen zuzuweisen, wodurch die Begrenzung der Lichtanzahl pro Objekt entfällt.
-
- Die Optionen für klassischen Lichtabfall und maximale Lichtanzahl gelten in diesem Modus nicht.
-
- Aktiviert spiegelnde Highlights von Punktlichtern auf der Wasseroberfläche, wenn der Wassershader aktiviert ist.
-
- Es wird dringend empfohlen, dies zusammen mit Per-Pixel-Beleuchtung zu verwenden, da Vertex-Beleuchtung zu sichtbarem Licht-Popping an den Bildschirmrändern führen kann.
-LightsMaximumDistanceValue: "Maximale Lichtreichweite ({value, number, :: group-off})"
-LightsMaximumDistanceTooltip: "Standard: 8192 (1 Zelle)\nMaximale Entfernung, bis zu der Lichtquellen noch dargestellt werden (gemessen in In-Game-Einheiten).\n\nEin Wert von 0 entspricht einer unbegrenzten Reichweite."
 LightsMinimumInteriorBrightness: "Minimale Helligkeit in Innenräumen"
-LightsMinimumInteriorBrightnessValue: "Minimale Helligkeit in Innenräumen ({value, number, ::.00})"
-LightsMinimumInteriorBrightnessTooltip: "Standard: 0,08\nMinimale Umgebungshelligkeit in Innenräumen.\n\nKann erhöht werden, falls Innenräume zu dunkel dargestellt werden.\n\nDies hat keine Auswirkung, wenn der klassische Lichtabfall verwendet wird."
-MatchSunlightToSun: "Licht an Sonne ausrichten"
-MatchSunlightToSunTooltip: |-
-    In Morrowind stimmt die sichtbare Sonnenposition aus mysteriösen Gründen nicht mit ihrer Lichtrichtung überein.
-    Wir bewahren dieses unrealistische Verhalten, um die Kompatibilität sicherzustellen.
-
-    Diese Option passt die Position der Sonnenlichtquelle an die sichtbare Position der Sonne an.
-MaxLights: "Max. Lichter"
-MaxLightsValue: "Max. Lichter ({value, number, :: group-off})"
-MaxLightsTooltip: "Standard: 16\nMaximale Anzahl von Lichtquellen, die ein Objekt beleuchten können.\n\nKleine Werte können gerade an Orten mit vielen Lichtquellen zum Aufploppen und zum schnellen Wechsel von Lichtern führen, wie es aus der Original-Engine und anderen The-Elder-Scrolls-Titeln bekannt ist."
 MenuHelpDelay: "Verzögerung des Hilfe-Menüs"
 MenuTransparency: "Menü-Transparenz"
 MouseAndKeyboard: "Maus/Tastatur"
 MouseEmulationCursor: "Mausemulationszeiger"
-ParticlePointLighting: "Partikel-Punktlichtbeleuchtung"
-ParticlePointLightingTooltip: "Ermöglicht die Beleuchtung von Partikelsystemen durch Punktlichter."
-PostProcessing: "Post-Processing"
 PostProcessingIsNotEnabled: "Post-Processing ist nicht aktiviert!"
-PostProcessingTooltip: "Wird über Post-Processing-HUD konfiguriert (siehe Tastenbelegung)."
 Preferences: "Einstellungen"
 PrimaryLanguage: "Hauptsprache"
 PrimaryLanguageTooltip: "Lokalisierungsdateien für diese Sprache haben die höchste Priorität."
-QualityHigh: "Hoch"
-QualityLow: "Niedrig"
-QualityMedium: "Mittel"
-RainRippleDetail: "Detailgrad der Regentropfen-Wellen"
-RainRippleDetailDense: "Dicht (mit Normal-Maps)"
-RainRippleDetailSimple: "Einfach (keine Normal-Maps)"
-RainRippleDetailSparse: "Spärlich (mit Normal-Maps)"
 RayTracing: "Raytracing"
 RayTracingDistantLand: "Fernsicht"
 RayTracingDistantLandValue: "Fernsicht ({value} Zellen)"
-RayTracingEnabled: "Experimenteller Raytracing-Renderer"
-RayTracingRestart: "Das Einschalten des Renderers wird beim nächsten Start von OpenMW wirksam."
 RayTracingSpecularMaps: "Spekularmaps"
 RayTracingSpecularMapsClassic: "Klassisch (Glanzlichtfarbe und Glanz)"
 RayTracingSpecularMapsHint: "Eine Änderung wird beim nächsten Start von OpenMW wirksam."
@@ -203,15 +135,6 @@ RayTracingUpscalePerformance: "Leistung"
 RayTracingUpscaleQuality: "Qualität"
 RayTracingUpscaleUltraPerformance: "Ultra-Leistung"
 RebindAction: "Drücken Sie eine Taste oder einen Knopf, um diese Tastenbelegung zu ändern."
-ReflectionShaderDetail: "Detailgrad des Wasserreflexions-Shaders"
-ReflectionShaderDetailActors: "Akteure"
-ReflectionShaderDetailGroundcover: "Bodenvegetation"
-ReflectionShaderDetailObjects: "Objekte"
-ReflectionShaderDetailSky: "Himmel"
-ReflectionShaderDetailTerrain: "Terrain"
-ReflectionShaderDetailWorld: "Welt"
-Refraction: "Lichtbrechung"
-RendererDeclines: "Unter diesem Renderer nicht verfügbar."
 ResetControls: "Tastenbelegungen zurücksetzen"
 ResolutionNative: "Nativ"
 Screenshot: "Screenshot"
@@ -223,60 +146,21 @@ SensitivityHigh: "Hoch"
 SensitivityLow: "Niedrig"
 SettingsWindow: "Optionen"
 Subtitles: "Untertitel"
-SunlightScattering: "Sonnenlicht-Streuung"
 TestingExteriorCells: "Außenzellen testen"
 TestingInteriorCells: "Innenzellen testen"
-TextureFiltering: "Texturfilter"
-TextureFilteringBilinear: "Bilinear"
-TextureFilteringNearest: "Nächstgelegen"
-TextureFilteringDisabled: "Keiner"
-TextureFilteringOther: "Sonstiges"
-TextureFilteringTrilinear: "Trilinear"
 ToggleHUD: "HUD umschalten"
 TogglePostProcessorHUD: "Post-Processing-HUD umschalten"
 TransparencyFull: "Vollständig"
 TransparencyNone: "Keine"
 Video: "Video"
-ViewDistance: "Sichtweite"
-ViewDistanceValue: "Sichtweite ({value, number, ::.00})"
-ViewDistanceValueCells: "Sichtweite (×{cells, number, ::.00})"
 VSync: "VSync"
 VSyncAdaptive: "Adaptiv"
-Water: "Wasser"
-WaterShader: "Wasser-Shader"
-WaterShaderTextureQuality: "Texturqualität"
 WindowBorder: "Fensterrahmen darstellen"
 WindowMode: "Fenstermodus"
 WindowModeFullscreen: "Vollbild"
 WindowModeWindowed: "Fenster"
 WindowModeWindowedFullscreen: "Fenster in Vollbildgröße"
 # More fitting translations of "wobbly" are welcome
-WobblyShores: "Wabbelige Uferlinien"
-
-# Shadow settings
-
-Shadows: "Schatten"
-ActorShadows: "Schatten für Akteure aktivieren"
-ActorShadowsTooltip: "Schatten für NPCs und Kreaturen neben dem Spielercharakter aktivieren. Kann geringfügige Auswirkungen auf die Leistung haben."
-PlayerShadows: "Schatten für Spieler aktivieren"
-PlayerShadowsTooltip: "Schatten ausschließlich für den Spielercharakter aktivieren. Kann sehr geringfügige Auswirkungen auf die Leistung haben."
-TerrainShadows: "Schatten für Gelände aktivieren"
-TerrainShadowsTooltip: "Schatten für das Gelände inklusive ferner Geländeteile aktivieren. Kann erhebliche Auswirkungen auf die Leistung und Schattenqualität haben."
-ObjectShadows: "Schatten für Objekte aktivieren"
-ObjectShadowsTooltip: "Schatten für hauptsächlich unbelebte Objekte aktivieren. Kann erhebliche Auswirkungen auf die Leistung haben."
-IndoorShadows: "Schatten in Innenräumen aktivieren"
-IndoorShadowsTooltip: "Aufgrund von Einschränkungen der Spieldaten von Morrowind können in Innenräumen nur Akteure Schatten werfen, was von einigen als störend empfunden werden könnte. Hat keine Wirkung, wenn Akteur- oder Spielerschatten nicht aktiviert sind."
-ShadowPlanesComputationMethod: "Berechnungsmethode für Schattenebenen"
-ShadowPlanesComputationMethodTooltip: |-
-    Art der verwendeten Berechnungsmethode für Szenengrenzen ("compute scene bounds"). Begrenzungen (Standard) für eine gute Balance zwischen Leistung und Schattenqualität, Primitiven für schönere Schatten oder Keine für keine Berechnung.
-ShadowPlanesComputationMethodBounds: "Begrenzungen"
-ShadowPlanesComputationMethodPrimitives: "Primitiven"
-ShadowPlanesComputationMethodNone: "Keine"
-ShadowPlanesComputationMethodWarning: "Die Verwendung der Primitiven-Methode wird die Leistung stark beeinträchtigen und wird für das normale Gameplay nicht empfohlen."
-ShadowMapResolution: "Schattenauflösung"
-ShadowMapResolutionTooltip: "Die Auflösung jeder einzelnen Shadow-Map. Eine Erhöhung verbessert die Schattenqualität erheblich, kann aber geringfügige Auswirkungen auf die Leistung haben."
-ShadowsMaxDistanceValue: "Schatten-Distanzlimit ({value, number, :: group-off})"
-ShadowsMaxDistanceTooltip: "Die Entfernung von der Kamera, bei der Schatten vollständig verschwinden. Auf 0 setzen, um zu deaktivieren."
 
 # Controller button names
 
