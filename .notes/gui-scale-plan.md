@@ -108,7 +108,7 @@ latent faults on the build as it stands:
 
 ## The stages
 
-Done: 1, 2 and 3. Next: 4.
+Done: 1 to 4. Next: 5.
 
 Each is a commit, verified by `./omw test` on the binaries it touches and by `./omw gate` at the
 end. Each stage's change to upstream code joins `AGENTS.md`'s "Accepted diff" in the same commit.
@@ -153,13 +153,23 @@ in two fonts draw against the new atlases with the letter A's new corners, where
 rebind the draw used a destroyed texture; a text's height is the font size before and after a fit,
 and in an interface loaded at 2.
 
-### 4 — One owner and one fit
+### 4 — One owner and one fit — done
 
-`MWGui::InterfaceFonts`, `FontFit` and `WindowManager::fitFonts` beside `fitCursors` in `layOut`;
-`mRasterScale` goes. Tests: `FontFit` from hand-computed inputs (an interface scale of 1.5 on a
-display of 1.0 rasters at 2; the book raster follows the view size); a display change, a
-resolution change and a setting change each refit once, and a layout with nothing changed refits
-nothing.
+Done. `Gui::InterfaceFonts` (`components/fontloader/interfacefonts.hpp`, in `components` so
+`components-tests` drives it) owns the loader and the registry, stands the texts in MyGUI's
+factories as it is made, and its one `fit` rasterizes and, where a font moved, rebinds every
+text. A rebind has a widget sized to its text (`Gui::AutoSizedWidget::remeasure`) size itself
+again. The window manager owns one, destroyed after MyGUI's shutdown, and refits it in `layOut`
+beside `fitCursors` (`WindowManager::fitFonts`, from `fontFitNow`); `mRasterScale` went, and
+`getRasterScale` answers the fit. Tests: every font and text test now fits through the owner; a
+label sized to its text follows a fit to 3, where without the remeasure it kept its old size.
+Not tested: `fontFitNow`, a line of the window manager, and the layouts that call it, which no
+fixture stands up; the harness's runs in the gate run the game's interface through them.
+
+**Not to be committed without stage 5.** A layout now refits while the game runs, and a display
+or resolution change rasterizes the book fonts again; a `BookPage` keeps each font's texture in
+its `TextFormat` and in the render items made from it, so a journal or a dialogue history shown
+after such a change draws a texture its font replaced, until stage 5 has it re-typeset.
 
 ### 5 — Books re-typeset by their owners
 

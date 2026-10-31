@@ -9,13 +9,12 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/vfs/filemap.hpp>
 #include <components/vfs/manager.hpp>
-#include <components/widgets/textregistry.hpp>
 
 #include "countingrenderer.hpp"
 
 namespace Gui
 {
-    class FontLoader;
+    class InterfaceFonts;
 }
 
 namespace MyGUI
@@ -81,8 +80,7 @@ namespace Rtx::Testing
         GuiInstance& operator=(GuiInstance&&) = delete;
 
         CountingRenderer& getRenderer() { return mRenderer; }
-        Gui::FontLoader& getFonts() { return *mFonts; }
-        Gui::TextRegistry& getTexts() { return mTexts; }
+        Gui::InterfaceFonts& getFonts() { return *mFonts; }
 
         /// How many files the interface opened from the VFS since it was made.
         std::uint32_t getVfsReads() const { return mVfsReads; }
@@ -99,8 +97,7 @@ namespace Rtx::Testing
         CountingRenderer mRenderer;
         MyGUIRtx::RenderManager* mRenderManager = nullptr;
         std::unique_ptr<MyGUIPlatform::Platform> mPlatform;
-        Gui::TextRegistry mTexts;
         std::unique_ptr<MyGUI::Gui> mGui;
-        std::unique_ptr<Gui::FontLoader> mFonts;
+        std::unique_ptr<Gui::InterfaceFonts> mFonts;
     };
 }

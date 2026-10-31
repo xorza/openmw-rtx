@@ -53,7 +53,8 @@ namespace Gui
         /// `IFont*` stays and its texture is replaced, so every text drawn with it has to take the
         /// font's texture again before the next frame draws
         /// (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`). Reads nothing from the VFS.
-        void fit(const FontFit& fit);
+        /// Answers whether a font was rasterized.
+        bool fit(const FontFit& fit);
 
         const FontFit& getFit() const { return mFit; }
 

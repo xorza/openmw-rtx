@@ -19,9 +19,10 @@
 #include <MyGUI_TextBox.h>
 
 #include <apps/components_tests/rtx/support/guiinstance.hpp>
-#include <components/fontloader/fontloader.hpp>
+#include <components/fontloader/interfacefonts.hpp>
 #include <components/myguirtx/slottexture.hpp>
 #include <components/settings/values.hpp>
+#include <components/widgets/box.hpp>
 #include <components/widgets/textregistry.hpp>
 #include <components/widgets/trackedtext.hpp>
 
@@ -51,19 +52,19 @@ namespace Gui
         TEST(TextRegistryTest, theRegistryHoldsExactlyTheTextsThereAre)
         {
             Rtx::Testing::GuiInstance gui;
-            const std::size_t before = gui.getTexts().size();
+            const std::size_t before = gui.getFonts().getTexts().size();
 
             std::vector<MyGUI::TextBox*> texts;
             for (int at = 0; at < 3; ++at)
                 texts.push_back(makeText("DefaultFont", 10 + 40 * at));
-            EXPECT_EQ(gui.getTexts().size(), before + 3);
+            EXPECT_EQ(gui.getFonts().getTexts().size(), before + 3);
 
             MyGUI::Gui::getInstance().destroyWidget(texts[1]);
-            EXPECT_EQ(gui.getTexts().size(), before + 2);
+            EXPECT_EQ(gui.getFonts().getTexts().size(), before + 2);
 
             MyGUI::Gui::getInstance().destroyWidget(texts[0]);
             MyGUI::Gui::getInstance().destroyWidget(texts[2]);
-            EXPECT_EQ(gui.getTexts().size(), before);
+            EXPECT_EQ(gui.getFonts().getTexts().size(), before);
         }
 
         /// **After a fit and a rebind every text draws against its font's new atlas, where its glyphs
@@ -83,7 +84,6 @@ namespace Gui
             // To 3 and not 2: a default font's atlas twice the side with every glyph twice the size
             // puts each glyph at the same fraction of it, and would draw old corners as new ones.
             gui.getFonts().fit(FontFit{ .mRaster = 3.0f, .mView = MyGUI::IntSize(341, 256) });
-            gui.getTexts().rebind();
 
             const Rtx::Testing::DrawnGui drawn = gui.draw();
             std::set<std::uint32_t> drawnAgainst;
@@ -144,6 +144,27 @@ namespace Gui
             EXPECT_GT(skins, 10u) << "next to no text skin loaded, so the sweep found nothing";
         }
 
+        /// **A widget sized to its text sizes itself again after a fit**: a label that asks for its
+        /// text's size has it before the fit and after it, and the fit moved it, since hinting at
+        /// three times the raster lays the letters out a pixel apart where they were not.
+        TEST(TextRegistryTest, aWidgetSizedToItsTextSizesItselfAgainAfterAFit)
+        {
+            Rtx::Testing::GuiInstance gui;
+            // In a parent, as every label stands: a widget with none is not sized to its text.
+            MyGUI::Widget* const row = MyGUI::Gui::getInstance().createWidget<MyGUI::Widget>(
+                "", MyGUI::IntCoord(0, 0, 600, 40), MyGUI::Align::Default, "Windows");
+            auto* const label = row->createWidget<AutoSizedTextBox>(
+                "SandText", MyGUI::IntCoord(10, 10, 10, 10), MyGUI::Align::Default);
+            label->setCaption("Mournhold, Vivec and the Ghostfence");
+            const MyGUI::IntSize before = label->getSize();
+            ASSERT_EQ(before, label->getRequestedSize());
+
+            gui.getFonts().fit(FontFit{ .mRaster = 3.0f, .mView = MyGUI::IntSize(341, 256) });
+
+            EXPECT_EQ(label->getSize(), label->getRequestedSize());
+            EXPECT_NE(label->getSize(), before) << "the fit moved no letter, so the label proves nothing";
+        }
+
         /// **A text's height never reads the raster.** A text box's height is the font size it is
         /// given, 16, before and after a fit to a raster of 2; and a text with no height of its own
         /// takes the interface's font size too, after a fit to 2 and in an interface loaded at 2,
@@ -160,7 +181,6 @@ namespace Gui
                 ASSERT_EQ(unsized->getTextSize().height, size);
 
                 gui.getFonts().fit(FontFit{ .mRaster = 2.0f, .mView = MyGUI::IntSize(512, 384) });
-                gui.getTexts().rebind();
 
                 EXPECT_EQ(MyGUI::FontManager::getInstance().getByName("DefaultFont")->getDefaultHeight(), 32);
                 EXPECT_EQ(sized->getTextSize().height, size);

@@ -26,7 +26,6 @@
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <components/widgets/textregistry.hpp>
 
 #include "charactercreation.hpp"
 #include "draganddrop.hpp"
@@ -86,7 +85,8 @@ namespace MWRender
 
 namespace Gui
 {
-    class FontLoader;
+    struct FontFit;
+    class InterfaceFonts;
 }
 
 namespace MWGui
@@ -217,7 +217,7 @@ namespace MWGui
         bool getWorldMouseOver() override;
 
         float getScalingFactor() const override;
-        float getRasterScale() const override { return mRasterScale; }
+        float getRasterScale() const override;
 
         bool toggleFogOfWar() override;
         bool toggleFullHelp() override; ///< show extra info in item tooltips (owner, script)
@@ -434,10 +434,8 @@ namespace MWGui
         std::unique_ptr<MyGUIPlatform::Platform> mGuiPlatform;
         MWRender::Renderer& mRenderer;
 
-        std::unique_ptr<Gui::FontLoader> mFontLoader;
-
-        /// Every text the interface draws, for the fonts' rasterizations to reach.
-        Gui::TextRegistry mTexts;
+        /// The fonts and every text drawn with them, refitted on each layout (`fitFonts`).
+        std::unique_ptr<Gui::InterfaceFonts> mFonts;
         std::unique_ptr<StatsWatcher> mStatsWatcher;
 
         bool mConsoleOnlyScripts;
@@ -589,8 +587,6 @@ namespace MWGui
         osg::Vec2i mLaidOutFrame;
         float mScalingFactor;
 
-        float mRasterScale;
-
         /// What the cursors were made at, and what a change of any of it makes them anew by: the
         /// window pixels a unit of the interface covered, the window pixels a pixel of the frame
         /// covered — what a Lua cursor is scaled by, whose size a script states in the pixels
@@ -658,6 +654,15 @@ namespace MWGui
         /// Makes the hardware cursors anew where the window pixels a unit of the interface covers, or
         /// the display's scale, moved: the cursor covers what the interface it points into does.
         void fitCursors();
+
+        /// What the fonts are rasterized for now: the frame's pixels a unit of the interface takes,
+        /// or the window's where they are finer, so a frame up to the window's own resolution, or a
+        /// finer one, shows the text no softer than it was made; and the view the interface is
+        /// laid out in.
+        Gui::FontFit fontFitNow() const;
+
+        /// Rasterizes the fonts again where `fontFitNow` moved: a scale, a display, or a frame.
+        void fitFonts();
 
         void onClipboardChanged(std::string_view type, std::string_view data);
         void onClipboardRequested(std::string_view type, std::string& data);

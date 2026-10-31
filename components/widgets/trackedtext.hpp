@@ -27,6 +27,7 @@ namespace Gui
         void setFontName(std::string_view name) override;
         void setFontHeight(int height) override;
 
+        /// Takes its font again, and has a widget sized to its text size itself again.
         void rebind() override;
 
     private:
