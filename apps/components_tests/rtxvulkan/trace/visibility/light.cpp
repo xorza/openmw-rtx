@@ -95,14 +95,13 @@ namespace Rtx::Testing
 
             const std::array occluder = uprightQuadAt(10.0f, -25.0f);
 
-            // The occluder as each of the three faces a shadow ray can meet: facing the sun, facing
-            // the wall it stands in front of, and facing the wall on a placement drawn from both sides.
+            // The occluder as each of the two faces a shadow ray can meet: facing the sun, and facing
+            // the wall it stands in front of.
             enum class Occluder
             {
                 None,
                 FacingTheSun,
                 FacingTheWall,
-                TwoSidedFacingTheWall,
             };
 
             // `uprightQuadAt` faces along -Y, back toward the sun that travels along +Y, so as built
@@ -119,9 +118,7 @@ namespace Rtx::Testing
                                     const osg::Vec3f& sky = osg::Vec3f(), std::uint32_t noShadows = 0) {
                 SceneDesc scene = makeWall();
                 if (blocked != Occluder::None)
-                    addQuad(scene, occluder,
-                        blocked == Occluder::TwoSidedFacingTheWall ? scene.addMaterial(Material{ .mTwoSided = true })
-                                                                   : sNoIndex,
+                    addQuad(scene, occluder, sNoIndex,
                         blocked == Occluder::FacingTheSun ? osg::Matrixf::identity() : turned);
 
                 Shaders::VisibilityConstants camera = base;
@@ -145,11 +142,10 @@ namespace Rtx::Testing
             EXPECT_EQ(render(onto, bright, Occluder::FacingTheSun, osg::Vec3f(), 1), 153)
                 << "a picture with shadows off, as the rasterizer draws a map tile and a doll";
 
-            // **The rasterizer's shadow map, which sees what faces the light.** A single-sided occluder
-            // turned toward the wall is a face the light meets from behind, so it casts nothing and
-            // the wall is as bright as with nothing there; drawn from both sides, it casts again.
-            EXPECT_EQ(render(onto, bright, Occluder::FacingTheWall), 153) << "a face turned away from the sun";
-            EXPECT_EQ(render(onto, bright, Occluder::TwoSidedFacingTheWall), 0) << "the same face, drawn both ways";
+            // **A single-sided occluder casts whichever way it faces**, as in the rasterizer's shadow map
+            // (`skyLightAsk`): turned toward the wall, the sun meets it from behind and stops there all
+            // the same.
+            EXPECT_EQ(render(onto, bright, Occluder::FacingTheWall), 0) << "a face turned away from the sun";
 
             // A sun travelling out of the wall rather than into it reaches its back, and is dropped
             // rather than arithmetically applied. Asserted against the sky, because a negative
@@ -2496,23 +2492,21 @@ namespace Rtx::Testing
             EXPECT_EQ(litHalf.mFrame.mRadiance, lit.mFrame.mRadiance) << "so the ambient colour moves nothing";
         }
 
-        /// Which side of a surface a light is on is its normal's answer, and a sheet's triangle's.
+        /// How much of the sun a surface takes is its normal's answer, and a sun behind its plane
+        /// is stopped by the surface itself.
         ///
         /// **A surface follows its normals**, because they describe the surface the content faceted:
-        /// the content's creases were split at load (`Rtx::CreaseSplit`) and a shadow ray leaves from
-        /// the surface the normals describe (`Surface::mLift`). A floor whose vertex normals lean
-        /// seventy degrees takes a sun below its plane at the normal's own cosine, `cos 40`. The cost
-        /// is stated here and not hidden: a surface with no far side takes light from behind its
-        /// plane within the angle its normals lean.
+        /// the content's creases were split at load (`Rtx::CreaseSplit`). The sun along the shading
+        /// normal of a floor whose vertex normals lean seventy degrees: cosine one, albedo a half,
+        /// and the Lambert divisor, 0.5 * 4 / pi = 0.63662.
         ///
-        /// **A sheet takes its plane**, because it is lit from both faces and what reaches it from
-        /// behind is the other half of `mTransmission`, not a light in front of it — the same floor
-        /// doubled for its back takes nothing from below.
-        ///
-        /// The sun along the shading normal first: cosine one, albedo a half, and the Lambert
-        /// divisor, 0.5 * 4 / pi = 0.63662. Mirrored about the plane: 0.5 * 4 * cos 40 / pi =
-        /// 0.48768.
-        TEST_F(RtxVisibilityTest, aLightBehindASurfacesTriangleReachesItWhereItsNormalFacesItAndNotASheet)
+        /// **Mirrored about the plane, the floor's own face stops it**, which its normals still face
+        /// at `cos 40`: a ray to the sun stops on every face (`skyLightAsk`), and the floor's normals
+        /// all lean alike, so the surface they describe is its plane and `Surface::mLift` lifts the
+        /// ray off nothing. The rasterizer's shadow map holds the same face. A sheet takes its plane
+        /// as well, since what reaches it from behind is the other half of `mTransmission`, not a
+        /// light in front of it.
+        TEST_F(RtxVisibilityTest, theSunFollowsASurfacesNormalInFrontOfItsPlaneAndStopsOnItBehind)
         {
             constexpr std::uint32_t size = 16;
             constexpr float sunlight = 4.0f;
@@ -2539,14 +2533,11 @@ namespace Rtx::Testing
             const SceneDesc floor = leaningFloor();
             EXPECT_NEAR(litFrom(floor, 1.0f), 0.5f * sunlight / std::numbers::pi_v<float>, 0.002f)
                 << "the shading normal says how much";
-            EXPECT_NEAR(litFrom(floor, -1.0f),
-                0.5f * sunlight * std::cos(40.0f * std::numbers::pi_v<float> / 180.0f) / std::numbers::pi_v<float>,
-                0.002f)
-                << "and which side";
+            EXPECT_LT(litFrom(floor, -1.0f), 0.002f) << "and the floor's own face stops a sun behind its plane";
 
             const SceneDesc sheet = leaningFloor(FoldedShape{ .mSheet = true, .mFolded = true });
             EXPECT_NEAR(litFrom(sheet, 1.0f), 0.5f * sunlight / std::numbers::pi_v<float>, 0.002f);
-            EXPECT_LT(litFrom(sheet, -1.0f), 0.002f) << "a sheet's triangle says which side";
+            EXPECT_LT(litFrom(sheet, -1.0f), 0.002f) << "as a sheet's does";
         }
 
         /// **A facet turned from the sun is lit where its normals face it, and not shadowed by its own

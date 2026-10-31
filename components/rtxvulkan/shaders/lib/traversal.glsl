@@ -143,7 +143,7 @@ float surfaceOpacity(GpuInstance instance, GpuMaterial material)
 /// `GL_CULL_FACE` on, so the content states which face of a surface is there, and a ray standing in
 /// for that pass states it the same way. A bounce, which carries light, meets a surface from either
 /// side instead: a wall met from behind that stopped nothing would leak the light behind it. A ray
-/// to a light has a rule of its own, `lightAsk`.
+/// to a light has a rule of its own, `skyLightAsk` and `lampLightAsk`.
 ///
 /// `SceneAcceleration::placeRow` is where a row says it is drawn from both faces, and
 /// `InstanceRecord::mTwoSided` is what the content said.
@@ -857,8 +857,8 @@ Passage openPassage()
 }
 
 /// What the ray from `from` to what stands `distance` away along `towards` meets, past the surfaces
-/// whose faces `faces` does not cull — `lightAsk` and `ambientAsk`, which say which — as the ray a
-/// walk asks, and `passageAnswered` what it answered.
+/// whose faces `faces` does not cull — `skyLightAsk`, `lampLightAsk` and `ambientAsk`, which say
+/// which — as the ray a walk asks, and `passageAnswered` what it answered.
 ///
 /// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
 /// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
@@ -921,21 +921,29 @@ float throughAnswered(RayAnswer answered)
     return passage.mOpen * passage.mThrough;
 }
 
-/// What the ray from `from` to a light `distance` away along `towards` meets — the sun, a moon or a
-/// lamp — in `Passage`'s two halves, and the nearest solid's distance where `nearest` asks
-/// (`passageAsk`).
+/// What the ray from `from` toward the sun or a moon along `towards` meets, `distance` long, in
+/// `Passage`'s two halves, and the nearest solid's distance where `nearest` asks (`passageAsk`).
 ///
-/// **Only a face turned toward the light casts, which is the rasterizer's rule.** Its shadow map is
-/// drawn from the light with the scene's own back-face culling, so what stops the light there is
-/// what faces it; this ray runs the other way, from the lit point, and meets those same faces from
-/// behind — so it culls the front faces. Culling nothing, a thin shell whose sheets cross stops
-/// the light on itself: the ship's sail folds its back sheet in front of its front one, where the
-/// back sheet's outer face looks at the front sheet a few units off, and every ray leaving the
-/// front sheet on that side ends on it — black patches fixed to the mesh whatever the hour. The
-/// eye culls that face and never sees it, so neither does the light. A two-sided placement casts
-/// from either side, since its row turns culling off (`SceneAcceleration::placeRow`), and that
-/// includes every doubled card, which the fold made one.
-RayAsk lightAsk(vec3 from, vec3 towards, float distance, bool nearest)
+/// **Every face stops it, which is the rasterizer's rule.** Its shadow map is drawn with
+/// `GL_CULL_FACE` off unless `[Shadows] use front face culling` asks otherwise, and with it on it
+/// keeps the faces turned away from the light: under either, a single-sided wall casts whichever way
+/// it faces. The content leans on it: a quasi-exterior is an interior's shell, which faces in, stood
+/// under the sun, and Mournhold's city wall faces the plaza and holds the afternoon sun off it.
+RayAsk skyLightAsk(vec3 from, vec3 towards, float distance, bool nearest)
+{
+    return passageAsk(from, towards, distance, gl_RayFlagsNoneEXT, nearest);
+}
+
+/// The same for a lamp `distance` away along `towards`.
+///
+/// **Only a face turned away from the point casts**, so the ray culls the front faces. The
+/// rasterizer casts no lamp's shadow and has no rule to follow; the content seats a lamp in its
+/// fitting and against its wall, often a little inside either, and a ray that stopped on every face
+/// took a lantern's own glow off the arch over Seyda Neen's door and darkened the pillar under a
+/// sconce in Wolverine Hall. A wall between two rooms still stops a lamp, since one room's shell is
+/// met from behind. A two-sided placement casts from either side, since its row turns culling off
+/// (`SceneAcceleration::placeRow`), and that includes every doubled card, which the fold made one.
+RayAsk lampLightAsk(vec3 from, vec3 towards, float distance, bool nearest)
 {
     return passageAsk(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT, nearest);
 }
@@ -943,11 +951,10 @@ RayAsk lightAsk(vec3 from, vec3 towards, float distance, bool nearest)
 /// The ray asking how much of the ambient along `towards` reaches `from`, past whatever stands within
 /// `distance`: `throughAnswered` of it.
 ///
-/// **Every face stops it, the one turned toward `from` included.** What this asks is not a light's
+/// **Every face stops it, the one turned toward `from` included.** What this asks is not a lamp's
 /// question but whether anything stands over the point — the pillow over the sheet, the floor
-/// under a lid — and the rasterizer, which has no such term, has no rule to follow. A surface met
-/// from the side it faces stands over the point as much as one met from behind, so this culls
-/// neither face where the lights cull one (`lightAsk`).
+/// under a lid — so a surface met from the side it faces stands over the point as much as one met
+/// from behind.
 RayAsk ambientAsk(vec3 from, vec3 towards, float distance)
 {
     return passageAsk(from, towards, distance, gl_RayFlagsNoneEXT, false);
