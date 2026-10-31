@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from omw.build import Build, properties_of
-from omw.system import FORK, ROOT, Refusal, read_text, status
+from omw.system import ROOT, Refusal, fork_files, read_text, status
 
 
 def test(build: Build, args: list[str]) -> int:
@@ -55,13 +55,13 @@ def times_folder(build: Build) -> Path:
     return Path(build.cached("RTX_TEST_OUTPUT_DIR")) / "times"
 
 
-def durations(report: dict, root: Path = ROOT) -> dict[str, float]:
-    """The fork's tests of one GoogleTest JSON report, by full name, with the seconds each took. Upstream's
-    are upstream's to change."""
+def durations(report: dict, fork: frozenset[str], root: Path = ROOT) -> dict[str, float]:
+    """The fork's tests of one GoogleTest JSON report, those in a file of `fork` (`fork_files`), by full
+    name, with the seconds each took. Upstream's are upstream's to change."""
     return {f"{suite['name']}.{case['name']}": float(case["time"].removesuffix("s"))
             for suite in report.get("testsuites", []) for case in suite.get("testsuite", [])
             if Path(case["file"]).is_relative_to(root)
-            and Path(case["file"]).relative_to(root).as_posix().startswith(FORK)}
+            and Path(case["file"]).relative_to(root).as_posix() in fork}
 
 
 def timing(build: Build) -> int:
@@ -72,14 +72,15 @@ def timing(build: Build) -> int:
     targets = {test["name"]: target for test in build.tests()
                if (target := properties_of(test).get("OPENMW_TARGET")) is not None}
     alone = Path(build.cached("RTX_TEST_OUTPUT_DIR")) / "alone.json"
+    fork = fork_files()
     slow = 0
     for path in sorted(times_folder(build).glob("*.json")):
-        for name, shared in durations(json.loads(read_text(path))).items():
+        for name, shared in durations(json.loads(read_text(path)), fork).items():
             if shared <= LIMIT_SECONDS:
                 continue
             build.run_here([build.binary(targets[path.stem]), f"--gtest_filter={name}",
                             f"--gtest_output=json:{alone}"], check=True, capture_output=True)
-            seconds = durations(json.loads(read_text(alone)))[name]
+            seconds = durations(json.loads(read_text(alone)), fork)[name]
             print(f"timing: {name} took {shared:.2f} s beside the other suites and {seconds:.2f} s alone")
             if seconds > LIMIT_SECONDS:
                 slow += 1
