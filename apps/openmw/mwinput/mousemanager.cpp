@@ -1,5 +1,8 @@
 #include "mousemanager.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
@@ -31,21 +34,34 @@ namespace MWInput
         : mBindingsManager(bindingsManager)
         , mInputWrapper(inputWrapper)
         , mRenderer(renderer)
-        , mGuiCursorX(0)
-        , mGuiCursorY(0)
+        , mGuiCursor(static_cast<float>(mRenderer.getPresentation().mFrame.x()) / 2.f,
+              static_cast<float>(mRenderer.getPresentation().mFrame.y()) / 2.f)
         , mMouseWheel(0)
         , mMouseLookEnabled(false)
         , mGuiCursorEnabled(true)
         , mCursorMode(MWBase::CursorMode::Free)
-        , mLastWarpX(-1)
-        , mLastWarpY(-1)
         , mMouseMoveX(0)
         , mMouseMoveY(0)
     {
-        const osg::Vec2i& frame = mRenderer.getPresentation().mFrame;
-        const float uiScale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
-        mGuiCursorX = static_cast<float>(frame.x()) / (2.f * uiScale);
-        mGuiCursorY = static_cast<float>(frame.y()) / (2.f * uiScale);
+    }
+
+    osg::Vec2f MouseManager::cursorInInterface() const
+    {
+        return mGuiCursor / MWBase::Environment::get().getWindowManager()->getScalingFactor();
+    }
+
+    MyGUI::IntPoint MouseManager::cursorPoint() const
+    {
+        const osg::Vec2f cursor = cursorInInterface();
+        return MyGUI::IntPoint(static_cast<int>(cursor.x()), static_cast<int>(cursor.y()));
+    }
+
+    void MouseManager::placeCursor(const osg::Vec2f position)
+    {
+        const MyGUI::IntSize& viewSize = MyGUI::RenderManager::getInstance().getViewSize();
+        const osg::Vec2f held(std::clamp(position.x(), 0.f, static_cast<float>(viewSize.width - 1)),
+            std::clamp(position.y(), 0.f, static_cast<float>(viewSize.height - 1)));
+        mGuiCursor = held * MWBase::Environment::get().getWindowManager()->getScalingFactor();
     }
 
     void MouseManager::mouseMoved(const SDLUtil::MouseMotionEvent& arg)
@@ -63,22 +79,21 @@ namespace MWInput
             // We keep track of our own mouse position, so that moving the mouse while in
             // game mode does not move the position of the GUI cursor
             MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
-            float uiScale = winMgr->getScalingFactor();
-            const osg::Vec2f inFrame = mRenderer.getPresentation().toFrame(osg::Vec2f(arg.x, arg.y));
-            mGuiCursorX = inFrame.x() / uiScale;
-            mGuiCursorY = inFrame.y() / uiScale;
+            mGuiCursor = mRenderer.getPresentation().toFrame(osg::Vec2f(arg.x, arg.y));
 
             if (arg.zrel != 0)
                 mMouseWheel = static_cast<int>(arg.z);
 
-            MyGUI::InputManager::getInstance().injectMouseMove(
-                static_cast<int>(mGuiCursorX), static_cast<int>(mGuiCursorY), mMouseWheel);
+            const MyGUI::IntPoint cursor = cursorPoint();
+            MyGUI::InputManager::getInstance().injectMouseMove(cursor.left, cursor.top, mMouseWheel);
 
             winMgr->setCursorActive(true);
 
-            // Check if this movement is from our recent mouse warp
-            bool isFromWarp = (mLastWarpX >= 0 && mLastWarpY >= 0 && std::abs(mGuiCursorX - mLastWarpX) < 0.5f
-                && std::abs(mGuiCursorY - mLastWarpY) < 0.5f);
+            // Check if this movement is from our recent mouse warp: within half a unit of the
+            // interface, in the frame's pixels.
+            const float halfUnit = 0.5f * winMgr->getScalingFactor();
+            const bool isFromWarp = mLastWarp.has_value() && std::abs(mGuiCursor.x() - mLastWarp->x()) < halfUnit
+                && std::abs(mGuiCursor.y() - mLastWarp->y()) < halfUnit;
 
             if (Settings::gui().mControllerMenus && !winMgr->getCursorVisible()
                 && (std::abs(arg.xrel) > 1 || std::abs(arg.yrel) > 1) && !isFromWarp)
@@ -89,8 +104,7 @@ namespace MWInput
             }
 
             // Clear warp tracking after processing
-            mLastWarpX = -1;
-            mLastWarpY = -1;
+            mLastWarp.reset();
         }
 
         if (mMouseLookEnabled && !input->controlsDisabled())
@@ -130,8 +144,9 @@ namespace MWInput
         else
         {
             bool guiMode = mGuiCursorEnabled;
-            guiMode = MyGUI::InputManager::getInstance().injectMouseRelease(static_cast<int>(mGuiCursorX),
-                          static_cast<int>(mGuiCursorY), SDLUtil::sdlMouseButtonToMyGui(id))
+            const MyGUI::IntPoint cursor = cursorPoint();
+            guiMode = MyGUI::InputManager::getInstance().injectMouseRelease(
+                          cursor.left, cursor.top, SDLUtil::sdlMouseButtonToMyGui(id))
                 && guiMode;
 
             if (mBindingsManager->isDetectingBindingState())
@@ -161,7 +176,10 @@ namespace MWInput
         if (mGuiCursorEnabled)
         {
             if (MyGUI::Widget* widget = MyGUI::InputManager::getInstance().getMouseFocusWidget())
-                LuaUi::dispatchMouseWheel(widget, mGuiCursorX, mGuiCursorY, arg.x, arg.y);
+            {
+                const osg::Vec2f cursor = cursorInInterface();
+                LuaUi::dispatchMouseWheel(widget, cursor.x(), cursor.y(), arg.x, arg.y);
+            }
         }
     }
 
@@ -174,8 +192,9 @@ namespace MWInput
         if (id == SDL_BUTTON_LEFT || id == SDL_BUTTON_RIGHT) // MyGUI only uses these mouse events
         {
             guiMode = mGuiCursorEnabled;
-            guiMode = MyGUI::InputManager::getInstance().injectMousePress(static_cast<int>(mGuiCursorX),
-                          static_cast<int>(mGuiCursorY), SDLUtil::sdlMouseButtonToMyGui(id))
+            const MyGUI::IntPoint cursor = cursorPoint();
+            guiMode = MyGUI::InputManager::getInstance().injectMousePress(
+                          cursor.left, cursor.top, SDLUtil::sdlMouseButtonToMyGui(id))
                 && guiMode;
             if (MyGUI::InputManager::getInstance().getMouseFocusWidget() != nullptr)
             {
@@ -257,42 +276,36 @@ namespace MWInput
 
     bool MouseManager::injectMouseButtonPress(Uint8 button)
     {
+        const MyGUI::IntPoint cursor = cursorPoint();
         return MyGUI::InputManager::getInstance().injectMousePress(
-            static_cast<int>(mGuiCursorX), static_cast<int>(mGuiCursorY), SDLUtil::sdlMouseButtonToMyGui(button));
+            cursor.left, cursor.top, SDLUtil::sdlMouseButtonToMyGui(button));
     }
 
     bool MouseManager::injectMouseButtonRelease(Uint8 button)
     {
+        const MyGUI::IntPoint cursor = cursorPoint();
         return MyGUI::InputManager::getInstance().injectMouseRelease(
-            static_cast<int>(mGuiCursorX), static_cast<int>(mGuiCursorY), SDLUtil::sdlMouseButtonToMyGui(button));
+            cursor.left, cursor.top, SDLUtil::sdlMouseButtonToMyGui(button));
     }
 
     void MouseManager::injectMouseMove(float xMove, float yMove, float mouseWheelMove)
     {
-        mGuiCursorX += xMove;
-        mGuiCursorY += yMove;
+        placeCursor(cursorInInterface() + osg::Vec2f(xMove, yMove));
         mMouseWheel += static_cast<int>(mouseWheelMove);
 
-        const MyGUI::IntSize& viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        mGuiCursorX = std::clamp<float>(mGuiCursorX, 0.f, viewSize.width - 1.f);
-        mGuiCursorY = std::clamp<float>(mGuiCursorY, 0.f, viewSize.height - 1.f);
-
-        MyGUI::InputManager::getInstance().injectMouseMove(
-            static_cast<int>(mGuiCursorX), static_cast<int>(mGuiCursorY), mMouseWheel);
+        const MyGUI::IntPoint cursor = cursorPoint();
+        MyGUI::InputManager::getInstance().injectMouseMove(cursor.left, cursor.top, mMouseWheel);
     }
 
     void MouseManager::setCursorPosition(const osg::Vec2f& position)
     {
-        const MyGUI::IntSize& viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        mGuiCursorX = std::clamp(position.x(), 0.f, static_cast<float>(viewSize.width - 1));
-        mGuiCursorY = std::clamp(position.y(), 0.f, static_cast<float>(viewSize.height - 1));
-        MyGUI::InputManager::getInstance().injectMouseMove(
-            static_cast<int>(mGuiCursorX), static_cast<int>(mGuiCursorY), mMouseWheel);
+        placeCursor(position);
+        const MyGUI::IntPoint cursor = cursorPoint();
+        MyGUI::InputManager::getInstance().injectMouseMove(cursor.left, cursor.top, mMouseWheel);
 
         if (!mInputWrapper->getMouseRelative())
         {
-            mLastWarpX = mGuiCursorX;
-            mLastWarpY = mGuiCursorY;
+            mLastWarp = mGuiCursor;
             warpMouse();
         }
 
@@ -301,24 +314,20 @@ namespace MWInput
 
     void MouseManager::warpMouse()
     {
-        // The scale `mouseMoved` divided by, so the pointer lands where the cursor is drawn.
-        const float uiScale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
-        const osg::Vec2f window
-            = mRenderer.getPresentation().toDrawable(osg::Vec2f(mGuiCursorX * uiScale, mGuiCursorY * uiScale));
+        const osg::Vec2f window = mRenderer.getPresentation().toDrawable(mGuiCursor);
         mInputWrapper->warpMouse(window.x(), window.y());
     }
 
     void MouseManager::warpMouseToWidget(MyGUI::Widget* widget)
     {
-        float widgetX = widget->getAbsoluteCoord().left + widget->getWidth() / 2.f;
-        float widgetY = widget->getAbsoluteCoord().top + widget->getHeight() / 4.f;
-        if (std::abs(mGuiCursorX - widgetX) > 1 || std::abs(mGuiCursorY - widgetY) > 1)
+        const osg::Vec2f target(static_cast<float>(widget->getAbsoluteCoord().left) + widget->getWidth() / 2.f,
+            static_cast<float>(widget->getAbsoluteCoord().top) + widget->getHeight() / 4.f);
+        const osg::Vec2f cursor = cursorInInterface();
+        if (std::abs(cursor.x() - target.x()) > 1 || std::abs(cursor.y() - target.y()) > 1)
         {
-            mGuiCursorX = widgetX;
-            mGuiCursorY = widgetY;
+            mGuiCursor = target * MWBase::Environment::get().getWindowManager()->getScalingFactor();
             // Remember where we warped to so we can ignore movement from this warp
-            mLastWarpX = widgetX;
-            mLastWarpY = widgetY;
+            mLastWarp = mGuiCursor;
             warpMouse();
         }
     }

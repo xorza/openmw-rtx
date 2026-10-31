@@ -235,10 +235,16 @@ namespace MWGui
             return;
 
         mGuiMode = mode;
-        const WindowSettingValues settings = getModeSettings(mGuiMode);
         setPinButtonVisible(
             mode != GM_Container && mode != GM_Companion && mode != GM_Barter && !Settings::gui().mControllerMenus);
 
+        if (placeForMode())
+            updatePreviewSize();
+    }
+
+    bool InventoryWindow::placeForMode()
+    {
+        const WindowSettingValues settings = getModeSettings(mGuiMode);
         const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mMaximized : settings.mRegular;
 
         MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
@@ -251,9 +257,13 @@ namespace MWGui
         mMainWidget->setSize(size);
 
         adjustPanes();
+        return needUpdate;
+    }
 
-        if (needUpdate)
-            updatePreviewSize();
+    void InventoryWindow::onResChange(int /*width*/, int /*height*/)
+    {
+        placeForMode();
+        updatePreviewSize();
     }
 
     SortFilterItemModel* InventoryWindow::getSortFilterModel()

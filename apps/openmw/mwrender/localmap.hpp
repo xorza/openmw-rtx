@@ -173,8 +173,9 @@ namespace MWRender
 
             std::shared_ptr<OffscreenView> mView;
 
-            // What mView was described with; another range rebuilds it
+            // What mView was described with; another range or resolution rebuilds it
             DepthRange mRange;
+            int mResolution = 0;
 
             osg::ref_ptr<SceneUtil::PaintedTexture> mFogOfWarTexture;
             osg::ref_ptr<osg::Image> mFogOfWarImage;
@@ -184,7 +185,9 @@ namespace MWRender
         SegmentMap mExteriorSegments;
         SegmentMap mInteriorSegments;
 
-        int mMapResolution;
+        /// A tile's side in pixels: the setting's at the interface's raster as it is now, so a tile
+        /// drawn after a scale or a display moved is as sharp as the text beside it.
+        int mapResolution() const;
 
         // the dynamic texture is a bottleneck, so don't set this too high
         static const int sFogOfWarResolution = 32;
