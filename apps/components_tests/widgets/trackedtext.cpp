@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <MyGUI_Align.h>
 #include <MyGUI_Button.h>
 #include <MyGUI_ChildSkinInfo.h>
 #include <MyGUI_FactoryManager.h>
@@ -76,8 +77,12 @@ namespace Gui
         TEST(FontUsersTest, afterAFitEveryTextDrawsAgainstItsFontsNewAtlas)
         {
             Rtx::Testing::GuiInstance gui;
-            makeText("DefaultFont", 10);
-            makeText("MonoFont", 50);
+            // Centred, so that no glyph meets the text's edge: MyGUI cuts a glyph whose bearing
+            // reaches past it, and moves the glyph's left corner into the atlas by as much. Whether
+            // 'A' reaches past it is the FreeType version's hinting: CI's builds cut it by a texel,
+            // and 2.15's does not.
+            makeText("DefaultFont", 10)->setTextAlign(MyGUI::Align::Center);
+            makeText("MonoFont", 50)->setTextAlign(MyGUI::Align::Center);
             gui.draw();
             const std::set<std::uint32_t> replaced{ atlasOf("DefaultFont"), atlasOf("MonoFont") };
 
