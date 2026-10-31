@@ -93,12 +93,28 @@ namespace MWRender
             std::set<Key> mKeys;
         };
 
+        /// Every key the settings window and the launcher offer: read by `Settings::category().mMember`
+        /// in their code, or bound by its user strings in the window's layout.
+        std::set<Key> offeredKeys(const SettingNames& names, std::set<std::string>& unknown)
+        {
+            std::set<Key> offered;
+            for (const char* const source : { "apps/openmw/mwgui/settingswindow.cpp", "apps/launcher/graphicspage.cpp",
+                     "apps/launcher/settingspage.cpp" })
+                names.readIn(contentsOf(sourceRoot() / source), offered, unknown);
+
+            const std::string layout = contentsOf(sourceRoot() / "files/data/mygui/openmw_settings_window.layout");
+            const std::regex bound(
+                R"rx(key="SettingCategory" value="([^"]+)"\s*/>\s*<UserString key="SettingName" value="([^"]+)")rx");
+            for (std::sregex_iterator it(layout.begin(), layout.end(), bound), end; it != end; ++it)
+                offered.insert({ (*it)[1], (*it)[2] });
+            return offered;
+        }
+
         /// **Every key the game's renderers read is decided by the ray tracer's declaration**, and
-        /// so is every control of the settings window's rendering pages: a key upstream adds to the
-        /// rasterizer, or to the window, fails here until the ray tracer's table says whether it
+        /// so is every rendering control of the settings window and the launcher: a key upstream adds
+        /// to the rasterizer, or to either, fails here until the ray tracer's table says whether it
         /// honours it, and why not where it does not. The rasterizer's own files and the shared
-        /// ones in `mwrender` are read, the ray tracer's own are not; and the window's controls,
-        /// bound by their user strings in the layout or by hand in `settingswindow.cpp`, in the
+        /// ones in `mwrender` are read, the ray tracer's own are not; and the controls in the
         /// categories that are rendering's alone.
         ///
         /// **And the table names nothing that is not a setting**, so a key renamed upstream, or
@@ -123,15 +139,10 @@ namespace MWRender
 
             const std::set<std::string> rendering{ "Camera", "Fog", "Groundcover", "Post Processing", "RTX", "Shaders",
                 "Shadows", "Stereo", "Stereo View", "Terrain", "Video", "Water" };
-            std::set<Key> window;
-            names.readIn(contentsOf(sourceRoot() / "apps/openmw/mwgui/settingswindow.cpp"), window, unknown);
-            const std::string layout = contentsOf(sourceRoot() / "files/data/mygui/openmw_settings_window.layout");
-            const std::regex bound(
-                R"rx(key="SettingCategory" value="([^"]+)"\s*/>\s*<UserString key="SettingName" value="([^"]+)")rx");
-            for (std::sregex_iterator it(layout.begin(), layout.end(), bound), end; it != end; ++it)
-                window.insert({ (*it)[1], (*it)[2] });
-            ASSERT_GT(window.size(), 20u) << "the window binds next to nothing, so the scan found nothing";
-            for (const Key& key : window)
+            const std::set<Key> offered = offeredKeys(names, unknown);
+            ASSERT_GT(offered.size(), 50u)
+                << "the window and the launcher bind next to nothing, so the scan found nothing";
+            for (const Key& key : offered)
                 if (rendering.contains(key.first))
                     read.insert(key);
 
@@ -148,6 +159,21 @@ namespace MWRender
                 else
                     EXPECT_TRUE(names.exists(key)) << "[" << key.first << "] " << key.second << " is no setting";
             }
+        }
+
+        /// **The settings window and the launcher offer only what the ray tracer honours**: the game
+        /// starts no other renderer, so a control for a key it declines would move nothing. A
+        /// control an upstream merge brings back for the rasterizer fails here.
+        TEST(RtxSupportTest, theSettingsWindowAndTheLauncherBindOnlyKeysTheRayTracerHonours)
+        {
+            std::set<std::string> unknown;
+            const std::set<Key> offered = offeredKeys(SettingNames(), unknown);
+            EXPECT_TRUE(unknown.empty()) << "a read this test cannot name: " << *unknown.begin();
+
+            const RenderSupport& support = rtxSupport();
+            for (const Key& key : offered)
+                EXPECT_EQ(support.declinedSetting(key.first, key.second), "")
+                    << "[" << key.first << "] " << key.second << " is offered and the ray tracer declines it";
         }
 
         /// **What the ray tracer cannot draw is declined with a reason**, every request a script or

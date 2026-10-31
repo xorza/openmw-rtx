@@ -130,9 +130,6 @@ bool Launcher::GraphicsPage::loadSettings()
     if (Settings::video().mWindowBorder)
         windowBorderCheckBox->setCheckState(Qt::Checked);
 
-    if (Settings::rtx().mEnabled)
-        rayTracingCheckBox->setCheckState(Qt::Checked);
-
     // The list offers every mode the setting can hold
     rayTracingUpscaleComboBox->setCurrentIndex(
         static_cast<int>(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value()));
@@ -143,13 +140,6 @@ bool Launcher::GraphicsPage::loadSettings()
     // saveSettings writes the reach only when the player moved it
     rayTracingDistantLandSpinBox->setValue(static_cast<int>(std::lround(Settings::rtx().mDistantLandCells)));
     mLoadedDistantLandCells = rayTracingDistantLandSpinBox->value();
-
-    // aaValue is the actual value (0, 1, 2, 4, 8, 16)
-    const int aaValue = Settings::video().mAntialiasing;
-    // aaIndex is the index into the allowed values in the pull down.
-    const int aaIndex = antiAliasingComboBox->findText(QString::number(aaValue));
-    if (aaIndex != -1)
-        antiAliasingComboBox->setCurrentIndex(aaIndex);
 
     const int width = Settings::video().mResolutionX;
     const int height = Settings::video().mResolutionY;
@@ -192,9 +182,7 @@ void Launcher::GraphicsPage::saveSettings()
     Settings::video().mVsyncMode.set(static_cast<SDLUtil::VSyncMode>(vSyncComboBox->currentIndex()));
     Settings::video().mWindowMode.set(static_cast<Settings::WindowMode>(windowModeComboBox->currentIndex()));
     Settings::video().mWindowBorder.set(windowBorderCheckBox->checkState() == Qt::Checked);
-    Settings::video().mAntialiasing.set(antiAliasingComboBox->currentText().toInt());
 
-    Settings::rtx().mEnabled.set(rayTracingCheckBox->checkState() == Qt::Checked);
     // Nothing chosen leaves the setting alone
     const int chosenIndex = rayTracingUpscaleComboBox->currentIndex();
     if (chosenIndex >= 0)

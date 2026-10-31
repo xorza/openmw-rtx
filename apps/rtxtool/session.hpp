@@ -52,8 +52,8 @@ namespace RtxTool
     public:
         explicit Session(SessionRequest request);
 
-        /// The renderer this tool exists to drive, whatever the user's settings file says, made
-        /// with the run: the engine never reads `[RTX] enabled` and never sees the run.
+        /// The renderer this tool exists to drive, made with the run: the engine starts no renderer
+        /// of its own and never sees the run.
         std::unique_ptr<MWRender::Renderer> createRenderer(const MWRender::RendererSpec& spec) override;
 
         /// The run's own step, or the wall for a window somebody watches.

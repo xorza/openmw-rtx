@@ -377,70 +377,64 @@ namespace MWRender
             EXPECT_EQ(nameOf(RendererKind::RayTraced), "raytrace");
         }
 
-        /// **A ray tracer that cannot start says how to start the game again**: the reason, the
-        /// setting that chose it, and the two places that turn it off. The rasterizer's reason is
-        /// said as it is.
-        TEST(MWRenderStartFailureTest, aRayTracerThatCannotStartSaysHowToTurnItOff)
+        /// **A ray tracer that cannot start says what failed and where the log is**, and the hardware
+        /// the build needs where the machine cannot run it: the game starts no other renderer, so the
+        /// box is all a player has. A fault of the renderer's own does not send the player to the card.
+        TEST(MWRenderStartFailureTest, aRayTracerThatCannotStartSaysWhatFailedAndWhereTheLogIs)
         {
-            const std::string traced
-                = describeStartFailure(RendererKind::RayTraced, "the Vulkan loader offers 1.3.275");
-            EXPECT_TRUE(traced.starts_with("Ray tracing could not start: the Vulkan loader offers 1.3.275"));
-            EXPECT_NE(traced.find("[RTX] enabled"), std::string::npos);
-            EXPECT_NE(traced.find("Experimental Ray Tracing"), std::string::npos) << "the launcher's own label";
-            EXPECT_NE(traced.find("enabled = false"), std::string::npos);
+            const std::filesystem::path logs = "/home/player/logs";
+            const std::string unsupported
+                = describeStartFailure(Rtx::Unsupported("the Vulkan loader offers 1.3.275"), logs);
+            EXPECT_TRUE(unsupported.starts_with("Ray tracing could not start: the Vulkan loader offers 1.3.275\n\n"));
+            EXPECT_NE(unsupported.find("RTX 20 series"), std::string::npos);
+            EXPECT_NE(unsupported.find("RDNA 2"), std::string::npos);
+            EXPECT_TRUE(unsupported.ends_with("The log in /home/player/logs says each step of the start."));
+            EXPECT_EQ(unsupported.find("OpenGL"), std::string::npos) << "no renderer to fall back to";
 
-            EXPECT_EQ(describeStartFailure(RendererKind::OpenGl, "no GL context"), "no GL context");
+            const std::string fault = describeStartFailure(Rtx::DeviceError("out of memory"), logs);
+            EXPECT_EQ(fault,
+                "Ray tracing could not start: out of memory\n\nThe log in /home/player/logs says each step of the "
+                "start.");
         }
 
-        /// **Only a machine that cannot run the ray tracer starts the OpenGL renderer in its place**,
-        /// and says why; a fault of the ray tracer's ends the start as the rasterizer's own does.
-        TEST(MWRenderStartFailureTest, onlyAMachineThatCannotRunTheRayTracerFallsBack)
+        /// **Every failure ends the start**, a machine that cannot run the ray tracer as much as a fault
+        /// of its own, each with `describeStartFailure`'s words; a ray tracer that starts is handed back.
+        TEST(MWRenderStartFailureTest, everyFailureOfTheRayTracerEndsTheStart)
         {
-            std::vector<RendererKind> asked;
-            const auto failing = [&asked](const RendererKind failed, auto thrown) {
-                return [&asked, failed, thrown](const RendererKind kind) -> std::unique_ptr<Renderer> {
-                    asked.push_back(kind);
-                    if (kind == failed)
-                        throw thrown;
-                    return std::make_unique<RecordingRenderer>();
+            int asked = 0;
+            const std::filesystem::path logs = "/home/player/logs";
+            const auto failing = [&asked](auto thrown) {
+                return [&asked, thrown]() -> std::unique_ptr<Renderer> {
+                    ++asked;
+                    throw thrown;
                 };
             };
-            const auto starting = [&asked](const RendererKind kind) -> std::unique_ptr<Renderer> {
-                asked.push_back(kind);
-                return std::make_unique<RecordingRenderer>();
-            };
 
-            StartedRenderer started = startRenderer(
-                RendererKind::RayTraced, failing(RendererKind::RayTraced, Rtx::Unsupported("no ray tracing device")));
-            EXPECT_NE(started.mRenderer, nullptr);
-            EXPECT_EQ(started.mFallbackReason, "no ray tracing device");
-            EXPECT_EQ(asked, (std::vector{ RendererKind::RayTraced, RendererKind::OpenGl }));
+            const std::unique_ptr<Renderer> started = startRenderer(
+                [&asked]() -> std::unique_ptr<Renderer> {
+                    ++asked;
+                    return std::make_unique<RecordingRenderer>();
+                },
+                logs);
+            EXPECT_NE(started, nullptr);
+            EXPECT_EQ(asked, 1);
 
-            asked.clear();
-            started = startRenderer(RendererKind::RayTraced, starting);
-            EXPECT_NE(started.mRenderer, nullptr);
-            EXPECT_EQ(started.mFallbackReason, "");
-            EXPECT_EQ(asked, std::vector{ RendererKind::RayTraced });
-
-            const auto endsWith = [&](const RendererKind wanted, const RendererFactory& create, std::string_view said) {
-                asked.clear();
+            const auto endsWith = [&](const auto& thrown) {
+                asked = 0;
                 try
                 {
-                    startRenderer(wanted, create);
-                    ADD_FAILURE() << "started after \"" << said << "\"";
+                    startRenderer(failing(thrown), logs);
+                    ADD_FAILURE() << "started after \"" << thrown.what() << "\"";
                 }
                 catch (const std::runtime_error& failure)
                 {
-                    EXPECT_EQ(failure.what(), describeStartFailure(wanted, said));
+                    EXPECT_EQ(failure.what(), describeStartFailure(thrown, logs));
                 }
-                EXPECT_EQ(asked, std::vector{ wanted }) << "no fallback after \"" << said << "\"";
+                EXPECT_EQ(asked, 1) << "asked once after \"" << thrown.what() << "\"";
             };
-            endsWith(RendererKind::RayTraced, failing(RendererKind::RayTraced, Rtx::InputError("no shader module")),
-                "no shader module");
-            endsWith(RendererKind::RayTraced, failing(RendererKind::RayTraced, Rtx::DeviceError("out of memory")),
-                "out of memory");
-            endsWith(RendererKind::OpenGl, failing(RendererKind::OpenGl, std::runtime_error("no GL context")),
-                "no GL context");
+            endsWith(Rtx::Unsupported("no ray tracing device"));
+            endsWith(Rtx::InputError("no shader module"));
+            endsWith(Rtx::DeviceError("out of memory"));
         }
     }
 }

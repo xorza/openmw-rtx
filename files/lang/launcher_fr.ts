@@ -163,36 +163,8 @@
 <context>
     <name>GraphicsPage</name>
     <message>
-        <source>0</source>
-        <translation>0</translation>
-    </message>
-    <message>
-        <source>2</source>
-        <translation>2</translation>
-    </message>
-    <message>
-        <source>4</source>
-        <translation>4</translation>
-    </message>
-    <message>
-        <source>8</source>
-        <translation>8</translation>
-    </message>
-    <message>
-        <source>16</source>
-        <translation>16</translation>
-    </message>
-    <message>
         <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
         <translation>La résolution à laquelle le jeu effectue le rendu, monde et interface ensemble, mise à l&apos;échelle pour remplir la fenêtre. Native effectue le rendu à la taille propre de la fenêtre. En mode fenêtré, la fenêtre garde la taille à laquelle vous l&apos;avez redimensionnée en dernier.</translation>
-    </message>
-    <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
-        <translation>Remplace le moteur de rendu OpenGL par le moteur de rendu Vulkan expérimental avec ray tracing. Nécessite un GPU avec ray tracing matériel : NVIDIA Turing ou AMD RDNA 2, ou plus récent.</translation>
-    </message>
-    <message>
-        <source>Experimental Ray Tracing</source>
-        <translation>Ray tracing expérimental</translation>
     </message>
     <message>
         <source>Upscaling</source>
@@ -313,10 +285,6 @@
     <message>
         <source>Window Border</source>
         <translation>Bordure de fenêtre</translation>
-    </message>
-    <message>
-        <source>Anti-Aliasing</source>
-        <translation>Antialiasing</translation>
     </message>
     <message>
         <source>Vertical Synchronization</source>
@@ -850,22 +818,8 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
         <translation>Shaders</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, normal maps are automatically recognized and used if they are named appropriately
-                  (see &apos;normal map pattern&apos;, e.g. for a base texture foo.dds, the normal map texture would have to be named foo_n.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file (.nif or .osg file). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Lorsque cette option est activée, les normal maps (textures d&apos;orientation de la surface) sont automatiquement reconnues et utilisées, lorsque le fichier est nommé correctement.&lt;/p&gt;&lt;p&gt;Par exemple, si une texture de base est nommée foo.dds, la texture de normal maps devrait être nommée foo_n.dds (voir &apos;normal map pattern&apos; dans la documentation pour plus d&apos;informations).&lt;/p&gt;&lt;p&gt;Si l&apos;option est désactivée, les normal maps sont utilisées uniquement si elles sont listées explicitement dans le fichier de mesh (fichiers .nif ou .osg). Cette option affecte les objets.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;See &apos;auto use object normal maps&apos;. Affects terrain.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Voir &quot;Utilisation auto des normal maps pour les objets&quot;. Affecte le terrain.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, specular maps are automatically recognized and used if they are named appropriately
-                  (see &apos;specular map pattern&apos;, e.g. for a base texture foo.dds,
-                  the specular map texture would have to be named foo_spec.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file
-                  (.osg file, not supported in .nif files). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Si cette option est activée, les specular maps (textures indiquant si un objet est brillant ou mat) sont automatiquement reconnues et utilisées, lorsque le fichier est nommé correctement.&lt;/p&gt;&lt;p&gt;Par exemple, si une texture de base est nommée foo.dds, la texture de specular maps devrait être nommée foo_spec.dds (voir &apos;specular map pattern&apos; dans la documentation pour plus d&apos;informations, en anglais).&lt;/p&gt;&lt;p&gt;Si le paramètre est désactivé, les specular maps sont utilisées uniquement si elles sont listées explicitement dans le fichier de mesh (fichiers .osg, non supporté par le format nif). Cette option affecte les objets.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If a file with pattern &apos;terrain specular map pattern&apos; exists, use that file as a &apos;diffuse specular&apos; map. The texture must contain the layer colour in the RGB channel (as usual), and a specular multiplier in the alpha channel.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
@@ -878,41 +832,8 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;En temps normal, les réflexions dues au placage d&apos;environnement (environment map) ne sont pas affectées par l&apos;éclairage de la scène. En conséquence, les objets affectés par le placage d&apos;environnement (et de relief) ont tendance à briller dans le noir. Le &quot;Morrowind Code Patch&quot; a, pour remédier à ça, inclus une option qui applique le placage d&apos;environnement (et de relief) avant d&apos;appliquer l&apos;éclairage. Cette option est son équivalent.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allows MSAA to work with alpha-tested meshes, producing better-looking edges without pixelation. Can negatively impact performance.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Cette option permet à l&apos;antialiasing à multiéchantillonnage (MSAA) de fonctionner avec le test alpha des mesh. Ceci produit un meilleur rendu des bords, sans pixélisation. Cette option peut affecter négativement les performances.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enables soft particles for particle effects. This technique softens the intersection between individual particles and other opaque geometry by blending between them.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Cette option active la génération douce des effets de particules. Cette technique adoucit l&apos;intersection entre chaque particule et les éléments de géométrie opaque à l&apos;aide d&apos;un fondu progressif entre les deux.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Simulate coverage-preserving mipmaps to prevent alpha-tested meshes shrinking as they get further away. Will cause meshes whose textures have coverage-preserving mipmaps to grow, though, so refer to mod installation instructions for how to set this.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Lorsque cette option est activée, le moteur réalise une simulation de couverture préservée des mipmaps (coverage-preserving mipmaps). Ceci empêche les mesh testés en transparence (alpha test) de diminuer en taille lorsqu&apos;ils s&apos;éloignent. En contrepartie, cette option tend à agrandir les mesh ayant déjà une couverture préservée des mipmaps. Référez-vous à l&apos;installation du contenu additionnel (mod) pour savoir quelle option est la mieux adaptée à celui-ci.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;EXPERIMENTAL: Stop rain and snow from falling through overhangs and roofs.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Expérimental ! Cette option empêche la pluie et la neige de tomber au travers des promontoires et des toits.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Fog</source>
-        <translation>Brouillard</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;By default, the fog becomes thicker proportionally to your distance from the clipping plane set at the clipping distance, which causes distortion at the edges of the screen.
-                    This setting makes the fog use the actual eye point distance (or so called Euclidean distance) to calculate the fog, which makes the fog look less artificial, especially if you have a wide FOV.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Si cette option est désactivée, le brouillard s&apos;épaissit linéairement avec la distance jusqu&apos;à atteindre le plan de coupure perpendiculaire à la caméra (clipping plane) à la distance de coupure. Ceci cause des distorsions sur les bords de l&apos;écran.&lt;/p&gt;&lt;p&gt;Si elle est activée, le brouillard utilise la distance de chaque objet avec la caméra (appelée distance euclidienne) pour calculer la densité de brouillard. Cette option rend le brouillard moins artificiel, particulièrement pour les larges champs de vision.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use exponential fog formula. By default, linear fog is used.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Si l&apos;option est activée, le moteur de jeu utilise une décroissance exponentielle de la visibilité due au brouillard.&lt;/p&gt;&lt;p&gt;Si elle est désactivée, il utilise une décroissance linéaire de la visibilité due au brouillard.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Reduce visibility of clipping plane by blending objects with the sky.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Si l&apos;option est activée, le moteur de jeu réduit la visibilité du plan de coupure du brouillard en effectuant un fondu avec le ciel.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The fraction of the maximum distance at which blending with the sky starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Fraction de la distance d&apos;affichage maximale à partir de laquelle le fondu avec le ciel commence.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Terrain</source>
@@ -923,32 +844,8 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
         <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Cette option contrôle la taille apparente minimale que les objets doivent avoir pour être visibles à l&apos;écran. Le rapport entre la taille de l&apos;objet et sa distance à la caméra est comparé à cette valeur seuil. Plus cette valeur est faible, plus le nombre d&apos;objets visibles à l&apos;écran sera élevé.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, use paging and LOD algorithms to display the entire terrain. If false, only display terrain of the loaded cells.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Si l&apos;option est activée, le moteur utilise la pagination et différents niveau de détails (LOD) afin d&apos;afficher le terrain entier.&lt;/p&gt;&lt;p&gt;Si elle est désactivée, seul le terrain de jeu actif est affiché.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use object paging for active cells grid.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Si l&apos;option est activée, utilise la pagination des objets pour rendre l&apos;espace de jeu actif.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this setting is true, supporting models will make use of day night switch nodes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Si cette option est activée, le moteur prend en charge les &quot;day night switch nodes&quot; des modèles 3D. Ceci permet de sélectionner entre jour et nuit l&apos;apparence de ces modèles.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Post Processing</source>
-        <translation>Post-processing</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this setting is true, post processing will be enabled.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Si cette option est activée, le post-traitement est lui aussi activé (les shaders de post-traitement sont configurables en jeu).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Re-render transparent objects with forced alpha clipping.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Si l&apos;option est activée, le moteur réalise une seconde passe de rendu des objets transparents, en forçant leur découpe par le canal alpha de leurs textures.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Controls how much eye adaptation can change from frame to frame. Smaller values makes for slower transitions.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Cette option contrôle la vitesse selon laquelle l&apos;adaptation visuelle change d&apos;une image à la suivante. Une valeur faible correspond à une adaptation lente.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Audio</source>
@@ -1087,10 +984,6 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
         <translation>&lt;html&gt;&lt;body&gt;&lt;p&gt;Lorsque cette option est activée, elle permet aussi aux armes enchantées, non indiquées comme étant magique, de contourner la résistance de l&apos;arme, comme c&apos;est le cas dans le moteur original.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source> cells</source>
-        <translation>cellules</translation>
-    </message>
-    <message>
         <source>Tooltip</source>
         <translation>Infobulles</translation>
     </message>
@@ -1215,28 +1108,12 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
         <translation>Anime l&apos;utilisation d&apos;objets magique</translation>
     </message>
     <message>
-        <source>Auto Use Object Normal Maps</source>
-        <translation>Utilisation auto des normal maps pour les objets</translation>
-    </message>
-    <message>
-        <source>Soft Particles</source>
-        <translation>Apparition douce des particules</translation>
-    </message>
-    <message>
-        <source>Auto Use Object Specular Maps</source>
-        <translation>Utilisation auto des specular maps pour les objets</translation>
-    </message>
-    <message>
         <source>Auto Use Terrain Normal Maps</source>
         <translation>Utilisation auto des normal maps pour le terrain</translation>
     </message>
     <message>
         <source>Auto Use Terrain Specular Maps</source>
         <translation>Utilisation auto des specular maps pour le terrain</translation>
-    </message>
-    <message>
-        <source>Use Anti-Aliased Alpha Testing</source>
-        <translation>Utiliser l&apos;alpha testing pour l&apos;anti-aliasing</translation>
     </message>
     <message>
         <source>Bump/Reflect Map Local Lighting</source>
@@ -1247,48 +1124,8 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
         <translation>Occlusion des particules liées à la météo</translation>
     </message>
     <message>
-        <source>Exponential Fog</source>
-        <translation>Brouillard exponentiel</translation>
-    </message>
-    <message>
-        <source>Radial Fog</source>
-        <translation>Brouillard radial</translation>
-    </message>
-    <message>
-        <source>Sky Blending Start</source>
-        <translation>Début du fondu du ciel</translation>
-    </message>
-    <message>
-        <source>Sky Blending</source>
-        <translation>Fondu du ciel</translation>
-    </message>
-    <message>
         <source>Object Paging Min Size</source>
         <translation>Taille min des objets pour leur pagination</translation>
-    </message>
-    <message>
-        <source>Viewing Distance</source>
-        <translation>Distance d&apos;affichage</translation>
-    </message>
-    <message>
-        <source>Distant Land</source>
-        <translation>Terrain distant</translation>
-    </message>
-    <message>
-        <source>Active Grid Object Paging</source>
-        <translation>Pagination pour l&apos;espace actif</translation>
-    </message>
-    <message>
-        <source>Transparent Postpass</source>
-        <translation>Passe de transparence différée</translation>
-    </message>
-    <message>
-        <source>Auto Exposure Speed</source>
-        <translation>Vitesse d&apos;auto-exposition</translation>
-    </message>
-    <message>
-        <source>Enable Post Processing</source>
-        <translation>Activer le post-traitement</translation>
     </message>
     <message>
         <source>Audio Device</source>
@@ -1297,6 +1134,14 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
     <message>
         <source>HRTF Profile</source>
         <translation>Profil HRTF</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distant Objects</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Tooltip and Crosshair</source>
@@ -1385,10 +1230,6 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
     <message>
         <source>Turn to Movement Direction</source>
         <translation>Se tourner en direction du mouvement</translation>
-    </message>
-    <message>
-        <source>Adjust Coverage for Alpha Test</source>
-        <translation>Ajuster la couverture pour l&apos;alpha test</translation>
     </message>
     <message>
         <source>Use the Camera as the Sound Listener</source>

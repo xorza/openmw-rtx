@@ -509,8 +509,8 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "components\\rtxvulkan"
 include(FetchContent)
 
 # volk, which loads the Vulkan loader when the first instance is made rather than when the program
-# starts: no program imports it, so the game starts on a machine with no loader or an old one and the
-# OpenGL renderer runs there, and the ray tracer refuses the loader by name (`Instance`). The system's
+# starts: no program imports it, so the game starts on a machine with no loader or an old one and says
+# why it cannot draw there, and the ray tracer refuses the loader by name (`Instance`). The system's
 # package if installed, the pinned release otherwise; the header alone, its body compiled in
 # `device/instance.cpp`. `SYSTEM`: its warnings are not ours. **A system's volk at the pinned header
 # version or later**, which volk's own version is: an older one lacks the Vulkan 1.4 entry points the

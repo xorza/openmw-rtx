@@ -13,9 +13,9 @@ Upstream OpenMW stays the host engine: cells, references, physics, scripts, anim
 GUI logic. A second renderer stands beside the OpenGL rasterizer and replaces the whole picture:
 primary visibility, shadows, direct and indirect light, sky, water and fog are ray traced. The
 rasterizer's picture is upstream's but for the corrections `AGENTS.md` lists under "Accepted diff".
-Both renderers stand behind one interface, one binary ships both, and the one not chosen never
-starts. `[RTX] enabled` chooses; the player's settings are in
-[`rtx.rst`](../source/reference/modding/settings/rtx.rst).
+Both renderers stand behind one interface and one binary ships both, but the game starts the ray
+tracer alone: the OpenGL renderer stays built so upstream's code merges as it stands. The player's
+settings are in [`rtx.rst`](../source/reference/modding/settings/rtx.rst).
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan's ray tracing.
 The denoiser is the renderer's own, and the upscaler is AMD's FSR 3.1.4 ported to compute shaders:
@@ -75,10 +75,9 @@ The one interface the game talks to. Read its header first.
   structures belong to one renderer outright.
 - The game is never handed one renderer's mechanism. The exceptions are the upstream callers
   that cannot change, and they get null under the ray tracer.
-- `createRenderer` takes a `RendererKind`, and every build has both: the one not chosen never
-  starts. The one fallback is `startRenderer`'s: a ray tracer that throws `Rtx::Unsupported` gives
-  way to the OpenGL renderer, and the game tells the player why. Every other failure ends the
-  start.
+- `createRenderer` takes a `RendererKind`, and every build has both, but `startRenderer` asks for
+  the ray tracer alone. Any failure, `Rtx::Unsupported` included, ends the start with
+  `describeStartFailure`'s words in the fatal error box: no other renderer takes its place.
 - The base keeps what both renderers share: the resource system, the frame clock, the
   screenshot writer, the camera, the traversal root, the view mask and the presentation.
 - The world is attached as an object. `attachWorld` returns a `WorldAttachment`, and its end
@@ -580,8 +579,8 @@ declares.
 
 Data the world supplies is never an assert. Configuration or an installation the renderer cannot
 run with throws `Rtx::InputError`. A machine that cannot run the backend — no loader, no driver,
-no device with the features — throws `Rtx::Unsupported`, and the game starts the OpenGL renderer
-in its place. A device that refuses throws `Rtx::DeviceError`. A lost device or a wait that never
+no device with the features — throws `Rtx::Unsupported`, which ends the start as every other
+failure does, and names what is missing. A device that refuses throws `Rtx::DeviceError`. A lost device or a wait that never
 ends crashes where it was found, so the crash report shows it.
 
 ## Harness and tests

@@ -79,35 +79,6 @@
           </item>
          </layout>
         </item>
-        <item row="4" column="1">
-         <widget class="QComboBox" name="antiAliasingComboBox">
-          <item>
-           <property name="text">
-            <string>0</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>2</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>4</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>8</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>16</string>
-           </property>
-          </item>
-         </widget>
-        </item>
         <item row="1" column="0">
          <widget class="QCheckBox" name="framerateLimitCheckBox">
           <property name="text">
@@ -207,27 +178,10 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="antiAliasingLabel">
-          <property name="text">
-           <string>Anti-Aliasing</string>
-          </property>
-         </widget>
-        </item>
         <item row="2" column="0">
          <widget class="QLabel" name="vSyncLabel">
           <property name="text">
            <string>Vertical Synchronization</string>
-          </property>
-         </widget>
-        </item>
-        <item row="7" column="0">
-         <widget class="QCheckBox" name="rayTracingCheckBox">
-          <property name="toolTip">
-           <string>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</string>
-          </property>
-          <property name="text">
-           <string>Experimental Ray Tracing</string>
           </property>
          </widget>
         </item>

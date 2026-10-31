@@ -23,7 +23,9 @@ What the tree, `--help` or a commit already answers does not belong here.
   at the cost of reuse or of the abstraction's quality.
 - Both renderers stand behind one interface that exposes no implementation detail. Where the game
   would branch on which renderer it has, the seam abstracts the question instead. One binary ships
-  both, and the one not chosen never starts.
+  both, and the game starts the ray tracer alone: a start it cannot make ends in the fatal error
+  box, and the OpenGL renderer stays built and unstarted so that upstream's code merges as it
+  stands.
 - Target hardware: NVIDIA RTX 20 series and later, and AMD RDNA 2 and later. Only the NVIDIA card
   here runs anything; an AMD device is stood up under Mesa's drm-shim (`~/Projects/mesa/build-shim`),
   which compiles every kernel and executes none.
@@ -60,7 +62,10 @@ is not here is held to the rules above.
 
 **The rest of the tree.**
 
-- The `[RTX]` settings pages and their translations.
+- The `[RTX]` settings pages and their translations, and a settings window and a launcher that offer
+  only what the ray tracer honours (`RtxSupportTest`): the rasterizer's pages and controls are
+  removed with their strings, and the launcher's Distant Land is Distant Objects, `object paging`
+  alone. The keys stay in `settings-default.cfg`, which the rasterizer's code reads.
 - `components/crashcatcher`, replaced whole by a Crashpad monitor process, with the calls that set it
   up from the configuration, and the keeper `wrapApplication` forks first under an AppImage
   (`Crash::keepImageMounted`): the runtime unmounts the image once no process holds its keepalive
@@ -144,7 +149,7 @@ is not here is held to the rules above.
 - What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
   handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
   renderer draws rain the other hides.
-- `Renderer::support`, asked where the console, Lua, the settings window and F2 would otherwise
+- `Renderer::support`, asked where the console, Lua and F2 would otherwise
   toggle what does nothing under the renderer, and `ToggleBorders` under the ray tracer.
 - Faults the user approved fixing:
   - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1`

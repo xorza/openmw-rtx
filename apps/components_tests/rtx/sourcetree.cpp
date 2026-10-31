@@ -305,8 +305,8 @@ namespace Rtx
         /// No program links the Vulkan loader: volk loads it where an instance is made
         /// (`openmw-rtx-vulkan-api`).
         ///
-        /// **A program that imports the loader does not start without it**, the OpenGL renderer
-        /// included, and on Windows one that imports a function an old loader lacks stops in a
+        /// **A program that imports the loader does not start without it**, nor says why it cannot
+        /// draw, and on Windows one that imports a function an old loader lacks stops in a
         /// dialog before `main`. `VK_NO_PROTOTYPES` keeps every call that bypasses volk from
         /// compiling, so a link of the import library is the one way back, and this finds it.
         TEST(RtxSourceTreeTest, noProgramLinksTheVulkanLoader)

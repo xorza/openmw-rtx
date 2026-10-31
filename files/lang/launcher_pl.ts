@@ -183,26 +183,6 @@
         <translation>Standardowa:</translation>
     </message>
     <message>
-        <source>0</source>
-        <translation>0</translation>
-    </message>
-    <message>
-        <source>2</source>
-        <translation>2</translation>
-    </message>
-    <message>
-        <source>4</source>
-        <translation>4</translation>
-    </message>
-    <message>
-        <source>8</source>
-        <translation>8</translation>
-    </message>
-    <message>
-        <source>16</source>
-        <translation>16</translation>
-    </message>
-    <message>
         <source>Framerate Limit</source>
         <translation>Limit liczby klatek na sekundę</translation>
     </message>
@@ -247,20 +227,8 @@
         <translation> FPS</translation>
     </message>
     <message>
-        <source>Anti-Aliasing</source>
-        <translation>Wygładzanie krawędzi</translation>
-    </message>
-    <message>
         <source>Vertical Synchronization</source>
         <translation>Synchronizacja pionowa</translation>
-    </message>
-    <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
-        <translation>Zastępuje renderer OpenGL eksperymentalnym rendererem Vulkan ze śledzeniem promieni. Wymaga karty graficznej ze sprzętowym śledzeniem promieni: NVIDIA Turing lub AMD RDNA 2, albo nowszej.</translation>
-    </message>
-    <message>
-        <source>Experimental Ray Tracing</source>
-        <translation>Eksperymentalne śledzenie promieni</translation>
     </message>
     <message>
         <source>Upscaling</source>
@@ -1023,43 +991,6 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
         <translation>Shadery</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, normal maps are automatically recognized and used if they are named appropriately
-                  (see &apos;normal map pattern&apos;, e.g. for a base texture foo.dds, the normal map texture would have to be named foo_n.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file (.nif or .osg file). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Jeśli ta opcja jest włączona, mapy normalne są automatycznie rozpoznawane i używane, jeśli mają odpowiednią nazwę
-                  (zobacz ustawienie &apos;normal map pattern&apos; w settings.cfg, np. dla tekstury bazowej foo.dds, tekstura mapy normalnej musi mieć nazwę foo_n.dds).
-                  Jeśli ta opcja jest wyłączona, mapy normalne są używane tylko wtedy, gdy są wyraźnie wymienione w pliku siatki (.nif lub .osg).
-                  Dotyczy obiektów.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Use Object Normal Maps</source>
-        <translation>Automatyczne używanie map normalnych obiektów</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enables soft particles for particle effects. This technique softens the intersection between individual particles and other opaque geometry by blending between them.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Włącza miękkie cząsteczki dla efektów cząsteczkowych. Ta technika zmiękcza przecięcie między poszczególnymi cząsteczkami a inną nieprzezroczystą geometrią poprzez ich mieszanie.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Soft Particles</source>
-        <translation>Miękkie cząsteczki</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, specular maps are automatically recognized and used if they are named appropriately
-                  (see &apos;specular map pattern&apos;, e.g. for a base texture foo.dds,
-                  the specular map texture would have to be named foo_spec.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file
-                  (.osg file, not supported in .nif files). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Jeśli ta opcja jest włączona, mapy spekularne są automatycznie rozpoznawane i używane, jeśli mają odpowiednią nazwę
-                  (zobacz &apos;specular map pattern&apos;, np. dla tekstury bazowej foo.dds,
-                  tekstura mapy spekularnej musi mieć nazwę foo_spec.dds).
-                  Jeśli ta opcja jest wyłączona, mapy normalne są używane tylko wtedy, gdy są wyraźnie wymienione w pliku siatki
-                  (.osg, nieobsługiwane w plikach .nif). Dotyczy obiektów.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Use Object Specular Maps</source>
-        <translation>Automatyczne używanie map spekularnych obiektów</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;See &apos;auto use object normal maps&apos;. Affects terrain.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Zobacz &apos;auto use object normal maps&apos;. Dotyczy terenu.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
@@ -1074,22 +1005,6 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
     <message>
         <source>Auto Use Terrain Specular Maps</source>
         <translation>Automatyczne używanie map spekularnych terenu</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Simulate coverage-preserving mipmaps to prevent alpha-tested meshes shrinking as they get further away. Will cause meshes whose textures have coverage-preserving mipmaps to grow, though, so refer to mod installation instructions for how to set this.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Symuluj mipmapy zachowujące pokrycie, aby zapobiec kurczeniu się siatek alfa-testowanych wraz z oddalaniem się. Spowoduje to jednak powiększanie siatek, których tekstury mają takie mipmapy, więc zapoznaj się z instrukcjami instalacji moda, aby wiedzieć, jak to ustawić.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Adjust Coverage for Alpha Test</source>
-        <translation>Dopasuj pokrycie do testu alfa</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allows MSAA to work with alpha-tested meshes, producing better-looking edges without pixelation. Can negatively impact performance.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Pozwala na działanie MSAA z siatkami alfa-testowanymi, co daje ładniejsze krawędzie bez pikselizacji. Może negatywnie wpływać na wydajność.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Use Anti-Aliased Alpha Testing</source>
-        <translation>Użyj antyaliasingu przy alfa-teście</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Normally environment map reflections aren&apos;t affected by lighting, which makes environment-mapped (and thus bump-mapped objects) glow in the dark.
@@ -1112,44 +1027,6 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
         <translation>Zasłanianie cząstek pogodowych</translation>
     </message>
     <message>
-        <source>Fog</source>
-        <translation>Mgła</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use exponential fog formula. By default, linear fog is used.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Użyj wykładniczego wzoru mgły. Domyślnie stosowana jest mgła liniowa.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Exponential Fog</source>
-        <translation>Mgła wykładnicza</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;By default, the fog becomes thicker proportionally to your distance from the clipping plane set at the clipping distance, which causes distortion at the edges of the screen.
-                    This setting makes the fog use the actual eye point distance (or so called Euclidean distance) to calculate the fog, which makes the fog look less artificial, especially if you have a wide FOV.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Domyślnie mgła staje się gęstsza proporcjonalnie do odległości od płaszczyzny przycinania ustawionej na dystansie przycinania, co powoduje zniekształcenia na krawędziach ekranu.
-                    To ustawienie powoduje, że mgła jest obliczana na podstawie faktycznej odległości punktu widzenia (tzw. odległości euklidesowej), co sprawia, że mgła wygląda mniej sztucznie, zwłaszcza przy szerokim polu widzenia (FOV).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Radial Fog</source>
-        <translation>Mgła promieniowa</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The fraction of the maximum distance at which blending with the sky starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ułamek maksymalnej odległości, przy której zaczyna się mieszanie z niebem.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Sky Blending Start</source>
-        <translation>Początek mieszania z niebem</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Reduce visibility of clipping plane by blending objects with the sky.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Zredukuj widoczność płaszczyzny odcięcia, mieszając obiekty z niebem.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Sky Blending</source>
-        <translation>Mieszanie nieba</translation>
-    </message>
-    <message>
         <source>Terrain</source>
         <translation>Teren</translation>
     </message>
@@ -1160,58 +1037,6 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
     <message>
         <source>Object Paging Min Size</source>
         <translation>Minimalny rozmiar stronicowania obiektów</translation>
-    </message>
-    <message>
-        <source>Viewing Distance</source>
-        <translation>Dystans widzenia</translation>
-    </message>
-    <message>
-        <source> cells</source>
-        <translation> obszaru gry</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, use paging and LOD algorithms to display the entire terrain. If false, only display terrain of the loaded cells.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Jeśli włączone, używaj stronicowania i algorytmów LOD do wyświetlania całego terenu. Jeśli wyłączone, wyświetlany jest tylko teren załadowanych obszarów gry.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Distant Land</source>
-        <translation>Odległy teren</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use object paging for active cells grid.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Używaj stronicowania obiektów dla siatki aktywnych obszarów gry.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Active Grid Object Paging</source>
-        <translation>Stronicowanie obiektów aktywnej siatki</translation>
-    </message>
-    <message>
-        <source>Post Processing</source>
-        <translation>Post-processing</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Re-render transparent objects with forced alpha clipping.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ponowne renderowanie przezroczystych obiektów z wymuszonym odcinaniem alfa.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Transparent Postpass</source>
-        <translation>Przezroczysty etap końcowy</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Controls how much eye adaptation can change from frame to frame. Smaller values makes for slower transitions.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Kontroluje, jak bardzo adaptacja oka może się zmieniać między klatkami. Mniejsze wartości powodują wolniejsze przejścia.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Exposure Speed</source>
-        <translation>Prędkość automatycznej ekspozycji</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this setting is true, post processing will be enabled.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Jeśli to ustawienie jest włączone, postprocessing będzie aktywowany.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Enable Post Processing</source>
-        <translation>Włącz post-processing</translation>
     </message>
     <message>
         <source>Audio</source>
@@ -1256,6 +1081,14 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
     <message>
         <source>In third-person view, use the camera as the sound listener instead of the player character.</source>
         <translation>W widoku z trzeciej osoby użyj kamery jako odbiornika dźwięku zamiast postaci gracza.</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distant Objects</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Use the Camera as the Sound Listener</source>

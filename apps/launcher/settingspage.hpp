@@ -33,9 +33,7 @@ namespace Launcher
         void on_skipMenuCheckBox_stateChanged(int state);
         void on_runScriptAfterStartupBrowseButton_clicked();
         void slotAnimSourcesToggled(bool checked);
-        void slotPostProcessToggled(bool checked);
-        void slotSkyBlendingToggled(bool checked);
-        void slotDistantLandToggled(bool checked);
+        void slotObjectPagingToggled(bool checked);
         void slotControllerMenusToggled(bool checked);
         void slotOpenFile(QTreeWidgetItem* item);
 

@@ -163,36 +163,8 @@
 <context>
     <name>GraphicsPage</name>
     <message>
-        <source>0</source>
-        <translation>0</translation>
-    </message>
-    <message>
-        <source>2</source>
-        <translation>2</translation>
-    </message>
-    <message>
-        <source>4</source>
-        <translation>4</translation>
-    </message>
-    <message>
-        <source>8</source>
-        <translation>8</translation>
-    </message>
-    <message>
-        <source>16</source>
-        <translation>16</translation>
-    </message>
-    <message>
         <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
         <translation>Upplösningen spelet renderar i, världen och gränssnittet tillsammans, skalad för att fylla fönstret. Nativ renderar i fönstrets egen storlek. I fönsterläge behåller fönstret storleken du senast drog det till.</translation>
-    </message>
-    <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
-        <translation>Ersätter OpenGL-renderaren med den experimentella Vulkan-renderaren med strålspårning. Kräver ett grafikkort med strålspårning i hårdvara: NVIDIA Turing eller AMD RDNA 2, eller senare.</translation>
-    </message>
-    <message>
-        <source>Experimental Ray Tracing</source>
-        <translation>Experimentell strålspårning</translation>
     </message>
     <message>
         <source>Upscaling</source>
@@ -313,10 +285,6 @@
     <message>
         <source>Window Border</source>
         <translation>Fönster, ram</translation>
-    </message>
-    <message>
-        <source>Anti-Aliasing</source>
-        <translation>Kantutjämning</translation>
     </message>
     <message>
         <source>Vertical Synchronization</source>
@@ -846,28 +814,8 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
         <translation>Shader</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, normal maps are automatically recognized and used if they are named appropriately
-                  (see &apos;normal map pattern&apos;, e.g. for a base texture foo.dds, the normal map texture would have to be named foo_n.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file (.nif or .osg file). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Om funktionen är aktiv kommer normalkartor (normal maps) att hittas och användas automatiskt om de har korrekt namn
-                  (se &apos;normal map pattern&apos;, t.ex. för en bastextur foo.dds ska normalkartan heta foo_n.dds).
-                  Om funktionen är inaktiverad kommer normalkartor bara användas om texturerna är explicit listade i 3D-modell-filen (.nif eller .osg fil). Påverkar objekt.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;See &apos;auto use object normal maps&apos;. Affects terrain.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Se &apos;autoanvänd normalkartor (normal maps) på objekt&apos;. Påverkar terräng.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, specular maps are automatically recognized and used if they are named appropriately
-                  (see &apos;specular map pattern&apos;, e.g. for a base texture foo.dds,
-                  the specular map texture would have to be named foo_spec.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file
-                  (.osg file, not supported in .nif files). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Om den här funktionen är aktiverad kommer spekularitetskartor (specular maps) att hittas och användas
-                  (see &apos;specular map pattern&apos;, t.ex. för en bastextur foo.dds,
-                  ska spekularitetskartan heta foo_spec.dds).
-                  Om funktionen är inaktiverad kommer normalkartor bara användas om texturerna är explicit listade i 3D-modell-filen
-                  (.nif eller .osg fil). Påverkar objekt.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If a file with pattern &apos;terrain specular map pattern&apos; exists, use that file as a &apos;diffuse specular&apos; map. The texture must contain the layer colour in the RGB channel (as usual), and a specular multiplier in the alpha channel.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
@@ -882,42 +830,8 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
                   &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allows MSAA to work with alpha-tested meshes, producing better-looking edges without pixelation. Can negatively impact performance.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Gör att MSAA fungerar med alfa-testade modeller, vilket ger snyggare kanter utan synliga pixlar. Kan påverka prestandan negativt.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enables soft particles for particle effects. This technique softens the intersection between individual particles and other opaque geometry by blending between them.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Aktiverar mjuka partiklar på partikeleffekter. Denna teknik mjukar upp övergången mellan individuella partiklar och annan ogenomskinlig geometri genom att smälta samman dem.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Simulate coverage-preserving mipmaps to prevent alpha-tested meshes shrinking as they get further away. Will cause meshes whose textures have coverage-preserving mipmaps to grow, though, so refer to mod installation instructions for how to set this.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Simulerar mip maps med coverage-preserving för att förhindra att alfa-testade modeller krymper när de kommer längre bort. Kommer göra att dessa modeller växer istället; se instruktioner i modinstallationen för hur detta ska ställas in.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;EXPERIMENTAL: Stop rain and snow from falling through overhangs and roofs.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;EXPERIMENTELLT: Förhindra att regn och snö faller genom tak och överhäng.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Fog</source>
-        <translation>Dimma</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;By default, the fog becomes thicker proportionally to your distance from the clipping plane set at the clipping distance, which causes distortion at the edges of the screen.
-                    This setting makes the fog use the actual eye point distance (or so called Euclidean distance) to calculate the fog, which makes the fog look less artificial, especially if you have a wide FOV.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Som standard blir dimman tätare proportionellt med ditt avstånd till avklippningsdistansen, vilket ger distortion vid skärmens kanter.
-                    Denna inställning gör att dimman använder det faktiska ögonpunktsavståndet (så kallat euklidiskt avstånd) för att beräkna dimman, vilket får dimman att se mindre artificiell ut, särskilt vid hög FoV.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use exponential fog formula. By default, linear fog is used.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Använd exponentiell formel för dimma. Som standard används linjär dimma.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Reduce visibility of clipping plane by blending objects with the sky.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Reducera synligheten av avklippsplanet genom att smälta samman objekt med himmelen.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The fraction of the maximum distance at which blending with the sky starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Fraktionen av det maximala avståndet där utsmetning mellan himmel och horisont påbörjas.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Terrain</source>
@@ -928,32 +842,8 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Bestämmer hur stort ett objekt måste vara för att vara synligt på skärmen. Objektets storlek divideras med sitt avstånd till kameran. Resultatet av denna division jämförs med detta värde. Ju mindre värdet är, desto fler objekt kommer du se i scenen.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, use paging and LOD algorithms to display the entire terrain. If false, only display terrain of the loaded cells.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Om aktiverat används paging och LOD-algoritmer för att rita upp all terräng. Om inaktiverat visas endast terrängen i den laddade cellen.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use object paging for active cells grid.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Använd objekt-paging för aktiva cellers rutnät.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this setting is true, supporting models will make use of day night switch nodes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Om den här inställningen är aktiv kommer modeller med stöd för det att använda dag- och natt-bytesnoder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Post Processing</source>
-        <translation>Efterbehandling</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this setting is true, post processing will be enabled.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Om denna inställning är på kommer efterbehandling (post processing) att vara aktiverat.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Re-render transparent objects with forced alpha clipping.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Återrendera transparenta objekt med forcerad alpha clipping.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Controls how much eye adaptation can change from frame to frame. Smaller values makes for slower transitions.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Bestämmer hur mycket ögonanpassningen kan förändras från bildruta till bildruta. Lägre värden ger långsammare övergångar.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Audio</source>
@@ -1092,10 +982,6 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Få förtrollade vapen utan Magisk-flagga att förbigå normal vapenmotståndskraft, såsom i Morrowind.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source> cells</source>
-        <translation> celler</translation>
-    </message>
-    <message>
         <source>Tooltip</source>
         <translation>Inforuta</translation>
     </message>
@@ -1220,28 +1106,12 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
         <translation>Animationer för magiska föremål</translation>
     </message>
     <message>
-        <source>Auto Use Object Normal Maps</source>
-        <translation>Använd automatiskt normalkartor på objekt</translation>
-    </message>
-    <message>
-        <source>Soft Particles</source>
-        <translation>Mjuka partiklar</translation>
-    </message>
-    <message>
-        <source>Auto Use Object Specular Maps</source>
-        <translation>Använd automatiskt spekularitetskartor på objekt</translation>
-    </message>
-    <message>
         <source>Auto Use Terrain Normal Maps</source>
         <translation>Använd automatiskt normalkartor på terräng</translation>
     </message>
     <message>
         <source>Auto Use Terrain Specular Maps</source>
         <translation>Använd automatiskt spekularitetskartor på terräng</translation>
-    </message>
-    <message>
-        <source>Use Anti-Aliased Alpha Testing</source>
-        <translation>Använd kantutjämnad alfa-testning</translation>
     </message>
     <message>
         <source>Bump/Reflect Map Local Lighting</source>
@@ -1252,51 +1122,9 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
         <translation>Regn/snö blockeras av tak</translation>
     </message>
     <message>
-        <source>Exponential Fog</source>
-        <translation>Exponentiell dimma</translation>
-    </message>
-    <message>
-        <source>Radial Fog</source>
-        <translation>Radiell dimma</translation>
-    </message>
-    <message>
-        <source>Sky Blending Start</source>
-        <translation>Smeta ut horisont/himmel, start</translation>
-    </message>
-    <message>
-        <source>Sky Blending</source>
-        <translation>Smeta ut horisont/himmel</translation>
-    </message>
-    <message>
         <source>Object Paging Min Size</source>
         <translatorcomment>Object paging needs a better translation</translatorcomment>
         <translation>Minsta storlek för objektpaging</translation>
-    </message>
-    <message>
-        <source>Viewing Distance</source>
-        <translation>Siktavstånd</translation>
-    </message>
-    <message>
-        <source>Distant Land</source>
-        <translation>Avlägsen terräng</translation>
-    </message>
-    <message>
-        <source>Active Grid Object Paging</source>
-        <translatorcomment>Object paging needs a better translation</translatorcomment>
-        <translation>Objektpaging i aktivt rutnät</translation>
-    </message>
-    <message>
-        <source>Transparent Postpass</source>
-        <translatorcomment>Will return to later</translatorcomment>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Auto Exposure Speed</source>
-        <translation>Autoexponeringshastighet</translation>
-    </message>
-    <message>
-        <source>Enable Post Processing</source>
-        <translation>Aktivera efterbehandling (post processing)</translation>
     </message>
     <message>
         <source>Audio Device</source>
@@ -1305,6 +1133,14 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
     <message>
         <source>HRTF Profile</source>
         <translation>HRTF-profil</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distant Objects</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Tooltip and Crosshair</source>
@@ -1393,10 +1229,6 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
     <message>
         <source>Turn to Movement Direction</source>
         <translation>Vänd mot rörelseriktningen</translation>
-    </message>
-    <message>
-        <source>Adjust Coverage for Alpha Test</source>
-        <translation>Justera täckning för alfa-testning</translation>
     </message>
     <message>
         <source>Use the Camera as the Sound Listener</source>

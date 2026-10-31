@@ -20,6 +20,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/files/conversion.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -329,39 +330,31 @@ namespace MWRender
         Crash::fatal("a renderer kind past the two");
     }
 
-    std::string describeStartFailure(const RendererKind kind, const std::string_view reason)
+    std::string describeStartFailure(const std::exception& failure, const std::filesystem::path& logFolder)
     {
-        if (kind != RendererKind::RayTraced)
-            return std::string(reason);
-
-        return "Ray tracing could not start: " + std::string(reason)
-            + "\n\nIt is turned on by [RTX] enabled. Clear \"Experimental Ray Tracing\" on the launcher's Graphics "
-              "page, or set enabled = false under [RTX] in settings.cfg, to start with the OpenGL renderer.";
+        std::string said = "Ray tracing could not start: ";
+        said += failure.what();
+        if (dynamic_cast<const Rtx::Unsupported*>(&failure) != nullptr)
+            said += "\n\nThis build draws with hardware ray tracing alone. It needs an NVIDIA GeForce RTX 20 series "
+                    "or later, or an AMD Radeon RX 6000 series (RDNA 2) or later, with a current graphics driver.";
+        said += "\n\nThe log in ";
+        said += Files::pathToUnicodeString(logFolder);
+        said += " says each step of the start.";
+        return said;
     }
 
-    StartedRenderer startRenderer(const RendererKind wanted, const RendererFactory& create)
+    std::unique_ptr<Renderer> startRenderer(const RendererFactory& create, const std::filesystem::path& logFolder)
     {
-        Log(Debug::Info) << "Renderer: " << nameOf(wanted);
-        Crash::annotate("renderer", nameOf(wanted));
-        std::string reason;
+        Log(Debug::Info) << "Renderer: " << nameOf(RendererKind::RayTraced);
+        Crash::annotate("renderer", nameOf(RendererKind::RayTraced));
         try
         {
-            return StartedRenderer{ .mRenderer = create(wanted), .mFallbackReason = {} };
-        }
-        catch (const Rtx::Unsupported& unsupported)
-        {
-            assert(wanted == RendererKind::RayTraced && "only the ray tracer asks what this machine can do");
-            reason = unsupported.what();
+            return create();
         }
         catch (const std::exception& failure)
         {
-            throw std::runtime_error(describeStartFailure(wanted, failure.what()));
+            throw std::runtime_error(describeStartFailure(failure, logFolder));
         }
-
-        Log(Debug::Warning) << "Ray tracing cannot run on this machine, so the OpenGL renderer draws: " << reason;
-        Crash::annotate("renderer", nameOf(RendererKind::OpenGl));
-        Crash::annotate("renderer fallback", reason);
-        return StartedRenderer{ .mRenderer = create(RendererKind::OpenGl), .mFallbackReason = std::move(reason) };
     }
 
     SDL_Window* openWindow(const SDL_WindowFlags surfaceFlag, const std::optional<osg::Vec2i> pixels)

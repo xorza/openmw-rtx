@@ -264,7 +264,7 @@ namespace OMW
         void setGrabMouse(bool grab) { mGrab = grab; }
 
         /// Who runs this engine, before `go`. The played game installs none: its renderer is
-        /// `MWRender::createRenderer` off `[RTX] enabled`, its clock the wall, its frames unwatched.
+        /// the ray tracer `MWRender::startRenderer` makes, its clock the wall, its frames unwatched.
         void setHost(EngineHost& host) { mHost = &host; }
 
         /// Initialise and enter main loop.

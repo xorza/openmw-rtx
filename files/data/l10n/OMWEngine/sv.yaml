@@ -28,10 +28,6 @@ LoadingRequiresOldVersionError: |-
     Ladda och spara denna sparfil med {version} för att uppgradera den.
 NewGameConfirmation: "Vill du starta ett nytt spel och förlora det pågående spelet?"
 QuitGameConfirmation: "Avsluta spelet?"
-RayTracingUnsupported: |-
-    Strålspårning kan inte köras på den här datorn: {reason}
-
-    OpenMW ritar i stället med OpenGL-renderaren. Stäng av ”Experimentell strålspårningsrenderare” i inställningarna för att starta utan det här meddelandet.
 SaveGameDenied: "Spelet kan inte sparas just nu."
 SavingInProgress: "Sparar..."
 ScreenshotFailed: "Misslyckades att spara skärmdump"
@@ -84,21 +80,6 @@ CameraSensitivity: "Kamerakänslighet"
 CameraZoomIn: "Zooma in kamera"
 CameraZoomOut: "Zooma ut kamera"
 ChangeRequiresRestart: "Den här ändringen kräver omstart för att ge effekt."
-ClampLighting: "Begränsa belysning"
-ClampLightingTooltip: |-
-    Begränsar ljusstyrkan till (1, 1, 1) för att efterlikna Morrowinds rendering.
-    Förhindrar alltför ljusa eller förskjutna färger, men kan göra belysningen mattare.
-ClassicFalloff: "Klassiskt ljusavtagande"
-ClassicFalloffTooltip: |-
-    Förvalt: av
-    Använd den traditionella formeln för dämpning av punktljus som saknar en tidig uttoning.
-
-    En nackdel med den traditionella formeln är att ljusets påverkan aldrig riktigt når noll.
-    Detta är fysiskt korrekt, men kan orsaka "sömmar" eftersom ljuset inte påverkar hela scenen.
-    Tidig uttoning minskar synligheten av dessa sömmar på bekostnad av att scenen blir mörkare.
-
-    Morrowind använder den traditionella formeln, så du kanske vill aktivera detta om du ogillar skillnaderna i ljusstyrka.
-    Alternativt kan du prova att justera minsta ljusstyrkan i interiörer.
 ConfirmResetBindings: "Återställ alla kontroller till standard?"
 ConfirmResolution: "Ny upplösning kommer ställas in omedelbart. Vill du fortsätta?"
 Controller: "Handkontroll"
@@ -106,7 +87,6 @@ Controls: "Kontroller"
 Crosshair: "Hårkors"
 DelayLow: "Snabbt"
 DelayHigh: "Långsamt"
-DetailLevel: "Detaljnivå"
 Difficulty: "Svårighetsgrad"
 DifficultyValue: "Svårighetsgrad ({value})"
 DifficultyEasy: "Lätt"
@@ -118,15 +98,6 @@ FieldOfView: "Synfält"
 FieldOfViewValue: "Synfält ({value, number, ::.00})"
 FieldOfViewLow: "Låg"
 FieldOfViewHigh: "Hög"
-ForcePerPixelLighting: "Per-pixelljussättning"
-ForcePerPixelLightingTooltip: |-
-    Tvingar användningen av per-pixelljussättning. Som standard är det annars bara objekt med normalkartor som använder per-pixelljussättning.
-
-    Aktivering av per-pixelljussättning kommer ge visuella skillnader jämfört med hur Morrowind ser ut i ordinarie spelmotor.
-    Detta då visst ljus i Morrowind är beroende av vertexljussättning för att se ut som det var avsett.
-
-    Notera att shaders för marktäckare och partikeleffekter ignorerar denna inställning.
-FrameRateHint: "Tips: tryck på F3 för att visa\naktuell bilduppdateringsfrekvens."
 GammaCorrection: "Gammakorrigering"
 GammaCorrectionValue: "Gammakorrigering ({value, number, ::.00})"
 GammaDark: "Mörkt"
@@ -136,62 +107,22 @@ InvertXAxis: "Invertera X-axeln"
 InvertYAxis: "Invertera Y-axeln"
 Language: "Språk"
 LanguageNote: "Notera: dessa inställningar påverkar inte strängar från ESM-filer."
-LightsClusteredLighting: "Klustrad ljussättning"
-LightingResetToDefaults: "Återställer till ursprungliga värden, vill du fortsätta?"
-Lights: "Ljus"
 LightRadiusMultiplier: "Radiemultiplikator"
-LightRadiusMultiplierValue: "Radiemultiplikator ({value, number, ::.00})"
-LightRadiusMultiplierTooltip: "Förvalt: 1.75\nMultiplikator för punktljusens radie. Högre värden ökar ljusets räckvidd."
 LightsFadeStartMultiplier: "Blekningsstartmultiplikator"
 LightsFadeStartMultiplierValue: "Blekningsstartmultiplikator ({value, number, ::.00})"
 LightsFadeStartMultiplierTooltip: "Förvalt: 0.85\nFraktion av det maximala avståndet från vilket ljuskällor börjar blekna.\n\nVälj lågt värde för långsammare övergång eller högre värde för snabbare övergång."
-LightsClusteredLightingTooltip:  |-
-  Aktivera klustrad ljussättning.
-  Delar upp skärmen i områden för att tilldela ljuskällor, vilket tar bort begränsningarna vid ljus-per-objekt.
-
-  Inställningarna "klassiskt ljusavtagande" och "max antal ljuskällor" har ingen effekt i det här läget.
-
-  Aktiverar högdagrar från punktljus på vattenytan när vattenshader är aktiverad.
-
-  Det är starkt rekommenderat att använda detta tillsammans med per-pixelljussättning aktiverad, då nodljussättning kan orsaka ljusblinkingar vid kanten av skärmen.
-LightsMaximumDistanceValue: "Maximalt ljusavstånd ({value, number, :: group-off})"
-LightsMaximumDistanceTooltip: "Förvalt: 8192\nMaximala avståndet där ljuskällor syns (mätt i enheter).\n\nVärdet 0 ger oändligt avstånd."
 LightsMinimumInteriorBrightness: "Minsta ljusstyrka i interiörer"
-LightsMinimumInteriorBrightnessValue: "Minsta ljusstyrka i interiörer ({value, number, ::.00})"
-LightsMinimumInteriorBrightnessTooltip: "Förvalt: 0.08\nMinsta omgivande ljusstyrka i interiörer.\n\nÖka värdet om du anser att interiörer är för mörka.\n\nDetta har ingen effekt om klassiskt ljusavtagande används."
-MatchSunlightToSun: "Matcha solljus med solen"
-MatchSunlightToSunTooltip: |-
-    I Morrowind stämmer inte solens synbara position överens med dess ljusriktning av mystiska skäl.
-    Vi behåller detta orealistiska beteende för att behålla kompatibilitet.
-
-    Detta alternativ gör att solljuskällans position matchar solens synliga position.
-MaxLights: "Max antal ljuskällor"
-MaxLightsValue: "Max antal ljuskällor ({value, number, :: group-off})"
-MaxLightsTooltip: "Förvalt: 16\nMaximalt antal ljuskällor per objekt.\n\nEtt lågt tal nära det förvalda kommer orsaka att ljuskällor poppar upp liknande det man ser i Morrowind."
 MenuHelpDelay: "Menyhjälp, fördröjning" #Unsure in what context this goes
 MenuTransparency: "Menytransparens"
 MouseAndKeyboard: "Mus/Tangentbord"
 MouseEmulationCursor: "Musemuleringsmarkör"
-ParticlePointLighting: "Partikelpunktljus"
-ParticlePointLightingTooltip: "Gör att partikelsystem kan bli belysta av punktljus."
-PostProcessing: "Efterbehandling (post processing)"
 PostProcessingIsNotEnabled: "Efterbehandling (post processing) är inte aktiverat"
-PostProcessingTooltip: "Justeras via Efterbehandlings-gränssnittet, se input bindings."
 Preferences: "Inställningar" #Den engelska texten är "prefs", alltså "preferences" men förkortat. Men översättningen "preferenser" känns inte helt rätt. Kan vara bra att fundera över den här framöver.
 PrimaryLanguage: "Primärt språk"
 PrimaryLanguageTooltip: "Lokaliseringsfiler för detta språk har högst prioritet."
-QualityHigh: "Hög"
-QualityLow: "Låg"
-QualityMedium: "Mellan"
-RainRippleDetail: "Ringar på vattnet, detaljnivå"
-RainRippleDetailDense: "Tätt"
-RainRippleDetailSimple: "Förenklat"
-RainRippleDetailSparse: "Glest"
 RayTracing: "Strålspårning"
 RayTracingDistantLand: "Avlägsen terräng"
 RayTracingDistantLandValue: "Avlägsen terräng ({value} celler)"
-RayTracingEnabled: "Experimentell strålspårningsrenderare"
-RayTracingRestart: "Att slå på renderaren börjar gälla nästa gång OpenMW startas."
 RayTracingSpecularMaps: "Spekulärkartor"
 RayTracingSpecularMapsClassic: "Klassisk (glansfärg och glans)"
 RayTracingSpecularMapsHint: "En ändring gäller från nästa gång OpenMW startar."
@@ -204,15 +135,6 @@ RayTracingUpscalePerformance: "Prestanda"
 RayTracingUpscaleQuality: "Kvalitet"
 RayTracingUpscaleUltraPerformance: "Ultraprestanda"
 RebindAction: "Tryck på en tangent eller knapp för att koppla om denna funktion."
-ReflectionShaderDetail: "Reflektionsshader, detaljnivå"
-ReflectionShaderDetailActors: "Figurer"
-ReflectionShaderDetailGroundcover: "Marktäckare"
-ReflectionShaderDetailObjects: "Objekt"
-ReflectionShaderDetailSky: "Himmel"
-ReflectionShaderDetailTerrain: "Terräng"
-ReflectionShaderDetailWorld: "Värld"
-Refraction: "Refraktion"
-RendererDeclines: "Inte tillgängligt med den här renderaren."
 ResetControls: "Återställ kontroller"
 ResolutionNative: "Nativ"
 Screenshot: "Skärmdump"
@@ -224,60 +146,20 @@ SensitivityHigh: "Hög"
 SensitivityLow: "Låg"
 SettingsWindow: "Inställningar"
 Subtitles: "Undertexter"
-SunlightScattering: "Solljusspridning"
 TestingExteriorCells: "Testar exteriöra celler"
 TestingInteriorCells: "Testar interiöra celler"
-TextureFiltering: "Texturfiltrering"
-TextureFilteringBilinear: "Bilinjär"
-TextureFilteringNearest: "Närmaste"
-TextureFilteringDisabled: "Ingen"
-TextureFilteringOther: "Annan"
-TextureFilteringTrilinear: "Trilinjär"
 ToggleHUD: "Visa/dölj HUD"
 TogglePostProcessorHUD: "Visa/dölj Efterbehandlingsgränssnitt"
 TransparencyFull: "Full"
 TransparencyNone: "Ingen"
 Video: "Bild"
-ViewDistance: "Siktavstånd"
-ViewDistanceValue: "Siktavstånd ({value, number, ::.00})"
-ViewDistanceValueCells: "Siktavstånd (×{cells, number, ::.00})"
 VSync: "VSynk"
 VSyncAdaptive: "Adaptiv"
-Water: "Vatten"
-WaterShader: "Vattenshader"
-WaterShaderTextureQuality: "Texturkvalitet"
 WindowBorder: "Fönster, ram"
 WindowMode: "Fönsterläge"
 WindowModeFullscreen: "Helskärm"
 WindowModeWindowed: "Fönster"
 WindowModeWindowedFullscreen: "Helskärm i fönsterläge"
-WobblyShores: "Vaggande stränder"
-
-# Shadow settings
-
-Shadows: "Skuggor"
-ActorShadows: "Aktivera skuggor för bifigurer"
-ActorShadowsTooltip: "Aktiverar skuggor för bifigurer och varelser bortsett från spelarrollpersonen. Kan ha en liten negativ prestandapåverkan."
-PlayerShadows: "Aktivera skuggor för spelaren"
-PlayerShadowsTooltip: "Aktivera skuggor exklusivt för spelarrollpersonen. Kan ha en mycket liten negativ prestandapåverkan."
-TerrainShadows: "Aktivera skuggor för terräng"
-TerrainShadowsTooltip: "Aktivera skuggor för terräng, inklusive avlägsen terräng. Kan ha en signifikant negativ påverkan på prestanda och skuggkvalité."
-ObjectShadows: "Aktivera skuggor för objekt"
-ObjectShadowsTooltip: "Aktivera skuggor för huvudsakligen icke-rörliga objekt. Kan ha en signifikant negativ prestandapåverkan."
-IndoorShadows: "Aktivera skuggor inomhus"
-IndoorShadowsTooltip: "På grund av begränsningar med Morrowinds data kan endast figurer ge ifrån sig skuggor inomhus, vilket vissa kan tycka vara distraherande. Har ingen effekt om figur/spelarskuggor inte är aktiverat."
-ShadowPlanesComputationMethod: "Beräkningsmetod för skuggplan"
-ShadowPlanesComputationMethodTooltip: |-
-    Typ av "beräkna scenens omfång"-metod som ska användas. "Omfång" (standard) för en bra balans mellan prestanda och skuggkvalitet, "primitiver" för snyggare skuggor eller "ingen" för ingen beräkning.
-ShadowPlanesComputationMethodBounds: "Omfång"
-ShadowPlanesComputationMethodPrimitives: "Primitiver"
-ShadowPlanesComputationMethodNone: "Ingen"
-ShadowPlanesComputationMethodWarning: |-
-    Metoden "primitiver" påverkar prestandan kraftigt och rekommenderas inte för normalt spelande.
-ShadowMapResolution: "Upplösning för skuggkarta"
-ShadowMapResolutionTooltip: "Upplösningen för varje individuell skuggkarta. Ökning av den ökar skuggkvalitén signifikant, men kan ha en lättare negativ prestandapåverkan."
-ShadowsMaxDistanceValue: "Maxavstånd för skuggor ({value, number, :: group-off})"
-ShadowsMaxDistanceTooltip: "Avståndet från kameran vid vilken skuggor helt försvinner. Sätt till 0 för att inaktivera."
 
 # Controller button names
 

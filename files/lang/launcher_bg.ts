@@ -183,26 +183,6 @@
         <translation>Стандартна:</translation>
     </message>
     <message>
-        <source>0</source>
-        <translation>0</translation>
-    </message>
-    <message>
-        <source>2</source>
-        <translation>2</translation>
-    </message>
-    <message>
-        <source>4</source>
-        <translation>4</translation>
-    </message>
-    <message>
-        <source>8</source>
-        <translation>8</translation>
-    </message>
-    <message>
-        <source>16</source>
-        <translation>16</translation>
-    </message>
-    <message>
         <source>Framerate Limit</source>
         <translation>Лимит на честотата на кадрите</translation>
     </message>
@@ -247,20 +227,8 @@
         <translation> FPS</translation>
     </message>
     <message>
-        <source>Anti-Aliasing</source>
-        <translation>Изглаждане</translation>
-    </message>
-    <message>
         <source>Vertical Synchronization</source>
         <translation>Вертикална синхронизация</translation>
-    </message>
-    <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
-        <translation>Заменя визуализатора OpenGL с експерименталния визуализатор Vulkan с трасиране на лъчи. Изисква видеокарта с хардуерно трасиране на лъчи: NVIDIA Turing или AMD RDNA 2, или по-нова.</translation>
-    </message>
-    <message>
-        <source>Experimental Ray Tracing</source>
-        <translation>Експериментално трасиране на лъчи</translation>
     </message>
     <message>
         <source>Upscaling</source>
@@ -1017,42 +985,6 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>Шейдъри</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, normal maps are automatically recognized and used if they are named appropriately
-                  (see &apos;normal map pattern&apos;, e.g. for a base texture foo.dds, the normal map texture would have to be named foo_n.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file (.nif or .osg file). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Когато е включено, картите на нормалите се разпознават автоматично, ако са именувани правилно
-                  (вижте &apos;normal map pattern&apos;, например за текстура foo.dds, картата на нормалите трябва да е foo_n.dds).
-                  Когато е изключено, се използват само ако са изрично описани в мрежовия файл (.nif или .osg). Засяга обектите.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Use Object Normal Maps</source>
-        <translation>Автоматични карти на нормалите за обекти</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enables soft particles for particle effects. This technique softens the intersection between individual particles and other opaque geometry by blending between them.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Включете меки частици за ефектите с частици. Тази техника омекотява пресечните точки между отделните частици и непрозрачната геометрия чрез преливане.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Soft Particles</source>
-        <translation>Меки частици</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this option is enabled, specular maps are automatically recognized and used if they are named appropriately
-                  (see &apos;specular map pattern&apos;, e.g. for a base texture foo.dds,
-                  the specular map texture would have to be named foo_spec.dds).
-                  If this option is disabled, normal maps are only used if they are explicitly listed within the mesh file
-                  (.osg file, not supported in .nif files). Affects objects.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Когато е включено, картите на отблясъците се разпознават автоматично, ако са именувани правилно
-                  (виж &apos;specular map pattern&apos;, например за текстура foo.dds,
-                  картата на отблясъците трябва да е foo_spec.dds).
-                  Когато е изключено, се използват само ако са изрично описани в мрежовия файл
-                  (.osg файловете, не се поддържат в .nif файловете). Засяга обектите.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Use Object Specular Maps</source>
-        <translation>Автоматични карти на отблясъците за обекти</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;See &apos;auto use object normal maps&apos;. Affects terrain.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Вижте &apos;Автоматични карти на нормалите за обекти&apos;. Засяга терена.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
@@ -1067,22 +999,6 @@ Logs and settings changed through the launcher and in-game will be saved here.</
     <message>
         <source>Auto Use Terrain Specular Maps</source>
         <translation>Автоматични карти на отблясъците за терена</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Simulate coverage-preserving mipmaps to prevent alpha-tested meshes shrinking as they get further away. Will cause meshes whose textures have coverage-preserving mipmaps to grow, though, so refer to mod installation instructions for how to set this.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Симулирайте запазване на покритието за предотвратяване на смаляването на прозрачните обекти в далечината. Това може да накара някои обекти да изглеждат по-дебели, затова вижте инструкциите на конкретната модификация за тази настройка.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Adjust Coverage for Alpha Test</source>
-        <translation>Корекция на покритието за прозрачното тестване</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allows MSAA to work with alpha-tested meshes, producing better-looking edges without pixelation. Can negatively impact performance.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Позволете на MSAA да работи с прозрачните обекти, създавайки по-добри ръбове без пикселизация. Може да намали производителността.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Use Anti-Aliased Alpha Testing</source>
-        <translation>Изглаждане за прозрачното тестване</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Normally environment map reflections aren&apos;t affected by lighting, which makes environment-mapped (and thus bump-mapped objects) glow in the dark.
@@ -1105,44 +1021,6 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>Оклузия на частиците за времето</translation>
     </message>
     <message>
-        <source>Fog</source>
-        <translation>Мъгла</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use exponential fog formula. By default, linear fog is used.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Използвайте експоненциална формула за мъглата. По подразбиране се използва линейна формула за мъглата.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Exponential Fog</source>
-        <translation>Експоненциална мъгла</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;By default, the fog becomes thicker proportionally to your distance from the clipping plane set at the clipping distance, which causes distortion at the edges of the screen.
-                    This setting makes the fog use the actual eye point distance (or so called Euclidean distance) to calculate the fog, which makes the fog look less artificial, especially if you have a wide FOV.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;По подразбиране мъглата се сгъстява пропорционално на разстоянието от равнината на изрязване, което причинява изкривяване в краищата на екрана.
-                    Тази настройка кара мъглата да използва реалното разстояние до окото (Евклидово разстояние), което прави мъглата по-естествена, особено при широко зрително поле.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Radial Fog</source>
-        <translation>Радиална мъгла</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The fraction of the maximum distance at which blending with the sky starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Частта от максималното разстояние, при която започва сливането с небето.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Sky Blending Start</source>
-        <translation>Начало на сливането с небето</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Reduce visibility of clipping plane by blending objects with the sky.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Намалете видимостта на равнината на изрязване чрез сливане на обектите с небето.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Sky Blending</source>
-        <translation>Сливане с небето</translation>
-    </message>
-    <message>
         <source>Terrain</source>
         <translation>Терен</translation>
     </message>
@@ -1153,58 +1031,6 @@ Logs and settings changed through the launcher and in-game will be saved here.</
     <message>
         <source>Object Paging Min Size</source>
         <translation>Мин. размер за страниране на обекти</translation>
-    </message>
-    <message>
-        <source>Viewing Distance</source>
-        <translation>Разстояние на видимост</translation>
-    </message>
-    <message>
-        <source> cells</source>
-        <translation> клетки</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, use paging and LOD algorithms to display the entire terrain. If false, only display terrain of the loaded cells.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Когато е включено, се използват алгоритми с ниво на детайлите за показване на целия терен. Когато е изключено, се показва само теренът на заредените клетки.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Distant Land</source>
-        <translation>Далечна земя</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use object paging for active cells grid.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Използвайте страниране на обекти за решетката от активни клетки.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Active Grid Object Paging</source>
-        <translation>Страниране на обекти в активната решетка</translation>
-    </message>
-    <message>
-        <source>Post Processing</source>
-        <translation>Последваща обработка</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Re-render transparent objects with forced alpha clipping.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Преначертайте прозрачните обекти с принудително изрязване.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Transparent Postpass</source>
-        <translation>Прозрачно последващо преминаване</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Controls how much eye adaptation can change from frame to frame. Smaller values makes for slower transitions.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Контролирайте колко бързо се адаптира окото между кадрите. По-малките стойности означават по-бавни преходи.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Auto Exposure Speed</source>
-        <translation>Скорост на автоматичната експозиция</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If this setting is true, post processing will be enabled.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Когато е включено, последващата обработка ще е активна.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Enable Post Processing</source>
-        <translation>Последваща обработка</translation>
     </message>
     <message>
         <source>Audio</source>
@@ -1249,6 +1075,14 @@ Logs and settings changed through the launcher and in-game will be saved here.</
     <message>
         <source>In third-person view, use the camera as the sound listener instead of the player character.</source>
         <translation>В трето лице, използвайте камерата като слушател на звука вместо героя.</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distant Objects</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Use the Camera as the Sound Listener</source>

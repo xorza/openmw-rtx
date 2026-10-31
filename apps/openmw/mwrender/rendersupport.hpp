@@ -50,12 +50,13 @@ namespace MWRender
     std::string notAvailable(std::string_view what, std::string_view declined);
 
     /// **One declaration of what a renderer honours**, made once per renderer and asked by every
-    /// reader that would otherwise branch on which renderer it has: the settings window greys a
-    /// declined control out and shows the reason, the console and Lua answer a declined mode or
-    /// request with it, and `Renderer::processChangedSettings` hands the renderer only what it
-    /// honours. A key, a mode or a request the declaration does not name is honoured: the tables
-    /// list what a renderer has a reason to refuse, and the ray tracer's lists every key the
-    /// game's renderers read, so that a key upstream adds is decided before it is shipped.
+    /// reader that would otherwise branch on which renderer it has: the console and Lua answer a
+    /// declined mode or request with it, and `Renderer::processChangedSettings` hands the renderer
+    /// only what it honours. A key, a mode or a request the declaration does not name is honoured:
+    /// the tables list what a renderer has a reason to refuse, and the ray tracer's lists every key
+    /// the game's renderers read, so that a key upstream adds is decided before it is shipped. The
+    /// settings window and the launcher offer only the keys the ray tracer honours, which
+    /// `RtxSupportTest` holds them to.
     class RenderSupport
     {
     public:
