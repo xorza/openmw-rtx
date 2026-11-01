@@ -58,6 +58,13 @@ namespace RtxTool
             return stop.mStand.mEye.has_value() && !stop.mSchedule.mFreeCamera && !stop.mSchedule.mRoute.has_value();
         }
 
+        /// A stop that names its weather and turns none: one that turns stands under each weather of
+        /// the turn in its time.
+        constexpr bool namesItsSky(const Stop& stop, const Rtx::RenderProfile&)
+        {
+            return stop.mSky.mWeather.has_value() && stop.mSky.mTurnThrough.empty();
+        }
+
         /// A hold a run did not ask for cannot come out short.
         constexpr bool held(const Stop&, const Rtx::RenderProfile& profile)
         {
@@ -82,6 +89,7 @@ namespace RtxTool
             CheckRow{ Check::TexturesReadable, "textures-readable", always },
             CheckRow{ Check::RoomsHeld, "rooms-held", always },
             CheckRow{ Check::CameraStands, "camera-stands", standingStill },
+            CheckRow{ Check::SkyNamed, "sky-named", namesItsSky },
             CheckRow{ Check::CrossingsAppend, "crossings-append", routed },
             CheckRow{ Check::FramesOverlap, "frames-overlap", unrouted },
             CheckRow{ Check::QueueHeld, "queue-held", held },

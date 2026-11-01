@@ -811,6 +811,20 @@ namespace RtxTool
                     && hold.mShortestMs >= facts.mHoldAskedMs && zoneShortest >= facts.mHoldAskedMs;
             }
 
+            case Check::SkyNamed:
+            {
+                // `canAsk` asks this only of a stop that names its weather.
+                assert(facts.mWeather.has_value());
+                const MWBase::World& world = *MWBase::Environment::get().getWorld();
+                const std::optional<Rtx::Weather> standing = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId());
+                const std::optional<Rtx::Weather> next = Rtx::weatherOfScriptId(world.getNextWeatherScriptId());
+                found
+                    = std::format("under {}{}, named {}", standing.has_value() ? Rtx::nameOf(*standing) : "no weather",
+                        next.has_value() ? std::format(" crossing into {}", Rtx::nameOf(*next)) : std::string(),
+                        Rtx::nameOf(*facts.mWeather));
+                return standing == facts.mWeather && !next.has_value();
+            }
+
             case Check::Finite:
             {
                 found = describeNotFinite(facts.mNotFinite) + " over the measured frames";

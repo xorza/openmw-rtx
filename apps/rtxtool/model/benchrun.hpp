@@ -105,6 +105,12 @@ namespace RtxTool
         /// by a free-camera stop, and by a routed one.
         CameraStands,
 
+        /// The world stood under the weather the stop named, crossing into none, at its last
+        /// measured frame. Asked of a stop that names a weather and turns none: a world left to
+        /// settle the ask dropped it at a session's first stop and drew a clear sky under
+        /// `balmora-storm-night`, saying so nowhere but in the report's `in Clear`.
+        SkyNamed,
+
         /// `Rtx::sFramesInFlight` frames were in flight at every submit. The ring is sized for them
         /// and the game keeps them, so a submit that found fewer is a wait somebody put back — the 0.9 ms a frame
         /// the device idled for the whole of this fork's life before `Renderer::collectFrame`.
