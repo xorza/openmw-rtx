@@ -1,7 +1,9 @@
 #include "options.hpp"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <format>
@@ -17,6 +19,8 @@
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <osg/Vec3f>
+
 #include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
@@ -28,6 +32,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/result.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -35,6 +40,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/weather.hpp>
 
 #include "compare.hpp"
@@ -57,6 +63,132 @@ namespace RtxTool
         constexpr float sWarmupByDefault = 2.0f;
 
         using StringsVector = std::vector<std::string>;
+
+        /// How each of `sReconstructionSwitches` is written into a request, in that order: the one rule
+        /// the line's switches and the one `--versus` names are both read by.
+        struct SwitchReader
+        {
+            std::string_view mName;
+            void (*mRead)(const bpo::variable_value& value, Rtx::ReconstructionRequest& request);
+        };
+
+        using Request = Rtx::ReconstructionRequest;
+        using Value = bpo::variable_value;
+
+        constexpr std::array<SwitchReader, sReconstructionSwitches.size()> sSwitchReaders{ {
+            { "filter", [](const Value& value, Request& request) { request.mDenoise = value.as<bool>(); } },
+            { "jitter", [](const Value& value, Request& request) { request.mJitter = value.as<bool>(); } },
+            { "noise",
+                [](const Value& value, Request& request) {
+                    const std::string& noise = value.as<std::string>();
+                    request.mSampling.mNoise = noise == "auto"
+                        ? Request{}.mSampling.mNoise
+                        : Rtx::sNoiseSourceNames.require(noise, "a noise source");
+                } },
+            { "level-epsilon",
+                [](const Value& value, Request& request) { request.mLevelEpsilon = value.as<float>(); } },
+            { "shadow-floor",
+                [](const Value& value, Request& request) { request.mSampling.mShadowFloor = value.as<float>(); } },
+            { "lamp-candidates",
+                [](const Value& value, Request& request) {
+                    request.mSampling.mLampCandidates = value.as<std::uint32_t>();
+                } },
+            { "bounce-rays",
+                [](const Value& value, Request& request) {
+                    request.mSampling.mBounceRays = value.as<std::uint32_t>();
+                } },
+            { "antilag", [](const Value& value, Request& request) { request.mFilters.mAntilag = value.as<bool>(); } },
+            { "history-fix",
+                [](const Value& value, Request& request) { request.mFilters.mHistoryFix = value.as<bool>(); } },
+            { "dual-motion",
+                [](const Value& value, Request& request) { request.mFilters.mDualMotion = value.as<bool>(); } },
+            { "antifirefly",
+                [](const Value& value, Request& request) { request.mFilters.mAntiFirefly = value.as<bool>(); } },
+        } };
+
+        constexpr bool readsEverySwitch()
+        {
+            for (std::size_t at = 0; at < sSwitchReaders.size(); ++at)
+                if (sSwitchReaders[at].mName != sReconstructionSwitches[at])
+                    return false;
+            return true;
+        }
+        static_assert(readsEverySwitch(), "a switch `--versus` may name that no reader writes, or one out of order");
+
+        /// Parses `WIDTHxHEIGHT`.
+        FrameSize parseSize(const std::string_view text)
+        {
+            const std::size_t cross = text.find('x');
+            const std::optional<std::uint32_t> width
+                = cross != std::string_view::npos ? wholeNumber<std::uint32_t>(text.substr(0, cross)) : std::nullopt;
+            const std::optional<std::uint32_t> height
+                = cross != std::string_view::npos ? wholeNumber<std::uint32_t>(text.substr(cross + 1)) : std::nullopt;
+
+            if (!width.has_value() || !height.has_value() || *width == 0 || *height == 0)
+                throw std::runtime_error(std::format("--size={} is not WIDTHxHEIGHT", text));
+
+            return FrameSize{ .mWidth = *width, .mHeight = *height };
+        }
+
+        /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.
+        Rtx::ExposureRule parseExposure(const std::string_view text)
+        {
+            // **Settled at every stop**, where the game opens from a day: a stop starts with no past
+            // and warms up for less time than an eye takes to open in a room, and a measured picture
+            // is of the eye that place settles on.
+            if (text == "auto")
+                return Rtx::MeasuredExposure{ .mStart = Rtx::EyeStart::Settled };
+
+            const std::optional<float> value = parseFloat(text);
+            if (!value.has_value() || !(*value > 0.0f))
+                throw std::runtime_error(std::format("--exposure={} is neither auto nor a number over nought", text));
+
+            return Rtx::FixedExposure{ *value };
+        }
+
+        /// The weather the line names, read as a view file's is; refused with the option that named
+        /// it where it is none of the ten.
+        Rtx::Weather weatherNamed(const std::string_view option, const std::string_view weather)
+        {
+            const std::optional<Rtx::Weather> named = Rtx::weatherNamed(weather);
+            if (!named.has_value())
+                throw std::runtime_error(
+                    std::format("--{}: \"{}\" {}: {}", option, weather, checkWeather(weather).error(), listWeathers()));
+            return *named;
+        }
+
+        /// The air `text` names, or nothing where it names none. Text that names no air is refused,
+        /// quoted whole.
+        std::optional<Rtx::AirClock> airNamed(const std::string& text)
+        {
+            if (text.empty())
+                return std::nullopt;
+
+            const std::optional<Rtx::AirClock> air = parseAir(text);
+            if (!air.has_value())
+                throw std::runtime_error(
+                    std::format("--air is not the sky's seconds from nought, the deck's scroll "
+                                "from nought up to but not including four, and the drift's two "
+                                "coordinates, separated by commas: \"{}\"",
+                        text));
+
+            return air;
+        }
+
+        /// The point `--<name>` names in `text`, or nothing where it names none. Text that names no
+        /// point is refused, quoted whole.
+        std::optional<osg::Vec3f> pointNamed(const std::string_view name, const std::string& text)
+        {
+            if (text.empty())
+                return std::nullopt;
+
+            const std::optional<osg::Vec3f> point = parseVec3(text);
+            if (!point.has_value())
+                throw std::runtime_error(
+                    std::format("--{} is not three numbers separated by commas: \"{}\"", name, text));
+
+            return point;
+        }
 
         /// The commands that can stand at one place named on the line — a cell, a camera, a view.
         /// A run of places — `bench` and `check`, and `shot` and `scene` under `--views` — takes
@@ -107,11 +239,12 @@ namespace RtxTool
         }
     }
 
-    Rtx::ReconstructionRequest ToolOptions::versus(const bpo::variables_map& variables,
+    Rtx::ReconstructionRequest ToolOptions::versus(
         const Rtx::ReconstructionRequest& played, const std::string_view asked) const
     {
         const std::string_view name = asked.substr(0, asked.find('='));
-        if (std::ranges::find(sReconstructionSwitches, name) == sReconstructionSwitches.end())
+        const auto reader = std::ranges::find(sSwitchReaders, name, &SwitchReader::mName);
+        if (reader == sSwitchReaders.end())
         {
             std::string switches;
             for (const std::string_view known : sReconstructionSwitches)
@@ -134,12 +267,8 @@ namespace RtxTool
             throw std::runtime_error(std::format("--versus={}: {}", asked, refused.what()));
         }
 
-        bpo::variables_map side = variables;
-        side.erase(std::string(name));
-        side.emplace(std::string(name), read[std::string(name)]);
-
         Rtx::ReconstructionRequest request = played;
-        readReconstruction(side, request);
+        reader->mRead(read[std::string(name)], request);
         return request;
     }
 
@@ -726,54 +855,171 @@ namespace RtxTool
         return result;
     }
 
-    void readReconstruction(const bpo::variables_map& variables, Rtx::ReconstructionRequest& request)
+    ToolLine ToolOptions::read(const bpo::variables_map& variables, const Verbs verb) const
     {
-        request.mDenoise = variables["filter"].as<bool>();
-        request.mJitter = variables["jitter"].as<bool>();
-        const std::string& noise = variables["noise"].as<std::string>();
-        request.mSampling.mNoise = noise == "auto" ? Rtx::ReconstructionRequest{}.mSampling.mNoise
-                                                   : Rtx::sNoiseSourceNames.require(noise, "a noise source");
-        request.mLevelEpsilon = variables["level-epsilon"].as<float>();
-        request.mSampling.mShadowFloor = variables["shadow-floor"].as<float>();
-        request.mSampling.mLampCandidates = variables["lamp-candidates"].as<std::uint32_t>();
-        request.mSampling.mBounceRays = variables["bounce-rays"].as<std::uint32_t>();
-        request.mFilters.mAntilag = variables["antilag"].as<bool>();
-        request.mFilters.mHistoryFix = variables["history-fix"].as<bool>();
-        request.mFilters.mDualMotion = variables["dual-motion"].as<bool>();
-        request.mFilters.mAntiFirefly = variables["antifirefly"].as<bool>();
-    }
+        const auto named = [&](const char* name) { return variables.count(name) != 0 && !variables[name].defaulted(); };
+        const auto text = [&](const char* name) -> const std::string& { return variables[name].as<std::string>(); };
+        const auto real = [&](const char* name) { return variables[name].as<float>(); };
+        const auto count = [&](const char* name) { return variables[name].as<std::uint32_t>(); };
+        const auto on = [&](const char* name) { return variables[name].as<bool>(); };
+        const auto strings = [&](const char* name) { return variables[name].as<StringsVector>(); };
 
-    std::optional<FilmLength> filmLengthFrom(const bpo::variables_map& variables)
-    {
-        const bool speedNamed = !variables["speed"].defaulted();
-        if (variables.count("length") == 0)
+        ToolLine line;
+        line.mShaderSource = on("shader-source");
+        line.mFolders = on("folders");
+        line.mResources = variables["resources"].as<Files::MaybeQuotedPath>();
+        if (named("out"))
+            line.mOut = std::filesystem::path(text("out"));
+        line.mAgainst = text("against");
+        line.mKeys = text("keys");
+        line.mFind = text("find");
+
+        // A level somebody typed is demanded: a run that asked for the layers and cannot have them
+        // fails naming what is missing, because an empty log reads as a clean pass, while a build
+        // that turned them on by default only warns.
+        line.mValidation = Rtx::ValidationOptions{
+            .mLevel = Rtx::sValidationNames.require(text("validation"), "a validation level"),
+            .mDemanded = named("validation"),
+        };
+
+        ToolLine::Frame& frame = line.mFrame;
+        frame.mSize = parseSize(text("size"));
+        frame.mFieldOfView = real("fov");
+        frame.mDay = { variables["day"].as<int>(), named("day") };
+        if (const Misc::Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
+            throw std::runtime_error(std::format("--day={} {}", frame.mDay.mValue, checked.error()));
+        if (named("maps"))
+            frame.mMaps = sMapRulesNames.require(text("maps"), "a map rule");
+        else if (verb != Verbs::View)
+            frame.mMaps = MapRules::Shipped;
+        frame.mUpscale = { Rtx::sUpscaleNames.require(text("upscale"), "an upscale mode"), named("upscale") };
+        if (named("grass"))
+            frame.mGrass = on("grass");
+        if (named("distant-cells"))
+            frame.mDistantCells = real("distant-cells");
+        if (named("distant-statics"))
+            frame.mDistantStatics = on("distant-statics");
+        if (named("gamma"))
+            frame.mGamma = real("gamma");
+        if (named("memory-budget"))
+            frame.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
+        frame.mPipelineCode = text("pipeline-code");
+        frame.mDelight = real("delight");
+        frame.mShow = Rtx::sSurfaceViewNames.require(text("show"), "a surface view");
+        frame.mExposure = parseExposure(text("exposure"));
+        frame.mHold = { on("hold"), named("hold") };
+        frame.mVariants = on("variants");
+        for (const SwitchReader& reader : sSwitchReaders)
+            reader.mRead(variables[std::string(reader.mName)], frame.mReconstruction);
+
+        ToolLine::Places& places = line.mPlaces;
+        places.mView = text("view");
+        places.mCell = CellAddress(text("cell"));
+        places.mPos = pointNamed("pos", text("pos"));
+        places.mLook = pointNamed("look", text("look"));
+        if (!text("views").empty())
+            places.mViews = splitNames(text("views"));
+        if (named("suite"))
+            places.mSuite = text("suite");
+        places.mSave = variables["load-savegame"].as<Files::MaybeQuotedPath>();
+
+        // **A place named on the line beside `--views` is refused**: every stop comes from the file,
+        // and `shot --views=balmora --pos=...` drew Balmora at its file's eye and said nothing.
+        if (places.mViews.has_value())
+            for (const char* place : { "cell", "view", "pos", "look" })
+                if (named(place))
+                    throw std::runtime_error(
+                        std::format("--views takes its places from the file, and --{} names one beside them", place));
+
+        ToolLine::Sky& sky = line.mSky;
+        if (named("hour"))
         {
-            if (speedNamed)
-                return std::nullopt;
-            return FilmLength{ .mSeconds = FilmPacing::sLengthByDefault, .mSource = FilmLengthSource::ByDefault };
+            const float hour = real("hour");
+            if (const Misc::Result<void, std::string_view> checked = checkHour(hour); !checked.isOk())
+                throw std::runtime_error(std::format("--hour={} {}", hour, checked.error()));
+            sky.mHour = hour;
         }
+        if (named("weather"))
+            sky.mWeather = weatherNamed("weather", text("weather"));
+        sky.mAir = airNamed(text("air"));
+        for (const std::string& weather : splitNames(text("turn-weather")))
+            sky.mTurn.push_back(weatherNamed("turn-weather", weather));
 
-        if (speedNamed)
-            throw std::runtime_error("--length sets the speed, so --speed cannot be named beside it");
-        return FilmLength{ .mSeconds = variables["length"].as<float>(), .mSource = FilmLengthSource::Named };
-    }
+        line.mSession = ToolLine::Session{
+            .mHud = on("hud"),
+            .mVanity = on("vanity"),
+            .mNightEye = variables["night-eye"].as<int>(),
+            .mRandomSeed = variables["random-seed"].as<unsigned int>(),
+        };
 
-    BenchSpan benchSpanFrom(const bpo::variables_map& variables)
-    {
-        const std::uint32_t frames = variables["frames"].as<std::uint32_t>();
-        if (frames == 0)
-            return BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
-        if (!variables["seconds"].defaulted())
+        // Each says how long a stop runs, which is one answer.
+        ToolLine::Bench& bench = line.mBench;
+        bench.mFrames = count("frames");
+        bench.mSeconds = real("seconds");
+        if (bench.mFrames == 0)
+            bench.mSpan = BenchSpan{ .mSeconds = bench.mSeconds };
+        else if (named("seconds"))
             throw std::runtime_error("--frames and --seconds each say how long a stop runs, so only one can be named");
-        return BenchSpan{ .mFrames = frames };
-    }
+        else
+            bench.mSpan = BenchSpan{ .mFrames = bench.mFrames };
+        bench.mWarmup = real("warmup");
+        bench.mWindow = on("window");
+        bench.mCounters = on("counters");
+        bench.mJson = text("json");
+        bench.mFrameTimes = text("frame-times");
+        bench.mPerfControl = text("perf-control");
+        bench.mPictures = on("pictures");
 
-    std::optional<MapRules> mapRulesFrom(const bpo::variables_map& variables, const Verbs verb)
-    {
-        if (variables.count("maps") != 0)
-            return sMapRulesNames.require(variables["maps"].as<std::string>(), "a map rule");
-        if (verb == Verbs::View)
-            return std::nullopt;
-        return MapRules::Shipped;
+        line.mShot = ToolLine::Shot{
+            .mAccumulate = count("accumulate"),
+            .mRepeat = count("repeat"),
+            .mDoll = text("doll"),
+            .mMap = on("map"),
+            .mTextures = on("textures"),
+        };
+
+        ToolLine::Noise& noise = line.mNoise;
+        noise.mStrafe = real("strafe");
+        noise.mWalk = real("walk");
+        noise.mCut = count("cut");
+        noise.mAsked = text("versus");
+        if (!noise.mAsked.empty())
+            noise.mVersus = versus(frame.mReconstruction, noise.mAsked);
+
+        // The length sets the speed, so the two named are two answers to one question.
+        ToolLine::Film& film = line.mFilm;
+        film.mPlan = on("plan");
+        film.mFramesPerSecond = real("fps");
+        film.mSpeed = real("speed");
+        if (named("length"))
+        {
+            if (named("speed"))
+                throw std::runtime_error("--length sets the speed, so --speed cannot be named beside it");
+            film.mLength = FilmLength{ .mSeconds = real("length"), .mSource = FilmLengthSource::Named };
+        }
+        else if (!named("speed"))
+            film.mLength
+                = FilmLength{ .mSeconds = FilmPacing::sLengthByDefault, .mSource = FilmLengthSource::ByDefault };
+        film.mEase = real("ease");
+        film.mPanSeconds = real("pan-seconds");
+        film.mHourSeconds = real("hour-seconds");
+        film.mCrossingSeconds = real("crossing");
+        if (named("clock"))
+            film.mClock = real("clock");
+        film.mWeatherHold = real("weather-hold");
+        film.mStillSeconds = real("still");
+        film.mCutDistance = real("cut-distance");
+        film.mEncode = on("encode");
+
+        ToolLine::Game& game = line.mGame;
+        game.mContent = strings("content");
+        game.mData = Files::asPathContainer(variables["data"].as<Files::MaybeQuotedPathContainer>());
+        game.mDataLocal = variables["data-local"].as<Files::MaybeQuotedPathContainer::value_type>().u8string();
+        game.mFallbackArchives = strings("fallback-archive");
+        game.mFallback = variables["fallback"].as<Fallback::FallbackMap>();
+        game.mGroundcover = strings("groundcover");
+        game.mEncoding = text("encoding");
+
+        return line;
     }
 }
