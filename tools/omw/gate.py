@@ -10,7 +10,7 @@ or a wizard the gate never compiled was a failure only CI found.
 import unittest
 from collections.abc import Callable
 
-from omw import formatting, lint, listing, spellings, testing
+from omw import formatting, integration, lint, listing, spellings, testing
 from omw.build import Build
 from omw.repeat import repeat
 from omw.system import ROOT, Refusal
@@ -49,6 +49,7 @@ STEPS: tuple[tuple[str, Callable[[Build], int]], ...] = (
     ("the release compile", _release_compile),
     ("tests", lambda build: testing.test(build, [])),
     ("their timing", testing.timing),
+    ("the integration tests", lambda build: integration.integration(build, [])),
     ("check", lambda build: build.harness("check").returncode),
     ("repeat", lambda build: repeat(build, ["--pairs=1"])),
 )

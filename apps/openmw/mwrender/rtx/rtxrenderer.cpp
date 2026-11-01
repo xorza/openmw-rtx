@@ -4,6 +4,7 @@
 #include <cassert>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <optional>
@@ -64,7 +65,6 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
-#include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sceneutil/screencapture.hpp>
 #include <components/sdlutil/imagetosurface.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -85,6 +85,20 @@ namespace MWRender
 {
     namespace
     {
+        /// The backend `OPENMW_RTX_BACKEND` names, and the device's where it names none.
+        ///
+        /// **Asked for by name, as the backend's diagnostics are** (`Rtx::createVulkanRenderer`): a
+        /// run of the game on a machine with no device — upstream's integration tests on CI — has no
+        /// command line of its own, and a setting would put a game that draws nothing one menu away
+        /// from a player.
+        RtxBackend askedBackend()
+        {
+            const char* const named = std::getenv("OPENMW_RTX_BACKEND");
+            if (named == nullptr || *named == '\0')
+                return RtxBackend::Vulkan;
+            return sRtxBackendNames.require(named, "a backend `OPENMW_RTX_BACKEND` names");
+        }
+
         /// What a played session is made with, where the harness installed nothing: what `[RTX]`
         /// leaves a player, through the one derivation (`RtxSettings`), and the played answer to
         /// everything else. The knobs a measurement turns — delight, albedo, the filter, the
@@ -100,11 +114,13 @@ namespace MWRender
         RunSetup playedRunSetup()
         {
             const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
+            const RtxBackend backend = askedBackend();
 
             return RunSetup{
                 .mRun = {
                     .mProfile = {
                         .mUpscale = settings.mUpscale,
+                        .mReconstruction = Rtx::ReconstructionRequest{ .mSampling = { .mBounceRays = settings.mBounceRays } },
                         .mAnisotropy = settings.mAnisotropy,
                         .mGamma = settings.mGamma,
                         .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
@@ -115,7 +131,8 @@ namespace MWRender
                     = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 },
                 .mMirror = settings.mMirror,
-                .mHeadless = false,
+                .mBackend = backend,
+                .mHeadless = backend == RtxBackend::Null,
                 .mSettled = std::nullopt,
             };
         }
@@ -130,7 +147,7 @@ namespace MWRender
         : mRun(run != nullptr ? run->mRun : mPlayed)
         , mInterface(setup.mInterface)
         , mKernels(setup.mKernels)
-        , mWindow(setup.mHeadless, setup.mWindowPixels)
+        , mWindow(surfaceFlagsOf(setup.mBackend), setup.mHeadless, setup.mWindowPixels)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
         , mMirror(setup.mMirror)
@@ -218,7 +235,7 @@ namespace MWRender
                 on && !declined.empty())
                 Log(Debug::Warning) << "[" << setting.first << "] " << setting.second << " is on: " << declined;
 
-        mRenderer = Rtx::createVulkanRenderer(options);
+        mRenderer = createBackend(setup.mBackend, options);
         mUpscale = setup.mRun.mProfile.mUpscale;
 
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
@@ -656,11 +673,12 @@ namespace MWRender
     {
         mPhase.expect(Phase::Between, Phase::Run);
         const bool upscale = changed.contains({ "RTX", "upscale" });
+        const bool bounceRays = changed.contains({ "RTX", "bounce rays" });
         const bool reach
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
         const bool gamma = changed.contains({ "Video", "gamma" });
-        if (!upscale && !reach && !anisotropy && !gamma)
+        if (!upscale && !bounceRays && !reach && !anisotropy && !gamma)
             return;
 
         // What asks is somebody choosing from a menu, so a value the derivation refuses is reported
@@ -690,6 +708,9 @@ namespace MWRender
 
         if (gamma)
             mRenderer->setGamma(settings->mGamma);
+
+        if (bounceRays)
+            mRenderer->setBounceRays(settings->mBounceRays);
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept

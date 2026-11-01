@@ -25,6 +25,7 @@
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/traceconstants.h>
 
 #include "gbuffer.hpp"
 #include "tracesubject.hpp"
@@ -246,14 +247,17 @@ namespace Rtx
         /// tuple's, which `kernels` waits for.
         bool isMade(VisibilityVariant tuple) const;
 
-        /// One stage's kernels, a tuple each.
-        using TupleKernels = std::array<std::unique_ptr<ComputePipeline<NoConstants>>, VisibilityVariant::sCount>;
+        /// One stage's kernels, a tuple each, every one pushed which depth it runs at
+        /// (`Shaders::StageConstants`), which only the landing's reads.
+        using TupleKernels
+            = std::array<std::unique_ptr<ComputePipeline<Shaders::StageConstants>>, VisibilityVariant::sCount>;
 
         /// How many of `Kernel` are the trace's stages: `Visibility` to `Landing`.
         static constexpr std::size_t sStageCount = 6;
 
         /// `stage`'s kernel for `variant`, which `variantFor` answered.
-        static const ComputePipeline<NoConstants>& kernelOf(const TupleKernels& stage, VisibilityVariant variant);
+        static const ComputePipeline<Shaders::StageConstants>& kernelOf(
+            const TupleKernels& stage, VisibilityVariant variant);
 
         /// Whether `variant` runs the media stage: a sun to cast shafts, and a sea to cast them in.
         static bool hasMedia(VisibilityVariant variant);

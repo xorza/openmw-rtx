@@ -77,21 +77,13 @@ uint paneAmbientSeed(uint layer)
     return SEED_AMBIENT_PANE + layer;
 }
 
-/// And one for whether the eye's bounce is traced at all this frame.
-///
-/// **After the two blocks, so that adding it moved no sequence already drawn.** Offset from the
-/// pixel's key rather than drawn out of the bounce's own pair or the sheet's side, for the reason
-/// `SEED_INDIRECT_LIGHT` is: a draw taken as a step of another sequence moves everything that
-/// sequence decides.
-const uint SEED_BOUNCE_TRACED = SEED_AMBIENT_PANE + PEEL_LAYERS;
-
 /// And one for which half of a glossy surface the eye's bounce samples, its lobe or its diffuse.
 ///
 /// **Beside the bounce's pair and not out of it**, for the reason `SEED_SHEET_SIDE` gives: the
 /// pair draws the direction within whichever half is chosen, and a choice made from one of its
 /// channels would tie which half to where in it. Drawn only by a surface with a specular half, so
 /// a Lambert surface draws what it drew before there was one.
-const uint SEED_BOUNCE_LOBE = SEED_BOUNCE_TRACED + 1u;
+const uint SEED_BOUNCE_LOBE = SEED_AMBIENT_PANE + PEEL_LAYERS;
 
 /// And one for where in the sun's disc a water shaft's shadow rays aim.
 ///
@@ -139,6 +131,37 @@ const uint SEED_LAMP_SHADOW_ROUNDING = SEED_SKY_SHADOW_HISTORY_ROUNDING + 1u;
 const uint SEED_LAMP_SHADOW_HISTORY_ROUNDING = SEED_LAMP_SHADOW_ROUNDING + 1u;
 const uint SEED_FOG_SCATTER_ROUNDING = SEED_LAMP_SHADOW_HISTORY_ROUNDING + 1u;
 const uint SEED_FOG_SUNWARD_ROUNDING = SEED_FOG_SCATTER_ROUNDING + 1u;
+
+/// And a block for each bounce ray of the eye's surface past the first, `MORE_BOUNCE_RAY_SEEDS` wide:
+/// which face of a sheet the ray leaves by, which half of a glossy surface it draws, whether its
+/// landing's gather runs, and its landing's lamps and ambient.
+///
+/// **A block a ray, because each ray is a sample of its own**, for the reason `SEED_LAMPS_EYE` and
+/// `SEED_LAMPS_BOUNCE` are two: rays stepping one sequence would choose one lamp and one face, and
+/// the frame's samples would be one sample several times. **At the end of the chain**, for the reason
+/// `SEED_LAMPS_PANE_DEEPER` gives: a block that grows with `MAX_BOUNCE_RAYS` moves no seed before it.
+/// The rays' directions are the tile's, a step of its turn apart (`unitPairOfRay`).
+const uint SEED_MORE_BOUNCE_RAYS = SEED_FOG_SUNWARD_ROUNDING + 1u;
+const uint MORE_BOUNCE_RAY_SEEDS = 5u;
+
+/// The sequences bounce ray `ray` of the eye's surface draws from, counting the first as nought, and
+/// its landing's: the first keeps the seeds the one bounce always had.
+struct BounceSeeds
+{
+    uint mSide;
+    uint mLobe;
+    uint mIndirect;
+    uint mLamps;
+    uint mAmbient;
+};
+
+BounceSeeds bounceSeedsAt(uint ray)
+{
+    const uint first = SEED_MORE_BOUNCE_RAYS + (max(ray, 1u) - 1u) * MORE_BOUNCE_RAY_SEEDS;
+    return ray == 0u
+        ? BounceSeeds(SEED_SHEET_SIDE, SEED_BOUNCE_LOBE, SEED_INDIRECT_LIGHT, SEED_LAMPS_BOUNCE, SEED_AMBIENT_REACHING)
+        : BounceSeeds(first, first + 1u, first + 2u, first + 3u, first + 4u);
+}
 
 /// A key for one pixel, which a caller offsets by a `SEED_` constant to say which sequence it wants.
 ///

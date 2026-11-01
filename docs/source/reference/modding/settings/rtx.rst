@@ -9,8 +9,8 @@ The ray tracer needs a GPU with hardware ray tracing, NVIDIA Turing or AMD RDNA 
 acceleration structures, ray query, ray tracing pipelines and position fetch are all required. On a
 device missing any of them the game does not start, and its error box says what is missing.
 
-Most settings here are read once, at startup. :code:`upscale` and :code:`distant land cells` also
-follow the settings window while the game runs.
+Most settings here are read once, at startup. :code:`upscale`, :code:`bounce rays` and
+:code:`distant land cells` also follow the settings window while the game runs.
 
 .. omw-setting::
    :title: distant land cells
@@ -42,6 +42,19 @@ follow the settings window while the game runs.
    :code:`native`, which upscales nothing and reconstructs each frame from the frames before it, as
    the anti-aliasing. :code:`off` traces at the frame's size with no upscaler: the denoisers alone,
    and no anti-aliasing. A name this does not know is refused rather than quietly defaulted.
+
+.. omw-setting::
+   :title: bounce rays
+   :type: int
+   :range: 1 to 4
+   :default: 1
+
+   How many bounce rays the surface each pixel shows traces a frame. Each takes a direction of its own
+   and lights where it lands, and the rays are averaged: the bounced light's noise falls as one over
+   the square root of the count, which leaves the denoiser and the upscaler less to hide when the
+   camera moves. Each ray costs about what the first one does.
+
+   Takes effect at once.
 
 .. omw-setting::
    :title: specular map layout

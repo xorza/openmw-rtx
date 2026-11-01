@@ -388,12 +388,12 @@ RayAsk gatherLampAsk(GatherRun run, Surface surface)
         : noRay();
 }
 
-/// Whether a gather a path's far end makes, keyed `key`, is drawn to run where the sky lights
-/// (`INDIRECT_LIGHT_RATE`): asked by the gather and by the bounce that lists its landing
-/// (`appendLandings`).
-bool indirectGatherDrawn(uint key)
+/// Whether a gather a path's far end makes, keyed `key` and drawn from the sequence `seed`
+/// (`BounceSeeds::mIndirect`), is drawn to run where the sky lights (`INDIRECT_LIGHT_RATE`): asked by
+/// the gather and by the stage that lists its landing (`appendLandings`).
+bool indirectGatherDrawn(uint key, uint seed)
 {
-    uint rate = randomSeed(key + SEED_INDIRECT_LIGHT);
+    uint rate = randomSeed(key + seed);
     return randomNext(rate) < INDIRECT_LIGHT_RATE;
 }
 
@@ -722,8 +722,9 @@ struct PathEndLight
 ///
 /// @param ambient,lamps the `SEED_` the occlusion ray and the lamp reservoir draw from with the
 ///        pixel's key: two, for the reason `SEED_AMBIENT_REACHING` gives.
+/// @param indirect the `SEED_` whether the gather runs is drawn from (`indirectGatherDrawn`).
 /// @param path as `GatherRun` takes it.
-PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint ambient, uint lamps, uint path)
+PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint ambient, uint lamps, uint indirect, uint path)
 {
     const uint key = pixelKey(pixel);
     PathEndLight light;
@@ -751,7 +752,7 @@ PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint ambient, uint lam
     float rated = 1.0;
     if (path == PATH_INDIRECT && skyLights())
     {
-        if (!indirectGatherDrawn(key))
+        if (!indirectGatherDrawn(key, indirect))
             return light;
 
         rated = 1.0 / INDIRECT_LIGHT_RATE;
@@ -816,7 +817,7 @@ PathEndSeen pathEndSeenOf(PathEndRays rays)
 /// path's end with a lamp sequence of its own (`paneAmbientSeed`, `paneSeed`).
 PathEndLight paneLightOf(Surface surface, uvec2 pixel, uint layer)
 {
-    return pathEndLightOf(surface, pixel, paneAmbientSeed(layer), paneSeed(layer), PATH_SEEN);
+    return pathEndLightOf(surface, pixel, paneAmbientSeed(layer), paneSeed(layer), SEED_INDIRECT_LIGHT, PATH_SEEN);
 }
 
 /// The layer `light` lit, once its rays let `seen` through.
@@ -947,9 +948,11 @@ Arriving escapedArriving(vec3 escaped)
 ///
 /// @param cone the eye's cone at the stage that found the surface — the arms' camera for the
 ///        player's own arms — whose spread a reflection widens by.
-BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Cone cone)
+/// @param ray which of the frame's bounce rays this is (`unitPairOfRay`), and `lobeSeed` the sequence
+///        its choice of half is drawn from (`BounceSeeds::mLobe`).
+BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Cone cone, uint ray, uint lobeSeed)
 {
-    const vec2 draw = unitPair(pixel, STREAM_BOUNCE);
+    const vec2 draw = unitPairOfRay(pixel, STREAM_BOUNCE, ray);
     const vec3 scattered = cosineDirection(surface.mNormal * face, draw);
 
     BounceDraw drawn;
@@ -966,7 +969,7 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
     const float reflected = dot(gloss.mAlbedo, LUMINANCE_WEIGHTS);
     const float chance = reflected / (reflected + dot(surface.mAlbedo, LUMINANCE_WEIGHTS));
 
-    uint lobe = randomSeed(pixelKey(pixel) + SEED_BOUNCE_LOBE);
+    uint lobe = randomSeed(pixelKey(pixel) + lobeSeed);
     const bool specular = randomNext(lobe) < chance;
 
     const LobeSample sampled = lobeSample(gloss, draw);
@@ -1221,8 +1224,13 @@ BounceRun bounceRunOf()
 ///
 /// @param cone the eye's cone at the stage that found the surface — the arms' camera for the
 ///        player's own arms — whose spread a reflection widens by.
-void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel)
+/// @param ray which of the frame's `VisibilityConstants::mBounceRays` this is, counting the first as
+///        nought. **Each is worth its share of the pixel's bounce**, one over their count, so the
+///        rays a frame traces average into the one bounce's channels (`storeBounced`).
+void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel, uint ray)
 {
+    const BounceSeeds seeds = bounceSeedsAt(ray);
+
     // **The specular half the solid's own gather made**, which is the surface's alone (`glossOf`),
     // so it is made again here where no gather runs.
     const Gloss gloss = glossOf(surface);
@@ -1232,11 +1240,11 @@ void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel)
     // the pair the direction is. Drawn on every hit and not behind a test on the transmission: the
     // sequence is its own, so a solid drawing from it moves no other, and `sampledFace` reads the
     // draw only where there is a far side.
-    uint sideState = randomSeed(pixelKey(pixel) + SEED_SHEET_SIDE);
+    uint sideState = randomSeed(pixelKey(pixel) + seeds.mSide);
     float sided;
     const float face = sampledFace(surface.mTransmission, randomNext(sideState), sided);
 
-    const BounceDraw drawn = bounceDraw(surface, gloss, face, pixel, cone);
+    const BounceDraw drawn = bounceDraw(surface, gloss, face, pixel, cone, ray, seeds.mLobe);
     run.mDrawn = drawn;
     run.mPosition = surface.mPosition;
 
@@ -1245,7 +1253,7 @@ void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel)
     if (behindTheFace(drawn.mTowards, surface.mGeometric, face) || !(brightest(drawn.mWeight) > 0.0))
         return;
 
-    vec3 weight = drawn.mWeight * sided;
+    const vec3 weight = drawn.mWeight * sided * (1.0 / float(frame.mBounceRays));
 
     // **Far ground out of doors is handed the escape rather than asked whether it escaped**, which
     // is the same answer the miss below arrives at by tracing for it. `BOUNCE_REACH` says what that
@@ -1257,13 +1265,6 @@ void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel)
         return;
     }
 
-    // Drawn last, so the side, the direction and the escape are the numbers they were. One path
-    // at a rate of one: no draw reaches it, and the weight is divided by one.
-    uint traced = randomSeed(pixelKey(pixel) + SEED_BOUNCE_TRACED);
-    if (randomNext(traced) >= frame.mBounceRate)
-        return;
-
-    weight /= frame.mBounceRate;
     run.mWeight = weight;
 
     // **A ray query, and not a `traceRayEXT` the hardware could sort.** The one ray Shader
@@ -1319,7 +1320,8 @@ struct LandingLight
 /// @param landing the bounce's landing (`storedLandingOf`).
 /// @param lobe whether the lobe drew the bounce (`BounceDraw::mSpecular`).
 /// @param weight what light arriving along the bounce is worth (`StoredBounce::mWeight`).
-LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight)
+/// @param seeds the sequences the landing draws from, its ray's (`bounceSeedsAt`).
+LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight, BounceSeeds seeds)
 {
     const bool lampBody = (instanceAt(landing.mInstance).mClass & INSTANCE_LAMP_BODY) != 0u;
     const float keep = lampBody ? 0.0 : 1.0;
@@ -1327,7 +1329,7 @@ LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight
     landing.mEmitted *= keep;
 
     const PathEndLight end = pathEndLightOf(
-        landing, pixel, SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE, lobe ? PATH_SEEN : PATH_INDIRECT);
+        landing, pixel, seeds.mAmbient, seeds.mLamps, seeds.mIndirect, lobe ? PATH_SEEN : PATH_INDIRECT);
 
     LandingLight light;
     light.mGlow = weight * litSurface(landing, vec3(0.0), vec3(0.0));

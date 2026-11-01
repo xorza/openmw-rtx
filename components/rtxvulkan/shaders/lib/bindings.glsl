@@ -72,7 +72,7 @@ layout(set = SET_CHANNELS, binding = CHANNEL_DIRECT) uniform image2D direct;
 /// goes into `direct` and `a` belongs to whichever term it attenuated, which is this one. Putting
 /// it on the albedo instead made that channel a product of a surface and a path, and a filter
 /// asking what the surface is got the weather in the answer.
-layout(set = SET_CHANNELS, binding = CHANNEL_INDIRECT) uniform writeonly image2D indirect;
+layout(set = SET_CHANNELS, binding = CHANNEL_INDIRECT) uniform image2D indirect;
 
 /// The surface's own diffuse albedo, and nothing else.
 ///
@@ -143,7 +143,7 @@ layout(set = SET_CHANNELS, binding = CHANNEL_UPSCALE_MASKS, GBUFFER_UPSCALE_MASK
 /// The share of the bounce that is the fill, demodulated and taken down by the path as `indirect`
 /// is, and the ambient albedo that puts it back — `CHANNEL_FILL` and `CHANNEL_AMBIENT_ALBEDO`. The
 /// light has no format, as radiance has none here.
-layout(set = SET_CHANNELS, binding = CHANNEL_FILL) uniform writeonly image2D fill;
+layout(set = SET_CHANNELS, binding = CHANNEL_FILL) uniform image2D fill;
 layout(set = SET_CHANNELS, binding = CHANNEL_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uniform image2D ambientAlbedo;
 
 /// What Night-Eye's lift is multiplied by — `CHANNEL_LIFT`.
@@ -162,8 +162,7 @@ layout(set = SET_CHANNELS, binding = STAGE_THROUGHPUT, GBUFFER_STAGE_THROUGHPUT)
 layout(set = SET_CHANNELS, binding = STAGE_LIFT, GBUFFER_STAGE_LIFT) uniform uimage2D stageLift;
 
 /// The solid's hit and the ray that met it (`STAGE_HIT`, `STAGE_RAY_FROM`, `STAGE_RAY_ALONG`):
-/// `storeStageSolid` says what each holds. The bounce's landing in their place once the bounce
-/// stage has read the solid's.
+/// `storeStageSolid` says what each holds.
 layout(set = SET_CHANNELS, binding = STAGE_HIT, GBUFFER_STAGE_HIT) uniform uimage2D stageHit;
 layout(set = SET_CHANNELS, binding = STAGE_RAY_FROM, GBUFFER_STAGE_RAY) uniform image2D stageRayFrom;
 layout(set = SET_CHANNELS, binding = STAGE_RAY_ALONG, GBUFFER_STAGE_RAY) uniform image2D stageRayAlong;
@@ -171,18 +170,24 @@ layout(set = SET_CHANNELS, binding = STAGE_RAY_ALONG, GBUFFER_STAGE_RAY) uniform
 /// What the bounce hands its landing (`STAGE_BOUNCE`): `storeBounce` says what it holds.
 layout(set = SET_CHANNELS, binding = STAGE_BOUNCE, GBUFFER_STAGE_BOUNCE) uniform uimage2D stageBounce;
 
+/// The bounce's landing, laid out as the solid's hit and its ray (`storeLandingHit`), for every bounce
+/// ray but the frame's last: a texel wide in a frame of one ray, which reads none of them.
+layout(set = SET_CHANNELS, binding = STAGE_LANDING_HIT, GBUFFER_STAGE_HIT) uniform uimage2D landingHit;
+layout(set = SET_CHANNELS, binding = STAGE_LANDING_RAY_FROM, GBUFFER_STAGE_RAY) uniform image2D landingRayFrom;
+layout(set = SET_CHANNELS, binding = STAGE_LANDING_RAY_ALONG, GBUFFER_STAGE_RAY) uniform image2D landingRayAlong;
+
 /// The tiles the later stages run over, which the trace appends, and the pixels the landing's stage
 /// runs over, which the bounce's appends (`STAGE_TILES`): each tile list's count in its indirect
 /// dispatch's `x`, which the frame's `GBuffer::begin` sets to nought, and each tile list
-/// `stageTileCapacity` long; the landing's count in its word beside, and its list a pixel of the
-/// frame long.
+/// `stageTileCapacity` long; each bounce ray's landings counted in its word beside, and their array a
+/// pixel of the frame long.
 layout(set = SET_CHANNELS, binding = STAGE_TILES, std430) buffer StageTiles
 {
     uvec4 mDispatches[STAGE_DISPATCHES];
 
-    /// In `x`, how many landings are listed from the end, and in `y`, how many workgroups both runs
-    /// take (`appendLandings`).
-    uvec4 mLandedApart;
+    /// For each bounce ray, in `x`, how many landings are listed from the end, and in `y`, how many
+    /// workgroups both runs take (`appendLandings`).
+    uvec2 mLandedApart[MAX_BOUNCE_RAYS];
     uint mTiles[];
 }
 stageTiles;

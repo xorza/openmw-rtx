@@ -474,34 +474,6 @@ namespace Rtx::Shaders
     /// a warp waits out anyway, so the half stays.
     const float INDIRECT_LIGHT_RATE = 0.5f;
 
-    /// What share of the eye's hits trace their bounce at all, the rest paying by weight: every
-    /// one.
-    ///
-    /// **The bounce is the one ray whose hit is shaded**, so what a skipped lane drops is the
-    /// traversal and the whole of `PathEndLight` behind it: the lamp walk, the sun ray and the
-    /// ambient ray. Half of them saved four to six per cent of the frame — release, three
-    /// alternated rounds, the `trace` zone: 1.97–2.05 ms to 1.77–1.82 at the ship and 1.45–1.47 to
-    /// 1.20–1.23 in the guild; at 4K performance 4.33–4.36 to 3.83–3.84 and 3.38–3.41 to 2.76.
-    ///
-    /// **Every bounce, because what a half saves it pays for in noise at every place measured.**
-    /// Frame noise against sixteen frames averaged, standing and strafing in, and bias against a
-    /// converged reference standing, in levels of 255, at a half and at one:
-    ///
-    ///     guild's planter at night   1.21  2.26  2.50    0.96  2.18  2.30
-    ///     mages' guild               0.94  1.68  1.80    0.79  1.56  1.67
-    ///     Seyda Neen's pier          0.59  1.27  1.86    0.51  1.19  1.70
-    ///     Seyda Neen's pond          0.54  1.21  1.61    0.47  1.19  1.53
-    ///
-    /// **A rate draws and divides, so the estimate is unbiased by construction**: what it hands the
-    /// filter is the indirect term at nought or `1 / rate` times itself. Drawn after the escape and
-    /// not before it, so a pixel `BOUNCE_REACH` handed the sky keeps the sky: that pixel paid for
-    /// nothing, and rating it would add noise and save no time. A rate over one is no rate: no draw
-    /// reaches it and the bounce is still divided by it, which `Rtx::describeWorld` asserts
-    /// against.
-    ///
-    /// Reaches the shader as `VisibilityConstants::mBounceRate` and not by name, which says why.
-    const float BOUNCE_RATE = 1.0f;
-
     /// How fast a bounce ray's cone widens, against a primary ray's.
     ///
     /// A diffuse bounce spreads over the whole hemisphere, and what the indirect term wants from a
@@ -521,7 +493,7 @@ namespace Rtx::Shaders
     /// what fills a doorway, an arch and the shaded side of a house, and every one of those is inside
     /// the cell the camera stands in.
     ///
-    /// **Biased, unlike the two rates beside it, and it is the bias that makes it worth having.** A draw
+    /// **Biased, unlike the rates beside it, and it is the bias that makes it worth having.** A draw
     /// and a divide would keep the traversal on half the pixels and the noise on all of them; this stops
     /// the traversal outright, and pays for it in ground lit slightly flatter than it would be. It is
     /// exterior-only for the reason `AMBIENT_EXTERIOR_RATE` is: a room's escape is nothing at all, so a

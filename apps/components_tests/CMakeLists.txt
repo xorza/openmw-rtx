@@ -112,6 +112,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     resource/testmultiobjectcache.cpp
     resource/testobjectcache.cpp
+    resource/testcolladastream.cpp
     resource/testresourcesystem.cpp
 
     vfs/testpathutil.cpp

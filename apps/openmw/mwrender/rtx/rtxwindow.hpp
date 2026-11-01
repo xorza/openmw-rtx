@@ -28,9 +28,10 @@ namespace MWRender
     class RtxWindow
     {
     public:
-        /// Makes the window from the video settings, or at `pixels` where a run states them; `hidden`
-        /// is a headless run, the same window with nobody watching. Throws where SDL refuses.
-        RtxWindow(bool hidden, std::optional<osg::Vec2i> pixels);
+        /// Makes the window from the video settings, or at `pixels` where a run states them, with
+        /// `surface`, what the backend presents to (`surfaceFlagsOf`); `hidden` is a headless run, the
+        /// same window with nobody watching. Throws where SDL refuses.
+        RtxWindow(SDL_WindowFlags surface, bool hidden, std::optional<osg::Vec2i> pixels);
 
         SDL_Window* get() const { return mWindow.get(); }
 

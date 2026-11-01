@@ -92,9 +92,11 @@ namespace Rtx
         static VkDeviceSize bytesAt(
             const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
 
-        /// The stage images of a frame this size, appended to `into` in binding order: in use from the
-        /// trace's first stage to its last, and by no pass after (`FrameStep::Trace`).
-        static void declareStages(std::uint32_t width, std::uint32_t height, std::vector<ArenaImage>& into);
+        /// The stage images of a frame this size and of `bounceRays` bounce rays, appended to `into` in
+        /// binding order: in use from the trace's first stage to its last, and by no pass after
+        /// (`FrameStep::Trace`).
+        static void declareStages(
+            std::uint32_t width, std::uint32_t height, std::uint32_t bounceRays, std::vector<ArenaImage>& into);
 
         /// Binds `stages`, the images `declareStages` declared as an arena placed them, in every set:
         /// for an arena made again, which a drained device lets the sets be written for.
@@ -133,6 +135,10 @@ namespace Rtx
         /// What the trace hands its stages of each pixel (`STAGE_RECORD`), which the pass that
         /// composes the frame reads for the upscaler's masks.
         const Image& getStageRecord() const;
+
+        /// Whether the landing's own stage images stand at the frame's size, which a frame of more
+        /// than one bounce ray stores its landings in (`declareStages`).
+        bool holdsLandingsApart() const;
 
         /// The tile lists the trace appends to (`STAGE_TILES`), whose head is the media stage's
         /// indirect dispatch.

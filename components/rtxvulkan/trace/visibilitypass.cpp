@@ -195,7 +195,8 @@ namespace Rtx
         /// over every pixel, which lists the tiles the shafts and the layers stand in; the solid's
         /// direct light; the sun's shafts through the water, over their tiles, where `hasMedia`; the
         /// layers laid over that light, over theirs; the bounce, which lists the pixels whose bounce
-        /// landed; and its landing, over that list.
+        /// landed; and its landing, over that list — the pair once for each of the frame's bounce rays,
+        /// each landing over its ray's list (`landingDispatch`).
         constexpr std::array<Stage, 6> sTraceStages{ {
             { "visibility.comp.spv", "visibility", FrameZone::Trace, std::nullopt },
             { "direct.comp.spv", "direct", FrameZone::Direct, std::nullopt },
@@ -393,9 +394,9 @@ namespace Rtx
             {
                 const auto at = static_cast<std::size_t>(wanted.mKernel);
                 const Stage& stage = sTraceStages[at];
-                mKernels.mStages[at][variant.index()]
-                    = std::make_unique<ComputePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
-                        *mCode, stage.mModule, variant.describe(stage.mName), specialization, SubgroupSize::ThirtyTwo);
+                mKernels.mStages[at][variant.index()] = std::make_unique<ComputePipeline<Shaders::StageConstants>>(
+                    mDevice, sBindings, sharedSets(textureLayout), *mCode, stage.mModule, variant.describe(stage.mName),
+                    specialization, SubgroupSize::ThirtyTwo);
                 return;
             }
             case Kernel::Scatter:
@@ -457,7 +458,7 @@ namespace Rtx
         if (mSpecialize)
             mSpecializing.wait();
         for (std::size_t stage = 0; stage < sStageCount; ++stage)
-            for (const std::unique_ptr<ComputePipeline<NoConstants>>& kernel : made.mStages[stage])
+            for (const std::unique_ptr<ComputePipeline<Shaders::StageConstants>>& kernel : made.mStages[stage])
                 if (kernel != nullptr)
                     out.push_back(NamedKernel{ sTraceStages[stage].mName, kernel.get() });
         for (const std::unique_ptr<TracePipeline<NoConstants>>& kernel : made.mScatter)
@@ -498,10 +499,10 @@ namespace Rtx
         return ChannelWrites{ .mLobe = run.mMaps, .mPuffs = puffs };
     }
 
-    const ComputePipeline<NoConstants>& VisibilityPass::kernelOf(
+    const ComputePipeline<Shaders::StageConstants>& VisibilityPass::kernelOf(
         const TupleKernels& stage, const VisibilityVariant variant)
     {
-        const std::unique_ptr<ComputePipeline<NoConstants>>& held = stage[variant.index()];
+        const std::unique_ptr<ComputePipeline<Shaders::StageConstants>>& held = stage[variant.index()];
         assert(held != nullptr && "a tuple `compileEvery` did not make");
 
         return *held;
@@ -733,23 +734,41 @@ namespace Rtx
             = 2 * Shaders::fieldGroupsAcross(constants.mEyes.mWorld.mWidth, Shaders::TRACE_WORKGROUP_WIDTH);
         const std::uint32_t down = groupsFor(constants.mEyes.mWorld.mHeight, Shaders::TRACE_WORKGROUP_HEIGHT);
 
-        // Each stage behind everything the one before wrote, a zone each (`sTraceStages`).
-        for (std::size_t at = 0; at < sStageCount; ++at)
-        {
-            if (static_cast<Kernel>(at) == Kernel::Media && !hasMedia(variant))
-                continue;
-            if (at > 0)
+        assert(constants.mBounceRays >= 1 && constants.mBounceRays <= Shaders::MAX_BOUNCE_RAYS
+            && "a count of bounce rays `sampleFrame` should have held from one to `MAX_BOUNCE_RAYS`");
+        assert((constants.mBounceRays == 1 || inputs.mChannels.holdsLandingsApart())
+            && "a frame of several bounce rays into targets made for one: the profile's count "
+               "(`Renderer::setBounceRays`) is the most a frame of the renderer asks");
+
+        // One stage behind everything the one before wrote, a zone each (`sTraceStages`), pushed which
+        // bounce ray it is: the stages before the bounce once, and the bounce and its landing once a
+        // ray, each ray's pair over the list it appended (`StageConstants`).
+        bool first = true;
+        const auto recordStage = [&](const std::size_t at, const std::uint32_t ray) {
+            if (!first)
                 GBuffer::handToStage(commands);
+            first = false;
 
             const Stage& stage = sTraceStages[at];
             const GpuZone timed(timer, commands, stage.mZone);
-            const ComputePipeline<NoConstants>& kernel = kernelOf(kernels().mStages[at], variant);
+            const ComputePipeline<Shaders::StageConstants>& kernel = kernelOf(kernels().mStages[at], variant);
             bind(commands, kernel);
             pushInputs(commands, kernel, inputs);
+            kernel.push(commands, Shaders::StageConstants{ .mRay = ray });
             if (stage.mList.has_value())
-                dispatchOver(commands, inputs.mChannels, *stage.mList);
+                dispatchOver(
+                    commands, inputs.mChannels, *stage.mList + (static_cast<Kernel>(at) == Kernel::Landing ? ray : 0u));
             else
                 vkCmdDispatch(commands, across, down, 1);
+        };
+
+        for (std::size_t at = 0; at < static_cast<std::size_t>(Kernel::Bounce); ++at)
+            if (static_cast<Kernel>(at) != Kernel::Media || hasMedia(variant))
+                recordStage(at, 0);
+        for (std::uint32_t ray = 0; ray < constants.mBounceRays; ++ray)
+        {
+            recordStage(static_cast<std::size_t>(Kernel::Bounce), ray);
+            recordStage(static_cast<std::size_t>(Kernel::Landing), ray);
         }
 
         // The host's read of the count is ordered by whoever reads it: `renderFrame` records

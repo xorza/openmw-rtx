@@ -10,7 +10,6 @@
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sdlutil/sdlvideowrapper.hpp>
 
 namespace MWRender
@@ -33,11 +32,11 @@ namespace MWRender
         constexpr double sSettleSeconds = 0.1;
     }
 
-    RtxWindow::RtxWindow(const bool hidden, const std::optional<osg::Vec2i> pixels)
+    RtxWindow::RtxWindow(const SDL_WindowFlags surface, const bool hidden, const std::optional<osg::Vec2i> pixels)
     {
         // **The backend's own flags, and no `SDL_GL_SetAttribute` anywhere near them.** No GL context
         // is ever made, which is the point of the whole path.
-        mWindow.reset(openWindow(Rtx::vulkanWindowFlags(), pixels));
+        mWindow.reset(openWindow(surface, pixels));
         if (mWindow == nullptr)
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
 

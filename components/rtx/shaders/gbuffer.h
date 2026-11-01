@@ -271,9 +271,13 @@ namespace Rtx::Shaders
 
     /// Where the set binds what the trace hands its later stages, after the channels: the record of
     /// each pixel's solid (`StageRecord`), the throughput to it, the surface's lift, and the solid's
-    /// hit with the ray's start and direction (`storeStageSolid`), which the bounce's landing takes
-    /// over; and what the bounce hands its landing (`storeBounce`). In fields, as the trace writes
-    /// them; no channel, so nothing reads them back or digests them.
+    /// hit with the ray's start and direction (`storeStageSolid`); what the bounce hands its landing
+    /// (`storeBounce`); and the landing's hit, laid out as the solid's (`storeLandingHit`). **The
+    /// landing's apart from the solid's for every bounce ray but the frame's last**, because a ray
+    /// after it leaves the solid again; the last stores its landing in the solid's place, which
+    /// nothing reads after it, so a frame of one ray makes the landing's own a texel wide
+    /// (`GBuffer::declareStages`). In fields, as the trace writes them; no channel, so nothing reads
+    /// them back or digests them.
     const uint STAGE_RECORD = CHANNEL_COUNT;
     const uint STAGE_THROUGHPUT = CHANNEL_COUNT + 1u;
     const uint STAGE_LIFT = CHANNEL_COUNT + 2u;
@@ -281,32 +285,47 @@ namespace Rtx::Shaders
     const uint STAGE_RAY_FROM = CHANNEL_COUNT + 4u;
     const uint STAGE_RAY_ALONG = CHANNEL_COUNT + 5u;
     const uint STAGE_BOUNCE = CHANNEL_COUNT + 6u;
+    const uint STAGE_LANDING_HIT = CHANNEL_COUNT + 7u;
+    const uint STAGE_LANDING_RAY_FROM = CHANNEL_COUNT + 8u;
+    const uint STAGE_LANDING_RAY_ALONG = CHANNEL_COUNT + 9u;
+
+    /// The most bounce rays the eye's surface traces a frame, `[RTX] bounce rays`'s top: the landing's
+    /// list keeps a head for each (`STAGE_DISPATCH_LANDING`). Four halves a bounce's noise,
+    /// `1 / sqrt(4)`, at four times its cost; eight cost the desk three times a frame of one ray
+    /// (`docs/rtx/research/2026-11-01-bounce-rays.md`).
+    const uint MAX_BOUNCE_RAYS = 4u;
 
     /// And the lists the later stages run over (`StageTiles`): a storage buffer, its head each
     /// list's indirect dispatch, a `VkDispatchIndirectCommand` and a word beside it that counts what
-    /// the list holds, the media stage's and then the layers' (`STAGE_LIST_*`), and the landing's
-    /// last (`STAGE_DISPATCH_LANDING`), whose word counts its pixels; after it the tile lists one after
-    /// the other, a workgroup of the stored layout each as `x | y << 16`, and then the pixels whose
-    /// bounce landed, a pixel each as `x | y << 16` (`appendLandings`). **The landings in two runs**:
-    /// those whose gather runs from the list's start, counted in the landing's word, and those whose
-    /// gather is drawn off (`indirectGatherDrawn`) from its end, counted in a head of their own after
-    /// the dispatches beside the workgroups both runs take — so a warp of the landing's stage holds
-    /// one kind or the other.
+    /// the list holds, the media stage's and then the layers' (`STAGE_LIST_*`), and a landing's for
+    /// each bounce ray last (`STAGE_DISPATCH_LANDING` and the `MAX_BOUNCE_RAYS - 1` after it), whose
+    /// word counts its pixels; after it the tile lists one after the other, a workgroup of the stored
+    /// layout each as `x | y << 16`, and then the pixels whose bounce landed, a pixel each as
+    /// `x | y << 16` (`appendLandings`). **The landings in two runs**: those whose gather runs from
+    /// the array's start, counted in the landing's word, and those whose gather is drawn off
+    /// (`indirectGatherDrawn`) from its end, counted in a pair of their own a ray after the
+    /// dispatches beside the workgroups both runs take — so a warp of the landing's stage holds one
+    /// kind or the other.
+    ///
+    /// **A head a ray, cleared with the rest as the frame begins, and one array every ray writes
+    /// again**: the bounce of ray `r` appends to its own head, so nothing is cleared between the
+    /// rays' dispatches, and the barrier before each stage (`GBuffer::handToStage`) has the landing of
+    /// ray `r` read the array before the bounce of ray `r + 1` writes it.
     ///
     /// **A dispatch in rows of `STAGE_DISPATCH_ROW` workgroups**: a list of a native 1440p trace's
     /// landings is 115,200 workgroups, and a dispatch is only promised 65,535 along each axis, which a
     /// driver may report and no more — some on Windows do.
-    const uint STAGE_TILES = CHANNEL_COUNT + 7u;
+    const uint STAGE_TILES = CHANNEL_COUNT + 10u;
     const uint STAGE_LIST_MEDIA = 0u;
     const uint STAGE_LIST_PANES = 1u;
     const uint STAGE_LISTS = 2u;
     const uint STAGE_DISPATCH_LANDING = STAGE_LISTS;
-    const uint STAGE_DISPATCHES = STAGE_LISTS + 1u;
-    const uint STAGE_TILES_HEAD_WORDS = 4u * STAGE_DISPATCHES + 4u;
+    const uint STAGE_DISPATCHES = STAGE_LISTS + MAX_BOUNCE_RAYS;
+    const uint STAGE_TILES_HEAD_WORDS = 4u * STAGE_DISPATCHES + 2u * MAX_BOUNCE_RAYS;
     const uint STAGE_DISPATCH_ROW = 1024u;
 
     /// How many bindings the set holds: the channels, the stage images and the tile lists.
-    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 8u;
+    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 11u;
 
     /// Whether a channel is stored in the pixel's checkerboard field, which every channel the
     /// denoiser reads is. **The ones only the passes after it read stay in the frame's own order** —

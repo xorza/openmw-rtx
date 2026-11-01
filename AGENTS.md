@@ -26,9 +26,8 @@ What the tree, `--help` or a commit already answers does not belong here.
   both, and the game starts the ray tracer alone: a start it cannot make ends in the fatal error
   box, and the OpenGL renderer stays built and unstarted so that upstream's code merges as it
   stands.
-- Target hardware: NVIDIA RTX 20 series and later, and AMD RDNA 2 and later. Only the NVIDIA card
-  here runs anything; an AMD device is stood up under Mesa's drm-shim (`~/Projects/mesa/build-shim`),
-  which compiles every kernel and executes none.
+- Target hardware: NVIDIA RTX 20 series and later, and AMD RDNA 2 and later. A vendor the machine
+  has no card of is stood up under Mesa's drm-shim, which compiles every kernel and executes none.
 - Tried, declined, and not to be proposed again:
   - opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts: no faster, and longer loading;
   - async compute (the next trace on a second queue beside this frame's reconstruction): 0.1–0.2 ms
@@ -168,6 +167,11 @@ is not here is held to the rules above.
   - `Debug::wrapApplication`'s fatal error box read only whether a terminal started the game, not
     `OPENMW_CRASH_DIALOG` as the crash dialog does, and showed before the error was logged: a start
     that failed under a harness waited for a click, with nothing in the log.
+  - `Resource::SceneManager` handed OSG's COLLADA reader a model as a stream, which the reader copies
+    into a buffer of its length and parses as a C string, on into whatever the heap held past it: which
+    models loaded followed the order the game read them in, and a renderer that read in another order
+    lost other statics, and four of upstream's integration tests the navigation mesh they stand on. A
+    nought now ends the bytes (`aColladaModelLoadsWhateverWasReadBeforeIt`).
 - The interface's fonts rasterized again while the game runs (`docs/rtx/architecture.md`, "A live
   scale and font size"): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in
   place (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks
@@ -231,16 +235,14 @@ and the headers hold the detail.
 flavour comes before the verb and is `debug` unless named; `release` is the build a number is quoted
 from. `./omw exec ./openmw-rtxtool --help` lists the harness's options.
 
-The game installs on this machine, each a different load on the renderer:
+Three kinds of content load the renderer differently; where each installs, and the profile that
+names it, is the machine's:
 
-- `<games>/Morrowind` — vanilla, what the player's `openmw.cfg` names and every suite has been
-  measured on.
-- `<games>/M[FR]/` — the Morrowind Fullrest Repack, a large mod list with Tamriel Rebuilt,
-  under `game/Data Files`. Its Linux profile is `~/.config/openmw-mfr`, which a run takes with
-  `--replace=config --config=$HOME/.config/openmw-mfr`.
-- `<games>/Morrowind-PBR/` — Morrowind with PBR replacers in `mods/` (`1-mvr`, `2-mvr-pbr`,
-  `3-tamrielic-pbr-armors`), stacked by the profile `~/.config/openmw-pbr`: the content a
-  measurement of companion maps, texture memory or residency needs.
+- vanilla Morrowind, what the player's `openmw.cfg` names and every suite has been measured on;
+- a large mod list with Tamriel Rebuilt, such as the Morrowind Fullrest Repack, which a run takes
+  through its own profile with `--replace=config --config=<profile>`;
+- Morrowind with PBR replacers stacked by a profile of their own: the content a measurement of
+  companion maps, texture memory or residency needs.
 
 The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw release view
 --size=2560x1440` at a place, one task a profile.
@@ -272,17 +274,18 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw rel
   upscaler and the denoiser off, the second with the queue held behind the host, and must agree
   frame for frame. A pair that finds nothing has found nothing. Read a difference with
   `--exposure=1` and `--pictures`.
-- **The denoised frame is not bit-exact on this card** (`docs/rtx/architecture.md`): under a busy
-  queue, the first wavelet dispatch after a pipeline drain sometimes differs by an ulp on identical
-  inputs. The card's, not a missing barrier. `repeat` runs unfiltered and cannot see it; a
-  difference in the composed frame alone is the card's.
+- **The denoised frame is not bit-exact on every card** (`docs/rtx/architecture.md`): on a high-end NVIDIA laptop
+  GPU under a busy queue, the first wavelet dispatch after a pipeline drain sometimes differs by
+  an ulp on identical inputs. The card's, not a missing barrier. `repeat` runs unfiltered and
+  cannot see it; a difference in the composed frame alone is the card's.
 - Measure with `./omw release bench`, on a hot card, back to back, never with a sleep between runs,
   after a throwaway warm-up leg; the first run after a shader change compiles the pipelines.
-- Measure on a quiet desktop: start the run in the background and end the turn. In this session's
-  foreground it runs under Claude Code's spinner, which Zed redraws and KWin composites, and
+- Measure on a quiet desktop: start the run in the background and end the turn. In the session's
+  foreground it runs under the agent's own redraws, which the editor and the compositor draw, and
   every row moves. The report's `card` lines name another process's work, and `--frame-times=<dir>`
-  writes the series behind a tail. KWin's own slices show only under `nsys profile --gpuctxsw=true`,
-  and the renderer cannot outrank them (a high-priority queue needs `CAP_SYS_NICE`).
+  writes the series behind a tail. The compositor's own slices show only under a GPU context-switch
+  trace (`nsys profile --gpuctxsw=true` on NVIDIA), and the renderer cannot outrank them (a
+  high-priority queue needs `CAP_SYS_NICE`).
 - An A/B reads medians and the p99, never a mean — the zones' from the record `--json` writes, since
   the `gpu` row is each zone's share of the mean.
 - Profiling: `./omw profile` for the CPU, into `build-release/perf/`: read the full text reports

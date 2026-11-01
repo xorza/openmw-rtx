@@ -220,7 +220,7 @@ namespace Rtx
         TEST(RtxSourceTreeTest, everyViewSceneIsHeldByViewScene)
         {
             const std::set<std::string> allowed{ "viewscene.cpp", "sceneholder.hpp", "vulkanrenderer.hpp",
-                "vulkanrenderer.cpp" };
+                "vulkanrenderer.cpp", "nullrenderer.hpp", "nullrenderer.cpp" };
 
             const std::vector<std::string> found
                 = linesMatching({ sRoot / "components" / "rtx", sBackend,

@@ -12,6 +12,7 @@ from omw import (
     formatting,
     game,
     gate,
+    integration,
     kernels,
     lint,
     listing,
@@ -44,6 +45,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                two runs of one binary walk one place and must agree
   kernels [--against=<file>]   one digest per shader and tuple of its constants; against an earlier
                                listing, which tuples moved
+  integration [script args]    upstream's integration tests, which drive the game, on the example
+                               suite at the revision its GitLab pipeline pins
   gate                         {gate}
   exec <command> [args]        a command in the build directory, under the flavour's environment
   archive [name]               the release archive into dist/, with its symbols: the package flavour,
@@ -133,6 +136,7 @@ BUILD_VERBS = {
     "setup": Verb(game.setup),
     "repeat": Verb(repeat.repeat),
     "kernels": Verb(kernels.kernels),
+    "integration": Verb(integration.integration),
     "gate": Verb(gate.gate, flavour="full"),
     "exec": Verb(_exec),
     "archive": Verb(package.archive, flavour="package"),

@@ -8,6 +8,7 @@
 
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/scene.h>
 
 #include "camera.hpp"
@@ -43,17 +44,21 @@ namespace Rtx
         sampled.mEyes.mWorld.mJitter
             = reconstruction.mJitter ? haltonJitter(phase) : options.mJitter.value_or(osg::Vec2f());
 
-        // The five consequences of the reconstruction the trace reads for itself: where its draws
+        // The six consequences of the reconstruction the trace reads for itself: where its draws
         // come from, how far the shown pixel narrows every texture level, whether the eye may draw a
         // soft edge's texels by their alpha, under which share a source is never drawn for the
-        // shadow bit, and how many lamps a composing point draws. A picture's `Reconstruction{}`
-        // says the tile, nought, no and the two defaults.
+        // shadow bit, how many lamps a composing point draws, and how many bounce rays the eye's surface traces. A
+        // picture's `Reconstruction{}` says the tile, nought, no and the three defaults.
         sampled.mNoise = reconstruction.mSampling.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH
                                                                                    : Shaders::NOISE_BLUE_TILE;
         sampled.mLevelBias = reconstruction.mLevelBias;
         sampled.mSoftEdgeDither = reconstruction.mAveraged ? 1u : 0u;
         sampled.mShadowFloor = reconstruction.mSampling.mShadowFloor;
         sampled.mLampCandidates = reconstruction.mSampling.mLampCandidates;
+        assert(reconstruction.mSampling.mBounceRays >= 1
+            && reconstruction.mSampling.mBounceRays <= Shaders::MAX_BOUNCE_RAYS
+            && "a count of bounce rays its asker should have held from one to `MAX_BOUNCE_RAYS`");
+        sampled.mBounceRays = reconstruction.mSampling.mBounceRays;
 
         // The sampler takes the setting as it is: the settings clamp it to sixteen, and a device
         // with anisotropic filtering, which the backends require, takes at least sixteen.

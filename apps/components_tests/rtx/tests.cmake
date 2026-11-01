@@ -68,6 +68,7 @@ set(RTX_TEST_FILES
     rtx/renderer/frameimage.cpp
     rtx/renderer/memoryreport.cpp
     rtx/renderer/notfinite.cpp
+    rtx/renderer/nullrenderer.cpp
     rtx/renderer/png.cpp
     rtx/renderer/sceneuploader.cpp
     rtx/renderer/shaderdirectory.cpp

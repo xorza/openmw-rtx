@@ -8,6 +8,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/settings/values.hpp>
 
 namespace MWRender
@@ -19,6 +20,7 @@ namespace MWRender
     {
         return RtxSettingValues{
             .mUpscale = Settings::rtx().mUpscale.get(),
+            .mBounceRays = Settings::rtx().mBounceRays,
             .mDistantLandCells = Settings::rtx().mDistantLandCells,
             .mViewingDistance = Settings::camera().mViewingDistance,
             .mObjectPaging = Settings::terrain().mObjectPaging,
@@ -42,8 +44,13 @@ namespace MWRender
             throw Rtx::InputError(
                 std::format("a gamma of {} is not a finite number greater than nought", values.mGamma));
 
+        if (values.mBounceRays < 1 || values.mBounceRays > static_cast<int>(Rtx::Shaders::MAX_BOUNCE_RAYS))
+            throw Rtx::InputError(
+                std::format("{} bounce rays is outside one to {}", values.mBounceRays, Rtx::Shaders::MAX_BOUNCE_RAYS));
+
         return RtxSettings{
             .mUpscale = values.mUpscale,
+            .mBounceRays = static_cast<std::uint32_t>(values.mBounceRays),
             .mMirror = {
                 .mReach = { .mCells = values.mDistantLandCells, .mViewingDistance = values.mViewingDistance },
                 .mDistantStatics = values.mObjectPaging,

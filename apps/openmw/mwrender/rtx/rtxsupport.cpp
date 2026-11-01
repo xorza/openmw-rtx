@@ -97,6 +97,7 @@ namespace MWRender
             { "Navigator", "nav mesh render mode", {} },
             { "Physics", "async num threads", {} },
             { "Post Processing", "", sPostProcessing },
+            { "RTX", "bounce rays", {} },
             { "RTX", "distant land cells", {} },
             { "RTX", "specular map layout", {} },
             { "RTX", "upscale", {} },

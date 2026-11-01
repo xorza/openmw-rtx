@@ -217,6 +217,14 @@ source-tree test holds the order.
   place a scene; render, collect and present a frame; the reports. Each consumer takes the part
   it calls: a scene's owner `Rtx::SceneHolder`, a picture inside the interface
   `Rtx::PictureRenderer`, MyGUI's backend `Rtx::GuiRenderer`.
+- **A null backend, for the game on a machine with no device** (`Rtx::NullRenderer`, chosen by
+  `OPENMW_RTX_BACKEND=null`): every promise kept and nothing drawn, so CI runs upstream's
+  integration tests through the ray tracer's whole game side, the mirror, the ring, the interface
+  and the pictures, as Unreal's `-nullrhi` and Godot's headless display server do. Refused: a third
+  `MWRender::Renderer` that draws nothing, which tests none of the ray tracer's game side; the
+  rasterizer under Xvfb, which no player starts; and Mesa's lavapipe, which lacks
+  `VK_KHR_pipeline_executable_properties`, an extension the backend requires. Chosen by the
+  environment and not a setting, so a game that draws nothing is no menu away from a player.
 - **`Rtx::SceneDesc`** (`scene/scenedesc.hpp`) is everything a backend needs to know about a world:
   meshes, materials, textures, placements, deformers, and the per-frame lists (lights, sprites,
   emitters, ripples). It appends and deduplicates. A slot is a name and is never renumbered, so a
@@ -365,6 +373,39 @@ at the top, over all of them.
 - **No reuse of the bounce.** ReSTIR GI's reservoirs ran here as a temporal and a spatial reuse,
   and were removed: once the denoiser kept a rare bright sample's light, they gained nothing at any
   place and added bias in the room they were kept for (`.notes/reuse.md`).
+- **Every eye hit traces its bounce.** Refused: a rate on it, drawn and divided. At a half it saved
+  4–6 % of the frame and raised the noise and the bias at every place measured, since the bounce is
+  the term that lights a room (`research/2026-10-03-bounce-rate.md`).
+- **Several bounce rays a pixel, averaged, and not a deeper path** (`[RTX] bounce rays`, 1 to 4,
+  default 1, live through `Renderer::setBounceRays`): each ray costs what the first does, and the
+  raw frame's noise and fireflies fall with the count while the denoised frame barely moves
+  (`research/2026-11-01-bounce-rays.md`). NVIDIA's NRD sample averages its paths before the
+  denoiser the same way
+  ([`TraceOpaque.cs.hlsl`](https://github.com/NVIDIA-RTX/NRD-Sample/blob/main/Shaders/TraceOpaque.cs.hlsl)). Refused: a bounce off the bounce's landing, whose second step cost up to 1.6 ms and left
+  a vanilla room darker, since each step past the first takes the cell's bright `AMBI` by a delit
+  albedo (the mages' guild's mean 23.3 at one bounce, 22.2 at two). Default 1 keeps every player's
+  picture and cost, and the top is 4, by the user's choice: at 8 the desk's frame stood at three
+  times one ray's.
+- **A `bounce` and a `landing` dispatch a ray, in turn**, each pushed which ray it is
+  (`StageConstants::mRay`), and a list head a ray in `STAGE_TILES` over one array each ray writes
+  again, so no clear stands between the rays and the barrier before each stage orders the reuse. Refused: one kernel tracing every ray in a loop, which
+  keeps every ray's record live through the traversals, or stores every ray's hit.
+- **The landing's hit is stored apart from the solid's for every ray but the last**
+  (`STAGE_LANDING_HIT`, `landingApart`), so each ray leaves the surface the eye found, and the last
+  stores it in the solid's place, which nothing reads after it. **So a frame of one ray holds the
+  memory one bounce did**, 5,248 bytes more at a 1280x720 trace: the landing's own images are a
+  texel wide until a count above one makes the targets again (`GBuffer::declareStages`,
+  `VulkanRenderer::setBounceRays`). Kept whole at every count, they took 87.6 MiB more there; at
+  four rays the frame holds 45.0 MiB more than at one. Refused: tracing the eye's ray again a ray,
+  which cost the integrated GPU a quarter of a frame (`research/2026-10-21-amd-integrated-stage-times.md`).
+- **Each ray is worth one over the count, added into the bounce's own channels** (`startBounce`,
+  `storeBounced`), so the denoiser and the composite read one bounce; the first ray writes the
+  channel, so one ray writes the bits it always wrote.
+- **A frame's rays take the next `N` steps of the golden-ratio turn the frames sweep**
+  (`unitPairOfRay`), a stratified sample: the one-dimensional form of a blue-noise sequence over
+  time (Wolfe et al. 2022, "Spatiotemporal Blue Noise Masks"), a Cranley-Patterson rotation; the other
+  draws step a block of seeds a ray, at the end of the chain (`bounceSeedsAt`). Refused: a hash a
+  ray, whose draws may fall together.
 - **The denoiser** (`trace/denoise/`) runs where a run filters the frame, in families recorded
   stage by stage, a dispatch of each behind one barrier, since none reads what another writes.
   Every history is held to the frame before's surfaces (`GBuffer::getHeld`) and matched from the

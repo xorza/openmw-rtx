@@ -257,6 +257,14 @@ namespace MWGui
         distantLand->setUserString("SettingMax", MyGUI::utility::toString(mostCells));
         distantLand->setScrollRange(static_cast<std::size_t>(mostCells - fewestCells) + 1);
 
+        // One ray to a step, up to the most the trace keeps a landing's list for
+        MyGUI::ScrollBar* bounceRays;
+        getWidget(bounceRays, "RayTracingBounceRaysSlider");
+        constexpr int mostRays = Settings::RTXCategory::sMaxBounceRays;
+        bounceRays->setUserString("SettingMin", "1");
+        bounceRays->setUserString("SettingMax", MyGUI::utility::toString(mostRays));
+        bounceRays->setScrollRange(static_cast<std::size_t>(mostRays));
+
         configureWidgets(mMainWidget, true);
 
         setTitle("#{OMWEngine:SettingsWindow}");

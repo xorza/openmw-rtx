@@ -456,6 +456,12 @@ namespace RtxTool
             "the one its shadow bit is drawn from, and over all but which a bit's own source makes the bit "
             "exact rather than drawn. Its light rides the drawn source's bit");
 
+        option(sFramed, "bounce-rays",
+            number(between<std::uint32_t>(1, Rtx::Shaders::MAX_BOUNCE_RAYS))
+                ->default_value(Rtx::SamplingSwitches{}.mBounceRays),
+            "how many bounce rays the eye's surface traces a frame, each in a direction of its own and "
+            "worth its share of the bounce: the player's `[RTX] bounce rays`");
+
         option(sFramed, "lamp-candidates",
             number(atLeast<std::uint32_t>(0))->default_value(Rtx::Shaders::LAMP_CANDIDATES),
             "how many lamp candidates a shading point that composes its light — a path's far end, a pane, a "
@@ -723,6 +729,7 @@ namespace RtxTool
         request.mLevelEpsilon = variables["level-epsilon"].as<float>();
         request.mSampling.mShadowFloor = variables["shadow-floor"].as<float>();
         request.mSampling.mLampCandidates = variables["lamp-candidates"].as<std::uint32_t>();
+        request.mSampling.mBounceRays = variables["bounce-rays"].as<std::uint32_t>();
         request.mFilters.mAntilag = variables["antilag"].as<bool>();
         request.mFilters.mHistoryFix = variables["history-fix"].as<bool>();
         request.mFilters.mDualMotion = variables["dual-motion"].as<bool>();

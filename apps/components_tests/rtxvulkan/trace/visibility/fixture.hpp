@@ -425,6 +425,10 @@ namespace Rtx::Testing
         /// test names another.
         std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
 
+        /// How many bounce rays the eye's surface traces — `ReconstructionRequest`'s, one unless a test
+        /// names another.
+        std::uint32_t mBounceRays = 1;
+
         /// Where the trace draws from: the tile every figure over this fixture was derived against,
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
@@ -528,10 +532,12 @@ namespace Rtx::Testing
         }
 
         /// What `shoot` hands the renderer before its frames: `scene` at `size` square, and the
-        /// shot's sea, anisotropy and gamma. For a test that draws its own frames.
+        /// shot's bounce rays, sea, anisotropy and gamma. For a test that draws its own frames.
         void prepare(
             const SceneDesc& scene, std::span<const TextureData> textures, std::uint32_t size, const Shot& shot = {})
         {
+            // Before the size, so a move across one ray and a new size make the targets once.
+            mRenderer.setBounceRays(shot.mBounceRays);
             mRenderer.resize(size, size);
             mProbe.setSea(shot.mSea);
             mRenderer.setAnisotropy(shot.mAnisotropy);
@@ -573,7 +579,8 @@ namespace Rtx::Testing
                             .mLevelEpsilon = shot.mLevelEpsilon,
                             .mSampling = { .mNoise = shot.mNoise,
                                 .mShadowFloor = shot.mShadowFloor,
-                                .mLampCandidates = shot.mLampCandidates },
+                                .mLampCandidates = shot.mLampCandidates,
+                                .mBounceRays = shot.mBounceRays },
                             .mFilters = { .mAntilag = shot.mAntilag } },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),

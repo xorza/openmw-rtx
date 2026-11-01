@@ -51,7 +51,8 @@ namespace Rtx
         std::vector<ArenaImage> sharedAt(const VkExtent2D room, const RadianceWidth radiance)
         {
             std::vector<ArenaImage> declared;
-            TraceChain::declareShared(room.width, room.height, radiance, declared);
+            // One bounce ray, which every picture traces (`SamplingSwitches::mBounceRays`).
+            TraceChain::declareShared(room.width, room.height, radiance, 1, declared);
             return declared;
         }
     }

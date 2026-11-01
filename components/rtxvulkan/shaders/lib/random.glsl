@@ -69,6 +69,27 @@ vec2 unitPair(uvec2 pixel, uint stream)
     return vec2(randomAt(pixel, stream), randomAt(pixel, stream + 1u));
 }
 
+/// `unitPair` for bounce ray `ray` of the frame's `VisibilityConstants::mBounceRays`, counting the first
+/// as nought.
+///
+/// **The tile turned a step a ray**, each frame's rays the next `mBounceRays` steps of the turn: the
+/// rays of one frame then sweep the interval as the frames of one ray do, which is what makes several
+/// a frame a stratified sample and not several draws that may fall together. One ray takes the frame's
+/// own step, the pair `unitPair` draws. The hash keys a ray apart from the others.
+vec2 unitPairOfRay(uvec2 pixel, uint stream, uint ray)
+{
+    if (frame.mNoise == NOISE_WHITE_HASH)
+    {
+        uint state = randomSeed(pixelKey(pixel) ^ stream * 0x68E31DA4u ^ ray * 0x9E3779B9u);
+        uint next = randomSeed(pixelKey(pixel) ^ (stream + 1u) * 0x68E31DA4u ^ ray * 0x9E3779B9u);
+        return vec2(randomNext(state), randomNext(next));
+    }
+
+    const uint step = frame.mFrame * frame.mBounceRays + ray;
+    return vec2(turnedTile(blueNoiseAt(tileIndex(pixel, stream)), step, stream),
+        turnedTile(blueNoiseAt(tileIndex(pixel, stream + 1u)), step, stream + 1u));
+}
+
 /// A direction inside the cone about `axis` that a source subtends, drawn evenly over its solid
 /// angle.
 ///

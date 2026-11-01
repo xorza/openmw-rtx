@@ -14,6 +14,7 @@
 #include <components/rtx/world/frameworld.hpp>
 
 #include "mirrorknobs.hpp"
+#include "rtxbackend.hpp"
 
 namespace MWRender
 {
@@ -34,6 +35,9 @@ namespace MWRender
         /// two. Here and not written into the registry by the harness, because the registry is the
         /// player's and a knob of a run travels with the run.
         MirrorKnobs mMirror{};
+
+        /// What draws the frames.
+        RtxBackend mBackend = RtxBackend::Vulkan;
 
         /// Whether the window stays hidden, which saves a present per frame and nothing else.
         bool mHeadless = false;

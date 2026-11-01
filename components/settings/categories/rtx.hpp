@@ -2,6 +2,7 @@
 
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
@@ -21,6 +22,9 @@ namespace Settings
         /// value as it found it.
         static constexpr float sMinDistantLandCellsInMenu = 4.0f;
 
+        /// The most bounce rays the eye's surface may trace, which the trace keeps a landing's list for.
+        static constexpr int sMaxBounceRays = static_cast<int>(Rtx::Shaders::MAX_BOUNCE_RAYS);
+
         /// How far out from the eye the world is built, in cells: handed to the world mirror where
         /// the renderer is made and again when the menu moves it, so the rings, the air and the map
         /// follow one number. How much world exists is a property of the structure rays are cast
@@ -33,6 +37,10 @@ namespace Settings
         /// by it at load. Changing it rebuilds every target. `Rtx::sUpscaleMenu` is what the launcher
         /// and the settings window offer of it.
         SettingValue<Rtx::Upscale> mUpscale{ mIndex, "RTX", "upscale" };
+
+        /// How many bounce rays the eye's surface traces a frame: `Rtx::SamplingSwitches::mBounceRays`,
+        /// handed to the renderer where it is made and again when the menu moves it.
+        SettingValue<int> mBounceRays{ mIndex, "RTX", "bounce rays", makeClampSanitizerInt(1, sMaxBounceRays) };
 
         /// What the content's `_spec` maps mean, as `Rtx::sSpecularLayoutNames` spells the layouts:
         /// `classic` or `metal roughness`, read by it at load. Read where the renderer is
