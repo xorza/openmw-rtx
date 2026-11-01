@@ -8,13 +8,11 @@
 #include <utility>
 #include <vector>
 
-#include <boost/program_options/variables_map.hpp>
 #include <osg/Vec2i>
 
 #include <apps/openmw/engine.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
-#include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/runfolder.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
@@ -27,15 +25,12 @@
 
 #include "harnessfolder.hpp"
 #include "session.hpp"
+#include "toolline.hpp"
 
 namespace RtxTool
 {
     namespace
     {
-        namespace bpo = boost::program_options;
-
-        using StringsVector = std::vector<std::string>;
-
         /// Ends the hang watch as it goes, however the engine's loop ended — returned or thrown —
         /// since no frame is due after it.
         struct FramesEnd
@@ -79,14 +74,15 @@ namespace RtxTool
 
     int runHosted(const Command& command, const Framed& framed, SessionRequest request)
     {
-        const bpo::variables_map& variables = command.mVariables;
+        const ToolLine& line = command.mLine;
+        const ToolLine::Game& game = line.mGame;
         Files::ConfigurationManager& config = command.mConfig;
-        const std::filesystem::path& resources = command.mResources;
+        const std::filesystem::path& resources = line.mResources;
         const WindowRequest& window = framed.mWindow;
 
         std::ostream& out = Debug::getRawStdout();
 
-        const StringsVector content = variables["content"].as<StringsVector>();
+        const std::vector<std::string>& content = game.mContent;
         if (content.empty())
         {
             out << "no content file given: name one with --content, or point openmw.cfg at an "
@@ -110,8 +106,6 @@ namespace RtxTool
 
         const unsigned int seed = request.mRandomSeed;
 
-        const Fallback::FallbackMap fallback = variables["fallback"].as<Fallback::FallbackMap>();
-
         // **Built before the engine and read after it.** A run that ends its last stop and a window
         // somebody closes both have to be reported, and only the first ever reaches `finish` — so
         // what the run came to is asked for once the engine has gone, off what the run noted on
@@ -128,15 +122,12 @@ namespace RtxTool
             const FramesEnd framesEnd;
             engine.setRecastMaxLogLevel(Debug::getRecastMaxLogLevel());
 
-            engine.setEncoding(ToUTF8::calculateEncoding(variables["encoding"].as<std::string>()));
+            engine.setEncoding(ToUTF8::calculateEncoding(game.mEncoding));
             engine.setResourceDir(resources);
 
-            Files::PathContainer dataDirs(
-                Files::asPathContainer(variables["data"].as<Files::MaybeQuotedPathContainer>()));
-            if (Files::PathContainer::value_type local(
-                    variables["data-local"].as<Files::MaybeQuotedPathContainer::value_type>().u8string());
-                !local.empty())
-                dataDirs.push_back(std::move(local));
+            Files::PathContainer dataDirs = game.mData;
+            if (!game.mDataLocal.empty())
+                dataDirs.push_back(game.mDataLocal);
 
             config.filterOutNonExistingPaths(dataDirs);
 
@@ -152,7 +143,7 @@ namespace RtxTool
 
             engine.setDataDirs(dataDirs);
 
-            for (const std::string& archive : variables["fallback-archive"].as<StringsVector>())
+            for (const std::string& archive : game.mFallbackArchives)
                 engine.addArchive(archive);
 
             // **The same first file and the same refusal of a repeat as `apps/openmw/main.cpp`.** A
@@ -174,16 +165,16 @@ namespace RtxTool
                 engine.addContentFile(file);
             }
 
-            for (const std::string& file : variables["groundcover"].as<StringsVector>())
+            for (const std::string& file : game.mGroundcover)
                 engine.addGroundcoverFile(file);
 
-            Fallback::Map::init(fallback.mMap);
+            Fallback::Map::init(game.mFallback.mMap);
 
             // **Straight into the world, with no character generation.** `setSkipMenu(true, false)`
             // reaches `StateManager::newGame(true)`, which is the bypass a session wants: a stop says
             // where it stands, and standing anywhere at all is the only thing the start has to do.
             engine.setSkipMenu(true, false);
-            engine.setSaveGameFile(variables["load-savegame"].as<Files::MaybeQuotedPath>().u8string());
+            engine.setSaveGameFile(line.mPlaces.mSave.u8string());
             engine.setRandomSeed(seed);
 
             // **No sound, and no mouse where nobody plays.** A run measured with an audio device open

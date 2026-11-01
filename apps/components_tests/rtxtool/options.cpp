@@ -16,17 +16,22 @@
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
+#include <osg/Vec3f>
 
 #include <apps/rtxtool/film.hpp>
+#include <apps/rtxtool/framed.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/runfolder.hpp>
+#include <apps/rtxtool/toolline.hpp>
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -41,16 +46,36 @@ namespace RtxTool
             return bpo::command_line_parser(line).options(options.mDescription).run();
         }
 
-        /// What `--validation` comes to when nobody names it, which is what `makeOptions` is told.
-        std::string defaultValidation(const Rtx::ValidationLevel byDefault)
+        /// What `arguments` come to for `verb`, read as the harness reads a line: parsed against its own
+        /// description, with no configuration file.
+        ToolLine lineOf(const ToolOptions& options, const std::vector<std::string>& arguments, const Verbs verb)
         {
-            const ToolOptions options = makeOptions(byDefault);
-
             bpo::variables_map variables;
-            bpo::store(parse(options, {}), variables);
+            bpo::store(parse(options, arguments), variables);
             bpo::notify(variables);
+            return options.read(variables, verb);
+        }
 
-            return variables["validation"].as<std::string>();
+        /// What refuses a line read for `verb`, or that nothing did.
+        std::string refusalOf(const ToolOptions& options, const std::vector<std::string>& arguments, const Verbs verb)
+        {
+            try
+            {
+                lineOf(options, arguments, verb);
+            }
+            catch (const std::exception& error)
+            {
+                return error.what();
+            }
+            return "nothing was refused";
+        }
+
+        /// What `--validation` comes to when nobody names it, which is what `makeOptions` is told.
+        std::string_view defaultValidation(const Rtx::ValidationLevel byDefault)
+        {
+            const ToolLine line = lineOf(makeOptions(byDefault), {}, Verbs::Shot);
+            EXPECT_FALSE(line.mValidation.mDemanded) << "a level nobody named is demanded";
+            return Rtx::sValidationNames.name(line.mValidation.mLevel);
         }
 
         /// **The other side of `noise --versus` changes the one switch it names**, read as the line would
@@ -62,27 +87,25 @@ namespace RtxTool
         TEST(RtxToolOptionsTest, theOtherSideChangesTheOneSwitchItNames)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
-            const auto read = [&](const std::vector<std::string>& line) {
-                bpo::variables_map variables;
-                bpo::store(parse(options, line), variables);
-                bpo::notify(variables);
-                return variables;
-            };
-
-            const bpo::variables_map variables = read({ "--antilag=false", "--lamp-candidates=4" });
-            Rtx::ReconstructionRequest played;
-            readReconstruction(variables, played);
+            const Rtx::ReconstructionRequest played
+                = lineOf(options, { "--antilag=false", "--lamp-candidates=4" }, Verbs::Noise).mFrame.mReconstruction;
             ASSERT_FALSE(played.mFilters.mAntilag);
             ASSERT_EQ(played.mSampling.mLampCandidates, 4u);
 
             Rtx::ReconstructionRequest ringed = played;
             ringed.mFilters.mAntiFirefly = true;
-            EXPECT_EQ(options.versus(variables, played, "antifirefly=true"), ringed);
-            EXPECT_EQ(options.versus(variables, played, "antifirefly"), ringed) << "the implicit value";
+            EXPECT_EQ(options.versus(played, "antifirefly=true"), ringed);
+            EXPECT_EQ(options.versus(played, "antifirefly"), ringed) << "the implicit value";
+            const ToolLine::Noise noise
+                = lineOf(options, { "--antilag=false", "--lamp-candidates=4", "--versus=antifirefly" }, Verbs::Noise)
+                      .mNoise;
+            EXPECT_EQ(noise.mAsked, "antifirefly");
+            EXPECT_EQ(noise.mVersus, ringed) << "the line's own other side is over the line's own switches";
+            EXPECT_EQ(lineOf(options, {}, Verbs::Noise).mNoise.mVersus, std::nullopt);
             Rtx::ReconstructionRequest every = played;
             every.mSampling.mLampCandidates = 0;
-            EXPECT_EQ(options.versus(variables, played, "lamp-candidates=0"), every);
-            EXPECT_EQ(options.versus(variables, played, "antilag=false"), played) << "the same side again";
+            EXPECT_EQ(options.versus(played, "lamp-candidates=0"), every);
+            EXPECT_EQ(options.versus(played, "antilag=false"), played) << "the same side again";
 
             const std::array<std::pair<std::string_view, std::string_view>, sReconstructionSwitches.size()> moved{ {
                 { "filter", "false" },
@@ -97,25 +120,21 @@ namespace RtxTool
                 { "dual-motion", "false" },
                 { "antifirefly", "true" },
             } };
-            const bpo::variables_map defaults = read({});
-            Rtx::ReconstructionRequest plain;
-            readReconstruction(defaults, plain);
+            const Rtx::ReconstructionRequest plain = lineOf(options, {}, Verbs::Noise).mFrame.mReconstruction;
             EXPECT_EQ(plain, Rtx::ReconstructionRequest{});
             for (std::size_t at = 0; at < moved.size(); ++at)
             {
                 EXPECT_EQ(moved[at].first, sReconstructionSwitches[at]);
-                EXPECT_NE(
-                    options.versus(defaults, plain, std::format("{}={}", moved[at].first, moved[at].second)), plain)
+                EXPECT_NE(options.versus(plain, std::format("{}={}", moved[at].first, moved[at].second)), plain)
                     << moved[at].first << " is not read";
             }
 
-            EXPECT_THROW(options.versus(variables, played, "delight=0.5"), std::runtime_error);
-            EXPECT_THROW(options.versus(variables, played, "noise=sideways"), std::runtime_error);
-            EXPECT_THROW(options.versus(variables, played, "antifirefly=maybe"), std::runtime_error);
-            EXPECT_THROW(options.versus(variables, played, "bounce-rays=0"), std::runtime_error) << "no bounce at all";
-            EXPECT_THROW(options.versus(variables, played, "bounce-rays=9"), std::runtime_error)
-                << "past the landing's heads";
-            EXPECT_THROW(options.versus(variables, played, "shadow-floor=0.5"), std::runtime_error)
+            EXPECT_THROW(options.versus(played, "delight=0.5"), std::runtime_error);
+            EXPECT_THROW(options.versus(played, "noise=sideways"), std::runtime_error);
+            EXPECT_THROW(options.versus(played, "antifirefly=maybe"), std::runtime_error);
+            EXPECT_THROW(options.versus(played, "bounce-rays=0"), std::runtime_error) << "no bounce at all";
+            EXPECT_THROW(options.versus(played, "bounce-rays=9"), std::runtime_error) << "past the landing's heads";
+            EXPECT_THROW(options.versus(played, "shadow-floor=0.5"), std::runtime_error)
                 << "a floor over a quarter, which can leave a pixel nothing to draw";
         }
 
@@ -125,10 +144,7 @@ namespace RtxTool
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
             const auto span = [&](const std::vector<std::string>& line) {
-                bpo::variables_map variables;
-                bpo::store(parse(options, line), variables);
-                bpo::notify(variables);
-                return benchSpanFrom(variables);
+                return lineOf(options, line, Verbs::Bench).mBench.mSpan;
             };
 
             const BenchSpan plain = span({});
@@ -141,6 +157,69 @@ namespace RtxTool
             EXPECT_THROW(span({ "--frames=300", "--seconds=5" }), std::runtime_error);
         }
 
+        /// **The line is read once into what each option means, and a condition nobody named is
+        /// none**: nothing named stands no hour, no weather, no air, no places of the file's and no
+        /// folder, and the day, the hold and the upscaler at their defaults, unnamed. Named, each is
+        /// what it says; `--views` with nothing in it is every view, and not none. A place named
+        /// beside `--views`, a weather that is none of the ten, a point that is not three numbers, a
+        /// size and an exposure that are none are refused with the option that named them.
+        TEST(RtxToolOptionsTest, aLineIsReadOnceAndWhatNobodyNamedIsNone)
+        {
+            const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
+
+            const ToolLine plain = lineOf(options, {}, Verbs::Shot);
+            EXPECT_EQ(plain.mSky.mHour, std::nullopt);
+            EXPECT_EQ(plain.mSky.mWeather, std::nullopt);
+            EXPECT_FALSE(plain.mSky.mAir.has_value());
+            EXPECT_TRUE(plain.mSky.mTurn.empty());
+            EXPECT_EQ(plain.mPlaces.mViews, std::nullopt);
+            EXPECT_EQ(plain.mPlaces.mSuite, std::nullopt);
+            EXPECT_TRUE(plain.mPlaces.mCell.empty());
+            EXPECT_EQ(plain.mPlaces.mPos, std::nullopt);
+            EXPECT_EQ(plain.mOut, std::nullopt);
+            EXPECT_EQ(plain.mFrame.mDay.mValue, 0);
+            EXPECT_FALSE(plain.mFrame.mDay.mNamed);
+            EXPECT_FALSE(plain.mFrame.mHold.mNamed);
+            EXPECT_EQ(plain.mFrame.mUpscale.mValue, sUpscaleByDefault);
+            EXPECT_FALSE(plain.mFrame.mUpscale.mNamed);
+            EXPECT_EQ(plain.mFrame.mSize.mWidth, 1920u);
+            EXPECT_EQ(plain.mFrame.mSize.mHeight, 1080u);
+
+            const ToolLine named = lineOf(options,
+                { "--hour=6.5", "--weather=Rain", "--turn-weather=Clear,Ashstorm", "--day=3", "--hold=false",
+                    "--upscale=off", "--cell=-2,-9", "--pos=1,2,3", "--out=pictures", "--size=640x360" },
+                Verbs::Shot);
+            EXPECT_EQ(named.mSky.mHour, 6.5f);
+            EXPECT_EQ(named.mSky.mWeather, Rtx::Weather::Rain);
+            EXPECT_EQ(named.mSky.mTurn, (std::vector{ Rtx::Weather::Clear, Rtx::Weather::Ashstorm }));
+            EXPECT_EQ(named.mFrame.mDay.mValue, 3);
+            EXPECT_TRUE(named.mFrame.mDay.mNamed);
+            EXPECT_FALSE(named.mFrame.mHold.mValue);
+            EXPECT_TRUE(named.mFrame.mHold.mNamed) << "a hold named off is named";
+            EXPECT_EQ(named.mFrame.mUpscale.mValue, Rtx::Upscale::Off);
+            EXPECT_TRUE(named.mFrame.mUpscale.mNamed);
+            EXPECT_TRUE(named.mPlaces.mCell.isExterior());
+            EXPECT_EQ(named.mPlaces.mPos, osg::Vec3f(1.0f, 2.0f, 3.0f));
+            EXPECT_EQ(named.mOut, std::filesystem::path("pictures"));
+            EXPECT_EQ(named.mFrame.mSize.mWidth, 640u);
+            EXPECT_EQ(named.mFrame.mSize.mHeight, 360u);
+
+            EXPECT_EQ(
+                lineOf(options, { "--views=a,b" }, Verbs::Shot).mPlaces.mViews, (std::vector<std::string>{ "a", "b" }));
+            EXPECT_EQ(lineOf(options, { "--views=," }, Verbs::Shot).mPlaces.mViews, std::vector<std::string>{})
+                << "named with nothing in it, which is every view";
+
+            EXPECT_EQ(refusalOf(options, { "--views=a", "--pos=1,2,3" }, Verbs::Shot),
+                "--views takes its places from the file, and --pos names one beside them");
+            EXPECT_EQ(refusalOf(options, { "--pos=1,2" }, Verbs::Shot),
+                R"(--pos is not three numbers separated by commas: "1,2")");
+            EXPECT_EQ(refusalOf(options, { "--size=640" }, Verbs::Shot), "--size=640 is not WIDTHxHEIGHT");
+            EXPECT_EQ(refusalOf(options, { "--exposure=0" }, Verbs::Shot),
+                "--exposure=0 is neither auto nor a number over nought");
+            EXPECT_NE(refusalOf(options, { "--weather=Sunny" }, Verbs::Shot).find(R"(--weather: "Sunny")"),
+                std::string::npos);
+        }
+
         /// **A film is twenty seconds unless its length or its speed is named**, and never both: the
         /// length sets the speed, so two named would be two answers to one question. The twenty are
         /// nobody's, which is what lets them stand aside where they cannot be filled.
@@ -148,22 +227,10 @@ namespace RtxTool
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
             const auto length = [&](const std::vector<std::string>& line) {
-                bpo::variables_map variables;
-                bpo::store(parse(options, line), variables);
-                bpo::notify(variables);
-                return filmLengthFrom(variables);
+                return lineOf(options, line, Verbs::Film).mFilm.mLength;
             };
-            const auto refusal = [&](const std::vector<std::string>& line) {
-                try
-                {
-                    length(line);
-                }
-                catch (const std::exception& error)
-                {
-                    return std::string(error.what());
-                }
-                return std::string("nothing was refused");
-            };
+            const auto refusal
+                = [&](const std::vector<std::string>& line) { return refusalOf(options, line, Verbs::Film); };
 
             EXPECT_EQ(length({}), (FilmLength{ .mSeconds = 20.0f, .mSource = FilmLengthSource::ByDefault }));
             EXPECT_EQ(FilmPacing::sLengthByDefault, 20.0f);
@@ -182,10 +249,7 @@ namespace RtxTool
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
             const auto maps = [&](const std::vector<std::string>& line, Verbs verb) {
-                bpo::variables_map variables;
-                bpo::store(parse(options, line), variables);
-                bpo::notify(variables);
-                return mapRulesFrom(variables, verb);
+                return lineOf(options, line, verb).mFrame.mMaps;
             };
 
             EXPECT_EQ(maps({}, Verbs::Shot), MapRules::Shipped);
