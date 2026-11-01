@@ -24,6 +24,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwlua/testobjectcache.cpp
     mwlua/testmwscriptbindings.cpp
+    mwlua/surfacelight.cpp
 
     mwscript/testscripts.cpp
     mwscript/visibilitygates.cpp

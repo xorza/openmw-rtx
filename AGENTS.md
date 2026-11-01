@@ -152,6 +152,10 @@ is not here is held to the rules above.
   renderer draws rain the other hides.
 - `Renderer::support`, asked where the console, Lua and F2 would otherwise
   toggle what does nothing under the renderer, and `ToggleBorders` under the ray tracer.
+- A Light bolt that strikes no actor stands its light off the surface it struck, for the effect's
+  duration (`files/data-mw/scripts/omw/surfacelight/`), as the user asked: vanilla lit only the
+  actor a bolt struck, and a bolt that struck a wall lit nothing. Built-in scripts, so it is on in
+  every game, through upstream's own projectile hit handler and no engine code.
 - Faults the user approved fixing:
   - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1`
     holds for every error);
