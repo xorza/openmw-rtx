@@ -21,7 +21,9 @@
 ///
 /// @param modulation what the lobe's half is divided by (`storedBounceAt`), which only the lobe
 ///        brings any back to, and only off a glossy solid, whose modulation it is.
-void storeBounced(uvec2 pixel, StageRecord record, Arriving arriving, vec3 modulation)
+/// @param onto whether a bounce ray before this one wrote the pixel's bounce, which a later ray's
+///        light adds to; the first writes it whole, in `bounce.comp` or in its landing.
+void storeBounced(uvec2 pixel, StageRecord record, Arriving arriving, vec3 modulation, bool onto)
 {
     const uint width = frame.mEyes.mWorld.mWidth;
     const uint swap = fieldSwapOf(frame.mFrame);
@@ -33,10 +35,16 @@ void storeBounced(uvec2 pixel, StageRecord record, Arriving arriving, vec3 modul
     const vec4 through = imageLoad(stageThroughput, storedAt(at, width, swap));
     const vec3 transmittance = through.rgb * through.a;
     const Bounce bounced = bounceOf(arriving, record.mBounceLobe);
-    const vec3 indirectLight = bounced.mDiffuse * transmittance;
-    const vec3 filled = bounced.mFill * transmittance;
-    RTX_STORE_COUNTED(indirect, channelAt(CHANNEL_INDIRECT, at, width, swap), vec4(indirectLight, 1.0))
-    RTX_STORE_COUNTED(fill, channelAt(CHANNEL_FILL, at, width, swap), vec4(filled, 1.0))
+    const ivec2 indirectAt = channelAt(CHANNEL_INDIRECT, at, width, swap);
+    const ivec2 fillAt = channelAt(CHANNEL_FILL, at, width, swap);
+    // **Written whole where nothing came before**, and not added to a nought: a negative zero plus
+    // nought is a positive one, and the eye's bounce writes the bits it always wrote.
+    const vec3 indirectLight = onto ? imageLoad(indirect, indirectAt).rgb + bounced.mDiffuse * transmittance
+                                    : bounced.mDiffuse * transmittance;
+    const vec3 filled = onto ? imageLoad(fill, fillAt).rgb + bounced.mFill * transmittance
+                             : bounced.mFill * transmittance;
+    RTX_STORE_COUNTED(indirect, indirectAt, vec4(indirectLight, 1.0))
+    RTX_STORE_COUNTED(fill, fillAt, vec4(filled, 1.0))
 
     // **The lobe's half of the bounce added to the lamps' the direct stage wrote**, by what the path
     // took: the pair one modulation divides.

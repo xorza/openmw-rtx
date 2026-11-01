@@ -26,10 +26,10 @@ namespace Rtx
         /// @param passes what the chain traces with, which outlives it.
         FrameTracer(const Device& device, const TracePasses& passes, RadianceWidth radiance);
 
-        /// What the frame uses inside one stretch of it at `render` and `output`, which its arena
-        /// places: the chain's shared images, then the upscaler's where `upscale` upscales.
-        static void declare(VkExtent2D render, VkExtent2D output, Upscale upscale, RadianceWidth radiance,
-            std::vector<ArenaImage>& into);
+        /// What the frame uses inside one stretch of it at `render` and `output` under `profile`, which
+        /// its arena places: the chain's shared images, then the upscaler's where the profile upscales.
+        static void declare(
+            VkExtent2D render, VkExtent2D output, const RenderProfile& profile, std::vector<ArenaImage>& into);
 
         /// What the chain, the arena of `declared` and the upscaler where `upscale` upscales take of
         /// the device at `render` and `output`.

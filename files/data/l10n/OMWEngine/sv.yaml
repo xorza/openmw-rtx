@@ -123,6 +123,8 @@ Preferences: "Inställningar" #Den engelska texten är "prefs", alltså "prefere
 PrimaryLanguage: "Primärt språk"
 PrimaryLanguageTooltip: "Lokaliseringsfiler för detta språk har högst prioritet."
 RayTracing: "Strålspårning"
+RayTracingBounceRays: "Studsstrålar"
+RayTracingBounceRaysValue: "Studsstrålar ({value} per pixel)"
 RayTracingDistantLand: "Avlägsen terräng"
 RayTracingDistantLandValue: "Avlägsen terräng ({value} celler)"
 RayTracingSpecularMaps: "Spekulärkartor"

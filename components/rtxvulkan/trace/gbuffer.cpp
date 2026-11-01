@@ -153,14 +153,23 @@ namespace Rtx
                 .mUsage = described.mUsage };
         }
 
-        /// One stage image: its binding, its format, its name, and the last step of the frame that
-        /// reads it.
+        /// Whether a frame of one bounce ray reads a stage image: the landing's own do not, as that ray
+        /// stores its landing in the solid's place (`landingApart`).
+        enum class StageRead
+        {
+            EveryFrame,
+            SeveralRays,
+        };
+
+        /// One stage image: its binding, its format, its name, the last step of the frame that reads
+        /// it, and which frames read it at all.
         struct StageDeclared
         {
             std::uint32_t mBinding;
             Shaders::StorageFormat mFormat;
             std::string_view mName;
             FrameStep mLast = FrameStep::Trace;
+            StageRead mRead = StageRead::EveryFrame;
         };
 
         /// Every stage image, at its binding less `GBuffer::sFirstStage`. **The record past the trace**,
@@ -174,6 +183,12 @@ namespace Rtx
             { Shaders::STAGE_RAY_FROM, GBUFFER_STAGE_RAY, "stage ray from" },
             { Shaders::STAGE_RAY_ALONG, GBUFFER_STAGE_RAY, "stage ray along" },
             { Shaders::STAGE_BOUNCE, GBUFFER_STAGE_BOUNCE, "stage bounce" },
+            { Shaders::STAGE_LANDING_HIT, GBUFFER_STAGE_HIT, "stage landing hit", FrameStep::Trace,
+                StageRead::SeveralRays },
+            { Shaders::STAGE_LANDING_RAY_FROM, GBUFFER_STAGE_RAY, "stage landing ray from", FrameStep::Trace,
+                StageRead::SeveralRays },
+            { Shaders::STAGE_LANDING_RAY_ALONG, GBUFFER_STAGE_RAY, "stage landing ray along", FrameStep::Trace,
+                StageRead::SeveralRays },
         } };
 
         constexpr bool stagesInOrder()
@@ -187,18 +202,20 @@ namespace Rtx
         static_assert(stagesInOrder(), "the stage table is indexed by binding");
 
         /// A stage image, in fields as the trace writes it, and storage alone: only the trace's
-        /// stages and the composing passes touch them.
-        ImageDescription stageDescriptionOf(
-            const StageDeclared& declared, const std::uint32_t width, const std::uint32_t height)
+        /// stages and the composing passes touch them. **A texel where the frame does not read it**,
+        /// since the set binds every image whatever the frame reads.
+        ImageDescription stageDescriptionOf(const StageDeclared& declared, const std::uint32_t width,
+            const std::uint32_t height, const std::uint32_t bounceRays)
         {
-            return ImageDescription{ .mWidth = Shaders::storedWidth(width),
-                .mHeight = height,
+            const bool read = declared.mRead == StageRead::EveryFrame || bounceRays > 1;
+            return ImageDescription{ .mWidth = read ? Shaders::storedWidth(width) : 1u,
+                .mHeight = read ? height : 1u,
                 .mFormat = toVulkanFormat(declared.mFormat),
                 .mUsage = VK_IMAGE_USAGE_STORAGE_BIT };
         }
 
         /// The bytes of the stage lists for a frame `width` by `height`: the head, a word a tile of
-        /// each tile list (`stageTileCount`), and a word a pixel for the landing's.
+        /// each tile list (`stageTileCount`), and a word a pixel for the landings'.
         VkDeviceSize stageTilesBytes(const std::uint32_t width, const std::uint32_t height)
         {
             return VkDeviceSize{ Shaders::STAGE_TILES_HEAD_WORDS
@@ -256,10 +273,11 @@ namespace Rtx
         place(device, layout, stages);
     }
 
-    void GBuffer::declareStages(const std::uint32_t width, const std::uint32_t height, std::vector<ArenaImage>& into)
+    void GBuffer::declareStages(const std::uint32_t width, const std::uint32_t height, const std::uint32_t bounceRays,
+        std::vector<ArenaImage>& into)
     {
         for (const StageDeclared& declared : sStages)
-            into.push_back(ArenaImage{ .mDescription = stageDescriptionOf(declared, width, height),
+            into.push_back(ArenaImage{ .mDescription = stageDescriptionOf(declared, width, height, bounceRays),
                 .mSpan = spanOf(FrameStep::Trace, declared.mLast),
                 .mName = declared.mName });
     }
@@ -317,6 +335,11 @@ namespace Rtx
         return mStages[Shaders::STAGE_RECORD - sFirstStage];
     }
 
+    bool GBuffer::holdsLandingsApart() const
+    {
+        return mStages[Shaders::STAGE_LANDING_HIT - sFirstStage].getWidth() > 1;
+    }
+
     // One command a hand-over and not two: a run past the batch's room emits what it holds.
     static_assert(
         Shaders::CHANNEL_SET_BINDINGS <= Barriers::sMostImages, "the G-buffer's channels overflow one barrier batch");
@@ -368,8 +391,12 @@ namespace Rtx
 
         // **The lists start empty**: each list's dispatch at no group across, no row down and one
         // deep, which the trace and the bounce count up as they append, and nothing listed.
-        constexpr std::array<std::uint32_t, Shaders::STAGE_TILES_HEAD_WORDS> sEmpty{ 0u, 0u, 1u, 0u, 0u, 0u, 1u, 0u, 0u,
-            0u, 1u, 0u, 0u, 0u, 0u, 0u };
+        constexpr std::array<std::uint32_t, Shaders::STAGE_TILES_HEAD_WORDS> sEmpty = [] {
+            std::array<std::uint32_t, Shaders::STAGE_TILES_HEAD_WORDS> words{};
+            for (std::uint32_t dispatch = 0; dispatch < Shaders::STAGE_DISPATCHES; ++dispatch)
+                words[4 * dispatch + 2] = 1u;
+            return words;
+        }();
         mStageTiles.updateInline(commands, sTileReaders, std::as_bytes(std::span(sEmpty)));
 
         // Left as a write of the trace's, so `handOver` orders it for the readers as it orders what

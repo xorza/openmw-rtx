@@ -19,6 +19,7 @@ namespace MWRender
     struct RtxSettingValues
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+        int mBounceRays = 1;
         float mDistantLandCells = 0.0f;
         float mViewingDistance = 0.0f;
         bool mObjectPaging = true;
@@ -42,6 +43,10 @@ namespace MWRender
     struct RtxSettings
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+
+        /// `SamplingSwitches::mBounceRays`: the setting, from one to `Shaders::MAX_BOUNCE_RAYS`.
+        std::uint32_t mBounceRays = 1;
+
         MirrorKnobs mMirror;
 
         /// `RenderProfile::mAnisotropy`: the setting, where nought means what one does.
@@ -53,9 +58,9 @@ namespace MWRender
         /// `RenderProfile::mLitEnvironmentMaps`: the setting.
         bool mLitEnvironmentMaps = false;
 
-        /// Throws `Rtx::InputError` for a gamma that is not a finite number greater than nought: a
-        /// setting refused rather than defaulted, so a typo is said at once and not traced under for
-        /// a session.
+        /// Throws `Rtx::InputError` for a gamma that is not a finite number greater than nought, and for
+        /// a count of bounce rays outside one to `Shaders::MAX_BOUNCE_RAYS`: a setting refused rather than
+        /// defaulted, so a typo is said at once and not traced under for a session.
         static RtxSettings derive(const RtxSettingValues& values);
     };
 }

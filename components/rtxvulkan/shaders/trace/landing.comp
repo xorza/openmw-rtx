@@ -3,14 +3,15 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The landing of every pixel's bounce that met a surface, the last of the trace's stages
-// (`bounce.comp` traced it and listed the pixel): the landing resolved off the hit the bounce
-// stored, its light worked out whole before any ray (`landingLightOf`), its rays traced
-// (`pathEndSeenOf`), and what the bounce brought back written (`storeBounced`).
+// The landing of every pixel's bounce that met a surface, for one of the frame's bounce rays
+// (`StageConstants`; `bounce.comp` traced it and listed the pixel): the landing resolved off the hit
+// the bounce stored, its light worked out whole before any ray (`landingLightOf`), its rays traced
+// (`pathEndSeenOf`), and what the bounce brought back written, or added to what the rays before it
+// brought (`storeBounced`).
 //
 // **A stage apart from the bounce** (`BounceRun`), so no record of the bounce's is live through the
-// landing's traversals. **Over the pixels that landed alone** (`STAGE_DISPATCH_LANDING`), so no
-// lane of a warp waits out the rays with no landing of its own.
+// landing's traversals. **Over the pixels that landed alone** (`landingDispatch`), so no lane of a
+// warp waits out the rays with no landing of its own.
 
 #include "shared/traceconstants.h"
 #include "camera.h"
@@ -21,6 +22,7 @@
 #include "lib/bounced.glsl"
 #include "lib/census.glsl"
 #include "lib/frame.glsl"
+#include "lib/hash.glsl"
 #include "lib/pixels.glsl"
 #include "lib/shading.glsl"
 #include "lib/stage.glsl"
@@ -30,22 +32,29 @@
 
 layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 
+layout(push_constant, scalar) uniform Push
+{
+    StageConstants stage;
+};
+
 void main()
 {
+    const uint ray = stage.mRay;
+
     uvec2 pixel;
-    if (!landingPixelOf(pixel))
+    if (!landingPixelOf(pixel, ray))
         return;
 
     const ivec2 stored = storedAt(ivec2(pixel), frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame));
     const StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
     const StoredBounce handed = storedBounceAt(stored);
 
-    const LandingLight light
-        = landingLightOf(storedLandingOf(record, stored), record.mBounceLobe, pixel, handed.mWeight);
+    const LandingLight light = landingLightOf(
+        storedLandingOf(record, stored, ray), record.mBounceLobe, pixel, handed.mWeight, bounceSeedsAt(ray));
 
     const PathEndSeen seen = pathEndSeenOf(light.mRays);
     const vec3 fill = light.mFill * seen.mAmbient;
     const vec3 whole = light.mGlow + fill + light.mSky * seen.mSky + light.mLamp * seen.mLamp;
 
-    storeBounced(pixel, record, Arriving(whole, fill), handed.mModulation);
+    storeBounced(pixel, record, Arriving(whole, fill), handed.mModulation, ray > 0u);
 }

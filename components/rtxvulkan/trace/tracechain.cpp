@@ -132,9 +132,9 @@ namespace Rtx
     }
 
     void TraceChain::declareShared(const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance,
-        std::vector<ArenaImage>& into)
+        const std::uint32_t bounceRays, std::vector<ArenaImage>& into)
     {
-        GBuffer::declareStages(width, height, into);
+        GBuffer::declareStages(width, height, bounceRays, into);
         DenoiseHistory::declareScratch(Shaders::storedWidth(width), height, into);
         into.push_back(ArenaImage{ .mDescription = canvasDescription(width, height, radiance),
             .mSpan = spanOf(FrameStep::Display, FrameStep::Display),

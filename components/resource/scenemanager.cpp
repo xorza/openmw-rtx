@@ -3,6 +3,9 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <iterator>
+#include <sstream>
+#include <string>
 
 #include <osg/AlphaFunc>
 #include <osg/Capability>
@@ -647,7 +650,22 @@ namespace Resource
 
             const std::array<std::uint64_t, 2> fileHash = Files::getHash(normalizedFilename.value(), model);
 
-            osgDB::ReaderWriter::ReadResult result = reader->readNode(model, options);
+            // OSG's COLLADA reader copies a stream into a buffer of its length alone and hands that to
+            // collada-dom as a C string, which reads on to the first nought byte: whatever the heap held
+            // past the buffer decided whether a document parsed ("Extra content at the end of the
+            // document"), so which models loaded followed the order the game read them in. A nought at
+            // the end of the bytes ends the read where the file does.
+            std::istringstream terminated;
+            std::istream* source = &model;
+            if (isColladaFile)
+            {
+                std::string bytes{ std::istreambuf_iterator<char>(model), std::istreambuf_iterator<char>() };
+                bytes.push_back('\0');
+                terminated.str(std::move(bytes));
+                source = &terminated;
+            }
+
+            osgDB::ReaderWriter::ReadResult result = reader->readNode(*source, options);
             if (!result.success())
                 throw std::runtime_error(std::format("Error loading {}: {} code {}", normalizedFilename.value(),
                     result.message(), static_cast<int>(result.status())));

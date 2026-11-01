@@ -93,6 +93,7 @@ namespace Rtx
         void setVerticalSync(SDLUtil::VSyncMode mode) override;
         void setAnisotropy(std::uint32_t anisotropy) override;
         void setGamma(float gamma) override;
+        void setBounceRays(std::uint32_t rays) override;
         void skipFrame() override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }

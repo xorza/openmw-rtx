@@ -13,11 +13,12 @@ namespace Rtx
     {
     }
 
-    void FrameTracer::declare(const VkExtent2D render, const VkExtent2D output, const Upscale upscale,
-        const RadianceWidth radiance, std::vector<ArenaImage>& into)
+    void FrameTracer::declare(
+        const VkExtent2D render, const VkExtent2D output, const RenderProfile& profile, std::vector<ArenaImage>& into)
     {
-        TraceChain::declareShared(render.width, render.height, radiance, into);
-        if (upscales(upscale))
+        TraceChain::declareShared(
+            render.width, render.height, profile.mRadianceWidth, profile.mReconstruction.mSampling.mBounceRays, into);
+        if (upscales(profile.mUpscale))
             Upscaler::declareShared(render, output, into);
     }
 

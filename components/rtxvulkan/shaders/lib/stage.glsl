@@ -90,54 +90,62 @@ void appendTile(uint list, uvec2 tile)
     growDispatch(list, slot, 1u);
 }
 
-/// Where the landing's list starts, after the tile lists.
-uint landingListStart()
-{
-    return STAGE_LISTS * stageTileCapacity();
-}
-
-/// How many pixels the landing's list holds room for: every pixel of the frame, which both its runs
-/// share (`STAGE_TILES`).
+/// How many pixels each of the landing's arrays holds room for: every pixel of the frame, which both
+/// its runs share (`STAGE_TILES`).
 uint landingCapacity()
 {
     return frame.mEyes.mWorld.mWidth * frame.mEyes.mWorld.mHeight;
 }
 
-/// Makes room for `count` pixels in a run of the landing's list — the one from its start where their
-/// gather runs, the one from its end where it is drawn off — and returns the run's first slot: one
-/// atomic a workgroup. **The list counts up its own dispatch**, a workgroup a full one of a run's
-/// pixels, so the landing's stage runs over the pixels and not over the frame
-/// (`STAGE_DISPATCH_LANDING`).
-uint appendLandings(uint count, bool gathers)
+/// Where the landings' array starts, after the tile lists: one array, which each ray's bounce writes
+/// again once the ray before it is read (`STAGE_TILES`).
+uint landingListStart()
+{
+    return STAGE_LISTS * stageTileCapacity();
+}
+
+/// The head of the landings of bounce ray `ray`, counting the first as nought: its indirect dispatch.
+uint landingDispatch(uint ray)
+{
+    return STAGE_DISPATCH_LANDING + ray;
+}
+
+/// Makes room for `count` pixels in a run of the landings of bounce ray `ray` — the one from the
+/// array's start where their gather runs, the one from its end where it is drawn off — and returns the
+/// run's first slot: one atomic a workgroup. **The list counts up its own dispatch**, a workgroup a
+/// full one of a run's pixels, so the landing's stage runs over the pixels and not over the frame
+/// (`landingDispatch`).
+uint appendLandings(uint count, bool gathers, uint ray)
 {
     const uint lanes = TRACE_WORKGROUP_LANES;
-    const uint first = gathers ? atomicAdd(stageTiles.mDispatches[STAGE_DISPATCH_LANDING].w, count)
-                               : atomicAdd(stageTiles.mLandedApart.x, count);
+    const uint dispatch = landingDispatch(ray);
+    const uint first = gathers ? atomicAdd(stageTiles.mDispatches[dispatch].w, count)
+                               : atomicAdd(stageTiles.mLandedApart[ray].x, count);
     const uint groups = (first + count + lanes - 1u) / lanes - (first + lanes - 1u) / lanes;
     if (groups != 0u)
-        growDispatch(STAGE_DISPATCH_LANDING, atomicAdd(stageTiles.mLandedApart.y, groups), groups);
+        growDispatch(dispatch, atomicAdd(stageTiles.mLandedApart[ray].y, groups), groups);
     return first;
 }
 
-/// Writes `pixel` into `slot` of its run of the landing's list (`appendLandings`).
-void listLanding(uint slot, bool gathers, uvec2 pixel)
+/// Writes `pixel` into `slot` of its run of the landings of bounce ray `ray` (`appendLandings`).
+void listLanding(uint slot, bool gathers, uvec2 pixel, uint ray)
 {
     const uint at = gathers ? slot : landingCapacity() - 1u - slot;
     stageTiles.mTiles[landingListStart() + at] = pixel.x | pixel.y << 16u;
 }
 
-/// The pixel this invocation of the landing's stage stands for, or false where it stands for none:
-/// the workgroup's part of a run of the list, one pixel a lane — the gathering run's workgroups
-/// first, then the other's.
-bool landingPixelOf(out uvec2 pixel)
+/// The pixel this invocation of the landing's stage of bounce ray `ray` stands for, or false where it
+/// stands for none: the workgroup's part of a run of the list, one pixel a lane — the gathering run's
+/// workgroups first, then the other's.
+bool landingPixelOf(out uvec2 pixel, uint ray)
 {
     const uint lanes = TRACE_WORKGROUP_LANES;
-    const uint gathering = stageTiles.mDispatches[STAGE_DISPATCH_LANDING].w;
+    const uint gathering = stageTiles.mDispatches[landingDispatch(ray)].w;
     const uint gatheringGroups = (gathering + lanes - 1u) / lanes;
     const uint group = listedGroup();
     const bool gathers = group < gatheringGroups;
     const uint slot = (gathers ? group : group - gatheringGroups) * lanes + gl_LocalInvocationIndex;
-    const bool listed = slot < (gathers ? gathering : stageTiles.mLandedApart.x);
+    const bool listed = slot < (gathers ? gathering : stageTiles.mLandedApart[ray].x);
     const uint at = gathers ? slot : landingCapacity() - 1u - slot;
     const uint word = listed ? stageTiles.mTiles[landingListStart() + at] : 0u;
     pixel = uvec2(word & 0xffffu, word >> 16u);
@@ -198,11 +206,42 @@ Surface storedSolidOf(StageRecord record, ivec2 stored)
     return storedHitOf(stored, record.mDetailed);
 }
 
-/// The bounce's landing at the stored place `stored`, which the bounce's stage stored in the solid's
-/// place, resolved as the walk that traced it would have resolved it (`resolveAsked`).
-Surface storedLandingOf(StageRecord record, ivec2 stored)
+/// Whether bounce ray `ray` stores its landing apart from the solid (`STAGE_LANDING_HIT`): every ray
+/// but the frame's last, since a ray after it leaves the solid again. **A branch the whole dispatch
+/// takes one way**, on the ray it is pushed and the frame's count.
+bool landingApart(uint ray)
 {
-    return storedHitOf(stored, record.mBounceLobe);
+    return ray + 1u < frame.mBounceRays;
+}
+
+/// Stores what bounce ray `ray`'s query `asked` met (`met`) at the stored place `stored`: apart from
+/// the solid, laid out as `storeStageSolid` lays out the solid's, where a ray after it leaves the
+/// solid again (`landingApart`), and in the solid's place where none does.
+void storeLandingHit(ivec2 stored, SceneAnswer met, SceneQuery asked, uint ray)
+{
+    if (!landingApart(ray))
+    {
+        storeStageSolid(stored, met, asked);
+        return;
+    }
+
+    RTX_STORE_WORDS(landingHit, stored, uvec4(met.mInstance, met.mPrimitive, floatBitsToUint(met.mBary)))
+    RTX_STORE_COUNTED(landingRayFrom, stored, vec4(asked.mFrom, footprintOf(asked, met)))
+    RTX_STORE_COUNTED(landingRayAlong, stored, vec4(asked.mAlong, met.mDistance))
+}
+
+/// Bounce ray `ray`'s landing at the stored place `stored` (`storeLandingHit`), resolved as the walk
+/// that traced it would have resolved it (`resolveAsked`).
+Surface storedLandingOf(StageRecord record, ivec2 stored, uint ray)
+{
+    if (!landingApart(ray))
+        return storedHitOf(stored, record.mBounceLobe);
+
+    const uvec4 hit = imageLoad(landingHit, stored);
+    const vec4 from = imageLoad(landingRayFrom, stored);
+    const vec4 along = imageLoad(landingRayAlong, stored);
+    return resolve(committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w), from.xyz, along.xyz,
+        record.mBounceLobe);
 }
 
 /// What the bounce hands its landing at the stored place `stored`, `STAGE_BOUNCE`: what light along

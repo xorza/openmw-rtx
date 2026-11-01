@@ -971,7 +971,7 @@ namespace RtxTool
         int commandNoise(const Command& command)
         {
             const bpo::variables_map& variables = command.mVariables;
-            const Framed framed = frameFrom(command);
+            Framed framed = frameFrom(command);
 
             const SuiteRun run = chooseBenchViews(variables, "noise");
             const std::vector<Stop> places = stopsFrom(run.mViews, variables, framed);
@@ -979,13 +979,18 @@ namespace RtxTool
             const std::filesystem::path folder = outOf(command);
             std::filesystem::create_directories(folder);
 
-            const Rtx::ReconstructionRequest& played = framed.mSetup.mRun.mProfile.mReconstruction;
+            const Rtx::ReconstructionRequest played = framed.mSetup.mRun.mProfile.mReconstruction;
 
             // The other side, where the line names one: the frame and its mean again with one switch
             // of the reconstruction changed, at the same draws (`ToolOptions::versus`).
             const std::string asked = variables["versus"].as<std::string>();
             const std::optional<Rtx::ReconstructionRequest> versus
                 = asked.empty() ? std::nullopt : std::optional(command.mOptions.versus(variables, played, asked));
+
+            // **The renderer's count the most either side traces**, which its targets are made for
+            // (`Renderer::setBounceRays`): every stop names its side's own (`planNoise`).
+            const std::uint32_t mostRays = std::max(played.mSampling.mBounceRays,
+                versus.has_value() ? versus->mSampling.mBounceRays : played.mSampling.mBounceRays);
 
             NoisePlan plan = planNoise(NoiseAsk{
                 .mPlaces = places,
@@ -999,6 +1004,7 @@ namespace RtxTool
                 = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale),
                 .mStep = worldStep(framed.mStep),
             });
+            framed.mSetup.mRun.mProfile.mReconstruction.mSampling.mBounceRays = mostRays;
 
             SessionRequest request = sessionFor(command, framed, std::move(plan.mStops));
             request.mSuite = run.mSuite;

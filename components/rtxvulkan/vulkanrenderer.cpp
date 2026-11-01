@@ -34,6 +34,7 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/digest.h>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtx/world/frameworld.hpp>
@@ -200,7 +201,7 @@ namespace Rtx
         // native mode's are about twice the quality mode's, which traces 2.25 times fewer pixels,
         // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
         std::vector<ArenaImage> declared;
-        FrameTracer::declare(render, output, mProfile.mUpscale, mProfile.mRadianceWidth, declared);
+        FrameTracer::declare(render, output, mProfile, declared);
         const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared);
         const VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, declared);
 
@@ -506,6 +507,23 @@ namespace Rtx
 
         mProfile.mGamma = gamma;
         mInverseGamma = 1.0f / gamma;
+    }
+
+    void VulkanRenderer::setBounceRays(const std::uint32_t rays)
+    {
+        assert(rays >= 1 && rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");
+
+        const std::uint32_t was = mProfile.mReconstruction.mSampling.mBounceRays;
+        mProfile.mReconstruction.mSampling.mBounceRays = rays;
+
+        // **The landing's own stage images are made only for more than one ray** (`landingApart`), so
+        // a move across one places the arena again, as a change of mode does; any other leaves every
+        // target where it stands.
+        if ((was > 1) != (rays > 1) && mTarget.isOpen())
+        {
+            const VkExtent2D output = mTarget.getExtent();
+            createTargets(output.width, output.height);
+        }
     }
 
     void VulkanRenderer::skipFrame()

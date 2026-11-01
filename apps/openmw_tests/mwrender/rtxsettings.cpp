@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <limits>
 
 #include <gtest/gtest.h>
@@ -7,6 +8,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 
 namespace MWRender
 {
@@ -18,6 +20,7 @@ namespace MWRender
         {
             return RtxSettingValues{
                 .mUpscale = Rtx::Upscale::Balanced,
+                .mBounceRays = 3,
                 .mDistantLandCells = 6.0f,
                 .mViewingDistance = 7168.0f,
                 .mObjectPaging = false,
@@ -39,6 +42,7 @@ namespace MWRender
         {
             const RtxSettings derived = RtxSettings::derive(valid());
             EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
+            EXPECT_EQ(derived.mBounceRays, 3u);
             // Cells and the viewing distance, which a worldspace's grid turns into units: six of
             // Morrowind's 8192 are 49152.
             EXPECT_EQ(derived.mMirror.mReach, (Rtx::LandReach{ .mCells = 6.0f, .mViewingDistance = 7168.0f }));
@@ -85,6 +89,27 @@ namespace MWRender
             least.mGamma = std::numeric_limits<float>::min();
             EXPECT_EQ(RtxSettings::derive(least).mGamma, std::numeric_limits<float>::min())
                 << "anything over nought stands";
+        }
+
+        /// A count of bounce rays outside one to `MAX_BOUNCE_RAYS` is refused: nought traces no bounce,
+        /// and past the top there is no landing's list to run over. The registry clamps to the range; a
+        /// harness's line holds anything.
+        TEST(RtxSettingsTest, aCountOfBounceRaysOutsideItsRangeIsRefused)
+        {
+            constexpr int most = static_cast<int>(Rtx::Shaders::MAX_BOUNCE_RAYS);
+            for (const int rays : { 0, -1, most + 1 })
+            {
+                RtxSettingValues values = valid();
+                values.mBounceRays = rays;
+                EXPECT_THROW(RtxSettings::derive(values), Rtx::InputError) << rays;
+            }
+
+            for (const int rays : { 1, most })
+            {
+                RtxSettingValues values = valid();
+                values.mBounceRays = rays;
+                EXPECT_EQ(RtxSettings::derive(values).mBounceRays, static_cast<std::uint32_t>(rays)) << rays;
+            }
         }
     }
 }

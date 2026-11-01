@@ -25,6 +25,15 @@ namespace Rtx::Shaders
     const uint SPEC_HAS_MAPS = 4u;
     const uint SPEC_COUNT = 5u;
 
+    /// What a trace stage is pushed beside the frame block: which of the frame's bounce rays the
+    /// bounce's and the landing's stages trace and light (`bounce.comp`, `landing.comp`), counting the
+    /// first as nought, which the two are run once for each ray with. Every other stage is pushed
+    /// nought and declares no block.
+    struct StageConstants
+    {
+        uint mRay;
+    };
+
     /// The columns and rows of a field one workgroup of a trace stage covers (`stagePixelOf`): 32
     /// lanes, one subgroup (`SubgroupSize::ThirtyTwo`), in AMD's eight by four for ray queries on
     /// RDNA, which keeps a wave's rays near each other. **Declared as one row of `TRACE_WORKGROUP_LANES`
@@ -38,6 +47,7 @@ namespace Rtx::Shaders
 
 #ifdef RTX_HOST
     static_assert(TRACE_WORKGROUP_LANES == 32u, "a trace workgroup that is not one subgroup of 32 lanes");
+    static_assert(sizeof(StageConstants) == 4, "StageConstants must be scalar-packed on every side");
 #endif
 
     /// How many tiles each of the stages' lists holds for a frame `width` by `height`: every

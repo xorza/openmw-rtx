@@ -3,7 +3,7 @@
 # `omw full` builds every program and runs every suite: on Ubuntu with GCC, with Clang (built, not
 # run), and on Windows with MSVC. macOS is compiled only: no device there traces rays, and `hdiutil`
 # fails on the runner's own "Resource busy". Upstream's GitLab checks run here too: the source checks,
-# warnings as errors, and its integration tests under Xvfb on the OpenGL renderer. No hosted runner
+# warnings as errors, and its integration tests over the ray tracer's null backend. No hosted runner
 # has a GPU, so `rtx-gpu-tests` is left out and the gate stays on a box with a card.
 #
 # **Each system on its newest image, Linux apart**: Ubuntu 24.04 is the base the AppImage is built on,
@@ -165,44 +165,17 @@ jobs:
         run: cmake --install build-full --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
-        # Upstream's, from its GitLab pipeline, on the example suite at the revision it pins, under the
-        # OpenGL renderer, named so the runner's missing ray tracing device opens no notice the tests
-        # would have to answer. No crash dialog and no fatal error box: under Xvfb either would wait
-        # for a click forever. A pass takes about a minute, and the limit ends a run that hangs.
+        # Upstream's, from its GitLab pipeline, on the example suite at the revision it pins: the ray
+        # tracer's game side whole over the null backend, which draws nothing and needs no device,
+        # in a window of SDL's offscreen driver, which needs no display. Their logs are under the
+        # build, which the logs step keeps. A pass takes about a minute, and the limit ends a run
+        # that hangs.
         if: matrix.tested && runner.os == 'Linux'
         timeout-minutes: 10
         env:
-          OPENMW_CRASH_DIALOG: "0"
-        run: |
-          # Read from upstream's pipeline, so a merge that moves the suite and the tests together
-          # moves this run with them.
-          revision=$(sed -n 's/^ *EXAMPLE_SUITE_REVISION: *\([0-9a-f]\{40\}\) *$/\1/p' .gitlab-ci.yml | sort -u)
-          if [ -z "$revision" ] || [ "$(wc -l <<< "$revision")" -ne 1 ]; then
-            echo "::error::.gitlab-ci.yml names no single example suite revision: ${revision:-none}"
-            exit 1
-          fi
-
-          sudo apt-get install -y xvfb git-lfs
-          git init -q example-suite
-          # The suite's game files are in LFS, whose filters the runner's image need not set.
-          git -C example-suite lfs install --local
-          git -C example-suite remote add origin https://gitlab.com/OpenMW/example-suite.git
-          git -C example-suite fetch -q --depth=1 origin "$revision"
-          git -C example-suite checkout -q FETCH_HEAD
-          suite="$GITHUB_WORKSPACE/example-suite"
-          printf '\n[RTX]\nenabled = false\n' >> "$suite/settings.cfg"
-          python omw full exec xvfb-run --auto-servernum --server-args='-screen 0 640x480x24x60' \
-            python3 "$GITHUB_WORKSPACE/scripts/integration_tests.py" \
-              --verbose \
-              --omw ./openmw \
-              --workdir "$GITHUB_WORKSPACE/integration_tests_output" \
-              --config "$suite" \
-              --data "$suite/game_template/data" \
-              --data "$suite/example_animated_creature/data" \
-              --data "$suite/the_hub/data" \
-              --data "$suite/integration_tests/data" \
-              --data "$suite/example_static_props/data" \
-              "$GITHUB_WORKSPACE/scripts/data/integration_tests"
+          OPENMW_RTX_BACKEND: "null"
+          SDL_VIDEO_DRIVER: offscreen
+        run: python omw full integration --verbose
 
       - name: Logs
         if: failure()
@@ -210,9 +183,8 @@ jobs:
         with:
           name: logs-${{ matrix.name }}-${{ github.sha }}
           build: build-full
-          more: |
-            integration_tests_output/**/*.log
-            integration_tests_output/**/*.cfg
+          # The settings each integration suite ran under, beside its log, which the build's keeps.
+          more: build-full/integration_tests_output/**/*.cfg
 
   macos:
     name: macos

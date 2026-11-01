@@ -48,12 +48,11 @@ namespace Rtx
         {
             Shaders::VisibilityConstants constants{};
 
-            // Every bounce, until a world says the reconstruction follows the frame —
-            // `VisibilityConstants::mBounceRate` says why a frame built by hand keeps them all.
-            constants.mBounceRate = 1.0f;
-
             // No day to lift, until a world says the sun is up.
             constants.mDaylightGain = 1.0f;
+
+            // One bounce ray, until a reconstruction says how many (`sampleFrame`).
+            constants.mBounceRays = 1;
 
             // Not zero, which would be sea level: a world with no water has to answer "how deep
             // is this point" with never, and only an infinity does that without a second

@@ -24,6 +24,7 @@
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -255,11 +256,12 @@ namespace Rtx
     inline constexpr std::uint32_t sMaxZoneCounters = 16;
 
     /// The most zones one frame may open: every zone there is, the tone pass of a summed run again,
-    /// and a second placement's, `Blas` to `Ground`, where a caller places the world again before it
-    /// traces, which the game never does. A frame that opens more is a broken contract, which
-    /// `GpuTimer` asserts.
+    /// a second placement's, `Blas` to `Ground`, where a caller places the world again before it
+    /// traces, which the game never does, and the bounce's and the landing's again for each bounce
+    /// ray past the first. A frame that opens more is a broken contract, which `GpuTimer` asserts.
     inline constexpr std::uint32_t sMaxGpuZones = static_cast<std::uint32_t>(sFrameZoneCount) + 1
-        + (static_cast<std::uint32_t>(FrameZone::Ground) - static_cast<std::uint32_t>(FrameZone::Blas) + 1);
+        + (static_cast<std::uint32_t>(FrameZone::Ground) - static_cast<std::uint32_t>(FrameZone::Blas) + 1)
+        + 2 * (Shaders::MAX_BOUNCE_RAYS - 1);
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
     /// cannot write timestamps or the renderer was made not to time (`RendererOptions::mTiming`).
@@ -507,6 +509,11 @@ namespace Rtx
         /// the next frame's picture has it. A finite number greater than nought: a caller that reads
         /// it from a file or a command line refuses anything else first.
         virtual void setGamma(float gamma) = 0;
+
+        /// `SamplingSwitches::mBounceRays` of `RenderProfile::mReconstruction`, changed while the frames
+        /// run: a slider moved in the menu, and the next frame traces that many. From one to
+        /// `Shaders::MAX_BOUNCE_RAYS`: a caller that reads it from a file refuses anything else first.
+        virtual void setBounceRays(std::uint32_t rays) = 0;
 
         /// How many of `set`'s kernels are made, waiting `patience` at most for the rest, and
         /// rethrowing what making one threw. The renderer starts making them as it is made, on

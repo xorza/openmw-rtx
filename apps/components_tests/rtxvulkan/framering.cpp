@@ -26,6 +26,17 @@ namespace Rtx
 {
     namespace
     {
+        /// What essential memory holds on every heap: a host-written buffer stands on the video heap
+        /// of a card with its own memory and on a host heap of one that shares the system's, as the
+        /// Radeon 680M does.
+        VkDeviceSize essentialHeld(const MemoryAllocator& memory)
+        {
+            VkDeviceSize held = 0;
+            for (std::uint32_t heap = 0; heap < VK_MAX_MEMORY_HEAPS; ++heap)
+                held += memory.getHeld(heap, MemoryUse::Essential);
+            return held;
+        }
+
         struct RtxFrameRingTest : Testing::DeviceTest
         {
             /// Records nothing and submits it, which is a frame as far as the ring is concerned.
@@ -107,14 +118,13 @@ namespace Rtx
             // One frame on the queue, and a buffer let go of while it is: its handle and its memory
             // each bury themselves, and the memory stays counted as held until it is given back.
             const MemoryAllocator& memory = getDevice().getMemory();
-            const std::uint32_t heap = memory.getVideoHeap();
-            const VkDeviceSize heldBefore = memory.getHeld(heap, MemoryUse::Essential);
+            const VkDeviceSize heldBefore = essentialHeld(memory);
             submitEmpty(ring);
             {
                 const Buffer dropped = Buffer::hostWritten(getDevice(), 16, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test");
             }
             EXPECT_EQ(graveyard.getHeldCount(), 2u) << "a buffer is its handle and its memory, each buried";
-            EXPECT_GT(memory.getHeld(heap, MemoryUse::Essential), heldBefore) << "memory given back as it was let go";
+            EXPECT_GT(essentialHeld(memory), heldBefore) << "memory given back as it was let go";
 
             // That frame done is not enough: the burial is stamped with the value of the submit
             // after it, which nothing has made.
@@ -131,7 +141,7 @@ namespace Rtx
             ring.finishAll();
             EXPECT_EQ(ended, (std::vector<std::uint64_t>{ 1, 2 }));
             EXPECT_EQ(graveyard.getHeldCount(), 1u) << "held past the submit that retired it";
-            EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential), heldBefore) << "the buffer's memory kept";
+            EXPECT_EQ(essentialHeld(memory), heldBefore) << "the buffer's memory kept";
 
             submitEmpty(ring);
             ring.finishAll();

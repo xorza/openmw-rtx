@@ -585,7 +585,7 @@ namespace Rtx
         ///
         /// A default albedo of a half, Lambertian, square to a sun of one: `0.5 * 1.0 / pi = 0.159155`
         /// linear, at the exposure of one a picture is held at, through the curve `displayedGrey`
-        /// follows — 98 of 255.
+        /// follows — 97 of 255.
         std::array<std::uint8_t, 4> sheetLit()
         {
             const std::uint8_t grey = Testing::displayedGrey(0.5f * Shaders::INV_PI);
@@ -719,7 +719,7 @@ namespace Rtx
             EXPECT_EQ(inTexture(texture, extent, 8, 8), sheetLit()) << "the sheet, lit";
 
             // **And at the player's gamma, as it was.** A picture inside the interface keeps the
-            // interface's values, and a gamma of two would lift 98 to 158.
+            // interface's values, and a gamma of two would lift 97 to 157.
             mRenderer.setGamma(2.0f);
             mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
             EXPECT_EQ(inTexture(texture, extent, 8, 8), sheetLit()) << "the sheet, lit, under a gamma";
@@ -1138,15 +1138,15 @@ namespace Rtx
             // `aTracedPictureFillsAGuiTextureAndSaysWhereItStops` holds to `sheetLit`'s grey `g` at
             // an alpha of 64, over grey, through a vertex alpha of `f = 128 / 255`: the colour is taken
             // as it is and weighed by `f`, and the grey is left `1 - f * 64 / 255` of itself. At the
-            // 98 `g` comes to that is `98 f + 128 (1 - f * 64 / 255)` = 49.19 + 111.87 = 161.07, or
-            // 161; blended straight it would be `98 * (f * 64 / 255) + 128 (1 - f * 64 / 255)` =
-            // 12.35 + 111.87 = 124.2, or 124.
+            // 97 `g` comes to under the tone curve `look.h` states, that is `97 f + 128 (1 - f * 64 /
+            // 255)` = 48.69 + 111.87 = 160.56, or 161; blended straight it would be `97 * (f * 64 /
+            // 255) + 128 (1 - f * 64 / 255)` = 12.22 + 111.87 = 124.09, or 124.
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
             mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
             const std::uint8_t g = sheetLit()[0];
-            ASSERT_EQ(g, 98);
+            ASSERT_EQ(g, 97);
             ASSERT_EQ(inTexture(texture, extent, 8, 8), (std::array<std::uint8_t, 4>{ g, g, g, 64 }));
 
             const GuiSlot grey = makeTexel({ 128, 128, 128, 255 });

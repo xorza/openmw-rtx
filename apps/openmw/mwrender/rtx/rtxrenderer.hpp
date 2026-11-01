@@ -83,8 +83,8 @@ namespace MWRender
     class TracedView;
     enum class ViewKind;
 
-    /// The picture as rays find it: a window, a mirror of the scene graph, and a trace. It names a
-    /// graphics API in one line — the constructor calls `Rtx::createVulkanRenderer` — and initialises
+    /// The picture as rays find it: a window, a mirror of the scene graph, and a trace. It names no
+    /// graphics API — the constructor asks `createBackend` for the backend the run names — and initialises
     /// no OpenGL anywhere: the window is an SDL surface the backend builds on. It drives the frame
     /// itself, the scene-graph half of what `osgViewer::Viewer` does, with no cull because rays go
     /// everywhere; the mirror runs after the update traversal and the present after the mirror.

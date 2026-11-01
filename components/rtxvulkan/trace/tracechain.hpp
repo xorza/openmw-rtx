@@ -60,11 +60,11 @@ namespace Rtx
             const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
 
         /// The images a chain at this extent uses inside one stretch of a frame, which an arena places
-        /// (`ImageArena`): the trace's stage images, the denoiser's scratch, then the canvas the
-        /// display lays the puffs over, at `radiance`'s format, appended to `into`. `resize` takes
-        /// them in this order.
-        static void declareShared(
-            std::uint32_t width, std::uint32_t height, RadianceWidth radiance, std::vector<ArenaImage>& into);
+        /// (`ImageArena`): the trace's stage images for `bounceRays` bounce rays, the denoiser's
+        /// scratch, then the canvas the display lays the puffs over, at `radiance`'s format, appended
+        /// to `into`. `resize` takes them in this order.
+        static void declareShared(std::uint32_t width, std::uint32_t height, RadianceWidth radiance,
+            std::uint32_t bounceRays, std::vector<ArenaImage>& into);
 
         /// How many images `declareShared` declares.
         static std::size_t getSharedCount();

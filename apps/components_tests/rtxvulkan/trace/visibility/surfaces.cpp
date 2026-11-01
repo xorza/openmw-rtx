@@ -64,6 +64,24 @@ namespace Rtx::Testing
 {
     namespace
     {
+        /// The six walls of a cube `half` either way of the origin, every one wearing `walls` but the
+        /// one the eye looks at along +Y, which wears `ahead`.
+        void addBox(SceneDesc& scene, float half, Index walls, Index ahead)
+        {
+            const std::array<std::array<osg::Vec3f, 4>, 6> faces{ {
+                sheetAt(half, -half),
+                sheetAt(half, half),
+                uprightQuadAt(half, -half),
+                uprightQuadAt(half, half),
+                { osg::Vec3f(-half, -half, -half), osg::Vec3f(-half, half, -half), osg::Vec3f(-half, half, half),
+                    osg::Vec3f(-half, -half, half) },
+                { osg::Vec3f(half, -half, -half), osg::Vec3f(half, half, -half), osg::Vec3f(half, half, half),
+                    osg::Vec3f(half, -half, half) },
+            } };
+            for (std::size_t face = 0; face < faces.size(); ++face)
+                addQuad(scene, faces[face], face == 3 ? ahead : walls);
+        }
+
         /// The tests in this file that ask the tables rather than the picture, so they want a device
         /// where the others want a renderer.
         struct RtxSceneTableTest : DeviceTest
@@ -1916,6 +1934,11 @@ namespace Rtx::Testing
         /// of a fifth. The sun stands up and lights nothing in the box, so both runs hold landings
         /// (`indirectGatherDrawn`). The walls glow and then go dark: a landing visited brings back
         /// less once they do, and one left out keeps the glow the frame before brought it.
+        ///
+        /// **And every bounce ray's landing is visited, each worth its share**, in both runs: the box is
+        /// a furnace, so whatever direction a ray takes it lands on a wall glowing `G`, and `N` rays
+        /// each worth `1 / N` bring back `G` again — exactly, for a power of two, a sum of halves. A
+        /// ray's list left unvisited, or a ray worth one, moves the pixel off it.
         TEST_F(RtxVisibilityTest, everyLandingOfAListLongerThanARowIsVisited)
         {
             constexpr std::uint32_t size = 384;
@@ -1929,30 +1952,20 @@ namespace Rtx::Testing
                 SceneDesc scene;
                 const Index walls = scene.addMaterial(Material{
                     .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mEmissiveColour = glow, .mTwoSided = true });
-                const std::array<std::array<osg::Vec3f, 4>, 6> faces{ {
-                    sheetAt(half, -half),
-                    sheetAt(half, half),
-                    uprightQuadAt(half, -half),
-                    uprightQuadAt(half, half),
-                    { osg::Vec3f(-half, -half, -half), osg::Vec3f(-half, half, -half), osg::Vec3f(-half, half, half),
-                        osg::Vec3f(-half, -half, half) },
-                    { osg::Vec3f(half, -half, -half), osg::Vec3f(half, half, -half), osg::Vec3f(half, half, half),
-                        osg::Vec3f(half, -half, half) },
-                } };
-                for (const std::array<osg::Vec3f, 4>& face : faces)
-                    addQuad(scene, face, walls);
+                addBox(scene, half, walls, walls);
                 return scene;
             };
+            const auto indirect = [&](const SceneDesc& scene, std::uint32_t rays) {
+                std::vector<float> read;
+                EXPECT_EQ(shoot(scene, {}, camera, size, { .mBounceRays = rays }).mHits, size * size);
+                mProbe.readChannel(Channel::Indirect, read);
+                EXPECT_EQ(read.size(), std::size_t{ size } * size * 4);
+                return read;
+            };
 
-            std::vector<float> glowing;
-            EXPECT_EQ(shoot(box(osg::Vec3f(1.0f, 1.0f, 1.0f)), {}, camera, size).mHits, size * size);
-            mProbe.readChannel(Channel::Indirect, glowing);
-
-            std::vector<float> dark;
-            EXPECT_EQ(shoot(box(osg::Vec3f()), {}, camera, size).mHits, size * size);
-            mProbe.readChannel(Channel::Indirect, dark);
-
-            ASSERT_EQ(glowing.size(), std::size_t{ size } * size * 4);
+            const osg::Vec3f glow(1.0f, 1.0f, 1.0f);
+            const std::vector<float> glowing = indirect(box(glow), 1);
+            const std::vector<float> dark = indirect(box(osg::Vec3f()), 1);
             ASSERT_EQ(dark.size(), glowing.size());
             std::size_t kept = 0;
             for (std::size_t pixel = 0; pixel < std::size_t{ size } * size; ++pixel)
@@ -1962,6 +1975,98 @@ namespace Rtx::Testing
                 kept += after < before ? 0 : 1;
             }
             EXPECT_EQ(kept, 0u) << "landings no workgroup visited";
+
+            for (const std::uint32_t rays : { 2u, 3u, 4u })
+            {
+                const std::vector<float> averaged = indirect(box(glow), rays);
+                ASSERT_EQ(averaged.size(), glowing.size());
+                std::size_t off = 0;
+                for (std::size_t value = 0; value < glowing.size(); value += 4)
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        off += averaged[value + channel] == glowing[value + channel] ? 0 : 1;
+                EXPECT_EQ(off, 0u) << rays << " rays: channels off the furnace's G";
+            }
+        }
+
+        /// **Each bounce ray takes a direction of its own, from the solid the eye found.** The box again,
+        /// dark but for the wall behind the eye, which glows `G`: what one ray brings back is `G` where
+        /// it lands on that wall and nought where it lands on another, so `N` rays bring back `k G / N`,
+        /// `k` the rays that met it — exactly, for a power of two. Rays that all took one direction
+        /// would leave every pixel at nought or `G`; four that took their own leave many at every step
+        /// between. **And every ray leaves the solid**: the share of rays that met the wall, over the
+        /// frame, is one ray's over four frames, to four standard errors of 16,384 draws of a share
+        /// near a fifth, 0.0125. A ray that left the ray before it's landing would meet it less, and
+        /// from its own glowing wall never.
+        TEST_F(RtxVisibilityTest, eachBounceRayTakesADirectionOfItsOwn)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float half = 100.0f;
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 30.0f, size, size, 10000.0f);
+
+            SceneDesc scene;
+            const Index dark
+                = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
+            const Index glowing = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
+                .mEmissiveColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                .mTwoSided = true });
+            const std::array<std::array<osg::Vec3f, 4>, 6> faces{ {
+                sheetAt(half, -half),
+                sheetAt(half, half),
+                uprightQuadAt(half, -half),
+                uprightQuadAt(half, half),
+                { osg::Vec3f(-half, -half, -half), osg::Vec3f(-half, half, -half), osg::Vec3f(-half, half, half),
+                    osg::Vec3f(-half, -half, half) },
+                { osg::Vec3f(half, -half, -half), osg::Vec3f(half, half, -half), osg::Vec3f(half, half, half),
+                    osg::Vec3f(half, -half, half) },
+            } };
+            for (std::size_t face = 0; face < faces.size(); ++face)
+                addQuad(scene, faces[face], face == 2 ? glowing : dark);
+
+            const auto indirect = [&](std::uint32_t rays) {
+                std::vector<float> read;
+                EXPECT_EQ(shoot(scene, {}, camera, size, { .mBounceRays = rays }).mHits, size * size);
+                mProbe.readChannel(Channel::Indirect, read);
+                EXPECT_EQ(read.size(), std::size_t{ size } * size * 4);
+                return read;
+            };
+
+            const std::vector<float> one = indirect(1);
+            const float lit = *std::max_element(one.begin(), one.end());
+            ASSERT_GT(lit, 0.0f) << "no ray met the glowing wall, so this proves nothing";
+
+            constexpr std::uint32_t rays = 4;
+            const std::vector<float> four = indirect(rays);
+            ASSERT_EQ(four.size(), one.size());
+            std::size_t off = 0;
+            std::size_t between = 0;
+            for (std::size_t value = 0; value < four.size(); value += 4)
+            {
+                const float met = four[value] / lit * static_cast<float>(rays);
+                off += met == std::round(met) && met >= 0.0f && met <= static_cast<float>(rays) ? 0 : 1;
+                between += met > 0.0f && met < static_cast<float>(rays) ? 1 : 0;
+            }
+            EXPECT_EQ(off, 0u) << "pixels not a whole number of quarters of the wall's glow";
+
+            double sharedFour = 0.0;
+            for (std::size_t value = 0; value < four.size(); value += 4)
+                sharedFour += static_cast<double>(four[value] / lit);
+            double sharedOne = 0.0;
+            for (std::uint32_t frame = 0; frame < rays; ++frame)
+            {
+                Shaders::VisibilityConstants framed = camera;
+                framed.mFrame = frame + 1;
+                std::vector<float> read;
+                EXPECT_EQ(shoot(scene, {}, framed, size).mHits, size * size);
+                mProbe.readChannel(Channel::Indirect, read);
+                for (std::size_t value = 0; value < read.size(); value += 4)
+                    sharedOne += static_cast<double>(read[value] / lit) / rays;
+            }
+            const double pixels = static_cast<double>(size) * size;
+            EXPECT_NEAR(sharedFour / pixels, sharedOne / pixels, 0.0125) << "the share of rays that met the wall";
+            EXPECT_GT(between * 4, std::size_t{ size } * size) << "pixels between nought and G, which one shared "
+                                                                  "direction would leave none of";
         }
 
         /// **A footprint is read along its long axis only as far as the setting lets it.** Ground seen

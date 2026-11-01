@@ -184,17 +184,6 @@ namespace Rtx::Shaders
         /// cell part open to the sky would want.
         float mAmbientFromSky;
 
-        /// What share of the eye's hits trace their bounce: `BOUNCE_RATE`, or every one of them.
-        ///
-        /// **In the block and not read off `look.h` beside its two siblings, because no scene dodges
-        /// it.** The two rates at the hit never reach a figure a test asserts, since a test's bounce
-        /// escapes to the sky and an escape is not a hit. This one rates the escape too, so under it
-        /// a pixel's indirect term is nought or twice itself whatever the scene holds, and a test
-        /// that reads one pixel reads a coin. `Rtx::describeWorld` writes the rate on every frame a
-        /// world draws, which is a frame the reconstruction follows; a frame assembled by hand
-        /// traces every bounce and reads exactly.
-        float mBounceRate;
-
         /// The day's gain, `Rtx::Skylight::mDaylightGain`, for what the sky draws from a constant
         /// rather than from a term the host already lifted: a moon's face at `MOON_RADIANCE`. One in
         /// a frame built by hand.
@@ -487,17 +476,23 @@ namespace Rtx::Shaders
         /// `LAMP_CANDIDATES` unless a run names another, `Rtx::Reconstruction::mLampCandidates`.
         uint mLampCandidates;
 
+        /// How many bounce rays the eye's surface traces, from one to `MAX_BOUNCE_RAYS` —
+        /// `Rtx::SamplingSwitches::mBounceRays`: the player's `[RTX] bounce rays` in the world's frame,
+        /// and one in a picture's and a frame built by hand. The bounce's and the landing's stages run
+        /// once a ray, each worth one over their count (`startBounce`).
+        uint mBounceRays;
+
         /// Where inside its pixel the previous frame sampled — its world eye's jitter — or this
         /// frame's where it has none: the one source of it for every history and for the
         /// upscaler, `Rtx::sampleFrame`.
         vec2 mPreviousJitter;
 
-        /// Where every table a hit reads is. `GpuTables` says why it rides here.
-        ///
         /// To the eight bytes `mTables` stands on, named so that every byte of the block is a field a
         /// copy carries and a comparison reads: an implicit pad is what neither does.
         uint mPadding RTX_ZERO;
 
+        /// Where every table a hit reads is. `GpuTables` says why it rides here.
+        ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
         /// pad the middle of a struct two languages have to agree on, and the offset asserted below
         /// pins where it landed. Everything above it is four-aligned and sums to a multiple of
