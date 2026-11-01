@@ -1870,9 +1870,12 @@ namespace Rtx::Testing
                     Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "face", .mRefNum = ESM::RefNum{ at, 0 } });
             ShortMorph content;
 
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
+            CellReader reader(CellWorld{ .mStorage = &storage,
+                .mGround = &land,
+                .mContent = &content,
+                .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
             for (int pass = 0; pass < 3; ++pass)
-                reader.giveBack(reader.read(osg::Vec2i(0, 0), true));
+                reader.giveBack(reader.read(osg::Vec2i(0, 0)));
 
             EXPECT_EQ(storage.mModelsAsked, 1) << "the storage was asked for a record's model more than once";
         }
@@ -1893,11 +1896,14 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Image> looseGrass = new osg::Image;
             looseGrass->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE);
             content.mImages.put("textures/grass.dds", looseGrass);
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
+            CellReader reader(CellWorld{ .mStorage = &storage,
+                .mGround = &land,
+                .mContent = &content,
+                .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
 
-            PreparedCell& west = reader.read(osg::Vec2i(0, 0), true);
+            PreparedCell& west = reader.read(osg::Vec2i(0, 0));
             EXPECT_EQ(content.mImages.getOpened(), 3u) << "grass, rock and the rock's normal map";
-            PreparedCell& east = reader.read(osg::Vec2i(1, 0), true);
+            PreparedCell& east = reader.read(osg::Vec2i(1, 0));
             EXPECT_EQ(content.mImages.getOpened(), 3u) << "a file opened again while a cell held it";
 
             ASSERT_EQ(east.mGround.mLayers.size(), 2u);
@@ -1932,7 +1938,7 @@ namespace Rtx::Testing
             }
 
             content.mImages.lose("textures/grass.dds");
-            PreparedCell& again = reader.read(osg::Vec2i(0, 0), true);
+            PreparedCell& again = reader.read(osg::Vec2i(0, 0));
             EXPECT_EQ(content.mImages.getOpened(), 6u) << "a reading given back was kept";
             ASSERT_EQ(again.mGround.mLayers.size(), 2u);
             EXPECT_EQ(again.mGround.mLayers[0].mTexture->mImage, nullptr);
@@ -1965,6 +1971,42 @@ namespace Rtx::Testing
             /// The reading thread's alone.
             bool mHeldOnce = false;
         };
+
+        /// **A room between two walks at one eye forgets the ask the band was counted by**, with the
+        /// counts it zeroed. The reader is held inside the band's first cell, so nothing is taken
+        /// between the three walks and the third asks exactly what the first did: kept, the ask
+        /// answered "unchanged", and the band stood back outside with nought left to stand while
+        /// every cell of it was still being read.
+        TEST_F(RtxCellRingTest, aRoomBetweenTwoWalksAtOneEyeForgetsTheAskTheBandWasCountedBy)
+        {
+            HeldContent held;
+            mRing.setSettled(false);
+            mAround.mWorld = CellWorld{
+                .mStorage = &mStorage,
+                .mGround = &mLand,
+                .mContent = &held,
+                .mWorldspace = ESM::Cell::sDefaultWorldspaceId,
+                .mMask = ~0u,
+                .mAbove = mEmpty->getStateSet(),
+            };
+
+            walk(mWalked++);
+            held.mEntered.acquire();
+            const std::uint32_t lacking = mRing.getCellsToStand();
+            ASSERT_GT(lacking, 0u) << "the band was whole before anything was read";
+
+            mAround.mExterior = false;
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getCellsToStand(), 0u) << "a room stands nothing";
+
+            mAround.mExterior = true;
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getCellsToStand(), lacking) << "back outside, the band counted nothing left";
+
+            // The thread is let go and joined while the content it reads still stands.
+            held.mLetGo.release();
+            mRing.follow(WorldAround{});
+        }
 
         /// **An ask for nothing cancels the list in flight**, as a newer list does: the eye has
         /// moved and nothing it lacked is lacked now. It left the list to be read to its end,
@@ -2089,13 +2131,11 @@ namespace Rtx::Testing
         {
             HeldCell held;
             held.mCell = osg::Vec2i(3, -2);
-            held.mStatics = true;
             held.mShown = 5;
             held.mLights.reserve(8);
 
             held.reuse();
             EXPECT_EQ(held.mCell, osg::Vec2i());
-            EXPECT_FALSE(held.mStatics);
             EXPECT_EQ(held.mShown, 0u);
             EXPECT_TRUE(held.mLights.empty());
             EXPECT_EQ(held.mLights.capacity(), 8u) << "the room the list grew was given back";
@@ -2109,13 +2149,16 @@ namespace Rtx::Testing
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "tree.nif" });
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "broken.nif" });
             FewContent content;
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
+            CellReader reader(CellWorld{ .mStorage = &storage,
+                .mGround = &land,
+                .mContent = &content,
+                .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
 
             const ReaderMemory none = reader.measure();
             EXPECT_EQ(none.mLentModels + none.mSpareModels, 0u);
             EXPECT_EQ(none.mLentBytes + none.mSpareBytes, 0u);
 
-            PreparedCell& cell = reader.read(osg::Vec2i(0, 0), true);
+            PreparedCell& cell = reader.read(osg::Vec2i(0, 0));
             ASSERT_EQ(cell.mModels.size(), 1u);
             PreparedModel& tree = *cell.mModels.front();
             ASSERT_FALSE(tree.mPositions.empty()) << "the sheet was read";
@@ -2151,12 +2194,15 @@ namespace Rtx::Testing
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "face" });
             ShortMorph content;
 
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr, nullptr);
+            CellReader reader(CellWorld{ .mStorage = &storage,
+                .mGround = &land,
+                .mContent = &content,
+                .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
 
             const int held = content.mFace->referenceCount();
             for (int pass = 0; pass < 3; ++pass)
             {
-                PreparedCell& cell = reader.read(osg::Vec2i(0, 0), true);
+                PreparedCell& cell = reader.read(osg::Vec2i(0, 0));
                 EXPECT_TRUE(cell.mModels.empty()) << "a model the walk refused was named";
                 EXPECT_TRUE(cell.mRefs.empty());
                 reader.giveBack(cell);

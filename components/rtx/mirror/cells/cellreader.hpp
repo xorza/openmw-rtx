@@ -20,6 +20,7 @@
 #include <components/terrain/storage.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "cellworld.hpp"
 #include "groundreader.hpp"
 #include "prepared.hpp"
 #include "readermemory.hpp"
@@ -39,20 +40,17 @@ namespace Rtx
     class CellReader
     {
     public:
-        /// @param mask which nodes the walk of a template may descend into — the frame walk's own
-        ///        traversal mask, so the two reach the same drawables.
-        /// @param groundcover the world's groundcover, or null for a world with none.
-        /// @param above the state set every reference stands under, `CellWorld::mAbove`.
-        CellReader(const Terrain::ObjectStorage& storage, Terrain::Storage& ground, ContentSource& content,
-            ESM::RefId worldspace, osg::Node::NodeMask mask, GroundcoverSource* groundcover,
-            const osg::StateSet* above);
+        /// Reads what `world` names, which is readable (`CellWorld::isReadable`): the walk of a
+        /// template descends into what its mask lets the frame walk reach, so the two reach the
+        /// same drawables, and every reference stands under its `mAbove`.
+        explicit CellReader(const CellWorld& world);
 
         /// Reads the cell at `cell`: its ground, the lights of its `LIGH` references, and — where
-        /// `statics` — every reference that names a model with something to trace, a lamp's
-        /// included, as one `PreparedRef` each. The cell is lent, and `giveBack` is where it returns; every model and
-        /// every ground texture it names is lent to it as well, one hold each, and those come back
-        /// on their own.
-        PreparedCell& read(const osg::Vec2i& cell, bool statics);
+        /// the world reads its statics — every reference that names a model with something to
+        /// trace, a lamp's included, as one `PreparedRef` each. The cell is lent, and `giveBack` is
+        /// where it returns; every model and every ground texture it names is lent to it as well,
+        /// one hold each, and those come back on their own.
+        PreparedCell& read(const osg::Vec2i& cell);
 
         /// Takes a cell back, once the frame has copied what it wanted of it.
         void giveBack(PreparedCell& cell);
@@ -80,7 +78,7 @@ namespace Rtx
     private:
         /// Reads the cell into `prepared`, which `read` has taken and lends after: the whole of a
         /// read but the pool's part.
-        void fill(PreparedCell& prepared, const osg::Vec2i& cell, bool statics);
+        void fill(PreparedCell& prepared, const osg::Vec2i& cell);
 
         /// What `readLamp` carried of a reference.
         struct CarriedLamp
@@ -139,6 +137,7 @@ namespace Rtx
         ESM::RefId mWorldspace;
         osg::Node::NodeMask mMask;
         GroundcoverSource* mGroundcover;
+        bool mStatics;
 
         GroundReader mGround;
         TemplateWalk mWalk;

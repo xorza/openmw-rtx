@@ -124,11 +124,6 @@ namespace Rtx
         mGrassBandHeld = 0;
     }
 
-    void CellRing::setStaticsEnabled(const bool enabled)
-    {
-        mStatics = enabled;
-    }
-
     void CellRing::setSettled(const bool settled)
     {
         mSettled = settled;
@@ -232,17 +227,11 @@ namespace Rtx
             // Counted as it arrives, so the frame knows of every model a cell it may adopt names.
             know(cell->mModels);
 
-            // The switch is a setting the game can move while it runs, and a cell read under the
-            // other answer is read again. **Never a second copy under the same answer**: the supply
-            // reads a cell once while it is on its way (`CellSupply`), and a copy adopted twice
-            // would stand every reference twice.
-            Crash::contract(
-                cell->mStatics != mStatics || (!handed(mHanded, cell->mCell) && !mPlacer.holds(cell->mCell)),
+            // **Never a second copy**: the supply reads a cell once while it is on its way
+            // (`CellSupply`), and a copy adopted twice would stand every reference twice.
+            Crash::contract(!handed(mHanded, cell->mCell) && !mPlacer.holds(cell->mCell),
                 "the supply handed over a cell the ring already had");
-            if (cell->mStatics != mStatics)
-                discard(*cell);
-            else
-                mHanded.push_back(cell);
+            mHanded.push_back(cell);
             ++mTaken;
         }
 
@@ -260,6 +249,17 @@ namespace Rtx
         mDoneGrassScratch.clear();
     }
 
+    void CellRing::standNothing()
+    {
+        // The ask with its counts: an ask kept past them answers the next walk that asks the same
+        // as unchanged, and leaves the counts at nought over a band that still lacks its cells.
+        mAsked.reset();
+        mBandCells = 0;
+        mGrassBandCells = 0;
+        mBandHeld = 0;
+        mGrassBandHeld = 0;
+    }
+
     void CellRing::ask(const osg::Vec3f& eye, const float band, const float grassBand)
     {
         // Rebuilt only when what it is made from moved. Otherwise it is the list the supply already
@@ -270,7 +270,6 @@ namespace Rtx
             .mEye = eye,
             .mBand = band,
             .mGrassBand = grassBand,
-            .mStatics = mStatics,
             .mHeld = getHeldCellCount(),
             .mHanded = mHanded.size(),
             .mGrassHeld = getHeldGrassCount(),
@@ -283,7 +282,6 @@ namespace Rtx
         mAsked = inputs;
 
         mAsking.clear();
-        mAsking.mStatics = mStatics;
 
         const CellGrid& grid = mAround.mWorld.mGrid;
         mBandCells = 0;
@@ -338,11 +336,10 @@ namespace Rtx
     void CellRing::waitForNext(const osg::Vec3f& eye, const float band, const float grassBand)
     {
         // **The nearest cell wanted, and not the first handed.** Everything in the band is asked
-        // or handed, so nothing that arrives during the wait comes before it. A cell read under the
-        // other answer to the statics switch, or one of a band that left, is not what the wait
-        // waited for: the first thing the reader hands over after a move is usually a cell nothing
-        // wants any more. The grass the same: a settled walk adopts its one cell's grass on the
-        // frame two runs agree on, or their pictures part.
+        // or handed, so nothing that arrives during the wait comes before it. A cell of a band that
+        // left is not what the wait waited for: the first thing the reader hands over after a move
+        // is usually a cell nothing wants any more. The grass the same: a settled walk adopts its
+        // one cell's grass on the frame two runs agree on, or their pictures part.
         const Nearer nearer{ .mGrid = mAround.mWorld.mGrid, .mEye = eye };
         const std::optional<osg::Vec2i> cell = owedOf(mAsking.mCells, mHanded, nearer);
         const std::optional<osg::Vec2i> grass = owedOf(mAsking.mGrass, mHandedGrass, nearer);
@@ -514,10 +511,7 @@ namespace Rtx
         // outlive the walk that asked over it.
         if (!mSupply.hasReader())
         {
-            mBandCells = 0;
-            mGrassBandCells = 0;
-            mBandHeld = 0;
-            mGrassBandHeld = 0;
+            standNothing();
             return;
         }
 
@@ -527,10 +521,7 @@ namespace Rtx
         // what is held stays held for the way back out, and nothing stands.
         if (!mAround.mExterior)
         {
-            mBandCells = 0;
-            mGrassBandCells = 0;
-            mBandHeld = 0;
-            mGrassBandHeld = 0;
+            standNothing();
             mPlacer.dropSlots();
             mSupply.publish();
             return;
@@ -541,13 +532,10 @@ namespace Rtx
         // frame a cell crosses into the reach owes only its placements.
         const float band = mAround.mReach + mAround.mWorld.mGrid.getCellSize();
 
-        // A cell held with the statics the other way is dropped whole and read again, for the
-        // reason `takeDone` gives.
+        // A cell past what the band keeps goes whole.
         const float kept = keptTo(band);
         mPlacer.dropUnless(
-            [&](const HeldCell& cell) {
-                return mAround.mWorld.mGrid.withinReach(cell.mCell, eye, kept) && cell.mStatics == mStatics;
-            },
+            [&](const HeldCell& cell) { return mAround.mWorld.mGrid.withinReach(cell.mCell, eye, kept); },
             [&](const HeldCell& cell) { letGo(cell); });
 
         // A cell's grass past what the grass band keeps goes whole, and all of it where the world

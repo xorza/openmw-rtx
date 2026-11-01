@@ -82,17 +82,16 @@ namespace Rtx
         }
     }
 
-    CellReader::CellReader(const Terrain::ObjectStorage& storage, Terrain::Storage& ground, ContentSource& content,
-        const ESM::RefId worldspace, const osg::Node::NodeMask mask, GroundcoverSource* const groundcover,
-        const osg::StateSet* const above)
-        : mStorage(storage)
-        , mContent(content)
-        , mWorldspace(worldspace)
-        , mMask(mask)
-        , mGroundcover(groundcover)
-        , mGround(ground, worldspace)
-        , mWalk(above)
-        , mCollector(storage.makeCollector())
+    CellReader::CellReader(const CellWorld& world)
+        : mStorage(*Crash::notNull(world.mStorage, "a reader of a world with no storage"))
+        , mContent(*Crash::notNull(world.mContent, "a reader of a world with no content"))
+        , mWorldspace(world.mWorldspace)
+        , mMask(world.mMask)
+        , mGroundcover(world.mGroundcover)
+        , mStatics(world.mStatics)
+        , mGround(*Crash::notNull(world.mGround, "a reader of a world with no land"), world.mWorldspace)
+        , mWalk(world.mAbove)
+        , mCollector(mStorage.makeCollector())
     {
     }
 
@@ -204,20 +203,19 @@ namespace Rtx
         return anchored->second;
     }
 
-    PreparedCell& CellReader::read(const osg::Vec2i& cell, const bool statics)
+    PreparedCell& CellReader::read(const osg::Vec2i& cell)
     {
         PreparedCell& prepared = mCells.take([&](PreparedCell& into) {
-            fill(into, cell, statics);
+            fill(into, cell);
             into.mPreprocessed = mWalk.takeStats();
         });
         mCells.lend(prepared);
         return prepared;
     }
 
-    void CellReader::fill(PreparedCell& prepared, const osg::Vec2i& cell, const bool statics)
+    void CellReader::fill(PreparedCell& prepared, const osg::Vec2i& cell)
     {
         prepared.mCell = cell;
-        prepared.mStatics = statics;
 
         mGround.read(cell, prepared.mGround);
 
@@ -247,7 +245,7 @@ namespace Rtx
         for (const Terrain::PagedCellRef& ref : mRefScratch)
         {
             const CarriedLamp lamp = readLamp(ref, prepared);
-            if (statics)
+            if (mStatics)
                 readStatic(ref, lamp, prepared);
         }
     }

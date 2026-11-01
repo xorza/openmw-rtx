@@ -76,10 +76,6 @@ namespace Rtx
         /// `CellPlacer::setNightDay`. Told once a frame, before the walk.
         void follow(const WorldAround& around);
 
-        /// Whether the ring stands the distance's statics at all. The ground stands either way;
-        /// off is the A/B `--distant-statics=false` is, and a change of it reads every cell again.
-        void setStaticsEnabled(bool enabled);
-
         void setMinSize(float minSize) { mPlacer.setMinSize(minSize); }
 
         /// Whether a walk waits for the cell it is about to adopt, so which frame a cell is adopted
@@ -174,14 +170,17 @@ namespace Rtx
         template <class Prepared>
         void adoptModels(Prepared& prepared);
 
-        /// Moves the supply's finished cells into the frame's own list, counting their models. A
-        /// cell read with the statics the other way is let go of here.
+        /// Moves the supply's finished cells into the frame's own list, counting their models.
         void takeDone();
 
         /// Hands the supply the cells the prepared disc lacks and the cells whose groundcover the
         /// grass disc lacks, nearest first. `band` is the disc's radius in units, which is the reach
         /// and the prepared band past it, and `grassBand` the grass disc's, nought for none.
         void ask(const osg::Vec3f& eye, float band, float grassBand);
+
+        /// Forgets the last ask and the band's counts made from it, for a walk that stands nothing:
+        /// indoors, or with no reader.
+        void standNothing();
 
         /// Gives back every handed cell past what the band keeps (`keptTo`), and every handed cell's
         /// grass past what the grass band keeps. Run after every `takeDone`, because what was handed
@@ -260,7 +259,6 @@ namespace Rtx
 
         Stepped<Turn> mTurn{ Turn::Collected };
 
-        bool mStatics = true;
         bool mSettled = false;
 
         /// What a request is made from. `ask` rebuilds the whole band, and nothing else on the frame
@@ -272,7 +270,6 @@ namespace Rtx
             osg::Vec3f mEye;
             float mBand = 0.0f;
             float mGrassBand = 0.0f;
-            bool mStatics = true;
             std::size_t mHeld = 0;
             std::size_t mHanded = 0;
             std::size_t mGrassHeld = 0;

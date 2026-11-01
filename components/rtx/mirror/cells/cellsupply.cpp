@@ -16,7 +16,6 @@ namespace Rtx
         // the next one to reach the frame's side refills.
         mCells.swap(from.mCells);
         mGrass.swap(from.mGrass);
-        mStatics = from.mStatics;
 
         from.clear();
     }
@@ -72,8 +71,7 @@ namespace Rtx
         if (!mWorld.isReadable())
             return;
 
-        mReader = std::make_unique<CellReader>(*mWorld.mStorage, *mWorld.mGround, *mWorld.mContent, mWorld.mWorldspace,
-            mWorld.mMask, mWorld.mGroundcover, mWorld.mAbove);
+        mReader = std::make_unique<CellReader>(mWorld);
         mWorker.start("cell reader", [this](const Platform::StopToken& stop) { work(stop); });
     }
 
@@ -166,11 +164,10 @@ namespace Rtx
             });
     }
 
-    bool CellSupply::onTheWay(const osg::Vec2i& cell, const bool grass, const bool statics) const
+    bool CellSupply::onTheWay(const osg::Vec2i& cell, const bool grass) const
     {
-        return std::any_of(mOnTheWay.begin(), mOnTheWay.end(), [&](const Handed& handed) {
-            return handed.mCell == cell && handed.mGrass == grass && (grass || handed.mStatics == statics);
-        });
+        return std::any_of(mOnTheWay.begin(), mOnTheWay.end(),
+            [&](const Handed& handed) { return handed.mCell == cell && handed.mGrass == grass; });
     }
 
     bool CellSupply::superseded()
@@ -193,7 +190,7 @@ namespace Rtx
             if (stop.stopRequested() || superseded())
                 return;
 
-            if (onTheWay(cell, true, mReading.mStatics))
+            if (onTheWay(cell, true))
                 continue;
 
             const Crash::NoteScope noted("reading the groundcover of the cell {}, {}", cell.x(), cell.y());
@@ -212,17 +209,17 @@ namespace Rtx
             if (stop.stopRequested() || superseded())
                 return;
 
-            if (onTheWay(cell, false, mReading.mStatics))
+            if (onTheWay(cell, false))
                 continue;
 
             const Crash::NoteScope noted("reading the cell {}, {}", cell.x(), cell.y());
-            PreparedCell& made = mReader->read(cell, mReading.mStatics);
+            PreparedCell& made = mReader->read(cell);
             const ReaderMemory measured = mReader->measure();
 
             mMonitor.hand([&] {
                 mDone.push_back(&made);
                 mMeasured = measured;
-                mOnTheWay.push_back(Handed{ .mCell = cell, .mStatics = mReading.mStatics, .mTakes = mTakes });
+                mOnTheWay.push_back(Handed{ .mCell = cell, .mTakes = mTakes });
             });
         }
     }
