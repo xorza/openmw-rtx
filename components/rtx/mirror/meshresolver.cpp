@@ -67,7 +67,8 @@ namespace Rtx
 
     }
 
-    Index MeshResolver::resolve(const osg::Drawable& drawable, const DrawableRead& read)
+    Index MeshResolver::resolve(
+        const osg::Drawable& drawable, const DrawableRead& read, const std::span<osg::Node* const> path)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -130,7 +131,7 @@ namespace Rtx
         // kept under the drawable, stamped as the walk meets it, so a file the renderer cannot
         // take is read once for as long as it stands rather than once a frame.
         MeshReading reading;
-        const Misc::Result<bool, std::string> readMesh = mReader.read(mContent, read, reading);
+        const Misc::Result<bool, std::string> readMesh = mReader.read(mContent, read, modelOf(path), reading);
         if (!readMesh.isOk())
             return refuse(drawable, readMesh.error());
 

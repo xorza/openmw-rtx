@@ -13,6 +13,9 @@ namespace Rtx
         digest.add(input.mNormals);
         digest.add(input.mTriangles);
         digest.add(input.mSplits);
+        digest.add(input.mBeside.mPositions);
+        digest.add(input.mBeside.mNormals);
+        digest.add(input.mBeside.mTriangles);
     }
 
     void ShapePass::run(const Input& input, Output& output)
@@ -34,6 +37,7 @@ namespace Rtx
         // to split either, which the split answers by writing nothing.
         const bool splits = input.mSplits && !output.mShape.mSheet;
         CreaseSplit::Split split{ .mNormals = output.mNormals, .mSources = output.mSources };
-        mSplit.split(input.mPositions, splits ? input.mNormals : std::span<const osg::Vec3f>(), output.mKept, split);
+        mSplit.split(input.mPositions, splits ? input.mNormals : std::span<const osg::Vec3f>(), output.mKept,
+            input.mBeside, split);
     }
 }

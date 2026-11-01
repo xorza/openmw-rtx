@@ -146,7 +146,8 @@ namespace Rtx
             return;
 
         MeshReading reading;
-        const Misc::Result<bool, std::string> readMesh = mMeshes.read(mContent.mPreprocessor, read, reading);
+        const Misc::Result<bool, std::string> readMesh
+            = mMeshes.read(mContent.mPreprocessor, read, modelOf(getNodePath()), reading);
         if (!readMesh.isOk())
         {
             refuse(readMesh.error());

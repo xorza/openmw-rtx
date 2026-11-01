@@ -1117,8 +1117,10 @@ namespace Rtx::Testing
         /// frame built another way round — a bitangent flipped, a tangent read as the bitangent —
         /// leans it somewhere else, and every term below moves with it.
         ///
-        /// **A vertex tint darkens both halves**, and the reflectance's edge with it: a tint of a
-        /// quarter takes the dielectric's 4% to 1%, whose edge is `50 * 0.01 = 0.5`.
+        /// **A vertex tint's hue darkens both halves**, and the reflectance's edge with it: a colour
+        /// of half `(0.25, 0.25, 1)` is the hue `(0.25, 0.25, 1)`, its brightness taken out
+        /// (`hueOf`), which takes the dielectric's 4% to 1% in red and green, and the edge, which
+        /// green states for all three, to `50 * 0.01 = 0.5`; blue keeps 4%.
         ///
         /// **A vertex normal leaning past the eye keeps its lobe**, tilted toward the plane until it
         /// faces the eye at `SHADING_MIN_FACING`. A lobe dropped there leaves the diffuse half alone,
@@ -1156,7 +1158,7 @@ namespace Rtx::Testing
                 const std::array<std::uint8_t, 4> mapTexel{ metal, 128, 255, 255 };
                 const std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, 0), describeTexel(mapTexel, 1),
                     describeTexel(sLeaningTexel, 2) };
-                const osg::Vec3f colour(tint, tint, tint);
+                const osg::Vec3f colour = osg::Vec3f(tint, tint, 1.0f) * 0.5f;
                 const std::array<osg::Vec3f, 4> colours{ colour, colour, colour, colour };
 
                 SceneDesc scene;
@@ -1224,32 +1226,37 @@ namespace Rtx::Testing
 
             const float tinted = expected(normal, normal, 0.0f, 0.25f);
             EXPECT_NEAR(lit(0, false, SurfaceView::Shaded, 0.25f).x(), tinted, tinted * 1e-4f) << "a tinted dielectric";
-            EXPECT_EQ(lit(0, false, SurfaceView::Specular, 0.25f), osg::Vec3f(0.01f, 0.01f, 0.01f))
-                << "the tint on the reflectance";
+            EXPECT_EQ(lit(0, false, SurfaceView::Specular, 0.25f), osg::Vec3f(0.01f, 0.01f, 0.04f))
+                << "the hue on the reflectance, and the brightness nowhere";
 
             // **The lobe's light is divided by its albedo held at `SPECULAR_ALBEDO_FLOOR` from
-            // below**: the dielectric's own at the eye's 45°, and a tint of a twentieth, which
-            // takes the reflectance to 0.2% and the albedo under the floor in every channel, at the
-            // floor where it was one. To the shared exponent's nine-bit mantissa that
-            // `specularModulation` rounds to, `2^-9` of the value, and the host's 1e-4 above.
-            const auto albedoOf = [&](float tint) {
-                const float reflectance = Shaders::DIELECTRIC_F0 * tint;
+            // below**: the dielectric's own at the eye's 45°, and a hue of a twentieth in red and
+            // green, which takes their reflectance to 0.2% and their albedo under the floor, at the
+            // floor where it was one. Blue keeps 4% under green's edge. To the shared exponent's
+            // nine-bit mantissa that `specularModulation` rounds to, `2^-9` of the brightest
+            // channel, which sets the exponent the others share, and the host's 1e-4 above.
+            const auto albedoOf = [&](float reflectance, float green) {
                 const osg::Vec2f table = SpecularAlbedo::shared().at(normal * toEye, roughness);
-                return Shaders::specularAlbedoOf(reflectance, Shaders::specularEdge(reflectance), table.x(), table.y())
+                return Shaders::specularAlbedoOf(reflectance, Shaders::specularEdge(green), table.x(), table.y())
                     * Shaders::specularCompensation(reflectance, table.y());
             };
-            const float clear = albedoOf(1.0f);
+            const float dielectricF0 = Shaders::DIELECTRIC_F0;
+            const float clear = albedoOf(dielectricF0, dielectricF0);
             ASSERT_GT(clear, Shaders::SPECULAR_ALBEDO_FLOOR);
-            ASSERT_LT(albedoOf(0.05f), Shaders::SPECULAR_ALBEDO_FLOOR);
+            ASSERT_LT(albedoOf(dielectricF0 * 0.05f, dielectricF0 * 0.05f), Shaders::SPECULAR_ALBEDO_FLOOR);
             for (const auto& [tint, wanted] :
                 { std::pair{ 1.0f, clear }, std::pair{ 0.05f, Shaders::SPECULAR_ALBEDO_FLOOR } })
             {
                 lit(0, false, SurfaceView::Shaded, tint);
                 std::vector<float> modulation;
                 mProbe.readChannel(Channel::SpecularAlbedo, modulation);
+                const float blue
+                    = std::max(albedoOf(dielectricF0, dielectricF0 * tint), Shaders::SPECULAR_ALBEDO_FLOOR);
+                const std::array<float, 3> held{ wanted, wanted, blue };
+                const float brightest = std::max(wanted, blue);
                 for (std::size_t channel = 0; channel < 3; ++channel)
-                    EXPECT_NEAR(modulation[centre + channel], wanted, wanted * (0x1p-9f + 1e-4f))
-                        << "a tint of " << tint << ", channel " << channel;
+                    EXPECT_NEAR(modulation[centre + channel], held[channel], brightest * (0x1p-9f + 1e-4f))
+                        << "a hue of " << tint << " in red and green, channel " << channel;
             }
 
             // **A scene that wears no map leaves the lobe's channels holding no lobe**, though the

@@ -14,6 +14,7 @@
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/shape/creasesplit.hpp>
 #include <components/rtx/preprocess/shape/facecross.hpp>
 #include <components/rtx/preprocess/shape/probetable.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
@@ -33,13 +34,16 @@ namespace Rtx
         };
 
         Shaped shape(ContentPreprocessor& content, std::span<const osg::Vec3f> positions,
-            std::span<const osg::Vec3f> normals, std::span<const std::uint32_t> triangles, bool splits = true)
+            std::span<const osg::Vec3f> normals, std::span<const std::uint32_t> triangles, bool splits = true,
+            const CreaseSplit::Beside& beside = {})
         {
             Shaped shaped;
             ShapePass::Output output{ .mKept = shaped.mKept, .mNormals = shaped.mNormals, .mSources = shaped.mSources };
-            content.shape(
-                ShapePass::Input{
-                    .mPositions = positions, .mNormals = normals, .mTriangles = triangles, .mSplits = splits },
+            content.shape(ShapePass::Input{ .mPositions = positions,
+                              .mNormals = normals,
+                              .mTriangles = triangles,
+                              .mSplits = splits,
+                              .mBeside = beside },
                 output);
             shaped.mShape = output.mShape;
             return shaped;
@@ -120,12 +124,13 @@ namespace Rtx
             }
         }
 
-        /// **A curve the content cut coarsely is left as it was written, and the threshold is what
-        /// says how coarse.** A prism of `sides` sides smoothed round meets itself at `360 / sides`
-        /// degrees between sides: an octagon's forty-five is under `CreaseSplit::sHardCosine`'s
-        /// fifty-five, so nothing is cut and nothing written; a hexagon's sixty is over it, so every
-        /// side is cut into its own face and every one of the twelve vertices gains a copy, twelve
-        /// added.
+        /// **A curve the content cut coarsely stays round, and the threshold is what says how
+        /// coarse.** A prism of `sides` sides smoothed round meets itself at `360 / sides` degrees
+        /// between sides: an octagon's forty-five is under `CreaseSplit::sHardCosine`'s fifty-five,
+        /// so nothing is cut, no vertex is added and every normal is the radial one it was written
+        /// with — each corner sees two equal sides at a quarter turn each, whose weighted mean is
+        /// their bisector; a hexagon's sixty is over it, so every side is cut into its own face and
+        /// every one of the twelve vertices gains a copy, twelve added.
         TEST(RtxCreaseSplitTest, anOctagonalPrismStaysRoundAndAHexagonalOneIsCutIntoItsFaces)
         {
             const auto prism = [](int sides, bool cut) {
@@ -153,8 +158,12 @@ namespace Rtx
                 const Shaped shaped = shape(content, positions, normals, triangles);
                 if (!cut)
                 {
-                    EXPECT_TRUE(shaped.mNormals.empty()) << sides << " sides";
+                    EXPECT_TRUE(shaped.mSources.empty()) << sides << " sides";
                     EXPECT_EQ(shaped.mKept, triangles) << sides << " sides";
+                    ASSERT_EQ(shaped.mNormals.size(), normals.size()) << sides << " sides";
+                    for (std::size_t vertex = 0; vertex < normals.size(); ++vertex)
+                        EXPECT_TRUE(sameDirection(shaped.mNormals[vertex], normals[vertex]))
+                            << sides << " sides, vertex " << vertex;
                     return;
                 }
 
@@ -170,6 +179,41 @@ namespace Rtx
 
             prism(8, false);
             prism(6, true);
+        }
+
+        /// **A broad face smoothed into a narrow bevel stays nearly flat, and a flat group keeps
+        /// what it was written with.** A floor of 100 by 100 on z = 0 and a 45° bevel from its
+        /// y = 0 edge down to y = z = -10, smoothed into one normal along that edge, as a chamfered
+        /// Morrowind box is. A triangle weighs its twice-area times its corner angle, and at either
+        /// corner of the edge the floor's triangles turn a quarter between them, as the bevel's do:
+        /// the floor weighs `10000 * pi / 2` and the bevel `1000 * sqrt(2) * pi / 2`. Summed with
+        /// the quarter dropped, `10000 * (0, 0, 1) + 1000 * (0, -1, 1) = (0, -1000, 11000)`: the
+        /// direction `(0, -1, 11) / sqrt(122)`, 5.2° off the floor where the content leaned it 45°.
+        /// The bevel's lower edge is the bevel alone, one plane, so the normal written there stays,
+        /// bent as it is.
+        TEST(RtxCreaseSplitTest, aBroadFaceSmoothedIntoANarrowBevelStaysNearlyFlat)
+        {
+            const osg::Vec3f leaning = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);
+            const osg::Vec3f up(0.0f, 0.0f, 1.0f);
+            const osg::Vec3f bent = osg::Vec3f(0.0f, -1.0f, 0.2f) / std::sqrt(1.04f);
+            const std::array<osg::Vec3f, 6> positions{ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(100.0f, 0.0f, 0.0f),
+                osg::Vec3f(100.0f, 100.0f, 0.0f), osg::Vec3f(0.0f, 100.0f, 0.0f), osg::Vec3f(100.0f, -10.0f, -10.0f),
+                osg::Vec3f(0.0f, -10.0f, -10.0f) };
+            const std::array<osg::Vec3f, 6> normals{ leaning, leaning, up, up, bent, bent };
+            const std::array<std::uint32_t, 12> triangles{ 0, 1, 2, 0, 2, 3, 0, 4, 1, 0, 5, 4 };
+
+            ContentPreprocessor content;
+            const Shaped shaped = shape(content, positions, normals, triangles);
+
+            ASSERT_EQ(shaped.mNormals.size(), 6u);
+            EXPECT_TRUE(shaped.mSources.empty()) << "a smooth bend cuts nothing";
+            const osg::Vec3f weighed = osg::Vec3f(0.0f, -1.0f, 11.0f) / std::sqrt(122.0f);
+            EXPECT_TRUE(sameDirection(shaped.mNormals[0], weighed));
+            EXPECT_TRUE(sameDirection(shaped.mNormals[1], weighed));
+            EXPECT_EQ(shaped.mNormals[2], up) << "a flat group keeps its normal";
+            EXPECT_EQ(shaped.mNormals[3], up);
+            EXPECT_EQ(shaped.mNormals[4], bent) << "and so does the bevel's lower edge, bent as it is";
+            EXPECT_EQ(shaped.mNormals[5], bent);
         }
 
         /// **What the content already split is not touched**, and neither is anything the pass is
@@ -234,6 +278,51 @@ namespace Rtx
             EXPECT_EQ(shaped.mNormals[6], wallNormal);
         }
 
+        /// **A crease between two shapes is cut, and only the mesh's own corners are written.** The
+        /// same floor and wall as above as two shapes, as a Morrowind model is one shape a texture:
+        /// the floor alone holds no hard edge, so its corners along the wall keep leaning
+        /// forty-five degrees off it. With the wall beside it, the right angle is found and the
+        /// floor's two corners there take the floor's normal, on the four vertices it had; the wall
+        /// is read and never written. A floor beside it that carries on flat is no crease, and
+        /// leaves the lean as the content wrote it.
+        TEST(RtxCreaseSplitTest, aCreaseBetweenTwoShapesIsCutOnTheMeshAlone)
+        {
+            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);
+            const osg::Vec3f floorNormal(0.0f, 0.0f, 1.0f);
+            const osg::Vec3f wallNormal(0.0f, -1.0f, 0.0f);
+            const std::array<osg::Vec3f, 4> floor{ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f),
+                osg::Vec3f(1.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) };
+            const std::array<osg::Vec3f, 4> floorNormals{ floorNormal, floorNormal, averaged, averaged };
+            const std::array<std::uint32_t, 6> triangles{ 0, 1, 2, 0, 2, 3 };
+
+            const std::array<osg::Vec3f, 4> wall{ osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 0.0f),
+                osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 1.0f) };
+            const std::array<osg::Vec3f, 4> wallNormals{ averaged, averaged, wallNormal, wallNormal };
+
+            const std::array<osg::Vec3f, 4> onward{ osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 0.0f),
+                osg::Vec3f(1.0f, 2.0f, 0.0f), osg::Vec3f(0.0f, 2.0f, 0.0f) };
+            const std::array<osg::Vec3f, 4> onwardNormals{ averaged, averaged, floorNormal, floorNormal };
+
+            ContentPreprocessor content;
+            EXPECT_TRUE(shape(content, floor, floorNormals, triangles).mNormals.empty())
+                << "the floor alone has no hard edge";
+
+            const Shaped cut = shape(content, floor, floorNormals, triangles, true,
+                CreaseSplit::Beside{ .mPositions = wall, .mNormals = wallNormals, .mTriangles = triangles });
+            ASSERT_EQ(cut.mNormals.size(), 4u) << "only the floor's own vertices are written";
+            EXPECT_TRUE(cut.mSources.empty()) << "each corner along the wall is in the floor's piece alone";
+            EXPECT_EQ(cut.mKept, std::vector<std::uint32_t>(triangles.begin(), triangles.end()));
+            EXPECT_TRUE(sameDirection(cut.mNormals[2], floorNormal));
+            EXPECT_TRUE(sameDirection(cut.mNormals[3], floorNormal));
+            EXPECT_EQ(cut.mNormals[0], floorNormal) << "a vertex off the crease moved";
+            EXPECT_EQ(cut.mNormals[1], floorNormal);
+
+            EXPECT_TRUE(shape(content, floor, floorNormals, triangles, true,
+                CreaseSplit::Beside{ .mPositions = onward, .mNormals = onwardNormals, .mTriangles = triangles })
+                            .mNormals.empty())
+                << "a flat floor beside it is no crease";
+        }
+
         /// **A sheet keeps the normals it was written with**, the crease across its cards included.
         /// The same right-angled pair of quads as above, doubled for its back the way the content
         /// doubles a card — every triangle again, wound the other way, on vertices of its own — folds
@@ -275,10 +364,10 @@ namespace Rtx
         }
 
         /// The shape pass is keyed on everything it reads: the positions, the normals and the
-        /// triangles, and whether it may split — the cube's eight positions and eight normals of
-        /// twelve bytes, thirty-six indices of four, and the flag's one byte: 96 + 96 + 144 + 1.
-        /// The flag alone moves the key.
-        TEST(RtxCreaseSplitTest, theShapePassIsKeyedOnTheNormalsAndOnWhetherItSplits)
+        /// triangles, whether it may split, and the faces beside it — the cube's eight positions and
+        /// eight normals of twelve bytes, thirty-six indices of four, the flag's one byte, and
+        /// nothing beside it: 96 + 96 + 144 + 1. The flag alone moves the key, and so does a beside.
+        TEST(RtxCreaseSplitTest, theShapePassIsKeyedOnTheNormalsWhetherItSplitsAndWhatIsBesideIt)
         {
             const AveragedCube cube;
             const auto keyOf = [&](const bool splits, ContentDigest& digest) {
@@ -296,6 +385,18 @@ namespace Rtx
 
             ContentDigest whole("shape", ShapePass::sVersion);
             EXPECT_NE(keyOf(false, whole), split);
+
+            // And what stands beside the shape, which a cube's own corners are, here.
+            ContentDigest besideIt("shape", ShapePass::sVersion);
+            ShapePass::digest(ShapePass::Input{ .mPositions = cube.mPositions,
+                                  .mNormals = cube.mNormals,
+                                  .mTriangles = cube.mTriangles,
+                                  .mSplits = true,
+                                  .mBeside = CreaseSplit::Beside{ .mPositions = cube.mPositions,
+                                      .mNormals = cube.mNormals,
+                                      .mTriangles = cube.mTriangles } },
+                besideIt);
+            EXPECT_NE(besideIt.getKey(), split);
         }
 
         /// **A face is read one way by every shape pass**: the unit normal of the corners' cross

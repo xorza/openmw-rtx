@@ -15,9 +15,9 @@
 namespace Rtx
 {
     /// What a drawable's triangles come to, as a pass: the reversed twins and pockets folded away
-    /// (`ShapeFold`), and then the normals the content smoothed across a hard edge split
-    /// (`CreaseSplit`) on what survived. One pass and not two, because the split reads the folded
-    /// triangles and a key over one input is one entry a cache keeps.
+    /// (`ShapeFold`), and then the normals the content smoothed across a hard edge split and the
+    /// rest weighed by their faces (`CreaseSplit`) on what survived. One pass and not two, because
+    /// the split reads the folded triangles and a key over one input is one entry a cache keeps.
     class ShapePass
     {
     public:
@@ -35,6 +35,10 @@ namespace Rtx
             /// targets are one per vertex the content wrote: a skinned body is round, and no copy
             /// of a vertex would be posed.
             bool mSplits = false;
+
+            /// The faces the drawable's model holds beside it, which the split cuts across and
+            /// never writes — `CreaseSplit::Beside`. Empty where nothing stands beside it.
+            CreaseSplit::Beside mBeside{};
         };
 
         struct Output
@@ -52,7 +56,7 @@ namespace Rtx
         };
 
         static constexpr ContentPassId sPass = ContentPassId::Shape;
-        static constexpr std::uint32_t sVersion = 1;
+        static constexpr std::uint32_t sVersion = 3;
 
         static void digest(const Input& input, ContentDigest& digest);
         void run(const Input& input, Output& output);

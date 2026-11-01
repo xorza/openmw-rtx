@@ -1,6 +1,7 @@
 #include "creasesplit.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 
@@ -12,7 +13,8 @@ namespace Rtx
 {
     namespace
     {
-        /// The angle a triangle has at `corner`, which is what its face weighs in a normal there.
+        /// The angle a triangle has at `corner`, which with its area is what its face weighs in a
+        /// normal there.
         float cornerAngle(const osg::Vec3f& corner, const osg::Vec3f& next, const osg::Vec3f& last)
         {
             const osg::Vec3f a = next - corner;
@@ -34,37 +36,59 @@ namespace Rtx
     }
 
     void CreaseSplit::split(const std::span<const osg::Vec3f> positions, const std::span<const osg::Vec3f> normals,
-        std::vector<std::uint32_t>& triangles, Split& split)
+        std::vector<std::uint32_t>& triangles, const Beside& beside, Split& split)
     {
         split.mNormals.clear();
         split.mSources.clear();
 
-        const std::size_t count = triangles.size() / 3;
-        if (count == 0 || normals.size() != positions.size())
+        if (triangles.empty() || normals.size() != positions.size())
             return;
 
-        mFaces.resize(count);
-        for (std::size_t t = 0; t < count; ++t)
+        // Read off the triangles as they came, while `cutFan` writes the moved corners into them,
+        // and the faces beside the mesh after them, over vertices numbered past its own.
+        mOwnCorners = triangles.size();
+        mOriginal.assign(triangles.begin(), triangles.end());
+        std::span<const osg::Vec3f> allPositions = positions;
+        std::span<const osg::Vec3f> allNormals = normals;
+        if (!beside.mTriangles.empty() && beside.mNormals.size() == beside.mPositions.size())
         {
-            mFaces[t] = FaceCross::of(
-                positions[triangles[3 * t]], positions[triangles[3 * t + 1]], positions[triangles[3 * t + 2]])
-                            .mUnit;
+            const auto offset = static_cast<std::uint32_t>(positions.size());
+            for (const std::uint32_t vertex : beside.mTriangles)
+            {
+                assert(vertex < beside.mPositions.size() && "a face beside the mesh names a vertex it has not got");
+                mOriginal.push_back(offset + vertex);
+            }
+
+            mPositions.assign(positions.begin(), positions.end());
+            mPositions.insert(mPositions.end(), beside.mPositions.begin(), beside.mPositions.end());
+            mNormals.assign(normals.begin(), normals.end());
+            mNormals.insert(mNormals.end(), beside.mNormals.begin(), beside.mNormals.end());
+            allPositions = mPositions;
+            allNormals = mNormals;
         }
 
-        const std::uint32_t welded = weld(positions);
+        const std::size_t count = mOriginal.size() / 3;
+        mFaces.resize(count);
+        mTwiceAreas.resize(count);
+        for (std::size_t t = 0; t < count; ++t)
+        {
+            const FaceCross face = FaceCross::of(
+                allPositions[mOriginal[3 * t]], allPositions[mOriginal[3 * t + 1]], allPositions[mOriginal[3 * t + 2]]);
+            mFaces[t] = face.mUnit;
+            mTwiceAreas[t] = face.mTwiceArea;
+        }
+
+        const std::uint32_t welded = weld(allPositions);
         mFanStarts.assign(std::size_t{ welded } + 1, 0);
-        for (const std::uint32_t vertex : triangles)
+        for (const std::uint32_t vertex : mOriginal)
             ++mFanStarts[mPositionOf[vertex] + 1];
         for (std::size_t at = 1; at < mFanStarts.size(); ++at)
             mFanStarts[at] += mFanStarts[at - 1];
 
-        mFanCorners.resize(triangles.size());
+        mFanCorners.resize(mOriginal.size());
         mCursor.assign(mFanStarts.begin(), mFanStarts.end() - 1);
-        for (std::uint32_t corner = 0; corner < triangles.size(); ++corner)
-            mFanCorners[mCursor[mPositionOf[triangles[corner]]]++] = corner;
-
-        // Read off the triangles as they came, while `cutFan` writes the moved corners into them.
-        mOriginal.assign(triangles.begin(), triangles.end());
+        for (std::uint32_t corner = 0; corner < mOriginal.size(); ++corner)
+            mFanCorners[mCursor[mPositionOf[mOriginal[corner]]]++] = corner;
 
         for (std::uint32_t position = 0; position < welded; ++position)
         {
@@ -73,7 +97,8 @@ namespace Rtx
             if (end - first < 2)
                 continue;
 
-            cutFan(std::span(mFanCorners).subspan(first, end - first), positions, normals, triangles, split);
+            cutFan(std::span(mFanCorners).subspan(first, end - first), allPositions, allNormals, normals.size(),
+                triangles, split);
         }
     }
 
@@ -119,9 +144,11 @@ namespace Rtx
     }
 
     void CreaseSplit::cutFan(const std::span<const std::uint32_t> fan, const std::span<const osg::Vec3f> positions,
-        const std::span<const osg::Vec3f> normals, std::vector<std::uint32_t>& triangles, Split& split)
+        const std::span<const osg::Vec3f> normals, const std::size_t ownVertices, std::vector<std::uint32_t>& triangles,
+        Split& split)
     {
         const std::uint32_t size = static_cast<std::uint32_t>(fan.size());
+        const auto own = [&](std::uint32_t at) { return fan[at] < mOwnCorners; };
         const auto vertexOf = [&](std::uint32_t at) { return mOriginal[fan[at]]; };
         const auto triangleOf = [&](std::uint32_t at) { return fan[at] / 3; };
         const auto normalOf = [&](std::uint32_t at) -> const osg::Vec3f& { return normals[vertexOf(at)]; };
@@ -138,7 +165,8 @@ namespace Rtx
         // degenerate fan's hundreds of corners in a sort, not in a search each.
         mGroup.resize(size);
         mParent.resize(size);
-        mGroupState.assign(size, GroupState::Smooth);
+        mGroupState.assign(size, GroupState::Flat);
+        mGroupPlane.assign(size, osg::Vec3f());
         mOrder.clear();
         for (std::uint32_t at = 0; at < size; ++at)
         {
@@ -155,9 +183,9 @@ namespace Rtx
                 = at > 0 && normalOf(mOrder[at]) == normalOf(mOrder[at - 1]) ? mGroup[mOrder[at - 1]] : mOrder[at];
 
         // Two corners of one group across an edge of the fan: one piece where the edge is smooth, and
-        // the group marked where it is hard. Corners meet across an edge where they share a
-        // neighbouring position, so each corner is keyed by its group and each of its two
-        // neighbours, and only corners of one key are compared.
+        // two where it is hard. Corners meet across an edge where they share a neighbouring
+        // position, so each corner is keyed by its group and each of its two neighbours, and only
+        // corners of one key are compared.
         mKeyed.clear();
         for (std::uint32_t at = 0; at < size; ++at)
             if (mGroup[at] != sNoEntry)
@@ -166,7 +194,6 @@ namespace Rtx
                         Keyed{ .mFirst = mGroup[at], .mSecond = mPositionOf[neighbour(at, ahead)], .mAt = at });
         std::sort(mKeyed.begin(), mKeyed.end());
 
-        bool anyHard = false;
         for (std::size_t from = 0; from < mKeyed.size();)
         {
             std::size_t to = from + 1;
@@ -184,42 +211,58 @@ namespace Rtx
 
                     const osg::Vec3f a = facing(mFaces[triangleOf(i)], normalOf(i));
                     const osg::Vec3f b = facing(mFaces[triangleOf(j)], normalOf(j));
-                    if (a.length2() > 0.0f && b.length2() > 0.0f && a * b < sHardCosine)
-                    {
-                        mGroupState[mGroup[i]] = GroupState::Hard;
-                        anyHard = true;
-                    }
-                    else
+                    if (!(a.length2() > 0.0f && b.length2() > 0.0f && a * b < sHardCosine))
                         mParent[pieceOf(i)] = pieceOf(j);
                 }
 
             from = to;
         }
 
-        if (!anyHard)
+        // A group bends where any of its faces leaves the plane of its first, which every group a
+        // hard edge runs through does.
+        bool anyBent = false;
+        for (std::uint32_t at = 0; at < size; ++at)
+        {
+            if (mGroup[at] == sNoEntry)
+                continue;
+
+            const osg::Vec3f face = facing(mFaces[triangleOf(at)], normalOf(at));
+            if (!(face.length2() > 0.0f))
+                continue;
+
+            osg::Vec3f& plane = mGroupPlane[mGroup[at]];
+            if (!(plane.length2() > 0.0f))
+                plane = face;
+            else if (plane * face < sPlaneCosine)
+            {
+                mGroupState[mGroup[at]] = GroupState::Bent;
+                anyBent = true;
+            }
+        }
+
+        if (!anyBent)
             return;
 
-        // A hard edge cuts its group only where the group's smooth edges do not join it back into
-        // one piece around the edge.
-        for (std::uint32_t at = 0; at < size; ++at)
-            if (mGroup[at] != sNoEntry && mGroupState[mGroup[at]] != GroupState::Smooth
-                && pieceOf(at) != pieceOf(mGroup[at]))
-                mGroupState[mGroup[at]] = GroupState::Cut;
+        const auto bent
+            = [&](std::uint32_t at) { return mGroup[at] != sNoEntry && mGroupState[mGroup[at]] == GroupState::Bent; };
 
-        const auto cut
-            = [&](std::uint32_t at) { return mGroup[at] != sNoEntry && mGroupState[mGroup[at]] == GroupState::Cut; };
+        // Every corner of a bent group weighs in its piece's normal, the faces beside the mesh's
+        // included, so a piece two shapes share is one normal on both. Only the mesh's own corners
+        // are placed.
+        const auto placed = [&](std::uint32_t at) { return bent(at) && own(at); };
 
         mPieceNormal.assign(size, osg::Vec3f());
         for (std::uint32_t at = 0; at < size; ++at)
-            if (cut(at))
+            if (bent(at))
                 mPieceNormal[pieceOf(at)] += facing(mFaces[triangleOf(at)], normalOf(at))
-                    * cornerAngle(positions[vertexOf(at)], positions[neighbour(at, 1)], positions[neighbour(at, 2)]);
+                    * (cornerAngle(positions[vertexOf(at)], positions[neighbour(at, 1)], positions[neighbour(at, 2)])
+                        * mTwiceAreas[triangleOf(at)]);
 
-        // Each cut corner's first corner of the same vertex and piece, which places the vertex every
+        // Each placed corner's first corner of the same vertex and piece, which places the vertex every
         // later one moves to, and its first corner of the same vertex, whose piece keeps the vertex.
         mKeyed.clear();
         for (std::uint32_t at = 0; at < size; ++at)
-            if (cut(at))
+            if (placed(at))
                 mKeyed.push_back(Keyed{ .mFirst = vertexOf(at), .mSecond = pieceOf(at), .mAt = at });
         std::sort(mKeyed.begin(), mKeyed.end());
 
@@ -244,13 +287,13 @@ namespace Rtx
         mPlacedAt.resize(size);
         for (std::uint32_t at = 0; at < size; ++at)
         {
-            if (!cut(at))
+            if (!placed(at))
                 continue;
 
-            // The first cut takes its copy of the input's normals, which every cut after writes over
-            // and adds to: nothing is copied for a mesh with no hard edge in a group.
+            // The first corner placed takes its copy of the input's normals, which every one after
+            // writes over and adds to: nothing is copied for a mesh with no group that bends.
             if (split.mNormals.empty())
-                split.mNormals.assign(normals.begin(), normals.end());
+                split.mNormals.assign(normals.begin(), normals.begin() + static_cast<std::ptrdiff_t>(ownVertices));
 
             if (mPlacedBy[at] != at)
             {

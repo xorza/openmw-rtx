@@ -12,12 +12,17 @@
 #include <osg/Array>
 #include <osg/Drawable>
 #include <osg/Geometry>
+#include <osg/NodeVisitor>
+#include <osg/Transform>
 #include <osg/TriangleIndexFunctor>
+#include <osg/UserDataContainer>
 #include <osg/Vec4f>
 
+#include <components/misc/osguservalues.hpp>
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/preprocess/shape/creasesplit.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
@@ -333,16 +338,131 @@ namespace Rtx
         return std::span(base->asVector());
     }
 
-    Misc::Result<bool, std::string> MeshReader::collectTriangles(
-        const osg::Geometry& geometry, const std::size_t vertices)
+    /// Every geometry under a model, with where it stands in the model's space and whether anything
+    /// moves it there: a transform with an update callback, as a controller is, or a drawable with
+    /// one. Every node, whatever its mask and whichever child a switch, a level of detail or a
+    /// sequence shows, so a template and a clone the game has set otherwise answer alike.
+    class MeshReader::BesideWalk final : public osg::NodeVisitor
     {
-        mTriangleScratch.clear();
+    public:
+        BesideWalk()
+            : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+        {
+            setNodeMaskOverride(~0u);
+        }
+
+        void walk(const osg::Node& model, std::vector<ModelShape>& into)
+        {
+            mInto = &into;
+            mHere = osg::Matrix();
+            mMoved = false;
+
+            // OSG's visitor API is non-const throughout, and this walk writes nothing.
+            const_cast<osg::Node&>(model).accept(*this);
+
+            mInto = nullptr;
+        }
+
+        void apply(osg::Transform& node) override
+        {
+            const osg::Matrix above = mHere;
+            const bool moved = mMoved;
+            node.computeLocalToWorldMatrix(mHere, this);
+            mMoved = mMoved || node.getUpdateCallback() != nullptr;
+
+            traverse(node);
+
+            mHere = above;
+            mMoved = moved;
+        }
+
+        void apply(osg::Drawable& drawable) override
+        {
+            if (const osg::Geometry* geometry = drawable.asGeometry())
+                mInto->push_back(ModelShape{ .mGeometry = geometry,
+                    .mPlace = mHere,
+                    .mMoved = mMoved || drawable.getUpdateCallback() != nullptr });
+        }
+
+    private:
+        std::vector<ModelShape>* mInto = nullptr;
+        osg::Matrix mHere;
+        bool mMoved = false;
+    };
+
+    MeshReader::MeshReader()
+        : mBesideWalk(new BesideWalk)
+    {
+    }
+
+    MeshReader::~MeshReader() = default;
+
+    const osg::Node* modelOf(const std::span<osg::Node* const> path)
+    {
+        for (auto at = path.rbegin(); at != path.rend(); ++at)
+        {
+            const osg::UserDataContainer* data = (*at)->getUserDataContainer();
+            if (data != nullptr && data->getUserObject(Misc::OsgUserValues::sFileHash) != nullptr)
+                return *at;
+        }
+
+        return nullptr;
+    }
+
+    void MeshReader::gatherBeside(const osg::Node& model, const osg::Geometry& self, const osg::BoundingBoxf& reach)
+    {
+        mBesidePositions.clear();
+        mBesideNormals.clear();
+        mBesideTriangles.clear();
+        mModelShapes.clear();
+        mBesideWalk->walk(model, mModelShapes);
+
+        // One set of normals for two places in the model is a split that is right for one of them.
+        const auto standing = std::ranges::find(mModelShapes, &self, &ModelShape::mGeometry);
+        if (standing == mModelShapes.end() || standing->mMoved
+            || std::ranges::count(mModelShapes, &self, &ModelShape::mGeometry) != 1)
+            return;
+
+        for (const ModelShape& shape : mModelShapes)
+        {
+            if (shape.mGeometry == &self || shape.mMoved || shape.mPlace != standing->mPlace)
+                continue;
+
+            // A shape this cannot read, or one with no normals, cuts nothing: it is only beside.
+            const Misc::Result<VertexArrays, std::string> vertices = readVertices(*shape.mGeometry, mBesideReadScratch);
+            if (!vertices.isOk() || vertices.value().mNormals.empty())
+                continue;
+
+            const VertexArrays& arrays = vertices.value();
+            const auto inside = [&](const osg::Vec3f& position) { return reach.contains(position); };
+            if (!std::ranges::any_of(arrays.mPositions, inside)
+                || !std::ranges::all_of(
+                    arrays.mPositions, [](const osg::Vec3f& position) { return isFinite(position); }))
+                continue;
+
+            const Misc::Result<bool, std::string> collected
+                = collectTriangles(*shape.mGeometry, arrays.mPositions.size(), mBesideCollectScratch);
+            if (!collected.isOk() || !collected.value())
+                continue;
+
+            const auto offset = static_cast<std::uint32_t>(mBesidePositions.size());
+            mBesidePositions.insert(mBesidePositions.end(), arrays.mPositions.begin(), arrays.mPositions.end());
+            mBesideNormals.insert(mBesideNormals.end(), arrays.mNormals.begin(), arrays.mNormals.end());
+            for (const std::uint32_t vertex : mBesideCollectScratch)
+                mBesideTriangles.push_back(offset + vertex);
+        }
+    }
+
+    Misc::Result<bool, std::string> MeshReader::collectTriangles(
+        const osg::Geometry& geometry, const std::size_t vertices, std::vector<std::uint32_t>& into)
+    {
+        into.clear();
 
         osg::TriangleIndexFunctor<TriangleCollector> collector;
-        collector.mIndices = &mTriangleScratch;
+        collector.mIndices = &into;
         geometry.accept(collector);
 
-        if (mTriangleScratch.empty())
+        if (into.empty())
             return false;
 
         if (collector.mLargest >= vertices)
@@ -353,7 +473,7 @@ namespace Rtx
     }
 
     Misc::Result<bool, std::string> MeshReader::read(
-        ContentPreprocessor& content, const DrawableRead& read, MeshReading& into)
+        ContentPreprocessor& content, const DrawableRead& read, const osg::Node* const model, MeshReading& into)
     {
         const osg::Geometry& geometry = *read.mGeometry;
 
@@ -438,17 +558,32 @@ namespace Rtx
         // Shaped before the mesh is written, so the copy the content drew for a card's back never
         // reaches a structure. Once per drawable and never for a pose: a rig moves the two copies
         // together, so the pairs found in the bind pose are the pairs.
-        const Misc::Result<bool, std::string> collected = collectTriangles(geometry, count);
+        const Misc::Result<bool, std::string> collected = collectTriangles(geometry, count, mTriangleScratch);
         if (!collected.isOk())
             return Misc::Err{ collected.error() };
         if (!collected.value())
             return noTriangle(geometry);
 
+        const bool splits = read.mDeform == Deform::None;
+        CreaseSplit::Beside beside;
+        if (model != nullptr && splits && !arrays.mNormals.empty())
+        {
+            osg::BoundingBoxf reach;
+            for (const osg::Vec3f& position : arrays.mPositions)
+                reach.expandBy(position);
+
+            gatherBeside(*model, geometry, reach);
+            beside = CreaseSplit::Beside{
+                .mPositions = mBesidePositions, .mNormals = mBesideNormals, .mTriangles = mBesideTriangles
+            };
+        }
+
         const ShapePass::Input shape{
             .mPositions = arrays.mPositions,
             .mNormals = arrays.mNormals,
             .mTriangles = mTriangleScratch,
-            .mSplits = read.mDeform == Deform::None,
+            .mSplits = splits,
+            .mBeside = beside,
         };
         ShapePass::Output shaped{ .mKept = mIndexScratch, .mNormals = mNormalScratch, .mSources = mSourceScratch };
         content.shape(shape, shaped);
