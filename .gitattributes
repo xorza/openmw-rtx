@@ -6,3 +6,6 @@
 omw text eol=lf
 *.sh text eol=lf
 *.cmd text eol=crlf
+# The integration suites' data is read back byte for byte: `test_lua_api`'s `vfs` test reads
+# `lines.txt` as `1`, `2`, ``, `4`, and on a clone that converts it reads `1` and a carriage return.
+scripts/data/integration_tests/** -text
