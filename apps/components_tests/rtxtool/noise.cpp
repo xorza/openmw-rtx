@@ -14,7 +14,6 @@
 
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/noise.hpp>
-#include <apps/rtxtool/run.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -81,7 +80,8 @@ namespace RtxTool
         Stop pier()
         {
             return Stop{ .mName = "pier",
-                .mStand = { .mCell = "Seyda Neen", .mEye = osg::Vec3f(0, 0, 0), .mLook = osg::Vec3f(0, 100, 0) } };
+                .mStand
+                = { .mCell = CellAddress("Seyda Neen"), .mEye = osg::Vec3f(0, 0, 0), .mLook = osg::Vec3f(0, 100, 0) } };
         }
 
         NoiseAsk askAt(const std::span<const Stop> places)
@@ -266,7 +266,7 @@ namespace RtxTool
             EXPECT_EQ(refusal(both),
                 "--cut takes the frame standing after a cut, and --strafe and --walk fly it in: name one");
 
-            const std::array blind{ Stop{ .mName = "blind", .mStand = { .mCell = "Seyda Neen" } } };
+            const std::array blind{ Stop{ .mName = "blind", .mStand = { .mCell = CellAddress("Seyda Neen") } } };
             NoiseAsk noEye = askAt(blind);
             noEye.mStrafe = 150.0f;
             EXPECT_EQ(refusal(noEye), "--strafe and --walk need a place that names an eye, and blind names none");

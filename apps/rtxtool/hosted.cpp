@@ -1,4 +1,4 @@
-#include "run.hpp"
+#include "hosted.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -13,7 +13,9 @@
 
 #include <apps/openmw/engine.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/stopdescription.hpp>
 #include <apps/rtxtool/options.hpp>
+#include <apps/rtxtool/runfolder.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>

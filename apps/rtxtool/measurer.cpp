@@ -18,6 +18,7 @@
 #include <apps/openmw/mwworld/timestamp.hpp>
 #include <apps/rtxtool/instruments/framehashes.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
+#include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
@@ -25,7 +26,6 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/renderer/framespend.hpp>
-#include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
@@ -73,7 +73,7 @@ namespace RtxTool
         mProgress.mWindow = MeasureWindow(stop.mSchedule.mSpec.getWarmup(step),
             BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step), mRequest.mPlayed);
         mProgress.mPlace.mView = stop.mName;
-        mProgress.mPlace.mCell = stop.mStand.mCell;
+        mProgress.mPlace.mCell = stop.mStand.mCell.getSpelling();
         mProgress.mPlace.mNote = stop.mNote;
 
         // Before the place's frames, so the first measured one pays no open.
@@ -263,9 +263,8 @@ namespace RtxTool
             return;
         }
 
-        const Misc::Result<void, std::string> written
-            = Rtx::writePng(stop.mActions.mFilm->mDirectory / frameName(number), extents.mOutputWidth,
-                extents.mOutputHeight, finished.mPixels);
+        const Misc::Result<void, std::string> written = writePng(stop.mActions.mFilm->mDirectory / frameName(number),
+            extents.mOutputWidth, extents.mOutputHeight, finished.mPixels);
         if (!written.isOk())
             mFailure = std::format("frame {} of the film: {}", number, written.error());
     }
@@ -280,8 +279,8 @@ namespace RtxTool
             return;
 
         const Misc::Result<void, std::string> written
-            = Rtx::writePng(mRequest.mPictures / std::format("{}-{}.png", row->mView, row->mFrame),
-                extents.mOutputWidth, extents.mOutputHeight, finished.mPixels);
+            = writePng(mRequest.mPictures / std::format("{}-{}.png", row->mView, row->mFrame), extents.mOutputWidth,
+                extents.mOutputHeight, finished.mPixels);
         if (!written.isOk() && mFailure.empty())
             mFailure = written.error();
     }
@@ -397,7 +396,7 @@ namespace RtxTool
                 .mHoldAskedMs = mRequest.mSetup.mRun.mProfile.mStressOverlapMs,
                 .mNotFinite = mProgress.mNotFinite,
             },
-            mRecord);
+            mRecord, mRequest.mShelf);
 
         // **The hour and the sky of one moment, the stop's last frame**, so a stop the sky turned
         // over, or a film's take that crossed from one weather to another, is not reported at its

@@ -38,8 +38,10 @@
 #include <apps/openmw/mwworld/worldmodel.hpp>
 #include <apps/rtxtool/instruments/contactsheet.hpp>
 #include <apps/rtxtool/instruments/digest.hpp>
+#include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadnpc.hpp>
@@ -61,7 +63,6 @@
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
-#include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -79,7 +80,6 @@ namespace RtxTool
 {
     namespace
     {
-
         /// How wide the square of cells the simulation holds is, in units.
         ///
         /// **What distant ground has to reach past to be distant.** `Constants::CellGridRadius` is
@@ -97,12 +97,40 @@ namespace RtxTool
             context.mRenderer.drawViews();
             context.mBackend.finishGuiTraces();
         }
+
+        template <class Sample>
+        bool writeAndKeep(RunRecord& record, PictureShelf* const shelf, const std::filesystem::path& file,
+            const std::uint32_t width, const std::uint32_t height, const std::span<const Sample> samples)
+        {
+            if (const Misc::Result<void, std::string> written = writePng(file, width, height, samples); !written.isOk())
+            {
+                record.note(written.error() + "\n");
+                record.fail();
+                return false;
+            }
+
+            if (shelf != nullptr)
+                shelf->keep(file, width, height, samples);
+            return true;
+        }
+    }
+
+    bool StopWriter::writePicture(const Writing& into, const std::filesystem::path& file, const std::uint32_t width,
+        const std::uint32_t height, const std::span<const std::uint8_t> pixels)
+    {
+        return writeAndKeep(into.mRecord, into.mShelf, file, width, height, pixels);
+    }
+
+    bool StopWriter::writePicture(const Writing& into, const std::filesystem::path& file, const std::uint32_t width,
+        const std::uint32_t height, const std::span<const std::uint16_t> samples)
+    {
+        return writeAndKeep(into.mRecord, into.mShelf, file, width, height, samples);
     }
 
     void StopWriter::write(const MWRender::FrameContext& context, const MWRender::FrameReport& report,
-        const Actions& actions, const StopFacts& facts, RunRecord& record)
+        const Actions& actions, const StopFacts& facts, RunRecord& record, PictureShelf* const shelf)
     {
-        const Writing into{ context, report, record };
+        const Writing into{ context, report, record, shelf };
 
         if (!actions.mCapture.empty())
             writeCapture(into, actions.mCapture, actions.mDeepCapture);
@@ -152,14 +180,8 @@ namespace RtxTool
         mMean.mean(mSamples);
         mMean.clear();
         mMeanFile.clear();
-        const Misc::Result<void, std::string> written
-            = Rtx::writePng(mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mSamples);
-        if (!written.isOk())
-        {
-            into.mRecord.note(written.error() + "\n");
-            into.mRecord.fail();
+        if (!writePicture(into, mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mSamples))
             return;
-        }
 
         into.mRecord.note(std::format("wrote {} {}x{}, the mean of {} frames\n", Files::pathToUnicodeString(mean.mFile),
             extents.mOutputWidth, extents.mOutputHeight, mean.mOf));
@@ -170,22 +192,17 @@ namespace RtxTool
         Rtx::Renderer& renderer = into.mContext.mBackend;
         const Rtx::FrameExtents extents = renderer.getExtents();
 
-        const auto write = [&]() -> Misc::Result<void, std::string> {
+        const auto write = [&] {
             if (!deep)
             {
                 renderer.readPixels(mPixels);
-                return Rtx::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+                return writePicture(into, file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
             }
             renderer.readDeepPixels(mSamples);
-            return Rtx::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mSamples);
+            return writePicture(into, file, extents.mOutputWidth, extents.mOutputHeight, mSamples);
         };
-        const Misc::Result<void, std::string> written = write();
-        if (!written.isOk())
-        {
-            into.mRecord.note(written.error() + "\n");
-            into.mRecord.fail();
+        if (!write())
             return;
-        }
 
         into.mRecord.note(std::format(
             "wrote {} {}x{}", Files::pathToUnicodeString(file), extents.mOutputWidth, extents.mOutputHeight));
@@ -409,14 +426,8 @@ namespace RtxTool
             return;
         }
 
-        if (const Misc::Result<void, std::string> written
-            = Rtx::writePng(sheet, drawn.mWidth, drawn.mHeight, drawn.mPixels);
-            !written.isOk())
-        {
-            into.mRecord.note(written.error() + "\n");
-            into.mRecord.fail();
+        if (!writePicture(into, sheet, drawn.mWidth, drawn.mHeight, drawn.mPixels))
             return;
-        }
 
         // Left to right, top to bottom, the way it was drawn.
         std::vector<std::string> names;
@@ -456,14 +467,8 @@ namespace RtxTool
             std::memcpy(
                 mPixels.data() + stride * static_cast<std::size_t>(row), drawn.data(0, height - 1 - row), stride);
 
-        const Misc::Result<void, std::string> written
-            = Rtx::writePng(file, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mPixels);
-        if (!written.isOk())
-        {
-            into.mRecord.note(written.error() + "\n");
-            into.mRecord.fail();
+        if (!writePicture(into, file, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mPixels))
             return;
-        }
 
         into.mRecord.note(std::format("wrote {} {}x{}\n", Files::pathToUnicodeString(file), width, height));
     }

@@ -13,10 +13,10 @@
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
+#include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
-#include "run.hpp"
 #include "stager.hpp"
 
 namespace RtxTool
@@ -62,7 +62,8 @@ namespace RtxTool
         if (standing != nullptr && standing->getCell()->getId() != mNotedCell)
         {
             const MWWorld::Cell& cell = *standing->getCell();
-            stood.mStand.mCell = cellArgument(cell.isExterior(), cell.getGridX(), cell.getGridY(), cell.getNameId());
+            stood.mStand.mCell = cell.isExterior() ? CellAddress::exterior(cell.getGridX(), cell.getGridY())
+                                                   : CellAddress::interior(cell.getNameId());
             mNotedCell = cell.getId();
         }
 

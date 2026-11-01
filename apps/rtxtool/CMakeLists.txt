@@ -5,6 +5,8 @@ set(RTXTOOL_FILES
     compare.hpp
     film.cpp
     film.hpp
+    framed.cpp
+    framed.hpp
     harnessfolder.cpp
     harnessfolder.hpp
     homekey.cpp
@@ -29,6 +31,8 @@ set(RTXTOOL_FILES
     instruments/jsontext.hpp
     instruments/nvml.cpp
     instruments/nvml.hpp
+    instruments/png.cpp
+    instruments/png.hpp
     instruments/scenedigest.cpp
     instruments/scenedigest.hpp
     instruments/threadcounters.cpp
@@ -51,10 +55,16 @@ set(RTXTOOL_FILES
     model/maprules.hpp
     model/measurewindow.cpp
     model/measurewindow.hpp
+    model/pictureshelf.cpp
+    model/pictureshelf.hpp
     model/runrecord.cpp
     model/runrecord.hpp
     model/skycrossing.cpp
     model/skycrossing.hpp
+    model/stopdescription.cpp
+    model/stopdescription.hpp
+    model/viewfile.cpp
+    model/viewfile.hpp
     noise.cpp
     noise.hpp
     numbervalue.hpp
@@ -62,8 +72,8 @@ set(RTXTOOL_FILES
     options.hpp
     picturemean.cpp
     picturemean.hpp
-    run.cpp
-    run.hpp
+    runfolder.cpp
+    runfolder.hpp
     skykeys.cpp
     skykeys.hpp
     verbs.cpp
@@ -75,6 +85,7 @@ set(RTXTOOL_HOSTED_FILES
     cameradriver.cpp
     cameradriver.hpp
     hosted.cpp
+    hosted.hpp
     measurer.cpp
     measurer.hpp
     memorykey.cpp

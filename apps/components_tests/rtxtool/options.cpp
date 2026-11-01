@@ -20,7 +20,7 @@
 #include <apps/rtxtool/film.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/options.hpp>
-#include <apps/rtxtool/run.hpp>
+#include <apps/rtxtool/runfolder.hpp>
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>

@@ -14,7 +14,7 @@
 
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
-#include <apps/rtxtool/run.hpp>
+#include <apps/rtxtool/model/viewfile.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/testing/util.hpp>
 

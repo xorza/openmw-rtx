@@ -15,6 +15,30 @@ namespace RtxTool
 {
     namespace
     {
+        /// **A pair of integers is an exterior, spelt again as the world reads it, and anything else
+        /// an interior's name**: `Balmora` is read indoors, as the film plans it, and not found out
+        /// of doors as `coc` would. A cell the game stands in is spelt as `--cell` takes it.
+        TEST(RtxBenchRunTest, aPairOfIntegersIsAnExteriorAndAnythingElseAnInteriorsName)
+        {
+            const CellAddress spaced(" 2 , -10");
+            EXPECT_TRUE(spaced.isExterior());
+            EXPECT_EQ(spaced.getSpelling(), "2,-10") << "the world reads no space around an integer";
+            EXPECT_EQ(CellAddress("-3,-2"), CellAddress::exterior(-3, -2));
+
+            for (const std::string_view name :
+                { "Balmora", "Balmora, Guild of Mages", "-3", "1,2,3", ",", "1.5,2", "99999999999,0" })
+            {
+                const CellAddress cell(name);
+                EXPECT_FALSE(cell.isExterior()) << name;
+                EXPECT_EQ(cell.getSpelling(), name);
+                EXPECT_EQ(cell, CellAddress::interior(name));
+            }
+
+            EXPECT_TRUE(CellAddress().empty());
+            EXPECT_TRUE(CellAddress("").empty());
+            EXPECT_FALSE(CellAddress::interior("1,2").isExterior()) << "the cell said it is an interior";
+        }
+
         /// The rotation a stand hands the game's body, in the game's own angles.
         TEST(RtxBenchRunTest, aStandsRotationIsTheBodysYawClockwiseFromNorthAndPitchNegativeUp)
         {
@@ -37,7 +61,7 @@ namespace RtxTool
             // A look is taken over an eye and refused without one, where it would be dropped.
             EXPECT_TRUE(bare.lookAt(eye + osg::Vec3f(100.0f, 0.0f, 0.0f)));
             EXPECT_NEAR(bare.getRotation().z(), osg::PI_2, 1e-6);
-            Stand blind{ .mCell = "-2,-9" };
+            Stand blind{ .mCell = CellAddress("-2,-9") };
             EXPECT_FALSE(blind.lookAt(eye));
             EXPECT_FALSE(blind.mLook.has_value());
         }
@@ -84,11 +108,11 @@ namespace RtxTool
         /// a walk of 150 each are one flight of 150 √2 = 212.132 units, at 438.894 a second.
         TEST(RtxBenchRunTest, aFlightComesInFromTheStandsLeftAndFromBehindAndArrivesOnTheLastFrame)
         {
-            const Stand north{ .mCell = "Balmora",
+            const Stand north{ .mCell = CellAddress("Balmora"),
                 .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
                 .mLook = osg::Vec3f(100.0f, 1200.0f, 300.0f) };
             const Approach fromWest = north.approachFrom(150.0f, 0.0f, 1.0f / 60.0f, 30);
-            EXPECT_EQ(fromWest.mFrom.mCell, "Balmora");
+            EXPECT_EQ(fromWest.mFrom.mCell.getSpelling(), "Balmora");
             EXPECT_NEAR(fromWest.mFrom.mEye->x(), -50.0f, 1e-4f);
             EXPECT_NEAR(fromWest.mFrom.mEye->y(), 200.0f, 1e-4f);
             EXPECT_NEAR(fromWest.mFrom.mEye->z(), 300.0f, 1e-4f);

@@ -31,11 +31,8 @@ The findings come from six root causes. Each change below removes one cause, not
   and throws on `lock`; NVML's optional fields throw away the required one; the host thread's clock
   scales the cycles and not the time. Target: each edge does what its own doc says, through a pure
   function a test can feed.
-- **The harness has no typed boundary for its command line, and `run.hpp` is four modules.** The raw
-  `variables_map` travels in `Command` to every verb, which makes `options` and `run` include each
-  other. Target: `options` parses into typed records once; describers, the view and suite schema
-  (beside `BlockFile` in `model/`), and the hosted run (`hosted.hpp`) each have their own header; the
-  run-folder functions join `harnessfolder.hpp`.
+- **The harness has no typed boundary for its command line.** The raw `variables_map` travels in
+  `Command` to every verb. Target: `options` parses into typed records once.
 - **A result is written and read back, or worked out twice.** The harness decodes PNGs it just wrote;
   the deep read-back copies the picture three times; `gatherBeside` walks a whole model once per
   drawable; the fog's air walk works the lamp chord out twice. Target: keep what is in memory, walk a
@@ -49,47 +46,11 @@ Accepted diff does not list.
 Batches in order of impact. Each leaves the build and the tests green. Whoever addresses an item
 deletes it.
 
-### 8. The harness's shape — `apps/rtxtool/{options,run,hosted,main,film,stager,session,measurer,compare,noise,harnessfolder,cameradriver}.*`, `apps/rtxtool/model/{benchrun,blockfile}.*`, `components/rtx/renderer/png.*`, `components/rtxvulkan/{vulkanrenderer.cpp,device/memory/image.cpp}`
+### 8. The harness's shape — `apps/rtxtool/{options,hosted,main}.*`
 
-- [ ] `run.hpp:238-241` `Command` carries the raw `variables_map` and `const ToolOptions&` to every
-  verb, which reads about 100 options by string in `main.cpp`; `run.hpp` includes `options.hpp` for
-  that member alone, and `options.cpp` includes `run.hpp` for `Framed` (`:189`) and seven
-  constants. Target: `options` parses the line once into typed records per verb; `Command` holds
-  those; the cycle goes.
-- [ ] `run.hpp` holds four modules: the stop describers (`describeSpot` … `cellArgument`), `SkyNote`
-  (standingnote's alone), the view and suite schema (`loadViews` … `chooseViews`,
-  `run.cpp:280-473`, while its field parser `BlockFile::readPlace` is in `model/blockfile.cpp:322`),
-  and the hosted run (`Command`, `Framed`, `WindowRequest`, `ShippedDefaults`, `runHosted`), plus
-  constants; `cameradriver.cpp` includes it for `sTurnSeconds` alone. Target: a describers header
-  with `SkyNote`, the schema in `model/` beside `BlockFile`, `hosted.hpp`, each constant beside its
-  readers.
-- [ ] `options.hpp:96-123` / `options.cpp:773-831`: `ownConfigDirectory`, `ownSavesFolder`,
-  `sweepEndedRuns` and `adoptConfigDirectory` own run folders, not options. Target:
-  `harnessfolder.hpp`.
-- [ ] One cell spelling, two rules: `Stand::mCell` (`model/benchrun.hpp:138-142`) and
-  `isExteriorCell` (`film.cpp:89-101`) take a pair of integers for an exterior and anything else
-  for an interior, while `Stager` (`stager.cpp:80`) asks `World::findExteriorPosition` first, which
-  resolves a named exterior too: a hand-written `cell = Balmora` stages outdoors while the film plans
-  an interior cut. Target: parse the spelling once, at load, into an exterior-or-interior type.
-- [ ] `measurer.hpp:172-173` holds `const SessionRequest&` and `RunRecord&`, siblings inside
-  `Session` (`session.hpp:50-157`), which is non-copyable only because `CardWatch` holds an atomic.
-  Target: hand both at `Measurer`'s calls, or delete `Session`'s copy and move, as AGENTS.md asks of
-  an owner wired by reference.
-- [ ] `compare.cpp:262-263` `compareRuns` and `noise.cpp:69-77` `judgeNoise` read back and decode
-  the PNGs this process just wrote: every picture of a run, and five 16-bit pictures a place, about
-  30 MB decoded each at 2560x1440. Target: the session result keeps the run's pictures
-  (`Rtx::PngImage`) from `StopWriter`/`Measurer`, the PNGs are still written, and only a reference
-  folder is read.
-- [ ] `vulkanrenderer.cpp:917` `readDeepPixels` with `image.cpp:430` `Image::read`: a new read-back
-  buffer a call (an allocation of its own past half a 64 MiB block), a copy into a new vector, and
-  another into `samples`: three copies of 8 B a pixel, 133 MB at 7680x2160; `readPixels` pays the
-  buffer and one extra copy. Target: `Image::read` into a span the caller sized, the landing buffer
-  kept as a `GrowableBuffer` as `FrameRing::mPictures` keeps its own.
-- [ ] `components/rtx/renderer/png.{hpp,cpp}` is used by `apps/rtxtool` alone (`homekey`,
-  `measurer`, `stopwriter`, `compare`, `noise`) and pulls the osgDB registry, zlib and file streams
-  into the core. Target: move it and its test into `apps/rtxtool`; `frameImage` stays.
-- [ ] `film.cpp:79-86` `loadKeys` repeats `BlockFile::load`'s open-and-refuse. Target: load through
-  `BlockFile`, keep `readKeys(istream)` for the tests.
+- [ ] `hosted.hpp` `Command` carries the raw `variables_map` and `const ToolOptions&` to every
+  verb, which reads about 100 options by string in `main.cpp` (`variables["hold"].as<bool>()`).
+  Target: `options` parses the line once into typed records per verb; `Command` holds those.
 
 ### 9. The core's edges — `components/rtx/renderer/{renderer,nullrenderer}.hpp`, `components/rtxvulkan/{createrenderer.cpp,vulkanrenderer.*,present/*}`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp`
 

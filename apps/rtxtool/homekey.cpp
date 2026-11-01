@@ -15,17 +15,16 @@
 #include <SDL3/SDL_scancode.h>
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
+#include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/thread.hpp>
-#include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-
-#include "run.hpp"
 
 namespace RtxTool
 {
@@ -177,7 +176,7 @@ namespace RtxTool
             path = mPictures / std::format("{}-{}.png", room.mId, number);
 
         const Misc::Result<void, std::string> written
-            = Rtx::writePng(path, room.mWidth, room.mHeight, room.mPixels, room.mNote);
+            = writePng(path, room.mWidth, room.mHeight, room.mPixels, room.mNote);
         room.mSaid = written.isOk() ? std::format("# picture {}\n", Files::pathToUnicodeString(path))
                                     : std::format("# picture not written: {}\n", written.error());
     }

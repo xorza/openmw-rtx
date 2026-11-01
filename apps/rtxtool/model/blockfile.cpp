@@ -322,7 +322,7 @@ namespace RtxTool
     bool BlockFile::readPlace(const BlockField& field, Stop& stop) const
     {
         if (field.mName == "cell")
-            stop.mStand.mCell = field.mValue;
+            stop.mStand.mCell = CellAddress(field.mValue);
         else if (field.mName == "pos")
             stop.mStand.mEye = point(field);
         else if (field.mName == "look")

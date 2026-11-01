@@ -5,17 +5,18 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/compare.hpp>
+#include <apps/rtxtool/instruments/png.hpp>
+#include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/noise.hpp>
-#include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/renderer/png.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -24,22 +25,22 @@ namespace RtxTool
     {
         /// A picture of one flat colour at an eight-bit `level`, so a test can then move exactly the
         /// pixels it means to.
-        Rtx::PngImage flat(std::uint32_t width, std::uint32_t height, std::uint8_t level)
+        PngImage flat(std::uint32_t width, std::uint32_t height, std::uint8_t level)
         {
-            Rtx::PngImage image{ width, height, {} };
+            PngImage image{ width, height, {} };
             image.mSamples.assign(
-                std::size_t{ width } * height * 4, static_cast<std::uint16_t>(level * Rtx::sSamplesPerLevel));
+                std::size_t{ width } * height * 4, static_cast<std::uint16_t>(level * sSamplesPerLevel));
             return image;
         }
 
-        std::uint16_t& sampleAt(Rtx::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel)
+        std::uint16_t& sampleAt(PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel)
         {
             return image.mSamples[(std::size_t{ y } * image.mWidth + x) * 4 + channel];
         }
 
-        void setLevel(Rtx::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel, std::uint8_t level)
+        void setLevel(PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel, std::uint8_t level)
         {
-            sampleAt(image, x, y, channel) = static_cast<std::uint16_t>(level * Rtx::sSamplesPerLevel);
+            sampleAt(image, x, y, channel) = static_cast<std::uint16_t>(level * sSamplesPerLevel);
         }
 
         /// **A shot is refused against the directory it writes**, however the two are spelled: the
@@ -75,8 +76,8 @@ namespace RtxTool
         /// nothing rounded in it.
         TEST(RtxCompareTest, aDifferenceIsCountedInPixelsAndMeasuredInChannels)
         {
-            const Rtx::PngImage before = flat(10, 10, 100);
-            Rtx::PngImage after = before;
+            const PngImage before = flat(10, 10, 100);
+            PngImage after = before;
 
             EXPECT_TRUE(compareFrames(before, after).same());
             EXPECT_EQ(compareFrames(before, after).mTotal, 100u);
@@ -100,8 +101,8 @@ namespace RtxTool
         /// a magnitude on a frame that is identical.
         TEST(RtxCompareTest, alphaIsNotPartOfWhatThePictureLooksLike)
         {
-            const Rtx::PngImage before = flat(4, 4, 200);
-            Rtx::PngImage after = before;
+            const PngImage before = flat(4, 4, 200);
+            PngImage after = before;
             for (std::uint32_t y = 0; y < 4; ++y)
                 for (std::uint32_t x = 0; x < 4; ++x)
                     setLevel(after, x, y, 3, 0);
@@ -117,8 +118,8 @@ namespace RtxTool
         /// counts nothing.
         TEST(RtxCompareTest, anErrorIsItsMeanAndTheLevelNinetyNinePixelsInAHundredAreWithin)
         {
-            const Rtx::PngImage reference = flat(10, 10, 100);
-            Rtx::PngImage picture = reference;
+            const PngImage reference = flat(10, 10, 100);
+            PngImage picture = reference;
             for (std::uint32_t x = 0; x < 8; ++x)
                 setLevel(picture, x, 0, 1, 96);
             setLevel(picture, 0, 1, 2, 120);
@@ -136,7 +137,7 @@ namespace RtxTool
             // **A mean stands between the levels, and its error is kept there**: a mean 129 samples
             // over the frame, of the 257 a level is, reads as `129 / 257` = 0.502 of a level, where a
             // mean rounded to a byte read as nought or one.
-            Rtx::PngImage between = reference;
+            PngImage between = reference;
             for (std::uint16_t& sample : between.mSamples)
                 sample = static_cast<std::uint16_t>(sample + 129);
             const PictureError half = measureError(reference, between);
@@ -144,7 +145,7 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(half.mP99, 129.0 / 257.0);
 
             EXPECT_TRUE(measureError(picture, flat(10, 9, 100)).mMismatched);
-            EXPECT_TRUE(measureError(Rtx::PngImage{}, reference).mMismatched);
+            EXPECT_TRUE(measureError(PngImage{}, reference).mMismatched);
         }
 
         /// **A firefly is four times the truth's light and a spark's worth over it.** A grey's light
@@ -159,9 +160,9 @@ namespace RtxTool
         /// Two in a hundred is 20 in a thousand. Pictures of two sizes have nothing to count.
         TEST(RtxCompareTest, aFireflyIsFourTimesTheTruthsLightAndASparkOverIt)
         {
-            Rtx::PngImage reference = flat(10, 10, 100);
-            Rtx::PngImage picture = reference;
-            const auto grey = [](Rtx::PngImage& image, std::uint32_t x, std::uint8_t level) {
+            PngImage reference = flat(10, 10, 100);
+            PngImage picture = reference;
+            const auto grey = [](PngImage& image, std::uint32_t x, std::uint8_t level) {
                 for (std::size_t channel = 0; channel < 3; ++channel)
                     setLevel(image, x, 0, channel, level);
             };
@@ -184,20 +185,20 @@ namespace RtxTool
         /// finest scale, gone at `sNoiseBiasBlur` and whole under a blur a tenth of a pixel wide.
         TEST(RtxCompareTest, aBiasIsTheDifferenceThatSurvivesTheBlur)
         {
-            const Rtx::PngImage reference = flat(21, 21, 128);
+            const PngImage reference = flat(21, 21, 128);
             EXPECT_EQ(blurredDifference(reference, reference, sNoiseBiasBlur), 0.0);
 
-            Rtx::PngImage offset = reference;
+            PngImage offset = reference;
             for (std::uint32_t y = 0; y < 21; ++y)
                 for (std::uint32_t x = 0; x < 21; ++x)
                     setLevel(offset, x, y, 1, 132);
             EXPECT_NEAR(*blurredDifference(offset, reference, sNoiseBiasBlur), 4.0, 1e-4);
 
-            Rtx::PngImage impulse = reference;
+            PngImage impulse = reference;
             setLevel(impulse, 10, 10, 0, 255);
             EXPECT_NEAR(*blurredDifference(impulse, reference, sNoiseBiasBlur), 127.0 / 441.0, 1e-4);
 
-            Rtx::PngImage checker = reference;
+            PngImage checker = reference;
             for (std::uint32_t y = 0; y < 21; ++y)
                 for (std::uint32_t x = 0; x < 21; ++x)
                     for (std::size_t channel = 0; channel < 3; ++channel)
@@ -206,7 +207,7 @@ namespace RtxTool
             EXPECT_NEAR(*blurredDifference(checker, reference, 0.1f), 127.0, 1e-3);
 
             EXPECT_FALSE(blurredDifference(reference, flat(21, 20, 128), sNoiseBiasBlur).has_value());
-            EXPECT_FALSE(blurredDifference(Rtx::PngImage{}, reference, sNoiseBiasBlur).has_value());
+            EXPECT_FALSE(blurredDifference(PngImage{}, reference, sNoiseBiasBlur).has_value());
         }
 
         /// **Each rule on the four differences that tell them apart**: none, one level on one pixel
@@ -215,16 +216,16 @@ namespace RtxTool
         /// measured and never judged, whatever the picture did.
         TEST(RtxCompareTest, eachPictureIsHeldToItsOwnRule)
         {
-            const Rtx::PngImage before = flat(4, 4, 100);
-            Rtx::PngImage oneLevel = before;
+            const PngImage before = flat(4, 4, 100);
+            PngImage oneLevel = before;
             setLevel(oneLevel, 1, 2, 0, 101);
-            Rtx::PngImage twoLevels = before;
+            PngImage twoLevels = before;
             setLevel(twoLevels, 1, 2, 0, 102);
 
             const FrameDifference none = compareFrames(before, before);
             const FrameDifference one = compareFrames(before, oneLevel);
             const FrameDifference two = compareFrames(before, twoLevels);
-            const FrameDifference missing = compareFrames(before, Rtx::PngImage{});
+            const FrameDifference missing = compareFrames(before, PngImage{});
             ASSERT_EQ(one.mWorst, sDenoiserNoiseLevels);
             ASSERT_EQ(two.mWorst, sDenoiserNoiseLevels + 1);
 
@@ -258,26 +259,25 @@ namespace RtxTool
         /// Two sizes are not a delta, and neither is a reference that was never written.
         TEST(RtxCompareTest, nothingToSubtractIsSaidRatherThanCountedAsZero)
         {
-            const Rtx::PngImage before = flat(10, 10, 100);
+            const PngImage before = flat(10, 10, 100);
 
             EXPECT_TRUE(compareFrames(before, flat(10, 9, 100)).mMismatched);
-            EXPECT_TRUE(compareFrames(before, Rtx::PngImage{}).mMismatched);
-            EXPECT_TRUE(compareFrames(Rtx::PngImage{}, before).mMismatched);
+            EXPECT_TRUE(compareFrames(before, PngImage{}).mMismatched);
+            EXPECT_TRUE(compareFrames(PngImage{}, before).mMismatched);
 
             // And a mismatch is never `same`, which is what the exit status is built on.
-            EXPECT_FALSE(compareFrames(before, Rtx::PngImage{}).same());
+            EXPECT_FALSE(compareFrames(before, PngImage{}).same());
         }
 
-        void writeTo(const std::filesystem::path& file, const Rtx::PngImage& image)
+        void writeTo(const std::filesystem::path& file, const PngImage& image)
         {
             std::filesystem::create_directories(file.parent_path());
-            const Misc::Result<void, std::string> written
-                = Rtx::writePng(file, image.mWidth, image.mHeight, image.mSamples);
+            const Misc::Result<void, std::string> written = writePng(file, image.mWidth, image.mHeight, image.mSamples);
             ASSERT_TRUE(written.isOk()) << written.error();
         }
 
-        /// **The exit status of `shot --against`, case by case**, over pictures written to a
-        /// directory and read back as a run reads them. A picture moved by one level fails under
+        /// **The exit status of `shot --against`, case by case**, over pictures a run kept and
+        /// references written to a directory, which the comparison reads. A picture moved by one level fails under
         /// `Exact` and passes under `Denoised`; a hashed picture is measured and never fails; a
         /// picture with no reference, or a reference with no picture, fails; one failure among
         /// passes fails the run; no reference directory passes without reading anything; and a
@@ -288,19 +288,24 @@ namespace RtxTool
             const std::filesystem::path wrote = root / "wrote";
             const std::filesystem::path against = root / "against";
 
-            const Rtx::PngImage before = flat(4, 4, 100);
-            Rtx::PngImage oneLevel = before;
+            const PngImage before = flat(4, 4, 100);
+            PngImage oneLevel = before;
             setLevel(oneLevel, 1, 2, 0, 101);
-            Rtx::PngImage moved = before;
+            PngImage moved = before;
             setLevel(moved, 3, 3, 1, 140);
 
+            PictureShelf drawn;
+            const auto draw = [&](const std::string& name, const PngImage& image) {
+                drawn.keep(wrote / name, image.mWidth, image.mHeight, image.mSamples);
+            };
+
             writeTo(against / "same.png", before);
-            writeTo(wrote / "same.png", before);
+            draw("same.png", before);
             writeTo(against / "one-level.png", before);
-            writeTo(wrote / "one-level.png", oneLevel);
+            draw("one-level.png", oneLevel);
             writeTo(against / "moved.png", before);
-            writeTo(wrote / "moved.png", moved);
-            writeTo(wrote / "no-reference.png", before);
+            draw("moved.png", moved);
+            draw("no-reference.png", before);
             writeTo(against / "not-drawn.png", before);
 
             struct Case
@@ -322,30 +327,32 @@ namespace RtxTool
                 { {}, 1, "nothing to compare" },
             };
             for (const Case& expected : cases)
-                EXPECT_EQ(compareRuns(wrote, against, expected.mPictures), expected.mStatus) << expected.mWhat;
+                EXPECT_EQ(compareRuns(drawn, wrote, against, expected.mPictures), expected.mStatus) << expected.mWhat;
 
             const std::vector<WrittenPicture> moving = { { "moved.png", PictureRule::Exact } };
-            EXPECT_EQ(compareRuns(wrote, {}, moving), 0) << "no reference directory asks for no comparison";
+            EXPECT_EQ(compareRuns(drawn, wrote, {}, moving), 0) << "no reference directory asks for no comparison";
 
-            // **A picture the run did not draw fails as one not drawn**, which is why the run's
-            // record clears what it will write ahead of it (`RunRecord::begin`).
+            // **A picture the run did not keep fails as one not drawn**, as a run that ended before
+            // the stop that writes it leaves it; and a picture is found under the folder it was
+            // written to and no other.
             const std::vector<WrittenPicture> same = { { "same.png", PictureRule::Exact } };
-            std::filesystem::remove(wrote / "same.png");
-            EXPECT_EQ(compareRuns(wrote, against, same), 1) << "a picture this run did not draw";
+            EXPECT_EQ(compareRuns(PictureShelf(), wrote, against, same), 1) << "a picture this run did not draw";
+            EXPECT_EQ(compareRuns(drawn, root / "elsewhere", against, same), 1)
+                << "a picture drawn into another folder";
 
             std::filesystem::remove_all(root);
         }
 
         /// A picture of `width` by `height` whose every pixel is `base`, but for the first `count`
         /// pixels, which are `base + raised` in every colour channel.
-        Rtx::PngImage raisedAt(
+        PngImage raisedAt(
             std::uint32_t width, std::uint32_t height, std::uint8_t base, std::size_t count, std::uint8_t raised)
         {
-            Rtx::PngImage image = flat(width, height, base);
+            PngImage image = flat(width, height, base);
             for (std::size_t pixel = 0; pixel < count; ++pixel)
                 for (std::size_t channel = 0; channel < 3; ++channel)
                     image.mSamples[pixel * 4 + channel]
-                        = static_cast<std::uint16_t>((base + raised) * Rtx::sSamplesPerLevel);
+                        = static_cast<std::uint16_t>((base + raised) * sSamplesPerLevel);
             return image;
         }
 
@@ -356,26 +363,32 @@ namespace RtxTool
         /// - every pixel 3 off against 2: the mean is worse, noisier;
         /// - two pixels 10 off against every pixel 1: mean 0.2 against 1, but the 99th of 100 pixels
         ///   is 10 against 1, noisier, which the mean alone would pass;
-        /// - a missing picture, and a picture of another size, fail as not measured;
+        /// - a picture not written, and a picture of another size, fail as not measured;
         /// - no place at all fails, because nothing was measured.
         TEST(RtxCompareTest, aFrameIsAsCleanAsItsBarOnlyByTheMeanAndThe99thPercentileBoth)
         {
             const std::filesystem::path root = TestingOpenMW::currentTestDirPath();
-            const Rtx::PngImage limit = flat(10, 10, 100);
+            const PngImage limit = flat(10, 10, 100);
 
-            const auto place = [&](const std::string& name, const Rtx::PngImage& frame, const Rtx::PngImage& bar) {
-                writeTo(root / (name + ".png"), frame);
-                writeTo(root / (name + std::string(sNoiseMeanSuffix) + ".png"), limit);
-                writeTo(root / (name + std::string(sNoiseBarSuffix) + ".png"), bar);
-                writeTo(root / (name + std::string(sNoiseBarLimitSuffix) + ".png"), limit);
-                writeTo(root / (name + std::string(sNoiseReferenceSuffix) + ".png"), limit);
+            PictureShelf drawn;
+            const auto draw = [&](const std::string& name, const std::string_view suffix, const PngImage& image) {
+                drawn.keep(root / (name + std::string(suffix) + ".png"), image.mWidth, image.mHeight, image.mSamples);
+            };
+            const auto place = [&](const std::string& name, const PngImage& frame, const PngImage& bar) {
+                draw(name, "", frame);
+                draw(name, sNoiseMeanSuffix, limit);
+                draw(name, sNoiseBarSuffix, bar);
+                draw(name, sNoiseBarLimitSuffix, limit);
+                draw(name, sNoiseReferenceSuffix, limit);
             };
 
             place("clean", raisedAt(10, 10, 100, 100, 2), raisedAt(10, 10, 100, 100, 2));
             place("noisier-mean", raisedAt(10, 10, 100, 100, 3), raisedAt(10, 10, 100, 100, 2));
             place("noisier-tail", raisedAt(10, 10, 100, 2, 10), raisedAt(10, 10, 100, 100, 1));
-            place("missing", limit, limit);
-            std::filesystem::remove(root / ("missing" + std::string(sNoiseBarLimitSuffix) + ".png"));
+            draw("missing", "", limit);
+            draw("missing", sNoiseMeanSuffix, limit);
+            draw("missing", sNoiseBarSuffix, limit);
+            draw("missing", sNoiseReferenceSuffix, limit);
             place("other-size", flat(10, 9, 100), limit);
 
             std::vector<NoiseFigures> measured;
@@ -384,7 +397,7 @@ namespace RtxTool
                 for (const std::string& name : names)
                     places.push_back(NoiseSide{ .mPlace = name, .mFrame = name, .mBar = name, .mReference = name });
                 measured.clear();
-                return judgeNoise(root, places, 16, measured);
+                return judgeNoise(drawn, root, places, 16, measured);
             };
             EXPECT_EQ(judge({ "clean" }), 0);
             // **What a place measured is handed back as its line printed it**: the frame and the bar
@@ -417,7 +430,7 @@ namespace RtxTool
                 const std::array places{ NoiseSide{
                     .mPlace = "side", .mFrame = frame, .mBar = bar, .mReference = reference } };
                 std::vector<NoiseFigures> sideMeasured;
-                return judgeNoise(root, places, 16, sideMeasured);
+                return judgeNoise(drawn, root, places, 16, sideMeasured);
             };
             EXPECT_EQ(against("noisier-mean", "noisier-mean", "noisier-mean"), 1);
             EXPECT_EQ(against("noisier-mean", "loose", "loose"), 0);

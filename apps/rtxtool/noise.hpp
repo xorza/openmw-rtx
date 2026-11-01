@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -10,12 +11,22 @@
 
 #include <apps/rtxtool/compare.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/shaders/look.h>
 
 namespace RtxTool
 {
+    /// How many frames an unfiltered picture at a held exposure warms up over: its one history is
+    /// the air's, which keeps `FOG_VOLUME_HISTORY` of itself a frame, so this is where the air's
+    /// weight on the frame the cut left falls under what `sHistoryFrames` leaves of the
+    /// accumulator's, `(1 - 1/N)^4N`: 39 at a history of 0.9 and an `N` of 32, against 128.
+    inline const std::uint32_t sAirFrames = static_cast<std::uint32_t>(std::ceil(
+        std::log(std::pow(1.0 - 1.0 / static_cast<double>(Rtx::Shaders::ACCUMULATE_FRAMES), double(sHistoryFrames)))
+        / std::log(static_cast<double>(Rtx::Shaders::FOG_VOLUME_HISTORY))));
+
     /// How many frames `noise` averages into the reference, and into the bar. **The reference at
     /// 256**: a second reference drawn from another sequence stood 5 levels from it at the 99th
     /// percentile at the Seyda Neen pier, so what is left of its own noise does not decide a bias.
@@ -134,12 +145,12 @@ namespace RtxTool
     /// What `noise --versus` names the second side's pictures of a place, after the place's name.
     inline constexpr std::string_view sNoiseVersusSuffix = "-versus";
 
-    /// Reads back the five pictures `noise` wrote of each of `places` into `wrote` and says whether
-    /// each frame is as clean as its bar: **its noise** — how far it stands from its own mean — no
-    /// more than the bar's from the bar's own limit, by the mean and at the 99th percentile. Beside
-    /// it, **each one's bias**: how far its mean stands from the reference, blurred by
-    /// `sNoiseBiasBlur`. Returns a process exit status, non-zero where any frame is noisier than its
-    /// bar, any picture is missing, does not read, or is of another size, or no place was named.
+    /// Takes the five pictures `noise` wrote of each of `places` into `wrote`, kept on `drawn` as they
+    /// were written, and says whether each frame is as clean as its bar: **its noise** — how far it stands from its own
+    /// mean — no more than the bar's from the bar's own limit, by the mean and at the 99th percentile. Beside it,
+    /// **each one's bias**: how far its mean stands from the reference, blurred by `sNoiseBiasBlur`. Returns a process
+    /// exit status, non-zero where any frame is noisier than its bar, any picture was not written or is of another
+    /// size, or no place was named.
     ///
     /// **Noise against noise, because a frame and its bar are drawn two ways.** Held to the one
     /// reference, each carried the difference between its own reconstruction and the reference's
@@ -149,8 +160,8 @@ namespace RtxTool
     ///
     /// @param barFrames how many frames the bars averaged, which the report names.
     /// @param measured where each place measured is appended, for `writeNoiseRecord`.
-    int judgeNoise(const std::filesystem::path& wrote, std::span<const NoiseSide> places, std::uint32_t barFrames,
-        std::vector<NoiseFigures>& measured);
+    int judgeNoise(const PictureShelf& drawn, const std::filesystem::path& wrote, std::span<const NoiseSide> places,
+        std::uint32_t barFrames, std::vector<NoiseFigures>& measured);
 
     /// Writes what each side of a `noise` run measured to `path` as JSON — `{"sides": [[...], ...]}`,
     /// a side a list of its places' figures, the first side first — for a reader that is no person:
@@ -185,7 +196,7 @@ namespace RtxTool
         float mStep = 0.0f;
     };
 
-    /// What a `noise` run draws, and how its pictures are read back.
+    /// What a `noise` run draws, and under which names its judge takes the pictures.
     struct NoisePlan
     {
         std::vector<Stop> mStops;
