@@ -1294,11 +1294,11 @@ vec3 bounceMissed(BounceRun run)
 /// lands on a mushroom cap is what carries the cap's glow back to whatever sent it.
 ///
 /// **A lamp's own model glows to nothing**, every point a bounce leaves having evaluated the lamps
-/// (`INSTANCE_LAMP_BODY`). Its lamp lights every surface around it through the model's fitting
-/// (`lampAsk`) and reaches a lobe by the same sample, so a diffuse bounce that also brought back the
-/// paper's glow lit the room twice — and found that glow rarely and brightly, which is a firefly — and
-/// a glossy lobe that reflected the model beside the lamp's highlight showed it twice. A factor and
-/// not a branch.
+/// (`INSTANCE_LAMP_BODY`). Its lamp lights every surface around it past the model, whose faces its
+/// shadow rays meet from outside and cull (`lampAsk`), and reaches a lobe by the same sample, so a
+/// diffuse bounce that also brought back the paper's glow lit the room twice — and found that glow
+/// rarely and brightly, which is a firefly — and a glossy lobe that reflected the model beside the
+/// lamp's highlight showed it twice. A factor and not a branch.
 ///
 /// **One visit with the path chosen, and not one per half.** A warp whose lanes drew both halves
 /// would run them one after the other. Chosen at run time, the diffuse half's hit asks the moons and

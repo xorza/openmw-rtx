@@ -1138,8 +1138,8 @@ struct Surface
     bool mLampLit;
 };
 
-/// A ray that met nothing, as far away as anything can be: what `resolveFor` answers with for a
-/// miss, and what it fills in from for a hit.
+/// A ray that met nothing, as far away as anything can be: what `resolveAsked` answers with for a
+/// miss, and what `resolve` fills in from for a hit.
 Surface noSurface(vec3 origin)
 {
     Surface surface;
@@ -1388,6 +1388,11 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
         for (uint i = 0u; i < material.mLayerCount; ++i)
         {
             const GpuLayer layer = layerAt(material.mLayerOffset + i);
+            // **A layer the mask hides here is passed by**, its parallax, diffuse and normal fetches
+            // with it: a select in their place cost the exteriors' trace 3 % at the median on a high-end NVIDIA
+            // laptop GPU and their direct stage 2 to 6 %, the p99 higher with them, and the guild's
+            // interior nothing, over three rounds each way of the default suite (2026-11-01). The
+            // bake skips the same layers (`groundcomposite.comp`), so the two sum in one order.
             const float showing = maskWeight(layer, chunkUv);
             if (showing <= 0.0)
                 continue;

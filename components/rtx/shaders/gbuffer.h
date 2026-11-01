@@ -129,7 +129,8 @@ namespace Rtx::Shaders
     const uint CHANNEL_BACKDROP = 5;
 
     /// The sprites the trace found in front of the surface, kept apart from it and lit where they
-    /// stand: their colour, what they let through, and which eye the pixel's ray left — `packPuffs`.
+    /// stand: their colour, what they let through, and which eye the pixel's ray left, as
+    /// `visibility.comp` stores them.
     /// The light is all the composite takes from here. What a puff's shape is, what hides it and
     /// what the cloud shells add are answered along the shown pixel's own ray by
     /// `spritecomposite.rgen`, so no puff goes through the denoiser or an upscaler, and

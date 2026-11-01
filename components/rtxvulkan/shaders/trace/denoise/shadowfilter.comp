@@ -41,9 +41,10 @@
 //   The SDK's filter works only with half-float arithmetic, `FFX_HALF`: without it the functions
 //   are stubs, and shared memory holds halves. Here both are full floats. The first level's answer
 //   is the next frame's history, so a half in its shared memory was a rounding inside the history's
-//   loop, and one `packHalf2x16` makes as the device pleases: this card rounds it to nearest
-//   (`aPackedHalfRoundsToNearestOnThisCard`), and one that truncated would have darkened every
-//   penumbra a little at each frame. What a level stores is rounded once, as `storedWord` says.
+//   loop, and one `packHalf2x16` makes as the device pleases: NVIDIA's rounds it to nearest and
+//   AMD's Windows driver toward nought (`aPackedHalfLandsBesideItsValueAndNearestHalfOnTheNearest`),
+//   and a history rounded toward nought darkens every penumbra a little at each frame. What a level
+//   stores is rounded once, as `storedWord` says.
 // - **The tree's two surface tests** in place of the SDK's depth and normal ones: `coplanarWeight`,
 //   over positions rebuilt through the eye that cast each ray, and `facingWeights`. The wavelet stops
 //   at the same edges, so a shadow does not bleed across an edge the bounce under it stops at.
