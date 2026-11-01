@@ -272,6 +272,7 @@ namespace Rtx
             + "debug utils:       " + (mInstance.hasDebugUtils() ? "on" : "off") + '\n';
 
         report += mDevice.getPhysicalDevice().describe();
+        report += mInstance.getLayers().describe();
 
         report += "\nupscaler:          " + std::string(Upscaler::describe()) + '\n';
 

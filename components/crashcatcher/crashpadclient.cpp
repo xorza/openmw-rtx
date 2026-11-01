@@ -42,6 +42,9 @@ namespace Crash
         /// heap's, so a key set before install is there when the monitor starts.
         crashpad::SimpleStringDictionary sAnnotations;
 
+        // Less the terminator, which `SetFromStringView` writes inside the value's bytes.
+        static_assert(crashpad::SimpleStringDictionary::value_size - 1 == sAnnotationLength);
+
         /// The page this process shares with its monitor, from the moment the monitor started on
         /// it, and null before. **Never destroyed**: the hang signal's handler and Windows' hang
         /// thread read it and outlive every static, and a page unmapped by static destruction under

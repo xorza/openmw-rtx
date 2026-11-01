@@ -9,6 +9,7 @@
 
 #include <volk.h>
 
+#include "loaderlayers.hpp"
 #include "owned.hpp"
 #include "validation.hpp"
 
@@ -59,6 +60,9 @@ namespace Rtx
         /// The version the loader reported, which is at least `sApiVersion`.
         std::uint32_t getApiVersion() const { return mApiVersion; }
 
+        /// The layers the loader inserted, as it reported them while the instance was made.
+        const LoaderLayers& getLayers() const { return *mLayers; }
+
         /// `ValidationOptions::mWatchSubmits`, which a device made on this instance follows.
         bool watchesSubmits() const { return mWatchesSubmits; }
 
@@ -69,6 +73,10 @@ namespace Rtx
 
         // Held by pointer so the address handed to the debug callback survives everything.
         std::unique_ptr<ValidationLog> mValidationLog;
+
+        /// Held by pointer for the same reason, and before the instance, whose destruction the
+        /// loader reports to it as well.
+        std::unique_ptr<LoaderLayers> mLayers = std::make_unique<LoaderLayers>();
 
         bool mWatchesSubmits = false;
 

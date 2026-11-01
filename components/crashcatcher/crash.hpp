@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string_view>
 
 /// **The crash catcher**, the same on every system Crashpad supports: Windows, Linux and macOS.
@@ -13,6 +14,9 @@ namespace Crash
 {
     /// Once for each frame the game draws, a loading screen's included: one relaxed store.
     void heartbeat();
+
+    /// The bytes of a value `annotate` keeps, past which the value is cut.
+    inline constexpr std::size_t sAnnotationLength = 255;
 
     /// A key and a value every later report carries: the version, the renderer, the device.
     void annotate(std::string_view key, std::string_view value);

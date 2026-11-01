@@ -261,6 +261,8 @@ set(RTX_VULKAN_FILES
     device/handles.hpp
     device/instance.cpp
     device/instance.hpp
+    device/loaderlayers.cpp
+    device/loaderlayers.hpp
     device/notfinitecensus.cpp
     device/notfinitecensus.hpp
     device/memory/accelerationstructure.cpp
