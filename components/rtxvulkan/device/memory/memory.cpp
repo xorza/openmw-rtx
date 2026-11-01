@@ -128,20 +128,6 @@ namespace Rtx
             std::exchange(mOwner, nullptr)->give(*this);
     }
 
-    namespace
-    {
-        /// The type the library picks for a resource that asks for video memory and nothing else,
-        /// which is what every structure and texture asks for: the first of the types that request
-        /// is placed in, which costs it nothing more than the others do.
-        std::uint32_t videoTypeOf(const VkPhysicalDeviceMemoryProperties& memory)
-        {
-            const std::uint32_t video = memoryTypesFor(memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-            if (video == 0)
-                throw Unsupported("no memory type is video memory alone among those this device offers");
-            return static_cast<std::uint32_t>(std::countr_zero(video));
-        }
-    }
-
     MemoryAllocator::Library::Library(const VkInstance instance, const VkPhysicalDevice physicalDevice,
         const VkDevice device, const bool budget, const bool priority)
     {
@@ -194,17 +180,15 @@ namespace Rtx
         : mDevice(device)
         , mMemory(memory)
         , mBudget(budget)
-        , mVideoType(videoTypeOf(memory))
-        , mVideoHeap(memory.memoryTypes[mVideoType].heapIndex)
+        , mContent(contentTypesOf(memory))
         , mLibrary(instance, physicalDevice, device.getHandle(), budget, priority)
     {
         // Made now and not when first asked for, so no thread ever makes one: a pool with no block
         // holds nothing. One over each type content may be placed in, which leaves out AMD's
         // device-coherent types: the library refuses a pool over one, and a pool asked of each
         // stopped RADV's and AMD's cards at start-up.
-        const std::uint32_t video = memoryTypesFor(mMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         for (std::uint32_t type = 0; type < mMemory.memoryTypeCount; ++type)
-            if ((video & (1u << type)) != 0)
+            if ((mContent.mTypes & (1u << type)) != 0)
                 mLibrary.makePool(type);
     }
 
@@ -231,6 +215,15 @@ namespace Rtx
         }
 
         return exact != 0 ? exact : having;
+    }
+
+    ContentTypes contentTypesOf(const VkPhysicalDeviceMemoryProperties& memory)
+    {
+        const std::uint32_t types = memoryTypesFor(memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (types == 0)
+            throw Unsupported("no memory type is video memory alone among those this device offers");
+
+        return ContentTypes{ .mTypes = types, .mHeap = memory.memoryTypes[std::countr_zero(types)].heapIndex };
     }
 
     MemoryAllocator::~MemoryAllocator()
@@ -414,7 +407,7 @@ namespace Rtx
     {
         VkDeviceSize owed = 0;
         const VkDeviceSize frame = mHeld[heap][static_cast<std::size_t>(MemoryUse::Frame)];
-        if (heap == mVideoHeap && mFrameReserve > frame)
+        if (heap == mContent.mHeap && mFrameReserve > frame)
             owed += mFrameReserve - frame;
         for (std::size_t before = static_cast<std::size_t>(MemoryUse::Essential);
              before < static_cast<std::size_t>(use); ++before)
@@ -428,16 +421,26 @@ namespace Rtx
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
-        const VmaBudget& budget = budgets[mVideoHeap];
+        const VmaBudget& budget = budgets[mContent.mHeap];
 
-        VmaStatistics content{};
-        vmaGetPoolStatistics(mLibrary.get(), mLibrary.poolOf(mVideoType), &content);
+        // Every pool on the heap, because the library places each resource in whichever of
+        // content's types its requirements allow: on RADV a structure and a texture stand in two.
+        VkDeviceSize free = 0;
+        for (std::uint32_t type = 0; type < mMemory.memoryTypeCount; ++type)
+        {
+            if ((mContent.mTypes & (1u << type)) == 0 || mMemory.memoryTypes[type].heapIndex != mContent.mHeap)
+                continue;
 
-        const VkDeviceSize ceiling = ceilingOf(mVideoHeap, use, budget.budget);
+            VmaStatistics content{};
+            vmaGetPoolStatistics(mLibrary.get(), mLibrary.poolOf(type), &content);
+            free += content.blockBytes - content.allocationBytes;
+        }
+
+        const VkDeviceSize ceiling = ceilingOf(mContent.mHeap, use, budget.budget);
         const VkDeviceSize above = ceiling > budget.usage ? ceiling - budget.usage : 0;
 
         // Whole blocks, because that is what the small resources `tryAllocate` places are placed in.
-        return content.blockBytes - content.allocationBytes + above / sBlockBytes * sBlockBytes;
+        return free + above / sBlockBytes * sBlockBytes;
     }
 
     VkDeviceSize MemoryAllocator::getHeld(const std::uint32_t heap, const MemoryUse use) const
@@ -455,8 +458,8 @@ namespace Rtx
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
-        const VmaBudget& budget = budgets[mVideoHeap];
-        return budget.usage <= ceilingOf(mVideoHeap, MemoryUse::Texture, budget.budget);
+        const VmaBudget& budget = budgets[mContent.mHeap];
+        return budget.usage <= ceilingOf(mContent.mHeap, MemoryUse::Texture, budget.budget);
     }
 
     void MemoryAllocator::limitBudget(const std::optional<VkDeviceSize> bytes)
@@ -539,12 +542,12 @@ namespace Rtx
             out.mHostWrittenLive += statistics.memoryType[type].statistics.allocationBytes;
         }
 
-        out.mUses = MemoryUses{ .mFrame = getHeld(mVideoHeap, MemoryUse::Frame),
+        out.mUses = MemoryUses{ .mFrame = getHeld(mContent.mHeap, MemoryUse::Frame),
             .mFrameReserve = mFrameReserve,
-            .mEssential = getHeld(mVideoHeap, MemoryUse::Essential),
-            .mStructures = getHeld(mVideoHeap, MemoryUse::Structure),
+            .mEssential = getHeld(mContent.mHeap, MemoryUse::Essential),
+            .mStructures = getHeld(mContent.mHeap, MemoryUse::Structure),
             .mStructureRoom = getRoom(MemoryUse::Structure),
-            .mTextures = getHeld(mVideoHeap, MemoryUse::Texture),
+            .mTextures = getHeld(mContent.mHeap, MemoryUse::Texture),
             .mTextureRoom = getRoom(MemoryUse::Texture) };
 
         return out;
