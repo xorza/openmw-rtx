@@ -38,6 +38,7 @@
 #include <apps/openmw/mwrender/skystate.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -62,6 +63,7 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
@@ -85,9 +87,60 @@ namespace MWRender
 {
     namespace
     {
+        /// The game's vertical sync in the core's words, which the window layer's enum is not.
+        Rtx::VerticalSync verticalSyncOf(const SDLUtil::VSyncMode mode)
+        {
+            switch (mode)
+            {
+                case SDLUtil::VSyncMode::Disabled:
+                    return Rtx::VerticalSync::Off;
+                case SDLUtil::VSyncMode::Enabled:
+                    return Rtx::VerticalSync::On;
+                case SDLUtil::VSyncMode::Adaptive:
+                    return Rtx::VerticalSync::Adaptive;
+            }
+            Crash::fatal("a vertical sync mode past the three");
+        }
+
+        /// Whether an environment variable is set to anything other than nothing or `0`.
+        bool askedFor(const char* name)
+        {
+            const char* const value = std::getenv(name);
+            return value != nullptr && *value != '\0' && std::strcmp(value, "0") != 0;
+        }
+
+        /// `validation` raised to what the environment asks of the layers.
+        ///
+        /// **The two finer levels, asked for by name and never on by themselves.** The build decides
+        /// whether the layers load; these decide what they check, and each costs far more than the
+        /// core checks do — synchronization validation tracks every access of every resource, and
+        /// the GPU-assisted layer instruments every shader. They are here because the harness names
+        /// a level on its command line and the game has none, and `Rtx::sValidationByDefault` says
+        /// why two hosts of one renderer must not disagree about the layers. What they answer is
+        /// the fault a core-clean run still ends in: a device lost with an address and nothing else.
+        ///
+        /// **The GPU-assisted layer takes the process down on its own**, which is why it is a level
+        /// of its own and never paired with the other: over a window `vkWaitForFences` comes back
+        /// `VK_ERROR_DEVICE_LOST` on three runs of four, somewhere inside a minute, with nothing
+        /// wrong in the frame, and headless it has aborted inside the layer's own thread. So
+        /// `OPENMW_RTX_SYNC_VALIDATION` is the one to reach for in the game, and
+        /// `OPENMW_RTX_GPU_VALIDATION` is there for a session willing to tell the losses apart.
+        /// Either raises the level whatever the build said, which is what lets a Release build be
+        /// asked one question without being rebuilt. `OPENMW_RTX_WATCH_SUBMITS` is asked for by name
+        /// for the same reason: a diagnostic the game has no command line to ask for.
+        Rtx::ValidationOptions askedValidation(Rtx::ValidationOptions validation)
+        {
+            if (askedFor("OPENMW_RTX_SYNC_VALIDATION"))
+                validation.mLevel = std::max(validation.mLevel, Rtx::ValidationLevel::Sync);
+            if (askedFor("OPENMW_RTX_GPU_VALIDATION"))
+                validation.mLevel = Rtx::ValidationLevel::Gpu;
+            validation.mWatchSubmits = validation.mWatchSubmits || askedFor("OPENMW_RTX_WATCH_SUBMITS");
+            return validation;
+        }
+
         /// The backend `OPENMW_RTX_BACKEND` names, and the device's where it names none.
         ///
-        /// **Asked for by name, as the backend's diagnostics are** (`Rtx::createVulkanRenderer`): a
+        /// **Asked for by name, as the layers' finer levels are** (`askedValidation`): a
         /// run of the game on a machine with no device — upstream's integration tests on CI — has no
         /// command line of its own, and a setting would put a game that draws nothing one menu away
         /// from a player.
@@ -190,13 +243,14 @@ namespace MWRender
         options.mWidth = static_cast<std::uint32_t>(getPresentation().mFrame.x());
         options.mHeight = static_cast<std::uint32_t>(getPresentation().mFrame.y());
         options.mWindow = mWindow.hasSurface() ? mWindow.get() : nullptr;
-        options.mVerticalSync = Settings::video().mVsyncMode;
+        options.mVerticalSync = verticalSyncOf(Settings::video().mVsyncMode);
         // **The run's answer, handed over whole**: the profile a measurement turns, so a picture
         // taken by the harness and a frame drawn by the game come from one configuration, the
         // layers — a launcher making a measurement says on its command line whether they load,
         // because a figure taken under them is not one to compare against anything — and the
         // budget. `playedRunSetup` says what a session with no command line answers.
         options.mRun = setup.mRun;
+        options.mRun.mValidation = askedValidation(setup.mRun.mValidation);
 
         // **Counted exactly where a run is installed.** The counts are a report's figures — what
         // tells "the cell rendered" from "the camera faced away from it", and what `check` asserts
@@ -659,7 +713,7 @@ namespace MWRender
     void RtxRenderer::setVSync(SDLUtil::VSyncMode mode) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
-        mRenderer->setVerticalSync(mode);
+        mRenderer->setVerticalSync(verticalSyncOf(mode));
     }
 
     void RtxRenderer::awaitPresented() noexcept

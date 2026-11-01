@@ -6,10 +6,10 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 
 #include "presentfence.hpp"
 #include "surface.hpp"
@@ -36,7 +36,7 @@ namespace Rtx
         /// submit of the device's pool like any other, so it signals the timeline and carries what
         /// was deferred ahead of it — a submit of its own that took a timeline value would let the
         /// graveyard free what a deferred batch names before it ran.
-        Presenter(const Device& device, Surface& surface, SDL_Window* window, SDLUtil::VSyncMode verticalSync);
+        Presenter(const Device& device, Surface& surface, SDL_Window* window, VerticalSync verticalSync);
         ~Presenter();
 
         /// Blits `frame` onto the next swapchain image where `Misc::present` places it, black beside
@@ -99,7 +99,7 @@ namespace Rtx
         /// a caller's drain of a handed-over batch. Not `rebuild`, because that clears a staleness a
         /// window that changed size meanwhile still owes.
         template <class BeforeRebuild>
-        bool setVerticalSync(SDLUtil::VSyncMode mode, BeforeRebuild&& beforeRebuild)
+        bool setVerticalSync(VerticalSync mode, BeforeRebuild&& beforeRebuild)
         {
             // A lost surface takes the setting with the rebuild that makes it again.
             if (!mSwapchain.setVerticalSync(mode) || mLost)

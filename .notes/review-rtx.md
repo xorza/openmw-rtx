@@ -52,17 +52,6 @@ deletes it.
   verb, which reads about 100 options by string in `main.cpp` (`variables["hold"].as<bool>()`).
   Target: `options` parses the line once into typed records per verb; `Command` holds those.
 
-### 9. The core's edges — `components/rtx/renderer/{renderer,nullrenderer}.hpp`, `components/rtxvulkan/{createrenderer.cpp,vulkanrenderer.*,present/*}`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp`
-
-- [ ] `renderer.hpp:30` the API-neutral `Rtx::Renderer::setVerticalSync` takes `SDLUtil::VSyncMode`,
-  a window layer's unscoped enum. Target: a core enum of present pacing; `RtxRenderer::setVSync`
-  converts at the seam.
-- [ ] `createrenderer.cpp:15-55` the backend factory reads `OPENMW_RTX_SYNC_VALIDATION`,
-  `OPENMW_RTX_GPU_VALIDATION` and `OPENMW_RTX_WATCH_SUBMITS` and overrides its own options, while
-  `OPENMW_RTX_BACKEND` is read game-side (`rtxrenderer.cpp:94`). Target: every environment read
-  where the options are made, in `RtxRenderer`'s construction, which both hosts pass through; the
-  factory is a function of its options alone.
-
 ### 10. Carried, not recovered — `apps/openmw/mwrender/{sceneframe.hpp,framedescriber.cpp}`, `apps/openmw/mwrender/rtx/skyreader.cpp`
 
 - [ ] `skyreader.cpp:138` with `framedescriber.cpp:38` recovers the ambient before Night-Eye as

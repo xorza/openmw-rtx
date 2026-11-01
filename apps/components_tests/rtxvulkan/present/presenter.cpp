@@ -13,6 +13,7 @@
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -22,7 +23,6 @@
 #include <components/rtxvulkan/present/presenter.hpp>
 #include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/present/surface.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 
 namespace Rtx
 {
@@ -116,7 +116,7 @@ namespace Rtx
             const VkExtent2D extent{ 64, 32 };
             PresentTarget target;
             target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, SDLUtil::VSyncMode::Disabled);
+            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, VerticalSync::Off);
             const auto show
                 = [&] { presenter.present(target.getShown(), PresentTarget::sResting, [](VkCommandBuffer) {}); };
 
@@ -134,11 +134,11 @@ namespace Rtx
                 // A setting changed while the surface is lost rebuilds nothing, and the rebuild that
                 // makes the surface again takes it: setting it back is then a change of mode.
                 bool drained = false;
-                EXPECT_FALSE(presenter.setVerticalSync(SDLUtil::VSyncMode::Enabled, [&] { drained = true; }));
+                EXPECT_FALSE(presenter.setVerticalSync(VerticalSync::On, [&] { drained = true; }));
                 EXPECT_FALSE(drained);
 
                 presenter.rebuild(extent);
-                EXPECT_TRUE(presenter.setVerticalSync(SDLUtil::VSyncMode::Disabled, [&] { drained = true; }));
+                EXPECT_TRUE(presenter.setVerticalSync(VerticalSync::Off, [&] { drained = true; }));
                 EXPECT_TRUE(drained);
                 EXPECT_FALSE(presenter.wantsResize(extent));
                 show();
@@ -161,7 +161,7 @@ namespace Rtx
             const VkExtent2D wider{ 96, 32 };
             PresentTarget target;
             target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, SDLUtil::VSyncMode::Disabled);
+            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, VerticalSync::Off);
             presenter.present(target.getShown(), PresentTarget::sResting, [](VkCommandBuffer) {});
             EXPECT_FALSE(presenter.wantsResize(extent));
 
@@ -190,7 +190,7 @@ namespace Rtx
             const VkExtent2D extent{ 64, 32 };
             PresentTarget target;
             target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, SDLUtil::VSyncMode::Enabled);
+            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, VerticalSync::On);
 
             constexpr int frames = 4;
             const auto began = std::chrono::steady_clock::now();

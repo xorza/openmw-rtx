@@ -22,10 +22,10 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
-#include <components/sdlutil/vsyncmode.hpp>
 
 namespace Rtx::Testing
 {
@@ -100,7 +100,7 @@ namespace Rtx::Testing
         void resize(std::uint32_t, std::uint32_t) override {}
         void showIn(std::uint32_t, std::uint32_t) override {}
         void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
-        void setVerticalSync(SDLUtil::VSyncMode) override {}
+        void setVerticalSync(VerticalSync) override {}
         void setAnisotropy(std::uint32_t) override {}
         void setGamma(float) override {}
         void setBounceRays(std::uint32_t) override {}
