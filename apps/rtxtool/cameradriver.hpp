@@ -88,9 +88,9 @@ namespace RtxTool
         /// time round.
         void turnWeather(const Stop& stop, float step);
 
-        /// Takes the sky for a stop that turns it, from the stop's first frame, and asks for the
-        /// turn's first weather.
-        void beginTurn(const Stop& stop);
+        /// Takes the sky for a stop that names a weather or turns it, from the stop's first frame,
+        /// and asks for the turn's first weather where it turns.
+        void beginSky(const Stop& stop);
 
         /// Moves the taken sky on by one frame of `seconds` and hands it to the world, where it is
         /// taken.
@@ -169,7 +169,8 @@ namespace RtxTool
         std::size_t mTurnedTo = 0;
         float mTurned = 0.0f;
 
-        /// The sky once a turn or a key took it, and nothing while it is the world's.
+        /// The sky once a named weather, a turn or a key took it, and nothing while it is the
+        /// world's.
         std::optional<SkyCrossing> mSky;
 
         /// How much of a crossing the keys' last weather takes a second at the game's own clock:

@@ -41,7 +41,7 @@ namespace RtxTool
         assert(ownTimeScale > 0.0f && "a session that started under a stopped clock has no speed of its own");
         *this = CameraDriver{};
         mOwnTimeScale = ownTimeScale;
-        beginTurn(stop);
+        beginSky(stop);
 
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
         {
@@ -161,18 +161,23 @@ namespace RtxTool
             Rtx::nameOf(chosen), how, at + 1, rolled.size(), chanceOf(*record, chosen));
     }
 
-    void CameraDriver::beginTurn(const Stop& stop)
+    void CameraDriver::beginSky(const Stop& stop)
     {
+        const std::optional<Rtx::Weather>& named = stop.mSky.mWeather;
         const std::vector<Rtx::Weather>& through = stop.mSky.mTurnThrough;
-        if (through.empty())
+        if (!named.has_value() && through.empty())
             return;
 
-        // **From the stop's own weather where it names one**, which the stager asked the world to
-        // settle under: the world settles it in its next update, and a held sky has none.
-        const std::optional<Rtx::Weather>& named = stop.mSky.mWeather;
+        // **Held from the stop's first frame where it names a weather, and not left to the world**,
+        // which the stager asked to settle under it. The world drops the ask at a session's first
+        // stop: its first update runs out every region's weather before it knows which region the
+        // player stands in, and its next rolls the region's own, so `balmora-storm-night` and
+        // `--weather=Rain` were drawn under a clear sky. And past the first, the world rolls the
+        // region's again once its hours between changes run out, in the middle of a stop.
         mSky = named.has_value() ? SkyCrossing(*named, *named, 0.0f) : skyOfTheWorld();
 
-        mSky->ask(through.front());
+        if (!through.empty())
+            mSky->ask(through.front());
     }
 
     void CameraDriver::crossSky(const Stop& stop, const float seconds)

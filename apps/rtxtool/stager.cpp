@@ -122,7 +122,7 @@ namespace RtxTool
 
         // **Settled rather than crossed into**, which is what the game does when a player sleeps:
         // a stop asked to stand under a sky stands under it from its first frame rather than four
-        // seconds later. A run that turns its sky crosses from there (`CameraDriver::beginTurn`).
+        // seconds later. A run that turns its sky crosses from there (`CameraDriver::beginSky`).
         if (stop.mSky.mHour.has_value() || stop.mSky.mDay.has_value() || stop.mSky.mWeather.has_value())
             world.advanceTime(0.0, false);
 

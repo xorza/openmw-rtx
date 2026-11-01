@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -11,6 +12,7 @@
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/weather.hpp>
 
 #include "picturemean.hpp"
 
@@ -45,6 +47,9 @@ namespace RtxTool
 
         /// What the stop asked its camera to be, which only `CameraStands` reads.
         const Stand& mStand;
+
+        /// The weather the stop named, which only `SkyNamed` reads.
+        std::optional<Rtx::Weather> mWeather;
 
         /// How many frames the ring held at each submit, which only `FramesOverlap` reads.
         const Overlap& mOverlap;

@@ -10,6 +10,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace RtxTool
 {
@@ -164,7 +165,7 @@ namespace RtxTool
         TEST(RtxBenchRunTest, everyCheckIsNamedAndSaysWhenItMayBeAsked)
         {
             const std::span<const Check> every = everyCheck();
-            EXPECT_EQ(every.size(), 15u);
+            EXPECT_EQ(every.size(), 16u);
             for (const Check check : every)
                 EXPECT_FALSE(checkName(check).empty()) << static_cast<int>(check);
 
@@ -183,6 +184,13 @@ namespace RtxTool
             EXPECT_TRUE(canAsk(Check::Finite, still, unheld)) << "every frame counts what it wrote";
             EXPECT_TRUE(canAsk(Check::GatesAgree, still, unheld)) << "a place holds gated cells or holds none";
             EXPECT_TRUE(canAsk(Check::RoomsHeld, still, unheld)) << "every walk fills the mirror's maps";
+            EXPECT_FALSE(canAsk(Check::SkyNamed, still, unheld)) << "no weather named, the world's own stands";
+
+            Stop stormy = still;
+            stormy.mSky.mWeather = Rtx::Weather::Thunderstorm;
+            EXPECT_TRUE(canAsk(Check::SkyNamed, stormy, unheld));
+            stormy.mSky.mTurnThrough = { Rtx::Weather::Clear };
+            EXPECT_FALSE(canAsk(Check::SkyNamed, stormy, unheld)) << "a turn stands under each weather in its time";
 
             Stop routed = still;
             routed.mSchedule.mRoute = Route{ .mTo = osg::Vec3f(100.0f, 0.0f, 0.0f), .mSpeed = 10.0f };

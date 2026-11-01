@@ -390,6 +390,7 @@ namespace RtxTool
                 .mSamples = mProgress.mSamples,
                 .mCrossings = place.mCrossings,
                 .mStand = stop.mStand,
+                .mWeather = stop.mSky.mWeather,
                 .mOverlap = place.mOverlap,
                 .mZones = zones,
                 .mHold = mProgress.mHold,
