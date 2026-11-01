@@ -6,6 +6,7 @@ set(RTX_TEST_FILES
     myguirtx/guiinstance.cpp
     myguirtx/paintedmirror.cpp
     myguirtx/sharedtexture.cpp
+    myguirtx/texture.cpp
     platform/linuxtext.cpp
     rtx/common/hashstate.cpp
     rtx/common/job.cpp

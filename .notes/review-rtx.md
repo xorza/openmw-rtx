@@ -49,16 +49,6 @@ Accepted diff does not list.
 Batches in order of impact. Each leaves the build and the tests green. Whoever addresses an item
 deletes it.
 
-### 5. A refused GUI texture — `components/myguirtx/{texture,slottexture}.*`, `components/rtx/renderer/guirenderer.hpp`
-
-- [ ] `texture.cpp:115-126` `Texture::lock` throws "Texture is not created" where the renderer
-  refused the slot, while `SlotTexture::take` (`slottexture.hpp:60-63`) promises that a refused size
-  draws as nothing. `createManual` with `lock` is the path the font loader (`fontloader.cpp:500`)
-  and `windowmanagerimp.cpp:2599, 2613, 2634` take, so a font atlas past the device's side throws.
-  Target: `lock` hands out a scratch buffer and `unlock` drops it for a none slot; document in
-  `guirenderer.hpp:79-81` that `addGuiTexture` may answer none. Test: a refused size locked and
-  drawn.
-
 ### 6. The shaders — `components/rtxvulkan/shaders/lib/{fog,lights,shading,traversal,surfacematch}.glsl`, `trace/denoise/shadowfilter.comp`, `components/rtx/shaders/{look.h,gbuffer.h}`
 
 Run `./omw kernels` before and after.
