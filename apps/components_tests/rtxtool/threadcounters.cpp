@@ -1,3 +1,4 @@
+#include <array>
 #include <chrono>
 #include <cstdint>
 
@@ -59,6 +60,53 @@ namespace RtxTool
             EXPECT_EQ(describeCounts(ThreadCounts{ .mWhyNot = "no counters" }), "host thread not counted: no counters");
             EXPECT_EQ(describeCounts(ThreadCounts{ .mRead = true }),
                 "host thread not counted: it ran nothing the counters saw");
+        }
+
+        /// **The counts are scaled to the thread's run, and the run is the time enabled**, so the clock
+        /// is the thread's whatever share the processor counted. One group counted 5e8 ns of a 1e9 ns
+        /// run, with 2e9 cycles: counted half, the cycles are 4e9 over the 1e9 ns run, the 4.00 GHz
+        /// the thread ran at, where the cycles over the counted time alone read 8.00. Two kinds of
+        /// core counted whole, 6e8 ns on the performance group and 4e8 on the efficiency group of a
+        /// 1e9 ns run, are 40% on efficiency cores, and the same counted half — 3e8 and 2e8 — are
+        /// 40% too. A thread nothing counted says why.
+        TEST(RtxThreadCountersTest, theCountsAreScaledToTheThreadsRun)
+        {
+            const std::array<GroupCounts, 1> shared{ GroupCounts{ .mCycles = 2'000'000'000,
+                .mInstructions = 3'000'000'000,
+                .mCacheMisses = 6'000'000,
+                .mRunningNs = 500'000'000,
+                .mEnabledNs = 1'000'000'000 } };
+            const ThreadCounts half = countsOf(shared, true, false);
+            ASSERT_TRUE(half.mRead);
+            EXPECT_EQ(half.mCounted, 0.5);
+            EXPECT_EQ(half.mCycles, 4'000'000'000u);
+            EXPECT_EQ(half.mInstructions, 6'000'000'000u);
+            EXPECT_EQ(half.mCacheMisses, 12'000'000u);
+            EXPECT_EQ(half.mRunningNs, 1'000'000'000u);
+            EXPECT_EQ(describeCounts(half),
+                "host thread 4.00 GHz, 1.50 instructions a cycle, 2.00 cache misses a thousand instructions, "
+                "counted 50% of the time");
+
+            const auto kinds = [](std::uint64_t performance, std::uint64_t efficiency) {
+                return std::array<GroupCounts, 2>{
+                    GroupCounts{
+                        .mCycles = 1, .mInstructions = 1, .mRunningNs = performance, .mEnabledNs = 1'000'000'000 },
+                    GroupCounts{ .mCycles = 1,
+                        .mInstructions = 1,
+                        .mRunningNs = efficiency,
+                        .mEnabledNs = 1'000'000'000,
+                        .mEfficiency = true },
+                };
+            };
+            const ThreadCounts whole = countsOf(kinds(600'000'000, 400'000'000), true, true);
+            EXPECT_EQ(whole.mCounted, 1.0);
+            EXPECT_EQ(whole.mEfficiencyNs, 400'000'000u);
+            const ThreadCounts halved = countsOf(kinds(300'000'000, 200'000'000), true, true);
+            EXPECT_EQ(halved.mCounted, 0.5);
+            EXPECT_EQ(halved.mEfficiencyNs, 400'000'000u) << "the efficiency cores' time not scaled with the rest";
+
+            EXPECT_FALSE(countsOf(kinds(0, 0), true, true).mRead);
+            EXPECT_FALSE(countsOf({}, true, false).mRead);
         }
 
         /// **A loop twice as long counts twice the instructions**, to the start and stop around it,

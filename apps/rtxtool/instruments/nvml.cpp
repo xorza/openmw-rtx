@@ -107,17 +107,23 @@ namespace RtxTool
         if (!isOpen())
             return GpuClock{};
 
+        // **The core clock is the reading, and each other field is what its own call answered**:
+        // `GpuClock` keeps the memory clock, the temperature and the reasons apart because one
+        // instrument reads what another cannot, and a call the driver refused is no reason to lose
+        // the clock the frame times are read against.
         unsigned core = 0;
+        if (mClockInfo(mDevice, sGraphicsClock, &core) != sSuccess)
+            return GpuClock{};
+
         unsigned memory = 0;
         unsigned temperature = 0;
         unsigned long long reasons = 0;
-        if (mClockInfo(mDevice, sGraphicsClock, &core) != sSuccess
-            || mClockInfo(mDevice, sMemoryClock, &memory) != sSuccess
-            || mTemperature(mDevice, sGpuSensor, &temperature) != sSuccess
-            || mEventReasons(mDevice, &reasons) != sSuccess)
-            return GpuClock{};
-
-        return GpuClock::reading(core, memory, temperature, reasons);
+        const bool memoryRead = mClockInfo(mDevice, sMemoryClock, &memory) == sSuccess;
+        const bool temperatureRead = mTemperature(mDevice, sGpuSensor, &temperature) == sSuccess;
+        const bool reasonsRead = mEventReasons(mDevice, &reasons) == sSuccess;
+        return GpuClock::reading(core, memoryRead ? std::optional<std::uint32_t>(memory) : std::nullopt,
+            temperatureRead ? std::optional<std::uint32_t>(temperature) : std::nullopt,
+            reasonsRead ? std::optional<std::uint64_t>(reasons) : std::nullopt);
     }
 
     Nvml::Return Nvml::fetch(unsigned& count)

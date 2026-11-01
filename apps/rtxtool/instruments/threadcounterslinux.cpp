@@ -1,6 +1,5 @@
 #include "threadcounters.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cerrno>
@@ -8,6 +7,7 @@
 #include <cstdint>
 #include <fstream>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include <linux/perf_event.h>
@@ -196,42 +196,26 @@ namespace RtxTool
         for (const Group& group : mEvents->mGroups)
             ioctl(group.mFds[0], PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
 
-        ThreadCounts counts{ .mKernelCounted = mEvents->mKernelCounted, .mTwoKinds = mEvents->mTwoKinds };
-        std::uint64_t enabled = 0;
+        // A group for each kind of core at most, which a part has one or two of.
+        std::array<GroupCounts, 2> reads{};
+        assert(mEvents->mGroups.size() <= reads.size() && "a group for a kind of core this part has not");
+        std::size_t count = 0;
         for (const Group& group : mEvents->mGroups)
         {
             const std::optional<GroupRead> read = readGroup(group);
             if (!read.has_value())
                 return ThreadCounts{ .mWhyNot = "the kernel's read of the counters came back short" };
 
-            // Every group is enabled for as long as the thread runs, on whichever kind of core, from
-            // its own start: the first started is the window.
-            const std::uint64_t running = read->mRunning - group.mRunningAt;
-            enabled = std::max(enabled, read->mEnabled - group.mEnabledAt);
-            counts.mCycles += read->mValues[0];
-            counts.mInstructions += read->mValues[1];
-            counts.mCacheMisses += read->mValues[2];
-            counts.mRunningNs += running;
-            if (group.mEfficiency)
-                counts.mEfficiencyNs = running;
-        }
-        if (counts.mRunningNs == 0)
-            return ThreadCounts{ .mWhyNot = "the processor never counted the thread" };
-
-        // **Below one only where another process counted on the same core**, which shares the
-        // counters out in turns; the counts are then scaled up as perf scales its own.
-        counts.mCounted = static_cast<double>(counts.mRunningNs) / static_cast<double>(enabled);
-        if (counts.mCounted < 1.0)
-        {
-            const auto scaled = [&](std::uint64_t& value) {
-                value = static_cast<std::uint64_t>(static_cast<double>(value) / counts.mCounted);
+            reads[count++] = GroupCounts{
+                .mCycles = read->mValues[0],
+                .mInstructions = read->mValues[1],
+                .mCacheMisses = read->mValues[2],
+                .mRunningNs = read->mRunning - group.mRunningAt,
+                .mEnabledNs = read->mEnabled - group.mEnabledAt,
+                .mEfficiency = group.mEfficiency,
             };
-            scaled(counts.mCycles);
-            scaled(counts.mInstructions);
-            scaled(counts.mCacheMisses);
         }
-        counts.mRead = true;
 
-        return counts;
+        return countsOf(std::span(reads).first(count), mEvents->mKernelCounted, mEvents->mTwoKinds);
     }
 }
