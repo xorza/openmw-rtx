@@ -43,6 +43,24 @@ namespace Rtx
             return scene.addMaterial(material);
         }
 
+        /// Fills `textures` with textures of their own until `left` slots stand free, and answers
+        /// their names, by which a test frees one: a name added again answers its slot.
+        std::vector<VFS::Path::Normalized> fillTextures(TextureTable& textures, const std::size_t left)
+        {
+            std::vector<VFS::Path::Normalized> fillers;
+            fillers.reserve(TextureTable::sCapacity);
+            while (textures.getLiveCount() + left < TextureTable::sCapacity)
+            {
+                fillers.emplace_back("textures/fill" + std::to_string(fillers.size()) + ".dds");
+                if (textures.add(fillers.back()) == sNoIndex)
+                {
+                    ADD_FAILURE() << "the table refused a texture with room left";
+                    break;
+                }
+            }
+            return fillers;
+        }
+
         /// One frame of the uploader's sequence around the queue: take, then let go of the
         /// arrivals, so the next frame's gather sees only what the next walk writes.
         std::size_t frame(CompositeQueue& queue, SceneDesc& scene)
@@ -221,13 +239,7 @@ namespace Rtx
             };
 
             TextureTable& textures = scene.textures();
-            std::vector<VFS::Path::Normalized> fillers;
-            fillers.reserve(TextureTable::sCapacity);
-            while (textures.getLiveCount() < TextureTable::sCapacity)
-            {
-                fillers.emplace_back("textures/fill" + std::to_string(fillers.size()) + ".dds");
-                ASSERT_NE(textures.add(fillers.back()), sNoIndex);
-            }
+            const std::vector<VFS::Path::Normalized> fillers = fillTextures(textures, 0);
 
             const auto diffuse
                 = [&](const std::size_t chunk) { return scene.materials().getRows()[chunks[chunk]].mDiffuse; };
@@ -252,6 +264,30 @@ namespace Rtx
             EXPECT_EQ(frame(queue, scene), 1u);
             EXPECT_EQ(diffuse(1), second) << "the second chunk was dropped at its refusal";
             EXPECT_EQ(frame(queue, scene), 0u);
+        }
+
+        /// **A chunk that reflects, taken where the table has room for its albedo and not its
+        /// gloss, is flattened with no lobe**, which is what it was before it could have one: its
+        /// albedo stands, its specular names nothing, and it does not ask again. One slot left after
+        /// the chunk's own layers stood.
+        TEST(RtxCompositeQueueTest, aReflectingChunkWithRoomForItsAlbedoAloneIsFlattenedWithNoLobe)
+        {
+            SceneDesc scene;
+            const Index chunk = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
+                VFS::Path::NormalizedView("textures/over.dds"), true);
+
+            TextureTable& textures = scene.textures();
+            fillTextures(textures, 1);
+            ASSERT_EQ(textures.getLiveCount() + 1, TextureTable::sCapacity);
+
+            CompositeQueue queue;
+            EXPECT_EQ(frame(queue, scene), 1u) << "the chunk was not taken on its albedo's room";
+
+            const Material& given = scene.materials().getRows()[chunk];
+            ASSERT_NE(given.mDiffuse, sNoIndex);
+            EXPECT_EQ(textures.getRows()[given.mDiffuse].mKind, TextureKind::GroundAlbedo);
+            EXPECT_EQ(given.mSpecular, sNoIndex) << "a gloss with no room was named";
+            EXPECT_EQ(frame(queue, scene), 0u) << "a chunk flattened with no lobe asked again";
         }
     }
 }

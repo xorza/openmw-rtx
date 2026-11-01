@@ -44,8 +44,8 @@ namespace MWRender
         /// The sun light as the four setters left it: the one copy of what they wrote.
         const SceneUtil::Light& mSun;
 
-        /// The ambient before `updateAmbient` added the Night-Eye lift, so the frame can say how
-        /// much it added.
+        /// The ambient before `updateAmbient` added the Night-Eye lift, which the frame carries
+        /// whole (`WorldState::mAmbientBeforeNightEye`) and says how much the lift added by.
         osg::Vec4f mAmbientBeforeNightEye;
 
         const FogManager& mFog;

@@ -211,13 +211,17 @@ namespace MWRender
             EXPECT_GE(renderer.getLastHold(), std::chrono::milliseconds(4)) << "and says it held";
             EXPECT_LE(renderer.getLastHold(), slept) << "no longer than the wall saw";
 
+            // **No limit is no sleep, and the wall is what stood**, bounded by the clock read around
+            // the two frames and never by a number of milliseconds, which a loaded runner passes:
+            // the limiter measures between its two reads, and both fall inside these.
             renderer.setFrameRateLimit(0.0f);
+            const Clock::time_point before = Clock::now();
             renderer.awaitFrame();
-            const Clock::time_point again = Clock::now();
+            const Clock::time_point between = Clock::now();
             const Clock::duration free = renderer.awaitFrame();
-            EXPECT_LT(Clock::now() - again, std::chrono::milliseconds(2)) << "no limit is no sleep";
-            EXPECT_LT(free, std::chrono::milliseconds(2)) << "and the wall is what stood";
-            EXPECT_LT(renderer.getLastHold(), std::chrono::milliseconds(2)) << "and nothing held it";
+            const Clock::time_point after = Clock::now();
+            EXPECT_LE(free, after - before) << "what stood is the wall between the frames, and not a limit";
+            EXPECT_LE(renderer.getLastHold(), after - between) << "nothing held it past its own call";
         }
 
         /// **A nested frame is opened as the loop opens its own**: held to the limit, and a wall

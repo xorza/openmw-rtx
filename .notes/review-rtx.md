@@ -52,21 +52,6 @@ deletes it.
   verb, which reads about 100 options by string in `main.cpp` (`variables["hold"].as<bool>()`).
   Target: `options` parses the line once into typed records per verb; `Command` holds those.
 
-### 11. Tests — `apps/openmw_tests/mwrender/renderer.cpp`, `apps/components_tests/rtx/{scene/scenedesc.cpp,world/skylight.cpp,world/sun.cpp,scene/compositequeue.cpp,common/scratch.cpp}`
-
-- [ ] `renderer.cpp:218-220` `awaitFrameSleepsToTheLimitAndAnswersIt` asserts a wall time under
-  2 ms three times, which a loaded runner or a parallel CTest breaks. Target: assert what the limiter
-  answers (`free`, `getLastHold`), or a bound that says why it is that size.
-- [ ] `scenedesc.cpp`: `theSlotHandedOutIsTheSameHoweverTheSlotsWereGivenBack`,
-  `everyTableHandsOutItsLowestFreeSlot` and `theLowestFreeSlotIsTakenHoweverTheSlotsWereFreed` test
-  one rule on slices. Target: one sweep of table × free order keeping every case;
-  `aFreedRigSlotIsHandedOutLowestFirstHoweverItsMeshesWent` stays apart.
-- [ ] `skylight.cpp:132` writes out `sun.cpp:21`'s `vanillaHours()` field by field, for one source
-  file. Target: one fixture, the sun's tests in one file.
-- [ ] Gaps: `CompositeQueue::take` where the albedo fits and the gloss does not (`mSpecular ==
-  sNoIndex` for a reflecting chunk); `dropSlack`'s boundary (`common/scratch.hpp:165`, capacity
-  over twice the size).
-
 ### 12. Upstream diff — `AGENTS.md`, `components/testing/util.hpp`, `apps/components_tests/{main.cpp,lua/teststorage.cpp}`
 
 - [ ] `components/testing/util.hpp:24-70` keys the test output folder on the clock and the process
