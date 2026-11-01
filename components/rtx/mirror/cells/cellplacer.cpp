@@ -284,7 +284,6 @@ namespace Rtx
         // A spare comes back through `reuse`, so what it holds is room and nothing else.
         HeldCell held = mSpareCells.take();
         held.mCell = cell.mCell;
-        held.mStatics = cell.mStatics;
 
         adoptGround(cell, held, around, stats);
         held.mModels.assign(cell.mModels.begin(), cell.mModels.end());

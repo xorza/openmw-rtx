@@ -21,6 +21,7 @@
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/halfstep.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
@@ -1961,7 +1962,11 @@ namespace Rtx::Testing
         /// **And every bounce ray's landing is visited, each worth its share**, in both runs: the box is
         /// a furnace, so whatever direction a ray takes it lands on a wall glowing `G`, and `N` rays
         /// each worth `1 / N` bring back `G` again — exactly, for a power of two, a sum of halves. A
-        /// ray's list left unvisited, or a ray worth one, moves the pixel off it.
+        /// ray's list left unvisited, or a ray worth one, moves the pixel off it. **Three rays within
+        /// a step of `G` a store**: each ray's sum is stored in the channel's halves, and how a store
+        /// rounds to a half is the device's (`aPackedHalfLandsBesideItsValueAndNearestHalfOnTheNearest`),
+        /// so a third, which no half holds, lands up to a step off at each of the three — every
+        /// channel of RADV's 680M came back off `G` — where a ray left out is a third of `G` off.
         TEST_F(RtxVisibilityTest, everyLandingOfAListLongerThanARowIsVisited)
         {
             constexpr std::uint32_t size = 384;
@@ -2003,10 +2008,15 @@ namespace Rtx::Testing
             {
                 const std::vector<float> averaged = indirect(box(glow), rays);
                 ASSERT_EQ(averaged.size(), glowing.size());
+                const bool halves = (rays & (rays - 1)) == 0;
                 std::size_t off = 0;
                 for (std::size_t value = 0; value < glowing.size(); value += 4)
                     for (std::size_t channel = 0; channel < 3; ++channel)
-                        off += averaged[value + channel] == glowing[value + channel] ? 0 : 1;
+                    {
+                        const float g = glowing[value + channel];
+                        const float slack = halves ? 0.0f : static_cast<float>(rays) * Testing::halfStepAt(g);
+                        off += std::abs(averaged[value + channel] - g) <= slack ? 0 : 1;
+                    }
                 EXPECT_EQ(off, 0u) << rays << " rays: channels off the furnace's G";
             }
         }

@@ -146,11 +146,11 @@ namespace MWRender
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
         , mGroundcoverLampLit(knobs.mGroundcoverLampLit)
+        , mDistantStatics(knobs.mDistantStatics)
         , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom)
         , mTraversal(worldTraversal(~0u))
         , mReach(knobs.mReach)
     {
-        mRing.setStaticsEnabled(knobs.mDistantStatics);
         mRing.setMinSize(knobs.mMinSize);
         // The sky is not mirrored: the engine rebuilds it every frame, state sets and all, so
         // walking it churns the identity maps and makes every frame a full rebuild, and a ray that
@@ -339,6 +339,7 @@ namespace MWRender
                 .mMask = sWorldTraversal,
                 // What `extractWorld` walks every reference root under, below.
                 .mAbove = frame.mScene.getStateSet(),
+                .mStatics = mDistantStatics,
             },
             .mEye = eye,
             .mReach = getReach(),

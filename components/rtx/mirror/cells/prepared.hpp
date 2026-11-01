@@ -360,10 +360,6 @@ namespace Rtx
     {
         osg::Vec2i mCell;
 
-        /// Whether the references were read at all, which is the ring's statics switch as it stood
-        /// when the cell was read.
-        bool mStatics = false;
-
         PreparedGround mGround;
 
         /// Every model the references name, once each.

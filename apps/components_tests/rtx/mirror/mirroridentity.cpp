@@ -135,12 +135,14 @@ namespace Rtx
         TEST_F(RtxKeptTest, aSkippedRetireAssertsThatNothingWasStale)
         {
             mKept.add(1, Known{ .mIndex = 10 });
-            const std::uint64_t added = mKept.find(1)->second.mReach.mEpoch;
+            const auto entry = mKept.find(1);
+            ASSERT_NE(entry, mKept.end());
+            const std::uint64_t added = entry->second.mReach.mEpoch;
             nextEpoch();
             EXPECT_FALSE(mKept.whole());
 
-            mKept.stamp(mKept.find(1));
-            mKept.find(1)->second.mReach.mEpoch = added;
+            mKept.stamp(entry);
+            entry->second.mReach.mEpoch = added;
             ASSERT_TRUE(mKept.whole()) << "the drift this test is made of";
 
             Testing::expectAssertDies([&] { mKept.retire(mReleased); },

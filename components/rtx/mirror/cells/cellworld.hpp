@@ -45,9 +45,9 @@ namespace Rtx
         virtual Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) = 0;
     };
 
-    /// Where the world's cells are read from: the content, and which worldspace of it — exactly
-    /// `CellReader`'s arguments, compared as one because a change to any of them is a reader that
-    /// has to be built again.
+    /// Where the world's cells are read from and what of them: the content, which worldspace of it
+    /// and whether its references are read — exactly what a `CellReader` is made from, compared as
+    /// one because a change to any of them is a reader that has to be built again.
     struct CellWorld
     {
         /// What the content files say stands where, or null for a world with none.
@@ -78,6 +78,11 @@ namespace Rtx
         /// walk finds its clone. Read on the reader's thread: the game states it once, when the
         /// rendering manager is made, and writes it never after.
         const osg::StateSet* mAbove = nullptr;
+
+        /// Whether each cell's references are read at all: off is the A/B `--distant-statics=false`
+        /// is, and the ground and the lamps are read either way. Part of what is read, so a change
+        /// is a reader built again and every cell read again, as any other change here is.
+        bool mStatics = true;
 
         /// Whether there is enough here to read anything at all.
         bool isReadable() const { return mStorage != nullptr && mGround != nullptr && mContent != nullptr; }

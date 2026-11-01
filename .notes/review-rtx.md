@@ -49,24 +49,50 @@ Accepted diff does not list.
 Batches in order of impact. Each leaves the build and the tests green. Whoever addresses an item
 deletes it.
 
-### 3. The cell ring's derived state — `components/rtx/mirror/cells/{cellring,cellsupply,cellworld,prepared,held}.*`, `apps/openmw/mwrender/rtx/worldmirror.cpp`, `apps/components_tests/rtx/mirror/cells/cellring.cpp`
+### 1. A game shown on no display — `apps/openmw/mwrender/rtx/{rtxwindow,rtxrenderer,rtxrun}.*`, `components/rtx/renderer/renderer.hpp`, `tools/omw/{integration,remote}.py`, `tools/omw/tests/test_remote.py`, `apps/openmw_tests/mwrender/`
 
-- [ ] `cellring.cpp:533-543` indoors zeroes `mBandCells`, `mBandHeld` and the grass counts, but not
-  `mAsked` (the ask's cache, `:280-283`). Back outside at the same eye with the same counts, `ask`
-  returns early and the counts stay nought: `getCellsToStand()` answers 0, `waitsUnder()` false,
-  and `TracedView::waitsForGround` lets a map tile through before its ground stands; with
-  `mHanded` not empty, `adopt` raises `mBandHeld` against `countHeldInBand() == 0` and the assert at
-  `:458` fires. Target: reset `mAsked` wherever its counts are zeroed (indoors and the no-reader
-  branch). Test: out, in, out at one eye.
-- [ ] `cellring.hpp:81` `setStaticsEnabled` has one caller, the `WorldMirror` constructor
-  (`worldmirror.cpp:153`), yet a per-cell statics tag runs through `CellRequest::mStatics`,
-  `Handed::mStatics`, `onTheWay`, `PreparedCell::mStatics`, `HeldCell::mStatics`,
-  `AskInputs::mStatics`, the `takeDone` discard, the contract and `dropUnless`
-  (`cellring.cpp:217-232, 294, 337-363, 503-511`). Were it ever moved, `sift` would keep handed
-  cells read under the old answer, adopt them and drop them a frame later. Target: `mStatics` in
-  `CellWorld`, which is compared whole, so a change rebuilds the reader through `follow`; every
-  per-cell tag goes, and the comments that call it a live setting (`cellring.cpp:219`,
-  `cellring.hpp:98`) with them.
+The gate's integration step runs `openmw` on the card in a 640x480 window on the desktop
+(`scripts/integration_tests.py`; `playedRunSetup` hides a window only for the null backend), and on
+a box with no monitor it cannot run at all: a hidden window still needs a display, and SDL answers
+"The video driver did not add any displays" (the 6800U, 2026-11-01). Chosen by the user: the game
+on SDL's `offscreen` driver, which needs no display, with the backend handed no window, so it makes
+no surface and no presenter — what `VulkanRenderer` already does for `options.mWindow == nullptr`,
+on every driver. Kept: the trace on the card, the shader compile behind the loading screen, the
+GUI's draw and the frames' real timing; not kept: the swapchain, which `RtxPresenterTest` covers
+where there is a display. Refused: a hidden window (needs a display); `VK_EXT_headless_surface`
+(only Mesa presents to it, and a present in 31 stalled a frame on the Deck, `remote.py`); a
+virtual display or a headless compositor (hardware or an install per box, NVIDIA unproven); the
+null backend (the card does nothing).
+
+- [ ] `rtxrenderer.cpp:150, 191` the window is opened with the backend's surface flags and always
+  handed to the backend; under the `offscreen` driver `Rtx::vulkanWindowFlags` asks for a surface
+  over the headless extension, which NVIDIA presents nothing to, so the device is refused. Target:
+  where the frame is shown is one fact read once from SDL's video driver, as `SDLUtil` already reads
+  it for the pointer (`warpMovesPointer`) and the cursor: on `offscreen` there is no display, the
+  window is opened with no surface flags, and the backend is handed `mWindow == nullptr`. One enum
+  in place of `RunSetup::mHeadless`'s two states — shown, hidden, nowhere — asked of `RtxWindow`,
+  so the harness and a played session read it alike. Refused: a variable of the fork's own beside
+  `OPENMW_RTX_BACKEND`, a second statement of what `SDL_VIDEO_DRIVER` already says.
+- [ ] `rtxrenderer.cpp:536-559` `present` calls `presentFrame` on every exit, which asserts on a
+  backend with no window (`renderer.hpp:567`). Target: the present only where the frame is shown
+  somewhere; the GUI is still drawn, and `VulkanRenderer::drawGui` (`vulkanrenderer.cpp:594-609`)
+  already submits it where there is no presenter, so `readFrame`, `freezeFrame`, the screenshot and
+  the loading screen read the frame as now. `showIn`, `setVerticalSync` and `awaitPresented` are
+  no-ops there already. With no present nothing waits on a refresh: the engine's frame limit and
+  the ring's two frames in flight pace the loop.
+- [ ] `tools/omw/integration.py:84` sets only `OPENMW_CRASH_DIALOG`. Target: `SDL_VIDEO_DRIVER=offscreen`
+  on every box, the device's backend kept where there is one; the docstring says the step draws on
+  the card and shows nothing. CI's `OPENMW_RTX_BACKEND=null` stays (`ci.yml:176`), since its runners
+  have no card.
+- [ ] `tools/omw/remote.py:66-74` (`SESSION`) runs the harness on the `offscreen` driver where the
+  machine has no session, and presents through Mesa's headless swapchain there; with the rule above
+  such a run presents nothing. Target: the docstring and `SESSION`'s comment say a run with no session
+  traces and presents nowhere, and a measured one there times no present; `test_remote.py` follows.
+- [ ] Tests: the shown-on fact off a window on SDL's `offscreen` driver (nowhere, no surface flags),
+  as `sdlinputwrapper.cpp` opens one with no display, in `openmw-tests`; and the gate's integration
+  step on the desk, the Deck and the 6800U with no RDP session, none of which then opens a window.
+- Open: `RtxPresenterTest` with no display — fail as now, skip naming why, or present through the
+  headless surface where Mesa offers it — is the user's call.
 
 ### 4. One walk of a model — `components/rtx/mirror/meshreader.{hpp,cpp}`, `components/rtx/preprocess/shape/creasesplit.cpp`, their tests
 

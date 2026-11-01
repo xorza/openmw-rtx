@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 
 from omw.remote import lacking, linked, remote_line, remote_script, sonames
-from omw.system import Refusal
+from omw.system import WINDOWS, Refusal
 
 
 class LibrariesTest(unittest.TestCase):
@@ -34,6 +34,9 @@ class LibrariesTest(unittest.TestCase):
         self.assertEqual(list(lacking(libraries, offered)), ["libosg.so.162", "libpng16.so.16"])
 
 
+# The two machines' paths are one Linux path, and `remote` refuses on Windows: there `Path` spells
+# them with backslashes, as no machine the line goes to reads them.
+@unittest.skipIf(WINDOWS, "remote is Linux's")
 class RemoteLineTest(unittest.TestCase):
     def test_a_path_the_run_writes_or_reads_is_made_absolute_in_either_form(self):
         here = Path("/desk/tree")
@@ -60,6 +63,7 @@ class RemoteLineTest(unittest.TestCase):
                 remote_line(line, "bench", Path("/"))
 
 
+@unittest.skipIf(WINDOWS, "remote is Linux's")
 class RemoteScriptTest(unittest.TestCase):
     def test_the_run_is_the_harness_under_its_libraries_and_a_measured_one_holds_the_clock(self):
         folder = Path("/home/me/tree/build-release")

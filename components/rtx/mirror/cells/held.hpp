@@ -154,10 +154,6 @@ namespace Rtx
     {
         osg::Vec2i mCell;
 
-        /// Whether its references were read, so a cell read under the other setting is dropped and
-        /// read again.
-        bool mStatics = false;
-
         /// Largest radius first, which `CellPlacer::adoptPlacements` sorts once.
         std::vector<Placement> mPlacements;
 

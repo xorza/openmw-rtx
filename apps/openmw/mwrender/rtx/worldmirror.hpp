@@ -197,6 +197,9 @@ namespace MWRender
         float mGroundcoverDensity = 0.0f;
         bool mGroundcoverLampLit = true;
 
+        /// `MirrorKnobs::mDistantStatics`, which every frame's world says (`Rtx::CellWorld::mStatics`).
+        bool mDistantStatics = true;
+
         Rtx::SceneExtractor mExtractor;
 
         /// What `setViewMask` last let the walk see: every class until then, as a fresh seam's view

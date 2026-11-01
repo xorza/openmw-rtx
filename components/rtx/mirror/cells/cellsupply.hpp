@@ -21,9 +21,8 @@ namespace Rtx
     struct PreparedModel;
     struct PreparedTexture;
 
-    /// What the reading thread is to read next: the cells, and what to read of each. One value,
-    /// because a list that reaches the thread beside the other switch is a cell read under a rule
-    /// nobody asked for.
+    /// What the reading thread is to read next: the cells, and the cells whose groundcover to read.
+    /// What is read of a cell is the world's (`CellWorld::mStatics`), which a reader is made with.
     struct CellRequest
     {
         std::vector<osg::Vec2i> mCells;
@@ -32,16 +31,11 @@ namespace Rtx
         /// the few cells around the eye.
         std::vector<osg::Vec2i> mGrass;
 
-        /// Whether to read each cell's references at all, which is the ring's statics switch as it
-        /// stood when the ask was made.
-        bool mStatics = true;
-
         bool operator==(const CellRequest& other) const = default;
 
         bool empty() const { return mCells.empty() && mGrass.empty(); }
 
-        /// Empties both lists and keeps the room they grew. The switch is left as it was, because a
-        /// request with no cells in it says nothing about either.
+        /// Empties both lists and keeps the room they grew.
         void clear()
         {
             mCells.clear();
@@ -179,19 +173,18 @@ namespace Rtx
         /// `CellReader::measure` as the thread last finished a cell, under the lock.
         ReaderMemory mMeasured;
 
-        /// A cell or a cell's grass the thread handed over, the cell read with which statics, and how
-        /// many takes the frame had made by then: it reaches the ring with the next take, so an ask
-        /// made before that take names it still.
+        /// A cell or a cell's grass the thread handed over, and how many takes the frame had made by
+        /// then: it reaches the ring with the next take, so an ask made before that take names it
+        /// still.
         struct Handed
         {
             osg::Vec2i mCell;
             bool mGrass = false;
-            bool mStatics = true;
             std::uint64_t mTakes = 0;
         };
 
         /// Whether `cell`, of the kind `grass` says, is on its way already.
-        bool onTheWay(const osg::Vec2i& cell, bool grass, bool statics) const;
+        bool onTheWay(const osg::Vec2i& cell, bool grass) const;
 
         /// Whether a newer ask replaced the one being read, taking what the frame gave back as it
         /// looks. On the thread.
