@@ -38,8 +38,7 @@ The findings come from six root causes. Each change below removes one cause, not
   drawable; the fog's air walk works the lamp chord out twice. Target: keep what is in memory, walk a
   model once per model, state the chord once.
 
-Beside these: comments that name removed code, a few test-shape items, and one upstream change the
-Accepted diff does not list.
+Beside these: comments that name removed code and a few test-shape items.
 
 ## Plan
 
@@ -51,12 +50,3 @@ deletes it.
 - [ ] `hosted.hpp` `Command` carries the raw `variables_map` and `const ToolOptions&` to every
   verb, which reads about 100 options by string in `main.cpp` (`variables["hold"].as<bool>()`).
   Target: `options` parses the line once into typed records per verb; `Command` holds those.
-
-### 12. Upstream diff — `AGENTS.md`, `components/testing/util.hpp`, `apps/components_tests/{main.cpp,lua/teststorage.cpp}`
-
-- [ ] `components/testing/util.hpp:24-70` keys the test output folder on the clock and the process
-  id and empties each test's folder at its start (`FreshTestDirs`); `apps/components_tests/main.cpp:26-32`
-  sets `death_test_style` to `threadsafe` and adds that listener; `teststorage.cpp:103, 138` moves
-  its files from `temp_directory_path()`. No Accepted-diff entry names these. Needs the user's
-  call: an entry stating why the fork's suites need them (parallel processes, repeats, death tests
-  under threads), or a revert.

@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from omw.remote import lacking, linked, remote_line, remote_script, sonames
+from omw.remote import build_refusal, fetch_note, lacking, linked, remote_line, remote_script, sonames
 from omw.system import WINDOWS, Refusal
 
 
@@ -32,6 +32,24 @@ class LibrariesTest(unittest.TestCase):
             "libpng16.so.16": "/lib/x86_64-linux-gnu/libpng16.so.16",
         })
         self.assertEqual(list(lacking(libraries, offered)), ["libosg.so.162", "libpng16.so.16"])
+
+
+@unittest.skipIf(WINDOWS, "remote is Linux's")
+class BuildFolderTest(unittest.TestCase):
+    def test_a_host_that_does_not_answer_is_told_from_a_folder_it_cannot_write(self):
+        parent = Path("/home/user/Projects/openmw")
+        self.assertIsNone(build_refusal("user@host", parent, 0))
+        self.assertEqual(build_refusal("user@host", parent, 255),
+                         "remote: ssh reached no shell on user@host, as it says above")
+        self.assertEqual(build_refusal("user@host", parent, 1),
+                         "user@host cannot write /home/user/Projects/openmw, where the build goes: make it once there "
+                         "with `sudo mkdir -p /home/user/Projects/openmw && sudo chown $USER: /home/user/Projects/openmw`")
+
+    def test_a_file_the_run_did_not_write_is_told_from_a_copy_that_failed(self):
+        self.assertEqual(fetch_note(0), "")
+        self.assertEqual(fetch_note(23), " was not written there")
+        self.assertEqual(fetch_note(255), " could not be brought back: rsync exited 255")
+        self.assertEqual(fetch_note(12), " could not be brought back: rsync exited 12")
 
 
 # The two machines' paths are one Linux path, and `remote` refuses on Windows: there `Path` spells
