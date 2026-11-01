@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/BoundingBox>
+#include <osg/Geometry>
 #include <osg/Matrix>
 #include <osg/Node>
 #include <osg/Vec2f>
@@ -15,6 +17,7 @@
 #include <osg/ref_ptr>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/mesh.hpp>
 
@@ -121,6 +124,24 @@ namespace Rtx
         /// stands in the model more than once.
         void gatherBeside(const osg::Node& model, const osg::Geometry& self, const osg::BoundingBoxf& reach);
 
+        /// What `geometry`, a shape of the model `gatherBeside` stands in, comes to as faces beside
+        /// another: its runs of `mFacePositions` and `mFaceNormals`, and of `mFaceTriangles` in its own
+        /// numbering, and the box of its vertices.
+        /// Not usable where it cannot be read, names no normal, holds a vertex that is not a finite
+        /// number, or no triangle: a shape that cuts nothing is only beside.
+        struct ShapeFaces
+        {
+            osg::ref_ptr<const osg::Geometry> mGeometry;
+            Run mVertices;
+            Run mTriangles;
+            osg::BoundingBoxf mBox;
+            bool mUsable = false;
+        };
+
+        /// The faces of `geometry`, read the first time a read of the model the faces are of asks.
+        /// Good until the next call, which may move every entry.
+        const ShapeFaces& facesOf(const osg::Geometry& geometry);
+
         /// The triangles as the drawable names them, and the ones the fold kept. Refilled per
         /// drawable rather than reallocated, because a cell is tens of thousands of them.
         std::vector<std::uint32_t> mTriangleScratch;
@@ -156,6 +177,20 @@ namespace Rtx
         std::vector<std::uint32_t> mBesideTriangles;
         std::vector<osg::Vec3f> mBesideReadScratch;
         std::vector<std::uint32_t> mBesideCollectScratch;
+
+        /// **Each shape of a model read once as faces, however many of its drawables read beside
+        /// it** (`facesOf`): a model of S shapes was S reads of up to S shapes each. The model's
+        /// shapes are walked again for every drawable, which costs a visit a node and sees a shape
+        /// the model gained. A shape's arrays are read once because nothing writes them after the
+        /// loader: what deforms is a rig or a morph, which is no `osg::Geometry` and which the walk
+        /// never collects. Kept for the model of the last read and dropped for the next one, held
+        /// so that no address in them is another's while they stand.
+        osg::ref_ptr<const osg::Node> mFacesOf;
+        std::vector<ShapeFaces> mFaces;
+        boost::unordered_flat_map<const osg::Geometry*, std::size_t> mFaceIndex;
+        std::vector<osg::Vec3f> mFacePositions;
+        std::vector<osg::Vec3f> mFaceNormals;
+        std::vector<std::uint32_t> mFaceTriangles;
 
         /// Where a drawable's colours are decoded to. Always scratch, where the other
         /// attributes are usually the geometry's own arrays: what the file holds is display-encoded

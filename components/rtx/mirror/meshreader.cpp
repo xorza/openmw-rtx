@@ -409,6 +409,42 @@ namespace Rtx
         return nullptr;
     }
 
+    const MeshReader::ShapeFaces& MeshReader::facesOf(const osg::Geometry& geometry)
+    {
+        const auto [known, fresh] = mFaceIndex.try_emplace(&geometry, mFaces.size());
+        if (!fresh)
+            return mFaces[known->second];
+
+        ShapeFaces& faces = mFaces.emplace_back();
+        faces.mGeometry = &geometry;
+
+        const Misc::Result<VertexArrays, std::string> vertices = readVertices(geometry, mBesideReadScratch);
+        if (!vertices.isOk() || vertices.value().mNormals.empty())
+            return faces;
+
+        const VertexArrays& arrays = vertices.value();
+        if (!std::ranges::all_of(arrays.mPositions, [](const osg::Vec3f& position) { return isFinite(position); }))
+            return faces;
+
+        const Misc::Result<bool, std::string> collected
+            = collectTriangles(geometry, arrays.mPositions.size(), mBesideCollectScratch);
+        if (!collected.isOk() || !collected.value())
+            return faces;
+
+        faces.mVertices = Run{ .mOffset = static_cast<std::uint32_t>(mFacePositions.size()),
+            .mCount = static_cast<std::uint32_t>(arrays.mPositions.size()) };
+        mFacePositions.insert(mFacePositions.end(), arrays.mPositions.begin(), arrays.mPositions.end());
+        mFaceNormals.insert(mFaceNormals.end(), arrays.mNormals.begin(), arrays.mNormals.end());
+        faces.mTriangles = Run{ .mOffset = static_cast<std::uint32_t>(mFaceTriangles.size()),
+            .mCount = static_cast<std::uint32_t>(mBesideCollectScratch.size()) };
+        mFaceTriangles.insert(mFaceTriangles.end(), mBesideCollectScratch.begin(), mBesideCollectScratch.end());
+        for (const osg::Vec3f& position : arrays.mPositions)
+            faces.mBox.expandBy(position);
+        faces.mUsable = true;
+
+        return faces;
+    }
+
     void MeshReader::gatherBeside(const osg::Node& model, const osg::Geometry& self, const osg::BoundingBoxf& reach)
     {
         mBesidePositions.clear();
@@ -416,6 +452,16 @@ namespace Rtx
         mBesideTriangles.clear();
         mModelShapes.clear();
         mBesideWalk->walk(model, mModelShapes);
+
+        if (mFacesOf.get() != &model)
+        {
+            mFacesOf = &model;
+            mFaces.clear();
+            mFaceIndex.clear();
+            mFacePositions.clear();
+            mFaceNormals.clear();
+            mFaceTriangles.clear();
+        }
 
         // One set of normals for two places in the model is a split that is right for one of them.
         const auto standing = std::ranges::find(mModelShapes, &self, &ModelShape::mGeometry);
@@ -428,27 +474,24 @@ namespace Rtx
             if (shape.mGeometry == &self || shape.mMoved || shape.mPlace != standing->mPlace)
                 continue;
 
-            // A shape this cannot read, or one with no normals, cuts nothing: it is only beside.
-            const Misc::Result<VertexArrays, std::string> vertices = readVertices(*shape.mGeometry, mBesideReadScratch);
-            if (!vertices.isOk() || vertices.value().mNormals.empty())
+            // The box first, which a shape across the model from this one fails at once.
+            const ShapeFaces& faces = facesOf(*shape.mGeometry);
+            if (!faces.mUsable || !faces.mBox.intersects(reach))
                 continue;
 
-            const VertexArrays& arrays = vertices.value();
-            const auto inside = [&](const osg::Vec3f& position) { return reach.contains(position); };
-            if (!std::ranges::any_of(arrays.mPositions, inside)
-                || !std::ranges::all_of(
-                    arrays.mPositions, [](const osg::Vec3f& position) { return isFinite(position); }))
+            const std::span<const osg::Vec3f> positions
+                = std::span(mFacePositions).subspan(faces.mVertices.mOffset, faces.mVertices.mCount);
+            if (!std::ranges::any_of(positions, [&](const osg::Vec3f& position) { return reach.contains(position); }))
                 continue;
 
-            const Misc::Result<bool, std::string> collected
-                = collectTriangles(*shape.mGeometry, arrays.mPositions.size(), mBesideCollectScratch);
-            if (!collected.isOk() || !collected.value())
-                continue;
-
+            const std::span<const osg::Vec3f> normals
+                = std::span(mFaceNormals).subspan(faces.mVertices.mOffset, faces.mVertices.mCount);
+            const std::span<const std::uint32_t> triangles
+                = std::span(mFaceTriangles).subspan(faces.mTriangles.mOffset, faces.mTriangles.mCount);
             const auto offset = static_cast<std::uint32_t>(mBesidePositions.size());
-            mBesidePositions.insert(mBesidePositions.end(), arrays.mPositions.begin(), arrays.mPositions.end());
-            mBesideNormals.insert(mBesideNormals.end(), arrays.mNormals.begin(), arrays.mNormals.end());
-            for (const std::uint32_t vertex : mBesideCollectScratch)
+            mBesidePositions.insert(mBesidePositions.end(), positions.begin(), positions.end());
+            mBesideNormals.insert(mBesideNormals.end(), normals.begin(), normals.end());
+            for (const std::uint32_t vertex : triangles)
                 mBesideTriangles.push_back(offset + vertex);
         }
     }

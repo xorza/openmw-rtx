@@ -49,15 +49,6 @@ Accepted diff does not list.
 Batches in order of impact. Each leaves the build and the tests green. Whoever addresses an item
 deletes it.
 
-### 4. One walk of a model — `components/rtx/mirror/meshreader.{hpp,cpp}`, `components/rtx/preprocess/shape/creasesplit.cpp`, their tests
-
-- [ ] `meshreader.cpp:412-454` `gatherBeside` walks the whole model and reads every same-place
-  shape's vertices and triangles once per drawable, so a model of S shapes costs S walks and up to
-  S² shape reads at load; `CreaseSplit::split` (`creasesplit.cpp:93-102`) then cuts every welded
-  position, the fans with no corner of the mesh's own included. Target: walk a model once, keep its
-  shapes and their read arrays for the reads of that model (keyed by the model node, cleared when
-  the walk moves to another model), and skip a fan with no own corner before `cutFan`.
-
 ### 5. A refused GUI texture — `components/myguirtx/{texture,slottexture}.*`, `components/rtx/renderer/guirenderer.hpp`
 
 - [ ] `texture.cpp:115-126` `Texture::lock` throws "Texture is not created" where the renderer

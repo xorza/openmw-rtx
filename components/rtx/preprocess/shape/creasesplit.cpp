@@ -97,6 +97,11 @@ namespace Rtx
             if (end - first < 2)
                 continue;
 
+            // A fan of the faces beside the mesh alone places none of its corners. Its corners are
+            // listed in their order, so its first is its least.
+            if (mFanCorners[first] >= mOwnCorners)
+                continue;
+
             cutFan(std::span(mFanCorners).subspan(first, end - first), allPositions, allNormals, normals.size(),
                 triangles, split);
         }
