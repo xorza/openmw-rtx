@@ -296,9 +296,10 @@ namespace Rtx::Testing
         /// the floor under the overhead sun, seen from 300 units up at 96 pixels square, with no
         /// indirect light, so the sun is the frame: its shadow is 7 to 9 pixels wide.
         ///
-        /// By hand: the sun's shadow cone is `SUN_SHADOW_RADIUS` = 0.0349 as a sine, a tangent of
-        /// 0.03493, so a ray stopped by the bar 100 units up has a penumbra 3.493 units in radius. A
-        /// pixel there is `mSpreadAngle` × its distance wide, and the floor under the bar stands 300
+        /// By hand: the sun's shadow cone is stated here at a sine of 0.0349, two degrees and not the
+        /// look's `SUN_SHADOW_RADIUS`, so that how hard a shadow is stays this test's own: a tangent
+        /// of 0.03493, so a ray stopped by the bar 100 units up has a penumbra 3.493 units in radius.
+        /// A pixel there is `mSpreadAngle` × its distance wide, and the floor under the bar stands 300
         /// to 360 units from the eye: the penumbra is 3.493 over 300 and over 360 pixel widths of
         /// the frame's spread, under one pixel, and a shadow that hard is noiseless. Every open ray
         /// holds `SHADOW_PENUMBRA_CLEAR`.
@@ -311,7 +312,9 @@ namespace Rtx::Testing
         {
             constexpr std::uint32_t size = 96;
             constexpr std::uint32_t frames = 96;
-            const Shaders::VisibilityConstants camera = overheadSun(size);
+            const float limb = twoDegreeLimb();
+            Shaders::VisibilityConstants camera = overheadSun(size);
+            camera.mSun.mLimb = limb;
             SceneDesc scene;
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene, roofOver(-100.0f, -60.0f, 100.0f));
@@ -323,7 +326,7 @@ namespace Rtx::Testing
             mProbe.readChannel(Channel::Shadowed, bits);
             Testing::penumbraeOf(bits, widths);
 
-            const auto sine = static_cast<double>(Shaders::SUN_SHADOW_RADIUS);
+            const auto sine = static_cast<double>(limb);
             const double radius = 100.0 * sine / std::sqrt(1.0 - sine * sine);
             const auto spread = static_cast<double>(camera.mEyes.mWorld.mSpreadAngle);
             const float widest = static_cast<float>(radius / (spread * 300.0));
@@ -356,7 +359,9 @@ namespace Rtx::Testing
 
         /// **A penumbra is its nearest occluder's, laid on the receiver, and a stopped ray lets
         /// everything through.** The bar of `aThinHardShadowKeepsItsDepth` over a floor, seen from
-        /// 300 units up, where a pixel is 3.61 units across, and 3.61 to 4.66 over the frame.
+        /// 300 units up, where a pixel is 3.61 units across, and 3.61 to 4.66 over the frame, under
+        /// that test's own sun of two degrees, a sine of 0.0349, so how hard a penumbra is stays
+        /// this test's and not the look's `SUN_SHADOW_RADIUS`.
         ///
         /// A sun 60 degrees from the zenith across the bar, from -x, the bar 20 units up and a roof
         /// 500 up over the whole floor: every ray is stopped, and beside the bar, where its shadow
@@ -382,7 +387,8 @@ namespace Rtx::Testing
         TEST_F(RtxVisibilityTest, aPenumbraIsItsNearestOccludersOnTheReceiverAndAStoppedRayLetsAllThrough)
         {
             constexpr std::uint32_t size = 96;
-            const auto sine = static_cast<double>(Shaders::SUN_SHADOW_RADIUS);
+            const float limb = twoDegreeLimb();
+            const auto sine = static_cast<double>(limb);
             const double tangent = sine / std::sqrt(1.0 - sine * sine);
 
             const Shaders::VisibilityConstants overhead = overheadSun(size);
@@ -391,6 +397,7 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants tilted = overhead;
             tilted.mSun = Shaders::sunSource(
                 osg::Vec3f(-std::sin(zenith), 0.0f, std::cos(zenith)), osg::Vec3f(2.0f, 2.0f, 2.0f));
+            tilted.mSun.mLimb = limb;
 
             const auto widthsUnder = [&](float barHeight, bool roofed) {
                 SceneDesc scene;
@@ -537,7 +544,7 @@ namespace Rtx::Testing
 
         /// **The noise of a penumbra comes off and its light stays where it was.** A roof over half
         /// the floor, two thousand units up, under a sun whose shadow cone is `SUN_SHADOW_RADIUS`
-        /// either way: the penumbra is `2 * 2000 * 0.0349` = 140 units across, a quarter of the
+        /// either way: the penumbra is `2 * 2000 * 0.0524` = 210 units across, three fifths of the
         /// 346 the frame spans, and one ray a pixel speckles it. Measured against a reference of 128
         /// unfiltered frames, one frame's error and the denoised frame's after sixty-four frames of
         /// history — on a dry floor, and on a flooded one seen through the water, whose sun is what

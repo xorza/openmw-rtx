@@ -261,7 +261,7 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
     // underwater surface would want the refracted direction and gets this one.
     //
     // **The disc is sampled for visibility and not for radiometry**, and that is the sharper of the
-    // two estimators rather than a saving. Across the two degrees of the sun's shadow cone the cosine
+    // two estimators rather than a saving. Across the three degrees of the sun's shadow cone the cosine
     // varies by parts in a thousand, so drawing it as well would put variance into a term that has
     // none and leave the penumbra — the only part of the integral the cone is wide enough to matter
     // to — no better resolved for it. Masser subtends thirty-nine times the sun's angle, so the cone

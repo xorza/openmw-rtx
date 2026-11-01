@@ -191,16 +191,16 @@ namespace Rtx
             EXPECT_FALSE(weatherOfScriptId(-1).has_value()) << "no weather arriving";
         }
 
-        /// **The sun's cone is two degrees, and its limb is that angle's sine**, by the rule a moon's
-        /// limb follows: `sin(2π / 180)` is 0.0348995, which the float angle 0.0349066 gives to within
-        /// a step.
-        TEST(RtxSkylightTest, theSunsShadowConeIsTwoDegreesAndItsLimbIsItsSine)
+        /// **The sun's cone is three degrees, and its limb is that angle's sine**, by the rule a
+        /// moon's limb follows: `sin(3π / 180)` is 0.0523360, which the float angle 0.0523599 gives to
+        /// within a step.
+        TEST(RtxSkylightTest, theSunsShadowConeIsThreeDegreesAndItsLimbIsItsSine)
         {
-            EXPECT_EQ(Rtx::Shaders::SUN_SHADOW_RADIUS, static_cast<float>(2.0 * 3.14159265358979 / 180.0));
+            EXPECT_EQ(Rtx::Shaders::SUN_SHADOW_RADIUS, static_cast<float>(3.0 * 3.14159265358979 / 180.0));
             const float limb
                 = Rtx::Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 1.0f, 1.0f)).mLimb;
             EXPECT_EQ(limb, std::sin(Rtx::Shaders::SUN_SHADOW_RADIUS));
-            EXPECT_NEAR(limb, 0.0348995f, 1e-7f);
+            EXPECT_NEAR(limb, 0.0523360f, 1e-7f);
         }
 
         /// The hour holds an exposure back, and a noon does not.

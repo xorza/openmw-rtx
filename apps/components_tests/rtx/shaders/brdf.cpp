@@ -340,5 +340,27 @@ namespace Rtx
                 EXPECT_NEAR(sum * static_cast<double>(Shaders::PI) / steps, 1.0, 1e-5) << alpha;
             }
         }
+
+        /// **A mapped normal keeps its light where the surface under it explains it, and fades with
+        /// that surface's cosine where it does not.** The share is the base cosine over the mapped
+        /// cosine times the two normals' cosine, held to one, then `g (1 + g (1 - g))`:
+        ///
+        /// - a base that leans as far as the map, `0.5 / (0.5 * 1)`, is a share of one, kept whole;
+        /// - `0.25 / (0.5 * 1)` = 0.5 keeps `0.5 * 1.25` = 0.625;
+        /// - `0.1 / (0.5 * 1)` = 0.2 keeps `0.2 * 1.16` = 0.232;
+        /// - a base turned from the light, or normals more than square apart, keep nothing.
+        ///
+        /// And the smoothing meets one flat: its slope `1 + 2g - 3g^2` is nought at one, so a share
+        /// just under one keeps all but its square of the gap, `0.99` keeping `0.99 * 1.0099`.
+        TEST(RtxBrdfTest, aMappedNormalsLightFadesWithTheCosineOfTheSurfaceUnderIt)
+        {
+            EXPECT_EQ(Shaders::bumpShadowing(0.5f, 0.5f, 1.0f), 1.0f);
+            EXPECT_EQ(Shaders::bumpShadowing(0.9f, 0.5f, 1.0f), 1.0f) << "past one is held to one";
+            EXPECT_FLOAT_EQ(Shaders::bumpShadowing(0.25f, 0.5f, 1.0f), 0.625f);
+            EXPECT_FLOAT_EQ(Shaders::bumpShadowing(0.1f, 0.5f, 1.0f), 0.232f);
+            EXPECT_EQ(Shaders::bumpShadowing(-0.1f, 0.5f, 1.0f), 0.0f) << "a base turned from the light";
+            EXPECT_EQ(Shaders::bumpShadowing(0.2f, 0.5f, -0.1f), 0.0f) << "normals more than square apart";
+            EXPECT_FLOAT_EQ(Shaders::bumpShadowing(0.495f, 0.5f, 1.0f), 0.99f * 1.0099f);
+        }
     }
 }

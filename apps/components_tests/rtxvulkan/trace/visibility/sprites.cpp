@@ -337,6 +337,10 @@ namespace Rtx::Testing
             camera.mAmbientFromSky = 0.0f;
             camera.mAmbient = osg::Vec3f();
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+            // An upright shell under an overhead sun takes its light from the cone's tilt alone, a
+            // draw the two samples make at different points of it, so the cone is this test's own:
+            // two degrees, which the look's `SUN_SHADOW_RADIUS` may leave.
+            camera.mSun.mLimb = twoDegreeLimb();
 
             const auto sampledAt = [&](Behind behind, float across) {
                 SceneDesc scene;
