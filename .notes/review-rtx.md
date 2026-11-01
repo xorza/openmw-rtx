@@ -49,27 +49,6 @@ Accepted diff does not list.
 Batches in order of impact. Each leaves the build and the tests green. Whoever addresses an item
 deletes it.
 
-### 2. Reservations from their bounds — `components/rtx/scene/{scenedesc.cpp,sceneroom.hpp,texturetable.hpp,deformertable.hpp}`, `mirror/sceneextractor.hpp`, `mirror/cells/held.cpp`, `apps/components_tests/rtx/scene/scenedesc.cpp`
-
-- [ ] `scenedesc.cpp:32-39` `SceneDesc(const SceneRoom&)` reserves meshes, materials, deformers
-  and placements but never the texture table. `TextureRow` (`texturetable.hpp:58`) holds two
-  `osg::ref_ptr`, which has no move constructor in this OSG (`/usr/include/osg/ref_ptr:38`), so the
-  row's move is not `noexcept` and a growth copies every row: one heap path string and four atomics
-  each, about 1024 allocations and frees on the frame the table grows from 1024 to 2048. Target:
-  reserve rows, holds, free pool and changes at `TextureTable::sCapacity` (8191 rows, about
-  0.6 MB), and `static_assert(std::is_nothrow_move_constructible_v<TextureRow>)` with a
-  nothrow-movable image handle.
-- [ ] `deformertable.hpp:131` `DeformerTable::reserve` reserves the run buffers but not the rows
-  or `mArrived`. Target: a `SceneRoom` field and the reserve.
-- [ ] `sceneextractor.hpp:86` `sWorldExtractorRoom` and `held.cpp:14` `sModelBudget = 4096` are
-  sized "past what a Morrowind exterior reaches at four cells"; `LandReach::sMostCells` is 10, about
-  380 ring cells against 79. Nothing asserts past a reservation but `materialresolver.cpp:109`.
-  Target: derive both from `sMostCells` (or measure the peak at reach 10 on the large mod list and
-  record it in `docs/rtx/research/`), and assert `size() < reserved` in `Kept::add` and
-  `CellHolds::know`.
-- [ ] Test: extend `RtxSceneDescTest.aSceneOpenedAtARoomFillsItWithoutMovingARow` to the texture and
-  deformer tables.
-
 ### 3. The cell ring's derived state — `components/rtx/mirror/cells/{cellring,cellsupply,cellworld,prepared,held}.*`, `apps/openmw/mwrender/rtx/worldmirror.cpp`, `apps/components_tests/rtx/mirror/cells/cellring.cpp`
 
 - [ ] `cellring.cpp:533-543` indoors zeroes `mBandCells`, `mBandHeld` and the grass counts, but not

@@ -82,7 +82,8 @@ namespace Rtx
         std::size_t mEffects = 0;
     };
 
-    /// The world's: past what a Morrowind exterior reaches at four cells of distance.
+    /// The world's: past what every view of the suites reaches at the default ten cells of land, on
+    /// vanilla content and under the Fullrest Repack with Tamriel Rebuilt, which `rooms-held` holds.
     inline constexpr ExtractorRoom sWorldExtractorRoom{ .mPlacements = 65536,
         .mMeshes = 16384,
         .mDeformers = 2048,
