@@ -8,8 +8,9 @@
 #include <string_view>
 #include <vector>
 
+#include <apps/rtxtool/instruments/png.hpp>
+#include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/renderer/png.hpp>
 
 namespace RtxTool
 {
@@ -40,7 +41,7 @@ namespace RtxTool
 
     /// Subtracts one picture from another. Mismatched where either is empty or they disagree on
     /// their extents.
-    FrameDifference compareFrames(const Rtx::PngImage& before, const Rtx::PngImage& after);
+    FrameDifference compareFrames(const PngImage& before, const PngImage& after);
 
     /// How far a picture the wavelet put together may stand from the same picture of another run of
     /// one build, out of 255: **the card's arithmetic under the wavelet, and not the tree's**
@@ -102,13 +103,13 @@ namespace RtxTool
 
     /// Measures `picture` against `reference`. Mismatched where either is empty or they disagree
     /// on their extents.
-    PictureError measureError(const Rtx::PngImage& picture, const Rtx::PngImage& reference);
+    PictureError measureError(const PngImage& picture, const PngImage& reference);
 
     /// How far a picture stands from another after both are blurred by a Gaussian of `sigma`
     /// pixels, as the mean over the pixels of the worst colour channel, out of 255 — or nothing
     /// where either is empty or they disagree on their extents. Blurred as one signed difference,
     /// which is the same number, because a blur is linear; the picture's edge is held.
-    std::optional<double> blurredDifference(const Rtx::PngImage& picture, const Rtx::PngImage& reference, float sigma);
+    std::optional<double> blurredDifference(const PngImage& picture, const PngImage& reference, float sigma);
 
     /// When `noise` counts a pixel of the frame as a firefly: its light, after the tone curve as the
     /// player sees it, `sNoiseFireflyRatio` times the reference's, and over it by at least the light
@@ -122,7 +123,7 @@ namespace RtxTool
     /// How many of `picture`'s pixels, per thousand, stand over `reference` as fireflies do
     /// (`sNoiseFireflyRatio`, `sNoiseFireflyFloor`), each pixel's light the luminance of its decoded
     /// channels. Nothing where either is empty or they disagree on their extents.
-    std::optional<double> fireflyShare(const Rtx::PngImage& picture, const Rtx::PngImage& reference);
+    std::optional<double> fireflyShare(const PngImage& picture, const PngImage& reference);
 
     /// Whether a run that writes its pictures into `out` can be compared against `against`, and why
     /// not where it cannot. The pictures are written over their references before the two
@@ -131,10 +132,11 @@ namespace RtxTool
     Misc::Result<void, std::string> checkAgainst(
         const std::filesystem::path& out, const std::filesystem::path& against);
 
-    /// Reads back what a run wrote and says what moved since `against`: a directory an earlier run
-    /// wrote on this machine, never a corpus in the tree, because the picture is a function of the
-    /// driver and the card as much as of the code. Each of `pictures` is looked for under `against`
-    /// by the name it has under `wrote`, and held to its rule. Returns a process exit status,
+    /// Says what moved in the pictures a run wrote into `wrote`, kept on `drawn` as they were written,
+    /// since `against`: a directory an earlier run wrote on this machine, never a corpus in the tree,
+    /// because the picture is a function of the driver and the card as much as of the code. Each of
+    /// `pictures` is looked for under `against` by the name it has under `wrote`, and held to its
+    /// rule. Returns a process exit status,
     /// non-zero where any picture moved or has no reference, or where there is none to compare, and
     /// zero where `against` is empty.
     ///
@@ -142,6 +144,6 @@ namespace RtxTool
     /// reconstructed the frame the picture is the upscaler's, and where nothing composed it past
     /// the trace the hashes already hold the same bytes. Where the wavelet composed it, the hashes
     /// cannot tell the card's last bit from a change, and the picture is what is held.
-    int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,
+    int compareRuns(const PictureShelf& drawn, const std::filesystem::path& wrote, const std::filesystem::path& against,
         std::span<const WrittenPicture> pictures);
 }

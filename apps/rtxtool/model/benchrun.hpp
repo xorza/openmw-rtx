@@ -14,6 +14,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/shaders/look.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/weather.hpp>
 
@@ -137,15 +138,49 @@ namespace RtxTool
     bool canAsk(Check check, const Stop& stop, const Rtx::RenderProfile& profile);
 
     struct Approach;
+    class PictureShelf;
+
+    /// A cell as Morrowind addresses one, read once from its spelling: a pair of integers is an
+    /// exterior, anything else is an interior's name. The spelling and not an id, because the world's
+    /// `findExteriorPosition` and `findInteriorPosition` turn one into the other, and a stop then
+    /// stands where a player typing `coc` would. **One rule for whoever asks**: `coc` would find an
+    /// exterior by its name as well, which nothing outside a loaded world can tell from an interior's,
+    /// so a film that plans its cuts before the world loads and the stager that stands it there read
+    /// the same cell.
+    class CellAddress
+    {
+    public:
+        /// No cell, which stays wherever the game already is.
+        CellAddress() = default;
+
+        /// `spelling` as `--cell` and a view's `cell` take it. An exterior is spelt again as `x,y`:
+        /// the pair may have spaces around its integers, which the world does not read.
+        explicit CellAddress(std::string_view spelling);
+
+        static CellAddress exterior(int gridX, int gridY);
+
+        /// An interior by its name, where the cell itself says it is one, whatever the name spells.
+        static CellAddress interior(std::string_view name);
+
+        bool empty() const { return mSpelling.empty(); }
+
+        bool isExterior() const { return mExterior; }
+
+        /// The pair `x,y` out of doors and the name indoors: what `--cell` takes and a view says.
+        const std::string& getSpelling() const { return mSpelling; }
+
+        bool operator==(const CellAddress&) const = default;
+
+    private:
+        std::string mSpelling;
+        bool mExterior = false;
+    };
 
     /// Where a stop stands: a cell, and where the eye is inside it.
     struct Stand
     {
-        /// The cell to teleport to, as Morrowind addresses one: a pair of integers is an exterior,
-        /// anything else is an interior's name. Empty stays wherever the game already is. The
-        /// spelling and not an id, because `MWBase::World::findExteriorPosition` is what turns one
-        /// into the other, and a stop then stands where a player typing `coc` would.
-        std::string mCell{};
+        /// The cell to teleport to.
+        CellAddress mCell{};
 
         /// Where the eye goes and what it looks at. Both left out leaves the player where the cell
         /// put them and their own camera alone.
@@ -453,6 +488,10 @@ namespace RtxTool
         /// and never where in it.
         std::filesystem::path mPictures;
 
+        /// Where every picture a stop writes is kept as well, for the verb that judges them once the
+        /// run is over, or null where it judges none. The verb's, and outlives the run.
+        PictureShelf* mShelf = nullptr;
+
         /// Where a window appends a film's key on every Home press, or empty for none.
         std::filesystem::path mKeys;
 
@@ -482,6 +521,28 @@ namespace RtxTool
     /// run itself broke" by this number and not by the report's wording, which a reworded sentence
     /// would swap.
     inline constexpr int sDifferedStatus = 3;
+
+    /// The hour and the weather a place stands under where neither the view nor the command line
+    /// names one: what a picture of a place is taken at. Not the hour a budget is written against
+    /// — a low sun doubles the trace — which is why the views the target is judged on fix `hour`.
+    inline constexpr float sDefaultHour = 12.0f;
+    inline constexpr Rtx::Weather sDefaultWeather = Rtx::Weather::Clear;
+
+    /// How many frames a picture warms up over once the world stands whole, so it shows what a
+    /// player standing there sees and every draw of it is a frame of its own: every command but
+    /// `bench`, and a film's take after its cut. **Four times the accumulator's length** `N`
+    /// (`ACCUMULATE_FRAMES`), where its weight on the frame the cut left is `(1 - 1/N)^4N`, under
+    /// `e^-4` whatever `N` is — 1.7% at 32 — and the air's `0.9^4N`, 1.4 in a million at 32. Derived
+    /// rather than stated, so a longer accumulator lengthens it.
+    inline const std::uint32_t sHistoryFrames = 4 * static_cast<std::uint32_t>(Rtx::Shaders::ACCUMULATE_FRAMES);
+
+    /// Runs `stop` for `frames` once the world stood whole and its histories converged over
+    /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
+    /// the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor` applies.
+    ///
+    /// @param frames how many to measure once the world has arrived. Why a command wants more
+    ///        than one is that command's to say.
+    void measureFrames(Stop& stop, std::uint32_t frames = 1);
 
     /// What a launcher reads back once `Engine::go` has returned.
     struct SessionResult

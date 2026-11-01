@@ -21,10 +21,9 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
+#include <components/rtx/renderer/frameimage.hpp>
 
-#include "frameimage.hpp"
-
-namespace Rtx
+namespace RtxTool
 {
     namespace
     {
@@ -96,8 +95,8 @@ namespace Rtx
     {
         // The one conversion of a traced picture to OpenSceneGraph's rows, at its own size.
         const osg::ref_ptr<osg::Image> image
-            = frameImage(TracedFrame{ .mWidth = width, .mHeight = height, .mPixels = pixels }, static_cast<int>(width),
-                static_cast<int>(height), RowOrder::BottomFirst);
+            = Rtx::frameImage(Rtx::TracedFrame{ .mWidth = width, .mHeight = height, .mPixels = pixels },
+                static_cast<int>(width), static_cast<int>(height), Rtx::RowOrder::BottomFirst);
         Crash::contract(image != nullptr, "a picture written from fewer pixels than its size");
         return writeImage(path, *image, description);
     }

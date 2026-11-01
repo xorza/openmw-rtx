@@ -30,6 +30,8 @@
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
+#include <apps/rtxtool/model/pictureshelf.hpp>
+#include <apps/rtxtool/model/viewfile.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
@@ -58,10 +60,12 @@
 
 #include "compare.hpp"
 #include "film.hpp"
+#include "framed.hpp"
 #include "harnessfolder.hpp"
+#include "hosted.hpp"
 #include "noise.hpp"
 #include "options.hpp"
-#include "run.hpp"
+#include "runfolder.hpp"
 #include "verbs.hpp"
 
 namespace RtxTool
@@ -527,7 +531,7 @@ namespace RtxTool
             }
             else
             {
-                const Stop view = found != nullptr ? *found : Stop{ .mStand = { .mCell = cell } };
+                const Stop view = found != nullptr ? *found : Stop{ .mStand = { .mCell = CellAddress(cell) } };
                 staged = stopFor(view, skyGiven(variables, framed));
             }
 
@@ -636,7 +640,7 @@ namespace RtxTool
         {
             for (const Stop& view : loadViews(viewsFile()))
             {
-                out() << "  " << view.mName << "\n      " << view.mStand.mCell;
+                out() << "  " << view.mName << "\n      " << view.mStand.mCell.getSpelling();
 
                 // A place that fixes a condition is a different frame from the same camera at noon
                 // under a clear sky, and this listing is how a view is found.
@@ -786,11 +790,14 @@ namespace RtxTool
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             hashInto(request, out, against);
+            PictureShelf drawn;
+            if (!against.empty())
+                request.mShelf = &drawn;
 
             // Compared whatever the session answered, because a moved frame is what fails it, and
             // the run where something moved is the run whose tiles, dolls and sheets are wanted.
             const int status = runHosted(command, framed, std::move(request));
-            const int compared = compareRuns(out, against, written);
+            const int compared = compareRuns(drawn, out, against, written);
             return status != 0 ? status : compared;
         }
 
@@ -1008,6 +1015,8 @@ namespace RtxTool
 
             SessionRequest request = sessionFor(command, framed, std::move(plan.mStops));
             request.mSuite = run.mSuite;
+            PictureShelf drawn;
+            request.mShelf = &drawn;
 
             // An earlier run's record goes before this one draws, so a run that ends before it judges
             // leaves none to be read as its own.
@@ -1018,12 +1027,12 @@ namespace RtxTool
                 return status;
 
             std::array<std::vector<NoiseFigures>, 2> measured;
-            int judged = judgeNoise(folder, plan.mSides, plan.mBarFrames, measured[0]);
+            int judged = judgeNoise(drawn, folder, plan.mSides, plan.mBarFrames, measured[0]);
             if (versus.has_value())
             {
                 out() << std::format("versus --{}{}{}\n", asked, plan.mOwnBar ? ", against a bar of its own" : "",
                     plan.mOwnReference ? " and a reference of its own" : "");
-                judged = std::max(judged, judgeNoise(folder, plan.mVersusSides, plan.mBarFrames, measured[1]));
+                judged = std::max(judged, judgeNoise(drawn, folder, plan.mVersusSides, plan.mBarFrames, measured[1]));
             }
 
             const std::span<const std::vector<NoiseFigures>> written(measured.data(), versus.has_value() ? 2 : 1);

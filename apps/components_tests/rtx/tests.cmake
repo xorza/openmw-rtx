@@ -70,7 +70,6 @@ set(RTX_TEST_FILES
     rtx/renderer/memoryreport.cpp
     rtx/renderer/notfinite.cpp
     rtx/renderer/nullrenderer.cpp
-    rtx/renderer/png.cpp
     rtx/renderer/sceneuploader.cpp
     rtx/renderer/shaderdirectory.cpp
     rtx/scene/compositequeue.cpp
@@ -105,6 +104,7 @@ set(RTX_TEST_FILES
     rtxtool/cruise.cpp
     rtxtool/drivercache.cpp
     rtxtool/film.cpp
+    rtxtool/framed.cpp
     rtxtool/framehashes.cpp
     rtxtool/frametimes.cpp
     rtxtool/gpuclock.cpp
@@ -114,10 +114,12 @@ set(RTX_TEST_FILES
     rtxtool/measurewindow.cpp
     rtxtool/options.cpp
     rtxtool/picturemean.cpp
-    rtxtool/run.cpp
+    rtxtool/png.cpp
     rtxtool/runrecord.cpp
     rtxtool/scenedigest.cpp
     rtxtool/skycrossing.cpp
+    rtxtool/stopdescription.cpp
+    rtxtool/viewfile.cpp
     rtxvulkan/device/buffermarkers.cpp
     rtxvulkan/device/instance.cpp
     rtxvulkan/device/memory/formats.cpp

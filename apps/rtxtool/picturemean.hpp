@@ -8,7 +8,7 @@ namespace RtxTool
 {
     /// A running mean of pictures of one size, four bytes a pixel, byte for byte: what `noise`
     /// averages a frame's independent draws into, which is the picture that frame converges to.
-    /// **Kept between the bytes**, on `Rtx::PngImage`'s sixteen-bit scale: a mean rounded to a byte
+    /// **Kept between the bytes**, on `PngImage`'s sixteen-bit scale: a mean rounded to a byte
     /// moves `noise`'s figures by up to half a level a pixel, the size of the differences an A/B
     /// decides on.
     ///
@@ -27,7 +27,7 @@ namespace RtxTool
         std::uint32_t getWidth() const { return mWidth; }
         std::uint32_t getHeight() const { return mHeight; }
 
-        /// The mean so far into `samples`, on the sixteen-bit scale (`Rtx::sSamplesPerLevel` to a
+        /// The mean so far into `samples`, on the sixteen-bit scale (`sSamplesPerLevel` to a
         /// level), each rounded to the nearest, a half up. There is at least one picture in it.
         void mean(std::vector<std::uint16_t>& samples) const;
 

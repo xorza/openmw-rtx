@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string_view>
@@ -22,6 +23,7 @@ namespace Rtx
     class Barriers;
     class Buffer;
     class Device;
+    class GrowableBuffer;
 
     /// What an image is, apart from its memory and its name, as the constructors take it: what
     /// making one and asking what one takes (`Image::bytesFor`) both read, so an owner that
@@ -179,9 +181,16 @@ namespace Rtx
         /// cost nothing but the drain.
         static void buildMips(VkCommandBuffer commands, std::span<const Image* const> images);
 
-        /// Copies one level to host memory, one texel's bytes per pixel, tightly packed, row by row.
-        /// Left in the layout it was handed. Submits and waits, so it belongs to a screenshot
-        /// rather than to a frame.
+        /// Copies one level to host memory, one texel's bytes per pixel, tightly packed, row by row,
+        /// into `pixels`, which holds `getReadBytes(level)`. Lands in `landing`, a read-back buffer
+        /// grown to hold the level and kept by the caller, so a read that repeats makes no buffer and
+        /// copies on the host once. Left in the layout it was handed. Submits and waits, so it
+        /// belongs to a screenshot rather than to a frame.
+        void read(
+            VkImageLayout layout, GrowableBuffer& landing, std::span<std::byte> pixels, std::uint32_t level = 0) const;
+
+        /// `read` through a landing of its own, into `pixels` sized to the level: for a read made
+        /// once, as a test makes it.
         void read(VkImageLayout layout, std::vector<std::uint8_t>& pixels, std::uint32_t level = 0) const;
 
         /// `read`, widened to one float a channel whatever the format stores — for a test that

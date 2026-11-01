@@ -28,7 +28,7 @@ namespace RtxTool
         /// rule `describeBlock` leaves them out by. The day stays unsaid where the block names none.
         Stop mStop;
 
-        const std::string& getCell() const { return mStop.mStand.mCell; }
+        const CellAddress& getCell() const { return mStop.mStand.mCell; }
         const osg::Vec3f& getEye() const { return *mStop.mStand.mEye; }
         const osg::Vec3f& getLook() const { return *mStop.mStand.mLook; }
         float getHour() const { return *mStop.mSky.mHour; }
@@ -57,9 +57,6 @@ namespace RtxTool
     std::vector<FilmKey> readKeys(std::istream& in, std::string source);
 
     std::vector<FilmKey> loadKeys(const std::filesystem::path& path);
-
-    /// Whether `cell` is an exterior, spelt as a pair of integers the way `--cell` takes one.
-    bool isExteriorCell(std::string_view cell);
 
     /// Who named a film's length: the command line, or nobody, where `FilmPacing::sLengthByDefault`
     /// stands in for a length and not for a speed.

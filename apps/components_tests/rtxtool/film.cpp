@@ -20,7 +20,7 @@
 #include <apps/rtxtool/film.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/cameratrack.hpp>
-#include <apps/rtxtool/run.hpp>
+#include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/world/frameworld.hpp>
@@ -53,7 +53,7 @@ namespace RtxTool
         FilmKey keyAt(std::string name, std::string cell, osg::Vec3f eye, osg::Vec3f look = osg::Vec3f(0, 1e4f, 0))
         {
             return FilmKey{ .mStop = Stop{ .mName = std::move(name),
-                                .mStand = { .mCell = std::move(cell), .mEye = eye, .mLook = eye + look },
+                                .mStand = { .mCell = CellAddress(cell), .mEye = eye, .mLook = eye + look },
                                 .mSky = { .mHour = sDefaultHour, .mWeather = sDefaultWeather } } };
         }
 
@@ -78,7 +78,7 @@ namespace RtxTool
         TEST(RtxFilmTest, homeOutputPastedIsKeys)
         {
             RtxTool::Stop dawn{ .mName = "balmora",
-                .mStand = { .mCell = "-3,-2",
+                .mStand = { .mCell = CellAddress("-3,-2"),
                     .mEye = osg::Vec3f(-18075.145f, -17586.46f, 638.41016f),
                     .mLook = osg::Vec3f(-18625.098f, -16765.438f, 485.20374f) },
                 .mSky = { .mHour = 6.5f,
@@ -94,7 +94,7 @@ namespace RtxTool
 
             EXPECT_EQ(keys[0].mStop.mName, "balmora");
             EXPECT_EQ(keys[1].mStop.mName, "balmora");
-            EXPECT_EQ(keys[0].getCell(), "-3,-2");
+            EXPECT_EQ(keys[0].getCell().getSpelling(), "-3,-2");
             EXPECT_EQ(keys[0].getEye(), *dawn.mStand.mEye);
             EXPECT_EQ(keys[0].getLook(), *dawn.mStand.mLook);
             EXPECT_EQ(keys[0].getHour(), 6.5f);
@@ -148,16 +148,6 @@ namespace RtxTool
                 "tour.keys:3: pos \"\" is not three numbers separated by commas")
                 << "an empty point is no point, and not one left unsaid";
             EXPECT_EQ(refusal("# nothing\n"), "tour.keys states no keys");
-        }
-
-        TEST(RtxFilmTest, anExteriorIsAPairOfIntegers)
-        {
-            EXPECT_TRUE(isExteriorCell("-3,-2"));
-            EXPECT_TRUE(isExteriorCell(" 2 , -10"));
-            EXPECT_FALSE(isExteriorCell("Balmora, Guild of Mages"));
-            EXPECT_FALSE(isExteriorCell("-3"));
-            EXPECT_FALSE(isExteriorCell("1,2,3"));
-            EXPECT_FALSE(isExteriorCell(","));
         }
 
         /// A key flies from the one before it where both are in one space and near, and cuts
@@ -586,7 +576,7 @@ namespace RtxTool
             const RtxTool::Stop& room = stops[1];
             EXPECT_EQ(room.mName, "take-2-room");
             EXPECT_EQ(room.mNote, "the arena");
-            EXPECT_EQ(room.mStand.mCell, "Vivec, Arena");
+            EXPECT_EQ(room.mStand.mCell.getSpelling(), "Vivec, Arena");
             EXPECT_EQ(room.mStand.mEye, keys[3].getEye());
             EXPECT_EQ(room.mSky.mHour, sDefaultHour);
             EXPECT_EQ(room.mSky.mDay, 5);

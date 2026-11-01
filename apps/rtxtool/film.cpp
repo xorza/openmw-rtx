@@ -1,23 +1,22 @@
 #include "film.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <format>
-#include <fstream>
+#include <istream>
 #include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 #include <vector>
 
 #include <osg/Math>
 
 #include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <components/crashcatcher/crash.hpp>
@@ -26,80 +25,66 @@
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
-#include "run.hpp"
-
 namespace RtxTool
 {
-    std::vector<FilmKey> readKeys(std::istream& in, std::string source)
+    namespace
     {
-        const BlockFile file(in, std::move(source));
-
-        std::vector<FilmKey> keys;
-        keys.reserve(file.getBlocks().size());
-        for (const Block& block : file.getBlocks())
+        /// The keys `file` states, refused where it states none.
+        std::vector<FilmKey> keysOf(const BlockFile& file)
         {
-            FilmKey& key = keys.emplace_back(FilmKey{ .mStop = Stop{ .mName = block.mName }, .mLine = block.mLine });
-            for (const BlockField& field : block.mFields)
+            std::vector<FilmKey> keys;
+            keys.reserve(file.getBlocks().size());
+            for (const Block& block : file.getBlocks())
             {
-                if (file.readPlace(field, key.mStop))
-                    continue;
+                FilmKey& key
+                    = keys.emplace_back(FilmKey{ .mStop = Stop{ .mName = block.mName }, .mLine = block.mLine });
+                for (const BlockField& field : block.mFields)
+                {
+                    if (file.readPlace(field, key.mStop))
+                        continue;
 
-                if (field.mName == "day")
-                    key.mStop.mSky.mDay = file.day(field);
-                else if (field.mName == "seconds")
-                    key.mSeconds = file.positive(field, "a length of time");
-                else if (field.mName == "at")
-                    key.mAt = file.notNegative(field, "a second of the film");
-                else if (field.mName == "hold")
-                    key.mHold = file.notNegative(field, "a length of time");
-                else if (field.mName == "cut")
-                    key.mCut = file.boolean(field);
-                else
-                    file.refuseUnknown(field, "key");
+                    if (field.mName == "day")
+                        key.mStop.mSky.mDay = file.day(field);
+                    else if (field.mName == "seconds")
+                        key.mSeconds = file.positive(field, "a length of time");
+                    else if (field.mName == "at")
+                        key.mAt = file.notNegative(field, "a second of the film");
+                    else if (field.mName == "hold")
+                        key.mHold = file.notNegative(field, "a length of time");
+                    else if (field.mName == "cut")
+                        key.mCut = file.boolean(field);
+                    else
+                        file.refuseUnknown(field, "key");
+                }
+
+                // `pos` and `look` are the pair Home always writes, and a key without them has no
+                // facing to fly through.
+                const Stand& stand = key.mStop.mStand;
+                if (stand.mCell.empty())
+                    file.refuse(block.mLine, std::format("key \"{}\" names no cell", block.mName));
+                if (!stand.mEye.has_value() || !stand.mLook.has_value())
+                    file.refuse(block.mLine, std::format("key \"{}\" names no pos and look", block.mName));
+
+                StopSky& sky = key.mStop.mSky;
+                sky.mHour = sky.mHour.value_or(sDefaultHour);
+                sky.mWeather = sky.mWeather.value_or(sDefaultWeather);
             }
 
-            // `pos` and `look` are the pair Home always writes, and a key without them has no
-            // facing to fly through.
-            const Stand& stand = key.mStop.mStand;
-            if (stand.mCell.empty())
-                file.refuse(block.mLine, std::format("key \"{}\" names no cell", block.mName));
-            if (!stand.mEye.has_value() || !stand.mLook.has_value())
-                file.refuse(block.mLine, std::format("key \"{}\" names no pos and look", block.mName));
+            if (keys.empty())
+                throw std::runtime_error(std::format("{} states no keys", file.getSource()));
 
-            StopSky& sky = key.mStop.mSky;
-            sky.mHour = sky.mHour.value_or(sDefaultHour);
-            sky.mWeather = sky.mWeather.value_or(sDefaultWeather);
+            return keys;
         }
+    }
 
-        if (keys.empty())
-            throw std::runtime_error(std::format("{} states no keys", file.getSource()));
-
-        return keys;
+    std::vector<FilmKey> readKeys(std::istream& in, std::string source)
+    {
+        return keysOf(BlockFile(in, std::move(source)));
     }
 
     std::vector<FilmKey> loadKeys(const std::filesystem::path& path)
     {
-        std::ifstream in(path);
-        if (!in)
-            throw std::runtime_error("cannot read the keys in " + Files::pathToUnicodeString(path));
-
-        return readKeys(in, Files::pathToUnicodeString(path));
-    }
-
-    bool isExteriorCell(const std::string_view cell)
-    {
-        const std::size_t comma = cell.find(',');
-        if (comma == std::string_view::npos)
-            return false;
-
-        const auto whole = [](std::string_view text) {
-            text = trimmed(text);
-            int value = 0;
-            const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-            return !text.empty() && error == std::errc() && end == text.data() + text.size();
-        };
-
-        return whole(cell.substr(0, comma)) && whole(cell.substr(comma + 1));
+        return keysOf(BlockFile::load(path));
     }
 
     std::uint32_t FilmPacing::framesOf(const float seconds) const
@@ -130,8 +115,8 @@ namespace RtxTool
             if (key.mCut.has_value())
                 return *key.mCut ? std::optional(FilmCut::Asked) : std::nullopt;
 
-            const bool outside = isExteriorCell(key.getCell());
-            if (isExteriorCell(before.getCell()) != outside)
+            const bool outside = key.getCell().isExterior();
+            if (before.getCell().isExterior() != outside)
                 return outside ? FilmCut::Outdoors : FilmCut::Indoors;
 
             if (!outside && key.getCell() != before.getCell())
@@ -799,7 +784,7 @@ namespace RtxTool
             text += '\n';
 
             const std::uint32_t start = drawnAt(take.mFirstFrame, 0.0);
-            text += std::format("  {:<28} {} {}, {}{}{}\n", first.mStop.mName, first.getCell(),
+            text += std::format("  {:<28} {} {}, {}{}{}\n", first.mStop.mName, first.getCell().getSpelling(),
                 describeHourAt(plan, start, first), weatherAt(plan, start, first),
                 first.mAt.has_value() ? std::format(", at {:g} s", *first.mAt) : std::string(),
                 first.mHold > 0.0f ? std::format(", holds {:.1f} s", first.mHold) : std::string());
@@ -812,8 +797,8 @@ namespace RtxTool
                 text += std::format("  -> {:<25} {:6.1f} s  {} {}, {}{}{}  ({})\n", key.mStop.mName,
                     seconds(segment.mFrames), describeHourAt(plan, arrival, key), weatherAt(plan, arrival, key),
                     key.mAt.has_value() ? std::format("at {:g} s, ", *key.mAt) : std::string(),
-                    key.mHold > 0.0f ? std::format("holds {:.1f} s, ", key.mHold) : std::string(), key.getCell(),
-                    describePace(segment, key, pacing));
+                    key.mHold > 0.0f ? std::format("holds {:.1f} s, ", key.mHold) : std::string(),
+                    key.getCell().getSpelling(), describePace(segment, key, pacing));
             }
         }
 

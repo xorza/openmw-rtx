@@ -14,11 +14,11 @@
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/rtxtool/homekey.hpp>
+#include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
-#include <apps/rtxtool/run.hpp>
+#include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
-#include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
@@ -35,7 +35,8 @@ namespace RtxTool
         Stop noteOf(const std::uint64_t frame)
         {
             return Stop{ .mName = "pier",
-                .mStand = { .mCell = "-2,-10", .mEye = osg::Vec3f(1, 2, 3), .mLook = osg::Vec3f(1, 1002, 3) },
+                .mStand
+                = { .mCell = CellAddress("-2,-10"), .mEye = osg::Vec3f(1, 2, 3), .mLook = osg::Vec3f(1, 1002, 3) },
                 .mSky = { .mHour = static_cast<float>(frame), .mDay = 1, .mWeather = Rtx::Weather::Clear } };
         }
 
@@ -121,11 +122,11 @@ namespace RtxTool
             EXPECT_EQ(descriptionOf(pictures / "pier-1.png"), describeStanding(noteOf(10)));
             EXPECT_EQ(descriptionOf(pictures / "pier-2.png"), describeStanding(noteOf(13)));
             EXPECT_FALSE(std::filesystem::exists(pictures / "pier-3.png"));
-            const Misc::Result<Rtx::PngImage, std::string> first = Rtx::readPng(pictures / "pier-1.png");
+            const Misc::Result<PngImage, std::string> first = readPng(pictures / "pier-1.png");
             ASSERT_TRUE(first.isOk()) << first.error();
             std::vector<std::uint16_t> widened;
             for (const std::uint8_t level : sPixels)
-                widened.push_back(static_cast<std::uint16_t>(level * Rtx::sSamplesPerLevel));
+                widened.push_back(static_cast<std::uint16_t>(level * sSamplesPerLevel));
             EXPECT_EQ(first.value().mSamples, widened);
             EXPECT_EQ(readText(keys), "\n" + describeKey(noteOf(10)) + "\n" + describeKey(noteOf(13)));
         }

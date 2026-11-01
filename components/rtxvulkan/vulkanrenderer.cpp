@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <optional>
 #include <span>
@@ -128,6 +127,7 @@ namespace Rtx
         , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
                                                   : nullptr)
         , mRing(mDevice, options.mTiming, options.mReadingBack)
+        , mReadBack(mDevice, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "picture read back")
         , mScenePasses(mDevice)
         , mArrival(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels)
@@ -912,14 +912,17 @@ namespace Rtx
     {
         assert(mTarget.isOpen());
 
-        mTarget.getPicture().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+        const Image& picture = mTarget.getPicture();
+        pixels.resize(picture.getReadBytes());
+        picture.read(VK_IMAGE_LAYOUT_GENERAL, mReadBack, std::as_writable_bytes(std::span(pixels)));
     }
 
     void VulkanRenderer::readDeepPixels(std::vector<std::uint16_t>& samples)
     {
-        std::vector<std::uint8_t> bytes;
-        mTarget.getDeep().read(VK_IMAGE_LAYOUT_GENERAL, bytes);
-        samples.resize(bytes.size() / sizeof(std::uint16_t));
-        std::memcpy(samples.data(), bytes.data(), samples.size() * sizeof(std::uint16_t));
+        const Image& deep = mTarget.getDeep();
+        const VkDeviceSize bytes = deep.getReadBytes();
+        assert(bytes % sizeof(std::uint16_t) == 0 && "a deep picture of a texel no whole number of samples");
+        samples.resize(bytes / sizeof(std::uint16_t));
+        deep.read(VK_IMAGE_LAYOUT_GENERAL, mReadBack, std::as_writable_bytes(std::span(samples)));
     }
 }

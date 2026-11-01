@@ -26,6 +26,7 @@ namespace MWRender
 
 namespace RtxTool
 {
+    class PictureShelf;
     class RunRecord;
 
     /// What a stop asked for and what it came to, beside the frame it drew.
@@ -78,8 +79,9 @@ namespace RtxTool
         ///
         /// @param facts what the stop asked for and came to, which only a check or the frame
         /// series reads.
+        /// @param shelf where every picture written is kept as well, or null.
         void write(const MWRender::FrameContext& context, const MWRender::FrameReport& report, const Actions& actions,
-            const StopFacts& facts, RunRecord& record);
+            const StopFacts& facts, RunRecord& record, PictureShelf* shelf);
 
     private:
         /// The frame a writer reads, what put it together, and where it says its answer.
@@ -93,7 +95,15 @@ namespace RtxTool
             const MWRender::FrameContext& mContext;
             const MWRender::FrameReport& mReport;
             RunRecord& mRecord;
+            PictureShelf* mShelf;
         };
+
+        /// Writes a picture, top row first, and keeps it on the shelf where there is one. Says why
+        /// it could not in the record, and fails the run, where it returns false.
+        static bool writePicture(const Writing& into, const std::filesystem::path& file, std::uint32_t width,
+            std::uint32_t height, std::span<const std::uint8_t> pixels);
+        static bool writePicture(const Writing& into, const std::filesystem::path& file, std::uint32_t width,
+            std::uint32_t height, std::span<const std::uint16_t> samples);
 
         /// The last measured frame, as a PNG: as its bytes, or where `deep` its sum at sixteen bits a
         /// channel (`Actions::mDeepCapture`).

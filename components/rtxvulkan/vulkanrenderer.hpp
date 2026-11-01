@@ -29,6 +29,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/display/displaychain.hpp>
@@ -199,6 +200,11 @@ namespace Rtx
         /// `PresentTarget::getExtent` — rather than beside it in a pair of members something would
         /// have to keep level.
         PresentTarget mTarget;
+
+        /// Where `readPixels` and `readDeepPixels` land the picture, grown at the first and kept, so
+        /// a run that writes a picture at every stop makes one buffer and not one a stop: past half
+        /// a block, each was an allocation of its own.
+        GrowableBuffer mReadBack;
 
         /// Before the trace's passes and the display, which read the scenes' texture layout.
         ScenePasses mScenePasses;

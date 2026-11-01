@@ -9,7 +9,7 @@
 
 #include <components/misc/result.hpp>
 
-namespace Rtx
+namespace RtxTool
 {
     /// Writes tightly packed 8-bit RGBA, top row first, as a PNG. The renderer writes row zero at
     /// the top and OSG's images start at the bottom, so this flips on the way through. Says why where

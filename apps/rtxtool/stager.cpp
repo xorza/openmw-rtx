@@ -71,18 +71,14 @@ namespace RtxTool
         // **The player goes first, because the ring is read around them and not around the eye.**
         // A camera placed in a cell nobody stands in is a camera looking at ground the simulation
         // never asked for.
-        //
-        // **The exterior is tried before the interior, which is the order `coc` tries them in.** A
-        // pair of integers only resolves as an exterior, and a name can be either.
-        if (!stop.mStand.mCell.empty())
+        if (const CellAddress& cell = stop.mStand.mCell; !cell.empty())
         {
             ESM::Position where{};
-            ESM::RefId found = world.findExteriorPosition(stop.mStand.mCell, where);
+            const ESM::RefId found = cell.isExterior() ? world.findExteriorPosition(cell.getSpelling(), where)
+                                                       : world.findInteriorPosition(cell.getSpelling(), where);
             if (found.empty())
-                found = world.findInteriorPosition(stop.mStand.mCell, where);
-
-            if (found.empty())
-                return Misc::Err{ "no cell is called \"" + stop.mStand.mCell + '"' };
+                return Misc::Err{ std::format(
+                    "no {} is called \"{}\"", cell.isExterior() ? "exterior" : "interior", cell.getSpelling()) };
 
             // **Where the eye goes and not where the cell centres, where the stop says.** The
             // position the world found is what stands a player in the cell; a view names the spot

@@ -1,8 +1,6 @@
-#include "run.hpp"
+#include "viewfile.hpp"
 
 #include <algorithm>
-#include <cassert>
-#include <cctype>
 #include <cstddef>
 #include <format>
 #include <optional>
@@ -10,247 +8,14 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <type_traits>
+#include <vector>
 
-#include <osg/Math>
-#include <osg/Vec3f>
-
-#include <apps/rtxtool/model/benchrecord.hpp>
-#include <apps/rtxtool/model/benchspec.hpp>
-#include <apps/rtxtool/model/blockfile.hpp>
-#include <components/files/configurationmanager.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/conversion.hpp>
 #include <components/rtx/world/weather.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
-#include <components/settings/categories.hpp>
-#include <components/settings/parser.hpp>
-#include <components/settings/values.hpp>
-#include <components/settings/windowmode.hpp>
+
+#include "blockfile.hpp"
 
 namespace RtxTool
 {
-    namespace
-    {
-        /// A view id derived from a cell's name, for a window that was opened without one.
-        ///
-        /// Something to paste rather than something to keep: the ids in the file are chosen to say
-        /// what a view is *for*, which a cell name cannot.
-        std::string slugOf(std::string_view cell)
-        {
-            std::string slug;
-            for (const char letter : cell)
-            {
-                const bool plain = (letter >= 'a' && letter <= 'z') || (letter >= 'A' && letter <= 'Z')
-                    || (letter >= '0' && letter <= '9');
-                if (plain)
-                    slug += static_cast<char>(std::tolower(static_cast<unsigned char>(letter)));
-                else if (!slug.empty() && slug.back() != '-')
-                    slug += '-';
-            }
-
-            while (!slug.empty() && slug.back() == '-')
-                slug.pop_back();
-
-            return slug.empty() ? "new-view" : slug;
-        }
-
-        /// A cell's name as a stop's name, which a hash file's row and a picture's file are keyed on:
-        /// the name as it is, but each character a row or a file name cannot hold — a comma, a
-        /// colon, a slash and what Windows refuses — as `_`. `-2,-9` is `-2_-9`, which `slugOf`'s
-        /// `2-9` would share with `2,9`.
-        std::string stopNameOf(std::string_view cell)
-        {
-            std::string name(cell);
-            for (char& letter : name)
-                if (std::string_view(",:/\\*?\"<>|").find(letter) != std::string_view::npos)
-                    letter = '_';
-            return name;
-        }
-
-    }
-
-    void measureFrames(Stop& stop, const std::uint32_t frames)
-    {
-        stop.mSchedule.mSpec = BenchSpec{ .mRun = { .mFrames = frames }, .mWarm = { .mFrames = sHistoryFrames } };
-    }
-
-    ShippedDefaults::ShippedDefaults(const Files::ConfigurationManager& config)
-        : ShippedDefaults(config.getActiveConfigPaths().front() / "defaults.bin")
-    {
-    }
-
-    ShippedDefaults::ShippedDefaults(const std::filesystem::path& file)
-    {
-        Settings::SettingsFileParser parser;
-        parser.loadSettingsFile(file, mShipped, true, false);
-    }
-
-    template <class T>
-    T ShippedDefaults::get(const std::string_view category, const std::string_view setting) const
-    {
-        const auto found = mShipped.find(Settings::CategorySetting(category, setting));
-        if (found == mShipped.end())
-            throw std::runtime_error(std::format("defaults.bin names no [{}] {}", category, setting));
-
-        const std::string& text = found->second;
-        if constexpr (std::is_same_v<T, std::string>)
-            return text;
-        else if constexpr (std::is_same_v<T, bool>)
-            return Misc::StringUtils::ciEqual(text, "true");
-        else
-        {
-            if (const std::optional<T> number = Misc::StringUtils::toNumeric<T>(text))
-                return *number;
-
-            throw std::runtime_error(
-                std::format("defaults.bin's [{}] {} is not a finite number: \"{}\"", category, setting, text));
-        }
-    }
-
-    template float ShippedDefaults::get<float>(std::string_view, std::string_view) const;
-    template int ShippedDefaults::get<int>(std::string_view, std::string_view) const;
-    template bool ShippedDefaults::get<bool>(std::string_view, std::string_view) const;
-    template std::string ShippedDefaults::get<std::string>(std::string_view, std::string_view) const;
-
-    void WindowRequest::keepPlayersLimit()
-    {
-        mFramerateLimit = Settings::video().mFramerateLimit;
-    }
-
-    void WindowRequest::writeSettings() const
-    {
-        // The frame at the window's size, which the run states in pixels (`RunSetup::mWindowPixels`).
-        Settings::video().mResolutionX.set(static_cast<int>(mWidth));
-        Settings::video().mResolutionY.set(static_cast<int>(mHeight));
-        Settings::video().mWindowMode.set(Settings::WindowMode::Windowed);
-        // **Never the player's vertical sync**: on a display with a fixed refresh it holds each frame
-        // to whole refreshes, a mix of one, two and three wherever the frame falls between them, and
-        // a run is read for the frame and not for the display's cadence.
-        Settings::video().mVsyncMode.set(SDLUtil::VSyncMode::Disabled);
-        Settings::video().mFramerateLimit.set(mFramerateLimit);
-        Settings::camera().mFieldOfView.set(mFieldOfView);
-    }
-
-    float bearingOf(const Stand& stand)
-    {
-        const float degrees = osg::RadiansToDegrees(stand.getRotation().z());
-        return degrees < 0.0f ? degrees + 360.0f : degrees;
-    }
-
-    float climbOf(const Stand& stand)
-    {
-        return osg::RadiansToDegrees(-stand.getRotation().x());
-    }
-
-    std::string describeSpot(const Stop& stop)
-    {
-        const osg::Vec3f& eye = *stop.mStand.mEye;
-
-        return std::format("# {} at {:.0f}, {:.0f}, {:.0f} — bearing {:.0f}°, climb {:.0f}° — day {}, {}, {}\n",
-            stop.mStand.mCell, eye.x(), eye.y(), eye.z(), bearingOf(stop.mStand), climbOf(stop.mStand),
-            stop.mSky.mDay.value_or(0), describeHour(stop.mSky.mHour.value_or(sDefaultHour)),
-            Rtx::nameOf(stop.mSky.mWeather.value_or(sDefaultWeather)));
-    }
-
-    std::string describeAir(const Rtx::AirClock& air)
-    {
-        return std::format("{},{},{},{}", air.mSky.mSeconds, air.mSky.mCloudScroll, air.mCarried.x(), air.mCarried.y());
-    }
-
-    std::string describeId(const Stop& stop)
-    {
-        return slugOf(stop.mName);
-    }
-
-    std::string describeBlock(const Stop& stop)
-    {
-        std::string block = std::format("[{}]\n", describeId(stop));
-
-        if (!stop.mNote.empty())
-            block += std::format("note = {}\n", stop.mNote);
-
-        const osg::Vec3f& eye = *stop.mStand.mEye;
-        const osg::Vec3f look = stop.mStand.getLook();
-        block += std::format("cell = {}\npos = {}, {}, {}\nlook = {}, {}, {}\n", stop.mStand.mCell, eye.x(), eye.y(),
-            eye.z(), look.x(), look.y(), look.z());
-
-        // **Each condition only where the window was not at the file's own**, because one written
-        // down fixes the place under it. A block pasted from a window flown at dawn in a storm has
-        // to bring both with it — the light is most of what the frame is — and one from a window at
-        // clear noon should leave the view free to be measured under whatever a run names.
-        if (stop.mSky.mHour.has_value() && *stop.mSky.mHour != sDefaultHour)
-            block += std::format("hour = {}\n", *stop.mSky.mHour);
-
-        if (stop.mSky.mWeather.has_value() && *stop.mSky.mWeather != sDefaultWeather)
-            block += std::format("weather = {}\n", Rtx::nameOf(*stop.mSky.mWeather));
-
-        if (!stop.mStand.mLamps)
-            block += "lamps = false\n";
-
-        if (!stop.mStand.mArms.empty())
-            block += std::format("arms = {}\n", stop.mStand.mArms);
-
-        // Always where it is known, since no air is the file's own: one left out is whatever the
-        // run's frames carried it to.
-        if (stop.mSky.mAir.has_value())
-            block += std::format("air = {}\n", describeAir(*stop.mSky.mAir));
-
-        return block;
-    }
-
-    std::string describeCommand(const Stop& stop)
-    {
-        const osg::Vec3f& eye = *stop.mStand.mEye;
-        const osg::Vec3f look = stop.mStand.getLook();
-
-        // Quoted, because an interior's name has spaces and commas in it; `=` on every switch,
-        // because a leading minus reads as an option otherwise, as `--pos`'s help says.
-        std::string command = std::format(
-            "# openmw-rtxtool view --cell=\"{}\" --pos={},{},{} --look={},{},{} --hour={} --day={} --weather={}",
-            stop.mStand.mCell, eye.x(), eye.y(), eye.z(), look.x(), look.y(), look.z(),
-            stop.mSky.mHour.value_or(sDefaultHour), stop.mSky.mDay.value_or(0),
-            Rtx::nameOf(stop.mSky.mWeather.value_or(sDefaultWeather)));
-
-        if (stop.mSky.mAir.has_value())
-            command += std::format(" --air={}", describeAir(*stop.mSky.mAir));
-
-        command += '\n';
-        return command;
-    }
-
-    std::string describeKey(const Stop& stop)
-    {
-        return describeBlock(stop) + std::format("day = {}\n", stop.mSky.mDay.value_or(0));
-    }
-
-    std::string describeStanding(const Stop& stop)
-    {
-        return describeSpot(stop) + describeBlock(stop) + describeCommand(stop);
-    }
-
-    std::string cellArgument(const bool exterior, const int gridX, const int gridY, const std::string_view name)
-    {
-        return exterior ? std::format("{},{}", gridX, gridY) : std::string(name);
-    }
-
-    std::string_view writeSkyNote(const std::span<char> room, const SkyNote& note)
-    {
-        // `describeHour`'s minute, so the title and the block a window prints agree on it.
-        const int minutes = minuteOfDay(note.mHour);
-
-        // Cut down and never rounded up: a hundred means arrived.
-        const int percent = static_cast<int>(note.mCrossed * 100.0f);
-
-        const auto [end, length] = note.mArriving.empty()
-            ? std::format_to_n(room.data(), room.size(), "{}, {:02}:{:02}", note.mWeather, minutes / 60, minutes % 60)
-            : std::format_to_n(room.data(), room.size(), "{} → {} {}%, {:02}:{:02}", note.mWeather, note.mArriving,
-                percent, minutes / 60, minutes % 60);
-
-        assert(static_cast<std::size_t>(length) <= room.size() && "the sky note outgrew its room");
-        return std::string_view(room.data(), std::min(static_cast<std::size_t>(length), room.size()));
-    }
-
     std::vector<BenchSuite> loadSuites(const std::filesystem::path& path)
     {
         const BlockFile file = BlockFile::load(path);
@@ -298,6 +63,19 @@ namespace RtxTool
 
     namespace
     {
+        /// A cell's name as a stop's name, which a hash file's row and a picture's file are keyed on:
+        /// the name as it is, but each character a row or a file name cannot hold — a comma, a
+        /// colon, a slash and what Windows refuses — as `_`. `-2,-9` is `-2_-9`, which `slugOf`'s
+        /// `2-9` would share with `2,9`.
+        std::string stopNameOf(std::string_view cell)
+        {
+            std::string name(cell);
+            for (char& letter : name)
+                if (std::string_view(",:/\\*?\"<>|").find(letter) != std::string_view::npos)
+                    letter = '_';
+            return name;
+        }
+
         /// A field a view names another view by, `to` or `like` or the `speed` beside a `to`,
         /// waiting for every view to be read: the view that wrote it, and the field, for its line.
         struct Pending
@@ -415,7 +193,7 @@ namespace RtxTool
         // **The cell where a view names no id**, because a report row and a hash file are keyed on
         // this and neither can be keyed on nothing.
         if (stop.mName.empty())
-            stop.mName = stopNameOf(view.mStand.mCell);
+            stop.mName = stopNameOf(view.mStand.mCell.getSpelling());
 
         stop.mSky.mHour = hourFor(given.mHour, view.mSky.mHour);
         stop.mSky.mWeather = weatherFor(given.mWeather, view.mSky.mWeather);

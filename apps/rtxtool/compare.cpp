@@ -31,7 +31,7 @@ namespace RtxTool
         }
 
         /// Whether the two have a picture each, of one size, so there is something to subtract.
-        bool comparable(const Rtx::PngImage& one, const Rtx::PngImage& other)
+        bool comparable(const PngImage& one, const PngImage& other)
         {
             return !one.mSamples.empty() && !other.mSamples.empty() && one.mWidth == other.mWidth
                 && one.mHeight == other.mHeight;
@@ -40,7 +40,7 @@ namespace RtxTool
         /// The light of the pixel whose first sample is `at`: the luminance of its channels decoded,
         /// so a ratio of two is a ratio of light and not of the levels the curve encoded it in. **By
         /// the curve itself and not a byte's table**, since a mean stands between the bytes.
-        double lightOf(const Rtx::PngImage& image, const std::size_t at)
+        double lightOf(const PngImage& image, const std::size_t at)
         {
             const auto decoded = [&](const std::size_t channel) {
                 return Rtx::Shaders::decodeSrgb(static_cast<float>(image.mSamples[at + channel]) / 65535.0f);
@@ -51,7 +51,7 @@ namespace RtxTool
 
         /// The difference of the pixel whose first sample is `at`: its worst colour channel, on the
         /// sixteen-bit scale. Colour only, because alpha is not the picture.
-        std::uint32_t worstChannel(const Rtx::PngImage& one, const Rtx::PngImage& other, const std::size_t at)
+        std::uint32_t worstChannel(const PngImage& one, const PngImage& other, const std::size_t at)
         {
             std::uint32_t worst = 0;
             for (std::size_t channel = 0; channel < 3; ++channel)
@@ -83,7 +83,7 @@ namespace RtxTool
         return mTotal == 0 ? 0.0 : static_cast<double>(mDiffering) / static_cast<double>(mTotal) * 100.0;
     }
 
-    FrameDifference compareFrames(const Rtx::PngImage& before, const Rtx::PngImage& after)
+    FrameDifference compareFrames(const PngImage& before, const PngImage& after)
     {
         if (!comparable(before, after))
             return FrameDifference{ .mMismatched = true };
@@ -97,8 +97,7 @@ namespace RtxTool
             if (worst > 0)
             {
                 ++difference.mDiffering;
-                difference.mWorst
-                    = std::max(difference.mWorst, (worst + Rtx::sSamplesPerLevel - 1) / Rtx::sSamplesPerLevel);
+                difference.mWorst = std::max(difference.mWorst, (worst + sSamplesPerLevel - 1) / sSamplesPerLevel);
             }
         }
 
@@ -122,7 +121,7 @@ namespace RtxTool
         return PictureVerdict::Moved;
     }
 
-    PictureError measureError(const Rtx::PngImage& picture, const Rtx::PngImage& reference)
+    PictureError measureError(const PngImage& picture, const PngImage& reference)
     {
         if (!comparable(picture, reference))
             return PictureError{ .mMismatched = true };
@@ -146,14 +145,14 @@ namespace RtxTool
         while ((within += counts[sample]) < needed)
             ++sample;
 
-        constexpr auto perLevel = static_cast<double>(Rtx::sSamplesPerLevel);
+        constexpr auto perLevel = static_cast<double>(sSamplesPerLevel);
         return PictureError{
             .mMean = static_cast<double>(sum) / perLevel / static_cast<double>(pixels),
             .mP99 = static_cast<double>(sample) / perLevel,
         };
     }
 
-    std::optional<double> fireflyShare(const Rtx::PngImage& picture, const Rtx::PngImage& reference)
+    std::optional<double> fireflyShare(const PngImage& picture, const PngImage& reference)
     {
         if (!comparable(picture, reference))
             return std::nullopt;
@@ -171,8 +170,7 @@ namespace RtxTool
         return 1000.0 * static_cast<double>(fireflies) / static_cast<double>(pixels);
     }
 
-    std::optional<double> blurredDifference(
-        const Rtx::PngImage& picture, const Rtx::PngImage& reference, const float sigma)
+    std::optional<double> blurredDifference(const PngImage& picture, const PngImage& reference, const float sigma)
     {
         if (!comparable(picture, reference))
             return std::nullopt;
@@ -202,7 +200,7 @@ namespace RtxTool
             for (std::size_t channel = 0; channel < 3; ++channel)
                 difference[pixel * 3 + channel] = (static_cast<float>(picture.mSamples[pixel * 4 + channel])
                                                       - static_cast<float>(reference.mSamples[pixel * 4 + channel]))
-                    / static_cast<float>(Rtx::sSamplesPerLevel);
+                    / static_cast<float>(sSamplesPerLevel);
 
         std::vector<float> across(difference.size());
         for (std::int32_t y = 0; y < height; ++y)
@@ -243,7 +241,7 @@ namespace RtxTool
             "--against={} is where this run writes; name another --out", Files::pathToUnicodeString(against)) };
     }
 
-    int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,
+    int compareRuns(const PictureShelf& drawn, const std::filesystem::path& wrote, const std::filesystem::path& against,
         const std::span<const WrittenPicture> pictures)
     {
         if (against.empty())
@@ -266,10 +264,10 @@ namespace RtxTool
 
         for (const WrittenPicture& picture : pictures)
         {
-            const Misc::Result<Rtx::PngImage, std::string> drawn = Rtx::readPng(wrote / picture.mFile);
-            const Misc::Result<Rtx::PngImage, std::string> reference = Rtx::readPng(against / picture.mFile);
-            const FrameDifference difference = drawn.isOk() && reference.isOk()
-                ? compareFrames(reference.value(), drawn.value())
+            const PngImage* const kept = drawn.find(wrote / picture.mFile);
+            const Misc::Result<PngImage, std::string> reference = readPng(against / picture.mFile);
+            const FrameDifference difference = kept != nullptr && reference.isOk()
+                ? compareFrames(reference.value(), *kept)
                 : FrameDifference{ .mMismatched = true };
             const PictureVerdict verdict = judgePicture(difference, picture.mRule);
 
@@ -280,7 +278,7 @@ namespace RtxTool
                 note = ", which the hashes judge";
 
             const std::string said = !reference.isOk() ? "no reference: " + reference.error()
-                : !drawn.isOk()                        ? "not read back: " + drawn.error()
+                : kept == nullptr                      ? std::string("not written")
                                                        : describe(difference);
             out() << std::format("  {:<36} {}{}\n", picture.mFile, said, note);
 

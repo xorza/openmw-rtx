@@ -52,6 +52,13 @@ namespace RtxTool
     public:
         explicit Session(SessionRequest request);
 
+        /// Pinned: its measurer holds the request and the record beside it, and its installed run
+        /// answers to it, by reference.
+        Session(const Session&) = delete;
+        Session& operator=(const Session&) = delete;
+        Session(Session&&) = delete;
+        Session& operator=(Session&&) = delete;
+
         /// The renderer this tool exists to drive, made with the run: the engine starts no renderer
         /// of its own and never sees the run.
         std::unique_ptr<MWRender::Renderer> createRenderer(const MWRender::RendererSpec& spec) override;

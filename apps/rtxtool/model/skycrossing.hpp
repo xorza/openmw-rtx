@@ -8,6 +8,15 @@
 
 namespace RtxTool
 {
+    /// How long a sky asked to turn takes to cross into each weather, in seconds of world, which is
+    /// also how often the next is asked for.
+    ///
+    /// **One number, so every ask is a crossing and every crossing swaps.** An ask before a crossing
+    /// lands turns it away before its precipitation swaps (`SkyCrossing::ask`); and at a weather's
+    /// own `Transition_Delta` — a minute for most — the swap halfway, which is what a turn exists
+    /// for, lands past the twenty seconds a place runs.
+    inline constexpr float sTurnSeconds = 4.0f;
+
     /// The sky as the harness crosses it, one weather into another, handed to the world whole on
     /// every frame (`MWBase::World::holdWeather`) where the harness has taken the sky.
     ///

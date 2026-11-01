@@ -16,12 +16,12 @@
 #include <vector>
 
 #include <apps/rtxtool/instruments/jsontext.hpp>
+#include <apps/rtxtool/instruments/png.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/renderer/png.hpp>
-
-#include "run.hpp"
 
 namespace RtxTool
 {
@@ -30,6 +30,14 @@ namespace RtxTool
         std::ostream& out()
         {
             return Debug::getRawStdout();
+        }
+
+        /// Where the stop called `name` writes the picture `suffix` names, which is where the judge
+        /// finds it on the shelf.
+        std::filesystem::path noisePicture(
+            const std::filesystem::path& folder, const std::string_view name, const std::string_view suffix)
+        {
+            return folder / std::format("{}{}.png", name, suffix);
         }
     }
 
@@ -56,8 +64,8 @@ namespace RtxTool
         return NoiseFrame{ .mWarmup = std::nullopt, .mBarFrames = noiseBarFramesAfter(sHistoryFrames + 2, extents) };
     }
 
-    int judgeNoise(const std::filesystem::path& wrote, const std::span<const NoiseSide> places,
-        const std::uint32_t barFrames, std::vector<NoiseFigures>& measured)
+    int judgeNoise(const PictureShelf& drawn, const std::filesystem::path& wrote,
+        const std::span<const NoiseSide> places, const std::uint32_t barFrames, std::vector<NoiseFigures>& measured)
     {
         // A run that measured nothing has not shown that anything is as clean as its bar.
         if (places.empty())
@@ -66,31 +74,31 @@ namespace RtxTool
             return 1;
         }
 
-        const auto read = [&](const std::string& name, const std::string_view suffix) {
-            return Rtx::readPng(wrote / (name + std::string(suffix) + ".png"));
-        };
-
         std::uint32_t noisier = 0;
         std::uint32_t missing = 0;
         for (const NoiseSide& side : places)
         {
             const std::string& place = side.mPlace;
-            const std::array<Misc::Result<Rtx::PngImage, std::string>, 5> pictures{ read(side.mFrame, ""),
-                read(side.mFrame, sNoiseMeanSuffix), read(side.mBar, sNoiseBarSuffix),
-                read(side.mBar, sNoiseBarLimitSuffix), read(side.mReference, sNoiseReferenceSuffix) };
-            const auto unread = std::ranges::find_if(pictures, [](const auto& one) { return !one.isOk(); });
-            if (unread != pictures.end())
+            const std::array<std::filesystem::path, 5> files{ noisePicture(wrote, side.mFrame, ""),
+                noisePicture(wrote, side.mFrame, sNoiseMeanSuffix), noisePicture(wrote, side.mBar, sNoiseBarSuffix),
+                noisePicture(wrote, side.mBar, sNoiseBarLimitSuffix),
+                noisePicture(wrote, side.mReference, sNoiseReferenceSuffix) };
+            std::array<const PngImage*, 5> pictures{};
+            std::ranges::transform(files, pictures.begin(), [&](const auto& file) { return drawn.find(file); });
+            const auto unwritten = std::ranges::find(pictures, nullptr);
+            if (unwritten != pictures.end())
             {
-                out() << std::format("  {:<28} {}\n", place, unread->error());
+                out() << std::format("  {:<28} {} was not written\n", place,
+                    Files::pathToUnicodeString(files[static_cast<std::size_t>(unwritten - pictures.begin())]));
                 ++missing;
                 continue;
             }
 
-            const Rtx::PngImage& single = pictures[0].value();
-            const Rtx::PngImage& frameMean = pictures[1].value();
-            const Rtx::PngImage& barMean = pictures[2].value();
-            const Rtx::PngImage& barLimit = pictures[3].value();
-            const Rtx::PngImage& reference = pictures[4].value();
+            const PngImage& single = *pictures[0];
+            const PngImage& frameMean = *pictures[1];
+            const PngImage& barMean = *pictures[2];
+            const PngImage& barLimit = *pictures[3];
+            const PngImage& reference = *pictures[4];
             const PictureError frame = measureError(single, frameMean);
             const PictureError bar = measureError(barMean, barLimit);
             const std::optional<double> frameBias = blurredDifference(frameMean, reference, sNoiseBiasBlur);
@@ -217,7 +225,7 @@ namespace RtxTool
                   stop.mSchedule.mReconstruction = reconstruction;
                   stop.mSchedule.mExposure = exposure;
                   stop.mSchedule.mUpscale = upscale;
-                  stop.mActions.mCapture = folder / (stop.mName + ".png");
+                  stop.mActions.mCapture = noisePicture(folder, stop.mName, "");
                   return stop;
               };
 
@@ -280,7 +288,7 @@ namespace RtxTool
                 again.mName = place.mName + std::string(suffix);
                 again.mActions.mCapture.clear();
                 again.mActions.mMean = Actions::Mean{
-                    .mFile = folder / (place.mName + std::string(suffix) + ".png"),
+                    .mFile = noisePicture(folder, place.mName, suffix),
                     .mOf = sNoiseMeanDraws,
                 };
                 again.mSchedule.mSampleOffset = offsetAt(at + draw, later);

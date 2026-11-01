@@ -3,7 +3,7 @@
 #include <cassert>
 #include <cstddef>
 
-#include <components/rtx/renderer/png.hpp>
+#include <apps/rtxtool/instruments/png.hpp>
 
 namespace RtxTool
 {
@@ -30,7 +30,7 @@ namespace RtxTool
         samples.resize(mSums.size());
         for (std::size_t at = 0; at < mSums.size(); ++at)
             samples[at] = static_cast<std::uint16_t>(
-                (std::uint64_t{ mSums[at] } * 2 * Rtx::sSamplesPerLevel + mCount) / (std::uint64_t{ 2 } * mCount));
+                (std::uint64_t{ mSums[at] } * 2 * sSamplesPerLevel + mCount) / (std::uint64_t{ 2 } * mCount));
     }
 
     void PictureMean::clear()

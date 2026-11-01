@@ -25,6 +25,7 @@
 #include <apps/openmw/mwworld/timestamp.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/cameratrack.hpp>
+#include <apps/rtxtool/model/skycrossing.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/position.hpp>
@@ -32,8 +33,6 @@
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
-
-#include "run.hpp"
 
 namespace RtxTool
 {

@@ -8,12 +8,13 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/pngtext.hpp>
+#include <apps/rtxtool/instruments/png.hpp>
+#include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/renderer/png.hpp>
 #include <components/testing/util.hpp>
 
-namespace Rtx
+namespace RtxTool
 {
     namespace
     {
@@ -21,7 +22,7 @@ namespace Rtx
         /// own CRC is the specification's before it judges anybody else's.
         TEST(RtxPngTest, theChunkCrcIsTheOneThePngSpecificationPublishes)
         {
-            EXPECT_EQ(Testing::crcOf("IEND"), 0xAE426082u);
+            EXPECT_EQ(Rtx::Testing::crcOf("IEND"), 0xAE426082u);
         }
 
         /// A picture written with a description carries it whole, UTF-8 and all, as the one text
@@ -37,9 +38,9 @@ namespace Rtx
             ASSERT_TRUE(writePng(plain, 2, 1, pixels).isOk());
             ASSERT_TRUE(writePng(described, 2, 1, pixels, description).isOk());
 
-            EXPECT_TRUE(Testing::readPngTexts(plain).empty());
+            EXPECT_TRUE(Rtx::Testing::readPngTexts(plain).empty());
 
-            const std::vector<Testing::PngText> texts = Testing::readPngTexts(described);
+            const std::vector<Rtx::Testing::PngText> texts = Rtx::Testing::readPngTexts(described);
             ASSERT_EQ(texts.size(), 1u);
             EXPECT_EQ(texts[0].mKey, "Description");
             EXPECT_EQ(texts[0].mText, description);
@@ -53,6 +54,17 @@ namespace Rtx
                 widened.push_back(static_cast<std::uint16_t>(level * sSamplesPerLevel));
             EXPECT_EQ(read.value().mSamples, widened);
 
+            // **A picture kept as it was written is the picture read back**, so a verb judges the
+            // run's pictures off its shelf by the numbers it would have read from the files.
+            PictureShelf shelf;
+            EXPECT_EQ(shelf.find(plain), nullptr) << "a picture nobody kept";
+            shelf.keep(plain, 2, 1, pixels);
+            const PngImage* const kept = shelf.find(plain);
+            ASSERT_NE(kept, nullptr);
+            EXPECT_EQ(kept->mWidth, 2u);
+            EXPECT_EQ(kept->mHeight, 1u);
+            EXPECT_EQ(kept->mSamples, read.value().mSamples);
+
             // **A picture the disk refuses is an error, described or not**: a full disk, which
             // Linux keeps a device of, refuses the bytes at the write or at the close, and either way
             // the run is told; the plugin's own file said it wrote it.
@@ -65,8 +77,9 @@ namespace Rtx
         }
 
         /// **A sixteen-bit picture reads back sample for sample**, the ends of the scale, the middle
-        /// and a sample beside a byte's level included, with its description; and an eight-bit one
-        /// reads on the same scale, a level `v` as `257 v`, which the test above holds.
+        /// and a sample beside a byte's level included, with its description, and is kept as it reads;
+        /// and an eight-bit one reads on the same scale, a level `v` as `257 v`, which the test above
+        /// holds.
         TEST(RtxPngTest, aSixteenBitPictureReadsBackSampleForSample)
         {
             constexpr std::array<std::uint16_t, 8> samples{ 0, 1, 32768, 65535, 257, 258, 25700, 25829 };
@@ -80,7 +93,12 @@ namespace Rtx
             EXPECT_EQ(read.value().mHeight, 1u);
             EXPECT_EQ(read.value().mSamples, std::vector<std::uint16_t>(samples.begin(), samples.end()));
 
-            const std::vector<Testing::PngText> texts = Testing::readPngTexts(deep);
+            PictureShelf shelf;
+            shelf.keep(deep, 2, 1, samples);
+            ASSERT_NE(shelf.find(deep), nullptr);
+            EXPECT_EQ(shelf.find(deep)->mSamples, read.value().mSamples);
+
+            const std::vector<Rtx::Testing::PngText> texts = Rtx::Testing::readPngTexts(deep);
             ASSERT_EQ(texts.size(), 1u);
             EXPECT_EQ(texts[0].mText, "a mean");
 
@@ -88,7 +106,7 @@ namespace Rtx
             // one plugin cannot see. Two pixels of four samples, a filter byte before the row. The
             // first pixel's bytes are its own under every filter, which predicts it from nought:
             // 0, 1, 32768 and 65535 are `00 00`, `00 01`, `80 00` and `FF FF`.
-            const std::string rows = Testing::readPngRows(deep, 1 + samples.size() * 2);
+            const std::string rows = Rtx::Testing::readPngRows(deep, 1 + samples.size() * 2);
             EXPECT_EQ(rows.substr(1, 8), std::string("\x00\x00\x00\x01\x80\x00\xff\xff", 8));
         }
 

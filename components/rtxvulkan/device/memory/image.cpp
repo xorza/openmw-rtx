@@ -18,6 +18,7 @@
 #include "barriers.hpp"
 #include "buffer.hpp"
 #include "formats.hpp"
+#include "growablebuffer.hpp"
 
 namespace Rtx
 {
@@ -427,10 +428,12 @@ namespace Rtx
         transition(commands, Use::sCopyRead, after);
     }
 
-    void Image::read(VkImageLayout layout, std::vector<std::uint8_t>& pixels, std::uint32_t level) const
+    void Image::read(const VkImageLayout layout, GrowableBuffer& landing, const std::span<std::byte> pixels,
+        const std::uint32_t level) const
     {
         const VkDeviceSize bytes = getReadBytes(level);
-        const Buffer landing = Buffer::readBack(*mDevice, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "read back");
+        assert(pixels.size() == bytes && "a read into room of another size than the level");
+        landing.growTo(bytes);
 
         // Back where it was found. Reading an image is not a change to it, and a caller that
         // has to know a read moved it is one that will forget: the GUI's own table is sampled
@@ -439,11 +442,17 @@ namespace Rtx
             recordRead(commands, ImageUse{ layout, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_WRITE_BIT },
                 ImageUse{ layout, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                     VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT },
-                landing, level);
+                landing.get(), level);
         });
 
-        pixels.resize(bytes);
-        std::memcpy(pixels.data(), landing.map(), bytes);
+        std::memcpy(pixels.data(), landing.get().map(), pixels.size());
+    }
+
+    void Image::read(const VkImageLayout layout, std::vector<std::uint8_t>& pixels, const std::uint32_t level) const
+    {
+        GrowableBuffer landing(*mDevice, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "read back");
+        pixels.resize(getReadBytes(level));
+        read(layout, landing, std::as_writable_bytes(std::span(pixels)), level);
     }
 
     void Image::readFloats(VkImageLayout layout, std::vector<float>& values) const
