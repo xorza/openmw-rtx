@@ -3,8 +3,10 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include <SDL3/SDL_error.h>
+#include <SDL3/SDL_video.h>
 #include <osg/Camera>
 
 #include <apps/openmw/mwrender/renderer.hpp>
@@ -32,11 +34,13 @@ namespace MWRender
         constexpr double sSettleSeconds = 0.1;
     }
 
-    RtxWindow::RtxWindow(const SDL_WindowFlags surface, const bool hidden, const std::optional<osg::Vec2i> pixels)
+    RtxWindow::RtxWindow(
+        const std::optional<SDL_WindowFlags> surface, const bool hidden, const std::optional<osg::Vec2i> pixels)
+        : mHasSurface(surface.has_value())
     {
         // **The backend's own flags, and no `SDL_GL_SetAttribute` anywhere near them.** No GL context
         // is ever made, which is the point of the whole path.
-        mWindow.reset(openWindow(surface, pixels));
+        mWindow.reset(openWindow(surface.value_or(SDL_WindowFlags{ 0 }), pixels));
         if (mWindow == nullptr)
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
 
@@ -59,6 +63,12 @@ namespace MWRender
         SDL_SetWindowSize(
             mWindow.get(), SDLUtil::windowPoints(pixels->x(), density), SDLUtil::windowPoints(pixels->y(), density));
         SDL_SyncWindow(mWindow.get());
+    }
+
+    bool RtxWindow::hasDisplay()
+    {
+        const char* const driver = SDL_GetCurrentVideoDriver();
+        return driver == nullptr || std::string_view(driver) != "offscreen";
     }
 
     osg::Vec2i RtxWindow::readSize() const

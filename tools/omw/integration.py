@@ -2,9 +2,11 @@
 suites its GitLab pipeline runs (`scripts/integration_tests.py`) — on the example suite at the
 revision that pipeline pins, against this build's `openmw`.
 
-**Over whichever backend the environment names**: the device's on a box with a card, which is
-what reads the ray tracer's whole effect on the game, and on CI's runners, which have none, the null
-backend (`OPENMW_RTX_BACKEND=null`) in a window of SDL's offscreen driver.
+**Over whichever backend the environment names, in a window of SDL's offscreen driver**: the
+device's on a box with a card, which is what reads the ray tracer's whole effect on the game, and on
+CI's runners, which have none, the null backend (`OPENMW_RTX_BACKEND=null`). The offscreen driver
+needs no display, so the game opens no window on a desk and runs on a box with no monitor; the
+device then traces every frame and presents none (`MWRender::RtxWindow::hasDisplay`).
 
 **The suite as GitLab's archive of the pinned revision**, which carries its LFS files whole, so no
 `git-lfs` is needed: fetched once into the build directory beside a stamp naming the revision, and
@@ -81,5 +83,5 @@ def integration(build: Build, args: list[str]) -> int:
     build.build(["openmw"])
     suite = fetch_suite(build, suite_revision(read_text(_PIPELINE)))
     command = script_line(build.binary("openmw"), build.dir / "integration_tests_output", suite, args)
-    env = dict(build.env, OPENMW_CRASH_DIALOG="0")
+    env = dict(build.env, OPENMW_CRASH_DIALOG="0", SDL_VIDEO_DRIVER="offscreen")
     return status(build.run_here(command, env=env).returncode)
