@@ -734,8 +734,9 @@ namespace Rtx::Shaders
         /// source with an extent flattens inside its own surface instead.
         float mSourceRadius RTX_ZERO;
 
-        /// How far short of the centre a shadow ray stops, because a lamp sits inside its own
-        /// fitting and a ray that runs all the way ends among it.
+        /// How far short of the centre a shadow ray stops: nought for a record's lamp, whose ray
+        /// runs to the flame (`Rtx::makeLight` says why), and a fill's whole ball, inside which
+        /// nothing casts a shadow (`Rtx::Glow::makeLight`).
         float mClearance RTX_ZERO;
 
         /// Whether this light is a fill, and the classes it answers to, as `lightTraits` packs

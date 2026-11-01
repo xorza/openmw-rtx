@@ -400,10 +400,10 @@ namespace Rtx
             EXPECT_FLOAT_EQ(light->mReach, 328.0f);
 
             // A sixteenth of the record: 6.25 units, which is nine centimetres across at seventy
-            // units to the metre — a flame, and not the metre and a half the reach describes. The
-            // fitting around it is a quarter of the record, which is what the ray keeps clear of.
+            // units to the metre — a flame, and not the metre and a half the reach describes. Nothing
+            // around it is kept clear: a shadow ray runs to the flame.
             EXPECT_FLOAT_EQ(light->mSourceRadius, 6.25f);
-            EXPECT_FLOAT_EQ(light->mClearance, 25.0f);
+            EXPECT_EQ(light->mClearance, 0.0f);
 
             // Doubling the radius quadruples the brightness, doubles the flame and rather less than
             // doubles the reach: 200 * 200 * 0.25 * pi = 31415.9, 200 / 16 = 12.5, and
@@ -414,7 +414,7 @@ namespace Rtx
             EXPECT_NEAR(larger->mIntensity.x(), 31415.9f, 0.1f);
             EXPECT_FLOAT_EQ(larger->mReach, 528.0f);
             EXPECT_FLOAT_EQ(larger->mSourceRadius, 12.5f);
-            EXPECT_FLOAT_EQ(larger->mClearance, 50.0f);
+            EXPECT_EQ(larger->mClearance, 0.0f);
 
             // The two readings of the record are one reading: an emitter of fixed radiance is
             // brighter by its area, so the brightness has to be the square of the size for a candle

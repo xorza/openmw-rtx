@@ -47,14 +47,6 @@ namespace Rtx
         /// 64 to 256 units is four to sixteen units in radius — a candle flame and a brazier's bowl.
         constexpr float sSourceFraction = 1.0f / 16.0f;
 
-        /// How much of that same radius the fitting around the flame is assumed to fill. A lamp is
-        /// never bare, and a shadow ray stopped at the flame ends among the lantern's cage half the
-        /// time, which draws a black speckle over every lamp-lit surface in the game. Four flames
-        /// of clearance is where the speckle is gone. What it costs: a real occluder closer than a
-        /// quarter of a lamp's recorded radius — sixteen units for a candle — stops casting a shadow
-        /// from it.
-        constexpr float sFittingFraction = 0.25f;
-
         /// How high over the actor's feet, where the game hangs a Light spell's glow, its lamp
         /// stands: half of the 128 units Morrowind's people stand, so the lamp is inside the body
         /// and lights everything round it but the body itself, which faces away from it.
@@ -211,7 +203,14 @@ namespace Rtx
             // A sixteenth is an estimate, and the paragraph above argues it is a good one — a
             // lamp that casts no penumbra at all is the worse answer.
             .mSourceRadius = radius * sSourceFraction,
-            .mClearance = radius * sFittingFraction,
+
+            // **No clearance: a lamp's shadow ray runs to the flame.** A quarter of the radius was
+            // kept clear once, so a ray would not end among a lantern's own cage, and it cost every
+            // shadow a lamp stands on: `light_com_lantern_01` on a crate in Arkngthand's Hall of
+            // Centrifuge hangs its flame ten units over the crate's top, and the crate threw no
+            // shadow at all, at a quarter or at an eighth. Run to the flame, the room looked right
+            // and no cage speckled it.
+            .mClearance = 0.0f,
         });
     }
 
