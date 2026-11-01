@@ -90,6 +90,9 @@ namespace Rtx
         /// budget.
         void reserve(std::size_t emitters) { mHeld.reserve(emitters); }
 
+        /// `Kept::getPastRoom`, of the emitters.
+        std::uint32_t countPastRoom() const { return mHeld.getPastRoom(); }
+
     private:
         /// What one particle system draws with, read off its state-set chain once and kept: the
         /// entry's hold on its sprite texture and on the bake of that texture's alpha its sprites

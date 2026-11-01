@@ -269,6 +269,15 @@ namespace Rtx
         /// keeps a cell the world unloaded alive.
         Released& getReleased() { return mReleased; }
 
+        /// How many entries arrived past the room this was made with (`ExtractorRoom`), ever, every
+        /// map and the list of glows together: each a rehash or a growth on the frame it happened. Nought is what the
+        /// room promises, and a harness's `rooms-held` check asks it.
+        std::uint32_t countPastRoom() const
+        {
+            return mPlacements.getPastRoom() + mMeshes.countPastRoom() + mMaterials.countPastRoom()
+                + mEmitters.countPastRoom() + mFrozen.getPastRoom() + mChainKeys.getPastRoom() + mGlowsPastRoom;
+        }
+
     private:
         /// Where the extractor stands: between walks, or inside one. A walk inside a walk would
         /// point the pass at a second set of counts and lose the first's, and a retire inside one
@@ -424,8 +433,12 @@ namespace Rtx
 
         /// Every effect this walk entered, in the order it entered them. Which of them the walk
         /// is inside is the traversal's, carried down the subtree beside the class. Reserved once,
-        /// `sEffectBudget`.
+        /// `ExtractorRoom::mEffects`.
         std::vector<Glow> mGlows;
+
+        /// How many effects a walk opened past the room the list was made with, ever: each a
+        /// growth that moved every glow.
+        std::uint32_t mGlowsPastRoom = 0;
 
         /// Which sweep is current, and where the walk in progress puts its counts. Declared before
         /// the walk and every resolver below, which borrow it rather than keep a copy that could

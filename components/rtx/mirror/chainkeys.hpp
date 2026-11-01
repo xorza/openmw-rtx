@@ -64,6 +64,9 @@ namespace Rtx
 
         std::size_t size() const { return mKeys.size(); }
 
+        /// `Kept::getPastRoom`, of the pairs.
+        std::uint32_t getPastRoom() const { return mPastRoom; }
+
     private:
         /// The key for `stateSet` under the chain keyed `above`, both stating something: the one
         /// object this table holds for the pair.
@@ -97,6 +100,8 @@ namespace Rtx
         const MirrorPass& mPass;
 
         boost::unordered_flat_map<Pair, Held, PairHash> mKeys;
+
+        std::uint32_t mPastRoom = 0;
 
         /// What `retire` counts the sink's holds by, a sorted run a pass, and where each run ends:
         /// kept and refilled.

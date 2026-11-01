@@ -96,6 +96,9 @@ namespace Rtx
             mDeformers.reserve(deformers);
         }
 
+        /// `Kept::getPastRoom`, of the meshes and the deformers.
+        std::uint32_t countPastRoom() const { return mMeshes.getPastRoom() + mDeformers.getPastRoom(); }
+
     private:
         /// What the map knows a drawable as: the hold on its mesh, empty where the drawable was
         /// refused.

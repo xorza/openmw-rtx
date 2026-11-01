@@ -76,6 +76,7 @@ namespace RtxTool
             CheckRow{ Check::StaticsNotDoubled, "statics-not-doubled", always },
             CheckRow{ Check::GatesAgree, "gates-agree", always },
             CheckRow{ Check::TexturesReadable, "textures-readable", always },
+            CheckRow{ Check::RoomsHeld, "rooms-held", always },
             CheckRow{ Check::CameraStands, "camera-stands", standingStill },
             CheckRow{ Check::CrossingsAppend, "crossings-append", routed },
             CheckRow{ Check::FramesOverlap, "frames-overlap", unrouted },

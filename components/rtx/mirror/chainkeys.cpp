@@ -9,6 +9,8 @@
 #include <osg/StateSet>
 #include <osg/ref_ptr>
 
+#include <components/rtx/common/maproom.hpp>
+
 namespace Rtx
 {
     std::size_t ChainKeys::PairHash::operator()(const Pair& pair) const
@@ -20,7 +22,9 @@ namespace Rtx
 
     const osg::StateSet* ChainKeys::under(const osg::StateSet& above, const osg::StateSet& stateSet)
     {
+        const bool full = fillsRoom(mKeys);
         const auto [entry, fresh] = mKeys.try_emplace(Pair{ .mAbove = &above, .mOwn = &stateSet });
+        mPastRoom += full && fresh ? 1u : 0u;
         if (fresh)
             entry->second = Held{ .mAbove = &above, .mOwn = &stateSet, .mKey = new osg::StateSet };
         entry->second.mMet = mPass.mEpoch;

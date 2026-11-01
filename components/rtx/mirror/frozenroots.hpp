@@ -90,6 +90,9 @@ namespace Rtx
         /// Room for `budget` roots, made once.
         void reserve(std::size_t budget) { mFrozen.reserve(budget); }
 
+        /// `Kept::getPastRoom`, of the roots.
+        std::uint32_t getPastRoom() const { return mPastRoom; }
+
         /// Whether `root`, met as `face`, is frozen and still what it froze as: counted into
         /// `stats` as walked and passed where it is, and thawed where it is not, for the walk to
         /// descend into it as any other. `walk` is the world walk's number, which the run is
@@ -165,5 +168,7 @@ namespace Rtx
         /// How many runs the world walk `mMetBy` met, which `thawUnmet` skips its scan by.
         std::size_t mMet = 0;
         unsigned int mMetBy = 0;
+
+        std::uint32_t mPastRoom = 0;
     };
 }

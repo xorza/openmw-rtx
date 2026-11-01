@@ -852,6 +852,7 @@ namespace Rtx
 
     std::size_t SceneExtractor::openGlow(const InstanceClass owner)
     {
+        mGlowsPastRoom += mGlows.size() == mGlows.capacity() ? 1u : 0u;
         mGlows.emplace_back().mClasses = classBit(owner);
         return mGlows.size() - 1;
     }

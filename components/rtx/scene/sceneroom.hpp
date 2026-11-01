@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include <components/rtx/shaders/scene.h>
+
 namespace Rtx
 {
     /// What a scene's tables are made with room for before one grows, which makes the table again on
@@ -18,6 +20,10 @@ namespace Rtx
 
         /// Material rows, the untextured one among them (`Shaders::MATERIAL_ROW_FIRST`).
         std::uint32_t mMaterials = 0;
+
+        /// Texture rows, on the host alone: the device's array is made whole at its capacity
+        /// whatever the room.
+        std::uint32_t mTextures = 0;
 
         /// The runs' tables, in elements: the materials' layers and their weights, the rigs' runs and
         /// influences, the morphs' offsets, the poses' words, and the deforming meshes' bind
@@ -41,7 +47,9 @@ namespace Rtx
     /// to a power of two: 3,627 layers, 4,027,504 mask weights (16 MiB of floats, the room 32), 21,112
     /// rig runs, 4,421 influences, 22,315 morph offsets, 5,882 pose words and 48,856 bind vertices,
     /// read off `ContentMemory`. A growth past one copies the table on the device rather than staging
-    /// it whole.
+    /// it whole. The textures are every slot the array has (`TextureTable::sCapacity`), about 0.5 MB
+    /// of rows: a row holds two `osg::ref_ptr`, which OpenSceneGraph 3.6.5 gives no move, so a
+    /// growth copied every row's path and image on the frame a cell arrived.
     ///
     /// **Held to the host-written window of a card without resizable BAR**, 246 MiB on an RTX 20:
     /// at the room the window's tables take 123 MiB live in 184 MiB of blocks, and a growth past it,
@@ -50,6 +58,7 @@ namespace Rtx
     inline constexpr SceneRoom sWorldRoom{ .mPlacements = 1u << 18,
         .mMeshes = 1u << 15,
         .mMaterials = 1u << 13,
+        .mTextures = Shaders::TEXTURE_NEUTRAL,
         .mLayers = 1u << 13,
         .mMasks = 1u << 23,
         .mRigRuns = 1u << 16,
