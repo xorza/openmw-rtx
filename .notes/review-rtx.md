@@ -136,11 +136,6 @@ deletes it.
   sNoIndex` for a reflecting chunk); `dropSlack`'s boundary (`common/scratch.hpp:165`, capacity
   over twice the size).
 
-- [ ] `apps/components_tests/rtxvulkan/present/presenter.cpp:67` `RtxPresenterTest` fails where the
-  machine has no display (the 6800U with no monitor and no RDP session), since it tests a real
-  swapchain. Needs the user's call: fail as now, skip naming why, or present through
-  `VK_EXT_headless_surface` where Mesa offers it.
-
 ### 12. Upstream diff — `AGENTS.md`, `components/testing/util.hpp`, `apps/components_tests/{main.cpp,lua/teststorage.cpp}`
 
 - [ ] `components/testing/util.hpp:24-70` keys the test output folder on the clock and the process
