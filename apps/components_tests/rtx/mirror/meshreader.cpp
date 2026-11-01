@@ -175,6 +175,37 @@ namespace Rtx::Testing
             moved->addUpdateCallback(new osg::NodeCallback);
             moved->addChild(makeWall());
             EXPECT_EQ(normalsIn(modelWith(moved)), written) << "beside a wall a callback moves";
+
+            // **One reader across a model's drawables answers as a reader each**, though it reads
+            // each shape of the model once (`MeshReader::facesOf`), and sees a shape the model
+            // gained since: the floor read in a model of its own, the wall added to that model, and
+            // the floor read again, then the wall beside it and the floor in another model.
+            ContentPreprocessor content;
+            MeshReader reader;
+            const auto normalsOf = [&](osg::Geometry& shape, const osg::Node& model) {
+                MeshReading reading;
+                EXPECT_TRUE(reader.read(content, readDrawable(shape, NodeKinds{}.of(shape)), &model, reading).value());
+                return std::vector<osg::Vec3f>(reading.mArrays.mNormals.begin(), reading.mArrays.mNormals.end());
+            };
+            const osg::ref_ptr<osg::Group> growing = new osg::Group;
+            growing->setUserValue(Misc::OsgUserValues::sFileHash, std::string("hash"));
+            growing->addChild(floor);
+            EXPECT_EQ(normalsOf(*floor, *growing), written) << "a model of the floor alone";
+
+            const osg::ref_ptr<osg::Geometry> wall = makeWall();
+            growing->addChild(wall);
+            EXPECT_EQ(normalsOf(*floor, *growing), beside) << "the wall the model gained";
+
+            const osg::ref_ptr<osg::Group> fresh = modelWith(makeWall());
+            const auto wallIn = [&](const osg::Node& model) {
+                ContentPreprocessor own;
+                MeshReader alone;
+                MeshReading reading;
+                EXPECT_TRUE(alone.read(own, readDrawable(*wall, NodeKinds{}.of(*wall)), &model, reading).value());
+                return std::vector<osg::Vec3f>(reading.mArrays.mNormals.begin(), reading.mArrays.mNormals.end());
+            };
+            EXPECT_EQ(normalsOf(*wall, *growing), wallIn(*growing)) << "the wall, read after the floor";
+            EXPECT_EQ(normalsOf(*floor, *fresh), beside) << "the floor in another model";
         }
 
         /// **A drawable's model is the nearest node above it the loader marked as a file's**, and
