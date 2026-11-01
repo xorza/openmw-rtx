@@ -13,7 +13,8 @@ parent folder, made once by hand.
 
 **Headless**: a hidden window on the machine's own Wayland session where it has one, and SDL's
 offscreen driver where it has none (`SESSION` says why the session first), and a bench is told
-`--window=false` unless the line says otherwise. A run that measures (`bench`, `noise`) holds a
+`--window=false` unless the line says otherwise. On the offscreen driver the run presents nothing
+(`MWRender::RtxWindow::hasDisplay`), so a measured one there times no present. A run that measures (`bench`, `noise`) holds a
 SteamOS GPU clock at its top through `steamos-manager` for its frames, and puts it back after: the
 Deck otherwise moves its clock with its power, and two runs at two clocks are no A/B. Not a run with
 `--counters`, which holds nothing: RADV puts the card in a profiling state of the kernel's while it
@@ -64,10 +65,8 @@ MEASURED = ("bench", "noise")
 SSH = ("-o", "BatchMode=yes")
 
 # **The machine's own Wayland session where it has one, and SDL's offscreen driver where it has
-# none** — `dummy` has no Vulkan. Under the offscreen driver Mesa's headless swapchain blocks one
-# present in 31 for a whole frame on the Deck, which doubled every place's p99 and took 3 % off its
-# rate; a hidden window on the session's compositor presents as the desk's does, 0 such presents in
-# 480 frames (2026-10-31).
+# none** — `dummy` has no Vulkan. The session first, because a hidden window on its compositor
+# presents as a played game does, and under the offscreen driver the run presents nothing.
 SESSION = ('runtime=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}; '
            'if [ -S "$runtime/wayland-0" ]; then '
            'export XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=wayland-0 SDL_VIDEO_DRIVER=wayland; '

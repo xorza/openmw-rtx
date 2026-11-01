@@ -147,7 +147,8 @@ namespace MWRender
         : mRun(run != nullptr ? run->mRun : mPlayed)
         , mInterface(setup.mInterface)
         , mKernels(setup.mKernels)
-        , mWindow(surfaceFlagsOf(setup.mBackend), setup.mHeadless, setup.mWindowPixels)
+        , mWindow(RtxWindow::hasDisplay() ? std::optional(surfaceFlagsOf(setup.mBackend)) : std::nullopt,
+              setup.mHeadless, setup.mWindowPixels)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
         , mMirror(setup.mMirror)
@@ -188,7 +189,7 @@ namespace MWRender
         presentIn(mWindow.readSize());
         options.mWidth = static_cast<std::uint32_t>(getPresentation().mFrame.x());
         options.mHeight = static_cast<std::uint32_t>(getPresentation().mFrame.y());
-        options.mWindow = mWindow.get();
+        options.mWindow = mWindow.hasSurface() ? mWindow.get() : nullptr;
         options.mVerticalSync = Settings::video().mVsyncMode;
         // **The run's answer, handed over whole**: the profile a measurement turns, so a picture
         // taken by the harness and a frame drawn by the game come from one configuration, the
@@ -546,8 +547,11 @@ namespace MWRender
         // happens.** It asks the window its size before every frame and hands over whatever has
         // settled, so a surface that went stale where the window is standing still is rebuilt on the
         // next frame. One that went stale mid-gesture waits for the gesture, which is the frozen
-        // picture a window being dragged shows anyway.
-        mRenderer->presentFrame();
+        // picture a window being dragged shows anyway. **None where the window has no surface**
+        // (`RtxWindow::hasDisplay`): the interface is drawn into the frame all the same, which a
+        // screenshot, a frozen frame and a loading screen read.
+        if (mWindow.hasSurface())
+            mRenderer->presentFrame();
 
         // Summed and not assigned: a loading screen presents through `renderGui` as often as it
         // likes between two traces, and every one of those is inside the frame the next row is for.

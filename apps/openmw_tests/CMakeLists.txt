@@ -45,6 +45,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/rtxrenderer.cpp
     mwrender/rtxsettings.cpp
     mwrender/rtxsupport.cpp
+    mwrender/rtxwindow.cpp
     mwrender/searules.cpp
     mwrender/skystate.cpp
     mwrender/pendingpaints.cpp

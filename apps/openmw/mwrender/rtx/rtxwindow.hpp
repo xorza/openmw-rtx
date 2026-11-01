@@ -29,11 +29,22 @@ namespace MWRender
     {
     public:
         /// Makes the window from the video settings, or at `pixels` where a run states them, with
-        /// `surface`, what the backend presents to (`surfaceFlagsOf`); `hidden` is a headless run, the
-        /// same window with nobody watching. Throws where SDL refuses.
-        RtxWindow(SDL_WindowFlags surface, bool hidden, std::optional<osg::Vec2i> pixels);
+        /// `surface`, what the backend presents to (`surfaceFlagsOf`), or none for a window no frame
+        /// is shown in; `hidden` is a headless run, the same window with nobody watching. Throws
+        /// where SDL refuses.
+        RtxWindow(std::optional<SDL_WindowFlags> surface, bool hidden, std::optional<osg::Vec2i> pixels);
+
+        /// Whether SDL's video driver has a display a frame can be shown on: every driver but
+        /// `offscreen`, which needs none and is what a run on a box with no monitor, and the gate's
+        /// integration step, make the window on. Where it has none, the window takes no surface and
+        /// the backend is handed none, so it makes no presenter and traces every frame all the same,
+        /// on every driver: NVIDIA's presents nothing to the headless surface that driver offers.
+        static bool hasDisplay();
 
         SDL_Window* get() const { return mWindow.get(); }
+
+        /// Whether the backend presents to this window, which is whether it was made with a surface.
+        bool hasSurface() const { return mHasSurface; }
 
         /// The size SDL reports now, in pixels.
         osg::Vec2i readSize() const;
@@ -54,6 +65,7 @@ namespace MWRender
 
     private:
         std::unique_ptr<SDL_Window, void (*)(SDL_Window*)> mWindow{ nullptr, SDL_DestroyWindow };
+        bool mHasSurface = false;
 
         /// The window size last applied or asked for, and since when it has been asked for. Never
         /// is further back than any moment: a size applied stands settled.
