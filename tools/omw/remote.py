@@ -193,9 +193,9 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
     rsync = require("rsync", "it is what copies the build there and the files back: rsync")
 
     folder = build.dir
-    if not _answers(ssh, host, f"test -w {shlex.quote(str(folder.parent))}"):
-        raise Refusal(f"{host} cannot write {folder.parent}, where the build goes: make it once there with "
-                      f"`sudo mkdir -p {folder.parent} && sudo chown $USER: {folder.parent}`")
+    probed = subprocess.run([ssh, *SSH, host, f"test -w {shlex.quote(str(folder.parent))}"], check=False)
+    if refused := build_refusal(host, folder.parent, probed.returncode):
+        raise Refusal(refused)
 
     staged = _build(build)
     offered = sonames(output([ssh, *SSH, host, "ldconfig -p"]))
@@ -224,12 +224,33 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
     for path in line.outputs:
         fetched = subprocess.run([rsync, "-a", f"{host}:{path}", str(path.parent) + "/"], check=False,
                                  stderr=subprocess.DEVNULL)
-        print(f"remote: {path}" + ("" if fetched.returncode == 0 else " was not written there"), flush=True)
+        print(f"remote: {path}{fetch_note(fetched.returncode)}", flush=True)
     return status(ran.returncode)
 
 
-def _answers(ssh: str, host: str, command: str) -> bool:
-    return subprocess.run([ssh, *SSH, host, command], check=False).returncode == 0
+def build_refusal(host: str, parent: Path, status: int) -> str | None:
+    """Why the build cannot go under `parent` on `host`, read off the status ssh exits with from `test -w`
+    run there, or nothing where it can. **255 is ssh's own**: ssh exits with the remote command's status,
+    or with 255 where it failed itself, a host it cannot reach or log in to among them, and `test`
+    answers 0 or 1."""
+    if status == 0:
+        return None
+    if status == 255:
+        return f"remote: ssh reached no shell on {host}, as it says above"
+    return (f"{host} cannot write {parent}, where the build goes: make it once there with "
+            f"`sudo mkdir -p {parent} && sudo chown $USER: {parent}`")
+
+
+def fetch_note(status: int) -> str:
+    """What a path brought back is said with, read off rsync's status: nothing where it came, and where
+    it did not, whether the run wrote none or the copy failed. **23 is a source that is not there**, rsync's
+    partial transfer, which a file the run never wrote ends in; any other status is the copy's own, a
+    connection that dropped among them, and says nothing of what the run wrote."""
+    if status == 0:
+        return ""
+    if status == 23:
+        return " was not written there"
+    return f" could not be brought back: rsync exited {status}"
 
 
 @dataclass(frozen=True)

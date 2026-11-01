@@ -135,6 +135,13 @@ is not here is held to the rules above.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
   through): `std::from_chars` reads `inf` and `nan`. Where `from_chars` has no floating point, the
   stream reads only the prefix it would (`floatPrefix`), so a spelling is one number everywhere.
+- The test support the fork's suites run under (`components/testing/util.hpp`,
+  `apps/components_tests/main.cpp`): death tests in the `threadsafe` style, since ThreadSanitizer
+  refuses a forked child of a process with threads; a run's output folder keyed on the process as
+  well as the clock, since CTest starts the suites and the GPU shards together; each test's folder
+  emptied at its start (`FreshTestDirs`), so a repeated pass starts from nothing; and upstream's two
+  Lua storage tests (`lua/teststorage.cpp`) writing there and not under a fixed name in the temp
+  directory.
 - What the game does in one step and the ray tracer's histories must hear: a reference the world
   moves with its physics placed outright is a jump (`World::moveObject`, `notifyJumped`), and a
   write of `GameHour` past the frame's own step is a cut (`World::noteHourWritten`).
