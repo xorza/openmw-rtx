@@ -28,7 +28,8 @@ namespace Rtx
 {
     namespace
     {
-        /// SDL's video on the session's display, and a hidden window on it.
+        /// SDL's video on the session's display, and a hidden window on it; why SDL started none,
+        /// kept as it said it, before a later call says something else.
         struct HiddenWindow
         {
             HiddenWindow()
@@ -36,6 +37,8 @@ namespace Rtx
                 mStarted = SDL_InitSubSystem(SDL_INIT_VIDEO);
                 if (mStarted)
                     mWindow = SDL_CreateWindow("presenter", 64, 32, SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
+                else
+                    mWhyNot = SDL_GetError();
             }
 
             ~HiddenWindow()
@@ -51,20 +54,23 @@ namespace Rtx
 
             bool mStarted = false;
             SDL_Window* mWindow = nullptr;
+            std::string mWhyNot;
         };
 
         /// A device of its own, on an instance with the window system's extensions, which the shared
         /// harness's headless instance has none of.
         ///
-        /// **On the session's display, and a failure without one**, as the binary fails without a
-        /// device: no driver here presents to a `VK_EXT_headless_surface` surface, so SDL's offscreen
-        /// video gives no swapchain to test.
+        /// **On the session's display, and skipped without one**, as a box with no monitor has none:
+        /// NVIDIA's driver presents nothing to a `VK_EXT_headless_surface` surface, so SDL's offscreen
+        /// video gives no swapchain to test on every card. The desk and every box with a session
+        /// test it. A window SDL refuses on a display it did start is a failure.
         class RtxPresenterTest : public ::testing::Test
         {
         protected:
             void SetUp() override
             {
-                ASSERT_TRUE(mVideo.mStarted) << "no display to open the test's window on: " << SDL_GetError();
+                if (!mVideo.mStarted)
+                    GTEST_SKIP() << "no display to open the test's window on: " << mVideo.mWhyNot;
                 ASSERT_NE(mVideo.mWindow, nullptr) << SDL_GetError();
 
                 mInstance = std::make_unique<Instance>(
