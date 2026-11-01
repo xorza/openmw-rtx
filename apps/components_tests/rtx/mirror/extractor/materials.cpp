@@ -1211,7 +1211,7 @@ namespace Rtx::Testing
             const std::vector<Light> lit = lampsOf(true);
             ASSERT_EQ(lit.size(), 1u) << "the record's own lamp and nothing beside it";
             EXPECT_EQ(lit.front().mSourceRadius, 100.0f / 16.0f) << "a record's flame is a sixteenth of its radius";
-            EXPECT_EQ(lit.front().mClearance, 25.0f) << "and the fitting around it a quarter";
+            EXPECT_EQ(lit.front().mClearance, 0.0f) << "and nothing around it kept clear";
         }
 
         /// Two-sidedness is the `GL_CULL_FACE` mode the content turned off, and one face otherwise.
