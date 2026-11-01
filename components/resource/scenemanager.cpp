@@ -703,8 +703,12 @@ namespace Resource
                 {
                     osgAnimation::RigGeometry* foundRigGeometry = static_cast<osgAnimation::RigGeometry*>(foundRigNode);
 
-                    osg::ref_ptr<SceneUtil::RigGeometryHolder> newRig
-                        = new SceneUtil::RigGeometryHolder(*foundRigGeometry, osg::CopyOp::DEEP_COPY_ALL);
+                    // The state set shared and not copied, as the holder takes the source's below. A copy
+                    // copies its textures' images by OpenSceneGraph's own count, which the Windows build
+                    // makes four bytes a pixel for a block format with no chain: 4 MiB read from a 1024 by
+                    // 1024 DXT5's one.
+                    osg::ref_ptr<SceneUtil::RigGeometryHolder> newRig = new SceneUtil::RigGeometryHolder(
+                        *foundRigGeometry, osg::CopyOp::DEEP_COPY_ALL & ~osg::CopyOp::DEEP_COPY_STATESETS);
 
                     if (foundRigGeometry->getStateSet())
                         newRig->setStateSet(foundRigGeometry->getStateSet());

@@ -183,6 +183,10 @@ is not here is held to the rules above.
     models loaded followed the order the game read them in, and a renderer that read in another order
     lost other statics, and four of upstream's integration tests the navigation mesh they stand on. A
     nought now ends the bytes (`aColladaModelLoadsWhateverWasReadBeforeIt`).
+  - `Resource::SceneManager` deep-copied a COLLADA rig's state set down to its textures' images, and then
+    put the source's own state set on the copy: on Windows, whose OpenSceneGraph counts a block-compressed
+    image with no chain at four bytes a pixel, the image's copy read past its buffer and ended the game as
+    it loaded the example suite's player body. The rig is copied with its state set shared.
 - The interface's fonts rasterized again while the game runs (`docs/rtx/architecture.md`, "A live
   scale and font size"): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in
   place (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks
