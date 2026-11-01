@@ -81,6 +81,12 @@ namespace MWRender
         /// `mRoom` is the record.
         osg::Vec4f mAmbientColour;
 
+        /// The ambient before `updateAmbient` added the Night-Eye effect, as the weather and the
+        /// cell left it. Carried and not recovered from the two around it: `mAmbientColour` less
+        /// `mNightEye` misses it by an ulp past a doubling, and a colour stated as `k / 255` then
+        /// decodes off the curve and not off the byte's table.
+        osg::Vec4f mAmbientBeforeNightEye;
+
         /// What `updateAmbient` added to the ambient for the Night-Eye effect, in the file's space.
         /// Read back rather than restated, so there is one number. Nought without the effect.
         osg::Vec4f mNightEye;

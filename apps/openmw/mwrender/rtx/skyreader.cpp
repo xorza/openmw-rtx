@@ -150,7 +150,7 @@ namespace MWRender
             .mSunShare = Rtx::sunShareAt(world.mGameHour, sky.mTimes),
             .mSunShareAloft = Rtx::sunShareAloft(world.mGameHour, sky.mTimes),
             .mSunColour = Rtx::decodeColour(world.mSunColour),
-            .mAmbient = Rtx::decodeColour(world.mAmbientColour - world.mNightEye),
+            .mAmbient = Rtx::decodeColour(world.mAmbientBeforeNightEye),
             .mDiscColour = Rtx::decodeColour(weather.mSunDiscColor),
             .mGlare = weather.mGlareView,
         };

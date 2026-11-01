@@ -52,13 +52,6 @@ deletes it.
   verb, which reads about 100 options by string in `main.cpp` (`variables["hold"].as<bool>()`).
   Target: `options` parses the line once into typed records per verb; `Command` holds those.
 
-### 10. Carried, not recovered — `apps/openmw/mwrender/{sceneframe.hpp,framedescriber.cpp}`, `apps/openmw/mwrender/rtx/skyreader.cpp`
-
-- [ ] `skyreader.cpp:138` with `framedescriber.cpp:38` recovers the ambient before Night-Eye as
-  `ambient - (ambient - before)`, exact only where the subtraction is (Sterbenz); past a doubling it
-  misses `toLinear`'s exact `k/255` table (`colour.cpp:37-41`) by an ulp. Target: `WorldState`
-  carries the ambient before Night-Eye beside the lift.
-
 ### 11. Tests — `apps/openmw_tests/mwrender/renderer.cpp`, `apps/components_tests/rtx/{scene/scenedesc.cpp,world/skylight.cpp,world/sun.cpp,scene/compositequeue.cpp,common/scratch.cpp}`
 
 - [ ] `renderer.cpp:218-220` `awaitFrameSleepsToTheLimitAndAnswersIt` asserts a wall time under
