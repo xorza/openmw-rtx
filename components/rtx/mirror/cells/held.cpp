@@ -11,7 +11,8 @@ namespace Rtx
     namespace
     {
         /// The models a ring of cells names at the most: Seyda Neen's, the busiest landing met, is
-        /// 908.
+        /// 908 at the default ten cells of land. `rooms-held` holds it over every view of the
+        /// suites, on vanilla content and under the Fullrest Repack.
         constexpr std::size_t sModelBudget = 4096;
     }
 
