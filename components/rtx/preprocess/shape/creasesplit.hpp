@@ -1,6 +1,7 @@
 #pragma once
 
 #include <compare>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -12,7 +13,8 @@
 namespace Rtx
 {
     /// Splits the normals the content smoothed across a hard edge, as a modelling tool's auto-smooth
-    /// does, so every normal a mesh ends with describes the surface around it.
+    /// does, and weighs what stays smooth by its faces' areas, as face-weighted normals do, so every
+    /// normal a mesh ends with describes the surface around it.
     ///
     /// **Why a ray tracer needs it.** A shadow ray leaves from the surface the vertex normals
     /// describe, and not from the flat facet, or a coarse solid shadows itself facet by facet
@@ -23,16 +25,44 @@ namespace Rtx
     /// ones of sixty degrees and more, so its normals describe a dome and its shadow rays would
     /// leave from above it.
     ///
-    /// **Only what the content smoothed across an edge of `sHardCosine` and more changes.** At each
-    /// position, the corners that carry one authored normal are the artist's smoothing group there.
-    /// Where such a group spans a hard edge, it is cut along every hard edge into the pieces its
-    /// smooth edges still join, and each piece takes the angle-weighted mean of its own faces
-    /// (Thürmer and Wüthrich, "Computing vertex normals from polygonal facets", 1998). A vertex whose
-    /// corners fall into two pieces becomes two vertices. A group with no hard edge in it keeps the
-    /// normal the content wrote.
+    /// **Every smoothing group that bends takes its faces' weighted mean.** At each position, the
+    /// corners that carry one authored normal are the artist's smoothing group there. Where its
+    /// faces stand in more than one plane, it is cut along every edge of `sHardCosine` and more into
+    /// the pieces its smooth edges still join, and each piece takes the mean of its own faces, each
+    /// weighed by its corner angle (Thürmer and Wüthrich, "Computing vertex normals from polygonal
+    /// facets", 1998), which no way of cutting a polygon into triangles changes, and by its area, as
+    /// face-weighted normals weigh it (Blender's Weighted Normal modifier), so a broad face stays flat
+    /// and the narrow bevel beside it carries the bend. A vertex whose corners fall into two pieces
+    /// becomes two vertices.
+    ///
+    /// **The area, because the content chamfers its boxes and smooths them whole.**
+    /// `ex_vivec_b_wb_gap_01.nif`, a segment of a Vivec bridge, smooths each 108-unit face into the
+    /// 10-unit bevels round it, and its corners lean 14.6 and 30.4 degrees off the face: every
+    /// segment lit as a cushion, in blocks along the bridge. Weighed by area and angle they lean 4.8.
+    ///
+    /// **A group whose faces are one plane keeps the normal the content wrote**: no face of it says
+    /// what else the normal could be, and a normal bent off a flat card is bent on purpose.
+    ///
+    /// **Across the shapes of a model, and not only inside one.** A Morrowind model is one shape a
+    /// texture, and its exporter smoothed the normals over the whole model: the floor of
+    /// `in_dwrv_corr2_03.nif` is one shape and its walls another, and the floor's corners along the
+    /// wall carry `(0, 0.707, 0.707)`, the mean of the two across a right angle. Read alone, the
+    /// floor's every face is flat and no edge in it is hard, so those corners kept a normal leaning
+    /// forty-five degrees off it and lit metres of floor in wedges. So the faces the model holds
+    /// beside the mesh (`Beside`) join its smoothing groups, find their hard edges and weigh in
+    /// their pieces' normals, and only the mesh's own corners are written.
     class CreaseSplit
     {
     public:
+        /// The faces a mesh's model holds beside it, in the mesh's own space: the other shapes'
+        /// positions, the normals the content wrote them, and their triangles over those positions.
+        struct Beside
+        {
+            std::span<const osg::Vec3f> mPositions;
+            std::span<const osg::Vec3f> mNormals;
+            std::span<const std::uint32_t> mTriangles;
+        };
+
         /// What a split writes, into the caller's buffers.
         struct Split
         {
@@ -54,10 +84,17 @@ namespace Rtx
         /// the Seyda Neen boulder's, and 62 in a hundred of the tables'.
         static constexpr float sHardCosine = 0.57357644f;
 
-        /// Cuts `normals` along the hard edges of `triangles` over `positions` into `split`, and
-        /// rewrites the triangles of every corner that moved to an added vertex.
+        /// The cosine of the angle within which two faces are one plane: one degree. A flat
+        /// polygon's triangles part by the rounding of their corners' floats, a millionth of a
+        /// radian, and a curve the content smoothed bends by more than a degree a face up to 360
+        /// faces round.
+        static constexpr float sPlaneCosine = 0.99984769f;
+
+        /// Cuts `normals` along the hard edges of `triangles` over `positions`, and of the faces
+        /// `beside` them, into `split`, and rewrites the triangles of every corner that moved to an
+        /// added vertex.
         void split(std::span<const osg::Vec3f> positions, std::span<const osg::Vec3f> normals,
-            std::vector<std::uint32_t>& triangles, Split& split);
+            std::vector<std::uint32_t>& triangles, const Beside& beside, Split& split);
 
     private:
         /// **Made by a `ShapePass` and by nothing else** — `ShapeFold` says why.
@@ -72,16 +109,19 @@ namespace Rtx
         /// Answers how many positions there are.
         std::uint32_t weld(std::span<const osg::Vec3f> positions);
 
-        /// Cuts `fan` — one position's corners — into pieces and moves every corner of a cut group
-        /// to its piece's normal and vertex.
+        /// Cuts `fan` — one position's corners — into pieces and moves every one of the mesh's own
+        /// corners in a cut group to its piece's normal and vertex. `positions` and `normals` hold
+        /// the mesh's `ownVertices` and then those beside it.
         void cutFan(std::span<const std::uint32_t> fan, std::span<const osg::Vec3f> positions,
-            std::span<const osg::Vec3f> normals, std::vector<std::uint32_t>& triangles, Split& split);
+            std::span<const osg::Vec3f> normals, std::size_t ownVertices, std::vector<std::uint32_t>& triangles,
+            Split& split);
 
         /// The piece a corner of the fan belongs to, the root of its union, with the path halved.
         std::uint32_t pieceOf(std::uint32_t corner);
 
-        /// Each triangle's unit normal, nought for one with no area.
+        /// Each triangle's unit normal, nought for one with no area, and twice its area.
         std::vector<osg::Vec3f> mFaces;
+        std::vector<float> mTwiceAreas;
 
         /// Each vertex's position number, and the table that numbers them.
         std::vector<std::uint32_t> mPositionOf;
@@ -93,24 +133,33 @@ namespace Rtx
         std::vector<std::uint32_t> mFanCorners;
         std::vector<std::uint32_t> mCursor;
 
-        /// The triangles as they came, which the geometry is read off while the moved corners are
-        /// written into the caller's.
+        /// The triangles as they came, the mesh's own and then those beside it over the vertices
+        /// past its own, which the geometry is read off while the moved corners are written into
+        /// the caller's.
         std::vector<std::uint32_t> mOriginal;
 
-        /// What a hard edge did to a smoothing group: nothing, found one in it, or cut it in pieces.
+        /// How many of `mOriginal`'s corners are the mesh's own, which alone are written.
+        std::size_t mOwnCorners = 0;
+
+        /// The mesh's positions and normals and then those beside it, where anything is beside it.
+        std::vector<osg::Vec3f> mPositions;
+        std::vector<osg::Vec3f> mNormals;
+
+        /// Whether a smoothing group's faces stand in one plane, which keeps what the content wrote,
+        /// or bend, which reweighs it.
         enum class GroupState : std::uint8_t
         {
-            Smooth,
-            Hard,
-            Cut,
+            Flat,
+            Bent,
         };
 
         /// The fan being cut, by its corners' order in it: each corner's group, named by the group's
-        /// first corner; each one's union parent; each group's state, at its first corner; and what
-        /// each piece's normal sums to, at its root.
+        /// first corner; each one's union parent; each group's state and the plane of its first face,
+        /// at its first corner; and what each piece's normal sums to, at its root.
         std::vector<std::uint32_t> mGroup;
         std::vector<std::uint32_t> mParent;
         std::vector<GroupState> mGroupState;
+        std::vector<osg::Vec3f> mGroupPlane;
         std::vector<osg::Vec3f> mPieceNormal;
 
         /// A corner of the fan under a key of two numbers, sorted by both and then by its place:

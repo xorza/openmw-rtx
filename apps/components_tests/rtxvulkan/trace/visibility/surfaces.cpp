@@ -904,6 +904,10 @@ namespace Rtx::Testing
         /// one multiply a channel: 0.5, 1 and 0.25 of 0.50196 are 0.25098, 0.50196 and 0.12549,
         /// which encode to 137, 188 and 99. The diffuse albedo is read off the picture and the
         /// ambient one off its channel, encoded the same way.
+        ///
+        /// **What tints a model is the colour's hue** (`hueOf`): the same colour at half its
+        /// brightness, `(0.25, 0.5, 0.125)`, divides back to `(0.5, 1, 0.25)` and tints alike, and
+        /// black, which has no hue, tints nothing.
         TEST_F(RtxVisibilityTest, aVertexColourTintsTheAlbedoWhereTheContentAsksAndNowhereElse)
         {
             constexpr std::uint32_t size = 32;
@@ -944,6 +948,14 @@ namespace Rtx::Testing
             // A mesh that brought no colour is white in the shared buffer, so the tint the shader
             // applies to it is the one that changes nothing.
             EXPECT_EQ(albedoUnder(VertexColour::Tint, {}), plain);
+
+            const osg::Vec3f half(0.25f, 0.5f, 0.125f);
+            EXPECT_EQ(albedoUnder(VertexColour::Tint, std::array<osg::Vec3f, 4>{ half, half, half, half }),
+                (std::array<int, 6>{ 137, 188, 99, 137, 188, 99 }))
+                << "the brightness baked into the colour is taken out";
+            const osg::Vec3f black;
+            EXPECT_EQ(albedoUnder(VertexColour::Tint, std::array<osg::Vec3f, 4>{ black, black, black, black }), plain)
+                << "black has no hue";
         }
 
         /// The glow the mode names is the material's own glow said another way.
@@ -1777,10 +1789,12 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             /// @param second the texture slot and diffuse transform of the layer on the right.
-            const auto render = [&](Index second, const osg::Vec4f& secondTransform) {
+            /// @param colours the ground's vertex colours, which tint it where any are given.
+            const auto render = [&](Index second, const osg::Vec4f& secondTransform,
+                                    std::span<const osg::Vec3f> colours = {}) {
                 SceneDesc scene;
-                const Index mesh = scene.addMesh(
-                    MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index mesh = scene.addMesh(MeshArrays{
+                    .mPositions = positions, .mTexCoords = sQuadUv, .mColours = colours, .mIndices = sQuadIndices });
                 scene.textures().add(VFS::Path::NormalizedView("red.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("green.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("strip.dds"));
@@ -1794,6 +1808,7 @@ namespace Rtx::Testing
                 Material material;
                 material.mKind = MaterialKind::Terrain;
                 material.mLayers = run;
+                material.mVertexColour = colours.empty() ? VertexColour::None : VertexColour::Tint;
 
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = scene.addMaterial(material) });
 
@@ -1804,6 +1819,13 @@ namespace Rtx::Testing
 
             const std::vector<std::uint8_t> ramp = render(1, osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f));
 
+            // **The ground is tinted by its vertex colours whole**, the shading the level painted
+            // into them included, where a model takes their hue alone: a grey of a half darkens the
+            // pure red layer to 0.5, which encodes to 188.
+            const osg::Vec3f grey(0.5f, 0.5f, 0.5f);
+            const std::vector<std::uint8_t> shaded
+                = render(1, osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f), std::array<osg::Vec3f, 4>{ grey, grey, grey, grey });
+
             // Column c samples u = (c + 0.5) / 64, so the two texel centres fall on columns 15.5 and
             // 47.5 and the middle of the ramp on column 31.5. Sampling either side of a boundary
             // would land on a value the ramp only reaches between pixels.
@@ -1813,6 +1835,7 @@ namespace Rtx::Testing
 
             EXPECT_EQ(at(ramp, 0)[0], 255) << "pure first layer, red";
             EXPECT_EQ(at(ramp, 0)[1], 0);
+            EXPECT_EQ(at(shaded, 0)[0], 188) << "a ground's vertex shading is kept";
             EXPECT_EQ(at(ramp, 63)[0], 0) << "pure second layer, green";
             EXPECT_EQ(at(ramp, 63)[1], 255);
 

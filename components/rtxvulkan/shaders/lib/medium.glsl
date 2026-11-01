@@ -236,14 +236,16 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         // original engine puts it: a surface carrying one glows *with its texture in it*. An
         // emissive *map* is not read — no cloud in the game carries one, and a fetch a crossing
         // for it would be paid by every shell of every one that does not.
-        const vec3 vertexColour = rule.mVertexTint ? triangleColour(crossing.mCorner, crossing.mBary) : vec3(1.0);
+        // A tint is the colours' hue, and a glow the colours whole, as `resolve` reads them.
+        const TriangleColour colours = rule.mVertexTint ? triangleColour(crossing.mCorner, crossing.mBary)
+                                                        : TriangleColour(vec3(1.0), vec3(1.0));
         const float tinted = rule.mVertexTint ? float((material.mFlags & MATERIAL_VERTEX_TINT) != 0u) : 0.0;
         const float glowing = rule.mVertexTint ? float((material.mFlags & MATERIAL_VERTEX_GLOW) != 0u) : 0.0;
 
         gathered.mUnlit = addShare(
-            gathered.mUnlit, sharePart(texel.rgb * mix(material.mDiffuseColour, vertexColour, tinted) * alpha));
+            gathered.mUnlit, sharePart(texel.rgb * mix(material.mDiffuseColour, colours.mHue, tinted) * alpha));
         gathered.mGlowed = addShare(
-            gathered.mGlowed, sharePart(texel.rgb * mix(material.mEmissiveColour, vertexColour, glowing) * alpha));
+            gathered.mGlowed, sharePart(texel.rgb * mix(material.mEmissiveColour, colours.mColour, glowing) * alpha));
         if (rule.mSheets)
         {
             // The surface's rule for the sheet, `resolve`'s: lit where the player asked for it.

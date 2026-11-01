@@ -193,7 +193,30 @@ vec3 triangleDeformation(GpuMesh mesh, uvec3 corner, vec2 bary)
     return acrossTriangle(now.at[at.x] - was.at[at.x], now.at[at.y] - was.at[at.y], now.at[at.z] - was.at[at.z], bary);
 }
 
-/// The vertex colour interpolated across the triangle a hit landed on, in linear light.
+/// A vertex colour as a hit reads it: the colour whole, and its hue (`hueOf`).
+struct TriangleColour
+{
+    vec3 mColour;
+    vec3 mHue;
+};
+
+/// A vertex colour with its brightness taken out: each component divided by the largest, and white
+/// where the colour is black, which has no hue to keep.
+///
+/// **A model's vertex colours are mostly light baked into its vertices**: `in_dwrv_corr2_03.nif`
+/// darkens its corners to two fifths, an occlusion of its own, and the trace casts the occlusion
+/// itself, so what tints a model's surface is the hue alone. RTX Remix reads vertex colours the
+/// same way by default (`rtx.vertexColorIsBakedLighting`).
+vec3 hueOf(vec3 colour)
+{
+    const float peak = max(max(colour.r, colour.g), colour.b);
+    return peak > 0.0 ? colour / peak : vec3(1.0);
+}
+
+/// The vertex colour interpolated across the triangle a hit landed on, in linear light, whole and
+/// as its hue. The hue is taken at each corner and then blended, as a corner's colour is what the
+/// content wrote, and taken here rather than stored beside the colour: a second stream would be a
+/// fetch at every hit, where this is three divides.
 ///
 /// **White where the mesh brought none, because that is what the table holds.** A colour is a
 /// factor and not a reading: `MeshTable::writeVertices` fills an absent one with ones, so this
@@ -202,12 +225,16 @@ vec3 triangleDeformation(GpuMesh mesh, uvec3 corner, vec2 bary)
 /// **Interpolated in light, and not between two stored bytes.** The host decodes each vertex once
 /// — `Rtx::MeshArrays::mColours` — so what a hit reads across a triangle is a blend of
 /// reflectances rather than a blend of the numbers they were written down as.
-vec3 triangleColour(uvec3 corner, vec2 bary)
+TriangleColour triangleColour(uvec3 corner, vec2 bary)
 {
     ColourBlock block = colourBlockOf(corner.x);
     const uvec3 at = corner % VERTEX_BLOCK;
 
-    return acrossTriangle(block.at[at.x], block.at[at.y], block.at[at.z], bary);
+    const vec3 first = block.at[at.x];
+    const vec3 second = block.at[at.y];
+    const vec3 third = block.at[at.z];
+    return TriangleColour(acrossTriangle(first, second, third, bary),
+        acrossTriangle(hueOf(first), hueOf(second), hueOf(third), bary));
 }
 
 #endif

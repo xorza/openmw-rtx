@@ -345,11 +345,13 @@ namespace Rtx
         /// @param jumped whether the drawable stands under a node `setJumped` named.
         /// @param lampBody whether the drawable is the model of a light that gives light
         ///        (`MeshInstance::mLampBody`).
+        /// @param path the walk's path to the drawable — `MeshResolver::resolve`.
         ///
         /// Answers whether the placement changes between frames on its own — a particle system,
         /// the sea, a mesh that deforms — which keeps a reference root above it walked.
         bool addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
-            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped, bool lampBody);
+            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped, bool lampBody,
+            std::span<osg::Node* const> path);
 
         /// The state set a controller wrote over a node this frame, or null where none writes one —
         /// `MaterialResolver::animate`, which says why a node under one needs none. Applied here rather

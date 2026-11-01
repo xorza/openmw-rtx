@@ -1255,12 +1255,17 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     // weights below are one or nought — the content states which, and `MATERIAL_VERTEX_TINT` says
     // why the mode does not survive the trip. Over half of Morrowind's shapes and every piece of
     // ground carry a colour, so a branch would be taken by most of the frame anyway.
-    const vec3 vertexColour = triangleColour(corner, hit.mBary);
+    //
+    // **A model is tinted by its colours' hue and the ground by its colours whole**: the ground's
+    // are the level's painted shading and tint, which nothing traced stands in for. A glow is the
+    // colour whole everywhere, because its brightness is what it emits.
+    const TriangleColour colours = triangleColour(corner, hit.mBary);
+    const vec3 vertexColour = surface.mGround ? colours.mColour : colours.mHue;
     const float tinted = float((material.mFlags & MATERIAL_VERTEX_TINT) != 0u);
     const float ambientTinted = float((material.mFlags & MATERIAL_VERTEX_AMBIENT) != 0u);
     const float glowing = float((material.mFlags & MATERIAL_VERTEX_GLOW) != 0u);
 
-    surface.mEmissiveColour = mix(material.mEmissiveColour, vertexColour, glowing);
+    surface.mEmissiveColour = mix(material.mEmissiveColour, colours.mColour, glowing);
 
     surface.mSheet = (mesh.mShape & MESH_SHEET) != 0u;
     surface.mTransmission = surface.mSheet && hasMask(material) ? SHEET_TRANSMISSION : 0.0;
@@ -1441,12 +1446,13 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     // above with nothing divided out of it: glTF's metal and roughness, the base colour split
     // between what a metal reflects and what a dielectric scatters.
     //
-    // **The tint darkens the lobe as well as the base**, because on this content it is mostly light
-    // baked into the vertices rather than a colour — Wareya's `PBR_VERTEX_COLOR_HACK`, which these
-    // maps were made against, puts it on the light for the same reason. Left off the lobe, a 4%
-    // reflectance hazed over every darkened surface: a tapestry in the Seyda Neen census office
-    // reflected two to four times what it scattered. On the reflectance at normal incidence, it
-    // darkens the edge too, below `SPECULAR_EDGE_SCALE`'s two per cent, which is the specular
+    // **The tint is on the lobe as well as the base**, so the two are darkened and coloured alike.
+    // The ground's tint is light baked into its vertices rather than a colour — Wareya's
+    // `PBR_VERTEX_COLOR_HACK`, which these maps were made against, puts it on the light for the same
+    // reason — and a model's is its hue (`hueOf`). Left off the lobe, a 4% reflectance hazed over
+    // every darkened surface: a tapestry in the Seyda Neen census office, tinted by its colours
+    // whole, reflected two to four times what it scattered. On the reflectance at normal incidence,
+    // it darkens the edge too, below `SPECULAR_EDGE_SCALE`'s two per cent, which is the specular
     // occlusion that convention is for.
     //
     // **Ground reflects as a dielectric, over the share of it that reflects at all** — a stack from

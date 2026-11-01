@@ -6,9 +6,13 @@
 #include <string>
 #include <vector>
 
+#include <osg/BoundingBox>
+#include <osg/Matrix>
+#include <osg/Node>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+#include <osg/ref_ptr>
 
 #include <components/misc/result.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
@@ -54,6 +58,11 @@ namespace Rtx
     /// A morph's base target, which `MorphGeometry::cull` reads its positions from.
     std::span<const osg::Vec3f> morphBase(const SceneUtil::MorphGeometry& morph);
 
+    /// The model a walk standing at the end of `path` is inside: the nearest node the loader marked
+    /// as a file's root (`Misc::OsgUserValues::sFileHash`), or null where none is. A clone carries
+    /// its template's mark, so a template and every clone of it answer alike.
+    const osg::Node* modelOf(std::span<osg::Node* const> path);
+
     /// What one drawable's triangles come to once read and shaped — `ShapePass`: spans into the
     /// geometry's own arrays and into the reader's scratch, valid until the reader reads again.
     struct MeshReading
@@ -71,18 +80,46 @@ namespace Rtx
     class MeshReader
     {
     public:
+        MeshReader();
+        ~MeshReader();
+
+        MeshReader(const MeshReader&) = delete;
+        MeshReader& operator=(const MeshReader&) = delete;
+
         /// Reads `read` into `into`, shaped by `content`, this thread's, answering whether the
         /// drawable held a triangle to read, and an error for a face this cannot build, saying why:
         /// lines and points, which a ray has no width of to meet,
         /// a morph's base that is not the length of its source, a triangle naming a vertex the
         /// drawable does not have, an array of normals, coordinates or colours of another length
         /// than the vertices, or an array of a type this does not read.
-        Misc::Result<bool, std::string> read(ContentPreprocessor& content, const DrawableRead& read, MeshReading& into);
+        ///
+        /// @param model the model the drawable stands in (`modelOf`), whose other shapes the split
+        ///        cuts its normals across — `CreaseSplit::Beside` — or null for none.
+        Misc::Result<bool, std::string> read(
+            ContentPreprocessor& content, const DrawableRead& read, const osg::Node* model, MeshReading& into);
 
     private:
-        /// Collects `geometry`'s triangles into `mTriangleScratch`, degenerate ones left out, and
-        /// answers whether any is left. An error where one names a vertex at or past `vertices`.
-        Misc::Result<bool, std::string> collectTriangles(const osg::Geometry& geometry, std::size_t vertices);
+        class BesideWalk;
+
+        /// Where one geometry of a model stands in it, and whether a controller or a callback
+        /// moves it there.
+        struct ModelShape
+        {
+            const osg::Geometry* mGeometry = nullptr;
+            osg::Matrix mPlace;
+            bool mMoved = false;
+        };
+
+        /// Collects `geometry`'s triangles into `into`, degenerate ones left out, and answers
+        /// whether any is left. An error where one names a vertex at or past `vertices`.
+        static Misc::Result<bool, std::string> collectTriangles(
+            const osg::Geometry& geometry, std::size_t vertices, std::vector<std::uint32_t>& into);
+
+        /// Fills the beside scratch with the triangles of `model`'s other shapes that stand where
+        /// `self` stands and reach into `reach`, `self`'s own box: positions and normals are matched
+        /// bit for bit, which only shapes in one space can share. Nothing where `self` moves, or
+        /// stands in the model more than once.
+        void gatherBeside(const osg::Node& model, const osg::Geometry& self, const osg::BoundingBoxf& reach);
 
         /// The triangles as the drawable names them, and the ones the fold kept. Refilled per
         /// drawable rather than reallocated, because a cell is tens of thousands of them.
@@ -109,6 +146,16 @@ namespace Rtx
         std::vector<osg::Vec4f> mReadTangentScratch;
         std::vector<osg::Vec2f> mReadTexCoordScratch;
         std::vector<osg::Vec2f> mReadSecondTexCoordScratch;
+
+        /// The model's shapes, and what stands beside the drawable read: the faces the split cuts
+        /// across (`CreaseSplit::Beside`). Refilled per drawable read, like the rest.
+        osg::ref_ptr<BesideWalk> mBesideWalk;
+        std::vector<ModelShape> mModelShapes;
+        std::vector<osg::Vec3f> mBesidePositions;
+        std::vector<osg::Vec3f> mBesideNormals;
+        std::vector<std::uint32_t> mBesideTriangles;
+        std::vector<osg::Vec3f> mBesideReadScratch;
+        std::vector<std::uint32_t> mBesideCollectScratch;
 
         /// Where a drawable's colours are decoded to. Always scratch, where the other
         /// attributes are usually the geometry's own arrays: what the file holds is display-encoded

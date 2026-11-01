@@ -589,8 +589,8 @@ namespace Rtx
             }
         }
 
-        mChangeable
-            |= mExtractor.addDrawable(drawable, placement, mShading, placed(), mClass, mGlow, mJumping, mLampBody);
+        mChangeable |= mExtractor.addDrawable(
+            drawable, placement, mShading, placed(), mClass, mGlow, mJumping, mLampBody, getNodePath());
 
         mShading.resize(held);
     }
@@ -858,7 +858,8 @@ namespace Rtx
 
     bool SceneExtractor::addDrawable(const osg::Drawable& drawable, const std::size_t who,
         const std::span<const Shading> shading, const osg::Matrixf& place, const InstanceClass what,
-        const std::optional<std::size_t> glow, const bool jumped, const bool lampBody)
+        const std::optional<std::size_t> glow, const bool jumped, const bool lampBody,
+        const std::span<osg::Node* const> path)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -898,7 +899,7 @@ namespace Rtx
 
         // The mesh first: a surface nothing places has no material, and one resolved ahead of a
         // refused mesh held its textures and uploaded them for nothing.
-        const Index mesh = mMeshes.resolve(drawable, read);
+        const Index mesh = mMeshes.resolve(drawable, read, path);
         if (mesh == sNoIndex)
         {
             mFrozen.note(FrozenRoots::Key{ .mDrawable = &drawable });

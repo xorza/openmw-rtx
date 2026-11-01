@@ -2,11 +2,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include <osg/Drawable>
+#include <osg/Node>
 #include <osg/Referenced>
 #include <osg/Vec3f>
 
@@ -61,7 +63,10 @@ namespace Rtx
         MeshResolver& operator=(const MeshResolver&) = delete;
 
         /// The mesh index for one drawable, adding it or posing it as its kind requires.
-        Index resolve(const osg::Drawable& drawable, const DrawableRead& read);
+        ///
+        /// @param path the walk's path to the drawable, which a drawable met for the first time is
+        ///        read in the model of (`modelOf`).
+        Index resolve(const osg::Drawable& drawable, const DrawableRead& read, std::span<osg::Node* const> path);
 
         /// The mesh index for a drawable somebody else has already read, adding it where the mirror
         /// does not hold it and stamping it where it does — the insertion half of `resolve`, for a
