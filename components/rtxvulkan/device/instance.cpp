@@ -209,6 +209,16 @@ namespace Rtx
             }
         }
 
+        // At the head of the chain, ahead of the validation's messenger: the loader calls every
+        // messenger the chain holds.
+        VkDebugUtilsMessengerCreateInfoEXT layersInfo{};
+        if (debugUtils)
+        {
+            layersInfo = mLayers->makeMessengerCreateInfo();
+            layersInfo.pNext = next;
+            next = &layersInfo;
+        }
+
         const VkInstanceCreateInfo createInfo{
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = next,
@@ -226,6 +236,7 @@ namespace Rtx
         checkVkSupport(vkCreateInstance(&createInfo, nullptr, &created), "vkCreateInstance");
         mHandle = Root<VkInstance, vkDestroyInstance>(created);
         mExtensions.assign(extensions.begin(), extensions.end());
+        mLayers->annotate();
 
         // **One load serves every instance**, so a second one made beside the first, as the tests
         // make them, rewrites nothing another thread is calling through. For a core function and a

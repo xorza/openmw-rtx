@@ -19,6 +19,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/loaderlayers.hpp>
 #include <components/rtxvulkan/device/notfinitecensus.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -112,6 +113,14 @@ namespace Rtx
         {
             // Without this every other test's clean bill of health means nothing.
             EXPECT_NE(mHarness.mInstance->getValidationLog(), nullptr);
+
+            // And the loader says so: the one layer the tests are sure to load, from a library.
+            const LoaderLayers& layers = mHarness.mInstance->getLayers();
+            EXPECT_TRUE(layers.isHeard());
+            EXPECT_TRUE(
+                std::any_of(layers.getInserted().begin(), layers.getInserted().end(), [](const InsertedLayer& layer) {
+                    return layer.mName == "VK_LAYER_KHRONOS_validation" && !layer.mLibrary.empty();
+                }));
         }
 
         TEST_F(RtxDeviceTest, theDeviceHasAQueueAndEveryExtensionEntryPoint)
