@@ -49,18 +49,6 @@ Accepted diff does not list.
 Batches in order of impact. Each leaves the build and the tests green. Whoever addresses an item
 deletes it.
 
-### 7. The harness's instruments — `apps/rtxtool/instruments/{threadcounters,threadcounterslinux,nvml}.cpp`, their tests
-
-- [ ] `threadcounterslinux.cpp:218-226` scales cycles, instructions and misses by `1 / mCounted`
-  but not `mRunningNs`, and `describeCounts` (`threadcounters.cpp:16-17`) prints the clock as
-  `mCycles / mRunningNs`: at half counted, a 4 GHz thread reads 8 GHz, in the line and in the JSON.
-  Target: the reads-to-`ThreadCounts` arithmetic as a pure function the test feeds, and the clock
-  as raw cycles over counted time (or scaled cycles over enabled time).
-- [ ] `nvml.cpp:139-152` `Nvml::readClock` drops a good core clock where the memory clock, the
-  temperature or the throttle call fails, though `GpuClock` (`gpuclock.hpp:27-56`) makes those three
-  optional and the AMD reader honours that. Target: a reading from the core clock, each other field
-  set where its call succeeded.
-
 ### 8. The harness's shape — `apps/rtxtool/{options,run,hosted,main,film,stager,session,measurer,compare,noise,harnessfolder,cameradriver}.*`, `apps/rtxtool/model/{benchrun,blockfile}.*`, `components/rtx/renderer/png.*`, `components/rtxvulkan/{vulkanrenderer.cpp,device/memory/image.cpp}`
 
 - [ ] `run.hpp:238-241` `Command` carries the raw `variables_map` and `const ToolOptions&` to every

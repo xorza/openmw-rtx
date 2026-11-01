@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -21,11 +22,12 @@ namespace RtxTool
         /// Misses of the last level of cache, the ones that go to memory.
         std::uint64_t mCacheMisses = 0;
 
-        /// How long the thread ran, on any core, which the cycles over it are the clock of.
+        /// How long the thread ran, on any core, which the cycles over it are the clock of: the
+        /// longest any group was enabled for it, whether or not the processor counted all of it.
         std::uint64_t mRunningNs = 0;
 
         /// How much of `mRunningNs` was on the efficiency cores of a part with two kinds, where a
-        /// walk runs at about half the speed.
+        /// walk runs at about half the speed, scaled up as the counts are.
         std::uint64_t mEfficiencyNs = 0;
 
         /// The share of the thread's running time the processor counted, the counts scaled up from
@@ -43,6 +45,28 @@ namespace RtxTool
         bool mRead = false;
         std::string_view mWhyNot{};
     };
+
+    /// What one group of counters read of a thread over a window: its counts, how long the
+    /// processor counted it, how long it was enabled for the thread, and whether it is the group of
+    /// a part's efficiency cores.
+    struct GroupCounts
+    {
+        std::uint64_t mCycles = 0;
+        std::uint64_t mInstructions = 0;
+        std::uint64_t mCacheMisses = 0;
+        std::uint64_t mRunningNs = 0;
+        std::uint64_t mEnabledNs = 0;
+        bool mEfficiency = false;
+    };
+
+    /// The thread's counts out of what each of its groups read.
+    ///
+    /// **Everything scaled to the thread's run.** Where another process counted on the same core the
+    /// kernel shares the counters out in turns, and a group counts only part of the time it was
+    /// enabled; the counts and the efficiency cores' time are then scaled up by the share counted, as
+    /// perf scales its own, and the run is the time enabled. So the cycles over the run are the clock
+    /// the thread ran at whatever the share, and the efficiency time over it the share it spent there.
+    ThreadCounts countsOf(std::span<const GroupCounts> groups, bool kernelCounted, bool twoKinds);
 
     /// Counters on the thread that makes them, started and stopped around a place's measured frames.
     ///
