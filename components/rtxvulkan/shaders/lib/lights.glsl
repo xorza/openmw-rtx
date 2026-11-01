@@ -329,8 +329,10 @@ Reservoir noLamps()
 /// triangles of a boulder went black under a light its surface plainly faces. The normals can be
 /// believed because the content's creases were split at load (`Rtx::CreaseSplit`), and the shadow
 /// ray leaves from the surface they describe (`Surface::mLift`), so a facet the light is behind does
-/// not shadow itself. **A sheet takes its plane**, because it is lit from both faces and its far
-/// side is a light's other half (`mTransmission`), not a light in front of it.
+/// not shadow itself across most of it. Toward its edges the lift falls to nought and the ray enters
+/// the solid, which a mapped normal would show as a hard line; `bumpShadowing` fades a mapped light
+/// to the surface's own cosine there. **A sheet takes its plane**, because it is lit from both faces
+/// and its far side is a light's other half (`mTransmission`), not a light in front of it.
 struct Facing
 {
     vec3 mNormal;
@@ -339,13 +341,31 @@ struct Facing
     /// `Surface::mGeometric` on a sheet.
     vec3 mSide;
 
+    /// The normal under the map, which a light near its horizon fades the mapped light by
+    /// (`bumpShadowing`): `Surface::mSmooth` on a solid. On a sheet the normal itself, which fades
+    /// nothing: a sheet's far side is a light's other half and not a terminator.
+    vec3 mBase;
+
     /// What the far side of a sheet is worth, `Surface::mTransmission`. Nought for a solid.
     float mTransmission;
 };
 
 Facing facingOf(Surface surface)
 {
-    return Facing(surface.mNormal, surface.mSheet ? surface.mGeometric : surface.mSmooth, surface.mTransmission);
+    return Facing(surface.mNormal, surface.mSheet ? surface.mGeometric : surface.mSmooth,
+        surface.mSheet ? surface.mNormal : surface.mSmooth, surface.mTransmission);
+}
+
+/// `bumpShadowing` for one light's direction, which a lit cosine and a lobe both take.
+///
+/// **One exactly where nothing is mapped**, selected and not worked out: a unit normal's square is
+/// one to a rounding, and the share it would be divided into is a rounding off one, so a vanilla
+/// surface would move by an ulp it has no reason to.
+float terminatorShare(Facing facing, vec3 towards)
+{
+    const float share
+        = bumpShadowing(dot(facing.mBase, towards), dot(facing.mNormal, towards), dot(facing.mBase, facing.mNormal));
+    return all(equal(facing.mBase, facing.mNormal)) ? 1.0 : share;
 }
 
 /// The cosine a diffuse surface takes a light at, with what a sheet takes from its far side.
@@ -359,7 +379,8 @@ Facing facingOf(Surface surface)
 float litCosine(Facing facing, vec3 towards)
 {
     const float cosine = dot(facing.mNormal, towards);
-    return dot(facing.mSide, towards) > 0.0 ? max(cosine, 0.0) : facing.mTransmission * max(-cosine, 0.0);
+    return dot(facing.mSide, towards) > 0.0 ? max(cosine, 0.0) * terminatorShare(facing, towards)
+                                            : facing.mTransmission * max(-cosine, 0.0);
 }
 
 /// Which of three weights one draw picks, and what that pick is worth.
@@ -442,15 +463,16 @@ struct LightCandidate
 ///        here the one way, the moons' pick flipped at a boundary and moved a night's pixels.
 /// @param arriving the light's irradiance square to its direction, which the lobe reflects.
 /// @param sine the sine of the light's half angle, which sizes its highlight (`reflectionAt`).
-/// @param side what decides which side a light has to stand on, as `reflectionAt` takes it.
+/// @param facing which side a light has to stand on, as `reflectionAt` takes it, and what fades the
+///        lobe near the terminator as it fades the diffuse half (`terminatorShare`).
 LightCandidate surfaceCandidate(
-    vec3 unshadowed, float plain, vec3 arriving, vec3 towards, float sine, Gloss gloss, vec3 side)
+    vec3 unshadowed, float plain, vec3 arriving, vec3 towards, float sine, Gloss gloss, Facing facing)
 {
     LightCandidate candidate = LightCandidate(unshadowed, vec3(0.0), vec3(0.0), plain);
     if (gloss.mGlossy)
     {
-        const Reflection reflected = reflectionAt(gloss, side, towards, sine);
-        candidate.mSpecular = arriving * reflected.mLobe;
+        const Reflection reflected = reflectionAt(gloss, facing.mSide, towards, sine);
+        candidate.mSpecular = arriving * (reflected.mLobe * terminatorShare(facing, towards));
         candidate.mFresnel = reflected.mFresnel;
         candidate.mWeight = dot(unshadowed * gloss.mDiffuse * (1.0 - reflected.mFresnel) + candidate.mSpecular,
             LUMINANCE_WEIGHTS);
@@ -506,7 +528,7 @@ SkyChoice skyChoiceAt(uint source, Facing facing, bool asked, Gloss gloss)
     if (cosine > 0.0)
         light = surfaceCandidate(sky.mIrradiance * (cosine * INV_PI), cosine * dot(sky.mIrradiance, LUMINANCE_WEIGHTS),
             sky.mIrradiance, sky.mDirection, source == SKY_SOURCE_SUN ? sin(SUN_ANGULAR_RADIUS) : sky.mLimb, gloss,
-            facing.mSide);
+            facing);
 
     return SkyChoice(sky, cosine, light);
 }
@@ -608,7 +630,7 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
         const LightCandidate candidate = surfaceCandidate(unshadowed, dot(unshadowed, LUMINANCE_WEIGHTS),
             held.mIntensity * lamp.mReaching, lamp.mTowards,
             held.mSourceRadius > 0.0 ? held.mSourceRadius / max(lamp.mDistance, held.mSourceRadius) : 0.0, gloss,
-            facing.mSide);
+            facing);
 
         kept.mUnshadowed += candidate.mRadiance * (1.0 - candidate.mFresnel);
         considerLamp(kept, state, candidate, row);

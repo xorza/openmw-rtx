@@ -227,22 +227,25 @@ namespace Rtx::Shaders
     /// replacer does not reach the trace, and a sunrise past a roof edge does not shrink a flash.
     const float SUN_ANGULAR_RADIUS = 0.004654f;
 
-    /// Angular radius of the cone a sun shadow ray is drawn from, in radians: two degrees.
+    /// Angular radius of the cone a sun shadow ray is drawn from, in radians: three degrees.
     ///
     /// **Wider than the disc, on purpose, and the disc is not moved with it.** A shadow cast by the
     /// real half degree has a penumbra a centimetre wide on a wall two metres behind what casts it,
     /// which on a screen is a hard edge — and Morrowind never had one. The game's shadows are maps
     /// at a thousand texels over eight thousand units, filtered, and so soft at every distance; the
-    /// one the tracer draws was judged too sharp beside them. Two degrees puts a penumbra twenty
-    /// units wide on a wall three hundred units behind its caster, which is about what the maps
-    /// drew.
+    /// one the tracer draws was judged too sharp beside them. Two degrees, a penumbra twenty units
+    /// wide on a wall three hundred units behind its caster, was about what the maps drew there,
+    /// and still cut a hard edge across a wall a short way behind its caster — the round stone
+    /// wall at Seyda Neen's (-2, -9), where a converged reference drew the same edge, so the light
+    /// and not a filter. Three degrees puts thirty-one units there, and Unreal's and Unity's suns
+    /// are widened past their half degree for the same reason.
     ///
     /// This is a choice about the look and not a measurement, which is why it is a constant of
     /// its own: the disc in the sky and the glitter path on the water stay at the real size, since
     /// those are the sun seen and a sun seen wider is a different sun. A sun seen through haze does
     /// widen its own shadows — the aureole a hazy sky throws round it is a few degrees across — and
     /// if this ever wants to follow the weather, that is the model to follow it with.
-    const float SUN_SHADOW_RADIUS = 2.0f * PI / 180.0f;
+    const float SUN_SHADOW_RADIUS = 3.0f * PI / 180.0f;
 
     /// What a moon's own texels are worth as radiance.
     ///

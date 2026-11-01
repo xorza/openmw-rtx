@@ -306,6 +306,31 @@ namespace Rtx::Shaders
         return clamp(SPECULAR_EDGE_SCALE * green, 0.0f, 1.0f);
     }
 
+    /// What a mapped normal's light is kept of as the light nears the horizon of the surface the map
+    /// was laid on: Chiang, Li and Burley's shadowing term for bump and normal maps ("Taming the
+    /// Shadow Terminator", 2019), as Cycles takes it (`bump_shadowing_term`).
+    ///
+    /// **Why a ray tracer needs it.** A mapped normal tilts toward a light the surface under it has
+    /// all but turned from, and the facets of a coarse solid stop that light with a hard edge where
+    /// one of them turns past it: their shadow rays leave into the solid. The round stone wall at
+    /// Seyda Neen's (-2, -9), under the PBR replacers, drew that edge as a razor line, lit stones on
+    /// one facet and dark ones on the next; vanilla, with no map, is already dark there. This fades
+    /// the mapped light with the surface's own cosine, so it meets the edge as dark as vanilla does.
+    ///
+    /// `g` is the share of the mapped normal's cosine that the base normal's cosine explains, held
+    /// to one, and smoothed by `-g^3 + g^2 + g` so its slope is not cut at one. One wherever the two
+    /// normals are one, so a surface with no map keeps every light whole.
+    ///
+    /// @param baseToLight the cosine between the light and the normal under the map.
+    /// @param mappedToLight the cosine between the light and the mapped normal.
+    /// @param baseToMapped the cosine between the two normals.
+    RTX_SHADER float bumpShadowing(float baseToLight, float mappedToLight, float baseToMapped)
+    {
+        const float explained = mappedToLight * baseToMapped;
+        const float share = explained > 0.0f ? clamp(baseToLight / explained, 0.0f, 1.0f) : 0.0f;
+        return share * (1.0f + share * (1.0f - share));
+    }
+
     /// Schlick's Fresnel, from the reflectance at normal incidence to the one at grazing.
     RTX_SHADER float fresnelSchlick(float normal, float edge, float weight)
     {

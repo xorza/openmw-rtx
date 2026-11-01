@@ -1193,38 +1193,43 @@ namespace Rtx::Testing
                                  float tint = 1.0f) { return litAbout(normal, metal, leaning, show, tint); };
 
             // The pixel on the host: the diffuse half about `shading` and the lobe about `facing`, at a
-            // metalness of `metal` and a vertex tint of `tint`.
-            const auto expected
-                = [&](const osg::Vec3f& shading, const osg::Vec3f& facing, float metal, float tint = 1.0f) {
-                      osg::Vec3f halfway = toEye + toLamp;
-                      halfway.normalize();
-                      const float toLight = facing * toLamp;
-                      const float eyeCosine = facing * toEye;
+            // metalness of `metal` and a vertex tint of `tint`, both faded by what `shading`, mapped
+            // over the vertex normal `base`, keeps of the lamp (`bumpShadowing`), and kept whole where
+            // nothing is mapped.
+            const auto expected = [&](const osg::Vec3f& vertex, const osg::Vec3f& shading, const osg::Vec3f& facing,
+                                      float metal, float tint = 1.0f) {
+                const float kept = shading == vertex
+                    ? 1.0f
+                    : Shaders::bumpShadowing(vertex * toLamp, shading * toLamp, vertex * shading);
+                osg::Vec3f halfway = toEye + toLamp;
+                halfway.normalize();
+                const float toLight = facing * toLamp;
+                const float eyeCosine = facing * toEye;
 
-                      const float reflectance = (metal * base + (1.0f - metal) * Shaders::DIELECTRIC_F0) * tint;
-                      const float alpha = Shaders::ggxAlpha(roughness);
-                      const osg::Vec2f table = SpecularAlbedo::shared().at(eyeCosine, roughness);
-                      const float fresnel = Shaders::fresnelSchlick(
-                          reflectance, Shaders::specularEdge(reflectance), Shaders::schlickWeight(toEye * halfway));
-                      const float lobe = fresnel * Shaders::specularCompensation(reflectance, table.y())
-                          * Shaders::ggxDistribution(alpha, facing * halfway)
-                          * Shaders::smithVisibility(alpha, eyeCosine, toLight) * toLight;
-                      const float scattered
-                          = (1.0f - metal) * base * tint * (shading * toLamp) * Shaders::INV_PI * (1.0f - fresnel);
+                const float reflectance = (metal * base + (1.0f - metal) * Shaders::DIELECTRIC_F0) * tint;
+                const float alpha = Shaders::ggxAlpha(roughness);
+                const osg::Vec2f table = SpecularAlbedo::shared().at(eyeCosine, roughness);
+                const float fresnel = Shaders::fresnelSchlick(
+                    reflectance, Shaders::specularEdge(reflectance), Shaders::schlickWeight(toEye * halfway));
+                const float lobe = fresnel * Shaders::specularCompensation(reflectance, table.y())
+                    * Shaders::ggxDistribution(alpha, facing * halfway)
+                    * Shaders::smithVisibility(alpha, eyeCosine, toLight) * toLight;
+                const float scattered
+                    = (1.0f - metal) * base * tint * (shading * toLamp) * Shaders::INV_PI * (1.0f - fresnel);
 
-                      return irradiance * (scattered + lobe);
-                  };
+                return irradiance * (scattered + lobe) * kept;
+            };
 
             // A metal: no diffuse half at all, and the base colour is the reflectance.
-            const float metal = expected(normal, normal, 1.0f);
+            const float metal = expected(normal, normal, normal, 1.0f);
             EXPECT_NEAR(lit(255, false).x(), metal, metal * 1e-4f) << "a metal";
 
             // A dielectric: the base colour scatters what the lobe's Fresnel term did not take, and
             // the lobe reflects 4% and climbing.
-            const float dielectric = expected(normal, normal, 0.0f);
+            const float dielectric = expected(normal, normal, normal, 0.0f);
             EXPECT_NEAR(lit(0, false).x(), dielectric, dielectric * 1e-4f) << "a dielectric";
 
-            const float tinted = expected(normal, normal, 0.0f, 0.25f);
+            const float tinted = expected(normal, normal, normal, 0.0f, 0.25f);
             EXPECT_NEAR(lit(0, false, SurfaceView::Shaded, 0.25f).x(), tinted, tinted * 1e-4f) << "a tinted dielectric";
             EXPECT_EQ(lit(0, false, SurfaceView::Specular, 0.25f), osg::Vec3f(0.01f, 0.01f, 0.04f))
                 << "the hue on the reflectance, and the brightness nowhere";
@@ -1291,7 +1296,7 @@ namespace Rtx::Testing
                 2.0f * 191.0f / 255.0f - 1.0f, 2.0f * 128.0f / 255.0f - 1.0f, 2.0f * 221.0f / 255.0f - 1.0f);
             osg::Vec3f mapped = tangent * painted.x() + (normal ^ tangent) * painted.y() + normal * painted.z();
             mapped.normalize();
-            const float leaning = expected(mapped, mapped, 0.0f);
+            const float leaning = expected(normal, mapped, mapped, 0.0f);
             EXPECT_NEAR(lit(0, true).x(), leaning, leaning * 1e-4f) << "through the leaning map";
             EXPECT_GT(std::abs(leaning - dielectric), dielectric * 1e-2f) << "a map that leans nothing";
 
@@ -1307,7 +1312,7 @@ namespace Rtx::Testing
             osg::Vec3f facing = away * (1.0f - blend) + normal * blend;
             ASSERT_NEAR(facing * toEye, 0.03f, 1e-6f);
             facing.normalize();
-            const float leaned = expected(away, facing, 0.0f);
+            const float leaned = expected(away, away, facing, 0.0f);
             EXPECT_NEAR(litAbout(away, 0, false, SurfaceView::Shaded, 1.0f).x(), leaned, leaned * 1e-4f)
                 << "a vertex normal leaning past the eye";
             const float dropped = irradiance * base * (away * toLamp) * Shaders::INV_PI;
@@ -2290,10 +2295,10 @@ namespace Rtx::Testing
         }
 
         /// The sun is one direction everywhere, so its penumbra grows with nothing but the occluder's
-        /// distance — two thousand units of it, at the two degrees the shadow cone is drawn from,
+        /// distance — two thousand units of it, at the three degrees the shadow cone is drawn from,
         /// which `SUN_SHADOW_RADIUS` says is wider than the disc and why.
         ///
-        ///     half-width = 2000 * tan(0.034907) = 69.84
+        ///     half-width = 2000 * tan(0.052360) = 104.82
         TEST_F(RtxPenumbraTest, theSunsPenumbraGrowsWithTheOccludersDistanceAlone)
         {
             constexpr float sunDepth = -2000.0f;
@@ -2305,13 +2310,13 @@ namespace Rtx::Testing
             const std::vector<float> open = openFor(std::nullopt, sunDepth, camera);
             ASSERT_GT(open[(std::size_t{ sColumn } * sSize + sColumn) * 4], 0.0f) << "the sun lights the wall";
 
-            EXPECT_FLOAT_EQ(visible(sceneWith(std::nullopt, sunDepth, -72.0f), open, camera, 1), 1.0f)
+            EXPECT_FLOAT_EQ(visible(sceneWith(std::nullopt, sunDepth, -108.0f), open, camera, 1), 1.0f)
                 << "the whole cone clears an edge outside its penumbra";
-            EXPECT_FLOAT_EQ(visible(sceneWith(std::nullopt, sunDepth, 72.0f), open, camera, 1), 0.0f)
+            EXPECT_FLOAT_EQ(visible(sceneWith(std::nullopt, sunDepth, 108.0f), open, camera, 1), 0.0f)
                 << "and none of it clears one across the far side";
-            EXPECT_NEAR(visible(sceneWith(std::nullopt, sunDepth, -10.0f), open, camera, 64), 0.59109f, 0.05f)
+            EXPECT_NEAR(visible(sceneWith(std::nullopt, sunDepth, -10.0f), open, camera, 64), 0.56064f, 0.05f)
                 << "and the disc's own half degree is well inside the band: the segment cut ten off "
-                   "a cone of 69.84, u = -0.1432, (acos(u) - u * sqrt(1 - u^2)) / pi";
+                   "a cone of 104.82, u = -0.0954, (acos(u) - u * sqrt(1 - u^2)) / pi";
 
             EXPECT_NEAR(visible(sceneWith(std::nullopt, sunDepth, 0.0f), open, camera, 64), 0.5f, 0.05f)
                 << "and half a disc stands on the shadow's own edge, two thousand units back";

@@ -179,6 +179,13 @@ namespace Rtx::Testing
             MeshInstance{ .mMesh = addQuadMesh(scene, quad), .mMaterial = glass, .mOpacity = fade, .mClass = kind });
     }
 
+    /// The sine of a sun shadow cone of two degrees, for a test whose arithmetic needs a cone of its
+    /// own and not the look's `SUN_SHADOW_RADIUS`, which is a choice about the picture and may move.
+    inline float twoDegreeLimb()
+    {
+        return std::sin(2.0f * Shaders::PI / 180.0f);
+    }
+
     /// A floor under an overhead sun, seen from above, with the sky black so the sun is the only
     /// light: the bounce escapes to nothing and the frame is the sun's term alone.
     inline Shaders::VisibilityConstants overheadSun(std::uint32_t size)
