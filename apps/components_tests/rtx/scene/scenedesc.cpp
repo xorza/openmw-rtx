@@ -2,10 +2,12 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <limits>
 #include <optional>
 #include <span>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -272,44 +274,6 @@ namespace Rtx
             scene.clearArrivals();
             EXPECT_EQ(textures.getRefusedArrivals(), 0u);
             EXPECT_EQ(textures.getRefused(), 2u) << "the count since the table began";
-        }
-
-        /// **Which slot a thing lands in cannot depend on the order the dead left in.**
-        /// `Rtx::Identity` hashes by address, so a sweep gives slots back in whatever order the
-        /// allocator left its map in — and a table that answered with the last one freed then handed
-        /// one live set two different layouts in two processes. Measured on `one-cell-walk` before
-        /// this: the `materials` and `textures` columns of the hashes table differed from frame 2 on
-        /// 89 frames of 90, and the picture followed at frame 39.
-        ///
-        /// **Both orders on one fixture**, because "the lowest" and "the last freed" agree wherever
-        /// the frees happen to run upwards.
-        TEST(RtxSceneDescTest, theSlotHandedOutIsTheSameHoweverTheSlotsWereGivenBack)
-        {
-            constexpr std::array<VFS::Path::NormalizedView, 4> named{
-                VFS::Path::NormalizedView("textures/tx_a.dds"),
-                VFS::Path::NormalizedView("textures/tx_b.dds"),
-                VFS::Path::NormalizedView("textures/tx_c.dds"),
-                VFS::Path::NormalizedView("textures/tx_d.dds"),
-            };
-
-            const auto after = [&](const std::vector<Index>& order) {
-                SceneDesc scene;
-                Testing::SceneHolds holds(scene);
-                for (const VFS::Path::NormalizedView path : named)
-                    holds.texture(scene.textures().add(path));
-
-                for (const Index slot : order)
-                    holds.dropTexture(slot);
-
-                return std::array<Index, 3>{ scene.textures().add(VFS::Path::NormalizedView("textures/tx_e.dds")),
-                    scene.textures().add(VFS::Path::NormalizedView("textures/tx_f.dds")),
-                    scene.textures().add(VFS::Path::NormalizedView("textures/tx_g.dds")) };
-            };
-
-            const std::array<Index, 3> expected{ 0u, 2u, 3u };
-            EXPECT_EQ(after({ 0u, 2u, 3u }), expected) << "given back lowest first";
-            EXPECT_EQ(after({ 3u, 2u, 0u }), expected) << "given back highest first";
-            EXPECT_EQ(after({ 2u, 0u, 3u }), expected) << "given back in no order at all";
         }
 
         TEST(RtxSceneDescTest, theCountsAreWhatTheBuffersHold)
@@ -689,56 +653,98 @@ namespace Rtx
             EXPECT_EQ(Testing::addOneBoneBody(scene, quad).mDeformer, second.mDeformer) << "then the one above it";
         }
 
-        /// **Every table hands out its lowest free slot**, which is what `Rtx::SlotRows` promises
-        /// once for all five of them.
+        /// **Every table hands out its lowest free slot, however its slots were given back**, which is
+        /// what `Rtx::SlotRows` promises once for all of them. A slot is the custom index a hit reads
+        /// back and the row a material is looked up in, and a top-level structure is built in slot
+        /// order, which settles a tie between two surfaces at one distance: which free slot an
+        /// arrival takes has to be a function of what is standing, and never of the order a sweep
+        /// dropped in, a map walked in bucket order over keys hashed from node addresses. A free list
+        /// that answered with the slot freed last handed one live set two layouts in two processes:
+        /// on `one-cell-walk` the `materials` and `textures` columns of the hashes table differed
+        /// from frame 2 on 89 frames of 90, and the picture followed at frame 39.
         ///
-        /// Two slots are freed high first here, because that is the order a list built by pushing
-        /// leaves out of order: `[2]` and then `[2, 0]` is no heap, and a pop of it answers with 2.
-        /// A slot is the custom index a hit reads back and the row a material is looked up in, so
-        /// which of two free slots an arrival takes has to be a function of what is standing.
-        TEST(RtxSceneDescTest, everyTableHandsOutItsLowestFreeSlot)
+        /// **Three orders on each table**, because "the lowest" and "the last freed" agree wherever
+        /// the frees run upwards; and with none free, the slot past the end.
+        TEST(RtxSceneDescTest, everyTableHandsOutItsLowestFreeSlotHoweverTheSlotsWereFreed)
         {
-            SceneDesc scene;
+            constexpr Index sFilled = 5;
+            using Taken = std::array<Index, 4>;
+            using Order = std::array<Index, 3>;
 
-            const auto quad = [&] { return Testing::addQuadMesh(scene); };
+            constexpr std::array<const char*, sFilled + std::tuple_size_v<Taken>> sTextures{ "textures/a.dds",
+                "textures/b.dds", "textures/c.dds", "textures/d.dds", "textures/e.dds", "textures/f.dds",
+                "textures/g.dds", "textures/h.dds", "textures/i.dds" };
+            const auto textures = [&](const Order& order) {
+                SceneDesc scene;
+                Testing::SceneHolds holds(scene);
+                std::size_t named = 0;
+                const auto add = [&] {
+                    return holds.texture(scene.textures().add(VFS::Path::NormalizedView(sTextures[named++])));
+                };
+                for (Index at = 0; at < sFilled; ++at)
+                    EXPECT_EQ(add(), at) << "a fresh table appends";
+                for (const Index slot : order)
+                    holds.dropTexture(slot);
+                Taken taken{};
+                for (Index& slot : taken)
+                    slot = add();
+                return taken;
+            };
 
-            const std::array meshes{ quad(), quad(), quad() };
-            ASSERT_EQ(meshes[2], 2u);
+            const auto meshes = [](const Order& order) {
+                SceneDesc scene;
+                for (Index at = 0; at < sFilled; ++at)
+                    EXPECT_EQ(Testing::addQuadMesh(scene), at) << "a fresh table appends";
+                for (const Index slot : order)
+                    Testing::letGoMesh(scene, slot);
+                Taken taken{};
+                for (Index& slot : taken)
+                    slot = Testing::addQuadMesh(scene);
+                return taken;
+            };
 
-            const std::array materials{ scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.25f } }),
-                scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.5f } }),
-                scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.75f } }) };
-            ASSERT_EQ(materials[2], 2u);
+            // Each of its own threshold, so none is the same material as another.
+            const auto materials = [](const Order& order) {
+                SceneDesc scene;
+                float reference = 0.0f;
+                const auto add = [&] {
+                    reference += 1.0f / 16.0f;
+                    return scene.addMaterial(Material{ .mAlphaTest = { .mReference = reference } });
+                };
+                for (Index at = 0; at < sFilled; ++at)
+                    EXPECT_EQ(add(), at) << "a fresh table appends";
+                for (const Index slot : order)
+                    Testing::letGoMaterial(scene, slot);
+                Taken taken{};
+                for (Index& slot : taken)
+                    slot = add();
+                return taken;
+            };
 
-            const auto path = [](const char* name) { return VFS::Path::NormalizedView(name); };
-            const std::array textures{ scene.textures().add(path("textures/a.dds")),
-                scene.textures().add(path("textures/b.dds")), scene.textures().add(path("textures/c.dds")) };
-            std::array<TextureHold, 3> holds;
-            for (std::size_t at = 0; at < textures.size(); ++at)
-                holds[at] = scene.holdTexture(textures[at]);
-            ASSERT_EQ(textures[2], 2u);
+            const auto placements = [](const Order& order) {
+                SceneDesc scene;
+                const Index mesh = Testing::addQuadMesh(scene);
+                for (Index at = 0; at < sFilled; ++at)
+                    EXPECT_EQ(scene.addInstance(MeshInstance{ .mMesh = mesh }), at) << "a fresh table appends";
+                for (const Index slot : order)
+                    scene.dropInstance(slot, Stander::Walk);
+                Taken taken{};
+                for (Index& slot : taken)
+                    slot = scene.addInstance(MeshInstance{ .mMesh = mesh });
+                return taken;
+            };
 
-            const auto place = [&](const Index mesh) { return scene.addInstance(MeshInstance{ .mMesh = mesh }); };
-            const std::array placed{ place(meshes[0]), place(meshes[1]), place(meshes[2]) };
-            ASSERT_EQ(placed[2], 2u);
-
-            // The highest of each three first, and the lowest second.
-            scene.drop(std::move(holds[2]));
-            scene.drop(std::move(holds[0]));
-
-            // A placement's drop gives back the last hold on its mesh, so these free two meshes too.
-            scene.dropInstance(placed[2], Stander::Walk);
-            scene.dropInstance(placed[0], Stander::Walk);
-
-            Testing::letGoMaterial(scene, materials[2]);
-            Testing::letGoMaterial(scene, materials[0]);
-
-            EXPECT_EQ(scene.textures().add(path("textures/d.dds")), textures[0]) << "textures";
-            EXPECT_EQ(place(meshes[1]), placed[0]) << "placements";
-            EXPECT_EQ(quad(), meshes[0]) << "meshes";
-            EXPECT_EQ(scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.125f } }), materials[0])
-                << "materials";
-            scene.drop(std::move(holds[1]));
+            // Three of five given back: the lowest of them first, then the next, then the last, and
+            // then the slot past the end.
+            const Taken expected{ 0, 2, 3, sFilled };
+            for (const Order& order : { Order{ 0, 2, 3 }, Order{ 3, 2, 0 }, Order{ 2, 0, 3 } })
+            {
+                const std::string freed = std::format("freed {}, {}, {}", order[0], order[1], order[2]);
+                EXPECT_EQ(textures(order), expected) << "textures " << freed;
+                EXPECT_EQ(meshes(order), expected) << "meshes " << freed;
+                EXPECT_EQ(materials(order), expected) << "materials " << freed;
+                EXPECT_EQ(placements(order), expected) << "placements " << freed;
+            }
         }
 
         /// **A scene opened at a room fills it without moving a row**, as its backend's tables are
@@ -1136,45 +1142,6 @@ namespace Rtx
 
             scene.placements().advance();
             EXPECT_TRUE(scene.placements().getSettled().empty());
-        }
-
-        /// An emitter's sphere is derived from the sprites rather than passed in, so the rejection
-        /// test a ray makes and the sprites it would then walk cannot disagree about where they are.
-        ///
-        /// **Off the box and not off the mean**, which the lopsided arrangement here is chosen to
-        /// prove: two sprites sit at the origin and one at four along x, so the mean is at 4/3 and
-        /// the box's centre at 2. From the box the reach is 2 + 1 = 3 either way; from the mean it
-        /// would have to be 8/3 + 1 = 3.67 to hold the far one, a sphere 22% wider for the same
-        /// three particles.
-        /// **Which slot an arrival takes is a fact about the world and never about the sweep.** A
-        /// hit reads its slot back and a top-level structure is built in slot order, which is what
-        /// settles a tie between two surfaces at one distance. The free list was a stack, so the
-        /// slot followed the order the last sweep dropped in — and that order is a map walked in
-        /// bucket order over keys hashed from node addresses.
-        TEST(RtxSceneDescTest, theLowestFreeSlotIsTakenHoweverTheSlotsWereFreed)
-        {
-            const auto takeAfterDropping = [](const Index first, const Index second) {
-                SceneDesc scene;
-                const Index mesh = Testing::addQuadMesh(scene);
-
-                for (Index at = 0; at < 5; ++at)
-                    EXPECT_EQ(scene.addInstance(MeshInstance{ .mMesh = mesh }), at) << "a fresh table appends";
-
-                scene.dropInstance(first, Stander::Walk);
-                scene.dropInstance(second, Stander::Walk);
-
-                std::array<Index, 3> taken{};
-                for (Index& slot : taken)
-                    slot = scene.addInstance(MeshInstance{ .mMesh = mesh });
-
-                return taken;
-            };
-
-            // A stack answers with the slot dropped last — 1 one way round and 3 the other. The
-            // lowest is 1 either way, then 3, and then a slot past the end once none is free.
-            const std::array<Index, 3> expected{ 1, 3, 5 };
-            EXPECT_EQ(takeAfterDropping(3, 1), expected) << "the higher slot freed first";
-            EXPECT_EQ(takeAfterDropping(1, 3), expected) << "the lower slot freed first";
         }
 
         TEST(RtxSceneDescTest, anEmitterCarriesItsSpritesAndTheSphereThatHoldsThem)

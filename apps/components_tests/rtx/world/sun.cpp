@@ -125,5 +125,41 @@ namespace Rtx
                 previous = at;
             }
         }
+
+        /// A layer over the ground keeps the sun, and what it keeps is an hour and not an angle.
+        ///
+        /// **Morrowind's sunset is a clock.** `sunShareAt` ramps between `mDayEnd` and
+        /// `mNightStart` and nothing anywhere takes an elevation, so a layer that sees the sun 0.718
+        /// degrees longer is handed the ramp read 5.35 minutes earlier — the time the disc takes to
+        /// fall that far at 8.04 degrees an hour.
+        ///
+        /// **And the day is widened at both ends rather than moved**: a layer that sees the sun lower
+        /// catches the sunrise early too, so the same offset runs the other way before noon.
+        ///
+        /// With Morrowind's own hours: at 19:00 the ground has 0.750 of the sun and the layer 0.793;
+        /// at 20:00 the ground has none and the layer still holds 0.0872; and five minutes later the
+        /// layer has none either.
+        TEST(RtxSunAloftTest, aLayerOverTheGroundKeepsTheSunAfterItHasLostIt)
+        {
+            const Sky::TimeOfDaySettings times = vanillaHours();
+
+            EXPECT_NEAR(sunShareAloft(19.0f, times), 0.792623f, 1.0e-5f);
+            EXPECT_NEAR(sunShareAloft(20.0f, times), 0.087237f, 1.0e-5f);
+            EXPECT_EQ(sunShareAloft(20.1f, times), 0.0f) << "and it goes out too, five minutes later";
+
+            // And the same offset the other way at dawn: at 06:05 the ground has a twentieth of the
+            // sun and the layer has 0.139, because it caught the sunrise five minutes ago.
+            EXPECT_NEAR(sunShareAloft(6.05f, times), 0.139227f, 1.0e-5f);
+
+            // Nothing at all is different while the whole disc is up, which is every hour of the day
+            // between the two ramps.
+            for (const float hour : { 9.0f, 12.0f, 17.9f })
+                EXPECT_EQ(sunShareAloft(hour, times), sunShareAt(hour, times)) << "at hour " << hour;
+
+            // **And never less than the ground's**, at any hour of the clock — which is the whole
+            // claim, and the one a sign error in the offset would break.
+            for (float hour = 0.0f; hour < 24.0f; hour += 0.05f)
+                EXPECT_GE(sunShareAloft(hour, times), sunShareAt(hour, times)) << "at hour " << hour;
+        }
     }
 }

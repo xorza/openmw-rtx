@@ -103,6 +103,30 @@ namespace Rtx
             EXPECT_EQ(rows.find(5)->mValue, 55);
         }
 
+        /// **A buffer keeps its room within twice what it holds, and gives back the rest whole**:
+        /// eight slots kept under four held, and given back under three, which is the boundary
+        /// `dropSlack` draws; an empty buffer with no room is left as it is.
+        TEST(RtxScratchTest, aBufferKeepsItsRoomUpToTwiceWhatItHoldsAndNoMore)
+        {
+            const auto roomAfter = [](const std::size_t held) {
+                std::vector<int> buffer;
+                buffer.reserve(8);
+                EXPECT_EQ(buffer.capacity(), 8u);
+                buffer.resize(held);
+                dropSlack(buffer);
+                return buffer.capacity();
+            };
+
+            EXPECT_EQ(roomAfter(4), 8u) << "eight is twice four";
+            EXPECT_EQ(roomAfter(5), 8u);
+            EXPECT_EQ(roomAfter(3), 0u) << "eight is more than twice three";
+            EXPECT_EQ(roomAfter(0), 0u);
+
+            std::vector<int> none;
+            dropSlack(none);
+            EXPECT_EQ(none.capacity(), 0u);
+        }
+
         struct Reading : Lent
         {
             int mValue = 0;
