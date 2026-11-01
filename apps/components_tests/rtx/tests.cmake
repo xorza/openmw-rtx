@@ -143,6 +143,7 @@ set(RTX_TEST_FILES
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
     rtxvulkan/trace/denoise/temporalturns.cpp
+    rtxvulkan/trace/gbufferstages.cpp
     rtxvulkan/trace/tuplequeue.cpp
     rtxvulkan/upscale/fsrframe.cpp
     sky/skyclock.cpp
