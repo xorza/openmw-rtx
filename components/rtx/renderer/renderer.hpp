@@ -23,11 +23,11 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 
 #include "framedigest.hpp"
 #include "framesinflight.hpp"
@@ -174,7 +174,7 @@ namespace Rtx
         /// How a present paces the frame, where there is a window. Off for a window somebody
         /// steers by hand and for a measured run, which is why off is the default; the game hands
         /// its own setting over, and `Renderer::setVerticalSync` follows a change to it.
-        SDLUtil::VSyncMode mVerticalSync = SDLUtil::VSyncMode::Disabled;
+        VerticalSync mVerticalSync = VerticalSync::Off;
 
         /// Whether the frame counts for the host the primary rays that hit anything —
         /// `FrameResult::mHits`. On by default, so a reader who forgets it gets a number rather than a
@@ -498,7 +498,7 @@ namespace Rtx
 
         /// How the presented image meets the monitor's refresh. Costs the presentation's rebuild, so a
         /// settings-change call and not a frame one.
-        virtual void setVerticalSync(SDLUtil::VSyncMode mode) = 0;
+        virtual void setVerticalSync(VerticalSync mode) = 0;
 
         /// `RenderProfile::mAnisotropy`, changed while the frames run: a menu change. Every
         /// texture's binding is written again into each copy of a scene's texture set, at the

@@ -22,6 +22,7 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
@@ -45,7 +46,6 @@
 #include <components/rtxvulkan/trace/tracemedia.hpp>
 #include <components/rtxvulkan/trace/tracepasses.hpp>
 #include <components/rtxvulkan/upscale/upscaler.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 
 #include "framering.hpp"
 #include "picturetracer.hpp"
@@ -91,7 +91,7 @@ namespace Rtx
         void showIn(std::uint32_t width, std::uint32_t height) override;
         void setUpscale(Upscale upscale) override;
 
-        void setVerticalSync(SDLUtil::VSyncMode mode) override;
+        void setVerticalSync(VerticalSync mode) override;
         void setAnisotropy(std::uint32_t anisotropy) override;
         void setGamma(float gamma) override;
         void setBounceRays(std::uint32_t rays) override;

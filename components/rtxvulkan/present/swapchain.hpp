@@ -6,8 +6,8 @@
 
 #include <volk.h>
 
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 
 namespace Rtx
 {
@@ -71,7 +71,7 @@ namespace Rtx
     {
     public:
         /// @param surface what the images are presented to, which outlives this.
-        Swapchain(const Device& device, const Surface& surface, VkExtent2D extent, SDLUtil::VSyncMode verticalSync);
+        Swapchain(const Device& device, const Surface& surface, VkExtent2D extent, VerticalSync verticalSync);
 
         /// Takes the next image into `index` where the answer is `Image`.
         Acquired acquire(VkSemaphore ready, std::uint32_t& index);
@@ -113,7 +113,7 @@ namespace Rtx
         /// Says how the presented image should meet the refresh, and answers whether that changed
         /// the present mode, which is what says a rebuild is owed. A setting and not a mode,
         /// because two settings collapse onto one mode where a driver is missing the other.
-        bool setVerticalSync(SDLUtil::VSyncMode mode);
+        bool setVerticalSync(VerticalSync mode);
 
         VkExtent2D getExtent() const { return mExtent; }
         VkImage getImage(std::uint32_t index) const { return mImages[index]; }
@@ -138,7 +138,7 @@ namespace Rtx
         /// nothing: a setting can change while the surface is lost, which answers no question.
         std::vector<VkPresentModeKHR> mPresentModes;
 
-        SDLUtil::VSyncMode mVerticalSync;
+        VerticalSync mVerticalSync;
         VkExtent2D mExtent{};
         std::vector<VkImage> mImages;
 

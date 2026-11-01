@@ -31,6 +31,7 @@
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtx/shaders/gbuffer.h>
@@ -60,7 +61,6 @@
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
 #include <components/rtxvulkan/upscale/upscaler.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 
 namespace Rtx
 {
@@ -480,7 +480,7 @@ namespace Rtx
         return mDevice.getMemory().report();
     }
 
-    void VulkanRenderer::setVerticalSync(SDLUtil::VSyncMode mode)
+    void VulkanRenderer::setVerticalSync(VerticalSync mode)
     {
         // Headless: `shot`, `bench` and `check` present to nothing, and a run with no surface has
         // no refresh to meet.

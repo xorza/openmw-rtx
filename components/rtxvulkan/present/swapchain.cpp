@@ -65,20 +65,20 @@ namespace Rtx
             return VK_PRESENT_MODE_FIFO_KHR;
         }
 
-        /// The present mode a vertical sync setting asks for. `Disabled` is mailbox and not
+        /// The present mode a vertical sync setting asks for. `Off` is mailbox and not
         /// immediate, because what a player turning vsync off reaches for is latency and not a
         /// torn frame; immediate stands behind it for a surface with no mailbox. `Adaptive` is FIFO
         /// that tears when a frame misses its refresh, as the rasterizer's does through SDL.
-        /// `Enabled` is FIFO: a frame that meets the refresh is the promise.
-        VkPresentModeKHR presentModeFor(const std::vector<VkPresentModeKHR>& modes, SDLUtil::VSyncMode mode)
+        /// `On` is FIFO: a frame that meets the refresh is the promise.
+        VkPresentModeKHR presentModeFor(const std::vector<VkPresentModeKHR>& modes, VerticalSync mode)
         {
             switch (mode)
             {
-                case SDLUtil::VSyncMode::Disabled:
+                case VerticalSync::Off:
                     return chooseFrom(modes, { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
-                case SDLUtil::VSyncMode::Adaptive:
+                case VerticalSync::Adaptive:
                     return chooseFrom(modes, { VK_PRESENT_MODE_FIFO_RELAXED_KHR });
-                case SDLUtil::VSyncMode::Enabled:
+                case VerticalSync::On:
                     break;
             }
 
@@ -102,7 +102,7 @@ namespace Rtx
     }
 
     Swapchain::Swapchain(
-        const Device& device, const Surface& surface, VkExtent2D extent, const SDLUtil::VSyncMode verticalSync)
+        const Device& device, const Surface& surface, VkExtent2D extent, const VerticalSync verticalSync)
         : mDevice(device)
         , mSurface(surface)
         , mVerticalSync(verticalSync)
@@ -224,7 +224,7 @@ namespace Rtx
         return create(extent);
     }
 
-    bool Swapchain::setVerticalSync(SDLUtil::VSyncMode mode)
+    bool Swapchain::setVerticalSync(VerticalSync mode)
     {
         if (mode == mVerticalSync)
             return false;

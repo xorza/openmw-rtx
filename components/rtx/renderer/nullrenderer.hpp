@@ -15,8 +15,8 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/scene/refusal.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
 
 #include "framesinflight.hpp"
 #include "guirenderer.hpp"
@@ -64,7 +64,7 @@ namespace Rtx
         void resize(std::uint32_t width, std::uint32_t height) override;
         void showIn(std::uint32_t, std::uint32_t) override {}
         void setUpscale(Upscale upscale) override;
-        void setVerticalSync(SDLUtil::VSyncMode) override {}
+        void setVerticalSync(VerticalSync) override {}
         void setAnisotropy(std::uint32_t anisotropy) override { mProfile.mAnisotropy = anisotropy; }
         void setGamma(float gamma) override { mProfile.mGamma = gamma; }
         void setBounceRays(std::uint32_t rays) override;
