@@ -743,34 +743,45 @@ namespace Rtx
 
         /// **A scene opened at a room fills it without moving a row**, as its backend's tables are
         /// made at the same room: a host table that outgrows its room copies every row on the frame
-        /// a cell arrives. Four meshes, four materials and four placements against a room of four
-        /// leave each table's rows where they were reserved; the fifth placement is past the room,
-        /// and moves them. A scene opened at nought moves its rows on the second placement already.
+        /// a cell arrives. Four meshes, four materials, four textures and four placements against a
+        /// room of four leave each table's rows where they were reserved; the fifth placement and
+        /// the fifth texture are past the room, and move them. A scene opened at nought moves its
+        /// rows on the second placement already. The world's room holds every texture slot there is.
         TEST(RtxSceneDescTest, aSceneOpenedAtARoomFillsItWithoutMovingARow)
         {
-            constexpr SceneRoom room{ .mPlacements = 4, .mMeshes = 4, .mMaterials = 4 };
+            constexpr SceneRoom room{ .mPlacements = 4, .mMeshes = 4, .mMaterials = 4, .mTextures = 4 };
             SceneDesc scene(room);
 
             const void* const placementRows = scene.placements().getRows().data();
             const void* const meshRows = scene.meshes().getRows().data();
             const void* const materialRows = scene.materials().getRows().data();
+            const void* const textureRows = scene.textures().getRows().data();
 
+            constexpr std::array<const char*, 5> paths
+                = { "textures/a.dds", "textures/b.dds", "textures/c.dds", "textures/d.dds", "textures/e.dds" };
             std::array<Index, 4> meshes{};
             for (std::size_t at = 0; at < meshes.size(); ++at)
             {
                 meshes[at] = Testing::addQuadMesh(scene);
                 scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.125f * static_cast<float>(at + 1) } });
+                ASSERT_NE(scene.textures().add(VFS::Path::NormalizedView(paths[at])), sNoIndex);
             }
             for (const Index mesh : meshes)
                 scene.addInstance(MeshInstance{ .mMesh = mesh });
 
             ASSERT_EQ(scene.placements().getRows().size(), 4u);
+            ASSERT_EQ(scene.textures().getRows().size(), 4u);
             EXPECT_EQ(scene.placements().getRows().data(), placementRows);
             EXPECT_EQ(scene.meshes().getRows().data(), meshRows);
             EXPECT_EQ(scene.materials().getRows().data(), materialRows);
+            EXPECT_EQ(scene.textures().getRows().data(), textureRows);
 
             scene.addInstance(MeshInstance{ .mMesh = meshes[0] });
             EXPECT_NE(scene.placements().getRows().data(), placementRows) << "a fifth row fit a room of four";
+            ASSERT_NE(scene.textures().add(VFS::Path::NormalizedView(paths[4])), sNoIndex);
+            EXPECT_NE(scene.textures().getRows().data(), textureRows) << "a fifth texture fit a room of four";
+
+            EXPECT_EQ(sWorldRoom.mTextures, TextureTable::sCapacity);
 
             SceneDesc unreserved;
             const Index mesh = Testing::addQuadMesh(unreserved);

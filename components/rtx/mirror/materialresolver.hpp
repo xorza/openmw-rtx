@@ -168,6 +168,12 @@ namespace Rtx
             mUpdaterClasses.reserve(sCallbackClasses);
         }
 
+        /// `Kept::getPastRoom`, of the materials, the textures and the animated chains.
+        std::uint32_t countPastRoom() const
+        {
+            return mMaterials.getPastRoom() + mTextureOf.getPastRoom() + mAnimated.getPastRoom();
+        }
+
     private:
         /// What the scene knows one image as under each encoding and wrap, and what its texels say,
         /// unset until something asks, because the walk over its texels is only worth doing for a

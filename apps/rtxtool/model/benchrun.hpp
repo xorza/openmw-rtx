@@ -94,6 +94,11 @@ namespace RtxTool
         /// Every texture the scene named could be read; an unreadable one is drawn grey.
         TexturesReadable,
 
+        /// Nothing the world's mirror fills grew past the room it was made with, at any frame of the
+        /// run (`MWRender::WorldMirror::countPastRoom`): a growth moves every entry on the frame a
+        /// cell arrives, which the rooms exist to keep off the frame path.
+        RoomsHeld,
+
         /// The frame was drawn from the camera the stop asked for, because a camera something else
         /// moved gives figures that look reasonable. Answered yes by a stop that named no camera,
         /// by a free-camera stop, and by a routed one.

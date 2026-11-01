@@ -1,9 +1,11 @@
 #include <cstdint>
-#include <unordered_map>
 
 #include <gtest/gtest.h>
 
+#include <boost/unordered/unordered_flat_map.hpp>
+
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <components/rtx/common/maproom.hpp>
 #include <components/rtx/mirror/mirroridentity.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 
@@ -11,7 +13,8 @@ namespace Rtx
 {
     namespace
     {
-        using Map = std::unordered_map<int, Known>;
+        /// The map every identity in the mirror is, so what a reservation holds is the shipped one's.
+        using Map = boost::unordered_flat_map<int, Known>;
 
         struct RtxKeptTest : testing::Test
         {
@@ -142,6 +145,42 @@ namespace Rtx
 
             Testing::expectAssertDies([&] { mKept.retire(mReleased); },
                 "a map counted whole with an entry neither the epoch nor a hold keeps");
+        }
+
+        /// **An entry past the room is counted, and every entry before it is not**: the rehash a
+        /// reservation exists to keep off the frame path, which content can still cause and so is a
+        /// count the harness holds at nought (`rooms-held`) and never an assert. Added and reached
+        /// alike, and an entry reached again counts nothing. A map of the same type, filled beside
+        /// it, says where its room ends.
+        TEST_F(RtxKeptTest, anEntryPastTheRoomIsCountedAndNoneBeforeIt)
+        {
+            mKept.reserve(4);
+            Map beside;
+            beside.reserve(4);
+
+            int key = 0;
+            while (!fillsRoom(beside))
+            {
+                beside.emplace(key, Known{});
+                mKept.add(key++, Known{});
+            }
+            ASSERT_GE(key, 4) << "a room of four held fewer";
+            EXPECT_EQ(mKept.getPastRoom(), 0u) << "an entry inside the room counted";
+
+            mKept.reach(0);
+            EXPECT_EQ(mKept.getPastRoom(), 0u) << "an entry reached again counted";
+
+            beside.emplace(key, Known{});
+            mKept.add(key++, Known{});
+            EXPECT_EQ(mKept.getPastRoom(), 1u);
+
+            while (!fillsRoom(beside))
+            {
+                beside.emplace(key, Known{});
+                mKept.reach(key++);
+            }
+            mKept.reach(key++);
+            EXPECT_EQ(mKept.getPastRoom(), 2u) << "a reached entry past the room went uncounted";
         }
     }
 }

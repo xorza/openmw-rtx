@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/rtx/common/maproom.hpp>
 
 namespace Rtx
 {
@@ -22,7 +23,9 @@ namespace Rtx
     CellHolds::HeldModel& CellHolds::know(PreparedModel& model)
     {
         // One search either way: a cell arriving asks this once per model it names.
+        const bool full = fillsRoom(mModels);
         const auto [at, fresh] = mModels.try_emplace(&model);
+        mPastRoom += full && fresh ? 1u : 0u;
         if (fresh)
         {
             at->second = mSpareModels.take();

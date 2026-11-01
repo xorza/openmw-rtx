@@ -287,11 +287,15 @@ namespace Rtx
         /// lent dies with it, so nothing is given back here.
         void forget();
 
+        /// `Kept::getPastRoom`, of the models.
+        std::uint32_t getPastRoom() const { return mPastRoom; }
+
     private:
         /// By the model, unordered: a sorted run of rows that each own a vector moved every row
         /// after a new model, on the frame a cell lands. Reserved at the budget, so no landing
         /// rehashes it; only `forget` walks it, and in no order it needs.
         boost::unordered_flat_map<const PreparedModel*, HeldModel> mModels;
+        std::uint32_t mPastRoom = 0;
 
         /// A model's row taken back out is room the next one refills rather than a heap call on
         /// the frame a cell lands.

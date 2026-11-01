@@ -21,6 +21,8 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
 
+#include "sceneroom.hpp"
+
 namespace Rtx
 {
     /// What stands in a live texture slot, and so which of the row's two names carries it, stated
@@ -107,6 +109,15 @@ namespace Rtx
         /// takes. A world past it is content this renderer draws neutral, and never a frame that
         /// stops: an arrival that would take one more slot is refused and counted.
         static constexpr std::size_t sCapacity = Shaders::TEXTURE_NEUTRAL;
+
+        /// Holds the rows, the lookup by path and the arrivals at `room`, so no arrival up to it
+        /// moves them.
+        void reserve(const SceneRoom& room)
+        {
+            reserveRows(room.mTextures);
+            mChanges.reserve(room.mTextures);
+            mPathIndex.reserve(room.mTextures);
+        }
 
         /// The slot for `path` under `wrap` and `encoding`, taking one where this has not met the
         /// three. Live from here, before anything names it, and until the last thing that named it

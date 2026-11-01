@@ -34,6 +34,7 @@ namespace Rtx
     {
         mMeshes.reserve(room.mMeshes);
         mMaterials.reserve(room);
+        mTextures.reserve(room);
         mDeformers.reserve(room);
         mPlacements.reserve(room);
     }

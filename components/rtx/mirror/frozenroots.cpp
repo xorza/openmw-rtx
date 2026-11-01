@@ -5,6 +5,8 @@
 
 #include <osg/Group>
 
+#include <components/rtx/common/maproom.hpp>
+
 namespace Rtx
 {
     FrozenRoots::Face FrozenRoots::Face::of(const osg::Node& root, const osg::Matrix& world, const std::size_t identity)
@@ -104,6 +106,7 @@ namespace Rtx
             .mMoved = known != mFrozen.end() ? known->second.mMoved : 0,
             .mHolding = true,
         };
+        mPastRoom += known == mFrozen.end() && fillsRoom(mFrozen) ? 1u : 0u;
         Frozen& held = known != mFrozen.end()
             ? known->second
             : mFrozen.emplace(osg::ref_ptr<const osg::Node>(&root), Frozen{}).first->second;

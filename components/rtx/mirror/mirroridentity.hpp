@@ -11,6 +11,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/maproom.hpp>
 
 #include "mirrorpass.hpp"
 #include "released.hpp"
@@ -106,6 +107,9 @@ namespace Rtx
         /// is what this is called once to prevent.
         void reserve(std::size_t count) { mKnown.reserve(count); }
 
+        /// How many entries arrived past the room and rehashed the map, ever.
+        std::uint32_t getPastRoom() const { return mPastRoom; }
+
         /// The entry for `key`, or `end()`. Unstamped: `stamp` is what says the walk met it.
         template <class Key>
         Entry find(const Key& key)
@@ -163,8 +167,10 @@ namespace Rtx
             held.mReach.mEpoch = mPass.mEpoch;
             held.mReach.mHolds = 0;
 
+            const bool full = fillsRoom(mKnown);
             const auto [entry, arrived] = mKnown.emplace(key, std::move(held));
             assert(arrived && "an identity the map already held, added again");
+            mPastRoom += full ? 1u : 0u;
 
             ++mReached;
             return entry;
@@ -177,7 +183,9 @@ namespace Rtx
         {
             freshen();
 
+            const bool full = fillsRoom(mKnown);
             const auto [entry, arrived] = mKnown.try_emplace(key);
+            mPastRoom += full && arrived ? 1u : 0u;
             Value& held = entry->second;
             mReached += held.mReach.mHolds == 0 && (arrived || held.mReach.mEpoch != mPass.mEpoch) ? 1 : 0;
             held.mReach.mEpoch = mPass.mEpoch;
@@ -302,6 +310,8 @@ namespace Rtx
         std::size_t mHeld = 0;
 
         bool mAbandoned = false;
+
+        std::uint32_t mPastRoom = 0;
     };
 
     /// What the scene knows one `osg` object as, keyed so the object cannot go while the entry

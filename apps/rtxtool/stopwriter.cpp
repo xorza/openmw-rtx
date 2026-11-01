@@ -753,6 +753,13 @@ namespace RtxTool
                 return refused == 0;
             }
 
+            case Check::RoomsHeld:
+            {
+                const std::uint32_t past = context.mMirror.countPastRoom();
+                found = std::format("{} entries arrived past their map's room", past);
+                return past == 0;
+            }
+
             case Check::CrossingsAppend:
             {
                 const Crossings& crossings = facts.mCrossings;

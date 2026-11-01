@@ -159,6 +159,9 @@ namespace MWRender
         /// What the content holds on the host beside the scene — `Rtx::ContentMemory`.
         Rtx::ContentMemory getContentMemory();
 
+        /// `Rtx::SceneExtractor::countPastRoom`, the ring's models with it.
+        std::uint32_t countPastRoom() const { return mExtractor.countPastRoom() + mRing.countPastRoom(); }
+
         /// What every walk on the frame thread shares — the world's, the sky's and every traced
         /// view's: the traversal numbers, what the walks compute from the content, and what its
         /// `_spec` maps mean (`Rtx::WalkContext`).

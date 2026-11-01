@@ -105,6 +105,9 @@ namespace Rtx
         /// `CellSupply::getReaderMemory`.
         ReaderMemory getReaderMemory() { return mSupply.getReaderMemory(); }
 
+        /// `SceneExtractor::countPastRoom`, of the models the ring holds.
+        std::uint32_t countPastRoom() const { return mHolds.getPastRoom(); }
+
         /// `CellPlacer::setReferenceEnabled`, `blacklistReference`, `moveReference` and
         /// `forgetReferences`, over the cells held. Between frames, which the ring's own turn
         /// asserts: a reference changed between `follow` and the end of `collect` would land on
