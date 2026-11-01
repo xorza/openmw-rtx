@@ -101,3 +101,20 @@ guild's shot, from the working tree that became `1b46bef106`, came out darker wi
 of 23.29 levels at one bounce, 22.24 at two and 22.20 at four. The reading: a path that ends at its
 first landing takes the cell's bright `AMBI` there, and each step further takes it by a delit
 albedo first, so a vanilla room lit by its ambient loses light.
+
+## Memory
+
+The frame's own device memory (`frame` in a bench record's uses), the desk, `balmora-mages-guild`
+at a 1280x720 trace:
+
+| build | 1 ray | 4 rays |
+|---|---|---|
+| master before the rays (`a82452cf2f`) | 773,060,736 B | — |
+| the landing's images at every count (`1331144bf7`) | 864,827,840 B | 864,827,840 B |
+| the landing's images only above one ray (`9b92c44508`) | 773,065,984 B | 820,249,344 B |
+
+The 5,248 bytes over master at one ray are the landing's three images a texel wide and a list head a
+ray. The 44,578,496 bytes under `1331144bf7` at four rays are not the frame's own landing, which
+stands at the frame's size in both builds: they are the pictures' chain, which traces one ray at
+every count and so holds its landing's images a texel wide, and each chain's landing list, one
+array of the pixels in place of two.
