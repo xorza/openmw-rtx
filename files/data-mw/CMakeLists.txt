@@ -39,6 +39,9 @@ set(BUILTIN_DATA_MW_FILES
     scripts/omw/spellcasting/global.lua
     scripts/omw/spellcasting/local.lua
     scripts/omw/spellcasting/lockable.lua
+    scripts/omw/surfacelight/common.lua
+    scripts/omw/surfacelight/global.lua
+    scripts/omw/surfacelight/player.lua
 )
 
 foreach (f ${BUILTIN_DATA_MW_FILES})
