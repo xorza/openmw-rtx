@@ -49,34 +49,6 @@ Accepted diff does not list.
 Batches in order of impact. Each leaves the build and the tests green. Whoever addresses an item
 deletes it.
 
-### 6. The shaders — `components/rtxvulkan/shaders/lib/{fog,lights,shading,traversal,surfacematch}.glsl`, `trace/denoise/shadowfilter.comp`, `components/rtx/shaders/{look.h,gbuffer.h}`
-
-Run `./omw kernels` before and after.
-
-- [ ] `fog.glsl:695-711` `lampsInAir` computes each lamp's chord, its square root and the clipped
-  interval, and branches twice; `falloffAlong` (`lights.glsl:184-193`) computes the same chord and
-  root again and branches twice more, per lamp per light cell on every froxel ray. The surface walk
-  states the opposite rule for the same loop (`weighLamps`, `lights.glsl:604-611`). Target: state
-  the chord once — `falloffAlong` takes the clipped interval and its half chord, or `lampsInAir`
-  stops testing and lets a zero window weigh nought — and keep a branch only with a measurement
-  named where it lands.
-- [ ] `traversal.glsl:1391-1393` `if (showing <= 0.0) continue;` in the ground-stack loop skips a
-  layer's parallax, diffuse and normal fetches per lane with no measurement named
-  (`groundcomposite.comp:70` skips the same way, which keeps the sums in one order). Target: measure
-  it with `./omw release bench` and name the result at the branch, or select.
-- [ ] Stale lamp-clearance rationale: `lights.glsl:663-679` (`lampAsk`: the clearance keeps rays out
-  of a fitting, else a black speckle), `shading.glsl:1297` and `look.h:403` ("through its fitting").
-  `718ef8c902` set a record lamp's clearance to nought; front-face culling in `lampLightAsk`
-  (`traversal.glsl:946`) is what keeps a cage out now. Target: say that, and that a fill keeps its
-  ball.
-- [ ] Names that no longer exist: `gbuffer.h:132` `packPuffs` (removed in `942ec4e7e1`; now inline at
-  `visibility.comp:288`); `traversal.glsl:1141` `resolveFor` (now `resolveAsked`, `:1579`, and
-  `resolve`, `:1194`); `fog.glsl:756` `distantLandReach` (now `CellGrid::reachOf`);
-  `surfacematch.glsl:232` `RTX_RESOLVE` (removed in `875e4e9c37`); `shadowfilter.comp:45` the test
-  `aPackedHalfRoundsToNearestOnThisCard` (now
-  `aPackedHalfLandsBesideItsValueAndNearestHalfOnTheNearest`, `halfstore.cpp:206`, which records
-  that AMD's Windows driver truncates, so the comment's "one that truncated" is a supported device).
-
 ### 7. The harness's instruments — `apps/rtxtool/instruments/{threadcounters,threadcounterslinux,nvml}.cpp`, their tests
 
 - [ ] `threadcounterslinux.cpp:218-226` scales cycles, instructions and misses by `1 / mCounted`

@@ -229,8 +229,8 @@ ivec2 heldPixelAt(ivec2 stored, uint width, HistoryFields fields)
 /// **One gather for every temporal filter**, so the accumulator, the shadow denoiser, the glossy
 /// filter and the pane filter cannot come to refuse a tap by four rules: written four times, the
 /// shadow's lost its test for a texel that held no history. **A macro because an image is not an
-/// argument** these kernels can hand a function, as `RTX_RESOLVE` says of a query; each kernel then
-/// weighs its own payload by the shares.
+/// argument** these kernels can hand a function; each kernel then weighs its own payload by the
+/// shares.
 #define RTX_HISTORY_SHARES(shares, footprint, extent, fields, heldImage, holds, plane)             \
     vec4 shares = vec4(0.0);                                                                       \
     for (int historyCorner = 0; historyCorner < 4; ++historyCorner)                                \

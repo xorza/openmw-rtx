@@ -114,7 +114,7 @@ namespace Rtx::Shaders
     /// than the night outside it. Held here, an interior shows its lamps' own light at one exposure,
     /// and a dim room is dimmer than a bright one by all of the difference. What it costs: the eye
     /// adapts no further inside, so a dark corridor off a lit room stays dark.
-    const float EXPOSURE_MAX = 13.0f;
+    const float EXPOSURE_MAX = 25.0f;
 
     /// Where the eye starts once it has no past: a bright day's exposure, which the eye then
     /// opens from toward what the frame measures.
@@ -400,7 +400,7 @@ namespace Rtx::Shaders
     /// **A glow has no lamp of its own, and lights only by the bounce that lands on it**
     /// (`landingLightOf`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
     /// and what they buy is the warm ring under a mushroom's cap. **A lamp's own model does not light
-    /// even so**: its `LIGH` lamp already lights for it, through its fitting (`INSTANCE_LAMP_BODY`).
+    /// even so**: its `LIGH` lamp already lights for it (`INSTANCE_LAMP_BODY`).
     const float EMISSIVE_INTENSITY = 8.0f;
 
     /// What light on the far side of a leaf is worth to the side being looked at, against the same

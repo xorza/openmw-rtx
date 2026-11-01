@@ -185,21 +185,14 @@ float falloff(float distance, float reach, float source)
 /// divisor. The cubic is an even polynomial in `s` and the remainder is the `atan`.
 ///
 /// @param perpendicular how far the lamp stands off the ray's line.
-/// @param from where the stretch starts, measured from the closest approach and signed.
-/// @param to where it ends, likewise.
+/// @param from where the stretch starts, measured from the closest approach and signed: inside the
+///        chord the reach cuts from the ray, because past the reach the window is exactly zero and
+///        the polynomial that stands for it there is not. The caller clips it (`lampsInAir`).
+/// @param to where it ends, likewise, and not before `from`: an empty stretch is nought exactly.
 float falloffAlong(float perpendicular, float from, float to, float reach, float source)
 {
-    // **Clipped to the chord and not merely evaluated over the stretch.** Past the reach the window
-    // is exactly zero, and the polynomial that stands for it there is not.
-    const float chord = reach * reach - perpendicular * perpendicular;
-    if (!(chord > 0.0))
-        return 0.0;
-
-    const float halfChord = sqrt(chord);
-    const float low = clamp(from, -halfChord, halfChord) / reach;
-    const float high = clamp(to, -halfChord, halfChord) / reach;
-    if (!(high > low))
-        return 0.0;
+    const float low = from / reach;
+    const float high = to / reach;
 
     // In units of the reach, where the chord runs from `bump` to one and the guard `falloff` keeps
     // against the singularity is this much of it.
@@ -666,18 +659,16 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 /// **The one ray**, aimed somewhere on the lamp. Asked only of a reservoir that holds one: both
 /// callers refuse an empty one before this, and most of the frame is empty.
 ///
-/// **It stops the clearance short of its own closest approach, and not of the centre.** Those are
-/// the same length only for the ray down the middle. Take the clearance off the distance to the
-/// centre and aim off-axis, and the ray runs *past* the source and into whatever fitting stands
-/// around it — a lantern's frame, a sconce's bracket, a candle's holder — which is the densest
-/// geometry anywhere near a lamp, and it comes back as fully shadowed. Taken against the closest
-/// approach instead, every sampled direction ends at least the clearance away from the source
-/// whatever angle it left at, and the grazing rays stop soonest of all.
+/// **It stops at its own closest approach to the lamp, less the clearance, and not at the centre.**
+/// Those are the same length only for the ray down the middle; aimed off-axis and stopped at the
+/// centre's distance, a ray runs *past* the source. A record's lamp keeps no clearance
+/// (`Rtx::makeLight` says why), so its ray runs to the flame, and what keeps a lantern's frame, a
+/// sconce's bracket or a candle's holder from shadowing it is the facing: the ray culls the faces
+/// turned toward where it left (`lampLightAsk`), and a fitting is met from outside. A fill keeps its
+/// ball as its clearance, inside which nothing casts a shadow (`Rtx::Glow::makeLight`).
 ///
-/// **The clearance and the size are two numbers because they answer two questions**, and reading one
-/// for both draws a black speckle over every lamp-lit wall in the game: aimed across the flame and
-/// stopped at the flame, half the rays a wall sends end among the fitting and charge the whole
-/// lamp to the pixel.
+/// **The clearance and the size are two numbers because they answer two questions**: how far short
+/// of the lamp nothing shadows it, and how wide the source a penumbra opens to.
 ///
 /// @param step the step off the triangle the reservoir's point stands on (`stepOf`), or nought for a
 ///        point in the air.
