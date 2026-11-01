@@ -35,6 +35,7 @@ namespace MWRender
         described.mSunLightPosition = sources.mSun.getPosition();
         described.mSunColour = sources.mSun.getDiffuse();
         described.mAmbientColour = sources.mSun.getAmbient();
+        described.mAmbientBeforeNightEye = sources.mAmbientBeforeNightEye;
         described.mNightEye = sources.mSun.getAmbient() - sources.mAmbientBeforeNightEye;
         described.mSunVisibility = mSunVisibility;
         described.mSkyShown = mSkyShown;

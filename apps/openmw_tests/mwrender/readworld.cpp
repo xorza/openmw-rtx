@@ -157,6 +157,32 @@ namespace MWRender
             EXPECT_EQ(air.mEdge, 0.0f);
         }
 
+        /// **Night-Eye leaves the ambient the world stated**, to the bit: it lifts the picture in the
+        /// tone pass and not the light the trace gathers. The ambient a weather states is `k / 255`,
+        /// and `16 / 255` lifted by 0.7 and the lift taken off again came back an ulp under it, which
+        /// decodes off the curve and not off the byte's table.
+        TEST(RtxReadWorldTest, nightEyeLeavesTheAmbientTheWorldStated)
+        {
+            const osg::Vec4f before(16.0f / 255.0f, 16.0f / 255.0f, 16.0f / 255.0f, 1.0f);
+            const osg::Vec4f lift(0.7f, 0.7f, 0.7f, 0.0f);
+
+            Standing plain = standingIn(Location::Exterior);
+            plain.mWorld.mAmbientBeforeNightEye = before;
+            plain.mWorld.mAmbientColour = before;
+
+            Standing lifted = plain;
+            lifted.mWorld.mAmbientColour = before + lift;
+            lifted.mWorld.mNightEye = lifted.mWorld.mAmbientColour - before;
+            ASSERT_NE(lifted.mWorld.mAmbientColour - lifted.mWorld.mNightEye, before)
+                << "the subtraction gives the ambient back here, so this shows nothing";
+
+            const Rtx::WorldReading without = readFrom(plain);
+            const Rtx::WorldReading with = readFrom(lifted);
+            EXPECT_EQ(with.mDaylight.mLight.mAmbient, without.mDaylight.mLight.mAmbient);
+            EXPECT_EQ(with.mNightEye, osg::Vec3f(0.7f, 0.7f, 0.7f));
+            EXPECT_EQ(without.mNightEye, osg::Vec3f());
+        }
+
         /// The disc stands where the orbit's direction puts it, bent toward the horizon by the
         /// rule both renderers share, and not where the light happens to point: `match sunlight
         /// to sun` may have left the light on the orbit, and the shadows have to fall from the disc.
