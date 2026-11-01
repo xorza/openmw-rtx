@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 #include <MyGUI_RenderFormat.h>
 #include <osg/Image>
@@ -65,8 +66,9 @@ namespace MyGUIRtx
         take(width, height);
 
         // Nothing at four channels: `lock` hands out the renderer's own bytes there, and this is
-        // only what a narrower format is widened out of.
-        if (elements != 4)
+        // only what a narrower format is widened out of. Nothing for a slot the renderer refused,
+        // which `lock` gives a buffer of its own.
+        if (elements != 4 && !getSlot().isNone())
             mPixels.assign(static_cast<std::size_t>(width) * height * elements, 0);
     }
 
@@ -92,12 +94,21 @@ namespace MyGUIRtx
 
     void* Texture::lock(MyGUI::TextureUsage /*access*/)
     {
-        if (getSlot().isNone())
+        if (mNumElemBytes == 0)
             throw std::runtime_error("Texture is not created");
         if (mLocked)
             throw std::runtime_error("Texture already locked");
 
         mLocked = true;
+
+        // **A slot the renderer refused draws as nothing** (`SlotTexture::take`), and MyGUI still
+        // fills the whole surface it locked, a font's atlas past the device's side among them: a
+        // buffer of its own for the one fill, dropped at the unlock.
+        if (getSlot().isNone())
+        {
+            mPixels.assign(static_cast<std::size_t>(getWidth()) * getHeight() * mNumElemBytes, 0);
+            return mPixels.data();
+        }
 
         return mNumElemBytes == 4 ? mRenderer.lendGuiTexture(getSlot(), whole()).data() : mPixels.data();
     }
@@ -109,7 +120,9 @@ namespace MyGUIRtx
 
         mLocked = false;
 
-        if (mNumElemBytes == 4)
+        if (getSlot().isNone())
+            std::vector<std::uint8_t>().swap(mPixels);
+        else if (mNumElemBytes == 4)
             mRenderer.sendGuiTexture(getSlot());
         else
             widen();

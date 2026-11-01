@@ -70,7 +70,8 @@ namespace MyGUIRtx
         MyGUI::TextureUsage mUsage = MyGUI::TextureUsage::Default;
         std::size_t mNumElemBytes = 0;
 
-        /// What MyGUI fills at fewer than four channels, and empty at four.
+        /// What MyGUI fills at fewer than four channels, and empty at four; and for a slot the
+        /// renderer refused, what one lock fills, at any count.
         std::vector<std::uint8_t> mPixels;
         bool mLocked = false;
     };
