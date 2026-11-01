@@ -46,6 +46,22 @@ namespace Rtx
     /// host-written tables need. Nought where no type has what is asked.
     std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, VkMemoryPropertyFlags required);
 
+    /// Where content — every structure and every texture — is placed: the types `memoryTypesFor`
+    /// names for video memory alone, each a pool of its own, and the heap the first stands on,
+    /// whose budget content's room is measured against.
+    ///
+    /// **Every such type, and not the first**: the library places each resource in whichever of
+    /// them its requirements allow, and RADV lists a second that buffers alone take, so a structure
+    /// and a texture stand in two pools.
+    struct ContentTypes
+    {
+        std::uint32_t mTypes = 0;
+        std::uint32_t mHeap = 0;
+    };
+
+    /// `ContentTypes` of a device. Throws `Unsupported` where no type is video memory alone.
+    ContentTypes contentTypesOf(const VkPhysicalDeviceMemoryProperties& memory);
+
     /// What a range of memory is for, which says what becomes of the content where the device has
     /// no room for it — and so the order the room is given in. Each use stops where every use
     /// before it could be made again: the running mode's targets, and everything else essential
@@ -234,7 +250,7 @@ namespace Rtx
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }
 
         /// The heap video memory is taken out of, whose room `getRoom` measures.
-        std::uint32_t getVideoHeap() const { return mVideoHeap; }
+        std::uint32_t getVideoHeap() const { return mContent.mHeap; }
 
         /// Holds every heap to `bytes` where the driver states more, or to the driver's word where
         /// nothing: for a run that asks what a smaller card does, and for a test that drives
@@ -308,11 +324,10 @@ namespace Rtx
         /// what it asked for itself.
         bool mBudget = false;
 
-        /// The type video memory is taken out of, and its heap, which is the one a use's room is
+        /// The types content is taken out of, and their heap, which is the one a use's room is
         /// measured on. Ahead of the library's allocator, because a device with none is refused
         /// before anything is made on it.
-        std::uint32_t mVideoType = 0;
-        std::uint32_t mVideoHeap = 0;
+        ContentTypes mContent;
 
         /// The library's allocator and content's pools over it, which its destructor ends pools
         /// first and the allocator last: a member, so whatever throws after the allocator was made

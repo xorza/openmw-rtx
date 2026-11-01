@@ -6,6 +6,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/cardmemory.hpp>
+#include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 namespace Rtx
@@ -72,6 +73,37 @@ namespace Rtx
             VkPhysicalDeviceMemoryProperties none = Testing::turingMemory();
             none.memoryTypeCount = 2;
             EXPECT_EQ(memoryTypesFor(none, sReadBack), 0u) << "no type has what is asked";
+        }
+
+        /// **Content is every type that is video memory alone, and the heap they stand on**: one
+        /// type on NVIDIA's cards, and on RADV two, the second taking buffers alone, so a structure
+        /// and a texture stand in two pools and the room is the free space of both. A device with
+        /// no such type is one the renderer cannot run on.
+        TEST(RtxMemoryTypesTest, contentIsEveryTypeThatIsVideoMemoryAloneOnItsHeap)
+        {
+            const struct
+            {
+                const char* mCard;
+                VkPhysicalDeviceMemoryProperties mMemory;
+                std::uint32_t mTypes;
+            } cards[] = {
+                { "Turing", Testing::turingMemory(), 1u << 1 },
+                { "Ada", Testing::adaMemory(), 1u << 1 },
+                { "RDNA 2", Testing::rdna2Memory(), (1u << 0) | (1u << 1) },
+            };
+            for (const auto& card : cards)
+            {
+                const ContentTypes content = contentTypesOf(card.mMemory);
+                EXPECT_EQ(content.mTypes, card.mTypes) << card.mCard;
+                EXPECT_EQ(content.mHeap, 0u) << card.mCard;
+            }
+
+            VkPhysicalDeviceMemoryProperties shared{};
+            shared.memoryHeapCount = 1;
+            shared.memoryHeaps[0] = VkMemoryHeap{ 8589934592ull, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT };
+            shared.memoryTypeCount = 1;
+            shared.memoryTypes[0] = VkMemoryType{ sStaging, 0 };
+            EXPECT_THROW(contentTypesOf(shared), Unsupported) << "no type is video memory";
         }
     }
 }

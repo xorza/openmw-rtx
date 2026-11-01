@@ -49,18 +49,6 @@ Accepted diff does not list.
 Batches in order of impact. Each leaves the build and the tests green. Whoever addresses an item
 deletes it.
 
-### 1. The device's free room — `components/rtxvulkan/device/memory/memory.{hpp,cpp}`, `texture/texture.cpp`
-
-- [ ] `memory.cpp:427-441` `MemoryAllocator::getRoom` reads `vmaGetPoolStatistics` of
-  `poolOf(mVideoType)` alone, while the constructor (`:205-208`) makes a pool for every
-  device-local-only type and `tryAllocate` (`:337`) places each resource by
-  `vmaFindMemoryTypeIndex`. Free bytes in the other pools' blocks never count, so
-  `TextureArray::write` (`texture.cpp:489`, `chooseSide`) stands textures smaller than the room
-  allows, and `report()`'s `mStructureRoom` and `mTextureRoom` (`:546-548`) are low the same way.
-  Target: sum `blockBytes - allocationBytes` over every pool whose type stands on `mVideoHeap`;
-  correct `videoTypeOf`'s doc, which states the one-pool assumption. Test: a device of two such
-  types, or the allocator's statistics fed through a seam.
-
 ### 2. Reservations from their bounds — `components/rtx/scene/{scenedesc.cpp,sceneroom.hpp,texturetable.hpp,deformertable.hpp}`, `mirror/sceneextractor.hpp`, `mirror/cells/held.cpp`, `apps/components_tests/rtx/scene/scenedesc.cpp`
 
 - [ ] `scenedesc.cpp:32-39` `SceneDesc(const SceneRoom&)` reserves meshes, materials, deformers
