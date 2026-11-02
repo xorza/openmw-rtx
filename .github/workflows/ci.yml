@@ -94,7 +94,10 @@ jobs:
 
   build:
     # One leg per toolchain and sanitizer, each reporting under its own name, which the ruleset
-    # requires.
+    # requires. **A leg is named `<system>-<what sets it apart>`**: the compiler, or the sanitizer
+    # over the system's own. The name is also the compiler cache's key, and no key may begin another:
+    # the cache action restores the newest cache whose name begins with the key, so upstream's
+    # `Ubuntu_GCC_asan` would be `linux-gcc-asan` here and take `linux-gcc`'s.
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -106,27 +109,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: linux
+          - name: linux-gcc
             os: ubuntu-24.04
             flavour: full
-            # No key may begin another: the cache action restores the newest cache whose name begins
-            # with the key, so `linux` would take `linux-clang`'s.
-            ccache: linux-gcc
             ccache-size: 2000M
             tested: true
           - name: linux-clang
             os: ubuntu-24.04
             flavour: full
-            ccache: linux-clang
             ccache-size: 1000M
             # Compiled and not run, for Clang's warnings.
             tested: false
             cc: clang
             cxx: clang++
-          - name: windows
+          - name: windows-msvc
             os: windows-2025
             flavour: full
-            ccache: windows-msvc
             # Three gigabytes: at two, every program's objects, SDL's own among them, filled the cache
             # and a run hit nothing.
             ccache-size: 3000M
@@ -141,7 +139,6 @@ jobs:
             os: ubuntu-24.04
             flavour: asan
             build-flags: --without-device
-            ccache: sanitizers-asan
             # Two gigabytes: at one, the sanitized objects of every suite filled the cache and evicted
             # 335 times over a run.
             ccache-size: 2000M
@@ -150,7 +147,6 @@ jobs:
             os: ubuntu-24.04
             flavour: tsan
             build-flags: --without-device
-            ccache: sanitizers-tsan
             ccache-size: 2000M
             tested: true
     defaults:
@@ -172,7 +168,7 @@ jobs:
       - uses: $/.github/actions/openmw-deps
         with:
           cache: ${{ env.CI_CACHE }}
-          ccache-key: ${{ matrix.ccache }}
+          ccache-key: ${{ matrix.name }}
           ccache-size: ${{ matrix.ccache-size }}
 
       - name: Build
@@ -220,7 +216,7 @@ jobs:
           more: build-${{ matrix.flavour }}/integration_tests_output/**/*.cfg
 
   macos:
-    name: macos
+    name: macos-clang
     runs-on: macos-26
     permissions:
       contents: read
@@ -235,12 +231,12 @@ jobs:
       - name: Dependencies
         run: CI/before_install.macos.sh
 
-      # Its own, as macOS takes nothing of `openmw-deps`; saved on master alone, for the reason that
-      # action gives.
+      # Its own, as macOS takes nothing of `openmw-deps`, keyed by the job's name as the build legs'
+      # are; saved on master alone, for the reason that action gives.
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         if: env.CI_CACHE == 'true'
         with:
-          key: macos
+          key: macos-clang
           max-size: 1000M
           save: ${{ github.ref == 'refs/heads/master' }}
 

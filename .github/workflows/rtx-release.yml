@@ -43,11 +43,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: package-linux
+          - name: linux-package
             os: ubuntu-24.04
             # An AppImage is compressed already; the Windows folder is not.
             compression: 0
-          - name: package-windows
+          - name: windows-package
             os: windows-2025
             compression: 6
     defaults:
@@ -76,7 +76,7 @@ jobs:
         # which is the only zip a run's page offers.
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: openmw-${{ env.ARCHIVE_NAME }}-${{ matrix.os }}
+          name: openmw-${{ env.ARCHIVE_NAME }}-${{ matrix.name }}
           path: dist
           if-no-files-found: error
           compression-level: ${{ matrix.compression }}
