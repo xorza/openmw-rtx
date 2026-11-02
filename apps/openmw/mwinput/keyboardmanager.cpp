@@ -39,7 +39,12 @@ namespace MWInput
         if (mBindingsManager->getKeyBinding(A_Console) == arg.scancode
             // HACK: allow upper case variant of console keybinding.
             && (arg.mod & SDL_KMOD_SHIFT) == 0 && MWBase::Environment::get().getWindowManager()->isConsoleMode())
+        {
             SDL_StopTextInput(mWindow);
+            // SDL3's stop keeps the text events already queued, where SDL2's flushed them, and the
+            // key's own character would reach the console as it closes.
+            SDL_FlushEvent(SDL_EVENT_TEXT_INPUT);
+        }
 
         bool consumed = SDL_TextInputActive(mWindow) && // Little trick to check if key is printable
             (!(SDLK_SCANCODE_MASK & arg.key) &&
