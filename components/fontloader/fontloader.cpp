@@ -18,6 +18,7 @@
 #include <osgDB/WriteFile>
 
 #include <MyGUI_FactoryManager.h>
+#include <MyGUI_FontData.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_ResourceManager.h>
 #include <MyGUI_ResourceManualFont.h>
@@ -747,6 +748,13 @@ namespace Gui
         // more after the load as well, because the load's build leaves a glyph for each code point
         // the face lacks, which every later build gives the font's substitute instead: one way, so
         // a font reads the same before a fit and after it.
+        //
+        // **Less the code points MyGUI's own glyphs went in under**: the build adds the tab, the
+        // two selections, the cursor and the missing glyph's to the code points it then keeps, and
+        // a build that finds them there makes each of the face, the face's box for a glyph it lacks,
+        // which a glyph table never replaces.
+        face.mFont->removeCodePointRange(MyGUI::FontCodeType::Tab, MyGUI::FontCodeType::Tab);
+        face.mFont->removeCodePointRange(MyGUI::FontCodeType::Selected, MyGUI::FontCodeType::NotDefined);
         face.mFont->textureInvalidate(face.mFont->getTextureFont());
     }
 

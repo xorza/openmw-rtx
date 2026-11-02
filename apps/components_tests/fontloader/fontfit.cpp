@@ -1,5 +1,6 @@
 #include <array>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <string_view>
 
@@ -179,6 +180,41 @@ namespace Gui
             gui.getFonts().fit(
                 FontFit{ .mRaster = 1.0f, .mView = MyGUI::IntSize(2, 2), .mFontSize = gui.getFonts().getFontSize() });
             EXPECT_TRUE(rasterOf(fontNamed("Journalbook DefaultFont")) == onePixel);
+        }
+
+        /// **The glyphs MyGUI makes of no face are its own at the load and after every fit**: the
+        /// cursor a bar `ResourceTrueTypeFont::mCursorWidth`, 2 pixels, wide and the font's height
+        /// high, the selection's of no width, so a run of it shows no seam, and the tab the 8 pixels
+        /// each definition states. A build reads the code points the last build left, these among
+        /// them, and would give each the face's box for a glyph it lacks: the console's cursor.
+        TEST(FontFitTest, theGlyphsMyGuiMakesOfNoFaceAreItsOwnAtTheLoadAndAfterEveryFit)
+        {
+            const auto expectOwnGlyphs = [](std::string_view when) {
+                for (const std::string_view name : sFonts)
+                {
+                    MyGUI::IFont& font = fontNamed(name);
+                    const MyGUI::GlyphInfo& cursor = *font.getGlyphInfo(MyGUI::FontCodeType::Cursor);
+                    EXPECT_EQ(cursor.codePoint, MyGUI::FontCodeType::Cursor) << name << when;
+                    EXPECT_EQ(cursor.width, 2.0f) << name << when;
+                    EXPECT_EQ(cursor.height, static_cast<float>(font.getDefaultHeight())) << name << when;
+                    for (const MyGUI::Char selection :
+                        { MyGUI::FontCodeType::Selected, MyGUI::FontCodeType::SelectedBack })
+                    {
+                        const MyGUI::GlyphInfo& selected = *font.getGlyphInfo(selection);
+                        EXPECT_EQ(selected.codePoint, selection) << name << when;
+                        EXPECT_EQ(selected.width, 0.0f) << name << when;
+                    }
+                    const MyGUI::GlyphInfo& tab = *font.getGlyphInfo(MyGUI::FontCodeType::Tab);
+                    EXPECT_EQ(tab.codePoint, MyGUI::FontCodeType::Tab) << name << when;
+                    EXPECT_EQ(tab.advance, 8.0f) << name << when;
+                }
+            };
+
+            Rtx::Testing::GuiInstance gui({ .mScale = 1.0f });
+            expectOwnGlyphs(" at the load");
+            gui.getFonts().fit(FontFit{
+                .mRaster = 2.0f, .mView = MyGUI::IntSize(512, 384), .mFontSize = gui.getFonts().getFontSize() });
+            expectOwnGlyphs(" after a fit");
         }
 
         /// **A font whose file is missing is logged and left out, and the load goes on**: what a mod's
