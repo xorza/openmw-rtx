@@ -292,7 +292,7 @@ jobs:
 
       # Pinned to a commit like every other action here. This one ships most days, so the
       # version beside it is what says how old the pin has grown.
-      - uses: anthropics/claude-code-action@925afb53776cf1a2b738c6bdbed37b4d4000ef13 # v1.0.262
+      - uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
         id: agent
         env:
           # **Every credential out of every command the agent runs.** The scrub leaves GitHub tokens

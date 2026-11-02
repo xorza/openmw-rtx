@@ -4,14 +4,14 @@
 # under a renderer nobody has installed before should be rather than an installer that registers
 # itself where a stock OpenMW would — and puts both on a draft release, each with the Breakpad
 # symbols `omw crash` reads a player's dump against, to be read before it is published. Beside the
-# packaging, the commit the tag names is built and tested by the whole of `ci.yml` and again under the
-# sanitizers (`sanitizers.yml`), and a failure of either leaves no release. **Run here, and not taken
-# on trust**: a tag can name any commit, one CI never ran on or one it failed, and a merge that
-# auto-merge landed was checked on its pull request's merge ref, not on the commit master holds.
+# packaging, the commit the tag names is built and tested by the whole of `ci.yml`, and a failure of
+# any of its jobs leaves no release. **Run here, and not taken on trust**: a tag can name any commit,
+# one CI never ran on or one it failed, and a merge that auto-merge landed was checked on its pull
+# request's merge ref, not on the commit master holds. The packaging runs here alone, so a commit
+# that breaks it shows at the next release.
 #
 # The packaging can be tried without a tag: run this by hand, and the archives and the symbols come
-# back as artifacts, in the one zip GitHub wraps around each. `daily.yml` does that every day, with
-# its caches, and keeps nothing.
+# back as artifacts, in the one zip GitHub wraps around each.
 name: Release
 
 on:
@@ -30,29 +30,63 @@ jobs:
     with:
       cache: false
 
-  sanitizers:
-    uses: $/.github/workflows/sanitizers.yml
-    permissions:
-      contents: read
-    with:
-      cache: false
-
   package:
-    # **No cache of any kind**: what a release ships is built from what this run fetched and
-    # checked, and not from objects another run left where this one reads them.
-    uses: $/.github/workflows/package.yml
+    # `omw archive` of the `package` flavour on both systems, kept as the run's artifacts. **No cache
+    # of any kind**: what a release ships is built from what this run fetched and checked, and not
+    # from objects another run left where this one reads them.
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    with:
-      cache: false
-      keep: true
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: package-linux
+            os: ubuntu-24.04
+            # An AppImage is compressed already; the Windows folder is not.
+            compression: 0
+          - name: package-windows
+            os: windows-2025
+            compression: 6
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/openmw-deps
+        with:
+          cache: false
+
+      - name: Name
+        # After the ref, so a tag names its archives and a run by hand the branch: once, for the
+        # archives and the artifact both, with what a ref may hold and a file may not — a `/` above
+        # all, which `upload-artifact` refuses at the end of the build — as a `-`.
+        run: echo "ARCHIVE_NAME=${GITHUB_REF_NAME//[\/\"<>|]/-}" >> "$GITHUB_ENV"
+
+      - name: Package
+        run: python omw archive "$ARCHIVE_NAME"
+
+      - name: Archive
+        # `dist` whole, so the folder keeps its name inside the zip GitHub wraps around the artifact,
+        # which is the only zip a run's page offers.
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: openmw-${{ env.ARCHIVE_NAME }}-${{ matrix.os }}
+          path: dist
+          if-no-files-found: error
+          compression-level: ${{ matrix.compression }}
 
   release:
     # A draft, with both archives and their symbols, on the tag that was pushed. Only this job can
-    # write, and it runs on nothing but a release tag; a leg that failed, CI's and the sanitizers'
-    # included, leaves no release at all.
+    # write, and it runs on nothing but a release tag; a leg that failed, CI's included, leaves no
+    # release at all.
     if: startsWith(github.ref, 'refs/tags/rtx-v')
-    needs: [ci, sanitizers, package]
+    needs: [ci, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

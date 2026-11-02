@@ -74,7 +74,8 @@ runs:
         max-size: ${{ inputs.ccache-size }}
         # Saved on master alone, and read by every other ref: a branch's own copies would evict
         # master's. Each run saves a new copy and keeps the old ones, which the repository's cache
-        # limit evicts, the least recently used first. **That limit stays at GitHub's free 10 GB**:
-        # storage past it is billed, and once the budget ran out on 2026-10-13, every cache was
-        # read-only and no save took for two weeks.
+        # limit evicts, the least recently used first. **That limit is 20 GB**: the newest caches of
+        # every leg take about 11 GB, and a run saves its new copies before the old ones go.
+        # Storage past GitHub's free 10 GB is billed, and once the budget ran out on 2026-10-13, every
+        # cache was read-only and no save took for two weeks.
         save: ${{ github.ref == 'refs/heads/master' }}
