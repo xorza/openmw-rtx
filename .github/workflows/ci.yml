@@ -1,17 +1,19 @@
-# All of the fork's CI, through the same `omw` driver the desk uses.
+# All of the fork's CI, on every push and every pull request, through the same `omw` driver the desk
+# uses. A release runs it whole again on the commit its tag names, beside the packaging
+# (`rtx-release.yml`).
 #
 # `omw full` builds every program and runs every suite: on Ubuntu with GCC, with Clang (built, not
 # run), and on Windows with MSVC. macOS is compiled only: no device there traces rays, and `hdiutil`
 # fails on the runner's own "Resource busy". Upstream's GitLab checks run here too: the source checks,
-# warnings as errors, and its integration tests over the ray tracer's null backend. No hosted runner
-# has a GPU, so `rtx-gpu-tests` is left out and the gate stays on a box with a card.
+# warnings as errors, its sanitizers, and its integration tests over the ray tracer's null backend. No
+# hosted runner has a GPU, so `rtx-gpu-tests` is left out and the gate stays on a box with a card.
 #
 # **Each system on its newest image, Linux apart**: Ubuntu 24.04 is the base the AppImage is built on,
 # and an AppImage runs on no system older than its own, so CI tests the base the package ships from.
 #
-# **Job names are the `master` ruleset's required checks**, the build legs' by their `name` in the
-# matrix: rename one and the ruleset waits for a check that never reports. Actions are pinned to a
-# commit, the token only reads, and a newer push cancels the run it supersedes.
+# **Job names are the `master` ruleset's required checks**, the matrix legs' by their `name`: rename
+# one and the ruleset waits for a check that never reports. Actions are pinned to a commit, the token
+# only reads, and a newer push cancels the run it supersedes.
 name: CI
 
 on:
@@ -19,7 +21,6 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
-  # A release runs the whole of CI again on the commit its tag names (`rtx-release.yml`).
   workflow_call:
     inputs:
       cache:
@@ -92,19 +93,22 @@ jobs:
         run: python omw lint workflows
 
   build:
-    # One leg per toolchain, each reporting under its own name, which the ruleset requires.
+    # One leg per toolchain and sanitizer, each reporting under its own name, which the ruleset
+    # requires.
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    # A cold build is an hour and a half, which is what a release, with no cache, always has.
     timeout-minutes: 180
-    # Each toolchain finds what the others cannot, so one failing says nothing about the others.
+    # Each leg finds what the others cannot, so one failing says nothing about the others.
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: linux
             os: ubuntu-24.04
+            flavour: full
             # No key may begin another: the cache action restores the newest cache whose name begins
             # with the key, so `linux` would take `linux-clang`'s.
             ccache: linux-gcc
@@ -112,6 +116,7 @@ jobs:
             tested: true
           - name: linux-clang
             os: ubuntu-24.04
+            flavour: full
             ccache: linux-clang
             ccache-size: 1000M
             # Compiled and not run, for Clang's warnings.
@@ -120,10 +125,33 @@ jobs:
             cxx: clang++
           - name: windows
             os: windows-2025
+            flavour: full
             ccache: windows-msvc
             # Three gigabytes: at two, every program's objects, SDL's own among them, filled the cache
             # and a run hit nothing.
             ccache-size: 3000M
+            tested: true
+          # **The sanitizers are upstream's**, AddressSanitizer and UndefinedBehaviorSanitizer over
+          # its suites and the fork's, with a finding a failure. **And ThreadSanitizer beside them**,
+          # for the threads the fork keeps — the cell reader, the workers, the harness's instruments —
+          # in a build of its own, because it cannot share one with AddressSanitizer. Linux alone,
+          # because both flavours are. The GPU binary is not built: under a sanitizer, it would never
+          # start here.
+          - name: linux-asan
+            os: ubuntu-24.04
+            flavour: asan
+            build-flags: --without-device
+            ccache: sanitizers-asan
+            # Two gigabytes: at one, the sanitized objects of every suite filled the cache and evicted
+            # 335 times over a run.
+            ccache-size: 2000M
+            tested: true
+          - name: linux-tsan
+            os: ubuntu-24.04
+            flavour: tsan
+            build-flags: --without-device
+            ccache: sanitizers-tsan
+            ccache-size: 2000M
             tested: true
     defaults:
       run:
@@ -133,6 +161,9 @@ jobs:
       # Empty on the legs that take the system's compiler, which CMake reads as unset.
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
+      # Read by the steps from the environment, never spliced into their scripts.
+      FLAVOUR: ${{ matrix.flavour }}
+      BUILD_FLAGS: ${{ matrix.build-flags }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -144,15 +175,17 @@ jobs:
           ccache-key: ${{ matrix.ccache }}
           ccache-size: ${{ matrix.ccache-size }}
 
-      - name: Build every program
-        run: python omw full build
+      - name: Build
+        # Unquoted, so an empty set of flags passes no argument.
+        run: python omw "$FLAVOUR" build $BUILD_FLAGS
 
       - name: Test
+        # Shuffled, as every suite is: the test preset sets `GTEST_SHUFFLE`.
         if: matrix.tested
-        run: python omw full test --without-device
+        run: python omw "$FLAVOUR" test --without-device
 
       - name: Benchmarks, run once each as upstream runs them
-        if: matrix.tested
+        if: matrix.tested && matrix.flavour == 'full'
         working-directory: build-full
         # Without `.exe`, which Git Bash finds on its own.
         run: |
@@ -161,7 +194,7 @@ jobs:
           ./openmw_settings_access_benchmark
 
       - name: Install
-        if: matrix.tested
+        if: matrix.tested && matrix.flavour == 'full'
         run: cmake --install build-full --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
@@ -170,7 +203,7 @@ jobs:
         # in a window of SDL's offscreen driver, which needs no display. Their logs are under the
         # build, which the logs step keeps. A pass takes about a minute, and the limit ends a run
         # that hangs.
-        if: matrix.tested && runner.os == 'Linux'
+        if: matrix.tested && matrix.flavour == 'full' && runner.os == 'Linux'
         timeout-minutes: 10
         env:
           OPENMW_RTX_BACKEND: "null"
@@ -182,9 +215,9 @@ jobs:
         uses: $/.github/actions/logs
         with:
           name: logs-${{ matrix.name }}-${{ github.sha }}
-          build: build-full
+          build: build-${{ matrix.flavour }}
           # The settings each integration suite ran under, beside its log, which the build's keeps.
-          more: build-full/integration_tests_output/**/*.cfg
+          more: build-${{ matrix.flavour }}/integration_tests_output/**/*.cfg
 
   macos:
     name: macos
