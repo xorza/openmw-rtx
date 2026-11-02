@@ -31,10 +31,11 @@ namespace Rtx
         Air,
         Column,
 
-        /// The trace's stages, a zone each (`VisibilityPass::record`): the visibility stage's eye,
-        /// peel and water walk, then the solid's direct light, the shafts in the water, the layers,
-        /// the bounce and its landing.
+        /// The trace's stages, a zone each (`VisibilityPass::record`): the visibility stage's eye and
+        /// peel, the water's walk, then the solid's direct light, the shafts in the water, the
+        /// layers, the bounce and its landing.
         Trace,
+        Water,
         Direct,
         Media,
         Panes,
@@ -93,6 +94,7 @@ namespace Rtx
         std::pair{ FrameZone::Air, std::string_view("air") },
         std::pair{ FrameZone::Column, std::string_view("column") },
         std::pair{ FrameZone::Trace, std::string_view("trace") },
+        std::pair{ FrameZone::Water, std::string_view("water") },
         std::pair{ FrameZone::Direct, std::string_view("direct") },
         std::pair{ FrameZone::Media, std::string_view("media") },
         std::pair{ FrameZone::Panes, std::string_view("panes") },

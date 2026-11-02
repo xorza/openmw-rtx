@@ -60,7 +60,8 @@ namespace Rtx
     {
         auto at = std::lower_bound(mMoved.begin(), mMoved.end(), refnum,
             [](const Moved& known, ESM::RefNum asked) { return known.mRefNum < asked; });
-        if (at == mMoved.end() || at->mRefNum != refnum)
+        const bool known = at != mMoved.end() && at->mRefNum == refnum;
+        if (!known)
             at = mMoved.insert(at, Moved{ .mRefNum = refnum, .mTransform = {}, .mAway = away, .mHome = std::nullopt });
         at->mTransform = transformOf(place);
         at->mAway = away;
@@ -75,6 +76,11 @@ namespace Rtx
             return;
         }
 
+        // **And no cell, once searched**: a reference no held cell holds — an actor the scene
+        // graph mirrors, which the physics moves on every frame — was searched for in every cell
+        // held on each move. A cell held after the search looks for it as it is held (`adoptPlacements`).
+        if (known)
+            return;
         for (HeldCell& held : mCells)
             if (standAt(held, refnum, &at->mTransform, away))
                 at->mHome = held.mCell;

@@ -483,9 +483,9 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   spill is a cost measured and cut where it shows in the frame, as NVIDIA cut Indiana Jones' path
   tracer's; held at nought, it kept the gate red until a redesign and hid a new regression behind
   the old failure.
-- **A stage a kernel, in one fixed order, the channels between them**: `visibility`, `direct`,
-  `media`, `panes`, `bounce`, `landing`, then the composite, one memory barrier between each. A
-  stage that covers every pixel writes a channel first; one dispatched over some tiles adds to it;
+- **A stage a kernel, in one fixed order, the channels between them**: `visibility`, `water`,
+  `direct`, `media`, `panes`, `bounce`, `landing`, then the composite, one memory barrier between
+  each. A stage that covers every pixel writes a channel first; one dispatched over some tiles adds to it;
   the direct channel is a sum of each stage's term times the throughput `visibility` stores
   (`rgba32f`, the layers' share in its fourth). Quake II RTX traces its stages as passes
   (`path_tracer.c`), and Laine, Karras and Aila (2013) name the cost of the alternative: one kernel
@@ -500,6 +500,9 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   (`path_tracer_rgen.h`). `visibility` peels one ray a turn and leaves with the hit, shading after
   the loop, and `panes` lights each layer and marches its column in loops of their own: a 480x270
   frame at Seyda Neen went from 412 ms to under 46 (`research/2026-10-21-amd-integrated-stage-times.md`).
+  `media` takes the eye's ray, its column, the water's walk to its leg and the leg's march a loop
+  each, the march keeping of the walk only the share its leg is weighed by: 256 registers and 37
+  spilled scalars to 192 and none on the handheld, its zone 3.06 to 2.52 ms at `seyda-neen-ship`.
   Refused: one loop over every walk, whose union of records spilled; the records trimmed inside it,
   which moved the spill by under 300 bytes of 2 304.
 - **A stage whose rays wait on no other's answer works out its light before the first one**
@@ -521,6 +524,18 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   (`research/2026-10-21-nvidia-stage-costs.md`). Refused: the visit in the bounce's own loop; the
   landing over every pixel, 1.15 ms, whose warps waited out the visit for the lanes whose bounce
   escaped.
+- **The sea's walk, a stage of its own, over the tiles where the eye met the sea**
+  (`visibility.comp`, `WATER_STAGE`): the trace leaves such a pixel pending, its hit stored as the
+  solid's and its peel's state in the record, and lists its tile; `water` takes each pending peel
+  up from there and walks the water, then lists the tile for `media` and `panes` off every pixel's
+  record. One module, two kernels: the walk, compiled out of the trace, had held its registers for
+  every pixel, 192 on the handheld's RADV and 234–247 on the integrated GPU's driver against 128 and 112–128
+  without the sea. At `seyda-neen-ship` and its dawn, the trace and the water together took 11.9
+  and 12.0 ms of the handheld's 15.9 and 16.0, the frame 4.2 % and 3.8 % less, and 14.7 and 16.7 ms of
+  the integrated GPU's 22.3 and 25.5, the frame 5.3 % and 7.0 % less; the desk's frame did not move past its
+  noise, and no picture moved (`research/2026-11-02-water-stage.md`). Refused: the peel traced
+  again in `water`, which cost it a fifth more and the desk's frame 0.7 %; the split on AMD alone,
+  two builds of one kernel, which every stage refuses.
 - **The surface a pixel is the hit the trace stored**, resolved again by a stage with no traversal
   (`storeStageSolid`, `storedSolidOf`): the instance, the triangle and the barycentrics, with the
   ray's start, direction, footprint and distance, 48 bytes, as Falcor's visibility buffer keeps a

@@ -192,13 +192,16 @@ namespace Rtx
         /// **The trace's stages in the order a frame runs them**, a row at each stage's `Kernel`
         /// (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed order"), every one a dispatch
         /// and not a launch, since every ray it casts is a ray query (`visibility.comp`). The trace
-        /// over every pixel, which lists the tiles the shafts and the layers stand in; the solid's
-        /// direct light; the sun's shafts through the water, over their tiles, where `hasMedia`; the
-        /// layers laid over that light, over theirs; the bounce, which lists the pixels whose bounce
-        /// landed; and its landing, over that list — the pair once for each of the frame's bounce rays,
-        /// each landing over its ray's list (`landingDispatch`).
-        constexpr std::array<Stage, 6> sTraceStages{ {
+        /// over every pixel, which lists the tiles the shafts and the layers stand in, and those where
+        /// the eye met the sea; the water's walk over those, where there is a sea, which lists them
+        /// for the shafts and the layers in turn; the solid's direct light; the sun's shafts through
+        /// the water, over their tiles, where `hasMedia`; the layers laid over that light, over
+        /// theirs; the bounce, which lists the pixels whose bounce landed; and its landing, over that
+        /// list — the pair once for each of the frame's bounce rays, each landing over its ray's list
+        /// (`landingDispatch`).
+        constexpr std::array<Stage, 7> sTraceStages{ {
             { "visibility.comp.spv", "visibility", FrameZone::Trace, std::nullopt },
+            { "visibility.comp.spv", "water", FrameZone::Water, Shaders::STAGE_LIST_WATER },
             { "direct.comp.spv", "direct", FrameZone::Direct, std::nullopt },
             { "media.comp.spv", "media", FrameZone::Media, Shaders::STAGE_LIST_MEDIA },
             { "panes.comp.spv", "panes", FrameZone::Panes, Shaders::STAGE_LIST_PANES },
@@ -340,7 +343,7 @@ namespace Rtx
 
                                 const std::size_t first = kernels.size();
                                 for (std::size_t stage = 0; stage < sStageCount; ++stage)
-                                    if (static_cast<Kernel>(stage) != Kernel::Media || hasMedia(tuple))
+                                    if (runsStage(static_cast<Kernel>(stage), tuple))
                                         kernels.push_back(
                                             Wanted{ .mKernel = static_cast<Kernel>(stage), .mVariant = tuple });
                                 if (!tuple.mMaps)
@@ -382,10 +385,12 @@ namespace Rtx
         specialization[Shaders::SPEC_HAS_MOONS] = variant.mMoons ? 1u : 0u;
         specialization[Shaders::SPEC_HAS_SEA] = variant.mSea ? 1u : 0u;
         specialization[Shaders::SPEC_HAS_MAPS] = variant.mMaps ? 1u : 0u;
+        specialization[Shaders::SPEC_WATER_STAGE] = wanted.mKernel == Kernel::Water ? 1u : 0u;
 
         switch (wanted.mKernel)
         {
             case Kernel::Visibility:
+            case Kernel::Water:
             case Kernel::Direct:
             case Kernel::Media:
             case Kernel::Panes:
@@ -511,6 +516,32 @@ namespace Rtx
     bool VisibilityPass::hasMedia(const VisibilityVariant variant)
     {
         return variant.mSun && variant.mSea;
+    }
+
+    bool VisibilityPass::runsStage(const Kernel stage, const VisibilityVariant variant)
+    {
+        switch (stage)
+        {
+            case Kernel::Visibility:
+            case Kernel::Direct:
+            case Kernel::Panes:
+            case Kernel::Bounce:
+            case Kernel::Landing:
+                return true;
+            case Kernel::Water:
+                return variant.mSea;
+            case Kernel::Media:
+                return hasMedia(variant);
+            case Kernel::Scatter:
+            case Kernel::Depth:
+            case Kernel::Integrate:
+            case Kernel::SpriteComposite:
+            case Kernel::SpriteShelter:
+            case Kernel::SpriteEmitters:
+                break;
+        }
+        assert(false && "a kernel asked of that is no trace stage");
+        return false;
     }
 
     const TracePipeline<NoConstants>& VisibilityPass::scatterPipelineFor(VisibilityVariant variant) const
@@ -763,7 +794,7 @@ namespace Rtx
         };
 
         for (std::size_t at = 0; at < static_cast<std::size_t>(Kernel::Bounce); ++at)
-            if (static_cast<Kernel>(at) != Kernel::Media || hasMedia(variant))
+            if (runsStage(static_cast<Kernel>(at), variant))
                 recordStage(at, 0);
         for (std::uint32_t ray = 0; ray < constants.mBounceRays; ++ray)
         {

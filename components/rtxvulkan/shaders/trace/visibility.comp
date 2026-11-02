@@ -18,6 +18,13 @@
 // **What is here is what belongs to the path rather than to the surface**: the layers the eye
 // looks through, the column of water in front of them, the air, the cloud shells, and the
 // channels.
+//
+// **Two stages of one module** (`WATER_STAGE`): the trace over every pixel, which leaves a pixel
+// whose eye met the sea pending and lists its tile (`STAGE_LIST_WATER`), and the water's stage over
+// those tiles, which takes each pending pixel's peel up where the trace stored it and walks its
+// water. **So the walk holds no register of the trace's**: with it, the trace held 192 VGPRs on the
+// handheld's RADV and 234–247 on the integrated GPU's driver, five waves a SIMD and four, where without the sea it
+// holds 128 and 112–128 (`docs/rtx/architecture.md`, "The sea's walk, a stage of its own").
 
 #include "shared/traceconstants.h"
 #include "camera.h"
@@ -45,6 +52,11 @@
 
 layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 
+/// Whether this is the water's stage, over the tiles the trace listed (`STAGE_LIST_WATER`), which
+/// walks every pixel the trace left pending (`STAGE_WATER_PENDING`); or the trace, which leaves a
+/// pixel whose eye met the sea to it.
+layout(constant_id = SPEC_WATER_STAGE) const bool WATER_STAGE = false;
+
 /// Which of the later stages' lists the tile of a traced pixel joins (`STAGE_LIST_*`).
 struct TracedLists
 {
@@ -53,6 +65,9 @@ struct TracedLists
 
     /// A layer stands in front of the surface.
     bool mPanes;
+
+    /// The eye met the sea, and the pixel is left to the water's stage.
+    bool mWater;
 };
 
 /// The trace of `pixel`: its channels and what it hands its later stages, and which of their lists
@@ -80,36 +95,63 @@ TracedLists tracePixel(uvec2 pixel)
     SceneAnswer met = unansweredScene();
     Surface surface = noSurface(frame.mOrigin);
     uint turns = 0u;
-    [[dont_unroll]] while (turns < WALK_TURNS)
+    // **The water's stage takes the peel up where the trace left it** (`STAGE_WATER_PENDING`): the
+    // sea it met, from the solid's stored hit, and the peel's state and what its layers let
+    // through, from the record, every float as its bits. **Not traced again**: on the desk the
+    // second peel cost the water's stage a fifth of its time, and the stage then cost the frame
+    // what it saved the trace.
+    if (WATER_STAGE)
     {
-        ++turns;
-        const RayAsk ask = peelAsk(peel, pixel);
-        const SceneAnswer answered = queryScene(ask.mQuery);
-        if (answered.mCommitted == 0u)
+        const ivec2 kept = storedAt(ivec2(pixel), width, swap);
+        const uvec4 record = imageLoad(stageRecord, kept);
+        const uvec4 hit = imageLoad(stageHit, kept);
+        const vec4 from = imageLoad(stageRayFrom, kept);
+        const vec4 along = imageLoad(stageRayAlong, kept);
+        peel.mArms = ((record.x >> 2u) & 1u) != 0u;
+        peel.mLayer = (record.x >> 3u) & 0x1fffu;
+        peel.mOrigin = from.xyz;
+        peel.mDirection = along.xyz;
+        peel.mTmin = uintBitsToFloat(record.y);
+        panesThrough = uintBitsToFloat(record.z);
+        armsThrough = uintBitsToFloat(record.w);
+        turns = record.x >> 16u;
+        met = SceneAnswer(1u, along.w, 0u, hit.x, hit.y, uintBitsToFloat(hit.zw), KIND_WATER);
+        surface = resolveAsked(met, peelAsk(peel, pixel).mQuery);
+        peelCut = false;
+    }
+    else
+    {
+        [[dont_unroll]] while (turns < WALK_TURNS)
         {
-            if (peelPastArms(peel, pixel))
-                continue;
-            peelCut = false;
-            break;
-        }
+            ++turns;
+            const RayAsk ask = peelAsk(peel, pixel);
+            const SceneAnswer answered = queryScene(ask.mQuery);
+            if (answered.mCommitted == 0u)
+            {
+                if (peelPastArms(peel, pixel))
+                    continue;
+                peelCut = false;
+                break;
+            }
 
-        // **What the turn met leaves the loop only as it ends it**, so neither the hit nor its
-        // surface is carried from turn to turn.
-        const Surface found = resolveAsked(answered, ask.mQuery);
-        if ((answered.mKind == KIND_WATER && HAS_SEA) || !peeled(found, peel.mLayer))
-        {
-            met = answered;
-            surface = found;
-            peelCut = false;
-            break;
-        }
+            // **What the turn met leaves the loop only as it ends it**, so neither the hit nor its
+            // surface is carried from turn to turn.
+            const Surface found = resolveAsked(answered, ask.mQuery);
+            if ((answered.mKind == KIND_WATER && HAS_SEA) || !peeled(found, peel.mLayer))
+            {
+                met = answered;
+                surface = found;
+                peelCut = false;
+                break;
+            }
 
-        // **A layer, weighed by its opacity alone**: the layers' stage shades it.
-        if (peel.mArms)
-            armsThrough *= 1.0 - found.mOpacity;
-        else
-            panesThrough *= 1.0 - found.mOpacity;
-        peelPastLayer(peel, answered.mDistance);
+            // **A layer, weighed by its opacity alone**: the layers' stage shades it.
+            if (peel.mArms)
+                armsThrough *= 1.0 - found.mOpacity;
+            else
+                panesThrough *= 1.0 - found.mOpacity;
+            peelPastLayer(peel, answered.mDistance);
+        }
     }
 
     // The ray the peel ended on, which the rest of the trace is the path of.
@@ -120,7 +162,8 @@ TracedLists tracePixel(uvec2 pixel)
     const uint layer = peel.mLayer;
 
     // **The surface shaded, or the sky where nothing was met.** A water path walks in a loop of its
-    // own (`EYE_WATER`) from the water the eye met, whose turns come out of the same bound.
+    // own (`EYE_WATER`) from the water the eye met, whose turns come out of the same bound, in the
+    // water's stage alone.
     Answer answer;
     uint solid = STAGE_NO_SOLID;
     vec3 pathWeight = vec3(1.0);
@@ -161,6 +204,16 @@ TracedLists tracePixel(uvec2 pixel)
             storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery);
         if (eye.mStep == EYE_WATER)
         {
+            // **Pending, with what the water's stage takes up**: the sea's hit where the solid's goes,
+            // which the walk then writes over, and in the record the peel's state and turns.
+            if (!WATER_STAGE)
+            {
+                storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery);
+                RTX_STORE_WORDS(stageRecord, stored,
+                    uvec4(STAGE_WATER_PENDING | uint(arms) << 2u | layer << 3u | turns << 16u, floatBitsToUint(tmin),
+                        floatBitsToUint(panesThrough), floatBitsToUint(armsThrough)))
+                return TracedLists(false, false, true);
+            }
             WaterRun water = waterRunOf(eye.mDirection, coneAt(eyeOf(eye.mArms)), waterFieldOf(pixel));
             stepWater(water, column, surface, answered, ask, WATER_SHADES);
             [[dont_unroll]] while ((ask.mTraced || water.mStep != RUN_IDLE) && turns < WALK_TURNS)
@@ -382,28 +435,51 @@ TracedLists tracePixel(uvec2 pixel)
     // stage stores the layers' own over the tiles where they stand.
     storePanes(at, width, swap, noPanes(), noPanes(), noNearestPane());
 
-    return TracedLists(marches, layer > 0u);
+    return TracedLists(marches, layer > 0u, false);
 }
 
 void main()
 {
     uvec2 pixel;
-    const bool inside = stagePixelOf(pixel);
+    uvec2 tile = gl_WorkGroupID.xy;
+    const bool listed = !WATER_STAGE || listedTileOf(STAGE_LIST_WATER, tile);
+    const bool inside = stagePixelIn(tile, pixel) && listed;
 
     uint joins = 0u;
+    bool water = false;
     if (inside)
     {
-        const TracedLists lists = tracePixel(pixel);
-        joins = (lists.mMedia ? 1u << STAGE_LIST_MEDIA : 0u) | (lists.mPanes ? 1u << STAGE_LIST_PANES : 0u);
+        bool traces = true;
+        if (WATER_STAGE)
+        {
+            const StageRecord record = unpackStageRecord(
+                imageLoad(stageRecord, storedAt(ivec2(pixel), frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame))));
+            traces = record.mKind == STAGE_WATER_PENDING;
+            joins = (record.mMedia ? 1u << STAGE_LIST_MEDIA : 0u) | (record.mLayered ? 1u << STAGE_LIST_PANES : 0u);
+        }
+        if (traces)
+        {
+            const TracedLists lists = tracePixel(pixel);
+            water = lists.mWater;
+            joins = (lists.mMedia ? 1u << STAGE_LIST_MEDIA : 0u) | (lists.mPanes ? 1u << STAGE_LIST_PANES : 0u);
+        }
     }
 
     // **The tile appended once a list, by one lane, after every lane's pixel**: a workgroup is a tile
     // of the stored layout, which a later stage runs as one of its own (`stagePixelIn`). **By the
     // subgroup's own sum, with no shared memory and no barrier**: the workgroup is one subgroup, its
-    // 32 lanes held to it (`SubgroupSize::ThirtyTwo`).
+    // 32 lanes held to it (`SubgroupSize::ThirtyTwo`). **A tile with a pending pixel joins the
+    // water's list alone**, and the water's stage lists it for the rest, off the records of the
+    // pixels the trace finished: a tile in a list twice is run twice.
     const uint tileLists = subgroupOr(joins);
+    const bool tileWater = subgroupOr(water ? 1u : 0u) != 0u;
     if (subgroupElect())
-        for (uint list = 0u; list < STAGE_LISTS; ++list)
-            if ((tileLists & (1u << list)) != 0u)
-                appendTile(list, gl_WorkGroupID.xy);
+    {
+        if (tileWater)
+            appendTile(STAGE_LIST_WATER, tile);
+        else
+            for (uint list = 0u; list < STAGE_LIST_WATER; ++list)
+                if ((tileLists & (1u << list)) != 0u)
+                    appendTile(list, tile);
+    }
 }

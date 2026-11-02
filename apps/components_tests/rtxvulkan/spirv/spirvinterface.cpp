@@ -66,12 +66,14 @@ namespace Rtx
         ///
         /// **One a module, and the few small launches at what they hold**, which only falls: each
         /// compiles in milliseconds, since the cost of a site is the code inlined around it. **And the
-        /// stages at a site a phase**: the trace's water walk apart from its peel, and each layer's
-        /// light and medium apart from the layers' peel. The bounce's ray and its landing's visit are
-        /// stages of their own, at one each.
+        /// stages at a site a phase**: the trace's water walk apart from its peel, each layer's
+        /// light and medium apart from the layers' peel, and the media's eye, its column, its
+        /// water's walk and its leg's march. The bounce's ray and its landing's visit are stages of
+        /// their own, at one each.
         TEST(RtxSpirvInterfaceTest, noModuleStartsARayQueryAtMorePlacesThanItsCeiling)
         {
-            constexpr std::array<std::pair<std::string_view, std::size_t>, 5> sHeld{ {
+            constexpr std::array<std::pair<std::string_view, std::size_t>, 6> sHeld{ {
+                { "media.comp.spv", 4 },
                 { "panes.comp.spv", 3 },
                 { "visibility.comp.spv", 2 },
                 { "fogdepth.rgen.spv", 2 },

@@ -16,14 +16,17 @@ namespace Rtx::Shaders
 #endif
 
     /// The trace's specialization constants, by `constant_id`: the frame's tuple, which every kernel
-    /// of the trace is handed. `lib/variants.glsl` declares them by these names, and the host
-    /// fills one table indexed by them, so no table's order has to agree with a declaration's.
+    /// of the trace is handed, and which of the trace module's two stages a kernel is
+    /// (`SPEC_WATER_STAGE`). `lib/variants.glsl` declares the tuple's by these names and
+    /// `visibility.comp` the stage's, and the host fills one table indexed by them, so no table's
+    /// order has to agree with a declaration's.
     const uint SPEC_COUNTING = 0u;
     const uint SPEC_HAS_SUN = 1u;
     const uint SPEC_HAS_MOONS = 2u;
     const uint SPEC_HAS_SEA = 3u;
     const uint SPEC_HAS_MAPS = 4u;
-    const uint SPEC_COUNT = 5u;
+    const uint SPEC_WATER_STAGE = 5u;
+    const uint SPEC_COUNT = 6u;
 
     /// What a trace stage is pushed beside the frame block: which of the frame's bounce rays the
     /// bounce's and the landing's stages trace and light (`bounce.comp`, `landing.comp`), counting the
@@ -64,6 +67,10 @@ namespace Rtx::Shaders
     /// a full peel, each layer's column marched and both of the water's legs under it — which
     /// comes to about five hundred.
     const uint WALK_TURNS = 2048u;
+#ifdef RTX_HOST
+    static_assert(WALK_TURNS <= 0x1fffu,
+        "a pending water pixel's record holds its layer in 13 bits and its turns in 16 (`STAGE_WATER_PENDING`)");
+#endif
 
     /// What an instance's shader-table offset holds: its material's kind, `Rtx::MaterialKind`, which
     /// `SceneAcceleration::placeRow` writes and the trace reads back off a committed hit
