@@ -1,45 +1,111 @@
-# perf-trace — the ray tracer's frame on the desk and on the Deck
+# perf-rtx — the ray tracer's frame on three hosts
 
-Target: the GPU frame of the ray tracer (`components/rtxvulkan/shaders/trace`, the stages and the
-passes around them), measured with `bench` on this desk (RTX 4090 Laptop, driver 615.78.08) and on
-the Steam Deck (`omw release remote deck@192.168.0.31`, RADV VANGOGH, the clock held at 1600 MHz).
-Started from `901a138f2c`. Worktrees: `../openmw-perf/base` and `../openmw-perf/cand`.
-
-A picture that moves slightly is acceptable where the gain is real; a move that is not slight is
-documented here for review and not landed.
+Target: the ray tracer's frame (the GPU's stages and passes, and the host's walk), on the desk (RTX 4090
+Laptop, driver 615.78.08), the Steam Deck (`deck@192.168.0.31`, RADV VANGOGH, Mesa 26.2.0-devel, the
+clock held at 1600 MHz) and a Ryzen 7 6800U box (`192.168.0.8`, Radeon 680M, Adrenalin
+32.0.21045.5002, Windows 11). Started from `511ddd8d89`. Worktrees: `../openmw-perf/{base,cand,spike}`
+here and `C:\Users\xxorza\Projects\openmw-perf\{base,cand}` there, fed through a bundle into a bare
+repo at `C:\Users\xxorza\.cache\optimize-perf\openmw.git`.
 
 ## Hosts
 
-- **Desk**: release build, `./omw release bench`, base and cand interleaved, three rounds after a
-  throwaway leg. Noise floor from an A/A (2026-10-31): adjacent pairs within about 1 % on a zone and
-  a frame, and every zone drifting up 2–3 % over the run as the card warms, so only adjacent pairs
-  are compared.
-- **Deck**: release build in the release-base container, `./omw release remote deck@192.168.0.31
-  bench`. Runs repeat to 0.01 ms in every zone (2026-10-31, the default suite twice).
-- **Build RAM peak (desk)**: 25.8 GiB for a release build from nothing (`omw release build
-  openmw-rtxtool`); two at once do not fit with margin in 62 GiB, so builds run one at a time.
+- **Desk**: `./omw release bench` (default suite, 1920x1080, 1280x720 traced), three interleaved rounds
+  after a warm-up leg (`~/.cache/optimize-perf/desk-ab.sh`). A/A (2026-11-02): frame medians within
+  ±1 % a pair and ±0.1 % over three; zones ±1–2 %, `direct` bimodal (0.42 or 0.45 ms, dawn 0.67 or
+  0.77); p99 ±15 %.
+- **Deck**: release build in the release-base container, staged by `omw release remote`, then run
+  under omw's own remote script (`deck-run.sh`), 1280x800 (853x533 traced). A/A: frame and every zone
+  within 0.1 % (`panes` 0.3 %), p99 within 2 %.
+- **6800U**: native MSVC release build, run in the logged-on session through a scheduled task
+  (`win-run.sh`): an SSH session's window has no surface a swapchain takes. 1920x1080.
+- **GPU-bound everywhere**: `wait` is 4 of 6 ms on the desk and 77 of 88 ms on the Deck; the host's
+  walk, place and upload are under 1 ms on the desk and 5 ms on the Deck.
+- **Host rows**: the Deck's within 1 % (update 0.2 %), the 6800U's within 1 %; the desk's move
+  10–20 % between identical runs, so a host change is judged on the Deck and the 6800U.
+- **Build RAM peaks**: desk release from nothing 25.8 GiB (perf-trace), a build of cached objects
+  0.4 GiB, the debug flavour with its tests from nothing 33.2 GiB; the container's from nothing
+  24.3 GiB; the 6800U's from nothing 9.9 GiB of 28 GiB. One build at a time on each host.
+- **6800U noise** (A/A, two rounds): frame within 0.2 % (dawn 1.1 %), zones within 0.2 % (dawn
+  0.7 %), p99 ±18 %.
+- **The 6800U's host is slow**: walk 11.7, place 5.0, upload 4.2, update 23.4 ms a frame at the
+  ship, against the Deck's 3.3, 0.85, 0.75, 6.2 — 3.5 times the Deck's Zen 2 at 2.4 GHz. The plan
+  is High performance; the clock reads 2701 MHz nominal. Under the GPU's 115 ms it costs no frame
+  yet.
 
-## Numbers at the start (Deck, 1280x800, upscale quality)
+## Numbers at the start (`511ddd8d89`)
 
-| place | frame median | p99 | landing | trace | bounce | direct | air |
-|---|---|---|---|---|---|---|---|
-| balmora-mages-guild | 59.64 | 120.39 | 18.86 | 5.07 | 9.44 | 5.29 | 1.24 |
-| seyda-neen-ship | 100.23 | 199.58 | 19.53 | 17.41 | 15.36 | 12.75 | 7.79 |
-| seyda-neen-ship-dawn | 123.51 | 256.42 | 22.91 | 16.62 | 15.43 | 34.44 | 13.37 |
+Deck, median ms:
 
-## Tip against the start (`901a138f2c` → `7b147fc972`)
+| place | frame | p99 | trace | bounce | landing | direct | air | tlas | upscale | media | clamp | filter0 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| seyda-neen-ship | 88.44 | 97.88 | 15.88 | 14.98 | 12.03 | 9.73 | 7.87 | 3.62 | 3.29 | 3.08 | 2.92 | 2.74 |
+| seyda-neen-ship-dawn | 103.37 | 117.48 | 16.06 | 15.13 | 13.94 | 19.06 | 13.51 | 3.62 | 3.28 | — | 3.01 | 2.74 |
+| balmora-mages-guild | 58.72 | 63.60 | 5.16 | 9.19 | 16.19 | 6.32 | 1.42 | 0.39 | 3.20 | — | 2.79 | 2.91 |
 
-| place | Deck frame | Deck p99 | desk frame |
+Desk, median ms: ship 6.04 (trace 0.68, landing 0.61, direct 0.44, upscale 0.44, bounce 0.38), dawn
+6.52 (direct 0.72, trace 0.69, landing 0.67), guild 5.32 (landing 0.76, upscale 0.45, bounce 0.37).
+
+## Tip against the start (`421d2dba38` → `2861dd2fd9`, 2026-11-02)
+
+Frame median ms; the Deck two runs a side, the 6800U two rounds, the desk four, interleaved.
+
+| place | Deck | 6800U | desk |
 |---|---|---|---|
-| balmora-mages-guild | 59.63 → 59.37 (−0.4 %) | 66.84 → 66.67 | 4.983 → 4.848 (−2.7 %) |
-| seyda-neen-ship | 100.33 → 99.60 (−0.7 %) | 108.98 → 108.21 | 5.732 → 5.415 (−5.5 %) |
-| seyda-neen-ship-dawn | 125.83 → 117.18 (−6.9 %) | 149.13 → 130.89 (−12.2 %) | 6.405 → 6.028 (−5.9 %) |
-| balmora | — | — | 4.730 → 4.415 (−6.7 %) |
+| seyda-neen-ship | 88.45 → 84.12 (−4.9 %) | 120.81 → 114.23 (−5.4 %) | 6.039 → 6.011 (−0.45 %) |
+| seyda-neen-ship-dawn | 103.31 → 99.36 (−3.8 %) | 148.35 → 137.72 (−7.2 %) | 6.520 → 6.475 (−0.7 %) |
+| balmora-mages-guild | 58.72 → 58.70 (0.0 %) | 90.30 → 90.22 (−0.1 %) | 5.323 → 5.356 (+0.6 %, GPU zones' sum 4.818 → 4.820) |
 
-Desk: three interleaved rounds, the pairs within 2 % of each other. Deck: one run each, which
-repeats to 0.01 ms.
+Host update at the ship and dawn: Deck −7.2 % / −7.1 %, 6800U −8.5 % / −6.0 %. Gate clean; CI
+https://github.com/xorza/openmw-rtx/actions/runs/41385212538 green.
 
 ## Ideas
+
+| idea | evidence | verdict |
+|---|---|---|
+| The trace's water walk as a stage of its own, over the tiles where the eye met the sea | RADV: `visibility … sea` 192 VGPRs (5 waves), 12.8–14.6 k instructions, 20–37 spilled SGPRs, against 128 (8 waves) and 5.2–5.8 k without the sea; the 680M 234–247 against 112–128. Upper bound, the walk cut (picture wrong): Deck ship trace 15.88 → 10.02 ms, VGPRs 128 | **kept `3dd8dc8363`** (Decisions) |
+| The water's stage traces the peel again | the simplest form | rejected: desk frame +0.66 / +0.78 % (water 0.135 ms against 0.111 restored), Deck water 2.95 against 1.91 |
+| The media stage's phases a loop each (eye ray, eye column, water walk to its leg, the leg's march) | RADV `media … sea` 256 VGPRs, 37 SGPRs spilled; the 680M 256; one loop over every walk's record | **kept `3a439f944c`**: Deck media 3.06 → 2.52 ms (VGPRs 192, no spill), ship frame −0.7 %; 680M media −3.6 % (225 VGPRs, still four waves); desk media 0.118 → 0.103; frames elsewhere inside the noise; no picture moved |
+| A moved reference no held cell holds is searched for once (`CellPlacer::moveReference`) | desk profile: `CellPlacer::standAt` 1.95 % of samples, about 8 % of the main thread, under `PhysicsSystem::moveActors`: every actor the physics moves searched every held cell, each move | **kept `2861dd2fd9`**: Deck update −7.6 % ship, −7.2 % dawn (−0.47 / −0.43 ms); 6800U −8.1 % / −9.9 % (−1.9 / −2.2 ms); guilds unchanged; frames unchanged (GPU-bound) |
+| The NVIDIA driver's `[vkrt] Analysis` thread | 47 % of the desk's CPU samples: `clock_gettime` and `pthread_rwlock` in a loop | not the renderer's: the driver's own thread, on a core of its own |
+| `SceneDesc::orderLights` sorts ~917 lamps every frame | 0.4 % of the desk's samples | not tried: tens of microseconds, and the order is the total order the frame needs |
+| Distant statics merged into a structure a cell (redesign) | at the ship 57 054 of 64 179 instances are distant statics, 3.12 M placed triangles (55 a placement) of 5.84 M; RADV rebuilds the top level whole every frame something moves (Mesa 26.2 `vk_acceleration_structure.c`: a top level is always HPLOC, an update only a bottom level's). Upper bound, the distant statics off (picture wrong), Deck: tlas 3.62 → 0.71 ms, frame −6.7 % ship, −18.1 % dawn (direct −40 %, air −27 %, landing −18 %), guild −0.5 % | spiked, decided below (Decisions); the spike's first finding: 41 180 of the statics are two-sided or flipped, so a group is keyed by its facing as well. Before the spike: needs a hit's instance as custom index + geometry index, facing groups (cull and flip are an instance's flags), gates and moved references rebuilding a cell's structure, and a hit computed in another space, which moves pictures by rounding |
+
+## Decisions
+
+- **The sea's walk is a stage of its own, over the tiles where the eye met the sea** (`3dd8dc8363`,
+  `docs/rtx/architecture.md` "The sea's walk, a stage of its own", `research/2026-11-02-water-stage.md`).
+  Spiked on `spike/water-stage` (local). Deck frame −4.2 % ship, −3.8 % dawn; 680M −5.3 %, −7.0 %;
+  desk and every interior inside the noise; no picture moved. The shape is the tree's own
+  classify-and-dispatch (the media and the layers' tile lists, FidelityFX's reflections) and
+  Laine, Karras and Aila's case against one kernel carrying every walk (2013). Refused: the peel
+  traced again in the water's stage (desk +0.7 %); the split on AMD alone (two builds of one
+  kernel, which the tree refuses).
+
+- **Statics merged into one structure a cell: refused as spiked** (spike
+  `spike/merged-statics`, local). A cell's settled statics (8192 units square, one mask, one facing
+  class) become one bottom level whose geometries carry their placements (`transformData`); its
+  instance's custom index names a run of a merged table, and a hit's instance row is that run's
+  entry at the geometry index (`instanceRowOf`). At the ship 22–29 k rows went into 350 structures.
+  Deck: frame −5.2 % ship, −7.8 % dawn, −1.5 % guild (tlas 3.62 → 0.46 ms, trace −11 to −17 %,
+  bounce +3 to +4 %, direct +8 % at the ship and −4 % at dawn); desk: −0.2 % ship (inside the
+  noise; direct +8 %, air +9 %), −1.6 % dawn, −3.0 % guild (bounce and trace −14 %); 680M:
+  **+5.5 % ship** (bounce +20 %, direct +14 %, air +14 %), −6.0 % dawn, −2.2 % guild. **Refused:
+  it regresses the 680M's noon exterior**, where a cell's one structure mixes opaque and cutout
+  geometry over 8192 units, and **the pictures move**: a merged hit is intersected in the structure's space, so its
+  barycentrics and distance round otherwise; raw frames at a held exposure moved on 0.97 % of
+  Balmora's pixels (5 past 5 %), but the denoised shots moved on 5–99 % of the pixels, worst
+  165–202/255, which `shot` does not call the denoiser's noise. No instanced hit can be
+  reproduced bit for bit from another space. What landing takes beyond the spike: groups made by
+  the cell placer from its held cells and not by settled rows; a gate, an enable, a blacklist or a
+  move rebuilding its cell's structure; the structures in the content budget with their refusals
+  and compaction; and the user's word on a picture that moves by rounding. The shape is NVIDIA's
+  advice to merge static geometry whose instances overlap
+  ([Best Practices: Using NVIDIA RTX Ray Tracing](https://developer.nvidia.com/blog/best-practices-using-nvidia-rtx-ray-tracing/)) and the
+  `transformData` path the Vulkan specification gives a bottom level's geometries; refused before
+  on the desk (`research/2026-10-22-instances-per-placed-model.md`, a top-level gain of 0.17 ms),
+  where RADV's whole rebuild of the top level every frame was not measured.
+
+## Tried on perf-trace (2026-10-31)
 
 | idea | evidence | verdict |
 |---|---|---|
@@ -61,7 +127,7 @@ repeats to 0.01 ms.
 | A layer's light worked out before its rays, one `PathEndLight` for the landing and the layer (`seenPaneOf`); `VisitRun` and the eye walk's `EYE_PANE` step gone | panes 256 VGPRs with spills | kept: Deck panes −17.3 % guild, −0.5 / −1.5 % outside (256 → 192 without the sea; 256 with it, spills 37–45 → 0–11); desk panes −4.9 / −4.0 / −8.0 %; no picture moved (`shots/c4`) |
 | The bounce's escape worked out before its ray, so the miss keeps 3 numbers and not 10 | bounce 96 VGPRs, pre-scheduling 80; 88 would give 11 waves | not kept yet: RADV still allocates 96 (pre-scheduling 80 again), yet the Deck's bounce went −0.5 to −0.6 % at every place (one run each); the desk not measured |
 
-## Decisions
+### Decisions on perf-trace
 
 - **The landings stay in the order the bounce lists them; no sort by where they hit.** Spiked on
   `spike/landing-sort` (local): a global counting sort by the instance met cost the desk's landing

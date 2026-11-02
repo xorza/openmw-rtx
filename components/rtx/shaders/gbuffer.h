@@ -298,11 +298,11 @@ namespace Rtx::Shaders
 
     /// And the lists the later stages run over (`StageTiles`): a storage buffer, its head each
     /// list's indirect dispatch, a `VkDispatchIndirectCommand` and a word beside it that counts what
-    /// the list holds, the media stage's and then the layers' (`STAGE_LIST_*`), and a landing's for
-    /// each bounce ray last (`STAGE_DISPATCH_LANDING` and the `MAX_BOUNCE_RAYS - 1` after it), whose
-    /// word counts its pixels; after it the tile lists one after the other, a workgroup of the stored
-    /// layout each as `x | y << 16`, and then the pixels whose bounce landed, a pixel each as
-    /// `x | y << 16` (`appendLandings`). **The landings in two runs**: those whose gather runs from
+    /// the list holds, the media stage's, the layers' and the water's (`STAGE_LIST_*`), and a
+    /// landing's for each bounce ray last (`STAGE_DISPATCH_LANDING` and the `MAX_BOUNCE_RAYS - 1`
+    /// after it), whose word counts its pixels; after it the tile lists one after the other, a
+    /// workgroup of the stored layout each as `x | y << 16`, and then the pixels whose bounce landed,
+    /// a pixel each as `x | y << 16` (`appendLandings`). **The landings in two runs**: those whose gather runs from
     /// the array's start, counted in the landing's word, and those whose gather is drawn off
     /// (`indirectGatherDrawn`) from its end, counted in a pair of their own a ray after the
     /// dispatches beside the workgroups both runs take — so a warp of the landing's stage holds one
@@ -319,7 +319,8 @@ namespace Rtx::Shaders
     const uint STAGE_TILES = CHANNEL_COUNT + 10u;
     const uint STAGE_LIST_MEDIA = 0u;
     const uint STAGE_LIST_PANES = 1u;
-    const uint STAGE_LISTS = 2u;
+    const uint STAGE_LIST_WATER = 2u;
+    const uint STAGE_LISTS = 3u;
     const uint STAGE_DISPATCH_LANDING = STAGE_LISTS;
     const uint STAGE_DISPATCHES = STAGE_LISTS + MAX_BOUNCE_RAYS;
     const uint STAGE_TILES_HEAD_WORDS = 4u * STAGE_DISPATCHES + 2u * MAX_BOUNCE_RAYS;

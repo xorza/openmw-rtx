@@ -45,10 +45,11 @@ namespace Rtx
         };
 
         /// The kernels are counted as they land, the count never goes back, and it reaches the
-        /// whole only once the compile is over. What a frame draws with is the full tuple's seven —
-        /// the trace, its direct light, its media, its layers, its bounce, the bounce's landing and
-        /// the froxels' launch — beside the 5 kernels no tuple changes, the air's two and the
-        /// sprites' three; every other tuple compiles behind them, a tuple a step, 15 of them.
+        /// whole only once the compile is over. What a frame draws with is the full tuple's eight —
+        /// the trace, the water's walk, its direct light, its media, its layers, its bounce, the
+        /// bounce's landing and the froxels' launch — beside the 5 kernels no tuple changes, the
+        /// air's two and the sprites' three; every other tuple compiles behind them, a tuple a step,
+        /// 15 of them.
         ///
         /// **The full tuple alone is watched as it compiles, and the table read off the suite's
         /// renderer**, which made every tuple before any test ran (`Testing::getRenderer` waits for
@@ -57,7 +58,7 @@ namespace Rtx
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
-            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5;
+            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5;
 
             JobProgress progress = pass.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero());
             while (!progress.isDone())
@@ -120,9 +121,11 @@ namespace Rtx
             };
             constexpr Ceiling sEveryOther{ "", 0, 128 };
             // `direct` at 256 and not 244, a rise inside the waves it allowed (`docs/rtx/architecture.md`,
-            // "No kernel spills past its ceiling").
-            constexpr std::array<Ceiling, 5> sCeilings{ {
-                { "visibility", 0, 256 },
+            // "No kernel spills past its ceiling"). `visibility` at 145 since the water's walk left it
+            // for a stage of its own, which holds 219 ("The sea's walk, a stage of its own").
+            constexpr std::array<Ceiling, 6> sCeilings{ {
+                { "visibility", 0, 145 },
+                { "water", 0, 219 },
                 { "direct", 0, 256 },
                 { "media", 0, 256 },
                 { "panes", 192, 256 },
@@ -138,7 +141,7 @@ namespace Rtx
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
             std::vector<VisibilityPass::NamedKernel> kernels;
             pass.listKernels(kernels);
-            ASSERT_EQ(kernels.size(), 1u + 1u + 1u + 1u + 1u + 1u + 1u + 5u);
+            ASSERT_EQ(kernels.size(), 1u + 1u + 1u + 1u + 1u + 1u + 1u + 1u + 5u);
 
             for (const VisibilityPass::NamedKernel& kernel : kernels)
             {
@@ -171,8 +174,9 @@ namespace Rtx
                     EXPECT_LE(*use.mRegisters, ceiling.mRegisters) << "the " << kernel.mName << " kernel's registers";
                 }
 
-                const bool stage = kernel.mName == "visibility" || kernel.mName == "direct" || kernel.mName == "media"
-                    || kernel.mName == "panes" || kernel.mName == "bounce" || kernel.mName == "landing";
+                const bool stage = kernel.mName == "visibility" || kernel.mName == "water" || kernel.mName == "direct"
+                    || kernel.mName == "media" || kernel.mName == "panes" || kernel.mName == "bounce"
+                    || kernel.mName == "landing";
                 if (stage && use.mSubgroupSize.has_value())
                 {
                     EXPECT_EQ(*use.mSubgroupSize, 32u) << "the " << kernel.mName << " kernel's lanes";

@@ -195,6 +195,7 @@ namespace Rtx
         enum class Kernel
         {
             Visibility,
+            Water,
             Direct,
             Media,
             Panes,
@@ -253,7 +254,7 @@ namespace Rtx
             = std::array<std::unique_ptr<ComputePipeline<Shaders::StageConstants>>, VisibilityVariant::sCount>;
 
         /// How many of `Kernel` are the trace's stages: `Visibility` to `Landing`.
-        static constexpr std::size_t sStageCount = 6;
+        static constexpr std::size_t sStageCount = 7;
 
         /// `stage`'s kernel for `variant`, which `variantFor` answered.
         static const ComputePipeline<Shaders::StageConstants>& kernelOf(
@@ -261,6 +262,10 @@ namespace Rtx
 
         /// Whether `variant` runs the media stage: a sun to cast shafts, and a sea to cast them in.
         static bool hasMedia(VisibilityVariant variant);
+
+        /// Whether a frame of `variant` runs `stage`: the water's where there is a sea, the media's where
+        /// it has media (`hasMedia`), and every other always.
+        static bool runsStage(Kernel stage, VisibilityVariant variant);
 
         /// The launch that fills the fog volume's froxels for `variant`, a room's included: the
         /// volume walks the lamps once per froxel where the closed form would be a lamp reservoir

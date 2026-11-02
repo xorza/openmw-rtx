@@ -51,41 +51,78 @@ void main()
     if (!record.mMedia)
         return;
 
-    // **Innermost first**: a walk is under way only while the one that started it waits on it.
+    // **A phase a loop**, each keeping only its own walk's records live across its traversals
+    // (`docs/rtx/architecture.md`, "A stage's phases are loops of their own"): the eye's ray; the
+    // column under the water in front of it, where the eye stands under the water; the medium in
+    // front of that point (`tracePixel`); a water path's walk up to its leg; and the leg's march,
+    // with no record of the walk's but the share its leg is weighed by. **Turn for turn the one
+    // walk it was**, each phase taking the turns the walk took, so the bound cuts where it cut.
     SkyPassageRun skyPassage = skyPassageRunOf(
         frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
     ColumnRun column = columnRunOf(vec3(0.0), vec3(0.0, 0.0, -1.0), 0.0, 0.0);
-    WaterRun water = waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR);
     skyPassage.mStep = RUN_IDLE;
     column.mStep = RUN_IDLE;
-    water.mStep = RUN_IDLE;
-
-    // **The eye's ray, its column, and the water's leg**, in turn: what the eye's ray met, as the
-    // trace met it behind its layers; the column under the water in front of it, where the eye stands
-    // under the water, and the medium in front of that point (`tracePixel`); and a water path's walk.
-    const uint MEDIA_EYE = 0u;
-    const uint MEDIA_COLUMN = 1u;
-    const uint MEDIA_PATH = 2u;
-    const uint MEDIA_DONE = 3u;
-    uint phase = MEDIA_EYE;
 
     const Ray ray = rayAt(eyeOf(record.mArms), vec2(pixel));
     const WorldRay eye = WorldRay(frame.mOrigin + ray.mOffset, ray.mDirection);
     const Cone cone = coneAt(eyeOf(record.mArms));
-    RayAsk ask = eyeAsk(eye.mFrom, eye.mAlong, record.mTmin, record.mArms, pixel);
 
-    Surface surface = noSurface(frame.mOrigin);
-    Surface met = surface;
-    bool metWater = false;
-    bool under = false;
-    float air = 0.0;
-    float reach = 0.0;
+    // **The eye's ray**: the whole path's medium as the trace measured it, as far as what the ray
+    // met, or the whole column where a ray that went down met nothing (`tracePixel`).
+    const RayAsk eyeRay = eyeAsk(eye.mFrom, eye.mAlong, record.mTmin, record.mArms, pixel);
+    const SceneAnswer eyeMet = queryScene(eyeRay.mQuery);
+    const Surface met = resolveAsked(eyeMet, eyeRay.mQuery);
+    const bool hit = eyeMet.mCommitted != 0u;
+    const bool metWater = hit && eyeMet.mKind == KIND_WATER && HAS_SEA;
+    const float air = hit ? eyeMet.mDistance : frame.mFar;
+    const float reach = waterUnbounded(hit, eye.mFrom, eye.mAlong) ? WATER_UNBOUNDED_PATH : air;
+    const bool under = waterOver(eye.mFrom) > 0.0;
     float underPath = 0.0;
+    if (under)
+    {
+        underPath = waterAlong(eye.mFrom, eye.mAlong, reach);
+        column = columnRunOf(eye.mFrom, eye.mAlong, underPath, cone.mWidth + cone.mSpread * underPath);
+        stepColumn(column, skyPassage, pixel);
+    }
+    uint turns = 1u;
+
+    // **The eye's own column**, where the eye stands under the water: its shafts' passages.
+    RayAsk ask = noRay();
+    [[dont_unroll]] while (column.mStep != RUN_IDLE && turns < WALK_TURNS)
+    {
+        ++turns;
+        const RayAnswer answered = ask.mTraced ? RayAnswer(true, queryScene(ask.mQuery))
+                                               : RayAnswer(false, unansweredScene());
+        ask = noRay();
+        if (skyPassage.mStep != RUN_IDLE)
+            stepSkyPassage(skyPassage, answered, ask);
+        else
+            stepColumn(column, skyPassage, pixel);
+    }
+
+    // **The medium in front of the point**, a turn of its own, and a water path's walk started.
+    bool done = false;
     vec3 shafts = vec3(0.0);
     vec3 through = vec3(1.0);
+    WaterRun water = waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR);
+    water.mStep = RUN_IDLE;
+    if (column.mStep == RUN_IDLE && turns < WALK_TURNS)
+    {
+        ++turns;
+        through = under ? mediumOverColumn(eye, underPath, reach, air, column.mColumn).mThrough
+                        : vec3(fogAlong(pixel, eye, air).w);
+        shafts = under ? column.mShafts : vec3(0.0);
+        done = !metWater;
+        if (metWater)
+        {
+            water = waterRunOf(eye.mAlong, cone, waterFieldOf(pixel));
+            stepWater(water, column, met, RayAnswer(false, unansweredScene()), ask, WATER_MARCHES);
+        }
+    }
 
-    uint turns = 0u;
-    [[dont_unroll]] while (phase != MEDIA_DONE && turns < WALK_TURNS)
+    // **The water's walk up to its leg**, which starts the leg's column.
+    Surface surface = met;
+    [[dont_unroll]] while (water.mStep != RUN_IDLE && column.mStep == RUN_IDLE && turns < WALK_TURNS)
     {
         ++turns;
         RayAnswer answered = RayAnswer(false, unansweredScene());
@@ -96,53 +133,36 @@ void main()
                 surface = resolveAsked(answered.mMet, ask.mQuery);
         }
         ask = noRay();
-
-        if (skyPassage.mStep != RUN_IDLE)
-            stepSkyPassage(skyPassage, answered, ask);
-        else if (column.mStep != RUN_IDLE)
-            stepColumn(column, skyPassage, pixel);
-        else if (water.mStep != RUN_IDLE)
-            stepWater(water, column, surface, answered, ask, WATER_MARCHES);
-        else if (phase == MEDIA_EYE)
-        {
-            // **The whole path's medium as the trace measured it**: as far as what the ray met, or
-            // the whole column where a ray that went down met nothing (`tracePixel`).
-            met = surface;
-            const bool hit = answered.mMet.mCommitted != 0u;
-            metWater = hit && answered.mMet.mKind == KIND_WATER && HAS_SEA;
-            air = hit ? answered.mMet.mDistance : frame.mFar;
-            reach = waterUnbounded(hit, eye.mFrom, eye.mAlong) ? WATER_UNBOUNDED_PATH : air;
-            under = waterOver(eye.mFrom) > 0.0;
-            if (under)
-            {
-                underPath = waterAlong(eye.mFrom, eye.mAlong, reach);
-                column = columnRunOf(eye.mFrom, eye.mAlong, underPath, cone.mWidth + cone.mSpread * underPath);
-                stepColumn(column, skyPassage, pixel);
-            }
-            phase = MEDIA_COLUMN;
-        }
-        else if (phase == MEDIA_COLUMN)
-        {
-            through = under ? mediumOverColumn(eye, underPath, reach, air, column.mColumn).mThrough
-                            : vec3(fogAlong(pixel, eye, air).w);
-            shafts = under ? column.mShafts : vec3(0.0);
-            phase = metWater ? MEDIA_PATH : MEDIA_DONE;
-            if (metWater)
-            {
-                water = waterRunOf(eye.mAlong, cone, waterFieldOf(pixel));
-                stepWater(water, column, met, answered, ask, WATER_MARCHES);
-            }
-        }
-        else
-        {
-            // **A leg's change by what the medium in front of the water lets through**, as the trace
-            // takes the water's light down by it.
-            shafts += water.mShafts * through;
-            phase = MEDIA_DONE;
-        }
+        stepWater(water, column, surface, answered, ask, WATER_MARCHES);
     }
 
-    if (phase != MEDIA_DONE)
+    // **The leg's march**, weighed by the share the walk gives its leg (`stepWater`'s last step),
+    // which is all of the walk this phase keeps.
+    const bool leg = water.mStep == WATER_LEG;
+    const float legShare = waterSharesOf(water).mThrough;
+    [[dont_unroll]] while (column.mStep != RUN_IDLE && turns < WALK_TURNS)
+    {
+        ++turns;
+        const RayAnswer answered = ask.mTraced ? RayAnswer(true, queryScene(ask.mQuery))
+                                               : RayAnswer(false, unansweredScene());
+        ask = noRay();
+        if (skyPassage.mStep != RUN_IDLE)
+            stepSkyPassage(skyPassage, answered, ask);
+        else
+            stepColumn(column, skyPassage, pixel);
+    }
+
+    // **A leg's change by what the medium in front of the water lets through**, as the trace takes
+    // the water's light down by it: the walk's last step and the phase's, a turn each.
+    const vec3 legShafts = leg ? legShare * column.mShafts : vec3(0.0);
+    const uint left = leg ? 2u : 1u;
+    if (metWater && column.mStep == RUN_IDLE && (water.mStep == RUN_IDLE || leg) && turns + left <= WALK_TURNS)
+    {
+        shafts += legShafts * through;
+        done = true;
+    }
+
+    if (!done)
         atomicAdd(counts.mWalksCut, 1u);
 
     const ivec2 at = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);

@@ -948,6 +948,10 @@ namespace Rtx::Testing
             const ReferencePlace swung{ .mPosition = far + osg::Vec3f(0.0f, 100.0f, 0.0f),
                 .mRotation = osg::Vec3f(0.0f, 0.0f, osg::PI_2f),
                 .mScale = 1.0f };
+            // Moved twice before its cell is held, and the second move is the one it stands at: a
+            // reference no held cell holds is searched for once, and its cell finds it as it is held.
+            mRing.moveReference(
+                ESM::RefNum{ 7, 0 }, ReferencePlace{ .mPosition = far, .mRotation = {}, .mScale = 2.0f }, false);
             mRing.moveReference(ESM::RefNum{ 7, 0 }, swung, false);
             start();
 
