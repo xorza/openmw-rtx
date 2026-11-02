@@ -68,7 +68,9 @@ is not here is held to the rules above.
 - `components/crashcatcher`, replaced whole by a Crashpad monitor process, with the calls that set it
   up from the configuration, and the keeper `wrapApplication` forks first under an AppImage
   (`Crash::keepImageMounted`): the runtime unmounts the image once no process holds its keepalive
-  pipe, which a monitor, outliving its client, does not.
+  pipe, which a monitor, outliving its client, does not. And each line of the log written in one
+  write, its stamp with it (`DebugOutputBase::write`): the monitor appends its summaries to the log
+  from a process of its own, and one that landed between a stamp and its text split the line.
 - The fork's own `README.md`, `CI/` and workflows, and the root tooling: `CMakePresets.json`,
   `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes` and `.gitignore`.
 - The build the presets and Crashpad need: the raised CMake minimum, which reads the presets'

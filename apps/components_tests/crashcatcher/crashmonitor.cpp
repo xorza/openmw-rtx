@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -10,6 +11,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/crashcatcher/crashanswering.hpp>
 #include <components/crashcatcher/crashmonitorarguments.hpp>
 #include <components/crashcatcher/crashpage.hpp>
 #include <components/platform/process.hpp>
@@ -25,7 +27,7 @@ namespace
         written.mClient = 4242;
         written.mNotes = 0x7ffd12345678;
         written.mIssues = "https://github.com/xorza/openmw-rtx/issues";
-        written.mAnswering = Crash::EndAfter{ std::chrono::milliseconds(1500) };
+        written.mAnswering = Crash::EndAfter{ std::chrono::milliseconds(1500), Crash::EndAfter::From::Report };
 
         // The name is Crashpad's annotation, which it hands its handler and the monitor reads.
         std::vector<std::string> line{ "openmw", "--database=/home/x/crashes", "--annotation=product=crash-tests" };
@@ -39,23 +41,48 @@ namespace
         EXPECT_EQ(read.mNotes, 0x7ffd12345678u);
         EXPECT_EQ(read.mApplication, "crash-tests");
         EXPECT_EQ(read.mIssues, "https://github.com/xorza/openmw-rtx/issues");
-        EXPECT_EQ(read.mAnswering, Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(1500) }));
+        EXPECT_EQ(read.mAnswering,
+            Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(1500), Crash::EndAfter::From::Report }));
         EXPECT_EQ(read.mDatabase, std::filesystem::path("/home/x/crashes"));
 
         const std::vector<std::string> crashpads{ "openmw", "--database=/home/x/crashes",
             "--annotation=product=crash-tests", "--initial-client-fd=3" };
         EXPECT_EQ(handler, crashpads);
 
-        // **Each of the three answerings goes and comes back as itself.**
+        // **Each of the three answerings goes and comes back as itself**, an End from either point.
         for (const Crash::Answering& answering :
             { Crash::Answering(Crash::AskThePlayer{}), Crash::Answering(Crash::AskNobody{}),
-                Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(7) }) })
+                Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(7), Crash::EndAfter::From::Ask }),
+                Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(7), Crash::EndAfter::From::Report }) })
         {
             written.mAnswering = answering;
             std::vector<std::string> again;
             EXPECT_EQ(Crash::MonitorArguments::read(written.write(), again).mAnswering, answering);
         }
         EXPECT_EQ(written.write().front(), Crash::sMonitorSwitch);
+    }
+
+    /// **An End reads as one word of the two `spell` writes, its delay a number to its end**, and
+    /// nothing else is one: a harness's text that reads as no End leaves the answering as it was, and
+    /// a monitor that reads none asks the player rather than ends.
+    TEST(CrashMonitorArgumentsTest, anEndReadsAsTheWordItSpellsAndNothingElse)
+    {
+        const Crash::EndAfter ask{ std::chrono::milliseconds(1), Crash::EndAfter::From::Ask };
+        const Crash::EndAfter report{ std::chrono::milliseconds(5000), Crash::EndAfter::From::Report };
+        EXPECT_EQ(ask.spell(), "end-after-ask-1");
+        EXPECT_EQ(report.spell(), "end-after-report-5000");
+        EXPECT_EQ(Crash::EndAfter::read("end-after-ask-1"), ask);
+        EXPECT_EQ(Crash::EndAfter::read("end-after-report-5000"), report);
+
+        for (const std::string_view spelled : { "end-after-7", "end-after-ask-", "end-after-ask-12x",
+                 "end-after-ask--5", "end-after-report-+5", "end-after-later-5", "" })
+        {
+            EXPECT_EQ(Crash::EndAfter::read(spelled), std::nullopt) << spelled;
+            std::vector<std::string> handler;
+            const std::vector<std::string> line{ "openmw", "--openmw-answering=" + std::string(spelled) };
+            EXPECT_EQ(Crash::MonitorArguments::read(line, handler).mAnswering, Crash::Answering(Crash::AskThePlayer{}))
+                << spelled;
+        }
     }
 
     /// A note table at an address that does not read as a number to its end is no table, and the

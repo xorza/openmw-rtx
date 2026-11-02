@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 
 #ifdef _MSC_VER
@@ -19,6 +20,7 @@
 #endif
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashanswering.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/fixedpath.hpp>
@@ -153,8 +155,13 @@ namespace Debug
                     size_t lineSize = 1;
                     while (lineSize < msg.size() && msg[lineSize - 1] != '\n')
                         lineSize++;
-                    writeImpl(prefix, prefixSize, level);
-                    writeImpl(msg.data(), lineSize, level);
+                    // **One write a line, its stamp with it**: the crash catcher's monitor appends its
+                    // summaries to the log from a process of its own, and one that came between a
+                    // stamp and its text split the line in two. One line held for all writers, whom
+                    // `Log`'s lock takes one at a time, as the stream's own buffer needs it to.
+                    mLine.assign(prefix, prefixSize);
+                    mLine.append(msg.data(), lineSize);
+                    writeImpl(mLine.data(), static_cast<std::streamsize>(mLine.size()), level);
                     if (logListener)
                         logListener(
                             level, std::string_view(prefix, prefixSize), std::string_view(msg.data(), lineSize));
@@ -178,6 +185,9 @@ namespace Debug
             {
                 return size;
             }
+
+        private:
+            std::string mLine;
         };
 
 #if defined _WIN32 && defined _DEBUG
@@ -491,10 +501,15 @@ namespace Debug
             sReportsNamed = reports.has_value();
             settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / sReportFolder);
             settings.mAnswering = asks ? Crash::Answering(Crash::AskThePlayer{}) : Crash::Answering(Crash::AskNobody{});
-            // A harness's End in place of the player's where it names one.
-            if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
-                settings.mAnswering
-                    = Crash::EndAfter{ std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0)) };
+            // A harness's End in place of the player's where it names one, spelled as the monitor
+            // reads it (`Crash::EndAfter::spell`).
+            if (const char* const spelled = std::getenv("OPENMW_CRASH_END"))
+            {
+                if (const std::optional<Crash::EndAfter> after = Crash::EndAfter::read(spelled))
+                    settings.mAnswering = *after;
+                else
+                    Log(Debug::Warning) << "OPENMW_CRASH_END names no End: \"" << spelled << '"';
+            }
             // Every application's reports carry the build they came from, the launcher's and the
             // editor's as well as the game's.
             Crash::annotate("version", Version::getOpenmwVersionDescription());
