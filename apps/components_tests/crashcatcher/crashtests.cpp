@@ -29,6 +29,7 @@
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashanswering.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/crashcatcher/crashsummary.hpp>
@@ -130,22 +131,22 @@ namespace CrashTests
             }
         }
 
-        /// How long the modes that answer End late wait before they answer: long enough that the
-        /// game has drawn again, or ended, by then. **In wall time, which the hang dump spends
-        /// too**: Crashpad holds the game while it writes the dump, so a game held past the end of
-        /// its stall draws again only once the dump is written. A loaded runner took two seconds
-        /// over one; a dump slower than this still ends a game that had recovered.
+        /// How long after the hang report the modes that answer End late wait before they answer:
+        /// long enough that the game has drawn again, or ended, by then. **After the report, and
+        /// not after the ask** (`Crash::EndAfter::From::Report`): the report holds the game for as
+        /// long as its dump takes, and under AddressSanitizer one took four seconds, which a delay
+        /// from the ask spent and then ended a game that was ending by itself.
         constexpr std::chrono::milliseconds sLateEnd{ 5000 };
 
-        /// After how long a mode's monitor answers End, or nothing for one nobody answers: late for
-        /// the modes that recover or end before it, and at once for the one that tests an End
-        /// landing on its report.
-        std::optional<std::chrono::milliseconds> endAfterOf(std::string_view mode)
+        /// When a mode's monitor answers End, or nothing for one nobody answers: late for the modes
+        /// that recover or end before it, and at once for the one that tests an End landing on its
+        /// report.
+        std::optional<Crash::EndAfter> endAfterOf(std::string_view mode)
         {
             if (mode == "recovers-before-end" || mode == "ends-before-end")
-                return sLateEnd;
+                return Crash::EndAfter{ sLateEnd, Crash::EndAfter::From::Report };
             if (mode == "ended-in-report")
-                return std::chrono::milliseconds(1);
+                return Crash::EndAfter{ std::chrono::milliseconds(1), Crash::EndAfter::From::Ask };
             return std::nullopt;
         }
 
@@ -737,8 +738,8 @@ int main(int argc, char* argv[])
         // every mode then also proves the catcher makes the whole path before its monitor needs it.
         Platform::Process::setEnvironmentPath("OPENMW_CRASH_REPORTS", folder / "user data" / "crashes");
         Platform::Process::setEnvironment("OPENMW_CRASH_DIALOG", "0");
-        if (const std::optional<std::chrono::milliseconds> after = CrashTests::endAfterOf(mode))
-            Platform::Process::setEnvironment("OPENMW_CRASH_END_AFTER_MS", std::to_string(after->count()).c_str());
+        if (const std::optional<Crash::EndAfter> after = CrashTests::endAfterOf(mode))
+            Platform::Process::setEnvironment("OPENMW_CRASH_END", after->spell().c_str());
         CrashTests::prepareModeOfThisSystem(mode);
 
         const int ended = Debug::wrapApplication(

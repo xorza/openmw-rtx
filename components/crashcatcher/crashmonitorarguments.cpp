@@ -19,14 +19,13 @@ namespace Crash
         constexpr std::string_view sNotes = "--openmw-notes";
         constexpr std::string_view sIssues = "--openmw-issues";
 
-        /// Who answers: `player`, `nobody`, or `end-after-<milliseconds>`.
+        /// Who answers: `player`, `nobody`, or an `EndAfter` as it spells itself.
         constexpr std::string_view sAnswering = "--openmw-answering";
-        constexpr std::string_view sEndAfter = "end-after-";
 
         std::string spell(const Answering& answering)
         {
             if (const EndAfter* const after = std::get_if<EndAfter>(&answering))
-                return std::string(sEndAfter) + std::to_string(after->mDelay.count());
+                return after->spell();
             return std::holds_alternative<AskNobody>(answering) ? "nobody" : "player";
         }
 
@@ -36,9 +35,8 @@ namespace Crash
         {
             if (spelled == "nobody")
                 return AskNobody{};
-            if (spelled.starts_with(sEndAfter))
-                return EndAfter{ std::chrono::milliseconds(
-                    std::strtoll(std::string(spelled.substr(sEndAfter.size())).c_str(), nullptr, 10)) };
+            if (const std::optional<EndAfter> after = EndAfter::read(spelled))
+                return *after;
             return AskThePlayer{};
         }
         constexpr std::string_view sDatabase = "--database";
