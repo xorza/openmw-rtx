@@ -10,6 +10,7 @@ file(GLOB UNITTEST_SRC_FILES
     crashcatcher/crashsummary.cpp
 
     esm/testfixedstring.cpp
+    esm/testgameformat.cpp
     esm/testrefid.cpp
     esm/variant.cpp
 
