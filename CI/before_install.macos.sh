@@ -8,9 +8,7 @@ brew tap --repair
 brew update --quiet
 
 brew install curl p7zip
-# The Vulkan backend compiles here though no Mac traces rays: glslc, the SPIR-V tools and the headers
-# from the SDK `tools/omw/pins.py` pins, as the other systems take theirs, into `VULKAN_SDK`
-# (`deps_versions.sh`). No loader: no program links it, because volk loads it at run time.
+# The Vulkan backend compiles here though no Mac traces rays. No loader is linked: volk loads it.
 read -r SDK_URL SDK_SHA256 SDK_VERSION < <(python3 -c 'import sys; sys.path.insert(0, "tools"); from omw import pins
 print(pins.VULKAN_SDK_MACOS.url, pins.VULKAN_SDK_MACOS.sha256, pins.VULKAN_SDK_WINDOWS_VERSION)')
 curl -fsSL "$SDK_URL" -o "$DEPS_DIR/vulkansdk.zip"

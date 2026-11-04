@@ -1,6 +1,4 @@
-# What a failed build leaves to read once its runner is gone: the configuration, every log, and the
-# crash matrix's reports, which each mode keeps in the build. One list for every job that builds, so a
-# log one of them learns to keep, every one keeps.
+# One list for every job that builds, so a log one job learns to keep, every job keeps.
 name: Build logs
 description: Uploads a failed build's configuration, logs and crash reports.
 
