@@ -1,104 +1,57 @@
-# A daily merge of upstream OpenMW into this fork, resolved by an agent, opened as a pull request
-# and merged by GitHub once CI passes.
+# A daily merge of upstream OpenMW, resolved by an agent and merged by GitHub once CI passes. An
+# agent, because the fork's conflicts need judgement: no merge strategy keeps both upstream's change
+# to a line and the fork's reason for moving it.
 #
-# **An agent and not a scripted merge, because this fork's conflicts need judgement.** The merge
-# of 2026-09-22 is the case in point: upstream rewrote two error messages into `std::format`, and
-# this fork had already moved the same two lines behind a `postProcessor()` helper that throws
-# under a renderer with no shader chain. Neither side alone is right, and no merge strategy can
-# say so. A `git merge -X ours` would have lost upstream's change and `-X theirs` the fork's.
+# Nothing here builds: the pull request runs `ci.yml`. The gate needs a card, so it runs after the
+# merge or not at all.
 #
-# **Nothing here builds.** The pull request this opens runs `ci.yml` on `pull_request`, which is
-# the whole of CI on three systems, so a build here would be the same build twice. What no hosted
-# runner can do is the gate: it needs a card, and the body of every pull request this opens says
-# the gate has not been run.
-#
-# **Merged by CI and by nothing else.** The last job opens the pull request and turns on
-# auto-merge, and the `master` ruleset holds the merge until the checks of `ci.yml` pass. Nobody
-# reads a resolution before it lands, and no hosted runner has a GPU, so the gate runs after the
-# merge, on a box with a card, or not at all.
-#
-# **Three jobs, and only the one in the middle reads upstream.** What this workflow reads is
-# another project's repository, and an agent that reads untrusted text is the shape every 2026
-# prompt-injection advisory names. So the agent's job holds nothing worth stealing and can send
-# nothing anywhere:
-#
-# - `survey` decides whether there is a merge to make. No agent, and it never reads upstream's text.
-# - `merge` merges and lets the agent resolve the conflicts. Its token only reads. The agent runs
-#   no command: it reads and edits files inside the checkout and nothing of `.git`, and the shell
-#   does git's part either side of it. Claude Code's sandbox stays on beneath it, with no network
-#   and every credential taken out of a command's environment. It runs no settings, hooks, skills
-#   or MCP servers of the checkout's own, which upstream could add, and a merge that adds any of
-#   those stops before the agent starts. The job's whole result is a git bundle and the agent's
-#   report, handed on as an artifact.
-# - `publish` takes the bundle, checks it, pushes the branch and opens the pull request. No agent,
-#   and nothing in it runs what the bundle carries.
-#
-# The worst a run can then do is land a change that builds and passes CI on three systems, and a
-# change that touches `.github/` or leaves a conflict marker waits for a human instead.
+# Only `merge` reads upstream, which is untrusted text, so its agent holds nothing worth stealing
+# and can send nothing: a read token, no command, no network, no settings of the checkout's own. Its
+# whole result is a git bundle. `survey` and `publish` run no agent, and `publish` runs nothing the
+# bundle carries. A merge that touches `.github/` or leaves a conflict marker waits for a human.
 name: Upstream merge
 
 on:
   schedule:
-    # Every day near 04:00 UTC. GitHub runs a schedule from the default branch alone, and delays it
-    # most at the top of the hour, which every schedule asks for: at `0 4`, the runs of October 2026
-    # started four and a half to five and a half hours late. Nothing here depends on the minute. In a
-    # public repository the schedule stops after 60 days with no commit, which a tree this active
-    # never reaches.
+    # GitHub starts a scheduled run hours late: at `17 4`, the runs of late October 2026 started six
+    # to eight hours late.
     - cron: "17 4 * * *"
   workflow_dispatch:
 
-# Nothing by default, and each job names what it needs.
 permissions: {}
 
-# One merge at a time, and a run in flight is never cancelled: a half-resolved merge is worse
-# than a late one.
+# A half-resolved merge is worse than a late one.
 concurrency:
   group: upstream-merge
   cancel-in-progress: false
 
 jobs:
-  # Deterministic, so a shell does it and not the agent: fetching, counting, naming the branch and
-  # asking whether there is already a merge to read need no judgement. A run with nothing to do
-  # costs this job alone.
+  # Each `upstream-merge/` branch of this repository is one of three:
   #
-  # **Each `upstream-merge/` branch is one of three**, by its pull requests in this repository;
-  # a branch is this repository's, so a fork's pull request named like one changes nothing:
-  #
-  # - **Every pull request merged or closed: done, and deleted.** A merge `github-actions` made
-  #   keeps its branch: "Automatically delete head branches" acts on a merge a user made, an
-  #   auto-merge is the merge of whoever turned it on, and a merge made with `GITHUB_TOKEN`
-  #   starts no workflow that could.
-  # - **One open: the run waits.** It failed CI or is held for a human. Unconditional, this opens a
-  #   pull request a day whether or not the last one landed, and a pile of them is worse than a
-  #   week of drift: the merge after the pile is cleared takes everything anyway.
-  # - **None at all: the run fails, naming it.** It is a merge the agent did not finish, which
-  #   `publish` pushed for a human. A wait on it would show nowhere, since a run that skips every
-  #   step is green, so every run fails until a human finishes it or deletes it.
+  # - every pull request merged or closed: deleted, as an auto-merge keeps its branch;
+  # - one open: the run waits, as a pile of pull requests is worse than a week of drift;
+  # - none: a merge the agent did not finish, and every run fails naming it until a human finishes
+  #   or deletes it, as a run that skips every step is green.
   survey:
-    # By name, as every job in this fork is: `ubuntu-latest` moves.
+    # `ubuntu-latest` moves.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    # `contents: write` deletes the branches of finished merges, and `pull-requests: read` lists
-    # the pull requests that say which are finished.
     permissions:
       contents: write
       pull-requests: read
     outputs:
       branch: ${{ steps.upstream.outputs.branch }}
       merge: ${{ steps.upstream.outputs.merge }}
-    # Named, because the default is `bash -e` and a named `bash` adds `-o pipefail`: a step that
-    # decides whether to merge must stop at the first command that fails.
+    # A named `bash` adds `-o pipefail` to the default `bash -e`.
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # `master` whatever ref dispatched the run: what is behind upstream is master's count, and
-          # a feature branch's own commits would ride into a pull request that merges itself.
+          # A feature branch's own commits would ride into a pull request that merges itself.
           ref: master
-          # The whole history of commits and none of their trees: the count of commits behind
-          # upstream walks the graph and reads no file.
+          # The count walks the graph and reads no file.
           fetch-depth: 0
           filter: tree:0
           persist-credentials: false
@@ -109,14 +62,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          # Upstream treeless too, as a second promisor remote, for the same count.
           git remote add upstream https://github.com/OpenMW/openmw.git
           git config remote.upstream.promisor true
           git config remote.upstream.partialclonefilter tree:0
           git fetch --no-tags upstream master
           behind=$(git rev-list --count HEAD..upstream/master)
 
-          # Each branch with pull requests, and whether one of them is open.
           pulls=$(gh pr list --state all --limit 1000 --json headRefName,isCrossRepository,state \
             --jq '[.[] | select(.isCrossRepository | not)] | group_by(.headRefName)
               | map({ key: .[0].headRefName, value: any(.state == "OPEN") }) | from_entries')
@@ -144,8 +95,8 @@ jobs:
             exit 1
           fi
 
-          # The run's own number beside the date, so a merge asked for by hand on the day of a
-          # scheduled one is a branch of its own.
+          # The run's number, so a merge by hand on the day of a scheduled one has a branch of its
+          # own.
           echo "branch=upstream-merge/$(date -u +%F)-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
           if [ "$behind" != 0 ] && [ "$waiting" = 0 ]; then
             echo "merge=true" >> "$GITHUB_OUTPUT"
@@ -156,12 +107,11 @@ jobs:
     needs: survey
     if: needs.survey.outputs.merge == 'true'
     runs-on: ubuntu-24.04
-    # Six seconds a turn in the runs so far: room for the turns of seventy conflicted files.
+    # Six seconds a turn: room for seventy conflicted files.
     timeout-minutes: 120
 
-    # **Read, and nothing else.** The agent works in this job, so this job can write to nothing: no
-    # push, no pull request, no comment. `id-token` is absent, so the action cannot exchange this
-    # run for its GitHub App's token either, and takes the read token it is handed below.
+    # The agent works here, so the job writes nothing. Without `id-token` the action cannot exchange
+    # the run for its GitHub App's token, which can write.
     permissions:
       contents: read
     outputs:
@@ -174,19 +124,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The branch is made off master, as the agent is told and the pull request merges into,
-          # whatever ref dispatched the run.
           ref: master
-          # The whole history. A merge needs its merge base, which a shallow clone has not got.
+          # A merge needs its merge base.
           fetch-depth: 0
-          # Nothing to keep: this job pushes nothing.
           persist-credentials: false
 
-      # **Before the merge**, so nothing of upstream's is installed. `clang-format-14` is the version
-      # the `checks` job of `ci.yml` formats by, which the step after the agent runs over what it
-      # resolved. The sandbox's two tools come from the same packages the action installs for its own
-      # isolation, and Ubuntu 24.04 lets bubblewrap make its namespaces only with the AppArmor switch
-      # off.
+      # Before the merge, so nothing of upstream's is installed. Ubuntu 24.04 lets bubblewrap make
+      # its namespaces only with the AppArmor switch off.
       - name: Tools, before anything of upstream's is in the tree
         run: |
           sudo apt-get update
@@ -195,27 +139,18 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
 
-          # The merge commit's author, which a runner's git has none of: the identity the action
-          # sets as well (`bot_name`). No hook runs in this checkout.
+          # The identity the action sets as well (`bot_name`).
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config core.hooksPath /dev/null
-          # The agent's report, and what it is handed to read, beside the tree and never in it.
           echo "/UPSTREAM-MERGE.md" >> .git/info/exclude
           echo "/.upstream-merge/" >> .git/info/exclude
 
-      # **The merge, as far as git takes it, from the shell and not from the agent.** Branching and
-      # merging need no judgement, and every call the agent spends on them is a turn it does not
-      # spend on a conflict. What git cannot merge is left in the tree with its markers, for the
-      # agent. The list of those files is not handed over as an output, because a file name is
-      # upstream's and a name with a newline in it writes a line of its own into `GITHUB_OUTPUT`;
-      # the next step writes it for the agent. Their count is handed over, as the agent's turns.
+      # The conflicted files are not an output: a name is upstream's, and a newline in one writes a
+      # line of its own into `GITHUB_OUTPUT`.
       #
-      # **Turns by the work, and not one figure for every merge.** Three runs of 2026-10-02 and 03
-      # met fourteen conflicted files, spent a fixed sixty on them, and ended mid-resolution with
-      # nothing pushed. Sixty, and sixteen a file: from 2026-09-27 to 10-21 a merge with nothing to
-      # resolve took 16 to 45 turns, and one with three files 39 to 90; at forty and twelve, the
-      # runs of 10-18 and 10-21 finished their merges and failed at 45 of 40 and 90 of 76.
+      # Turns by the work: a merge with nothing to resolve took 16 to 45 turns and one with three
+      # files 39 to 90, and a fixed sixty left fourteen files mid-resolution.
       - name: The merge, as far as git takes it
         id: merge
         env:
@@ -225,17 +160,15 @@ jobs:
           git fetch --no-tags upstream master
           git checkout -b "$BRANCH"
 
-          # One means conflicts are left, which are the agent's; anything past it is an error.
+          # One means conflicts are left for the agent.
           status=0
           git merge --no-ff --no-commit upstream/master || status=$?
           if [ "$status" -gt 1 ]; then
             exit "$status"
           fi
 
-          # **Upstream's GitHub workflows stay deleted.** `ci.yml` does what they did, and each
-          # change upstream makes to one is a modify/delete conflict that needs no judgement: the fork
-          # keeps it deleted. Resolved here, so the merge touches nothing under `.github/` and is not
-          # held for a human over it. A workflow upstream adds is new, and is held.
+          # Upstream's workflows stay deleted, as `ci.yml` does their work, so a change to one holds
+          # no merge for a human. A workflow upstream adds is held.
           for workflow in push macos windows release; do
             path=".github/workflows/$workflow.yml"
             if [ -n "$(git ls-files --unmerged -- "$path")" ]; then
@@ -244,10 +177,8 @@ jobs:
             fi
           done
 
-          # **What Claude Code would load from the tree stops the run.** The agent runs on user
-          # settings alone, so none of these is read, but a merge that adds or changes one is a
-          # merge that changes what an agent here runs, and a human reads that first. Null-separated,
-          # because the names are upstream's.
+          # The agent reads none of these, but a merge that changes one changes what an agent here
+          # runs, and a human reads that first.
           if git diff -z --name-only HEAD -- | grep -zqE '^(\.claude/|\.mcp\.json$)'; then
             echo "::error::the merge adds or changes .claude/ or .mcp.json, which configure the agent; merge this one by hand"
             exit 1
@@ -257,22 +188,14 @@ jobs:
           echo "files git could not merge: $conflicted"
           echo "turns=$((60 + 16 * conflicted))" >> "$GITHUB_OUTPUT"
 
-      # **What the agent reads of git, written out for it, because the agent runs no git.** Claude
-      # Code merges the file tools' deny rules into the sandbox's own, so the deny on `.git` below,
-      # which keeps the action's token in the checkout's remote from the agent, keeps every command
-      # the agent runs out of `.git` as well: run 37459479748 found each git call answering "not a
-      # git repository", resolved the conflicts by hand and could not commit them. So the shell does
-      # git's part on either side of the agent, and here writes into `.upstream-merge/`, which git
-      # ignores: the files git could not merge, the upstream commits the merge takes, and each
-      # conflicted file at git's three stages — the merge base, this fork and upstream — where that
-      # stage has the file. An add/add has no base, and a modify/delete no file on the side that
-      # deleted it. Null-separated where a name is read, because the names are upstream's.
+      # The agent runs no git: the deny on `.git`, which keeps the action's token from it, keeps its
+      # commands out of `.git` too. So the shell writes what it needs into `.upstream-merge/`.
       - name: What the agent reads
         run: |
           dir=.upstream-merge
           mkdir -p "$dir/stages"
-          # Unquoted, as the stages below are named: without `-z`, git quotes a name that holds a
-          # byte past ASCII, and the agent would meet one file under two spellings.
+          # Without `-z`, git quotes a name with a byte past ASCII, and the agent would meet one
+          # file under two spellings.
           git diff -z --name-only --diff-filter=U | tr '\0' '\n' > "$dir/conflicts.txt"
           git log --no-merges --format='%h %s' HEAD..MERGE_HEAD > "$dir/upstream-commits.txt"
 
@@ -286,45 +209,26 @@ jobs:
           done
           echo "$(wc -l < "$dir/upstream-commits.txt") upstream commits, $(wc -l < "$dir/conflicts.txt") files to resolve"
 
-          # The tree as the agent finds it, outside the checkout, for the bundle to hold it against.
           { git diff --binary HEAD; git ls-files -z --others --exclude-standard | xargs -0 -r sha256sum --; } \
             | sha256sum > "$RUNNER_TEMP/tree-before-agent"
 
-      # Pinned to a commit like every other action here. This one ships most days, so the
-      # version beside it is what says how old the pin has grown.
       - uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
         id: agent
         env:
-          # **Every credential out of every command the agent runs.** The scrub leaves GitHub tokens
-          # in place, and the sandbox's `credentials` below takes them out. On Linux it also runs
-          # each command in a PID namespace of its own, so no command reads another process's
-          # environment through `/proc`.
+          # The scrub leaves GitHub tokens, which the sandbox's `credentials` takes out.
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-          # **The job's own read token**, and not the Claude GitHub App's, which can write: with this
-          # given, the action makes no exchange, and the token in the agent's checkout only reads.
+          # Given, so the action does not exchange it for the Claude GitHub App's, which can write.
           github_token: ${{ github.token }}
 
-          # The author of the merge commit. The action's default is its own bot, and nothing this
-          # repository commits names a tool.
+          # Nothing this repository commits names a tool.
           bot_name: github-actions[bot]
           bot_id: "41898282"
 
-          # **The boundary, as Claude Code enforces it.** The action writes this as user settings,
-          # which `--setting-sources user` below makes the only settings read.
-          #
-          # - The file tools: nothing under `/proc`, where Claude Code's own environment is; nothing
-          #   of `.git`, which holds the action's token in its remote, and no edit of `.github`,
-          #   `.claude` or `.mcp.json`, which configure CI and the agent. **The sandbox takes the
-          #   same rules for every command** (Claude Code merges them into its own), which is why
-          #   the agent runs no git and the shell does git's part around it.
-          # - The agent is allowed no command at all. The sandbox stays on beneath that: no network,
-          #   writes inside the checkout only, no command outside it, and where it cannot start, the
-          #   agent does not start either.
-          # - The tokens the scrub leaves are taken out of each command's environment.
-          # - No hooks, no skills, no web.
+          # User settings, which `--setting-sources user` makes the only ones read. The sandbox
+          # takes the file tools' deny rules for every command too.
           settings: |
             {
               "disableAllHooks": true,
@@ -419,29 +323,17 @@ jobs:
             turns run out first, the step after you commits the tree as you left it for a human, so
             a file left half-done costs more than one not begun.
 
-          # The newest Opus, where the account's default is whatever its plan names: a merge that
-          # needs judgement gets the strongest model. The alias is resolved by the Claude Code the
-          # pinned action carries, so it moves with the pin: under v1.0.231, whose Claude Code was
-          # 2.1.278, it named `claude-opus-5`, since Opus 5.5 needs 2.1.280; v1.0.262 carries 2.1.310.
-          #
-          # **User settings alone**: the checkout's own `.claude/` and `.mcp.json` are upstream's to
-          # write once the merge stands in the tree, and a `-p` run would otherwise load their hooks
-          # and connect their servers outside the sandbox. **No command**: what the agent needs of
-          # git the steps around it do. **The file tools inside the checkout**: a path outside it is
-          # one no rule here allows, and `Edit` rules are what Claude Code checks a `Write` against
-          # as well.
+          # The checkout's `.claude/` and `.mcp.json` are upstream's once the merge stands, and
+          # would load hooks and servers outside the sandbox. Claude Code checks a `Write` against
+          # the `Edit` rules.
           claude_args: |
             --model opus
             --max-turns ${{ steps.merge.outputs.turns }}
             --setting-sources user
             --allowedTools "Read(./**),Edit(./**),Grep,Glob"
 
-      # **What the agent said last, and every call it was refused**, because the action hides its
-      # transcript: the run of 2026-09-24 pushed its branch, opened no pull request and left
-      # nothing to say why. Those two and not the transcript, which a public repository would
-      # publish whole. Printed with workflow commands stopped, under a token nobody can guess:
-      # the text is the agent's, written after reading upstream, and no line of it may be read
-      # as a command to the runner.
+      # The action hides the transcript, which a public repository would publish whole. Workflow
+      # commands are stopped: the text is the agent's, written after reading upstream.
       - name: What the agent reported
         if: always() && steps.agent.outputs.execution_file != ''
         env:
@@ -456,26 +348,14 @@ jobs:
             "$EXECUTION_FILE"
           echo "::$stop::"
 
-      # **What the agent left, finished or not, staged, committed and bundled here**, since the agent
-      # runs no git. Its turns can run out mid-resolution, and the action then fails with the tree on
-      # a runner that is about to go: three runs threw fourteen files' work away so. Whatever the
-      # agent left — resolved, half-resolved, still marked — is committed as the merge: every file
-      # as it stands, each conflicted file it named in `removed.txt` deleted, and each C++ file it
-      # wrote and cleared of markers formatted by the rule `ci.yml` checks, which no judgement
-      # decides. `publish` decides what becomes of it. A merge is finished where the agent
-      # wrote its report; one it left marked is held for a human there.
+      # The agent's turns can run out mid-resolution, and the runner then goes with its work, so
+      # whatever it left is committed here and `publish` decides what becomes of it.
       #
-      # **A merge the agent never worked on is not held.** It changed no file and wrote no report,
-      # so the branch would hold git's merge alone, which the next run makes again, and pushed it
-      # would stop every run after it. Run 39928025969 met the plan's weekly limit before its first
-      # turn, and its branch stopped the daily merges for three days. The run fails, so the day
-      # shows, and pushes nothing. The tree is held against itself as the agent found it, and not
-      # against the agent's turns: a merge the agent changed is a human's however it stopped.
+      # A merge the agent never changed is not pushed: the next run makes it again, and pushed it
+      # stopped the daily merges for three days.
       #
-      # **Onto master as it stands now.** GitHub refuses a push by an app where the branch's
-      # workflow files differ from master's, and run 37120193891 lost a whole resolution so: master's
-      # workflows moved while it merged. A merge of master that conflicts is left out, and the push
-      # says what is refused. Master is public, so this fetch needs no credential.
+      # Onto master as it stands: GitHub refuses an app's push where the branch's workflows differ
+      # from master's.
       - name: What the agent left, as a bundle
         id: bundle
         if: ${{ !cancelled() && steps.merge.outcome == 'success' }}
@@ -486,7 +366,6 @@ jobs:
           mkdir -p "$out"
           dir=.upstream-merge
 
-          # `removed.txt` beside the tree, since a deletion the agent names is a change it made.
           tree=$({ git diff --binary HEAD; git ls-files -z --others --exclude-standard | xargs -0 -r sha256sum --; } \
             | sha256sum)
           if [ ! -s UPSTREAM-MERGE.md ] && [ ! -s "$dir/removed.txt" ] \
@@ -495,8 +374,7 @@ jobs:
             exit 1
           fi
 
-          # A path the agent names is deleted only where git could not merge it: the list is the
-          # agent's, written after reading upstream, and a deletion is a resolution and nothing else.
+          # The list is the agent's, written after reading upstream: only a conflicted file goes.
           if [ -f "$dir/removed.txt" ]; then
             while IFS= read -r path; do
               if [ -n "$path" ] && grep -qxF -- "$path" "$dir/conflicts.txt"; then
@@ -505,10 +383,7 @@ jobs:
             done < "$dir/removed.txt"
           fi
 
-          # The format the `checks` job of `ci.yml` holds the tree to, on each C++ file the agent
-          # wrote — every conflicted file, every file it changed beside them, which a rule's second
-          # copy is, and every file it made — that is left and has no marker: one with a marker is a
-          # human's, and a format run would reflow the markers.
+          # Not a file with a marker, whose markers a format would reflow.
           { git diff -z --name-only; git ls-files -z --others --exclude-standard; } \
             | while IFS= read -r -d '' path; do
               case $path in
@@ -521,15 +396,11 @@ jobs:
               fi
             done
 
-          # Everything, a file the agent made among it; what git ignores, the report and
-          # `.upstream-merge/` among it, stays out.
           if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
             git add --all
             git commit --quiet --no-edit
           fi
 
-          # The report is the pull request's body and no file of the tree, with the upstream commits
-          # the merge takes added from git's own list, a page of them at most.
           state=finished
           if [ -s UPSTREAM-MERGE.md ]; then
             taken=$(wc -l < "$dir/upstream-commits.txt")
@@ -563,21 +434,17 @@ jobs:
           name: upstream-merge
           path: ${{ runner.temp }}/upstream-merge
           if-no-files-found: error
-          # Long enough to run `publish` again by hand.
           retention-days: 3
 
   publish:
     needs: [survey, merge]
-    # After a merge job that failed as well, where its last steps left a bundle: an agent that ran
-    # out of turns fails its step, and what it left is still a human's to finish. A cancelled run
-    # publishes nothing.
+    # After a failed merge job too: what an agent out of turns left is a human's to finish.
     if: ${{ !cancelled() && needs.merge.outputs.bundled == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
-    # `contents: write` pushes the branch, `pull-requests: write` turns on auto-merge and comments
-    # on a merge held for a human, and `id-token: write` exchanges this run for the Claude GitHub
-    # App's token, which opens the pull request.
+    # `id-token: write` exchanges the run for the Claude GitHub App's token, which opens the pull
+    # request.
     permissions:
       contents: write
       pull-requests: write
@@ -590,8 +457,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked] this job pushes with it, and runs nothing the push carries
         with:
-          # Every commit of master, which the bundle names as what it stands on, and the blobs of
-          # its tip: an older one is fetched where a diff below asks for it.
+          # The bundle stands on master's commits.
           fetch-depth: 0
           filter: blob:none
 
@@ -600,12 +466,8 @@ jobs:
           name: upstream-merge
           path: ${{ runner.temp }}/upstream-merge
 
-      # **The bundle is data.** It is fetched into a branch and read with plumbing, and nothing in
-      # this job checks it out or runs what it carries.
-      #
-      # **And it must not carry the agent's credential.** The merge job keeps the token from every
-      # command the agent runs, so this cannot fire short of a hole in that; it is the last line
-      # before the text is public, and a hit stops the run before anything is pushed.
+      # The bundle is data: nothing here checks it out or runs what it carries. The search for the
+      # agent's credential is the last line before the text is public.
       - name: The branch, checked and pushed
         env:
           BRANCH: ${{ needs.survey.outputs.branch }}
@@ -626,8 +488,7 @@ jobs:
 
           git push --quiet origin "refs/heads/$BRANCH:refs/heads/$BRANCH"
 
-          # **A merge the agent did not finish waits for a human, on its branch.** No pull request:
-          # every later run fails naming the branch until a human finishes it or deletes it.
+          # No pull request: every later run fails naming the branch.
           if [ "$(cat "$out/state")" != finished ]; then
             marked=0
             if files=$(git grep -lE '^(<<<<<<<|>>>>>>>) ' "$BRANCH" -- .); then
@@ -637,12 +498,9 @@ jobs:
             exit 1
           fi
 
-      # **Opened as the Claude GitHub App, which is why CI runs on it.** A pull request opened with
-      # the default `GITHUB_TOKEN` gets no checks at all, since GitHub suppresses workflow runs from
-      # that token, and this repository does not let Actions open pull requests anyway. The
-      # exchange is the pinned action's own (`src/github/token.ts` at the commit `merge` pins): this
-      # run's OIDC token for the App's installation token, which is masked at once and revoked once
-      # the one call is made. Nothing else here holds it.
+      # As the Claude GitHub App: GitHub starts no workflow on a pull request `GITHUB_TOKEN` opens.
+      # The exchange is the pinned action's own (`src/github/token.ts`), and the token is revoked
+      # after its one call.
       - name: The pull request
         env:
           BRANCH: ${{ needs.survey.outputs.branch }}
@@ -667,19 +525,10 @@ jobs:
             "${GITHUB_API_URL:-https://api.github.com}/installation/token" || true
           exit "$status"
 
-      # **Auto-merge, from the shell and not from the agent**: which pull request, and whether it
-      # may land with nobody reading it, are facts a script establishes. The pull request is the
-      # one on the branch this run named, in this repository and against master, and it is held
-      # for a human where the merge touches `.github/` — what the prompt asks of the agent, made
-      # sure of here — or left a conflict marker.
-      #
-      # **Through `enablePullRequestAutoMerge` and not `gh pr merge --auto`**, because `gh` merges
-      # at once a pull request that has nothing left to wait for. The mutation refuses one, so a
-      # ruleset that lost its required checks fails this step rather than merging unchecked.
-      # `expectedHeadOid` is the head checked here, so a push after the check turns nothing on.
-      #
-      # **Merged by `github-actions`, whose pushes start no workflow**: the checks ran on the pull
-      # request's merge ref, and `master` itself is not built again until the next push to it.
+      # `enablePullRequestAutoMerge` and not `gh pr merge --auto`, which merges at once a pull
+      # request with nothing left to wait for: a ruleset that lost its required checks fails here
+      # rather than merging unchecked. `expectedHeadOid` makes a push after the check turn nothing
+      # on.
       - name: Auto-merge once CI passes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -698,9 +547,8 @@ jobs:
           head=$(jq -r .headRefOid <<< "$pull")
           git fetch --no-tags origin master "$BRANCH"
 
-          # Each answer taken on its own line, where a failure stops the step: inside a test, a
-          # `git diff` that failed would read as a merge that changes nothing. `git grep` says
-          # "found" with 0 and "not found" with 1, and anything else is an error, not an answer.
+          # Outside a test, so a failed `git diff` stops the step rather than reading as no change.
+          # `git grep` exits 1 for "not found", and anything past it is an error.
           workflows=$(git diff --name-only origin/master..."$head" -- .github/)
           held=""
           if [ -n "$workflows" ]; then

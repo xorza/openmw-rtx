@@ -1,19 +1,11 @@
-# All of the fork's CI, on every push and every pull request, through the same `omw` driver the desk
-# uses. A release runs it whole again on the commit its tag names, beside the packaging
-# (`rtx-release.yml`).
+# The fork's CI, through the `omw` driver the desk uses; a release runs it again on its tag
+# (`rtx-release.yml`). macOS is compiled only: no device there traces rays, and `hdiutil` fails on
+# the runner. No hosted runner has a GPU, so `rtx-gpu-tests` and the gate stay on a box with a card.
 #
-# `omw full` builds every program and runs every suite: on Ubuntu with GCC, with Clang (built, not
-# run), and on Windows with MSVC. macOS is compiled only: no device there traces rays, and `hdiutil`
-# fails on the runner's own "Resource busy". Upstream's GitLab checks run here too: the source checks,
-# warnings as errors, its sanitizers, and its integration tests over the ray tracer's null backend. No
-# hosted runner has a GPU, so `rtx-gpu-tests` is left out and the gate stays on a box with a card.
+# Linux stays on Ubuntu 24.04, the AppImage's base: an AppImage runs on no system older than its
+# own.
 #
-# **Each system on its newest image, Linux apart**: Ubuntu 24.04 is the base the AppImage is built on,
-# and an AppImage runs on no system older than its own, so CI tests the base the package ships from.
-#
-# **Job names are the `master` ruleset's required checks**, the matrix legs' by their `name`: rename
-# one and the ruleset waits for a check that never reports. Actions are pinned to a commit, the token
-# only reads, and a newer push cancels the run it supersedes.
+# Job names are the `master` ruleset's required checks: a renamed job is a check that never reports.
 name: CI
 
 on:
@@ -28,17 +20,14 @@ on:
         type: boolean
         required: true
 
-# Nothing by default, and each job names what it needs.
 permissions: {}
 
-# **The caches on every run but a release's**, which is judged by what its own run built and not by
-# objects another run left. `inputs` is empty on a push or a pull request, and `format` reads it as
-# an empty string where a comparison with `false` would read it as false.
+# No cache for a release, which is judged by what its own run built. `format` reads an absent input
+# as an empty string, where a comparison with `false` would read it as false.
 env:
   CI_CACHE: ${{ format('{0}', inputs.cache) != 'false' }}
 
-# A push supersedes the push before it on the same ref. A run asked for by hand stands alone: it is
-# wanted whole, and a push in the meantime must neither cancel it nor be cancelled by it.
+# A run by hand stands alone: a push must neither cancel it nor be cancelled by it.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
@@ -64,8 +53,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      # **Each check through the driver, which the gate runs too**, so a tree the gate passes is one
-      # this job passes: `omw lint` holds the rules and the tools' pins.
+      # Through the driver, which the gate runs too, so a tree the gate passes passes here.
       - name: CMake files indented with spaces
         run: python omw lint cmake
 
@@ -73,38 +61,29 @@ jobs:
         run: python omw lint names
 
       - name: Qt translations
-        # Upstream's own check: the translation sources are regenerated and must not change.
         run: LUPDATE=/usr/lib/qt6/bin/lupdate python omw lint translations
 
       - name: clang-format
-        # The driver's own check, and the one in CI: the build jobs leave the formatting to this one.
         run: python omw format --check
 
       - name: The driver, linted and type-checked
-        # Ruff's default rules at the tree's 120 columns, and mypy, both against the oldest Python
-        # `omw` supports.
         run: python omw lint driver
 
       - name: The driver's own tests
         run: python -m unittest discover -s tools/omw/tests -t tools
 
       - name: The workflows, audited
-        # zizmor, offline. A finding is a failure.
         run: python omw lint workflows
 
   build:
-    # One leg per toolchain and sanitizer, each reporting under its own name, which the ruleset
-    # requires. **A leg is named `<system>-<what sets it apart>`**: the compiler, or the sanitizer
-    # over the system's own. The name is also the compiler cache's key, and no key may begin another:
-    # the cache action restores the newest cache whose name begins with the key, so upstream's
-    # `Ubuntu_GCC_asan` would be `linux-gcc-asan` here and take `linux-gcc`'s.
+    # A leg's name is also its compiler cache's key, and no key may begin another: the cache action
+    # restores the newest cache whose name begins with the key.
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    # A cold build is an hour and a half, which is what a release, with no cache, always has.
+    # A cold build, which a release always is, takes an hour and a half.
     timeout-minutes: 180
-    # Each leg finds what the others cannot, so one failing says nothing about the others.
     strategy:
       fail-fast: false
       matrix:
@@ -118,29 +97,23 @@ jobs:
             os: ubuntu-24.04
             flavour: full
             ccache-size: 1000M
-            # Compiled and not run, for Clang's warnings.
+            # Compiled for Clang's warnings, not run.
             tested: false
             cc: clang
             cxx: clang++
           - name: windows-msvc
             os: windows-2025
             flavour: full
-            # Three gigabytes: at two, every program's objects, SDL's own among them, filled the cache
-            # and a run hit nothing.
+            # At two gigabytes the objects filled the cache and a run hit nothing.
             ccache-size: 3000M
             tested: true
-          # **The sanitizers are upstream's**, AddressSanitizer and UndefinedBehaviorSanitizer over
-          # its suites and the fork's, with a finding a failure. **And ThreadSanitizer beside them**,
-          # for the threads the fork keeps — the cell reader, the workers, the harness's instruments —
-          # in a build of its own, because it cannot share one with AddressSanitizer. Linux alone,
-          # because both flavours are. The GPU binary is not built: under a sanitizer, it would never
-          # start here.
+          # ThreadSanitizer cannot share a build with AddressSanitizer. No GPU binary: under a
+          # sanitizer it would never start here.
           - name: linux-asan
             os: ubuntu-24.04
             flavour: asan
             build-flags: --without-device
-            # Two gigabytes: at one, the sanitized objects of every suite filled the cache and evicted
-            # 335 times over a run.
+            # At one gigabyte the sanitized objects evicted 335 times a run.
             ccache-size: 2000M
             tested: true
           - name: linux-tsan
@@ -151,13 +124,12 @@ jobs:
             tested: true
     defaults:
       run:
-        # Git Bash on Windows, so every `run` is the one script on every system.
+        # Git Bash on Windows, so every `run` is one script on every system.
         shell: bash
     env:
-      # Empty on the legs that take the system's compiler, which CMake reads as unset.
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
-      # Read by the steps from the environment, never spliced into their scripts.
+      # Read from the environment, never spliced into a script.
       FLAVOUR: ${{ matrix.flavour }}
       BUILD_FLAGS: ${{ matrix.build-flags }}
     steps:
@@ -172,11 +144,10 @@ jobs:
           ccache-size: ${{ matrix.ccache-size }}
 
       - name: Build
-        # Unquoted, so an empty set of flags passes no argument.
+        # Unquoted, so no flags pass no argument.
         run: python omw "$FLAVOUR" build $BUILD_FLAGS
 
       - name: Test
-        # Shuffled, as every suite is: the test preset sets `GTEST_SHUFFLE`.
         if: matrix.tested
         run: python omw "$FLAVOUR" test --without-device
 
@@ -194,11 +165,8 @@ jobs:
         run: cmake --install build-full --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
-        # Upstream's, from its GitLab pipeline, on the example suite at the revision it pins: the ray
-        # tracer's game side whole over the null backend, which draws nothing and needs no device,
-        # in a window of SDL's offscreen driver, which needs no display. Their logs are under the
-        # build, which the logs step keeps. A pass takes about a minute, and the limit ends a run
-        # that hangs.
+        # Over the null backend in SDL's offscreen window: no device and no display. A pass takes a
+        # minute.
         if: matrix.tested && matrix.flavour == 'full' && runner.os == 'Linux'
         timeout-minutes: 10
         env:
@@ -212,7 +180,6 @@ jobs:
         with:
           name: logs-${{ matrix.name }}-${{ github.sha }}
           build: build-${{ matrix.flavour }}
-          # The settings each integration suite ran under, beside its log, which the build's keeps.
           more: build-${{ matrix.flavour }}/integration_tests_output/**/*.cfg
 
   macos:
@@ -231,8 +198,7 @@ jobs:
       - name: Dependencies
         run: CI/before_install.macos.sh
 
-      # Its own, as macOS takes nothing of `openmw-deps`, keyed by the job's name as the build legs'
-      # are; saved on master alone, for the reason that action gives.
+      # Its own, as macOS takes nothing of `openmw-deps`; saved on master alone, as there.
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         if: env.CI_CACHE == 'true'
         with:
@@ -247,11 +213,9 @@ jobs:
         run: CI/macos/build.sh
 
       - name: The bundle carries none of the harness
-        # The bundle is installed whole, so the harness's folder and its executable stand beside it
-        # in the build tree (`RTX_HARNESS_DIR`, `apps/rtxtool`'s output directory), and the GPU tests'
-        # with them. The renderer's own shaders are looked for first, and the harness beside the
-        # bundle, so a build that moved either fails here rather than passing a search of nothing.
-        # What the harness is, is the packages' own list (`HARNESS_NAMES` in `tools/omw/package.py`).
+        # The harness is built beside the bundle, never into it. The shaders and the harness are
+        # found first, so a build that moved them fails here rather than passing a search of
+        # nothing.
         run: |
           bundle=build/OpenMW.app
           test -d "$bundle/Contents/Resources/resources/rtx/shaders"

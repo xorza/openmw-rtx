@@ -1,7 +1,3 @@
-# What every build of the tree takes from its system before `omw` configures it: the Python `omw` runs
-# on, upstream's package list on Linux with what `omw` asks for there, the cache of what `omw` fetches
-# into deps/, the compiler cache, and `omw bootstrap`: the Vulkan SDK, fetched the way a fresh desk
-# fetches it.
 name: OpenMW dependencies
 description: The packages and SDKs a build of the tree needs, per system.
 
@@ -20,16 +16,13 @@ runs:
   using: composite
   steps:
     - name: Python
-      # The oldest Python `omw` supports, so a feature of a later one fails here and not on a desk.
+      # The oldest Python `omw` supports, so a later one's feature fails here and not on a desk.
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: "3.11"
 
     - name: Linux packages
-      # The one list, which the container a desk builds a release in installs too. **Thirty minutes at
-      # most**, and a minute more for the script to end: one install that passed took sixteen, and
-      # one a stalled mirror held ran 110 and took the job past its limit. A job that runs out says
-      # so, and is run again.
+      # A passing install took sixteen minutes, and one a stalled mirror held took 110.
       if: runner.os == 'Linux'
       shell: bash
       run: |
@@ -42,7 +35,7 @@ runs:
         }
 
     - name: Vulkan SDK cache
-      # On Linux, the SDK alone: the rest of deps/ is small, or fetched by one job only.
+      # The SDK alone: the rest of deps/ is small on Linux, or fetched by one job only.
       if: runner.os == 'Linux' && inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -50,11 +43,8 @@ runs:
         key: vulkan-sdk-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py', 'tools/omw/deps.py') }}
 
     - name: Windows dependencies cache
-      # Everything `omw` fetches into deps/ on Windows — upstream's prebuilt set, Qt and the Vulkan
-      # SDK. The key names the tags upstream pins, the file `omw` pins the rest in and the code that
-      # fetches them, as the Linux key does, so a change of any saves afresh; an older cache is
-      # restored all the same, because `omw` judges each thing by the directory it leaves and fetches
-      # only what a bump changed, and `omw bootstrap` removes what no pin names.
+      # An older cache is restored too: `omw` fetches only what a bump changed, and `omw bootstrap`
+      # removes what no pin names.
       if: runner.os == 'Windows' && inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -72,10 +62,7 @@ runs:
       with:
         key: ${{ inputs.ccache-key }}
         max-size: ${{ inputs.ccache-size }}
-        # Saved on master alone, and read by every other ref: a branch's own copies would evict
-        # master's. Each run saves a new copy and keeps the old ones, which the repository's cache
-        # limit evicts, the least recently used first. **That limit is 20 GB**: the newest caches of
-        # every leg take about 11 GB, and a run saves its new copies before the old ones go.
-        # Storage past GitHub's free 10 GB is billed, and once the budget ran out on 2026-10-13, every
-        # cache was read-only and no save took for two weeks.
+        # On master alone: a branch's copies would evict master's. The repository's cache limit is
+        # 20 GB, as every leg's newest caches take about 11 GB and a run saves before the old ones
+        # go. Past the free 10 GB it is billed, and with the budget spent every cache is read-only.
         save: ${{ github.ref == 'refs/heads/master' }}
