@@ -239,12 +239,24 @@ namespace RtxTool
             /// Which frame this was last given a sample on, so the spans of one frame land in one
             /// of them. Nought for a zone nothing has reported yet, which is an index no frame has.
             std::uint32_t mSeen = 0;
-
-            /// What the counters read, `counterNames().size()` a run of the zone, run after run.
-            std::vector<double> mCounters{};
         };
 
         std::vector<ZoneRow> mRows;
+
+        /// What the counters read, `counterNames().size()` a run, every zone's runs one after
+        /// another in the order they ran, and the place in `mRows` of each run's zone.
+        ///
+        /// **One store for every zone, made room for at its bound**: a frame opens at most
+        /// `Rtx::sMaxGpuZones` zones, so `reserve`'s frames times that many runs is room no
+        /// measured frame outgrows. A row's own store, made room for a run a frame, outgrew it on
+        /// the first frame that opened its zone twice — `tlas`, built in batches — and grew inside
+        /// a frame it was timing.
+        std::vector<double> mReadings;
+        std::vector<std::uint8_t> mRunRows;
+
+        /// Makes `mReadings`, `mRunRows` and `mColumn` room for `mReserved` frames of runs, once
+        /// the device named the counters it reads: no room where it reads none.
+        void reserveReadings();
 
         /// Frames `add` was called for, which is what a zone's row is short against.
         std::uint32_t mFrames = 0;

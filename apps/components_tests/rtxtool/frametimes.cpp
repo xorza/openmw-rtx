@@ -331,6 +331,40 @@ namespace RtxTool
             EXPECT_EQ(describeCounters(zones, {}), "") << "a run that read no counter prints no table";
         }
 
+        /// **A zone opened several times a frame grows nothing inside the run**: room for four
+        /// frames is room for every run a frame may open (`Rtx::sMaxGpuZones`), so three frames of
+        /// `tlas` built in three batches, after the first named the counters, take nothing from the
+        /// heap, where a zone's own store made room for one run a frame and outgrew it. The twelve
+        /// runs read 1 to 12 and `trace`'s four read 100: of twelve the sixth shortest,
+        /// ceil(0.5 x 12) = 6.
+        TEST(RtxGpuBreakdownTest, aZoneOpenedSeveralTimesAFrameGrowsNothingInsideTheRun)
+        {
+            GpuBreakdown breakdown;
+            breakdown.reserve(4);
+            const std::array<std::string_view, 1> names{ "VALU Busy" };
+            const std::vector<Rtx::GpuSpan> batched{ { .mZone = Rtx::FrameZone::Tlas, .mMs = 1.0 },
+                { .mZone = Rtx::FrameZone::Tlas, .mMs = 1.0 }, { .mZone = Rtx::FrameZone::Trace, .mMs = 2.0 },
+                { .mZone = Rtx::FrameZone::Tlas, .mMs = 1.0 } };
+            const auto frame = [&](double first) {
+                const std::array<double, 4> read{ first, first + 1.0, 100.0, first + 2.0 };
+                breakdown.add(batched, names, read);
+            };
+
+            frame(1.0);
+            const std::size_t before = Rtx::Testing::getAllocationCount();
+            for (const double first : { 4.0, 7.0, 10.0 })
+                frame(first);
+            EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u) << "a measured frame grew the counters' store";
+
+            const std::span<const GpuZone> zones = breakdown.summariseZones();
+            ASSERT_EQ(zones.size(), 2u);
+            EXPECT_EQ(zones[0].mZone, Rtx::FrameZone::Tlas) << "3 ms a frame against trace's 2";
+            EXPECT_EQ(zones[0].mFrames, 4u);
+            EXPECT_DOUBLE_EQ(zones[0].mCounters[0], 6.0) << "1 to 12";
+            EXPECT_EQ(zones[1].mZone, Rtx::FrameZone::Trace);
+            EXPECT_DOUBLE_EQ(zones[1].mCounters[0], 100.0);
+        }
+
         /// A frame that reported no zone at all still counts against every share.
         TEST(RtxGpuBreakdownTest, aFrameWithNoZonesIsStillAFrame)
         {

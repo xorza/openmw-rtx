@@ -145,15 +145,33 @@ namespace RtxTool
 
 namespace RtxTool
 {
+    namespace
+    {
+        static_assert(Rtx::sFrameZoneCount <= std::numeric_limits<std::uint8_t>::max() + std::size_t{ 1 },
+            "a zone's row that a run's byte cannot name");
+
+        /// The most runs `frames` frames read counters of: `Rtx::sMaxGpuZones` a frame.
+        std::size_t mostRuns(const std::uint32_t frames)
+        {
+            return std::size_t{ frames } * Rtx::sMaxGpuZones;
+        }
+    }
+
     void GpuBreakdown::reserve(const std::uint32_t frames)
     {
         mReserved = frames;
         for (ZoneRow& row : mRows)
-        {
             row.mTimes.reserve(frames);
-            row.mCounters.reserve(static_cast<std::size_t>(frames) * mCounterNames.size());
-        }
-        mColumn.reserve(frames);
+        reserveReadings();
+    }
+
+    void GpuBreakdown::reserveReadings()
+    {
+        if (mCounterNames.empty())
+            return;
+        mReadings.reserve(mostRuns(mReserved) * mCounterNames.size());
+        mRunRows.reserve(mostRuns(mReserved));
+        mColumn.reserve(mostRuns(mReserved));
     }
 
     void GpuBreakdown::clear()
@@ -161,9 +179,10 @@ namespace RtxTool
         for (ZoneRow& row : mRows)
         {
             row.mTimes.clear();
-            row.mCounters.clear();
             row.mSeen = 0;
         }
+        mReadings.clear();
+        mRunRows.clear();
 
         mFrames = 0;
         mZones.clear();
@@ -179,8 +198,7 @@ namespace RtxTool
         if (mCounterNames.empty() && !counterNames.empty())
         {
             mCounterNames.assign(counterNames.begin(), counterNames.end());
-            for (ZoneRow& row : mRows)
-                row.mCounters.reserve(static_cast<std::size_t>(mReserved) * mCounterNames.size());
+            reserveReadings();
         }
         assert((counterNames.empty() || counterNames.size() == mCounterNames.size())
             && "the device read other counters in one run");
@@ -203,12 +221,17 @@ namespace RtxTool
                 // does it inside a frame it is timing, and what a growth costs is a copy of every
                 // sample taken so far — landing on one frame of the run and reported as its worst.
                 mRows.back().mTimes.reserve(mReserved);
-                mRows.back().mCounters.reserve(static_cast<std::size_t>(mReserved) * mCounterNames.size());
+            }
+
+            if (!counterNames.empty())
+            {
+                const std::span<const double> read
+                    = counters.subspan(spanAt * counterNames.size(), counterNames.size());
+                mReadings.insert(mReadings.end(), read.begin(), read.end());
+                mRunRows.push_back(static_cast<std::uint8_t>(at));
             }
 
             ZoneRow& row = mRows[at];
-            const std::span<const double> read = counters.subspan(spanAt * counterNames.size(), counterNames.size());
-            row.mCounters.insert(row.mCounters.end(), read.begin(), read.end());
 
             // **One sample a frame, whatever a frame opened the zone.** A pass recorded in
             // batches — the structure builds are — opens its zone several times over one frame, and
@@ -230,8 +253,10 @@ namespace RtxTool
         mZones.clear();
         mZones.reserve(mRows.size());
 
-        for (ZoneRow& row : mRows)
+        for (std::size_t at = 0; at < mRows.size(); ++at)
         {
+            ZoneRow& row = mRows[at];
+
             // A zone an earlier stop met and this one did not.
             if (row.mTimes.empty())
                 continue;
@@ -247,12 +272,13 @@ namespace RtxTool
             });
 
             const std::size_t counters = mCounterNames.size();
-            for (std::size_t counter = 0; counter < counters && !row.mCounters.empty(); ++counter)
+            for (std::size_t counter = 0; counter < counters && !mRunRows.empty(); ++counter)
             {
                 mColumn.clear();
-                for (std::size_t run = counter; run < row.mCounters.size(); run += counters)
-                    if (std::isfinite(row.mCounters[run]))
-                        mColumn.push_back(row.mCounters[run]);
+                for (std::size_t run = 0; run < mRunRows.size(); ++run)
+                    if (const double read = mReadings[run * counters + counter];
+                        mRunRows[run] == at && std::isfinite(read))
+                        mColumn.push_back(read);
                 zone.mCounters[counter]
                     = mColumn.empty() ? std::numeric_limits<double>::quiet_NaN() : summarise(mColumn).mMedian;
             }
