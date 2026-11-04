@@ -35,12 +35,15 @@ namespace Rtx
 
         /// Orders the dispatches just recorded against everything that reads what they wrote: the
         /// refit, which reads the positions as build input, and the trace, which reads the normals.
+        /// **And against the next pose's writes**, which write the same normals and tangents again:
+        /// a scene built from nothing poses every copy, a record a copy, back to back.
         void posed(VkCommandBuffer commands)
         {
             handOver(commands, Use::sBufferComputeWrite,
                 BufferUse{ VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR
                         | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
-                    VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT });
+                    VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+                        | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT });
         }
     }
 

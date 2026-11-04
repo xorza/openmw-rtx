@@ -8,10 +8,11 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
+#include <components/rtxvulkan/shaders/shared/bc7.h>
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/shaders/shared/normalspread.h>
 
-#include "bc7encodepass.hpp"
+#include "blockchain.hpp"
 
 namespace Rtx
 {
@@ -65,19 +66,30 @@ namespace Rtx
         };
     }
 
+    namespace
+    {
+        /// The bytes of a chain `shape` takes in the blocks `texture` is encoded to.
+        VkDeviceSize encodedBytes(const TextureData& texture, const ImageShape& shape)
+        {
+            return BlockChain::of(
+                shape.mWidth, shape.mHeight, shape.mLevels, layoutOf(texture.encodedChainFormat()).mBytes)
+                .mBytes;
+        }
+    }
+
     TextureCost priceFile(const TextureData& texture, const std::uint32_t first)
     {
         TextureCost cost;
 
         // A completed chain is the device's, made from the file's one level uploaded as it is; one
-        // past the loose side stands as BC7, encoded off a loose chain the arrival's canvas holds,
-        // through blocks its room holds, both priced once for the arrival (`priceEncode`).
+        // past the loose side stands in blocks (`TextureData::encodedChainFormat`), encoded off a
+        // loose chain the arrival's canvas holds, through blocks its room holds, both priced once
+        // for the arrival (`priceEncode`).
         if (texture.mCompleteChain)
         {
             const ImageShape shape = shapeOf(texture, first);
             cost.mTransient = texture.mBytes.size();
-            cost.mImage = texture.encodesChain() ? Bc7Chain::of(shape.mWidth, shape.mHeight, shape.mLevels).mBytes
-                                                 : writtenBytes(shape);
+            cost.mImage = texture.encodesChain() ? encodedBytes(texture, shape) : writtenBytes(shape);
         }
         else
             cost.mImage = texture.bytesFrom(first);
@@ -102,8 +114,7 @@ namespace Rtx
             return {};
 
         const ImageShape shape = shapeOf(texture, first);
-        return EncodeCost{ .mLoose = writtenBytes(shape),
-            .mBlocks = Bc7Chain::of(shape.mWidth, shape.mHeight, shape.mLevels).mBytes };
+        return EncodeCost{ .mLoose = writtenBytes(shape), .mBlocks = encodedBytes(texture, shape) };
     }
 
     TextureCost priceBake(const ImageShape& source)
@@ -114,8 +125,9 @@ namespace Rtx
     TextureCost priceComposite()
     {
         return TextureCost{
-            .mImage = Bc7Chain::of(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
-                levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT))
+            .mImage = BlockChain::of(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
+                levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT),
+                Shaders::BC7_BLOCK_BYTES)
                           .mBytes,
             .mCompanion = sShadingBytes,
         };
@@ -129,8 +141,9 @@ namespace Rtx
 
     TextureCost priceBlocks()
     {
-        return TextureCost{ .mImage = Bc7Chain::of(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
-                                levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT))
+        return TextureCost{ .mImage = BlockChain::of(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
+                                levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT),
+                                Shaders::BC7_BLOCK_BYTES)
                                           .mBytes };
     }
 

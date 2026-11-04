@@ -250,20 +250,20 @@ namespace Rtx
             }
             else
             {
-                // **Kept as BC7 past the loose side**, encoded off a loose chain the arrival makes in
-                // its canvas: `TextureData::encodesChain` says why.
-                Misc::Result<Image, std::string_view> bc7 = Image::tryMake(use, device,
+                // **Kept in blocks past the loose side**, encoded off a loose chain the arrival makes
+                // in its canvas: `TextureData::encodesChain` says why, and `encodedChainFormat` which.
+                Misc::Result<Image, std::string_view> blocks = Image::tryMake(use, device,
                     ImageDescription{ .mWidth = data.mWidth,
                         .mHeight = data.mHeight,
-                        .mFormat = encoded ? VK_FORMAT_BC7_SRGB_BLOCK : VK_FORMAT_BC7_UNORM_BLOCK,
+                        .mFormat = toVulkanFormat(data.encodedChainFormat()),
                         .mUsage = sUploadedTextureUsage,
                         .mMipLevels = levelsTo1x1(data.mWidth, data.mHeight) },
                     name);
-                if (!bc7.isOk())
-                    return Misc::Err{ bc7.error() };
+                if (!blocks.isOk())
+                    return Misc::Err{ blocks.error() };
 
                 looseChain = chain;
-                image = std::move(bc7.value());
+                image = std::move(blocks.value());
             }
         }
 
@@ -278,7 +278,8 @@ namespace Rtx
             const Image& held = arrival.hold(std::move(*upload));
             arrival.upload(batch, held, data.mBytes, regions);
             if (looseChain.has_value())
-                arrival.encode(held, *looseChain, isSrgb(data.mFormat), data.mEncoding, mImage);
+                arrival.encode(
+                    held, *looseChain, isSrgb(data.mFormat), data.mEncoding, data.encodedChainFormat(), mImage);
             else
                 arrival.chain(held, mImage, isSrgb(data.mFormat), data.mEncoding);
         }

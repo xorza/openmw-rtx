@@ -84,6 +84,30 @@ namespace Rtx
             EXPECT_EQ(renderer.getFrameCount(), 4u);
         }
 
+        /// **A frame reports the reconstruction it was traced under**, as a device's does: one that
+        /// asked for no denoiser reports none where the profile wants one, and one traced before a
+        /// menu turned the upscaler on reports none, collected after it.
+        TEST(RtxNullRendererTest, aFrameReportsTheReconstructionItWasTracedUnder)
+        {
+            NullRenderer renderer(optionsOf(8, 4));
+            const SceneDesc scene;
+            renderer.setScene(SceneSlot::world(), scene, {});
+
+            FrameRequest raw;
+            raw.mOptions.mReconstruction = ReconstructionRequest{ .mDenoise = false };
+            static_cast<void>(renderer.renderFrame(raw));
+            static_cast<void>(renderer.renderFrame(FrameRequest{}));
+            renderer.setUpscale(Upscale::Performance);
+
+            const std::optional<FrameResult> first = renderer.finishFrame();
+            const std::optional<FrameResult> second = renderer.finishFrame();
+            ASSERT_TRUE(first.has_value());
+            ASSERT_TRUE(second.has_value());
+            EXPECT_FALSE(first->mReconstruction.mDenoised) << "what the frame asked, not the profile";
+            EXPECT_TRUE(second->mReconstruction.mDenoised) << "the profile's, where the frame asked nothing";
+            EXPECT_EQ(second->mReconstruction.mUpscale, Upscale::Off) << "the menu after the trace reached the frame";
+        }
+
         /// What the null renderer says it holds is what an uploader decides by: a scene it was given
         /// is placed, not built again, and grown, not built again, as on a device.
         TEST(RtxNullRendererTest, anUploaderBuildsOncePlacesAndExtendsWhatTheRendererHolds)

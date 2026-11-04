@@ -123,6 +123,10 @@ namespace Rtx
     /// here decodes.
     MeanTexel texelMeanOf(const std::optional<TextureData>& finest, TexelScratch& scratch);
 
+    /// Whether a texture's alpha ever falls below solid — `fallsBelowSolid`. False for an image no
+    /// reader here decodes, which is the answer that changes nothing about how the surface is traced.
+    bool solidFallOf(const std::optional<TextureData>& finest, TexelScratch& scratch);
+
     /// Asked of a translucent material's own diffuse map, whose texels it walks up to the first
     /// solid one.
     using SolidReach = TexturePass<ContentPassId::SolidReach, 1, bool, solidReachOf>;
@@ -130,4 +134,8 @@ namespace Rtx
     /// Asked of an additive material's own diffuse map, a sprite's and the sky's sheets, whose every
     /// texel it walks.
     using TexelMean = TexturePass<ContentPassId::TexelMean, 1, MeanTexel, texelMeanOf>;
+
+    /// Asked of a blended material's dark map, whose texels it walks up to the first one under
+    /// solid.
+    using SolidFall = TexturePass<ContentPassId::SolidFall, 1, bool, solidFallOf>;
 }

@@ -14,7 +14,10 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/bc7.h>
 #include <components/rtxvulkan/shaders/shared/ground.h>
+
+#include "blockchain.hpp"
 
 namespace Rtx
 {
@@ -99,7 +102,7 @@ namespace Rtx
     {
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
         return Buffer::tryMake(MemoryUse::Texture, device, BufferKind::DeviceLocal,
-            Bc7Chain::of(extent, extent, levelsTo1x1(extent, extent)).mBytes,
+            BlockChain::of(extent, extent, levelsTo1x1(extent, extent), Shaders::BC7_BLOCK_BYTES).mBytes,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, name);
     }
 

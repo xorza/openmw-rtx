@@ -29,6 +29,9 @@ namespace Rtx
 
         /// `ContentPreprocessor::meanTexel`.
         std::optional<MeanTexel> mMean;
+
+        /// `ContentPreprocessor::fallsBelowSolid`.
+        std::optional<bool> mFallsBelowSolid;
     };
 
     /// The facts of every file this has been asked about, kept for the life of its thread's owner

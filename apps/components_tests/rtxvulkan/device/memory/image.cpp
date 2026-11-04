@@ -97,6 +97,7 @@ namespace Rtx
             };
             const Image wide(MemoryUse::Essential, device, described(8, 4, 4), "wide chain");
             const Image square(MemoryUse::Essential, device, described(4, 4, 3), "square chain");
+            const Image single(MemoryUse::Essential, device, described(2, 2, 1), "chain of one");
 
             // Four halves a texel, red alone carrying the figure.
             const auto texels = [](std::uint32_t width, std::uint32_t height, auto figure) {
@@ -110,10 +111,13 @@ namespace Rtx
                 = texels(8, 4, [](std::uint32_t x, std::uint32_t y) { return x + 8 * y; });
             const std::vector<std::uint16_t> squareTexels
                 = texels(4, 4, [](std::uint32_t x, std::uint32_t y) { return 2 * (x + 4 * y); });
+            const std::vector<std::uint16_t> singleTexels
+                = texels(2, 2, [](std::uint32_t x, std::uint32_t y) { return 3 * (x + 2 * y); });
 
             Batch batch(getPool());
             const VkCommandBuffer commands = batch.getCommands();
-            for (const auto& [image, halves] : { std::pair{ &wide, &wideTexels }, std::pair{ &square, &squareTexels } })
+            for (const auto& [image, halves] : { std::pair{ &wide, &wideTexels }, std::pair{ &square, &squareTexels },
+                     std::pair{ &single, &singleTexels } })
             {
                 const StagingRun run = batch.stage(std::as_bytes(std::span(*halves)));
                 image->transition(commands, Use::sUndefined, Use::sCopyWrite);
@@ -129,7 +133,7 @@ namespace Rtx
                     commands, run.mBuffer, image->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
                 image->transition(commands, Use::sCopyWrite, Use::sComputeWrite);
             }
-            Image::buildMips(commands, std::array<const Image*, 2>{ &wide, &square });
+            Image::buildMips(commands, std::array<const Image*, 3>{ &wide, &square, &single });
             batch.flush();
 
             // Red of each texel of `level`, row by row.
@@ -151,6 +155,8 @@ namespace Rtx
             EXPECT_EQ(redAt(wide, 3), (std::vector<float>{ 15.5f }));
             EXPECT_EQ(redAt(square, 1), (std::vector<float>{ 5.0f, 9.0f, 21.0f, 25.0f }));
             EXPECT_EQ(redAt(square, 2), (std::vector<float>{ 15.0f }));
+            EXPECT_EQ(redAt(single, 0), (std::vector<float>{ 0.0f, 3.0f, 6.0f, 9.0f }))
+                << "a chain of one level, ordered against the read as every chain is";
         }
     }
 }

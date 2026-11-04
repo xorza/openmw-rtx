@@ -700,8 +700,7 @@ namespace Rtx
         // What reconstructs this frame, decided once and by one rule. Every switch below reads
         // this rather than working the interaction out again; the same value goes back in the frame
         // result, so what a run reports and what it did are one answer.
-        const Reconstruction reconstruction = Reconstruction::resolve(
-            mProfile.mUpscale, options.mReconstruction.value_or(mProfile.mReconstruction), getExtents());
+        const Reconstruction reconstruction = mProfile.reconstructionFor(options.mReconstruction, getExtents());
         frame.mReconstruction = reconstruction;
 
         // Every history is worthless after a jump no motion vector can describe: through a door,

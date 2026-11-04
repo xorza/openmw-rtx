@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -99,6 +100,25 @@ namespace MWScript
         bool operator==(const VisibilityWay&) const = default;
     };
 
+    /// One local of a script: its type as `Compiler::Locals` spells it, `s`, `l` or `f`, and its index
+    /// among the locals of that type.
+    struct VisibilityLocal
+    {
+        char mType = 's';
+        int mIndex = 0;
+
+        bool operator==(const VisibilityLocal&) const = default;
+    };
+
+    /// A script as a run reads it: its code and its locals as the compiler made them, and the locals
+    /// something outside it writes — another script or a dialogue result, by `set id.local`.
+    struct VisibilityScript
+    {
+        const Interpreter::Program* mProgram = nullptr;
+        const Compiler::Locals* mLocals = nullptr;
+        std::span<const VisibilityLocal> mWrittenOutside;
+    };
+
     /// Runs a reference's own script as a frame in an active cell would, and answers whether the
     /// reference stands after it — for a reference in a cell no one has loaded, whose script has
     /// never run.
@@ -108,11 +128,14 @@ namespace MWScript
     /// `GetDisabled` act on the run's answer, and an `Enable` or `Disable` of a reference by name
     /// on that name's; `GetJournalIndex` reads the journal; `StopScript` and the sound
     /// instructions do nothing, because neither says anything about a reference. An activation,
-    /// a cell change, an open menu and a playing sound are what only a frame of an active cell
-    /// knows, and the script is run under every answer to the ones it asks: the reference's
-    /// answer is the run's where they all agree, and `Undecided` where they do not. Every other instruction is one the
-    /// run does not model, and makes the answer `Undecided` too. Nothing the run does reaches the game: a global it
-    /// sets is its own for the rest of the run.
+    /// a cell change and a playing sound are what only a frame of an active cell knows, and the
+    /// script is run under every answer to the ones it asks: the reference's answer is the run's
+    /// where they all agree, and `Undecided` where they do not. **`MenuMode` is nought**: the
+    /// distance is seen with the menus closed, and a script that returns while one is open says
+    /// nothing of where its reference stands. Every other instruction is one the run does not
+    /// model, and makes the answer `Undecided` too, as does a read of a local something outside the
+    /// script writes: the run starts every local at nought, which such a local need not be. Nothing
+    /// the run does reaches the game: a global it sets is its own for the rest of the run.
     class VisibilityRun
     {
     public:
@@ -121,7 +144,7 @@ namespace MWScript
         VisibilityRun(const VisibilityRun&) = delete;
         VisibilityRun& operator=(const VisibilityRun&) = delete;
 
-        /// Runs `program` over a reference the content files stand, from every local at nought and
+        /// Runs `script` over a reference the content files stand, from every local at nought and
         /// frame after frame, until a frame leaves the run as it found it; appends to `inputs` every
         /// global and journal entry it read, and fills `named` with what it left each reference it
         /// names — nothing where the run itself is `Undecided`.
@@ -132,8 +155,8 @@ namespace MWScript
         /// name's; a frame that leaves it unchanged leaves every frame after it the same. A script
         /// that does not settle within `sFramesTried` frames is `Undecided`: one that counts or
         /// toggles stands by a history only its cell has.
-        Terrain::GateState run(const Interpreter::Program& program, const Compiler::Locals& locals,
-            const VisibilityReads& reads, std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named);
+        Terrain::GateState run(const VisibilityScript& script, const VisibilityReads& reads,
+            std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named);
 
     private:
         /// Folds what this way left each name into `named`, where `before` says a way came first.

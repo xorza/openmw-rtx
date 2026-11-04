@@ -44,6 +44,10 @@ namespace Rtx
         /// filter both read, so the filter runs over every frame whose kernel can reflect.
         bool mMapped = false;
 
+        /// Whether the scene places a blended material whose dark map falls below solid
+        /// (`InstanceCounts::mDarkAlpha`): which picks the modules that read its alpha (`RTX_DARK_ALPHA`).
+        bool mDarkAlpha = false;
+
         /// Whether the scene holds a lamp, which the shadow denoiser reads: a lamp's light is one
         /// of the two it shadows, the sky's source the other.
         bool mLamps = false;

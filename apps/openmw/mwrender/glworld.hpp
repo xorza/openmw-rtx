@@ -32,6 +32,11 @@ namespace Resource
     class ResourceSystem;
 }
 
+namespace Terrain
+{
+    class World;
+}
+
 namespace SceneUtil
 {
     class LightManager;
@@ -113,6 +118,10 @@ namespace MWRender
             /// Whether the water's height cull is in place: the terrain hands one out only once it
             /// has chunks, so an exterior asks again until it does.
             bool mWaterCulled = false;
+            /// The terrain the cull came from: a worldspace's own, which each keeps for the run
+            /// (`RenderingManager::getGround`), so a move to another is a new cull, as upstream
+            /// asked the terrain for one at every cell load.
+            const Terrain::World* mWaterCullFrom = nullptr;
             /// The occluder's `enable` adds a callback each call, so it follows the edge.
             bool mPrecipitating = false;
             bool mAny = false;

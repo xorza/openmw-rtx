@@ -77,10 +77,10 @@ namespace MWGui
             BookPageGui gui;
             BookPage* const page = gui.makePage(10);
             int asked = 0;
-            page->adviseRetypeset([&] {
+            page->adviseRetypeset(std::make_shared<Retypesetter>([&] {
                 ++asked;
                 page->showPage(gui.typeset(), 0);
-            });
+            }));
             page->showPage(gui.typeset(), 0);
             const std::uint32_t replaced = bookAtlas();
             ASSERT_EQ(gui.drawnAgainst(), std::set<std::uint32_t>{ replaced });
@@ -101,11 +101,11 @@ namespace MWGui
             BookPage* const page = gui.makePage(10);
             std::shared_ptr<TypesetBook> shown = gui.typeset();
             int asked = 0;
-            page->adviseRetypeset([&] {
+            page->adviseRetypeset(std::make_shared<Retypesetter>([&] {
                 ++asked;
                 shown = gui.typeset();
                 page->showPage(shown, 0);
-            });
+            }));
             page->showPage(shown, 0);
             ASSERT_EQ(shown->getSize().second, 16u);
 
@@ -118,32 +118,36 @@ namespace MWGui
             EXPECT_EQ(gui.drawnAgainst(), std::set<std::uint32_t>{ bookAtlas() });
         }
 
-        /// **An owner of two pages is asked once, and a page with no book not at all**: the owner
-        /// shows a book on both of its pages from the first page's ask, which leaves the second
-        /// nothing to ask for; a third page, empty, is not refitted into a book.
-        TEST(BookPageTest, anOwnerOfTwoPagesIsAskedOnceAndAnEmptyPageNotAtAll)
+        /// **An owner of three pages is asked once, whichever it shows again, and a page with no book
+        /// not at all**: the owner shows a book on two of its pages from one ask; its third holds a
+        /// book the owner leaves dropped, as the journal's topic index stays in book mode, and asks
+        /// nothing more of it, where a page of its own asked the owner again and the journal typeset
+        /// its whole stack four times. A fourth page, empty and its own owner's, is not refitted into a
+        /// book.
+        TEST(BookPageTest, anOwnerOfSeveralPagesIsAskedOnceAndAnEmptyPageNotAtAll)
         {
             BookPageGui gui;
             BookPage* const left = gui.makePage(10);
             BookPage* const right = gui.makePage(260);
-            BookPage* const empty = gui.makePage(510);
+            BookPage* const index = gui.makePage(510);
+            BookPage* const empty = gui.makePage(760);
             int asked = 0;
             const auto showBoth = [&] {
                 const std::shared_ptr<TypesetBook> book = gui.typeset();
                 left->showPage(book, 0);
                 right->showPage(book, 1);
             };
-            left->adviseRetypeset([&] {
+            const auto owner = std::make_shared<Retypesetter>([&] {
                 ++asked;
                 showBoth();
             });
-            right->adviseRetypeset([&] {
-                ++asked;
-                showBoth();
-            });
+            left->adviseRetypeset(owner);
+            right->adviseRetypeset(owner);
+            index->adviseRetypeset(owner);
             int askedEmpty = 0;
-            empty->adviseRetypeset([&] { ++askedEmpty; });
+            empty->adviseRetypeset(std::make_shared<Retypesetter>([&] { ++askedEmpty; }));
             showBoth();
+            index->showPage(gui.typeset(), 0);
 
             gui.refit();
 

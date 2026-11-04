@@ -62,6 +62,13 @@ namespace Rtx
         return mean;
     }
 
+    bool ContentPreprocessor::fallsBelowSolid(const osg::Image& image)
+    {
+        bool falls = false;
+        run(mFall, image, falls);
+        return falls;
+    }
+
     ContentStats ContentPreprocessor::takeStats()
     {
         return std::exchange(mStats, ContentStats{});

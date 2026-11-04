@@ -147,6 +147,10 @@ namespace Rtx
         /// Puts `stateSet` at the near end of the chain, with the fade resolved through it.
         void pushShading(const osg::StateSet& stateSet, bool animated);
 
+        /// A node's or a drawable's own state set, or where a controller rewrites it, the mirror's
+        /// copy `animated` in its place: what a rasterizing cull would apply over what is above.
+        void pushOwnShading(const osg::StateSet* own, const osg::StateSet* animated);
+
         /// Runs one node of an `osgParticle` simulation, if that is what this node is. See below.
         bool stepParticles(osg::Node& node, NodeKind kind);
 
@@ -400,16 +404,11 @@ namespace Rtx
 
         ++mDepth;
 
-        if (const osg::StateSet* own = node.getStateSet())
-            pushShading(*own, false);
-
-        // Above the node's own, which is where a rasterizing cull would push it too: what a
-        // controller decided this frame overrides what the model was authored with.
-        if (const osg::StateSet* animated = mExtractor.animate(node, identity))
-        {
-            pushShading(*animated, true);
-            mChangeable = true;
-        }
+        // **The node's own, or the mirror's copy of it a controller rewrites, and never both**
+        // (`MaterialResolver::animate`): the copy holds everything the node's own does, and a
+        // `StateSetUpdater` swaps the node's own between two of its copies every update, which keyed
+        // beneath the mirror's would be two keys no material reads, made again after every sweep.
+        pushOwnShading(node.getStateSet(), mExtractor.animate(node, identity));
 
         if (mDepth == 1)
             mKeyUnderRoot = keyInForce();
@@ -562,6 +561,17 @@ namespace Rtx
         mShading.push_back(Shading::under(mShading, stateSet, animated, &mExtractor.mChainKeys));
     }
 
+    void SceneExtractor::Traversal::pushOwnShading(const osg::StateSet* const own, const osg::StateSet* const animated)
+    {
+        if (animated != nullptr)
+        {
+            pushShading(*animated, true);
+            mChangeable = true;
+        }
+        else if (own != nullptr)
+            pushShading(*own, false);
+    }
+
     void SceneExtractor::Traversal::apply(osg::Drawable& drawable)
     {
         if (const osg::StateSet* own = drawable.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
@@ -577,17 +587,9 @@ namespace Rtx
 
         const std::size_t held = mShading.size();
         const std::size_t placement = identityWith(mPathHash, mChildIndex);
+        // A drawable whose own chains carry a controller, as a node's may.
         if (const osg::StateSet* own = drawable.getStateSet())
-        {
-            pushShading(*own, false);
-
-            // A drawable whose own chains carry a controller, as a node's may.
-            if (const osg::StateSet* animated = mExtractor.animate(drawable, placement))
-            {
-                pushShading(*animated, true);
-                mChangeable = true;
-            }
-        }
+            pushOwnShading(own, mExtractor.animate(drawable, placement));
 
         mChangeable |= mExtractor.addDrawable(
             drawable, placement, mShading, placed(), mClass, mGlow, mJumping, mLampBody, getNodePath());
@@ -617,7 +619,7 @@ namespace Rtx
 
     SceneExtractor::~SceneExtractor()
     {
-        mFrozen.thawAll(frozenHolders(), mReleased);
+        mFrozen.thawAll(frozenHolders());
 
         // The placements before the resolvers go, each giving back what its own maps hold, so a
         // scene that outlives its extractor — a picture's, whose subject is replaced — holds
@@ -691,7 +693,7 @@ namespace Rtx
         if (freezes)
         {
             if (mFrozenMask != mTraversalMask)
-                mFrozen.thawAll(frozenHolders(), mReleased);
+                mFrozen.thawAll(frozenHolders());
             mFrozenMask = mTraversalMask;
             mWorldWalk = traversal;
         }
@@ -714,7 +716,7 @@ namespace Rtx
             ring->collect(frame);
 
         if (freezes)
-            mFrozen.thawUnmet(mWorldWalk, frozenHolders(), mReleased);
+            mFrozen.thawUnmet(mWorldWalk, frozenHolders());
 
         // After the whole walk, including whatever the ring brought in. Everything under it
         // has been stepped by now, so what the sprites are read from is a settled world rather than
@@ -746,7 +748,7 @@ namespace Rtx
         // this epoch reached is nothing.
         ++mPass.mEpoch;
         ring.releaseHolds();
-        mFrozen.thawAll(frozenHolders(), mReleased);
+        mFrozen.thawAll(frozenHolders());
 
         return retire();
     }

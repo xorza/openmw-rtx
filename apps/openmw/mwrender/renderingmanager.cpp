@@ -29,7 +29,6 @@
 #include <components/resource/resourcesystem.hpp>
 
 #include <components/settings/values.hpp>
-#include <components/sky/moonstate.hpp>
 #include <components/sky/sundisc.hpp>
 
 #include <components/sceneutil/cullsafeboundsvisitor.hpp>
@@ -309,16 +308,6 @@ namespace MWRender
     {
         mAmbientColor = colour;
         updateAmbient();
-    }
-
-    int RenderingManager::skyGetMasserPhase() const
-    {
-        return Sky::MoonState::phaseToInt(MWBase::Environment::get().getWorld()->getSkyState().mMoons[0].mPhase);
-    }
-
-    int RenderingManager::skyGetSecundaPhase() const
-    {
-        return Sky::MoonState::phaseToInt(MWBase::Environment::get().getWorld()->getSkyState().mMoons[1].mPhase);
     }
 
     void RenderingManager::skySetMoonColour(bool red)
@@ -1349,11 +1338,15 @@ namespace MWRender
     }
     void RenderingManager::pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr)
     {
-        if (!ptr.isInCell() || !ptr.getCell()->isExterior())
+        pagingMovedObject(type, ptr, ptr);
+    }
+    void RenderingManager::pagingMovedObject(int type, const MWWorld::ConstPtr& from, const MWWorld::ConstPtr& to)
+    {
+        if (!from.isInCell() || !from.getCell()->isExterior())
             return;
-        if (!ptr.getCellRef().getRefNum().hasContentFile())
+        if (!from.getCellRef().getRefNum().hasContentFile())
             return;
-        mGround->blacklistReference(type, ptr);
+        mGround->blacklistReference(type, from, to);
     }
     void RenderingManager::setVisibilityGate(std::uint32_t gate, Terrain::GateState state)
     {

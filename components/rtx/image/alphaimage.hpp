@@ -89,4 +89,9 @@ namespace Rtx
     /// card is solid wherever its paint is, and `Tx_Dagoth_Cloud`'s alpha peaks at seven fifteenths.
     /// The finest level alone, because a mask's average stops reaching solid a level or two down.
     bool reachesSolid(const TextureData& finest);
+
+    /// Whether any texel of a finest level `describeFinest` gave is less than opaque — what tells a
+    /// dark map whose alpha a see-through surface's coverage is multiplied by from one that changes
+    /// nothing, as nearly every dark map is.
+    bool fallsBelowSolid(const TextureData& finest);
 }

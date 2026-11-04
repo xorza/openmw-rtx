@@ -154,9 +154,10 @@ namespace
                 getPage(RightTopicIndex)->adviseLinkClicked(std::move(callback));
             }
 
+            const auto retypesetter = std::make_shared<MWGui::Retypesetter>([this] { retypeset(); });
             for (const std::string_view page :
                 { LeftBookPage, RightBookPage, LeftTopicIndex, CenterTopicIndex, RightTopicIndex })
-                getPage(page)->adviseRetypeset([this] { retypeset(); });
+                getPage(page)->adviseRetypeset(retypesetter);
 
             adjustButton(PrevPageBTN);
             float nextButtonScale = adjustButton(NextPageBTN);

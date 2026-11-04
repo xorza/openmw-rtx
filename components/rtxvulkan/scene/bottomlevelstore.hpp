@@ -26,8 +26,10 @@ namespace Rtx
     class GpuTimer;
     class SceneDesc;
 
-    /// A list consumed from the front in the order it was filled, emptied once it is drained and
-    /// never before, so what is left in it is never moved.
+    /// A list consumed from the front in the order it was filled, its consumed front let go of at
+    /// each `settle`. **Bounded by what is outstanding**: emptied only once drained, a backlog that
+    /// was asked something every frame never drained, and grew by every structure built, with a
+    /// reallocation on whichever frame crossed its capacity.
     template <class T>
     struct Backlog
     {
@@ -40,14 +42,12 @@ namespace Rtx
         void push(const T& item) { mItems.push_back(item); }
         void pop(std::size_t count) { mRead += count; }
 
-        /// Lets go of what was consumed, where everything was.
+        /// Lets go of what was consumed, moving what is left to the front: between two passes, so
+        /// nothing reads a place across it.
         void settle()
         {
-            if (mRead == mItems.size())
-            {
-                mItems.clear();
-                mRead = 0;
-            }
+            mItems.erase(mItems.begin(), mItems.begin() + static_cast<std::ptrdiff_t>(mRead));
+            mRead = 0;
         }
     };
 

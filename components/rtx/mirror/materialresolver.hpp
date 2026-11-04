@@ -58,6 +58,9 @@ namespace Rtx
         /// the walk over the texels is the reading's whole cost.
         std::optional<ImageFacts> mDiffuseFacts{};
 
+        /// What the dark map's texels say, for a blended surface that wears one, as the diffuse's.
+        std::optional<ImageFacts> mDarkFacts{};
+
         /// Whether the reader laid upstream's groundcover override over `mDescribed`
         /// (`CellReader::readModel`), which no state set of the chain states: the frame keys it
         /// apart, since the same chain read as a static wears another material.
@@ -397,7 +400,7 @@ namespace Rtx
         /// What `image`'s texels say — `ImageFactCache::of`, found by the slot after the first ask.
         /// Asked only for a material the answer changes, because the first ask for a file walks its
         /// texels. Null for no image and for one `takeTexture` did not meet.
-        ImageFacts* diffuseFacts(const osg::Image* image);
+        ImageFacts* takenFacts(const osg::Image* image);
 
         SceneDesc& mScene;
         const MirrorPass& mPass;

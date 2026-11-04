@@ -10,6 +10,7 @@
 #include <volk.h>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -18,7 +19,7 @@
 #include <components/rtxvulkan/shaders/shared/normalspread.h>
 #include <components/rtxvulkan/shaders/shared/spritelight.h>
 
-#include "bc7encodepass.hpp"
+#include "blockchain.hpp"
 #include "normalspreadpass.hpp"
 #include "texturepasses.hpp"
 
@@ -95,10 +96,14 @@ namespace Rtx
     }
 
     void TextureArrival::encode(const Image& source, const ImageDescription& loose, const bool encoded,
-        const TextureEncoding encoding, const Image& bc7)
+        const TextureEncoding encoding, const TextureFormat format, const Image& blocks)
     {
-        mEncodes.push_back(
-            Encode{ .mSource = &source, .mLoose = loose, .mEncoded = encoded, .mEncoding = encoding, .mBc7 = &bc7 });
+        mEncodes.push_back(Encode{ .mSource = &source,
+            .mLoose = loose,
+            .mEncoded = encoded,
+            .mEncoding = encoding,
+            .mFormat = format,
+            .mBlocks = &blocks });
     }
 
     void TextureArrival::shade(const Image& source, const Image& map, const TextureWrap wrap)
@@ -255,7 +260,9 @@ namespace Rtx
             largestGroup = std::max(largestGroup, group);
 
             const ImageDescription& loose = mEncodes[at].mLoose;
-            largestBlocks = std::max(largestBlocks, Bc7Chain::of(loose.mWidth, loose.mHeight, loose.mMipLevels).mBytes);
+            largestBlocks = std::max(largestBlocks,
+                BlockChain::of(loose.mWidth, loose.mHeight, loose.mMipLevels, layoutOf(mEncodes[at].mFormat).mBytes)
+                    .mBytes);
         }
         mLooseGroupEnds.push_back(mEncodes.size());
 
@@ -317,7 +324,11 @@ namespace Rtx
             barriers.flush();
             for (std::size_t at = begin; at < end; ++at)
             {
-                passes.mEncode.record(commands, mHeld[first + at - begin], mBlocks.get(), *mEncodes[at].mBc7, true);
+                const Encode& encode = mEncodes[at];
+                if (traitsOf(encode.mFormat).mHeld == HeldChannels::All)
+                    passes.mBc7Encode.record(commands, mHeld[first + at - begin], mBlocks.get(), *encode.mBlocks, true);
+                else
+                    passes.mRgtcEncode.record(commands, mHeld[first + at - begin], mBlocks.get(), *encode.mBlocks);
                 handOver(commands, Use::sBufferCopyRead, Use::sBufferComputeWrite);
             }
             begin = end;

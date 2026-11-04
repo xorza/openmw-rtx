@@ -496,6 +496,15 @@ namespace MWGui
         mLocalMapRender->requestMap(cell);
     }
 
+    void LocalMapBase::dropMapViews()
+    {
+        for (MapEntry& entry : mMaps)
+        {
+            entry.mMapWidget->setRenderItemTexture(nullptr);
+            entry.mMapView.reset();
+        }
+    }
+
     void LocalMapBase::redraw()
     {
         // Redraw children in proper order

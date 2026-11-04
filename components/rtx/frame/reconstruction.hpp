@@ -355,5 +355,15 @@ namespace Rtx
         /// whether a run sums its frames or shows them. The reference's width unless a run says
         /// it only shows its frames, so that a run that forgot to say is exact rather than fast.
         RadianceWidth mRadianceWidth = RadianceWidth::Summed;
+
+        /// What reconstructs a frame traced now, asked `asked` by its options or the profile's own
+        /// where it asks nothing, at `extents` — `Reconstruction::resolve`. **Resolved once, when
+        /// the frame is traced, and carried by its result**, by every backend: a frame collected
+        /// after a menu moved the profile reports what it was traced under.
+        Reconstruction reconstructionFor(
+            const std::optional<ReconstructionRequest>& asked, const FrameExtents& extents) const
+        {
+            return Reconstruction::resolve(mUpscale, asked.value_or(mReconstruction), extents);
+        }
     };
 }

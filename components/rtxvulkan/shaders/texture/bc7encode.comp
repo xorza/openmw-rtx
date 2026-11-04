@@ -26,18 +26,19 @@
 // **The bytes as stored**, read through a view with no curve under it, so an sRGB image is fitted
 // in its encoded values and decoded through the same curve it was written with.
 
+#include "lib/blocklevel.glsl"
 #include "scene.h"
 #include "shared/bc7.h"
 #include "shared/sets.h"
 
-layout(local_size_x = BC7_WORKGROUP) in;
+layout(local_size_x = BLOCK_ENCODE_WORKGROUP) in;
 
 /// Every level, through its view with no curve under it; past the chain's last, that level again.
-layout(set = SET_PASS, binding = BC7_BIND_SOURCE, TEXTURE_WRITTEN_FORMAT) uniform readonly image2D
-    sources[BC7_MOST_LEVELS];
+layout(set = SET_PASS, binding = BLOCK_ENCODE_BIND_SOURCE, TEXTURE_WRITTEN_FORMAT) uniform readonly image2D
+    sources[BLOCK_ENCODE_MOST_LEVELS];
 
 /// The chain's blocks.
-layout(set = SET_PASS, binding = BC7_BIND_BLOCKS, std430) writeonly buffer Blocks
+layout(set = SET_PASS, binding = BLOCK_ENCODE_BIND_BLOCKS, std430) writeonly buffer Blocks
 {
     uvec4 blocks[];
 };
@@ -290,41 +291,23 @@ uvec4 packBlock(Attempt chosen)
 
 void main()
 {
-    // Which level the workgroup is of, and where that level's blocks begin.
-    uint level = 0u;
-    uint group = gl_WorkGroupID.x;
-    uint first = 0u;
-    uvec2 extent = uvec2(chain.mWidth, chain.mHeight);
-    uint across = (extent.x + BC7_BLOCK_SIDE - 1u) / BC7_BLOCK_SIDE;
-    uint levelBlocks = across * ((extent.y + BC7_BLOCK_SIDE - 1u) / BC7_BLOCK_SIDE);
-    [[dont_unroll]] for (; level + 1u < chain.mLevels; ++level)
-    {
-        const uint groups = (levelBlocks + BC7_WORKGROUP - 1u) / BC7_WORKGROUP;
-        if (group < groups)
-            break;
-        group -= groups;
-        first += levelBlocks;
-        extent = max(extent >> 1u, uvec2(1u));
-        across = (extent.x + BC7_BLOCK_SIDE - 1u) / BC7_BLOCK_SIDE;
-        levelBlocks = across * ((extent.y + BC7_BLOCK_SIDE - 1u) / BC7_BLOCK_SIDE);
-    }
-
-    const uint within = group * BC7_WORKGROUP + gl_LocalInvocationID.x;
-    if (within >= levelBlocks)
+    ChainBlock block;
+    if (!chainBlock(uvec2(chain.mWidth, chain.mHeight), chain.mLevels, block))
         return;
+    const uvec2 extent = block.mExtent;
 
     gWeights = vec4(1.0, 1.0, 1.0, chain.mWeighsAlpha != 0u ? 1.0 : 0.0);
     gInside = 0u;
 
-    const uvec2 corner = uvec2(within % across, within / across) * BC7_BLOCK_SIDE;
+    const uvec2 corner = uvec2(block.mWithin % block.mAcross, block.mWithin / block.mAcross) * BLOCK_SIDE;
     vec4 sum = vec4(0.0);
     float count = 0.0;
     for (uint texel = 0u; texel < 16u; ++texel)
     {
-        const uvec2 at = corner + uvec2(texel % BC7_BLOCK_SIDE, texel / BC7_BLOCK_SIDE);
+        const uvec2 at = corner + uvec2(texel % BLOCK_SIDE, texel / BLOCK_SIDE);
         const bool inside = at.x < extent.x && at.y < extent.y;
         const ivec2 read = ivec2(min(at, extent - 1u));
-        const uvec4 bytes = uvec4(round(imageLoad(sources[level], read) * 255.0));
+        const uvec4 bytes = uvec4(round(imageLoad(sources[block.mLevel], read) * 255.0));
         gTexels[texel] = bytes.r | (bytes.g << 8u) | (bytes.b << 16u) | (bytes.a << 24u);
         gInside |= (inside ? 1u : 0u) << texel;
         sum += insideAt(texel) * vec4(bytes);
@@ -403,5 +386,5 @@ void main()
         best.mIndices = ~best.mIndices;
     }
 
-    blocks[first + within] = packBlock(best);
+    blocks[block.mIndex] = packBlock(best);
 }

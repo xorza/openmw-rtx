@@ -87,17 +87,17 @@ namespace Rtx
     void CommandPool::submitDeferredWatched()
     {
         const VkFenceCreateInfo fenceInfo{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = nullptr, .flags = 0 };
-        for (std::size_t at = 0; at < mDeferred.size(); ++at)
+        const std::size_t count = mDeferred.size();
+        for (std::size_t at = 0; at < count; ++at)
         {
-            const std::string_view note = at < mDeferredNotes.size() ? mDeferredNotes[at] : std::string_view();
-            Log(Debug::Info) << "deferred batch " << at + 1 << " of " << mDeferred.size() << ", recorded while "
-                             << note;
+            const std::string_view note = mDeferredNotes.empty() ? std::string_view() : mDeferredNotes.front();
+            Log(Debug::Info) << "deferred batch " << at + 1 << " of " << count << ", recorded while " << note;
 
             const Fence fence = Fence::make(mDevice, vkCreateFence, fenceInfo, "vkCreateFence");
             const VkCommandBufferSubmitInfo batch{
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
                 .pNext = nullptr,
-                .commandBuffer = mDeferred[at],
+                .commandBuffer = mDeferred.front(),
                 .deviceMask = 0,
             };
             const VkSubmitInfo2 submit{
@@ -116,6 +116,14 @@ namespace Rtx
             watchToItsEnd(
                 "deferred batch " + std::to_string(at + 1),
                 [&] { return vkGetFenceStatus(mDevice.getHandle(), fence.get()); }, [] { return std::string(); });
+
+            // **Run, and so given back here, one at a time**: the submit after this one carries
+            // none of those that ran, and a throw at a later batch leaves only the batches that did
+            // not run to the queue, where a give-back at the end handed every one to it again.
+            recycle(std::span<const VkCommandBuffer>(&mDeferred.front(), 1));
+            mDeferred.erase(mDeferred.begin());
+            if (!mDeferredNotes.empty())
+                mDeferredNotes.erase(mDeferredNotes.begin());
         }
     }
 
@@ -132,13 +140,12 @@ namespace Rtx
         mSubmitScratch.clear();
         mSubmitScratch.reserve(mDeferred.size() + 1);
         for (const VkCommandBuffer deferred : mDeferred)
-            if (!watched)
-                mSubmitScratch.push_back(VkCommandBufferSubmitInfo{
-                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-                    .pNext = nullptr,
-                    .commandBuffer = deferred,
-                    .deviceMask = 0,
-                });
+            mSubmitScratch.push_back(VkCommandBufferSubmitInfo{
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                .pNext = nullptr,
+                .commandBuffer = deferred,
+                .deviceMask = 0,
+            });
         mSubmitScratch.push_back(VkCommandBufferSubmitInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
             .pNext = nullptr,
@@ -696,6 +703,6 @@ namespace Rtx
 
     void orderStagedWrites(Batch& batch)
     {
-        handOver(batch.getCommands(), Use::sBufferCopyWrite, Use::sBufferAnyRead);
+        handOver(batch.getCommands(), Use::sBufferCopyWrite, Use::sBufferAnyReadWrite);
     }
 }

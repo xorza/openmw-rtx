@@ -57,6 +57,7 @@ set(RTX_SHADERS
     shaders/texture/groundcomposite.comp
     shaders/texture/mipchain.comp
     shaders/texture/normalspread.comp
+    shaders/texture/rgtcencode.comp
     shaders/texture/shadingmap.comp
     shaders/texture/shadingsum.comp
     shaders/texture/spritelight.comp
@@ -130,9 +131,16 @@ set(RTX_GLSLC_FLAGS -g -O0)
 
 # Every shader twice: the renderers' set, which carries no census, and the harness's, which counts
 # into it (`lib/census.glsl`, `RTX_CENSUS`). A specialization constant cannot take the census out,
-# because Vulkan holds a pipeline to every binding a module's code names, reached or not.
-function(rtx_compile_shader shader census sourcedDir strippedDir)
+# because Vulkan holds a pipeline to every binding a module's code names, reached or not. And each
+# shader that reads a see-through candidate's dark map twice again, `<name>.dark.<stage>` reading it
+# (`lib/variants.glsl`, `RTX_DARK_ALPHA`).
+function(rtx_compile_shader shader census dark sourcedDir strippedDir)
     get_filename_component(name "${shader}" NAME)
+    if (dark)
+        get_filename_component(base "${shader}" NAME_WE)
+        get_filename_component(stage "${shader}" LAST_EXT)
+        set(name "${base}.dark${stage}")
+    endif()
     set(compiled "${CMAKE_CURRENT_BINARY_DIR}/compiled/census${census}/${name}.spv")
     set(sourced "${sourcedDir}/${name}.spv")
     set(spv "${strippedDir}/${name}.spv")
@@ -143,7 +151,7 @@ function(rtx_compile_shader shader census sourcedDir strippedDir)
         OUTPUT "${compiled}" "${sourced}" "${spv}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${strippedDir}" "${sourcedDir}"
                 "${CMAKE_CURRENT_BINARY_DIR}/compiled/census${census}"
-        COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -DRTX_CENSUS=${census}
+        COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -DRTX_CENSUS=${census} -DRTX_DARK_ALPHA=${dark}
                 -I "${RTX_SHADER_INCLUDE}" -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -I "${OpenMW_SOURCE_DIR}"
                 -MD -MF "${depfile}" -o "${compiled}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
@@ -164,9 +172,29 @@ function(rtx_compile_shader shader census sourcedDir strippedDir)
     set(RTX_SHADER_OUTPUTS ${RTX_SHADER_OUTPUTS} "${spv}" "${sourced}" PARENT_SCOPE)
 endfunction()
 
+# The shaders whose shadow rays walk past a see-through candidate (`candidateStops`).
+set(RTX_DARK_ALPHA_SHADERS
+    shaders/trace/bounce.comp
+    shaders/trace/direct.comp
+    shaders/trace/fogdepth.rgen
+    shaders/trace/fogscatter.rgen
+    shaders/trace/landing.comp
+    shaders/trace/media.comp
+    shaders/trace/panes.comp
+    shaders/trace/spritecomposite.rgen
+    shaders/trace/spriteshelter.rgen
+    shaders/trace/visibility.comp
+)
+
 foreach (shader ${RTX_SHADERS})
-    rtx_compile_shader("${shader}" 0 "${RTX_SPIRV_SOURCE_DIR}" "${RTX_SPIRV_DIR}")
-    rtx_compile_shader("${shader}" 1 "${RTX_SPIRV_CENSUS_SOURCE_DIR}" "${RTX_SPIRV_CENSUS_DIR}")
+    set(darks 0)
+    if (shader IN_LIST RTX_DARK_ALPHA_SHADERS)
+        list(APPEND darks 1)
+    endif()
+    foreach (dark ${darks})
+        rtx_compile_shader("${shader}" 0 ${dark} "${RTX_SPIRV_SOURCE_DIR}" "${RTX_SPIRV_DIR}")
+        rtx_compile_shader("${shader}" 1 ${dark} "${RTX_SPIRV_CENSUS_SOURCE_DIR}" "${RTX_SPIRV_CENSUS_DIR}")
+    endforeach()
 endforeach()
 
 # A module no listed shader makes is removed: a directory's digest (`Rtx::digestShaders`) names the
@@ -185,6 +213,7 @@ set(RTX_SHADER_LIB
     shaders/lib/answer.glsl
     shaders/lib/basis.glsl
     shaders/lib/bindings.glsl
+    shaders/lib/blocklevel.glsl
     shaders/lib/bloom.glsl
     shaders/lib/bluenoise.glsl
     shaders/lib/bounced.glsl
@@ -385,6 +414,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/accumulate.h
     shaders/shared/atrous.h
     shaders/shared/bc7.h
+    shaders/shared/blockencode.h
     shaders/shared/bindings.h
     shaders/shared/bloom.h
     shaders/shared/channeldigest.h
@@ -408,6 +438,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/pane.h
     shaders/shared/pinning.h
     shaders/shared/probe.h
+    shaders/shared/rgtc.h
     shaders/shared/ripple.h
     shaders/shared/sets.h
     shaders/shared/shading.h
@@ -430,12 +461,17 @@ set(RTX_VULKAN_FILES
     shaders/shared/wavetransform.h
     texture/bc7encodepass.cpp
     texture/bc7encodepass.hpp
+    texture/blockchain.hpp
+    texture/blockencode.cpp
+    texture/blockencode.hpp
     texture/groundcompositepass.cpp
     texture/groundcompositepass.hpp
     texture/mipchainpass.cpp
     texture/mipchainpass.hpp
     texture/normalspreadpass.cpp
     texture/normalspreadpass.hpp
+    texture/rgtcencodepass.cpp
+    texture/rgtcencodepass.hpp
     texture/shadingpass.cpp
     texture/shadingpass.hpp
     texture/spritelightpass.cpp

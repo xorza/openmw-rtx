@@ -54,10 +54,11 @@ bool drawnAmong(float carried, float total)
     return carried < (1.0 - frame.mShadowFloor) * total;
 }
 
-/// What a penumbra measured square to its light is on a receiver the light meets at `cosine`: `1 /
-/// cosine` longer along the light's azimuth, held to `SHADOW_PENUMBRA_STRETCH`. Square to the light, a
-/// grazing penumbra at Morrowind's long dawn read three to six times narrower than it lay, under a
-/// pixel, and took the shadow denoiser's hard path with its raw bits.
+/// What a penumbra measured square to its light is on a receiver whose plane the light meets at
+/// `cosine` (`planeCosine`): `1 / cosine` longer along the light's azimuth, held to
+/// `SHADOW_PENUMBRA_STRETCH`. Square to the light, a grazing penumbra at Morrowind's long dawn read
+/// three to six times narrower than it lay, under a pixel, and took the shadow denoiser's hard path
+/// with its raw bits.
 float receiverStretch(float cosine)
 {
     return 1.0 / max(cosine, 1.0 / SHADOW_PENUMBRA_STRETCH);
@@ -325,7 +326,7 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
             run.mSkyDiffuse = every.mDiffuse - every.mTaken;
             run.mSkySpecular = every.mSpecular;
             run.mSky = picked.mSky;
-            run.mSkyStretch = receiverStretch(picked.mCosine);
+            run.mSkyStretch = receiverStretch(planeCosine(facing, picked.mSky.mDirection));
         }
         else
         {
@@ -374,7 +375,7 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
     // whatever is taken off it, and split it reaches the picture only times that albedo.
     run.mDarkening = darkeningAt(position, facing, INV_PI, surface.mLampLit && kept.mWeight > 0.0);
     run.mLampStretch = split && kept.mWeight > 0.0
-        ? receiverStretch(litCosine(facing, normalize(lightAt(kept.mLamp).mPosition - position)))
+        ? receiverStretch(planeCosine(facing, normalize(lightAt(kept.mLamp).mPosition - position)))
         : 1.0;
     run.mFootprint = surface.mFootprint;
     return skyAsked;

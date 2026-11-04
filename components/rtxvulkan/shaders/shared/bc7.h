@@ -4,28 +4,15 @@
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/portable.h>
 
-// The BC7 encoder's dispatch: what `bc7encode.comp` is told about the level it encodes, and the one
-// mode it writes.
+// The BC7 encoder's dispatch: what `bc7encode.comp` is told about the chain it encodes, and the one
+// mode it writes. What it shares with the other encoders is `blockencode.h`'s.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
 {
 #endif
 
-    /// Where `bc7encode.comp` binds what it reads and writes in set 0, and how many there are.
-    const uint BC7_BIND_SOURCE = 0;
-    const uint BC7_BIND_BLOCKS = 1;
-    const uint BC7_BINDINGS = 2;
-
-    /// Lanes in one workgroup, a block each.
-    const uint BC7_WORKGROUP = 64u;
-
-    /// The levels one dispatch encodes at the most, each a storage view of its own in one array:
-    /// more than a chain from the largest side a device takes holds.
-    const uint BC7_MOST_LEVELS = 16u;
-
-    /// Texels a block holds along each side, and the bytes it is stored in.
-    const uint BC7_BLOCK_SIDE = 4u;
+    /// The bytes a block is stored in.
     const uint BC7_BLOCK_BYTES = 16u;
 
     /// Mode 6's three-bit field of the first index: its top bit is implied nought, which is why the
@@ -44,8 +31,8 @@ namespace Rtx::Shaders
     const uint BC7_SINGLE_INDEX = 7u;
 
     /// One image's chain, which is one dispatch: a lane a block, the levels' blocks one after
-    /// another, each level's row by row (`Rtx::Bc7Chain`), and each level's lanes whole workgroups of
-    /// their own, so a workgroup reads one level.
+    /// another, each level's row by row (`Rtx::BlockChain`), and each level's lanes whole workgroups
+    /// of their own, so a workgroup reads one level.
     struct Bc7Constants
     {
         /// The first level's texels across and down; each level after is half, never under one.

@@ -32,18 +32,25 @@ namespace Rtx
         ZoneCounters& operator=(const ZoneCounters&) = delete;
 
         /// Of `offered` counters, the ones a query reads in one pass: each in the driver's order
-        /// that, with those taken before it, `passesOf` still answers one pass for, up to
-        /// `sMaxZoneCounters`, into `into`. **Greedy, so the driver's order decides** which of two
-        /// that cannot share a pass is read: RADV lists its instruction counts and its units' busy
-        /// time first, then the memory's.
+        /// that a zone can read and that, with those taken before it, `passesOf` still answers one
+        /// pass for, up to `sMaxZoneCounters`, into `into`. **Greedy, so the driver's order
+        /// decides** which of two that cannot share a pass is read: RADV lists its instruction
+        /// counts and its units' busy time first, then the memory's.
         ///
+        /// @param readable whether a zone can read the counter it is handed: one scoped to a command
+        ///        (`VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR`), since a zone begins and ends its query
+        ///        inside a command buffer, which a counter scoped to a command buffer or a render pass
+        ///        forbids (`VUID-vkCmdBeginQuery-queryPool-03224`) — as ANV and Turnip scope theirs.
         /// @param passesOf the passes a query of the counters it is handed takes.
-        template <class PassesOf>
-        static void pickOnePass(std::uint32_t offered, PassesOf&& passesOf, std::vector<std::uint32_t>& into)
+        template <class Readable, class PassesOf>
+        static void pickOnePass(
+            std::uint32_t offered, Readable&& readable, PassesOf&& passesOf, std::vector<std::uint32_t>& into)
         {
             into.clear();
             for (std::uint32_t counter = 0; counter < offered && into.size() < sMaxZoneCounters; ++counter)
             {
+                if (!readable(counter))
+                    continue;
                 into.push_back(counter);
                 if (passesOf(std::span<const std::uint32_t>(into)) != 1)
                     into.pop_back();

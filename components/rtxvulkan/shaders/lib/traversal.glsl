@@ -245,7 +245,8 @@ TexturePoint pointAtUnit(uint unit, TexturePoint point, GpuMesh mesh, uvec3 corn
 /// What the dark map paints where a ray crosses `material`, at the unit the content bound it at, and
 /// white where it holds none: what the diffuse is multiplied by, colour and alpha, which is where
 /// `objects.frag` puts it. **One read for the hit and a medium's crossing**, so a map the surface
-/// wears is worn wherever it is seen. The cut reads none, for the reason `candidateStops` gives.
+/// wears is worn wherever it is seen. The cut reads none, for the reason `candidateStops` gives, and
+/// a see-through candidate reads its alpha where it falls below solid.
 vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, TexturePoint point, SurfaceCone cone,
     float coneWidth, bool detailed)
 {
@@ -419,11 +420,26 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
     const TexturePoint point = candidatePoint(triangleCorners(meshAt(instance.mMesh), candidate.mPrimitive), material,
         candidate.mBary, surfaceConeAt(edges, direction), coneWidth, detailed);
 
-    // **The diffuse's alpha alone**, where `objects.frag` multiplies the dark map's in before
-    // `alphaTest`. Read here, the dark map cost the dawn deck's trace 3% (2.59 against 2.50 ms,
-    // four legs each), behind a material bit or not: the code sits in every shadow ray's candidate
-    // loop. The hit and a medium's crossing read it.
+    // **The diffuse's alpha alone for the cut**, where `objects.frag` multiplies the dark map's in
+    // before `alphaTest`. Read here for every candidate, the dark map cost the dawn deck's trace 3%
+    // (2.59 against 2.50 ms, four legs each), behind a material bit or not: the code sits in every
+    // shadow ray's candidate loop. The hit and a medium's crossing read it.
     const float painted = sampleDiffuse(material.mDiffuse, point).a;
+
+    // **And the dark map's alpha for a see-through hit's coverage**, which the hit's `resolve`
+    // multiplies in: one surface hazed one way from either side (`sampledOpacity`). Only where a
+    // material's dark map falls below solid, which a scene that places one compiles in
+    // (`RTX_DARK_ALPHA`), so the kernel of every other scene is the one the 3% above was measured
+    // against.
+    float covered = painted;
+#if RTX_DARK_ALPHA
+    if ((material.mFlags & MATERIAL_DARK_ALPHA) != 0u)
+    {
+        const GpuMesh mesh = meshAt(instance.mMesh);
+        covered *= darkAt(material, mesh, triangleCorners(mesh, candidate.mPrimitive), candidate.mBary, point,
+            surfaceConeAt(edges, direction), coneWidth, detailed).a;
+    }
+#endif
 
     // **Tested as the rasterizer tests it**, with the alpha raised by a quarter a level the read
     // stands below the finest (`alpha.glsl`'s `coveragePreservingAlphaScale`, on by default): a
@@ -441,7 +457,7 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
     // sees. A pane with no mask passes on every side.
     if (walkPast)
     {
-        blocked = addShare(blocked, blockedBy(there ? sampledOpacity(opacity, painted) : 0.0));
+        blocked = addShare(blocked, blockedBy(there ? sampledOpacity(opacity, covered) : 0.0));
         return false;
     }
 
@@ -451,7 +467,7 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
     {
         uint draws = randomSeed(rayKey + SEED_SEE_THROUGH + candidate.mInstance * 0x9E3779B9u
             + candidate.mPrimitive * 0x85EBCA6Bu);
-        return there && randomNext(draws) < sampledOpacity(opacity, painted);
+        return there && randomNext(draws) < sampledOpacity(opacity, covered);
     }
 
     return there;

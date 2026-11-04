@@ -80,4 +80,23 @@ namespace Rtx
     {
         return std::max(mWidth, mHeight) > sLargestLooseChainSide;
     }
+
+    TextureFormat TextureData::encodedChainFormat() const
+    {
+        // **BC4 and BC5 hold no curve**, so a file of one channel or two read as a colour stays BC7
+        // in sRGB, as its loose chain is sampled: kept as BC4, its red read as linear light.
+        if (isSrgb(mFormat))
+            return TextureFormat::Bc7Srgb;
+
+        switch (mHeld)
+        {
+            case HeldChannels::Red:
+                return TextureFormat::Bc4Unorm;
+            case HeldChannels::RedGreen:
+                return TextureFormat::Bc5Unorm;
+            case HeldChannels::All:
+                break;
+        }
+        return TextureFormat::Bc7Unorm;
+    }
 }

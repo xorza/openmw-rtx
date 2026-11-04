@@ -376,6 +376,16 @@ float litCosine(Facing facing, vec3 towards)
                                             : facing.mTransmission * max(-cosine, 0.0);
 }
 
+/// The cosine of the receiver's own plane to a light, either side: what a penumbra laid on it is
+/// stretched by (`receiverStretch`). **Not `litCosine`**, whose mapped normal moves texel by texel
+/// under one penumbra and whose sheet share says how much light passes and not where its shadow
+/// falls: a penumbra's size on a receiver is the receiver's plane and the occluder's distance
+/// (Fernando, "Percentage-Closer Soft Shadows", 2005).
+float planeCosine(Facing facing, vec3 towards)
+{
+    return abs(dot(facing.mSide, towards));
+}
+
 /// Which of three weights one draw picks, and what that pick is worth.
 struct WeightedPick
 {

@@ -592,7 +592,10 @@ The rest are compute passes — the fog's integration, the sprites' bins, the bo
 merge, the denoiser, the composite, the display chain, skinning, texture preparation, the sea and
 the ripples — but for the fog's depth and scatter, the sprites' composite, shelter and emitters,
 and the harness's probe, each a launch of a ray generation stage alone (`TracePipeline`).
-Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
+Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`). The
+one read nearly no scene asks for, a see-through candidate's dark map alpha, is a module of its own
+instead (`RTX_DARK_ALPHA`): set false, a constant left the read in the module the build's optimizer
+laid out, and one driver ran the vanilla bounce 2.6% slower for it.
 Every store of an image goes through the census (`lib/census.glsl`), as does every float a shader
 writes into a buffer. Every shader is built twice: the game's modules carry no census, and the
 harness's, which every run but a measured one reads (`Rtx::ShaderSet`), count each NaN or infinity

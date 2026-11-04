@@ -43,6 +43,7 @@ set(RTX_TEST_FILES
     rtx/mirror/cells/groundreader.cpp
     rtx/mirror/cells/templatewalk.cpp
     rtx/mirror/drawableposer.cpp
+    rtx/mirror/frozenroots.cpp
     rtx/mirror/extractor/fixture.hpp
     rtx/mirror/extractor/lights.cpp
     rtx/mirror/extractor/materials.cpp
@@ -132,6 +133,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/stagingfit.cpp
     rtxvulkan/device/zonecounters.cpp
     rtxvulkan/pipeline/dispatch.cpp
+    rtxvulkan/scene/backlog.cpp
     rtxvulkan/scene/sceneacceleration.cpp
     rtxvulkan/scene/sceneslots.cpp
     rtxvulkan/shaders/accumulate.cpp
@@ -242,6 +244,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/texture/groundcompositepass.cpp
     rtxvulkan/texture/mipchainpass.cpp
     rtxvulkan/texture/normalspreadpass.cpp
+    rtxvulkan/texture/rgtcencodepass.cpp
     rtxvulkan/texture/shadingpass.cpp
     rtxvulkan/texture/spritelightpass.cpp
     rtxvulkan/texture/texturearrival.cpp

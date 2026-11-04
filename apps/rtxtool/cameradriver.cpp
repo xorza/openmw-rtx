@@ -252,7 +252,17 @@ namespace RtxTool
         // a camera advanced by how long the last frame took crosses its boundaries somewhere else
         // on every machine, and where they fall is the whole measurement. The height is the line's
         // between the two ends, which is what a view states when it names both.
-        mFlown += along * std::min(route.mSpeed * step, left);
+        //
+        // **The step that lands on the end arrives**, there exactly: a test of the distance left
+        // made before the move found the end a step late, and the frame after the landing stood
+        // still at it and was measured.
+        if (route.mSpeed * step >= left)
+        {
+            mFlown = route.mTo;
+            mArrived = true;
+        }
+        else
+            mFlown += along * (route.mSpeed * step);
     }
 
     void CameraDriver::turnWeather(const Stop& stop, const float step)

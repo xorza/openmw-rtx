@@ -60,4 +60,9 @@ namespace Rtx
     {
         return finest.has_value() ? meanTexel(*finest, scratch) : MeanTexel();
     }
+
+    bool solidFallOf(const std::optional<TextureData>& finest, TexelScratch&)
+    {
+        return finest.has_value() && fallsBelowSolid(*finest);
+    }
 }

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -32,14 +33,12 @@ namespace MWScript
         };
 
         /// What a script may ask whose answer only a frame of an active cell has: whether the
-        /// reference was activated, whether the player changed cells, whether a menu is open, and
-        /// whether a sound plays. A run answers each one way, and `VisibilityRun::run` tries every
-        /// way the script asked for.
+        /// reference was activated, whether the player changed cells, and whether a sound plays. A
+        /// run answers each one way, and `VisibilityRun::run` tries every way the script asked for.
         enum class Event : unsigned
         {
             Activated,
             CellChanged,
-            MenuOpen,
             SoundPlaying,
             Count,
         };
@@ -56,13 +55,15 @@ namespace MWScript
             /// @param events one bit an `Event`: what each answers in this run.
             /// Starts `way` from every local at nought, nothing written, nothing named, and the
             /// reference standing.
-            RunContext(const Compiler::Locals& locals, const VisibilityReads& reads,
+            RunContext(const VisibilityScript& script, const VisibilityReads& reads,
                 std::vector<VisibilityInput>& inputs, VisibilityWay& way, unsigned events)
                 : mEvents(events)
+                , mWrittenOutside(script.mWrittenOutside)
                 , mReads(reads)
                 , mInputs(inputs)
                 , mWay(way)
             {
+                const Compiler::Locals& locals = *script.mLocals;
                 way.mShorts.assign(locals.get('s').size(), 0);
                 way.mLongs.assign(locals.get('l').size(), 0);
                 way.mFloats.assign(locals.get('f').size(), 0.0f);
@@ -107,9 +108,21 @@ namespace MWScript
 
             ESM::RefId getTarget() const override { return ESM::RefId(); }
 
-            int getLocalShort(int index) const override { return mWay.mShorts.at(static_cast<std::size_t>(index)); }
-            int getLocalLong(int index) const override { return mWay.mLongs.at(static_cast<std::size_t>(index)); }
-            float getLocalFloat(int index) const override { return mWay.mFloats.at(static_cast<std::size_t>(index)); }
+            int getLocalShort(int index) const override
+            {
+                readLocal('s', index);
+                return mWay.mShorts.at(static_cast<std::size_t>(index));
+            }
+            int getLocalLong(int index) const override
+            {
+                readLocal('l', index);
+                return mWay.mLongs.at(static_cast<std::size_t>(index));
+            }
+            float getLocalFloat(int index) const override
+            {
+                readLocal('f', index);
+                return mWay.mFloats.at(static_cast<std::size_t>(index));
+            }
             void setLocalShort(int index, int value) override
             {
                 mWay.mShorts.at(static_cast<std::size_t>(index)) = value;
@@ -162,6 +175,15 @@ namespace MWScript
             void setMemberFloat(ESM::RefId, std::string_view, float, bool) override { throw Undecided(); }
 
         private:
+            /// **A local something outside the script writes is a state the run has no input for**,
+            /// as another script's variable is: the run's nought is not what the reference holds.
+            void readLocal(char type, int index) const
+            {
+                const VisibilityLocal local{ .mType = type, .mIndex = index };
+                if (std::find(mWrittenOutside.begin(), mWrittenOutside.end(), local) != mWrittenOutside.end())
+                    throw Undecided();
+            }
+
             /// Keeps `read` among the inputs, once, though every way `VisibilityRun::run` tries reads
             /// it again.
             void note(const VisibilityInput& read) const
@@ -201,6 +223,7 @@ namespace MWScript
             unsigned mEvents = 0;
             unsigned mAsked = 0;
 
+            std::span<const VisibilityLocal> mWrittenOutside;
             const VisibilityReads& mReads;
             std::vector<VisibilityInput>& mInputs;
             VisibilityWay& mWay;
@@ -251,6 +274,13 @@ namespace MWScript
             }
         };
 
+        /// `MenuMode`, which a run answers nought: `VisibilityRun` says why.
+        class OpMenuClosed final : public Interpreter::Opcode0
+        {
+        public:
+            void execute(Interpreter::Runtime& runtime) override { runtime.push(0); }
+        };
+
         template <Event Asked>
         class OpAsk final : public Interpreter::Opcode0
         {
@@ -294,7 +324,7 @@ namespace MWScript
         mInterpreter.installSegment5<OpGetJournalIndex>(Compiler::Dialogue::opcodeGetJournalIndex);
         mInterpreter.installSegment5<OpAsk<Event::Activated>>(Compiler::Misc::opcodeOnActivate);
         mInterpreter.installSegment5<OpAsk<Event::CellChanged>>(Compiler::Cell::opcodeCellChanged);
-        mInterpreter.installSegment5<OpAsk<Event::MenuOpen>>(Compiler::Misc::opcodeMenuMode);
+        mInterpreter.installSegment5<OpMenuClosed>(Compiler::Misc::opcodeMenuMode);
         mInterpreter.installSegment5<OpSoundPlaying>(Compiler::Sound::opcodeGetSoundPlaying);
         mInterpreter.installSegment5<OpNothing<1>>(Compiler::Misc::opcodeStopScript);
 
@@ -312,8 +342,8 @@ namespace MWScript
         mInterpreter.installSegment5<OpNothing<1>>(Compiler::Sound::opcodeStopSound);
     }
 
-    Terrain::GateState VisibilityRun::run(const Interpreter::Program& program, const Compiler::Locals& locals,
-        const VisibilityReads& reads, std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named)
+    Terrain::GateState VisibilityRun::run(const VisibilityScript& script, const VisibilityReads& reads,
+        std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named)
     {
         named.clear();
         // **Every way the events the script asked about could answer, and one answer from all of
@@ -336,14 +366,14 @@ namespace MWScript
                     continue;
                 tried |= 1u << events;
 
-                RunContext context(locals, reads, inputs, mWay, events);
+                RunContext context(script, reads, inputs, mWay, events);
                 bool settled = false;
                 try
                 {
                     for (std::size_t frame = 0; frame < sFramesTried && !settled; ++frame)
                     {
                         mFound = mWay;
-                        mInterpreter.run(program, context);
+                        mInterpreter.run(*script.mProgram, context);
                         settled = mWay == mFound;
                     }
                 }

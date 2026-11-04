@@ -44,6 +44,14 @@ namespace Rtx
             return *facts.mReachesSolid;
         }
 
+        /// Whether `image`'s alpha ever falls below solid, read into `facts` at the first ask.
+        bool fallsBelowSolid(ImageFacts& facts, const osg::Image& image)
+        {
+            if (!facts.mFallsBelowSolid.has_value())
+                facts.mFallsBelowSolid = mPreprocessor.fallsBelowSolid(image);
+            return *facts.mFallsBelowSolid;
+        }
+
         /// What a texel of `image` is worth on average, read into `facts` at the first ask.
         const MeanTexel& meanOf(ImageFacts& facts, const osg::Image& image)
         {

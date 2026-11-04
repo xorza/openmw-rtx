@@ -123,9 +123,11 @@ is not here is held to the rules above.
     scaled by `Presentation::shownScale` alone.
   - Where Wayland refuses relative mouse mode and pointer warps, the pointer goes unwrapped and stops
     at the window's edge (`InputWrapper::mWarpMovesPointer`): each failed warp turned the camera.
-  - A window that is hidden, minimized or occluded draws nothing, read from SDL's window flags and
-    not from its events (`SDLUtil::isWindowShown`): KWin minimizes a window by suspending it, which
-    SDL reports as occluded and never as minimized, so the game drew on behind it.
+  - A window that is hidden, minimized or occluded draws nothing and pauses, as upstream pauses a
+    minimized one, read from SDL's window flags and not from its events (`SDLUtil::isWindowShown`):
+    KWin minimizes a window by suspending it, which SDL reports as occluded and never as minimized,
+    so the game drew on behind it. KWin suspends a window minimized, on another desktop or behind a
+    locked screen, and not one another window covers (KDE bug 492924).
   - `[Video] window width/height` hold the window in the desktop's unit, `SDL_GetWindowSize`'s, and
     a resize stores what the window reports in it (`WindowListener::windowSized`): a size in pixels
     went through two densities on a Wayland desktop whose displays differ in scale, and shrank at
@@ -146,7 +148,9 @@ is not here is held to the rules above.
   directory.
 - What the game does in one step and the ray tracer's histories must hear: a reference the world
   moves with its physics placed outright is a jump (`World::moveObject`, `notifyJumped`), and a
-  write of `GameHour` past the frame's own step is a cut (`World::noteHourWritten`).
+  move of the clock past the frame's own step is a cut, found once a frame where the weather is
+  updated (`MWWorld::HourWatch`): a Lua global script writes the hour from the Lua worker while the
+  frame draws.
 - What the harness holds of the game through `OMW::EngineHost`, which the game alone asks nothing
   of: a sky between two weathers for one update (`WeatherManager::holdWeather`), since a filmed
   frame must name its sky; a game hour the host stated (`holdsGameClock`); a content script's
@@ -185,6 +189,10 @@ is not here is held to the rules above.
     models loaded followed the order the game read them in, and a renderer that read in another order
     lost other statics, and four of upstream's integration tests the navigation mesh they stand on. A
     nought now ends the bytes (`aColladaModelLoadsWhateverWasReadBeforeIt`).
+  - the moon phase a script reads (`GetMasserPhase`, `GetSecundaPhase`) before the weather ran
+    outdoors: upstream gave a new moon until the sky dome existed, so a game started in the prison
+    ship or a save loaded indoors read nought; it is now the date's phase, and the last exterior's
+    after that, as vanilla answers indoors (`WeatherManager::getMoonPhase`);
   - `Resource::SceneManager` deep-copied a COLLADA rig's state set down to its textures' images, and then
     put the source's own state set on the copy: on Windows, whose OpenSceneGraph counts a block-compressed
     image with no chain at four bytes a pixel, the image's copy read past its buffer and ended the game as
@@ -221,6 +229,10 @@ is not here is held to the rules above.
   character creation's dialogs included. `omw/mwui`'s templates follow through an internal handler
   (`_onFontSizeChanged`), and the setting applies live, from a settling slider in the Video page
   under the interface scale.
+- The auto normal and specular maps upstream's shader visitor added, moved into one helper both
+  renderers read (`components/shader/automaps`): in the `recreateShaders` path upstream put the
+  specular map on the normal map's unit, which lost the normal map, and took unit 7, which holds
+  the tangents it writes, as a fallback for unit 0's coordinates. Both faults are gone from both.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.

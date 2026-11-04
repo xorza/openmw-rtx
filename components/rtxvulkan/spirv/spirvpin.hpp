@@ -74,9 +74,11 @@ namespace Rtx
     ///
     /// Throws `std::runtime_error` for a module it cannot read and for an operation it cannot pin —
     /// a derivative or a level of detail worked out from one, an `fma` or the capability to fuse, a
-    /// relaxed precision, a rounding mode or any other float environment the module sets for itself, an
-    /// extended instruction set it does not know, an instruction newer than the SPIR-V headers it
-    /// was built with — naming it, so the build stops rather than ships a shader a compile may change.
+    /// relaxed precision on an id or a member, a rounding mode or any other float environment the
+    /// module sets for itself, an extended instruction set it does not know, an instruction newer
+    /// than the SPIR-V headers it was built with, and **any instruction that makes a float and that
+    /// no rule here names** (a float atomic, a subgroup's sum, minimum or maximum among them) —
+    /// naming it, so the build stops rather than ships a shader a compile may change.
     std::vector<std::uint32_t> pinFloatArithmetic(std::span<const std::uint32_t> module);
 
     /// The module with every rounding add, subtract, multiply and divide `NoContraction`, beside a

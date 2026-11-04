@@ -1023,9 +1023,8 @@ namespace MWGui
         MyGUI::MouseButton mLastDown;
         std::function<void(TypesetBook::InteractiveId)> mLinkClicked;
 
-        /// `BookPage::adviseRetypeset`'s, and whether a refit took a book this has to ask it for.
-        std::function<void()> mRetypeset;
-        bool mDropped = false;
+        /// `BookPage::adviseRetypeset`'s.
+        std::shared_ptr<Retypesetter> mRetypesetter;
 
         std::shared_ptr<TypesetBookImpl> mBook;
 
@@ -1143,24 +1142,23 @@ namespace MWGui
         /// draw items with their textures, and the book.
         void drop() override
         {
-            mDropped = mBook != nullptr;
+            if (mBook != nullptr)
+                mRetypesetter->dropped();
             showPage({}, 0);
         }
 
-        /// The owner typesets the book again, and shows it here and on every page of its own, which
-        /// it does once: a page it showed a book already asks for none.
+        /// The owner typesets every book its pages dropped, once for all of them (`Retypesetter`).
         void refit() override
         {
-            if (std::exchange(mDropped, false) && mRetypeset)
-                mRetypeset();
+            if (mRetypesetter != nullptr)
+                mRetypesetter->refit();
         }
 
         void showPage(std::shared_ptr<TypesetBook> book, size_t newPage)
         {
             std::shared_ptr<TypesetBookImpl> newBook = std::dynamic_pointer_cast<TypesetBookImpl>(book);
-            assert((newBook == nullptr || mRetypeset) && "a book shown on a page with no way to typeset it again");
-            if (newBook != nullptr)
-                mDropped = false;
+            assert((newBook == nullptr || mRetypesetter != nullptr)
+                && "a book shown on a page with no way to typeset it again");
 
             if (mBook != newBook)
             {
@@ -1411,9 +1409,9 @@ namespace MWGui
             mPageDisplay->mLinkClicked = std::function<void(TypesetBook::InteractiveId)>();
         }
 
-        void adviseRetypeset(std::function<void()> retypeset) override
+        void adviseRetypeset(std::shared_ptr<Retypesetter> retypesetter) override
         {
-            mPageDisplay->mRetypeset = std::move(retypeset);
+            mPageDisplay->mRetypesetter = std::move(retypesetter);
         }
 
         void setFocusItem(BookTypesetter::Style* itemStyle) override

@@ -150,8 +150,6 @@ namespace MWRender
 
         void setAmbientColour(const osg::Vec4f& colour);
 
-        int skyGetMasserPhase() const;
-        int skyGetSecundaPhase() const;
         void skySetMoonColour(bool red);
 
         const osg::Vec4f& getSunLightPosition() const;
@@ -225,8 +223,8 @@ namespace MWRender
 
         /// The picture cut, inside a worldspace the renderer is still drawing: the player was put
         /// somewhere rather than walked there (`ActionTeleport` — a door, `coc`, Recall, a boat), or
-        /// a write of `GameHour` moved the clock past the frame's own step
-        /// (`MWWorld::World::noteHourWritten`). The world's effects and the water's ripples stay,
+        /// the clock moved past the frame's own step (`MWWorld::HourWatch`). On the main thread,
+        /// between frames: the renderer's phase says so. The world's effects and the water's ripples stay,
         /// which is what tells it from `notifyWorldSpaceChanged`; the renderer is told of the cut
         /// either way.
         void notifyCut();
@@ -303,6 +301,10 @@ namespace MWRender
 
         bool pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled);
         void pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr);
+
+        /// The same for a reference a move took from `from` to `to`, which may be another cell:
+        /// the distance found it at `from`, and the game holds it at `to`.
+        void pagingMovedObject(int type, const MWWorld::ConstPtr& from, const MWWorld::ConstPtr& to);
         void setVisibilityGate(std::uint32_t gate, Terrain::GateState state);
         bool pagingUnlockCache();
         void getPagedRefnums(const osg::Vec4i& activeGrid, std::vector<ESM::RefNum>& out);

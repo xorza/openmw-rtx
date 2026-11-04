@@ -523,6 +523,11 @@ namespace Rtx::Shaders
     /// flattened for every hit, so a composite no rule asked the eye to read is never read by it.
     const uint MATERIAL_STACKED_SEEN = 0x400000u;
 
+    /// A blended material whose dark map's alpha falls below solid (`Rtx::Material::mDarkBelowSolid`):
+    /// a see-through hit's coverage takes the dark map's alpha too, where a scene that places one
+    /// compiles the read in (`RTX_DARK_ALPHA`).
+    const uint MATERIAL_DARK_ALPHA = 0x800000u;
+
     /// The normal map's alpha is a height the texture coordinates are shifted by —
     /// `Rtx::Material::mParallax`, and `parallaxShift` says by how much.
     const uint MATERIAL_PARALLAX = 0x20u;

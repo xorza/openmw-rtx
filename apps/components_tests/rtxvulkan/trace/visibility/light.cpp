@@ -2002,6 +2002,59 @@ namespace Rtx::Testing
             EXPECT_EQ(render(false, true, behind, true), 0.0f) << "and a solid takes nothing from it";
         }
 
+        /// **A leaf's penumbra is the same lit through its back as through its front.** The leaf of
+        /// `aLeafIsLitThroughItsBackAndClothAndSolidsAreNot` under the sun square to it, from before
+        /// and from behind, a card 100 units off it on the lit side stopping its shadow ray, under
+        /// `twoDegreeLimb`'s sun so the penumbra is a pixel and more wide: the
+        /// penumbra handed to the shadow denoiser is the occluder's distance times the sun's half
+        /// angle over the receiver's plane, which the sun meets square from either side. The back
+        /// takes the sun at `SHEET_TRANSMISSION` of the front, which says how much light passes and
+        /// not where its shadow falls: read as the cosine, it stretched the back's penumbra twice.
+        TEST_F(RtxVisibilityTest, aLeafsPenumbraIsTheSameLitThroughItsBackAsItsFront)
+        {
+            constexpr std::uint32_t size = 33;
+
+            TestTexture white;
+            paintOpaqueSheet(white);
+            const std::span<const TextureData> textures(&white.mData, 1);
+
+            const auto penumbraLitFrom = [&](float side) {
+                SceneDesc scene;
+                Material leaf;
+                leaf.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("sheet.dds"));
+                leaf.mAlphaMode = AlphaMode::Cutout;
+                leaf.mAlphaTest.mReference = 0.5f;
+                scene.addInstance(MeshInstance{
+                    .mMesh = scene.addMesh(
+                        MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices },
+                        FoldedShape{ .mSheet = true }),
+                    .mMaterial = scene.addMaterial(leaf) });
+                const std::array<osg::Vec3f, 4> card = uprightQuadAt(30.0f, 100.0f * side);
+                addQuad(scene, card, scene.addMaterial(Material{ .mTwoSided = true }));
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, side, 0.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
+                camera.mSun.mLimb = twoDegreeLimb();
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                shoot(scene, textures, camera, size);
+
+                std::vector<float> shadowed;
+                mProbe.readChannel(Channel::Shadowed, shadowed);
+                std::vector<float> widths;
+                Testing::penumbraeOf(shadowed, widths);
+                return widths.at(centreOf(size));
+            };
+
+            const float front = penumbraLitFrom(-1.0f);
+            const float back = penumbraLitFrom(1.0f);
+            ASSERT_LT(front, Shaders::SHADOW_PENUMBRA_CLEAR) << "the card stopped no ray from before";
+            ASSERT_LT(back, Shaders::SHADOW_PENUMBRA_CLEAR) << "the card stopped no ray from behind";
+            EXPECT_NEAR(back, front, front * 1e-4f) << "the back's penumbra stretched by the transmission";
+        }
+
         /// A half-plane hung behind the wall, and one column of pixels read against the same column
         /// with nothing in the way.
         ///

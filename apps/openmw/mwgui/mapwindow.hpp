@@ -83,6 +83,11 @@ namespace MWGui
 
         void setActiveCell(const MWWorld::Cell& cell);
         void requestMapRender(const MWWorld::CellStore* cell);
+
+        /// Lets go of every tile's picture after the interface's raster moved, so the next update
+        /// asks the local map for each again: drawn again at the new raster (`LocalMap::requestMap`),
+        /// and taken from it as it now stands.
+        void dropMapViews();
         void setPlayerDir(const float x, const float y);
         void setPlayerPos(int cellX, int cellY, const float nx, const float ny);
 

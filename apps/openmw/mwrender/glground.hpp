@@ -34,7 +34,7 @@ namespace MWRender
         Terrain::World& getTerrain() override { return *mTerrain; }
 
         bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) override;
-        void blacklistReference(int type, const MWWorld::ConstPtr& ptr) override;
+        void blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) override;
         bool unlockCache() override;
         void collectPagedRefnums(const osg::Vec4i& activeGrid, std::vector<ESM::RefNum>& out) override;
         void clear() override;

@@ -42,6 +42,9 @@ namespace Rtx
         /// `TexelMean`: what a texel of `image` is worth on average.
         MeanTexel meanTexel(const osg::Image& image);
 
+        /// `SolidFall`: whether `image`'s alpha ever falls below solid.
+        bool fallsBelowSolid(const osg::Image& image);
+
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
 
@@ -53,6 +56,7 @@ namespace Rtx
         TexelScratch mTexels;
         SolidReach mSolid{ mTexels };
         TexelMean mMean{ mTexels };
+        SolidFall mFall{ mTexels };
 
         ContentCache mCache;
         ContentStats mStats;

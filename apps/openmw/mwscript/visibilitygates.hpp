@@ -114,11 +114,23 @@ namespace MWScript
             std::uint32_t mFirstNamed = 0;
             std::uint32_t mNamedCount = 0;
 
+            /// The locals another script or a dialogue result writes, by `set id.local`, where the
+            /// id is a record that wears this script.
+            std::vector<VisibilityLocal> mWrittenOutside;
+
+            /// Every number the code holds that an hour can be, sorted and each once: where a test
+            /// of `GameHour` against a literal can change its answer, whichever side the literal
+            /// stands on. A superset of the script's limits, so an hour that crosses none of them
+            /// leaves every such test as it was.
+            std::vector<double> mHourLimits;
+
             /// What the last run read, with what it read then.
             std::vector<VisibilityInput> mInputs;
 
-            /// The same, as places in `mWatched`.
+            /// The same, as places in `mWatched`, but for the hour: that, as the last run read it,
+            /// where it read it.
             std::vector<std::uint32_t> mWatches;
+            std::optional<double> mHourRead;
 
             /// Whether it has run since the last `reset`.
             bool mRun = false;
@@ -145,24 +157,28 @@ namespace MWScript
             std::uint32_t mGate = Terrain::sNoGate;
         };
 
-        /// One value some script's last run read, whether it is watched by the hour, and whether
-        /// this frame's read found it moved.
-        ///
-        /// **`GameHour` by the hour it stands in, and every other value exactly.** The hour moves on
-        /// every frame, and a script that reads it — content that puts a lamp or a window out by
-        /// the hour — ran again on every frame, up to sixteen ways of sixteen frames each, on a
-        /// path that is otherwise a load or a step of the story. Run again as the hour turns, a
-        /// test against a whole hour answers on the frame it changes, and one against a part of an
-        /// hour within the hour.
+        /// One value some script's last run read, other than `GameHour`, and whether this frame's
+        /// read found it moved.
         struct Watched
         {
             VisibilityInput mInput;
-            bool mHourly = false;
             bool mMoved = false;
         };
 
-        /// Whether a value a script's last run read is no longer what it read, `Watched` says how.
+        /// Whether a value a script's last run read is no longer what it read.
         static bool moved(const Watched& watched, const VisibilityReads& reads);
+
+        /// Whether `script`, whose last run read the hour as `read`, runs again at the hour `now`.
+        ///
+        /// **`GameHour` where the script's answer can change, and every other value exactly.** The
+        /// hour moves on every frame, and a script that reads it — content that puts a lamp or a
+        /// window out by the hour — ran again on every frame, up to eight ways of sixteen frames
+        /// each, on a path that is otherwise a load or a step of the story. Run again where the
+        /// hour turns or reaches one of the script's limits (`Script::mHourLimits`), a test against
+        /// a literal answers on the frame it changes, and one against a variable within the hour.
+        /// The same idea as a next-event time in a discrete-event simulation: wake only where the
+        /// result can change.
+        static bool hourMoved(const Script& script, double read, double now);
 
         /// Records a gate's answer, and appends it to `changes` where the renderers have not heard
         /// it.
@@ -187,6 +203,9 @@ namespace MWScript
 
         std::vector<NamedBy> mNamedBy;
         std::vector<Watched> mWatched;
+
+        /// The scripts whose last run read the hour: none, and a frame reads it not at all.
+        std::vector<std::uint32_t> mHourReaders;
 
         /// Whether a script has not run since the last `build` or `reset`.
         bool mUnrun = true;

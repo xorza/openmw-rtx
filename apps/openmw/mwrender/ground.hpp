@@ -65,9 +65,12 @@ namespace MWRender
         virtual bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) = 0;
 
         /// The game moved, turned, scaled, deleted or animates the reference, which upstream's
-        /// paging never stands again, whatever a script says of it later. A renderer that stands
-        /// references itself may read where the game holds it now off `ptr` instead.
-        virtual void blacklistReference(int type, const MWWorld::ConstPtr& ptr) = 0;
+        /// paging never stands again, whatever a script says of it later. `paged` is the reference
+        /// where the distance last found it, in the exterior cell upstream's paging reads its chunk
+        /// by; `now` is where the game holds it after the change, the same reference unless a move
+        /// took it to another cell (`World::moveObject`). A renderer that stands references itself
+        /// may read where the game holds it now off `now`.
+        virtual void blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) = 0;
 
         /// The cell grid has moved: what the game told the distance while the grid changed may now
         /// be applied. @return whether what the distance draws changed. A renderer that keeps no

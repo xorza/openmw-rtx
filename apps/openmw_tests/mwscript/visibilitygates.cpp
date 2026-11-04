@@ -4,6 +4,7 @@
 #include <initializer_list>
 #include <map>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -167,7 +168,15 @@ End
         {
             const Compiled compiled = compile(text);
             inputs.clear();
-            return mRun.run(compiled.mProgram, compiled.mLocals, mReads, inputs, mNamed);
+            return mRun.run(scriptOf(compiled), mReads, inputs, mNamed);
+        }
+
+        static MWScript::VisibilityScript scriptOf(
+            const Compiled& compiled, std::span<const MWScript::VisibilityLocal> writtenOutside = {})
+        {
+            return MWScript::VisibilityScript{
+                .mProgram = &compiled.mProgram, .mLocals = &compiled.mLocals, .mWrittenOutside = writtenOutside
+            };
         }
 
         /// What the last `run` left the one name it toggled, or nothing where it named none.
@@ -179,6 +188,33 @@ End
             EXPECT_EQ(mNamed[0].mName, ESM::RefId::stringRefId("plank"));
             return mNamed[0].mState;
         }
+
+        /// A gates build's scripts, compiled here from the store's text and kept for the gates.
+        class Kept final : public MWScript::GateScripts
+        {
+        public:
+            Kept(VisibilityGatesTest& test, const MWWorld::ESMStore& store)
+                : mTest(test)
+                , mStore(store)
+            {
+            }
+
+            std::optional<MWScript::GateScript> compiled(const ESM::RefId& id) override
+            {
+                const ESM::Script* record = mStore.get<ESM::Script>().search(id);
+                if (record == nullptr)
+                    return std::nullopt;
+                const Compiled& kept = mKept.emplace_back(mTest.compile(record->mScriptText));
+                return MWScript::GateScript{ .mProgram = &kept.mProgram, .mLocals = &kept.mLocals };
+            }
+
+        private:
+            VisibilityGatesTest& mTest;
+            const MWWorld::ESMStore& mStore;
+            std::deque<Compiled> mKept;
+        };
+
+        void expectHourly(std::string_view text, float from, GateState atNineteenSeven);
 
         TestErrorHandler mErrors;
         GlobalsContext mContext;
@@ -258,10 +294,10 @@ End
         const Compiled settling = compile(
             "begin s\nshort done\nif ( done == 0 )\nset done to 1\nset flag to 2\nreturn\nendif\nif ( flag == 2 )\n"
             "\"plank\"->disable\nendif\ndisable\nend s\n");
-        static_cast<void>(mRun.run(settling.mProgram, settling.mLocals, mReads, inputs, mNamed));
+        static_cast<void>(mRun.run(scriptOf(settling), mReads, inputs, mNamed));
         inputs.clear();
         const std::size_t before = Rtx::Testing::getAllocationCount();
-        EXPECT_EQ(mRun.run(settling.mProgram, settling.mLocals, mReads, inputs, mNamed), GateState::Closed);
+        EXPECT_EQ(mRun.run(scriptOf(settling), mReads, inputs, mNamed), GateState::Closed);
         EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u);
         EXPECT_EQ(plank(), GateState::Closed);
     }
@@ -273,7 +309,11 @@ End
     {
         const Compiled compiled = compile("begin gate\nshort count\nif ( count == 0 )\n  disable\nendif\nend\n");
         std::vector<MWScript::VisibilityInput> inputs;
-        EXPECT_THROW(static_cast<void>(mRun.run(compiled.mProgram, Compiler::Locals{}, mReads, inputs, mNamed)),
+        const Compiler::Locals none;
+        EXPECT_THROW(
+            static_cast<void>(mRun.run(
+                MWScript::VisibilityScript{ .mProgram = &compiled.mProgram, .mLocals = &none, .mWrittenOutside = {} },
+                mReads, inputs, mNamed)),
             std::out_of_range);
     }
 
@@ -317,6 +357,11 @@ End
             << "the same instruction off its path";
         EXPECT_EQ(run("begin s\nif ( MenuMode == 1 )\nreturn\nendif\nstopscript s\nend s\n", inputs), GateState::Open)
             << "a menu and a stopped script say nothing of the reference, which stands as the files have it";
+        EXPECT_EQ(
+            run("begin s\nif ( MenuMode == 1 )\nreturn\nendif\nif ( flag == 0 )\ndisable\nendif\nend s\n", inputs),
+            GateState::Closed)
+            << "the distance is seen with the menus closed: a script that waits out a menu still decides, as "
+               "Solstheim's standing stones do";
         EXPECT_EQ(run("begin s\n\"plank\"->enable\ndisable\nend s\n", inputs), GateState::Closed)
             << "another reference enabled by name says nothing of this one";
         EXPECT_EQ(plank(), GateState::Open) << "and is enabled";
@@ -514,14 +559,87 @@ End
         EXPECT_EQ(changes.size(), 5u) << "a reset tells every gate again";
     }
 
-    /// **A script that reads the hour runs again as the hour turns, and not on every frame it
-    /// moves.** A lantern lit past half past seven: at seven it is out, and it stays out at 19.7 and
-    /// 19.9, where the hour moved and the gate did not run — the half hour's test answers within
-    /// the hour; past eight the run finds it lit, and through the hour after nothing runs again.
-    TEST_F(VisibilityGatesTest, aScriptThatReadsTheHourRunsAgainAsTheHourTurns)
+    /// **A script that reads the hour runs again where its answer can change, and not on every
+    /// frame the hour moves.** A lantern lit past half past seven: at seven it is out, and at 19.7
+    /// it is lit — the hour crossed the script's own 19.5. A lantern lit past 19 and 0.6 tests a
+    /// sum no literal names: from 19.1 it stays out at 19.7, since no literal of the script lies
+    /// between, and is lit as the hour turns. Through the hour after, neither runs again.
+    TEST_F(VisibilityGatesTest, aScriptThatReadsTheHourRunsAgainWhereItsAnswerCanChange)
     {
-        static constexpr std::string_view text
-            = "begin evening\nif ( GameHour > 19.5 )\nenable\nelse\ndisable\nendif\nend evening\n";
+        struct Row
+        {
+            std::string_view mText;
+            float mFrom;
+            GateState mAtNineteenSeven;
+        };
+        for (const Row& row :
+            { Row{ "begin evening\nif ( GameHour > 19.5 )\nenable\nelse\ndisable\nendif\nend evening\n", 19.0f,
+                  GateState::Open },
+                Row{ "begin evening\nif ( GameHour > ( 19 + 0.6 ) )\nenable\nelse\ndisable\nendif\nend evening\n",
+                    19.1f, GateState::Closed } })
+            expectHourly(row.mText, row.mFrom, row.mAtNineteenSeven);
+    }
+
+    /// **A local something outside the script writes leaves its gate undecided.** A gate door
+    /// opened by a lever's `set gate_door.open to 1` stands by the door's history, which the run's
+    /// nought is not; the same door with no lever is decided, closed. Found in any spelling the
+    /// compiler takes: a quoted id, a comment after it, spaces around the dot — and not where the
+    /// text only names the local or sets a local of its own.
+    TEST_F(VisibilityGatesTest, aLocalSomethingOutsideWritesLeavesTheGateUndecided)
+    {
+        static constexpr std::string_view door
+            = "begin door_state\nshort open\nif ( open == 1 )\nenable\nelse\ndisable\nendif\nend door_state\n";
+
+        struct Row
+        {
+            std::string_view mLever;
+            GateState mState;
+        };
+        for (const Row& row : {
+                 Row{ "begin lever\nset gate_door.open to 1\nend lever\n", GateState::Undecided },
+                 Row{ "begin lever\nset \"Gate_Door\" . OPEN to 1 ; opened\nend lever\n", GateState::Undecided },
+                 Row{ "begin lever\nshort open\nset open to 1\nmessagebox \"gate_door.open\"\nend lever\n",
+                     GateState::Closed },
+                 Row{ "begin lever\nset other_door.open to 1\nend lever\n", GateState::Closed },
+             })
+        {
+            MWWorld::ESMStore store;
+            for (const auto& [id, text] : { std::pair{ "door_state", door }, std::pair{ "lever", row.mLever } })
+            {
+                ESM::Script record;
+                record.mId = ESM::RefId::stringRefId(id);
+                record.mScriptText = std::string(text);
+                store.insertStatic(record);
+            }
+            ESM::Activator gateDoor;
+            gateDoor.mId = ESM::RefId::stringRefId("gate_door");
+            gateDoor.mScript = ESM::RefId::stringRefId("door_state");
+            store.insertStatic(gateDoor);
+            store.setUp();
+
+            Kept scripts(*this, store);
+            MWScript::VisibilityGates gates;
+            gates.build(store, scripts);
+            ASSERT_EQ(gates.getGateCount(), 1u) << row.mLever;
+
+            std::vector<MWScript::GateChange> changes;
+            gates.update(mReads, changes);
+            ASSERT_EQ(changes.size(), 1u);
+            EXPECT_EQ(changes[0].mState, row.mState) << row.mLever;
+        }
+
+        const Compiled compiled = compile(door);
+        const std::vector<MWScript::VisibilityLocal> open{ MWScript::VisibilityLocal{ .mType = 's', .mIndex = 0 } };
+        std::vector<MWScript::VisibilityInput> inputs;
+        EXPECT_EQ(mRun.run(scriptOf(compiled, open), mReads, inputs, mNamed), GateState::Undecided);
+        EXPECT_EQ(mRun.run(scriptOf(compiled), mReads, inputs, mNamed), GateState::Closed)
+            << "the same run with nothing written outside";
+    }
+
+    /// The gates of one evening script worn by a lantern, built and run from `from` to 19.7, then
+    /// across the hour.
+    void VisibilityGatesTest::expectHourly(std::string_view text, float from, GateState atNineteenSeven)
+    {
         MWWorld::ESMStore store;
         ESM::Script evening;
         evening.mId = ESM::RefId::stringRefId("evening");
@@ -533,26 +651,7 @@ End
         store.insertStatic(lantern);
         store.setUp();
 
-        class FromStore final : public MWScript::GateScripts
-        {
-        public:
-            explicit FromStore(VisibilityGatesTest& test)
-                : mTest(test)
-            {
-            }
-
-            std::optional<MWScript::GateScript> compiled(const ESM::RefId&) override
-            {
-                mKept = mTest.compile(text);
-                return MWScript::GateScript{ .mProgram = &mKept.mProgram, .mLocals = &mKept.mLocals };
-            }
-
-        private:
-            VisibilityGatesTest& mTest;
-            Compiled mKept;
-        };
-
-        FromStore scripts(*this);
+        Kept scripts(*this, store);
         MWScript::VisibilityGates gates;
         gates.build(store, scripts);
         ASSERT_EQ(gates.getGateCount(), 1u);
@@ -565,12 +664,24 @@ End
             return changes;
         };
 
-        ASSERT_EQ(at(19.0f).size(), 1u);
+        ASSERT_EQ(at(from).size(), 1u) << text;
         EXPECT_EQ(changes[0].mState, GateState::Closed);
-        EXPECT_TRUE(at(19.7f).empty()) << "the hour moved within itself and the gate ran";
-        EXPECT_TRUE(at(19.9f).empty());
-        ASSERT_EQ(at(20.1f).size(), 1u) << "the hour turned and the gate did not run";
-        EXPECT_EQ(changes[0].mState, GateState::Open);
-        EXPECT_TRUE(at(20.6f).empty());
+        const std::vector<MWScript::GateChange> crossed = at(19.7f);
+        if (atNineteenSeven == GateState::Closed)
+            EXPECT_TRUE(crossed.empty()) << text;
+        else
+        {
+            ASSERT_EQ(crossed.size(), 1u) << text;
+            EXPECT_EQ(crossed[0].mState, atNineteenSeven);
+        }
+        EXPECT_TRUE(at(19.9f).empty()) << text;
+        if (atNineteenSeven == GateState::Closed)
+        {
+            ASSERT_EQ(at(20.1f).size(), 1u) << "the hour turned: " << text;
+            EXPECT_EQ(changes[0].mState, GateState::Open);
+        }
+        else
+            EXPECT_TRUE(at(20.1f).empty()) << text;
+        EXPECT_TRUE(at(20.6f).empty()) << text;
     }
 }
