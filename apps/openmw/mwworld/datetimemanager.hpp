@@ -3,6 +3,7 @@
 
 #include <optional>
 #include <set>
+#include <string>
 #include <string_view>
 
 #include "globalvariablename.hpp"
@@ -24,6 +25,8 @@ namespace MWWorld
         // Game time.
         // Note that game time generally goes faster than the simulation time.
         std::string_view getMonthName(int month = -1) const; // -1: current month
+        // The time of the day as the Calendar localization shows it.
+        std::string formatTimeOfDay(float hour) const;
         TimeStamp getTimeStamp() const;
         ESM::EpochTimeStamp getEpochTimeStamp() const;
         double getGameTime() const
