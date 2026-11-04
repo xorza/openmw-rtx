@@ -102,6 +102,9 @@ namespace Rtx
         {
             std::uint64_t mFrame = 0;
             std::uint32_t mInFlight = 0;
+
+            /// What reconstructed it, resolved when it was traced (`RenderProfile::reconstructionFor`).
+            Reconstruction mReconstruction{};
         };
 
         bool holds(SceneSlot slot) const;

@@ -196,20 +196,24 @@ namespace MWRender
             using Clock = std::chrono::steady_clock;
 
             RecordingRenderer renderer;
-            renderer.setFrameRateLimit(200.0f);
             const Clock::duration limit
                 = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<float>(1.0f / 200.0f));
 
             // The first frame after the limit was set, which nothing before it can have made late:
             // on a Windows runner a 5 ms sleep came back 5.9 ms later, so a second frame measured
-            // after a first one had nothing left to sleep.
+            // after a first one had nothing left to sleep. **Bounded by the clock read around the
+            // limiter's making and the frame**, and never by a number of milliseconds: the limiter
+            // measures from its making, and an ASan runner held a frame 3.6 ms whose limiter it had
+            // made 1.4 ms before.
+            const Clock::time_point made = Clock::now();
+            renderer.setFrameRateLimit(200.0f);
             const Clock::time_point began = Clock::now();
             const Clock::duration stood = renderer.awaitFrame();
-            const Clock::duration slept = Clock::now() - began;
+            const Clock::time_point ended = Clock::now();
             EXPECT_EQ(stood, limit) << "a frame it slept for stood for the limit, as the limiter answers";
-            EXPECT_GE(slept, std::chrono::milliseconds(4)) << "and it slept for it";
-            EXPECT_GE(renderer.getLastHold(), std::chrono::milliseconds(4)) << "and says it held";
-            EXPECT_LE(renderer.getLastHold(), slept) << "no longer than the wall saw";
+            EXPECT_GE(ended, made + limit) << "and it slept to the limit";
+            EXPECT_GT(renderer.getLastHold(), Clock::duration::zero()) << "and says it held";
+            EXPECT_LE(renderer.getLastHold(), ended - began) << "no longer than the wall saw";
 
             // **No limit is no sleep, and the wall is what stood**, bounded by the clock read around
             // the two frames and never by a number of milliseconds, which a loaded runner passes:

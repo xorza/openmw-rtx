@@ -753,6 +753,22 @@ namespace Rtx
                             { 3, spv::GroupOperationReduce, w.input(w.mFloat, "s") });
                     },
                     "OpGroupNonUniformFAdd" },
+                { "a subgroup minimum, which no rule names",
+                    [](Writer& w) {
+                        w.op(spv::OpGroupNonUniformFMin, w.mFloat,
+                            { 3, spv::GroupOperationReduce, w.input(w.mFloat, "s") });
+                    },
+                    "OpGroupNonUniformFMin" },
+                { "a float atomic maximum, which no rule names",
+                    [](Writer& w) {
+                        w.op(spv::OpAtomicFMaxEXT, w.mFloat, { w.input(w.mFloat, "p"), 1, 0, w.input(w.mFloat, "s") });
+                    },
+                    "OpAtomicFMaxEXT" },
+                { "a relaxed member",
+                    [](Writer& w) {
+                        w.raw(w.mAnnotations, spv::OpMemberDecorate, { w.fresh(), 0, spv::DecorationRelaxedPrecision });
+                    },
+                    "relaxed precision" },
                 { "a relaxed precision",
                     [](Writer& w) {
                         w.decorate(w.op(spv::OpFAdd, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") }),

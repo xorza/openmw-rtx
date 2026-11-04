@@ -328,6 +328,7 @@ namespace Rtx
             TextureData described{
                 .mFormat = format,
                 .mEncoding = encoding,
+                .mHeld = traitsOf(format).mHeld,
                 .mWidth = width,
                 .mHeight = height,
                 .mBytes = std::span(data, kept),

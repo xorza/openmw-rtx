@@ -390,7 +390,7 @@ namespace Rtx
             std::size_t frame, CellRing* ring, bool falls);
 
         /// The maps a frozen root's keys are held in, handed to `mFrozen` at each call.
-        FrozenRoots::Holders frozenHolders() { return { mPlacements, mMeshes, mMaterials }; }
+        FrozenRoots::Holders frozenHolders() { return { mPlacements, mMeshes, mMaterials, mReleased }; }
 
         SceneDesc& mScene;
 

@@ -366,6 +366,12 @@ namespace MWWorld
 
         std::vector<Moon> getCurrentMoons(const TimeStamp& time) const;
 
+        /// The phase a script reads of moon `index`, Masser nought and Secunda one, as
+        /// `MoonState::phaseToInt` counts it: the last exterior's, as vanilla answers indoors, and
+        /// the date's where no exterior update ran since a new game or a load — a game started
+        /// in the prison ship, or a save loaded indoors, which the sky's own state does not know.
+        unsigned int getMoonPhase(std::size_t index, const TimeStamp& time) const;
+
         /// What this settled about the sky, for whatever draws it.
         const MWRender::SkyState& getSkyState() const { return mSky; }
 
@@ -383,6 +389,9 @@ namespace MWWorld
         float mSunriseDuration;
         float mSunsetDuration;
         float mSunPreSunsetTime;
+
+        /// Whether an exterior update set `mSky.mMoons` since the last `clear`: `getMoonPhase`.
+        bool mMoonsSeen = false;
 
         /// The sky as this settles it, which both renderers read. `mTimeSettings` is its part under
         /// upstream's name, so the code that fills it reads as upstream's, and `update` moves the

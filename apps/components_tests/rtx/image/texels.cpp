@@ -18,6 +18,7 @@
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -282,6 +283,45 @@ namespace Rtx
         /// **Data is the same blocks without the curve, and one or two channels are data alone**: a
         /// BC4 or BC5 file bound as a colour has lost its blue, and is no format a colour slot takes.
         ///
+        /// **A chain encoded on the device keeps the channels its file held**, through the widening
+        /// that made a loose file RGBA8: an `R8G8` normal map is BC5, an `R8` map BC4, and every
+        /// other file BC7 in its own encoding. An `R8` colour is BC7 in sRGB, since BC4 holds no
+        /// curve and would read its red as linear light.
+        TEST(RtxTextureFormatTest, anEncodedChainKeepsTheChannelsItsFileHeld)
+        {
+            struct Row
+            {
+                GLenum mSpelling;
+                TextureEncoding mEncoding;
+                TextureFormat mDescribed;
+                HeldChannels mHeld;
+                TextureFormat mEncoded;
+            };
+            for (const Row& row : {
+                     Row{ GL_RG, TextureEncoding::Normal, TextureFormat::Rgba8Unorm, HeldChannels::RedGreen,
+                         TextureFormat::Bc5Unorm },
+                     Row{ GL_RED, TextureEncoding::Data, TextureFormat::Rgba8Unorm, HeldChannels::Red,
+                         TextureFormat::Bc4Unorm },
+                     Row{ GL_RGBA, TextureEncoding::Normal, TextureFormat::Rgba8Unorm, HeldChannels::All,
+                         TextureFormat::Bc7Unorm },
+                     Row{ GL_RGBA, TextureEncoding::Colour, TextureFormat::Rgba8Srgb, HeldChannels::All,
+                         TextureFormat::Bc7Srgb },
+                     Row{ GL_RED, TextureEncoding::Colour, TextureFormat::Rgba8Srgb, HeldChannels::Red,
+                         TextureFormat::Bc7Srgb },
+                 })
+            {
+                const osg::ref_ptr<osg::Image> image = makeImage(row.mSpelling);
+                std::vector<MipLevel> levels;
+                std::vector<std::byte> texels;
+                const auto described
+                    = describeImage(*image, readFormat(*image, row.mEncoding), row.mEncoding, levels, texels);
+                ASSERT_TRUE(described.isOk()) << row.mSpelling;
+                EXPECT_EQ(described.value().mFormat, row.mDescribed) << row.mSpelling;
+                EXPECT_EQ(described.value().mHeld, row.mHeld) << row.mSpelling;
+                EXPECT_EQ(described.value().encodedChainFormat(), row.mEncoded) << row.mSpelling;
+            }
+        }
+
         /// **Every loose spelling the DDS loader makes is named**, alpha-only, one and two channels,
         /// sixteen-bit and float ones among them, and widened on the way in. Signed and integer
         /// channels stay unnamed: no slot here reads them as a fraction.
@@ -361,6 +401,12 @@ namespace Rtx
                     one.mSpelling == GL_COMPRESSED_RGB_S3TC_DXT1_EXT
                         || one.mSpelling == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT)
                     << one.mName;
+                const HeldChannels held = one.mFormat == TextureFormat::Unnamed ? HeldChannels::All
+                    : one.mSpelling == GL_RG || one.mSpelling == GL_COMPRESSED_RED_GREEN_RGTC2_EXT
+                    ? HeldChannels::RedGreen
+                    : one.mSpelling == GL_RED || one.mSpelling == GL_COMPRESSED_RED_RGTC1_EXT ? HeldChannels::Red
+                                                                                              : HeldChannels::All;
+                EXPECT_EQ(traitsOf(one.mFormat).mHeld, held) << one.mName;
 
                 met[static_cast<std::size_t>(one.mFormat)] = true;
             }

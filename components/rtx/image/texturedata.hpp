@@ -167,6 +167,11 @@ namespace Rtx
         /// What the slot's texels are, which the scene's table says per slot and `mFormat` follows.
         TextureEncoding mEncoding = TextureEncoding::Colour;
 
+        /// Which channels carry what the file holds, as its own format said before `describeImage`
+        /// widened it: a widened `R8G8` is RGBA8 with a blue of nought that only this tells from a
+        /// colour's.
+        HeldChannels mHeld = HeldChannels::All;
+
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
@@ -239,6 +244,15 @@ namespace Rtx
         /// budget cannot stand a completed chain from a coarser level. Its own level moves by the
         /// low bit the comment above names.
         bool encodesChain() const;
+
+        /// The format a chain completed for this file is encoded to where `encodesChain` says: BC4 or
+        /// BC5 for a linear file of one channel or two, and BC7 for every other, in the file's
+        /// encoding.
+        /// **The file's own channels and none other**, because a format that shares one lowest bit
+        /// across four channels stores a BC5 normal map's blue of nought beside its alpha of one as
+        /// one step above nought, and the trace reads a blue above nought as a normal map's height
+        /// (`decodeNormal`): normals into the surface, a block in two.
+        TextureFormat encodedChainFormat() const;
 
         /// Whether every level lies inside `mBytes` at its format's layout: what `describeImage`
         /// guarantees and a reader of the bytes asserts rather than clamps, so a description short

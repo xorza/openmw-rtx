@@ -24,6 +24,46 @@ namespace Rtx
         };
     }
 
+    namespace
+    {
+        template <class T>
+        void replaceHeld(osg::ref_ptr<const T>& held, const T* const now, Released& released)
+        {
+            if (held.get() == now)
+                return;
+            released.keep(held);
+            held = now;
+        }
+    }
+
+    void FrozenRoots::HeldFace::become(const Face& face, Released& released)
+    {
+        mWorld = face.mWorld;
+        mIdentity = face.mIdentity;
+        mChildren = face.mChildren;
+        mUpdating = face.mUpdating;
+        replaceHeld(mStateSet, face.mStateSet, released);
+        replaceHeld(mFirstChild, face.mFirstChild, released);
+        replaceHeld(mUpdate, face.mUpdate, released);
+    }
+
+    bool FrozenRoots::HeldFace::shows(const Face& face) const
+    {
+        return mWorld == face.mWorld && mIdentity == face.mIdentity && mChildren == face.mChildren
+            && mUpdating == face.mUpdating && mStateSet.get() == face.mStateSet && mFirstChild.get() == face.mFirstChild
+            && mUpdate.get() == face.mUpdate;
+    }
+
+    void FrozenRoots::HeldFace::release(Released& released)
+    {
+        released.keep(mStateSet);
+        released.keep(mFirstChild);
+        released.keep(mUpdate);
+        mStateSet = nullptr;
+        mFirstChild = nullptr;
+        mUpdate = nullptr;
+    }
+
     void FrozenRoots::meet(Frozen& frozen, const unsigned int walk)
     {
         if (mMetBy != walk)
@@ -50,11 +90,11 @@ namespace Rtx
         // the one the game hangs — or a controller anywhere in it, which `Face` says how it sees.
         Frozen& frozen = known->second;
         meet(frozen, walk);
-        if (frozen.mFace != face)
+        if (!frozen.mFace.shows(face))
         {
             if (frozen.mHolding)
                 thaw(frozen, holders);
-            frozen.mFace = face;
+            frozen.mFace.become(face, holders.mReleased);
             frozen.mMoved = walk;
             return false;
         }
@@ -98,19 +138,14 @@ namespace Rtx
             holders.mMaterials.hold(key.mMaterial);
         }
 
-        const Frozen frozen{
-            .mFace = face,
-            .mKeys = mKeys.allocate(std::span<const Key>(mRecorded)),
-            .mInstances = instances - mRecordedFrom,
-            .mMet = known != mFrozen.end() ? known->second.mMet : 0,
-            .mMoved = known != mFrozen.end() ? known->second.mMoved : 0,
-            .mHolding = true,
-        };
         mPastRoom += known == mFrozen.end() && fillsRoom(mFrozen) ? 1u : 0u;
         Frozen& held = known != mFrozen.end()
             ? known->second
             : mFrozen.emplace(osg::ref_ptr<const osg::Node>(&root), Frozen{}).first->second;
-        held = frozen;
+        held.mFace.become(face, holders.mReleased);
+        held.mKeys = mKeys.allocate(std::span<const Key>(mRecorded));
+        held.mInstances = instances - mRecordedFrom;
+        held.mHolding = true;
         meet(held, walk);
     }
 
@@ -129,7 +164,7 @@ namespace Rtx
         frozen.mKeys = Run{};
     }
 
-    void FrozenRoots::thawUnmet(const unsigned int walk, const Holders holders, Released& released)
+    void FrozenRoots::thawUnmet(const unsigned int walk, const Holders holders)
     {
         if (mMetBy == walk && mMet == mFrozen.size())
             return;
@@ -139,17 +174,19 @@ namespace Rtx
                 return false;
 
             thaw(frozen.second, holders);
-            released.keep(frozen.first);
+            frozen.second.mFace.release(holders.mReleased);
+            holders.mReleased.keep(frozen.first);
             return true;
         });
     }
 
-    void FrozenRoots::thawAll(const Holders holders, Released& released)
+    void FrozenRoots::thawAll(const Holders holders)
     {
         for (auto& frozen : mFrozen)
         {
             thaw(frozen.second, holders);
-            released.keep(frozen.first);
+            frozen.second.mFace.release(holders.mReleased);
+            holders.mReleased.keep(frozen.first);
         }
         mFrozen.clear();
         mMet = 0;

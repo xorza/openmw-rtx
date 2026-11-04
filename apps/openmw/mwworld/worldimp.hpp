@@ -16,6 +16,7 @@
 #include "../mwphysics/raycasting.hpp"
 
 #include "contentloader.hpp"
+#include "datetimemanager.hpp"
 #include "esmstore.hpp"
 #include "globals.hpp"
 #include "groundcoverstore.hpp"
@@ -111,9 +112,10 @@ namespace MWWorld
         bool mScriptsEnabled;
         bool mDiscardMovements;
 
-        /// The hours the last frame advanced the clock by, which a write of the hour is held
-        /// against: `DateTimeManager::jumps`.
+        /// The hours the last frame advanced the clock by, and the hour it left: a move past the
+        /// step is a cut (`HourWatch`).
         double mHourStep = 0.0;
+        HourWatch mHourWatch;
         std::vector<std::string> mContentFiles;
 
         std::filesystem::path mUserDataPath;
@@ -161,10 +163,6 @@ namespace MWWorld
 
         /// The cell a move to `position` lands `ptr` in.
         CellStore* cellForMove(const Ptr& ptr, const osg::Vec3f& position, bool moveToActive);
-
-        /// Tells the renderer a cut where the write of the hour that just took the clock from
-        /// `before` jumped it.
-        void noteHourWritten(float before);
 
         void preloadSpells();
 

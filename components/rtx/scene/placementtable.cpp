@@ -24,6 +24,7 @@ namespace Rtx
             .mAdditive = traversed.mAdditive ? 1u : 0u,
             .mFirstPerson = placed.mClass == InstanceClass::FirstPerson ? 1u : 0u,
             .mMapped = worn.mMapped ? 1u : 0u,
+            .mDarkAlpha = worn.mDarkAlpha ? 1u : 0u,
         };
     }
 
@@ -37,6 +38,7 @@ namespace Rtx
         mCounts.mAdditive += share.mAdditive;
         mCounts.mFirstPerson += share.mFirstPerson;
         mCounts.mMapped += share.mMapped;
+        mCounts.mDarkAlpha += share.mDarkAlpha;
 
         if (share.mMedium + share.mAdditive > 0)
             mPresent.addMakingRoom(slot);
@@ -52,6 +54,7 @@ namespace Rtx
         mCounts.mAdditive -= share.mAdditive;
         mCounts.mFirstPerson -= share.mFirstPerson;
         mCounts.mMapped -= share.mMapped;
+        mCounts.mDarkAlpha -= share.mDarkAlpha;
 
         if (share.mMedium + share.mAdditive > 0)
             mPresent.remove(slot);

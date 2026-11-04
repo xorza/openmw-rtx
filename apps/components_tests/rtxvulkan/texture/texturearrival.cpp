@@ -54,7 +54,7 @@ namespace Rtx
                 return arrival.getRecordedBarriers();
             }
 
-            /// What one run made of `files`, each kept as BC7 off a loose chain in a canvas of `room`
+            /// What one run made of `files`, each kept in blocks off a loose chain in a canvas of `room`
             /// a group: each file's first level as the sampler decodes it, four bytes a texel, and
             /// the bytes the canvas came to.
             struct Encoded
@@ -89,7 +89,7 @@ namespace Rtx
                     const Image& target = targets.emplace_back(MemoryUse::Essential, device,
                         ImageDescription{ .mWidth = file.mWidth,
                             .mHeight = file.mHeight,
-                            .mFormat = VK_FORMAT_BC7_UNORM_BLOCK,
+                            .mFormat = toVulkanFormat(file.encodedChainFormat()),
                             .mUsage = sUploadedTextureUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                             .mMipLevels = levels },
                         "encode test target");
@@ -101,7 +101,7 @@ namespace Rtx
                             .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
                             .mUsage = sWrittenTextureUsage,
                             .mMipLevels = levels },
-                        false, file.mEncoding, target);
+                        false, file.mEncoding, file.encodedChainFormat(), target);
                 }
                 arrival.record(upload, passes);
                 upload.flush();
@@ -189,6 +189,51 @@ namespace Rtx
                     .mMipLevels = levelsTo1x1(sLargestLooseChainSide + 8, 8) });
             EXPECT_EQ(grouped.mCanvas, one.size) << "a group past the room was not made over the one before";
             EXPECT_EQ(together.mCanvas, alignUp(one.size, one.alignment) + one.size);
+        }
+
+        /// **A file of two channels is kept in two**: a normal map of red and green past the loose
+        /// side, blue nought and alpha one as a BC5 file decodes, comes out of its encode with every
+        /// blue nought and every alpha one (`RtxRgtcEncodePassTest` holds red and green). The same
+        /// texels read as four channels, in BC7, share one lowest bit across them, and some blue
+        /// comes out one step above nought, which `decodeNormal` reads as a height.
+        TEST_F(RtxTextureArrivalTest, aFileOfTwoChannelsIsKeptInTwo)
+        {
+            constexpr std::uint32_t width = sLargestLooseChainSide + 8;
+            constexpr std::uint32_t height = 8;
+            Testing::TestTexture normals;
+            normals.mLevels.assign(1, MipLevel{ 0, width, height });
+            normals.mBytes.resize(std::size_t{ width } * height * 4);
+            for (std::uint32_t y = 0; y < height; ++y)
+                for (std::uint32_t x = 0; x < width; ++x)
+                {
+                    std::uint8_t* const texel = normals.mBytes.data() + (std::size_t{ y } * width + x) * 4;
+                    texel[0] = static_cast<std::uint8_t>((x * 37 + y * 11) % 256);
+                    texel[1] = static_cast<std::uint8_t>((x * 13 + y * 59 + 7) % 256);
+                    texel[2] = 0;
+                    texel[3] = 255;
+                }
+            normals.describe(width, height, "normals");
+            normals.mData.mEncoding = TextureEncoding::Normal;
+
+            TextureData twoChannels = normals.mData;
+            twoChannels.mHeld = HeldChannels::RedGreen;
+            ASSERT_EQ(twoChannels.encodedChainFormat(), TextureFormat::Bc5Unorm);
+            ASSERT_EQ(normals.mData.encodedChainFormat(), TextureFormat::Bc7Unorm);
+
+            const Encoded rgtc = encodeAll(std::span(&twoChannels, 1), sLooseChainRoom);
+            const Encoded bc7 = encodeAll(std::span(&normals.mData, 1), sLooseChainRoom);
+            ASSERT_EQ(rgtc.mDecoded.size(), 1u);
+            const std::vector<std::uint8_t>& decoded = rgtc.mDecoded[0];
+            ASSERT_EQ(decoded.size(), normals.mBytes.size());
+
+            std::size_t blueAboveNought = 0;
+            for (std::size_t texel = 0; texel < decoded.size() / 4; ++texel)
+            {
+                EXPECT_EQ(decoded[texel * 4 + 2], 0) << "texel " << texel;
+                EXPECT_EQ(decoded[texel * 4 + 3], 255) << "texel " << texel;
+                blueAboveNought += bc7.mDecoded[0][texel * 4 + 2] != 0 ? 1 : 0;
+            }
+            EXPECT_GT(blueAboveNought, 0u) << "BC7 kept every blue: the fault this guards against did not show";
         }
     }
 }

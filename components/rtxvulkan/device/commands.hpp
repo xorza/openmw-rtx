@@ -212,7 +212,8 @@ namespace Rtx
 
         /// Submits each deferred batch alone and watches it to its end, ahead of the submit that
         /// would have carried them all: which batch a stall is in, and what recorded it
-        /// (`mDeferredNotes`). They run where they would have run, ahead of it.
+        /// (`mDeferredNotes`). They run where they would have run, ahead of it, and are given back
+        /// once run.
         void submitDeferredWatched();
 
         const Device& mDevice;
@@ -465,8 +466,10 @@ namespace Rtx
     Buffer uploadBuffer(
         Batch& batch, std::span<const std::byte> bytes, VkBufferUsageFlags usage, std::string_view name);
 
-    /// Makes every staged write recorded into `batch` visible to whatever reads it next — one
-    /// dependency for a run of writes that are read together, rather than one barrier per buffer.
+    /// Makes every staged write recorded into `batch` visible to whatever reads or writes it next —
+    /// one dependency for a run of writes that are read together, rather than one barrier per
+    /// buffer. A write too: the skin pass writes the posed normals over the bind normals staged into
+    /// them.
     void orderStagedWrites(Batch& batch);
 
     /// Copies `bytes` into `image` by `regions`, and leaves it where a sampler expects it. From

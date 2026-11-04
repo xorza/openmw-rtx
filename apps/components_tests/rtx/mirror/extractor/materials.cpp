@@ -159,6 +159,47 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows().size(), 1u);
         }
 
+        /// **A sweep that freed a material costs the alternating node nothing the frame after.** The
+        /// controlled node of the test above, under a state set of its parent's, beside a plain quad
+        /// the game then takes away: the sweep
+        /// of the frame it went frees its material, and the next frame's walk of the node, whose own
+        /// state set turned over again, goes to the heap for nothing. The node's two copies were two
+        /// keys beneath the mirror's own, no material read, and the sweep erased whichever the walk
+        /// had not met, to be made again the next frame.
+        TEST_F(RtxSceneExtractorTest, aSweepThatFreedAMaterialCostsTheAlternatingNodeNothing)
+        {
+            osg::ref_ptr<ColourController> controller = new ColourController;
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            paint(*root->getOrCreateStateSet(), "above.dds");
+            osg::ref_ptr<osg::Group> node = new osg::Group;
+            node->addChild(makeQuad());
+            node->addUpdateCallback(controller);
+            root->addChild(node);
+            osg::ref_ptr<osg::Geometry> plain = makeQuad();
+            paint(*plain->getOrCreateStateSet(), "plain.dds");
+            root->addChild(plain);
+
+            osgUtil::UpdateVisitor update;
+            const auto frame = [&](unsigned int pass) {
+                update.setTraversalNumber(pass);
+                node->accept(update);
+                mScene.clearPlacement();
+                const std::size_t before = Testing::getAllocationCount();
+                walk(*root, 0, pass);
+                const std::size_t spent = Testing::getAllocationCount() - before;
+                return std::pair{ spent, mExtractor.retire() };
+            };
+
+            for (unsigned int pass = 1; pass <= 3; ++pass)
+                frame(pass);
+            root->removeChild(plain);
+            const auto [gone, swept] = frame(4);
+            ASSERT_EQ(swept.mMaterials, 1u) << "the plain quad's material went";
+            const auto [spent, after] = frame(5);
+            EXPECT_EQ(spent, 0u) << spent << " allocations to walk a node the walk already held";
+            EXPECT_EQ(after.mMaterials, 0u);
+        }
+
         TEST_F(RtxSceneExtractorTest, degenerateTrianglesAreDropped)
         {
             // One real triangle and two zero-area ones, which is how a triangle strip restarts.
@@ -362,6 +403,68 @@ namespace Rtx::Testing
             ASSERT_NE(laid.mLaid, nullptr) << "a widened file was left to the hand-over";
             EXPECT_EQ(laid.mLaid->getPixelFormat(), static_cast<GLenum>(GL_RGBA));
             EXPECT_EQ(laid.mLaid->getFileName(), loose->getFileName());
+        }
+
+        /// **A pane's dark map counts where its alpha falls below solid, and only there.** Glass
+        /// whose dark map is opaque wears a dark map the trace's see-through hits read no alpha of;
+        /// one whose dark map holds a texel under solid has its coverage multiplied by it, and the
+        /// scene that places it compiles that read in (`Traversed::mDarkAlpha`), apart from the maps'
+        /// code (`Traversed::mMapped`), which a pane wears none of. An opaque surface's
+        /// dark map is never walked. The ring's reader hands the same fact over with its reading.
+        TEST_F(RtxSceneExtractorTest, aPanesDarkMapCountsWhereItsAlphaFallsBelowSolid)
+        {
+            const auto imageOf = [](std::string_view file, std::array<std::uint8_t, 4> alphas) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->setFileName(std::string(file));
+                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                for (std::size_t texel = 0; texel < alphas.size(); ++texel)
+                    image->data()[texel * 4 + 3] = alphas[texel];
+                return image;
+            };
+            osg::ref_ptr<osg::Image> glass = imageOf("textures/tx_glass.dds", { 119, 102, 119, 0 });
+
+            const auto quadWearing = [&](osg::Image& dark, bool blend) {
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                osg::StateSet& state = *quad->getOrCreateStateSet();
+                paint(state, *glass);
+                paint(state, dark, TextureRole::Dark);
+                if (blend)
+                    state.setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
+                return quad;
+            };
+            const auto extractOne = [&](osg::Image& dark, bool blend) {
+                Rtx::SceneDesc scene;
+                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                extractor.extract(*quadWearing(dark, blend), osg::Matrixf::identity(), 0);
+                EXPECT_EQ(scene.materials().getRows().size(), 1u);
+                return scene.materials().getRows().front();
+            };
+
+            osg::ref_ptr<osg::Image> opaque = imageOf("textures/tx_dark_opaque.dds", { 255, 255, 255, 255 });
+            osg::ref_ptr<osg::Image> stained = imageOf("textures/tx_dark_stained.dds", { 255, 255, 255, 128 });
+
+            const Rtx::Material clear = extractOne(*opaque, true);
+            EXPECT_TRUE(clear.isTranslucent());
+            EXPECT_NE(clear.mDark, sNoIndex);
+            EXPECT_FALSE(clear.mDarkBelowSolid) << "an opaque dark map";
+            EXPECT_FALSE(clear.getTraversed().mDarkAlpha);
+            EXPECT_FALSE(clear.getTraversed().mMapped);
+
+            const Rtx::Material tinted = extractOne(*stained, true);
+            EXPECT_TRUE(tinted.mDarkBelowSolid) << "a dark map with a texel under solid";
+            EXPECT_TRUE(tinted.getTraversed().mDarkAlpha);
+            EXPECT_FALSE(tinted.getTraversed().mMapped) << "a dark map's alpha is no map's code";
+
+            const Rtx::Material wall = extractOne(*stained, false);
+            EXPECT_FALSE(wall.mDarkBelowSolid) << "an opaque surface reads no coverage";
+
+            PreparedModel model;
+            TemplateWalk walk(nullptr);
+            walk.read(*quadWearing(*stained, true), ~0u, model);
+            ASSERT_EQ(model.mParts.size(), 1u);
+            ASSERT_TRUE(model.mParts[0].mMaterial.mDarkFacts.has_value());
+            EXPECT_EQ(model.mParts[0].mMaterial.mDarkFacts->mFallsBelowSolid, std::optional<bool>(true));
         }
 
         /// A surface that adds — `SRC_ALPHA, ONE` — is no cutout, no pane and no medium: it is

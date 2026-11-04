@@ -73,4 +73,18 @@ layout(constant_id = SPEC_HAS_SEA) const bool HAS_SEA = true;
 /// one it ran before the maps existed.
 layout(constant_id = SPEC_HAS_MAPS) const bool HAS_MAPS = true;
 
+// `RTX_DARK_ALPHA`: whether this module reads a see-through candidate's dark map alpha
+// (`candidateStops`), for a scene that places a blended material whose dark map falls below solid
+// (`Rtx::Material::mDarkBelowSolid`). **Compiled in or out, and never specialized away**: the
+// modules that read it are built twice (`rtx_compile_shader`). Behind a specialization constant set
+// false, the read still stood in the module the optimizer was handed at build time, which laid the
+// loads around it out another way: a Radeon 680M's bounce on Windows ran 2.6% slower in a vanilla
+// interior, and with the read taken out of the source, as fast as before it. **Read by `#if`**, which
+// leaves the source of a module without it the source it was before the read existed: a constant
+// tested by `if` left the module's program the same but for the order of its phis' operands, which
+// `omw kernels` reads as every kernel moved.
+#ifndef RTX_DARK_ALPHA
+#error "every shader is compiled with RTX_DARK_ALPHA 0 or 1"
+#endif
+
 #endif

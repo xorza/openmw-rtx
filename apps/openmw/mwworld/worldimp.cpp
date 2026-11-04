@@ -384,6 +384,7 @@ namespace MWWorld
 
         mDoorStates.clear();
         mFocusRay = MWPhysics::RayCastingResult();
+        mHourWatch.reset();
 
         mGoToJail = false;
         mTeleportEnabled = true;
@@ -543,28 +544,14 @@ namespace MWWorld
 
     void World::setGlobalInt(GlobalVariableName name, int value)
     {
-        const float hour = mTimeManager->getTimeStamp().getHour();
         mTimeManager->updateGlobalInt(name, value);
         mGlobalVariables[name].setInteger(value);
-        if (name == Globals::sGameHour)
-            noteHourWritten(hour);
     }
 
     void World::setGlobalFloat(GlobalVariableName name, float value)
     {
-        const float hour = mTimeManager->getTimeStamp().getHour();
         mTimeManager->updateGlobalFloat(name, value);
         mGlobalVariables[name].setFloat(value);
-        if (name == Globals::sGameHour)
-            noteHourWritten(hour);
-    }
-
-    void World::noteHourWritten(float before)
-    {
-        // A clock that jumped carries the old hour's light through every history the ray tracer
-        // keeps, as a teleport carries the old place's.
-        if (DateTimeManager::jumps(before, mTimeManager->getTimeStamp().getHour(), mHourStep))
-            mRendering->notifyCut();
     }
 
     int World::getGlobalInt(GlobalVariableName name) const
@@ -853,12 +840,12 @@ namespace MWWorld
 
     int World::getMasserPhase() const
     {
-        return mRendering->skyGetMasserPhase();
+        return static_cast<int>(mWeatherManager->getMoonPhase(0, getTimeStamp()));
     }
 
     int World::getSecundaPhase() const
     {
-        return mRendering->skyGetSecundaPhase();
+        return static_cast<int>(mWeatherManager->getMoonPhase(1, getTimeStamp()));
     }
 
     std::vector<MWWorld::Moon> World::getCurrentMoons() const
@@ -1133,7 +1120,7 @@ namespace MWWorld
             mWorldScene->playerMoved(position);
         else
         {
-            mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
+            mRendering->pagingMovedObject(mStore.find(ptr.getCellRef().getRefId()), ptr, newPtr);
             mWorldScene->removeFromPagedRefs(newPtr);
         }
 
@@ -3392,7 +3379,12 @@ namespace MWWorld
             mRendering->notifyCut();
         }
 
+        // A clock that jumped carries the old hour's light through every history the ray tracer
+        // keeps, as a teleport carries the old place's.
         const TimeStamp time = getTimeStamp();
+        if (mHourWatch.jumped(time.getHour(), mHourStep))
+            mRendering->notifyCut();
+
         mWeatherManager->update(duration, paused, time, isExterior);
     }
 

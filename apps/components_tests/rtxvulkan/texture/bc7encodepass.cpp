@@ -18,6 +18,7 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/shaders/shared/bc7.h>
 #include <components/rtxvulkan/texture/bc7encodepass.hpp>
+#include <components/rtxvulkan/texture/blockchain.hpp>
 
 namespace Rtx
 {
@@ -112,7 +113,7 @@ namespace Rtx
                         .mMipLevels = levels },
                     "bc7 decoded");
 
-                const Bc7Chain chain = Bc7Chain::of(sWidth, sHeight, levels);
+                const BlockChain chain = BlockChain::of(sWidth, sHeight, levels, Shaders::BC7_BLOCK_BYTES);
                 const Buffer blocks = Buffer::deviceLocal(device, chain.mBytes,
                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "bc7 blocks");
                 const Buffer landing
@@ -126,7 +127,7 @@ namespace Rtx
                 VkDeviceSize offset = 0;
                 for (std::uint32_t level = 0; level < levels; ++level)
                 {
-                    const Bc7Chain::Level& shape = chain.mLevels[level];
+                    const BlockChain::Level& shape = chain.mLevels[level];
                     regions.push_back(wholeLevel(offset, level, VkExtent3D{ shape.mWidth, shape.mHeight, 1 }));
                     offset += VkDeviceSize{ shape.mWidth } * shape.mHeight * sizeof(Texel);
                     const VkOffset3D end{ static_cast<std::int32_t>(shape.mWidth),
@@ -163,7 +164,7 @@ namespace Rtx
                 const auto* const bytes = static_cast<const std::byte*>(landing.map());
                 for (std::uint32_t level = 0; level < levels; ++level)
                 {
-                    const Bc7Chain::Level& shape = chain.mLevels[level];
+                    const BlockChain::Level& shape = chain.mLevels[level];
                     const std::size_t start = encoded.mHost.size();
                     encoded.mHost.resize(start + std::size_t{ shape.mWidth } * shape.mHeight);
                     const std::uint32_t across = (shape.mWidth + 3) / 4;
@@ -266,7 +267,7 @@ namespace Rtx
             constexpr std::array<Texel, 4> colours{ Texel{ 137, 225, 0, 255 }, Texel{ 10, 20, 31, 255 },
                 Texel{ 200, 3, 77, 255 }, Texel{ 255, 128, 1, 255 } };
             std::vector<Texel> texels;
-            const Bc7Chain chain = Bc7Chain::of(sWidth, sHeight, 4);
+            const BlockChain chain = BlockChain::of(sWidth, sHeight, 4, Shaders::BC7_BLOCK_BYTES);
             for (std::uint32_t level = 0; level < 4; ++level)
                 texels.insert(texels.end(), std::size_t{ chain.mLevels[level].mWidth } * chain.mLevels[level].mHeight,
                     colours[level]);

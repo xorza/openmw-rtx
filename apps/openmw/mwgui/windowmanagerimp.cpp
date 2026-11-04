@@ -1359,12 +1359,17 @@ namespace MWGui
             MWBase::Environment::get().getLuaManager()->fontSizeChanged(mFonts->getFontSize());
         }
 
-        // The map's tiles are drawn at the raster (`LocalMap::mapResolution`), and those around the
-        // player are drawn again at the new one, as a cell change would have them drawn.
+        // The map's tiles are drawn at the raster (`LocalMap::mapResolution`): every tile the map
+        // and the minimap show is let go of, and asked for again at the new one, as a cell change would have them
+        // drawn — an interior's all at once through the player's cell.
         if (mFonts->getFit().mRaster != raster
             && MWBase::Environment::get().getStateManager()->getState() != MWBase::StateManager::State_NoGame)
+        {
+            mMap->dropMapViews();
+            mHud->dropMapViews();
             if (const MWWorld::CellStore* const cell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell())
                 mMap->requestMapRender(cell);
+        }
     }
 
     void WindowManager::fitCursors()

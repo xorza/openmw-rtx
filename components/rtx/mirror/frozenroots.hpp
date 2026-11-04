@@ -62,8 +62,35 @@ namespace Rtx
             unsigned int mUpdating = 0;
 
             static Face of(const osg::Node& root, const osg::Matrix& world, std::size_t identity);
+        };
 
-            bool operator==(const Face& other) const = default;
+        /// A root's face as it was frozen, **its objects held**, so none of them is freed while
+        /// the face names it and no new one takes its address: two raw addresses compared equal
+        /// across a free and kept the root frozen over a subtree the game had replaced. Held as the
+        /// identity keys hold what they key on (`mirroridentity.hpp`), and let go of through
+        /// `Released` as they are. Compared by address, which every frame a root passes asks.
+        /// **Only an object it stops naming is let go of** (`become`): a root the game moves every
+        /// frame, as it moves an actor, changes no object, and handing its three to the sink each
+        /// frame counted references and handed a buffer over every frame.
+        struct HeldFace
+        {
+            osg::Matrix mWorld;
+            std::size_t mIdentity = 0;
+            osg::ref_ptr<const osg::StateSet> mStateSet;
+            osg::ref_ptr<const osg::Node> mFirstChild;
+            unsigned int mChildren = 0;
+            osg::ref_ptr<const osg::Callback> mUpdate;
+            unsigned int mUpdating = 0;
+
+            /// Names `face` from here on, and lets go of what it named and `face` does not, into
+            /// `released`.
+            void become(const Face& face, Released& released);
+
+            /// Whether `face` is this one.
+            bool shows(const Face& face) const;
+
+            /// Lets go of what it holds, into `released`.
+            void release(Released& released);
         };
 
         /// One placement of a frozen subtree, by what the walk resolved it under: the placement's
@@ -85,6 +112,9 @@ namespace Rtx
             Kept<boost::unordered_flat_map<std::size_t, Known>>& mPlacements;
             MeshResolver& mMeshes;
             MaterialResolver& mMaterials;
+
+            /// Where what a face or a run let go of is kept until the game's own is released.
+            Released& mReleased;
         };
 
         /// Room for `budget` roots, made once.
@@ -122,17 +152,17 @@ namespace Rtx
 
         /// Thaws every root the world walk `walk` did not meet — gone from the graph, or masked out —
         /// ahead of the sweep, which would otherwise keep its rows for ever; the root goes to
-        /// `released`. Nothing where the walk met every run, which a world standing still does.
-        void thawUnmet(unsigned int walk, Holders holders, Released& released);
+        /// `Holders::mReleased`. Nothing where the walk met every run, which a world standing still does.
+        void thawUnmet(unsigned int walk, Holders holders);
 
-        /// Thaws every root, into `released`.
-        void thawAll(Holders holders, Released& released);
+        /// Thaws every root, into `Holders::mReleased`.
+        void thawAll(Holders holders);
 
     private:
         /// One root's run of keys and what it was frozen as.
         struct Frozen
         {
-            Face mFace;
+            HeldFace mFace;
             Run mKeys;
 
             /// What its walk counted, which every walk that passes it counts again.

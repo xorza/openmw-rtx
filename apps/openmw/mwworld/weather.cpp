@@ -1,5 +1,7 @@
 #include "weather.hpp"
 
+#include <cassert>
+
 #include <components/esm/stringrefid.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -626,6 +628,14 @@ namespace MWWorld
         return { makeMoon("Masser", mMasser, time), makeMoon("Secunda", mSecunda, time) };
     }
 
+    unsigned int WeatherManager::getMoonPhase(const std::size_t index, const TimeStamp& time) const
+    {
+        assert(index < 2 && "a moon Morrowind has not got");
+        const MWRender::MoonState seen
+            = mMoonsSeen ? mSky.mMoons[index] : (index == 0 ? mMasser : mSecunda).calculateState(time);
+        return MWRender::MoonState::phaseToInt(seen.mPhase);
+    }
+
     WeatherManager::WeatherManager(
         MWRender::RenderingManager& rendering, MWWorld::ESMStore& store, MWWorld::WeatherStore& weatherStore)
         : mStore(store)
@@ -894,6 +904,7 @@ namespace MWWorld
 
         mSky.mMoons[0] = mMasser.calculateState(time);
         mSky.mMoons[1] = mSecunda.calculateState(time);
+        mMoonsSeen = true;
 
         mRendering.configureFog(
             result.mFogDepth, underwaterFog, result.mDLFogFactor, result.mDLFogOffset / 100.0f, result.mFogColor);
@@ -1093,6 +1104,7 @@ namespace MWWorld
         mUseTorches = true;
         mFastForward = false;
         mNightDayMode = Default;
+        mMoonsSeen = false;
         forceWeather(ESM::Weather::indexToRefId(0));
         mRegions.clear();
         importRegions();

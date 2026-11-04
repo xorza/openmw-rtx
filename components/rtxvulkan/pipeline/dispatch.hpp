@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -52,6 +53,16 @@ namespace Rtx
         static constexpr Groups covering(std::uint32_t width, std::uint32_t height, std::uint32_t workgroup)
         {
             return covering(width, height, workgroup, workgroup);
+        }
+
+        /// `groups` in rows of at most `mostAcross`, the device's `maxComputeWorkGroupCount[0]`, which
+        /// a shader reads back as one index (`linearWorkGroup` in `lib/blocklevel.glsl`) and stops
+        /// the groups past the count of. **For a count that grows with content**: Vulkan guarantees
+        /// 65535 groups an axis, and a texture of 8192 on a side with no levels needs 87381 groups of
+        /// 64 blocks to encode.
+        static constexpr Groups linear(std::uint32_t groups, std::uint32_t mostAcross)
+        {
+            return Groups{ .mX = std::min(groups, mostAcross), .mY = groupsFor(groups, mostAcross) };
         }
     };
 

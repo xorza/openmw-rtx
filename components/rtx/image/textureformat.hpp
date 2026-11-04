@@ -157,6 +157,17 @@ namespace Rtx
         std::uint8_t mBlue = 0;
     };
 
+    /// Which channels of a texel carry what its file holds: red alone, red and green, or every one.
+    /// A channel a file lacks reads as GL samples it — nought for a colour, one for alpha — and a
+    /// format that re-encodes the texels keeps it so only where it is told which those are
+    /// (`TextureData::encodedChainFormat`).
+    enum class HeldChannels : std::uint8_t
+    {
+        Red,
+        RedGreen,
+        All,
+    };
+
     /// What one channel of a loose texel is stored as.
     enum class ChannelType : std::uint8_t
     {
@@ -203,18 +214,21 @@ namespace Rtx
         Widening mWidening = Widening::None;
         ChannelBits mPacked{};
         LooseTexel mLoose{};
+
+        HeldChannels mHeld = HeldChannels::All;
     };
 
     namespace FormatRows
     {
-        constexpr FormatTraits block(
-            TextureFormat format, std::string_view name, std::uint32_t bytes, bool srgb, bool colour)
+        constexpr FormatTraits block(TextureFormat format, std::string_view name, std::uint32_t bytes, bool srgb,
+            bool colour, HeldChannels held = HeldChannels::All)
         {
             return FormatTraits{ .mFormat = format,
                 .mName = name,
                 .mLayout = TexelLayout{ .mSide = 4, .mBytes = bytes },
                 .mSrgb = srgb,
-                .mColour = colour };
+                .mColour = colour,
+                .mHeld = held };
         }
 
         constexpr FormatTraits rgba8(TextureFormat format, std::string_view name, bool srgb, bool bgr)
@@ -259,11 +273,17 @@ namespace Rtx
             for (const std::int8_t channel : from)
                 count = std::max<std::uint8_t>(count, static_cast<std::uint8_t>(channel + 1));
             count = static_cast<std::uint8_t>(count + spare);
+            const bool redOnly
+                = from[1] == LooseTexel::sMissing && from[2] == LooseTexel::sMissing && from[3] == LooseTexel::sMissing;
+            const bool redGreen = from[1] == 1 && from[2] == LooseTexel::sMissing && from[3] == LooseTexel::sMissing;
             return FormatTraits{ .mFormat = format,
                 .mName = name,
                 .mLayout = TexelLayout{ .mBytes = channelBytes(type) * count },
                 .mWidening = Widening::Loose,
-                .mLoose = LooseTexel{ .mType = type, .mCount = count, .mFrom = from } };
+                .mLoose = LooseTexel{ .mType = type, .mCount = count, .mFrom = from },
+                .mHeld = redOnly ? HeldChannels::Red
+                    : redGreen   ? HeldChannels::RedGreen
+                                 : HeldChannels::All };
         }
 
         constexpr std::int8_t sNo = LooseTexel::sMissing;
@@ -284,8 +304,8 @@ namespace Rtx
         FormatRows::block(TextureFormat::Bc2Unorm, "BC2 (DXT3, linear)", 16, false, true),
         FormatRows::block(TextureFormat::Bc3Unorm, "BC3 (DXT5, linear)", 16, false, true),
         FormatRows::rgba8(TextureFormat::Bgra8Unorm, "BGRA8 (linear)", false, true),
-        FormatRows::block(TextureFormat::Bc5Unorm, "BC5 (ATI2, linear)", 16, false, false),
-        FormatRows::block(TextureFormat::Bc4Unorm, "BC4 (ATI1, linear)", 8, false, false),
+        FormatRows::block(TextureFormat::Bc5Unorm, "BC5 (ATI2, linear)", 16, false, false, HeldChannels::RedGreen),
+        FormatRows::block(TextureFormat::Bc4Unorm, "BC4 (ATI1, linear)", 8, false, false, HeldChannels::Red),
         FormatRows::block(TextureFormat::Bc7Srgb, "BC7", 16, true, false),
         FormatRows::block(TextureFormat::Bc7Unorm, "BC7 (linear)", 16, false, false),
         FormatRows::packed(TextureFormat::Rgb565, "R5G6B5", ChannelBits{ .mRed = 5, .mGreen = 6, .mBlue = 5 }),
@@ -329,7 +349,7 @@ namespace Rtx
     }();
     static_assert(sFormatTraitsInOrder, "a row of sFormatTraits stands where another format's belongs");
 
-    inline const FormatTraits& traitsOf(TextureFormat format)
+    constexpr const FormatTraits& traitsOf(TextureFormat format)
     {
         return sFormatTraits[static_cast<std::size_t>(format)];
     }

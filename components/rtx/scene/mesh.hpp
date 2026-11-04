@@ -253,5 +253,10 @@ namespace Rtx
         /// How many wear a normal map or a specular map — `Material::Traversed::mMapped` — and so
         /// whether the trace needs the maps' code at all (`HAS_MAPS`). None in a vanilla scene.
         std::uint32_t mMapped = 0;
+
+        /// How many wear a dark map whose alpha falls below solid — `Material::Traversed::mDarkAlpha`
+        /// — and so whether the trace reads a dark map's alpha at a see-through candidate at all
+        /// (`RTX_DARK_ALPHA`). None in nearly every scene.
+        std::uint32_t mDarkAlpha = 0;
     };
 }

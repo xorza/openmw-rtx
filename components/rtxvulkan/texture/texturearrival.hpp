@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
@@ -75,12 +76,12 @@ namespace Rtx
         /// the chain's place (`TextureData::encodesChain`). A chain encoded is one `hold` keeps.
         void chain(const Image& source, const Image& chain, bool encoded, TextureEncoding encoding);
 
-        /// The same for a chain kept as BC7 (`TextureData::encodesChain`): `MipChainPass` from
+        /// The same for a chain kept in blocks (`TextureData::encodesChain`): `MipChainPass` from
         /// `source` into a loose chain of `loose` the run makes in its canvas, and that encoded into
-        /// `bc7`, met undefined, which the trace samples. The loose chain is the canvas's for its
-        /// group alone.
+        /// `blocks`, an image of `format` met undefined, which the trace samples. The loose chain is
+        /// the canvas's for its group alone.
         void encode(const Image& source, const ImageDescription& loose, bool encoded, TextureEncoding encoding,
-            const Image& bc7);
+            TextureFormat format, const Image& blocks);
 
         /// `ShadingPass` of `source` into `map`, met undefined.
         void shade(const Image& source, const Image& map, TextureWrap wrap);
@@ -142,7 +143,8 @@ namespace Rtx
             ImageDescription mLoose;
             bool mEncoded;
             TextureEncoding mEncoding;
-            const Image* mBc7;
+            TextureFormat mFormat;
+            const Image* mBlocks;
         };
 
         struct Shade
@@ -170,7 +172,7 @@ namespace Rtx
         /// Each level of every chain, a level of all of them between two barriers.
         void recordChains(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
 
-        /// Every chain kept as BC7, made in the canvas a group at a time and encoded into it.
+        /// Every chain kept in blocks, made in the canvas a group at a time and encoded into it.
         void recordEncodes(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
 
         /// Every sum, one barrier, every map.

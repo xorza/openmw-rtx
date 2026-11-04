@@ -88,7 +88,7 @@ namespace RtxTool
             const auto& [kind, diffuse, emissive, emissiveUnit, environment, environmentColour, dark, darkUnit, normal,
                 specular, specularClassic, parallax, diffuseColour, ambientColour, emissiveColour, opacity, alphaTest,
                 alphaMode, blend, vertexColour, twoSided, lampLit, textureTransform, run, flatten, layersMapped,
-                animated, neverSolid, diffuseMean]
+                animated, neverSolid, darkBelowSolid, diffuseMean]
                 = material;
 
             texture(diffuse);
@@ -121,6 +121,8 @@ namespace RtxTool
                 value(std::uint8_t{ 6 });
             if (!lampLit)
                 value(std::uint8_t{ 7 });
+            if (darkBelowSolid)
+                value(std::uint8_t{ 8 });
 
             layers(run);
 

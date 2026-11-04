@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include <components/settings/values.hpp>
@@ -111,6 +112,33 @@ namespace MWGui
         virtual std::shared_ptr<TypesetBook> complete() = 0;
     };
 
+    /// What typesets again the books every page of one owner shows, once the interface's fonts were
+    /// rasterized again: the journal's five pages, or the dialogue's history. **Shared by those pages
+    /// and run once**: each page that held a book when the refit dropped it marks this, and the
+    /// first page's refit typesets them all, so a refit that dropped five pages typesets once.
+    class Retypesetter
+    {
+    public:
+        explicit Retypesetter(std::function<void()> retypeset)
+            : mRetypeset(std::move(retypeset))
+        {
+        }
+
+        /// A page of the owner's dropped a book it showed.
+        void dropped() { mDropped = true; }
+
+        /// Typesets again where a page dropped a book since the last call.
+        void refit()
+        {
+            if (std::exchange(mDropped, false))
+                mRetypeset();
+        }
+
+    private:
+        std::function<void()> mRetypeset;
+        bool mDropped = false;
+    };
+
     /// An interface to the BookPage widget.
     class BookPage : public MyGUI::Widget
     {
@@ -129,8 +157,9 @@ namespace MWGui
 
         /// What typesets the page's book again, and shows it, once the interface's fonts were
         /// rasterized again: a book holds its fonts' metrics and its page their textures, and the
-        /// page drops both. Required before a book is shown, which asserts.
-        virtual void adviseRetypeset(std::function<void()> retypeset) = 0;
+        /// page drops both. The owner's one for every page it shows a book on. Required before a
+        /// book is shown, which asserts.
+        virtual void adviseRetypeset(std::shared_ptr<Retypesetter> retypesetter) = 0;
 
         /// Register the widget and associated sub-widget with MyGUI, each page entering `pages`
         /// (`Gui::InterfaceFonts::getPages`). Should be called once near the beginning of the

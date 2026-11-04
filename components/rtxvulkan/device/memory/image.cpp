@@ -354,12 +354,13 @@ namespace Rtx
             assert((image->mUsage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0 && "a chain writes the level below it");
             assert(image->mDepth == 1 && "a volume's chain is uploaded rather than blitted");
 
-            if (image->mMipLevels <= 1)
-                continue;
-
+            // **Every image down one path**, a chain of one level among them: its written level is
+            // ordered against the sampled read as every chain's is, where skipped it had no
+            // dependency between the dispatch's write and the trace's read at all.
             deepest = std::max(deepest, image->mMipLevels);
             opened.add(image->describeLevels(0, 1, Use::sComputeWrite, Use::sBlitRead));
-            opened.add(image->describeLevels(1, image->mMipLevels - 1, Use::sUndefined, Use::sBlitWrite));
+            if (image->mMipLevels > 1)
+                opened.add(image->describeLevels(1, image->mMipLevels - 1, Use::sUndefined, Use::sBlitWrite));
         }
         opened.flush();
 
@@ -398,8 +399,7 @@ namespace Rtx
         // trace's and the fog scatter's.
         Barriers sampled(commands);
         for (const Image* image : images)
-            if (image->mMipLevels > 1)
-                sampled.add(image->describeLevels(0, image->mMipLevels, Use::sBlitRead, Use::sShaderSample));
+            sampled.add(image->describeLevels(0, image->mMipLevels, Use::sBlitRead, Use::sShaderSample));
         sampled.flush();
     }
 

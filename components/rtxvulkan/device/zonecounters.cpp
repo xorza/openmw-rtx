@@ -41,6 +41,9 @@ namespace Rtx
 
         pickOnePass(
             offered,
+            [&](const std::uint32_t index) {
+                return counters[index].scope == VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR;
+            },
             [&](const std::span<const std::uint32_t> indices) {
                 const VkQueryPoolPerformanceCreateInfoKHR asked{
                     .sType = VK_STRUCTURE_TYPE_QUERY_POOL_PERFORMANCE_CREATE_INFO_KHR,

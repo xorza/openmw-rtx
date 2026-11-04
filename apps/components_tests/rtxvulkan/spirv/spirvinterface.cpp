@@ -99,10 +99,14 @@ namespace Rtx
                         ++sites;
                 }
 
+                // A module's twin that reads a dark map's alpha at the module's own ceiling.
                 const std::string name = Files::pathToUnicodeString(entry.path().filename());
+                std::string twinOf = name;
+                if (const std::size_t dark = twinOf.find(".dark."); dark != std::string::npos)
+                    twinOf.erase(dark, std::string_view(".dark").size());
                 std::size_t ceiling = 1;
                 for (const auto& [module, held] : sHeld)
-                    if (name == module)
+                    if (twinOf == module)
                         ceiling = held;
                 if (sites > ceiling)
                     found.push_back(name + ": " + std::to_string(sites) + " over " + std::to_string(ceiling));
@@ -117,7 +121,7 @@ namespace Rtx
         /// arena lay the denoiser's and the upscaler's images over them: `GBuffer::declareStages` spans
         /// them over the trace alone (`FrameStep::Trace`), and a pass after it that read one would read
         /// another image's bits. Read in every module the build ships, so a new reader fails here and
-        /// not as a picture that moves.
+        /// not as a picture that moves. Each stage twice, with its twin that reads a dark map's alpha.
         TEST(RtxSpirvInterfaceTest, onlyTheTracesStagesBindItsStageImages)
         {
             std::vector<std::string> binding;
@@ -137,8 +141,10 @@ namespace Rtx
             std::ranges::sort(binding);
 
             EXPECT_EQ(binding,
-                (std::vector<std::string>{ "bounce.comp.spv", "direct.comp.spv", "landing.comp.spv", "media.comp.spv",
-                    "panes.comp.spv", "visibility.comp.spv" }));
+                (std::vector<std::string>{ "bounce.comp.spv", "bounce.dark.comp.spv", "direct.comp.spv",
+                    "direct.dark.comp.spv", "landing.comp.spv", "landing.dark.comp.spv", "media.comp.spv",
+                    "media.dark.comp.spv", "panes.comp.spv", "panes.dark.comp.spv", "visibility.comp.spv",
+                    "visibility.dark.comp.spv" }));
         }
 
         /// **The trace's own kinds read as theirs**: the scene's top-level structure, and the

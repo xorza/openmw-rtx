@@ -204,6 +204,12 @@ namespace Rtx
         /// untextured pane.
         bool mDiffuseNeverSolid = false;
 
+        /// Whether the dark map's alpha ever falls below solid where the material is blended, so a
+        /// see-through hit's coverage is the diffuse's alpha times the dark map's, as `objects.frag`
+        /// multiplies them. Nearly every dark map is opaque, and the trace reads none for it
+        /// (`RTX_DARK_ALPHA`).
+        bool mDarkBelowSolid = false;
+
         /// What one texel of the diffuse map adds on average under this material's blend, in
         /// linear light: weighted by its own alpha where the blend reads one and whole where it
         /// does not — `ImageFacts::mMean`. Read for an additive material and nothing else, because what
@@ -355,6 +361,11 @@ namespace Rtx
             /// (`InstanceCounts::mMapped`).
             bool mMapped = false;
 
+            /// `mDarkBelowSolid`: what the trace compiles a see-through candidate's read of the dark
+            /// map's alpha in for, and only for a scene that places such a material
+            /// (`InstanceCounts::mDarkAlpha`).
+            bool mDarkAlpha = false;
+
             bool operator==(const Traversed& other) const = default;
 
             /// What a placement wearing this at `opacity` tells traversal.
@@ -380,6 +391,7 @@ namespace Rtx
                 .mAdditive = isAdditive(),
                 .mTwoSided = mTwoSided,
                 .mMapped = mNormal != sNoIndex || mSpecular != sNoIndex || mLayersMapped,
+                .mDarkAlpha = mDarkBelowSolid,
             };
         }
     };

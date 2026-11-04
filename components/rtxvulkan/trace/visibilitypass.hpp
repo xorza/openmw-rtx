@@ -68,12 +68,13 @@ namespace Rtx
         bool mMoons = true;
         bool mSea = true;
         bool mMaps = true;
+        bool mDarkAlpha = true;
 
         /// What this frame is. `sea` is `TraceSubject::mSea`, for the reason given there, and
-        /// `mapped` whether the scene places a material with a normal or a specular map, which is
-        /// the scene's answer, because which materials a camera's rays meet is not known until they
-        /// are traced.
-        static VisibilityVariant resolve(const Shaders::VisibilityConstants& frame, bool sea, bool mapped);
+        /// `subject`'s maps and dark alpha the scene's answers, because which materials a camera's
+        /// rays meet is not known until they are traced.
+        static VisibilityVariant resolve(
+            const Shaders::VisibilityConstants& frame, bool sea, bool mapped, bool darkAlpha);
 
         /// Which of the table's pipelines this tuple is.
         std::uint32_t index() const;
@@ -82,7 +83,7 @@ namespace Rtx
         std::string describe(std::string_view kernel) const;
 
         /// How many tuples there are, and so how long the table is.
-        static constexpr std::uint32_t sCount = 16;
+        static constexpr std::uint32_t sCount = 32;
     };
 
     /// One ray per pixel against the top-level structure. Everything it needs arrives at record
@@ -301,6 +302,14 @@ namespace Rtx
         /// `mChannelLayout` is.
         const SetLayout* mVolumeLayout = nullptr;
 
+        /// A kernel compiled without a see-through candidate's dark map alpha and with it, at
+        /// `twinOf`.
+        template <class Pipeline>
+        using DarkTwins = std::array<std::unique_ptr<Pipeline>, 2>;
+
+        /// The slot of `DarkTwins` that reads a dark map's alpha where `darkAlpha` says.
+        static constexpr std::size_t twinOf(bool darkAlpha) { return darkAlpha ? 1 : 0; }
+
         /// Every kernel the pass launches, filled by `compileEvery`'s hands, each writing slots no
         /// other hand does.
         struct Kernels
@@ -315,18 +324,18 @@ namespace Rtx
             /// dispatch when another process shares the card.
             std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mScatter;
 
-            /// The launch that finds where each column's ray stops, which no tuple changes: it traces
-            /// and shades nothing.
-            std::unique_ptr<TracePipeline<NoConstants>> mDepth;
+            /// The launch that finds where each column's ray stops, which no tuple of the sky changes:
+            /// it shades nothing. Two, as every launch below that walks past a see-through
+            /// candidate: without and with its dark map's alpha (`twinOf`).
+            DarkTwins<TracePipeline<NoConstants>> mDepth;
 
-            /// The launch that composites the puffs over the shown frame, which takes no tuple
-            /// either: it reads the bin and the air and traces nothing. A launch and not a dispatch
-            /// for the reason `spritecomposite.rgen` gives.
-            std::unique_ptr<TracePipeline<Shaders::PuffConstants>> mSpriteComposite;
+            /// The launch that composites the puffs over the shown frame, which takes no tuple of the
+            /// sky either. A launch and not a dispatch for the reason `spritecomposite.rgen` gives.
+            DarkTwins<TracePipeline<Shaders::PuffConstants>> mSpriteComposite;
 
-            /// The launch over the sprite list that keeps the rain from under the roofs. One, like the
+            /// The launch over the sprite list that keeps the rain from under the roofs. Like the
             /// composite's: it reads the structure and the tables and has no opinion about the sky.
-            std::unique_ptr<TracePipeline<NoConstants>> mSpriteShelter;
+            DarkTwins<TracePipeline<NoConstants>> mSpriteShelter;
 
             /// The launch over the emitters that writes what each is for this camera, for the same
             /// reason.

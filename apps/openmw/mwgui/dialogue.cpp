@@ -347,7 +347,7 @@ namespace MWGui
 
         BookPage::ClickCallback callback = [this](TypesetBook::InteractiveId link) { notifyLinkClicked(link); };
         mHistory->adviseLinkClicked(std::move(callback));
-        mHistory->adviseRetypeset([this] { updateHistory(); });
+        mHistory->adviseRetypeset(std::make_shared<Retypesetter>([this] { updateHistory(); }));
 
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &DialogueWindow::onWindowResize);

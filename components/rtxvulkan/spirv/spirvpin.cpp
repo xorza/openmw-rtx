@@ -284,6 +284,86 @@ namespace Rtx
             }
         }
 
+        /// **What may make a float and pass through as it is: an allowlist, so a float result no
+        /// rule here knows stops the build** (`Pinner::rewriteOne`), as a validator that must not
+        /// miss a case is written, and a new opcode is refused until a rule names it. A move of a
+        /// float, a selection among floats, a conversion the specification rounds correctly, a read
+        /// at a stated level of detail, the hardware's ray query answers, and the rounding steps
+        /// `isRounding` names, which the pinning decorates. Not a float atomic or a subgroup's sum,
+        /// minimum or maximum, whose order or whose answer to a signed zero or a NaN is the
+        /// hardware's.
+        bool passesFloat(spv::Op op)
+        {
+            switch (op)
+            {
+                case spv::OpUndef:
+                case spv::OpLoad:
+                case spv::OpCopyObject:
+                case spv::OpCopyLogical:
+                case spv::OpCompositeExtract:
+                case spv::OpCompositeInsert:
+                case spv::OpCompositeConstruct:
+                case spv::OpVectorShuffle:
+                case spv::OpVectorExtractDynamic:
+                case spv::OpVectorInsertDynamic:
+                case spv::OpTranspose:
+                case spv::OpSelect:
+                case spv::OpPhi:
+                case spv::OpBitcast:
+                case spv::OpFunctionCall:
+                case spv::OpFunctionParameter:
+                case spv::OpFNegate:
+                case spv::OpConvertSToF:
+                case spv::OpConvertUToF:
+                case spv::OpFConvert:
+                case spv::OpQuantizeToF16:
+                case spv::OpImageSampleExplicitLod:
+                case spv::OpImageSampleDrefExplicitLod:
+                case spv::OpImageSampleProjExplicitLod:
+                case spv::OpImageSampleProjDrefExplicitLod:
+                case spv::OpImageFetch:
+                case spv::OpImageGather:
+                case spv::OpImageDrefGather:
+                case spv::OpImageRead:
+                case spv::OpImageSparseSampleExplicitLod:
+                case spv::OpImageSparseSampleDrefExplicitLod:
+                case spv::OpImageSparseFetch:
+                case spv::OpImageSparseGather:
+                case spv::OpImageSparseDrefGather:
+                case spv::OpImageSparseRead:
+                case spv::OpAtomicLoad:
+                case spv::OpAtomicExchange:
+                case spv::OpGroupNonUniformBroadcast:
+                case spv::OpGroupNonUniformBroadcastFirst:
+                case spv::OpGroupNonUniformShuffle:
+                case spv::OpGroupNonUniformShuffleXor:
+                case spv::OpGroupNonUniformShuffleUp:
+                case spv::OpGroupNonUniformShuffleDown:
+                case spv::OpGroupNonUniformQuadBroadcast:
+                case spv::OpGroupNonUniformQuadSwap:
+                case spv::OpRayQueryGetIntersectionTKHR:
+                case spv::OpRayQueryGetIntersectionBarycentricsKHR:
+                case spv::OpRayQueryGetRayTMinKHR:
+                case spv::OpRayQueryGetWorldRayDirectionKHR:
+                case spv::OpRayQueryGetWorldRayOriginKHR:
+                case spv::OpRayQueryGetIntersectionObjectRayDirectionKHR:
+                case spv::OpRayQueryGetIntersectionObjectRayOriginKHR:
+                case spv::OpRayQueryGetIntersectionObjectToWorldKHR:
+                case spv::OpRayQueryGetIntersectionWorldToObjectKHR:
+                case spv::OpRayQueryGetIntersectionTriangleVertexPositionsKHR:
+                case spv::OpFAdd:
+                case spv::OpFSub:
+                case spv::OpFMul:
+                case spv::OpFDiv:
+                case spv::OpVectorTimesScalar:
+                case spv::OpMatrixTimesScalar:
+                case spv::OpOuterProduct:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         /// The float arithmetic that rounds and that `NoContraction` keeps from being fused or
         /// reordered — every one that is still there once the module is pinned.
         bool isRounding(spv::Op op)
@@ -413,6 +493,13 @@ namespace Rtx
             const Type& typeNamed(std::uint32_t type) const;
             std::uint32_t typeOfValue(std::uint32_t value) const;
             std::uint32_t scalarOf(std::uint32_t type) const;
+
+            /// Whether `instruction` makes a float, a vector of floats or a matrix: what
+            /// `passesFloat` is asked of.
+            bool returnsFloat(const Instruction& instruction) const;
+
+            /// Refuses a decoration of an id or a member that sets a float environment of its own.
+            void refuseFloatDecoration(const Instruction& instruction, spv::Decoration decoration) const;
             std::uint32_t floatConstant(std::uint32_t type, float value);
             std::uint32_t floatValue(std::uint32_t type, const std::vector<std::uint32_t>& bits);
             std::optional<std::vector<std::uint32_t>> componentsOf(std::uint32_t value, std::size_t count) const;
@@ -542,23 +629,17 @@ namespace Rtx
                             refuse(instruction, "a module that fuses runs only on a device with SPV_KHR_fma");
                         break;
                     case spv::OpDecorate:
-                        switch (static_cast<spv::Decoration>(operandAt(instruction, 1)))
-                        {
-                            case spv::DecorationNoContraction:
-                                mDecorated.insert(operands[0]);
-                                break;
-                            // **Precision the compile may lower is precision a compile may choose.**
-                            case spv::DecorationRelaxedPrecision:
-                                refuse(
-                                    instruction, "a relaxed precision lets each compile pick how precisely to compute");
-                            // An explicit environment takes precedence over `NoContraction`.
-                            case spv::DecorationFPFastMathMode:
-                                refuse(instruction, "a fast-math mode the module sets overrides NoContraction");
-                            case spv::DecorationFPRoundingMode:
-                                refuse(instruction, "a rounding mode the module sets for itself");
-                            default:
-                                break;
-                        }
+                    {
+                        const auto decoration = static_cast<spv::Decoration>(operandAt(instruction, 1));
+                        if (decoration == spv::DecorationNoContraction)
+                            mDecorated.insert(operands[0]);
+                        refuseFloatDecoration(instruction, decoration);
+                        break;
+                    }
+                    // **A block's member decorated as an id is**: a `mediump` member is relaxed
+                    // precision on the member, and a compile lowers its arithmetic as well.
+                    case spv::OpMemberDecorate:
+                        refuseFloatDecoration(instruction, static_cast<spv::Decoration>(operandAt(instruction, 2)));
                         break;
                     case spv::OpExecutionMode:
                     case spv::OpExecutionModeId:
@@ -706,7 +787,42 @@ namespace Rtx
                     break;
             }
 
+            if (returnsFloat(instruction) && !passesFloat(instruction.mOp))
+                refuse(instruction, "a float it makes that no rule here pins or knows to be exact");
+
             mOut.push_back(instruction);
+        }
+
+        void Pinner::refuseFloatDecoration(const Instruction& instruction, const spv::Decoration decoration) const
+        {
+            switch (decoration)
+            {
+                // **Precision the compile may lower is precision a compile may choose.**
+                case spv::DecorationRelaxedPrecision:
+                    refuse(instruction, "a relaxed precision lets each compile pick how precisely to compute");
+                // An explicit environment takes precedence over `NoContraction`.
+                case spv::DecorationFPFastMathMode:
+                    refuse(instruction, "a fast-math mode the module sets overrides NoContraction");
+                case spv::DecorationFPRoundingMode:
+                    refuse(instruction, "a rounding mode the module sets for itself");
+                default:
+                    break;
+            }
+        }
+
+        bool Pinner::returnsFloat(const Instruction& instruction) const
+        {
+            const std::optional<std::uint32_t> type = resultTypeOf(instruction);
+            if (!type.has_value())
+                return false;
+            for (auto found = mTypes.find(*type); found != mTypes.end(); found = mTypes.find(found->second.mPart))
+            {
+                if (found->second.mKind == Kind::Float)
+                    return true;
+                if (found->second.mKind != Kind::Vector && found->second.mKind != Kind::Matrix)
+                    return false;
+            }
+            return false;
         }
 
         void Pinner::rewriteGlsl(const Instruction& instruction)

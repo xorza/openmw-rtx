@@ -983,6 +983,16 @@ namespace Rtx
             EXPECT_EQ(counts().mMapped, 2u);
             scene.setMaterial(sea, Material{ .mKind = MaterialKind::Water });
             EXPECT_EQ(counts().mMapped, 1u);
+
+            // A dark map whose alpha falls below solid counts apart from the maps: the arms' one
+            // placement, still mapped, and none once the dark map is opaque again.
+            EXPECT_EQ(counts().mDarkAlpha, 0u);
+            scene.setMaterial(foliage, Material{ .mDiffuse = leaf, .mSpecular = leaf, .mDarkBelowSolid = true });
+            EXPECT_EQ(counts().mDarkAlpha, 1u);
+            EXPECT_EQ(counts().mMapped, 1u);
+            scene.setMaterial(foliage, Material{ .mDiffuse = leaf });
+            EXPECT_EQ(counts().mDarkAlpha, 0u);
+            EXPECT_EQ(counts().mMapped, 0u);
         }
 
         /// A reclass reaches the placements wearing the material and no other, and a mesh's list

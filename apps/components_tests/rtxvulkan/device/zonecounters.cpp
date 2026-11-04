@@ -11,9 +11,11 @@ namespace Rtx
 {
     namespace
     {
-        /// **Each counter in the driver's order that still shares the one pass.** Of six, the fourth
-        /// cannot share a pass with the third and the fifth takes two alone, so 0, 1, 2 and 5 are
-        /// read; of twenty that all share one, the first `sMaxZoneCounters`.
+        /// **Each counter in the driver's order that a zone can read and that still shares the one
+        /// pass.** Of six, the fourth cannot share a pass with the third and the fifth takes two
+        /// alone, so 0, 1, 2 and 5 are read; with the second scoped to a command buffer, which a
+        /// zone's query begun inside one cannot read, 0, 2 and 5; of twenty that all share one, the
+        /// first `sMaxZoneCounters`.
         TEST(RtxZoneCountersTest, theCountersReadAreTheOnesThatShareOnePass)
         {
             const auto passesOf = [](const std::span<const std::uint32_t> counters) -> std::uint32_t {
@@ -22,17 +24,22 @@ namespace Rtx
                 return (holds(2) && holds(3)) || holds(4) ? 2 : 1;
             };
 
+            const auto every = [](std::uint32_t) { return true; };
             std::vector<std::uint32_t> chosen{ 9 };
-            ZoneCounters::pickOnePass(6, passesOf, chosen);
+            ZoneCounters::pickOnePass(6, every, passesOf, chosen);
             EXPECT_EQ(chosen, (std::vector<std::uint32_t>{ 0, 1, 2, 5 }));
 
             ZoneCounters::pickOnePass(
-                20, [](std::span<const std::uint32_t>) { return 1u; }, chosen);
+                6, [](std::uint32_t counter) { return counter != 1; }, passesOf, chosen);
+            EXPECT_EQ(chosen, (std::vector<std::uint32_t>{ 0, 2, 5 })) << "a counter scoped to a command buffer";
+
+            ZoneCounters::pickOnePass(
+                20, every, [](std::span<const std::uint32_t>) { return 1u; }, chosen);
             ASSERT_EQ(chosen.size(), sMaxZoneCounters);
             EXPECT_EQ(chosen.front(), 0u);
             EXPECT_EQ(chosen.back(), sMaxZoneCounters - 1);
 
-            ZoneCounters::pickOnePass(0, passesOf, chosen);
+            ZoneCounters::pickOnePass(0, every, passesOf, chosen);
             EXPECT_TRUE(chosen.empty()) << "a driver that offers none reads none";
         }
     }

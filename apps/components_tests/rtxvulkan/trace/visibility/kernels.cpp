@@ -48,17 +48,19 @@ namespace Rtx
         /// whole only once the compile is over. What a frame draws with is the full tuple's eight —
         /// the trace, the water's walk, its direct light, its media, its layers, its bounce, the
         /// bounce's landing and the froxels' launch — beside the 5 kernels no tuple changes, the
-        /// air's two and the sprites' three; every other tuple compiles behind them, a tuple a step,
-        /// 15 of them.
+        /// air's two and the sprites' three, and again without a dark map's alpha the 3 of them that
+        /// walk past a see-through candidate; every other tuple compiles behind them, a tuple a step,
+        /// 31 of them: 15 of the maps and the sky, and those 16 again reading a dark map's alpha but
+        /// the full tuple, which reads it already.
         ///
         /// **The full tuple alone is watched as it compiles, and the table read off the suite's
         /// renderer**, which made every tuple before any test ran (`Testing::getRenderer` waits for
-        /// `KernelSet::Every`): 97 kernels made again under the layers were seconds of this binary
-        /// for an answer the 12 already give.
+        /// `KernelSet::Every`): every kernel made again under the layers was seconds of this binary
+        /// for an answer the 16 already give.
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
-            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5;
+            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5 + 3;
 
             JobProgress progress = pass.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero());
             while (!progress.isDone())
@@ -87,8 +89,8 @@ namespace Rtx
             EXPECT_EQ(first.mCount, drawing);
             const JobProgress every
                 = Testing::getRenderer().awaitKernels(KernelSet::Every, std::chrono::milliseconds::zero());
-            EXPECT_EQ(every.mMade, drawing + 15u);
-            EXPECT_EQ(every.mCount, drawing + 15u);
+            EXPECT_EQ(every.mMade, drawing + 31u);
+            EXPECT_EQ(every.mCount, drawing + 31u);
         }
 
         /// **No kernel spills past its ceiling**, where the driver says (`Device::compiledUseOf`). The
@@ -141,10 +143,14 @@ namespace Rtx
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
             std::vector<VisibilityPass::NamedKernel> kernels;
             pass.listKernels(kernels);
-            ASSERT_EQ(kernels.size(), 1u + 1u + 1u + 1u + 1u + 1u + 1u + 1u + 5u);
+            ASSERT_EQ(kernels.size(), 1u + 1u + 1u + 1u + 1u + 1u + 1u + 1u + 5u + 3u);
 
             for (const VisibilityPass::NamedKernel& kernel : kernels)
             {
+                // A launch's twin that reads a dark map's alpha, at the launch's own ceiling.
+                const std::string_view twinOf = kernel.mName.ends_with(" dark")
+                    ? kernel.mName.substr(0, kernel.mName.size() - std::string_view(" dark").size())
+                    : kernel.mName;
                 Ceiling ceiling = sEveryOther;
                 for (const Ceiling& held : sCeilings)
                 {
@@ -164,7 +170,7 @@ namespace Rtx
                     std::uint64_t stack = 0;
                     for (const auto& [name, held] : sStacks)
                     {
-                        if (kernel.mName == name)
+                        if (twinOf == name)
                             stack = held;
                     }
                     EXPECT_LE(*use.mStackBytes, stack) << "the " << kernel.mName << " kernel's stack";

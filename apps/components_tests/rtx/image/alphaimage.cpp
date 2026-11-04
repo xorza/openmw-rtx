@@ -387,6 +387,30 @@ namespace Rtx
                 << "descending from 200, index seven is a step of the ramp and nothing reaches 255";
         }
 
+        /// **One texel under solid is a fall, and none is not**: what tells a dark map whose alpha a
+        /// see-through hit's coverage takes from the opaque one nearly every dark map is. The texel
+        /// under solid is last, so a walk that answered off the first texel it read fails; a BC1
+        /// block's punch-through hole is a fall, and a block of four colours is none; a spare byte
+        /// of nought is no alpha, as it is to `reachesSolid`.
+        TEST(RtxAlphaImageTest, fallsBelowSolidIsTrueWhereSomeTexelIsLessThanOpaque)
+        {
+            ContentPreprocessor content;
+            EXPECT_TRUE(content.fallsBelowSolid(*makeAlphaImage({ 255, 255, 255, 254 }))) << "one short of solid";
+            EXPECT_FALSE(content.fallsBelowSolid(*makeAlphaImage({ 255, 255, 255, 255 }))) << "opaque";
+            EXPECT_TRUE(content.fallsBelowSolid(*makeAlphaImage({ 0, 0, 0, 0 }))) << "empty";
+
+            const osg::ref_ptr<osg::Image> spare = makeAlphaImage({ 0, 0, 0, 0 });
+            spare->setInternalTextureFormat(GL_RGB);
+            EXPECT_FALSE(content.fallsBelowSolid(*spare)) << "a spare byte of nought";
+
+            EXPECT_FALSE(content.fallsBelowSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF })))
+                << "descending endpoints: four colours and no hole";
+            EXPECT_TRUE(content.fallsBelowSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF })))
+                << "ascending endpoints and fifteen holes";
+        }
+
         /// The second image a preprocessor reads costs the heap nothing, and reads as itself.
         ///
         /// **What holding one is for.** `MaterialResolver` asks this of every translucent diffuse

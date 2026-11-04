@@ -35,7 +35,7 @@ namespace MWRender
 
         /// Where the game holds the reference now, to the ring (`CellPlacer::moveReference`), or
         /// that it is gone, where the game deleted it.
-        void blacklistReference(int type, const MWWorld::ConstPtr& ptr) override;
+        void blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) override;
         void setGate(std::uint32_t gate, Terrain::GateState state) override;
 
         void clear() override;

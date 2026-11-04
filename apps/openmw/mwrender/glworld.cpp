@@ -448,7 +448,7 @@ namespace MWRender
         // where there is ground, and the terrain hands the cull out only once it has chunks
         const bool exterior = world.mLocation == Location::Exterior;
         if (!mApplied.mAny || mApplied.mWaterHeight != world.mWater.mHeight || mApplied.mExterior != exterior
-            || (exterior && !mApplied.mWaterCulled))
+            || mApplied.mWaterCullFrom != &frame.mTerrain || (exterior && !mApplied.mWaterCulled))
         {
             osg::Callback* cull
                 = exterior ? frame.mTerrain.getHeightCullCallback(world.mWater.mHeight, Mask_Water) : nullptr;
@@ -458,6 +458,7 @@ namespace MWRender
             // culling off there is none to wait for, and asking again every frame changes nothing.
             mApplied.mWaterCulled = !exterior || cull != nullptr || !Settings::terrain().mWaterCulling;
             mApplied.mExterior = exterior;
+            mApplied.mWaterCullFrom = &frame.mTerrain;
         }
         if (!mApplied.mAny || mApplied.mWaterHeight != world.mWater.mHeight)
         {

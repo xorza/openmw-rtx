@@ -196,6 +196,13 @@ namespace MWWorld
         return std::min(apart, 24.0 - apart) > step + hourSpacing;
     }
 
+    bool HourWatch::jumped(const float hour, const double step)
+    {
+        const bool jumped = mSeen.has_value() && DateTimeManager::jumps(*mSeen, hour, step);
+        mSeen = hour;
+        return jumped;
+    }
+
     void DateTimeManager::updateGlobalFloat(GlobalVariableName name, float value)
     {
         if (name == Globals::sGameHour)

@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
@@ -27,6 +29,7 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/moon.hpp>
 #include <components/rtxvulkan/shaders/shared/fields.h>
+#include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
 
@@ -485,6 +488,66 @@ namespace Rtx::Testing
             const double open = static_cast<double>(opened) / static_cast<double>(drawn);
             EXPECT_NEAR(open, 0.5, 4.0 * 0.5 / std::sqrt(static_cast<double>(drawn)))
                 << "the bit's mean is what the pane lets through";
+        }
+
+        /// **A pane's dark map hazes its shadow as it hazes the pane.** The black pane of the test
+        /// above, half there, wears a dark map whose alpha is 128 of 255 and falls below solid
+        /// (`Material::mDarkBelowSolid`): the eye sees it at `0.5 * 128 / 255` = 0.25098 of the
+        /// way there, and so a shadow ray meets it as often, and the bit opens on 0.74902 of its
+        /// draws where it opened on a half before the dark map's alpha counted. Over 32 frames of
+        /// the 96 by 96 floor, n >= 32 * 96 * 96 draws: the mean's deviation is
+        /// `sqrt(0.25 * 0.75 / n)` <= 0.0025, held at four of it.
+        TEST_F(RtxVisibilityTest, aPanesDarkMapHazesItsShadowAsItHazesThePane)
+        {
+            constexpr std::uint32_t size = 96;
+            Testing::TestTexture dark;
+            const std::array<std::uint8_t, 16> texels{ 255, 255, 255, 128, 255, 255, 255, 128, 255, 255, 255, 128, 255,
+                255, 255, 128 };
+            Testing::paintFlat(dark, 2, texels, "dark.dds");
+
+            Shaders::VisibilityConstants between = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 30.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            between.mSkyHorizon = osg::Vec3f();
+            between.mSkyZenith = osg::Vec3f();
+            between.mSun = overheadSun(size).mSun;
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            const Index darkMap = scene.textures().add(VFS::Path::NormalizedView("dark.dds"));
+            const Index stained = scene.addMaterial(Material{
+                .mDark = darkMap,
+                .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                .mOpacity = 0.5f,
+                .mAlphaMode = AlphaMode::Blend,
+                .mTwoSided = true,
+                .mDarkBelowSolid = true,
+            });
+            const std::array<osg::Vec3f, 4> pane = sheetAt(4000.0f, 40.0f);
+            scene.addInstance(MeshInstance{ .mMesh
+                = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                .mMaterial = stained });
+
+            constexpr std::uint32_t frames = 32;
+            std::vector<float> shadowed;
+            std::vector<float> penumbrae;
+            std::size_t drawn = 0;
+            std::size_t opened = 0;
+            shoot(scene, std::span<const TextureData>(&dark.mData, 1), between, size,
+                { .mFrames = frames, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                     mProbe.readChannel(Channel::Shadowed, shadowed);
+                     Testing::penumbraeOf(shadowed, penumbrae);
+                     for (std::size_t pixel = 0; pixel < penumbrae.size(); ++pixel)
+                         if (penumbrae[pixel] == Shaders::SHADOW_PENUMBRA_DRAWN)
+                         {
+                             ++drawn;
+                             opened += Testing::shadowBit(shadowed[pixel * 4 + 3]) == 1.0f ? 1 : 0;
+                         }
+                 } });
+            ASSERT_GE(drawn, std::size_t{ frames * size * size } / 2);
+            const double open = static_cast<double>(opened) / static_cast<double>(drawn);
+            const double owed = 1.0 - 0.5 * 128.0 / 255.0;
+            EXPECT_NEAR(open, owed, 4.0 * std::sqrt(owed * (1.0 - owed) / static_cast<double>(drawn)))
+                << "the bit's mean is what the pane and its dark map let through";
         }
 
         /// **A penumbra's bits are drawn blue, so a little blur takes most of their noise.** The roof

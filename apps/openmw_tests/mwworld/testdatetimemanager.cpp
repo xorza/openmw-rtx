@@ -28,5 +28,22 @@ namespace MWWorld
                 << "two frames' worth in one";
             EXPECT_FALSE(DateTimeManager::jumps(0.0f, 23.99999f, step)) << "a step back across midnight";
         }
+
+        /// **The watch holds each frame's hour against the last frame's**, whoever wrote it: the
+        /// first frame after a reset has nothing to hold against; a frame that advanced the clock
+        /// its step, and one that held it, are no jump; a frame after `set gamehour to 21`, or after
+        /// a Lua script wrote it while the last frame drew, is.
+        TEST(MWWorldDateTimeManagerTest, theWatchHoldsEachFramesHourAgainstTheLastFrames)
+        {
+            constexpr double step = 1.0 / 7200.0;
+            HourWatch watch;
+            EXPECT_FALSE(watch.jumped(12.0f, step)) << "nothing seen yet";
+            EXPECT_FALSE(watch.jumped(static_cast<float>(12.0 + step), step)) << "one frame's step";
+            EXPECT_FALSE(watch.jumped(static_cast<float>(12.0 + step), step)) << "a held hour";
+            EXPECT_TRUE(watch.jumped(21.0f, step)) << "set gamehour to 21";
+            EXPECT_FALSE(watch.jumped(static_cast<float>(21.0 + step), step)) << "and on from there";
+            watch.reset();
+            EXPECT_FALSE(watch.jumped(3.0f, step)) << "a load, which is a cut of its own";
+        }
     }
 }

@@ -162,14 +162,16 @@ namespace Rtx
         mProfile.mReconstruction.mSampling.mBounceRays = rays;
     }
 
-    FrameTraced NullRenderer::renderFrame(const FrameRequest&)
+    FrameTraced NullRenderer::renderFrame(const FrameRequest& request)
     {
         assert(mWorld.mIdentity != 0 && "a frame traced before the world's scene was set");
         // The host collects a frame before it places the next where the ring is full
         // (`collectFrame`), so a frame never finds the ring full here.
         assert(mUnreportedCount < sFramesInFlight && "a frame traced into a full ring");
         ++mUnreportedCount;
-        mUnreported[mUnreportedCount - 1] = Unreported{ .mFrame = mFrames++, .mInFlight = mUnreportedCount };
+        mUnreported[mUnreportedCount - 1] = Unreported{ .mFrame = mFrames++,
+            .mInFlight = mUnreportedCount,
+            .mReconstruction = mProfile.reconstructionFor(request.mOptions.mReconstruction, mExtents) };
         mOpen = false;
         return {};
     }
@@ -187,7 +189,7 @@ namespace Rtx
         FrameResult result;
         result.mFrame = frame.mFrame;
         result.mInFlight = frame.mInFlight;
-        result.mReconstruction = Reconstruction::resolve(mProfile.mUpscale, mProfile.mReconstruction, mExtents);
+        result.mReconstruction = frame.mReconstruction;
         return result;
     }
 
