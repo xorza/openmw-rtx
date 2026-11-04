@@ -65,6 +65,7 @@ namespace ESM
     struct TimeStamp;
     class RefId;
     struct ExteriorCellLocation;
+    enum class GameFormat;
 }
 
 namespace Terrain
@@ -168,7 +169,7 @@ namespace MWBase
         virtual MWWorld::ESMStore& getStore() = 0;
         virtual const MWWorld::ESMStore& getStore() const = 0;
 
-        virtual const std::vector<int>& getESMVersions() const = 0;
+        virtual const std::vector<ESM::GameFormat>& getGameFormats() const = 0;
 
         virtual MWWorld::LocalScripts& getLocalScripts() = 0;
 

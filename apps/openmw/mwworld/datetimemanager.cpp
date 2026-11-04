@@ -186,6 +186,16 @@ namespace MWWorld
             return months[month];
     }
 
+    std::string DateTimeManager::formatTimeOfDay(float hour) const
+    {
+        const int minutes = static_cast<int>(hour * 60);
+        const int hour24 = minutes / 60;
+        auto calendarL10n = MWBase::Environment::get().getL10nManager()->getContext("Calendar");
+        const std::string period = calendarL10n->formatMessage(hour24 < 12 ? "am" : "pm", {}, {});
+        return calendarL10n->formatMessage("timeFormat", { "hour", "hour12", "minute", "period" },
+            { hour24, (hour24 + 11) % 12 + 1, minutes % 60, L10n::toUnicode(period) });
+    }
+
     bool DateTimeManager::jumps(float before, float after, double step)
     {
         // The frame's step reaches the hour through a float, whose spacing below 24 is at most
