@@ -1,6 +1,7 @@
 # `NO_DUPLICATE_ANY_HIT` on every geometry — 2026-10-22
 
-A high-end NVIDIA laptop GPU, driver 615.78.08, Linux, release build at `74925d54de`, 1920x1080 output, upscale
+A high-end NVIDIA laptop GPU, driver 615.78.08, Linux, release build at `74925d54de`, 1920x1080
+output, upscale
 `quality`. A against B, in the order A B B A, each leg the eight places
 `seyda-neen-shore,seyda-neen-pond,balmora,vivec,seyda-neen-pier,ald-ruhn,seyda-neen-ship-dawn,balmora-mages-guild`
 after a throwaway leg: A every geometry built with `VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR`

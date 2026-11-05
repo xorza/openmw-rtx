@@ -1,8 +1,8 @@
 # A rate on the eye's bounce — 2026-10-03
 
-A high-end NVIDIA laptop GPU, release builds, three alternated rounds. Measured with `cda3b0558a` ("Denoise lamp
-shadows and trace every bounce"), when `BOUNCE_RATE` was set to one; the figures stood in its
-comment in `look.h` until the constant was removed.
+A high-end NVIDIA laptop GPU, release builds, three alternated rounds. Measured with `cda3b0558a`
+("Denoise lamp shadows and trace every bounce"), when `BOUNCE_RATE` was set to one; the figures
+stood in its comment in `look.h` until the constant was removed.
 
 A share of the eye's hits traced their bounce, and the rest took no indirect light; a traced
 bounce was divided by the share.

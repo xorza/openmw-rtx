@@ -141,7 +141,7 @@ namespace Rtx
             const PhysicalDevice::Profile onAda = ada.profile();
 
             EXPECT_EQ(onTuring.mObstacle, "") << "an RTX 2060 was refused";
-            EXPECT_EQ(onAda.mObstacle, "") << "a high-end NVIDIA laptop GPU was refused";
+            EXPECT_EQ(onAda.mObstacle, "") << "an Ada card was refused";
 
             // 246 MiB against the whole of video memory, which is the difference resizable BAR
             // makes. `PhysicalDevice::Profile::mHostWrittenBytes` says what the figure then decides.

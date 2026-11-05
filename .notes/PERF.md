@@ -1,35 +1,31 @@
 # perf-rtx — the ray tracer's frame on three hosts
 
-Target: the ray tracer's frame (the GPU's stages and passes, and the host's walk), on the desk (a high-end NVIDIA laptop
-GPU, its driver), the AMD handheld (`<host>`, RADV, Mesa, the
-clock held at 1600 MHz) and a low-end AMD laptop CPU box (`<host>`, low-end AMD integrated GPU, Adrenalin
-32.0.21045.5002, Windows). Started from `511ddd8d89`. Worktrees: `<worktree>`
-here and `<worktree>` there, fed through a bundle into a bare
-repo at `<worktree>`.
+Target: the ray tracer's frame (the GPU's stages and passes, and the host's walk), on the desk (a
+high-end NVIDIA laptop GPU), an AMD handheld (RADV, its clock held) and a laptop with a low-end AMD
+integrated GPU (AMD's Windows driver). Started from `511ddd8d89`.
 
 ## Hosts
 
 - **Desk**: `./omw release bench` (default suite, 1920x1080, 1280x720 traced), three interleaved rounds
-  after a warm-up leg (`<script>`). A/A (2026-11-02): frame medians within
+  after a warm-up leg. A/A (2026-11-02): frame medians within
   ±1 % a pair and ±0.1 % over three; zones ±1–2 %, `direct` bimodal (0.42 or 0.45 ms, dawn 0.67 or
   0.77); p99 ±15 %.
 - **Handheld**: release build in the release-base container, staged by `omw release remote`, then run
-  under omw's own remote script (`remote-run.sh`), 1280x800 (853x533 traced). A/A: frame and every zone
+  under omw's own remote script, 1280x800 (853x533 traced). A/A: frame and every zone
   within 0.1 % (`panes` 0.3 %), p99 within 2 %.
-- **AMD iGPU**: native MSVC release build, run in the logged-on session through a scheduled task
-  (`remote-run.sh`): an SSH session's window has no surface a swapchain takes. 1920x1080.
+- **AMD iGPU**: native MSVC release build, run in the logged-on session through a scheduled task:
+  an SSH session's window has no surface a swapchain takes. 1920x1080.
 - **GPU-bound everywhere**: `wait` is 4 of 6 ms on the desk and 77 of 88 ms on the handheld; the host's
   walk, place and upload are under 1 ms on the desk and 5 ms on the handheld.
 - **Host rows**: the handheld's within 1 % (update 0.2 %), the AMD iGPU's within 1 %; the desk's move
   10–20 % between identical runs, so a host change is judged on the handheld and the AMD iGPU.
 - **Build RAM peaks**: desk release from nothing 25.8 GiB (perf-trace), a build of cached objects
   0.4 GiB, the debug flavour with its tests from nothing 33.2 GiB; the container's from nothing
-  24.3 GiB; the AMD iGPU's from nothing 9.9 GiB . One build at a time on each host.
+  24.3 GiB; the AMD iGPU's from nothing 9.9 GiB. One build at a time on each host.
 - **AMD iGPU noise** (A/A, two rounds): frame within 0.2 % (dawn 1.1 %), zones within 0.2 % (dawn
   0.7 %), p99 ±18 %.
 - **The AMD iGPU's host is slow**: walk 11.7, place 5.0, upload 4.2, update 23.4 ms a frame at the
-  ship, against the handheld's 3.3, 0.85, 0.75, 6.2 — 3.5 times the handheld's Zen 2. The plan
-  is High performance; the clock is nominal. Under the GPU's 115 ms it costs no frame
+  ship, against the handheld's 3.3, 0.85, 0.75, 6.2 — 3.5 times the handheld's CPU. Under the GPU's 115 ms it costs no frame
   yet.
 
 ## Numbers at the start (`511ddd8d89`)
@@ -74,7 +70,7 @@ https://github.com/xorza/openmw-rtx/actions/runs/41385212538 green.
 
 - **The sea's walk is a stage of its own, over the tiles where the eye met the sea** (`3dd8dc8363`,
   `docs/rtx/architecture.md` "The sea's walk, a stage of its own", `research/2026-11-02-water-stage.md`).
-  Spiked on `spike/water-stage` (local). handheld frame −4.2 % ship, −3.8 % dawn; AMD iGPU −5.3 %, −7.0 %;
+  Spiked on `spike/water-stage` (local). Handheld frame −4.2 % ship, −3.8 % dawn; AMD iGPU −5.3 %, −7.0 %;
   desk and every interior inside the noise; no picture moved. The shape is the tree's own
   classify-and-dispatch (the media and the layers' tile lists, FidelityFX's reflections) and
   Laine, Karras and Aila's case against one kernel carrying every walk (2013). Refused: the peel
@@ -118,7 +114,7 @@ https://github.com/xorza/openmw-rtx/actions/runs/41385212538 green.
 | `direct` at dawn 34 ms on the handheld | 12.7 ms at noon; every sky bit drawn at dawn and each traced to its nearest occluder | answered by `9ff5929cda`; 25.4 ms left |
 | Update the top level in place where only transforms and refits moved | `tlas` 3.45 ms every exterior frame on the handheld, 0.40 on the desk, rebuilt whole | kept `7b147fc972`: desk tlas 0.40 → 0.09, frame −3.7 to −3.9 % outside; handheld unchanged (RADV's update costs its build) |
 | Every cutout opaque (upper bound, picture not acceptable) | 39 905 cutouts at the ship; every ray asks each cutout candidate's alpha | measured: handheld frame −6.9 % ship, −6.1 % guild; desk ship −9 %. Next: opaque cutouts for indirect rays alone, and a coarser alpha level for them |
-| Cutouts solid for the landing's two rays alone (for review) | the landing asks each cutout candidate's alpha for its ambient and its lamp ray | **not landed, picture move not slight**: handheld frame −2.0 % ship, −2.6 % guild (landing −10.2 % / −7.9 %); desk shot: 45 of 70 pictures moved, seyda-neen-boulder 57/255 on 53 % of the pixels, the ship 30/255 on 16 %. Pictures in `<worktree>` against `shots/base` |
+| Cutouts solid for the landing's two rays alone (for review) | the landing asks each cutout candidate's alpha for its ambient and its lamp ray | **not landed, picture move not slight**: handheld frame −2.0 % ship, −2.6 % guild (landing −10.2 % / −7.9 %); desk shot: 45 of 70 pictures moved, seyda-neen-boulder 57/255 on 53 % of the pixels, the ship 30/255 on 16 %. |
 | One moon ray a froxel only where the sun is down | thought the dawn air paid a moon's ray beside the sun's | rejected: no picture moved and the handheld's air did not move (13.39 against 13.39 ms): the moons fall under `FOG_SHAFT_FLOOR` at dawn already; the dawn air is the low sun's grazing ray |
 | RADV's wave64 for the ray tracing launches (`RADV_PERFTEST=rtwave64`) | the fog's two launches are the only `vkCmdTraceRaysKHR` work | rejected: handheld dawn air 13.29 → 16.75 ms |
 | `FFX_HALF` for the upscaler | RDNA 2 runs packed halves | not retried: `fsrcallbacks.glsl` records it moved a still picture 0.30–0.58 px |
@@ -151,7 +147,7 @@ https://github.com/xorza/openmw-rtx/actions/runs/41385212538 green.
   +8 %; frame +0.3 % ship, +3.3 % dawn, +0.6 % guild, −0.2 % vivec, +0.7 % pond — no gain past the
   noise, and a loss at dawn. Pictures: a slight move where a coned ray reads a coarser level than the
   bake (sparse dots in far canopies and water glints, 0.03 % of the pixels past 2/255), which the
-  OMM SDK's guide names ("do not use dynamic mip level"). The handheld gains nothing: RADV (Mesa 26.2)
+  OMM SDK's guide names ("do not use dynamic mip level"). The handheld gains nothing: RADV
   offers no `VK_EXT_opacity_micromap`; the desk's driver offers it and `VK_KHR_opacity_micromap`.
   Refused: the gain is not there on the desk and the handheld cannot have it. Sources: the Vulkan
   specification's ray traversal chapter (micromap states against the instance flags),

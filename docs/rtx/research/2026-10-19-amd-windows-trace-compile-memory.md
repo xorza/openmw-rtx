@@ -1,7 +1,7 @@
 # Visibility launch compile memory on AMD's Windows driver — 2026-10-19
 
-A low-end AMD integrated GPU (RDNA 2), Adrenalin 26.8.1 ("AMD proprietary shader compiler"), Windows 11,
-30 GB RAM, 16 logical processors. Release build, shaders pinned without fusion. Each run is
+A low-end AMD integrated GPU (RDNA 2), Adrenalin 26.8.1 ("AMD proprietary shader compiler"), Windows
+11, 30 GB RAM, 16 logical processors. Release build, shaders pinned without fusion. Each run is
 `openmw-rtxtool shot --views=seyda-neen-ship --variants=false` (one visibility launch) inside a job
 object with a 14 GB commit cap; earlier runs used a polling watchdog. Every other pipeline came from
 the driver's cache, so the peak above the cached run is the visibility launch's compile.

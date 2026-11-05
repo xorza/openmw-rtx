@@ -30,7 +30,7 @@
     "reveal": "always",
     "tags": ["rtx-view"]
   },
-  // The Fullrest Repack under <games>/M[FR]: `~/.config/openmw-mfr` is its Linux profile, and
+  // The Fullrest Repack: `~/.config/openmw-mfr` is its Linux profile, and
   // `--replace=config` keeps the vanilla profile's content list out of it.
   {
     "label": "RTX: seyda-neen-ship, M[FR] (release)",
@@ -52,7 +52,7 @@
     "reveal": "always",
     "tags": ["rtx-view"]
   },
-  // Vanilla content under the PBR retextures in <games>/Morrowind-PBR/mods, which
+  // Vanilla content under the PBR retextures, which
   // `~/.config/openmw-pbr` stacks in load order over that folder's `Data Files`.
   {
     "label": "RTX: seyda-neen-ship, PBR mods (release)",

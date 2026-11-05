@@ -1,6 +1,6 @@
 # The trace's stages on an AMD handheld — 2026-10-30
 
-AMD handheld LCD: AMD custom APU (this GPU, RDNA 2, 8 CUs), RADV Mesa 26.2.0-devel
+An AMD handheld (RDNA 2, 8 CUs), RADV Mesa 26.2.0-devel
 (git-5c65d4fc31). The core clock held at
 1600 MHz through `pp_od_clk_voltage` (`s 0 1600`, `s 1 1600`, `power_dpm_force_performance_level`
 manual) under the default 15 W cap; 6144 MiB device-local heap. Vanilla Morrowind, the release
@@ -13,16 +13,18 @@ unless named. Zones are medians in ms.
   `build-release` mounted from `build-container/release`: 5 min 19 s from nothing. A build from the
   desk's distribution does not start — its FFmpeg 8 binds `sinh` and `cosh` at `GLIBC_2.44`, and the
   handheld has 2.43 — and 28 of its libraries have no soname on its system.
-- **The libraries the handheld lacks beside it**: 59 sonames and OSG's nine `USED_OSG_PLUGINS`, 135 MB,
-  copied out of the container where `ldconfig -p` on the handheld names no such soname, read through
+- **The libraries the handheld lacks beside it**: 59 sonames and OSG's nine `USED_OSG_PLUGINS`, 135
+  MB, copied out of the container where `ldconfig -p` on the handheld names no such soname, read
+  through
   `LD_LIBRARY_PATH` and `OSG_LIBRARY_PATH`. glibc, `libstdc++`, the Vulkan loader (1.4.350) and RADV
   stay the handheld's.
-- **At the desk's own path**, `~/Projects/openmw/build-release`: the harness's folder,
+- **At the desk's own absolute path**, the build directory's: the harness's folder,
   views and suites are compiled-in absolute paths (`apps/rtxtool/harnessfolder.cpp`).
 - **`SDL_VIDEO_DRIVER=offscreen` over SSH.** `--window=false` still initializes SDL's video, which
   fails with no display ("No available video device"); `dummy` has no Vulkan.
-- **`umr` cannot read a wave here.** The system's `umr` 1.0.10 has no register of this GPU's graphics
-  block ("Cannot find a 'gfx' IP block in this ASIC", `mmSQ_CMD` not found), so `--profiler` and
+- **`umr` cannot read a wave here.** The system's `umr` 1.0.10 has no register of this GPU's
+  graphics block ("Cannot find a 'gfx' IP block in this ASIC", `mmSQ_CMD` not found), so
+  `--profiler` and
   `--waves` halt nothing and read no shader; `--profiler` then wrote 2.7 GB of those errors a
   minute.
 - **What the driver compiled, as text**: `--pipeline-code=<dir>` writes RADV's NIR, ACO IR and
@@ -165,8 +167,8 @@ zones by share.
 
 ## On the desk's NVIDIA card
 
-A high-end NVIDIA laptop GPU, driver 615.78.08. The driver offers no `VK_KHR_performance_query` (the loader
-answers that the ICD does not support enumerating its counters), and gives no internal
+A high-end NVIDIA laptop GPU, driver 615.78.08. The driver offers no `VK_KHR_performance_query` (the
+loader answers that the ICD does not support enumerating its counters), and gives no internal
 representation of any pipeline: a `--counters --pipeline-code` bench reads no counter, writes no
 file, and logs the first.
 
@@ -247,9 +249,10 @@ The default suite, one run each (`base`, `candidate`), the clock held at 1600 MH
 | `balmora-mages-guild` | 59.45 → 55.01 | 66.24 → 62.02 | 18.87 → 14.94 | 5.04 → 4.56 |
 
 - **Every other zone stayed within 0.2 %.**
-- **On the desk's high-end NVIDIA laptop GPU**, three interleaved rounds: `landing` −8.7 %, −24.8 % and
-  −30.3 % at the ship, at dawn and in the guild; `direct` −17.3 %, −11.5 % and −14.9 %; the frame
-  −2.2 %, −4.8 % and −6.8 %.
+- **On the desk's high-end NVIDIA laptop GPU**, three interleaved rounds: `landing` −8.7 %, −24.8 %
+  and −30.3 % at the ship, at dawn and in the guild; `direct` −17.3 %, −11.5 % and −14.9 %; the
+  frame −2.2 %, −4.8 % and −6.8 %.
 - **A layer's light the same way** (`paneLightOf`, the landing's and the layer's terms one
   `PathEndLight`): `panes` 256 → 192 registers in the variants without the sea, and its zone
-  1.78 → 1.47 ms in the guild on the handheld, −4 to −8 % on the desk; every other zone within 0.6 %.
+  1.78 → 1.47 ms in the guild on the handheld, −4 to −8 % on the desk; every other zone within 0.6
+  %.

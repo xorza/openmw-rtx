@@ -1,10 +1,10 @@
 # The content pool after a long walk — 2026-10-22
 
-A high-end NVIDIA laptop GPU, driver 615.78.08, Linux, release build at `6a87d9465d`. The 17 bench places
-(`default`, `exteriors`, `skies` and `interiors`) run one after another in one process, each a
-stop of 20 seconds, and the `streaming` suite's crossing of the island in a process of its own. The
-heap's figures are VMA's, read after each place (`MemoryReport`); the structures' are the scene's
-(`SceneStats`). Records in `.notes/perf/batch8/`.
+A high-end NVIDIA laptop GPU, driver 615.78.08, Linux, release build at `6a87d9465d`. The 17 bench
+places (`default`, `exteriors`, `skies` and `interiors`) run one after another in one process, each
+a stop of 20 seconds, and the `streaming` suite's crossing of the island in a process of its own.
+The heap's figures are VMA's, read after each place (`MemoryReport`); the structures' are the
+scene's (`SceneStats`). Records in `.notes/perf/batch8/`.
 
 The device heap, reserved against live, after each place, in MiB:
 

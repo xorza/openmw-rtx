@@ -366,8 +366,8 @@ namespace Rtx
         ///
         /// **The decay at `RIPPLE_SUBSTEPS_MOST` sixtieths a frame**, each a step of one sixtieth as a
         /// frame of one takes, under one compose where four frames take four: every step reads and
-        /// writes the whole field, and two thousand frames of one were three seconds of a low-end AMD
-        /// integrated GPU. The footfall has a frame of one sixtieth to itself, as a press is as deep as the time
+        /// writes the whole field, and two thousand frames of one were three seconds of a low-end AMD integrated
+        /// GPU. The footfall has a frame of one sixtieth to itself, as a press is as deep as the time
         /// its frame stands for.
         TEST_F(RtxRipplePassTest, aDecayedFieldIsStillAndIsPressedAsStillWater)
         {

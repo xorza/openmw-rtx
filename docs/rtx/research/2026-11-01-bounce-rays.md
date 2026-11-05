@@ -7,9 +7,9 @@ the same at `b07580d6cd`, with the release flavour, the `default` and `interiors
 
 ## The desk
 
-A high-end NVIDIA laptop GPU, NVIDIA 615.78.08, Linux 7.2.11. Two alternated rounds of each count. The frame's
-median in ms, the range over the rounds, and in brackets the `bounce` and the `landing` zones'
-medians summed.
+A high-end NVIDIA laptop GPU, NVIDIA 615.78.08, Linux 7.2.11. Two alternated rounds of each count.
+The frame's median in ms, the range over the rounds, and in brackets the `bounce` and the `landing`
+zones' medians summed.
 
 | place | 1 ray | 2 rays | 4 rays | 8 rays |
 |---|---|---|---|---|
@@ -52,8 +52,8 @@ medians summed.
 | `seyda-neen-ship-dawn` | 190.8 / 215.4 (59.7) | 251.7 / 283.2 (120.5) | 372.8 / 419.3 (241.3) | 614.7 / 692.4 (482.7) |
 | `balmora-mages-guild` | 106.5 / 108.6 (48.5) | 155.0 / 159.9 (97.1) | 254.1 / 260.6 (195.9) | 453.5 / 466.1 (395.4) |
 
-The same again. At 1920x1080 the handheld and the integrated GPU are far under the frame rate a player reads, at
-one ray as at eight; the slider is for a card with room to spare.
+The same again. At 1920x1080 the handheld and the integrated GPU are far under the frame rate a
+player reads, at one ray as at eight; the slider is for a card with room to spare.
 
 ## Noise
 

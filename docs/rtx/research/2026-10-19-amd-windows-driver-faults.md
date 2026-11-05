@@ -1,8 +1,9 @@
 # What AMD's Windows driver answers wrong — 2026-10-19
 
-A low-end AMD integrated GPU (RDNA 2), Adrenalin 26.8.1 ("AMD proprietary shader compiler"), Windows 11.
-What the driver answered wrong while the trace was rewritten around it, and what the trace does in
-its place. The same driver's compile memory is in `2026-10-19-amd-windows-trace-compile-memory.md`.
+A low-end AMD integrated GPU (RDNA 2), Adrenalin 26.8.1 ("AMD proprietary shader compiler"), Windows
+11. What the driver answered wrong while the trace was rewritten around it, and what the trace does
+in its place. The same driver's compile memory is in
+`2026-10-19-amd-windows-trace-compile-memory.md`.
 
 ## A ray query during a closest-hit shader fails on this driver
 

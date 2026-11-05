@@ -1,6 +1,7 @@
 # The host-written window at the world's room — 2026-10-22
 
-A high-end NVIDIA laptop GPU, driver 615.78.08, Linux, release build at `4ec5fe3a1a`. Every buffer made as
+A high-end NVIDIA laptop GPU, driver 615.78.08, Linux, release build at `4ec5fe3a1a`. Every buffer
+made as
 `BufferKind::HostWritten` was logged as it was made and buried, and the set standing at the peak
 summed by name. Three runs: `bench --views=vivec,seyda-neen-ship,balmora-mages-guild`, the
 `streaming` suite (`island-crossing`, flown across the island), and `shot --doll=fargoth` at

@@ -1,7 +1,7 @@
 # The trace's stages on a low-end AMD integrated GPU — 2026-10-21
 
-A low-end AMD integrated GPU (RDNA 2), Adrenalin 26.8.1, Windows 11. M[FR], `seyda-neen-ship`, release
-build, `./omw release bench --views=seyda-neen-ship --frames=5 --warmup=0 --upscale=off` at
+A low-end AMD integrated GPU (RDNA 2), Adrenalin 26.8.1, Windows 11. M[FR], `seyda-neen-ship`,
+release build, `./omw release bench --views=seyda-neen-ship --frames=5 --warmup=0 --upscale=off` at
 480x270 unless named; zones are medians in ms. Spill is the full tuple's
 (`RtxVisibilityKernelsTest.noKernelSpillsPastItsCeiling`), bytes of scratch a lane at 256
 registers.
@@ -75,8 +75,8 @@ spill by under 300 bytes; leaving the loop with the hit and shading after it rem
 - **Every tuple behind the full one**, over half the hands: the 15 tuples' 57 kernels compiled in
   59 s after the full tuple's, from the driver's cache, in under a second; the cold peak at half
   the hands is not measured, the cache holding every tuple since.
-- **`./omw release repeat`** on the integrated GPU: two pairs at 480x270 and six at the default size, each
-  identical; the seventh stopped at the run's 25-minute bound.
+- **`./omw release repeat`** on the integrated GPU: two pairs at 480x270 and six at the default
+  size, each identical; the seventh stopped at the run's 25-minute bound.
 
 - **Finding the solid again** (`foundSolidOf`) alone, the rest of `bounce` cut: `bounce` 6.4 ms,
   as long as the whole trace kernel; 5.5 ms once the corners came off the scene's vertices, and

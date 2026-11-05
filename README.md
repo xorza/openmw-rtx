@@ -62,7 +62,7 @@ Requirements
 * Vulkan 1.4 with ray tracing pipelines, ray queries and position fetch. On a machine without them
   the game does not start, and its error box says what is missing and where the log is.
 
-Tested on one machine so far: a high-end NVIDIA laptop GPU.
+Tested so far on one high-end NVIDIA laptop GPU.
 
 Building and running
 --------------------

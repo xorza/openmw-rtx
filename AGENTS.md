@@ -303,10 +303,10 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw rel
   upscaler and the denoiser off, the second with the queue held behind the host, and must agree
   frame for frame. A pair that finds nothing has found nothing. Read a difference with
   `--exposure=1` and `--pictures`.
-- **The denoised frame is not bit-exact on every card** (`docs/rtx/architecture.md`): on a high-end NVIDIA laptop
-  GPU under a busy queue, the first wavelet dispatch after a pipeline drain sometimes differs by
-  an ulp on identical inputs. The card's, not a missing barrier. `repeat` runs unfiltered and
-  cannot see it; a difference in the composed frame alone is the card's.
+- **The denoised frame is not bit-exact on every card** (`docs/rtx/architecture.md`): on a high-end
+  NVIDIA laptop GPU under a busy queue, the first wavelet dispatch after a pipeline drain sometimes
+  differs by an ulp on identical inputs. The card's, not a missing barrier. `repeat` runs unfiltered
+  and cannot see it; a difference in the composed frame alone is the card's.
 - Measure with `./omw release bench`, on a hot card, back to back, never with a sleep between runs,
   after a throwaway warm-up leg; the first run after a shader change compiles the pipelines.
 - Measure on a quiet desktop: start the run in the background and end the turn. In the session's

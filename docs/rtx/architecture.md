@@ -397,7 +397,8 @@ at the top, over all of them.
   texel wide until a count above one makes the targets again (`GBuffer::declareStages`,
   `VulkanRenderer::setBounceRays`). Kept whole at every count, they took 87.6 MiB more there; at
   four rays the frame holds 45.0 MiB more than at one. Refused: tracing the eye's ray again a ray,
-  which cost the integrated GPU a quarter of a frame (`research/2026-10-21-amd-integrated-stage-times.md`).
+  which cost the integrated GPU a quarter of a frame
+  (`research/2026-10-21-amd-integrated-stage-times.md`).
 - **Each ray is worth one over the count, added into the bounce's own channels** (`startBounce`,
   `storeBounced`), so the denoiser and the composite read one bounce; the first ray writes the
   channel, so one ray writes the bits it always wrote.
@@ -427,12 +428,12 @@ at the top, over all of them.
   - The glossy light and the see-through layers: temporal filters, each holding its slow mean as
     the accumulator does (`historyclamp.comp`).
 
-  **The denoised frame is not bit-exact on every card, and that is the card's.** On the high-end NVIDIA
-  laptop GPU, the first wavelet dispatch after a pipeline drain sometimes computes the last bit of its
-  weights differently on the same input, one half-float step at a few texels, while the queue
-  keeps the card busy with no idle gap. Everything before the wavelet stays exact. `FrameHashes`
-  reports a difference in a denoised composed frame beside the verdict, and `shot` holds a
-  denoised picture to within `sDenoiserNoiseLevels`. The evidence is in `6b3978a065`
+  **The denoised frame is not bit-exact on every card, and that is the card's.** On the high-end
+  NVIDIA laptop GPU, the first wavelet dispatch after a pipeline drain sometimes computes the last
+  bit of its weights differently on the same input, one half-float step at a few texels, while the
+  queue keeps the card busy with no idle gap. Everything before the wavelet stays exact.
+  `FrameHashes` reports a difference in a denoised composed frame beside the verdict, and `shot`
+  holds a denoised picture to within `sDenoiserNoiseLevels`. The evidence is in `6b3978a065`
   (`.notes/denoiser-nondeterminism.md`).
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
@@ -447,9 +448,10 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
 - **Every stage is a compute dispatch, on every device.** As a ray generation stage alone, AMD's
   Windows driver drew the trace wrong from its second frame on, and the same module as a dispatch
   draws right (`research/2026-10-19-amd-windows-driver-faults.md`). Refused: a ray generation
-  launch on every other driver and a dispatch on AMD's, two builds of one kernel. On a high-end NVIDIA laptop
-  GPU the stages drew 23% slower than the launch at the median, and 29% at the p99, where another
-  context's time slices land inside their dispatches (`research/2026-10-21-nvidia-stage-costs.md`).
+  launch on every other driver and a dispatch on AMD's, two builds of one kernel. On a high-end
+  NVIDIA laptop GPU the stages drew 23% slower than the launch at the median, and 29% at the p99,
+  where another context's time slices land inside their dispatches
+  (`research/2026-10-21-nvidia-stage-costs.md`).
 - **The fog's and the sprites' traces stay launches**, because a ray query answers repeatably only
   inside a launch there (`TracePipeline`).
 - **Few places a module starts a ray query** (`queryScene`): each loop of a kernel answers the
@@ -469,10 +471,10 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   Windows driver fetches a committed triangle's corners wrong
   (`research/2026-10-19-amd-windows-driver-faults.md`), and passing every triangle through the
   candidate loop for its candidate's, which read right, cost the bounce a tenth of its time on a
-  low-end AMD integrated GPU (`research/2026-10-21-amd-integrated-stage-times.md`). A candidate's are fetched, for the
-  test that takes it. Refused: the hit cast again over a slab about it for a candidate's corners,
-  which cost near what the whole ray costs; the fetch where the driver reads it right, which draws
-  one picture a driver.
+  low-end AMD integrated GPU (`research/2026-10-21-amd-integrated-stage-times.md`). A candidate's
+  are fetched, for the test that takes it. Refused: the hit cast again over a slab about it for a
+  candidate's corners, which cost near what the whole ray costs; the fetch where the driver reads it
+  right, which draws one picture a driver.
 - **No kernel spills past its ceiling** (`RtxVisibilityKernelsTest.noKernelSpillsPastItsCeiling`):
   no scratch memory where the driver reports it and a dispatch at 128 registers at most, but the
   trace's stages at what they spill, and a launch's ray generation stack at what it holds, each
@@ -489,17 +491,18 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   the direct channel is a sum of each stage's term times the throughput `visibility` stores
   (`rgba32f`, the layers' share in its fourth). Quake II RTX traces its stages as passes
   (`path_tracer.c`), and Laine, Karras and Aila (2013) name the cost of the alternative: one kernel
-  carrying every walk's record spilled 67 KB a lane on the integrated GPU and drew an 80x45 frame in 650 ms
-  (`research/2026-10-21-amd-integrated-stage-times.md`). Refused: one kernel under the register file,
-  which cannot reach it without dropping light; the walk's records in a buffer each turn, 16–48 KB
-  of traffic a pixel; every point's light stored for a composing pass, 8.5 GB at a 4K trace; a
-  wavefront with queues (Cycles), which pays for long divergent paths where a frame's are short and
-  fixed; an image a stage for the terms that share a channel.
+  carrying every walk's record spilled 67 KB a lane on the integrated GPU and drew an 80x45 frame in
+  650 ms (`research/2026-10-21-amd-integrated-stage-times.md`). Refused: one kernel under the
+  register file, which cannot reach it without dropping light; the walk's records in a buffer each
+  turn, 16–48 KB of traffic a pixel; every point's light stored for a composing pass, 8.5 GB at a 4K
+  trace; a wavefront with queues (Cycles), which pays for long divergent paths where a frame's are
+  short and fixed; an image a stage for the terms that share a channel.
 - **A stage's phases are loops of their own**: each loop keeps only its own walk's records live
   across its traversal, as Quake II RTX writes each stage as straight code around a trace helper
   (`path_tracer_rgen.h`). `visibility` peels one ray a turn and leaves with the hit, shading after
   the loop, and `panes` lights each layer and marches its column in loops of their own: a 480x270
-  frame at Seyda Neen went from 412 ms to under 46 (`research/2026-10-21-amd-integrated-stage-times.md`).
+  frame at Seyda Neen went from 412 ms to under 46
+  (`research/2026-10-21-amd-integrated-stage-times.md`).
   `media` takes the eye's ray, its column, the water's walk to its leg and the leg's march a loop
   each, the march keeping of the walk only the share its leg is weighed by: 256 registers and 37
   spilled scalars to 192 and none on the handheld, its zone 3.06 to 2.52 ms at `seyda-neen-ship`.
@@ -518,9 +521,9 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   it moves by its rounding; the direct stage's is the walk's to the bit.
 - **The bounce's landing a stage of its own, over the pixels that landed** (`landing.comp`):
   `bounce` stores the hit its ray met and lists the pixel (`appendLandings`), and writes what
-  arrived itself where the ray met nothing; `landing` runs over the list. On a high-end NVIDIA laptop GPU the
-  one kernel took 255 registers and kept 12 of 32 lanes busy; the two took 1.03 ms against 1.37, the
-  frame 3.7% less at the median, and drew the same pictures
+  arrived itself where the ray met nothing; `landing` runs over the list. On a high-end NVIDIA
+  laptop GPU the one kernel took 255 registers and kept 12 of 32 lanes busy; the two took 1.03 ms
+  against 1.37, the frame 3.7% less at the median, and drew the same pictures
   (`research/2026-10-21-nvidia-stage-costs.md`). Refused: the visit in the bounce's own loop; the
   landing over every pixel, 1.15 ms, whose warps waited out the visit for the lanes whose bounce
   escaped.
@@ -529,22 +532,22 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   solid's and its peel's state in the record, and lists its tile; `water` takes each pending peel
   up from there and walks the water, then lists the tile for `media` and `panes` off every pixel's
   record. One module, two kernels: the walk, compiled out of the trace, had held its registers for
-  every pixel, 192 on the handheld's RADV and 234–247 on the integrated GPU's driver against 128 and 112–128
-  without the sea. At `seyda-neen-ship` and its dawn, the trace and the water together took 11.9
-  and 12.0 ms of the handheld's 15.9 and 16.0, the frame 4.2 % and 3.8 % less, and 14.7 and 16.7 ms of
-  the integrated GPU's 22.3 and 25.5, the frame 5.3 % and 7.0 % less; the desk's frame did not move past its
-  noise, and no picture moved (`research/2026-11-02-water-stage.md`). Refused: the peel traced
-  again in `water`, which cost it a fifth more and the desk's frame 0.7 %; the split on AMD alone,
-  two builds of one kernel, which every stage refuses.
+  every pixel, 192 on the handheld's RADV and 234–247 on the integrated GPU's driver against 128 and
+  112–128 without the sea. At `seyda-neen-ship` and its dawn, the trace and the water together took
+  11.9 and 12.0 ms of the handheld's 15.9 and 16.0, the frame 4.2 % and 3.8 % less, and 14.7 and
+  16.7 ms of the integrated GPU's 22.3 and 25.5, the frame 5.3 % and 7.0 % less; the desk's frame
+  did not move past its noise, and no picture moved (`research/2026-11-02-water-stage.md`). Refused:
+  the peel traced again in `water`, which cost it a fifth more and the desk's frame 0.7 %; the split
+  on AMD alone, two builds of one kernel, which every stage refuses.
 - **The surface a pixel is the hit the trace stored**, resolved again by a stage with no traversal
   (`storeStageSolid`, `storedSolidOf`): the instance, the triangle and the barycentrics, with the
   ray's start, direction, footprint and distance, 48 bytes, as Falcor's visibility buffer keeps a
   hit (`HitInfo.slang`). The transforms come off the instance's row (`GpuInstance::mToWorld`,
   `mToObject`) and the corners off the scene's vertices, so every stage resolves the trace's surface
   to the bit. Refused: tracing the eye's ray again, which cost `direct` and `bounce` a quarter of a
-  frame on the integrated GPU; the resolved surface stored, as Quake II RTX keeps it, about 80 bytes a pixel
-  and every picture moved by its packing, for a few milliseconds more. `media` alone traces again,
-  over its tiles, for the water's walk it marches.
+  frame on the integrated GPU; the resolved surface stored, as Quake II RTX keeps it, about 80 bytes
+  a pixel and every picture moved by its packing, for a few milliseconds more. `media` alone traces
+  again, over its tiles, for the water's walk it marches.
 - **Every water pixel splits, on two checkerboard fields that each replace the surface**, as Quake
   II RTX's first water bounce does (`reflect_refract.rgen`): one field follows the mirror and the
   other the bed, each path carrying twice its Fresnel share, and the composite blends a split pixel

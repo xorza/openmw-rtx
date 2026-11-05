@@ -1,8 +1,8 @@
 # Instances per placed model, and what the top level costs — 2026-10-22
 
-A high-end NVIDIA laptop GPU, driver 615.78.08, Linux, release build at `956f8730c8`. Two readings that bound
-what one bottom level per template model, a geometry per shape, could give before a prototype is
-made of it.
+A high-end NVIDIA laptop GPU, driver 615.78.08, Linux, release build at `956f8730c8`. Two readings
+that bound what one bottom level per template model, a geometry per shape, could give before a
+prototype is made of it.
 
 **How many instances a placed model makes.** A temporary count in `CellPlacer`, over a bench of
 `vivec,balmora,seyda-neen-shore,ald-ruhn`: 983 held cells placed 291,137 instances for 88,034

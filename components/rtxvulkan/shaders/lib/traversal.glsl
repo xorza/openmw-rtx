@@ -789,8 +789,8 @@ float footprintOf(SceneQuery asked, SceneAnswer met)
 /// committed triangle's corners wrong — another triangle's along the ray, or a confirmed one's
 /// turned (`docs/rtx/research/2026-10-19-amd-windows-driver-faults.md`). Passing every
 /// triangle through the candidate loop for its candidate's corners, which read right, cost the bounce
-/// a tenth of its time on a low-end AMD integrated GPU (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`); and
-/// one read for every driver is one picture.
+/// a tenth of its time on a low-end AMD integrated GPU (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`);
+/// and one read for every driver is one picture.
 ///
 /// **Its transforms off the instance's row** (`GpuInstance::mToWorld`, `mToObject`), the top level's
 /// own and its inverse, and not off the query: a stage resolves a hit the trace stored with no query
