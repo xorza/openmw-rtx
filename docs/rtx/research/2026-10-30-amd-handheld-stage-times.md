@@ -4,7 +4,7 @@ An AMD handheld (RDNA 2, 8 CUs), RADV Mesa 26.2.0-devel
 (git-5c65d4fc31). The core clock held at
 1600 MHz through `pp_od_clk_voltage` (`s 0 1600`, `s 1 1600`, `power_dpm_force_performance_level`
 manual) under the default 15 W cap; 6144 MiB device-local heap. Vanilla Morrowind, the release
-flavour at `1a6fc11730`, `bench --window=false --size=1280x800` (853x533 traced, upscale quality)
+flavour at `ae6646e309`, `bench --window=false --size=1280x800` (853x533 traced, upscale quality)
 unless named. Zones are medians in ms.
 
 ## How the harness runs on the handheld

@@ -8,13 +8,13 @@ registers are `numUsedVgprs` of a 32-lane wave, scratch is `scratchMemUsageInByt
 
 | Tree | `direct` registers | `panes` scratch |
 |---|---|---|
-| `fcb72e6a39` | 256 | 480 |
-| without `65f2e7ddce` (full 32-lane subgroups) | 256 | 480 |
-| without `65f2e7ddce` and `a82db11d77` | 244 | 208 |
-| `fcb72e6a39`, the gather's `Gloss` and `RayAsk` again (`shading.glsl` before `a82db11d77`) | 239 | 496 |
-| `fcb72e6a39`, `TEXTURE_SLOTS` 8192 | 256 | 192 |
-| `fcb72e6a39`, `TEXTURE_SLOTS` 4096 | 256 | 192 |
-| `fcb72e6a39`, a candidate's edges read whatever its cone | 256 | 480 |
+| `e8721e33e0` | 256 | 480 |
+| without `27b41581c1` (full 32-lane subgroups) | 256 | 480 |
+| without `27b41581c1` and `d2b9c8112d` | 244 | 208 |
+| `e8721e33e0`, the gather's `Gloss` and `RayAsk` again (`shading.glsl` before `d2b9c8112d`) | 239 | 496 |
+| `e8721e33e0`, `TEXTURE_SLOTS` 8192 | 256 | 192 |
+| `e8721e33e0`, `TEXTURE_SLOTS` 4096 | 256 | 192 |
+| `e8721e33e0`, a candidate's edges read whatever its cone | 256 | 480 |
 
 - **`direct` rose with the gather that carries the lamp's draw and the glossy flag** in place of the
   ray and the `Gloss` record. It holds no scratch at 256, and 244 and 256 both leave four waves on a

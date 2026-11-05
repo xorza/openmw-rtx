@@ -2,7 +2,7 @@
 
 Target: the ray tracer's frame (the GPU's stages and passes, and the host's walk), on the desk (a
 high-end NVIDIA laptop GPU), an AMD handheld (RADV, its clock held) and a laptop with a low-end AMD
-integrated GPU (AMD's Windows driver). Started from `511ddd8d89`.
+integrated GPU (AMD's Windows driver). Started from `f361c9022c`.
 
 ## Hosts
 
@@ -28,7 +28,7 @@ integrated GPU (AMD's Windows driver). Started from `511ddd8d89`.
   ship, against the handheld's 3.3, 0.85, 0.75, 6.2 — 3.5 times the handheld's CPU. Under the GPU's 115 ms it costs no frame
   yet.
 
-## Numbers at the start (`511ddd8d89`)
+## Numbers at the start (`f361c9022c`)
 
 Handheld, median ms:
 

@@ -433,7 +433,7 @@ at the top, over all of them.
   bit of its weights differently on the same input, one half-float step at a few texels, while the
   queue keeps the card busy with no idle gap. Everything before the wavelet stays exact.
   `FrameHashes` reports a difference in a denoised composed frame beside the verdict, and `shot`
-  holds a denoised picture to within `sDenoiserNoiseLevels`. The evidence is in `6b3978a065`
+  holds a denoised picture to within `sDenoiserNoiseLevels`. The evidence is in `8deca8c8f7`
   (`.notes/denoiser-nondeterminism.md`).
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in

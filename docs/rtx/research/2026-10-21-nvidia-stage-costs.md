@@ -14,7 +14,7 @@ first table's session and to 102.1 and 102.3 ms in the later two.
 
 ## The stages against the launch they replaced
 
-Master at `562ad284a6` traced the frame as one ray generation launch with hit and miss shaders;
+Master at `7e8a71c5a2` traced the frame as one ray generation launch with hit and miss shaders;
 the stages as first merged, the bounce's landing visited inside `bounce`.
 
 | | master | stages |

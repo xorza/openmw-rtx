@@ -1,7 +1,7 @@
 # Where MyGUI 3.4.3 keeps a list's line height, and the interface's font size — 2026-10-31
 
 Read from the MyGUI 3.4.3 sources (tag `MyGUI3.4.3`, the version `CMakeLists.txt` requires),
-MyGUI's master at 2026-09-16, and the fork at `f876daae2d`. What
+MyGUI's master at 2026-09-16, and the fork at `ccd26efb99`. What
 `architecture.md`'s "A live scale and font size" builds on.
 
 ## A list's line height is fixed as the list is made
@@ -38,7 +38,7 @@ MyGUI's master at 2026-09-16, and the fork at `f876daae2d`. What
 
 ## Where the font size is read, and when
 
-At `f876daae2d`, `[GUI] font size` is read directly in 31 places:
+At `ccd26efb99`, `[GUI] font size` is read directly in 31 places:
 
 | reader | what it sizes | when |
 |---|---|---|
