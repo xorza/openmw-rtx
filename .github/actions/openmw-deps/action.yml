@@ -63,6 +63,6 @@ runs:
         key: ${{ inputs.ccache-key }}
         max-size: ${{ inputs.ccache-size }}
         # On master alone: a branch's copies would evict master's. The repository's cache limit is
-        # 20 GB, as every leg's newest caches take about 11 GB and a run saves before the old ones
-        # go. Past the free 10 GB it is billed, and with the budget spent every cache is read-only.
+        # the free 10 GB: past it storage is billed, and with the budget spent every cache is
+        # read-only.
         save: ${{ github.ref == 'refs/heads/master' }}
