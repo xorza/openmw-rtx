@@ -75,7 +75,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   help                         this page; no flavour
 
   flavour   directory       what it is
-  debug     build-debug     -O2 -g with every assert and the tests: the everyday build, and the default
+  debug     build-debug     -O2 -g1 with every assert and the tests: the everyday build, and the default
   release   build-release   -O3 -DNDEBUG, line tables and frame pointers: the build a number is quoted from
   asan      build-asan      debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
   tsan      build-tsan      debug under ThreadSanitizer; Linux only
