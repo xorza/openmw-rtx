@@ -267,9 +267,9 @@ namespace CrashTests
             {
                 // Frames, the watch off for longer than the limit, and on again a second before the
                 // next frame: a limit set again counts from then, and the quiet before it was no
-                // stall. **The second holds one tick of the monitor**, which wakes once a second, so
-                // a monitor that counted the quiet reports there; and it is under the limit, so one
-                // that counts from the limit's return does not.
+                // stall. **The second holds at least one tick of the monitor**, which wakes once a
+                // second, so a monitor that counted the quiet reports there; and it is under the limit,
+                // so one that counts from the limit's return does not.
                 stall(std::chrono::milliseconds(0));
                 Crash::setHangLimit(std::chrono::seconds(0));
                 std::this_thread::sleep_for(std::chrono::milliseconds(3500));
