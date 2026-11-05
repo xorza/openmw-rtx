@@ -682,6 +682,11 @@ namespace Crash
             }
             message += "\n\n";
 
+            // A ray tracer leans on the newest paths through the driver, and a crash an old driver
+            // causes is gone after an update, with no report filed.
+            message
+                += "An old graphics driver causes many of these. Update it and try again before you report this.\n\n";
+
             // **Said before the player is asked to share it**: a dump holds the game's memory, the
             // stacks and what they point to, and on Windows the process's whole environment, which
             // names the account and the computer; the log names the folders the game read. Nothing
