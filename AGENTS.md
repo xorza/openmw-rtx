@@ -31,7 +31,7 @@ What the tree, `--help` or a commit already answers does not belong here.
 - Tried, declined, and not to be proposed again:
   - opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts: no faster, and longer loading;
   - async compute (the next trace on a second queue beside this frame's reconstruction): 0.1–0.2 ms
-    gained (the branch `async` has the record);
+    gained;
   - hashed alpha (Wyman and McGuire 2017) for the soft edges, a cut fixed to the surface in place of
     one drawn each frame: a moving frame stayed noisier than its frames averaged under the
     upscaler's jitter, and the edges converged harder, with more fireflies (`cutAt`);
