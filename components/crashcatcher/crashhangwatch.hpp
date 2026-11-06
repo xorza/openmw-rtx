@@ -6,6 +6,27 @@
 
 namespace Crash
 {
+    /// **The limit the game set, and the pauses that stand, apart**: a pause that saved the limit and
+    /// put it back turned the watch on under another thread's pause that still stood, and off for good
+    /// where that one ended last, and undid a limit set while it stood. One owner's, whose lock it
+    /// stands under.
+    class HangLimit
+    {
+    public:
+        void set(std::uint32_t seconds) { mSeconds = seconds; }
+        void pause() { ++mPauses; }
+
+        /// False where no pause stands to resume.
+        bool resume();
+
+        /// What the monitor watches by: the limit, or nought while a pause stands.
+        std::uint32_t shown() const { return mPauses > 0 ? 0 : mSeconds; }
+
+    private:
+        std::uint32_t mSeconds = 0;
+        std::uint32_t mPauses = 0;
+    };
+
     /// What the monitor read of the game on one wake.
     struct HangWake
     {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -105,21 +106,26 @@ namespace Crash
     ///
     /// **One report at a time.** A hang request that landed between a report's saying what it is
     /// and its dump wrote over both, and a report the game then did not survive read as a hang, or
-    /// as a crash with no reason. Allocates nothing and locks nothing, so a signal handler may call
-    /// it.
+    /// as a crash with no reason. Allocates nothing and locks nothing.
     bool beginReport(ReportKind kind, std::string_view reason);
 
     /// Ends the report `beginReport` began, putting back the kind and the reason it found there.
     void endReport();
 
+    /// How long a report the process must not outlast is waited for: a dump of every thread is written
+    /// in about a second, and in a few under a sanitizer. The limit is for a report that cannot finish,
+    /// as one whose monitor died cannot on Windows, where Crashpad waits for the dump with no limit.
+    inline constexpr std::chrono::milliseconds sReportPatience{ 10'000 };
+
     /// Takes the table for a report the process does not outlive, `kind` for `reason`, once any
-    /// report another thread has in progress has ended, and refuses every request from then on. A
-    /// report the calling thread has in progress is taken over. A second call keeps the first's kind
-    /// and reason. Not for a signal handler that may have interrupted a report.
-    void finalReport(ReportKind kind, std::string_view reason);
+    /// report another thread has in progress has ended or `patience` has passed, and refuses every
+    /// request from then on. A report the calling thread has in progress is taken over. A second
+    /// call keeps the first's kind and reason. Not for a signal handler that may have interrupted a
+    /// report.
+    void finalReport(ReportKind kind, std::string_view reason, std::chrono::milliseconds patience = sReportPatience);
 
     /// Whether a report is being written, or the process is ending on one. Read by the tests and by
-    /// nothing else: what lets the crash matrix land a fault or a hang request inside a report.
+    /// nothing else: what lets the crash matrix land a fault inside a report.
     bool isReporting();
 
     /// What a fault finds at the gate.
@@ -151,8 +157,8 @@ namespace Crash
     /// executable and knows its layout.
     ///
     /// **The report's thread is `asked`, the one that faulted or asked for the dump, or for a hang
-    /// `drawing`, the one that draws, where it is known**: a hang's dump is asked for by whichever
-    /// thread took the monitor's request, and that thread is not the one that stopped.
+    /// `drawing`, the one that draws, where it is known**: a hang's dump is asked for by the reporter
+    /// thread, which is not the one that stopped.
     ///
     /// **`faulted` says the dump is of a fault the system raised, not one the process asked for**,
     /// and such a dump is a crash whatever the table says. A thread that faults while another's hang

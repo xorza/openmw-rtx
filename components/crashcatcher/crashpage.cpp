@@ -15,7 +15,7 @@ namespace Crash
 {
     namespace
     {
-        // Short, because macOS takes 31 characters of a shared memory name.
+        // Short, because a system may limit a shared memory name to 31 characters.
         std::string nameOf(std::uint32_t process)
         {
             return "openmw-crash-" + std::to_string(process);

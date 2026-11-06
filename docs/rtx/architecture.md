@@ -733,6 +733,12 @@ no device with the features — throws `Rtx::Unsupported`, which ends the start 
 failure does, and names what is missing. A device that refuses throws `Rtx::DeviceError`. A lost device or a wait that never
 ends crashes where it was found, so the crash report shows it.
 
+- **A hang report is taken on one thread of the game's own, up before any hang, which the process's end waits
+  for** (`takeHangReports`, `stopReporter`), on every system. Refused: a signal on POSIX and a thread the
+  monitor starts in the game on Windows, as Chromium does for a hung renderer. Each started a report at a moment
+  and on a thread nothing owned: a Windows game that ended during one freed Crashpad's lock under it, and the
+  new thread waited on a loader lock the stall could hold. The monitor only rings, through the shared page.
+
 ## Harness and tests
 
 `openmw-rtxtool` drives a real game headless: `info`, `scene`, `shot`, `view`, `bench`, `check`,

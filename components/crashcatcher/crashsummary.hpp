@@ -43,7 +43,7 @@ namespace Crash
         /// What the game said of itself: the version, the renderer, the device.
         std::vector<std::pair<std::string, std::string>> mAnnotations;
 
-        /// Where the dump is. Empty where none was written.
+        /// The dump's file, which the package holds. Empty where none was written.
         std::string mDump;
     };
 

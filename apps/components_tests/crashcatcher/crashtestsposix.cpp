@@ -1,6 +1,5 @@
 #include "crashtestssystem.hpp"
 
-#include <atomic>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
@@ -13,8 +12,8 @@
 #include <thread>
 #include <vector>
 
-#include <pthread.h>
 #include <spawn.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <components/crashcatcher/crash.hpp>
@@ -46,26 +45,15 @@ namespace CrashTests
 
     Raised raisedOnThisSystem()
     {
-#if defined(__APPLE__)
-        return Raised{
-            .mFault = { "EXC_BAD_ACCESS at 0x10" },
-            .mOverflow = { "EXC_BAD_ACCESS" },
-            .mIllegal = { "EXC_BAD_INSTRUCTION", "EXC_BREAKPOINT" },
-        };
-#else
         return Raised{
             .mFault = { "SIGSEGV at 0x10" },
             .mOverflow = { "SIGSEGV" },
             .mIllegal = { "SIGILL", "SIGTRAP" },
         };
-#endif
     }
 
     void addModesOfThisSystem(std::vector<Mode>& into, std::string_view crashed)
     {
-#if defined(__APPLE__)
-        into.push_back({ "abort", "Crash: ", { "EXC_CRASH", "SIGABRT" }, {}, true, crashed });
-#else
         into.push_back({ "abort", "Crash: ", { "SIGABRT" }, {}, true, crashed });
         // Under an AppImage's keeper: a crash, whose package the run outlasts; a termination the
         // keeper is sent and passes on; and a process from outside the image, which neither the
@@ -100,7 +88,9 @@ namespace CrashTests
             .mFollows = "crash-tests lived on",
             .mReports = false,
             .mKept = true });
-#endif
+        // **A fork that ends through `exit`**, which keeps the reporter's exit handler and not its thread:
+        // the handler has no report to wait out, and the child ends at once.
+        into.push_back({ "forked-child-exits", "", {}, "crash-tests lived on", false });
         // **A report folder that takes no report**, whose catcher refuses to start and says why:
         // one that Crashpad cannot open, and one that opens and takes no new report.
         into.push_back({ .mName = "folder-unopened",
@@ -115,8 +105,6 @@ namespace CrashTests
             .mFollows = "crash-tests lived on",
             .mReports = false,
             .mRefusal = "its report folder takes no new report" });
-        into.push_back({ "report-under-hang", "Report: crash-tests asked under a hang request", {},
-            "crash-tests lived on", true, ", which asked" });
         // **Stopped past the limit by somebody else**, as a shell's Ctrl+Z or a debugger stops it:
         // no frame for twice the limit, and no hang, because the game was not what stood still.
         into.push_back({ "stopped-past-limit", "", {}, "crash-tests lived on", false });
@@ -204,6 +192,23 @@ namespace CrashTests
             for (;;)
                 pause();
         }
+        if (mode == "forked-child-exits")
+        {
+            const auto forked = std::chrono::steady_clock::now();
+            const pid_t child = fork();
+            if (child < 0)
+                return 3;
+            if (child == 0)
+                std::exit(0);
+
+            int ended = 0;
+            if (waitpid(child, &ended, 0) != child || !WIFEXITED(ended) || WEXITSTATUS(ended) != 0)
+                return 3;
+            // Past the limit a real report gets, which is what a handler waiting on no thread waits.
+            if (std::chrono::steady_clock::now() - forked >= Crash::sReportPatience)
+                return 3;
+            return livedOn();
+        }
         if (mode == "stopped-past-limit")
         {
             for (int i = 0; i < 5; ++i)
@@ -227,47 +232,6 @@ namespace CrashTests
             {
                 Crash::heartbeat();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-            return livedOn();
-        }
-        if (mode == "report-under-hang")
-        {
-            // **One hang request, at the reporting thread, once its report is being written**: the
-            // request lands between the report saying what it is and its dump, which is where one
-            // wrote over both.
-            //
-            // **The report starts once the asker is waiting, and the asker stops once the report
-            // ended.** A report can be over in a few milliseconds, and a busy machine — the matrix
-            // runs every mode at once, beside the other suites — can keep the asker off the
-            // processor for all of them; an asker that waited for nothing else then waited forever.
-            // A run whose request did not land inside the report says so, and the matrix runs it
-            // again.
-            const pthread_t reporter = pthread_self();
-            std::atomic<bool> waiting{ false };
-            std::atomic<bool> ended{ false };
-            std::atomic<bool> landed{ false };
-            std::thread asker([&] {
-                waiting.store(true, std::memory_order_release);
-                while (!Crash::isReporting())
-                {
-                    if (ended.load(std::memory_order_acquire))
-                        return;
-                    std::this_thread::yield();
-                }
-                pthread_kill(reporter, SIGUSR2);
-                landed.store(Crash::isReporting(), std::memory_order_release);
-            });
-
-            while (!waiting.load(std::memory_order_acquire))
-                std::this_thread::yield();
-            Crash::report("crash-tests asked under a hang request");
-            ended.store(true, std::memory_order_release);
-            asker.join();
-
-            if (!landed.load(std::memory_order_acquire))
-            {
-                Log(Debug::Warning) << "crash-tests: the hang request missed the report";
-                return sInconclusive;
             }
             return livedOn();
         }

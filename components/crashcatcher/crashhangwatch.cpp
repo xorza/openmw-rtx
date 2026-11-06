@@ -14,6 +14,14 @@ namespace Crash
         }
     }
 
+    bool HangLimit::resume()
+    {
+        if (mPauses == 0)
+            return false;
+        --mPauses;
+        return true;
+    }
+
     HangWatch::HangWatch(std::chrono::steady_clock::time_point start)
         : mWoke(start)
     {

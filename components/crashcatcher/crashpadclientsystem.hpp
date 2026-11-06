@@ -3,15 +3,13 @@
 #include <filesystem>
 #include <string_view>
 
-#include "crashpage.hpp"
-
 namespace crashpad
 {
     class CrashpadClient;
 }
 
 /// **The game's side of the catcher that each system spells its own way**, in
-/// `crashpadclientposix.cpp` and `crashpadclientwin32.cpp`, and the three calls the shared half in
+/// `crashpadclientposix.cpp` and `crashpadclientwin32.cpp`, and the two calls the shared half in
 /// `crashpadclient.cpp` gives them back.
 namespace Crash::Client
 {
@@ -27,10 +25,8 @@ namespace Crash::Client
     /// monitor ends once its last client process has, whatever holds that process's handles.
     void keepConnectionToThisProcess();
 
-    /// Hooks every way this system ends a process that neither a fault nor `std::terminate` reaches,
-    /// and the way the monitor asks for a hang report, which `page` carries where the monitor needs
-    /// to be told it.
-    void hookEveryEnd(Heartbeat& page);
+    /// Hooks every way this system ends a process that neither a fault nor `std::terminate` reaches.
+    void hookEveryEnd();
 
     /// **What ends the process past every handler inside it**, handed to the system's own reporting
     /// where that has a way back to the monitor: on Windows, a fail-fast — a failed security check, a
@@ -41,10 +37,6 @@ namespace Crash::Client
 
     /// A crash for `reason`, taken here, whose dump is the stacks as they stand.
     [[noreturn]] void endAsCrash(std::string_view reason);
-
-    /// A hang report, asked for by the monitor, which knows how long the game stood still. The
-    /// shared half's, for the system's hook to call.
-    void reportHang();
 
     /// **`std::terminate`, with the exception that called it**, which the fault it ends in names
     /// nothing of. The shared half's, for a system whose runtime keeps the hook per thread.

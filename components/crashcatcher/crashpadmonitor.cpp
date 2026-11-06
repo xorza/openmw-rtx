@@ -5,9 +5,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
-#include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -30,28 +28,20 @@
 #include <client/crash_report_database.h>
 #include <handler/handler_main.h>
 #include <handler/user_stream_data_source.h>
-#include <minidump/minidump_user_extension_stream_data_source.h>
-#include <snapshot/cpu_context.h>
-#include <snapshot/exception_snapshot.h>
-#include <snapshot/memory_snapshot.h>
-#include <snapshot/module_snapshot.h>
-#include <snapshot/process_snapshot.h>
-#include <snapshot/thread_snapshot.h>
 #include <util/file/file_writer.h>
 #include <util/misc/uuid.h>
-#include <util/process/process_memory.h>
 
 #include <components/files/conversion.hpp>
-#include <components/platform/appendfile.hpp>
 #include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
-#include <components/platform/userhome.hpp>
 
 #include "crashhangwatch.hpp"
 #include "crashmonitorarguments.hpp"
+#include "crashmonitorlog.hpp"
 #include "crashnote.hpp"
 #include "crashpackage.hpp"
 #include "crashpadmonitorsystem.hpp"
+#include "crashpadsummarysource.hpp"
 #include "crashpage.hpp"
 #include "crashsummary.hpp"
 
@@ -59,13 +49,27 @@ namespace Crash
 {
     namespace
     {
-        /// What the last report of a session was, which an issue is filled in with: the summary the
-        /// public reads (`SummaryReaders::mPublic`).
-        struct LastReport
+        /// The game stood still for `mSeconds`, at the frame count `mStalledAt`, and had finished
+        /// `mReportsBefore` hang reports when the watch asked for one more, which an End waits for
+        /// until `mReportDue`.
+        struct AskToEnd
         {
-            std::string mTitle;
-            std::vector<std::string> mSummary;
+            std::uint32_t mSeconds;
+            std::uint64_t mStalledAt;
+            std::uint64_t mReportsBefore;
+            std::chrono::steady_clock::time_point mReportDue;
         };
+
+        /// Crashpad's handler returned `mResult`: the game is gone.
+        struct HandlerReturned
+        {
+            int mResult;
+        };
+
+        /// **What the main thread is asked to do, in order.** It is the one thread that shows a dialog,
+        /// which stands for as long as the player takes over it, so neither Crashpad's handler nor the
+        /// watch waits on a click. The handler runs on a worker and the watch asks here.
+        using Request = std::variant<AskToEnd, HandlerReturned>;
 
         /// What the game told the monitor on its command line, and what the monitor learnt since.
         struct MonitorState : MonitorArguments
@@ -74,89 +78,35 @@ namespace Crash
                 : MonitorArguments(std::move(arguments))
                 , mPage(SharedPage::open(mClient))
                 , mGame(mClient)
+                , mLog(mPage)
             {
             }
-
-            /// The game's log, which it hands over through the page once it knows it; empty before,
-            /// and where the page holds no path (`pathOf`).
-            std::filesystem::path getLog() const { return pathOf(mPage.getLogPath()); }
 
             /// Where the session's package goes: the folder the game handed over, or beside the
             /// dumps where it handed none or the page holds no path.
             std::filesystem::path getReportFolder() const
             {
-                const std::filesystem::path named = pathOf(mPage.getReportPath());
+                const std::filesystem::path named = MonitorLog::pathOf(mPage.getReportPath());
                 return named.empty() ? mDatabase : named;
-            }
-
-            /// `text`, bytes the game wrote into the page, as a path, or empty where the system reads
-            /// it as none: **a page a crash wrote over is the game's memory like any other**, and
-            /// Windows refuses bytes that are no UTF-8 with a throw, which on Crashpad's thread ended
-            /// the monitor with the dump unwritten.
-            static std::filesystem::path pathOf(const std::string& text)
-            {
-                try
-                {
-                    return Files::pathFromUnicodeString(text);
-                }
-                catch (const std::system_error&)
-                {
-                    return {};
-                }
             }
 
             SharedPage mPage;
             Monitor::GameProcess mGame;
+            MonitorLog mLog;
 
             /// How long the game stood still when the watch asked for a hang report.
             std::atomic<std::uint32_t> mStalledFor{ 0 };
 
-            /// Ends the watch once Crashpad's handler returns, set on the handler's worker. A flag and
-            /// not `std::stop_token`, which Apple's libc++ keeps behind its experimental switch.
+            /// Ends the watch once Crashpad's handler returns, set on the handler's worker.
             std::mutex mWatchMutex;
             std::condition_variable mWatchWake;
             bool mWatchEnds = false;
 
-            /// The watch and the summary both write to the log, and a line each is what it takes.
-            std::mutex mLogMutex;
-
-            /// Every dump of the session, which the package holds, and whether one was a crash: written on
-            /// Crashpad's thread, read on the one that ran it once the game is gone.
-            std::mutex mReportMutex;
-            std::vector<std::filesystem::path> mDumps;
-            bool mCrashed = false;
-
-            /// A crash is the last report of a session, and a hang the last of one the player ended.
-            /// Guarded as the dumps are.
-            LastReport mLastReport;
+            /// Every report of the session.
+            SessionReports mReports;
 
             /// Whether the player's End ended the game: written and read on the main thread.
             bool mEnded = false;
-
-            /// **What the main thread is asked to do, in order.** It is the one thread that shows a
-            /// dialog: on macOS a message box waits for the main dispatch queue, which Crashpad's
-            /// Mach loop never drains, so the watch's box would deadlock the monitor whenever the
-            /// handler held the main thread. The handler runs on a worker and the watch asks here.
-            struct Request
-            {
-                enum class Kind
-                {
-                    /// The game stood still for `mSeconds`, at the frame count `mStalledAt`, and had
-                    /// finished `mReportsBefore` hang reports when the watch asked for one more, which
-                    /// an End waits for until `mReportDue`.
-                    AskToEnd,
-
-                    /// Crashpad's handler returned `mResult`: the game is gone.
-                    HandlerReturned,
-                };
-
-                Kind mKind = Kind::AskToEnd;
-                std::uint32_t mSeconds = 0;
-                std::uint64_t mStalledAt = 0;
-                std::uint64_t mReportsBefore = 0;
-                std::chrono::steady_clock::time_point mReportDue{};
-                int mResult = 0;
-            };
 
             std::mutex mRequestMutex;
             std::condition_variable mRequestWake;
@@ -182,276 +132,6 @@ namespace Crash
             }
         };
 
-        std::string stamp()
-        {
-            const auto now = std::chrono::system_clock::now();
-            const std::tm local = Platform::localTime(std::chrono::system_clock::to_time_t(now)).value_or(std::tm{});
-            const auto milliseconds
-                = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
-            char text[32];
-            std::snprintf(text, sizeof(text), "[%02d:%02d:%02d.%03d E] ", local.tm_hour, local.tm_min, local.tm_sec,
-                static_cast<int>(milliseconds));
-            return text;
-        }
-
-        /// Appends `lines` to the game's log, stamped as the log stamps its own. The game holds the
-        /// file open, and shares its writing.
-        void appendToLog(MonitorState& monitor, const std::vector<std::string>& lines)
-        {
-            // Before the game has set its log up there is none, and a summary is in its dump alone.
-            const std::filesystem::path path = monitor.getLog();
-            if (path.empty())
-                return;
-
-            // **One write for the whole summary**, so a line the game logs meanwhile lands before it
-            // or after it and never between two of its lines.
-            const std::string at = stamp();
-            std::string block;
-            for (const std::string& line : lines)
-                block += at + line + '\n';
-
-            const std::lock_guard lock(monitor.mLogMutex);
-            Platform::AppendFile::open(path, false).write(block);
-        }
-
-        /// The module an address lies in, and the offset in it: "openmw.exe+0x112a9a7".
-        std::string locate(const std::vector<const crashpad::ModuleSnapshot*>& modules, std::uint64_t address)
-        {
-            for (const crashpad::ModuleSnapshot* module : modules)
-                if (address >= module->Address() && address - module->Address() < module->Size())
-                {
-                    const std::string path = module->Name();
-                    const std::size_t slash = path.find_last_of("/\\");
-                    return (slash == std::string::npos ? path : path.substr(slash + 1)) + "+"
-                        + hex(address - module->Address());
-                }
-
-            return {};
-        }
-
-        class Collect final : public crashpad::MemorySnapshot::Delegate
-        {
-        public:
-            explicit Collect(std::vector<std::uint8_t>& into)
-                : mInto(into)
-            {
-            }
-
-            bool MemorySnapshotDelegateRead(void* data, size_t size) override
-            {
-                const auto* const bytes = static_cast<const std::uint8_t*>(data);
-                mInto.assign(bytes, bytes + size);
-                return true;
-            }
-
-        private:
-            std::vector<std::uint8_t>& mInto;
-        };
-
-        /// Values on the faulting thread's stack, from its stack pointer up, that point into a
-        /// module: the return addresses among them, and some that only look like one.
-        void scanStack(const crashpad::ProcessSnapshot& snapshot, std::uint64_t thread,
-            const crashpad::CPUContext& context, std::vector<std::string>& into)
-        {
-            constexpr std::size_t sCandidates = 16;
-
-            for (const crashpad::ThreadSnapshot* one : snapshot.Threads())
-            {
-                const crashpad::MemorySnapshot* const stack = one->ThreadID() == thread ? one->Stack() : nullptr;
-                if (stack == nullptr)
-                    continue;
-
-                std::vector<std::uint8_t> bytes;
-                Collect collect(bytes);
-                if (!stack->Read(&collect))
-                    return;
-
-                const std::size_t word = context.Is64Bit() ? 8 : 4;
-                const std::uint64_t sp = context.StackPointer();
-                std::size_t at = sp >= stack->Address() && sp - stack->Address() < bytes.size()
-                    ? static_cast<std::size_t>(sp - stack->Address())
-                    : 0;
-                at -= at % word;
-
-                const std::vector<const crashpad::ModuleSnapshot*> modules = snapshot.Modules();
-                for (; at + word <= bytes.size() && into.size() < sCandidates; at += word)
-                {
-                    std::uint64_t value = 0;
-                    std::copy_n(bytes.data() + at, word, reinterpret_cast<std::uint8_t*>(&value));
-                    // A value spilled twice in a row is one address, and names one frame at most.
-                    if (std::string where = locate(modules, value);
-                        !where.empty() && (into.empty() || into.back() != where))
-                        into.push_back(std::move(where));
-                }
-                return;
-            }
-        }
-
-        /// The registers `thread` stood at as the snapshot was taken, or null where it holds no such
-        /// thread.
-        const crashpad::CPUContext* contextOf(const crashpad::ProcessSnapshot& snapshot, std::uint64_t thread)
-        {
-            for (const crashpad::ThreadSnapshot* one : snapshot.Threads())
-                if (one->ThreadID() == thread)
-                    return one->Context();
-            return nullptr;
-        }
-
-        class TextStream final : public crashpad::MinidumpUserExtensionStreamDataSource
-        {
-        public:
-            explicit TextStream(std::string text)
-                : MinidumpUserExtensionStreamDataSource(sSummaryStream)
-                , mText(std::move(text))
-            {
-            }
-
-            size_t StreamDataSize() override { return mText.size(); }
-
-            bool ReadStreamData(Delegate* delegate) override
-            {
-                return delegate->ExtensionStreamDataSourceRead(mText.data(), mText.size());
-            }
-
-        private:
-            std::string mText;
-        };
-
-        /// **The summary, written where the dump is**: Crashpad calls this with the snapshot the
-        /// dump is written from, in this process and not the crashed one, on every system alike.
-        class SummarySource final : public crashpad::UserStreamDataSource
-        {
-        public:
-            explicit SummarySource(MonitorState& monitor)
-                : mMonitor(monitor)
-            {
-            }
-
-            std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> ProduceStreamData(
-                crashpad::ProcessSnapshot* snapshot) override
-            {
-                crashpad::UUID report;
-                snapshot->ReportID(&report);
-                const std::filesystem::path dump
-                    = mMonitor.mDatabase / Monitor::dumpFolder() / (report.ToString() + ".dmp");
-
-                // **The dump is written whatever the summary comes to**: this runs inside Crashpad's
-                // handler, which a throw ends with the dump unwritten and the game left waiting on
-                // it, and the monitor that reports a crash must not become one. What went wrong
-                // stands where the summary would have.
-                CrashFacts facts;
-                std::string text;
-                std::string failure;
-                try
-                {
-                    text = describe(*snapshot, dump, facts);
-                }
-                catch (const std::exception& thrown)
-                {
-                    failure = thrown.what();
-                }
-                catch (...)
-                {
-                    failure = "an exception that is no std::exception";
-                }
-
-                // A report summarised in part is not left to an issue filled in with the report
-                // before it, and the public reads that it failed and not why, since an error's
-                // message names whatever path it was handed.
-                constexpr std::string_view unsummarised = "Crash: the monitor could not summarise this report";
-                if (!failure.empty())
-                {
-                    text = std::string(unsummarised) + ": " + failure;
-                    try
-                    {
-                        appendToLog(mMonitor, { text });
-                    }
-                    catch (...)
-                    {
-                        // The dump carries the line, which is where it is read once the log is not.
-                    }
-                    text += '\n';
-                }
-
-                {
-                    const std::lock_guard lock(mMonitor.mReportMutex);
-                    mMonitor.mDumps.push_back(dump);
-                    mMonitor.mCrashed = mMonitor.mCrashed || facts.mNotes.mKind == ReportKind::Crash;
-                    if (!failure.empty())
-                        mMonitor.mLastReport = LastReport{ std::string(unsummarised), { std::string(unsummarised) } };
-                }
-                return std::make_unique<TextStream>(std::move(text));
-            }
-
-        private:
-            /// Fills `facts` from `process`, appends the player's summary to the log, keeps the
-            /// public one for the issue, and answers the summary the dump carries.
-            std::string describe(
-                const crashpad::ProcessSnapshot& process, const std::filesystem::path& dump, CrashFacts& facts)
-            {
-                const crashpad::ExceptionSnapshot* const exception = process.Exception();
-                const std::uint64_t asked = exception != nullptr ? exception->ThreadID() : 0;
-                facts.mStalledFor = mMonitor.mStalledFor.load();
-                if (exception != nullptr)
-                    facts.mException = Monitor::describeException(*exception, mMonitor.mClient);
-
-                // The exception says what the dump is, and the table only what a dump asked for is:
-                // `describeException` names every fault and nothing the game asked for.
-                std::vector<std::byte> table(noteTable().size());
-                const crashpad::ProcessMemory* const memory = process.Memory();
-                const bool read = memory != nullptr && mMonitor.mNotes != 0
-                    && memory->Read(mMonitor.mNotes, table.size(), table.data());
-                Heartbeat* const page = mMonitor.mPage.get();
-                const std::uint64_t drawing = page != nullptr ? std::atomic_ref(page->mDrawing).load() : 0;
-                readNotes(read ? std::span<const std::byte>(table) : std::span<const std::byte>(), asked, drawing,
-                    !facts.mException.empty(), facts.mNotes);
-
-                // A hang's report is about the thread that draws, whose context is its own: the
-                // exception's is the thread's that took the monitor's request.
-                const std::uint64_t thread = facts.mNotes.mThread;
-                const crashpad::CPUContext* const context
-                    = exception != nullptr && thread == asked ? exception->Context() : contextOf(process, thread);
-                if (context != nullptr)
-                {
-                    facts.mWhere = locate(process.Modules(), context->InstructionPointer());
-                    scanStack(process, thread, *context, facts.mStack);
-                }
-
-                for (const auto& [key, value] : process.AnnotationsSimpleMap())
-                    facts.mAnnotations.emplace_back(key, value);
-                for (const crashpad::ModuleSnapshot* module : process.Modules())
-                    for (const auto& [key, value] : module->AnnotationsSimpleMap())
-                        facts.mAnnotations.emplace_back(key, value);
-
-                facts.mDump = Files::pathToUnicodeString(dump);
-
-                std::vector<std::string> lines;
-                summarise(facts, lines, SummaryReaders{});
-                appendToLog(mMonitor, lines);
-
-                const std::optional<std::filesystem::path> home = Platform::userHome();
-                const SummaryReaders anybody{
-                    .mPublic = true,
-                    .mHome = home.has_value() ? Files::pathToUnicodeString(*home) : std::string(),
-                };
-                std::vector<std::string> shared;
-                summarise(facts, shared, anybody);
-
-                LastReport last{ title(facts, anybody), std::move(shared) };
-                {
-                    const std::lock_guard lock(mMonitor.mReportMutex);
-                    mMonitor.mLastReport = std::move(last);
-                }
-
-                std::string text;
-                for (const std::string& line : lines)
-                    text += line + '\n';
-                return text;
-            }
-
-            MonitorState& mMonitor;
-        };
-
         /// Whether the watch has ended, which it does once the game is gone.
         bool watchEnded(MonitorState& monitor)
         {
@@ -459,14 +139,9 @@ namespace Crash
             return monitor.mWatchEnds;
         }
 
-        /// How long after the ask an End waits for the hang report the watch asked for. A dump of
-        /// every thread is written in about a second, and in a few under a sanitizer; the limit is
-        /// for a game whose report cannot finish, which the player's End must still end.
-        constexpr std::chrono::seconds sReportPatience{ 10 };
-
         /// Whether the game finished the hang report `request` asked for, or is gone, by the time
         /// the report is due.
-        bool awaitHangReport(MonitorState& monitor, const MonitorState::Request& request)
+        bool awaitHangReport(MonitorState& monitor, const AskToEnd& request)
         {
             while (std::atomic_ref(monitor.mPage.get()->mHangReports).load(std::memory_order_acquire)
                 <= request.mReportsBefore)
@@ -481,7 +156,7 @@ namespace Crash
         }
 
         /// Whether the player chose to end a game that stands still, as `request` says it does.
-        bool askToEnd(MonitorState& monitor, const MonitorState::Request& request)
+        bool askToEnd(MonitorState& monitor, const AskToEnd& request)
         {
             if (const EndAfter* const after = std::get_if<EndAfter>(&monitor.mAnswering))
             {
@@ -492,10 +167,14 @@ namespace Crash
                 return true;
             }
 
+            // Past a box that stood before this one, the game may have drawn again or gone.
+            if (watchEnded(monitor) || std::atomic_ref(monitor.mPage.get()->mFrames).load() != request.mStalledAt)
+                return false;
+
             const std::string message = monitor.mApplication + " has not drawn a frame for "
                 + std::to_string(request.mSeconds)
                 + " seconds. A report of what it is doing is being written; the log names it:\n"
-                + Files::pathToUnicodeString(monitor.getLog()) + "\n\nWait for it, or end it?";
+                + Files::pathToUnicodeString(monitor.mLog.path()) + "\n\nWait for it, or end it?";
             const std::array<SDL_MessageBoxButtonData, 2> buttons{ {
                 { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Wait" },
                 { 0, 1, "End" },
@@ -512,20 +191,20 @@ namespace Crash
         /// stands for as long as the player takes over it, and the game may have drawn again, or
         /// ended, in that time. **Not before the report the watch asked for is written**, which an
         /// End clicked while Crashpad still read the game would lose. Says in the log what it did.
-        void endIfStillStalled(MonitorState& monitor, const MonitorState::Request& request)
+        void endIfStillStalled(MonitorState& monitor, const AskToEnd& request)
         {
             const std::uint64_t stalledAt = request.mStalledAt;
             if (!watchEnded(monitor) && std::atomic_ref(monitor.mPage.get()->mFrames).load() == stalledAt
                 && !awaitHangReport(monitor, request))
-                appendToLog(monitor,
-                    { "Hang: the report did not finish in " + std::to_string(sReportPatience.count())
-                        + " seconds, and the game is ended without it" });
+                monitor.mLog.write({ "Hang: the report did not finish in "
+                    + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(sReportPatience).count())
+                    + " seconds, and the game is ended without it" });
 
             const bool ended = watchEnded(monitor);
 
             if (!ended && std::atomic_ref(monitor.mPage.get()->mFrames).load() != stalledAt)
             {
-                appendToLog(monitor, { "Hang: the game drew again before End was answered, and goes on" });
+                monitor.mLog.write({ "Hang: the game drew again before End was answered, and goes on" });
                 return;
             }
 
@@ -536,10 +215,10 @@ namespace Crash
                     monitor.mEnded = true;
                     return;
                 case Monitor::Ending::Gone:
-                    appendToLog(monitor, { "Hang: the game ended before End was answered, and nothing was ended" });
+                    monitor.mLog.write({ "Hang: the game ended before End was answered, and nothing was ended" });
                     return;
                 case Monitor::Ending::Failed:
-                    appendToLog(monitor, { "Hang: the monitor could not end the game" });
+                    monitor.mLog.write({ "Hang: the monitor could not end the game" });
                     return;
             }
         }
@@ -572,8 +251,7 @@ namespace Crash
                     = hangs.wake(HangWake{ .mNow = now, .mFrames = frames, .mLimitSeconds = limit, .mHeld = held });
 
                 if (const HangEnded* const ended = std::get_if<HangEnded>(&answer))
-                    appendToLog(
-                        monitor, { "Hang: frames again after " + std::to_string(ended->mSeconds) + " seconds" });
+                    monitor.mLog.write({ "Hang: frames again after " + std::to_string(ended->mSeconds) + " seconds" });
 
                 const HangFound* const found = std::get_if<HangFound>(&answer);
                 if (found == nullptr)
@@ -581,10 +259,9 @@ namespace Crash
 
                 monitor.mStalledFor = found->mSeconds;
                 const std::uint64_t reportsBefore = std::atomic_ref(page->mHangReports).load(std::memory_order_acquire);
-                monitor.mGame.requestHangReport(*page);
+                std::atomic_ref(page->mHangAsked).fetch_add(1, std::memory_order_release);
                 if (!std::holds_alternative<AskNobody>(monitor.mAnswering))
-                    monitor.post(MonitorState::Request{ .mKind = MonitorState::Request::Kind::AskToEnd,
-                        .mSeconds = found->mSeconds,
+                    monitor.post(AskToEnd{ .mSeconds = found->mSeconds,
                         .mStalledAt = found->mStalledAt,
                         .mReportsBefore = reportsBefore,
                         .mReportDue = now + sReportPatience });
@@ -604,7 +281,7 @@ namespace Crash
             const std::filesystem::path folder = monitor.getReportFolder();
             std::error_code made;
             std::filesystem::create_directories(folder, made);
-            const SessionPackage package = writeSessionPackage(folder, monitor.mApplication, monitor.getLog(), dumps,
+            const SessionPackage package = writeSessionPackage(folder, monitor.mApplication, monitor.mLog.path(), dumps,
                 Platform::localTime(std::time(nullptr)).value_or(std::tm{}));
 
             std::vector<std::string> lines;
@@ -619,7 +296,7 @@ namespace Crash
                 lines.push_back("Crash package: " + named);
                 std::cerr << monitor.mApplication << ": the crash report is " << named << '\n';
             }
-            appendToLog(monitor, lines);
+            monitor.mLog.write(lines);
             return package.mZip;
         }
 
@@ -644,7 +321,7 @@ namespace Crash
                 message += "A report is saved in\n";
                 for (const std::filesystem::path& dump : dumps)
                     message += Files::pathToUnicodeString(dump) + "\n";
-                message += "\nand the log says what happened:\n" + Files::pathToUnicodeString(monitor.getLog());
+                message += "\nand the log says what happened:\n" + Files::pathToUnicodeString(monitor.mLog.path());
             }
             message += "\n\n";
 
@@ -696,6 +373,29 @@ namespace Crash
             SDL_OpenURL(folderUrl(folder).c_str());
         }
 
+        /// The dumps of `ids`, each where Crashpad's database says it is, in the order they were written.
+        /// **Asked once the handler has ended**, since a dump moves as it is finished, and asked of
+        /// the database because where its folders are is Crashpad's own business.
+        std::vector<std::filesystem::path> findDumps(MonitorState& monitor, const std::vector<crashpad::UUID>& ids)
+        {
+            std::vector<std::filesystem::path> dumps;
+            if (ids.empty())
+                return dumps;
+
+            const std::unique_ptr<crashpad::CrashReportDatabase> database
+                = crashpad::CrashReportDatabase::InitializeWithoutCreating(base::FilePath(monitor.mDatabase.native()));
+            for (const crashpad::UUID& id : ids)
+            {
+                crashpad::CrashReportDatabase::Report report;
+                if (database != nullptr
+                    && database->LookUpCrashReport(id, &report) == crashpad::CrashReportDatabase::kNoError)
+                    dumps.emplace_back(report.file_path.value());
+                else
+                    monitor.mLog.write({ "Crash package: the database holds no report " + id.ToString() });
+            }
+            return dumps;
+        }
+
         /// **What a crash will meet**, asked through Crashpad's own database before its handler opens
         /// the same one: a report made in the folder a dump is written to, and dropped unfinished,
         /// which deletes it.
@@ -717,85 +417,94 @@ namespace Crash
         }
     }
 
+    namespace
+    {
+        /// The monitor's whole life, and what the process exits with. **A function that returns**, so
+        /// its parts end before `std::exit`, which runs no local's destructor and took the log's thread
+        /// with what it still held: the line that names the package, on Windows most of the time.
+        int runMonitor(int argc, char** argv)
+        {
+            std::vector<std::string> handler;
+            MonitorState monitor(MonitorArguments::read(Platform::Process::commandLine(argc, argv), handler));
+
+            // Before the handler, which ends at once on a database it cannot open, while the game would
+            // take a monitor that started for a catcher that works.
+            const MonitorAnswer answer = probeDatabase(monitor.mDatabase);
+            monitor.mPage.answerGame(answer);
+            if (answer != MonitorAnswer::Watching)
+                return EXIT_FAILURE;
+
+            crashpad::UserStreamDataSources sources;
+            sources.push_back(std::make_unique<SummarySource>(SummarySource::Parts{ .mArguments = monitor,
+                .mPage = monitor.mPage,
+                .mStalledFor = monitor.mStalledFor,
+                .mLog = monitor.mLog,
+                .mReports = monitor.mReports }));
+
+            std::vector<char*> handlerArgv;
+            for (std::string& argument : handler)
+                handlerArgv.push_back(argument.data());
+            handlerArgv.push_back(nullptr);
+
+            // The handler on a worker and the questions on this thread, `Request` says why.
+            std::thread watchdog([&] { watch(monitor); });
+            // The watch ends the moment the game is gone, so a question still standing then ends
+            // nothing (`endIfStillStalled`).
+            std::thread handlerThread([&] {
+                const int returned
+                    = crashpad::HandlerMain(static_cast<int>(handlerArgv.size() - 1), handlerArgv.data(), &sources);
+                {
+                    const std::lock_guard lock(monitor.mWatchMutex);
+                    monitor.mWatchEnds = true;
+                }
+                monitor.mWatchWake.notify_one();
+                monitor.post(HandlerReturned{ returned });
+            });
+
+            int result = 0;
+            for (;;)
+            {
+                const Request request = monitor.take();
+                if (const HandlerReturned* const returned = std::get_if<HandlerReturned>(&request))
+                {
+                    result = returned->mResult;
+                    break;
+                }
+                const AskToEnd& asked = std::get<AskToEnd>(request);
+                if (askToEnd(monitor, asked))
+                    endIfStillStalled(monitor, asked);
+            }
+
+            watchdog.join();
+            handlerThread.join();
+
+            const SessionReports::Taken session = monitor.mReports.take();
+            const std::vector<std::filesystem::path> dumps = findDumps(monitor, session.mIds);
+            // **An end no handler inside the game saw**: a fail-fast — a failed security check, a
+            // corrupted heap — ends the process past every filter, and leaves no dump where the
+            // system's reporting did not ask for one (`Client::catchPastTheProcess`). Its exit code is
+            // all there is to say what it was, where the system tells the monitor one.
+            if (dumps.empty())
+                if (const std::optional<std::uint32_t> code = monitor.mGame.exitCode(); code.has_value() && *code != 0)
+                    monitor.mLog.write(
+                        { "The game ended with " + Monitor::describeExitCode(*code) + " and left no dump" });
+
+            // Before the package, which holds the log.
+            monitor.mLog.flush();
+            const std::filesystem::path package = packageSession(monitor, dumps);
+
+            // Once the game is gone, so the box does not stand over a window that no longer draws.
+            if (std::holds_alternative<AskThePlayer>(monitor.mAnswering) && (session.mCrashed || monitor.mEnded)
+                && !dumps.empty())
+                tellPlayer(monitor, session.mCrashed, dumps, package, session.mLast);
+
+            return result;
+        }
+    }
+
     void runMonitorIfAsked(int argc, char** argv)
     {
-        if (std::none_of(argv, argv + argc, [](const char* one) { return std::string_view(one) == sMonitorSwitch; }))
-            return;
-
-        std::vector<std::string> handler;
-        MonitorState monitor(MonitorArguments::read(Platform::Process::commandLine(argc, argv), handler));
-
-        // Before the handler, which ends at once on a database it cannot open, while the game would
-        // take a monitor that started for a catcher that works.
-        const MonitorAnswer answer = probeDatabase(monitor.mDatabase);
-        monitor.mPage.answerGame(answer);
-        if (answer != MonitorAnswer::Watching)
-            std::exit(EXIT_FAILURE);
-
-        crashpad::UserStreamDataSources sources;
-        sources.push_back(std::make_unique<SummarySource>(monitor));
-
-        std::vector<char*> handlerArgv;
-        for (std::string& argument : handler)
-            handlerArgv.push_back(argument.data());
-        handlerArgv.push_back(nullptr);
-
-        // The handler on a worker and the questions on this thread, `MonitorState::Request` says why.
-        std::thread watchdog([&] { watch(monitor); });
-        // The watch ends the moment the game is gone, so a question still standing then ends
-        // nothing (`endIfStillStalled`).
-        std::thread handlerThread([&] {
-            const int returned
-                = crashpad::HandlerMain(static_cast<int>(handlerArgv.size() - 1), handlerArgv.data(), &sources);
-            {
-                const std::lock_guard lock(monitor.mWatchMutex);
-                monitor.mWatchEnds = true;
-            }
-            monitor.mWatchWake.notify_one();
-            monitor.post(
-                MonitorState::Request{ .mKind = MonitorState::Request::Kind::HandlerReturned, .mResult = returned });
-        });
-
-        int result = 0;
-        for (;;)
-        {
-            const MonitorState::Request request = monitor.take();
-            if (request.mKind == MonitorState::Request::Kind::HandlerReturned)
-            {
-                result = request.mResult;
-                break;
-            }
-            if (askToEnd(monitor, request))
-                endIfStillStalled(monitor, request);
-        }
-
-        watchdog.join();
-        handlerThread.join();
-
-        std::vector<std::filesystem::path> dumps;
-        bool crashed = false;
-        LastReport report;
-        {
-            const std::lock_guard lock(monitor.mReportMutex);
-            dumps = monitor.mDumps;
-            crashed = monitor.mCrashed;
-            report = monitor.mLastReport;
-        }
-        // **An end no handler inside the game saw**: a fail-fast — a failed security check, a
-        // corrupted heap — ends the process past every filter, and leaves no dump where the
-        // system's reporting did not ask for one (`Client::catchPastTheProcess`). Its exit code is
-        // all there is to say what it was, where the system tells the monitor one.
-        if (dumps.empty())
-            if (const std::optional<std::uint32_t> code = monitor.mGame.exitCode(); code.has_value() && *code != 0)
-                appendToLog(
-                    monitor, { "The game ended with " + Monitor::describeExitCode(*code) + " and left no dump" });
-
-        const std::filesystem::path package = packageSession(monitor, dumps);
-
-        // Once the game is gone, so the box does not stand over a window that no longer draws.
-        if (std::holds_alternative<AskThePlayer>(monitor.mAnswering) && (crashed || monitor.mEnded) && !dumps.empty())
-            tellPlayer(monitor, crashed, dumps, package, report);
-
-        std::exit(result);
+        if (std::any_of(argv, argv + argc, [](const char* one) { return std::string_view(one) == sMonitorSwitch; }))
+            std::exit(runMonitor(argc, argv));
     }
 }

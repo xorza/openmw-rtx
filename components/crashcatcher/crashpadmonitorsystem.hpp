@@ -3,11 +3,8 @@
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <string_view>
 
 #include <components/platform/uniquehold.hpp>
-
-#include "crashpage.hpp"
 
 namespace crashpad
 {
@@ -30,18 +27,13 @@ namespace Crash::Monitor
         Failed,
     };
 
-    /// The game itself, held from the monitor's start, so a hang request and an End reach the
-    /// process that started the monitor and never one that took its id after it ended: a pidfd on
-    /// Linux and a handle on Windows. macOS acts on the id.
+    /// The game itself, held from the monitor's start, so an End reaches the process that started
+    /// the monitor and never one that took its id after it ended: a pidfd on Linux and a handle on
+    /// Windows.
     class GameProcess
     {
     public:
         explicit GameProcess(std::uint32_t id);
-
-        /// Has the game write a hang report: a signal on POSIX, and on Windows, which has no signal
-        /// to take it on, a thread of the game's own started at the function `page` names, as a
-        /// debugger starts one; the game's frames are untouched.
-        void requestHangReport(Heartbeat& page) const;
 
         /// Ends the game, and says what that came to.
         Ending end() const;
@@ -75,7 +67,4 @@ namespace Crash::Monitor
 
     /// An exit code as the system names it, where it has a name, and in hex where it has none.
     std::string describeExitCode(std::uint32_t code);
-
-    /// The folder in Crashpad's database that each system's handler leaves a finished dump in.
-    std::string_view dumpFolder();
 }

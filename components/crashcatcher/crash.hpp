@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <string_view>
 
-/// **The crash catcher**, the same on every system Crashpad supports: Windows, Linux and macOS.
+/// **The crash catcher**, the same on Windows and Linux, the systems the fork builds it for.
 ///
 /// A monitor process, this same executable started with `--crash-monitor`, reads a crashed,
 /// hung or reporting game from outside: Crashpad writes a minidump of every thread, and the
@@ -56,7 +56,7 @@ namespace Crash
     /// thread and a summary, and the game continues. Nothing where no catcher is installed.
     ///
     /// **Kept with no caller in the game**, as `fatal`'s counterpart for what the game survives: the
-    /// path a hang report takes, which the crash matrix drives through this to put a fault and a
-    /// hang request under a report at a moment it chooses.
+    /// path a hang report takes, which the crash matrix drives through this to put a fault under a
+    /// report at a moment it chooses.
     void report(std::string_view reason);
 }

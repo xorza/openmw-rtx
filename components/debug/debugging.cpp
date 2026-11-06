@@ -519,8 +519,8 @@ namespace Debug
             else
             {
                 Log(Debug::Info) << "Crash reports go to " << settings.mReportFolder;
-                if (!installed.value().mWithout.empty())
-                    Log(Debug::Warning) << "The crash catcher goes without " << installed.value().mWithout;
+                for (const std::string_view without : installed.value().mWithout)
+                    Log(Debug::Warning) << "The crash catcher goes without " << without;
             }
         }
         if (!unkept.empty())

@@ -6,64 +6,26 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
-#include <limits>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include <snapshot/exception_snapshot.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "crashsummary.hpp"
 
-// Linux holds the game by a pidfd, which the C library has no wrapper for everywhere; macOS says
-// whether a process is stopped or traced through `sysctl`.
-#if defined(__linux__)
-#include <sys/syscall.h>
-#elif defined(__APPLE__)
-#include <sys/sysctl.h>
-#endif
-
 namespace Crash::Monitor
 {
-    namespace
-    {
-        bool send(std::uint32_t id, std::intptr_t hold, int number)
-        {
-            // **An id a process can have, or nothing sent**: as a `pid_t`, nought is the monitor's
-            // own process group and a number past the largest is negative, which `kill` reads as a
-            // group, or as every process of the user.
-            if (id == 0 || id > static_cast<std::uint32_t>(std::numeric_limits<pid_t>::max()))
-            {
-                errno = EINVAL;
-                return false;
-            }
-
-#if defined(__linux__) && defined(SYS_pidfd_send_signal)
-            // No descriptor is a kernel older than 5.3, where nothing is sent rather than something
-            // sent to whatever process has the id now.
-            (void)id;
-            if (hold < 0)
-            {
-                errno = EBADF;
-                return false;
-            }
-            return syscall(SYS_pidfd_send_signal, static_cast<int>(hold), number, nullptr, 0) == 0;
-#else
-            (void)hold;
-            return kill(static_cast<pid_t>(id), number) == 0;
-#endif
-        }
-    }
-
     GameProcess::GameProcess(std::uint32_t id)
         : mId(id)
     {
-#if defined(__linux__) && defined(SYS_pidfd_open)
+        // Through `syscall`, since the C library does not wrap a pidfd everywhere.
         mHold = Platform::UniqueHold<Closing>(syscall(SYS_pidfd_open, static_cast<pid_t>(id), 0));
-#endif
     }
 
     void GameProcess::Closing::close(const Handle hold) noexcept
@@ -71,14 +33,13 @@ namespace Crash::Monitor
         ::close(static_cast<int>(hold));
     }
 
-    void GameProcess::requestHangReport(Heartbeat&) const
-    {
-        send(mId, mHold.get(), SIGUSR2);
-    }
-
     Ending GameProcess::end() const
     {
-        if (send(mId, mHold.get(), SIGKILL))
+        // No descriptor is a kernel older than 5.3, where nothing is sent rather than something sent
+        // to whatever process has the id now.
+        if (mHold.get() < 0)
+            return Ending::Failed;
+        if (syscall(SYS_pidfd_send_signal, static_cast<int>(mHold.get()), SIGKILL, nullptr, 0) == 0)
             return Ending::Ended;
         return errno == ESRCH ? Ending::Gone : Ending::Failed;
     }
@@ -90,14 +51,6 @@ namespace Crash::Monitor
 
     bool GameProcess::isHeld() const
     {
-#if defined(__APPLE__)
-        int name[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, static_cast<int>(mId) };
-        kinfo_proc info{};
-        std::size_t size = sizeof(info);
-        if (sysctl(name, 4, &info, &size, nullptr, 0) != 0 || size == 0)
-            return false;
-        return (info.kp_proc.p_flag & P_TRACED) != 0 || info.kp_proc.p_stat == SSTOP;
-#else
         // The state follows the name in parentheses, which may hold anything, so after the last of
         // them: `T` stopped, `t` stopped by a tracer.
         const std::string folder = "/proc/" + std::to_string(mId);
@@ -114,7 +67,6 @@ namespace Crash::Monitor
             if (field.starts_with("TracerPid:"))
                 return std::strtol(field.c_str() + sizeof("TracerPid:") - 1, nullptr, 10) != 0;
         return false;
-#endif
     }
 
     std::string describeExitCode(std::uint32_t code)
@@ -125,26 +77,6 @@ namespace Crash::Monitor
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t process)
     {
         const std::uint32_t code = exception.Exception();
-#if defined(__APPLE__)
-        (void)process;
-
-        // `kMachExceptionSimulated`, 'CPsx'.
-        if (code == 0x43507378u)
-            return {};
-
-        static constexpr std::array<std::pair<std::uint32_t, std::string_view>, 6> sNames{ {
-            { 1, "EXC_BAD_ACCESS" },
-            { 2, "EXC_BAD_INSTRUCTION" },
-            { 3, "EXC_ARITHMETIC" },
-            { 6, "EXC_BREAKPOINT" },
-            { 10, "EXC_CRASH" },
-            { 12, "EXC_GUARD" },
-        } };
-        std::string text = nameOf(sNames, code, "Mach exception " + std::to_string(code));
-        if (code == 1)
-            text += " at " + hex(exception.ExceptionAddress());
-        return text;
-#else
         if (code == 0xFFFFFFFFu)
             return {};
 
@@ -171,11 +103,5 @@ namespace Crash::Monitor
         else if (code == SIGSEGV || code == SIGBUS)
             text += " at " + hex(exception.ExceptionAddress());
         return text;
-#endif
-    }
-
-    std::string_view dumpFolder()
-    {
-        return "pending";
     }
 }

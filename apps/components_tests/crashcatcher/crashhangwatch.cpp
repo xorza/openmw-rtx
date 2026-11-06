@@ -21,6 +21,31 @@ namespace
 
     constexpr Crash::HangQuiet sQuiet;
 
+    TEST(CrashHangLimitTest, overlappingPausesHoldTheWatchOffUntilTheLastEndsAndKeepALimitSetMeanwhile)
+    {
+        Crash::HangLimit limit;
+        EXPECT_EQ(limit.shown(), 0u) << "off until a limit is set";
+        limit.set(20);
+        EXPECT_EQ(limit.shown(), 20u);
+
+        limit.pause();
+        limit.pause();
+        EXPECT_EQ(limit.shown(), 0u);
+        limit.set(2);
+        EXPECT_EQ(limit.shown(), 0u) << "what was set is not shown under a pause";
+
+        EXPECT_TRUE(limit.resume());
+        EXPECT_EQ(limit.shown(), 0u) << "the first to end leaves the watch off under the other";
+        EXPECT_TRUE(limit.resume());
+        EXPECT_EQ(limit.shown(), 2u) << "the limit set meanwhile holds after the last";
+
+        EXPECT_FALSE(limit.resume()) << "no pause stands";
+        EXPECT_EQ(limit.shown(), 2u);
+
+        limit.set(0);
+        EXPECT_EQ(limit.shown(), 0u) << "nought turns it off";
+    }
+
     TEST(CrashHangWatchTest, aStallIsFoundAtTheLimitAfterTheWakeThatSawTheLastFrame)
     {
         // The frame is seen at 1 s, so the count is 1 s at 2 s and 2 s at 3 s.

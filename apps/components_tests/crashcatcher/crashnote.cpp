@@ -1,7 +1,10 @@
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <future>
 #include <latch>
 #include <span>
 #include <string>
@@ -330,5 +333,37 @@ namespace
         EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
 
         EXPECT_EQ(readAll().mKind, Crash::ReportKind::Crash) << "the report kind outlived its report";
+    }
+
+    /// **A report that never ends does not hold the last one.** Crashpad on Windows waits for a dump with
+    /// no limit, so a monitor that died during a report left `Crash::fatal` waiting for good. Its own
+    /// process, because the gate stays taken: past the wait, the table says this report and nothing else.
+    TEST(CrashNoteTest, aFinalReportGoesOnPastAReportThatNeverEnds)
+    {
+        EXPECT_EXIT(
+            {
+                std::promise<void> begun;
+                std::promise<void> released;
+                std::thread stuck([&] {
+                    Crash::beginReport(Crash::ReportKind::Report, "never ends");
+                    begun.set_value();
+                    released.get_future().wait();
+                    Crash::endReport();
+                });
+                begun.get_future().wait();
+
+                Crash::finalReport(Crash::ReportKind::Crash, "the last", std::chrono::milliseconds(1));
+
+                // The report that stood ends after all, and puts nothing back over this one.
+                released.set_value();
+                stuck.join();
+
+                Crash::NotesRead read;
+                Crash::readNotes(Crash::noteTable(), 0, 0, false, read);
+                const bool taken = read.mKind == Crash::ReportKind::Crash
+                    && std::string_view(read.mReason) == "the last" && !Crash::beginReport(Crash::ReportKind::Hang, {});
+                std::_Exit(taken ? 7 : 8);
+            },
+            ::testing::ExitedWithCode(7), "");
     }
 }

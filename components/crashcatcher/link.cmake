@@ -34,6 +34,7 @@ if (OPENMW_CRASHPAD)
     # What Crashpad defines for its own directory and its headers read: the files that include them
     # see what its library was built with.
     set_property(SOURCE crashcatcher/crashpadclient.cpp crashcatcher/crashpadmonitor.cpp
+        crashcatcher/crashpadsummarysource.cpp
         crashcatcher/crashpadclientposix.cpp crashcatcher/crashpadclientwin32.cpp
         crashcatcher/crashpadmonitorposix.cpp crashcatcher/crashpadmonitorwin32.cpp
         APPEND PROPERTY COMPILE_DEFINITIONS CRASHPAD_FLOCK_ALWAYS_SUPPORTED=1)

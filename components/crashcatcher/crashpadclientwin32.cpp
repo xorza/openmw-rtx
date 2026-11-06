@@ -1,6 +1,5 @@
 #include "crashpadclientsystem.hpp"
 
-#include <atomic>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
@@ -177,14 +176,6 @@ namespace Crash::Client
             return disabled;
         }
 
-        /// Where the monitor starts a thread of the game's own to ask for a hang report: Windows has
-        /// no signal to take it on.
-        DWORD WINAPI hangEntry(LPVOID)
-        {
-            reportHang();
-            return 0;
-        }
-
         /// **The terminate hook and the stack guarantee on every thread**, because MSVC's runtime
         /// keeps the hook per thread and a new one starts with the default, which aborts, and the
         /// guarantee is per thread too. The loader calls this in each thread it starts, before the
@@ -206,13 +197,12 @@ namespace Crash::Client
         guaranteeStack();
     }
 
-    void hookEveryEnd(Heartbeat& page)
+    void hookEveryEnd()
     {
         _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
         std::signal(SIGABRT, onAbort);
         _set_purecall_handler(onPureCall);
         _set_invalid_parameter_handler(onInvalidParameter);
-        std::atomic_ref(page.mHangEntry).store(reinterpret_cast<std::uint64_t>(&hangEntry), std::memory_order_release);
         crashpad::CrashpadClient::SetFirstChanceExceptionHandler(onFault);
     }
 

@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <initializer_list>
 #include <optional>
 #include <string>
@@ -13,8 +14,11 @@
 
 #include <components/crashcatcher/crashanswering.hpp>
 #include <components/crashcatcher/crashmonitorarguments.hpp>
+#include <components/crashcatcher/crashmonitorlog.hpp>
 #include <components/crashcatcher/crashpage.hpp>
+#include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
+#include <components/testing/util.hpp>
 
 namespace
 {
@@ -135,8 +139,8 @@ namespace
         EXPECT_EQ(std::atomic_ref(monitor.get()->mFrames).load(), 5u);
         EXPECT_EQ(std::atomic_ref(monitor.get()->mHangSeconds).load(), 20u);
 
-        std::atomic_ref(monitor.get()->mHangEntry).store(0x1234);
-        EXPECT_EQ(std::atomic_ref(game.get()->mHangEntry).load(), 0x1234u);
+        std::atomic_ref(monitor.get()->mHangAsked).fetch_add(1);
+        EXPECT_EQ(std::atomic_ref(game.get()->mHangAsked).load(), 1u) << "the monitor's ask reaches the game";
 
         // **The game waits for the monitor's answer, not for its opening**: the page opened above,
         // and a game that waited a millisecond still has none. Each answer then ends the wait at
@@ -171,5 +175,62 @@ namespace
         EXPECT_EQ(monitor.getReportPath(), folder);
 
         EXPECT_EQ(Crash::SharedPage::open(id + 2).get(), nullptr);
+    }
+
+    /// What the monitor adds lands in the game's log, in the order written, stamped as the log stamps a
+    /// line, by the time a flush returns; and nothing is kept for a log the game has not handed over.
+    TEST(CrashMonitorLogTest, entriesLandInOrderOnceAFlushReturnsAndNoneWithoutALog)
+    {
+        // As `theGameAndItsMonitorShareOnePageByTheGamesId` has it, and apart from that test's.
+        const std::uint32_t id = 0x80000003u + Platform::Process::currentId();
+        const Crash::SharedPage game = Crash::SharedPage::create(id);
+        ASSERT_NE(game.get(), nullptr);
+        const std::filesystem::path log = TestingOpenMW::outputDirPath("crash-monitor-log.txt");
+        std::filesystem::remove(log);
+
+        Crash::MonitorLog monitor(game);
+        monitor.write({ "before the log" });
+        monitor.flush();
+        EXPECT_FALSE(std::filesystem::exists(log));
+
+        ASSERT_TRUE(game.setLogPath(Files::pathToUnicodeString(log)));
+        EXPECT_EQ(monitor.path(), log);
+        monitor.write({ "Crash: first", "Crash: second" });
+        monitor.write({ "Hang: third" });
+        monitor.flush();
+
+        std::ifstream file(log);
+        std::vector<std::string> said;
+        for (std::string line; std::getline(file, line);)
+        {
+            ASSERT_GT(line.size(), 15u);
+            EXPECT_EQ(line.substr(0, 1), "[");
+            EXPECT_EQ(line.substr(13, 3), " E]");
+            said.push_back(line.substr(17));
+        }
+        EXPECT_EQ(said, (std::vector<std::string>{ "Crash: first", "Crash: second", "Hang: third" }));
+    }
+
+    /// **The log's end writes what still waits**, with no flush: the monitor's last line names the
+    /// package, and a thread that went with the process lost it.
+    TEST(CrashMonitorLogTest, whatWaitsIsWrittenAsTheLogEnds)
+    {
+        const std::uint32_t id = 0x80000005u + Platform::Process::currentId();
+        const Crash::SharedPage game = Crash::SharedPage::create(id);
+        ASSERT_NE(game.get(), nullptr);
+        const std::filesystem::path log = TestingOpenMW::outputDirPath("crash-monitor-log-end.txt");
+        std::filesystem::remove(log);
+        ASSERT_TRUE(game.setLogPath(Files::pathToUnicodeString(log)));
+
+        {
+            Crash::MonitorLog monitor(game);
+            monitor.write({ "Crash package: the last line" });
+        }
+
+        std::ifstream file(log);
+        std::string line;
+        ASSERT_TRUE(std::getline(file, line));
+        EXPECT_EQ(line.substr(17), "Crash package: the last line");
+        EXPECT_FALSE(std::getline(file, line)) << "one line, one write";
     }
 }

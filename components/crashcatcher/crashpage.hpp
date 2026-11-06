@@ -48,9 +48,8 @@ namespace Crash
         /// How long unchanged is a hang, in seconds; nought turns the check off.
         alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mHangSeconds;
 
-        /// Windows only: the function the monitor starts in the game to have it report a hang,
-        /// where a POSIX monitor sends a signal instead.
-        alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mHangEntry;
+        /// Hang reports the monitor has asked for, which the game's reporter thread reads.
+        alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mHangAsked;
 
         /// Hang reports the game has finished writing: counted once a report the monitor asked for
         /// is on disk, which is what the monitor's End waits for before it ends the game, or the

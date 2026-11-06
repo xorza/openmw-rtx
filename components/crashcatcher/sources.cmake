@@ -4,6 +4,7 @@ add_component_dir (crashcatcher
     crashhangwatch
     crashinstall
     crashmonitorarguments
+    crashmonitorlog
     crashnote
     crashpackage
     crashpage
@@ -24,6 +25,7 @@ if (OPENMW_CRASHPAD)
         crashpadclientsystem
         crashpadmonitor
         crashpadmonitorsystem
+        crashpadsummarysource
     )
     if (WIN32)
         add_component_dir (crashcatcher crashpadclientwin32 crashpadmonitorwin32)

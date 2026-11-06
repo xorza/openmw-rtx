@@ -1,10 +1,10 @@
 #include "crashpadmonitorsystem.hpp"
 
 #include <array>
-#include <atomic>
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -44,9 +44,8 @@ namespace Crash::Monitor
     GameProcess::GameProcess(std::uint32_t id)
         : mId(id)
     {
-        const HANDLE handle = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION
-                | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_TERMINATE | SYNCHRONIZE,
-            FALSE, static_cast<DWORD>(id));
+        const HANDLE handle
+            = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, FALSE, static_cast<DWORD>(id));
         if (handle != nullptr)
             mHold = Platform::UniqueHold<Closing>(reinterpret_cast<std::intptr_t>(handle));
     }
@@ -54,18 +53,6 @@ namespace Crash::Monitor
     void GameProcess::Closing::close(const Handle hold) noexcept
     {
         CloseHandle(reinterpret_cast<HANDLE>(hold));
-    }
-
-    void GameProcess::requestHangReport(Heartbeat& page) const
-    {
-        const HANDLE handle = handleOf(mHold.get());
-        const auto entry = std::atomic_ref(page.mHangEntry).load();
-        if (handle == nullptr || entry == 0)
-            return;
-
-        if (const HANDLE thread = CreateRemoteThread(
-                handle, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(entry), nullptr, 0, nullptr))
-            CloseHandle(thread);
     }
 
     Ending GameProcess::end() const
@@ -114,10 +101,5 @@ namespace Crash::Monitor
                                               : " executing ")
                 + hex(codes[1]);
         return text;
-    }
-
-    std::string_view dumpFolder()
-    {
-        return "reports";
     }
 }

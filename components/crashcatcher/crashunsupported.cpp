@@ -27,11 +27,6 @@ namespace Crash
 
     void setHangLimit(std::chrono::seconds) {}
 
-    std::chrono::seconds getHangLimit()
-    {
-        return std::chrono::seconds(0);
-    }
-
     HangPause::HangPause() = default;
 
     HangPause::~HangPause() = default;

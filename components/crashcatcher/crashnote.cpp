@@ -50,6 +50,10 @@ namespace Crash
         {
             Idle,
             Busy,
+
+            /// A report's end, putting back what it found: a moment no other thread waits out by a limit.
+            Closing,
+
             Ending,
         };
 
@@ -206,32 +210,40 @@ namespace Crash
 
     void endReport()
     {
+        // **A report a final one took over puts nothing back**: that one's kind and reason are the
+        // table's now, and the dump being written reads them.
+        std::uint32_t found = Busy;
+        if (!sGate.compare_exchange_strong(found, Closing, std::memory_order_acq_rel))
+        {
+            assert(found == Ending && "a report ended that nothing began");
+            return;
+        }
+
         std::memcpy(sTable.mReason, sSavedReason, sNoteCapacity);
         Sequence(sTable.mKind).store(sSavedKind, std::memory_order_release);
         sReporter.store(0, std::memory_order_release);
-
-        std::uint32_t busy = Busy;
-        [[maybe_unused]] const bool ended = sGate.compare_exchange_strong(busy, Idle, std::memory_order_acq_rel);
-        assert(ended && "a report ended that nothing began");
+        sGate.store(Idle, std::memory_order_release);
     }
 
-    void finalReport(ReportKind kind, std::string_view reason)
+    void finalReport(ReportKind kind, std::string_view reason, const std::chrono::milliseconds patience)
     {
         // Waited for rather than refused: the report in progress is another thread's and ends by
         // itself, and this one is the last the process writes. **Taken over where it is this
         // thread's own**, which nothing would end while this thread waits: a fatal error on the
-        // thread a report is being written from.
+        // thread a report is being written from. **And where the wait runs out**, where a wait with no
+        // limit left a fatal error standing for good behind a report whose monitor had died: that
+        // report puts nothing back should it end after all (`endReport`).
         const std::uint64_t self = Platform::Process::currentThreadId();
+        const auto due = std::chrono::steady_clock::now() + patience;
         for (std::uint32_t found = Idle; !sGate.compare_exchange_weak(found, Ending, std::memory_order_acq_rel);
              found = Idle)
         {
             if (found == Ending)
                 return;
-            if (sReporter.load(std::memory_order_acquire) == self)
-            {
-                sGate.store(Ending, std::memory_order_release);
+            if (found == Busy
+                && (sReporter.load(std::memory_order_acquire) == self || std::chrono::steady_clock::now() >= due)
+                && sGate.compare_exchange_strong(found, Ending, std::memory_order_acq_rel))
                 break;
-            }
             std::this_thread::yield();
         }
 

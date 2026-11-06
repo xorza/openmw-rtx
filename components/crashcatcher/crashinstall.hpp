@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <components/misc/result.hpp>
 
@@ -29,11 +30,10 @@ namespace Crash
         std::string mIssues;
     };
 
-    /// What a started catcher goes without, said for the log: nothing, or what it could not hook and
-    /// why.
+    /// What a started catcher goes without, said for the log: each thing it could not hook and why.
     struct Installed
     {
-        std::string_view mWithout;
+        std::vector<std::string_view> mWithout;
     };
 
     /// Runs the monitor and ends the process, where this process was started as one; returns
@@ -71,10 +71,6 @@ namespace Crash
     /// begins at the first heartbeat, so a start that draws nothing for a while is no hang. A limit
     /// set while a `HangPause` stands takes effect as the last one ends.
     void setHangLimit(std::chrono::seconds limit);
-
-    /// What `setHangLimit` last set, whether or not a `HangPause` stands; nought where no catcher is
-    /// installed.
-    std::chrono::seconds getHangLimit();
 
     /// A stretch the thread that draws spends drawing nothing by design — a wait for work it chose
     /// to have whole before its next frame — and so no hang: the watch is off while any one stands,

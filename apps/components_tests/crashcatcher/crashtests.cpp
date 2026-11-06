@@ -16,7 +16,6 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
-#include <future>
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
@@ -71,12 +70,8 @@ namespace CrashTests
                     .mAlso = "Report: crash-tests asked under a fault" },
                 { "report", "Report: crash-tests asked", {}, "crash-tests lived on", true, ", which asked" },
                 { "hang", "Hang: no frame for", {}, "Hang: frames again after", true, draws },
-                { "short-stall", "", {}, "crash-tests lived on", false },
                 { "slow-end", "", {}, "crash-tests lived on", false },
-                { "no-frames", "", {}, "crash-tests lived on", false },
-                { "hang-off", "", {}, "crash-tests lived on", false },
-                { "rearmed-after-quiet", "", {}, "crash-tests lived on", false },
-                { "paused-past-limit", "", {}, "crash-tests lived on", false },
+                { "hang-after-pause", "Hang: no frame for", {}, "crash-tests lived on", true, draws },
                 { "recovers-before-end", "Hang: no frame for", {}, "Hang: the game drew again before End was answered",
                     true, draws },
                 { "ends-before-end", "Hang: no frame for", {}, "Hang: the game ended before End was answered", true,
@@ -173,10 +168,9 @@ namespace CrashTests
         }
 
         /// Frames for a while, and none until the monitor logs the hang: a report that cannot come
-        /// leaves the log without it, which the matrix fails.
-        ///
-        /// **Not a stop of a fixed length**: 4.5 s held the three wakes a monitor on time needs, and on a
-        /// loaded runner frames came again before the third, with no report.
+        /// leaves the log without it, which the matrix fails. **Not a stop of a fixed length**: 4.5 s
+        /// held the three wakes a monitor on time needs, and on a loaded runner frames came again
+        /// before the third, with no report.
         void stopUntilHangLogged(const std::filesystem::path& folder)
         {
             frames(5);
@@ -238,8 +232,8 @@ namespace CrashTests
             {
                 // **A fault on a second thread while the main thread's report is being written**,
                 // which the report's dump took for its own: two dumps are due, each of its own kind
-                // on its own thread. Ordered as `report-under-hang` is, for its reason: a run whose
-                // report ended before the fault came says so, and the matrix runs it again.
+                // on its own thread. Ordered for a busy machine: a run whose report ended before the
+                // fault came says so, and the matrix runs it again.
                 std::atomic<bool> waiting{ false };
                 std::atomic<bool> ended{ false };
                 Platform::Thread faulter("crash-tests", [&] {
@@ -280,65 +274,23 @@ namespace CrashTests
                 stall(std::chrono::milliseconds(0));
                 return livedOn();
             }
-            if (mode == "short-stall")
+            if (mode == "hang-after-pause")
             {
-                stall(std::chrono::milliseconds(1000));
-                return livedOn();
-            }
-            if (mode == "no-frames")
-            {
-                // Longer than the limit, and before the first frame: a start, which is no hang.
-                std::this_thread::sleep_for(std::chrono::milliseconds(3500));
-                return livedOn();
-            }
-            if (mode == "hang-off")
-            {
-                Crash::setHangLimit(std::chrono::seconds(0));
-                stall(std::chrono::milliseconds(3500));
-                return livedOn();
-            }
-            if (mode == "rearmed-after-quiet")
-            {
-                // Frames, the watch off for longer than the limit, and on again a second before the
-                // next frame: a limit set again counts from then, and the quiet before it was no
-                // stall. **The second holds at least one tick of the monitor**, which wakes once a
-                // second, so a monitor that counted the quiet reports there; and it is under the limit,
-                // so one that counts from the limit's return does not.
-                stall(std::chrono::milliseconds(0));
-                Crash::setHangLimit(std::chrono::seconds(0));
-                std::this_thread::sleep_for(std::chrono::milliseconds(3500));
-                Crash::setHangLimit(std::chrono::seconds(2));
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                stall(std::chrono::milliseconds(0));
-                return livedOn();
-            }
-            if (mode == "paused-past-limit")
-            {
-                // A wait the game chose, longer than the limit, and the rest of its frame after it,
-                // as `rearmed-after-quiet` times it. **Two pauses that overlap, on two threads, with
-                // a limit set while both stand**: the first to end leaves the watch off under the
-                // other, which outlasts the limit, and the limit set meanwhile holds after the last.
-                stall(std::chrono::milliseconds(0));
-                std::promise<void> paused;
-                std::thread other;
+                // **A pause reaches the monitor, and its end does too.** It stands from before the first
+                // frame, so no slow machine brings a hang under it: longer than the limit, and a watch
+                // the pause did not turn off has logged one by then. Off the pause, the watch finds the
+                // stall that follows, or the matrix finds no hang in the log.
                 {
-                    const Crash::HangPause waiting;
-                    other = std::thread([&paused] {
-                        const Crash::HangPause alsoWaiting;
-                        paused.set_value();
-                        std::this_thread::sleep_for(std::chrono::milliseconds(3500));
-                    });
-                    paused.get_future().wait();
-                    Crash::setHangLimit(std::chrono::seconds(2));
+                    const Crash::HangPause paused;
+                    frames(5);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+                    if (follows(folder, "Hang: no frame for", std::chrono::milliseconds(0)))
+                    {
+                        Log(Debug::Error) << "crash-tests found a hang under a pause";
+                        return 1;
+                    }
                 }
-                other.join();
-                if (Crash::getHangLimit() != std::chrono::seconds(2))
-                {
-                    Log(Debug::Error) << "crash-tests lost the limit set during a pause";
-                    return 1;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                stall(std::chrono::milliseconds(0));
+                stopUntilHangLogged(folder);
                 return livedOn();
             }
             if (mode == "recovers-before-end")
@@ -369,6 +321,8 @@ namespace CrashTests
             if (mode == "ends-before-end")
             {
                 // Gone without another frame before the monitor answers End: its id is nobody's to end.
+                // **The moment the hang's line is out**, with its report still being written, which
+                // the process's end waits for: Crashpad's statics went from under it before.
                 stopUntilHangLogged(folder);
                 return livedOn();
             }

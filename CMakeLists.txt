@@ -64,8 +64,9 @@ option(BUILD_NAVMESHTOOL        "Build navmesh tool" ON)
 option(BUILD_BULLETOBJECTTOOL   "Build Bullet object tool" ON)
 option(BUILD_OPENCS_TESTS       "Build OpenMW Construction Set tests" OFF)
 option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
-# Crashpad runs on every system but FreeBSD, which has no crash catcher and says so in its log.
-if (WIN32 OR APPLE OR (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID))
+# Crashpad on the systems the fork builds and tests: any other has no crash catcher, and says so in
+# its log.
+if (WIN32 OR (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID))
     set(OPENMW_CRASHPAD_DEFAULT ON)
 else()
     set(OPENMW_CRASHPAD_DEFAULT OFF)
