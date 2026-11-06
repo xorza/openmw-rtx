@@ -395,6 +395,10 @@ at the top, over all of them.
   (`Skylight::mSurfaceAmbient`). The stage stays, for the channels every pass after it reads and a split
   pixel's lift. A glossy surface then reflects only its lamps, since its reflection is the bounce. Refused: a
   brightness matched to two or three bounces, which is almost no ambient at all.
+- **One wavelet level where no bounce is traced** (`AtrousPass::record`): a flat ambient under one occlusion ray
+  needs what the first level does, the accumulator's feedback and its history fix, and none of the rest. It saves
+  0.3 to 0.75 ms and moves the frame's noise by 0.02 at most at a still place. Refused: no level, about 0.2 ms more
+  and up to twice the noise after a cut, with no history fix (`research/2026-11-05-room-ambient.md`).
 - **A room's record is not its light where a bounce is traced**: a landing takes a quarter of the
   ambient and a fifth of the sunlight, a surface with no bounce a twentieth of both
   (`research/2026-11-05-room-ambient.md`). At the whole record a room with few lamps showed no shape, and

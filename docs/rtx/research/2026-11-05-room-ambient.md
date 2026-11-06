@@ -223,6 +223,30 @@ stand: the median pixel and the mean.
 what the runs disagree by. `noise` over ten places: as clean, and bias at sixteen averaged 0.41 to 0.43 and 0.67 to
 0.72 in the guild, 0.88 to 0.94 and 0.93 to 1.07 in `addamasartus`. So 8 stays.
 
+## The wavelet's levels with no bounce traced
+
+`--indirect=false`, four levels, one and none, the frame's median in ms of two 6 s benches, and the frame's mean
+noise over `noise --cut=4` and still. No level copied the accumulator's blend over its history.
+
+| place | four | one | none |
+|---|---|---|---|
+| `seyda-neen-ship` | 5.45 | 4.82 | 4.77 |
+| `balmora-mages-guild` | 4.43 | 4.10 | 3.55 |
+| `vivec-canalworks` | 4.05 | 3.51 | 3.16 |
+| `akulakhan-chamber` | 3.39 | 2.77 | 2.58 |
+| PBR, `seyda-neen-ship` | 6.05 | 5.49 | 5.29 |
+| PBR, `balmora-mages-guild` | 5.36 | 4.65 | 4.42 |
+| PBR, `vivec-canalworks` | 4.84 | 4.09 | 3.87 |
+| PBR, `akulakhan-chamber` | 4.02 | 3.39 | 3.15 |
+
+| place, frame noise | still, four | one | none | after a cut, four | one | none |
+|---|---|---|---|---|---|---|
+| `vivec-canalworks` | 0.66 | 0.67 | 0.78 | 0.93 | 1.07 | 2.23 |
+| `balmora-mages-guild` | 0.73 | 0.73 | 0.75 | 1.50 | 1.53 | 1.81 |
+| `ahemmusa-yurt` | 0.79 | 0.80 | 0.95 | 2.08 | 2.18 | 3.11 |
+| `seyda-neen-ship` | 0.93 | 0.95 | 1.22 | 2.34 | 2.58 | 4.11 |
+| `balmora` | 0.70 | 0.71 | 0.93 | 1.34 | 1.53 | 2.98 |
+
 ## The ceiling
 
 `EXPOSURE_MAX` from 35 to 24.75 (half a stop), one bounce, fill by a quarter, metered:

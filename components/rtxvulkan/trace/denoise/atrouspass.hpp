@@ -49,8 +49,9 @@ namespace Rtx
             bool mLobed;
         };
 
-        /// Runs every level and returns the images the result ended up in, because the levels
-        /// alternate and a copy back would be bandwidth spent on tidiness.
+        /// Runs every level, or the first alone where no bounce is traced, and returns the images the
+        /// result ended up in, because the levels alternate and a copy back would be bandwidth spent on
+        /// tidiness.
         ///
         /// @param images the accumulator's: its blends of this frame's bounce and fill, with the
         ///        bounce's variance that turns a difference in brightness into an edge or into noise,
