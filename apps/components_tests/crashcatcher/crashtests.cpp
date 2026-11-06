@@ -115,20 +115,22 @@ namespace CrashTests
             return sRecurse(depth + 1) + frame[0];
         }
 
+        /// A tenth of a second a frame, as a game that draws slowly.
+        void frames(int count)
+        {
+            for (int i = 0; i < count; ++i)
+            {
+                Crash::heartbeat();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+
         /// Frames for a while, a stop of `stop`, and frames again, as a game that stalls and recovers.
         void stall(std::chrono::milliseconds stop)
         {
-            for (int i = 0; i < 5; ++i)
-            {
-                Crash::heartbeat();
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
+            frames(5);
             std::this_thread::sleep_for(stop);
-            for (int i = 0; i < 20; ++i)
-            {
-                Crash::heartbeat();
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
+            frames(20);
         }
 
         /// How long after the hang report the modes that answer End late wait before they answer:
@@ -148,6 +150,37 @@ namespace CrashTests
             if (mode == "ended-in-report")
                 return Crash::EndAfter{ std::chrono::milliseconds(1), Crash::EndAfter::From::Ask };
             return std::nullopt;
+        }
+
+        /// Whether the log in `folder` says `text`, read again until `within` where it does not yet: the
+        /// monitor goes on writing after the game has ended, and a mode may end first. By default past
+        /// the late End (`sLateEnd`), which `ends-before-end` logs up to that long after the game is gone.
+        bool follows(const std::filesystem::path& folder, std::string_view text,
+            std::chrono::milliseconds within = sLateEnd + std::chrono::seconds(5))
+        {
+            const auto deadline = std::chrono::steady_clock::now() + within;
+            for (;;)
+            {
+                std::ifstream log(folder / "crash-tests.log");
+                for (std::string line; std::getline(log, line);)
+                    if (line.find(text) != std::string::npos)
+                        return true;
+
+                if (std::chrono::steady_clock::now() >= deadline)
+                    return false;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+
+        /// Frames for a while, and none until the monitor logs the hang: a report that cannot come
+        /// leaves the log without it, which the matrix fails.
+        ///
+        /// **Not a stop of a fixed length**: 4.5 s held the three wakes a monitor on time needs, and on a
+        /// loaded runner frames came again before the third, with no report.
+        void stopUntilHangLogged(const std::filesystem::path& folder)
+        {
+            frames(5);
+            follows(folder, "Hang: no frame for", std::chrono::seconds(30));
         }
 
         /// **Started the way the game starts**: `wrapApplication` starts the catcher with its reports in
@@ -236,7 +269,8 @@ namespace CrashTests
             }
             if (mode == "hang")
             {
-                stall(std::chrono::milliseconds(4500));
+                stopUntilHangLogged(folder);
+                frames(20);
                 return livedOn();
             }
             if (mode == "slow-end")
@@ -311,24 +345,16 @@ namespace CrashTests
             {
                 // Drawing again well before the monitor answers End, and still drawing when it does:
                 // what the player was asked about is over, and the game goes on. Frames for as long
-                // as the late End waits, past the two seconds of them `stall` ends with, so it still
-                // finds the game drawing.
-                stall(std::chrono::milliseconds(3500));
-                for (int i = 0; i < sLateEnd / std::chrono::milliseconds(100); ++i)
-                {
-                    Crash::heartbeat();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                }
+                // as the late End waits, past the two seconds of them before it, so it still finds the
+                // game drawing.
+                stopUntilHangLogged(folder);
+                frames(20 + sLateEnd / std::chrono::milliseconds(100));
                 return livedOn();
             }
             if (mode == "ended-in-report")
             {
                 // Frames, and then none ever again: the monitor ends it.
-                for (int i = 0; i < 5; ++i)
-                {
-                    Crash::heartbeat();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                }
+                frames(5);
                 Log(Debug::Info) << "crash-tests stood still";
                 std::this_thread::sleep_for(std::chrono::seconds(30));
                 return livedOn();
@@ -343,12 +369,7 @@ namespace CrashTests
             if (mode == "ends-before-end")
             {
                 // Gone without another frame before the monitor answers End: its id is nobody's to end.
-                for (int i = 0; i < 5; ++i)
-                {
-                    Crash::heartbeat();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+                stopUntilHangLogged(folder);
                 return livedOn();
             }
             if (const std::optional<int> ended = runModeOfThisSystem(mode))
@@ -402,25 +423,6 @@ namespace CrashTests
         {
             return filesIn(folder,
                 { "user data/crashes/pending", "user data/crashes/reports", "user data/crashes/completed" }, ".dmp");
-        }
-
-        /// Whether the log in `folder` says `text`, read again for a few seconds where it does not yet:
-        /// the monitor goes on writing after the game has ended, and a mode may end first. Past the
-        /// late End (`sLateEnd`), which `ends-before-end` logs up to that long after the game is gone.
-        bool follows(const std::filesystem::path& folder, std::string_view text)
-        {
-            const auto deadline = std::chrono::steady_clock::now() + sLateEnd + std::chrono::seconds(5);
-            for (;;)
-            {
-                std::ifstream log(folder / "crash-tests.log");
-                for (std::string line; std::getline(log, line);)
-                    if (line.find(text) != std::string::npos)
-                        return true;
-
-                if (std::chrono::steady_clock::now() >= deadline)
-                    return false;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
         }
 
         /// Whether the package the monitor wrote once the game was gone holds the log, with the
