@@ -2012,11 +2012,18 @@ namespace Rtx::Testing
             EXPECT_EQ(shoot(box(glow), {}, camera, size, { .mIndirect = false }).mHits, size * size);
             std::vector<float> unbounced;
             mProbe.readChannel(Channel::Indirect, unbounced);
+            std::vector<float> noFill;
+            mProbe.readChannel(Channel::Fill, noFill);
             camera.mAmbientFromSky = fromSky;
             float brightest = 0.0f;
+            float brightestFill = 0.0f;
             for (std::size_t pixel = 0; pixel < std::size_t{ size } * size; ++pixel)
+            {
                 brightest = std::max(brightest, unbounced[pixel * 4]);
+                brightestFill = std::max(brightestFill, noFill[pixel * 4]);
+            }
             EXPECT_FLOAT_EQ(brightest, 0.2f);
+            EXPECT_EQ(brightestFill, 0.0f) << "whose light is the fill whole, which no channel keeps apart";
 
             for (const std::uint32_t rays : { 2u, 3u, 4u })
             {

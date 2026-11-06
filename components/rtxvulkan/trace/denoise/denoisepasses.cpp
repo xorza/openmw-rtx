@@ -79,11 +79,13 @@ namespace Rtx
         runs[Temporal::LampShadow] = lamps && sampled.mNoLamps == 0u;
         runs[Temporal::Specular] = mapped;
         runs[Temporal::Pane] = true;
+        runs[Temporal::Fill] = sampled.mBounceRays != 0;
 
         const TemporalTurns::Step step = history.turn(runs, sampled.mFrame);
-        assert((!step.mFresh[Temporal::Accumulate]
-                   || (step.mFresh[Temporal::SkyShadow] && step.mFresh[Temporal::LampShadow]
-                       && step.mFresh[Temporal::Specular] && step.mFresh[Temporal::Pane]))
+        assert(
+            (!step.mFresh[Temporal::Accumulate]
+                || (step.mFresh[Temporal::SkyShadow] && step.mFresh[Temporal::LampShadow]
+                    && step.mFresh[Temporal::Specular] && step.mFresh[Temporal::Pane] && step.mFresh[Temporal::Fill]))
             && "a fresh accumulator beside a history that is not");
         history.discard(commands, step);
 

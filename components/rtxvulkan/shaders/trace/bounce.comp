@@ -83,35 +83,21 @@ bool bouncePixel(uvec2 pixel, uint ray, out bool gathers)
     const Surface surface = storedSolidOf(record, stored);
 
     BounceRun bounce = bounceRunOf();
-    AmbientRay unbounced = AmbientRay(noRay(), false, 1.0, false);
-    vec3 daylight = vec3(0.0);
-    if (surface.mHit && frame.mBounceRays != 0u)
+    if (surface.mHit)
         startBounce(bounce, surface, coneAt(eyeOf(record.mArms)), pixel, ray);
-    else if (surface.mHit)
-    {
-        unbounced = ambientRayOf(surface.mPosition, surface.mNormal, surface.mGeometric, surface.mRounding,
-            surface.mTransmission, pixelKey(pixel) + bounceSeedsAt(ray).mAmbient);
-        daylight = daylightReaching(surface.mPosition);
-    }
 
     // **A split pixel's lift blended with its split neighbours'** where no layer stands, which the layers'
     // stage blends where one does (`shownSurfaceLift`): here, where every pixel's halves are written, and
     // not in the layers' stage, whose registers its tiles paid for the blend alone.
-    if (ray == 0u && !record.mLayered && splitIn(imageLoad(motion, channelAt(CHANNEL_MOTION, at, width, swap))))
+    if (HAS_SEA && ray == 0u && !record.mLayered
+        && splitIn(imageLoad(motion, channelAt(CHANNEL_MOTION, at, width, swap))))
         RTX_STORE_COUNTED(lift, channelAt(CHANNEL_LIFT, at, width, swap),
             vec4(shownSurfaceLift(at, width, swap, true), 1.0))
 
     record.mBounceLobe = bounce.mDrawn.mSpecular;
     gathers = record.mBounceLobe || !skyLights() || indirectGatherDrawn(pixelKey(pixel), bounceSeedsAt(ray).mIndirect);
 
-    // **One traversal site for the stage's one ray**, the bounce's or the occlusion ray's: a site is a
-    // whole software traversal on AMD's Windows compiler (`queryScene`).
-    const RayAnswer answered = answerAsked(bounce.mBounceTraced ? bounce.mBounceRay : unbounced.mRay);
-
-    // **No bounce traced**: the ambient on the surface itself, under its one occlusion ray, in the
-    // channels a path's end fills. No lobe, so a glossy surface reflects nothing but its lamps.
-    if (frame.mBounceRays == 0u)
-        bounce.mEscaped = frame.mSurfaceAmbient * (daylight * ambientAnswered(unbounced, answered));
+    const RayAnswer answered = answerAsked(bounce.mBounceRay);
 
     if (bounce.mBounceTraced)
     {

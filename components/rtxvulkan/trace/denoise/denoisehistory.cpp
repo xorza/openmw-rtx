@@ -475,7 +475,7 @@ namespace Rtx
             .mFast = only(DenoiseImage::Fast),
             .mFastBlended = only(DenoiseImage::FastBlended),
             .mMatch = only(DenoiseImage::HistoryMatch),
-            .mFresh = step.mFresh[Temporal::Accumulate],
+            .mFresh = step.accumulatorFresh(),
         };
     }
 

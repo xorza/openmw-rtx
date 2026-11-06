@@ -29,21 +29,34 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_CLAMP_BINDINGS> sClampBindings
             = computeBindings<Shaders::ACCUMULATE_CLAMP_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
+        ComputePipeline<Shaders::AccumulateConstants> makeAccumulate(
+            const Device& device, const bool fill, const std::string_view name)
+        {
+            std::array<std::uint32_t, Shaders::ACCUMULATE_SPEC_COUNT> specialization{};
+            specialization[Shaders::ACCUMULATE_SPEC_FILL] = fill ? VK_TRUE : VK_FALSE;
+            return ComputePipeline<Shaders::AccumulateConstants>(
+                device, sBindings, {}, "accumulate.comp.spv", name, specialization);
+        }
+
         /// The clamp with the ring's ceiling or without it (`ACCUMULATE_CLAMP_SPEC_RING`).
         ComputePipeline<Shaders::AccumulateClampConstants> makeClamp(
-            const Device& device, const bool ring, const std::string_view name)
+            const Device& device, const bool ring, const bool fill, const std::string_view name)
         {
             std::array<std::uint32_t, Shaders::ACCUMULATE_CLAMP_SPEC_COUNT> specialization{};
             specialization[Shaders::ACCUMULATE_CLAMP_SPEC_RING] = ring ? VK_TRUE : VK_FALSE;
+            specialization[Shaders::ACCUMULATE_CLAMP_SPEC_FILL] = fill ? VK_TRUE : VK_FALSE;
             return ComputePipeline<Shaders::AccumulateClampConstants>(
                 device, sClampBindings, {}, "accumulateclamp.comp.spv", name, specialization);
         }
     }
 
     AccumulatePass::AccumulatePass(const Device& device)
-        : mPipeline(device, sBindings, {}, "accumulate.comp.spv", "accumulate")
-        , mClamp(makeClamp(device, false, "accumulate-clamp"))
-        , mClampRing(makeClamp(device, true, "accumulate-clamp-ring"))
+        : mPipeline(makeAccumulate(device, true, "accumulate"))
+        , mPipelineNoFill(makeAccumulate(device, false, "accumulate-no-fill"))
+        , mClamp(makeClamp(device, false, true, "accumulate-clamp"))
+        , mClampRing(makeClamp(device, true, true, "accumulate-clamp-ring"))
+        , mClampNoFill(makeClamp(device, false, false, "accumulate-clamp-no-fill"))
+        , mClampRingNoFill(makeClamp(device, true, false, "accumulate-clamp-ring-no-fill"))
     {
     }
 
@@ -53,7 +66,9 @@ namespace Rtx
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
-        DescriptorWrites writes(mPipeline);
+        const ComputePipeline<Shaders::AccumulateConstants>& pipeline
+            = frame.mSampled.mBounceRays == 0 ? mPipelineNoFill : mPipeline;
+        DescriptorWrites writes(pipeline);
         writes.image(Shaders::ACCUMULATE_BIND_INDIRECT, buffer.get(Channel::Indirect).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
@@ -74,7 +89,7 @@ namespace Rtx
             .mDualMotion = frame.mFilters.mDualMotion ? 1u : 0u,
         };
 
-        dispatch(commands, mPipeline, writes, constants,
+        dispatch(commands, pipeline, writes, constants,
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 
@@ -83,8 +98,9 @@ namespace Rtx
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
-        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp
-            = frame.mFilters.mAntiFirefly ? mClampRing : mClamp;
+        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp = frame.mSampled.mBounceRays == 0
+            ? (frame.mFilters.mAntiFirefly ? mClampRingNoFill : mClampNoFill)
+            : (frame.mFilters.mAntiFirefly ? mClampRing : mClamp);
         DescriptorWrites clampWrites(clamp);
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFastBlended.describeStorage());

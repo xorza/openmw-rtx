@@ -59,12 +59,13 @@ namespace Rtx
     namespace
     {
         /// Every trace module a kernel of the pass runs, which its shader code reads once.
-        constexpr std::array<std::string_view, 21> sTraceModules{ "visibility.comp.spv", "direct.comp.spv",
-            "media.comp.spv", "panes.comp.spv", "bounce.comp.spv", "landing.comp.spv", "fogscatter.rgen.spv",
-            "fogdepth.rgen.spv", "spritecomposite.rgen.spv", "spriteshelter.rgen.spv", "spriteemitters.rgen.spv",
-            "visibility.dark.comp.spv", "direct.dark.comp.spv", "media.dark.comp.spv", "panes.dark.comp.spv",
-            "bounce.dark.comp.spv", "landing.dark.comp.spv", "fogscatter.dark.rgen.spv", "fogdepth.dark.rgen.spv",
-            "spritecomposite.dark.rgen.spv", "spriteshelter.dark.rgen.spv" };
+        constexpr std::array<std::string_view, 23> sTraceModules{ "visibility.comp.spv", "direct.comp.spv",
+            "media.comp.spv", "panes.comp.spv", "bounce.comp.spv", "landing.comp.spv", "unbounced.comp.spv",
+            "fogscatter.rgen.spv", "fogdepth.rgen.spv", "spritecomposite.rgen.spv", "spriteshelter.rgen.spv",
+            "spriteemitters.rgen.spv", "visibility.dark.comp.spv", "direct.dark.comp.spv", "media.dark.comp.spv",
+            "panes.dark.comp.spv", "bounce.dark.comp.spv", "landing.dark.comp.spv", "unbounced.dark.comp.spv",
+            "fogscatter.dark.rgen.spv", "fogdepth.dark.rgen.spv", "spritecomposite.dark.rgen.spv",
+            "spriteshelter.dark.rgen.spv" };
 
         /// The words of the whole tuple, which the kernels made once and not per tuple run under:
         /// the sun, the moons, the sea and the maps all standing, and nothing counted.
@@ -221,8 +222,8 @@ namespace Rtx
         /// the water, over their tiles, where `hasMedia`; the layers laid over that light, over
         /// theirs; the bounce, which lists the pixels whose bounce landed; and its landing, over that
         /// list — the pair once for each of the frame's bounce rays, each landing over its ray's list
-        /// (`landingDispatch`).
-        constexpr std::array<Stage, 7> sTraceStages{ {
+        /// (`landingDispatch`); and in the pair's place, where no bounce is traced, the ambient's stage.
+        constexpr std::array<Stage, 8> sTraceStages{ {
             { { "visibility.comp.spv", "visibility.dark.comp.spv" }, "visibility", FrameZone::Trace, std::nullopt },
             { { "visibility.comp.spv", "visibility.dark.comp.spv" }, "water", FrameZone::Water,
                 Shaders::STAGE_LIST_WATER },
@@ -232,6 +233,7 @@ namespace Rtx
             { { "bounce.comp.spv", "bounce.dark.comp.spv" }, "bounce", FrameZone::Bounce, std::nullopt },
             { { "landing.comp.spv", "landing.dark.comp.spv" }, "landing", FrameZone::Landing,
                 Shaders::STAGE_DISPATCH_LANDING },
+            { { "unbounced.comp.spv", "unbounced.dark.comp.spv" }, "unbounced", FrameZone::Bounce, std::nullopt },
         } };
     }
 
@@ -308,7 +310,7 @@ namespace Rtx
         // its constants are all true and the shaders' own tests answer the rest. Its froxels' launch
         // as well, which answers for every tuple whose own is not made yet (`scatterPipelineFor`).
         static_assert(
-            sTraceStages.size() == sStageCount && static_cast<std::size_t>(Kernel::Landing) + 1 == sStageCount,
+            sTraceStages.size() == sStageCount && static_cast<std::size_t>(Kernel::Unbounced) + 1 == sStageCount,
             "a stage with no row, or a row with no stage");
         const VisibilityVariant full{};
         std::vector<Wanted> drawing;
@@ -433,6 +435,7 @@ namespace Rtx
             case Kernel::Panes:
             case Kernel::Bounce:
             case Kernel::Landing:
+            case Kernel::Unbounced:
             {
                 const auto at = static_cast<std::size_t>(wanted.mKernel);
                 const Stage& stage = sTraceStages[at];
@@ -552,9 +555,9 @@ namespace Rtx
         return VisibilityVariant{};
     }
 
-    ChannelWrites VisibilityPass::writesOf(const VisibilityVariant run, const bool puffs)
+    ChannelWrites VisibilityPass::writesOf(const VisibilityVariant run, const bool puffs, const bool bounced)
     {
-        return ChannelWrites{ .mLobe = run.mMaps, .mPuffs = puffs };
+        return ChannelWrites{ .mLobe = run.mMaps, .mPuffs = puffs, .mFill = bounced };
     }
 
     const ComputePipeline<Shaders::StageConstants>& VisibilityPass::kernelOf(
@@ -580,6 +583,7 @@ namespace Rtx
             case Kernel::Panes:
             case Kernel::Bounce:
             case Kernel::Landing:
+            case Kernel::Unbounced:
                 return true;
             case Kernel::Water:
                 return variant.mSea;
@@ -855,10 +859,9 @@ namespace Rtx
             recordStage(static_cast<std::size_t>(Kernel::Landing), ray);
         }
 
-        // **No bounce traced still takes the bounce's stage**, which writes the channels every pass
-        // after it reads, the ambient on the surface (`bouncePixel`), and lists nothing to land.
+        // **No bounce traced still takes a stage**, which writes the channels every pass after it reads.
         if (constants.mBounceRays == 0)
-            recordStage(static_cast<std::size_t>(Kernel::Bounce), 0);
+            recordStage(static_cast<std::size_t>(Kernel::Unbounced), 0);
 
         // The host's read of the count is ordered by whoever reads it: `renderFrame` records
         // `Buffer::orderForHostRead` after every pass that could add to it, and a picture's count

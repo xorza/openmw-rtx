@@ -68,7 +68,10 @@ namespace Rtx::Shaders
     /// Where `atrous.comp`'s specialization constant sits: `ATROUS_WIDE`, true for the first level
     /// and false for every level after it.
     const uint ATROUS_SPEC_WIDE = 0u;
-    const uint ATROUS_SPEC_COUNT = 1u;
+
+    /// Whether the fill stands apart from the bounce (`ACCUMULATE_HOLDS_FILL`).
+    const uint ATROUS_SPEC_FILL = 1u;
+    const uint ATROUS_SPEC_COUNT = 2u;
 
     /// Threads along each edge of a level's workgroup.
     const uint ATROUS_WORKGROUP = 8;

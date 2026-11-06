@@ -1,3 +1,59 @@
+# perf-bounce-modes — the frame with no bounce, with one bounce ray and with three
+
+Target: the frame under `--indirect=false`, `--bounce-rays=1` and `--bounce-rays=3`, on the desk (a
+high-end NVIDIA laptop GPU), the AMD handheld (RADV, its clock held) and the laptop with a low-end AMD
+integrated GPU (AMD's Windows driver). Started from `479e4fdd85`.
+
+## Hosts
+
+- **Desk**: `./omw release bench`, 1920x1080, 1200 frames, three interleaved rounds. A/A: frame within 1%, and
+  3% with no bounce; one host's zones within 2%. A turn of this session beside a run moved its frames by 5%, so
+  each run ended the turn.
+- **Handheld**: built in the release-base container, staged by `omw release remote`, 1280x800, 300 frames,
+  two interleaved rounds. A/A: frame within 0.1%.
+- **AMD iGPU**: native MSVC release, through the scheduled task in the logged-on session, 1920x1080, 200
+  frames, two interleaved rounds. A/A: frame within 0.6%. A build beside a run moved a frame by 48%.
+- **Build RAM peaks**: desk release from nothing 25.8 GiB, debug with the tests 25.4 GiB and the rest cached;
+  container 23.7 GiB; AMD iGPU 9.7 GiB.
+- **The gate does not pass in a worktree** (`.notes/ISSUES.md`), so it ran in a plain clone of the branch.
+
+## Tip against the start (`479e4fdd85` → `c685154a79`, 2026-11-06)
+
+Frame median ms.
+
+| mode | place | handheld | AMD iGPU | desk |
+|---|---|---|---|---|
+| no bounce | seyda-neen-ship | 62.05 → 59.15 (−4.7%) | 84.63 → 80.13 (−5.3%) | 4.680 → 4.569 (−2.4%) |
+| no bounce | seyda-neen-ship-dawn | 75.00 → 72.14 (−3.8%) | 102.22 → 97.68 (−4.4%) | 5.126 → 4.947 (−3.5%) |
+| no bounce | balmora-mages-guild | 33.31 → 31.12 (−6.6%) | 57.55 → 52.74 (−8.4%) | 3.864 → 3.637 (−5.9%) |
+| no bounce | vivec-canalworks | 26.80 → 24.80 (−7.4%) | 46.40 → 42.10 (−9.3%) | 3.464 → 3.265 (−5.8%) |
+| one ray | seyda-neen-ship | 86.20 → 85.07 (−1.3%) | 116.11 → 113.87 (−1.9%) | 6.174 → 6.146 (−0.5%) |
+| one ray | seyda-neen-ship-dawn | 99.53 → 98.62 (−0.9%) | 136.80 → 135.71 (−0.8%) | 6.600 → 6.569 (−0.5%) |
+| one ray | balmora-mages-guild | 53.44 → 53.19 (−0.5%) | 87.01 → 84.95 (−2.4%) | 5.296 → 5.276 (−0.4%) |
+| one ray | vivec-canalworks | 38.61 → 38.44 (−0.5%) | 65.21 → 63.69 (−2.3%) | 4.546 → 4.534 (−0.3%) |
+| three rays | seyda-neen-ship | 145.39 → 142.04 (−2.3%) | 194.88 → 188.17 (−3.4%) | 8.613 → 8.571 (−0.5%) |
+| three rays | seyda-neen-ship-dawn | 160.16 → 156.80 (−2.1%) | 223.67 → 217.53 (−2.7%) | 9.150 → 9.138 (−0.1%) |
+| three rays | balmora-mages-guild | 94.16 → 93.86 (−0.3%) | 150.03 → 143.03 (−4.7%) | 7.663 → 7.617 (−0.6%) |
+| three rays | vivec-canalworks | 60.68 → 60.35 (−0.5%) | 101.43 → 97.38 (−4.0%) | 6.173 → 6.133 (−0.6%) |
+
+The desk's one and three rays stand inside its noise; its bounce zone fell 3 to 10% under them.
+
+## Ideas
+
+| idea | evidence | verdict |
+|---|---|---|
+| A kernel of its own for a frame with no bounce (`unbounced.comp`) | the branch in `bounce.comp` held 112 VGPRs on RDNA 2; apart, 80 and 96, and `resolve`'s fetches left to the compiler | **kept `e46b461ed7`**: bounce zone −12 to −26% with no bounce, −1 to −14% with rays (Commit's table); every picture to the bit |
+| No split read where the frame holds no sea | a split comes off a water path alone | kept in `e46b461ed7` |
+| The wide level composes the frame where it is the only level | the composite read back what it wrote | **kept `cce1af01b3`**: composite + filter0 −12 to −33%; every picture to the bit |
+| No fill kept apart from the bounce with no bounce | the fill is the bounce whole, carried twice | **kept `c685154a79`**: clamp −8 to −26%, temporal −5 to −14%, filter0 −5 to −10%; still pictures to the bit but the fill's own images, `noise` the same on a strafe and after a cut |
+| The direct stage hands the bounce its surface over the stored hit (`spike/handed-surface`) | `resolve` re-fetched what direct resolved, and no memory is added | **refused**: handheld bounce −2 to −4% with rays, −21% with none; desk direct +4 to +22% for the three stores, frame +0.2 to +1.7% with one ray; AMD iGPU direct +2 to +16%, canal +0.7%. Pictures to the bit |
+| The ambient ray a fourth turn of the direct stage, no stage of its own (`spike/ambient-in-direct`) | one resolve where two ran | **refused**: handheld ship direct and bounce 16.5 → 20.4 ms, frame +4.6% (128 VGPRs, 8 waves in the tuple with the sea), guild level, canal −6%; desk level |
+| Surface kept apart for rays after the first, written by ray 0 | three rays resolve the solid three times | refused by analysis from the handed surface's numbers: a third less gain than it, and the same stores |
+| Tracing all of a pixel's rays in one dispatch | one resolve a pixel | refused by analysis: a landing's hit has one slot a pixel, so each ray's landing runs before the next ray; three slots cost 130 MB at 1080p |
+| Pane filter over the layers' tiles alone | upper bound, filter off (picture wrong): handheld frame −0.6 to −1.5%, 0.3 ms | refused by analysis: the bound is small, and history off a tile needs a clear. Skipping it needs a frame with no layer, and any faded actor is one |
+| Smaller shared tiles in the clamp and the wide level (`spike/smaller-tiles`) | on RDNA 2 a kernel's waves follow its shared memory: 11264 bytes 6 waves, 9216 and 8192 8, 7168 and 6144 10, 4096 16 | **refused**: clamp 6 → 8 waves, but decoding the short history's taps per pixel gave ship and guild clamp +7 to +13%, p99 worse; handheld canal alone −7 to −19%; desk frame +0.5%. Pictures to the bit |
+| `[[dont_unroll]]` on the clamp's square | Pre-Sched VGPRs 52 against 168 | not measured: the 168 follows the wave count the shared memory sets, and unrolling does not set it |
+
 # perf-rtx — the ray tracer's frame on three hosts
 
 Target: the ray tracer's frame (the GPU's stages and passes, and the host's walk), on the desk (a

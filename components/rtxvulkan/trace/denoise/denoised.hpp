@@ -23,10 +23,12 @@ namespace Rtx
         const Image* mLampShadow;
 
         /// The channels themselves, which is where the light is when nothing filtered it.
-        static Denoised unfiltered(const GBuffer& channels)
+        ///
+        /// @param bounced whether a bounce was traced: where none was, the fill is the bounce whole.
+        static Denoised unfiltered(const GBuffer& channels, bool bounced)
         {
             return Denoised{ .mIndirect = channels.get(Channel::Indirect),
-                .mFill = channels.get(Channel::Fill),
+                .mFill = channels.get(bounced ? Channel::Fill : Channel::Indirect),
                 .mSpecular = channels.get(Channel::Specular),
                 .mPane = channels.get(Channel::Pane),
                 .mSkyShadow = nullptr,

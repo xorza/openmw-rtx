@@ -143,8 +143,8 @@ namespace Rtx
             EXPECT_EQ(binding,
                 (std::vector<std::string>{ "bounce.comp.spv", "bounce.dark.comp.spv", "direct.comp.spv",
                     "direct.dark.comp.spv", "landing.comp.spv", "landing.dark.comp.spv", "media.comp.spv",
-                    "media.dark.comp.spv", "panes.comp.spv", "panes.dark.comp.spv", "visibility.comp.spv",
-                    "visibility.dark.comp.spv" }));
+                    "media.dark.comp.spv", "panes.comp.spv", "panes.dark.comp.spv", "unbounced.comp.spv",
+                    "unbounced.dark.comp.spv", "visibility.comp.spv", "visibility.dark.comp.spv" }));
         }
 
         /// **The trace's own kinds read as theirs**: the scene's top-level structure, and the

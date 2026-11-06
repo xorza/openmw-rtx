@@ -1,0 +1,68 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The ambient on every pixel's solid where no bounce is traced (`SamplingSwitches::mIndirect` off), under
+// one occlusion ray, in the channel a bounce would fill: the bounce's stage for such a frame. The whole of
+// it is the fill, which no pass after it keeps apart (`ACCUMULATE_HOLDS_FILL`).
+//
+// **A kernel of its own and not a path through `bounce.comp`**: a surface read only for its position and
+// its normals leaves every other fetch of `resolve` to the compiler to remove, and no list, gloss or lobe
+// holds registers.
+
+#include "shared/traceconstants.h"
+#include "camera.h"
+#include "scene.h"
+#include "visibility.h"
+
+#include "lib/bindings.glsl"
+#include "lib/census.glsl"
+#include "lib/frame.glsl"
+#include "lib/pixels.glsl"
+#include "lib/shading.glsl"
+#include "lib/stage.glsl"
+#include "lib/traversal.glsl"
+#include "lib/variants.glsl"
+
+layout(local_size_x = TRACE_WORKGROUP_LANES) in;
+
+layout(push_constant, scalar) uniform Push
+{
+    StageConstants stage;
+};
+
+void main()
+{
+    uvec2 pixel;
+    if (!stagePixelOf(pixel))
+        return;
+
+    const uint width = frame.mEyes.mWorld.mWidth;
+    const uint swap = fieldSwapOf(frame.mFrame);
+    const ivec2 at = ivec2(pixel);
+    const ivec2 stored = storedAt(at, width, swap);
+    const StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
+
+    AmbientRay unbounced = AmbientRay(noRay(), false, 1.0, false);
+    vec3 daylight = vec3(0.0);
+    const Surface surface = storedSolidOf(record, stored);
+    if (surface.mHit)
+    {
+        unbounced = ambientRayOf(surface.mPosition, surface.mNormal, surface.mGeometric, surface.mRounding,
+            surface.mTransmission, pixelKey(pixel) + bounceSeedsAt(0u).mAmbient);
+        daylight = daylightReaching(surface.mPosition);
+    }
+
+    // **A split pixel's lift blended with its split neighbours'**, as `bounce.comp` blends it.
+    if (HAS_SEA && !record.mLayered && splitIn(imageLoad(motion, channelAt(CHANNEL_MOTION, at, width, swap))))
+        RTX_STORE_COUNTED(lift, channelAt(CHANNEL_LIFT, at, width, swap),
+            vec4(shownSurfaceLift(at, width, swap, true), 1.0))
+
+    const vec3 ambient = frame.mSurfaceAmbient * (daylight * ambientAnswered(unbounced, answerAsked(unbounced.mRay)));
+
+    // By what the path took off the way to the solid, as `storeBounced` takes it off a bounce's light.
+    const vec4 through = imageLoad(stageThroughput, stored);
+    const vec3 light = ambient * (through.rgb * through.a);
+    RTX_STORE_COUNTED(indirect, channelAt(CHANNEL_INDIRECT, at, width, swap), vec4(light, 1.0))
+}

@@ -14,6 +14,10 @@ namespace Rtx
     ///
     /// **The shadow denoiser twice**, a history for the sky's field and one for the lamps': a frame
     /// may have either source alone.
+    ///
+    /// **The fill a flag of its own, and no images**: it stands in the accumulator's, which hold its
+    /// count alone on a frame with no bounce. The accumulator keeps running through such a frame, and a
+    /// bounce traced after one has a mean with no fill to read (`Step::accumulatorFresh`).
     enum class Temporal : std::uint8_t
     {
         Accumulate,
@@ -21,9 +25,10 @@ namespace Rtx
         LampShadow,
         Specular,
         Pane,
+        Fill,
     };
 
-    inline constexpr std::size_t sTemporals = static_cast<std::size_t>(Temporal::Pane) + 1;
+    inline constexpr std::size_t sTemporals = static_cast<std::size_t>(Temporal::Fill) + 1;
 
     /// One flag a temporal filter, indexed by `Temporal`.
     struct TemporalFlags
@@ -60,6 +65,13 @@ namespace Rtx
             /// The number of the frame that wrote the half this one reads, and so the fields it was
             /// stored in (`fieldSwapOf`); this frame's own where nothing wrote it yet.
             std::uint32_t mWrittenBefore = 0;
+
+            /// Whether the accumulator reads no history: its own holds nothing, or the fill it would
+            /// read beside it does.
+            bool accumulatorFresh() const
+            {
+                return mFresh[Temporal::Accumulate] || (mRuns[Temporal::Fill] && mFresh[Temporal::Fill]);
+            }
         };
 
         /// Turns to the other half for the frame being recorded, number `frame`, on which `runs` run.

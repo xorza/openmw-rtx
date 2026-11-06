@@ -166,7 +166,7 @@ namespace Rtx
         /// lobe's where they hold the maps' code — a scene that wears a map, or the full tuple — and
         /// the puffs' where a puff can be met, `puffs` (`SpriteTables::mPuffs`, which `writeFrame`
         /// states as `mPuffsInFrame`).
-        static ChannelWrites writesOf(VisibilityVariant run, bool puffs);
+        static ChannelWrites writesOf(VisibilityVariant run, bool puffs, bool bounced);
 
         /// Records the trace in `variant`'s kernels, which `variantFor` answered. After `writeFrame`,
         /// which is what every launch here reads.
@@ -202,6 +202,7 @@ namespace Rtx
             Panes,
             Bounce,
             Landing,
+            Unbounced,
             Scatter,
             Depth,
             Integrate,
@@ -254,8 +255,8 @@ namespace Rtx
         using TupleKernels
             = std::array<std::unique_ptr<ComputePipeline<Shaders::StageConstants>>, VisibilityVariant::sCount>;
 
-        /// How many of `Kernel` are the trace's stages: `Visibility` to `Landing`.
-        static constexpr std::size_t sStageCount = 7;
+        /// How many of `Kernel` are the trace's stages: `Visibility` to `Unbounced`.
+        static constexpr std::size_t sStageCount = 8;
 
         /// `stage`'s kernel for `variant`, which `variantFor` answered.
         static const ComputePipeline<Shaders::StageConstants>& kernelOf(

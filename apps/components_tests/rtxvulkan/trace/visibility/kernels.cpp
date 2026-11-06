@@ -60,7 +60,7 @@ namespace Rtx
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
-            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5 + 3;
+            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5 + 3;
 
             JobProgress progress = pass.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero());
             while (!progress.isDone())
@@ -143,7 +143,7 @@ namespace Rtx
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
             std::vector<VisibilityPass::NamedKernel> kernels;
             pass.listKernels(kernels);
-            ASSERT_EQ(kernels.size(), 1u + 1u + 1u + 1u + 1u + 1u + 1u + 1u + 5u + 3u);
+            ASSERT_EQ(kernels.size(), 1u + 1u + 1u + 1u + 1u + 1u + 1u + 1u + 1u + 5u + 3u);
 
             for (const VisibilityPass::NamedKernel& kernel : kernels)
             {
@@ -182,7 +182,7 @@ namespace Rtx
 
                 const bool stage = kernel.mName == "visibility" || kernel.mName == "water" || kernel.mName == "direct"
                     || kernel.mName == "media" || kernel.mName == "panes" || kernel.mName == "bounce"
-                    || kernel.mName == "landing";
+                    || kernel.mName == "landing" || kernel.mName == "unbounced";
                 if (stage && use.mSubgroupSize.has_value())
                 {
                     EXPECT_EQ(*use.mSubgroupSize, 32u) << "the " << kernel.mName << " kernel's lanes";

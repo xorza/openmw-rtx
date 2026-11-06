@@ -104,15 +104,15 @@ namespace Rtx
 
             // What `GBuffer::begin` clears a channel a trace may leave out through, read off the one
             // rule that says which those are.
-            if (!ChannelWrites{ .mLobe = false, .mPuffs = false }.writes(channel))
+            if (!ChannelWrites{ .mLobe = false, .mPuffs = false, .mFill = false }.writes(channel))
                 described.mUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
             return described;
         }
 
         /// What a trace writes into a channel `ChannelWrites` may leave out, where it has nothing to
-        /// say: no lobe — nought light at `SPECULAR_NO_LOBE`, and a specular albedo of one — and no
-        /// puff, nought colour wholly let through.
+        /// say: no lobe — nought light at `SPECULAR_NO_LOBE`, and a specular albedo of one — no
+        /// puff, nought colour wholly let through, and no fill, nought.
         VkClearColorValue nothingOf(const Channel channel)
         {
             switch (channel)
@@ -122,6 +122,7 @@ namespace Rtx
                 case Channel::SpecularAlbedo:
                     return VkClearColorValue{ .float32 = { 1.0f, 1.0f, 1.0f, 1.0f } };
                 case Channel::Puffs:
+                case Channel::Fill:
                     return VkClearColorValue{ .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } };
                 default:
                     break;
@@ -354,6 +355,8 @@ namespace Rtx
                 return mLobe;
             case Channel::Puffs:
                 return mPuffs;
+            case Channel::Fill:
+                return mFill;
             default:
                 return true;
         }

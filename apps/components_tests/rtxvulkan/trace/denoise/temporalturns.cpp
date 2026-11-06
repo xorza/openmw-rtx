@@ -12,7 +12,7 @@ namespace Rtx
         TemporalFlags flags(
             const bool accumulate, const bool sky, const bool lamps, const bool specular, const bool pane)
         {
-            return TemporalFlags{ { accumulate, sky, lamps, specular, pane } };
+            return TemporalFlags{ { accumulate, sky, lamps, specular, pane, accumulate } };
         }
 
         struct Frame
@@ -25,6 +25,28 @@ namespace Rtx
             std::uint32_t mNumber;
             std::uint32_t mWrittenBefore;
         };
+
+        /// **The accumulator runs through a frame with no bounce, which writes it no fill**: the frame
+        /// with no bounce reads the mean it holds, and a bounce traced after it reads nothing, once.
+        TEST(RtxTemporalTurnsTest, aBounceAfterAFrameWithNoneFreshensTheAccumulatorOnce)
+        {
+            const auto running = [](const bool fill) {
+                TemporalFlags runs = flags(true, true, true, true, true);
+                runs[Temporal::Fill] = fill;
+                return runs;
+            };
+
+            TemporalTurns turns;
+            EXPECT_TRUE(turns.next(running(true), 0).accumulatorFresh()) << "the first frame";
+            EXPECT_FALSE(turns.next(running(true), 1).accumulatorFresh()) << "bounced after bounced";
+            EXPECT_FALSE(turns.next(running(false), 2).accumulatorFresh()) << "none after bounced";
+            EXPECT_FALSE(turns.next(running(false), 3).accumulatorFresh()) << "none after none";
+            const TemporalTurns::Step returned = turns.next(running(true), 4);
+            EXPECT_TRUE(returned.accumulatorFresh()) << "bounced after none";
+            EXPECT_FALSE(returned.mFresh[Temporal::Accumulate]) << "whose own history the frame turned";
+            EXPECT_FALSE(returned.mFresh[Temporal::Pane]) << "and no other filter's goes with it";
+            EXPECT_FALSE(turns.next(running(true), 5).accumulatorFresh()) << "bounced after bounced again";
+        }
 
         /// **Five frames by hand.** The first reads nothing. The second: the glossy filter did not run
         /// on the first, so it is fresh, and the sky's shadow, which ran, is not — whether it runs

@@ -55,6 +55,7 @@ layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP)
 /// Whether the slow mean is held under its ring's ceiling, and the ring's square loaded at all
 /// (`ACCUMULATE_CLAMP_SPEC_RING`).
 layout(constant_id = ACCUMULATE_CLAMP_SPEC_RING) const bool ACCUMULATE_RING = false;
+layout(constant_id = ACCUMULATE_CLAMP_SPEC_FILL) const bool ACCUMULATE_HOLDS_FILL = true;
 
 /// Which pixels hold a surface: one that does not has no mean to bound or to bound by.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
@@ -140,7 +141,8 @@ void main()
         const ivec2 insideStored = storedAt(inside, frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame));
         const bool held = gFast[square.y + INSET][square.x + INSET].w >= 0.0;
         gSampled[square.y][square.x] = held ? imageLoad(sampled, insideStored).rgb : vec3(0.0);
-        gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, insideStored).rgb : vec3(0.0);
+        if (ACCUMULATE_HOLDS_FILL)
+            gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, insideStored).rgb : vec3(0.0);
         const vec2 luminance = imageLoad(moments, insideStored).rg;
         gMoments[square.y][square.x] = held ? vec2(luminance.x, secondMoment(luminance.x, luminance.y)) : vec2(0.0);
         // No surface is `SURFACE_NO_NORMAL`, whose normal of nought weighs nought in the variance.
@@ -184,7 +186,8 @@ void main()
             fastSum += weight * there.xyz;
             fastSquares += weight * there.xyz * there.xyz;
             sampledSum += weight * gSampled[sampledTap.y][sampledTap.x];
-            sampledFillSum += weight * gSampledFill[sampledTap.y][sampledTap.x];
+            if (ACCUMULATE_HOLDS_FILL)
+                sampledFillSum += weight * gSampledFill[sampledTap.y][sampledTap.x];
         }
     const FastBox box = fastBoxOf(fastSum, fastSquares, count);
     const vec3 sampledMean = sampledSum / count;
@@ -269,9 +272,10 @@ void main()
     }
     uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_BOUNCE_CLAMP_ROUNDING, frame.mFrame);
     vec4 bounceOut = vec4(held, sqrt(variance));
-    vec4 fillOut = vec4(heldFill, frames);
+    vec4 fillOut = vec4(ACCUMULATE_HOLDS_FILL ? heldFill : vec3(0.0), frames);
     roundedToHalves(bounceOut, fillOut, rounding);
     RTX_STORE_COUNTED(blended, stored, bounceOut)
     RTX_STORE_COUNTED(fillBlended, stored, fillOut)
-    RTX_STORE_WORDS(fastOut, stored, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u))
+    RTX_STORE_WORDS(fastOut, stored,
+        uvec4(packRgb9e5(followed), ACCUMULATE_HOLDS_FILL ? packRgb9e5(followedFill) : 0u, 0u, 0u))
 }

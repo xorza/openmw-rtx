@@ -60,20 +60,24 @@ namespace Rtx
             return bindings;
         }();
 
-        ComputePipeline<Shaders::AtrousConstants> makeLevel(const Device& device, bool wide, std::string_view name)
+        ComputePipeline<Shaders::AtrousConstants> makeLevel(
+            const Device& device, bool wide, bool fill, std::string_view name)
         {
             std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
             specialization[Shaders::ATROUS_SPEC_WIDE] = wide ? VK_TRUE : VK_FALSE;
+            specialization[Shaders::ATROUS_SPEC_FILL] = fill ? VK_TRUE : VK_FALSE;
             return ComputePipeline<Shaders::AtrousConstants>(
                 device, sBindings, {}, "atrous.comp.spv", name, specialization);
         }
 
-        ComputePipeline<Shaders::AtrousConstants> makeComposing(const Device& device)
+        ComputePipeline<Shaders::AtrousConstants> makeComposing(const Device& device, bool wide, std::string_view name)
         {
             std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
-            specialization[Shaders::ATROUS_SPEC_WIDE] = VK_FALSE;
+            specialization[Shaders::ATROUS_SPEC_WIDE] = wide ? VK_TRUE : VK_FALSE;
+            // A wide level composes only as the one level of a frame with no bounce, which keeps no fill.
+            specialization[Shaders::ATROUS_SPEC_FILL] = wide ? VK_FALSE : VK_TRUE;
             return ComputePipeline<Shaders::AtrousConstants>(
-                device, sComposingBindings, {}, "atrouscompose.comp.spv", "atrous-compose", specialization);
+                device, sComposingBindings, {}, "atrouscompose.comp.spv", name, specialization);
         }
 
         /// **One fetch of eight bytes a tap for the surface**, the normal's code and the distance,
@@ -94,9 +98,11 @@ namespace Rtx
     }
 
     AtrousPass::AtrousPass(const Device& device)
-        : mWide(makeLevel(device, true, "atrous"))
-        , mNarrow(makeLevel(device, false, "atrous-narrow"))
-        , mComposing(makeComposing(device))
+        : mWide(makeLevel(device, true, true, "atrous"))
+        , mNarrow(makeLevel(device, false, true, "atrous-narrow"))
+        , mWideNoFill(makeLevel(device, true, false, "atrous-no-fill"))
+        , mComposing(makeComposing(device, false, "atrous-compose"))
+        , mWideComposing(makeComposing(device, true, "atrous-wide-compose"))
         , mNoShadow(makeStandIn(device, toVulkanFormat(SHADOW_VISIBILITY), VK_IMAGE_USAGE_STORAGE_BIT, "no-shadow"))
     {
     }
@@ -143,8 +149,6 @@ namespace Rtx
         // occlusion ray, which the first level, the accumulator's feedback and its history fix, carries
         // as well as all four (`docs/rtx/research/2026-11-05-room-ambient.md`).
         const std::uint32_t levels = frame.mSampled.mBounceRays == 0 ? 1u : Shaders::ATROUS_LEVELS;
-        assert((composing == nullptr || levels > 1)
-            && "the first level is the wide one, which composes nothing: the caller's composite does");
 
         for (std::uint32_t pass = 0; pass < levels; ++pass)
         {
@@ -169,8 +173,9 @@ namespace Rtx
             // Sampled from `GENERAL` on the three this pass only reads. A `SAMPLED_IMAGE`
             // descriptor names the image alone and no sampler, which is what `sBindings` declares.
             const bool composes = composing != nullptr && pass == levels - 1;
-            const ComputePipeline<Shaders::AtrousConstants>& pipeline
-                = pass == 0 ? mWide : (composes ? mComposing : mNarrow);
+            const ComputePipeline<Shaders::AtrousConstants>& pipeline = composes
+                ? (pass == 0 ? mWideComposing : mComposing)
+                : (pass == 0 ? (frame.mSampled.mBounceRays == 0 ? mWideNoFill : mWide) : mNarrow);
             DescriptorWrites writes(pipeline);
             writes.image(Shaders::ATROUS_BIND_SOURCE, bounce[source]->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILTERED, bounce[target]->describeStorage());
@@ -229,6 +234,7 @@ namespace Rtx
         handed.flush();
 
         // One swap past the last dispatch, so this is what that dispatch wrote.
-        return Filtered{ .mIndirect = *bounce[source], .mFill = *fill[source] };
+        return Filtered{ .mIndirect = *bounce[source],
+            .mFill = frame.mSampled.mBounceRays == 0 ? *bounce[source] : *fill[source] };
     }
 }

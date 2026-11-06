@@ -2455,6 +2455,11 @@ namespace Rtx::Testing
         /// **A lamp's light off the lid is not fill.** With the room's ambient off and a lamp under
         /// the lid, the fill is nought and the bounce is not, and the floor's ambient colour moves
         /// nothing.
+        ///
+        /// **No bounce traced: the whole light is fill, which no channel keeps apart.** The same floor
+        /// under a surface ambient of a half and no occluder: `0.5 * 0.5 + (0.25 - 0.5) * 0.5 = 0.125`,
+        /// where a fill read as nought gives `0.25`. On each road to the picture: nothing filtered, the
+        /// one wavelet level composing, and a run the composite sums over that level's answer.
         TEST_F(RtxVisibilityTest, theFillIsReflectedByTheAmbientAlbedoAndALampsBounceByTheDiffuseOne)
         {
             constexpr std::uint32_t size = 32;
@@ -2550,6 +2555,30 @@ namespace Rtx::Testing
             ASSERT_GT(brightest(lit.mIndirect), 0.0f) << "the lamp lights the lid the bounce finds";
             EXPECT_EQ(brightest(lit.mFill), 0.0f) << "and a lamp is no fill";
             EXPECT_EQ(litHalf.mFrame.mRadiance, lit.mFrame.mRadiance) << "so the ambient colour moves nothing";
+
+            Shaders::VisibilityConstants unbounced = sky;
+            unbounced.mSkyHorizon = osg::Vec3f();
+            unbounced.mSkyZenith = osg::Vec3f();
+            unbounced.mAmbientFromSky = 0.0f;
+            unbounced.mSurfaceAmbient = osg::Vec3f(0.5f, 0.5f, 0.5f);
+            SceneDesc open;
+            addQuad(open, sheetAt(4000.0f, 0.0f),
+                open.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
+                    .mAmbientColour = osg::Vec3f(0.25f, 0.25f, 0.25f) }));
+            const std::array<std::pair<Shot, std::string_view>, 3> roads{ {
+                { Shot{ .mIndirect = false }, "nothing filtered" },
+                { Shot{ .mFilter = true, .mIndirect = false }, "the one level composing" },
+                { Shot{ .mFrames = 2, .mFilter = true, .mIndirect = false, .mLoss = HistoryLoss::Cut },
+                    "the composite over the level" },
+            } };
+            for (const auto& [road, where] : roads)
+            {
+                const Frame frame = shoot(open, {}, unbounced, size, road);
+                EXPECT_EQ(frame.mHits, size * size) << where;
+                for (std::size_t value = 0; value < frame.mRadiance.size(); value += 4)
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        ASSERT_EQ(frame.at(value + channel), 0.125f) << where << ": value " << value + channel;
+            }
         }
 
         /// How much of the sun a surface takes is its normal's answer, and a sun behind its plane

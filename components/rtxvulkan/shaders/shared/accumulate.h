@@ -108,7 +108,14 @@ namespace Rtx::Shaders
     /// `Reconstruction::mAntiFirefly` asks. **A constant and not a factor**, because the ring's square
     /// is the most of what the clamp loads, and a factor of nought paid for all of it.
     const uint ACCUMULATE_CLAMP_SPEC_RING = 0u;
-    const uint ACCUMULATE_CLAMP_SPEC_COUNT = 1u;
+
+    /// Where `ACCUMULATE_HOLDS_FILL` sits: whether the fill stands apart from the bounce. False where no
+    /// bounce is traced, whose fill is the bounce whole, and whose images keep only the fill's count.
+    const uint ACCUMULATE_CLAMP_SPEC_FILL = 1u;
+    const uint ACCUMULATE_CLAMP_SPEC_COUNT = 2u;
+
+    const uint ACCUMULATE_SPEC_FILL = 0u;
+    const uint ACCUMULATE_SPEC_COUNT = 1u;
 
     /// How far the slow mean `slow` is moved toward the fast one `fast`, as a share of the way:
     /// nought where `slow` stands inside `[low, high]` grown to hold `fast`, and otherwise the

@@ -48,12 +48,13 @@ namespace Rtx
 
     /// What a trace writes of the channels only some traces need, every other channel being written
     /// by every trace: the lobe's two where the scene places a material that wears a map (`HAS_MAPS`,
-    /// `InstanceCounts::mMapped`), and the puffs' layer where a puff can be met
-    /// (`VisibilityConstants::mPuffsInFrame`).
+    /// `InstanceCounts::mMapped`), the puffs' layer where a puff can be met
+    /// (`VisibilityConstants::mPuffsInFrame`), and the fill where a bounce is traced.
     struct ChannelWrites
     {
         bool mLobe = true;
         bool mPuffs = true;
+        bool mFill = true;
 
         bool writes(Channel channel) const;
     };

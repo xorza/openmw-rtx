@@ -93,6 +93,7 @@ set(RTX_SHADERS
     shaders/trace/spriteemitters.rgen
     shaders/trace/spriteshelter.rgen
     shaders/trace/stress.comp
+    shaders/trace/unbounced.comp
     shaders/trace/visibility.comp
     shaders/trace/wavecolumns.comp
     shaders/trace/waverows.comp
@@ -183,6 +184,7 @@ set(RTX_DARK_ALPHA_SHADERS
     shaders/trace/panes.comp
     shaders/trace/spritecomposite.rgen
     shaders/trace/spriteshelter.rgen
+    shaders/trace/unbounced.comp
     shaders/trace/visibility.comp
 )
 

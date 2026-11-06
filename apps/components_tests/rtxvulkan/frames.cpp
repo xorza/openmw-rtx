@@ -198,8 +198,8 @@ namespace Rtx
         }
 
         /// **A menu's move reaches the next frame**: a bounce and a landing a ray, and with the box off no
-        /// landing, one bounce's stage standing for the channels and one wavelet level, whose composite
-        /// is the separate pass's. The slider's count waits for the box.
+        /// landing, one stage standing for the channels and one wavelet level, which composes the frame.
+        /// The slider's count waits for the box.
         TEST_F(RtxFramesTest, theBouncesASettingMovesAreWhatTheNextFrameRuns)
         {
             const auto zonesOf = [](const FrameResult& frame, const FrameZone zone) {
@@ -244,7 +244,7 @@ namespace Rtx
             EXPECT_EQ(zonesOf(off, FrameZone::Filter0), 1u);
             EXPECT_EQ(zonesOf(off, FrameZone::Filter1), 0u);
             EXPECT_EQ(zonesOf(off, FrameZone::Filter3), 0u);
-            EXPECT_EQ(zonesOf(off, FrameZone::Composite), 1u) << "and the one level composes nothing";
+            EXPECT_EQ(zonesOf(off, FrameZone::Composite), 0u) << "where the one level composes the frame";
             EXPECT_EQ(zonesOf(one, FrameZone::Composite), 0u) << "where the last of four composes the frame";
         }
 

@@ -342,7 +342,7 @@ namespace Rtx
         /// includes, is whether it reaches `rayQueryEXT`.
         ///
         /// **The trace's stages are dispatches all the same** — `visibility.comp`, `direct.comp`,
-        /// `media.comp`, `panes.comp`, `bounce.comp` and `landing.comp` — because AMD's Windows
+        /// `media.comp`, `panes.comp`, `bounce.comp`, `landing.comp` and `unbounced.comp` — because AMD's Windows
         /// driver draws the trace wrong as a launch (`docs/rtx/architecture.md`, "The shaders"), and
         /// the finding above was made beside the fix of duplicate candidates
         /// (`docs/rtx/architecture.md`, "Every stage is a compute dispatch"): what a dispatch costs
@@ -356,7 +356,8 @@ namespace Rtx
             {
                 const std::filesystem::path name = entry.path().filename();
                 if (entry.path().extension() != ".comp" || name == "visibility.comp" || name == "direct.comp"
-                    || name == "media.comp" || name == "panes.comp" || name == "bounce.comp" || name == "landing.comp")
+                    || name == "media.comp" || name == "panes.comp" || name == "bounce.comp" || name == "landing.comp"
+                    || name == "unbounced.comp")
                     continue;
 
                 std::set<std::filesystem::path> reached;

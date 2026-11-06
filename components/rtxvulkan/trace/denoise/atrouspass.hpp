@@ -73,8 +73,15 @@ namespace Rtx
         ComputePipeline<Shaders::AtrousConstants> mWide;
         ComputePipeline<Shaders::AtrousConstants> mNarrow;
 
+        /// The wide level of a frame with no bounce, which keeps no fill apart from its light.
+        ComputePipeline<Shaders::AtrousConstants> mWideNoFill;
+
         /// The last level where it composes the frame, a narrow level with the composite's channels.
         ComputePipeline<Shaders::AtrousConstants> mComposing;
+
+        /// The one level of a frame with no bounce, where it composes: the wide level, which writes
+        /// the accumulator's feedback as well.
+        ComputePipeline<Shaders::AtrousConstants> mWideComposing;
 
         /// What a shadow field that did not run is bound as, which the composing level never reads.
         Image mNoShadow;

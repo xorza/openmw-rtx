@@ -391,14 +391,26 @@ at the top, over all of them.
   1.6 ms and with a vanilla room darker for it (`research/2026-11-01-bounce-rays.md`).
 - **A box for the path tracing and the rays' slider under it** (`[RTX] indirect lighting`), and no nought on the
   slider, by the user's choice: one switch says whether bounces are traced, and the slider's value waits for it.
-  Off, no landing runs and the bounce's stage stands the ambient on the surface under one occlusion ray
-  (`Skylight::mSurfaceAmbient`). The stage stays, for the channels every pass after it reads and a split
+  Off, no landing runs and a stage of its own stands the ambient on the surface under one occlusion ray
+  (`unbounced.comp`, `Skylight::mSurfaceAmbient`), for the channels every pass after it reads and a split
   pixel's lift. A glossy surface then reflects only its lamps, since its reflection is the bounce. Refused: a
   brightness matched to two or three bounces, which is almost no ambient at all.
+- **That stage a kernel apart from the bounce's**: the surface it reads for its place and its normals alone leaves
+  the rest of a hit to the compiler to remove. On the handheld and the integrated GPU its frame takes a fifth to a
+  quarter off the stage, and the bounce's own kernel 1 to 14% off without the path. Refused: a branch in
+  `bounce.comp`, whose registers (112 against 80 and 96 on RDNA 2) every lane paid for.
 - **One wavelet level where no bounce is traced** (`AtrousPass::record`): a flat ambient under one occlusion ray
   needs what the first level does, the accumulator's feedback and its history fix, and none of the rest. It saves
   0.3 to 0.75 ms and moves the frame's noise by 0.02 at most at a still place. Refused: no level, about 0.2 ms more
   and up to twice the noise after a cut, with no history fix (`research/2026-11-05-room-ambient.md`).
+  That level composes the frame as the last of four does (`atrouscompose.comp`), beside the feedback it writes.
+- **No fill kept apart from the bounce where no bounce is traced** (`ACCUMULATE_HOLDS_FILL`): the whole of the
+  ambient is fill, so two channels would carry one light through the accumulator, its clamp and the wavelet. A
+  still frame's picture stays to the bit, and a third came off the clamp's registers on RDNA 2. A moving one moves
+  only where the clamp moved the two apart, by a noise no figure of `noise` tells. The channel is cleared once and
+  the images keep their count; a bounce traced after such a frame starts the accumulator over, with no mean of
+  the fill to read (`TemporalTurns::Step::accumulatorFresh`). Refused: an image of its own for the count, which
+  a frame with a bounce would pay for.
 - **A room's record is not its light where a bounce is traced**: a landing takes a quarter of the
   ambient and a fifth of the sunlight, a surface with no bounce a twentieth of both
   (`research/2026-11-05-room-ambient.md`). At the whole record a room with few lamps showed no shape, and
@@ -467,7 +479,8 @@ at the top, over all of them.
 peels the eye's rays down to the surface a pixel shows, shades it and stores its hit;
 `direct.comp`, `media.comp` and `panes.comp` add its direct light, the shafts in the water and the
 layers in front of it; `bounce.comp` traces its bounce and `landing.comp` visits where the bounce
-landed; and the composite puts the frame together from the channels. Every ray is a ray query, and
+landed, or `unbounced.comp` stands for the pair where no bounce is traced; and the composite puts the
+frame together from the channels. Every ray is a ray query, and
 no trace pipeline has a hit, miss or any-hit stage: AMD's Windows driver answers no ray query in a
 pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-faults.md`).
 

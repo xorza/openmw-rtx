@@ -37,7 +37,10 @@ namespace Rtx
 
     private:
         ComputePipeline<Shaders::AccumulateConstants> mPipeline;
+        ComputePipeline<Shaders::AccumulateConstants> mPipelineNoFill;
         ComputePipeline<Shaders::AccumulateClampConstants> mClamp;
         ComputePipeline<Shaders::AccumulateClampConstants> mClampRing;
+        ComputePipeline<Shaders::AccumulateClampConstants> mClampNoFill;
+        ComputePipeline<Shaders::AccumulateClampConstants> mClampRingNoFill;
     };
 }

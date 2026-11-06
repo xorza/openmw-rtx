@@ -49,7 +49,19 @@
 /// Whether this module is the first level, wide, or one of the narrow levels after it.
 layout(constant_id = ATROUS_SPEC_WIDE) const bool ATROUS_WIDE = true;
 
+/// Whether the fill stands apart from the bounce: false where no bounce is traced, whose fill is the
+/// bounce whole, and whose fill images keep only their count.
+layout(constant_id = ATROUS_SPEC_FILL) const bool ATROUS_HOLDS_FILL = true;
+
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
+
+/// Whether this level writes what a level after it, or the next frame's accumulator, reads: all but the
+/// narrow level that composes the frame. The wide level holds the accumulator's feedback, composing or not.
+#ifdef ATROUS_COMPOSE
+const bool STORES_LEVEL = ATROUS_WIDE;
+#else
+const bool STORES_LEVEL = true;
+#endif
 
 /// The one bounce, albedo divided out, as the last level left it, and in `a` the deviation of its
 /// luminance: the accumulator's clamp's for the first level, and what the last level's average left of it
@@ -215,14 +227,14 @@ Tapped fetchedTap(ivec2 tap)
         return Tapped(false, vec3(0.0), vec3(0.0), vec4(0.0), vec3(0.0));
 
     return Tapped(true, unpackSurfaceNormal(there.x), positionAt(tap, there.y), texelFetch(source, stored, 0),
-        texelFetch(fillSource, stored, 0).rgb);
+        ATROUS_HOLDS_FILL ? texelFetch(fillSource, stored, 0).rgb : vec3(0.0));
 }
 
 Tapped tiledTap(ivec2 local)
 {
     const vec4 position = gPosition[local.y][local.x];
     return Tapped(position.w > 0.0, gNormal[local.y][local.x], position.xyz, gLight[local.y][local.x],
-        gFill[local.y][local.x]);
+        ATROUS_HOLDS_FILL ? gFill[local.y][local.x] : vec3(0.0));
 }
 
 /// Loads the first level's tile around the workgroup at `origin`. **Every load at a pixel clamped
@@ -241,7 +253,8 @@ void loadTile(ivec2 origin)
         const vec2 there = texelFetch(surfaceChannel, insideStored, 0).rg;
         const bool surface = pixel == inside && there.x != SURFACE_NO_NORMAL;
         gLight[square.y][square.x] = texelFetch(source, insideStored, 0);
-        gFill[square.y][square.x] = texelFetch(fillSource, insideStored, 0).rgb;
+        if (ATROUS_HOLDS_FILL)
+            gFill[square.y][square.x] = texelFetch(fillSource, insideStored, 0).rgb;
         gNormal[square.y][square.x] = surface ? unpackSurfaceNormal(there.x) : vec3(0.0);
         gPosition[square.y][square.x] = vec4(positionAt(inside, there.y), surface ? 1.0 : 0.0);
     }
@@ -266,11 +279,16 @@ void main()
     if (seen.x == SURFACE_NO_NORMAL)
     {
 #ifdef ATROUS_COMPOSE
-        storeComposed(at, stored, texelFetch(source, stored, 0).rgb, texelFetch(fillSource, stored, 0).rgb);
-#else
-        RTX_STORE_COUNTED(filtered, stored, texelFetch(source, stored, 0))
-        RTX_STORE_COUNTED(fillFiltered, stored, texelFetch(fillSource, stored, 0))
+        {
+            const vec3 bounced = texelFetch(source, stored, 0).rgb;
+            storeComposed(at, stored, bounced, ATROUS_HOLDS_FILL ? texelFetch(fillSource, stored, 0).rgb : bounced);
+        }
 #endif
+        if (STORES_LEVEL)
+        {
+            RTX_STORE_COUNTED(filtered, stored, texelFetch(source, stored, 0))
+            RTX_STORE_COUNTED(fillFiltered, stored, texelFetch(fillSource, stored, 0))
+        }
         return;
     }
 
@@ -345,27 +363,31 @@ void main()
 
             const float w = kernel * facing * coplanar * lit;
             sum += light.rgb * w;
-            sumFill += tapped.mFill * w;
+            if (ATROUS_HOLDS_FILL)
+                sumFill += tapped.mFill * w;
             weight += w;
             variance += tapVariance * w * w;
         }
 
     // The centre always passes its own tests, so the weight can only be zero if it underflowed.
     vec4 answer = weight > 0.0 ? vec4(sum / weight, sqrt(variance) / weight) : centre;
-    vec4 answerFill = vec4(weight > 0.0 ? sumFill / weight : fillCentre.rgb, frames);
+    vec4 answerFill = vec4(ATROUS_HOLDS_FILL ? (weight > 0.0 ? sumFill / weight : fillCentre.rgb) : vec3(0.0), frames);
     uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_BOUNCE_HISTORY_ROUNDING, level.mFrame);
     if (ATROUS_WIDE)
         roundedToHalves(answer, answerFill, rounding);
 #ifdef ATROUS_COMPOSE
     // **Composed from the halves a stored level would hold**, so the frame is the one the composite
     // made of them: the same light to the bit, and no level written for a pass to read back.
-    storeComposed(at, stored, nearestHalf(answer).rgb, nearestHalf(answerFill).rgb);
-#else
-    RTX_STORE_COUNTED(filtered, stored, ATROUS_WIDE ? answer : nearestHalf(answer))
-    RTX_STORE_COUNTED(fillFiltered, stored, ATROUS_WIDE ? answerFill : nearestHalf(answerFill))
+    storeComposed(at, stored, nearestHalf(answer).rgb, nearestHalf(ATROUS_HOLDS_FILL ? answerFill : answer).rgb);
 #endif
+    if (STORES_LEVEL)
+    {
+        RTX_STORE_COUNTED(filtered, stored, ATROUS_WIDE ? answer : nearestHalf(answer))
+        RTX_STORE_COUNTED(fillFiltered, stored, ATROUS_WIDE ? answerFill : nearestHalf(answerFill))
+    }
     if (fixing)
-        RTX_STORE_WORDS(fast, stored, uvec4(packRgb9e5(answer.rgb), packRgb9e5(answerFill.rgb), 0u, 0u))
+        RTX_STORE_WORDS(fast, stored,
+            uvec4(packRgb9e5(answer.rgb), ATROUS_HOLDS_FILL ? packRgb9e5(answerFill.rgb) : 0u, 0u, 0u))
 }
 
 #endif

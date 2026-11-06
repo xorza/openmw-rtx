@@ -221,7 +221,7 @@ namespace Rtx
             });
 
         const VisibilityVariant run = mPasses.mVisibility.variantFor(inputs, what.mSampled);
-        mChannels->begin(commands, VisibilityPass::writesOf(run, tables.mPuffs));
+        mChannels->begin(commands, VisibilityPass::writesOf(run, tables.mPuffs, what.mSampled.mBounceRays != 0));
         mPasses.mVisibility.record(commands, inputs, run, what.mSampled, what.mTimer);
         mChannels->handOver(commands);
 
@@ -236,17 +236,15 @@ namespace Rtx
         // with no level written for the composite to read back (`atrouscompose.comp`). The composite
         // stays for what is left: a frame nothing filtered, and a sum.
         // **Not where water may split a pixel**, whose blend reads its neighbours' light whole,
-        // which the cascade's last level holds of no pixel but its own. **Nor where no bounce is
-        // traced**, whose one level is the wide one, which composes nothing.
-        const bool composesInCascade
-            = denoised && what.mSampled.mBounceRays != 0 && what.mAccumulate == 0 && !inputs.mSubject.mSea;
+        // which the cascade's last level holds of no pixel but its own.
+        const bool composesInCascade = denoised && what.mAccumulate == 0 && !inputs.mSubject.mSea;
         // Every frame writes it whole, so what the last frame left is discarded; the head barrier
         // `CommandPool::begin` recorded orders this after the last frame's reads.
         mComposed.transition(commands, Use::sUndefined, Use::sComputeWrite);
         const std::optional<Denoised> resolved = denoised
             ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
                 inputs.mSubject.mLamps, composesInCascade, what.mReconstruction, mComposed, what.mTimer)
-            : Denoised::unfiltered(*mChannels);
+            : Denoised::unfiltered(*mChannels, what.mSampled.mBounceRays != 0);
         assert(resolved.has_value() != composesInCascade
             && "the cascade composed where it was not asked, or not where it was");
 
