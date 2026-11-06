@@ -24,7 +24,9 @@ namespace Rtx
     /// untouched — and a rounding written once is one a test can hold.
     constexpr std::uint32_t groupsFor(std::uint32_t extent, std::uint32_t workgroup)
     {
-        return (extent + workgroup - 1) / workgroup;
+        // Not `(extent + workgroup - 1) / workgroup`, whose sum wraps: RADV states 2^32 - 1 as
+        // `maxComputeWorkGroupCount[0]`, which `Groups::linear` divides by, and that came to no rows.
+        return extent / workgroup + (extent % workgroup != 0 ? 1 : 0);
     }
 
     /// How many workgroups a dispatch launches along each axis, made from the extent they cover

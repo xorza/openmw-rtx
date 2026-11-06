@@ -51,6 +51,23 @@ namespace Rtx
             expectGroups(Groups::covering(1920, 1080, 8), 240, 135);
             expectGroups(Groups::covering(9, 9, 8, 4), 2, 3);
             expectGroups(Groups::covering(9, 9, 4, 8), 3, 2);
+
+            // **Nothing wraps at the top of the range.** Under a rounding that adds before it divides,
+            // 4 at 2^32 - 1 summed to 2 and came to no group, so every chain past one group on a device
+            // stating that limit dispatched nothing: 4 / (2^32 - 1) rounds up to 1, and the largest
+            // extent at 8 is 2^29 groups.
+            constexpr std::uint32_t most = 0xFFFFFFFFu;
+            EXPECT_EQ(groupsFor(4, most), 1u);
+            EXPECT_EQ(groupsFor(most, most), 1u);
+            EXPECT_EQ(groupsFor(most, 8), 0x20000000u);
+
+            // `linear` at the limit RADV states, and at the 65535 Vulkan guarantees: 65536 is a second
+            // row by one group, and 87381, the comment's largest texture, a second row of 21846.
+            expectGroups(Groups::linear(4, most), 4, 1);
+            expectGroups(Groups::linear(4, 65535), 4, 1);
+            expectGroups(Groups::linear(65535, 65535), 65535, 1);
+            expectGroups(Groups::linear(65536, 65535), 65535, 2);
+            expectGroups(Groups::linear(87381, 65535), 65535, 2);
         }
     }
 }
