@@ -87,6 +87,18 @@ local function addHours(player, hours)
     say(player, spelling.describe(globals.gamehour))
 end
 
+-- Written as the days passed, which the moons read: their phase and the hour they rise. Never
+-- before the day the first press found, so the day the window opened on is the earliest it shows,
+-- and what Home notes of it stands as a `--day`.
+local firstDay = nil
+
+local function addDays(player, days)
+    local globals = world.mwscript.getGlobalVariables(player)
+    firstDay = firstDay or globals.dayspassed
+    globals.dayspassed = math.max(firstDay, globals.dayspassed + days)
+    say(player, string.format('day %d', globals.dayspassed - firstDay))
+end
+
 return {
     engineHandlers = {
         onInit = startSession,
@@ -101,6 +113,9 @@ return {
         end,
         RtxAddHours = function(data)
             addHours(data.player, data.steps)
+        end,
+        RtxAddDays = function(data)
+            addDays(data.player, data.steps)
         end,
     },
 }

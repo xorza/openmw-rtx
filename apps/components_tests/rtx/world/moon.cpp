@@ -480,8 +480,11 @@ namespace Rtx
             EXPECT_LT(lightAt(Sky::MoonPhase::New) / lightAt(Sky::MoonPhase::Full), 0.001f);
 
             // Waxing and waning quarters deliver the same. Which limb keeps the light is the disc's
-            // business, and how far from full the moon is is the light's.
-            EXPECT_FLOAT_EQ(lightAt(Sky::MoonPhase::FirstQuarter), lightAt(Sky::MoonPhase::ThirdQuarter));
+            // business, and how far from full the moon is is the light's. To a part in a million: the
+            // fold's `2 pi - a` lands a float's step from `pi / 2`, which the law turns into 4e-7 of the
+            // light, and how many steps of a float that is hangs on the runtime's `pow`.
+            const float quarter = lightAt(Sky::MoonPhase::ThirdQuarter);
+            EXPECT_NEAR(lightAt(Sky::MoonPhase::FirstQuarter), quarter, quarter * 1e-6f);
         }
 
         /// A moon the game has faded out lights nothing at all.

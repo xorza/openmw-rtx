@@ -443,7 +443,8 @@ namespace RtxTool
             "which day the world stands on, counted from the one a new game starts — 16 Last Seed, "
             "where both moons are full. It is the moons this decides and nothing else: their phase "
             "runs on a three-day cycle and the hour they rise on a twenty-four day one. A film's key "
-            "that names a day of its own keeps it");
+            "that names a day of its own keeps it. In a `view`, Insert and Delete step it a day on and "
+            "back");
 
         option(Verbs::View | Verbs::Bench, "frames",
             number(between(0u, BenchSpan::sUntilClosed, true))->default_value(0),

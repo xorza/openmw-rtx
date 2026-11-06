@@ -16,6 +16,8 @@ local keys = {
     [input.KEY.Period] = { event = 'RtxSpeedClock', steps = 1 },
     [input.KEY.PageUp] = { event = 'RtxAddHours', steps = 1 },
     [input.KEY.PageDown] = { event = 'RtxAddHours', steps = -1 },
+    [input.KEY.Insert] = { event = 'RtxAddDays', steps = 1 },
+    [input.KEY.Delete] = { event = 'RtxAddDays', steps = -1 },
 }
 
 return {
