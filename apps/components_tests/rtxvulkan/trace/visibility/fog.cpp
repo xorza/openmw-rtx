@@ -1603,6 +1603,51 @@ namespace Rtx::Testing
                 << "three thousand units of it, behind a second pane";
         }
 
+        /// **A moon's light in the air is one level across its disc, with no spot at its centre**
+        /// (`fogMoonTerm`): the phase's diffraction peak is for a source half a degree across, and on a
+        /// disc of twelve it drew a bright spot on a crescent's dark side. The eye looks along the moon's
+        /// line, and half a radius off it; both stand inside the disc, so both read the phase at the
+        /// limb, within the 2% that 32 frames of the fog's draws leave, where the peak put them 13% apart.
+        /// Two radii off stands outside and reads less.
+        /// The moon turns about the vertical, so its slant through the air is one at all three.
+        TEST_F(RtxVisibilityTest, aMoonsLightInTheAirIsOneLevelAcrossItsDisc)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            const float rise = 0.5f;
+            const auto lit = [&](float off) {
+                const osg::Vec3f look(0.0f, std::cos(rise), std::sin(rise));
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(osg::Vec3f(0.0f, 0.0f, 0.0f), look * 1000.0f, 60.0f, size, size, 100000.0f);
+                camera.mFogColour = osg::Vec3f(0.4f, 0.4f, 0.001f);
+                camera.mFogExtinction = 3.0e-4f;
+                camera.mFogUniform = 1.0f;
+
+                // `cos off = sin^2 rise + cos^2 rise cos turn`, the angle between two lines of one rise.
+                const float across
+                    = (std::cos(off) - std::sin(rise) * std::sin(rise)) / (std::cos(rise) * std::cos(rise));
+                const float turn = std::acos(across);
+                const osg::Vec3f towards(
+                    std::sin(turn) * std::cos(rise), std::cos(turn) * std::cos(rise), std::sin(rise));
+
+                Shaders::MoonDisc moon{};
+                moon.mSource = Shaders::skySource(towards, osg::Vec3f(0.0f, 0.0f, 1.0f), moonAngularRadius(94.0f));
+                moon.mAlpha = 0.0f;
+                moon.mFace = Shaders::NO_TEXTURE;
+                camera.mMoons[0] = moon;
+
+                SceneDesc scene;
+                addQuad(scene, sheetAt(4000.0f, -200000.0f));
+                return shoot(scene, {}, camera, size, { .mFrames = 32 }).mRadiance[centre + 2];
+            };
+
+            const float radius = moonAngularRadius(94.0f);
+            const float atCentre = lit(0.0f);
+            EXPECT_NEAR(lit(0.5f * radius) / atCentre, 1.0f, 0.02f) << radius;
+            EXPECT_LT(lit(2.0f * radius), atCentre) << "and the glow falls away outside the disc";
+        }
+
         /// A moon too faint for a shadow ray still lights the air.
         ///
         /// **`FOG_SHAFT_FLOOR` is a threshold on the ray and not on the light.** It asks whether a

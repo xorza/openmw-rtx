@@ -215,9 +215,14 @@ struct MoonTerms
 };
 
 /// One of them.
+///
+/// **The phase held at the moon's own limb, inside its disc.** The phase takes the moon for a point at
+/// the disc's centre, which is good for a sun half a degree across and not for a moon of twelve and
+/// more: its diffraction peak drew a bright spot on the disc's dark side, whichever side was lit.
 vec3 fogMoonTerm(SkySource moon, vec3 direction)
 {
-    return HAS_MOONS ? moon.mIrradiance * fogPhase(dot(direction, moon.mDirection)) : vec3(0.0);
+    const float limb = sqrt(max(1.0 - moon.mLimb * moon.mLimb, 0.0));
+    return HAS_MOONS ? moon.mIrradiance * fogPhase(min(dot(direction, moon.mDirection), limb)) : vec3(0.0);
 }
 
 /// What one froxel is to do about the sky's own lights: whether the sun is up, what the moons put into the
