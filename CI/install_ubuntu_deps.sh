@@ -10,6 +10,19 @@ here="$(dirname "$(readlink -f "$0")")"
 # this.
 printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' >/etc/apt/apt.conf.d/99-silent-mirror
 
+# The runner's list puts Azure's mirror first, which at times throttles a download to a crawl on a
+# connection that stays open, so no timeout or retry of apt's leaves it. Canonical's own goes first,
+# as Servo and Wasmtime have it (actions/runner-images#12949). The release container has no such list.
+mirrors=/etc/apt/apt-mirrors.txt
+if [ -f "$mirrors" ]; then
+  sed -i '/archive\.ubuntu\.com\/ubuntu\/\tpriority/ s/priority:2/priority:0/' "$mirrors"
+  cat "$mirrors"
+  # An image that changed the list leaves Azure first, and the stalls come back with nothing to say why.
+  if ! grep -qP '//archive\.ubuntu\.com/ubuntu/\tpriority:0$' "$mirrors"; then
+    echo "::warning::$mirrors holds no line this script knows, so Azure's mirror stays first"
+  fi
+fi
+
 "$here/install_debian_deps.sh" gcc openmw-deps openmw-deps-dynamic
 
 # Without a PPA's index, apt installs Ubuntu's own recastnavigation, MyGUI and OpenSceneGraph, which
