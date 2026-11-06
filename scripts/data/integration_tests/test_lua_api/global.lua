@@ -92,6 +92,27 @@ testing.registerGlobalTest('teleport', function()
     testing.expectEqualWithDelta(player.rotation:getYaw(), math.rad(-90), 0.05, 'teleporting changes rotation')
 end)
 
+-- A pillar under the first interior must not move the second's floor: below that one's lowest
+-- collision object the player is put back where `coc` puts them, at the museum door's destination.
+testing.registerGlobalTest('void reset in an interior reads that interior alone', function()
+    local player = world.players[1]
+    player:teleport('Chamber of Initiation', util.vector3(0, 0, 400))
+    coroutine.yield()
+    local deep = world.createObject('HubTemple_Pillar01')
+    deep:teleport('Chamber of Initiation', util.vector3(0, 0, -50000))
+    coroutine.yield()
+
+    player:teleport('Museum of Wonders, Stairway', util.vector3(500, 500, -1000))
+    coroutine.yield()
+    testing.expectEqual(player.cell.name, 'Museum of Wonders, Stairway')
+    testing.expectEqualWithDelta(player.position.x, 0, 1, 'the void reset did not fire')
+    testing.expectEqualWithDelta(player.position.y, -300, 1, 'the void reset did not fire')
+
+    deep:remove()
+    player:teleport('', util.vector3(4096, 4096, 1745))
+    coroutine.yield()
+end)
+
 testing.registerGlobalTest('getGMST', function()
     testing.expectEqual(core.getGMST('non-existed gmst'), nil)
     testing.expectEqual(core.getGMST('Water_RippleFrameCount'), 4)
