@@ -4,6 +4,7 @@
 #include <osg/Vec2i>
 #include <osg/Vec4i>
 
+#include "lowestpoints.hpp"
 #include "positioncellgrid.hpp"
 #include "ptr.hpp"
 
@@ -54,6 +55,7 @@ namespace MWRender
 
 namespace MWPhysics
 {
+    class Object;
     class PhysicsSystem;
 }
 
@@ -105,7 +107,7 @@ namespace MWWorld
         bool mPreloadDoors;
         bool mPreloadFastTravel;
         float mPredictionTime;
-        float mLowestPoint;
+        LowestPoints mLowestPoints;
 
         int mHalfGridSize = Constants::CellGridRadius;
 
@@ -187,9 +189,11 @@ namespace MWWorld
         ///< Add an object that already exists in the world model to the scene.
 
         void removeObjectFromScene(const Ptr& ptr, bool keepActive = false);
+
+        void updateLowestPoint(const MWPhysics::Object& object);
         ///< Remove an object from the scene, but not from the world model.
 
-        void addPostponedPhysicsObjects();
+        void addPostponedPhysicsObjects(const DetourNavigator::UpdateGuard* navigatorUpdateGuard = nullptr);
 
         void removeFromPagedRefs(const Ptr& ptr);
 

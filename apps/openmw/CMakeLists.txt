@@ -86,7 +86,7 @@ add_openmw_dir (mwsound
     )
 
 add_openmw_dir (mwworld
-    refdata worldimp scene globals class action nullaction actionteleport
+    refdata worldimp scene lowestpoints globals class action nullaction actionteleport
     containerstore actiontalk actiontake manualref player cellvisitors failedaction
     worldmodel localscripts customdata inventorystore ptr actionopen actionread actionharvest
     actionequip timestamp actionalchemy cellstore actionapply actioneat

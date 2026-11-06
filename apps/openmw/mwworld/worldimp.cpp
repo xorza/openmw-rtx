@@ -1112,7 +1112,7 @@ namespace MWWorld
             {
                 mPhysics->updatePosition(newPtr);
                 if (const MWPhysics::Object* object = mPhysics->getObject(newPtr))
-                    updateNavigatorObject(*object);
+                    collisionObjectChanged(*object);
             }
         }
 
@@ -1182,7 +1182,7 @@ namespace MWWorld
                 Log(Debug::Warning) << "Scaled agent bounds are not supported by navigator: " << agentBounds;
         }
         else if (const auto object = mPhysics->getObject(ptr))
-            updateNavigatorObject(*object);
+            collisionObjectChanged(*object);
     }
 
     void World::rotateObject(const Ptr& ptr, const osg::Vec3f& rot, MWBase::RotationFlags flags)
@@ -1225,7 +1225,7 @@ namespace MWWorld
             mWorldScene->updateObjectRotation(ptr, order);
 
             if (const auto object = mPhysics->getObject(ptr))
-                updateNavigatorObject(*object);
+                collisionObjectChanged(*object);
         }
     }
 
@@ -1323,7 +1323,7 @@ namespace MWWorld
             mPhysics->updateRotation(ptr, rotate);
 
             if (const auto object = mPhysics->getObject(ptr))
-                updateNavigatorObject(*object);
+                collisionObjectChanged(*object);
         }
     }
 
@@ -1395,6 +1395,8 @@ namespace MWWorld
     void World::updateAnimatedCollisionShape(const Ptr& ptr)
     {
         mPhysics->updateAnimatedCollisionShape(ptr);
+        if (const auto object = mPhysics->getObject(ptr))
+            mWorldScene->updateLowestPoint(*object);
     }
 
     void World::doPhysics(
@@ -1415,7 +1417,7 @@ namespace MWWorld
         mPhysics->forEachAnimatedObject([&](const auto& pair) {
             const auto [object, changed] = pair;
             if (changed)
-                updateNavigatorObject(*object, navigatorUpdateGuard.get());
+                collisionObjectChanged(*object, navigatorUpdateGuard.get());
         });
 
         for (const auto& door : mDoorStates)
@@ -1423,6 +1425,13 @@ namespace MWWorld
                 updateNavigatorObject(*object, navigatorUpdateGuard.get());
 
         mNavigator->update(getPlayerPtr().getRefData().getPosition().asVec3(), navigatorUpdateGuard.get());
+    }
+
+    void World::collisionObjectChanged(
+        const MWPhysics::Object& object, const DetourNavigator::UpdateGuard* navigatorUpdateGuard)
+    {
+        mWorldScene->updateLowestPoint(object);
+        updateNavigatorObject(object, navigatorUpdateGuard);
     }
 
     void World::updateNavigatorObject(
