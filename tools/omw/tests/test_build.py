@@ -1,12 +1,14 @@
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from omw.build import (
+    BUILD_LOCK,
     CONFIGURED_FROM,
     MANIFEST_AGED,
     configured_from,
@@ -17,8 +19,47 @@ from omw.build import (
     redate_ahead,
     remove_ahead,
 )
-from omw.system import Refusal
+from omw.system import Refusal, exclusive
 from omw.tests.fixtures import temporary_build, write_cache
+
+
+class ExclusiveTest(unittest.TestCase):
+    def test_a_second_process_waits_and_says_why_until_the_first_lets_go(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        lock = folder / "made" / "here.lock"
+        child = (
+            "import sys\n"
+            "from pathlib import Path\n"
+            "from omw.system import exclusive\n"
+            f"with exclusive(Path({str(lock)!r}), 'testing'):\n"
+            "    print('inside', flush=True)\n"
+        )
+        env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}
+
+        with exclusive(lock, "testing"):
+            second = subprocess.Popen(
+                [sys.executable, "-c", child], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            self.addCleanup(second.kill)
+            assert second.stderr is not None
+            self.assertEqual(second.stderr.readline().strip(), "omw: waiting for another omw that is testing")
+            self.assertIsNone(second.poll(), "it went in beside the first")
+
+        out, _ = second.communicate(timeout=10)
+        self.assertEqual(out.strip(), "inside")
+        self.assertEqual(second.returncode, 0)
+
+    def test_a_run_that_holds_its_directory_asks_again_without_waiting_for_itself(self):
+        build = temporary_build(self)
+        with build._building(), build._building():
+            self.assertTrue((build.dir / BUILD_LOCK).is_file())
+
+        # Let go whatever the inside did, so a failed build leaves the run able to build again.
+        with self.assertRaises(RuntimeError), build._building():
+            raise RuntimeError
+        with build._building():
+            pass
 
 
 class ConfiguredFromTest(unittest.TestCase):

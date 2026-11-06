@@ -5,12 +5,14 @@ flavour on a system is the preset `<flavour>-<system>`, and the reasons stand be
 there. What this adds is what a preset cannot say — which system it is on and what that system
 lacks, when a directory must be configured again, and what each flavour builds by default."""
 
+import contextlib
 import json
 import os
 import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 from omw import deps, presets
@@ -20,6 +22,7 @@ from omw.system import (
     SYSTEM,
     WINDOWS,
     Refusal,
+    exclusive,
     jobs,
     msvc_environment,
     output,
@@ -38,6 +41,8 @@ QT_FLAVOURS = ("package", "full")
 
 # The file a directory keeps the digest it was last configured from in.
 CONFIGURED_FROM = "omw-preset.sha256"
+# What a run holds while it writes a build directory (`Build._building`).
+BUILD_LOCK = "omw-build.lock"
 
 # 2000-01-02 UTC, the time `build.ninja` takes where it was dated after the clock: before every input
 # a checkout has, and a day past 2000, the epoch Ninja counts its times from on Windows, so the time
@@ -156,6 +161,7 @@ class Build:
         self._env: dict[str, str] | None = None
         self._configured = False
         self._built: set[str] = set()
+        self._holds_directory = False
         self._tests: list[dict] | None = None
 
     @property
@@ -202,6 +208,23 @@ class Build:
         states `3.6.5-osgos-1` there and installs `osgPlugins-3.6.5`."""
         return f"osgPlugins-{self.cached('OPENSCENEGRAPH_VERSION')}"
 
+    @contextlib.contextmanager
+    def _building(self) -> Iterator[None]:
+        """**One process at a time writes a build directory.** A gate regenerating `build.ninja` beside
+        a window's build reported `volk::volk_headers` missing from a tree nothing was wrong with, most
+        likely as the two took CMake's `pkgRedirects` from under each other. Held by this
+        run for as long as it writes, and not while it runs what it built, so a window stays open
+        beside a build; once within a run, which `build` and the `configure` inside it both ask."""
+        if self._holds_directory:
+            yield
+            return
+        with exclusive(self.dir / BUILD_LOCK, f"building {self.dir.name}"):
+            self._holds_directory = True
+            try:
+                yield
+            finally:
+                self._holds_directory = False
+
     def configure(self, stdout=None) -> None:
         """**Configured again whenever what its preset expands from changes, and from nothing
         else.** A directory configured once and never again keeps the cache it was first given, so a
@@ -221,6 +244,10 @@ class Build:
         cache edited since is Ninja's to notice, since `build.ninja` depends on it."""
         if self._configured:
             return
+        with self._building():
+            self._configure(stdout)
+
+    def _configure(self, stdout) -> None:
         self._remove_outputs_ahead()
         env = self.env
         digest = presets.digest(env)
@@ -334,10 +361,11 @@ class Build:
         wanted = [target for target in targets if target not in self._built]
         if not wanted:
             return
-        self.configure(stdout)
-        self._redate_inputs_ahead(wanted)
-        run(["cmake", "--build", self.dir, f"-j{jobs()}", "--target", *wanted, "--", "-k", "0"], env=self.env,
-            stdout=stdout)
+        with self._building():
+            self.configure(stdout)
+            self._redate_inputs_ahead(wanted)
+            run(["cmake", "--build", self.dir, f"-j{jobs()}", "--target", *wanted, "--", "-k", "0"], env=self.env,
+                stdout=stdout)
         self._built.update(wanted)
 
     def build_default(self, without_device: bool = False) -> None:

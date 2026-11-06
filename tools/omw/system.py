@@ -7,9 +7,10 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from collections.abc import Iterator
 from pathlib import Path
-from typing import NoReturn
+from typing import IO, NoReturn
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPS = ROOT / "deps"
@@ -136,6 +137,44 @@ def temporary_folder(prefix: str) -> Iterator[Path]:
         with contextlib.suppress(OSError):
             folder.rmdir()
         raise
+
+
+def _take_lock(held: IO[str], wait: bool) -> bool:
+    """Takes the whole-process lock on the open file `held`, waiting for it where `wait` says, and
+    answers whether it did. Closing the file or ending the process lets it go, so a run that dies
+    leaves nothing to clear."""
+    if sys.platform == "win32":
+        import msvcrt
+
+        while True:
+            try:
+                held.seek(0)
+                msvcrt.locking(held.fileno(), msvcrt.LK_NBLCK, 1)
+                return True
+            except OSError:
+                if not wait:
+                    return False
+                time.sleep(0.5)
+    else:
+        import fcntl
+
+        try:
+            fcntl.flock(held, fcntl.LOCK_EX | (0 if wait else fcntl.LOCK_NB))
+            return True
+        except BlockingIOError:
+            return False
+
+
+@contextlib.contextmanager
+def exclusive(lock_file: Path, what: str) -> Iterator[None]:
+    """Only one process at a time inside: a second waits, and says what for, rather than running
+    beside the first."""
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_file, "a+") as held:
+        if not _take_lock(held, wait=False):
+            print(f"omw: waiting for another omw that is {what}", file=sys.stderr, flush=True)
+            _take_lock(held, wait=True)
+        yield
 
 
 def read_text(path: Path) -> str:

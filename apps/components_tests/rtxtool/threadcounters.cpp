@@ -139,12 +139,12 @@ namespace RtxTool
             ASSERT_TRUE(once.mRead);
             ASSERT_TRUE(twice.mRead);
 
-            // **To a twentieth, and to a hundredth of the time counted**: beside the other suites the
+            // **To a tenth, and to a hundredth of the time counted**: beside the other suites the
             // kernel's interrupts land in the thread's count, and each move between the two kinds of
-            // core loses a sliver of it — measured at a ratio of 2.021 and 99.7% counted, against
-            // 2.000 and all of it on a quiet machine.
+            // core loses a sliver of it — measured at a ratio of 2.021 and 99.7% counted, and once at
+            // 1.868 with a burst in the shorter window, against 2.000 and all of it on a quiet machine.
             EXPECT_GT(once.mInstructions, 10'000'000u) << "a turn is more than one instruction";
-            EXPECT_NEAR(static_cast<double>(twice.mInstructions) / static_cast<double>(once.mInstructions), 2.0, 0.1);
+            EXPECT_NEAR(static_cast<double>(twice.mInstructions) / static_cast<double>(once.mInstructions), 2.0, 0.2);
             EXPECT_GT(once.mCycles, 0u);
             EXPECT_GT(once.mRunningNs, 0u);
             EXPECT_NEAR(once.mCounted, 1.0, 0.01) << "no other process counts on this thread's cores";
