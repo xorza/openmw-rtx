@@ -964,6 +964,9 @@ namespace MWWorld
         }
         assert(mActiveCells.empty());
 
+        // The void reset in `playerMoved` measures this interior alone, and not every one visited before it.
+        mLowestPoint = std::numeric_limits<float>::max();
+
         loadingListener->setProgressRange(cell.count());
 
         mNavigator.updateBounds(
