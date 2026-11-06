@@ -2,6 +2,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from omw.package import (
     CONTAINER_DIR,
@@ -90,14 +91,20 @@ class ReleaseBaseTest(unittest.TestCase):
                 self.assertFalse(on_release_base(other))
 
     def test_the_container_runs_omw_on_the_tree_with_its_own_build_and_cache(self):
-        command = container_command("/usr/bin/docker", ["python3", "omw", "archive", "v1"], "1000:1000", "package")
-        self.assertEqual(command[:4], ["/usr/bin/docker", "run", "--rm", "--user"])
-        self.assertEqual(command[command.index("--user") + 1], "1000:1000")
-        volumes = [command[at + 1] for at, word in enumerate(command) if word == "--volume"]
-        self.assertEqual(volumes, [f"{ROOT}:{ROOT}", f"{CONTAINER_DIR / 'package'}:{ROOT / 'build-package'}"])
-        self.assertIn(f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}", command)
-        self.assertEqual(command[command.index("--workdir") + 1], str(ROOT))
-        self.assertEqual(command[-5:], [RELEASE_IMAGE, "python3", "omw", "archive", "v1"])
+        tree = f"{ROOT}:{ROOT}"
+        build = f"{CONTAINER_DIR / 'package'}:{ROOT / 'build-package'}"
+        beside = ROOT.parent / f"{ROOT.name}-repository" / ".git"
+        for common, expected in ((ROOT / ".git", [tree, build]), (beside, [tree, f"{beside}:{beside}", build])):
+            with self.subTest(common=common), patch("omw.package.output", return_value=f"{common}\n"):
+                command = container_command(
+                    "/usr/bin/docker", ["python3", "omw", "archive", "v1"], "1000:1000", "package")
+                self.assertEqual(command[:4], ["/usr/bin/docker", "run", "--rm", "--user"])
+                self.assertEqual(command[command.index("--user") + 1], "1000:1000")
+                volumes = [command[at + 1] for at, word in enumerate(command) if word == "--volume"]
+                self.assertEqual(volumes, expected)
+                self.assertIn(f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}", command)
+                self.assertEqual(command[command.index("--workdir") + 1], str(ROOT))
+                self.assertEqual(command[-5:], [RELEASE_IMAGE, "python3", "omw", "archive", "v1"])
 
 
 class InstallTest(unittest.TestCase):

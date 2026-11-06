@@ -15,7 +15,7 @@ integrated GPU (AMD's Windows driver). Started from `479e4fdd85`.
   frames, two interleaved rounds. A/A: frame within 0.6%. A build beside a run moved a frame by 48%.
 - **Build RAM peaks**: desk release from nothing 25.8 GiB, debug with the tests 25.4 GiB and the rest cached;
   container 23.7 GiB; AMD iGPU 9.7 GiB.
-- **The gate does not pass in a worktree** (`.notes/ISSUES.md`), so it ran in a plain clone of the branch.
+- **The gate did not pass in a worktree**, so it ran in a plain clone of the branch.
 
 ## Tip against the start (`479e4fdd85` → `c685154a79`, 2026-11-06)
 
