@@ -2004,6 +2004,20 @@ namespace Rtx::Testing
             }
             EXPECT_EQ(kept, 0u) << "landings no workgroup visited";
 
+            // **No bounce traced**: the walls' glow reaches no wall, and each pixel holds the surface's
+            // own ambient at its occlusion ray's answer, a whole 0.2 or nothing.
+            const float fromSky = camera.mAmbientFromSky;
+            camera.mAmbientFromSky = 0.0f;
+            camera.mSurfaceAmbient = osg::Vec3f(0.2f, 0.2f, 0.2f);
+            EXPECT_EQ(shoot(box(glow), {}, camera, size, { .mIndirect = false }).mHits, size * size);
+            std::vector<float> unbounced;
+            mProbe.readChannel(Channel::Indirect, unbounced);
+            camera.mAmbientFromSky = fromSky;
+            float brightest = 0.0f;
+            for (std::size_t pixel = 0; pixel < std::size_t{ size } * size; ++pixel)
+                brightest = std::max(brightest, unbounced[pixel * 4]);
+            EXPECT_FLOAT_EQ(brightest, 0.2f);
+
             for (const std::uint32_t rays : { 2u, 3u, 4u })
             {
                 const std::vector<float> averaged = indirect(box(glow), rays);

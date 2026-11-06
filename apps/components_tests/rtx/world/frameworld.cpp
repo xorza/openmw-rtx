@@ -73,6 +73,8 @@ namespace Rtx
                         .mSunAloft = { .mPosition = osg::Vec3f(0.0f, 0.0f, 1.0f),
                             .mIrradiance = osg::Vec3f(9.0f, 5.0f, 3.0f) },
                         .mAmbient = osg::Vec3f(0.11f, 0.12f, 0.13f),
+                        .mSurfaceAmbient = osg::Vec3f(0.41f, 0.42f, 0.43f),
+                        .mWaterAmbient = osg::Vec3f(0.51f, 0.52f, 0.53f),
                         .mExposureBias = 0.75f },
                     .mSkyHorizon = osg::Vec3f(0.21f, 0.22f, 0.23f),
                     .mSkyZenith = osg::Vec3f(0.31f, 0.32f, 0.33f),
@@ -176,6 +178,8 @@ namespace Rtx
             EXPECT_EQ(constants.mSun.mIrradiance, light.mSun.mIrradiance);
             EXPECT_EQ(constants.mSunDiscColour, light.mSun.mDiscColour);
             EXPECT_EQ(constants.mAmbient, light.mAmbient);
+            EXPECT_EQ(constants.mSurfaceAmbient, light.mSurfaceAmbient);
+            EXPECT_EQ(constants.mWaterAmbient, light.mWaterAmbient);
             EXPECT_EQ(constants.mSkyHorizon, read.mDaylight.mSkyHorizon);
             EXPECT_EQ(constants.mSkyZenith, read.mDaylight.mSkyZenith);
 
@@ -349,6 +353,8 @@ namespace Rtx
             EXPECT_EQ(lifted.mDaylightGain, 4.0f);
             EXPECT_EQ(lifted.mSun.mIrradiance, constants.mSun.mIrradiance * 4.0f);
             EXPECT_EQ(lifted.mAmbient, constants.mAmbient * 4.0f);
+            EXPECT_EQ(lifted.mSurfaceAmbient, constants.mSurfaceAmbient * 4.0f);
+            EXPECT_EQ(lifted.mWaterAmbient, constants.mWaterAmbient * 4.0f);
             EXPECT_EQ(lifted.mSkyHorizon, constants.mSkyHorizon * 4.0f);
             EXPECT_EQ(lifted.mSkyZenith, constants.mSkyZenith * 4.0f);
             EXPECT_EQ(lifted.mSkyFill, constants.mSkyFill * 4.0f);

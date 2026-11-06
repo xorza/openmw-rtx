@@ -197,6 +197,49 @@ namespace Rtx
                 << "the drained frame's zones went with its slot";
         }
 
+        /// **A menu's move reaches the next frame**: a bounce and a landing a ray, and neither's landing
+        /// with the box off, one bounce's stage standing for the channels. The slider's count waits for
+        /// the box.
+        TEST_F(RtxFramesTest, theBouncesASettingMovesAreWhatTheNextFrameRuns)
+        {
+            const auto zonesOf = [](const FrameResult& frame, const FrameZone zone) {
+                std::size_t count = 0;
+                for (const GpuSpan& span : frame.mGpu.spans())
+                    count += span.mZone == zone ? 1 : 0;
+                return count;
+            };
+            const auto traced = [&] {
+                moveTo(200.0f);
+                mProbe.traceFrame(ahead(), FrameOptions{});
+                std::optional<FrameResult> frame = mRenderer.finishFrame();
+                EXPECT_TRUE(frame.has_value());
+                return *frame;
+            };
+
+            mRenderer.setBounceRays(4);
+            const FrameResult most = traced();
+            mRenderer.setIndirectLighting(false);
+            const FrameResult off = traced();
+            mRenderer.setIndirectLighting(true);
+            mRenderer.setBounceRays(1);
+            const FrameResult one = traced();
+
+            EXPECT_EQ(most.mReconstruction.mSampling.mBounceRays, 4u);
+            EXPECT_FALSE(off.mReconstruction.mSampling.mIndirect);
+            EXPECT_EQ(off.mReconstruction.mSampling.mBounceRays, 4u);
+            EXPECT_TRUE(one.mReconstruction.mSampling.mIndirect);
+            EXPECT_EQ(one.mReconstruction.mSampling.mBounceRays, 1u);
+            if (most.mGpu.spans().empty())
+                return;
+
+            EXPECT_EQ(zonesOf(most, FrameZone::Bounce), 4u);
+            EXPECT_EQ(zonesOf(most, FrameZone::Landing), 4u);
+            EXPECT_EQ(zonesOf(off, FrameZone::Bounce), 1u);
+            EXPECT_EQ(zonesOf(off, FrameZone::Landing), 0u);
+            EXPECT_EQ(zonesOf(one, FrameZone::Bounce), 1u);
+            EXPECT_EQ(zonesOf(one, FrameZone::Landing), 1u);
+        }
+
         /// What the game calls before each placement: it waits only where the ring is full, so the
         /// frame behind stays on the device while the next is placed, and reports the frame before.
         TEST_F(RtxFramesTest, collectFrameWaitsOnlyWhereTheRingIsFull)

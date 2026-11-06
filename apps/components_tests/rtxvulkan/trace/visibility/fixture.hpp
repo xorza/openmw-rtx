@@ -432,6 +432,9 @@ namespace Rtx::Testing
         /// test names another.
         std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
 
+        /// Whether the eye's surface traces bounces — `ReconstructionRequest`'s, on unless a test says.
+        bool mIndirect = true;
+
         /// How many bounce rays the eye's surface traces — `ReconstructionRequest`'s, one unless a test
         /// names another.
         std::uint32_t mBounceRays = 1;
@@ -587,6 +590,7 @@ namespace Rtx::Testing
                             .mSampling = { .mNoise = shot.mNoise,
                                 .mShadowFloor = shot.mShadowFloor,
                                 .mLampCandidates = shot.mLampCandidates,
+                                .mIndirect = shot.mIndirect,
                                 .mBounceRays = shot.mBounceRays },
                             .mFilters = { .mAntilag = shot.mAntilag } },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })

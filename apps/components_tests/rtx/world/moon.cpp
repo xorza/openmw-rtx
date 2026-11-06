@@ -419,10 +419,12 @@ namespace Rtx
                 return Shaders::MOON_ALBEDO * sine * sine;
             };
 
-            EXPECT_NEAR(share(osg::DegreesToRadians(0.2593f)), 1.0f / 407000.0f, 1e-8f);
+            // The Moon's own 0.12 stands against the photometry, whatever `MOON_ALBEDO` was raised to.
+            EXPECT_NEAR(
+                share(osg::DegreesToRadians(0.2593f)) * (0.12f / Shaders::MOON_ALBEDO), 1.0f / 407000.0f, 1e-8f);
 
             const float masser = share(configured().of(Moon::Masser).mRadius);
-            EXPECT_LT(masser, 1.0f / 250.0f) << "a moon brighter than a sunrise";
+            EXPECT_LT(masser, 1.0f / 100.0f) << "a moon brighter than a sunrise";
             EXPECT_GT(masser, 1.0f / 1000.0f) << "a moon that lights nothing";
             EXPECT_GT(masser / share(osg::DegreesToRadians(0.2593f)), 400.0f) << "the size the game gives it got lost";
         }

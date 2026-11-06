@@ -191,8 +191,13 @@ namespace RtxTool
                 Crash::fatal("map rules with no name");
             }();
 
+            const Rtx::SamplingSwitches& sampling = line.mReconstruction.mSampling;
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
                 .mUpscale = !watched || line.mUpscale.mNamed ? line.mUpscale.mValue : Settings::rtx().mUpscale.get(),
+                .mIndirectLighting = watched && !line.mBouncesNamed.mIndirect ? Settings::rtx().mIndirectLighting.get()
+                                                                              : sampling.mIndirect,
+                .mBounceRays = watched && !line.mBouncesNamed.mBounceRays ? Settings::rtx().mBounceRays.get()
+                                                                          : static_cast<int>(sampling.mBounceRays),
                 .mDistantLandCells = line.mDistantCells.has_value() ? *line.mDistantCells
                     : watched                                       ? Settings::rtx().mDistantLandCells.get()
                               : command.mShipped.get<float>("RTX", "distant land cells"),
@@ -243,6 +248,18 @@ namespace RtxTool
             profile.mStressOverlapMs = line.mHold.mValue ? sCheckHoldMs : 0.0;
             profile.mSpecializeKernels = line.mVariants;
             profile.mReconstruction = line.mReconstruction;
+            profile.mReconstruction.mSampling.mIndirect = derived.mIndirectLighting;
+            profile.mReconstruction.mSampling.mBounceRays = derived.mBounceRays;
+
+            // **What a window's line typed, written where its menu reads it**, so a slider opens at what
+            // the frame traces and moves it from there, into this run's own settings file
+            // (`adoptConfigDirectory`). A window alone: a measured run's renderer holds a count of rays
+            // of its own (`commandNoise`), which the change this writes would take back.
+            if (watched)
+            {
+                Settings::rtx().mIndirectLighting.set(derived.mIndirectLighting);
+                Settings::rtx().mBounceRays.set(static_cast<int>(derived.mBounceRays));
+            }
 
             return framed;
         }

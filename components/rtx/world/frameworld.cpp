@@ -93,6 +93,8 @@ namespace Rtx
         light.mSun.mIrradiance *= gain;
         light.mSunAloft.mIrradiance *= gain;
         light.mAmbient *= gain;
+        light.mSurfaceAmbient *= gain;
+        light.mWaterAmbient *= gain;
 
         const osg::Vec3f horizon = day.mSkyHorizon * gain;
         const osg::Vec3f zenith = day.mSkyZenith * gain;
@@ -118,6 +120,8 @@ namespace Rtx
         constants.mSun = Shaders::sunSource(light.mSun.mPosition, light.mSun.mIrradiance);
         constants.mSunDiscColour = light.mSun.mDiscColour;
         constants.mAmbient = light.mAmbient;
+        constants.mSurfaceAmbient = light.mSurfaceAmbient;
+        constants.mWaterAmbient = light.mWaterAmbient;
         constants.mAmbientFromSky = reading.mOutdoors ? 1.0f : 0.0f;
         constants.mDaylightGain = gain;
 

@@ -108,9 +108,16 @@ namespace Rtx
             EXPECT_NE(at(0.5f).mDaylightGain, at(0.25f).mDaylightGain) << "the share made no difference";
             EXPECT_EQ(dusk.mDaylightGain, 1.0f) << "the layer's sun lifted the ground's day";
             EXPECT_FLOAT_EQ(at(1.0f).mExposureBias,
-                exposureBias(at(1.0f).mSun.mIrradiance, room)
-                    * std::pow(gain, Rtx::Shaders::EXPOSURE_ADAPTATION - 1.0f));
+                exposureBias(at(1.0f).mSun.mIrradiance, room) * std::pow(gain, Rtx::Shaders::EXPOSURE_ADAPTATION - 1.0f)
+                    * std::exp2(Rtx::Shaders::EXPOSURE_LIT_STOPS));
+            // A half share takes half the stops: `2^(-0.5 * 0.5)`, and `sqrt(gain)` for the gain.
+            EXPECT_FLOAT_EQ(at(0.5f).mExposureBias,
+                exposureBias(at(0.5f).mSun.mIrradiance, at(0.5f).mAmbient)
+                    * std::pow(std::sqrt(gain), Rtx::Shaders::EXPOSURE_ADAPTATION - 1.0f)
+                    * std::exp2(Rtx::Shaders::EXPOSURE_LIT_STOPS * 0.5f));
             EXPECT_EQ(at(0.0f).mExposureBias, exposureBias(osg::Vec3f(), room)) << "a night's bias is the hour's alone";
+            EXPECT_EQ(at(0.5f).mSurfaceAmbient, at(0.5f).mAmbient) << "out of doors the surface's ambient is the sky";
+            EXPECT_EQ(at(0.5f).mWaterAmbient, at(0.5f).mAmbient) << "and the water's";
         }
 
         /// The ten names, in the order a script id counts along.
@@ -307,7 +314,8 @@ namespace Rtx
             ASSERT_GT(dusk.mAmbient.x(), recorded.x()) << "the spread moved nothing, so the order decides nothing";
 
             // Adapted to the half-risen day's gain in full as well, which is the same factor either way.
-            const float adapted = std::pow(dusk.mDaylightGain, Rtx::Shaders::EXPOSURE_ADAPTATION - 1.0f);
+            const float adapted = std::pow(dusk.mDaylightGain, Rtx::Shaders::EXPOSURE_ADAPTATION - 1.0f)
+                * std::exp2(Rtx::Shaders::EXPOSURE_LIT_STOPS * 0.5f);
             EXPECT_FLOAT_EQ(dusk.mExposureBias, exposureBias(dusk.mSun.mIrradiance, dusk.mAmbient) * adapted);
             EXPECT_NE(dusk.mExposureBias, exposureBias(dusk.mSun.mIrradiance, recorded) * adapted);
         }
@@ -338,7 +346,11 @@ namespace Rtx
         /// 0.0047770` in every channel. Red: `10 / 255 = 0.039216` is under the curve's knee, so it
         /// decodes `0.039216 / 12.92 = 0.0030353` and the sum is
         /// `0.0047770 + 0.0030353 * 0.636620 = 0.0067093`. Green and blue: `16 / 255` decodes
-        /// `0.0051815` and the sum is `0.0080756`.
+        /// `0.0051815` and the sum is `0.0080756`. A landing's ambient is a quarter of the ambient and a
+        /// fifth of the spread: red `0.0047770 / 4 + 0.0030353 * 0.636620 / 5 = 0.0015808`, green and blue
+        /// `0.0047770 / 4 + 0.0051815 * 0.636620 / 5 = 0.0018540`. The surface's with no bounce is a
+        /// twentieth of the sum, `0.00033547` and `0.00040378`, and the water's a half, `0.0033547` and
+        /// `0.0040378`.
         TEST(RtxRoomLightTest, aRoomIsLitByItsRecordAndHasNoSunInIt)
         {
             const ESM::Cell::AMBIstruct chamber = makeRoom(0x000F0F0F, 0x0010100A, 0x0015150F);
@@ -350,9 +362,15 @@ namespace Rtx
             EXPECT_EQ(room.mLight.mSun.mIrradiance, osg::Vec3f(0.0f, 0.0f, 0.0f));
             EXPECT_EQ(room.mLight.mSunAloft.mIrradiance, osg::Vec3f(0.0f, 0.0f, 0.0f)) << "and no deck over it";
 
-            EXPECT_NEAR(room.mLight.mAmbient.x(), 0.0067093f, 1e-6f);
-            EXPECT_NEAR(room.mLight.mAmbient.y(), 0.0080756f, 1e-6f);
-            EXPECT_NEAR(room.mLight.mAmbient.z(), 0.0080756f, 1e-6f) << "blue shares the green byte";
+            EXPECT_NEAR(room.mLight.mAmbient.x(), 0.0015808f, 1e-6f);
+            EXPECT_NEAR(room.mLight.mAmbient.y(), 0.0018540f, 1e-6f);
+            EXPECT_NEAR(room.mLight.mAmbient.z(), 0.0018540f, 1e-6f);
+            EXPECT_NEAR(room.mLight.mSurfaceAmbient.x(), 0.00033547f, 1e-7f);
+            EXPECT_NEAR(room.mLight.mSurfaceAmbient.y(), 0.00040378f, 1e-7f);
+            EXPECT_NEAR(room.mLight.mSurfaceAmbient.z(), 0.00040378f, 1e-7f) << "blue shares the green byte";
+            EXPECT_NEAR(room.mLight.mWaterAmbient.x(), 0.0033547f, 1e-6f);
+            EXPECT_NEAR(room.mLight.mWaterAmbient.y(), 0.0040378f, 1e-6f);
+            EXPECT_NEAR(room.mLight.mWaterAmbient.z(), 0.0040378f, 1e-6f);
 
             EXPECT_EQ(room.mSkyHorizon, decodeColour(0x0015150Fu));
             EXPECT_EQ(room.mSkyZenith, room.mSkyHorizon);
@@ -362,15 +380,19 @@ namespace Rtx
             EXPECT_FLOAT_EQ(room.mFog.mExtinction, air.mExtinction);
 
             EXPECT_FLOAT_EQ(room.mStarFade, 0.0f);
-            EXPECT_FLOAT_EQ(room.mLight.mExposureBias, 1.0f) << "the game holds a room at one";
+            EXPECT_FLOAT_EQ(room.mLight.mExposureBias, std::exp2(Rtx::Shaders::EXPOSURE_LIT_STOPS))
+                << "a room takes the lit scenes' stops, and no hour's";
             EXPECT_EQ(room.mLight.mDaylightGain, 1.0f) << "a room has no day to lift";
 
             // **The spread is the sunlight's doing and nothing else's**: the same room with its
             // sunlight written black keeps the record's ambient exactly, so what the row above adds
             // came from the `AMBI` and not from a floor put under every interior.
             const Daylight unlit = makeRoomLight(makeRoom(0x000F0F0F, 0x00000000, 0x0015150F));
-            EXPECT_EQ(unlit.mLight.mAmbient, decodeColour(0x000F0F0Fu));
-            EXPECT_LT(unlit.mLight.mAmbient.x(), room.mLight.mAmbient.x()) << "and the sunlight is worth something";
+            EXPECT_EQ(unlit.mLight.mAmbient, decodeColour(0x000F0F0Fu) * 0.25f);
+            EXPECT_LT(unlit.mLight.mAmbient.x(), room.mLight.mAmbient.x()) << "and at a landing";
+            EXPECT_EQ(unlit.mLight.mSurfaceAmbient, decodeColour(0x000F0F0Fu) * 0.05f);
+            EXPECT_LT(unlit.mLight.mSurfaceAmbient.x(), room.mLight.mSurfaceAmbient.x())
+                << "and the sunlight is worth something";
 
             // **A cell that wrote no record is a black room**, in the game and here: its `mAmbi` is
             // the zeros the loader left, and both hosts hand those over rather than checking

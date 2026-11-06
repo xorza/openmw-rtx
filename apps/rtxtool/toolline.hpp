@@ -76,6 +76,15 @@ namespace RtxTool
 
             /// What each of `sReconstructionSwitches` says, over a request's own defaults.
             Rtx::ReconstructionRequest mReconstruction;
+
+            /// Which of the bounces' switches the line named: a window takes the rest from the player's
+            /// settings, where its menu moves them.
+            struct BouncesNamed
+            {
+                bool mIndirect = false;
+                bool mBounceRays = false;
+            };
+            BouncesNamed mBouncesNamed;
         };
 
         /// Where a run stands, or which places it visits.

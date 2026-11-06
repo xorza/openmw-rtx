@@ -114,6 +114,7 @@ namespace RtxTool
                 { "level-epsilon", "0.5" },
                 { "shadow-floor", "0.25" },
                 { "lamp-candidates", "0" },
+                { "indirect", "false" },
                 { "bounce-rays", "4" },
                 { "antilag", "false" },
                 { "history-fix", "false" },
@@ -132,7 +133,7 @@ namespace RtxTool
             EXPECT_THROW(options.versus(played, "delight=0.5"), std::runtime_error);
             EXPECT_THROW(options.versus(played, "noise=sideways"), std::runtime_error);
             EXPECT_THROW(options.versus(played, "antifirefly=maybe"), std::runtime_error);
-            EXPECT_THROW(options.versus(played, "bounce-rays=0"), std::runtime_error) << "no bounce at all";
+            EXPECT_THROW(options.versus(played, "bounce-rays=0"), std::runtime_error) << "no bounce is `indirect`'s";
             EXPECT_THROW(options.versus(played, "bounce-rays=9"), std::runtime_error) << "past the landing's heads";
             EXPECT_THROW(options.versus(played, "shadow-floor=0.5"), std::runtime_error)
                 << "a floor over a quarter, which can leave a pixel nothing to draw";
@@ -182,6 +183,15 @@ namespace RtxTool
             EXPECT_FALSE(plain.mFrame.mHold.mNamed);
             EXPECT_EQ(plain.mFrame.mUpscale.mValue, sUpscaleByDefault);
             EXPECT_FALSE(plain.mFrame.mUpscale.mNamed);
+            EXPECT_FALSE(plain.mFrame.mBouncesNamed.mIndirect);
+            EXPECT_FALSE(plain.mFrame.mBouncesNamed.mBounceRays);
+
+            // Each named apart, so a window takes the other from the player's settings.
+            const ToolLine rays = lineOf(options, { "--bounce-rays=3" }, Verbs::View);
+            EXPECT_EQ(rays.mFrame.mReconstruction.mSampling.mBounceRays, 3u);
+            EXPECT_TRUE(rays.mFrame.mBouncesNamed.mBounceRays);
+            EXPECT_FALSE(rays.mFrame.mBouncesNamed.mIndirect);
+            EXPECT_TRUE(lineOf(options, { "--indirect=false" }, Verbs::View).mFrame.mBouncesNamed.mIndirect);
             EXPECT_EQ(plain.mFrame.mSize.mWidth, 1920u);
             EXPECT_EQ(plain.mFrame.mSize.mHeight, 1080u);
 

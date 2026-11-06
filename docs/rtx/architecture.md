@@ -381,11 +381,33 @@ at the top, over all of them.
   raw frame's noise and fireflies fall with the count while the denoised frame barely moves
   (`research/2026-11-01-bounce-rays.md`). NVIDIA's NRD sample averages its paths before the
   denoiser the same way
-  ([`TraceOpaque.cs.hlsl`](https://github.com/NVIDIA-RTX/NRD-Sample/blob/main/Shaders/TraceOpaque.cs.hlsl)). Refused: a bounce off the bounce's landing, whose second step cost up to 1.6 ms and left
-  a vanilla room darker, since each step past the first takes the cell's bright `AMBI` by a delit
-  albedo (the mages' guild's mean 23.3 at one bounce, 22.2 at two). Default 1 keeps every player's
+  ([`TraceOpaque.cs.hlsl`](https://github.com/NVIDIA-RTX/NRD-Sample/blob/main/Shaders/TraceOpaque.cs.hlsl)). Default 1 keeps every player's
   picture and cost, and the top is 4, by the user's choice: at 8 the desk's frame stood at three
   times one ray's.
+- **One bounce and no deeper path**, by the user's choice, after it was built and shown as a live slider.
+  Delighted walls hold an albedo near a tenth, so a second bounce returns a tenth of the first's light, into
+  pixels where a quarter more of nothing stays black: past the first, depth brought up one of seven vanilla
+  rooms, at up to 4 ms (`research/2026-11-05-room-ambient.md`). An earlier refusal measured the same, at up to
+  1.6 ms and with a vanilla room darker for it (`research/2026-11-01-bounce-rays.md`).
+- **A box for the path tracing and the rays' slider under it** (`[RTX] indirect lighting`), and no nought on the
+  slider, by the user's choice: one switch says whether bounces are traced, and the slider's value waits for it.
+  Off, no landing runs and the bounce's stage stands the ambient on the surface under one occlusion ray
+  (`Skylight::mSurfaceAmbient`). The stage stays, for the channels every pass after it reads and a split
+  pixel's lift. A glossy surface then reflects only its lamps, since its reflection is the bounce. Refused: a
+  brightness matched to two or three bounces, which is almost no ambient at all.
+- **A room's record is not its light where a bounce is traced**: a landing takes a quarter of the
+  ambient and a fifth of the sunlight, a surface with no bounce a twentieth of both
+  (`research/2026-11-05-room-ambient.md`). At the whole record a room with few lamps showed no shape, and
+  at none a corridor stood 60% black. The sunlight's share is for the rooms whose record says their light there,
+  as `Akulakhan's Chamber` does, and a room whose sunlight is small hardly moves. Refused: one factor for every
+  room's brightness at no bounce, which no factor reaches (0.02 to 0.31 a room), so 0.05 leaves the mean of
+  twenty-four rooms under three kinds of content off by nothing.
+- **A room's water takes half the record, apart from a wall's share** (`Skylight::mWaterAmbient`), by the user's
+  choice: the eye sees scatter directly, with no albedo in front of it. Refused: the landing's share, under which a
+  flooded room with no lamp stood almost black, and the whole record, under which water outshone the walls.
+- **A room's landing takes the fill with no occlusion ray, and an exterior's keeps it** (`landingLightOf`): in a
+  room the ray cost 0.1 to 0.3 ms, added no visible shape a wall further from the eye, and held black pixels, with
+  noise and fireflies no better for it. Out of doors the fill is the sky, and without the ray it reached under a lid.
 - **A `bounce` and a `landing` dispatch a ray, in turn**, each pushed which ray it is
   (`StageConstants::mRay`), and a list head a ray in `STAGE_TILES` over one array each ray writes
   again, so no clear stands between the rays and the barrier before each stage orders the reuse. Refused: one kernel tracing every ray in a loop, which

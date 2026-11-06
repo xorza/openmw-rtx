@@ -93,6 +93,8 @@ namespace RtxTool
                 [](const Value& value, Request& request) {
                     request.mSampling.mLampCandidates = value.as<std::uint32_t>();
                 } },
+            { "indirect",
+                [](const Value& value, Request& request) { request.mSampling.mIndirect = value.as<bool>(); } },
             { "bounce-rays",
                 [](const Value& value, Request& request) {
                     request.mSampling.mBounceRays = value.as<std::uint32_t>();
@@ -592,6 +594,13 @@ namespace RtxTool
             "the one its shadow bit is drawn from, and over all but which a bit's own source makes the bit "
             "exact rather than drawn. Its light rides the drawn source's bit");
 
+        option(sFramed, "indirect",
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mSampling.mIndirect)
+                ->implicit_value(true),
+            "trace the bounces, or stand the record's ambient on the surface: the player's "
+            "`[RTX] indirect lighting`");
+
         option(sFramed, "bounce-rays",
             number(between<std::uint32_t>(1, Rtx::Shaders::MAX_BOUNCE_RAYS))
                 ->default_value(Rtx::SamplingSwitches{}.mBounceRays),
@@ -911,6 +920,7 @@ namespace RtxTool
         frame.mVariants = on("variants");
         for (const SwitchReader& reader : sSwitchReaders)
             reader.mRead(variables[std::string(reader.mName)], frame.mReconstruction);
+        frame.mBouncesNamed = { named("indirect"), named("bounce-rays") };
 
         ToolLine::Places& places = line.mPlaces;
         places.mView = text("view");

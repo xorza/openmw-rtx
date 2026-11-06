@@ -68,5 +68,5 @@ namespace RtxTool
     /// nothing else reads them.
     inline constexpr std::array sReconstructionSwitches
         = std::to_array<std::string_view>({ "filter", "jitter", "noise", "level-epsilon", "shadow-floor",
-            "lamp-candidates", "bounce-rays", "antilag", "history-fix", "dual-motion", "antifirefly" });
+            "lamp-candidates", "indirect", "bounce-rays", "antilag", "history-fix", "dual-motion", "antifirefly" });
 }

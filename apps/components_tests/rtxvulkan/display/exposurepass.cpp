@@ -183,7 +183,7 @@ namespace Rtx
         /// goes from dark to normal and never from bright to normal; **and a frame with nothing lit
         /// leaves the eye where it stands.**
         ///
-        /// A reset frame moves the eye no time, so it holds `EXPOSURE_DAY`, `(1/10)^0.75` = 0.1778,
+        /// A reset frame moves the eye no time, so it holds `EXPOSURE_DAY`, `(1/10)^0.75 * 2^-0.5` = 0.1257,
         /// whatever the frame is: a room at a tenth of the key wants it open. Over `ln 2` of the
         /// rising time constant it opens half the gap in stops, to the geometric mean of the day and
         /// the room's own exposure. A black frame — every pixel under `EXPOSURE_BLACK`, a world still
@@ -191,8 +191,10 @@ namespace Rtx
         /// a target of one opened it by stops on the frames a load begins with.
         TEST_F(RtxExposurePassTest, anEyeWithNoPastStartsAtADayAndABlackFrameHoldsIt)
         {
-            EXPECT_NEAR(
-                Shaders::EXPOSURE_DAY, std::pow(1.0f / Shaders::DAYLIGHT_GAIN, Shaders::EXPOSURE_ADAPTATION), 1e-7f);
+            EXPECT_NEAR(Shaders::EXPOSURE_DAY,
+                std::pow(1.0f / Shaders::DAYLIGHT_GAIN, Shaders::EXPOSURE_ADAPTATION)
+                    * std::exp2(Shaders::EXPOSURE_LIT_STOPS),
+                1e-7f);
 
             const std::vector<float> room = even(0.018f);
             EXPECT_EQ(meterAll(std::array{ Metered{ .mLuminances = room } }), Shaders::EXPOSURE_DAY)

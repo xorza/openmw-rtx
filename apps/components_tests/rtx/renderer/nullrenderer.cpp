@@ -212,6 +212,12 @@ namespace Rtx
 
             renderer.setBounceRays(3);
             EXPECT_EQ(renderer.getProfile().mReconstruction.mSampling.mBounceRays, 3u);
+
+            EXPECT_TRUE(renderer.getProfile().mReconstruction.mSampling.mIndirect);
+            renderer.setIndirectLighting(false);
+            EXPECT_FALSE(renderer.getProfile().mReconstruction.mSampling.mIndirect);
+            EXPECT_EQ(renderer.getProfile().mReconstruction.mSampling.mBounceRays, 3u)
+                << "off keeps the slider's count for when it is back on";
         }
     }
 }

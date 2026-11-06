@@ -38,8 +38,12 @@ namespace Settings
         /// and the settings window offer of it.
         SettingValue<Rtx::Upscale> mUpscale{ mIndex, "RTX", "upscale" };
 
-        /// How many bounce rays the eye's surface traces a frame: `Rtx::SamplingSwitches::mBounceRays`,
-        /// handed to the renderer where it is made and again when the menu moves it.
+        /// Whether the eye's surface traces bounces, or the record's ambient stands on it:
+        /// `Rtx::SamplingSwitches::mIndirect`, handed to the renderer where it is made and again when
+        /// the menu moves it, as the count below is.
+        SettingValue<bool> mIndirectLighting{ mIndex, "RTX", "indirect lighting" };
+
+        /// How many bounce rays the eye's surface traces a frame: `Rtx::SamplingSwitches::mBounceRays`.
         SettingValue<int> mBounceRays{ mIndex, "RTX", "bounce rays", makeClampSanitizerInt(1, sMaxBounceRays) };
 
         /// What the content's `_spec` maps mean, as `Rtx::sSpecularLayoutNames` spells the layouts:

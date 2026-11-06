@@ -510,6 +510,10 @@ namespace Rtx
         /// it from a file or a command line refuses anything else first.
         virtual void setGamma(float gamma) = 0;
 
+        /// `SamplingSwitches::mIndirect` of `RenderProfile::mReconstruction`, changed while the frames
+        /// run: a box ticked in the menu, and the next frame traces its bounces or stops.
+        virtual void setIndirectLighting(bool traced) = 0;
+
         /// `SamplingSwitches::mBounceRays` of `RenderProfile::mReconstruction`, changed while the frames
         /// run: a slider moved in the menu, and the next frame traces that many. From one to
         /// `Shaders::MAX_BOUNCE_RAYS`: a caller that reads it from a file refuses anything else first.

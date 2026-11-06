@@ -87,8 +87,16 @@ bool bouncePixel(uvec2 pixel, uint ray, out bool gathers)
     const Surface surface = storedSolidOf(record, stored);
 
     BounceRun bounce = bounceRunOf();
-    if (surface.mHit)
+    AmbientRay unbounced = AmbientRay(noRay(), false, 1.0, false);
+    vec3 daylight = vec3(0.0);
+    if (surface.mHit && frame.mBounceRays != 0u)
         startBounce(bounce, surface, coneAt(eyeOf(record.mArms)), pixel, ray);
+    else if (surface.mHit)
+    {
+        unbounced = ambientRayOf(surface.mPosition, surface.mNormal, surface.mGeometric, surface.mRounding,
+            surface.mTransmission, pixelKey(pixel) + bounceSeedsAt(ray).mAmbient);
+        daylight = daylightReaching(surface.mPosition);
+    }
 
     // **A split pixel's lift blended with its split neighbours'** where no layer stands, which the
     // layers' stage blends where one does (`shownSurfaceLift`): here, where every pixel's halves are
@@ -100,17 +108,26 @@ bool bouncePixel(uvec2 pixel, uint ray, out bool gathers)
 
     record.mBounceLobe = bounce.mDrawn.mSpecular;
     gathers = record.mBounceLobe || !skyLights() || indirectGatherDrawn(pixelKey(pixel), bounceSeedsAt(ray).mIndirect);
+
+    // **One traversal site for the stage's one ray**, the bounce's or the occlusion ray's: a site is a
+    // whole software traversal on AMD's Windows compiler (`queryScene`).
+    const RayAnswer answered = answerAsked(bounce.mBounceTraced ? bounce.mBounceRay : unbounced.mRay);
+
+    // **No bounce traced**: the ambient on the surface itself, under its one occlusion ray, in the
+    // channels a path's end fills. No lobe, so a glossy surface reflects nothing but its lamps.
+    if (frame.mBounceRays == 0u)
+        bounce.mEscaped = frame.mSurfaceAmbient * (daylight * ambientAnswered(unbounced, answered));
+
     if (bounce.mBounceTraced)
     {
         // **What the ray met, stored for the landing** (`storeLandingHit`), which nothing reads after
         // this stage but the landing's: the landing then resolves it as this walk would have
         // (`storedLandingOf`). Beside the solid where the frame's next ray leaves the solid again, and
         // in its place on the last.
-        const SceneQuery asked = bounce.mBounceRay.mQuery;
-        const SceneAnswer met = queryScene(asked);
+        const SceneAnswer met = answered.mMet;
         if (met.mCommitted != 0u)
         {
-            storeLandingHit(stored, met, asked, ray);
+            storeLandingHit(stored, met, bounce.mBounceRay.mQuery, ray);
             storeBounce(stored, bounce.mWeight, bounce.mModulationWord);
             RTX_STORE_WORDS(stageRecord, stored, packStageRecord(record))
             return true;

@@ -35,6 +35,31 @@ namespace Rtx
         /// hundred million to one; the rest of a night is a Purkinje shift's to buy.
         constexpr float sHourStops = 0.314f;
 
+        /// How much of a room's recorded ambient a traced bounce's landing stands in for the bounces
+        /// past it with. Set by eye: at one, a room with few lamps is lit by this alone and shows no
+        /// shape, and at nought a corridor measured with no lamp in reach stood 60% black.
+        constexpr float sRoomFillBounced = 0.25f;
+
+        /// How much of a room's recorded sunlight a traced bounce's landing takes beside its ambient.
+        /// There for the rooms whose record says their light in its sunlight, as `Akulakhan's Chamber`
+        /// does, with an ambient a third of a usual room's: the landing's ambient alone left it 66% black.
+        /// Small, since whole it was the flat light of a room with few lamps; at this share a room whose
+        /// sunlight is small hardly moves (`docs/rtx/research/2026-11-05-room-ambient.md`).
+        constexpr float sRoomSpreadBounced = 0.2f;
+
+        /// How much of a room's recorded ambient and sunlight stands on the surface itself where no
+        /// bounce is traced. Reached with no landing's albedo in front of it, so far less than
+        /// `sRoomFillBounced`. Fit to one bounce's picture over eight rooms under vanilla, a mod list and
+        /// PBR replacers, at a fixed exposure: 0.05 leaves their mean off by nothing, and each within a
+        /// third of a stop but `Akulakhan's Chamber`, which the glow its bounces find lights.
+        constexpr float sRoomAmbientUnbounced = 0.05f;
+
+        /// How much of a room's recorded ambient and sunlight lights the water in front of the eye. Seen
+        /// directly, with no albedo in front of it. Set by eye: at the landing's share a flooded room with
+        /// no lamp stood almost black, and at the whole record the water outshone walls that lost most of
+        /// their ambient (`docs/rtx/research/2026-11-05-room-ambient.md`).
+        constexpr float sRoomWaterAmbient = 0.5f;
+
         /// A sun out of a weather's reading and however much of the disc the asker can see — the
         /// ground's share and a cloud deck's are the same sun at the same place and colour.
         Sun sunAbove(const SkyReading& sky, float share)
@@ -120,6 +145,8 @@ namespace Rtx
             .mSunAloft = sunAbove(sky, sky.mSunShareAloft),
             .mAmbient = sky.mAmbient + irradiance * (dusk * Shaders::INV_FOUR_PI),
         };
+        light.mSurfaceAmbient = light.mAmbient;
+        light.mWaterAmbient = light.mAmbient;
 
         // **The day's gain is adapted to in full.** A frame the gain lifts meters `gain` brighter
         // and the exposure answers with `gain^-EXPOSURE_ADAPTATION`, so the rest of the gain is
@@ -128,7 +155,8 @@ namespace Rtx
         // because it measures what they come to between them.
         light.mDaylightGain = std::pow(Shaders::DAYLIGHT_GAIN, share);
         light.mExposureBias = exposureBias(light.mSun.mIrradiance, light.mAmbient)
-            * std::pow(light.mDaylightGain, Shaders::EXPOSURE_ADAPTATION - 1.0f);
+            * std::pow(light.mDaylightGain, Shaders::EXPOSURE_ADAPTATION - 1.0f)
+            * std::exp2(Shaders::EXPOSURE_LIT_STOPS * share);
 
         return light;
     }
@@ -182,12 +210,15 @@ namespace Rtx
         const osg::Vec3f haze = decodeColour(room.mFog);
         const osg::Vec3f fill = decodeColour(room.mAmbient);
 
-        // The record's sunlight, kept whole and put where light with no direction belongs, by the
-        // factor `makeSkylight` spreads a dusk's sun with: a room has no sky to take a direction from.
+        // The record's sunlight, put where light with no direction belongs, by the factor
+        // `makeSkylight` spreads a dusk's sun with: a room has no sky to take a direction from.
         const osg::Vec3f spread = decodeColour(room.mSunlight) * (Shaders::DAYLIGHT * Shaders::INV_FOUR_PI);
 
         return Daylight{
-            .mLight = Skylight{ .mAmbient = fill + spread, .mExposureBias = 1.0f },
+            .mLight = Skylight{ .mAmbient = fill * sRoomFillBounced + spread * sRoomSpreadBounced,
+                .mSurfaceAmbient = (fill + spread) * sRoomAmbientUnbounced,
+                .mWaterAmbient = (fill + spread) * sRoomWaterAmbient,
+                .mExposureBias = std::exp2(Shaders::EXPOSURE_LIT_STOPS) },
             .mSkyHorizon = haze,
             .mSkyZenith = haze,
             .mStarFade = 0.0f,

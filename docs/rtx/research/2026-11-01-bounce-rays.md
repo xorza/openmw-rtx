@@ -84,8 +84,8 @@ bounce's, fall to a quarter at eight rays.
 ## A deeper path, refused
 
 What the first reading of the request built: a bounce off the bounce's landing, `pathEnd` at the
-last landing, and a throughput floor. The desk, at `7287507e92`, the same suites and rounds; the
-frame's median range and the two zones' medians summed.
+last landing, and a throughput floor. The desk, the same suites and rounds; the frame's median range
+and the two zones' medians summed.
 
 | place | depth 1 | 2 | 4 | 8 |
 |---|---|---|---|---|
@@ -97,7 +97,7 @@ frame's median range and the two zones' medians summed.
 | `arkngthand` | 2.94–2.97 (0.17) | 3.02 (0.25) | 3.08–3.09 (0.30) | 3.10–3.20 (0.31) |
 
 The second step costs about what the first does, and the floor ends most paths after it. The mages'
-guild's shot, from the working tree that became `1b46bef106`, came out darker with depth: a mean
+guild's shot came out darker with depth: a mean
 of 23.29 levels at one bounce, 22.24 at two and 22.20 at four. The reading: a path that ends at its
 first landing takes the cell's bright `AMBI` there, and each step further takes it by a delit
 albedo first, so a vanilla room lit by its ambient loses light.

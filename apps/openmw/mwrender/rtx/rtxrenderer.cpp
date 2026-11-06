@@ -173,7 +173,7 @@ namespace MWRender
                 .mRun = {
                     .mProfile = {
                         .mUpscale = settings.mUpscale,
-                        .mReconstruction = Rtx::ReconstructionRequest{ .mSampling = { .mBounceRays = settings.mBounceRays } },
+                        .mReconstruction = Rtx::ReconstructionRequest{ .mSampling = { .mIndirect = settings.mIndirectLighting, .mBounceRays = settings.mBounceRays } },
                         .mAnisotropy = settings.mAnisotropy,
                         .mGamma = settings.mGamma,
                         .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
@@ -731,12 +731,13 @@ namespace MWRender
     {
         mPhase.expect(Phase::Between, Phase::Run);
         const bool upscale = changed.contains({ "RTX", "upscale" });
+        const bool indirect = changed.contains({ "RTX", "indirect lighting" });
         const bool bounceRays = changed.contains({ "RTX", "bounce rays" });
         const bool reach
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
         const bool gamma = changed.contains({ "Video", "gamma" });
-        if (!upscale && !bounceRays && !reach && !anisotropy && !gamma)
+        if (!upscale && !indirect && !bounceRays && !reach && !anisotropy && !gamma)
             return;
 
         // What asks is somebody choosing from a menu, so a value the derivation refuses is reported
@@ -766,6 +767,9 @@ namespace MWRender
 
         if (gamma)
             mRenderer->setGamma(settings->mGamma);
+
+        if (indirect)
+            mRenderer->setIndirectLighting(settings->mIndirectLighting);
 
         if (bounceRays)
             mRenderer->setBounceRays(settings->mBounceRays);

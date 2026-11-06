@@ -101,6 +101,15 @@ namespace Rtx::Shaders
     /// fixed — a reference, a test — is a number the run chose, and this does not move it.
     const float EXPOSURE_COMPENSATION = 0.0f;
 
+    /// How far a lit scene is moved from what the meter settled, in stops: the whole of it in a room
+    /// and under a full sun, fading with the sun's share to nothing at night.
+    ///
+    /// **The dial for a day or a room that reads too bright, where `EXPOSURE_COMPENSATION` would
+    /// take the night down with them.** A night's share is nought, so its exposure does not move by
+    /// a bit (`makeSkylight`, `makeRoomLight`). Taken before `EXPOSURE_MAX`, so a dim room the
+    /// ceiling already holds stays as it is, and only a room that meters bright comes down.
+    const float EXPOSURE_LIT_STOPS = -0.5f;
+
     /// Clamped rather than trusted: a frame that is almost entirely black would otherwise divide by
     /// something near zero and hand back an exposure that turns the next frame's noise into a
     /// snowstorm. `MAX_SUN_RADIANCE` is sized against the floor, and the floor against the day: a
@@ -114,7 +123,7 @@ namespace Rtx::Shaders
     /// than the night outside it. Held here, an interior shows its lamps' own light at one exposure,
     /// and a dim room is dimmer than a bright one by all of the difference. What it costs: the eye
     /// adapts no further inside, so a dark corridor off a lit room stays dark.
-    const float EXPOSURE_MAX = 35.0f;
+    const float EXPOSURE_MAX = 24.75f;
 
     /// Where the eye starts once it has no past: a bright day's exposure, which the eye then
     /// opens from toward what the frame measures.
@@ -126,9 +135,9 @@ namespace Rtx::Shaders
     /// and an interior opens from the dark, as an eye does coming in from outside.
     ///
     /// **A day is the key lifted by the day's gain**, so the meter settles at
-    /// `(1 / DAYLIGHT_GAIN)^EXPOSURE_ADAPTATION`, `10^-0.75`, written as the literal it is for the
-    /// reason `portable.h` gives.
-    const float EXPOSURE_DAY = 0.17782794f;
+    /// `(1 / DAYLIGHT_GAIN)^EXPOSURE_ADAPTATION * 2^EXPOSURE_LIT_STOPS`, `10^-0.75 * 2^-0.5`, written
+    /// as the literal it is for the reason `portable.h` gives.
+    const float EXPOSURE_DAY = 0.12574334f;
 
     /// How long the exposure takes to open, as the time constant of an exponential approach, in
     /// seconds.
@@ -264,24 +273,25 @@ namespace Rtx::Shaders
     /// what a body sends back at opposition against what a perfectly diffusing disc of the same size
     /// would.
     ///
-    /// **The Moon's own, because there is one right answer and Morrowind's moons are rock** — the
-    /// argument `SUN_ANGULAR_RADIUS` makes. What it buys is that moonlight stops being a level
-    /// somebody picked. A disc of geometric albedo `p` and half-angle `t` under irradiance `E`
+    /// **The Moon's own 0.12, because Morrowind's moons are rock — the argument `SUN_ANGULAR_RADIUS`
+    /// makes — raised by eye**, so that a clear night's ground reads as moonlit. What the law buys
+    /// is that moonlight follows the moon's size and the sun's level, with this one number chosen.
+    /// A disc of geometric albedo `p` and half-angle `t` under irradiance `E`
     /// delivers `E * p * sin(t)^2` to a surface facing it, and every term of that is already here:
     /// `DAYLIGHT` is the sun, and `Moons_<name>_Size` is the angle.
     ///
     /// **And it is the size of Morrowind's moons that makes the physics usable.** Earth's is half a
-    /// degree across, so the same formula puts real moonlight at a 407,000th of sunlight — a figure
-    /// no frame here could carry beside a noon. Masser is twelve degrees across at OpenMW's own
+    /// degree across, so the same formula at 0.12 puts real moonlight at a 407,000th of sunlight — a
+    /// figure no frame here could carry beside a noon. Masser is twelve degrees across at OpenMW's own
     /// `Moons_Masser_Size` and twenty-one at the ini's, which is five hundred to fifteen hundred
-    /// times the sky and puts it between a 728th of the sun and a 255th. A Morrowind night is lit
+    /// times the sky and puts it between a 291st of the sun and a 102nd. A Morrowind night is lit
     /// by its moons because its moons are enormous, and nothing has to be invented to say so.
     ///
     /// **Masser's alone, because the two moons do not reflect the same.** `tintOf` normalises both
     /// portraits on Masser's luminance, so Secunda carries this times the 2.54 its own paler face
     /// says it is worth. And this is not `MOON_RADIANCE`: that one is pinned by where the tone curve
     /// stops keeping colour, so a light read out of it would put a night at a thousandth of a day.
-    const float MOON_ALBEDO = 0.12f;
+    const float MOON_ALBEDO = 0.30f;
 
     /// What a texel of the star field is worth as radiance.
     ///

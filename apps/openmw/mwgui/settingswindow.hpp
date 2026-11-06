@@ -23,6 +23,7 @@ namespace MWGui
 
         void updateVSyncModeSettings();
         void updateRayTracingSettings();
+        void updateBounceRaysSlider();
 
         void updateWindowModeSettings();
 
@@ -49,6 +50,7 @@ namespace MWGui
 
         MyGUI::ComboBox* mRayTracingUpscale;
         MyGUI::ComboBox* mRayTracingSpecularMaps;
+        MyGUI::ScrollBar* mRayTracingBounceRays;
 
         // controls
         MyGUI::ScrollView* mControlsBox;

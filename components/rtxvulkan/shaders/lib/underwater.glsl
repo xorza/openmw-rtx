@@ -360,7 +360,7 @@ ColumnStart columnStartOf(vec3 from, vec3 direction, float path)
     // `(1 - T^2) / 2` it was for every ray; level, it is `1 - T`, and looking up it gathers more.
     const vec3 transmittance = waterTransmittance(path);
     const vec3 sky
-        = frame.mWaterScatter * gatheredAlong(direction, 1.0, path) * frame.mAmbient * daylightReaching(from);
+        = frame.mWaterScatter * gatheredAlong(direction, 1.0, path) * frame.mWaterAmbient * daylightReaching(from);
 
     // **Every light in the sky, as a surface's `GatherRun` walks them**, so the water in front of a
     // bed a moon lights is lit by the same moon. A moon's beam is the closed form alone: the

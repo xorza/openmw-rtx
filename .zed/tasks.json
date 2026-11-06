@@ -20,6 +20,24 @@
     "reveal": "always",
     "tags": ["rtx-view"]
   },
+  {
+    "label": "RTX: vivec-canalworks (release)",
+    "command": "./omw release view --size=2560x1440 --view=vivec-canalworks",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": ["rtx-view"]
+  },
+  {
+    "label": "RTX: akulakhan-chamber (release)",
+    "command": "./omw release view --size=2560x1440 --view=akulakhan-chamber",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": ["rtx-view"]
+  },
   // `balmora-fog-night` in files/rtx/views.cfg: the Balmora bridge at 23:00 under Foggy weather.
   {
     "label": "RTX: Balmora, foggy night (release)",

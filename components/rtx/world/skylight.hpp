@@ -61,9 +61,17 @@ namespace Rtx
         /// What a path is terminated with: the ambient plus whatever of the sun is not over the horizon.
         osg::Vec3f mAmbient;
 
+        /// What stands on the surface the eye found where no bounce is traced (`[RTX] indirect lighting`).
+        /// The same out of doors, where it is the sky; a room's is its own (`makeRoomLight`).
+        osg::Vec3f mSurfaceAmbient{};
+
+        /// What lights the water in front of the eye. The same out of doors, where it is the sky; a
+        /// room's is its own (`makeRoomLight`).
+        osg::Vec3f mWaterAmbient{};
+
         /// What to hold a measured exposure back by for this light; one leaves it alone. A field,
         /// because an interior's ambient is the whole of its light and `exposureBias` would hold a
-        /// cellar back by two stops.
+        /// cellar back by two stops: a room takes `EXPOSURE_LIT_STOPS` alone.
         float mExposureBias = 1.0f;
 
         /// What the sun, the sky and everything the sky sends are multiplied by under this sky: one
@@ -155,8 +163,9 @@ namespace Rtx
     /// A room's light out of its own `AMBI` record, and not the rasterizer's reading of it, which
     /// lifts the ambient to `minimum interior brightness` for a falloff curve this renderer has not
     /// got and aims the sunlight along `(-1, 45°, 45°)` — traced, hard shadows off nothing through
-    /// every crack a room's shell is built from. So the sunlight is kept whole and its direction
-    /// taken away, over `INV_FOUR_PI`. The sky is the fog colour at both ends and never a light.
+    /// every crack a room's shell is built from. So the sunlight's direction is taken away, over
+    /// `INV_FOUR_PI`, and a traced bounce's landing, a surface with no bounce and the water each take a
+    /// share of it and of the ambient. The sky is the fog colour at both ends and never a light.
     Daylight makeRoomLight(const ESM::Cell::AMBIstruct& room);
 
     /// What the air leaves of a body in the sky, per channel: Rayleigh optical depth at the three

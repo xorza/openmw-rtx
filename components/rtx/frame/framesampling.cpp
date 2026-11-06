@@ -58,7 +58,7 @@ namespace Rtx
         assert(reconstruction.mSampling.mBounceRays >= 1
             && reconstruction.mSampling.mBounceRays <= Shaders::MAX_BOUNCE_RAYS
             && "a count of bounce rays its asker should have held from one to `MAX_BOUNCE_RAYS`");
-        sampled.mBounceRays = reconstruction.mSampling.mBounceRays;
+        sampled.mBounceRays = reconstruction.mSampling.mIndirect ? reconstruction.mSampling.mBounceRays : 0u;
 
         // The sampler takes the setting as it is: the settings clamp it to sixteen, and a device
         // with anisotropic filtering, which the backends require, takes at least sixteen.

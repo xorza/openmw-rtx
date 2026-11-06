@@ -298,6 +298,14 @@ namespace Rtx::Shaders
         /// mostly finds sky, which is traced for real.
         vec3 mAmbient;
 
+        /// What the surface the eye found takes where `mBounceRays` is nought and no path ends at a
+        /// landing (`Rtx::Skylight::mSurfaceAmbient`).
+        vec3 mSurfaceAmbient;
+
+        /// What lights the water in front of the eye (`Rtx::Skylight::mWaterAmbient`): seen directly,
+        /// with no surface's albedo in front of it, so a room's stands apart from `mAmbient`.
+        vec3 mWaterAmbient;
+
         /// What the air between the eye and everything else scatters toward it, and how much of it
         /// there is.
         ///
@@ -476,9 +484,9 @@ namespace Rtx::Shaders
         /// `LAMP_CANDIDATES` unless a run names another, `Rtx::Reconstruction::mLampCandidates`.
         uint mLampCandidates;
 
-        /// How many bounce rays the eye's surface traces, from one to `MAX_BOUNCE_RAYS` —
-        /// `Rtx::SamplingSwitches::mBounceRays`: the player's `[RTX] bounce rays` in the world's frame,
-        /// and one in a picture's and a frame built by hand. The bounce's and the landing's stages run
+        /// How many bounce rays the eye's surface traces, nought where `[RTX] indirect lighting` is off and otherwise
+        /// up to `MAX_BOUNCE_RAYS` — `Rtx::SamplingSwitches::mBounceRays`: the player's `[RTX] bounce rays` in the
+        /// world's frame, and one in a picture's and a frame built by hand. The bounce's and the landing's stages run
         /// once a ray, each worth one over their count (`startBounce`).
         uint mBounceRays;
 
@@ -531,8 +539,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1440, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1640, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1464, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1664, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

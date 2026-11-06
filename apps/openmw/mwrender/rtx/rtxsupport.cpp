@@ -99,6 +99,7 @@ namespace MWRender
             { "Post Processing", "", sPostProcessing },
             { "RTX", "bounce rays", {} },
             { "RTX", "distant land cells", {} },
+            { "RTX", "indirect lighting", {} },
             { "RTX", "specular map layout", {} },
             { "RTX", "upscale", {} },
             { "Shaders", "adjust coverage for alpha test", sAlphaTest },

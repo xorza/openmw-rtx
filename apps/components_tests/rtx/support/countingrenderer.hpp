@@ -103,6 +103,7 @@ namespace Rtx::Testing
         void setVerticalSync(VerticalSync) override {}
         void setAnisotropy(std::uint32_t) override {}
         void setGamma(float) override {}
+        void setIndirectLighting(bool) override {}
         void setBounceRays(std::uint32_t) override {}
         Rtx::JobProgress awaitKernels(Rtx::KernelSet, std::chrono::milliseconds) override { return {}; }
         Rtx::FrameExtents getExtents() const override { return mExtents; }

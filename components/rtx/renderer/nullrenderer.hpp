@@ -67,6 +67,7 @@ namespace Rtx
         void setVerticalSync(VerticalSync) override {}
         void setAnisotropy(std::uint32_t anisotropy) override { mProfile.mAnisotropy = anisotropy; }
         void setGamma(float gamma) override { mProfile.mGamma = gamma; }
+        void setIndirectLighting(bool traced) override;
         void setBounceRays(std::uint32_t rays) override;
         JobProgress awaitKernels(KernelSet, std::chrono::milliseconds) override { return {}; }
         FrameTraced renderFrame(const FrameRequest& request) override;

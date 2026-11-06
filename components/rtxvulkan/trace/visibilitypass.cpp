@@ -818,9 +818,9 @@ namespace Rtx
             = 2 * Shaders::fieldGroupsAcross(constants.mEyes.mWorld.mWidth, Shaders::TRACE_WORKGROUP_WIDTH);
         const std::uint32_t down = groupsFor(constants.mEyes.mWorld.mHeight, Shaders::TRACE_WORKGROUP_HEIGHT);
 
-        assert(constants.mBounceRays >= 1 && constants.mBounceRays <= Shaders::MAX_BOUNCE_RAYS
-            && "a count of bounce rays `sampleFrame` should have held from one to `MAX_BOUNCE_RAYS`");
-        assert((constants.mBounceRays == 1 || inputs.mChannels.holdsLandingsApart())
+        assert(constants.mBounceRays <= Shaders::MAX_BOUNCE_RAYS
+            && "a count of bounce rays `sampleFrame` should have held from nought to `MAX_BOUNCE_RAYS`");
+        assert((constants.mBounceRays <= 1 || inputs.mChannels.holdsLandingsApart())
             && "a frame of several bounce rays into targets made for one: the profile's count "
                "(`Renderer::setBounceRays`) is the most a frame of the renderer asks");
 
@@ -854,6 +854,11 @@ namespace Rtx
             recordStage(static_cast<std::size_t>(Kernel::Bounce), ray);
             recordStage(static_cast<std::size_t>(Kernel::Landing), ray);
         }
+
+        // **No bounce traced still takes the bounce's stage**, which writes the channels every pass
+        // after it reads, the ambient on the surface (`bouncePixel`), and lists nothing to land.
+        if (constants.mBounceRays == 0)
+            recordStage(static_cast<std::size_t>(Kernel::Bounce), 0);
 
         // The host's read of the count is ordered by whoever reads it: `renderFrame` records
         // `Buffer::orderForHostRead` after every pass that could add to it, and a picture's count

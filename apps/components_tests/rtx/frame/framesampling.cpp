@@ -139,6 +139,19 @@ namespace Rtx
             EXPECT_EQ(picture.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR) << "and draws its bits by the default floor";
             EXPECT_EQ(picture.mLampCandidates, Shaders::LAMP_CANDIDATES) << "and its lamps by the default count";
 
+            EXPECT_EQ(picture.mBounceRays, 1u) << "and traces one bounce ray";
+
+            Reconstruction several;
+            several.mSampling.mBounceRays = 3;
+            const Shaders::VisibilityConstants traced
+                = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, several, counts, nullptr);
+            EXPECT_EQ(traced.mBounceRays, 3u);
+
+            several.mSampling.mIndirect = false;
+            const Shaders::VisibilityConstants unbounced
+                = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, several, counts, nullptr);
+            EXPECT_EQ(unbounced.mBounceRays, 0u) << "off traces no bounce ray, whatever the slider holds";
+
             const Shaders::VisibilityConstants offset = sampleFrame(stated(),
                 FrameOptions{ .mJitter = osg::Vec2f(0.25f, 0.0f) }, RenderProfile{}, Reconstruction{}, counts, nullptr);
             EXPECT_EQ(offset.mEyes.mWorld.mJitter, osg::Vec2f(0.25f, 0.0f));

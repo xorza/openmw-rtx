@@ -2375,26 +2375,21 @@ namespace Rtx::Testing
                 << "and half a disc stands on the shadow's own edge, two thousand units back";
         }
 
-        /// What terminates a path is occluded on both sides of a door, and only the reach differs.
+        /// What a bounce's landing takes differs on either side of a door.
         ///
-        /// **Both levels are occluded.** A bounce ray that hits something is shaded there and the
-        /// path stops, and handed the open sky whatever stood over it, a hollow would be lit as
-        /// though the sky reached into it. `ambientReaching` is that half, and `mAmbientFromSky` says how far it looks:
-        /// out of doors the ambient is the sky and the ray runs to it, and in a room the ambient is the `AMBI` fill,
-        /// which the walls make rather than block, so only what is within `ROOM_FILL_REACH` takes it away.
+        /// **Out of doors the ambient is the sky, and a landing asks whether it reaches**: handed the
+        /// open sky whatever stood over it, a hollow would be lit as though the sky reached into it.
+        /// **A room's is the `AMBI` fill, which the walls make**, and a landing takes it whole, with no
+        /// ray of its own (`landingLightOf`), however near the next surface stands.
         ///
         /// A floor under a lid, lit by nothing but the ambient. Every bounce off the floor lands on
-        /// the lid's underside, and what that underside is handed is the whole of the claim.
+        /// the lid's underside, and what that underside is handed is the whole of the claim. So a room's
+        /// floor holds one level at 35 and 70 units.
         ///
-        /// **In a room it goes as the square of the height, which is Malley's method read
-        /// backwards.** A cosine-drawn direction has `d.z = sqrt(1 - u)`, so `P(d.z >= c) = 1 - c^2`;
-        /// a ray from the lid reaches the floor within `r` exactly where `d.z >= h / r`, so what is
-        /// left unblocked is `(h / r)^2`. At 35 and 70 units under a reach of 140 that is 0.0625 and
-        /// 0.25 — a factor of four for a doubling — and past 140 nothing is blocked at all.
-        ///
-        /// The lid is 8000 across, so an escape past its edge is 2.2% at 600 units and nothing worth
-        /// naming at 70: `tan(theta) > 4000 / 600` is `d.z < 0.1474`, and `0.1474^2` is that.
-        TEST_F(RtxVisibilityTest, aRoomsFillIsTakenAwayByWhatIsNearAndAnExteriorsSkyByAnything)
+        /// The lid is 8000 across, so an escape past its edge, which brings a room nothing, is 2.2% at
+        /// 600 units and nothing worth naming at 70: `tan(theta) > 4000 / 600` is `d.z < 0.1474`, and
+        /// `0.1474^2` is that.
+        TEST_F(RtxVisibilityTest, aRoomsFillStandsWholeAtALandingAndAnExteriorsSkyIsTakenAwayByAnything)
         {
             constexpr std::uint32_t size = 32;
 
@@ -2432,8 +2427,8 @@ namespace Rtx::Testing
 
             ASSERT_GT(near, 0.0f) << "a room's fill still reaches the second level";
 
-            EXPECT_NEAR(mid / near, 4.0f, 0.4f) << "twice the height is four times the fill";
-            EXPECT_NEAR(clear / mid, 3.91f, 0.4f) << "and past the reach it is whole, less the edge";
+            EXPECT_NEAR(mid / near, 1.0f, 0.01f) << "and no nearer surface takes any of it";
+            EXPECT_NEAR(clear / mid, 0.978f, 0.01f) << "and a far lid only the edge's share";
 
             // **The sky is occluded by anything at all**, which is the same lid at the same height
             // asked the other question: the underside sees the floor and no sky, so out of doors the

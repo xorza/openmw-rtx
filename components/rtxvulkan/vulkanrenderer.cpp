@@ -510,6 +510,11 @@ namespace Rtx
         mInverseGamma = 1.0f / gamma;
     }
 
+    void VulkanRenderer::setIndirectLighting(const bool traced)
+    {
+        mProfile.mReconstruction.mSampling.mIndirect = traced;
+    }
+
     void VulkanRenderer::setBounceRays(const std::uint32_t rays)
     {
         assert(rays >= 1 && rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");

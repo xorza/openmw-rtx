@@ -56,6 +56,10 @@ namespace Rtx
         /// nought for every lamp, which a run names for the A/B.
         std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
 
+        /// Whether the eye's surface traces a bounce at all, the player's `[RTX] indirect lighting`.
+        /// Off, the record's ambient stands on the surface and `mBounceRays` says nothing.
+        bool mIndirect = true;
+
         /// How many bounce rays the eye's surface traces, from one to `Shaders::MAX_BOUNCE_RAYS`: the
         /// player's `[RTX] bounce rays` in the world's frame, which a run names for the A/B, and one in
         /// a picture's, whose `Reconstruction{}` takes the default.

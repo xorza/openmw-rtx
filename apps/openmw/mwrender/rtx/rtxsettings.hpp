@@ -19,6 +19,7 @@ namespace MWRender
     struct RtxSettingValues
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+        bool mIndirectLighting = true;
         int mBounceRays = 1;
         float mDistantLandCells = 0.0f;
         float mViewingDistance = 0.0f;
@@ -43,6 +44,9 @@ namespace MWRender
     struct RtxSettings
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+
+        /// `SamplingSwitches::mIndirect`: the setting.
+        bool mIndirectLighting = true;
 
         /// `SamplingSwitches::mBounceRays`: the setting, from one to `Shaders::MAX_BOUNCE_RAYS`.
         std::uint32_t mBounceRays = 1;

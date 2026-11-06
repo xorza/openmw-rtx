@@ -258,12 +258,11 @@ namespace MWGui
         distantLand->setScrollRange(static_cast<std::size_t>(mostCells - fewestCells) + 1);
 
         // One ray to a step, up to the most the trace keeps a landing's list for
-        MyGUI::ScrollBar* bounceRays;
-        getWidget(bounceRays, "RayTracingBounceRaysSlider");
+        getWidget(mRayTracingBounceRays, "RayTracingBounceRaysSlider");
         constexpr int mostRays = Settings::RTXCategory::sMaxBounceRays;
-        bounceRays->setUserString("SettingMin", "1");
-        bounceRays->setUserString("SettingMax", MyGUI::utility::toString(mostRays));
-        bounceRays->setScrollRange(static_cast<std::size_t>(mostRays));
+        mRayTracingBounceRays->setUserString("SettingMin", "1");
+        mRayTracingBounceRays->setUserString("SettingMax", MyGUI::utility::toString(mostRays));
+        mRayTracingBounceRays->setScrollRange(static_cast<std::size_t>(mostRays));
 
         configureWidgets(mMainWidget, true);
 
@@ -559,6 +558,7 @@ namespace MWGui
         if (getSettingType(sender) == checkButtonType)
         {
             Settings::get<bool>(getSettingCategory(sender), getSettingName(sender)).set(newState);
+            updateBounceRaysSlider();
             apply();
             return;
         }
@@ -760,6 +760,16 @@ namespace MWGui
         mRayTracingUpscale->setIndexSelected(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value());
         mRayTracingSpecularMaps->setIndexSelected(
             Rtx::menuIndex(Rtx::sSpecularLayoutMenu, Settings::rtx().mSpecularMapLayout.get()).value());
+        updateBounceRaysSlider();
+    }
+
+    void SettingsWindow::updateBounceRaysSlider()
+    {
+        // Its value stays as it is, for when the box is ticked again.
+        const bool traced = Settings::rtx().mIndirectLighting;
+        mRayTracingBounceRays->setEnabled(traced);
+        mRayTracingBounceRays->setAlpha(traced ? 1.0f : 0.5f);
+        getSliderLabel(mRayTracingBounceRays)->setAlpha(traced ? 1.0f : 0.5f);
     }
 
     void SettingsWindow::layoutControlsBox()

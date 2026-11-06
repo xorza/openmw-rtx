@@ -322,6 +322,7 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
             camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+            camera.mWaterAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
 
             const auto look = [&](const SceneDesc& scene) {
                 // No height at all, which is a flat sea: a table whose amplitudes are zero.
@@ -514,6 +515,7 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -0.05f, -eye), osg::Vec3f(0.0f, 0.0f, -eye - 10.0f), 60.0f, size, size, 10000.0f);
                 camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+                camera.mWaterAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
                 camera.mAmbientFromSky = 1.0f;
                 camera.mWaterLevel = 0.0f;
 
@@ -578,6 +580,7 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -0.05f, -eye), osg::Vec3f(0.0f, 0.0f, -eye - 10.0f), 60.0f, size, size, 2000.0f);
             camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+            camera.mWaterAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
             camera.mSkyHorizon = osg::Vec3f(1.0f, 1.0f, 1.0f);
             camera.mSkyZenith = camera.mSkyHorizon;
             camera.mAmbientFromSky = 1.0f;
@@ -605,6 +608,13 @@ namespace Rtx::Testing
                             << "channel " << channel << " at " << x << ", " << y;
                     }
                 }
+
+            // **What lights the water is its own**, `mWaterAmbient` and not the path's ambient.
+            camera.mWaterAmbient = osg::Vec3f();
+            const Frame unlit = shoot(makeOpenWater(4000.0f), {}, camera, size);
+            for (std::size_t at = 0; at < std::size_t{ size } * size * 4; at += 4)
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                    ASSERT_EQ(int{ unlit.byte(at + channel) }, 0) << "the water took the path's ambient";
         }
 
         /// A pixel of water with no water under it is the ground beside it, and how much water is
@@ -1203,6 +1213,7 @@ namespace Rtx::Testing
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
             camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+            camera.mWaterAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
             camera.mAmbientFromSky = 1.0f;
 
             SceneDesc scene = makeOpenWater(4000.0f);

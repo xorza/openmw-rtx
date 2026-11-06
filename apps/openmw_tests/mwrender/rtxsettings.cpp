@@ -20,6 +20,7 @@ namespace MWRender
         {
             return RtxSettingValues{
                 .mUpscale = Rtx::Upscale::Balanced,
+                .mIndirectLighting = false,
                 .mBounceRays = 3,
                 .mDistantLandCells = 6.0f,
                 .mViewingDistance = 7168.0f,
@@ -42,6 +43,7 @@ namespace MWRender
         {
             const RtxSettings derived = RtxSettings::derive(valid());
             EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
+            EXPECT_FALSE(derived.mIndirectLighting);
             EXPECT_EQ(derived.mBounceRays, 3u);
             // Cells and the viewing distance, which a worldspace's grid turns into units: six of
             // Morrowind's 8192 are 49152.
@@ -91,9 +93,9 @@ namespace MWRender
                 << "anything over nought stands";
         }
 
-        /// A count of bounce rays outside one to `MAX_BOUNCE_RAYS` is refused: nought traces no bounce,
-        /// and past the top there is no landing's list to run over. The registry clamps to the range; a
-        /// harness's line holds anything.
+        /// A count of bounce rays outside one to `MAX_BOUNCE_RAYS` is refused: past the top there is no
+        /// landing's list to run over, and no bounce at all is `[RTX] indirect lighting`'s to say. The
+        /// registry clamps to the range; a harness's line holds anything.
         TEST(RtxSettingsTest, aCountOfBounceRaysOutsideItsRangeIsRefused)
         {
             constexpr int most = static_cast<int>(Rtx::Shaders::MAX_BOUNCE_RAYS);

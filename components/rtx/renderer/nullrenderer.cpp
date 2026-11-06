@@ -156,6 +156,11 @@ namespace Rtx
         mExtents = extentsFor(mExtents.mOutputWidth, mExtents.mOutputHeight, upscale);
     }
 
+    void NullRenderer::setIndirectLighting(const bool traced)
+    {
+        mProfile.mReconstruction.mSampling.mIndirect = traced;
+    }
+
     void NullRenderer::setBounceRays(const std::uint32_t rays)
     {
         assert(rays >= 1 && rays <= Shaders::MAX_BOUNCE_RAYS);
