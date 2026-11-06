@@ -22,14 +22,17 @@ runs:
         python-version: "3.11"
 
     - name: Linux packages
-      # A passing install took sixteen minutes, and one a stalled mirror held took 110.
+      # The slowest of 145 passing jobs took nine minutes, and a job run again on another runner took
+      # two. What apt held at the limit is printed, as `-qq` and `/dev/null` hide it during the install.
       if: runner.os == 'Linux'
       shell: bash
       run: |
-        sudo timeout --kill-after=1m 30m CI/install_ubuntu_deps.sh || {
+        sudo timeout --kill-after=1m 15m CI/install_ubuntu_deps.sh || {
           status=$?
           if [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
-            echo "::error::the Linux packages took past 30 minutes, a stalled mirror: run the job again"
+            echo "::error::the Linux packages took past 15 minutes: run the job again"
+            sudo ls -l apt-cache/partial /var/cache/apt/archives/partial /var/lib/apt/lists/partial || true
+            sudo tail -n 20 /var/log/dpkg.log /var/log/apt/term.log || true
           fi
           exit "$status"
         }
