@@ -197,10 +197,17 @@ is not here is held to the rules above.
     put the source's own state set on the copy: on Windows, whose OpenSceneGraph counts a block-compressed
     image with no chain at four bytes a pixel, the image's copy read past its buffer and ended the game as
     it loaded the example suite's player body. The rig is copied with its state set shared;
-  - `Scene::mLowestPoint` was lowered by every interior and started over only in `Scene::clear`, so the
-    void reset in `Scene::playerMoved` measured a cell against every interior visited before it, and a
-    visit to a deep one left the player under a shallower one's floor. An interior change now starts it
-    over (`void reset in an interior reads that interior alone`).
+  - the void reset in `Scene::playerMoved` measured against a point every interior lowered and only
+    `Scene::clear` started over, so a visit to a deep interior left the player under a shallower one's
+    floor; and no collision object moved, rotated, scaled or removed after it was added changed that
+    point, so a lowered platform reset a player standing on it. `MWWorld::LowestPoints` holds the point
+    of each object in the active interior, which `World::collisionObjectChanged` keeps, and
+    `PhysicsSystem::updateScale` scales an object at once, since a shape holds its own scale and the
+    bounds are read next (`void reset in an interior reads that interior alone`, `void reset follows a
+    collision object after it was added`);
+  - `Scene::addPostponedPhysicsObjects` gave a script's placed object its physics and not its place in the
+    navigation mesh, so actors planned their paths through it until its cell loaded again. It now takes the
+    one route every other collision object takes (`addObject`), which the suite `test_script_placed` holds.
 - The interface's fonts rasterized again while the game runs (`docs/rtx/architecture.md`, "A live
   scale and font size"): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in
   place (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks

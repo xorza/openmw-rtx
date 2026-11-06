@@ -181,6 +181,10 @@ namespace MWWorld
 
         void updateNavigator();
 
+        // After a collision object's transform or shape changed.
+        void collisionObjectChanged(
+            const MWPhysics::Object& object, const DetourNavigator::UpdateGuard* navigatorUpdateGuard = nullptr);
+
         void updateNavigatorObject(
             const MWPhysics::Object& object, const DetourNavigator::UpdateGuard* navigatorUpdateGuard = nullptr);
 

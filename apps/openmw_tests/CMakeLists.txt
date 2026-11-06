@@ -14,6 +14,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testlocalscripts.cpp
     mwworld/testweather.cpp
     mwworld/testpositioncellgrid.cpp
+    mwworld/testlowestpoints.cpp
 
     mwdialogue/testkeywordsearch.cpp
 

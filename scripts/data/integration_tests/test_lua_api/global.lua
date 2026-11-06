@@ -113,6 +113,69 @@ testing.registerGlobalTest('void reset in an interior reads that interior alone'
     coroutine.yield()
 end)
 
+-- The player is put back at the museum door's destination once 90 units below the lowest collision
+-- object. HubTemple_Pillar01 reaches about 37 units under its origin standing, and about 47 lying down.
+testing.registerGlobalTest('void reset follows a collision object after it was added', function()
+    local player = world.players[1]
+    local museum = 'Museum of Wonders, Stairway'
+    local function expectPlayerAt(z, expectedX, expectedY, message)
+        player:teleport(museum, util.vector3(500, 500, z))
+        coroutine.yield()
+        testing.expectEqualWithDelta(player.position.x, expectedX, 1, message)
+        testing.expectEqualWithDelta(player.position.y, expectedY, 1, message)
+    end
+    local function expectReset(z, message)
+        expectPlayerAt(z, 0, -300, message)
+    end
+    local function expectNoReset(z, message)
+        expectPlayerAt(z, 500, 500, message)
+    end
+
+    expectReset(-1000, 'the floor alone')
+
+    local pillar = world.createObject('HubTemple_Pillar01')
+    local function away(z)
+        return util.vector3(10000, 10000, z)
+    end
+    pillar:teleport(museum, away(2000))
+    coroutine.yield()
+    expectReset(-1000, 'a pillar above the floor')
+
+    pillar:teleport(museum, away(-50000))
+    coroutine.yield()
+    expectNoReset(-49000, 'a pillar lowered')
+
+    pillar:teleport(museum, away(2000))
+    coroutine.yield()
+    expectReset(-1000, 'a pillar raised')
+
+    -- Scaled by 100 from its origin at z 0, it reaches z -3700 standing, and z -4700 lying down.
+    pillar:teleport(museum, away(0))
+    pillar:setScale(100)
+    coroutine.yield()
+    expectNoReset(-1000, 'a pillar scaled up')
+    expectReset(-4300, 'a pillar scaled up, below it')
+
+    pillar:teleport(museum, away(0), { rotation = util.transform.rotateX(math.rad(90)) })
+    coroutine.yield()
+    expectNoReset(-4300, 'a pillar laid down')
+
+    pillar:teleport(museum, away(0), { rotation = util.transform.identity })
+    pillar:setScale(1)
+    coroutine.yield()
+    expectReset(-1000, 'a pillar scaled down')
+
+    pillar:teleport(museum, away(-50000))
+    coroutine.yield()
+    expectNoReset(-49000, 'a pillar lowered again')
+    pillar:remove()
+    coroutine.yield()
+    expectReset(-1000, 'a pillar removed')
+
+    player:teleport('', util.vector3(4096, 4096, 1745))
+    coroutine.yield()
+end)
+
 testing.registerGlobalTest('getGMST', function()
     testing.expectEqual(core.getGMST('non-existed gmst'), nil)
     testing.expectEqual(core.getGMST('Water_RippleFrameCount'), 4)

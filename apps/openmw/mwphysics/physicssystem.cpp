@@ -513,7 +513,8 @@ namespace MWPhysics
         {
             float scale = ptr.getCellRef().getScale();
             foundObject->second->setScale(scale);
-            mTaskScheduler->updateSingleAabb(foundObject->second);
+            // At once: a shape holds its own scale, and the caller reads the object's bounds next.
+            mTaskScheduler->updateSingleAabb(foundObject->second, true);
         }
         else if (auto foundActor = mActors.find(ptr.mRef); foundActor != mActors.end())
         {
