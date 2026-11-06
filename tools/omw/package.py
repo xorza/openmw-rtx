@@ -58,7 +58,7 @@ def osg_plugin_folder(build: Build) -> Path:
 # What the harness and the tests are and write under the build, which no install may carry: the
 # harness's folder (`RTX_HARNESS_DIR`) and the test output (`RTX_TEST_OUTPUT_DIR`), their files and
 # folders by name wherever they land, and the two programs that never install. The one list: the
-# packages check their install against it, and CI the macOS bundle.
+# packages check their install against it.
 HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches.cfg", "shaders-source",
                  "shaders-census", "shaders-census-source", "openmw-rtxtool", "rtx-gpu-tests")
 

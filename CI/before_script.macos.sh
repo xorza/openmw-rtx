@@ -8,8 +8,6 @@ DEPENDENCIES_ROOT_PATH="/tmp/openmw-deps"
 
 source ./CI/macos/deps_versions.sh
 
-export PATH="$VULKAN_SDK/bin:$PATH"
-
 while getopts VCkEd: ARG
 do
     case $ARG in
@@ -63,10 +61,7 @@ declare -a CMAKE_CONF_OPTS=(
 -D CMAKE_C_COMPILER="clang"
 -D CMAKE_CXX_COMPILER="clang++"
 -DOPENMW_USE_SYSTEM_YAML_CPP=OFF
--D CMAKE_OSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET"
-# CMake's `RelWithDebInfo`, but for line tables: `CMakePresets.json` says why.
--D CMAKE_C_FLAGS_RELWITHDEBINFO="-O2 -g1 -DNDEBUG"
--D CMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -g1 -DNDEBUG"
+-D CMAKE_OSX_DEPLOYMENT_TARGET="14.8"
 )
 
 declare -a BUILD_OPTS=(
@@ -81,7 +76,15 @@ declare -a BUILD_OPTS=(
 -G"Unix Makefiles"
 )
 
-VCPKG_TARGET_TRIPLET="arm64-osx-dynamic"
+if [[ "${MACOS_AMD64}" ]]; then
+    VCPKG_TARGET_TRIPLET="x64-osx-dynamic"
+    CMAKE_CONF_OPTS+=(
+        -D CMAKE_OSX_ARCHITECTURES="x86_64"
+    )
+else
+    VCPKG_TARGET_TRIPLET="arm64-osx-dynamic"
+fi
+
 DEPENDENCIES_INSTALLED_PATH="$DEPENDENCIES_ROOT_PATH/installed/$VCPKG_TARGET_TRIPLET"
 QT_PATH=/tmp/Qt/$QT_VER/macos
 
@@ -90,8 +93,6 @@ CMAKE_CONF_OPTS+=(
     -DVCPKG_HOST_TRIPLET="$VCPKG_TARGET_TRIPLET"
     -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET"
     -DCMAKE_TOOLCHAIN_FILE="$DEPENDENCIES_ROOT_PATH/scripts/buildsystems/vcpkg.cmake"
-    # By name: Homebrew's whole prefix would compete with the vcpkg set.
-    -D Vulkan_INCLUDE_DIR="$VULKAN_SDK/include"
 )
 
 if [[ "${CMAKE_BUILD_TYPE}" ]]; then

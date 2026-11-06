@@ -8,19 +8,17 @@ brew tap --repair
 brew update --quiet
 
 brew install curl p7zip
-# The Vulkan backend compiles here though no Mac traces rays. No loader is linked: volk loads it.
-read -r SDK_URL SDK_SHA256 SDK_VERSION < <(python3 -c 'import sys; sys.path.insert(0, "tools"); from omw import pins
-print(pins.VULKAN_SDK_MACOS.url, pins.VULKAN_SDK_MACOS.sha256, pins.VULKAN_SDK_WINDOWS_VERSION)')
-curl -fsSL "$SDK_URL" -o "$DEPS_DIR/vulkansdk.zip"
-echo "$SDK_SHA256  $DEPS_DIR/vulkansdk.zip" | shasum -a 256 -c -
-unzip -q "$DEPS_DIR/vulkansdk.zip" -d "$DEPS_DIR/vulkansdk-installer"
-"$DEPS_DIR/vulkansdk-installer/vulkansdk-macOS-$SDK_VERSION.app/Contents/MacOS/vulkansdk-macOS-$SDK_VERSION" \
-    --root "${VULKAN_SDK%/macOS}" --accept-licenses --default-answer --confirm-command install
+
+if [[ "${MACOS_AMD64}" ]]; then
+    VCPKG_FILE="vcpkg-x64-osx-dynamic"
+else
+    VCPKG_FILE="vcpkg-arm64-osx-dynamic"
+fi
 
 pip install aqtinstall
 aqt install-qt -O /tmp/Qt mac desktop $QT_VER && rm aqtinstall.log
 
-curl "https://gitlab.com/OpenMW/openmw-deps/-/raw/main/macos/vcpkg-arm64-osx-dynamic-${VCPKG_TAG}-manifest.txt" -o $DEPS_DIR/openmw-manifest.txt
+curl "https://gitlab.com/OpenMW/openmw-deps/-/raw/main/macos/${VCPKG_FILE}-${VCPKG_TAG}-manifest.txt" -o $DEPS_DIR/openmw-manifest.txt
 
 { read -r URL && read -r HASH FILE; } < $DEPS_DIR/openmw-manifest.txt
 

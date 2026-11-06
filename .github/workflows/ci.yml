@@ -1,6 +1,7 @@
 # The fork's CI, through the `omw` driver the desk uses; a release runs it again on its tag
-# (`rtx-release.yml`). macOS is compiled only: no device there traces rays, and `hdiutil` fails on
-# the runner. No hosted runner has a GPU, so `rtx-gpu-tests` and the gate stay on a box with a card.
+# (`rtx-release.yml`). No macOS leg: no device there traces rays, no release ships for it, and its
+# runners went unassigned often enough to hold a release. No hosted runner has a GPU, so
+# `rtx-gpu-tests` and the gate stay on a box with a card.
 #
 # Linux stays on Ubuntu 24.04, the AppImage's base: an AppImage runs on no system older than its
 # own.
@@ -181,48 +182,3 @@ jobs:
           name: logs-${{ matrix.name }}-${{ github.sha }}
           build: build-${{ matrix.flavour }}
           more: build-${{ matrix.flavour }}/integration_tests_output/**/*.cfg
-
-  macos:
-    name: macos-clang
-    runs-on: macos-26
-    permissions:
-      contents: read
-    timeout-minutes: 150
-    env:
-      CMAKE_BUILD_TYPE: RelWithDebInfo
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Dependencies
-        run: CI/before_install.macos.sh
-
-      # Its own, as macOS takes nothing of `openmw-deps`; saved on master alone, as there.
-      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
-        if: env.CI_CACHE == 'true'
-        with:
-          key: macos-clang
-          max-size: 1000M
-          save: ${{ github.ref == 'refs/heads/master' }}
-
-      - name: Configure
-        run: CI/before_script.macos.sh -C
-
-      - name: Build
-        run: CI/macos/build.sh
-
-      - name: The bundle carries none of the harness
-        # The harness is built beside the bundle, never into it. The shaders and the harness are
-        # found first, so a build that moved them fails here rather than passing a search of
-        # nothing.
-        run: |
-          bundle=build/OpenMW.app
-          test -d "$bundle/Contents/Resources/resources/rtx/shaders"
-          test -x build/openmw-rtxtool
-          build/openmw-rtxtool --help > /dev/null
-          found=$(PYTHONPATH=tools python3 -c 'import sys; from pathlib import Path; from omw.package import harness_files; print(" ".join(harness_files(Path(sys.argv[1]))))' "$bundle")
-          if [ -n "$found" ]; then
-            echo "::error::the bundle carries the harness's files: $found"
-            exit 1
-          fi

@@ -84,13 +84,6 @@ VULKAN_LOADER_WINDOWS = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/windows/VulkanRT-X64-{VULKAN_SDK_WINDOWS_VERSION}-Components.zip",
     "a14672efed15aafc7f5a16572d35cd3a3416eadf670aeee3cdf50ee32d5fbf83",
 )
-# The macOS leg's, at the Windows SDK's version, which LunarG publishes for both: CI compiles the
-# backend there and traces nothing, so it takes the SDK for glslc, the SPIR-V tools and the headers
-# (`CI/before_install.macos.sh`).
-VULKAN_SDK_MACOS = Pin(
-    f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/mac/vulkansdk-macos-{VULKAN_SDK_WINDOWS_VERSION}.zip",
-    "539433589c83522e6f31b1c7b418a4167e21597a4a361ab119e1dc0760cf3865",
-)
 # The CMake the release-base container builds with (`CI/release-base.Dockerfile`): the tree's floor,
 # 3.31, which Ubuntu 24.04's own 3.28 is under. CI's runner image carries a newer CMake of its own.
 CMAKE_LINUX = Pin(

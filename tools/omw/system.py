@@ -49,8 +49,7 @@ class Switches(argparse.ArgumentParser):
 def refuse_unsupported(platform: str = sys.platform) -> None:
     """Refuses a system the driver does not build on, before it downloads or configures anything."""
     if platform not in SYSTEMS:
-        raise Refusal(f"the driver builds on Linux and Windows, and this system is {platform}; "
-                      "on macOS, CI/before_script.macos.sh is the route")
+        raise Refusal(f"the driver builds on Linux and Windows, and this system is {platform}")
 
 
 def require(tool: str, why: str) -> str:
