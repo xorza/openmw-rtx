@@ -362,12 +362,12 @@ namespace Rtx
             EXPECT_EQ(room.mLight.mSun.mIrradiance, osg::Vec3f(0.0f, 0.0f, 0.0f));
             EXPECT_EQ(room.mLight.mSunAloft.mIrradiance, osg::Vec3f(0.0f, 0.0f, 0.0f)) << "and no deck over it";
 
-            EXPECT_NEAR(room.mLight.mAmbient.x(), 0.0015808f, 1e-6f);
-            EXPECT_NEAR(room.mLight.mAmbient.y(), 0.0018540f, 1e-6f);
-            EXPECT_NEAR(room.mLight.mAmbient.z(), 0.0018540f, 1e-6f);
-            EXPECT_NEAR(room.mLight.mSurfaceAmbient.x(), 0.00033547f, 1e-7f);
-            EXPECT_NEAR(room.mLight.mSurfaceAmbient.y(), 0.00040378f, 1e-7f);
-            EXPECT_NEAR(room.mLight.mSurfaceAmbient.z(), 0.00040378f, 1e-7f) << "blue shares the green byte";
+            EXPECT_NEAR(room.mLight.mAmbient.x(), 0.0011305f, 1e-6f);
+            EXPECT_NEAR(room.mLight.mAmbient.y(), 0.0013217f, 1e-6f);
+            EXPECT_NEAR(room.mLight.mAmbient.z(), 0.0013217f, 1e-6f);
+            EXPECT_NEAR(room.mLight.mSurfaceAmbient.x(), 0.00023483f, 1e-7f);
+            EXPECT_NEAR(room.mLight.mSurfaceAmbient.y(), 0.00028265f, 1e-7f);
+            EXPECT_NEAR(room.mLight.mSurfaceAmbient.z(), 0.00028265f, 1e-7f) << "blue shares the green byte";
             EXPECT_NEAR(room.mLight.mWaterAmbient.x(), 0.0033547f, 1e-6f);
             EXPECT_NEAR(room.mLight.mWaterAmbient.y(), 0.0040378f, 1e-6f);
             EXPECT_NEAR(room.mLight.mWaterAmbient.z(), 0.0040378f, 1e-6f);
@@ -388,9 +388,9 @@ namespace Rtx
             // sunlight written black keeps the record's ambient exactly, so what the row above adds
             // came from the `AMBI` and not from a floor put under every interior.
             const Daylight unlit = makeRoomLight(makeRoom(0x000F0F0F, 0x00000000, 0x0015150F));
-            EXPECT_EQ(unlit.mLight.mAmbient, decodeColour(0x000F0F0Fu) * 0.25f);
+            EXPECT_EQ(unlit.mLight.mAmbient, decodeColour(0x000F0F0Fu) * 0.18f);
             EXPECT_LT(unlit.mLight.mAmbient.x(), room.mLight.mAmbient.x()) << "and at a landing";
-            EXPECT_EQ(unlit.mLight.mSurfaceAmbient, decodeColour(0x000F0F0Fu) * 0.05f);
+            EXPECT_EQ(unlit.mLight.mSurfaceAmbient, decodeColour(0x000F0F0Fu) * 0.035f);
             EXPECT_LT(unlit.mLight.mSurfaceAmbient.x(), room.mLight.mSurfaceAmbient.x())
                 << "and the sunlight is worth something";
 

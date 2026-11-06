@@ -38,21 +38,21 @@ namespace Rtx
         /// How much of a room's recorded ambient a traced bounce's landing stands in for the bounces
         /// past it with. Set by eye: at one, a room with few lamps is lit by this alone and shows no
         /// shape, and at nought a corridor measured with no lamp in reach stood 60% black.
-        constexpr float sRoomFillBounced = 0.25f;
+        constexpr float sRoomFillBounced = 0.18f;
 
         /// How much of a room's recorded sunlight a traced bounce's landing takes beside its ambient.
         /// There for the rooms whose record says their light in its sunlight, as `Akulakhan's Chamber`
         /// does, with an ambient a third of a usual room's: the landing's ambient alone left it 66% black.
         /// Small, since whole it was the flat light of a room with few lamps; at this share a room whose
         /// sunlight is small hardly moves (`docs/rtx/research/2026-11-05-room-ambient.md`).
-        constexpr float sRoomSpreadBounced = 0.2f;
+        constexpr float sRoomSpreadBounced = 0.14f;
 
         /// How much of a room's recorded ambient and sunlight stands on the surface itself where no
         /// bounce is traced. Reached with no landing's albedo in front of it, so far less than
-        /// `sRoomFillBounced`. Fit to one bounce's picture over eight rooms under vanilla, a mod list and
-        /// PBR replacers, at a fixed exposure: 0.05 leaves their mean off by nothing, and each within a
-        /// third of a stop but `Akulakhan's Chamber`, which the glow its bounces find lights.
-        constexpr float sRoomAmbientUnbounced = 0.05f;
+        /// `sRoomFillBounced`, and moved with it, so the two pictures stay matched. Fit to one bounce's
+        /// picture over eight rooms under vanilla, a mod list and PBR replacers, at a fixed exposure, with
+        /// each within a third of a stop but `Akulakhan's Chamber`, which the glow its bounces find lights.
+        constexpr float sRoomAmbientUnbounced = 0.035f;
 
         /// How much of a room's recorded ambient and sunlight lights the water in front of the eye. Seen
         /// directly, with no albedo in front of it. Set by eye: at the landing's share a flooded room with

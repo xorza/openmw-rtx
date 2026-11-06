@@ -123,7 +123,7 @@ namespace Rtx::Shaders
     /// than the night outside it. Held here, an interior shows its lamps' own light at one exposure,
     /// and a dim room is dimmer than a bright one by all of the difference. What it costs: the eye
     /// adapts no further inside, so a dark corridor off a lit room stays dark.
-    const float EXPOSURE_MAX = 24.75f;
+    const float EXPOSURE_MAX = 20.8f;
 
     /// Where the eye starts once it has no past: a bright day's exposure, which the eye then
     /// opens from toward what the frame measures.

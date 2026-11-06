@@ -411,13 +411,14 @@ at the top, over all of them.
   the images keep their count; a bounce traced after such a frame starts the accumulator over, with no mean of
   the fill to read (`TemporalTurns::Step::accumulatorFresh`). Refused: an image of its own for the count, which
   a frame with a bounce would pay for.
-- **A room's record is not its light where a bounce is traced**: a landing takes a quarter of the
-  ambient and a fifth of the sunlight, a surface with no bounce a twentieth of both
-  (`research/2026-11-05-room-ambient.md`). At the whole record a room with few lamps showed no shape, and
-  at none a corridor stood 60% black. The sunlight's share is for the rooms whose record says their light there,
+- **A room's record is not its light where a bounce is traced**: a landing takes 0.18 of the ambient and
+  0.14 of the sunlight, a surface with no bounce 0.035 of both, by the user's choice, with the exposure's
+  ceiling at 20.8, where a quarter, a fifth, a twentieth and 24.75 read too bright and flat
+  (`research/2026-11-05-room-ambient.md`, "Dimmer rooms"). At the whole record a room with few lamps showed no
+  shape, and at none a corridor stood 60% black. The sunlight's share is for the rooms whose record says their light there,
   as `Akulakhan's Chamber` does, and a room whose sunlight is small hardly moves. Refused: one factor for every
-  room's brightness at no bounce, which no factor reaches (0.02 to 0.31 a room), so 0.05 leaves the mean of
-  twenty-four rooms under three kinds of content off by nothing.
+  room's brightness at no bounce, which no factor reaches (0.02 to 0.31 a room), so one matching the rooms' mean
+  stands.
 - **A room's water takes half the record, apart from a wall's share** (`Skylight::mWaterAmbient`), by the user's
   choice: the eye sees scatter directly, with no albedo in front of it. Refused: the landing's share, under which a
   flooded room with no lamp stood almost black, and the whole record, under which water outshone the walls.

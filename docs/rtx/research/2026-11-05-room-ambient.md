@@ -261,3 +261,26 @@ noise over `noise --cut=4` and still. No level copied the accumulator's blend ov
 
 Three of four clear nights at hour 23 came out identical in every pixel, and the fourth,
 `dagoth-ur-caldera`, within 0.00 of a stop.
+
+## Dimmer rooms
+
+Measured 2026-11-06, on the user's report that rooms read too bright and flat. Vanilla, `shot --upscale=off` at
+1920x1080. The seven rooms below stood at the ceiling, each picture matching `--exposure=24.75`, so
+`EXPOSURE_LIT_STOPS` moves none of them. `arkngthand`, whose picture is mostly bright fog, meters far under the
+ceiling, and neither the ambient nor the ceiling moved it. The median of the display luma, and the share of black,
+at or under 16.
+
+| place | no ambient, 24.75 | 0.25 and 0.2, 24.75 | 0.125 and 0.1, 24.75 | 0.25 and 0.2, 17.5 | 0.18 and 0.14, 20.8 |
+|---|---|---|---|---|---|
+| `seyda-neen-customs` | 47.9, 8.4% | 48.7, 7.6% | 48.3, 8.0% | 40.7, 13.1% | 44.3, 10.4% |
+| `addamasartus` | 30.7, 26.4% | 31.0, 25.5% | 30.9, 25.9% | 25.2, 34.4% | 28.0, 30.2% |
+| `andrano-tomb` | 25.8, 36.8% | 27.0, 33.0% | 26.5, 34.9% | 21.9, 40.7% | 24.0, 37.9% |
+| `ahemmusa-yurt` | 28.7, 27.7% | 32.1, 21.5% | 30.5, 24.5% | 26.2, 29.7% | 28.2, 27.1% |
+| `balmora-mages-guild` | 14.3, 58.0% | 15.7, 51.6% | 15.1, 54.3% | 12.0, 64.3% | 13.5, 59.9% |
+| `vivec-canalworks` | 4.4, 82.4% | 17.7, 39.1% | 11.9, 71.6% | 13.7, 63.4% | 12.7, 67.7% |
+| `akulakhan-chamber` | 3.1, 76.8% | 10.8, 67.4% | 7.6, 74.2% | 8.4, 73.3% | 7.8, 74.0% |
+
+A room lit by its lamps barely reads its ambient, as `seyda-neen-customs` shows, so only the exposure dims it; the
+ambient is what lifts the shadows of a dim one, as `vivec-canalworks` shows. With no bounce traced, 0.035 at 20.8
+meets 0.18 and 0.14 at 20.8 in the mean: `vivec-canalworks` 0.0119 and 0.0116, `balmora-mages-guild` 0.0192 and
+0.0182, `seyda-neen-customs` 0.0605 and 0.0645, `addamasartus` 0.0408 and 0.0420.
